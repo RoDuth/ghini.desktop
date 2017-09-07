@@ -2,20 +2,20 @@
 #
 # Copyright 2015 Mario Frasca <mario@anche.no>.
 #
-# This file is part of bauble.classic.
+# This file is part of ghini.desktop.
 #
-# bauble.classic is free software: you can redistribute it and/or modify
+# ghini.desktop is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
 #
-# bauble.classic is distributed in the hope that it will be useful,
+# ghini.desktop is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 # GNU General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
-# along with bauble.classic. If not, see <http://www.gnu.org/licenses/>.
+# along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
 #
 
 import gtk
@@ -79,7 +79,7 @@ class PicturesView(gtk.HBox):
                 logger.debug('object %s has picture %s' % (o, p))
                 expander = gtk.HBox()
                 expander.add(p)
-                self.box.pack_start(expander, expand=False, fill=False)
+                self.box.pack_end(expander, expand=False, fill=False)
                 self.box.reorder_child(expander, 0)
                 expander.show_all()
                 p.show()

@@ -1,22 +1,22 @@
 # -*- coding: utf-8 -*-
 #
 # Copyright 2008-2010 Brett Adams
-# Copyright 2012-2015 Mario Frasca <mario@anche.no>.
+# Copyright 2012-2017 Mario Frasca <mario@anche.no>.
 #
-# This file is part of bauble.classic.
+# This file is part of ghini.desktop.
 #
-# bauble.classic is free software: you can redistribute it and/or modify
+# ghini.desktop is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
 #
-# bauble.classic is distributed in the hope that it will be useful,
+# ghini.desktop is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 # GNU General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
-# along with bauble.classic. If not, see <http://www.gnu.org/licenses/>.
+# along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
 
 #
 # __init__.py
@@ -60,19 +60,9 @@ config_list_pref = 'report.configs'
 default_config_pref = 'report.xsl'
 formatter_settings_expanded_pref = 'report.settings.expanded'
 
-# _paths = {}
 
-# def add_path(parent, descendant, query):
-#     """
-#     Register a query that will give all of the descendants under parent
-
-#     e.g. add_path(Family, Species) would register a query to retrieve
-#     all of the Species under a family
-#     """
-#     if parent not in _paths:
-#         _paths[parent] = {descendent: query}
-#     else descendant not in _paths[parent]:
-#         _paths[parent][descendent] = query
+# to be populated by the dialog box, with fields mentioned in the template
+options = {}
 
 
 def _get_pertinent_objects(cls, get_query_func, objs, session):
@@ -138,9 +128,6 @@ def get_plants_pertinent_to(objs, session=None):
 def get_accession_query(obj, session):
     """
     """
-    # as of sqlalchemy 0.5.0 we have to have the order_by(None) here
-    # so that if we want to union() the statements together later it
-    # will work properly
     q = session.query(Accession).order_by(None)
     if isinstance(obj, Family):
         return q.join('species', 'genus', 'family').\
@@ -180,9 +167,6 @@ def get_accessions_pertinent_to(objs, session=None):
 def get_species_query(obj, session):
     """
     """
-    # as of sqlalchemy 0.5.0 we have to have the order_by(None) here
-    # so that if we want to union() the statements together later it
-    # will work properly
     q = session.query(Species).order_by(None)
     if isinstance(obj, Family):
         return q.join('genus', 'family').\
@@ -218,6 +202,33 @@ def get_species_pertinent_to(objs, session=None):
     """
     return sorted(
         _get_pertinent_objects(Species, get_species_query, objs, session),
+        key=str)
+
+
+def get_location_query(obj, session):
+    """
+    """
+    q = session.query(Location).order_by(None)
+    if isinstance(obj, Location):
+        return q.filter_by(id=obj.id)
+    elif isinstance(obj, Plant):
+        return q.join('plants').filter_by(id=obj.id)
+    elif isinstance(obj, Accession):
+        return q.join('plants', 'accession').filter_by(id=obj.id)
+    else:
+        raise BaubleError(_("Can't get Location from a %s") %
+                          type(obj).__name__)
+
+
+def get_locations_pertinent_to(objs, session=None):
+    """
+    :param objs: an instance of a mapped object
+    :param session: the session to use for the queries
+
+    Return all the species found in objs.
+    """
+    return sorted(
+        _get_pertinent_objects(Location, get_location_query, objs, session),
         key=str)
 
 
@@ -646,7 +657,7 @@ class ReportToolPlugin(pluginmgr.Plugin):
 
 try:
     import lxml.etree as etree
-    import lxml._elementpath  # put this here sp py2exe picks it up
+    import lxml._elementpath  # put this here so py2exe picks it up
 except ImportError:
     utils.message_dialog('The <i>lxml</i> package is required for the '
                          'Report plugin')

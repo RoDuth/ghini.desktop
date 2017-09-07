@@ -3,20 +3,20 @@
 # Copyright 2008-2010 Brett Adams
 # Copyright 2012-2015 Mario Frasca <mario@anche.no>.
 #
-# This file is part of bauble.classic.
+# This file is part of ghini.desktop.
 #
-# bauble.classic is free software: you can redistribute it and/or modify
+# ghini.desktop is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
 #
-# bauble.classic is distributed in the hope that it will be useful,
+# ghini.desktop is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 # GNU General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
-# along with bauble.classic. If not, see <http://www.gnu.org/licenses/>.
+# along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
 #
 # Species table definition
 #
@@ -163,7 +163,7 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
                            '<i>%(Species)s</i> %(Authorship)s (%(Family)s)'
                            ) % found_s
                     msg = _('%s is the closest match for your data.\n'
-                            'Do you want to accept it?' % cit)
+                            'Do you want to accept it?') % cit
                     b1 = box = self.view.add_message_box(
                         utils.MESSAGE_BOX_YESNO)
                     box.message = msg
@@ -200,7 +200,7 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
                                '<i>%(Species)s</i> %(Authorship)s (%(Family)s)'
                               ) % accepted_s
                         msg = _('%s is the accepted taxon for your data.\n'
-                                'Do you want to add it?' % cit)
+                                'Do you want to add it?') % cit
                         b2 = box = self.view.add_message_box(
                             utils.MESSAGE_BOX_YESNO)
                         box.message = msg
@@ -208,7 +208,7 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
                         def on_response_accepted(button, response):
                             self.view.remove_box(b2)
                             if response:
-                                hybrid = accepted['Species hybrid marker']
+                                hybrid = accepted['Species hybrid marker'] == Species.hybrid_char
                                 self.model.accepted = Species.retrieve_or_create(
                                     self.session, {
                                         'object': 'taxon',
@@ -218,7 +218,7 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
                                         'ht-epithet': accepted['Genus'],
                                         'epithet': accepted['Species'],
                                         'author': accepted['Authorship'],
-                                        'hybrid_marker': hybrid}
+                                        'hybrid': hybrid}
                                     )
                                 self.refresh_view()
                                 self.refresh_fullname_label()
@@ -291,8 +291,6 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
                     self.set_model_attr('genus', syn.genus)
                     self.refresh_view()
                     self.refresh_fullname_label()
-                else:
-                    self.set_model_attr('genus', value)
             box = self.view.add_message_box(utils.MESSAGE_BOX_YESNO)
             box.message = msg
             box.on_response = on_response
@@ -321,6 +319,10 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
                 self.view.widgets.sp_ok_and_add_button.set_sensitive(True)
         except Exception:
             pass
+
+    def set_visible_buttons(self, visible):
+        self.view.widgets.sp_ok_and_add_button.set_visible(visible)
+        self.view.widgets.sp_next_button.set_visible(visible)
 
     def on_sp_species_entry_changed(self, widget, *args):
         self.on_text_entry_changed(widget, *args)
@@ -860,7 +862,6 @@ class VernacularNamePresenter(editor.GenericEditorPresenter):
             v = model[treeiter][0]
             cell.set_property('text', v.name)
             # just added so change the background color to indicate it's new
-#            if not v.isinstance:
             if v.id is None:  # hasn't been committed
                 cell.set_property('foreground', 'blue')
             else:
@@ -1104,9 +1105,9 @@ class SpeciesEditorView(editor.GenericEditorView):
         'sp_awards_entry': _('The awards this species have been given'),
         'sp_cancel_button': _('Cancel your changes'),
         'sp_ok_button': _('Save your changes'),
-        'sp_ok_and_add_button': _('Save your changes changes and add an '
+        'sp_ok_and_add_button': _('Save your changes and add an '
                                   'accession to this species'),
-        'sp_next_button': _('Save your changes changes and add another '
+        'sp_next_button': _('Save your changes and add another '
                             'species ')
         }
 
@@ -1127,10 +1128,6 @@ class SpeciesEditorView(editor.GenericEditorView):
         self.widgets.notebook.set_current_page(0)
         self.restore_state()
         self.boxes = set()
-        w = self.get_window()
-        w.set_geometry_hints(
-            max_width=gtk.gdk.screen_get_default().get_width())
-        w.set_position(gtk.WIN_POS_NONE)
 
     def get_window(self):
         '''
@@ -1209,7 +1206,7 @@ class SpeciesEditorMenuItem(editor.GenericModelViewPresenterEditor):
     RESPONSE_NEXT = 22
     ok_responses = (RESPONSE_OK_AND_ADD, RESPONSE_NEXT)
 
-    def __init__(self, model=None, parent=None):
+    def __init__(self, model=None, parent=None, is_dependent_window=False):
         '''
         :param model: a species instance or None
         :param parent: the parent window or None
@@ -1224,6 +1221,7 @@ class SpeciesEditorMenuItem(editor.GenericModelViewPresenterEditor):
 
         view = SpeciesEditorView(parent=self.parent)
         self.presenter = SpeciesEditorPresenter(self.model, view)
+        self.presenter.set_visible_buttons(not is_dependent_window)
 
         ## I do not follow this: we have a MVP model, but also an extra
         ## 'Editor' thing and is it stealing functionality from either the
@@ -1339,8 +1337,8 @@ class SpeciesEditorMenuItem(editor.GenericModelViewPresenterEditor):
         return self._committed
 
 
-def edit_species(model=None, parent_view=None):
-    kkk = SpeciesEditorMenuItem(model, parent_view)
+def edit_species(model=None, parent_view=None, is_dependent_window=False):
+    kkk = SpeciesEditorMenuItem(model, parent_view, is_dependent_window)
     kkk.start()
     result = kkk._committed
     del kkk

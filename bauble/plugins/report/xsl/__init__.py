@@ -3,20 +3,20 @@
 # Copyright (c) 2005,2006,2007,2008,2009 Brett Adams <brett@belizebotanic.org>
 # Copyright (c) 2012-2015 Mario Frasca <mario@anche.no>
 #
-# This file is part of bauble.classic.
+# This file is part of ghini.desktop.
 #
-# bauble.classic is free software: you can redistribute it and/or modify
+# ghini.desktop is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
 #
-# bauble.classic is distributed in the hope that it will be useful,
+# ghini.desktop is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 # GNU General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
-# along with bauble.classic. If not, see <http://www.gnu.org/licenses/>.
+# along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
 #
 # xsl report formatter package
 #
@@ -366,7 +366,7 @@ class SettingsBoxPresenter(object):
 
 
 # TODO: could make this look more a gtk.FileChooserButton but make it
-# an hbox and adding the seperator and file icon
+# an hbox and adding the separator and file icon
 class FileChooserButton(gtk.Button):
     """
     Create our own basic FileChooserButton to work around the issue that
@@ -388,7 +388,7 @@ class FileChooserButton(gtk.Button):
                                       gtk.STOCK_CANCEL, gtk.RESPONSE_REJECT,
                                       gtk.STOCK_OK, gtk.RESPONSE_ACCEPT))
         self.dialog.set_select_multiple(False)
-        self.dialog.set_current_folder(paths.user_dir())
+        self.dialog.set_current_folder(paths.appdata_dir())
         self.dialog.connect('response', self._on_response)
         self.connect('clicked', self._on_clicked)
 
@@ -407,7 +407,7 @@ class FileChooserButton(gtk.Button):
         if not filename:
             self._filename = None
             self.dialog.set_filename('')
-            self.dialog.set_current_folder(paths.user_dir())
+            self.dialog.set_current_folder(paths.appdata_dir())
             self.props.label = self._default_label
         else:
             self._filename = filename
@@ -492,14 +492,33 @@ class XSLFormatterPlugin(FormatterPlugin):
 
     @classmethod
     def install(cls, import_defaults=True):
-        # copy default template files to user_dir
+        "create templates dir on plugin installation"
+        logger.debug("installing xsl plugin")
+        container_dir = os.path.join(paths.appdata_dir(), "templates")
+        if not os.path.exists(container_dir):
+            os.mkdir(container_dir)
+        cls.plugin_dir = os.path.join(paths.appdata_dir(), "templates", "xsl")
+        if not os.path.exists(cls.plugin_dir):
+            os.mkdir(cls.plugin_dir)
+
+    @classmethod
+    def init(cls):
+        """copy default template files to appdata_dir
+
+        we do this in the initialization instead of installation
+        because new version of plugin might provide new templates.
+
+        """
+        cls.install()  # plugins still not versioned...
+
         templates = ['basic.xsl', 'labels.xsl', 'plant_list.xsl',
                      'plant_list_ex.xsl', 'small_labels.xsl']
-        base_dir = os.path.join(paths.lib_dir(), "plugins", "report", 'xsl')
+        src_dir = os.path.join(paths.lib_dir(), "plugins", "report", 'xsl')
         for template in templates:
-            f = os.path.join(paths.user_dir(), template)
-            if not os.path.exists(f):
-                shutil.copy(os.path.join(base_dir, template), f)
+            src = os.path.join(src_dir, template)
+            dst = os.path.join(cls.plugin_dir, template)
+            if not os.path.exists(dst) and os.path.exists(src):
+                shutil.copy(src, dst)
 
     @staticmethod
     def get_settings_box():

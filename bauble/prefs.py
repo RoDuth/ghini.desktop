@@ -3,20 +3,20 @@
 # Copyright 2008-2010 Brett Adams
 # Copyright 2015 Mario Frasca <mario@anche.no>.
 #
-# This file is part of bauble.classic.
+# This file is part of ghini.desktop.
 #
-# bauble.classic is free software: you can redistribute it and/or modify
+# ghini.desktop is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
 #
-# bauble.classic is distributed in the hope that it will be useful,
+# ghini.desktop is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 # GNU General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
-# along with bauble.classic. If not, see <http://www.gnu.org/licenses/>.
+# along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
 
 import os
 import gtk
@@ -35,7 +35,7 @@ testing = False  # set this to True when testing
 
 """
 The prefs module exposes an API for getting and setting user
-preferences in the Bauble config file.
+preferences in the Ghini config file.
 
 To use the preferences import bauble.prefs and access the prefs object
 using a dictionary like interface. e.g. ::
@@ -53,7 +53,7 @@ using a dictionary like interface. e.g. ::
 # throughout bauble
 
 default_filename = 'config'
-default_prefs_file = os.path.join(paths.user_dir(), default_filename)
+default_prefs_file = os.path.join(paths.appdata_dir(), default_filename)
 """
 The default file for the preference settings file.
 """
@@ -95,14 +95,14 @@ Values: True, False
 
 units_pref = 'bauble.units'
 """
-The preferences key for the default units for Bauble.
+The preferences key for the default units for Ghini.
 
 Values: metric, imperial
 """
 
 use_sentry_client_pref = 'bauble.use_sentry_client'
 """
-During normal usage, Bauble produces a log file which contains
+During normal usage, Ghini produces a log file which contains
 invaluable information for tracking down errors. This information is
 normally saved in a file on the local workstation.
 
@@ -231,7 +231,7 @@ class _prefs(dict):
             self.config.write(f)
             f.close()
         except Exception:
-            msg = _("Bauble can't save your user preferences. \n\nPlease "
+            msg = _("Ghini can't save your user preferences. \n\nPlease "
                     "check the file permissions of your config file:\n %s") \
                 % self._filename
             if bauble.gui is not None and bauble.gui.window is not None:

@@ -3,20 +3,20 @@
 # Copyright 2008-2010 Brett Adams
 # Copyright 2012-2015 Mario Frasca <mario@anche.no>.
 #
-# This file is part of bauble.classic.
+# This file is part of ghini.desktop.
 #
-# bauble.classic is free software: you can redistribute it and/or modify
+# ghini.desktop is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
 #
-# bauble.classic is distributed in the hope that it will be useful,
+# ghini.desktop is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 # GNU General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
-# along with bauble.classic. If not, see <http://www.gnu.org/licenses/>.
+# along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
 #
 # csv import/export
 #
@@ -142,7 +142,7 @@ class Importer(object):
 
 class CSVImporter(Importer):
 
-    """imports comma separated value files into a Bauble database.
+    """imports comma separated value files into a Ghini database.
 
     It imports multiple files, each of them equally named as the bauble
     database tables. The bauble tables dependency graph defines the correct
@@ -542,20 +542,6 @@ class CSVImporter(Importer):
                                          traceback.format_exc(),
                                          type=gtk.MESSAGE_ERROR)
 
-# TODO: we don't use the progress dialog any more but we'll leave this
-# around to remind us when we support cancelling via the progress statusbar
-#
-#     def _cancel_import(self, *args):
-#         '''
-#         called by the progress dialog to cancel the current import
-#         '''
-#         msg = _('Are you sure you want to cancel importing?\n\n<i>All '
-#                 'changes so far will be rolled back.</i>')
-#         self.__pause = True
-#         if utils.yes_no_dialog(msg, parent=self.__progress_dialog):
-#             self.__cancel = True
-##         self.__pause = False
-
     def _get_filenames(self):
         def on_selection_changed(filechooser, data=None):
             """
@@ -573,11 +559,9 @@ class CSVImporter(Importer):
                                     gtk.STOCK_CANCEL, gtk.RESPONSE_REJECT))
         fc.set_select_multiple(True)
         fc.connect("selection-changed", on_selection_changed)
-        r = fc.run()
-        if r != gtk.RESPONSE_ACCEPT:
-            fc.destroy()
-            return None
-        filenames = fc.get_filenames()
+        filenames = None
+        if fc.run() == gtk.RESPONSE_ACCEPT:
+            filenames = fc.get_filenames()
         fc.destroy()
         return filenames
 
@@ -613,10 +597,7 @@ class CSVExporter(object):
             logger.debug(e)
 
     def __export_task(self, path):
-#        if not os.path.exists(path):
-#            raise ValueError("CSVExporter: path does not exist.\n" + path)
         filename_template = os.path.join(path, "%s.txt")
-#        timeout = tasklet.WaitForTimeout(12)
         steps_so_far = 0
         ntables = 0
         for table in db.metadata.sorted_tables:

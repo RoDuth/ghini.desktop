@@ -1,22 +1,22 @@
 # -*- coding: utf-8 -*-
 #
 # Copyright 2008-2010 Brett Adams
-# Copyright 2015 Mario Frasca <mario@anche.no>.
+# Copyright 2015,2017 Mario Frasca <mario@anche.no>.
 #
-# This file is part of bauble.classic.
+# This file is part of ghini.desktop.
 #
-# bauble.classic is free software: you can redistribute it and/or modify
+# ghini.desktop is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
 #
-# bauble.classic is distributed in the hope that it will be useful,
+# ghini.desktop is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 # GNU General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
-# along with bauble.classic. If not, see <http://www.gnu.org/licenses/>.
+# along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
 
 import os
 import datetime
@@ -34,17 +34,17 @@ from sqlalchemy.orm import object_session
 
 #import bauble
 import bauble.db as db
-from bauble.test import BaubleTestCase, update_gui, check_dupids
+from bauble.test import BaubleTestCase, update_gui, check_dupids, mockfunc
 import bauble.utils as utils
 from bauble.plugins.garden.accession import Accession, AccessionEditor, \
     AccessionNote, Voucher, SourcePresenter, Verification, dms_to_decimal, \
     latitude_to_dms, longitude_to_dms
-from bauble.plugins.garden.source import Source, Collection, SourceDetail, \
-    SourceDetailEditor, CollectionPresenter
+from bauble.plugins.garden.source import Source, Collection, Contact, \
+    create_contact, CollectionPresenter, ContactPresenter
 from bauble.plugins.garden.plant import Plant, PlantNote, \
     PlantChange, PlantEditor, is_code_unique, branch_callback
 from bauble.plugins.garden.location import Location, LocationEditor
-from bauble.plugins.garden.propagation import Propagation, PropRooted, \
+from bauble.plugins.garden.propagation import Propagation, PropCuttingRooted, \
     PropCutting, PropSeed, PropagationEditor
 from bauble.plugins.plants.geography import Geography
 from bauble.plugins.plants.family import Family
@@ -53,6 +53,8 @@ from bauble.plugins.plants.species_model import Species
 import bauble.plugins.plants.test as plants_test
 from bauble.plugins.garden.institution import Institution, InstitutionPresenter
 from bauble import prefs
+
+from functools import partial
 
 from bauble.meta import BaubleMeta
 
@@ -109,17 +111,17 @@ default_cutting_values = \
 default_seed_values = {
     'pretreatment': u'Soaked in peroxide solution',
     'nseeds': 24,
-    'date_sown': datetime.date.today(),  # utils.today_str(),
+    'date_sown': datetime.date(2017, 1, 1),
     'container': u"tray",
     'media': u'standard seed compost',
     'location': u'mist tent',
     'moved_from': u'mist tent',
     'moved_to': u'hardening table',
     'media': u'standard mix',
-    'germ_date': datetime.date.today(),  # utils.today_str(),
+    'germ_date': datetime.date(2017, 2, 1),
     'germ_pct': 99,
     'nseedlings': 23,
-    'date_planted': datetime.date.today(),
+    'date_planted': datetime.date(2017,2,8),
     }
 
 test_data_table_control = ((Accession, accession_test_data),
@@ -127,7 +129,7 @@ test_data_table_control = ((Accession, accession_test_data),
                            (Plant, plant_test_data),
                            (Geography, geography_test_data),
                            (Collection, collection_test_data))
-
+testing_today = datetime.date(2017, 1, 1)
 
 def setUp_data():
     """
@@ -209,55 +211,6 @@ class GardenTestCase(BaubleTestCase):
         return obj
 
 
-''' - there is no "Contact" class, is there?
-
-class ContactTests(GardenTestCase):
-
-    def __init__(self, *args):
-        super(ContactTests, self).__init__(*args)
-
-    def test_delete(self):
-        acc = self.create(Accession, species=self.species, code=u'1')
-        contact = Contact(name=u'name')
-        donation = Donation()
-        donation.contact = contact
-        acc.source = donation
-        self.session.commit()
-        self.session.close()
-        # test that we can't delete a contact if it has corresponding
-        # donations
-        import bauble
-        session = db.Session()
-        contact = session.query(Contact).filter_by(name=u'name').one()
-
-        # shouldn't be allowed to delete contact if it has donations, what
-        # is happening here is that when deleting the contact the
-        # corresponding donations.contact_id's are being be set to null
-        # which isn't allowed by the scheme....is this the best we can do?
-        # or can we get some sort of error when creating a dangling
-        # reference
-
-        session.delete(contact)
-        self.assertRaises(DBAPIError, session.commit)
-
-    def itest_contact_editor(self):
-        """
-        Interactively test the ContactEditor
-        """
-        raise SkipTest('separate view from presenter, then test presenter')
-        loc = self.create(Contact, name=u'some contact')
-        editor = ContactEditor(model=loc)
-        editor.start()
-        del editor
-        assert utils.gc_objects_by_type('ContactEditor') == [], \
-            'ContactEditor not deleted'
-        assert utils.gc_objects_by_type('ContactEditorPresenter') == [], \
-            'ContactEditorPresenter not deleted'
-        assert utils.gc_objects_by_type('ContactEditorView') == [], \
-            'ContactEditorView not deleted'
-'''
-
-
 class PlantTests(GardenTestCase):
 
     def __init__(self, *args):
@@ -314,6 +267,22 @@ class PlantTests(GardenTestCase):
         assert dup.notes is not []
         assert dup.changes is not []
         self.session.commit()
+
+    def test_search_view_markup_pair(self):
+        # living plant
+        p = Plant(accession=self.accession, location=self.location, code=u'2',
+                  quantity=52)
+        self.session.add(p)
+        self.assertEquals(p.search_view_markup_pair(),
+                          (u'1.2 <span foreground="#555555" size="small" weight="light">- 52 alive in (STE) site</span>',
+                           u'<i>Echinocactus</i> <i>grusonii</i>'))
+        # dead plant
+        p = Plant(accession=self.accession, location=self.location, code=u'2',
+                  quantity=0)
+        self.session.add(p)
+        self.assertEquals(p.search_view_markup_pair(),
+                          (u'<span foreground="#9900ff">1.2</span>',
+                           u'<i>Echinocactus</i> <i>grusonii</i>'))
 
     def test_bulk_plant_editor(self):
         """
@@ -379,6 +348,32 @@ class PlantTests(GardenTestCase):
         p = Plant(accession=self.accession, location=loc, quantity=1)
         editor = PlantEditor(model=p)
         editor.start()
+
+    def test_double_change(self):
+        plant = Plant(accession=self.accession, code=u'11', location=self.location, quantity=10)
+        loc2a = Location(name=u'site2a', code=u'2a')
+        self.session.add_all([plant, loc2a])
+        self.session.flush()
+        editor = PlantEditor(model=plant, branch_mode=True)
+        loc2a = object_session(editor.branched_plant).query(Location).filter(Location.code == u'2a').one()
+        editor.branched_plant.location = loc2a
+        update_gui()
+        editor.model.quantity = 3
+        editor.compute_plant_split_changes()
+
+        self.assertEquals(editor.branched_plant.quantity, 7)
+        change = editor.branched_plant.changes[0]
+        self.assertEquals(change.plant, editor.branched_plant)
+        self.assertEquals(change.quantity, editor.model.quantity)
+        self.assertEquals(change.to_location, editor.model.location)
+        self.assertEquals(change.from_location, editor.branched_plant.location)
+
+        self.assertEquals(editor.model.quantity, 3)
+        change = editor.model.changes[0]
+        self.assertEquals(change.plant, editor.model)
+        self.assertEquals(change.quantity, editor.model.quantity)
+        self.assertEquals(change.to_location, editor.model.location)
+        self.assertEquals(change.from_location, editor.branched_plant.location)
 
     def test_branch_editor(self):
         import gtk
@@ -453,10 +448,8 @@ class PlantTests(GardenTestCase):
         new_plant = self.session.query(Plant).filter(
             Plant.code != u'1').first()
         self.session.refresh(plant)
-        assert plant.quantity == quantity - new_plant.quantity, \
-            "%s == %s - %s" % (plant.quantity, quantity, new_plant.quantity)
-        assert new_plant.changes[0].quantity == new_plant.quantity, \
-            "%s == %s" % (new_plant.changes[0].quantity, new_plant.quantity)
+        self.assertEquals(plant.quantity, quantity - new_plant.quantity)
+        self.assertEquals(new_plant.changes[0].quantity, new_plant.quantity)
 
     def test_is_code_unique(self):
         """
@@ -466,6 +459,19 @@ class PlantTests(GardenTestCase):
         self.assert_(is_code_unique(self.plant, '01'))
         self.assertFalse(is_code_unique(self.plant, '1-2'))
         self.assertFalse(is_code_unique(self.plant, '01-2'))
+
+    def test_living_plant_has_no_date_of_death(self):
+        self.assertEquals(self.plant.date_of_death, None)
+
+    def test_setting_quantity_to_zero_defines_date_of_death(self):
+        self.change = PlantChange()
+        self.session.add(self.change)
+        self.change.plant = self.plant
+        self.change.from_location = self.plant.location
+        self.change.quantity = self.plant.quantity
+        self.plant.quantity = 0
+        self.session.flush()
+        self.assertNotEquals(self.plant.date_of_death, None)
 
 
 class PropagationTests(GardenTestCase):
@@ -477,89 +483,238 @@ class PropagationTests(GardenTestCase):
         super(PropagationTests, self).setUp()
         self.accession = self.create(
             Accession, species=self.species, code=u'1')
-        # self.location = self.create(Location, name=u'name', code=u'code')
-        # self.plant = self.create(Plant, accession=self.accession,
-        #                          location=self.location, code=u'2')
+        self.plants = []
+
+    def add_plants(self, plant_codes=[]):
+        loc = self.create(Location, name=u'name', code=u'code')
+        for pc in plant_codes:
+            self.plants.append(self.create(
+                Plant,
+                accession=self.accession, location=loc, code=pc, quantity=1))
+        self.session.commit()
+
+    def add_propagations(self, propagation_types=[]):
+        for i, pt in enumerate(propagation_types):
+            prop = Propagation()
+            prop.prop_type = pt
+            prop.plant = self.plants[i]
+            if pt == u'Seed':
+                specifically = PropSeed(**default_seed_values)
+            elif pt == u'UnrootedCutting':
+                specifically = PropCutting(**default_cutting_values)
+            else:
+                specifically = type('FooBar', (object,), {})()
+            specifically.propagation = prop
         self.session.commit()
 
     def tearDown(self):
-        #self.session.delete(self.location)
-        #self.session.delete(self.plant)
-        #self.session.commit()
-        #self.session.begin()
+        self.session.query(Plant).delete()
+        self.session.query(Location).delete()
+        self.session.query(Accession).delete()
+        self.session.commit()
         super(PropagationTests, self).tearDown()
 
-    def test_accession_prop(self):
-        # 'Accession' object has no attribute 'propagations'
-        """
-        Test the Accession->AccessionPropagation->Propagation relation
-        """
-        raise SkipTest('Not Implemented')
-        loc = Location(name=u'name', code=u'code')
-        plant = Plant(accession=self.accession, location=loc, code=u'1',
-                      quantity=1)
+    def test_propagation_cutting_quantity_new_zero(self):
+        self.add_plants([u'1'])
         prop = Propagation()
-        prop.plant = plant
         prop.prop_type = u'UnrootedCutting'
-        cutting = PropCutting(**default_cutting_values)
-        cutting.propagation = prop
+        prop.plant = self.plants[0]
+        spec = PropCutting(cutting_type=u'Nodal')
+        spec.propagation = prop
         self.session.commit()
-        self.assert_(prop in self.accession.propagations)
-        self.assert_(prop.accession == self.accession)
-
-    def test_plant_prop(self):
-        """
-        Test the Plant->PlantPropagation->Propagation relation
-        """
+        self.assertEquals(prop.accessible_quantity, 0)
         prop = Propagation()
-        loc = self.create(Location, name=u'site1', code=u'1')
-        plant = self.create(Plant, accession=self.accession, location=loc,
-                            code=u'1', quantity=1)
         prop.prop_type = u'UnrootedCutting'
-        cutting = PropCutting(**default_cutting_values)
-        cutting.propagation = prop
-        plant.propagations.append(prop)
+        prop.plant = self.plants[0]
+        spec = PropCutting(cutting_type=u'Nodal', rooted_pct=0)
+        spec.propagation = prop
         self.session.commit()
-        self.assert_(prop in plant.propagations)
-        self.assert_(prop.plant == plant)
+        self.assertEquals(prop.accessible_quantity, 0)
 
-    def test_get_summary(self):
-        loc = Location(name=u'name', code=u'code')
-        plant = Plant(accession=self.accession, location=loc, code=u'1',
-                      quantity=1)
-        prop = Propagation()
-        prop.plant = plant
-        prop.prop_type = u'UnrootedCutting'
-        cutting = PropCutting(**default_cutting_values)
-        cutting.propagation = prop
-        rooted = PropRooted()
-        rooted.cutting = cutting
-        self.session.commit()
-        summary = prop.get_summary()
-        #debug(summary)
-        self.assert_(summary)
-
+    def test_propagation_seed_quantity_new_zero(self):
+        self.add_plants([u'1'])
         prop = Propagation()
         prop.prop_type = u'Seed'
-        prop.plant = plant
+        prop.plant = self.plants[0]
+        spec = PropSeed(nseeds=30, date_sown=datetime.date(2017, 1, 1))
+        spec.propagation = prop
+        self.session.commit()
+        self.assertEquals(prop.accessible_quantity, 0)
+        prop = Propagation()
+        prop.prop_type = u'Seed'
+        prop.plant = self.plants[0]
+        spec = PropSeed(nseeds=30, date_sown=datetime.date(2017, 1, 1), nseedlings=0)
+        spec.propagation = prop
+        self.session.commit()
+        self.assertEquals(prop.accessible_quantity, 0)
+
+    def test_propagation_seed_unaccessed_quantity(self):
+        self.add_plants([u'1'])
+        prop = Propagation()
+        prop.prop_type = u'Seed'
+        prop.plant = self.plants[0]
         seed = PropSeed(**default_seed_values)
         seed.propagation = prop
         self.session.commit()
         summary = prop.get_summary()
-        #debug(summary)
-        self.assert_(summary)
+        self.assertEquals(prop.accessible_quantity, 23)
+
+    def test_propagation_cutting_accessed_remaining_quantity(self):
+        self.add_plants([u'1'])
+        self.add_propagations([u'Seed'])
+        accession2 = self.create(Accession, species=self.species, code=u'2', quantity_recvd=10)
+        source2 = self.create(Source, plant_propagation=self.plants[0].propagations[0])
+        accession2.source = source2
+        self.session.commit()
+        prop = self.plants[0].propagations[0]
+        self.assertEquals(prop.accessible_quantity, 13)
+
+    def test_propagation_other_unaccessed_remaining_quantity_1(self):
+        self.add_plants([u'1'])
+        self.add_propagations([u'Other'])
+        prop = self.plants[0].propagations[0]
+        self.assertEquals(prop.accessible_quantity, 1)
+
+    def test_propagation_other_accessed_remaining_quantity_1(self):
+        self.add_plants([u'1'])
+        self.add_propagations([u'Other'])
+        accession2 = self.create(Accession, species=self.species, code=u'2', quantity_recvd=10)
+        source2 = self.create(Source, plant_propagation=self.plants[0].propagations[0])
+        accession2.source = source2
+        self.session.commit()
+        prop = self.plants[0].propagations[0]
+        self.assertEquals(prop.accessible_quantity, 1)
+
+    def test_accession_propagations_is_union_of_plant_propagations(self):
+        self.add_plants([u'1', u'2'])
+        self.add_propagations([u'UnrootedCutting', u'Seed'])
+        self.assertEquals(len(self.accession.plants), 2)
+        self.assertEquals(len(self.plants[0].propagations), 1)
+        self.assertEquals(len(self.plants[1].propagations), 1)
+        self.assertEquals(len(self.accession.propagations), 2)
+        p1, p2 = self.plants[0].propagations[0], self.plants[1].propagations[0]
+        self.assertTrue(p1 in self.accession.propagations)
+        self.assertTrue(p2 in self.accession.propagations)
+
+    def test_propagation_links_back_to_correct_plant(self):
+        self.add_plants([u'1', u'2', u'3'])
+        self.add_propagations([u'UnrootedCutting', u'Seed', u'Seed'])
+        for plant in self.plants:
+            self.assertEquals(len(plant.propagations), 1)
+            prop = plant.propagations[0]
+            self.assertEquals(prop.plant, plant)
+
+    def test_get_summary_cutting_complete(self):
+        self.add_plants([u'1'])
+        prop = Propagation()
+        prop.prop_type = u'UnrootedCutting'
+        prop.plant = self.plants[0]
+        cutting = PropCutting(**default_cutting_values)
+        cutting.propagation = prop
+        rooted = PropCuttingRooted()
+        rooted.cutting = cutting
+        self.session.commit()
+        summary = prop.get_summary()
+        self.assertEquals(summary, 'Cutting; Cutting type: Nodal; Length: 2mm; Tip: Intact; Leaves: Intact; Flower buds: None; Wounded: Singled; Fungal soak: Physan; Hormone treatment: Auxin powder; Bottom heat: 65°F; Container: 4" pot; Media: standard mix; Location: Mist frame; Cover: Poly cover; Rooted: 90%')
+
+    def test_get_summary_seed_complete(self):
+        self.add_plants([u'1'])
+        prop = Propagation()
+        prop.prop_type = u'Seed'
+        prop.plant = self.plants[0]
+        seed = PropSeed(**default_seed_values)
+        seed.propagation = prop
+        self.session.commit()
+        summary = prop.get_summary()
+        self.assertEquals(summary, 'Seed; Pretreatment: Soaked in peroxide solution; # of seeds: 24; Date sown: 01-01-2017; Container: tray; Media: standard mix; Location: mist tent; Germination date: 01-02-2017; # of seedlings: 23; Germination rate: 99%; Date planted: 08-02-2017')
+
+    def test_get_summary_seed_partial_1_still_unused(self):
+        self.add_plants([u'1'])
+        self.add_propagations([u'Seed'])
+        prop = self.plants[0].propagations[0]
+        self.assertEquals(prop.get_summary(partial=1), '')
+
+    def test_get_summary_seed_partial_2_still_unused(self):
+        self.add_plants([u'1'])
+        self.add_propagations([u'Seed'])
+        prop = self.plants[0].propagations[0]
+        self.assertEquals(prop.get_summary(partial=2),
+                          prop.get_summary())
+
+    def test_get_summary_seed_partial_1_used_once(self):
+        self.add_plants([u'1'])
+        self.add_propagations([u'Seed'])
+        accession2 = self.create(Accession, species=self.species, code=u'2')
+        source2 = self.create(Source, plant_propagation=self.plants[0].propagations[0])
+        accession2.source = source2
+        self.session.commit()
+        prop = self.plants[0].propagations[0]
+        self.assertEquals(prop.get_summary(partial=1), accession2.code)
+
+    def test_get_summary_seed_partial_1_used_twice(self):
+        self.add_plants([u'1'])
+        self.add_propagations([u'Seed'])
+        using = [u'2', u'3']
+        for c in using:
+            a = self.create(Accession, species=self.species, code=c)
+            s = self.create(Source, plant_propagation=self.plants[0].propagations[0])
+            a.source = s
+        self.session.commit()
+        prop = self.plants[0].propagations[0]
+        self.assertEquals(prop.get_summary(partial=1),
+                          ';'.join("%s" % a for a in prop.accessions))
+
+    def test_propagation_accessions_used_once(self):
+        self.add_plants([u'1'])
+        self.add_propagations([u'Seed'])
+        accession2 = self.create(Accession, species=self.species, code=u'2')
+        source2 = self.create(Source, plant_propagation=self.plants[0].propagations[0])
+        accession2.source = source2
+        self.session.commit()
+        prop = self.plants[0].propagations[0]
+        self.assertEquals(prop.accessions, [accession2])
+
+    def test_propagation_accessions_used_twice(self):
+        self.add_plants([u'1'])
+        self.add_propagations([u'Seed'])
+        prop = self.plants[0].propagations[0]
+        using = [u'2', u'3']
+        accs = []
+        for c in using:
+            a = self.create(Accession, species=self.species, code=c)
+            s = self.create(Source, plant_propagation=prop)
+            a.source = s
+            accs.append(a)
+        self.session.commit()
+        self.assertEquals(len(prop.accessions), 2)
+        self.assertEquals(sorted(accs), sorted(prop.accessions))
+
+    def test_accession_source_plant_propagation_points_at_parent_plant(self):
+        self.add_plants([u'1'])
+        self.add_propagations([u'Seed'])
+        prop = self.plants[0].propagations[0]
+        using = [u'2', u'3']
+        for c in using:
+            a = self.create(Accession, species=self.species, code=c)
+            s = self.create(Source, plant_propagation=prop)
+            a.source = s
+        self.session.commit()
+        for a in prop.accessions:
+            self.assertEquals(a.source.plant_propagation.plant, self.plants[0])
+            self.assertEquals(a.parent_plant, self.plants[0])
+
+    def test_accession_without_parent_plant(self):
+        self.assertEquals(self.accession.parent_plant, None)
 
     def test_cutting_property(self):
-        loc = Location(name=u'name', code=u'code')
-        plant = Plant(accession=self.accession, location=loc, code=u'1',
-                      quantity=1)
+        self.add_plants([u'1'])
         prop = Propagation()
-        prop.plant = plant
+        prop.plant = self.plants[0]
         prop.prop_type = u'UnrootedCutting'
         prop.accession = self.accession
         cutting = PropCutting(**default_cutting_values)
         cutting.propagation = prop
-        rooted = PropRooted()
+        rooted = PropCuttingRooted()
         rooted.cutting = cutting
         self.session.add(rooted)
         self.session.commit()
@@ -575,7 +730,13 @@ class PropagationTests(GardenTestCase):
         prop._cutting = None
         self.session.commit()
         self.assert_(not self.session.query(PropCutting).get(cutting_id))
-        self.assert_(not self.session.query(PropRooted).get(rooted_id))
+        self.assert_(not self.session.query(PropCuttingRooted).get(rooted_id))
+
+    def test_accession_links_to_parent_plant(self):
+        '''we can reach the parent plant from an accession'''
+
+        self.add_plants([u'1'])
+        pass
 
     def test_seed_property(self):
         loc = Location(name=u'name', code=u'code')
@@ -799,19 +960,23 @@ class SourceTests(GardenTestCase):
         super(SourceTests, self).tearDown()
 
     def _make_prop(self, source):
+        '''associate a seed Propagation to source
+
+        we create a seed propagation that is referred to by both a PropSeed
+        and a PropCutting, something that is not going to happen in the
+        code, we're just being lazy.
+
+        '''
         source.propagation = Propagation(prop_type=u'Seed')
 
-        # a propagation doesn't normally have _seed and _cutting but
-        # it's ok here for the test
         seed = PropSeed(**default_seed_values)
         seed.propagation = source.propagation
         cutting = PropCutting(**default_cutting_values)
         cutting.propagation = source.propagation
         self.session.commit()
-        prop_id = source.propagation.id
-        seed_id = source.propagation._seed.id
-        cutting_id = source.propagation._cutting.id
-        return prop_id, seed_id, cutting_id
+        return (source.propagation.id,
+                source.propagation._seed.id,
+                source.propagation._cutting.id)
 
     def test_propagation(self):
         """
@@ -820,14 +985,13 @@ class SourceTests(GardenTestCase):
         source = Source()
         self.accession.source = source
         prop_id, seed_id, cutting_id = self._make_prop(source)
-        self.session.commit()
-        source.propagation = None
-        self.session.commit()
         self.assert_(seed_id)
         self.assert_(cutting_id)
         self.assert_(prop_id)
-        # make sure the propagation got cleaned up when the
-        # source.propagation attribute was set to None
+        # make sure the propagation gets cleaned up when we set the
+        # source.propagation attribute to None - and commit
+        source.propagation = None
+        self.session.commit()
         self.assert_(not self.session.query(PropSeed).get(seed_id))
         self.assert_(not self.session.query(PropCutting).get(cutting_id))
         self.assert_(not self.session.query(Propagation).get(prop_id))
@@ -836,6 +1000,13 @@ class SourceTests(GardenTestCase):
         """
         Test bauble.plugins.garden.Source and related properties
         """
+        # I consider this test a very good example of how NOT TO write unit
+        # tests: it has a non-descriptive name, it does not state what it
+        # tests, it uses a non-standard 'assert_' method, it tests several
+        # things at the same time, it does not fit in a single page, it even
+        # contains commented code, which distracts the reader by describing
+        # things that do not happen. Dear Reader: you're welcome decyphering
+        # it and rewriting it as unit tests. (Mario Frasca)
         source = Source()
         #self.assert_(hasattr(source, 'plant_propagation'))
 
@@ -845,7 +1016,7 @@ class SourceTests(GardenTestCase):
         plant.propagations.append(Propagation(prop_type=u'Seed'))
         self.session.commit()
 
-        source.source_detail = SourceDetail()
+        source.source_detail = Contact()
         source.source_detail.name = u'name'
         source.sources_code = u'1'
         source.collection = Collection(locale=u'locale')
@@ -867,15 +1038,10 @@ class SourceTests(GardenTestCase):
         self.assert_(not self.session.query(Collection).get(coll_id))
         self.assert_(not self.session.query(Propagation).get(prop_id))
 
-        # the SourceDetail and plant Propagation shouldn't be deleted
+        # the Contact and plant Propagation shouldn't be deleted
         # since they are independent of the source
         self.assert_(self.session.query(Propagation).get(plant_prop_id))
-        self.assert_(self.session.query(SourceDetail).get(source_detail_id))
-
-    def test_details_editor(self):
-        raise SkipTest('separate view from presenter, then test presenter')
-        e = SourceDetailEditor()
-        e.start()
+        self.assert_(self.session.query(Contact).get(source_detail_id))
 
 
 class AccessionQualifiedTaxon(GardenTestCase):
@@ -1104,18 +1270,21 @@ class AccessionTests(GardenTestCase):
         self.assertRaises(IntegrityError, self.session.commit)
 
     def test_accession_source_editor(self, accession=None):
-        acc = self.create(Accession, species=self.species, code=u'parent')
-        plant = self.create(Plant, accession=acc, quantity=1,
+        ## create an accession, a location, a plant
+        parent = self.create(Accession, species=self.species, code=u'parent',
+                             quantity_recvd=1)
+        plant = self.create(Plant, accession=parent, quantity=1,
                             location=Location(name=u'site', code=u'STE'),
                             code=u'1')
-        # creating a dummy propagtion without a related seed/cutting
+        ## create a propagation without a related seed/cutting
         prop = self.create(Propagation, prop_type=u'Seed')
         plant.propagations.append(prop)
+        ## commit all the above to the database
         self.session.commit()
+        self.assertTrue(prop.id > 0)  # we got a valid id after the commit
         plant_prop_id = prop.id
-        assert plant_prop_id  # assert we got a valid id after the commit
 
-        acc = Accession(code=u'code', species=self.species)
+        acc = Accession(code=u'code', species=self.species, quantity_recvd=2)
         self.editor = AccessionEditor(acc)
         # normally called by editor.presenter.start() but we don't call it here
         self.editor.presenter.source_presenter.start()
@@ -1128,18 +1297,22 @@ class AccessionTests(GardenTestCase):
         # set the source type as "Garden Propagation"
         widgets.acc_source_comboentry.child.props.text = \
             SourcePresenter.garden_prop_str
-        assert not self.editor.presenter.problems
+        self.assertTrue(not self.editor.presenter.problems)
 
         # set the source plant
         widgets.source_prop_plant_entry.props.text = str(plant)
+        logger.debug('about to update the gui')
         update_gui()
         comp = widgets.source_prop_plant_entry.get_completion()
         comp.emit('match-selected', comp.get_model(),
                   comp.get_model().get_iter_first())
 
-        # assert that the propagations were added to the treevide
+        logger.debug('about to update the gui')
+        update_gui()  # ensures idle callback is called
+
+        # assert that the propagations were added to the treeview
         treeview = widgets.source_prop_treeview
-        assert treeview.get_model()
+        self.assertTrue(treeview.get_model())
 
         # select the first/only propagation in the treeview
         toggle_cell = widgets.prop_toggle_cell.emit('toggled', 0)
@@ -1149,12 +1322,18 @@ class AccessionTests(GardenTestCase):
         self.editor.handle_response(gtk.RESPONSE_OK)
         self.editor.session.close()
 
-        # open a seperate session and make sure everything committed
+        # open a separate session and make sure everything committed
         session = db.Session()
         acc = session.query(Accession).filter_by(code=u'code')[0]
+        self.assertTrue(acc is not None)
+        logger.debug(acc.id)
         parent = session.query(Accession).filter_by(code=u'parent')[0]
         self.assertTrue(parent is not None)
-        assert acc.source.plant_propagation_id == plant_prop_id
+        logger.debug(parent.id)
+        logger.debug("acc plants : %s" % [str(i) for i in acc.plants])
+        logger.debug("parent plants : %s" % [str(i) for i in parent.plants])
+        logger.debug(acc.source.__dict__)
+        self.assertEquals(acc.source.plant_propagation_id, plant_prop_id)
 
     def test_accession_editor(self):
         raise SkipTest('Problem cannot be found in presenter')
@@ -1225,7 +1404,7 @@ class AccessionTests(GardenTestCase):
         seed.propagation = prop
         plant.propagations.append(prop)
 
-        source_detail = SourceDetail(name=u'Test Source',
+        source_detail = Contact(name=u'Test Source',
                                      source_type=u'Expedition')
         source = Source(sources_code=u'22')
         source.source_detail = source_detail
@@ -1240,6 +1419,104 @@ class AccessionTests(GardenTestCase):
             import traceback
             logger.debug(traceback.format_exc(0))
             logger.debug(e)
+
+    def test_remove_callback_no_plants_no_confirm(self):
+        # T_0
+        added = []
+        added.append(Family(family=u'Caricaceae'))
+        added.append(Genus(epithet=u'Carica', family=added[-1]))
+        added.append(Species(epithet=u'papaya', genus=added[-1]))
+        added.append(Accession(code=u'010101', species=added[-1]))
+        sp, acc = added[-2:]
+        self.session.add_all(added)
+        self.session.flush()
+        self.invoked = []
+
+        # action
+        utils.yes_no_dialog = partial(mockfunc, name='yes_no_dialog', caller=self, result=False)
+        utils.message_details_dialog = partial(mockfunc, name='message_details_dialog', caller=self)
+        from bauble.plugins.garden.accession import remove_callback
+        result = remove_callback([acc])
+        self.session.flush()
+
+        # effect
+        self.assertFalse('message_details_dialog' in [f for (f, m) in self.invoked])
+        print self.invoked
+        self.assertTrue(('yes_no_dialog', u'Are you sure you want to remove accession <b>010101</b>?')
+                        in self.invoked)
+        self.assertEquals(result, None)
+        q = self.session.query(Accession).filter_by(code=u'010101', species=sp)
+        matching = q.all()
+        self.assertEquals(matching, [acc])
+
+    def test_remove_callback_no_accessions_confirm(self):
+        # T_0
+        added = []
+        added.append(Family(family=u'Caricaceae'))
+        added.append(Genus(epithet=u'Carica', family=added[-1]))
+        added.append(Species(epithet=u'papaya', genus=added[-1]))
+        added.append(Accession(code=u'010101', species=added[-1]))
+        sp, acc = added[-2:]
+        self.session.add_all(added)
+        self.session.flush()
+        self.invoked = []
+
+        # action
+        utils.yes_no_dialog = partial(
+            mockfunc, name='yes_no_dialog', caller=self, result=True)
+        utils.message_details_dialog = partial(
+            mockfunc, name='message_details_dialog', caller=self)
+        from bauble.plugins.garden.accession import remove_callback
+        result = remove_callback([acc])
+        self.session.flush()
+
+        # effect
+        print self.invoked
+        self.assertFalse('message_details_dialog' in
+                         [f for (f, m) in self.invoked])
+        self.assertTrue(('yes_no_dialog', u'Are you sure you want to remove accession <b>010101</b>?')
+                        in self.invoked)
+
+        self.assertEquals(result, True)
+        q = self.session.query(Species).filter_by(sp=u"Carica")
+        matching = q.all()
+        self.assertEquals(matching, [])
+
+    def test_remove_callback_with_accessions_cant_cascade(self):
+        # T_0
+        added = []
+        added.append(Location(code=u'INV99'))
+        added.append(Family(family=u'Caricaceae'))
+        added.append(Genus(epithet=u'Carica', family=added[-1]))
+        added.append(Species(epithet=u'papaya', genus=added[-1]))
+        added.append(Accession(code=u'010101', species=added[-1]))
+        added.append(Plant(code=u'1', accession=added[-1], quantity=1, location=added[0]))
+        sp, acc, plant = added[-3:]
+        self.session.add_all(added)
+        self.session.flush()
+        self.invoked = []
+
+        # action
+        utils.yes_no_dialog = partial(mockfunc, name='yes_no_dialog', caller=self, result=True)
+        utils.message_dialog = partial(mockfunc, name='message_dialog', caller=self, result=True)
+        utils.message_details_dialog = partial(mockfunc, name='message_details_dialog', caller=self)
+        from bauble.plugins.garden.accession import remove_callback
+        result = remove_callback([acc])
+        self.session.flush()
+
+        # effect
+        print self.invoked
+        self.assertFalse('message_details_dialog' in
+                         [f for (f, m) in self.invoked])
+        self.assertTrue(('message_dialog', u'1 plants depend on this accession: <b>010101.1</b>\n\n'
+                         'You cannot remove an accession with plants.')
+                        in self.invoked)
+        q = self.session.query(Accession).filter_by(species=sp)
+        matching = q.all()
+        self.assertEquals(matching, [acc])
+        q = self.session.query(Plant).filter_by(accession=acc)
+        matching = q.all()
+        self.assertEquals(matching, [plant])
 
 
 class VerificationTests(GardenTestCase):
@@ -1336,7 +1613,7 @@ class LocationTests(GardenTestCase):
 
     def test_editor(self):
         """
-        Interactively test the PlantEditor
+        Interactively test the LocationEditor
         """
         raise SkipTest('separate view from presenter, then test presenter')
         loc = self.create(Location, name=u'some site', code=u'STE')
@@ -1351,38 +1628,36 @@ class LocationTests(GardenTestCase):
             'LocationEditorView not deleted'
 
 
-# class CollectionTests(GardenTestCase):
+class CollectionTests(GardenTestCase):
 
-#     def __init__(self, *args):
-#         super(CollectionTests, self).__init__(*args)
+    def __init__(self, *args):
+        super(CollectionTests, self).__init__(*args)
 
-#     def setUp(self):
-#         super(CollectionTests, self).setUp()
+    def setUp(self):
+        super(CollectionTests, self).setUp()
 
-#     def tearDown(self):
-#         super(CollectionTests, self).tearDown()
+    def tearDown(self):
+        super(CollectionTests, self).tearDown()
 
-#     def test_accession_prop(self):
-#         """
-#         Test Collection.accession property
-#         """
-#         acc = Accession(code=u'1', species=self.species)
-#         collection = Collection(locale=u'some locale')
-#         self.session.add_all((acc, collection))
+    def test_collection_search_view_markup_pair(self):
+        """Test Collection.accession property
 
-#         self.assert_(acc.source is None)
-#         collection.accession = acc
-#         self.assert_(acc._collection == collection, acc._collection)
-#         self.assert_(acc.source_type == 'Collection')
-#         self.assert_(acc.source == collection)
-#         self.session.commit()
+        """
+        acc = Accession(code=u'2001.0002', species=self.species)
+        acc.source = Source()
+        collection = Collection(locale=u'some location')
+        acc.source.collection = collection
+        self.assertEquals(
+            collection.search_view_markup_pair(),
+            (u'2001.0002 - <small>Echinocactus grusonii</small>',
+             u'Collection at some location'))
 
 
 class InstitutionTests(GardenTestCase):
 
     def test_init__9_props(self):
         o = Institution()
-        o.name = 'Bauble'
+        o.name = 'Ghini'
         o.write()
         fields = self.session.query(BaubleMeta).filter(
             utils.ilike(BaubleMeta.name, 'inst_%')).all()
@@ -1392,7 +1667,7 @@ class InstitutionTests(GardenTestCase):
         o = Institution()
         o.name = 'Fictive'
         o.write()
-        o.name = 'Bauble'
+        o.name = 'Ghini'
         o.write()
         fieldObjects = self.session.query(BaubleMeta).filter(
             utils.ilike(BaubleMeta.name, 'inst_%')).all()
@@ -1404,10 +1679,10 @@ class InstitutionTests(GardenTestCase):
         o.write()
         u = Institution()
         self.assertEquals(u.name, u'Fictive')
-        o.name = 'Bauble'
+        o.name = 'Ghini'
         o.write()
         u = Institution()
-        self.assertEquals(u.name, u'Bauble')
+        self.assertEquals(u.name, u'Ghini')
 
     def test_init__has_all_attributes(self):
         o = Institution()
@@ -1417,7 +1692,7 @@ class InstitutionTests(GardenTestCase):
 
     def test_write__None_stays_None(self):
         o = Institution()
-        o.name = 'Bauble'
+        o.name = 'Ghini'
         o.email = 'bauble@anche.no'
         o.write()
         fieldObjects = self.session.query(BaubleMeta).filter(
@@ -1425,7 +1700,7 @@ class InstitutionTests(GardenTestCase):
         fields = dict((i.name[5:], i.value)
                       for i in fieldObjects
                       if i.value is not None)
-        self.assertEquals(fields['name'], u'Bauble')
+        self.assertEquals(fields['name'], u'Ghini')
         self.assertEquals(fields['email'], u'bauble@anche.no')
         self.assertEquals(len(fields), 2)
 
@@ -1491,7 +1766,6 @@ class InstitutionPresenterTests(GardenTestCase):
         self.assertTrue(view.widget_get_sensitive('inst_register'))
 
     def test_when_user_registers_info_is_logged(self):
-        raise SkipTest('please do not send stuff to sentry while testing')
         from bauble.utils import desktop
         from bauble.test import mockfunc
         from functools import partial
@@ -1503,8 +1777,11 @@ class InstitutionPresenterTests(GardenTestCase):
         o = Institution()
         p = InstitutionPresenter(o, view)
         p.on_inst_register_clicked()
-        self.assertTrue(('desktop.open', 'mailto:bauble@anche.no') in
-                        self.invoked)
+        self.assertEquals(self.handler.messages['bauble.registrations']['info'],
+                          ["[('fax', None), ('address', None), ('name', ''), "
+                           "('contact', None), ('technical_contact', None), "
+                           "('abbreviation', None), ('code', None), "
+                           "('tel', None), ('email', '')]"])
 
 # latitude: deg[0-90], min[0-59], sec[0-59]
 # longitude: deg[0-180], min[0-59], sec[0-59]
@@ -1528,31 +1805,23 @@ UTM = 3  # Datum(wgs84/nad83 or nad27), UTM Zone, Easting, Northing
 
 from decimal import Decimal
 dec = Decimal
-conversion_test_data = (((('N', 17, 21, dec(59)),  # dms
-                          ('W', 89, 1, 41)),
-                         ((dec(17), dec('21.98333333')),  # deg min_dec
-                          (dec(-89), dec('1.68333333'))),
+conversion_test_data = (((('N', 17, 21, dec(59)), ('W', 89, 1, 41)),  # dms
+                         ((dec(17), dec('21.98333333')), (dec(-89), dec('1.68333333'))),  # deg min_dec
                          (dec('17.366389'), dec('-89.028056')),  # dec deg
                          (('wgs84', 16, 284513, 1921226))),  # utm
                         \
-                        ((('S', 50, 19, dec('32.59')),  # dms
-                          ('W', 74, 2, dec('11.6'))),
-                         ((dec(-50), dec('19.543166')),  # deg min_dec
-                          (dec(-74), dec('2.193333'))),
+                        ((('S', 50, 19, dec('32.59')), ('W', 74, 2, dec('11.6'))),  # dms
+                         ((dec(-50), dec('19.543166')), (dec(-74), dec('2.193333'))),  # deg min_dec
                          (dec('-50.325719'), dec('-74.036556')),  # dec deg
                          (('wgs84', 18, 568579, 568579)),
                          (('nad27', 18, 568581, 4424928))),
                         \
-                        ((('N', 9, 0, dec('4.593384')),
-                          ('W', 78, 3, dec('28.527984'))),
-                         ((9, dec('0.0765564')),
-                          (-78, dec('3.4754664'))),
+                        ((('N', 9, 0, dec('4.593384')), ('W', 78, 3, dec('28.527984'))),
+                         ((9, dec('0.0765564')), (-78, dec('3.4754664'))),
                          (dec('9.00127594'), dec('-78.05792444'))),
                         \
-                        ((('N', 49, 10, 28),
-                          ('W', 121, 40, 39)),
-                         ((49, dec('10.470')),
-                          (-121, dec('40.650'))),
+                        ((('N', 49, 10, 28), ('W', 121, 40, 39)),
+                         ((49, dec('10.470')), (-121, dec('40.650'))),
                          (dec('49.174444'), dec('-121.6775')))
                         )
 
@@ -1831,11 +2100,13 @@ class PlantSearchTest(GardenTestCase):
         super(PlantSearchTest, self).setUp()
         setUp_data()
 
-    def test_searchbyplantcode(self):
+    def test_searchbyplantcode_unquoted(self):
         mapper_search = search.get_strategy('PlantSearch')
 
         results = mapper_search.search('1.1.1', self.session)
         self.assertEquals(len(results), 1)
+        self.assertEquals(self.handler.messages['bauble.plugins.garden.plant']['debug'][0],
+            'text is not quoted, should strategy apply?')
         p = results.pop()
         ex = self.session.query(Plant).filter(Plant.id == 1).first()
         self.assertEqual(p, ex)
@@ -1850,6 +2121,39 @@ class PlantSearchTest(GardenTestCase):
         p = results.pop()
         ex = self.session.query(Plant).filter(Plant.id == 3).first()
         self.assertEqual(p, ex)
+
+    def test_searchbyplantcode_quoted(self):
+        mapper_search = search.get_strategy('PlantSearch')
+
+        results = mapper_search.search('"1.1.1"', self.session)
+        self.assertEquals(len(results), 1)
+        p = results.pop()
+        ex = self.session.query(Plant).filter(Plant.id == 1).first()
+        self.assertEqual(p, ex)
+        results = mapper_search.search("'1.2.1'", self.session)
+        logger.debug(results)
+        self.assertEquals(len(results), 1)
+        p = results.pop()
+        ex = self.session.query(Plant).filter(Plant.id == 2).first()
+        self.assertEqual(p, ex)
+        results = mapper_search.search('\'1.2.2\'', self.session)
+        self.assertEquals(len(results), 1)
+        p = results.pop()
+        ex = self.session.query(Plant).filter(Plant.id == 3).first()
+        self.assertEqual(p, ex)
+
+    def test_searchbyplantcode_invalid_values(self):
+        mapper_search = search.get_strategy('PlantSearch')
+
+        results = mapper_search.search('1.11', self.session)
+        self.assertEquals(len(results), 0)
+        self.assertEquals(self.handler.messages['bauble.plugins.garden.plant']['debug'], [
+            'text is not quoted, should strategy apply?', 'ac: 1, pl: 11'])
+        self.handler.reset()
+        results = mapper_search.search("'121'", self.session)
+        self.assertEquals(len(results), 0)
+        self.assertEquals(self.handler.messages['bauble.plugins.garden.plant']['debug'], [
+            "delimiter not found, can't split the code"])
 
     def test_searchbyaccessioncode(self):
         mapper_search = search.get_strategy('MapperSearch')
@@ -2019,3 +2323,88 @@ class GlobalFunctionsTests(GardenTestCase):
     def test_mergevalues_both_empty(self):
         'if both are empty, return the empty string'
         self.assertEquals(mergevalues(None, None, '%s|%s'), '')
+
+
+class ContactTests(GardenTestCase):
+
+    def __init__(self, *args):
+        super(ContactTests, self).__init__(*args)
+
+    def test_delete(self):
+
+        # In theory, we'd rather not be allowed to delete contact if it
+        # being referred to as the source for an accession.  However, this
+        # just works.  As long as the trouble is theoretic we accept it.
+
+        acc = self.create(Accession, species=self.species, code=u'2001.0001')
+        contact = Contact(name=u'name')
+        source = Source()
+        source.source_detail = contact
+        acc.source = source
+        self.session.commit()
+        self.session.close()
+
+        # we can delete a contact even if used as source
+        session = db.Session()
+        contact = session.query(Contact).filter_by(name=u'name').one()
+        session.delete(contact)
+        session.commit()
+
+        # the source field in the accession got removed
+        session = db.Session()
+        acc = session.query(Accession).filter_by(code=u'2001.0001').one()
+        self.assertEquals(acc.source, None)
+
+    def test_representation_of_contact(self):
+        contact = Contact(name=u'name')
+        self.assertEquals("%s" % contact, u'name')
+        self.assertEquals(contact.search_view_markup_pair(), (u'name', u''))
+
+
+class ContactPresenterTests(BaubleTestCase):
+
+    def test_create_presenter_automatic_session(self):
+        from bauble.editor import MockView
+        view = MockView()
+        m = Contact()
+        presenter = ContactPresenter(m, view)
+        self.assertEquals(presenter.view, view)
+        self.assertTrue(presenter.session is not None)
+        # model might have been re-instantiated to fit presenter.session
+
+    def test_create_presenter(self):
+        from bauble.editor import MockView
+        view = MockView()
+        m = Contact()
+        s = db.Session()
+        s.add(m)
+        presenter = ContactPresenter(m, view)
+        self.assertEquals(presenter.view, view)
+        self.assertTrue(presenter.session is not None)
+        # m belongs to s; presenter.model is the same object
+        self.assertEquals(id(presenter.model), id(m))
+
+    def test_liststore_is_initialized(self):
+        from bauble.editor import MockView
+        view = MockView(combos={'source_type_combo': []})
+        m = Contact(name='name', source_type='Expedition', description='desc')
+        presenter = ContactPresenter(m, view)
+        self.assertEquals(presenter.view.widget_get_text('source_name_entry'), 'name')
+        self.assertEquals(presenter.view.widget_get_text('source_type_combo'), 'Expedition')
+        self.assertEquals(presenter.view.widget_get_text('source_desc_textview'), 'desc')
+
+
+import bauble.search
+class BaubleSearchSearchTest(BaubleTestCase):
+    def test_search_search_uses_Plant_Search(self):
+        bauble.search.search("genus like %", self.session)
+        self.assertTrue('SearchStrategy "genus like %"(PlantSearch)' in
+                   self.handler.messages['bauble.search']['debug'])
+        self.handler.reset()
+        bauble.search.search("12.11.13", self.session)
+        self.assertTrue('SearchStrategy "12.11.13"(PlantSearch)' in
+                   self.handler.messages['bauble.search']['debug'])
+        self.handler.reset()
+        bauble.search.search("So ha", self.session)
+        self.assertTrue('SearchStrategy "So ha"(PlantSearch)' in
+                   self.handler.messages['bauble.search']['debug'])

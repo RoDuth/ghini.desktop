@@ -3,20 +3,20 @@
 # Copyright 2008-2010 Brett Adams
 # Copyright 2015-2016 Mario Frasca <mario@anche.no>.
 #
-# This file is part of bauble.classic.
+# This file is part of ghini.desktop.
 #
-# bauble.classic is free software: you can redistribute it and/or modify
+# ghini.desktop is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
 #
-# bauble.classic is distributed in the hope that it will be useful,
+# ghini.desktop is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 # GNU General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
-# along with bauble.classic. If not, see <http://www.gnu.org/licenses/>.
+# along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
 #
 # accessions module
 #
@@ -54,7 +54,7 @@ from bauble.error import check
 import bauble.paths as paths
 from bauble.plugins.garden.propagation import SourcePropagationPresenter, \
     Propagation
-from bauble.plugins.garden.source import SourceDetail, SourceDetailEditor, \
+from bauble.plugins.garden.source import Contact, create_contact, \
     Source, Collection, CollectionPresenter, PropagationChooserPresenter
 import bauble.prefs as prefs
 import bauble.btypes as types
@@ -137,16 +137,21 @@ def generic_taxon_add_action(model, view, presenter, top_presenter,
     """
 
     from bauble.plugins.plants.species import edit_species
-    if edit_species(parent_view=view.get_window()):
-        logger.debug('new taxon added from within VerificationBox')
+    committed = edit_species(parent_view=view.get_window(), is_dependent_window=True)
+    if committed:
+        if isinstance(committed, list):
+            committed = committed[0]
+        logger.debug('new taxon added from within AccessionEditor')
         # add the new taxon to the session and start using it
-        presenter.session.add(editor.model)
-        taxon_entry.set_text("%s" % editor.model)
+        presenter.session.add(committed)
+        taxon_entry.set_text("%s" % committed)
         presenter.remove_problem(
             hash(gtk.Buildable.get_name(taxon_entry)), None)
-        setattr(model, 'species', editor.model)
+        setattr(model, 'species', committed)
         presenter._dirty = True
         top_presenter.refresh_sensitivity()
+    else:
+        logger.debug('new taxon not added after request from AccessionEditor')
 
 
 def edit_callback(accessions):
@@ -165,23 +170,22 @@ def add_plants_callback(accessions):
 
 
 def remove_callback(accessions):
-    # TODO: allow this method to remove multiple accessions
     acc = accessions[0]
     if len(acc.plants) > 0:
         safe = utils.xml_safe
         plants = [str(plant) for plant in acc.plants]
         values = dict(num_plants=len(acc.plants),
-                      plant_codes=safe(', '.join(plants)),
-                      acc_code=safe(acc))
-        msg = _('%(num_plants)s plants depend on this accession: '
-                '<b>%(plant_codes)s</b>\n\n'
-                'Are you sure you want to remove accession '
-                '<b>%(acc_code)s</b>?') % values
+                      plant_codes=safe(', '.join(plants)))
+        msg = (_('%(num_plants)s plants depend on this accession: '
+                 '<b>%(plant_codes)s</b>\n\n') % values + 
+               _('You cannot remove an accession with plants.'))
+        utils.message_dialog(msg, type=gtk.MESSAGE_WARNING)
+        return
     else:
         msg = _("Are you sure you want to remove accession <b>%s</b>?") % \
             utils.xml_safe(unicode(acc))
     if not utils.yes_no_dialog(msg):
-        return False
+        return
     try:
         session = db.Session()
         obj = session.query(Accession).get(acc.id)
@@ -221,7 +225,7 @@ ver_level_descriptions = \
           'named plants.'),
      2: _('The name of the record determined by a taxonomist or by other '
           'competent persons using herbarium and/or library and/or '
-          ' documented living material.'),
+          'documented living material.'),
      3: _('The name of the plant determined by taxonomist engaged in '
           'systematic revision of the group.'),
      4: _('The record is part of type gathering or propagated from type '
@@ -293,9 +297,30 @@ class Verification(db.Base):
     notes = Column(UnicodeText)
 
 
-# TODO: auto add parent voucher if accession is a propagule of an
-# existing accession and that parent accession has vouchers...or at
-# least display them in the Voucher tab and Infobox
+# TODO: I have no internet, so I write this here. please remove this note
+# and add the text as new issues as soon as possible.
+#
+# First of all a ghini-1.1 issue: being 'Accession' an abstract concept, you
+# don't make a Voucher of an Accession, you make a Voucher of a Plant. As
+# with Photos, in the Accession Infobox you want to see all Vouchers of all
+# Plantings belonging to the Accession.
+#
+# 2: imagine you go on expedition and collect vouchers as well as seeds, or
+# stekken:nl. You will have vouchers of the parent plant plant, but the
+# parent plant will not be in your collection. This justifies requiring the
+# ability to add a Voucher to a Plant and mark it as Voucher of its parent
+# plant. On the other hand though, if the parent plant *is* in your
+# collection and the link is correctly represented in a Propagation, any
+# 'parent plant voucher' will conflict with the vouchers associated to the
+# parent plant. Maybe this can be solved by disabling the whole
+# parent_voucher panel in the case of plants resulting of a garden
+# propagation.
+#
+# 3: Infobox (Accession AND Plant) are to show parent plant information as a
+# link to the parent plant, or as the name of the parent plant voucher. At
+# the moment this is only partially the case for
+
+
 herbarium_codes = {}
 
 
@@ -307,13 +332,11 @@ class Voucher(db.Base):
       herbarium: :class:`sqlalchemy.types.Unicode`
         The name of the herbarium.
       code: :class:`sqlalchemy.types.Unicode`
-        The herbarium code.
+        The herbarium code for the voucher.
       parent_material: :class:`sqlalchemy.types.Boolean`
-        Is this voucher the parent material of the accession.  E.g did
-        the seed for the accession from come the plant used to make
-        this voucher.
+        Is this voucher relative to the parent material of the accession.
       accession_id: :class:`sqlalchemy.types.Integer`
-        A foreign key to :class:`Accession`
+        Foreign key to the :class:`Accession` .
 
 
     """
@@ -410,7 +433,7 @@ recvd_type_values = {
     u'DIVI': _('Division'),
     u'GRAF': _('Graft'),
     u'LAYE': _('Layer'),
-    u'PLNT': _('Plant'),
+    u'PLNT': _('Planting'),
     u'PSBU': _('Pseudobulb'),
     u'RCUT': _('Rooted cutting'),
     u'RHIZ': _('Rhizome'),
@@ -676,6 +699,18 @@ class Accession(db.Base, db.Serializable, db.WithNotes):
         return first + suffix, second
 
     @property
+    def parent_plant(self):
+        try:
+            return self.source.plant_propagation.plant
+        except AttributeError:
+            return None
+
+    @property
+    def propagations(self):
+        import operator
+        return reduce(operator.add, [p.propagations for p in self.plants], [])
+
+    @property
     def pictures(self):
         import operator
         return reduce(operator.add, [p.pictures for p in self.plants], [])
@@ -862,9 +897,9 @@ class AccessionEditorView(editor.GenericEditorView):
                                'should be considered private.'),
         'acc_cancel_button': _('Cancel your changes.'),
         'acc_ok_button': _('Save your changes.'),
-        'acc_ok_and_add_button': _('Save your changes changes and add a '
+        'acc_ok_and_add_button': _('Save your changes and add a '
                                    'plant to this accession.'),
-        'acc_next_button': _('Save your changes changes and add another '
+        'acc_next_button': _('Save your changes and add another '
                              'accession.'),
 
         'sources_code_entry': "ITF2 - E7 - Donor's Accession Identifier - donacc",
@@ -1391,7 +1426,7 @@ class SourcePresenter(editor.GenericEditorPresenter):
         def on_select(source):
             if not source:
                 self.model.source = None
-            elif isinstance(source, SourceDetail):
+            elif isinstance(source, Contact):
                 self.model.source = self.source
                 self.model.source.source_detail = source
             elif source == self.garden_prop_str:
@@ -1548,11 +1583,10 @@ class SourcePresenter(editor.GenericEditorPresenter):
 
     def on_new_source_button_clicked(self, *args):
         """
-        Opens a new SourceDetailEditor when clicked and repopulates the
-        source combo if a new SourceDetail is created.
+        Opens a new ContactEditor when clicked and repopulates the
+        source combo if a new Contact is created.
         """
-        e = SourceDetailEditor(parent=self.view.get_window())
-        committed = e.start()
+        committed = create_contact(parent=self.view.get_window())
         new_detail = None
         if committed:
             new_detail = committed[0]
@@ -1573,7 +1607,7 @@ class SourcePresenter(editor.GenericEditorPresenter):
         model = gtk.ListStore(object)
         none_iter = model.append([''])
         model.append([self.garden_prop_str])
-        map(lambda x: model.append([x]), self.session.query(SourceDetail))
+        map(lambda x: model.append([x]), self.session.query(Contact))
         combo.set_model(model)
         combo.child.get_completion().set_model(model)
 
@@ -1618,7 +1652,7 @@ class SourcePresenter(editor.GenericEditorPresenter):
             value = model[treeiter][0]
             # allows completions of source details by their ID
             if utils.utf8(value).lower().startswith(key.lower()) or \
-                    (isinstance(value, SourceDetail) and
+                    (isinstance(value, Contact) and
                      str(value.id).startswith(key)):
                 return True
             return False
@@ -1628,17 +1662,17 @@ class SourcePresenter(editor.GenericEditorPresenter):
         entry.set_completion(completion)
 
         def update_visible():
-            visible = dict(source_sw=False,
-                           source_garden_prop_box=False,
-                           source_none_label=False)
+            widget_visibility = dict(source_sw=False,
+                                     source_garden_prop_box=False,
+                                     source_none_label=False)
             if entry.props.text == self.garden_prop_str:
-                visible['source_garden_prop_box'] = True
+                widget_visibility['source_garden_prop_box'] = True
             elif not self.model.source or not self.model.source.source_detail:
-                visible['source_none_label'] = True
+                widget_visibility['source_none_label'] = True
             else:
                 #self.model.source.source_detail = value
-                visible['source_sw'] = True
-            for widget, value in visible.iteritems():
+                widget_visibility['source_sw'] = True
+            for widget, value in widget_visibility.iteritems():
                 self.view.widgets[widget].props.visible = value
             self.view.widgets.source_alignment.props.sensitive = True
 
@@ -1670,7 +1704,7 @@ class SourcePresenter(editor.GenericEditorPresenter):
             def _cmp(row, data):
                 val = row[0]
                 if (utils.utf8(val) == data or
-                        (isinstance(val, SourceDetail) and val.id == data)):
+                        (isinstance(val, Contact) and val.id == data)):
                     return True
                 else:
                     return False
@@ -2477,6 +2511,11 @@ class GeneralAccessionExpander(InfoExpander):
         def on_species_clicked(*args):
             select_in_search_results(self.current_obj.species)
         utils.make_label_clickable(self.widgets.name_data, on_species_clicked)
+
+        def on_parent_plant_clicked(*args):
+            select_in_search_results(self.current_obj.source.plant_propagation.plant)
+        utils.make_label_clickable(self.widgets.parent_plant_data,
+                                   on_parent_plant_clicked)
 
         def on_nplants_clicked(*args):
             cmd = 'plant where accession.code="%s"' % self.current_obj.code

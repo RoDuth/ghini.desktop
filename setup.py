@@ -65,7 +65,7 @@ package_data = {'': ['README', 'CHANGES', 'LICENSE'],
 
 # ceate a list of the data patterns to look for in the packages
 data_patterns = ['default/*.txt', '*.ui', '*.glade', '*.xsl', '*.xsd',
-                 '*.html', '*.csv']
+                 '*.html', '*.csv', '*.svg', '*.ps']
 for pkg in plugins_pkgs:
     package_data[pkg] = data_patterns
 
@@ -418,6 +418,7 @@ setuptools.setup(name="bauble",
                                    "raven==5.9.2",
                                    "Pillow==2.3.0",
                                    "lxml",
+                                   "pyqrcode==1.2.1",
                                    "mako==0.9.1",
                                    "gdata==2.0.18",
                                    "requests",

@@ -3,20 +3,20 @@
 # Copyright (c) 2005,2006,2007,2008,2009 Brett Adams <brett@belizebotanic.org>
 # Copyright (c) 2012-2016 Mario Frasca <mario@anche.no>
 #
-# This file is part of bauble.classic.
+# This file is part of ghini.desktop.
 #
-# bauble.classic is free software: you can redistribute it and/or modify
+# ghini.desktop is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
 #
-# bauble.classic is distributed in the hope that it will be useful,
+# ghini.desktop is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 # GNU General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
-# along with bauble.classic. If not, see <http://www.gnu.org/licenses/>.
+# along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
 # -*- coding: utf-8 -*-
 #
 #
@@ -246,7 +246,7 @@ def create_abcd(decorated_objects, authors=True, validate=True):
         ABCDElement(unit, 'SourceInstitutionID', text=inst.code)
 
         # TODO: don't really understand the SourceID element
-        ABCDElement(unit, 'SourceID', text='Bauble')
+        ABCDElement(unit, 'SourceID', text='Ghini')
 
         unit_id = ABCDElement(unit, 'UnitID', text=obj.get_UnitID())
         ABCDElement(unit, 'DateLastEdited', text=obj.get_DateLastEdited())
@@ -335,11 +335,11 @@ class ABCDExporter(object):
                                       gtk.FILE_CHOOSER_ACTION_SAVE,
                                       (gtk.STOCK_OK, gtk.RESPONSE_ACCEPT,
                                        gtk.STOCK_CANCEL, gtk.RESPONSE_CANCEL))
-            response = d.run()
-            filename = d.get_filename()
+            filename = None
+            if d.run() == gtk.RESPONSE_ACCEPT:
+                filename = d.get_filename()
             d.destroy()
-            if response != gtk.RESPONSE_ACCEPT or filename is None:
-                return
+            return filename
 
         if plants:
             nplants = len(plants)
@@ -401,7 +401,7 @@ class ABCDImexPlugin(pluginmgr.Plugin):
 
 try:
     import lxml.etree as etree
-    import lxml._elementpath  # put this here sp py2exe picks it up
+    import lxml._elementpath  # put this here so py2exe picks it up
     from lxml.etree import Element, SubElement, ElementTree
 except ImportError:
     utils.message_dialog(_('The <i>lxml</i> package is required for the '

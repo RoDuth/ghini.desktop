@@ -3,20 +3,20 @@
 # Copyright (c) 2005,2006,2007,2008,2009 Brett Adams <brett@belizebotanic.org>
 # Copyright (c) 2012-2015 Mario Frasca <mario@anche.no>
 #
-# This file is part of bauble.classic.
+# This file is part of ghini.desktop.
 #
-# bauble.classic is free software: you can redistribute it and/or modify
+# ghini.desktop is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
 #
-# bauble.classic is distributed in the hope that it will be useful,
+# ghini.desktop is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 # GNU General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
-# along with bauble.classic. If not, see <http://www.gnu.org/licenses/>.
+# along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
 #
 # test.py
 #
@@ -203,7 +203,6 @@ class UtilsDBTests(BaubleTestCase):
         self.assert_(depends == [table3])
 
 
-
 class ResetSequenceTests(BaubleTestCase):
 
     def setUp(self):
@@ -279,3 +278,35 @@ class ResetSequenceTests(BaubleTestCase):
         utils.reset_sequence(table.c.id)
         currval = self.get_currval(table.c.id)
         self.assert_(currval > rangemax, currval)
+
+from bauble.utils import topological_sort
+
+class TopologicalSortTests(unittest.TestCase):
+    def test_empty_dependencies(self):
+        r = topological_sort(['a', 'b', 'c'], [])
+        self.assertTrue('a' in r)
+        self.assertTrue('b' in r)
+        self.assertTrue('c' in r)
+
+    def test_full_dependencies(self):
+        r = topological_sort(['a', 'b', 'c'], [('a', 'b'), ('b', 'c')])
+        self.assertTrue('a' in r)
+        self.assertTrue('b' in r)
+        self.assertTrue('c' in r)
+        self.assertEquals(r.pop(), 'c')
+        self.assertEquals(r.pop(), 'b')
+        self.assertEquals(r.pop(), 'a')
+
+    def test_partial_dependencies(self):
+        r = topological_sort(['b', 'e'], [('a', 'b'), ('b', 'c'), ('b', 'd')])
+        print r
+        self.assertTrue('e' in r)
+        r.remove('e')
+        any = set([r.pop(), r.pop()])
+        self.assertEquals(any, set(['c', 'd']))
+        self.assertEquals(r.pop(), 'b')
+        #self.assertEquals(r, [])
+
+    def test_empty_input_full_dependencies(self):
+        r = topological_sort([], [('a', 'b'), ('b', 'c'), ('b', 'd')])
+        #self.assertEquals(r, [])

@@ -3,20 +3,20 @@
 # Copyright 2008-2010 Brett Adams
 # Copyright 2012-2016 Mario Frasca <mario@anche.no>.
 #
-# This file is part of bauble.classic.
+# This file is part of ghini.desktop.
 #
-# bauble.classic is free software: you can redistribute it and/or modify
+# ghini.desktop is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
 #
-# bauble.classic is distributed in the hope that it will be useful,
+# ghini.desktop is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 # GNU General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
-# along with bauble.classic. If not, see <http://www.gnu.org/licenses/>.
+# along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
 
 from itertools import chain
 
@@ -28,7 +28,7 @@ from sqlalchemy.ext.associationproxy import association_proxy
 
 from sqlalchemy import Column, Boolean, Unicode, Integer, ForeignKey, \
     UnicodeText, func, UniqueConstraint
-from sqlalchemy.orm import relation, backref
+from sqlalchemy.orm import relation, backref, synonym
 import bauble.db as db
 import bauble.error as error
 import bauble.utils as utils
@@ -270,6 +270,7 @@ class Species(db.Base, db.Serializable, db.DefiningPictures, db.WithNotes):
 
     # columns
     sp = Column(Unicode(64), index=True)
+    epithet = synonym('sp')
     sp2 = Column(Unicode(64), index=True)  # in case hybrid=True
     sp_author = Column(Unicode(128))
     hybrid = Column(Boolean, default=False)
@@ -386,7 +387,7 @@ class Species(db.Base, db.Serializable, db.DefiningPictures, db.WithNotes):
         return self.str(authors, markup=True, genus=genus)
 
     # in PlantPlugins.init() we set this to 'x' for win32
-    hybrid_char = utils.utf8(u'\u2a09')  # U+2A09
+    hybrid_char = u'×'
 
     def str(self, authors=False, markup=False, remove_zws=False, genus=True,
             qualification=None):
@@ -495,6 +496,8 @@ class Species(db.Base, db.Serializable, db.DefiningPictures, db.WithNotes):
 
         parts = chain(binomial, infrasp_parts, tail)
         s = utils.utf8(' '.join(i for i in parts if i))
+        if self.hybrid:
+            s = s.replace('%s ' % self.hybrid_char, self.hybrid_char)
         return s
 
     @property
@@ -523,10 +526,15 @@ class Species(db.Base, db.Serializable, db.DefiningPictures, db.WithNotes):
         if not session:
             logger.warn('species:accepted.setter - object not in session')
             return
-        session.query(SpeciesSynonym).filter(
-            SpeciesSynonym.synonym_id == self.id).delete()
-        session.commit()
-        value.synonyms.append(self)
+        previous_synonymy_link = session.query(SpeciesSynonym).filter(
+            SpeciesSynonym.synonym_id == self.id).first()
+        if previous_synonymy_link:
+            a = session.query(Species).filter(Species.id==previous_synonymy_link.species_id).one()
+            a.synonyms.remove(self)
+        session.flush()
+        if value != self:
+            value.synonyms.append(self)
+        session.flush()
 
     def has_accessions(self):
         '''true if species is linked to at least one accession

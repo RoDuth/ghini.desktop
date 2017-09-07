@@ -1,11 +1,11 @@
-Documentation for Bauble 1.0
+Documentation for Ghini 1.0
 ############################
 
-.. image:: https://travis-ci.org/Bauble/bauble.classic.svg?branch=bauble-1.0
-.. image:: https://hosted.weblate.org/widgets/bauble/-/svg-badge.svg
-.. image:: https://coveralls.io/repos/Bauble/bauble.classic/badge.svg?branch=master&service=github :target: https://coveralls.io/github/Bauble/bauble.classic?branch=master 
+.. image:: https://travis-ci.org/Ghini/ghini.desktop.svg?branch=ghini-1.0-dev
+.. image:: https://hosted.weblate.org/widgets/ghini/-/svg-badge.svg
+.. image:: https://coveralls.io/repos/Ghini/ghini.desktop/badge.svg?branch=ghini-1.0-dev&service=github :target: https://coveralls.io/github/Ghini/ghini.desktop?branch=ghini-1.0-dev
 
-Bauble is an application for managing botanical specimen collections.
+Ghini is an application for managing botanical specimen collections.
 With it you can create a searchable database of plant records.
 
 It is `open <http://www.opensource.org>`_ and `free <http://www.fsf.org>`_
@@ -19,10 +19,10 @@ Statements
 .. toctree::
    :maxdepth: 1
 
-   peptalk
+   goal
    statements
 
-Installing Bauble
+Installing Ghini
 =================
 
 .. toctree::
@@ -31,8 +31,8 @@ Installing Bauble
    installing
 
 
-Using Bauble
-============
+User's Guide
+=============
 
 .. toctree::
    :maxdepth: 2
@@ -40,14 +40,22 @@ Using Bauble
    started
    searching
    editing
+   propagations
    tagging
    report
    imex
    users
 
+Cookbook
+==============
+.. toctree::
+   :maxdepth: 2
+
+   use_cases
+   
 
 Administration
-==============
+===============
 
 .. toctree::
    :maxdepth: 2
@@ -55,23 +63,20 @@ Administration
    administration
 
 
-Bauble Development
+Ghini Development
 ==================
 
 .. toctree::
    :maxdepth: 2
 
-   devdl
    building
-   extending
-   api
 
-Supporting Bauble
+Supporting Ghini
 =================
 
 .. image:: https://pledgie.com/campaigns/29188.png
 
-If you're using Bauble, or if you feel like helping its development anyway, 
+If you're using Ghini, or if you feel like helping its development anyway, 
 please consider `donating <https://pledgie.com/campaigns/29188>`_
 
 

@@ -2,20 +2,20 @@
 #
 # Copyright 2015 Mario Frasca <mario@anche.no>.
 #
-# This file is part of bauble.classic.
+# This file is part of ghini.desktop.
 #
-# bauble.classic is free software: you can redistribute it and/or modify
+# ghini.desktop is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
 #
-# bauble.classic is distributed in the hope that it will be useful,
+# ghini.desktop is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 # GNU General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
-# along with bauble.classic. If not, see <http://www.gnu.org/licenses/>.
+# along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
 
 import os
 import logging
@@ -109,7 +109,7 @@ class BatchTaxonomicCheckPresenter(GenericEditorPresenter):
     http://tnrs.iplantcollaborative.org/TNRSapp.html page.
 
     the user will run the service on the remote site, then save the results to
-    a file. then back to Bauble's BTC, the user will open the file and finally
+    a file. then back to Ghini's BTC, the user will open the file and finally
     interact with the BTC view.
 
     the Model of the BTC is a list of tuples.

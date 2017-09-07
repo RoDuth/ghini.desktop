@@ -3,27 +3,27 @@
 # Copyright 2008-2010 Brett Adams
 # Copyright 2015-2016 Mario Frasca <mario@anche.no>.
 #
-# This file is part of bauble.classic.
+# This file is part of ghini.desktop.
 #
-# bauble.classic is free software: you can redistribute it and/or modify
+# ghini.desktop is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
 #
-# bauble.classic is distributed in the hope that it will be useful,
+# ghini.desktop is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 # GNU General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
-# along with bauble.classic. If not, see <http://www.gnu.org/licenses/>.
+# along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
 #
 # connmgr.py
 #
 
 """
 The connection manager provides a GUI for creating and opening
-connections. This is the first thing displayed when Bauble starts.
+connections. This is the first thing displayed when Ghini starts.
 """
 import os
 import copy
@@ -187,7 +187,7 @@ class ConnMgrPresenter(GenericEditorPresenter):
     def __init__(self, view=None):
         self.filename = self.database = self.host = self.user = \
             self.pictureroot = self.connection_name = \
-            self.prev_connection_name = ''
+            self.prev_connection_name = None
         self.use_defaults = True
         self.passwd = False
         ## following two look like overkill, since they will be initialized
@@ -304,7 +304,7 @@ class ConnMgrPresenter(GenericEditorPresenter):
                 self.save_current_to_prefs()
         elif response == gtk.RESPONSE_CANCEL or \
                 response == gtk.RESPONSE_DELETE_EVENT:
-            if not self.compare_prefs_to_saved(self.connection_name):
+            if not self.are_prefs_already_saved(self.connection_name):
                 msg = _("Do you want to save your changes?")
                 if self.view.run_yes_no_dialog(msg):
                     self.save_current_to_prefs()
@@ -350,7 +350,7 @@ class ConnMgrPresenter(GenericEditorPresenter):
             self.view.combobox_set_active('name_combo', 0)
 
     def on_add_button_clicked(self, *args):
-        if not self.compare_prefs_to_saved(self.prev_connection_name):
+        if not self.are_prefs_already_saved(self.prev_connection_name):
             msg = (_("Do you want to save your changes to %s ?")
                    % self.prev_connection_name)
             if self.view.run_yes_no_dialog(msg):
@@ -382,11 +382,11 @@ class ConnMgrPresenter(GenericEditorPresenter):
         prefs.prefs[bauble.conn_list_pref] = conn_dict
         prefs.prefs.save()
 
-    def compare_prefs_to_saved(self, name):
+    def are_prefs_already_saved(self, name):
+        """are current prefs already saved under given name?
+
         """
-        name is the name of the connection in the prefs
-        """
-        if name is None:  # in case no name selected, can happen on first run
+        if not name:  # no name, no need to check
             return True
         conn_dict = prefs.prefs[bauble.conn_list_pref]
         if conn_dict is None or name not in conn_dict:
@@ -412,7 +412,7 @@ class ConnMgrPresenter(GenericEditorPresenter):
                     self.save_current_to_prefs()
                 else:
                     self.remove_connection(self.prev_connection_name)
-            elif not self.compare_prefs_to_saved(self.prev_connection_name):
+            elif not self.are_prefs_already_saved(self.prev_connection_name):
                 msg = (_("Do you want to save your changes to %s ?")
                        % self.prev_connection_name)
                 if self.view.run_yes_no_dialog(msg):
@@ -450,7 +450,8 @@ class ConnMgrPresenter(GenericEditorPresenter):
             title,
             self.view.get_window(),
             gtk.DIALOG_MODAL | gtk.DIALOG_DESTROY_WITH_PARENT,
-            (gtk.STOCK_OK, gtk.RESPONSE_ACCEPT))
+            (gtk.STOCK_OK, gtk.RESPONSE_ACCEPT),
+            visible=False)
         return passwd
 
     def parameters_to_uri(self, params):
@@ -503,19 +504,19 @@ class ConnMgrPresenter(GenericEditorPresenter):
                 path, f = os.path.split(filename)
                 if not os.access(path, os.R_OK):
                     valid = False
-                    msg = _("Bauble does not have permission to "
+                    msg = _("Ghini does not have permission to "
                             "read the directory:\n\n%s") % path
                 elif not os.access(path, os.W_OK):
                     valid = False
-                    msg = _("Bauble does not have permission to "
+                    msg = _("Ghini does not have permission to "
                             "write to the directory:\n\n%s") % path
             elif not os.access(filename, os.R_OK):
                 valid = False
-                msg = _("Bauble does not have permission to read the "
+                msg = _("Ghini does not have permission to read the "
                         "database file:\n\n%s") % filename
             elif not os.access(filename, os.W_OK):
                 valid = False
-                msg = _("Bauble does not have permission to "
+                msg = _("Ghini does not have permission to "
                         "write to the database file:\n\n%s") % filename
         else:
             fields = []
@@ -562,9 +563,9 @@ class ConnMgrPresenter(GenericEditorPresenter):
             if self.use_defaults is True:
                 name = new or self.connection_name
                 self.filename = os.path.join(
-                    paths.user_dir(), name + '.db')
+                    paths.appdata_dir(), name + '.db')
                 self.pictureroot = os.path.join(
-                    paths.user_dir(), name)
+                    paths.appdata_dir(), name)
             result = {'file': self.filename,
                       'default': self.use_defaults,
                       'pictures': self.pictureroot}

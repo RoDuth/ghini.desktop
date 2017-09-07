@@ -3,20 +3,20 @@
 # Copyright 2008-2010 Brett Adams
 # Copyright 2014-2015 Mario Frasca <mario@anche.no>.
 #
-# This file is part of bauble.classic.
+# This file is part of ghini.desktop.
 #
-# bauble.classic is free software: you can redistribute it and/or modify
+# ghini.desktop is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
 #
-# bauble.classic is distributed in the hope that it will be useful,
+# ghini.desktop is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 # GNU General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
-# along with bauble.classic. If not, see <http://www.gnu.org/licenses/>.
+# along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
 #
 # Family table definition
 #
@@ -31,7 +31,7 @@ logger = logging.getLogger(__name__)
 
 from sqlalchemy import Column, Unicode, Integer, ForeignKey, \
     UnicodeText, func, and_, UniqueConstraint, String
-from sqlalchemy.orm import relation, backref, validates
+from sqlalchemy.orm import relation, backref, validates, synonym
 from sqlalchemy.orm.session import object_session
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.associationproxy import association_proxy
@@ -77,9 +77,11 @@ def remove_callback(families):
     ngen = session.query(Genus).filter_by(family_id=family.id).count()
     safe_str = utils.xml_safe(str(family))
     if ngen > 0:
-        msg = _('The family <i>%(family)s</i> has %(num_genera)s genera.  Are '
-                'you sure you want to remove it?') % dict(family=safe_str,
-                                                          num_genera=ngen)
+        msg = (_('The family <i>%(1)s</i> has %(2)s genera.'
+                 '\n\n') % {'1': safe_str, '2': ngen} +
+               _('You cannot remove a family with genera.'))
+        utils.message_dialog(msg, type=gtk.MESSAGE_WARNING)
+        return
     else:
         msg = _("Are you sure you want to remove the family <i>%s</i>?") \
             % safe_str
@@ -165,6 +167,7 @@ class Family(db.Base, db.Serializable, db.WithNotes):
 
     # columns
     family = Column(String(45), nullable=False, index=True)
+    epithet = synonym('family')
 
     # we use the blank string here instead of None so that the
     # contraints will work properly,
@@ -356,9 +359,9 @@ class FamilyEditorView(editor.GenericEditorView):
                            'it to the list of synonyms.'),
         'fam_cancel_button': _('Cancel your changes.'),
         'fam_ok_button': _('Save your changes.'),
-        'fam_ok_and_add_button': _('Save your changes changes and add a '
+        'fam_ok_and_add_button': _('Save your changes and add a '
                                    'genus to this family.'),
-        'fam_next_button': _('Save your changes changes and add another '
+        'fam_next_button': _('Save your changes and add another '
                              'family.')
     }
 

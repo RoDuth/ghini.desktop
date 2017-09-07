@@ -3,26 +3,26 @@
 # Copyright (c) 2005,2006,2007,2008,2009 Brett Adams <brett@belizebotanic.org>
 # Copyright (c) 2015-2016 Mario Frasca <mario@anche.no>
 #
-# This file is part of bauble.classic.
+# This file is part of ghini.desktop.
 #
-# bauble.classic is free software: you can redistribute it and/or modify
+# ghini.desktop is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
 #
-# bauble.classic is distributed in the hope that it will be useful,
+# ghini.desktop is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 # GNU General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
-# along with bauble.classic. If not, see <http://www.gnu.org/licenses/>.
+# along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
 #
 # utils module
 #
 
 """
-A common set of utility functions used throughout Bauble.
+A common set of utility functions used throughout Ghini.
 """
 import datetime
 import os
@@ -235,7 +235,6 @@ class BuilderLoader(object):
             return cls.builders[filename]
         b = gtk.Builder()
         b.add_from_file(filename)
-        b.set_translation_domain('bauble')
         cls.builders[filename] = b
         return b
 
@@ -501,8 +500,9 @@ def set_widget_value(widget, value, markup=False, default=None, index=0):
         elif value is False:  # why do we need unset `inconsistent` for False?
             widget.set_inconsistent(False)
             widget.set_active(False)
-        else:
-            widget.set_inconsistent(True)
+        else: # treat None as False, we do not handle inconsistent cases.
+            widget.set_inconsistent(False)
+            widget.set_active(False)
     elif isinstance(widget, gtk.Button):
         if value is None:
             widget.props.label = ''
@@ -537,7 +537,7 @@ def create_message_dialog(msg, type=gtk.MESSAGE_INFO, buttons=gtk.BUTTONS_OK,
     d = gtk.MessageDialog(flags=gtk.DIALOG_MODAL |
                           gtk.DIALOG_DESTROY_WITH_PARENT,
                           parent=parent, type=type, buttons=buttons)
-    d.set_title('Bauble')
+    d.set_title('Ghini')
     d.set_markup(msg)
 
     # get the width of a character
@@ -594,7 +594,7 @@ def create_yes_no_dialog(msg, parent=None):
                           gtk.DIALOG_DESTROY_WITH_PARENT,
                           parent=parent, type=gtk.MESSAGE_QUESTION,
                           buttons=gtk.BUTTONS_YES_NO)
-    d.set_title('Bauble')
+    d.set_title('Ghini')
     d.set_markup(msg)
     if d.get_icon() is None:
         try:
@@ -647,7 +647,7 @@ def create_message_details_dialog(msg, details, type=gtk.MESSAGE_INFO,
     d = gtk.MessageDialog(flags=gtk.DIALOG_MODAL |
                           gtk.DIALOG_DESTROY_WITH_PARENT,
                           parent=parent, type=type, buttons=buttons)
-    d.set_title('Bauble')
+    d.set_title('Ghini')
     d.set_markup(msg)
 
     # get the width of a character
@@ -1133,20 +1133,21 @@ def mem(size="rss"):
                         (os.getpid(), size)).read())
 
 
-#
-# This implementation of topological sort was taken directly from...
-# http://www.bitformation.com/art/python_toposort.html
-#
 def topological_sort(items, partial_order):
-    """
-    Perform topological sort.
+    """return list of nodes sorted by dependencies
 
     :param items: a list of items to be sorted.
 
-    :param partial_order: a list of pairs. If pair (a,b) is in it, it
-        means that item a should appear before item b. Returns a list of
-        the items in one of the possible orders, or None if partial_order
-        contains a loop.
+    :param partial_order: a list of pairs. If pair ('a', 'b') is in it, it
+        means that 'a' should not appear after 'b'.
+
+    Returns a list of the items in one of the possible orders, or None if
+    partial_order contains a loop.
+
+    We want a minimum list satisfying the requirements, and the partial
+    ordering states dependencies, but they may list more nodes than
+    necessary in the solution. for example, whatever dependencies are given,
+    if you start from the emtpy items list, the empty list is the solution.
 
     """
 
@@ -1160,9 +1161,10 @@ def topological_sort(items, partial_order):
         Add an arc to a graph. Can create multiple arcs. The end nodes must
         already exist.
         """
-        graph[fromnode].append(tonode)
+        graph.setdefault(fromnode, [0]).append(tonode)
+        graph.setdefault(tonode, [0])
         # Update the count of incoming arcs in tonode.
-        graph[tonode][0] = graph[tonode][0] + 1
+        graph[tonode][0] += 1
 
     # step 1 - create a directed graph with an arc a->b for each input
     # pair (a,b).
@@ -1171,11 +1173,12 @@ def topological_sort(items, partial_order):
     # of the node. /list/'s 1st item is the count of incoming arcs, and
     # the rest are the destinations of the outgoing arcs. For example:
     # {'a':[0,'b','c'], 'b':[1], 'c':[1]}
-    # represents the graph: c <-- a --> b
+    # represents the graph: a --> b, a --> c
     # The graph may contain loops and multiple arcs.
-    # Note that our representation does not contain reference loops to
-    # cause GC problems even when the represented graph contains loops,
-    # because we keep the node names rather than references to the nodes.
+
+    # (ABCDE, (AB, BC, BD)) becomes:
+    # {a: [0, b], b: [1, c, d], c: [1], d: [1], e: [0]}
+    # requesting B and E from the above should result in including all except A, and prepending C and D to B.
 
     graph = {}
     for v in items:
@@ -1250,28 +1253,6 @@ class GenericMessageBox(gtk.EventBox):
     def show(self):
         self.show_all()
 
-    def animate(self):
-        return
-        # TODO: this animation should be smoother
-        width, height = self.size_request()
-        self.set_size_request(width, 0)
-        import time
-        self.last_time = time.time()
-
-        def _animate_cb(final_height):
-            height = 0
-            while height < final_height:
-                width, height = self.size_request()
-                height = height + 1
-                self.set_size_request(width, height)
-                self.queue_resize()
-                while gtk.events_pending():
-                    gtk.main_iteration(False)
-            logger.debug('return False')
-            return False
-        #gobject.timeout_add(8, _animate_cb, height)
-        gobject.idle_add(_animate_cb, height)
-
 
 class MessageBox(GenericMessageBox):
     """
@@ -1284,10 +1265,9 @@ class MessageBox(GenericMessageBox):
         self.box.pack_start(self.vbox)
 
         self.label = gtk.TextView()
+        self.label.set_can_focus(False)
         self.buffer = gtk.TextBuffer()
         self.label.set_buffer(self.buffer)
-        #self.label.set_padding(8, 8)
-        #self.label.set_alignment(0, 0)
         if msg:
             self.buffer.set_text(msg)
         self.vbox.pack_start(self.label, expand=True, fill=True)

@@ -3,20 +3,20 @@
 # Copyright 2008-2010 Brett Adams
 # Copyright 2012-2015 Mario Frasca <mario@anche.no>.
 #
-# This file is part of bauble.classic.
+# This file is part of ghini.desktop.
 #
-# bauble.classic is free software: you can redistribute it and/or modify
+# ghini.desktop is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
 #
-# bauble.classic is distributed in the hope that it will be useful,
+# ghini.desktop is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 # GNU General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
-# along with bauble.classic. If not, see <http://www.gnu.org/licenses/>.
+# along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
 #
 # pluginmgr.py
 #
@@ -166,7 +166,7 @@ def init(force=False):
     2. Call each init() for each plugin the registry in order of dependency
     3. Register the command handlers in the plugin's commands[]
 
-    NOTE: This is called after after Bauble has created the GUI and
+    NOTE: This is called after after Ghini has created the GUI and
     established a connection to a database with db.open()
 
     """
@@ -247,9 +247,9 @@ def init(force=False):
                    % dict(plugin_name=plugin.__class__.__name__))
             logger.warning(msg)
         except Exception, e:
-            logger.error(e)
+            logger.error("%s: %s" % (type(e), e))
             ordered.remove(plugin)
-            logger.error(traceback.print_exc())
+            logger.debug(traceback.print_exc())
             safe = utils.xml_safe
             values = dict(entry_name=plugin.__class__.__name__,
                           exception=safe(e))
@@ -259,7 +259,7 @@ def init(force=False):
                 traceback.format_exc(),
                 gtk.MESSAGE_ERROR)
 
-    # register the plugin commands seperately from the plugin initialization
+    # register the plugin commands separately from the plugin initialization
     for plugin in ordered:
         if plugin.commands in (None, []):
             continue
@@ -294,6 +294,7 @@ def install(plugins_to_install, import_defaults=True, force=False):
     :type force: book
     """
 
+    print plugins_to_install, "this was initially"
     logger.debug('pluginmgr.install(%s)' % str(plugins_to_install))
     if plugins_to_install is 'all':
         to_install = plugins.values()
@@ -305,11 +306,13 @@ def install(plugins_to_install, import_defaults=True, force=False):
         return
 
     # sort the plugins by their dependency
-    depends, unmet = _create_dependency_pairs(to_install)
+    depends, unmet = _create_dependency_pairs(plugins.values())
+    print depends, "the dependencies pairs"
     if unmet != {}:
         logger.debug(unmet)
         raise BaubleError('unmet dependencies')
     to_install = utils.topological_sort(to_install, depends)
+    print to_install, "this is after topological sort"
     if not to_install:
         raise BaubleError(_('The plugins contain a dependency loop. This '
                             'can happend if two plugins directly or '
@@ -318,11 +321,13 @@ def install(plugins_to_install, import_defaults=True, force=False):
     try:
         for p in to_install:
             logger.debug('install: %s' % p)
+            print p, "installing"
             p.install(import_defaults=import_defaults)
             # issue #28: here we make sure we don't add the plugin to the
             # registry twice but we should really update the version number
             # in the future when we accept versioned plugins (if ever)
             if not PluginRegistry.exists(p):
+                print p, "adding to registry"
                 PluginRegistry.add(p)
     except Exception, e:
         logger.warning('bauble.pluginmgr.install(): %s' % utils.utf8(e))
@@ -332,7 +337,7 @@ def install(plugins_to_install, import_defaults=True, force=False):
 class PluginRegistry(db.Base):
     """
     The PluginRegistry contains a list of plugins that have been installed
-    in a particular instance of a Bauble database.  At the moment it only
+    in a particular instance of a Ghini database.  At the moment it only
     includes the name and version of the plugin but this is likely to change
     in future versions.
     """
@@ -419,7 +424,7 @@ class Plugin(object):
     """
     tools:
       a list of BaubleTool classes that this plugin provides, the
-      tools' category and label will be used in Bauble's "Tool" menu
+      tools' category and label will be used in Ghini's "Tool" menu
     depends:
       a list of names classes that inherit from BaublePlugin that this
       plugin depends on
@@ -442,7 +447,7 @@ class Plugin(object):
     @classmethod
     def init(cls):
         '''
-        init() is run when Bauble is first started
+        init() is run when Ghini is first started
         '''
         pass
 
