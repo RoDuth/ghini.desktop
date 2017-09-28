@@ -36,7 +36,7 @@ import gobject
 from sqlalchemy import union
 
 import bauble
-from bauble.i18n import _
+
 from bauble.error import BaubleError
 import bauble.utils as utils
 import bauble.paths as paths

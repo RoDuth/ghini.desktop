@@ -33,7 +33,7 @@ import bauble.db as db
 import bauble.error as error
 import bauble.utils as utils
 import bauble.btypes as types
-from bauble.i18n import _
+
 
 
 def _remove_zws(s):
@@ -662,6 +662,19 @@ class SpeciesNote(db.Base, db.Serializable):
                    'epithet': epithet}
         result['species'] = Species.retrieve_or_create(
             session, sp_dict, create=False)
+        return result
+
+    @classmethod
+    def retrieve_or_create(cls, session, keys,
+                           create=True, update=True):
+        """return database object corresponding to keys
+        """
+        result = super(SpeciesNote, cls).retrieve_or_create(session, keys, create, update)
+        category = keys.get('category', '')
+        if (create and (category.startswith('[') and category.endswith(']') or
+                        category.startswith('<') and category.endswith('>'))):
+            result = cls(**keys)
+            session.add(result)
         return result
 
     @classmethod

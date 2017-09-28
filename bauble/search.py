@@ -38,7 +38,7 @@ RelationProperty = RelationshipProperty
 import bauble
 from bauble.error import check
 import bauble.utils as utils
-from bauble.i18n import _
+
 from bauble.editor import (
     GenericEditorView, GenericEditorPresenter)
 from querybuilderparser import BuiltQuery
@@ -443,7 +443,8 @@ class BinomialNameAction(object):
         from bauble.plugins.plants.genus import Genus
         from bauble.plugins.plants.species import Species
         result = search_strategy._session.query(Species).filter(
-            Species.sp.startswith(self.species_epithet)).join(Genus).filter(
+            or_(Species.sp.startswith(self.species_epithet),
+                and_(self.species_epithet == u'sp', Species.infrasp1 == u'sp'))).join(Genus).filter(
             Genus.genus.startswith(self.genus_epithet)).all()
         result = set(result)
         if None in result:

@@ -28,7 +28,7 @@ import datetime
 import os
 import re
 import bauble.error as error
-from bauble.i18n import _
+
 
 try:
     import sqlalchemy as sa
@@ -572,7 +572,7 @@ class Serializable:
         logger.debug('2 value of keys: %s' % keys)
 
         if not create and not is_in_session:
-            logger.debug('returning None (1)')
+            logger.debug('not creating from %s; returning None (1)' % str(keys))
             return None
 
         if is_in_session and not update:
