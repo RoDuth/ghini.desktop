@@ -155,7 +155,8 @@ class SpeciesABCDAdapter(ABCDAdapter):
         return utils.xml_safe(str(self.species.infraspecific_rank))
 
     def get_InfraspecificEpithet(self):
-        return utils.xml_safe(str(self.species.infraspecific_epithet))
+        return utils.xml_safe(str(self.species.infraspecific_epithet or \
+            self.species.infrasp1 or ''))
     
     def get_CultivarName(self):
         return utils.xml_safe(str(self.species.cultivar_epithet))
