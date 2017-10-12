@@ -2,6 +2,7 @@
 #
 # Copyright (c) 2005,2006,2007,2008,2009 Brett Adams <brett@belizebotanic.org>
 # Copyright (c) 2012-2016 Mario Frasca <mario@anche.no>
+# Copyright (c) 2016,2017 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -341,7 +342,7 @@ class ABCDExporter(object):
             if d.run() == gtk.RESPONSE_ACCEPT:
                 filename = d.get_filename()
             d.destroy()
-            logger.debug('ABCDExporter filename %s' % filename)
+            logger.debug('ABCDExporter exporting data to  %s' % filename)
             if filename is None:
                 logger.warning('ABCDExporter filename is None')
                 return
