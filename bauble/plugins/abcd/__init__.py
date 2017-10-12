@@ -37,6 +37,8 @@ import bauble.utils as utils
 import bauble.pluginmgr as pluginmgr
 from bauble.plugins.garden.plant import Plant
 
+import logging
+logger = logging.getLogger(__name__)
 
 # NOTE: see biocase provider software for reading and writing ABCD data
 # files, already downloaded software to desktop
@@ -339,14 +341,19 @@ class ABCDExporter(object):
             if d.run() == gtk.RESPONSE_ACCEPT:
                 filename = d.get_filename()
             d.destroy()
-            return filename
+            logger.debug('ABCDExporter filename %s' % filename)
+            if filename is None:
+                logger.warning('ABCDExporter filename is None')
+                return
 
         if plants:
             nplants = len(plants)
         else:
             nplants = db.Session().query(Plant).count()
 
+        logger.debug('ABCDExporter exporting %s plant records' % nplants)
         if nplants > 3000:
+            logger.info('ABCDExporter exceeds 3000 record exports')
             msg = _('You are exporting %(nplants)s plants to ABCD format.  '
                     'Exporting this many plants may take several minutes.  '
                     '\n\n<i>Would you like to continue?</i>') \
@@ -391,6 +398,7 @@ class ABCDExportTool(pluginmgr.Tool):
 
     @classmethod
     def start(cls):
+        logger.debug('ABCDExportTool start')
         ABCDExporter().start()
 
 
