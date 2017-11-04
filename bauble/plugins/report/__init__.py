@@ -2,6 +2,7 @@
 #
 # Copyright 2008-2010 Brett Adams
 # Copyright 2012-2017 Mario Frasca <mario@anche.no>.
+# Copyright 2017 Jardín Botánico de Quito
 # Copyright 2017 Ross Demuth
 #
 # This file is part of ghini.desktop.
@@ -218,7 +219,13 @@ def get_location_query(obj, session):
     """
     """
     q = session.query(Location).order_by(None)
-    if isinstance(obj, Family):
+    if isinstance(obj, Location):
+        return q.filter_by(id=obj.id)
+    elif isinstance(obj, Plant):
+        return q.join('plants').filter_by(id=obj.id)
+    elif isinstance(obj, Accession):
+        return q.join('plants', 'accession').filter_by(id=obj.id)
+    elif isinstance(obj, Family):
         return q.join('plants', 'accession', 'species', 'genus', 'family').\
             filter_by(id=obj.id)
     elif isinstance(obj, Genus):
@@ -230,15 +237,9 @@ def get_location_query(obj, session):
     elif isinstance(obj, VernacularName):
         return q.join('plants', 'accession', 'species', 'vernacular_names').\
             filter_by(id=obj.id)
-    elif isinstance(obj, Plant):
-        return q.join('plants').filter_by(id=obj.id)
-    elif isinstance(obj, Accession):
-        return q.join('plants', 'accession').filter_by(id=obj.id)
     elif isinstance(obj, Contact):
         return q.join('plants', 'accession', 'source', 'source_detail').\
                 filter_by(id=obj.id)
-    elif isinstance(obj, Location):
-        return q.filter_by(id=obj.id)
     elif isinstance(obj, Tag):
         locs = get_locations_pertinent_to(obj.objects, session)
         return q.filter(Location.id.in_([l.id for l in locs]))
