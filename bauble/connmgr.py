@@ -157,6 +157,48 @@ def check_and_notify_new_version(view):
         logger.warning('unhandled %s(%s) while checking for newer version'
                        % type(e), e)
 
+def check_and_notify_new_installer(view):
+    ## check for a newer installer in releases on github
+    github_release_api = ('https://api.github.com/repos/RoDuth/ghini'
+                          '.desktop/releases/latest')
+    try:
+        import requests
+        import json
+        github_release_req = requests.get(github_release_api, timeout=5)
+        if github_release_req.ok:
+            github_release_json = json.loads(github_release_req.text)
+            github_release = github_release_json['tag_name'][1:]
+            github_release_int = [int(''.join(i for i in s if i.isdigit())) for
+                                  s in github_release.split('.')]
+            remote = github_release_int[2] > int(bauble.version_tuple[2])
+            if github_release_int[2] < int(bauble.version_tuple[2]):
+                logger.info("running unreleased version")
+        else:
+            logger.info('requests client or server error while checking for '
+                        'newer installer')
+        if remote:
+            def show_message_box():
+                msg = _("new remote version %s available.\n"
+                        "continue, or exit to upgrade."
+                        ) % github_release
+                box = view.add_message_box()
+                box.message = msg
+                box.show()
+                view.add_box(box)
+
+            # Any code that modifies the UI that is called from outside the
+            # main thread must be pushed into the main thread and called
+            # asynchronously in the main loop, with gobject.idle_add.
+            import gobject
+            gobject.idle_add(show_message_box)
+    except requests.exceptions.Timeout:
+        logger.info('connection is slow or down')
+    except requests.exceptions.RequestException, e:
+        logger.info('Requests error %s(%s) while checking for newer version'
+                    % type(e), e)
+    except Exception, e:
+        print('unhandled %s(%s) while checking for newer version'
+                       % type(e), e)
 
 class ConnMgrPresenter(GenericEditorPresenter):
     """
@@ -222,12 +264,15 @@ class ConnMgrPresenter(GenericEditorPresenter):
             pass
 
         from bauble import main_is_frozen
-        # Don't check for new versions if we are in a py2exe environment
-        if not main_is_frozen():
-            from threading import Thread
+        from threading import Thread
+        if main_is_frozen():
+            logger.debug('main_is_frozen, checking installer version')
+            self.start_thread(Thread(target=check_and_notify_new_installer,
+                                 args=[self.view]))
+        else:
+            logger.debug('main_is_frozen = false, checking version')
             self.start_thread(Thread(target=check_and_notify_new_version,
                                  args=[self.view]))
-        logger.debug('main_is_frozen = %s' % (main_is_frozen()))
 
     def on_file_btnbrowse_clicked(self, *args):
         previously = self.view.widget_get_value('file_entry')
