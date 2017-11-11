@@ -182,6 +182,10 @@ if sys.platform == 'win32' and sys.argv[1] in ('nsis', 'py2exe'):
             file_util.copy_file("LICENSE", os.path.join(self.dist_dir, 'share',
                                                         'LICENSE.ghini'))
 
+            # copy cacert.pem for requests
+            from certifi import where
+            file_util.copy_file(where(), os.path.join(self.dist_dir, 'share'))
+
     class NsisCmd(Command):
         """Command to create a Windows NSIS installer"""
 

@@ -3,7 +3,7 @@
 # Copyright 2008-2010 Brett Adams
 # Copyright 2015-2017 Mario Frasca <mario@anche.no>.
 # Copyright 2017 Jardín Botánico de Quito
-# Copyright 2016 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright 2016, 2017 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -159,12 +159,18 @@ def check_and_notify_new_version(view):
 
 def check_and_notify_new_installer(view):
     ## check for a newer installer in releases on github
+    remote = False
     github_release_api = ('https://api.github.com/repos/RoDuth/ghini'
                           '.desktop/releases/latest')
     try:
-        import requests
         import json
-        github_release_req = requests.get(github_release_api, timeout=5)
+        import requests
+        # use share/cacert.pem - see: https://stackoverflow.com/a/21206079
+        cert = 'cacert.pem'
+        os.environ['REQUESTS_CA_BUNDLE'] = os.path.join(paths.main_dir(),
+                                                        'share', cert)
+        github_release_req = requests.get(github_release_api.encode('utf-8'),
+                                          timeout=5)
         if github_release_req.ok:
             github_release_json = json.loads(github_release_req.text)
             github_release = github_release_json['tag_name'][1:]
@@ -172,15 +178,15 @@ def check_and_notify_new_installer(view):
                                   s in github_release.split('.')]
             remote = github_release_int[2] > int(bauble.version_tuple[2])
             if github_release_int[2] < int(bauble.version_tuple[2]):
-                logger.info("running unreleased version")
+                logger.info("running unreleased windows install version")
         else:
-            logger.info('requests client or server error while checking for '
-                        'newer installer')
+            logger.info('client or server error while checking for a newer '
+                        'installer')
         if remote:
             def show_message_box():
-                msg = _("new remote version %s available.\n"
+                msg = _("new remote installer %s available.\n"
                         "continue, or exit to upgrade."
-                        ) % github_release
+                       ) % github_release
                 box = view.add_message_box()
                 box.message = msg
                 box.show()
@@ -192,13 +198,12 @@ def check_and_notify_new_installer(view):
             import gobject
             gobject.idle_add(show_message_box)
     except requests.exceptions.Timeout:
-        logger.info('connection is slow or down')
+        logger.info('connection timed out while checking for newer installer')
     except requests.exceptions.RequestException, e:
-        logger.info('Requests error %s(%s) while checking for newer version'
-                    % type(e), e)
+        logger.info('Requests error %s while checking for newer installer', e)
     except Exception, e:
-        print('unhandled %s(%s) while checking for newer version'
-                       % type(e), e)
+        logger.warning('unhandled %s(%s) while checking for newer '
+                       'installer', type(e).__name__, e)
 
 class ConnMgrPresenter(GenericEditorPresenter):
     """
