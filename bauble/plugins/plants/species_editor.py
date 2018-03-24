@@ -418,22 +418,33 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
 
         # get position from entry, can't trust position parameter
         position = entry.get_position()
-        if text.count(u'×'):
+        # imediately allow spaces for names that fit our allowances. Works only
+        # on the first pass when opening a species for an edit or when pasting
+        # in text.  Without it spaces are removed when opened to edit.
+        if any(i for i in (text.count(u'×'),
+                           text.count(u' ('),
+                           text[:4] == 'sp. ')):
             self.species_space = True
+
         if text.count(u'*'):
             self.species_space = True
             text = text.replace(u'*', u" × ")
-
-        # allow botanist flags for unnamed species(e.g. 'sp. nov.' 
-        # 'sp. (OrmeauL.H.Bird AQ435851)') - see ITF2 - Species Epithet: 
+        # allow botanist flags for unnamed species(e.g. 'sp. nov.'
+        # 'sp. (OrmeauL.H.Bird AQ435851)') - see ITF2 - Species Epithet:
         # Rule of information 1.2
-        if text.count(u'sp.'):
+        # using get_chars method here as the 'text' variable, while typing,
+        # only contains the last entered character
+        full_text = entry.get_chars(0, -1)
+        if full_text[:3] == 'sp.':
             self.species_space = True
 
-        # allow descriptive botanist flags e.g. 'caerulea (Finch Hatton)' 
+        # allow descriptive botanist flags e.g. 'caerulea (Finch Hatton)'
         # (although not strictly ITF2 compliant the practice is in common use)
-        if text.count(u'('):
+        # note this will add the space in when adding a ( only if spaces have
+        # not already been allowed due to one of the other rules.
+        if text == (u'(') and self.species_space is False:
             self.species_space = True
+            text = text.replace(u'(', u" (")
 
         if self.species_space is False:
             text = text.replace(' ', '')
