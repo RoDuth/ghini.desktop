@@ -257,6 +257,15 @@ class GenericEditorView(object):
 
     def run_file_chooser_dialog(
             self, text, parent, action, buttons, last_folder, target):
+        """create and run FileChooserDialog, then write result in target
+
+        this is just a bit more than a wrapper. it adds 'last_folder', a
+        string indicationg the location where to put the FileChooserDialog,
+        and 'target', an Entry widget or its name.
+
+        make sure you have a gtk.RESPONSE_ACCEPT button.
+
+        """
         chooser = gtk.FileChooserDialog(text, parent, action, buttons)
         #chooser.set_do_overwrite_confirmation(True)
         #chooser.connect("confirm-overwrite", confirm_overwrite_callback)
@@ -761,6 +770,7 @@ class GenericEditorView(object):
 class MockDialog:
     def __init__(self):
         self.hidden = False
+        self.content_area = gtk.VBox()
 
     def hide(self):
         self.hidden = True
@@ -770,6 +780,12 @@ class MockDialog:
 
     def show(self):
         pass
+
+    def add_accel_group(self, group):
+        pass
+
+    def get_content_area(self):
+        return self.content_area
 
 
 class MockView:
@@ -1059,13 +1075,17 @@ class GenericEditorPresenter(object):
         self.running_threads = []
         self.owns_session = False
         self.session = session
+        self.clipboard_presenters = []
+        if not hasattr(self.__class__, 'clipboard'):
+            logging.debug('creating clipboard in presenter class %s' % self.__class__.__name__)
+            self.__class__.clipboard = {}
 
         if session is None:
             try:
                 self.session = object_session(model)
             except Exception, e:
                 logger.debug("GenericEditorPresenter::__init__ - %s, %s" % (type(e), e))
-                
+
             if self.session is None:  # object_session gave None without error
                 if db.Session is not None:
                     self.session = db.Session()
@@ -1082,9 +1102,80 @@ class GenericEditorPresenter(object):
                 self.refresh_view()
             view.connect_signals(self)
 
+    def create_toolbar(self, *args, **kwargs):
+        view, model = self.view, self.model
+        logging.debug('creating toolbar in content_area presenter %s' % self.__class__.__name__)
+        actiongroup = gtk.ActionGroup('window-clip-actions')
+        accelgroup = gtk.AccelGroup()
+        fake_toolbar = gtk.Toolbar()
+        fake_toolbar.set_name('toolbar')
+        view.get_window().add_accel_group(accelgroup)
+        view.get_window().get_content_area().pack_start(fake_toolbar)
+        for shortcut, cb in (('<ctrl><shift>c', self.on_window_clip_copy),
+                             ('<ctrl><shift>v', self.on_window_clip_paste)):
+            action = gtk.Action(shortcut, shortcut, 'clip-action', None)
+            actiongroup.add_action_with_accel(action, shortcut)
+            action.connect("activate", cb)
+            action.set_accel_group(accelgroup)
+            action.connect_accelerator()
+            toolitem = action.create_tool_item()
+            fake_toolbar.insert(toolitem, -1)
+        fake_toolbar.set_visible(False)
+        self.clipboard_presenters.append(self)
+
+    def register_clipboard(self):
+        parent = self.parent_ref()
+        parent.clipboard_presenters.append(self)
+
+    def on_window_clip_copy(self, widget, *args, **kwargs):
+        try:
+            notebook = self.view.widgets['notebook']
+            current_page_no = notebook.get_current_page()
+            current_page_widget = notebook.get_nth_page(current_page_no)
+        except:
+            notebook = None
+            current_page_widget = self.view.get_window().get_content_area()
+        for presenter in self.clipboard_presenters:
+            for name in presenter.widget_to_field_map:
+                container = presenter.view.widgets[name]
+                while container.parent != notebook:
+                    if current_page_widget == container:
+                        break
+                    container = container.parent
+                if current_page_widget == container:
+                    value = presenter.view.widget_get_value(name)
+                    logger.debug('writing »%s« in clipboard %s for %s' % (value, presenter.__class__.__name__, name))
+                    presenter.clipboard[name] = value
+
+    def on_window_clip_paste(self, widget, *args, **kwargs):
+        try:
+            notebook = self.view.widgets['notebook']
+            current_page_no = notebook.get_current_page()
+            current_page_widget = notebook.get_nth_page(current_page_no)
+        except:
+            notebook = None
+            current_page_widget = self.view.get_window().get_content_area()
+        for presenter in self.clipboard_presenters:
+            for name in presenter.widget_to_field_map:
+                container = presenter.view.widgets[name]
+                while container.parent != notebook:
+                    if current_page_widget == container:
+                        break
+                    container = container.parent
+                if current_page_widget == container:
+                    if presenter.view.widget_get_value(name):
+                        logger.debug('skipping %s in clipboard %s because widget has value' % (name, presenter.__class__.__name__))
+                        continue
+                    clipboard_value = presenter.clipboard.get(name)
+                    if not clipboard_value:
+                        logger.debug('skipping %s because clipboard %s has no value' % (name, presenter.__class__.__name__))
+                        continue
+                    logger.debug('setting »%s« from clipboard %s for %s' % (clipboard_value, presenter.__class__.__name__, name))
+                    presenter.view.widget_set_value(name, clipboard_value)
+
     def refresh_sensitivity(self):
         logger.debug('you should implement this in your subclass')
-            
+
     def refresh_view(self):
         '''fill the values in the widgets as the field values in the model
 
@@ -1115,13 +1206,12 @@ class GenericEditorPresenter(object):
         '''
         objs = list(self.session)
         try:
-            self.session.flush()
+            self.session.commit()
             try:
                 bauble.gui.get_view().update()
             except Exception, e:
                 pass
         except Exception, e:
-            logger.warning(e)
             self.session.rollback()
             self.session.add_all(objs)
             raise
@@ -1721,18 +1811,6 @@ class GenericModelViewPresenterEditor(object):
         self.session = db.Session()
         self.model = self.session.merge(model)
 
-    def attach_response(self, dialog, response, keyname, mask):
-        '''
-        Attach a response to dialog when keyname and mask are pressed
-        '''
-        def callback(widget, event, key, mask):
-#            debug(gtk.gdk.keyval_name(event.keyval))
-            if event.keyval == gtk.gdk.keyval_from_name(key) \
-                    and (event.state & mask):
-                widget.response(response)
-        dialog.add_events(gtk.gdk.KEY_PRESS_MASK)
-        dialog.connect("key-press-event", callback, keyname, mask)
-
     def commit_changes(self):
         '''
         Commit the changes to self.session()
@@ -1745,7 +1823,7 @@ class GenericModelViewPresenterEditor(object):
             except Exception, e:
                 pass
         except Exception, e:
-            logger.warning(e)
+            logger.warning("can't commit changes: (%s) %s" % (type(e), e))
             self.session.rollback()
             self.session.add_all(objs)
             raise
@@ -1766,7 +1844,9 @@ class NoteBox(gtk.HBox):
         self.widgets.note_textview.set_buffer(buff)
         utils.set_widget_value(self.widgets.note_textview,
                                text or '')
-        buff.connect('changed', self.on_note_buffer_changed)
+        if not text:
+            self.presenter.add_problem(self.presenter.PROBLEM_EMPTY, self.widgets.note_textview)
+        buff.connect('changed', self.on_note_buffer_changed, self.widgets.note_textview)
 
     def __init__(self, presenter, model=None):
         super(NoteBox, self).__init__()
@@ -1891,10 +1971,13 @@ class NoteBox(gtk.HBox):
             value = None
         self.set_model_attr('category', value)
 
-    def on_note_buffer_changed(self, buff, *args):
+    def on_note_buffer_changed(self, buff, widget, *args):
         value = utils.utf8(buff.props.text)
         if not value:  # if value == ''
             value = None
+            self.presenter.add_problem(self.presenter.PROBLEM_EMPTY, widget)
+        else:
+            self.presenter.remove_problem(self.presenter.PROBLEM_EMPTY, widget)
         self.set_model_attr('note', value)
 
     def update_label(self):
@@ -1928,7 +2011,7 @@ class NoteBox(gtk.HBox):
             # label.props.ellipsize doesn't work properly on a
             # label in an expander we just do it ourselves here
             if len(self.model.note) > max_length:
-                label.append('%s ...' % note_str[0:max_length-1])
+                label.append('%s …' % note_str[0:max_length-1])
             else:
                 label.append(note_str)
 
@@ -2006,20 +2089,20 @@ class PictureBox(NoteBox):
                 im = gtk.Label()
                 im.set_text(label)
             except Exception, e:
-                logger.warning(e)
+                logger.warning("can't commit changes: (%s) %s" % (type(e), e))
                 im = gtk.Label()
                 im.set_text(e)
         else:
             # make button hold some text
             im = gtk.Label()
-            im.set_text(_('Choose a file...'))
+            im.set_text(_('Choose a file…'))
         im.show()
         self.widgets.picture_button.add(im)
         self.widgets.picture_button.show()
 
     def on_activate_browse_button(self, widget, data=None):
         fileChooserDialog = gtk.FileChooserDialog(
-            _("Choose a file..."), None,
+            _("Choose a file…"), None,
             buttons=(gtk.STOCK_OK, gtk.RESPONSE_ACCEPT,
                      gtk.STOCK_CANCEL, gtk.RESPONSE_CANCEL))
         try:
@@ -2028,33 +2111,16 @@ class PictureBox(NoteBox):
             fileChooserDialog.run()
             filename = fileChooserDialog.get_filename()
             if filename:
-                ## rememberl chosen location for next time
-                PictureBox.last_folder, basename = os.path.split(filename)
-                import shutil
-                ## copy file to picture_root_dir (if not yet there).
-                if not filename.startswith(
-                        prefs.prefs[prefs.picture_root_pref]):
-                    shutil.copy(
-                        filename, prefs.prefs[prefs.picture_root_pref])
-                ## make thumbnail in thumbs subdirectory
-                from PIL import Image
+                ## remember chosen location for next time
+                PictureBox.last_folder, basename = os.path.split(unicode(filename))
                 logger.debug('new current folder is: %s' % self.last_folder)
-                full_dest_path = os.path.join(
-                    prefs.prefs[prefs.picture_root_pref], 'thumbs', basename)
-                try:
-                    im = Image.open(filename)
-                    im.thumbnail((400, 400))
-                    logger.debug('copying %s to %s' % (filename, full_dest_path))
-                    im.save(full_dest_path)
-                except IOError, e:
-                    logger.warning("can't make thumbnail")
-                except Exception, e:
-                    logger.warning("unexpected exception making thumbnail: "
-                                   "(%s)%s" % (type(e), e))
-                ## get dirname and basename from selected file, memorize
-                ## dirname
+                ## copy file to picture_root_dir (if not yet there),
+                ## also receiving thumbnail base64
+                thumb = utils.copy_picture_with_thumbnail(self.last_folder, basename)
                 ## make sure the category is <picture>
                 self.set_model_attr('category', u'<picture>')
+                ## append thumbnail base64 to content string
+                basename = basename + "|data:image/jpeg;base64," + thumb
                 ## store basename in note field and fire callbacks.
                 self.set_model_attr('note', basename)
                 self.set_content(basename)
@@ -2134,12 +2200,8 @@ class NotesPresenter(GenericEditorPresenter):
                 box.set_expanded(False)
                 valid_notes_count += 1
 
-        if valid_notes_count < 1:
-            self.add_note()
-
         logger.debug('notes: %s' % self.notes)
         logger.debug('children: %s' % self.box.get_children())
-        self.box.get_children()[0].set_expanded(True)  # expand first one
 
         self.widgets.notes_add_button.connect(
             'clicked', self.on_add_button_clicked)
@@ -2179,4 +2241,6 @@ class PicturesPresenter(NotesPresenter):
         super(PicturesPresenter, self).__init__(
             presenter, notes_property, parent_container)
 
-        self.box.get_children()[0].set_expanded(False)  # expand none
+        notes = self.box.get_children()
+        if notes:
+            notes[0].set_expanded(False)  # expand none

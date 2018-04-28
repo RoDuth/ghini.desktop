@@ -790,11 +790,12 @@ source_detail_remove_action = \
     view.Action('source_detail_remove', _('_Delete'),
                 callback=source_detail_remove_callback,
                 accelerator='<ctrl>Delete', multiselect=True)
+
 source_detail_context_menu = [source_detail_edit_action,
                               source_detail_remove_action]
 
 
-class Contact(db.Base):
+class Contact(db.Base, db.Serializable):
     __tablename__ = 'source_detail'
     __mapper_args__ = {'order_by': 'name'}
 
@@ -818,6 +819,14 @@ class Contact(db.Base):
             safe(self.name),
             safe(self.source_type or ''))
 
+    @classmethod
+    def retrieve(cls, session, keys):
+        try:
+            return session.query(cls).filter(
+                cls.name == keys['name']).one()
+        except:
+            return None
+
 
 class ContactPresenter(editor.GenericEditorPresenter):
 
@@ -831,6 +840,7 @@ class ContactPresenter(editor.GenericEditorPresenter):
         view.init_translatable_combo('source_type_combo', source_type_values)
         super(ContactPresenter, self).__init__(model, view, refresh_view=True,
                                                do_commit=True)
+        self.create_toolbar()
         view.set_accept_buttons_sensitive(False)
 
     def on_textbuffer_changed_description(self, widget, value=None, attr=None):

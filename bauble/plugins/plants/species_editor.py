@@ -62,10 +62,12 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
                            'sp_spqual_combo': 'sp_qual',
                            'sp_awards_entry': 'awards',
                            'sp_label_dist_entry': 'label_distribution',
+                           'sp_habit_comboentry': 'habit',
                            }
 
     def __init__(self, model, view):
         super(SpeciesEditorPresenter, self).__init__(model, view)
+        self.create_toolbar()
         self.session = object_session(model)
         self._dirty = False
         self.omonym_box = None
@@ -1238,14 +1240,6 @@ class SpeciesEditorMenuItem(editor.GenericModelViewPresenterEditor):
         ## 'Editor' thing and is it stealing functionality from either the
         ## view or the presenter?
         self.view = view
-
-        # add quick response keys
-        self.attach_response(view.get_window(), gtk.RESPONSE_OK, 'Return',
-                             gtk.gdk.CONTROL_MASK)
-        self.attach_response(view.get_window(), self.RESPONSE_OK_AND_ADD, 'k',
-                             gtk.gdk.CONTROL_MASK)
-        self.attach_response(view.get_window(), self.RESPONSE_NEXT, 'n',
-                             gtk.gdk.CONTROL_MASK)
 
         # set default focus
         if self.model.genus is None:

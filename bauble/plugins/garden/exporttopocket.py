@@ -68,6 +68,8 @@ CREATE TABLE "plant" (
   "location"     TEXT,
   "end_date"     TEXT,
   "n_of_pics"    INTEGER,
+  "quantity"     INTEGER,
+  "edit_pending" INTEGER DEFAULT 0,
   PRIMARY KEY(_id)
 );
 ''']
@@ -133,9 +135,9 @@ def export_to_pocket(filename, include_private=True):
     for i in plants:
         try:
             cr.execute('INSERT INTO "plant" '
-                       '(_id, accession_id, code, location, end_date, n_of_pics) '
-                       'VALUES (?, ?, ?, ?, ?, ?);',
-                       (i.id, i.accession_id, "." + i.code, i.location.code, i.date_of_death, len(i.pictures)))
+                       '(_id, accession_id, code, location, end_date, n_of_pics, quantity) '
+                       'VALUES (?, ?, ?, ?, ?, ?, ?);',
+                       (i.id, i.accession_id, "." + i.code, i.location.code, i.date_of_death, len(i.pictures), i.quantity))
         except Exception, e:
             logger.info("error exporting plant %s: %s %s" % (i.id, type(e), e))
         gobject.idle_add(pb_set_fraction, 0.45 + 0.55 * count / len(plants))
@@ -152,7 +154,7 @@ class ExportToPocketTool(pluginmgr.Tool):
 
     @classmethod
     def start(self):
-        d = gtk.FileChooserDialog(_("Choose a file to export to..."), None,
+        d = gtk.FileChooserDialog(_("Choose a file to export to…"), None,
                                   gtk.FILE_CHOOSER_ACTION_SAVE,
                                   (gtk.STOCK_OK, gtk.RESPONSE_ACCEPT,
                                    gtk.STOCK_CANCEL, gtk.RESPONSE_CANCEL))

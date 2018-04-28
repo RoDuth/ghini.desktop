@@ -110,12 +110,14 @@ def remove_callback(genera):
     return True
 
 
-edit_action = Action('genus_edit', _('_Edit'), callback=edit_callback,
+edit_action = Action('genus_edit', _('_Edit'),
+                     callback=edit_callback,
                      accelerator='<ctrl>e')
 add_species_action = Action('genus_sp_add', _('_Add species'),
                             callback=add_species_callback,
                             accelerator='<ctrl>k')
-remove_action = Action('genus_remove', _('_Delete'), callback=remove_callback,
+remove_action = Action('genus_remove', _('_Delete'),
+                       callback=remove_callback,
                        accelerator='<ctrl>Delete', multiselect=True)
 
 genus_context_menu = [edit_action, add_species_action, remove_action]
@@ -351,20 +353,16 @@ class Genus(db.Base, db.Serializable, db.WithNotes):
                                      if a.source and a.source.source_detail])}
 
 
-class GenusNote(db.Base):
-    """
-    Notes for the genus table
-    """
-    __tablename__ = 'genus_note'
-    __mapper_args__ = {'order_by': 'genus_note.date'}
+def compute_serializable_fields(cls, session, keys):
+    result = {'genus': None}
 
-    date = Column(types.Date, default=func.now())
-    user = Column(Unicode(64))
-    category = Column(Unicode(32))
-    note = Column(UnicodeText, nullable=False)
-    genus_id = Column(Integer, ForeignKey('genus.id'), nullable=False)
-    genus = relation('Genus', uselist=False,
-                     backref=backref('notes', cascade='all, delete-orphan'))
+    genus_dict = {'epithet': keys['genus']}
+    result['genus'] = Genus.retrieve_or_create(
+        session, genus_keys, create=False)
+
+    return result
+
+GenusNote = db.make_note_class('Genus', compute_serializable_fields)
 
 
 class GenusSynonym(db.Base):
@@ -492,6 +490,7 @@ class GenusEditorPresenter(editor.GenericEditorPresenter):
         @view: should be an instance of GenusEditorView
         '''
         super(GenusEditorPresenter, self).__init__(model, view)
+        self.create_toolbar()
         self.session = object_session(model)
 
         # initialize widgets
@@ -760,14 +759,6 @@ class GenusEditor(editor.GenericModelViewPresenterEditor):
 
         view = GenusEditorView(parent=self.parent)
         self.presenter = GenusEditorPresenter(self.model, view)
-
-        # add quick response keys
-        self.attach_response(view.get_window(), gtk.RESPONSE_OK, 'Return',
-                             gtk.gdk.CONTROL_MASK)
-        self.attach_response(view.get_window(), self.RESPONSE_OK_AND_ADD, 'k',
-                             gtk.gdk.CONTROL_MASK)
-        self.attach_response(view.get_window(), self.RESPONSE_NEXT, 'n',
-                             gtk.gdk.CONTROL_MASK)
 
         # set default focus
         if self.model.family is None:

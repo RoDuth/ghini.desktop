@@ -47,14 +47,14 @@ import bauble.db as db
 import bauble.paths as paths
 import bauble.pluginmgr as pluginmgr
 from bauble.plugins.plants.family import (
-    Familia, Family, FamilyInfoBox, FamilyEditor,
+    Familia, Family, FamilyInfoBox, FamilyEditor, FamilyNote,
     family_context_menu)
 from bauble.plugins.plants.genus import (
-    Genus, GenusEditor, GenusInfoBox,
+    Genus, GenusEditor, GenusInfoBox, GenusNote,
     genus_context_menu,
     )
 from bauble.plugins.plants.species import (
-    Species, SpeciesEditorMenuItem, SpeciesInfoBox,
+    Species, SpeciesEditorMenuItem, SpeciesInfoBox, SpeciesNote,
     species_context_menu, add_accession_action,
     SynonymSearch, SpeciesDistribution,
     VernacularName, VernacularNameInfoBox,
@@ -198,7 +198,7 @@ class SplashInfoBox(pluginmgr.View):
 
         ssn = db.Session()
         q = ssn.query(bauble.meta.BaubleMeta)
-        q = q.filter(bauble.meta.BaubleMeta.name.startswith(u'stqr_'))
+        q = q.filter(bauble.meta.BaubleMeta.name.startswith(u'stqr'))
         name_tooltip_query = dict(
             (int(i.name[5:]), (i.value.split(':', 2)))
             for i in q.all())
@@ -319,9 +319,18 @@ class SplashInfoBox(pluginmgr.View):
 
 class PlantsPlugin(pluginmgr.Plugin):
     tools = [TaxonomyCheckTool, StoredQueryEditorTool]
+    provides = {'Family': Family,
+                'FamilyNote': FamilyNote,
+                'Genus': Genus,
+                'GenusNote': GenusNote,
+                'Species': Species,
+                'SpeciesNote': SpeciesNote,
+                'VernacularName': VernacularName,
+                'Geography': Geography, }
 
     @classmethod
     def init(cls):
+        pluginmgr.provided.update(cls.provides)
         if 'GardenPlugin' in pluginmgr.plugins:
             species_context_menu.insert(1, add_accession_action)
             vernname_context_menu.insert(1, add_accession_action)
@@ -367,10 +376,26 @@ class PlantsPlugin(pluginmgr.Plugin):
             bauble.gui.add_to_insert_menu(GenusEditor, _('Genus'))
             bauble.gui.add_to_insert_menu(SpeciesEditorMenuItem, _('Species'))
 
-        if sys.platform == 'win32':
-            # TODO: for some reason using the cross as the hybrid
-            # character doesn't work on windows
-            Species.hybrid_char = 'x'
+        # suggest some useful defaults for stored queries
+        import bauble.meta as meta
+        session = db.Session()
+        default = u'false'
+        q = session.query(bauble.meta.BaubleMeta).filter(bauble.meta.BaubleMeta.name.startswith(u'stqr-'))
+        for i in q.all():
+            default = i.name
+            session.delete(i)
+            session.commit()
+        init_marker = meta.get_default(u'stqv_initialized', default, session)
+        if init_marker.value == u'false':
+            init_marker.value = u'true'
+            for index, name, tooltip, query in [
+                    (9, _('history'), _('the history in this database'), ':history'),
+                    (10, _('preferences'), _('your user preferences'), ':prefs')]:
+                meta.get_default(u'stqr_%02d' % index,
+                                 u"%s:%s:%s" % (name, tooltip, query),
+                                 session)
+            session.commit()
+        session.close()
 
     @classmethod
     def install(cls, import_defaults=True):

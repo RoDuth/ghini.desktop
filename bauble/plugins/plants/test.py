@@ -65,13 +65,6 @@ logging.basicConfig()
 
 from bauble.plugins.plants.species_model import _remove_zws as remove_zws
 
-if sys.platform == 'win32':
-    # on windows the hybrid char is set to 'x'in PlantPlugin.init but
-    # these strings are initialized before init is called so we set it
-    # here...this sort of breaks the string tests since we aren't
-    # relying on the behavior of PlantPlugin.init but what can we do?
-    Species.hybrid_char = 'x'
-
 
 family_test_data = (
     {'id': 1, 'family': u'Orchidaceae'},
@@ -1841,6 +1834,45 @@ class SpeciesProperties_test(PlantTestCase):
 
 
 class AttributesStoredInNotes(PlantTestCase):
+    def test_proper_yaml_dictionary(self):
+        obj = Species.retrieve_or_create(
+            self.session, {'object': 'taxon',
+                           'ht-rank': 'genus',
+                           'rank': 'species',
+                           'ht-epithet': u'Laelia',
+                           'epithet': u'lobata'},
+            create=False, update=False)
+        note = SpeciesNote(category=u'<coords>', note=u'{1: 1, 2: 2}')
+        note.species = obj
+        self.session.commit()
+        self.assertEquals(obj.coords, {'1': 1, '2': 2})
+
+    def test_very_sloppy_json_dictionary(self):
+        obj = Species.retrieve_or_create(
+            self.session, {'object': 'taxon',
+                           'ht-rank': 'genus',
+                           'rank': 'species',
+                           'ht-epithet': u'Laelia',
+                           'epithet': u'lobata'},
+            create=False, update=False)
+        note = SpeciesNote(category=u'<coords>', note=u'lat:8.3,lon:-80.1')
+        note.species = obj
+        self.session.commit()
+        self.assertEquals(obj.coords, {'lat': 8.3, 'lon': -80.1})
+
+    def test_very_very_sloppy_json_dictionary(self):
+        obj = Species.retrieve_or_create(
+            self.session, {'object': 'taxon',
+                           'ht-rank': 'genus',
+                           'rank': 'species',
+                           'ht-epithet': u'Laelia',
+                           'epithet': u'lobata'},
+            create=False, update=False)
+        note = SpeciesNote(category=u'<coords>', note=u'lat:8.3;lon:-80.1;alt:1400.0')
+        note.species = obj
+        self.session.commit()
+        self.assertEquals(obj.coords, {'lat': 8.3, 'lon': -80.1, 'alt': 1400.0})
+
     def test_atomic_value_interpreted(self):
         obj = Species.retrieve_or_create(
             self.session, {'object': 'taxon',

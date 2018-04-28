@@ -140,13 +140,8 @@ Open a shell terminal window, and follow the following instructions.
 Installing on MacOSX
 --------------------
 
-Being MacOSX a unix environment, most things will work the same as on GNU/Linux
+Being macOS a unix environment, most things will work the same as on GNU/Linux
 (sort of).
-
-Last time we tested, some of the dependencies could not be installed on
-MacOSX 10.5 and we assume similar problems would also show on older OSX
-versions.  Ghini has been successfully installed on several OSX systems,
-between 10.7 and 10.12.
 
 First of all, you need things which are an integral part of a unix
 environment, but which are missing in a off-the-shelf mac:
@@ -155,7 +150,26 @@ environment, but which are missing in a off-the-shelf mac:
    supported on your mac.
 #. package manager: homebrew (tigerbrew for older OSX versions).
 
-with the above installed, open a terminal window and run::
+..  admonition:: Installation on older macOS.
+    :class: toggle
+
+       Every time we tested, we could only solve all dependencies on the two
+       or three most recent macOS versions.  In April 2015 this excluded
+       macOS 10.6 and older.  In September 2017 this excluded macOS 10.8 and
+       older.  We never had a problem with the lastest macOS.
+
+       The problem lies with homebrew and some of the packages we rely on.
+       The message you have to fear looks like this::
+
+         Do not report this issue to Homebrew/brew or Homebrew/core!
+
+       The only solution I can offer is: please update your system.
+
+       On the bright side, if at any time in the past you did install
+       ghini.desktop on your older and now unsupported macOS, you will
+       always be able to update ghini.desktop to the latest version.
+
+With the above installed, open a terminal window and run::
 
     brew doctor
 
@@ -263,7 +277,7 @@ The installation steps on Windows:
 
    If you plan using PostgreSQL, the best Windows binary library for Python is
    `psycopg and is Made in Italy <http://initd.org/psycopg/docs/install.html>`_.
-   
+
 
 #. **REBOOT**
 
@@ -322,17 +336,19 @@ The installation steps on Windows:
    make changes to your computer.  These changes are in the Start Menu only:
    create the Ghini group, place the Ghini shortcut.
 
-#. download the batch file you will use to stay up-to-date with the
-   production line you chose to follow:
+#. download the batch file, it will help you staying up-to-date:
 
-    https://raw.githubusercontent.com/Ghini/ghini.desktop/master/scripts/ghini-update.bat
+   `ghini-update.bat <https://raw.githubusercontent.com/Ghini/ghini.desktop/master/scripts/ghini-update.bat>`_
 
-   if you are on a recent Ghini installation, each time you start the
+   If you are on a recent Ghini installation, each time you start the
    program, Ghini will check on the development site and alert you of any
    newer ghini release within your chosen production line.
 
-   any time you want to update your installation, just start the command
-   prompt and run ``ghini-update.bat``, it will hardly take one minute.
+   Any time you want to update your installation, just run the
+   ``ghini-update.bat`` script, it will hardly take one minute.
+
+   How to save a batch file, and how to run it: check the the quite detailed
+   instructions given for ``devinstall.bat``.
 
 If you would like to generate and print PDF reports using Ghini's default
 report generator then you will need to download and install `Apache FOP
@@ -342,3 +358,17 @@ you will need to include the directory you extracted to in your PATH.
 .. rubric:: Next...
 
 :ref:`connecting`.
+
+Installing on Android
+--------------------------
+
+``ghini.desktop`` is a desktop program, obviously you don't install it on a handheld 
+device, but we do offer the option, for your Android phone or tablet, to install ``ghini.pocket``.
+
+``ghini.pocket`` is a small data viewer, it comes handy if you want to have a quick idea 
+of a plant species, its source, and date it entered the garden, just by scanning a plant label.
+
+Installation is as easy as it can be: just `look for it in Google Play
+<https://play.google.com/store/apps/details?id=me.ghini.pocket>`_, and install it.
+
+Export the data from ``ghini.desktop`` to pocket format, copy it to your device, enjoy.

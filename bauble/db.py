@@ -3,6 +3,7 @@
 # Copyright 2005-2010 Brett Adams <brett@belizebotanic.org>
 # Copyright 2015-2017 Mario Frasca <mario@anche.no>.
 # Copyright 2017 Jardín Botánico de Quito
+# Copyright 2018 Ilja Everilä
 #
 # This file is part of ghini.desktop.
 #
@@ -29,6 +30,7 @@ import datetime
 import os
 import re
 import bauble.error as error
+import json
 
 
 try:
@@ -110,7 +112,7 @@ class HistoryExtension(orm.MapperExtension):
     inserts, updates, and deletes made to the mapped objects are
     recorded in the `history` table.
     """
-    def _add(self, operation, mapper, instance):
+    def _add(self, operation, mapper, connection, instance):
         """
         Add a new entry to the history table.
         """
@@ -130,19 +132,20 @@ class HistoryExtension(orm.MapperExtension):
         for c in mapper.local_table.c:
             row[c.name] = utils.utf8(getattr(instance, c.name))
         table = History.__table__
-        table.insert(dict(table_name=mapper.local_table.name,
-                          table_id=instance.id, values=str(row),
-                          operation=operation, user=user,
-                          timestamp=datetime.datetime.today())).execute()
+        stmt = table.insert(dict(table_name=mapper.local_table.name,
+                                 table_id=instance.id, values=str(row),
+                                 operation=operation, user=user,
+                                 timestamp=datetime.datetime.today()))
+        connection.execute(stmt)
 
     def after_update(self, mapper, connection, instance):
-        self._add('update', mapper, instance)
+        self._add('update', mapper, connection, instance)
 
     def after_insert(self, mapper, connection, instance):
-        self._add('insert', mapper, instance)
+        self._add('insert', mapper, connection, instance)
 
     def after_delete(self, mapper, connection, instance):
-        self._add('delete', mapper, instance)
+        self._add('delete', mapper, connection, instance)
 
 
 class MapperBase(DeclarativeMeta):
@@ -158,10 +161,10 @@ class MapperBase(DeclarativeMeta):
         if '__tablename__' in dict_:
             cls.id = sa.Column('id', sa.Integer, primary_key=True,
                                autoincrement=True)
-            cls._created = sa.Column('_created', types.DateTime(True),
+            cls._created = sa.Column('_created', types.DateTime(timezone=True),
                                      default=sa.func.now())
             cls._last_updated = sa.Column('_last_updated',
-                                          types.DateTime(True),
+                                          types.DateTime(timezone=True),
                                           default=sa.func.now(),
                                           onupdate=sa.func.now())
             cls.__mapper_args__ = {'extension': HistoryExtension()}
@@ -270,13 +273,13 @@ def open(uri, verify=True, show_error_dialogs=False):
 
     # ** WARNING: this can print your passwd
     logger.debug('db.open(%s)' % uri)
-    from sqlalchemy.orm import sessionmaker
+    from sqlalchemy.orm import sessionmaker, scoped_session
     global engine
     new_engine = None
 
-    from sqlalchemy.pool import NullPool, SingletonThreadPool
+    from sqlalchemy.pool import SingletonThreadPool
     from bauble.prefs import testing
-    poolclass = testing and SingletonThreadPool or NullPool
+
     poolclass = SingletonThreadPool
     new_engine = sa.create_engine(uri, echo=SQLALCHEMY_DEBUG,
                                   implicit_returning=False,
@@ -298,8 +301,8 @@ def open(uri, verify=True, show_error_dialogs=False):
         def temp():
             import inspect
             logger.debug('creating session %s' % str(inspect.stack()[1]))
-            return sessionmaker(bind=engine, autoflush=False)()
-        Session = sessionmaker(bind=engine, autoflush=False)
+            return scoped_session(sessionmaker(bind=engine, autoflush=False))()
+        Session = scoped_session(sessionmaker(bind=engine, autoflush=False))
         Session = temp
 
     if new_engine is not None and not verify:
@@ -330,7 +333,7 @@ def create(import_defaults=True):
         raise ValueError('engine is None, not connected to a database')
     import bauble
     import bauble.meta as meta
-    import bauble.pluginmgr as pluginmgr
+    from bauble import pluginmgr
     import datetime
 
     connection = engine.connect()
@@ -348,9 +351,10 @@ def create(import_defaults=True):
         meta_table.insert(bind=connection).\
             execute(name=meta.VERSION_KEY,
                     value=unicode(bauble.version)).close()
+        from dateutil.tz import tzlocal
         meta_table.insert(bind=connection).\
             execute(name=meta.CREATED_KEY,
-                    value=unicode(datetime.datetime.now())).close()
+                    value=unicode(datetime.datetime.now(tz=tzlocal()))).close()
     except GeneratorExit, e:
         # this is here in case the main windows is closed in the middle
         # of a task
@@ -404,7 +408,7 @@ def verify_connection(engine, show_error_dialogs=False):
         dialogs detailing the error, default=False
     :type show_error_dialogs: bool
     """
-##    debug('entered verify_connection(%s)' % show_error_dialogs)
+    logger.debug('entered verify_connection(%s)' % show_error_dialogs)
     import bauble
     if show_error_dialogs:
         try:
@@ -455,7 +459,7 @@ def verify_connection(engine, show_error_dialogs=False):
     query = session.query  # (meta.BaubleMeta)
 
     # check that the database we connected to has a "created" timestamp
-    # in the bauble meta table
+    # in the bauble meta table.  we're not using the value though.
     result = query(meta.BaubleMeta).filter_by(name=meta.CREATED_KEY).first()
     if not result:
         session.close()
@@ -481,6 +485,77 @@ def verify_connection(engine, show_error_dialogs=False):
     return True
 
 
+def make_note_class(name, compute_serializable_fields, as_dict=None, retrieve=None):
+    class_name = name + 'Note'
+    table_name = name.lower() + '_note'
+
+    def is_defined(self):
+        return bool(self.user and self.category and self.note)
+
+    def is_empty(self):
+        return not self.user and not self.category and not self.note
+
+    def retrieve_or_create(cls, session, keys,
+                           create=True, update=True):
+        """return database object corresponding to keys
+        """
+        category = keys.get('category', '')
+        
+        # normally, it's one note per category, but for list values, and for
+        # pictures, we can have more than one.
+        if (create and (category.startswith('[') and category.endswith(']') or
+                        category == '<picture>')):
+            # dirty trick: making sure it's not going to be found!
+            import uuid
+            keys['category'] = unicode(uuid.uuid4())
+        result = super(globals()[class_name], cls).retrieve_or_create(session, keys, create, update)
+        keys['category'] = category
+        if result:
+            result.category = category
+        return result
+
+    def retrieve_default(cls, session, keys):
+        q = session.query(cls)
+        if name.lower() in keys:
+            q = q.join(globals()[name]).filter(
+                globals()[name].code == keys[name.lower()])
+        if 'date' in keys:
+            q = q.filter(cls.date == keys['date'])
+        if 'category' in keys:
+            q = q.filter(cls.category == keys['category'])
+        try:
+            return q.one()
+        except:
+            return None
+    
+    def as_dict_default(self):
+        result = db.Serializable.as_dict(self)
+        result[name.lower()] = getattr(self, name.lower()).code
+        return result
+
+    as_dict = as_dict or as_dict_default
+    retrieve = retrieve or retrieve_default
+
+    result = type(class_name, (Base, Serializable),
+                  {'__tablename__': table_name,
+                   '__mapper_args__': {'order_by': table_name + '.date'},
+
+                   'date': sa.Column(types.Date, default=sa.func.now()),
+                   'user': sa.Column(sa.Unicode(64)),
+                   'category': sa.Column(sa.Unicode(32)),
+                   'note': sa.Column(sa.UnicodeText, nullable=False),
+                   name.lower() + '_id': sa.Column(sa.Integer, sa.ForeignKey(name.lower() + '.id'), nullable=False),
+                   name.lower(): sa.orm.relation(name, uselist=False, backref=sa.orm.backref(
+                       'notes', cascade='all, delete-orphan')),
+                   'retrieve': classmethod(retrieve),
+                   'retrieve_or_create': classmethod(retrieve_or_create),
+                   'compute_serializable_fields': classmethod(compute_serializable_fields),
+                   'is_defined': is_defined,
+                   'as_dict': as_dict,
+                  })
+    return result
+
+
 class WithNotes:
 
     key_pattern = re.compile(r'{[^:]+:(.*)}')
@@ -503,8 +578,13 @@ class WithNotes:
                 result.append((key, n.note))
             elif n.category == ('<%s>' % name):
                 try:
-                    return eval(n.note)
-                except:
+                    return json.loads(re.sub(r'(\w+)[ ]*(?=:)', r'"\g<1>"', '{' + n.note.replace(';', ',') + '}'))
+                except Exception, e:
+                    pass
+                try:
+                    return json.loads(re.sub(r'(\w+)[ ]*(?=:)', r'"\g<1>"', n.note))
+                except Exception, e:
+                    logger.debug('not parsed %s(%s), returning literal text »%s«', type(e), e, n.note)
                     return n.note
         if result == []:
             # if nothing was found, do not break the proxy.
@@ -594,6 +674,10 @@ class Serializable:
                 return None
             else:
                 extradict = {}
+        except Exception, e:
+            logger.debug("this was unexpected")
+            raise
+            
         logger.debug('3 value of keys: %s' % keys)
 
         ## at this point, resulting object is either in database or not. in
@@ -652,6 +736,13 @@ class Serializable:
         if 'id' in keys:
             del keys['id']
         for k, v in keys.items():
+            if isinstance(v, dict):
+                if v.get('__class__') == 'datetime':
+                    m = v.get('millis', 0)
+                    v = datetime.datetime(1970, 1, 12)
+                    v = v + datetime.timedelta(0, m)
+                else:
+                    v = None
             if v is not None:
                 setattr(result, k, v)
         logger.debug('returning updated existing %s' % result)
@@ -679,4 +770,8 @@ def class_of_object(o):
     """
 
     name = ''.join(p.capitalize() for p in o.split('_'))
-    return globals().get(name)
+    cls = globals().get(name)
+    if cls is None:
+        from bauble import pluginmgr
+        cls = pluginmgr.provided.get(name)
+    return cls

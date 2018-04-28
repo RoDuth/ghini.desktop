@@ -101,7 +101,8 @@ def remove_callback(families):
     return True
 
 
-edit_action = view.Action('family_edit', _('_Edit'), callback=edit_callback,
+edit_action = view.Action('family_edit', _('_Edit'),
+                          callback=edit_callback,
                           accelerator='<ctrl>e')
 add_species_action = view.Action('family_genus_add', _('_Add genus'),
                                  callback=add_genera_callback,
@@ -283,19 +284,16 @@ class Family(db.Base, db.Serializable, db.WithNotes):
 Familia = Family
 
 
-class FamilyNote(db.Base):
-    """
-    Notes for the family table
-    """
-    __tablename__ = 'family_note'
+def compute_serializable_fields(cls, session, keys):
+    result = {'family': None}
 
-    date = Column(types.Date, default=func.now())
-    user = Column(Unicode(64))
-    category = Column(Unicode(32))
-    note = Column(UnicodeText, nullable=False)
-    family_id = Column(Integer, ForeignKey('family.id'), nullable=False)
-    family = relation('Family', uselist=False,
-                      backref=backref('notes', cascade='all, delete-orphan'))
+    family_dict = {'epithet': keys['family']}
+    result['family'] = Family.retrieve_or_create(
+        session, family_keys, create=False)
+
+    return result
+
+FamilyNote = db.make_note_class('Family', compute_serializable_fields)
 
 
 class FamilySynonym(db.Base):
@@ -408,6 +406,7 @@ class FamilyEditorPresenter(editor.GenericEditorPresenter):
         :param view: should be an instance of FamilyEditorView
         '''
         super(FamilyEditorPresenter, self).__init__(model, view)
+        self.create_toolbar()
         self.session = object_session(model)
 
         # initialize widgets
@@ -616,14 +615,6 @@ class FamilyEditor(editor.GenericModelViewPresenterEditor):
 
         view = FamilyEditorView(parent=self.parent)
         self.presenter = FamilyEditorPresenter(self.model, view)
-
-        # add quick response keys
-        self.attach_response(view.get_window(), gtk.RESPONSE_OK, 'Return',
-                             gtk.gdk.CONTROL_MASK)
-        self.attach_response(view.get_window(), self.RESPONSE_OK_AND_ADD, 'k',
-                             gtk.gdk.CONTROL_MASK)
-        self.attach_response(view.get_window(), self.RESPONSE_NEXT, 'n',
-                             gtk.gdk.CONTROL_MASK)
 
     def handle_response(self, response):
         '''
