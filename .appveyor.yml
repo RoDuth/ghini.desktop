@@ -17,6 +17,7 @@ install:
   - 'pip install pygments'
 
 build_script:
+  - 'mkdir dist'
   - 'pip install .'
   - 'python setup.py py2exe'
   - 'python setup.py nsis'
@@ -25,16 +26,17 @@ cache:
   - pygtk-all-in-one-2.24.2.win32-py2.7.msi
 
 artifacts:
-  - path: scripts/ghini.desktop-*-setup.exe
+  - path: dist/ghini.desktop-*-setup.exe
 
 test: off
 
 deploy:
+  release: 'v1.0.86 (MRBG Branch)' # :bump
   description: ''
   provider: GitHub
   auth_token:
     secure: m0gg+fMh1ot3TOipC0zQmOQNABEZUE5Xbkg6nR9Hl3kK05u/u0qcWkdJFIOHGeh3
   draft: false
   prerelease: false
-  on:
-    appveyor_repo_tag: true        # deploy on tag push only
+  # on:
+  #   appveyor_repo_tag: true        # deploy on tag push only
