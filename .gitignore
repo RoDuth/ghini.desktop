@@ -11,17 +11,17 @@ env/
 build/
 develop-eggs/
 dist/
+ghini-runtime/
 downloads/
 eggs/
 .eggs/
-lib/
-lib64/
 parts/
 sdist/
 var/
 *.egg-info/
 .installed.cfg
 *.egg
+*.deb
 
 # PyInstaller
 #  Usually these files are written by a python script from a template

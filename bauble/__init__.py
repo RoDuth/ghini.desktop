@@ -69,17 +69,7 @@ def pb_release():
         gui.progressbar.hide()
         gui.set_busy(False)
 
-def main_is_frozen():
-    """
-    Return True if we are running in a py2exe environment, else
-    return False
-    """
-    return (hasattr(sys, "frozen") or  # new py2exe
-            hasattr(sys, "importers") or  # old py2exe
-            imp.is_frozen("__main__"))  # tools/freeze
-
-
-if main_is_frozen():  # main is frozen
+if paths.main_is_frozen():  # main is frozen
     # put library.zip first in the path when using py2exe so libxml2
     # gets imported correctly,
     zipfile = sys.path[-1]
@@ -240,7 +230,7 @@ dbengine.html#create-engine-url-arguments>`_
 
     # a hack to write stderr and stdout to a file in a py2exe environment
     # prevents failed attempts at creating ghini.exe.log
-    if main_is_frozen():
+    if paths.main_is_frozen():
         _stdout = os.path.join(paths.user_dir(), 'stdout.log')
         _stderr = os.path.join(paths.user_dir(), 'stderr.log')
         sys.stdout = open(_stdout, 'w')
@@ -275,6 +265,7 @@ dbengine.html#create-engine-url-arguments>`_
             sentry_client = Client('https://59105d22a4ad49158796088c26bf8e4c:'
                                    '00268114ed47460b94ce2b1b0b2a4a20@'
                                    'app.getsentry.com/45704')
+            sentry_client.name = hex(hash(sentry_client.name) + 2**64)[2:-1]
             handler = SentryHandler(sentry_client)
             logging.getLogger().addHandler(handler)
             handler.setLevel(logging.WARNING)
@@ -287,7 +278,7 @@ dbengine.html#create-engine-url-arguments>`_
 
     import gtk.gdk
     import pygtk
-    if not main_is_frozen():
+    if not paths.main_is_frozen():
         pygtk.require("2.0")
 
     display = gtk.gdk.display_get_default()

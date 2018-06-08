@@ -89,12 +89,13 @@ if sys.platform == 'win32' and sys.argv[1] in ('nsis', 'py2exe'):
                        'encodings', 'mako', 'mako.cache',
                        'pygments.styles.default', 'pyparsing']
     py2exe_includes += gtk_pkgs + plugins_pkgs + sqlalchemy_includes
-    py2exe_setup_args = {
+    setup_args = {
         'windows': [{'script': 'scripts/ghini',
                      'icon_resources': [(1, "bauble/images/icon.ico")]}]}
-    py2exe_options = {
+    setup_options = {
         "py2exe": {
             #no compression makes for better NSIS compression
+            "dist_dir": "ghini-runtime",
             "compressed": False,
             "optimize": 2,
             "includes": py2exe_includes,
@@ -141,19 +142,21 @@ if sys.platform == 'win32' and sys.argv[1] in ('nsis', 'py2exe'):
             src = os.path.join(build_base, locales)
             dir_util.copy_tree(src, os.path.join(self.dist_dir, locales))
 
-            # copy GTK to the dist directory, assuming PyGTK
-            # all-in-one installer
+            # copy GTK to the ghini-runtime directory, assuming PyGTK
+            # all-in-one installer.
             gtk_root = 'c:\\python27\\lib\\site-packages\\gtk-2.0\\runtime'
             dist_gtk = os.path.join(self.dist_dir, 'gtk')
             import shutil
-            if not os.path.exists(dist_gtk):
-                ignore = shutil.ignore_patterns('src', 'gtk-doc', 'icons',
-                                                'man', 'demo', 'aclocal',
-                                                'doc', 'include', 'emacs',
-                                                'gettext', 'glade3',
-                                                'gtksourceview-2.0', 'info',
-                                                'intltool')
-                shutil.copytree(gtk_root, dist_gtk, ignore=ignore)
+            shutil.rmtree(dist_gtk, ignore_errors=True)  # overkill cleaning up
+            # we are now totally sure there isn't anything there, so we can 
+            # count on unconditional copying
+            ignore = shutil.ignore_patterns('src', 'gtk-doc', 'icons',
+                                            'man', 'demo', 'aclocal',
+                                            'doc', 'include', 'emacs',
+                                            'gettext', 'glade3',
+                                            'gtksourceview-2.0', 'info',
+                                            'intltool')
+            shutil.copytree(gtk_root, dist_gtk, ignore=ignore)
 
             # register the pixbuf loaders
             # populate loaders.cache also
@@ -163,8 +166,8 @@ if sys.platform == 'win32' and sys.argv[1] in ('nsis', 'py2exe'):
             cmd1 = 'call "%s" > "%s"' % (exe, dest1)
             cmd2 = 'call "%s" > "%s"' % (exe, dest2)
             print cmd1
-            print cmd2
             os.system(cmd1)
+            print cmd2
             os.system(cmd2)
 
             # copy the the MS-Windows gtkrc to make it the default theme
@@ -179,8 +182,9 @@ if sys.platform == 'win32' and sys.argv[1] in ('nsis', 'py2exe'):
             file_util.copy_file(gtheme, dest)
 
             # copy LICENSE to dist\share\LICENSE.ghini (for help>about)
-            file_util.copy_file("LICENSE", os.path.join(self.dist_dir, 'share',
-                                                        'LICENSE.ghini'))
+            file_util.copy_file(
+                "LICENSE",
+                os.path.join(self.dist_dir, 'share', 'ghini', 'LICENSE'))
 
             # copy cacert.pem for requests
             from certifi import where
@@ -226,9 +230,8 @@ if sys.platform == 'win32' and sys.argv[1] in ('nsis', 'py2exe'):
             os.system('"%s" %s' % (self.makensis, self.nsis_script))
 
 else:
-    py2exe_options = {}
-    py2exe_setup_args = {}
-    py2exe_includes = []
+    setup_options = {}
+    setup_args = {}
 
     class _empty_cmd(Command):
         user_options = []
@@ -267,7 +270,7 @@ class build(_build):
             sys.exit(1)
 
         # create build/share directory
-        dir_util.mkpath(os.path.join(self.build_base, 'share'))
+        dir_util.mkpath(os.path.join(self.build_base, 'share', 'ghini'))
 
         _build.run(self)
 
@@ -335,16 +338,16 @@ class install(_install):
             sys.exit(1)
 
         # create build/share directory
-        dir_util.mkpath(os.path.join(self.build_base, 'share'))
+        dir_util.mkpath(os.path.join(self.build_base, 'share', 'ghini'))
 
         if not self.single_version_externally_managed:
             print 'before installing new egg, remove old ones!'
-            site_packages = os.path.join(self.install_data, 'lib', 'python2.7', 'site-packages')
-            old_egg_dirs = [i for i in os.listdir(site_packages)
-                            if i.endswith('.egg')
-                            and (i.startswith('bauble-') or i.startswith('ghini.desktop-'))]
+            old_egg_dirs = [a for (a, b, c) in os.walk(self.install_data)
+                            if (os.path.basename(a).startswith('bauble')
+                                or os.path.basename(a).startswith('ghini.desktop'))
+                               and os.path.basename(a).endswith('egg')]
             for oed in old_egg_dirs:
-                dir_util.remove_tree(os.path.join(site_packages, oed))
+                dir_util.remove_tree(oed)
             self.do_egg_install()
         else:
             _install.run(self)
@@ -364,7 +367,7 @@ class install(_install):
 
         file_util.copy_file(
             "LICENSE",
-            os.path.join(self.install_data, 'share', 'LICENSE.ghini'))
+            os.path.join(self.install_data, 'share', 'ghini', 'LICENSE'))
 
 
 # docs command
@@ -372,7 +375,7 @@ DOC_BUILD_PATH = 'doc/.build/'
 
 
 class docs(Command):
-    user_options = [('all', None, 'rebuild all the docs')]
+    user_options = [('all', 'a', 'rebuild all the docs')]
 
     def initialize_options(self):
         self.all = False
@@ -399,10 +402,11 @@ class docs(Command):
 
 # clean command
 class clean(Command):
-    user_options = []
+    user_options = [('all', 'a', 'clean everything'),
+    ]
 
     def initialize_options(self):
-        pass
+        self.all = False
 
     def finalize_options(self):
         pass
@@ -464,6 +468,9 @@ if sys.platform == 'win32':
     scripts = ["scripts/ghini", "scripts/ghini.bat", "scripts/ghini.vbs",
                "scripts/ghini-update.bat"]
 
+with open("README.rst", "r") as fh:
+    long_description = fh.read()
+    
 setuptools.setup(name="ghini.desktop",
                  cmdclass={'build': build, 'install': install,
                            'py2exe': py2exe_cmd, 'nsis': NsisCmd,
@@ -475,7 +482,7 @@ setuptools.setup(name="ghini.desktop",
                  package_data=package_data,
                  data_files=data_files,
                  install_requires=["SQLAlchemy==1.0.8",
-                                   "raven==6.6.0",
+                                   "raven==6.7.0",
                                    "Pillow==2.3.0",
                                    "lxml",
                                    "pyqrcode==1.2.1",
@@ -488,12 +495,12 @@ setuptools.setup(name="ghini.desktop",
                  test_suite="nose.collector",
                  author="Mario Frasca",
                  author_email="mario@anche.no",
-                 description="Ghini is a biodiversity collection manager "
-                 "software application",
+                 description="Ghini: a biodiversity collection manager",
+                 long_description=long_description,
                  license="GPLv2+",
                  keywords="database biodiversity botanic collection "
                  "botany herbarium arboretum",
                  url="http://github.com/Ghini/ghini.desktop/",
-                 options=py2exe_options,
-                 **py2exe_setup_args
+                 options=setup_options,
+                 **setup_args
                  )
