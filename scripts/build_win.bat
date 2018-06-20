@@ -1,83 +1,78 @@
-@ECHO off
-SETLOCAL
+@echo off
+setlocal
 
-REM process command line arguments (/e produces exe only not installer,
-REM only other argument proccessed must be a pathname to a virtualenv)
-:Loop
-IF [%1]==[] GOTO Continue
-IF "%1"=="/e" (
-    SET EXEONLY=y
-) ELSE (
-    SET CUSTOMVENV="%~f1"
+rem process command line arguments (/e produces exe only not installer,
+rem only other argument proccessed must be a pathname to a virtualenv)
+:loop
+if [%1]==[] goto continue
+if "%1"=="/e" (
+  set exeonly=y
+) else (
+  set venv="%~f1"
 )
-SHIFT
-GOTO Loop
-:Continue
+shift
+goto loop
+:continue
 
-FOR /F %%i in ('git rev-parse --abbrev-ref HEAD') DO SET CHECKOUT=%%i
-
-IF defined EXEONLY ECHO build exe only
-
-IF defined CUSTOMVENV (
-    ECHO using custom virtual environment %CUSTOMVENV%
-) ELSE (
-    SET CUSTOMVENV="%HOMEDRIVE%%HOMEPATH%\.virtualenvs\%CHECKOUT%-exe"
+if defined exeonly echo "build exe only"
+if defined venv (
+  echo "using virtualenv %venv%"
+) else (
+  for /f %%i in ('git rev-parse --abbrev-ref HEAD') do (set branch=%%i)
+  set venv="%HOMEDRIVE%%HOMEPATH%\.virtualenvs\%branch%"
 )
 
-IF NOT EXIST %CUSTOMVENV%\Scripts\activate.bat (
-    ECHO creating build environment
-    REM STEP 1 - install virtualenv and create a virtual environment
-    C:\Python27\Scripts\pip install virtualenv
-    C:\Python27\Scripts\virtualenv --system-site-packages %CUSTOMVENV%
+if not exist %venv%\scripts\activate.bat (
+  echo ""creating build environment""
+  rem STEP 1 - install virtualenv and create a virtual environment
+  C:\Python27\Scripts\pip install virtualenv
+  C:\Python27\Scripts\virtualenv --system-site-packages %venv%
 )
 
-IF "%VIRTUAL_ENV%"=="" (
-    ECHO Activating build environment
-    REM STEP 2 - activate the virtual environment
-    call %CUSTOMVENV%\Scripts\activate.bat
-) ELSE (
-    ECHO Current virtual environment: "%VIRTUAL_ENV%"
-    IF NOT "%VIRTUAL_ENV%"==%CUSTOMVENV% (
-        ECHO deactivating current virtual environment and activating build environment
-        call deactivate
-        call %CUSTOMVENV%\Scripts\activate.bat
-    )
+if "%VIRTUAL_ENV%"=="" (
+  echo "Activating build environment"
+  rem STEP 2 - activate the virtual environment
+  call %venv%\Scripts\activate.bat
+) else (
+  echo "Current virtual environment: %VIRTUAL_ENV%"
+  if not "%VIRTUAL_ENV%"==%venv% (
+    echo "deactivating current virtual env and activating build environment"
+    call deactivate
+    call %venv%\Scripts\activate.bat
+  )
 )
 
 
-ECHO Installing dependencies
-REM STEP 3 - Install dependencies into the virtual environment
-"%VIRTUAL_ENV%"\Scripts\Python.exe -m pip install --upgrade pip
+echo "Installing dependencies"
+rem STEP 3 - Install dependencies into the virtual environment
 pip install py2exe_py2
 pip install psycopg2
 pip install Pygments
 
-ECHO cleaning up
-REM STEP 4 - clean up any previous builds
-rmdir /s /q ghini-runtime
-mkdir       ghini-runtime
-mkdir dist 2>nul
+echo "cleaning up"
+rem STEP 4 - clean up any previous builds
+python setup.py clean
 forfiles /P "%VIRTUAL_ENV%"\Lib\site-packages\ /M ghini.desktop-*.egg-info /C^
-    "cmd /c if @ISDIR==TRUE rmdir /s /q @PATH && echo removing @PATH" 2>NUL
+ "cmd /c if @ISDIR==TRUE rmdir /s /q @PATH && echo "removing @PATH" 2>NUL"
 
-ECHO installing without eggs
-REM STEP 5 - install ghini.desktop and its dependencies into the virtual environment
+echo "installing without eggs"
+rem STEP 5 - install ghini.desktop and it's dependencies into the virtual env
 pip install .
 
-ECHO building executable
-REM STEP 6 - build the executable
+echo "building executable"
+rem STEP 6 - build the executable
 python setup.py py2exe
 
-REM executable only?
-IF defined EXEONLY GOTO Skip_NSIS
+rem executable only?
+if defined exeonly goto skip_nsis
 
-ECHO building NSIS installer
-REM STEP 7 - build the installer
-mkdir dist 2>nul
+echo "building NSIS installer"
+rem STEP 7 - build the installer
 python setup.py nsis
+goto :end
 
-:Skip_NSIS
-copy scripts\win_gtk.bat ghini-runtime
-mkdir ghini-runtime\Appdata
+:skip_nsis
+copy scripts\win_gtk.bat dist
 
-ENDLOCAL
+:end
+endlocal

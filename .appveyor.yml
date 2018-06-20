@@ -17,7 +17,6 @@ install:
   - 'pip install pygments'
 
 build_script:
-  - 'mkdir dist'
   - 'pip install .'
   - 'python setup.py py2exe'
   - 'python setup.py nsis'
@@ -26,7 +25,7 @@ cache:
   - pygtk-all-in-one-2.24.2.win32-py2.7.msi
 
 artifacts:
-  - path: dist/ghini.desktop-*-setup.exe
+  - path: scripts/ghini.desktop-*-setup.exe
 
 test: off
 

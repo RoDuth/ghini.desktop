@@ -94,8 +94,8 @@ if sys.platform == 'win32' and sys.argv[1] in ('nsis', 'py2exe'):
                      'icon_resources': [(1, "bauble/images/icon.ico")]}]}
     setup_options = {
         "py2exe": {
-            #no compression makes for better NSIS compression
-            "dist_dir": "ghini-runtime",
+            # no compression makes for better NSIS compression
+            # "dist_dir": "ghini-runtime",
             "compressed": False,
             "optimize": 2,
             "includes": py2exe_includes,
@@ -260,6 +260,7 @@ class build(_build):
     def run(self):
         if sys.platform == 'win32':
             # try to guess the path of the gettext utilities
+	    # REMOVE THIS?
             os.environ['PATH'] = os.environ['PATH'] + \
                 ';c:\\Program Files\\GnuWin32\\bin'
         if not spawn.find_executable('msgfmt'):

@@ -125,18 +125,10 @@ def bump_desktop_file(filename):
     bump_file(filename, rx)
 
 
-def bump_nsi_file(filename, varname='VERSION'):
-    """
-    bump NSIS installer files
-    """
-    rx = '(^!define %s ").*?\..*?\..*?(".*?%s.*?$)' % (varname, bump_tag)
-    bump_file(filename, rx)
-
 # bump and grind
 bump_py_file(os.path.join(root_of_clone(), 'bauble/version.py'))
 bump_py_file(os.path.join(root_of_clone(), 'doc/conf.py'), 'release')
 bump_desktop_file(os.path.join(root_of_clone(), 'data/ghini.desktop'))
-bump_nsi_file(os.path.join(root_of_clone(), 'scripts/build-multiuser.nsi'))
 
 rx = "(^VERSION=\").*?\..*?\..*?(\".*?%s.*?$)" % bump_tag
 bump_file(os.path.join(root_of_clone(), 'packages/builddeb.sh'), rx)
@@ -144,8 +136,12 @@ bump_file(os.path.join(root_of_clone(), 'packages/builddeb.sh'), rx)
 rx = "(^version=)[0-9]*\.[0-9]*\.[0-9]*(.*?%s.*$)" % bump_tag
 bump_file(os.path.join(root_of_clone(), 'scripts/installer.cfg'), rx)
 
-rx = "(^  release: \'v).*?\..*?\..*?( \(MRBG Branch\)\'.*?%s.*?$)" % (bump_tag)
+rx = "(^  release: \'v).*?\..*?\..*?( \(MRBG Branch\)\'.*?%s.*?$)" % bump_tag
 bump_file(os.path.join(root_of_clone(), '.appveyor.yml'), rx)
+
+rx = '(^!define VERSION ").*?\..*?\..*?(\(MRBG\)".*?%s.*?$)' % bump_tag
+bump_file(os.path.join(root_of_clone(), 'scripts/build-multiuser.nsi'), rx)
+
 # TODO: commit the changes
 print
 print 'git commit -m "bumping_to_%s" bauble/version.py doc/conf.py'\
