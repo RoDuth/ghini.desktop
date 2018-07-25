@@ -114,3 +114,5 @@ test.py
 imex-it.rst
 ghini.py
 ghini.desktop*setup.exe
+win_pip_pkgs/
+win_installers/
