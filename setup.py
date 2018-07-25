@@ -260,7 +260,7 @@ class build(_build):
     def run(self):
         if sys.platform == 'win32':
             # try to guess the path of the gettext utilities
-	    # REMOVE THIS?
+            # REMOVE THIS?
             os.environ['PATH'] = os.environ['PATH'] + \
                 ';c:\\Program Files\\GnuWin32\\bin'
         if not spawn.find_executable('msgfmt'):
