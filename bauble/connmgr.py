@@ -200,8 +200,9 @@ def check_and_notify_new_version(view):
         logger.warning('unhandled %s(%s) while checking for newer version'
                        % type(e), e)
 
+
 def check_and_notify_new_installer(view):
-    ## check for a newer installer in releases on github
+    '''check for a newer installer in releases on github'''
     remote = False
     github_release_api = ('https://api.github.com/repos/RoDuth/ghini'
                           '.desktop/releases/latest')
@@ -219,17 +220,17 @@ def check_and_notify_new_installer(view):
             github_release = github_release_json['tag_name'][1:]
             github_release_int = [int(''.join(i for i in s if i.isdigit())) for
                                   s in github_release.split('.')]
-            remote = github_release_int[2] > int(bauble.version_tuple[2])
-            if github_release_int[2] < int(bauble.version_tuple[2]):
-                logger.info("running unreleased windows install version")
+            current_release_int = [int(i) for i in bauble.version_tuple]
+            remote = github_release_int > current_release_int
+            if github_release_int < current_release_int:
+                logger.info('running unreleased windows install version')
         else:
             logger.info('client or server error while checking for a newer '
                         'installer')
         if remote:
             def show_message_box():
-                msg = _("new remote installer %s available.\n"
-                        "continue, or exit to upgrade."
-                       ) % github_release
+                msg = _('new installer %s available.\n'
+                        'continue, or exit to upgrade.') % github_release
                 box = view.add_message_box()
                 box.message = msg
                 box.show()
