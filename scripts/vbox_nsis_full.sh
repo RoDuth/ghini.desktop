@@ -73,7 +73,7 @@ VBoxManage list vms | grep ^\""$vm"\" >/dev/null 2>&1 || {
   }
 
   echo "disable network and add this directory as a shared folder"
-  VBoxManage modifyvm win7-test3 --nic1 none
+  VBoxManage modifyvm "$vm" --nic1 none
 
   VBoxManage sharedfolder add "$vm" \
     --name ghini.desktop \

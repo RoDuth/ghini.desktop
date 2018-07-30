@@ -1,5 +1,5 @@
 @echo off
-setlocal
+setlocal enabledelayedexpansion
 
 rem process command line arguments (/e produces exe only not installer,
 rem only other argument proccessed must be a pathname to a virtualenv)
@@ -16,14 +16,16 @@ goto loop
 
 if defined exeonly echo "build exe only"
 if defined venv (
-  echo "using virtualenv %venv%"
+  echo "using provided virtualenv name: %venv%"
 ) else (
-  for /f %%i in ('git rev-parse --abbrev-ref HEAD') do (set branch=%%i)
-  set venv="%HOMEDRIVE%%HOMEPATH%\.virtualenvs\%branch%"
+  for /f %%i in ('git rev-parse --abbrev-ref HEAD') do set branch=%%i
+  set venv="%HOMEDRIVE%%HOMEPATH%\.virtualenvs\!branch!"
+  echo "using branch name !branch!"
+  echo "virtualenv set to !venv!"
 )
 
 if not exist %venv%\scripts\activate.bat (
-  echo ""creating build environment""
+  echo "creating build environment"
   rem STEP 1 - install virtualenv and create a virtual environment
   C:\Python27\Scripts\pip install virtualenv
   C:\Python27\Scripts\virtualenv --system-site-packages %venv%
@@ -53,7 +55,7 @@ echo "cleaning up"
 rem STEP 4 - clean up any previous builds
 python setup.py clean
 forfiles /P "%VIRTUAL_ENV%"\Lib\site-packages\ /M ghini.desktop-*.egg-info /C^
- "cmd /c if @ISDIR==TRUE rmdir /s /q @PATH && echo "removing @PATH" 2>NUL"
+ "cmd /c if @ISDIR==TRUE rmdir /s /q @PATH && echo removing @PATH" 2>NUL
 
 echo "installing without eggs"
 rem STEP 5 - install ghini.desktop and it's dependencies into the virtual env
