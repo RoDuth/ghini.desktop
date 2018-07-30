@@ -348,10 +348,13 @@ class install(_install):
 
         if not self.single_version_externally_managed:
             print 'before installing new egg, remove old ones!'
-            old_egg_dirs = [a for (a, b, c) in os.walk(self.install_data)
-                            if (os.path.basename(a).startswith('bauble')
-                                or os.path.basename(a).startswith('ghini.desktop'))
-                               and os.path.basename(a).endswith('egg')]
+            old_egg_dirs = [a for (a, _, _) in os.walk(self.install_data)
+                            if (
+                                os.path.basename(a).startswith('bauble')
+                                or
+                                os.path.basename(a).startswith('ghini.desktop')
+                                )
+                            and os.path.basename(a).endswith('egg')]
             for oed in old_egg_dirs:
                 dir_util.remove_tree(oed)
             self.do_egg_install()
