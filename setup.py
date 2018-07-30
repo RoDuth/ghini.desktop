@@ -181,7 +181,7 @@ if sys.platform == 'win32' and sys.argv[1] in ('nsis', 'py2exe'):
             dir_util.mkpath(dest)
             file_util.copy_file(gtheme, dest)
 
-            # copy LICENSE to dist\share\LICENSE.ghini (for help>about)
+            # copy LICENSE to dist\share\ghini\LICENSE (for help>about)
             file_util.copy_file(
                 "LICENSE",
                 os.path.join(self.dist_dir, 'share', 'ghini', 'LICENSE'))
@@ -338,8 +338,13 @@ class install(_install):
             print msg
             sys.exit(1)
 
-        # create build/share directory
+        # create build/share/ghini directory tree
         dir_util.mkpath(os.path.join(self.build_base, 'share', 'ghini'))
+
+        # copy license in place
+        file_util.copy_file(
+            "LICENSE",
+            os.path.join(self.build_base, 'share', 'ghini', 'LICENSE'))
 
         if not self.single_version_externally_managed:
             print 'before installing new egg, remove old ones!'
@@ -365,10 +370,6 @@ class install(_install):
             build_base = install_cmd.build_base
             src = os.path.join(build_base, locales)
             dir_util.copy_tree(src, os.path.join(self.install_data, locales))
-
-        file_util.copy_file(
-            "LICENSE",
-            os.path.join(self.install_data, 'share', 'ghini', 'LICENSE'))
 
 
 # docs command
