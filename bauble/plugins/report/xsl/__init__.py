@@ -37,6 +37,7 @@ import gtk
 
 import logging
 logger = logging.getLogger(__name__)
+#logger.setLevel(logging.DEBUG)
 
 #from sqlalchemy import *
 from sqlalchemy.orm import object_session
