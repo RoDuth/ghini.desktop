@@ -30,7 +30,7 @@ artifacts:
 test: off
 
 deploy:
-  release: 'v1.0.86 (MRBG Branch)' # :bump
+  release: 'v1.0.87 (MRBG Branch)' # :bump
   description: ''
   provider: GitHub
   auth_token:
