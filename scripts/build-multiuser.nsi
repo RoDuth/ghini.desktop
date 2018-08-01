@@ -1,4 +1,4 @@
-; Copyright (c) 2016,2017 Ross Demuth <rossdemuth123@gmail.com>
+; Copyright (c) 2016-2018 Ross Demuth <rossdemuth123@gmail.com>
 ;
 ; This file is part of ghini.desktop.
 ;
