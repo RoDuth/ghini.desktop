@@ -31,6 +31,7 @@ import traceback
 
 import logging
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
 
 import gtk
 
@@ -310,7 +311,6 @@ class CSVImporter(Importer):
                 created_tables.append(table.name)
 
         steps_so_far = 0
-        cleaned = None
         insert = None
         depends = set()  # the type will be changed to a [] later
         try:
@@ -360,18 +360,12 @@ class CSVImporter(Importer):
                 bauble.task.set_message(msg)
                 yield  # allow progress bar update
 
-                # don't do anything if the file is empty:
-                if filesizes[filename] <= 1:
-                    if not table.exists():
-                        create_table(table)
-                    continue
                 # check if the table was in the depends because they
                 # could have been dropped whereas table.exists() can
                 # return true for a dropped table if the transaction
                 # hasn't been committed
                 if table in depends or not table.exists():
-                    logger.info('%s does not exist. creating.' % table.name)
-                    logger.debug('%s does not exist. creating.' % table.name)
+                    logger.info('%s does not exist. creating.', table.name)
                     create_table(table)
                 elif table.name not in created_tables and table not in depends:
                     # we get here if the table wasn't previously
@@ -399,6 +393,10 @@ class CSVImporter(Importer):
                 # commit the drop of the table we're importing
                 transaction.commit()
                 transaction = connection.begin()
+
+                # do nothing more for empty tables
+                if filesizes[filename] <= 1:
+                    continue
 
                 # open a temporary reader to get the column keys so we
                 # can later precompile our insert statement
