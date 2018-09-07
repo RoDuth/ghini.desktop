@@ -319,13 +319,19 @@ def create_abcd(decorated_objects, authors=True, validate=True):
         # add anything that comes past Notes, e.g. RecordURI,
         # EAnnotations, UnitExtension
         notes_list = obj.get_Notes(unit)
+        print notes_list
         notes_str = ''
         if notes_list:
             for note in notes_list:
-                notes_str += '%s = %s (%s : %s)|' % (note['category'],
-                                                     note['text'],
-                                                     note['user'],
-                                                     note['date'])
+                for key, value in note.iteritems():
+                    note[key] = value.replace('|', '_')
+                # make a string of notes using | as seperator
+                notes_str += '%s = %s (%s : %s)|' % (
+                    note['category'],
+                    note['text'],
+                    note['user'],
+                    note['date'],
+                )
             ABCDElement(unit, 'Notes', text=utils.xml_safe(str(notes_str)))
 
 
