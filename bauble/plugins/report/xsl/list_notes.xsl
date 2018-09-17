@@ -76,23 +76,25 @@
                     <fo:table-cell border=".75pt solid black">
                       <fo:block>
                         <xsl:for-each select="Notes">
-                          <fo:block>
-                            <fo:inline font-weight="bold">
-                              <xsl:value-of select="local-name()" />
-                            </fo:inline>
-                          </fo:block>
-                          <fo:block>
-                            <xsl:value-of select="."/>
-                          </fo:block>
-                          <fo:block>
-                            <fo:inline font-size="8pt">
-                            <xsl:text> (</xsl:text>
-                            <xsl:value-of select="@User"/>
-                            <xsl:text> : </xsl:text>
-                            <xsl:value-of select="@Date"/>
-                            <xsl:text>)</xsl:text>
-                          </fo:inline>
-                          </fo:block>
+                          <xsl:for-each select="*">
+                            <fo:block>
+                              <fo:inline font-weight="bold">
+                                <xsl:value-of select="local-name()" />
+                              </fo:inline>
+                            </fo:block>
+                            <fo:block>
+                              <xsl:value-of select="."/>
+                            </fo:block>
+                            <fo:block>
+                              <fo:inline font-size="8pt">
+                                <xsl:text> (</xsl:text>
+                                <xsl:value-of select="@User"/>
+                                <xsl:text> : </xsl:text>
+                                <xsl:value-of select="@Date"/>
+                                <xsl:text>)</xsl:text>
+                              </fo:inline>
+                            </fo:block>
+                          </xsl:for-each>
                         </xsl:for-each>
                       </fo:block>
                     </fo:table-cell>
