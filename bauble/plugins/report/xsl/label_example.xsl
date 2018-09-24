@@ -9,8 +9,6 @@
     <!-- set a global font family here, always available are Courier, Helvetica, Times -->
     <fo:root xmlns:fo="http://www.w3.org/1999/XSL/Format" font-family="Courier">
 
-      <!-- XSL template for Ghini/Bauble written by Ross Demuth for the Mackay Regional Botanic Gardens -->
-
       <!-- PAGE -->
       <fo:layout-master-set>
         <fo:simple-page-master
