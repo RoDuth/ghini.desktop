@@ -432,7 +432,7 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
         if text.count(u'*'):
             self.species_space = True
             text = text.replace(u'*', u" × ")
-        # allow botanist flags for unnamed species(e.g. 'sp. nov.'
+        # allow provisional names for unnamed species(e.g. 'sp. nov.'
         # 'sp. (OrmeauL.H.Bird AQ435851)') - see ITF2 - Species Epithet:
         # Rule of information 1.2
         # using get_chars method here as the 'text' variable, while typing,
@@ -441,7 +441,7 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
         if full_text[:3] == 'sp.':
             self.species_space = True
 
-        # allow descriptive botanist flags e.g. 'caerulea (Finch Hatton)'
+        # allow informal descriptive names e.g. 'caerulea (Finch Hatton)'
         # (although not strictly ITF2 compliant the practice is in common use)
         # note this will add the space in when adding a ( only if spaces have
         # not already been allowed due to one of the other rules.
