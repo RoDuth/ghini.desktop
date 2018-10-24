@@ -33,7 +33,7 @@ import bauble.pluginmgr as pluginmgr
 from bauble.view import SearchView
 from bauble.plugins.garden.accession import AccessionEditor, \
     Accession, AccessionInfoBox, AccessionNote, \
-    acc_context_menu
+    acc_context_menu, Verification
 from bauble.plugins.garden.location import LocationEditor, \
     Location, LocationInfoBox, loc_context_menu
 from bauble.plugins.garden.plant import PlantEditor, PlantNote, \
@@ -45,7 +45,7 @@ from bauble.plugins.garden.source import (
     Collection, collection_context_menu)
 from bauble.plugins.garden.institution import (
     Institution, InstitutionCommand, InstitutionTool, start_institution_editor)
-from bauble.plugins.garden.exporttopocket import ExportToPocketTool
+from bauble.plugins.garden.pocket_server import PocketServerTool
 from bauble.plugins.garden.picture_importer import PictureImporterTool
 
 #from bauble.plugins.garden.propagation import *
@@ -60,7 +60,7 @@ import re
 class GardenPlugin(pluginmgr.Plugin):
 
     depends = ["PlantsPlugin"]
-    tools = [InstitutionTool, ExportToPocketTool, PictureImporterTool]
+    tools = [InstitutionTool, PocketServerTool, PictureImporterTool]
     commands = [InstitutionCommand]
     provides = {'Accession': Accession,
                 'AccessionNote': AccessionNote,
