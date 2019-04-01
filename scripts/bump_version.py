@@ -146,4 +146,5 @@ bump_file(os.path.join(root_of_clone(), 'scripts/build-multiuser.nsi'), rx)
 print
 print 'git commit -m "bumping_to_%s" bauble/version.py doc/conf.py'\
     ' data/ghini.desktop packages/builddeb.sh' \
-    ' scripts/installer.cfg scripts/build-multiuser.nsi' % version
+    ' scripts/installer.cfg scripts/build-multiuser.nsi' \
+    ' .appveyor.yml' % version
