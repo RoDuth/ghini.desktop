@@ -9,6 +9,11 @@ cd $(dirname $0)/..
 LINE=ghini-1.0
 PUBLISHING=$(grep :bump bauble/version.py | grep -o '[1-9]\.[0-9]\.[0-9]*')
 
+git checkout $LINE-dev
+git status
+echo 'press enter to continue'
+read
+
 # let's check what Debian says first
 python setup.py sdist | awk 'BEGIN{count=0}/^.*$/{count++; printf("running setup sdist: %d\r", count)}END{printf("\r\n")}'
 cp dist/ghini.desktop-${PUBLISHING}.tar.gz /tmp/ghini.desktop-${PUBLISHING}.orig.tar.gz
@@ -48,5 +53,5 @@ git push
 echo '******************************************************'
 echo 'consider the following debian and pypi publishing steps'
 echo
-echo dput mentors $(ls /tmp/ghini.desktop_${PUBLISHING}-*_*.changes | tail -n 1)
-echo python setup.py sdist --formats zip upload -r pypi
+echo 'dput mentors $(ls /tmp/ghini.desktop_${PUBLISHING}-*_*.changes | tail -n 1)'
+echo 'git checkout $LINE && python setup.py sdist --formats zip upload -r pypi'

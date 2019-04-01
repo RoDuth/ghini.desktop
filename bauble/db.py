@@ -121,7 +121,7 @@ class HistoryExtension(orm.MapperExtension):
             if engine.name.startswith('sqlite'):
                 raise TypeError("this engine know nothing of users")
             import bauble.plugins.users as users
-            user = users.current_user()
+            user = current_user()
         except:
             if 'USER' in os.environ and os.environ['USER']:
                 user = os.environ['USER']
@@ -277,13 +277,19 @@ def open(uri, verify=True, show_error_dialogs=False):
     global engine
     new_engine = None
 
-    from sqlalchemy.pool import SingletonThreadPool
-    from bauble.prefs import testing
+    import sqlalchemy.pool
+    import bauble.prefs
+    if bauble.prefs.testing:  # this causes trouble in production but works
+                              # in testing.  who can explain?  #133, #425
+        new_engine = sa.create_engine(uri, echo=SQLALCHEMY_DEBUG,
+                                      implicit_returning=False,
+                                      poolclass=sqlalchemy.pool.SingletonThreadPool,
+                                      pool_size=20)
+    else:
+        new_engine = sa.create_engine(uri, echo=SQLALCHEMY_DEBUG,
+                                      implicit_returning=False,
+                                      poolclass=sqlalchemy.pool.NullPool)
 
-    poolclass = SingletonThreadPool
-    new_engine = sa.create_engine(uri, echo=SQLALCHEMY_DEBUG,
-                                  implicit_returning=False,
-                                  poolclass=poolclass, pool_size=20)
     # TODO: there is a problem here: the code may cause an exception, but we
     # immediately loose the 'new_engine', which should know about the
     # encoding used in the exception string.
@@ -569,7 +575,9 @@ class WithNotes:
         result = []
         is_dict = False
         for n in self.notes:
-            if n.category == ('[%s]' % name):
+            if n.category is None:
+                pass
+            elif n.category == ('[%s]' % name):
                 result.append(n.note)
             elif n.category.startswith('{%s:' % name) and n.category.endswith('}'):
                 is_dict = True
@@ -775,3 +783,42 @@ def class_of_object(o):
         from bauble import pluginmgr
         cls = pluginmgr.provided.get(name)
     return cls
+
+
+class current_user_functor:
+    """implement the current_user function, and allow overriding.
+
+    invoke the current_user object as a function.
+    invoke current_user.override(user_name) to set user name.
+    invoke current_user.override() to reset.
+    """
+    def __init__(self):
+        self.override_value = None
+
+    def override(self, value=None):
+        self.override_value = value
+
+    def __call__(self):
+        '''return current user name: from database, or system
+        '''
+        if self.override_value:
+            return self.override_value
+        try:
+            if engine.name.startswith('postgresql'):
+                r = engine.execute('select current_user;')
+                user = r.fetchone()[0]
+                r.close()
+            elif engine.name.startswith('mysql'):
+                r = engine.execute('select current_user();')
+                user = r.fetchone()[0]
+                r.close()
+            else:
+                raise TypeError()
+        except:
+            logger.debug("retrieving user name from system")
+            user = (os.getenv('USER') or os.getenv('USERNAME') or
+                    os.getenv('LOGNAME') or os.getenv('LNAME'))
+
+        return user
+
+current_user = current_user_functor()

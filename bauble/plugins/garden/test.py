@@ -1454,7 +1454,7 @@ class AccessionTests(GardenTestCase):
         except Exception, e:
             import traceback
             logger.debug(traceback.format_exc(0))
-            logger.debug(e)
+            logger.debug("%s(%s)" % (type(e).__name, e))
 
     def test_remove_callback_no_plants_no_confirm(self):
         # T_0
@@ -2438,7 +2438,7 @@ class BaubleSearchSearchTest(BaubleTestCase):
                    self.handler.messages['bauble.search']['debug'])
 
 
-from bauble.plugins.garden.exporttopocket import create_pocket, export_to_pocket
+from bauble.plugins.garden.exporttopocket import create_pocket, ExportToPocketThread
 
 class TestExportToPocket(GardenTestCase):
 
@@ -2449,7 +2449,8 @@ class TestExportToPocket(GardenTestCase):
         os.close(fd)
         os.unlink(filename)
         create_pocket(filename)
-        export_to_pocket(filename)
+        t = ExportToPocketThread(filename)
+        t.run()
 
         import sqlite3
         cn = sqlite3.connect(filename)
@@ -2478,7 +2479,8 @@ class TestExportToPocket(GardenTestCase):
         os.close(fd)
         os.unlink(filename)
         create_pocket(filename)
-        export_to_pocket(filename)
+        t = ExportToPocketThread(filename)
+        t.run()
 
         import sqlite3
         cn = sqlite3.connect(filename)

@@ -140,7 +140,7 @@ def get_next_code(acc):
         try:
             next = max([int(code[0]) for code in codes])+1
         except Exception, e:
-            logger.debug(e)
+            logger.debug("%s(%s)" % (type(e).__name__, e))
             return None
     return utils.utf8(next)
 
@@ -704,7 +704,18 @@ class PlantEditorPresenter(GenericEditorPresenter):
                 # if get_next_code() returns None then there was an error
                 self.set_model_attr('code', code)
 
-        self.refresh_view()  # put model values in view
+        def on_location_select(location):
+            if self.initializing:
+                return
+            self.set_model_attr('location', location)
+            if self.change.quantity is None:
+                self.change.quantity = self.model.quantity
+        from bauble.plugins.garden import init_location_comboentry
+        init_location_comboentry(self, self.view.widgets.plant_loc_comboentry,
+                                 on_location_select)
+
+        # put initial model values in view and sets `initializing` to True
+        self.refresh_view(initializing=True)
 
         self.change = PlantChange()
         self.session.add(self.change)
@@ -726,14 +737,6 @@ class PlantEditorPresenter(GenericEditorPresenter):
 
         self.view.connect('plant_date_entry', 'changed',
                           self.on_date_entry_changed)
-
-        def on_location_select(location):
-            self.set_model_attr('location', location)
-            if self.change.quantity is None:
-                self.change.quantity = self.model.quantity
-        from bauble.plugins.garden import init_location_comboentry
-        init_location_comboentry(self, self.view.widgets.plant_loc_comboentry,
-                                 on_location_select)
 
         # assign signal handlers to monitor changes now that the view has
         # been filled in
@@ -785,6 +788,8 @@ class PlantEditorPresenter(GenericEditorPresenter):
             box.on_response = on_response
             box.show()
             self.view.add_box(box)
+        # done initializing, reset it
+        self.initializing = False
 
     def is_dirty(self):
         return (self.pictures_presenter.is_dirty() or
@@ -800,7 +805,7 @@ class PlantEditorPresenter(GenericEditorPresenter):
         try:
             value = int(value)
         except ValueError, e:
-            logger.debug(e)
+            logger.debug("%s(%s)" % (type(e).__name__, e))
             value = None
         self.set_model_attr('quantity', value)
         if value < self.lower_quantity_limit or value >= self.upper_quantity_limit:
@@ -904,10 +909,11 @@ class PlantEditorPresenter(GenericEditorPresenter):
                 self.view.widget_set_value(combo, location)
                 self.set_model_attr('location', location)
 
-    def refresh_view(self):
+    def refresh_view(self, initializing=False):
         # TODO: is this really relevant since this editor only creates new
         # plants?  it also won't work while testing, and removing it while
         # testing has no impact on test results.
+        self.initializing = initializing
         if prefs.testing:
             return
         for widget, field in self.widget_to_field_map.iteritems():

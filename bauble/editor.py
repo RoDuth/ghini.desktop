@@ -1190,7 +1190,10 @@ class GenericEditorPresenter(object):
 
     def cancel_threads(self):
         for k in self.running_threads:
-            k.cancel()
+            try:
+                k.cancel()
+            except AttributeError:
+                pass
         for k in self.running_threads:
             k.join()
         self.running_threads = []
@@ -1937,7 +1940,7 @@ class NoteBox(gtk.HBox):
         try:
             text = DateValidator().to_python(text)
         except Exception, e:
-            logger.debug(e)
+            logger.debug("%s(%s)" % (type(e).__name__, e))
             self.presenter.add_problem(PROBLEM, entry)
         else:
             self.presenter.remove_problem(PROBLEM, entry)
