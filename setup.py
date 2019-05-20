@@ -2,7 +2,7 @@
 #
 # Copyright (c) 2005,2006,2007,2008,2009 Brett Adams <brett@belizebotanic.org>
 # Copyright (c) 2015 Mario Frasca <mario@anche.no>
-# Copyright (c) 2016-2018 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright (c) 2016-2019 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -85,9 +85,23 @@ if sys.platform == 'win32' and sys.argv[1] in ('nsis', 'py2exe'):
     # for a list of all packages in the sqlalchemy namespace
     sqlalchemy_includes = ['sqlalchemy.dialects.sqlite',
                            'sqlalchemy.dialects.postgresql']
-    py2exe_includes = ['sqlite3', 'lxml', 'gdata', 'fibra', 'psycopg2',
-                       'encodings', 'mako', 'mako.cache',
-                       'pygments.styles.default', 'pyparsing']
+    py2exe_includes = [
+        # database DBAPI connectors
+        'sqlite3',
+        'psycopg2',
+        'pyodbc',
+        'cx_Oracle',
+        'mysql',
+        # others
+        'lxml',
+        'gdata',
+        'fibra',
+        'encodings',
+        'mako',
+        'mako.cache',
+        'pygments.styles.default',
+        'pyparsing',
+    ]
     py2exe_includes += gtk_pkgs + plugins_pkgs + sqlalchemy_includes
     setup_args = {
         'windows': [{'script': 'scripts/ghini',
