@@ -24,11 +24,11 @@
 ; /AllUsers or /CurrentUser
 ; /S        Silent install
 ; /D=PATH   Set $INSTDIR
-; /C=[gJFC]  Install Components, where:
+; /C=[gJFA]  Install Components, where:
 ;    g = Unselect Ghini (used for component only installs)
 ;    J = select Java Runtime
 ;    F = select Apache FOP
-;    C = select MS Visual C runtime
+;    A = select all components
 ;
 ; EXAMPLES
 ; ghini.desktop-1.0.??-setup.exe /S /AllUsers /C=FC
@@ -84,12 +84,6 @@ Outfile "${PRODUCT_NAME}-${VERSION}-setup.exe"
 !define JRE_FILE "amazon-corretto-${JRE_VERSION}-1-windows-x86.msi"
 !define JRE_URL "https://d3pxv6yz143wms.cloudfront.net/${JRE_VERSION}/"
 !define JRE_CHECKSUM_MD5 "9e41040131d850b4da2277f062026992"
-
-; Microsoft Visual C++ 2008 Redistributable - x86 9.0.21022(.8)
-!define MSVC_GUID "{FF66E9F6-83E7-3A3E-AF14-8DE9A809A6A4}"
-!define MSVC_DISP_NAME "Microsoft Visual C++ 2008 Redistributable - x86 9.0.21022"
-!define MSVC_FILE "vcredist_x86.exe"
-!define MSVC_URL "https://download.microsoft.com/download/1/1/1/1116b75a-9ec3-481a-a3c8-1777b5381140/"
 
 
 ;------------------------------
@@ -394,54 +388,6 @@ Section /o "Apache FOP v${FOP_VERSION} (24MB Download)" SecFOP
 
 SectionEnd
 
-;----------------
-; --MS Visual C runtime Section
-
-Section /o "MS Visual C runtime DLL (1.73MB Download)" SecMSC
-
-    SectionIN 2 3
-    ClearErrors
-    ; as its a download we need to inform of section size (Approximate only).
-    AddSize 12186
-
-    ; Check if the correct version of the MS Visual C runtime, needed by Python programs, is already installed
-    Call CheckForMSVC
-    StrCmp $R1 "Success" GotMSVC
-
-    ; Download MS Visual C runtime
-    InitPluginsDir
-    ClearErrors
-    inetc::get /caption "Downloading ${MSVC_DISP_NAME}" /canceltext "Cancel runtime Download" \
-        "${MSVC_URL}${MSVC_FILE}" "$PLUGINSDIR\${MSVC_FILE}" /END
-        Pop $0
-        DetailPrint "${MSVC_FILE} Download Status: $0"
-        StrCmp $0 "OK" InstalMSVC
-            MessageBox MB_OK|MB_ICONEXCLAMATION "Download Error, $0 aborting MS Visual C runtime installation.$\r$\n \
-                to try again re-run this installer at a later date" /SD IDOK
-            Goto DoneMSVC
-
-    ; Install MS Visual C Runtime
-    ; there seems to be a bug in the installer that leaves junk files in the root directory of the largest drive.
-    InstalMSVC:
-        ; run installer silently (no user input, no cancel button)
-        ExecWait '"$PLUGINSDIR\${MSVC_FILE}" /qb!'
-        ; Check for successful install
-        Call CheckForMSVC
-        StrCmp $R1 "Success" DoneMSVC
-            DetailPrint "error installing ${MSVC_DISP_NAME}"
-            MessageBox MB_OK|MB_ICONEXCLAMATION "Installer Error, aborting MS Visual C runtime installation.$\r$\n to \
-                try again re-run this installer at a later date" /SD IDOK
-            Goto DoneMSVC
-
-    GotMSVC:
-        DetailPrint "${MSVC_DISP_NAME} found, install cancelled"
-        MessageBox MB_ICONINFORMATION "It appears you already have ${MSVC_DISP_NAME} on your system and \
-                    there is no need to install it" /SD IDOK
-
-    DoneMSVC:
-
-SectionEnd
-
 SectionGroupEnd
 
 
@@ -479,7 +425,6 @@ LangString DESC_SecOPs ${LANG_ENGLISH} "Optional extras that you may be needed t
 LangString DESC_SecFOP ${LANG_ENGLISH} "Apache FOP is required for XSL report templates. No uninstaller provided. \
                                         (Java RE required)"
 LangString DESC_SecJRE ${LANG_ENGLISH} "Amazon Corretto can supply the Java RE required by FOP."
-LangString DESC_SecMSC ${LANG_ENGLISH} "Microsoft Visual C++ 2008 Redistributable Package is required by Ghini.desktop."
 
 ; uninstaller
 LangString DESC_SecUnMain ${LANG_ENGLISH} "Removes the main component - Ghini.desktop."
@@ -490,7 +435,6 @@ LangString DESC_SecUnMain ${LANG_ENGLISH} "Removes the main component - Ghini.de
   !insertmacro MUI_DESCRIPTION_TEXT ${SecOPs} $(DESC_SecOPs)
   !insertmacro MUI_DESCRIPTION_TEXT ${SecFOP} $(DESC_SecFOP)
   !insertmacro MUI_DESCRIPTION_TEXT ${SecJRE} $(DESC_SecJRE)
-  !insertmacro MUI_DESCRIPTION_TEXT ${SecMSC} $(DESC_SecMSC)
 
   ; uninstaller
   !insertmacro MUI_DESCRIPTION_TEXT ${SecUnMain} $(DESC_SecUnMain)
@@ -533,40 +477,6 @@ Function AddFOPtoPATH
         SetRebootFlag True
         DetailPrint "Reboot flag = True"
         Return
-
-FunctionEnd
-
-; Check for MS Visual C Runtime
-Function CheckForMSVC
-
-    ClearErrors
-    StrCpy $2 "0"
-    SetRegView 32
-    Goto MSVCMainCheck
-
-    MSVC64Check:
-        SetRegView 64
-
-    MSVCMainCheck:
-        Push "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\${MSVC_GUID}"
-        Push "SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\${MSVC_GUID}"
-
-    MSVCCheckNext:
-        IntOp $2 $2 + 1
-        IntCmp $2 "3" MSVC64Check 0 0
-        IntCmp $2 "6" NoMSVC 0 NoMSVC
-        Pop $0
-        ReadRegStr $1 HKLM $0 "DisplayName"
-        IfErrors MSVCCheckNext
-        DetailPrint "MSVC RegStr: $1"
-        StrCmp $1 "${MSVC_DISP_NAME}" FoundMSVC MSVCCheckNext
-
-    NoMSVC:
-        StrCpy $R1 "Fail"
-        return
-
-    FoundMSVC:
-        StrCpy $R1 "Success"
 
 FunctionEnd
 
@@ -616,14 +526,15 @@ Function .onInit
         StrCpy $1 $2 1 -1
         StrCpy $2 $2 -1
         StrCmp $1 "" CLDone
+            StrCmp $1 "A" 0 CLDone
+                SectionSetFlags ${SecFOP} 1
+                SectionSetFlags ${SecJRE} 1
             StrCmp $1 "g" 0 +2
                 SectionSetFlags ${SecMain} 16
-            StrCmp $1 "F" 0 +2
-                SectionSetFlags ${SecFOP} 1
-            StrCmp $1 "C" 0 +2
-                SectionSetFlags ${SecMSC} 1
             StrCmp $1 "J" 0 +2
                 SectionSetFlags ${SecJRE} 1
+            StrCmp $1 "F" 0 +2
+                SectionSetFlags ${SecFOP} 1
         Goto CLLoop
     CLDone:
 FunctionEnd
@@ -636,9 +547,8 @@ FunctionEnd
 
 ; On verifying install dir
 Function .onVerifyInstDir
-    ; MS Visual C runtime and Java RE Sections are only avaiable if administrator
+    ; Java RE Section only avaiable if administrator
     StrCmp "$MultiUser.InstallMode" "AllUsers" AllUser
-        SectionSetFlags ${SecMSC} 16
         SectionSetFlags ${SecJRE} 16
     Alluser:
 FunctionEnd
@@ -647,7 +557,7 @@ FunctionEnd
 Function .onSelChange
     ; prevent unavailable section selection due via instType change
     StrCmp "$MultiUser.InstallMode" "AllUsers" AllUser
-        SectionSetFlags ${SecMSC} 16
+        SectionSetFlags ${SecJRE} 16
     Alluser:
 FunctionEnd
 
