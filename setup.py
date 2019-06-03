@@ -162,7 +162,7 @@ if sys.platform == 'win32' and sys.argv[1] in ('nsis', 'py2exe'):
             dist_gtk = os.path.join(self.dist_dir, 'gtk')
             import shutil
             shutil.rmtree(dist_gtk, ignore_errors=True)  # overkill cleaning up
-            # we are now totally sure there isn't anything there, so we can 
+            # we are now totally sure there isn't anything there, so we can
             # count on unconditional copying
             ignore = shutil.ignore_patterns('src', 'gtk-doc', 'icons',
                                             'man', 'demo', 'aclocal',
@@ -215,12 +215,19 @@ if sys.platform == 'win32' and sys.argv[1] in ('nsis', 'py2exe'):
             ]
 
         def initialize_options(self):
+            # find makensis:
+            # first we try to find makensis by looking in all the usual places.
+            # (i.e. programfiles and the like). next we look to see if it is in
+            # the strange place that we install it for automated vbox builds,
+            # lastely we try the $PATH, if its not found this will leave None
             envars = ['programw6432', 'programfiles', 'localappdata']
             mns = 'nsis\\makensis'
             locs = [os.path.join(os.getenv(ev, 'c:\\'), mns) for ev in envars]
+            locs.append('E:\\win_installers\\NSIS\\nsis-3.03\\makensis')
             self.makensis = (
                 [loc for loc in locs if spawn.find_executable(loc)] +
-                [spawn.find_executable('makensis')])[0]
+                [spawn.find_executable('makensis')]
+            )[0]
             self.nsis_script = 'scripts\\build-multiuser.nsi'
 
         def finalize_options(self):
@@ -229,7 +236,8 @@ if sys.platform == 'win32' and sys.argv[1] in ('nsis', 'py2exe'):
                 exe_name = os.path.split(self.makensis)[-1]
                 is_makensis = exe_name in ('makensis', 'makensis.exe')
                 if not is_exe or not is_makensis:
-                    raise Exception('makensis not found at: %s' % self.makensis)
+                    raise Exception('makensis not found at: %s'
+                                    % self.makensis)
             else:
                 raise Exception('can not find makensis, NSIS needs to be '
                                 'installed in the default location, on the '

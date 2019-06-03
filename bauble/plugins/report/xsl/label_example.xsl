@@ -253,7 +253,6 @@
 
                 <!-- FAMILY -->
 
-                <!-- Should check for HigherTaxon = familia -->
                 <fo:block-container
                   absolute-position="absolute"
                   top="49mm"

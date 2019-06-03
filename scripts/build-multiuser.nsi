@@ -1,4 +1,4 @@
-; Copyright (c) 2016-2018 Ross Demuth <rossdemuth123@gmail.com>
+; Copyright (c) 2016-2019 Ross Demuth <rossdemuth123@gmail.com>
 ;
 ; This file is part of ghini.desktop.
 ;
@@ -22,12 +22,13 @@
 ; Command line options:
 ;
 ; /AllUsers or /CurrentUser
-; /S		Silent install
-; /D=PATH	Set $INSTDIR
-; /C=[gFC]	Install Components, where:
-;	 g = Unselect Ghini (used for component only installs)
-;	 F = select Apache FOP
-;	 C = select MS Visual C runtime
+; /S        Silent install
+; /D=PATH   Set $INSTDIR
+; /C=[gJFC]  Install Components, where:
+;    g = Unselect Ghini (used for component only installs)
+;    J = select Java Runtime
+;    F = select Apache FOP
+;    C = select MS Visual C runtime
 ;
 ; EXAMPLES
 ; ghini.desktop-1.0.??-setup.exe /S /AllUsers /C=FC
@@ -70,13 +71,19 @@ Outfile "${PRODUCT_NAME}-${VERSION}-setup.exe"
 !define UNINSTALL_FILENAME "uninstall.exe"
 
 ; FOP
-!define FOP_MIRROR "http://www.apache.org/dyn/closer.cgi?filename=xmlgraphics/fop/binaries"
+!define FOP_MIRROR "http://www.apache.org/dyn/closer.cgi?filename=/xmlgraphics/fop/binaries"
 !define FOP_VERSION "2.1"
 !define FOP_BINZIP "fop-${FOP_VERSION}-bin.zip"
 !define FOP_MD5 "http://www-eu.apache.org/dist/xmlgraphics/fop/binaries/${FOP_BINZIP}.md5"
 !define FOP_JRE "1.6"
 !define JRE_WEB "https://java.com/download"
-Var JREFwd
+
+; JRE (Currently Amazon Corretto OpenJDK)
+!define JRE_DISP_NAME "Amazon Corretto 8"
+!define JRE_VERSION "8.212.04.2"
+!define JRE_FILE "amazon-corretto-${JRE_VERSION}-1-windows-x86.msi"
+!define JRE_URL "https://d3pxv6yz143wms.cloudfront.net/${JRE_VERSION}/"
+!define JRE_CHECKSUM_MD5 "9e41040131d850b4da2277f062026992"
 
 ; Microsoft Visual C++ 2008 Redistributable - x86 9.0.21022(.8)
 !define MSVC_GUID "{FF66E9F6-83E7-3A3E-AF14-8DE9A809A6A4}"
@@ -110,7 +117,7 @@ CRCCheck on
 !define MULTIUSER_INSTALLMODE_UNINSTALL_REGISTRY_KEY "${PRODUCT_NAME}"
 !define MULTIUSER_INSTALLMODE_DEFAULT_REGISTRY_VALUENAME "UninstallString"
 !define MULTIUSER_INSTALLMODE_INSTDIR_REGISTRY_VALUENAME "InstallLocation"
-!define MULTIUSER_INSTALLMODE_ALLOW_ELEVATION   ; allow requesting for elevation...
+!define MULTIUSER_INSTALLMODE_ALLOW_ELEVATION
 !define MULTIUSER_INSTALLMODE_DEFAULT_ALLUSERS
 
 ; Modern User Interface v2 Settings
@@ -126,7 +133,8 @@ CRCCheck on
 !define MUI_COMPONENTSPAGE_TEXT_COMPLIST "Or, select the optional components you wish to install: \
     $\r$\n$\r$\n* Extra Components marked (Download) will require an internet connection."
 ;!define MUI_FINISHPAGE_NOAUTOCLOSE  ;allows users to check install log before continuing
-!define MUI_FINISHPAGE_TEXT_REBOOT "Rebooting is recommended but not required to start using ${PRODUCT_NAME} immediately"
+!define MUI_FINISHPAGE_TEXT_REBOOT "Rebooting is recommended but not required to start using ${PRODUCT_NAME} \
+        immediately"
 !define MUI_FINISHPAGE_TEXT_REBOOTNOW "Reboot now (required before using Apache FOP option)"
 !define MUI_FINISHPAGE_REBOOTLATER_DEFAULT
 !define MUI_FINISHPAGE_RUN_TEXT "Start ${PRODUCT_NAME}"
@@ -232,13 +240,59 @@ SectionEnd
 SectionGroup /e "Extra Components" SecOPs
 
 ;----------------
+; --Amazon Corretto x86 (JRE)
+
+Section /o "JRE - Amazon Corretto (111MB Download)" SecJRE
+
+    SectionIN 2 3
+    ClearErrors
+    ; as its a download we need to inform of section size (Approximate only).
+    AddSize 302000
+
+    ; Download JDK
+    InitPluginsDir
+    ClearErrors
+    inetc::get /caption "Downloading ${JRE_DISP_NAME}" /canceltext "Cancel Download" \
+        "${JRE_URL}${JRE_FILE}" "$PLUGINSDIR\${JRE_FILE}" /END
+        Pop $0
+        DetailPrint "${JRE_FILE} Download Status: $0"
+        StrCmp $0 "OK" 0 JREFail
+    md5dll::GetMD5File "$PLUGINSDIR\${JRE_FILE}"
+        Pop $1
+        ClearErrors
+        StrCmp $1 "${JRE_CHECKSUM_MD5}" InstalJRE
+            DetailPrint "${JRE_DISP_NAME} MD5 check failed"
+            Goto JREFail
+
+    ; Install JDK
+    InstalJRE:
+        ; run installer passive (no user input, no cancel button)
+        ExecWait 'msiexec /i "$PLUGINSDIR\${JRE_FILE}" /passive'
+        ; Check for successful install
+        Call CheckForJRE
+        ; $R1 = 0 if java versions are equal, 1 if newer than required, 2 if older than required, 3 if none found
+        IntCmp $R1 "3" +1 DoneJRE +1
+        DetailPrint "error installing ${JRE_DISP_NAME}"
+        MessageBox MB_OK|MB_ICONEXCLAMATION "Installer Error, aborting ${JRE_DISP_NAME} installation.$\r$\n to try \
+            again re-run this installer at a later date" /SD IDOK
+        Goto DoneJRE
+
+    JREFail:
+        MessageBox MB_OK|MB_ICONEXCLAMATION "An ERROR occured while downloading ${JRE_DISP_NAME}, installation \
+                aborted $\r$\n$\r$\n to try again re-run this installer at a later date" /SD IDOK
+
+    DoneJRE:
+
+SectionEnd
+
+;----------------
 ; --Apache FOP
 
 Section /o "Apache FOP v${FOP_VERSION} (24MB Download)" SecFOP
 
     SectionIN 2 3
     ClearErrors
-    ; as its a download we need to inform of section size.
+    ; as its a download we need to inform of section size (how much disk space will this consume once installed)
     AddSize 103424
 
     ; Check for FOP
@@ -248,12 +302,12 @@ Section /o "Apache FOP v${FOP_VERSION} (24MB Download)" SecFOP
         DetailPrint "FOP check - error level: $0"
         DetailPrint "FOP check - output: $1"
         StrCmp $0 0 0 DownloadFOP
-    MessageBox MB_ICONINFORMATION "A working version of Apache FOP was found on your system.$\r$\n$\r$\nThere is  \
-            no need to install it now and it could cause conflict to do so.$\r$\n$\r$\nShould you wish to upgrade to \
-            version ${FOP_VERSION} or to install for all users (administrator only) you should remove your current \
-            version (including the PATH entry) first, then re-run this installer.$\r$\n$\r$\nYour current version of \
-            Apache FOP was found here:$\r$\n$1" /SD IDOK
-        Goto DoneFOP
+            MessageBox MB_ICONINFORMATION "A working version of Apache FOP was found on your system.$\r$\n$\r$\nThere \
+                is no need to install it now and it could cause conflict to do so.$\r$\n$\r$\nShould you wish to \
+                upgrade to version ${FOP_VERSION} or to install for all users (administrator only) you should remove \
+                your current version (including the PATH entry) first, then re-run this installer.$\r$\n$\r$\nYour \
+                current version of Apache FOP was found here:$\r$\n$1" /SD IDOK
+            Goto DoneFOP
 
     ; Download FOP
     DownloadFOP:
@@ -280,8 +334,8 @@ Section /o "Apache FOP v${FOP_VERSION} (24MB Download)" SecFOP
             IfErrors FOPFail
             FileRead $0 $2 32
             StrCmp $2 $1 InstalFOP
-            DetailPrint "Apache FOP MD5 check failed"
-            Goto FOPFail
+                DetailPrint "Apache FOP MD5 check failed"
+                Goto FOPFail
 
 
     ; Unpack and install FOP
@@ -321,25 +375,15 @@ Section /o "Apache FOP v${FOP_VERSION} (24MB Download)" SecFOP
 
     ; $R1 = 0 if java versions are equal, 1 if newer than required, 2 if older than required, 3 if none found
     IntCmp $R1 "2" +1 DoneFOP +3
-    MessageBox MB_YESNO|MB_ICONQUESTION  "The version of Java Runtime Environment found on your system is an \
+    MessageBox MB_ICONINFORMATION  "The version of Java Runtime Environment found on your system is an \
             earlier version than is required by Apache FOP.  To be able to use FOP you will need to upgrade \
-            Java. $\r$\n$\r$\nJava Runtime Environment is only available directly from the Java web site. \
-            $\r$\n$\r$\nClick YES to be directed to the Java web site after this installer is finished." \
-                    /SD IDNO IDYES FWard2JRE
+            Java." /SD IDOK
                     Goto DoneFOP
-    MessageBox MB_YESNO|MB_ICONQUESTION "No version of Java Runtime Environment, required by Apache FOP, was found \
-            on your system.  To be able to use FOP you will need to install Java. $\r$\n$\r$\nJava Runtime \
-            Environment is only available directly from the Java web site. $\r$\n$\r$\n$\r$\nClick YES to be \
-            directed to the Java web site after this installer is finished." \
-                    /SD IDNO IDYES FWard2JRE
+    MessageBox MB_ICONINFORMATION "No version of Java Runtime Environment, required by Apache FOP, was found \
+            on your system.  To be able to use FOP you will need to install Java. $\r$\n$\r$\nAmazon Corretto \
+            provides a Java Runtime Environment. $\r$\n$\r$\n$\r$\nIf you wish you can re-run this installer to \
+            install Amazon Corretto." /SD IDOK
                     Goto DoneFOP
-
-    FWard2JRE:
-        DetailPrint "forward to Java download site = true"
-        StrCpy $JREFwd "true"
-        SetRebootFlag False
-        DetailPrint "Reboot flag = False"
-        Goto DoneFOP
 
     ; Error with FOP install
     FOPFail:
@@ -362,7 +406,7 @@ Section /o "MS Visual C runtime DLL (1.73MB Download)" SecMSC
 
     ; Check if the correct version of the MS Visual C runtime, needed by Python programs, is already installed
     Call CheckForMSVC
-        StrCmp $R1 "Success" GotMSVC
+    StrCmp $R1 "Success" GotMSVC
 
     ; Download MS Visual C runtime
     InitPluginsDir
@@ -372,9 +416,9 @@ Section /o "MS Visual C runtime DLL (1.73MB Download)" SecMSC
         Pop $0
         DetailPrint "${MSVC_FILE} Download Status: $0"
         StrCmp $0 "OK" InstalMSVC
-        MessageBox MB_OK|MB_ICONEXCLAMATION "Download Error, $0 aborting MS Visual C runtime installation.$\r$\n to \
-            try again re-run this installer at a later date" /SD IDOK
-    Goto DoneMSVC
+            MessageBox MB_OK|MB_ICONEXCLAMATION "Download Error, $0 aborting MS Visual C runtime installation.$\r$\n \
+                to try again re-run this installer at a later date" /SD IDOK
+            Goto DoneMSVC
 
     ; Install MS Visual C Runtime
     ; there seems to be a bug in the installer that leaves junk files in the root directory of the largest drive.
@@ -383,11 +427,11 @@ Section /o "MS Visual C runtime DLL (1.73MB Download)" SecMSC
         ExecWait '"$PLUGINSDIR\${MSVC_FILE}" /qb!'
         ; Check for successful install
         Call CheckForMSVC
-            StrCmp $R1 "Success" DoneMSVC
-        DetailPrint "error installing ${MSVC_DISP_NAME}"
-        MessageBox MB_OK|MB_ICONEXCLAMATION "Installer Error, aborting MS Visual C runtime installation.$\r$\n to try \
-            again re-run this installer at a later date" /SD IDOK
-        Goto DoneMSVC
+        StrCmp $R1 "Success" DoneMSVC
+            DetailPrint "error installing ${MSVC_DISP_NAME}"
+            MessageBox MB_OK|MB_ICONEXCLAMATION "Installer Error, aborting MS Visual C runtime installation.$\r$\n to \
+                try again re-run this installer at a later date" /SD IDOK
+            Goto DoneMSVC
 
     GotMSVC:
         DetailPrint "${MSVC_DISP_NAME} found, install cancelled"
@@ -434,6 +478,7 @@ LangString DESC_SecOPs ${LANG_ENGLISH} "Optional extras that you may be needed t
                                         the most from it."
 LangString DESC_SecFOP ${LANG_ENGLISH} "Apache FOP is required for XSL report templates. No uninstaller provided. \
                                         (Java RE required)"
+LangString DESC_SecJRE ${LANG_ENGLISH} "Amazon Corretto can supply the Java RE required by FOP."
 LangString DESC_SecMSC ${LANG_ENGLISH} "Microsoft Visual C++ 2008 Redistributable Package is required by Ghini.desktop."
 
 ; uninstaller
@@ -444,6 +489,7 @@ LangString DESC_SecUnMain ${LANG_ENGLISH} "Removes the main component - Ghini.de
   !insertmacro MUI_DESCRIPTION_TEXT ${SecMain} $(DESC_SecMain)
   !insertmacro MUI_DESCRIPTION_TEXT ${SecOPs} $(DESC_SecOPs)
   !insertmacro MUI_DESCRIPTION_TEXT ${SecFOP} $(DESC_SecFOP)
+  !insertmacro MUI_DESCRIPTION_TEXT ${SecJRE} $(DESC_SecJRE)
   !insertmacro MUI_DESCRIPTION_TEXT ${SecMSC} $(DESC_SecMSC)
 
   ; uninstaller
@@ -467,8 +513,8 @@ Function AddFOPtoPATH
     PathFOP_Loop:
         StrCpy $5 $2 $1 $4
         StrCmp $5 $0 PathFOP_Same
-        IntOp $4 $4 + 1
-        IntCmp $4 $3 PathFOP_Not PathFOP_Loop PathFOP_Not
+            IntOp $4 $4 + 1
+            IntCmp $4 $3 PathFOP_Not PathFOP_Loop PathFOP_Not
 
     ; Dont add FOP to PATH
     PathFOP_Same:
@@ -481,7 +527,8 @@ Function AddFOPtoPATH
         SetOutPath "$PLUGINSDIR\"
         SetOverwrite on
         File /a "add_to_path.vbs"
-        ExecWait '"$SYSDIR\wscript.exe" //E:vbscript "$PLUGINSDIR\add_to_path.vbs" /path:"$R0\fop-${FOP_VERSION}\" /env:"$R1"'
+        ExecWait '"$SYSDIR\wscript.exe" //E:vbscript "$PLUGINSDIR\add_to_path.vbs" /path:"$R0\fop-${FOP_VERSION}\" \
+                /env:"$R1"'
         DetailPrint "Apache FOP added to $R1 PATH as: $R0\fop-${FOP_VERSION}\"
         SetRebootFlag True
         DetailPrint "Reboot flag = True"
@@ -561,10 +608,10 @@ FunctionEnd
 
 ; On Initializing
 Function .onInit
-	; Initialize the NsisMultiUser plugin
-	!insertmacro MULTIUSER_INIT
-	; Check the command line option for components
-	${GetOptions} $CMDLINE "/C=" $2
+    ; Initialize the NsisMultiUser plugin
+    !insertmacro MULTIUSER_INIT
+    ; Check the command line option for components
+    ${GetOptions} $CMDLINE "/C=" $2
     CLLoop:
         StrCpy $1 $2 1 -1
         StrCpy $2 $2 -1
@@ -575,36 +622,32 @@ Function .onInit
                 SectionSetFlags ${SecFOP} 1
             StrCmp $1 "C" 0 +2
                 SectionSetFlags ${SecMSC} 1
+            StrCmp $1 "J" 0 +2
+                SectionSetFlags ${SecJRE} 1
         Goto CLLoop
     CLDone:
 FunctionEnd
 
 ; On Initializing the uninstaller
 Function un.onInit
-	; Initialize the NsisMultiUser plugin
-	!insertmacro MULTIUSER_UNINIT
-FunctionEnd
-
-; On Closing the installer
-Function .onGUIEnd
-    ; Open the Java download page on exit if user selected to do so.
-    StrCmp $JREFwd "true" 0 +2
-    ExecShell "open" "${JRE_WEB}"
+    ; Initialize the NsisMultiUser plugin
+    !insertmacro MULTIUSER_UNINIT
 FunctionEnd
 
 ; On verifying install dir
 Function .onVerifyInstDir
-        ; MS Visual C runtime Section is only avaiable if administrator
-    	StrCmp "$MultiUser.InstallMode" "AllUsers" AllUser
-	    SectionSetFlags ${SecMSC} 16
-	Alluser:
+    ; MS Visual C runtime and Java RE Sections are only avaiable if administrator
+    StrCmp "$MultiUser.InstallMode" "AllUsers" AllUser
+        SectionSetFlags ${SecMSC} 16
+        SectionSetFlags ${SecJRE} 16
+    Alluser:
 FunctionEnd
 
 ; On selection change
 Function .onSelChange
-        ; prevent unavailable section selection due via instType change
-    	StrCmp "$MultiUser.InstallMode" "AllUsers" AllUser
-	    SectionSetFlags ${SecMSC} 16
-	Alluser:
+    ; prevent unavailable section selection due via instType change
+    StrCmp "$MultiUser.InstallMode" "AllUsers" AllUser
+        SectionSetFlags ${SecMSC} 16
+    Alluser:
 FunctionEnd
 

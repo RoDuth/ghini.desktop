@@ -8,7 +8,6 @@ lxml==4.2.1
 Mako==0.9.1
 MarkupSafe==1.0
 Pillow==2.3.0
-psycopg2==2.7.4
 py2exe-py2==0.6.9
 Pygments==2.2.0
 pyparsing==2.0.1
@@ -18,3 +17,7 @@ raven==6.7.0
 requests==2.19.0
 SQLAlchemy==1.0.8
 urllib3==1.23
+pyodbc
+cx_oracle
+mysql-connector-python
+psycopg2==2.8.1
