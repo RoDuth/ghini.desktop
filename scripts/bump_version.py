@@ -136,10 +136,10 @@ bump_file(os.path.join(root_of_clone(), 'packages/builddeb.sh'), rx)
 rx = "(^version=)[0-9]*\.[0-9]*\.[0-9]*(.*?%s.*$)" % bump_tag
 bump_file(os.path.join(root_of_clone(), 'scripts/installer.cfg'), rx)
 
-rx = "(^  release: \'v).*?\..*?\..*?( \(MRBG Branch\)\'.*?%s.*?$)" % bump_tag
+rx = "(^  release: \'v).*?\..*?\..*?( \(BBG Branch\)\'.*?%s.*?$)" % bump_tag
 bump_file(os.path.join(root_of_clone(), '.appveyor.yml'), rx)
 
-rx = '(^!define VERSION ").*?\..*?\..*?(-MRBG".*?%s.*?$)' % bump_tag
+rx = '(^!define VERSION ").*?\..*?\..*?(-BBG".*?%s.*?$)' % bump_tag
 bump_file(os.path.join(root_of_clone(), 'scripts/build-multiuser.nsi'), rx)
 
 # TODO: commit the changes

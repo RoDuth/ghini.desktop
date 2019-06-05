@@ -368,9 +368,7 @@ prov_type_values = [
     (u'Wild', _('Accession of wild source')),  # W
     (u'Cultivated', _('Propagule(s) from a wild source plant')),  # Z
     (u'NotWild', _("Accession not of wild source")),  # G
-    (u'Purchase', _('Purchase or gift')),  # COLLAPSE INTO G
     (u'InsufficientData', _("Insufficient Data")),  # U
-    (u'Unknown', _("Unknown")),  # COLLAPSE INTO U
     (None, ''),  # do not transfer this field
     ]
 
@@ -393,17 +391,8 @@ wild_prov_status_values = [
     # Endemic, cultivated, reintroduced or translocated within its
     # indigenous range
     (u'CultivatedNative', _("Cultivated native")),
-
-    # MISSING cultivated, found outside its indigenous range
-    # (u'CultivatedNonNative', _("Cultivated non-native"))
-
-    # TO REMOVE:
-    (u'Impound', _("Impound")),
-    (u'Collection', _("Collection")),
-    (u'Rescue', _("Rescue")),
-    (u'InsufficientData', _("Insufficient Data")),
-    (u'Unknown', _("Unknown")),
-
+    # cultivated, found outside its indigenous range
+    (u'CultivatedNonNative', _("Cultivated non-native")),
     # Not transferred
     (None, '')]
 
@@ -436,16 +425,25 @@ recvd_type_values = {
     u'CORM': _('Corm'),
     u'DIVI': _('Division'),
     u'GRAF': _('Graft'),
+    u'GRFS': _('Grafted standard'),
     u'LAYE': _('Layer'),
-    u'PLNT': _('Planting'),
+    u'FLAS': _('Flask seed or spore'),
+    u'FLAT': _('Flask tissue culture'),
+    u'SEED': _('Seed'),
+    u'SEDL': _('Seedling'),
+    u'PLTP': _('Plant punnett or plug'),
+    u'PLNT': _('Plant tubestock'),
+    u'PLTS': _('Plant potted (sml)'),
+    u'PLTM': _('Plant potted (med)'),
+    u'PLTL': _('Plant potted (lrg)'),
+    u'PLTX': _('Plant ex-ground'),
+    u'PLXA': _('Plant advanced ex-Ground'),
     u'PSBU': _('Pseudobulb'),
     u'RCUT': _('Rooted cutting'),
     u'RHIZ': _('Rhizome'),
     u'ROOC': _('Root cutting'),
     u'ROOT': _('Root'),
     u'SCIO': _('Scion'),
-    u'SEDL': _('Seedling'),
-    u'SEED': _('Seed'),
     u'SPOR': _('Spore'),
     u'SPRL': _('Sporeling'),
     u'TUBE': _('Tuber'),
@@ -457,40 +455,52 @@ recvd_type_values = {
     None: ''
     }
 
+# Imy interpretation of "plant material"
+# u'Plant': _('Planting'),              a plant in the ground or nursery
+# u'Seed': _('Seed/Spore'),             seed in a seed bank
+# u'Vegetative': _('Vegetative Part'),  generally items in a bulb store
+# u'Tissue': _('Tissue Culture'),       flasks in some kind of germplasm store
+# u'Other': _('Other'),
+# no matter how they are recieved they are all are likely to become plants at
+# some point
 accession_type_to_plant_material = {
-    #u'Plant': _('Planting'),
+    u'ALAY': u'Plant',
     U'BBPL': u'Plant',
     u'BRPL': u'Plant',
-    u'PLNT': u'Plant',
-    u'SEDL': u'Plant',
-    #u'Seed': _('Seed/Spore'),
-    u'SEED': u'Seed',
-    u'SPOR': u'Seed',
-    u'SPRL': u'Seed',
-    #u'Vegetative': _('Vegetative Part'),
-    u'BUDC': u'Vegetative',
-    u'BUDD': u'Vegetative',
+    u'BUDC': u'Plant',
+    u'BUDD': u'Plant',
     u'BULB': u'Vegetative',
-    u'CLUM': u'Vegetative',
+    u'CLUM': u'Plant',
     u'CORM': u'Vegetative',
-    u'DIVI': u'Vegetative',
-    u'GRAF': u'Vegetative',
-    u'LAYE': u'Vegetative',
-    u'PSBU': u'Vegetative',
-    u'RCUT': u'Vegetative',
+    u'DIVI': u'Plant',
+    u'GRAF': u'Plant',
+    u'GRFS': u'Plant',
+    u'LAYE': u'Plant',
+    u'FLAS': u'Tissue',
+    u'FLAT': u'Tissue',
+    u'SEED': u'Seed',
+    u'SEDL': u'Plant',
+    u'PLTP': u'Plant',
+    u'PLNT': u'Plant',
+    u'PLTS': u'Plant',
+    u'PLTM': u'Plant',
+    u'PLTL': u'Plant',
+    u'PLTX': u'Plant',
+    u'PLXA': u'Plant',
+    u'PSBU': u'Plant',
+    u'RCUT': u'Plant',
     u'RHIZ': u'Vegetative',
-    u'ROOC': u'Vegetative',
+    u'ROOC': u'Plant',
     u'ROOT': u'Vegetative',
     u'SCIO': u'Vegetative',
+    u'SPOR': u'Seed',
+    u'SPRL': u'Plant',
     u'TUBE': u'Vegetative',
+    u'UNKN': u'Other',
     u'URCU': u'Vegetative',
     u'BBIL': u'Vegetative',
-    u'VEGS': u'Vegetative',
-    u'SCKR': u'Vegetative',
-    #u'Tissue': _('Tissue Culture'),
-    u'ALAY': u'Tissue',
-    #u'Other': _('Other'),
-    u'UNKN': u'Other',
+    u'VEGS': u'Plant',
+    u'SCKR': u'Plant',
     None: None
     }
 

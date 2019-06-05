@@ -248,26 +248,26 @@ def compute_serializable_fields(cls, session, keys):
 PlantNote = db.make_note_class('Plant', compute_serializable_fields, as_dict, retrieve)
 
 
-# TODO: some of these reasons are specific to UBC and could probably be culled.
 change_reasons = {
     u'DEAD': _('Dead'),
+    u'DELE': _('Deleted, yr. dead. unknown'),
+    u'DNGM': _('Did not germinate'),
     u'DISC': _('Discarded'),
     u'DISW': _('Discarded, weedy'),
-    u'LOST': _('Lost, whereabouts unknown'),
-    u'STOL': _('Stolen'),
-    u'WINK': _('Winter kill'),
-    u'ERRO': _('Error correction'),
+    u'DISN': _('Discarded, seedling in nursery'),
     u'DIST': _('Distributed elsewhere'),
-    u'DELE': _('Deleted, yr. dead. unknown'),
-    u'ASS#': _('Transferred to another acc.no.'),
-    u'FOGS': _('Given to FOGs to sell'),
-    u'PLOP': _('Area transf. to Plant Ops.'),
-    u'BA40': _('Given to Back 40 (FOGs)'),
-    u'TOTM': _('Transfered to Totem Field'),
-    U'SUMK': _('Summer Kill'),
-    u'DNGM': _('Did not germinate'),
-    u'DISN': _('Discarded seedling in nursery'),
+    u'ERRO': _('Error correction'),
     u'GIVE': _('Given away (specify person)'),
+    u'HOSP': _('Hospitalised'),
+    u'LOST': _('Lost, whereabouts unknown'),
+    u'QUAR': _('Quarantined'),
+    u'STOL': _('Stolen'),
+    U'SUMK': _('Summer Kill'),
+    u'ASS#': _('Transferred to another acc.no.'),
+    u'TRAN': _('Transplanted to another area'),
+    u'VAND': _('Vandalised'),
+    u'WINK': _('Winter kill'),
+    u'WETH': _('Weather or natural event'),
     u'OTHR': _('Other'),
     None: ''
     }
@@ -382,7 +382,7 @@ class PlantStatus(db.Base):
     #container_id = Column(Integer)
 
 
-acc_type_values = {u'Plant': _('Planting'),
+acc_type_values = {u'Plant': _('Plant'),
                    u'Seed': _('Seed/Spore'),
                    u'Vegetative': _('Vegetative Part'),
                    u'Tissue': _('Tissue Culture'),

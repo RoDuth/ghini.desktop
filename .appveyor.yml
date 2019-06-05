@@ -5,7 +5,7 @@ environment:
 
 branches:
   only:
-    - ghini-1.0-mrbg
+    - ghini-1.0-bbg
 
 install:
   - set PATH=%PYTHON_HOME%;%PYTHON_HOME%\Scripts;%PATH%;C:\Program Files (x86)\NSIS\Bin
@@ -32,7 +32,7 @@ artifacts:
   - path: scripts/ghini.desktop-*-setup.exe
 
 deploy:
-  release: 'v1.0.90 (MRBG Branch)' # :bump
+  release: 'v1.0.90 (BBG Branch)' # :bump
   description: ''
   provider: GitHub
   auth_token:
