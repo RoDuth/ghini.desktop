@@ -32,7 +32,7 @@ artifacts:
   - path: scripts/ghini.desktop-*-setup.exe
 
 deploy:
-  release: 'v1.0.90 (BBG Branch)' # :bump
+  release: 'v1.0.91 (BBG Branch)' # :bump
   description: ''
   provider: GitHub
   auth_token:
