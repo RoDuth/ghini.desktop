@@ -19,5 +19,5 @@ SQLAlchemy==1.0.8
 urllib3==1.23
 pyodbc
 cx_oracle
-mysql-connector-python
+mysql-connector==2.1.7
 psycopg2==2.8.1

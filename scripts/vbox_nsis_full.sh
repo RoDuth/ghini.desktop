@@ -193,8 +193,9 @@ VBoxManage snapshot "$vm" restore "$branch" >/dev/null 2>&1 || {
 
   # install a few requirements
   echo "installing dependencies"
-  pip_inst=(install py2exe_py2 psycopg2 Pygments --no-index
-            --find-links file://E:/win_pip_pkgs)
+  pip_inst=(install py2exe_py2 Pygments 'psycopg2==2.8.1' pyodbc cx_oracle
+            mysql-connector --no-index --find-links
+            file://E:/win_pip_pkgs)
   VBoxManage guestcontrol "$vm" run \
     --exe C:\\Python27\\Scripts\\pip.exe \
     --username "$username" \
@@ -248,5 +249,37 @@ VBoxManage guestcontrol "$vm" run \
   --wait-stdout \
   --wait-stderr \
   -- cmd.exe/arg0 /C "$cmd"
+
+# after everything has completed lets make the python app available from the
+# commandline and take a snapshot - a good place to enter for testing
+echo "add ghini to the path"
+# use '$ ghini' from a command prompt (if it doesn't work properly you can do:
+# $ set PATH=C:\Python27\;C:\Python27\Scripts\;%PATH%
+# $ pythonw -c "import bauble; bauble.main()"
+# or similar instead)
+cmd="mkdir %HOMEDRIVE%%HOMEPATH%\\bin && "
+cmd+="cscript.exe E:\\scripts\\add_to_path.vbs /path:%HOMEDRIVE%%HOMEPATH%\\bin "
+cmd+="/env:USER && "
+cmd+="copy E:\\scripts\\vbox_ghini.bat %HOMEDRIVE%%HOMEPATH%\\bin\\ghini.bat"
+VBoxManage guestcontrol "$vm" run \
+  --exe cmd.exe \
+  --username "$username" \
+  --password  "$p_word" \
+  --wait-stdout \
+  --wait-stderr \
+  -- cmd.exe/arg0 /C "$cmd"
+
+final_snapshot_name=ghini-build-complete
+echo "all complete, takng snapshot $final_snapshot_name"
+# if the snapshot already exists delete it
+vboxmanage snapshot "$vm" list | \
+  grep "$final_snapshot_name" && \
+  vboxmanage snapshot "$vm" delete "$final_snapshot_name" || \
+  echo "old snapshot $final_snapshot_name deleted"
+echo "take snapshot $final_snapshot_name"
+VBoxManage snapshot "$vm" take "$final_snapshot_name" >/dev/null 2>&1 || {
+  echo "failed to take snapshot $final_snapshot_name" && exit 1
+}
+
 # power off after all is finished.
 VBoxManage controlvm "$vm" poweroff
