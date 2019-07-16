@@ -101,6 +101,10 @@ if sys.platform == 'win32' and sys.argv[1] in ('nsis', 'py2exe'):
         'mako.cache',
         'pygments.styles.default',
         'pyparsing',
+        'dukpy',
+        'pypac',
+        'six',
+        'tld',
     ]
     py2exe_includes += gtk_pkgs + plugins_pkgs + sqlalchemy_includes
     setup_args = {
@@ -518,6 +522,7 @@ setuptools.setup(name="ghini.desktop",
                                    "requests",
                                    "fibra==0.0.17",
                                    "pyparsing==2.0.1",
+                                   "pypac==0.12.0",
                                    'python-dateutil<2.0'] + needs_sqlite,
                  extras_require={'docs': ['sphinx==1.6.7']},
                  tests_require=['nose', 'babel'],

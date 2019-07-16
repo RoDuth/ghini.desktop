@@ -18,7 +18,8 @@
 # along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
 
 import difflib
-import requests
+# import requests
+from pypac import PACSession
 import csv
 
 import logging
@@ -26,6 +27,8 @@ logger = logging.getLogger(__name__)
 #logger.setLevel(logging.DEBUG)
 
 import threading
+
+session = PACSession()
 
 
 class AskTPL(threading.Thread):
@@ -62,7 +65,7 @@ class AskTPL(threading.Thread):
 
     def run(self):
         def ask_tpl(binomial):
-            result = requests.get(
+            result = session.get(
                 'http://www.theplantlist.org/tpl1.1/search?q=' + binomial +
                 '&csv=true',
                 timeout=self.timeout)

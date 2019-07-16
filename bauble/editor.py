@@ -2123,7 +2123,10 @@ class PictureBox(NoteBox):
                 ## make sure the category is <picture>
                 self.set_model_attr('category', u'<picture>')
                 ## append thumbnail base64 to content string
-                basename = basename + "|data:image/jpeg;base64," + thumb
+                # this, from commit 59375047, not working in windows/sqlite at
+                # least, needs investigation, commenting out now here for
+                # immediate needs
+                # basename = basename + "|data:image/jpeg;base64," + thumb
                 ## store basename in note field and fire callbacks.
                 self.set_model_attr('note', basename)
                 self.set_content(basename)
