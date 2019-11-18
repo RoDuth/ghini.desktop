@@ -24,7 +24,7 @@ import csv
 
 import logging
 logger = logging.getLogger(__name__)
-#logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.DEBUG)
 
 import threading
 
@@ -65,6 +65,8 @@ class AskTPL(threading.Thread):
 
     def run(self):
         def ask_tpl(binomial):
+            logger.debug('tpl request for %s, with timeout %s', binomial,
+                         self.timeout)
             result = session.get(
                 'http://www.theplantlist.org/tpl1.1/search?q=' + binomial +
                 '&csv=true',
