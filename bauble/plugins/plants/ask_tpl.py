@@ -30,6 +30,10 @@ import threading
 
 session = PACSession()
 
+pac = session.get_pac()
+logger.debug('pac file = %s', pac)
+
+
 
 class AskTPL(threading.Thread):
     running = None

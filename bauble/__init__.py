@@ -235,6 +235,11 @@ dbengine.html#create-engine-url-arguments>`_
         _stderr = os.path.join(paths.user_dir(), 'stderr.log')
         sys.stdout = open(_stdout, 'w')
         sys.stderr = open(_stderr, 'w')
+        # also requests needs this to know where to find SSL cert
+        # use share/cacert.pem - see: https://stackoverflow.com/a/21206079
+        cert = 'cacert.pem'
+        os.environ['REQUESTS_CA_BUNDLE'] = os.path.join(paths.main_dir(),
+                                                        'share', cert)
 
     # add console root handler, and file root handler, set it at the logging
     # level specified by BAUBLE_LOGGING, or at INFO level.

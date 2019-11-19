@@ -27,7 +27,7 @@ import gobject
 
 import logging
 logger = logging.getLogger(__name__)
-#logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.DEBUG)
 
 import os
 import traceback
@@ -242,6 +242,7 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
 
         def on_sp_species_button_clicked(widget, event=None):
             # the real activity runs in a separate thread.
+            logger.debug('sp_species button clicked, importing AskTpl')
             from ask_tpl import AskTPL
 
             while self.species_check_messages:
@@ -251,6 +252,7 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
             binomial = '%s %s' % (self.model.genus, self.model.sp)
             # we need a longer timeout for the first time at least when using
             # pypac to get the proxy configuration
+            logger.debug('calling AskTpl with binomial=%s', binomial)
             AskTPL(binomial, sp_species_TPL_callback, timeout=7, gui=True
                    ).start()
             b0 = self.view.add_message_box(utils.MESSAGE_BOX_INFO)

@@ -25,16 +25,17 @@ import re
 
 import logging
 logger = logging.getLogger(__name__)
-#logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.DEBUG)
 
 import bauble.utils.desktop as desktop
 
 
 
-def _open_link(data=None, *args, **kwargs):
+def _open_link(*args, **kwargs):
     """Open a web link"""
     # windows generates odd characters in the uri unless its in ascii
-    logger.debug("_open_link received data=%s, args=%s, kwargs=%s" % (data, args, kwargs))
+    logger.debug("_open_link received args=%s, kwargs=%s" % (args, kwargs))
+    data = args[1]
     import sys
     if sys.platform == 'win32':
         udata = data.decode("utf-8")

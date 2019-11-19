@@ -211,9 +211,10 @@ def check_and_notify_new_installer(view):
         import json
         import requests
         # use share/cacert.pem - see: https://stackoverflow.com/a/21206079
-        cert = 'cacert.pem'
-        os.environ['REQUESTS_CA_BUNDLE'] = os.path.join(paths.main_dir(),
-                                                        'share', cert)
+        # MOVED to bauble/__init__
+        # cert = 'cacert.pem'
+        # os.environ['REQUESTS_CA_BUNDLE'] = os.path.join(paths.main_dir(),
+        #                                                 'share', cert)
         github_release_req = requests.get(github_release_api.encode('utf-8'),
                                           timeout=5)
         if github_release_req.ok:
