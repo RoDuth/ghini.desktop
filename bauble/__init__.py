@@ -240,6 +240,11 @@ dbengine.html#create-engine-url-arguments>`_
         cert = 'cacert.pem'
         os.environ['REQUESTS_CA_BUNDLE'] = os.path.join(paths.main_dir(),
                                                         'share', cert)
+        # and tld needs this for its starting point for top level domains
+        from tld.conf import set_setting
+        set_setting('NAMES_LOCAL_PATH_PARENT',
+                    os.path.join(paths.main_dir(), 'share'))
+        set_setting('NAMES_LOCAL_PATH', 'effective_tld_names.dat.txt')
 
     # add console root handler, and file root handler, set it at the logging
     # level specified by BAUBLE_LOGGING, or at INFO level.

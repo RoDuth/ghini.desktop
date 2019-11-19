@@ -208,6 +208,12 @@ if sys.platform == 'win32' and sys.argv[1] in ('nsis', 'py2exe'):
             from certifi import where
             file_util.copy_file(where(), os.path.join(self.dist_dir, 'share'))
 
+            # copy effective_tld_names.dat.txt from tld
+            from tld.defaults import NAMES_LOCAL_PATH_PARENT, NAMES_LOCAL_PATH
+            file_util.copy_file(os.path.join(NAMES_LOCAL_PATH_PARENT,
+                                             NAMES_LOCAL_PATH),
+                                os.path.join(self.dist_dir, 'share'))
+
     class NsisCmd(Command):
         """Command to create a Windows NSIS installer"""
 
