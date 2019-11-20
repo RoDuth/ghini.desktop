@@ -40,8 +40,3 @@ deploy:
   draft: false
   prerelease: false
   force_update: true
-
-test_script:
-  - "pip install nose"
-  - "pip install coverage"
-  - "nosetests"
