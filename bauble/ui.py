@@ -35,13 +35,16 @@ import bauble.db as db
 
 import bauble.paths as paths
 import bauble.pluginmgr as pluginmgr
-from bauble.prefs import prefs
+from bauble.prefs import prefs, debug_logging_prefs
 import bauble.search as search
 import bauble.utils as utils
 import bauble.utils.desktop as desktop
 from bauble.view import SearchView
 from bauble.editor import (
     GenericEditorView, GenericEditorPresenter)
+
+if __name__ in prefs[debug_logging_prefs]:
+    logger.setLevel(logging.DEBUG)
 
 
 class DefaultView(pluginmgr.View):

@@ -49,10 +49,14 @@ import bauble.editor as editor
 import bauble.utils as utils
 import bauble.btypes as types
 import bauble.paths as paths
-from bauble.prefs import prefs
+from bauble.prefs import prefs, debug_logging_prefs
 from bauble.view import (InfoBox, InfoExpander, PropertiesExpander,
                          select_in_search_results, Action)
 import bauble.view as view
+
+if __name__ in prefs[debug_logging_prefs]:
+    logger.setLevel(logging.DEBUG)
+
 
 # TODO: warn the user that a duplicate genus name is being entered
 # even if only the author or qualifier is different
@@ -999,8 +1003,10 @@ class SynonymsExpander(InfoExpander):
 class GenusInfoBox(InfoBox):
     """
     """
+    genus_web_button_defs_prefs = 'web_button_defs.genus'
+
     def __init__(self):
-        button_defs = [
+        button_defaults = [
             {'name': 'GoogleButton', '_base_uri': "http://www.google.com/search?q=%s", '_space': '+', 'title': "Search Google", 'tooltip': None, },
             {'name': 'GBIFButton', '_base_uri': "http://www.gbif.org/species/search?q=%s", '_space': '+', 'title': _("Search GBIF"), 'tooltip': _("Search the Global Biodiversity Information Facility"), },
             {'name': 'ITISButton', '_base_uri': "http://www.itis.gov/servlet/SingleRpt/SingleRpt?search_topic=Scientific_Name&search_value=%s&search_kingdom=Plant&search_span=containing&categories=All&source=html&search_credRating=All", '_space': '%20', 'title': _("Search ITIS"), 'tooltip': _("Search the Intergrated Taxonomic Information System"), },
@@ -1011,6 +1017,10 @@ class GenusInfoBox(InfoBox):
             {'name': 'TPLButton', '_base_uri': "http://www.theplantlist.org/tpl1.1/search?q=%(genus)s", '_space': '+', 'title': _("Search TPL"), 'tooltip': _("Search The Plant List online database"), },
             {'name': 'TropicosButton', '_base_uri': "http://tropicos.org/NameSearch.aspx?name=%(genus)s", '_space': '+', 'title': _("Search Tropicos"), 'tooltip': _("Search Tropicos (MissouriBG) online database"), },
             ]
+        if self.genus_web_button_defs_prefs not in prefs:
+            prefs[self.genus_web_button_defs_prefs] = \
+                button_defaults
+        button_defs = prefs[self.genus_web_button_defs_prefs]
         InfoBox.__init__(self)
         filename = os.path.join(paths.lib_dir(), 'plugins', 'plants',
                                 'infoboxes.glade')

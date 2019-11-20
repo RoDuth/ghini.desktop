@@ -119,6 +119,14 @@ complete content of your log file.
 Values: True, False (Default: False)
 """
 
+debug_logging_prefs = "bauble.debug_logging_modules"
+"""
+for modules that have this enabled you can turn debug logging on in the config
+file.
+
+Values: a list of modules names (i.e. ['bauble.plugins.plants.species'])
+"""
+
 
 from ConfigParser import RawConfigParser
 
@@ -173,6 +181,9 @@ class _prefs(dict):
 
         if units_pref not in self:
             self[units_pref] = 'metric'
+        if debug_logging_prefs not in self:
+            self[debug_logging_prefs] = []
+
 
     @staticmethod
     def _parse_key(name):

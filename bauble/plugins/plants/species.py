@@ -24,7 +24,6 @@ import gtk
 
 import logging
 logger = logging.getLogger(__name__)
-#logger.setLevel(logging.DEBUG)
 
 import os
 import traceback
@@ -36,7 +35,6 @@ import bauble.paths as paths
 import bauble.db as db
 
 import bauble.pluginmgr as pluginmgr
-from bauble.prefs import prefs
 import bauble.utils as utils
 from bauble.plugins.plants.species_editor import (
     SpeciesDistribution, SpeciesEditorPresenter, SpeciesEditorView,
@@ -47,6 +45,10 @@ from bauble.plugins.plants.species_model import (
 import bauble.search as search
 from bauble.view import PropertiesExpander, Action
 import bauble.view as view
+
+from bauble.prefs import prefs, debug_logging_prefs
+if __name__ in prefs[debug_logging_prefs]:
+    logger.setLevel(logging.DEBUG)
 
 SpeciesDistribution  # will be imported by clients of this module
 SpeciesEditorPresenter, SpeciesEditorView, SpeciesEditorMenuItem, edit_species,
@@ -408,6 +410,7 @@ class SpeciesInfoPage(InfoBoxPage):
     general info, fullname, common name, num of accessions and clones,
     distribution
     '''
+    species_web_button_defs_prefs = 'web_button_defs.species'
 
     # others to consider: reference, images, redlist status
 
@@ -415,18 +418,23 @@ class SpeciesInfoPage(InfoBoxPage):
         '''
         the constructor
         '''
-        button_defs = [
+        button_defaults = [
             {'name': 'GoogleButton', '_base_uri': "http://www.google.com/search?q=%s", '_space': '+', 'title': "Search Google", 'tooltip': None, },
+            {'name': 'WikipediaButton', '_base_uri': "http://en.wikipedia.org/wiki/%(genus.genus)s_%(sp)s", '_space': '+', 'title': _("Search Wikipedia"), 'tooltip': _("open the wikipedia page about this species"), },
+            {'name': 'ALAButton', '_base_uri': "http://bie.ala.org.au/search?q=%s", '_space': '+', 'title': _("Search ALA"), 'tooltip': _("Search the Atlas of Living Australia"), },
+            {'name': 'KewSciButton', '_base_uri': "http://www.plantsoftheworldonline.org/?q=%s", '_space': '+', 'title': _("Search Kew"), 'tooltip': _("Search the Plants of the World Online"), },
             {'name': 'GBIFButton', '_base_uri': "http://www.gbif.org/species/search?q=%s", '_space': '+', 'title': _("Search GBIF"), 'tooltip': _("Search the Global Biodiversity Information Facility"), },
             {'name': 'ITISButton', '_base_uri': "http://www.itis.gov/servlet/SingleRpt/SingleRpt?search_topic=Scientific_Name&search_value=%s&search_kingdom=Plant&search_span=containing&categories=All&source=html&search_credRating=All", '_space': '%20', 'title': _("Search ITIS"), 'tooltip': _("Search the Intergrated Taxonomic Information System"), },
             {'name': 'GRINButton', '_base_uri': "http://www.ars-grin.gov/cgi-bin/npgs/swish/accboth?query=%s&submit=Submit+Text+Query&si=0", '_space': '+', 'title': _("Search NPGS/GRIN"), 'tooltip': _('Search National Plant Germplasm System'), },
-            {'name': 'ALAButton', '_base_uri': "http://bie.ala.org.au/search?q=%s", '_space': '+', 'title': _("Search ALA"), 'tooltip': _("Search the Atlas of Living Australia"), },
-            {'name': 'WikipediaButton', '_base_uri': "http://en.wikipedia.org/wiki/%(genus.genus)s_%(sp)s", '_space': '+', 'title': _("Search Wikipedia"), 'tooltip': _("open the wikipedia page about this species"), },
             {'name': 'IPNIButton', '_base_uri': "http://www.ipni.org/ipni/advPlantNameSearch.do?find_genus=%(genus.genus)s&find_species=%(sp)s&find_isAPNIRecord=on& find_isGCIRecord=on&find_isIKRecord=on&output_format=normal", '_space': ' ', 'title': _("Search IPNI"), 'tooltip': _("Search the International Plant Names Index"), },
             {'name': 'BGCIButton', '_base_uri': "http://www.bgci.org/plant_search.php?action=Find&ftrGenus=%(genus.genus)s&ftrRedList=&ftrSpecies=%(sp)s&ftrRedList1997=&ftrEpithet=&ftrCWR=&x=0&y=0#results", '_space': ' ', 'title': _("Search BGCI"), 'tooltip': _("Search Botanic Gardens Conservation International"), },
             {'name': 'TPLButton', '_base_uri': "http://www.theplantlist.org/tpl1.1/search?q=%(genus.genus)s+%(sp)s", '_space': '+', 'title': _("Search TPL"), 'tooltip': _("Search The Plant List online database"), },
             {'name': 'TropicosButton', '_base_uri': "http://tropicos.org/NameSearch.aspx?name=%(genus.genus)s+%(sp)s", '_space': '+', 'title': _("Search Tropicos"), 'tooltip': _("Search Tropicos (MissouriBG) online database"), },
             ]
+        if self.species_web_button_defs_prefs not in prefs:
+            prefs[self.species_web_button_defs_prefs] = \
+                button_defaults
+        button_defs = prefs[self.species_web_button_defs_prefs]
         super(SpeciesInfoPage, self).__init__()
         filename = os.path.join(paths.lib_dir(), 'plugins', 'plants',
                                 'infoboxes.glade')

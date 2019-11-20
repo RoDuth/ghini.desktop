@@ -44,8 +44,11 @@ import bauble.editor as editor
 import bauble.utils as utils
 import bauble.utils.web as web
 import bauble.btypes as types
-from bauble.prefs import prefs
+from bauble.prefs import prefs, debug_logging_prefs
 import bauble.view as view
+
+if __name__ in prefs[debug_logging_prefs]:
+    logger.setLevel(logging.DEBUG)
 
 
 
@@ -856,12 +859,13 @@ class SynonymsExpander(InfoExpander):
 class FamilyInfoBox(InfoBox):
     '''
     '''
+    family_web_button_defs_prefs = 'web_button_defs.family'
 
     def __init__(self):
         '''
         '''
 
-        button_defs = [
+        button_defaults = [
             {'name': 'IPNIButton', '_base_uri': "http://www.ipni.org/ipni/advPlantNameSearch.do?find_family=%(family)s&find_isAPNIRecord=on& find_isGCIRecord=on&find_isIKRecord=on&output_format=normal", '_space': ' ', 'title': _("Search IPNI"), 'tooltip': _("Search the International Plant Names Index"), },
             {'name': 'GoogleButton', '_base_uri': "http://www.google.com/search?q=%s", '_space': '+', 'title': "Search Google", 'tooltip': None, },
             {'name': 'GBIFButton', '_base_uri': "http://www.gbif.org/species/search?q=%s", '_space': '+', 'title': _("Search GBIF"), 'tooltip': _("Search the Global Biodiversity Information Facility"), },
@@ -870,6 +874,10 @@ class FamilyInfoBox(InfoBox):
             {'name': 'ALAButton', '_base_uri': "http://bie.ala.org.au/search?q=%s", '_space': '+', 'title': _("Search ALA"), 'tooltip': _("Search the Atlas of Living Australia"), },
 
             ]
+        if self.family_web_button_defs_prefs not in prefs:
+            prefs[self.family_web_button_defs_prefs] = \
+                button_defaults
+        button_defs = prefs[self.family_web_button_defs_prefs]
         InfoBox.__init__(self)
         filename = os.path.join(paths.lib_dir(), 'plugins', 'plants',
                                 'infoboxes.glade')
