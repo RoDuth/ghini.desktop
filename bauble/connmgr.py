@@ -42,6 +42,9 @@ from bauble import paths, prefs, utils
 from bauble.editor import (
     GenericEditorView, GenericEditorPresenter)
 
+if __name__ in prefs.prefs[prefs.debug_logging_prefs]:
+    logger.setLevel(logging.DEBUG)
+
 
 def is_package_name(name):
     '''True if name identifies a package and it can be imported
@@ -209,20 +212,19 @@ def check_and_notify_new_installer(view):
                           '.desktop/releases/latest')
     try:
         import json
-        import requests
-        # use share/cacert.pem - see: https://stackoverflow.com/a/21206079
-        # MOVED to bauble/__init__
-        # cert = 'cacert.pem'
-        # os.environ['REQUESTS_CA_BUNDLE'] = os.path.join(paths.main_dir(),
-        #                                                 'share', cert)
-        github_release_req = requests.get(github_release_api.encode('utf-8'),
-                                          timeout=5)
+        from requests import exceptions
+        from bauble.utils import get_session
+        session = get_session()
+        github_release_req = session.get(github_release_api.encode('utf-8'),
+                                         timeout=5)
         if github_release_req.ok:
             github_release_json = json.loads(github_release_req.text)
             github_release = github_release_json['tag_name'][1:]
             github_release_int = [int(''.join(i for i in s if i.isdigit())) for
                                   s in github_release.split('.')]
             current_release_int = [int(i) for i in bauble.version_tuple]
+            logger.debug('current installer on github is version %s',
+                         current_release_int)
             remote = github_release_int > current_release_int
             if github_release_int < current_release_int:
                 logger.info('running unreleased windows install version')
@@ -231,7 +233,7 @@ def check_and_notify_new_installer(view):
                         'installer')
         if remote:
             def show_message_box():
-                msg = _('new installer %s available.\n'
+                msg = _('new installer %s available.\n'     # noqa
                         'continue, or exit to upgrade.') % github_release
                 box = view.add_message_box()
                 box.message = msg
@@ -243,9 +245,9 @@ def check_and_notify_new_installer(view):
             # asynchronously in the main loop, with gobject.idle_add.
             import gobject
             gobject.idle_add(show_message_box)
-    except requests.exceptions.Timeout:
+    except exceptions.Timeout:
         logger.info('connection timed out while checking for newer installer')
-    except requests.exceptions.RequestException, e:
+    except exceptions.RequestException, e:
         logger.info('Requests error %s while checking for newer installer', e)
     except Exception, e:
         logger.warning('unhandled %s(%s) while checking for newer '

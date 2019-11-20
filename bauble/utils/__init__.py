@@ -3,7 +3,7 @@
 # Copyright (c) 2005,2006,2007,2008,2009 Brett Adams <brett@belizebotanic.org>
 # Copyright (c) 2015-2016 Mario Frasca <mario@anche.no>
 # Copyright 2017 Jardín Botánico de Quito
-# Copyright (c) 2018 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright (c) 2018,2019 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -1565,3 +1565,42 @@ def get_urls(text):
         #print match.groups()
         matches.append(match.groups())
     return matches
+
+def get_session():
+    """
+    return a request or pypac session for making api calls, depending on
+    prefrences.
+    """
+    from bauble.prefs import prefs
+
+    prefs_proxies = prefs.get('web.proxies', None)
+    """
+    To manually set proxies (and use requests over pypac) add something like
+    this to your config file:
+
+    [web]
+    proxies = {"https": "http://10.10.10.10/8000", "http": "http://10.10.10.10:8000"}
+
+    To just make sure we use requests over PACSession then use anything other
+    than a dict for the value of proxies e.g.:
+
+    proxies = "no"
+
+    If set we use them if not we look for a pac file first then default to
+    normal behaviour.
+    """
+
+    if prefs_proxies:
+        from requests import Session
+        session = Session()
+        logger.debug('using requests directly')
+        if isinstance(prefs_proxies, dict):
+            session.proxies = prefs_proxies
+            logger.debug('session proxies manually set to %s', session.proxies)
+    else:
+        from pypac import PACSession
+        session = PACSession()
+        pac = session.get_pac()
+        logger.debug('pac file = %s', pac)
+
+    return session

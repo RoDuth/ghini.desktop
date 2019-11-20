@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 #
 # Copyright 2015 Mario Frasca <mario@anche.no>.
+# Copyright 2019 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -17,9 +18,8 @@
 # You should have received a copy of the GNU General Public License
 # along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
 
+from bauble.utils import get_session
 import difflib
-# import requests
-from pypac import PACSession
 import csv
 
 import logging
@@ -32,27 +32,7 @@ if __name__ in prefs[debug_logging_prefs]:
 
 import threading
 
-session = PACSession()
-
-prefs_proxies = prefs.get('web.proxies', None)
-"""
-This is the requests.Session() (which PACSession() subclasses) proxies
-settings.  To set them add something similar to this to your config file:
-
-[web]
-proxies = {"https": "http://10.10.10.10/8000", "http": "http://10.10.10.10:8000"}
-
-If set we use them if not we look for a pac file first then default to normal
-behaviour.
-"""
-
-if prefs_proxies:
-    session.proxies = prefs_proxies
-    logger.debug('session proxies manually set to %s', session.proxies)
-else:
-    pac = session.get_pac()
-    logger.debug('pac file = %s', pac)
-
+session = get_session()
 
 class AskTPL(threading.Thread):
     running = None
