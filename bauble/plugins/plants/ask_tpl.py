@@ -34,9 +34,24 @@ import threading
 
 session = PACSession()
 
-pac = session.get_pac()
-logger.debug('pac file = %s', pac)
+prefs_proxies = prefs.get('web.proxies')
+"""
+This is the requests.Session() (which PACSession() subclasses) proxies
+settings.  To set them add something similar to this to your config file:
 
+[web]
+proxies = {"https": "http://10.10.10.10/8000", "http": "http://10.10.10.10:8000"}
+
+If set we use them if not we look for a pac file first then default to normal
+behaviour.
+"""
+
+if prefs_proxies:
+    session.proxies = prefs_proxies
+    logger.debug('manual proxies set for tpl queries')
+else:
+    pac = session.get_pac()
+    logger.debug('pac file = %s', pac)
 
 
 class AskTPL(threading.Thread):
