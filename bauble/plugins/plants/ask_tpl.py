@@ -34,7 +34,7 @@ import threading
 
 session = PACSession()
 
-prefs_proxies = prefs.get('web.proxies')
+prefs_proxies = prefs.get('web.proxies', None)
 """
 This is the requests.Session() (which PACSession() subclasses) proxies
 settings.  To set them add something similar to this to your config file:
@@ -48,7 +48,7 @@ behaviour.
 
 if prefs_proxies:
     session.proxies = prefs_proxies
-    logger.debug('manual proxies set for tpl queries')
+    logger.debug('session proxies manually set to %s', session.proxies)
 else:
     pac = session.get_pac()
     logger.debug('pac file = %s', pac)
