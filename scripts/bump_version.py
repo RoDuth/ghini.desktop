@@ -3,7 +3,7 @@
 #
 # Copyright 2004-2010 Brett Adams <brett@bauble.io>
 # Copyright 2015 Mario Frasca <mario@anche.no>.
-# Copyright 2017, 2018 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright 2017-2019 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -144,7 +144,15 @@ bump_file(os.path.join(root_of_clone(), 'scripts/build-multiuser.nsi'), rx)
 
 # TODO: commit the changes
 print
-print 'git commit -m "bumping_to_%s" bauble/version.py doc/conf.py'\
-    ' data/ghini.desktop packages/builddeb.sh' \
-    ' scripts/installer.cfg scripts/build-multiuser.nsi' \
-    ' .appveyor.yml' % version
+print('git commit -m "bumping_to_%s" '
+      'bauble/version.py '
+      'doc/conf.py '
+      'data/ghini.desktop '
+      'packages/builddeb.sh '
+      'scripts/installer.cfg '
+      'scripts/build-multiuser.nsi '
+      '.appveyor.yml'
+      % version)
+print
+print 'after appveyor creates the release, you can get the version tag with:'
+print 'git fetch'
