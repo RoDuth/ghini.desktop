@@ -1571,7 +1571,9 @@ def get_session():
     return a request or pypac session for making api calls, depending on
     prefrences.
     """
-    from bauble.prefs import prefs, testing
+    from bauble.prefs import prefs, debug_logging_prefs, testing
+    if not testing and __name__ in prefs[debug_logging_prefs]:
+        logger.setLevel(logging.DEBUG)
 
     if not testing:
         prefs_proxies = prefs.get('web.proxies', None)

@@ -34,6 +34,9 @@ import threading
 
 session = get_session()
 
+logger.debug("session type = %s", type(session))
+logger.debug("session proxies = %s", session.proxies)
+
 class AskTPL(threading.Thread):
     running = None
 
