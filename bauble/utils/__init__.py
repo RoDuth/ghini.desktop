@@ -1571,10 +1571,14 @@ def get_session():
     return a request or pypac session for making api calls, depending on
     prefrences.
     """
-    from bauble.prefs import prefs
+    from bauble.prefs import prefs, testing
 
-    prefs_proxies = prefs.get('web.proxies', None)
+    if not testing:
+        prefs_proxies = prefs.get('web.proxies', None)
+    else:
+        prefs_proxies = "Use requests without proxies"
     """
+    If web.proxies is None then we use pypac to try to find proxy settings.
     To manually set proxies (and use requests over pypac) add something like
     this to your config file:
 
@@ -1586,8 +1590,7 @@ def get_session():
 
     proxies = "no"
 
-    If set we use them if not we look for a pac file first then default to
-    normal behaviour.
+    in testing we use vanilla requests
     """
 
     if prefs_proxies:

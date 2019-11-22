@@ -44,10 +44,10 @@ import bauble.editor as editor
 import bauble.utils as utils
 import bauble.utils.web as web
 import bauble.btypes as types
-from bauble.prefs import prefs, debug_logging_prefs
+from bauble.prefs import prefs, debug_logging_prefs, testing
 import bauble.view as view
 
-if __name__ in prefs[debug_logging_prefs]:
+if not testing and __name__ in prefs[debug_logging_prefs]:
     logger.setLevel(logging.DEBUG)
 
 

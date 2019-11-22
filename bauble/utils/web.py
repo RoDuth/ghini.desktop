@@ -26,8 +26,8 @@ import re
 import logging
 logger = logging.getLogger(__name__)
 
-from bauble.prefs import prefs, debug_logging_prefs
-if __name__ in prefs[debug_logging_prefs]:
+from bauble.prefs import prefs, debug_logging_prefs, testing
+if not testing and __name__ in prefs[debug_logging_prefs]:
     logger.setLevel(logging.DEBUG)
 
 import bauble.utils.desktop as desktop

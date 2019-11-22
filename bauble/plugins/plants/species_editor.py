@@ -38,7 +38,7 @@ from sqlalchemy.exc import DBAPIError
 from types import StringTypes
 import bauble
 
-from bauble.prefs import prefs, debug_logging_prefs
+from bauble.prefs import prefs, debug_logging_prefs, testing
 import bauble.utils as utils
 import bauble.paths as paths
 import bauble.editor as editor
@@ -49,7 +49,7 @@ from bauble.plugins.plants.species_model import (
     Species, SpeciesDistribution, VernacularName, SpeciesSynonym, Habit,
     infrasp_rank_values, compare_rank)
 
-if __name__ in prefs[debug_logging_prefs]:
+if not testing and __name__ in prefs[debug_logging_prefs]:
     logger.setLevel(logging.DEBUG)
 
 

@@ -31,7 +31,11 @@ import bauble.db as db
 import bauble.paths as paths
 import bauble.pluginmgr as pluginmgr
 
-testing = False  # set this to True when testing
+testing = os.environ.get('BAUBLE_TEST')  # set this to True when testing via
+# the BAUBLE_TEST environment variable i.e. in bash or similar shells use:
+# BAUBLE_TEST=True nosetests
+# in windows you would use something like this?:
+# cmd /V /C "set BAUBLE_TEST=True&& nosetests"
 
 """
 The prefs module exposes an API for getting and setting user
@@ -40,8 +44,12 @@ preferences in the Ghini config file.
 To use the preferences import bauble.prefs and access the prefs object
 using a dictionary like interface. e.g. ::
 
-    import bauble.prefs
+    from bauble import prefs
     prefs.prefs[key] = value
+
+Can also access the preference keys e.g. ::
+
+    prefs.date_format_pref
 """
 
 # TODO: maybe we should have a create method that creates the preferences

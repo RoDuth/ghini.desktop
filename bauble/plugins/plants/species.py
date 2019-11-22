@@ -46,8 +46,8 @@ import bauble.search as search
 from bauble.view import PropertiesExpander, Action
 import bauble.view as view
 
-from bauble.prefs import prefs, debug_logging_prefs
-if __name__ in prefs[debug_logging_prefs]:
+from bauble.prefs import prefs, debug_logging_prefs, testing
+if not testing and __name__ in prefs[debug_logging_prefs]:
     logger.setLevel(logging.DEBUG)
 
 SpeciesDistribution  # will be imported by clients of this module

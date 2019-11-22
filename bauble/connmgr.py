@@ -42,7 +42,7 @@ from bauble import paths, prefs, utils
 from bauble.editor import (
     GenericEditorView, GenericEditorPresenter)
 
-if __name__ in prefs.prefs[prefs.debug_logging_prefs]:
+if not prefs.testing and __name__ in prefs.prefs[prefs.debug_logging_prefs]:
     logger.setLevel(logging.DEBUG)
 
 

@@ -49,12 +49,12 @@ import bauble.editor as editor
 import bauble.utils as utils
 import bauble.btypes as types
 import bauble.paths as paths
-from bauble.prefs import prefs, debug_logging_prefs
+from bauble.prefs import prefs, debug_logging_prefs, testing
 from bauble.view import (InfoBox, InfoExpander, PropertiesExpander,
                          select_in_search_results, Action)
 import bauble.view as view
 
-if __name__ in prefs[debug_logging_prefs]:
+if not testing and __name__ in prefs[debug_logging_prefs]:
     logger.setLevel(logging.DEBUG)
 
 
