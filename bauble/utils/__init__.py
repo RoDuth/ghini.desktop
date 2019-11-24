@@ -1568,7 +1568,7 @@ def get_urls(text):
 
 def get_session():
     """
-    return a request or pypac session for making api calls, depending on
+    return a requests or pypac session for making api calls, depending on
     prefrences.
     """
     from bauble.prefs import prefs, debug_logging_prefs, testing
