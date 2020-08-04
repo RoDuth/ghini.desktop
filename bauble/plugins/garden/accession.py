@@ -3,6 +3,7 @@
 # Copyright 2008-2010 Brett Adams
 # Copyright 2015-2016 Mario Frasca <mario@anche.no>.
 # Copyright 2017 Jardín Botánico de Quito
+# Copyright 2020 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -828,11 +829,39 @@ class Accession(db.Base, db.Serializable, db.WithNotes):
         if 'rank' in keys and 'taxon' in keys:
             ## now we must connect the accession to the species it refers to
             if keys['rank'] == 'species':
+                # this can only handle a binomial it would seem
                 genus_name, epithet = keys['taxon'].split(' ', 1)
                 sp_dict = {'ht-epithet': genus_name,
                            'epithet': epithet}
-                result['species'] = Species.retrieve_or_create(
-                    session, sp_dict, create=False)
+                # NOTE insert the infrasp parts if they are present issue is we
+                # will need an exact match for it to work when trying to match.
+                _parts = {
+                    'genus',
+                    'sp',
+                    'hybrid',
+                    'infrasp1',
+                    'infrasp1_rank',
+                    'infrasp2',
+                    'infrasp2_rank',
+                    'infrasp3',
+                    'infrasp3_rank',
+                    'infrasp4',
+                    'infrasp4_rank'
+                }
+                sp_parts = {key: keys[key] for key in
+                            _parts.intersection(keys.keys())}
+                sp_dict.update(sp_parts)
+                # if have details for the species parts updating with epithet
+                # is likely to just breaks things
+                if any(part in sp_dict for part in _parts):
+                    result['species'] = Species.retrieve_or_create(
+                        session, sp_dict, create=False, update=False)
+                else:
+                    result['species'] = Species.retrieve_or_create(
+                        session, sp_dict, create=False)
+            # NOTE <rd> the rest of this is of no consequence to me as it
+            # refers to attaching an accession to a higher rank (genus or
+            # family) which we never do
             elif keys['rank'] == 'genus':
                 result['species'] = Species.retrieve_or_create(
                     session, {'ht-epithet': keys['taxon'],
@@ -845,6 +874,7 @@ class Accession(db.Base, db.Serializable, db.WithNotes):
                 result['species'] = Species.retrieve_or_create(
                     session, {'ht-epithet': unknown_genus,
                               'epithet': u'sp'})
+            logger.debug('compute_serializable_fields results = %s' % result)
         return result
 
     @classmethod

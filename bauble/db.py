@@ -23,6 +23,7 @@
 import logging
 logger = logging.getLogger(__name__)
 
+# XXX This breaks appveyor windows testing leaving here as a reminder
 # from bauble.prefs import prefs, debug_logging_prefs, testing
 # if not testing and __name__ in prefs[debug_logging_prefs]:
 #     logger.setLevel(logging.DEBUG)

@@ -3,6 +3,7 @@
 # Copyright 2008-2010 Brett Adams
 # Copyright 2012-2016 Mario Frasca <mario@anche.no>.
 # Copyright 2017 Jardín Botánico de Quito
+# Copyright 2020 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -604,12 +605,42 @@ class Species(db.Base, db.Serializable, db.DefiningPictures, db.WithNotes):
 
     @classmethod
     def retrieve(cls, session, keys):
+        logger.debug('retrieve species with keys %s', keys)
         from genus import Genus
+        # NOTE need to include infrasp parts if they are included in keys...
+        # Issue is they have to match exactly or won't get the right item back
+        # make sure to include only parts we know we can search
+        _parts = {
+            'sp',
+            'hybrid',
+            'infrasp1',
+            'infrasp1_rank',
+            'infrasp2',
+            'infrasp2_rank',
+            'infrasp3',
+            'infrasp3_rank',
+            'infrasp4',
+            'infrasp4_rank'
+        }
+        sp_parts = {key: keys[key] for key in _parts.intersection(keys.keys())}
+        logger.debug('sp_parts in keys %s', sp_parts)
+        # only add the sp part in if there is a value to give it. (e.g.
+        # cultivars may not have a sp value)
+        # Had this because of an issue I have long forgotten but it causes
+        # issues for some imports, leaving here for short term.
+        # if not any(part in sp_parts for part in _parts):
+        if keys.get('epithet') and sp_parts.get('sp') is None:
+            sp_parts['sp'] = keys.get('epithet')
+        gen = keys.get('genus') or keys.get('ht-epithet')
+        logger.debug(
+            'retrieve species with sp_parts %s and genus %s', sp_parts, gen)
         try:
-            return session.query(cls).filter(
-                cls.sp == keys['epithet']).join(Genus).filter(
-                Genus.genus == keys['ht-epithet']).one()
-        except:
+            return (
+                session.query(cls)
+                .filter_by(**sp_parts)
+                .join(Genus)
+                .filter(Genus.genus == gen).one())
+        except Exception:
             return None
 
     @classmethod
