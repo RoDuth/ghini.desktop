@@ -1040,8 +1040,8 @@ def markup_italics(tax):
         result = u'<i>{}</i>'.format(tax)
     # simple species hybrids (lowercase words separated by a multiplication
     # symbol)
-    elif re.match(u'^[a-z-]+( × [a-z]+)$', tax):
-        result = u'<i>{}</i>'.format(tax).replace(u'×', u'</i>×<i>')
+    elif re.match(u'^[a-z-]+( × [a-z-]+)*$', tax):
+        result = u'<i>{}</i>'.format(tax).replace(u' × ', u'</i> × <i>')
     # simple cultivar (starts and ends with a ' and can be almost have anything
     # between (except further quote symbols or multiplication symbols
     elif re.match(u"^'[^×\'\"]+'$", tax):
