@@ -3,7 +3,7 @@
 # Copyright (c) 2005,2006,2007,2008,2009 Brett Adams <brett@belizebotanic.org>
 # Copyright (c) 2015-2016 Mario Frasca <mario@anche.no>
 # Copyright 2017 Jardín Botánico de Quito
-# Copyright (c) 2018,2019 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright (c) 2018-2020 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -968,6 +968,123 @@ def xml_safe_name(obj):
     name = start_char + name_chars
 
     return name
+
+
+def complex_hyb(tax):
+    """
+    a helper function to splits a complex hybrid formula
+    into its parts.
+    :param: a string containing brackets surounding 2 phrases seperated by a
+      cross/multipy symbol
+    """
+    # break apart the name parts
+    prts = tax.split(u"×")
+    len_prts = len(prts)
+    left = right = find = found = 0
+    result = []
+    # put the bracketed parts back together
+    for i, prt in enumerate(prts):
+        prt = prt.strip()
+        if prt.startswith('('):
+            # find is the amount of closing brackets we need to find to capture
+            # the whole group
+            find += (len(prt) - len(prt.lstrip('(')))
+            left = i + 1 if not left else left
+        if prt.endswith(')'):
+            found += (len(prt) - len(prt.rstrip(')')))
+            if found == find:
+                right = i + 1
+        if right:
+            result.append(u''.join(
+                j for j in prts[left-1:right]).strip().replace('  ', u' × '))
+            left = right = find = found = 0
+        elif left == right == find == found == 0:
+            result.append(prt)
+        # what if we hit the end and still haven't found the matching bracket?
+        # Just return what we can.
+        elif i == len_prts - 1:
+            result.append(u''.join(
+                j for j in prts[left-1:]).strip().replace('  ', u' × '))
+
+    # if have a bracketed part remove the outer brackets and parse that else
+    # return the part italicised
+    italicize_part = lambda prt: (  # noqa: E731
+        u'({})'.format(markup_italics(prt[1:-1]))
+        if prt.startswith('(') and prt.endswith(')') else
+        markup_italics(prt)
+    )
+    # recompile adding the cross symbols back
+    return u''.join([italicize_part(i) + u' × ' for i in result])[:-3]
+
+
+def markup_italics(tax):
+    """
+    Add italics markup to the appropriate parts of a species string.
+
+    :param tax: the taxon name as a unicode string
+    """
+    # store the zws to reapply later (if used)
+    if tax.startswith(u'\u200b'):
+        start = u'\u200b'
+        tax = tax.strip(u'\u200b')
+    else:
+        start = ''
+
+    tax = tax.strip()
+    result = ''
+    # simple sp.
+    if tax == 'sp.':
+        result = u'{}'.format(tax)
+    # simple species
+    elif re.match(r'^[a-z-]+$', tax):
+        result = u'<i>{}</i>'.format(tax)
+    # simple species hybrids (lowercase words separated by a multiplication
+    # symbol)
+    elif re.match(u'^[a-z-]+( × [a-z]+)$', tax):
+        result = u'<i>{}</i>'.format(tax).replace(u'×', u'</i>×<i>')
+    # simple cultivar (starts and ends with a ' and can be almost have anything
+    # between (except further quote symbols or multiplication symbols
+    elif re.match(u"^'[^×\'\"]+'$", tax):
+        result = u'{}'.format(tax)
+    # simple infraspecific hybrid with nothospecies name
+    elif re.match(u'^×[a-z-]+$', tax):
+        result = u'{}<i>{}</i>'.format(tax[0], tax[1:])
+    # simple provisory or descriptor sp.
+    elif re.match(u'^sp. \([^×]+\)$', tax):  # pylint: disable=line-too-long,anomalous-backslash-in-string; # noqa
+        result = u'{}'.format(tax)
+    # simple descriptor (brackets surrounding anything without a multiplication
+    # symbol)
+    elif re.match(u'^\([^×]*\)$', tax):  # pylint: disable=line-too-long,anomalous-backslash-in-string; # noqa
+        result = u'{}'.format(tax)
+
+    # recursive parts
+    # species with descriptor (part with only lower letters + space + bracketed
+    # section)
+    elif re.match(u'^[a-z-]+ \([^×]+\)$', tax):  # pylint: disable=line-too-long,anomalous-backslash-in-string; # noqa
+        result = u''.join(
+            [markup_italics(i) + u' ' for i in tax.split(' ', 1)]
+        )[:-1]
+    # complex hybrids (contains brackets surounding 2 phrases seperated by a
+    # multipy symbol) These need to be reduce to less and less complex hybrids.
+    elif re.search(u'\(.+×.+\)', tax):  # pylint: disable=line-too-long,anomalous-backslash-in-string; # noqa
+        result = u'{}'.format(complex_hyb(tax))
+    # any other type of hybrid (i.e. cv to species, provisory to cv, etc..) try
+    # breaking it apart and italicizing the parts
+    elif re.match(u'.+ × .+', tax):
+        parts = [i.strip() for i in tax.split(u' × ')]
+        result = u''.join([markup_italics(i) + u' × ' for i in parts])[:-3]
+    # anything else with spaces in it. Break them off one by one and try
+    # identify the parts.
+    elif ' ' in tax:
+        result = u''.join(
+            [markup_italics(i) + u' ' for i in tax.split(' ', 1)]
+        )[:-1]
+    # lastly, what to do if we just don't know... (infraspecific ranks etc.)
+    else:
+        result = u'{}'.format(tax)
+
+    result = result.strip()
+    return start + result
 
 
 def safe_numeric(s):

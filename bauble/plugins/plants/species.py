@@ -327,8 +327,12 @@ class GeneralSpeciesExpander(InfoExpander):
         utils.make_label_clickable(
             self.widgets.sp_fam_data, on_label_clicked, row.genus.family)
         # link to genus
-        self.widget_set_value('sp_gen_data', '<big><i>%s</i></big>' %
-                              row.genus.genus, markup=True)
+        # TODO put genus markup in genus.markup() like species.markup()
+        genus = row.genus.genus
+        if not genus.isupper():
+            genus = u'<i>{}</i>'.format(genus).replace(u'x ', u'</i>×<i>')
+        self.widget_set_value('sp_gen_data', '<big>%s</big>' %
+                              genus, markup=True)
         utils.make_label_clickable(
             self.widgets.sp_gen_data, on_label_clicked, row.genus)
         # epithet (full binomial but missing genus)

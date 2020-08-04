@@ -139,12 +139,151 @@ class GlobalFuncs(TestCase):
         self.assertEquals(utils.safe_numeric('123a.2'), 0)
 
     def test_xml_safe_name(self):
-        self.assertEquals(utils.xml_safe_name('abc'), 'abc')
-        self.assertEquals(utils.xml_safe_name('a b c'), 'a_b_c')
-        self.assertEquals(utils.xml_safe_name('{[ab]<c>}'), 'abc')
-        self.assertEquals(utils.xml_safe_name(''), '_')
-        self.assertEquals(utils.xml_safe_name(' '), '_')
-        self.assertEquals(utils.xml_safe_name(u'\u2069\ud8ff'), '_')
-        self.assertEquals(utils.xml_safe_name('123'), '_123')
-        self.assertEquals(utils.xml_safe_name('<:>'), '_')
-        self.assertEquals(utils.xml_safe_name('<picture>'), 'picture')
+        self.assertEqual(utils.xml_safe_name('abc'), 'abc')
+        self.assertEqual(utils.xml_safe_name('a b c'), 'a_b_c')
+        self.assertEqual(utils.xml_safe_name('{[ab]<c>}'), 'abc')
+        self.assertEqual(utils.xml_safe_name(''), '_')
+        self.assertEqual(utils.xml_safe_name(' '), '_')
+        self.assertEqual(utils.xml_safe_name(u'\u2069\ud8ff'), '_')
+        self.assertEqual(utils.xml_safe_name('123'), '_123')
+        self.assertEqual(utils.xml_safe_name('<:>'), '_')
+        self.assertEqual(utils.xml_safe_name('<picture>'), 'picture')
+
+    def test_markup_italics(self):
+        self.assertEqual(utils.markup_italics('sp.'), u'sp.')
+        self.assertEqual(
+            utils.markup_italics('viminalis'), u'<i>viminalis</i>'
+        )
+        self.assertEqual(
+            utils.markup_italics('crista-galli'),
+            u'<i>crista-galli</i>'
+        )
+        self.assertEqual(
+            utils.markup_italics(
+                u"lilliputiana \xd7 compacta \xd7 ampullacea"
+            ),
+            u'<i>lilliputiana</i> \xd7 <i>compacta</i> \xd7 <i>ampullacea</i>'
+        )
+        self.assertEqual(
+            utils.markup_italics('sp. (Shute Harbour L.J.Webb+ 7916)'),
+            u'sp. (Shute Harbour L.J.Webb+ 7916)'
+        )
+        self.assertEqual(
+            utils.markup_italics('caerulea (Shute Harbour)'),
+            u'<i>caerulea</i> (Shute Harbour)'
+        )
+        self.assertEqual(
+            utils.markup_italics(
+                u"(carolinae \xd7 'Purple Star') \xd7 (compacta \xd7 sp.)"
+            ),
+            u"(<i>carolinae</i> \xd7 'Purple Star') \xd7 (<i>compacta</i> "
+            U"\xd7 sp.)"
+        )
+        self.assertEqual(
+            utils.markup_italics(
+                u"(('Gee Whizz' \xd7 'Fireball' \xd7 compacta) \xd7 "
+                u"'Purple Star') \xd7 lilliputiana"
+            ),
+            u"(('Gee Whizz' \xd7 'Fireball' \xd7 <i>compacta</i>) \xd7 "
+            u"'Purple Star') \xd7 <i>lilliputiana</i>"
+        )
+        self.assertEqual(
+            utils.markup_italics(
+                u"'Gee Whizz' \xd7 ('Fireball' \xd7 (compacta \xd7 "
+                u"'Purple Star')) \xd7 lilliputiana"
+            ),
+            u"'Gee Whizz' \xd7 ('Fireball' \xd7 (<i>compacta</i> \xd7 "
+            u"'Purple Star')) \xd7 <i>lilliputiana</i>"
+        )
+        self.assertEqual(
+            utils.markup_italics(u"carolinae \xd7 'Hot Wizz'"),
+            u"<i>carolinae</i> \xd7 'Hot Wizz'"
+        )
+        self.assertEqual(
+            utils.markup_italics(
+                u'sp. \xd7 sp. (South Molle Island J.P.GrestyAQ208995)'
+            ),
+            u'sp. \xd7 sp. (South Molle Island J.P.GrestyAQ208995)'
+        )
+        self.assertEqual(
+            utils.markup_italics(u"carolinae 'Tricolor' \xd7 compacta"),
+            u"<i>carolinae</i> 'Tricolor' \xd7 <i>compacta</i>"
+        )
+        self.assertEqual(
+            utils.markup_italics(u'carolinae \xd7 sp. (pink and red)'),
+            u'<i>carolinae</i> \xd7 sp. (pink and red)'
+        )
+        self.assertEqual(
+            utils.markup_italics(u"gymnocarpa \xd7 \xd7grandiflora"),
+            u'<i>gymnocarpa</i> \xd7 \xd7<i>grandiflora</i>'
+        )
+        self.assertEqual(
+            utils.markup_italics(u"gymnocarpa \xd7 \xd7 grandiflora"),
+            u'<i>gymnocarpa</i> \xd7 \xd7 <i>grandiflora</i>'
+        )
+        self.assertEqual(
+            utils.markup_italics(
+                u"wilsonii subsp. cryptophlebium \xd7 wilsonii subsp. wilsonii"
+            ),
+            u'<i>wilsonii</i> subsp. <i>cryptophlebium</i> \xd7 '
+            u'<i>wilsonii</i> subsp. <i>wilsonii</i>'
+        )
+        self.assertEqual(
+            utils.markup_italics(u"\xd7 grandiflora"),
+            u'\xd7 <i>grandiflora</i>'
+        )
+        self.assertEqual(
+            utils.markup_italics(u"\xd7grandiflora"),
+            u'\xd7<i>grandiflora</i>'
+        )
+        self.assertEqual(
+            utils.markup_italics(u'\u200bviminalis'),
+            u'\u200b<i>viminalis</i>'
+        )
+        self.assertEqual(
+            utils.markup_italics(
+                u"\u200b(carolinae \xd7 'Purple Star') \xd7 (compacta "
+                u"\xd7 sp.)"
+            ),
+            u"\u200b(<i>carolinae</i> \xd7 'Purple Star') \xd7 "
+            u"(<i>compacta</i> \xd7 sp.)"
+        )
+        self.assertEqual(
+            utils.markup_italics(u'\u200bcarolinae \xd7 sp. (pink and red)'),
+            u'\u200b<i>carolinae</i> \xd7 sp. (pink and red)'
+        )
+        self.assertEqual(
+            utils.markup_italics(
+                u"\u200bwilsonii subsp. cryptophlebium \xd7 wilsonii subsp. "
+                u"wilsonii"
+            ),
+            u'\u200b<i>wilsonii</i> subsp. <i>cryptophlebium</i> \xd7 '
+            u'<i>wilsonii</i> subsp. <i>wilsonii</i>'
+        )
+        self.assertEqual(
+            utils.markup_italics(u"\u200b\xd7 grandiflora"),
+            u'\u200b\xd7 <i>grandiflora</i>'
+        )
+        # check tht junk doesn't crash it
+        self.assertEqual(
+            utils.markup_italics(
+                u'\ub0aaN\ua001\U00055483\u01d6\u059e/C\U00103e9aG|\U0010eb876'
+            ),
+            u'\ub0aaN\ua001\U00055483\u01d6\u059e/C\U00103e9aG|\U0010eb876'
+        )
+        # check that mismatch brackets can produce something close to a desired
+        # outcome.
+        self.assertEqual(
+            utils.markup_italics(
+                u"((carolinae \xd7 'Purple Star') \xd7 (compacta \xd7 sp.)"
+            ),
+            u"((<i>carolinae</i> \xd7 'Purple Star') \xd7 (compacta \xd7 sp.)"
+        )
+        self.assertEqual(
+            utils.markup_italics(
+                u"(carolinae \xd7 'Purple Star')) \xd7 (lilliputiana \xd7 "
+                u"compacta \xd7 sp.)"
+            ),
+            u"(<i>carolinae</i> \xd7 'Purple Star')) \xd7 (lilliputiana \xd7 "
+            u"<i>compacta</i> \xd7 sp.)"
+        )

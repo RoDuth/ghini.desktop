@@ -1110,7 +1110,11 @@ class SpeciesEditorView(editor.GenericEditorView):
 
     _tooltips = {
         'sp_genus_entry': _('Genus'),
-        'sp_species_entry': _('Species epithet'),
+        'sp_species_entry': _('Species epithet (to include a hybrid formula '
+                              'typing a "*" will insert a cross symbol and '
+                              'allow spaces in the entry.  Similarly typing '
+                              '"sp." or "(" will do the same for adding a '
+                              'provisional name or descirptors etc..)'),
         'sp_author_entry': _('Species author'),
         'sp_hybrid_check': _('Species hybrid flag'),
         'sp_cvgroup_entry': _('Cultivar group'),
