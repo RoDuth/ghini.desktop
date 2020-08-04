@@ -90,8 +90,6 @@ if sys.platform == 'win32' and sys.argv[1] in ('nsis', 'py2exe'):
         'sqlite3',
         'psycopg2',
         'pyodbc',
-        'cx_Oracle',
-        'mysql',
         # others
         'lxml',
         'gdata',
