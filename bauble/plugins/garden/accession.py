@@ -32,7 +32,10 @@ import weakref
 
 import logging
 logger = logging.getLogger(__name__)
-#logger.setLevel(logging.DEBUG)
+
+from bauble.prefs import prefs, debug_logging_prefs, testing
+if not testing and __name__ in prefs[debug_logging_prefs]:
+    logger.setLevel(logging.DEBUG)
 
 import gtk
 

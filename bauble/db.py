@@ -22,7 +22,11 @@
 
 import logging
 logger = logging.getLogger(__name__)
-#logger.setLevel(logging.DEBUG)
+
+from bauble.prefs import prefs, debug_logging_prefs, testing
+if not testing and __name__ in prefs[debug_logging_prefs]:
+    logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.DEBUG)
 
 from sqlalchemy.orm import class_mapper
 
@@ -506,7 +510,7 @@ def make_note_class(name, compute_serializable_fields, as_dict=None, retrieve=No
         """return database object corresponding to keys
         """
         category = keys.get('category', '')
-        
+
         # normally, it's one note per category, but for list values, and for
         # pictures, we can have more than one.
         if (create and (category.startswith('[') and category.endswith(']') or
@@ -533,7 +537,7 @@ def make_note_class(name, compute_serializable_fields, as_dict=None, retrieve=No
             return q.one()
         except:
             return None
-    
+
     def as_dict_default(self):
         result = db.Serializable.as_dict(self)
         result[name.lower()] = getattr(self, name.lower()).code
@@ -586,7 +590,8 @@ class WithNotes:
                 result.append((key, n.note))
             elif n.category == ('<%s>' % name):
                 try:
-                    return json.loads(re.sub(r'(\w+)[ ]*(?=:)', r'"\g<1>"', '{' + n.note.replace(';', ',') + '}'))
+                    return json.loads(re.sub(r'(\w+)[ ]*(?=:)', r'"\g<1>"',
+                                             '{' + n.note.replace(';', ',') + '}'))
                 except Exception, e:
                     pass
                 try:
@@ -685,7 +690,7 @@ class Serializable:
         except Exception, e:
             logger.debug("this was unexpected")
             raise
-            
+
         logger.debug('3 value of keys: %s' % keys)
 
         ## at this point, resulting object is either in database or not. in

@@ -612,7 +612,7 @@ class CSVExporter(object):
 
         def replace(s):
             if isinstance(s, (str, unicode)):
-                s.replace('\n', '\\n')
+                s.replace('\n', '\\n').replace('\r', '\\r')
             return s
 
         def write_csv(filename, rows):
@@ -623,7 +623,11 @@ class CSVExporter(object):
             f.close()
 
         update_every = 30
-        spinner = u'⣄⡆⠇⠋⠙⠸⢰⣠'
+        from bauble.paths import main_is_frozen
+        if main_is_frozen:
+            spinner = '-\\|/'
+        else:
+            spinner = u'⣄⡆⠇⠋⠙⠸⢰⣠'
         for table in db.metadata.sorted_tables:
             filename = filename_template % table.name
             steps_so_far += 1
