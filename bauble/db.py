@@ -23,10 +23,7 @@
 import logging
 logger = logging.getLogger(__name__)
 
-# XXX This breaks appveyor windows testing leaving here as a reminder
-# from bauble.prefs import prefs, debug_logging_prefs, testing
-# if not testing and __name__ in prefs[debug_logging_prefs]:
-#     logger.setLevel(logging.DEBUG)
+# XXX can't set logging via prefs.debug_logging_prefs in windows
 logger.setLevel(logging.DEBUG)
 
 from sqlalchemy.orm import class_mapper

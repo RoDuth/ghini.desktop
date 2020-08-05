@@ -31,6 +31,10 @@ import traceback
 import logging
 logger = logging.getLogger(__name__)
 
+from bauble.prefs import prefs, debug_logging_prefs, testing
+if not testing and __name__ in prefs[debug_logging_prefs]:
+    logger.setLevel(logging.DEBUG)
+
 import gtk
 import gobject
 
@@ -41,7 +45,6 @@ import bauble
 from bauble.error import BaubleError
 import bauble.utils as utils
 import bauble.paths as paths
-from bauble.prefs import prefs
 import bauble.pluginmgr as pluginmgr
 from bauble.plugins.plants import Family, Genus, Species, VernacularName
 from bauble.plugins.garden import Accession, Plant, Location, Contact
