@@ -3,6 +3,7 @@
 # Copyright 2008-2010 Brett Adams
 # Copyright 2012-2016 Mario Frasca <mario@anche.no>.
 # Copyright 2017 Jardín Botánico de Quito
+# Copyright 2020 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -295,7 +296,8 @@ class MakoFormatterSettingsBox(SettingsBox):
     def update(self, settings):
         if settings.get('template'):
             self.widgets.template_chooser.set_filename(settings['template'])
-            self.on_file_set()
+            # only need settings here because of win32 bug
+            self.on_file_set(settings=settings)
         if 'private' in settings:
             self.widgets.private_check.set_active(settings['private'])
 
@@ -311,6 +313,17 @@ class MakoFormatterSettingsBox(SettingsBox):
                 option_lines = filter(None,
                                       [self.pattern.match(i.strip())
                                        for i in f.readlines()])
+        except TypeError:
+            # win32 bug with get_filename first time around...
+            try:
+                with open(kwargs.get('settings', {}).get('template')) as f:
+                    # scan the header filtering lines starting with # OPTION
+                    option_lines = filter(None,
+                                          [self.pattern.match(i.strip())
+                                           for i in f.readlines()])
+            except IOError:
+                # self.update(kwargs.get('settings'))
+                option_lines = []
         except IOError:
             option_lines = []
 
