@@ -742,7 +742,7 @@ class GUI(object):
                      dialog_on_error=True)
 
     def on_help_menu_bug(self, widget, data=None):
-        desktop.open('https://github.com/Ghini/ghini.desktop/issues/new',
+        desktop.open('https://github.com/RoDuth/ghini.desktop/issues/new',
                      dialog_on_error=True)
 
     def on_help_menu_logfile(self, widget, data=None):
@@ -750,7 +750,7 @@ class GUI(object):
         desktop.open(filename, dialog_on_error=True)
 
     def on_help_menu_web_devel(self, widget, data=None):
-        desktop.open('http://github.com/Ghini/ghini.desktop/',
+        desktop.open('http://github.com/RoDuth/ghini.desktop/',
                      dialog_on_error=True)
 
     def on_help_menu_web_wiki(self, widget, data=None):
@@ -763,7 +763,7 @@ class GUI(object):
 
     def on_help_menu_about(self, widget, data=None):
         about = gtk.AboutDialog()
-        about.set_name('Ghini')
+        about.set_name('Ghini (BBG)')
         about.set_version(bauble.version)
         gtk.about_dialog_set_url_hook(lambda d, l:
                                       desktop.open(l, dialog_on_error=True))
@@ -780,7 +780,12 @@ class GUI(object):
         about.set_license(license)  # not translated
         about.set_comments(_('This version installed on: %s\n'
                              'Latest published version: %s\n'
-                             'Publication date: %s') % (bauble.installation_date, bauble.release_version, bauble.release_date, ))
+                             'Publication date: %s') % (
+                                 bauble.installation_date,
+                                 bauble.release_version,
+                                 bauble.release_date,
+                             )
+                           )
         about.run()
         about.destroy()
 

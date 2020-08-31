@@ -128,32 +128,39 @@ def retrieve_latest_release_date():
     ## this is executed in a different thread, and it will overwrite the
     ## bauble.release_date text.
 
-    response = {'commit': {'commit': {'committer': {'date': _('not available when offline')}}}}
+    response = {'commit':
+                {'commit':
+                 {'committer': {'date': _('not available when offline')}}}}
     version_on_github = (
-        'https://raw.githubusercontent.com/Ghini/ghini.desktop' +
-        '/ghini-%s.%s/bauble/version.py') % bauble.version_tuple[:2]
-
+        'https://raw.githubusercontent.com/RoDuth/ghini'
+        '.desktop/ghini-%s.%s-bbg/bauble/version.py'
+    ) % bauble.version_tuple[:2]
     try:
         import urllib2
         import ssl
         import json
         ## from github retrieve the date of the latest release
         stream = urllib2.urlopen(
-            "https://api.github.com/repos/Ghini/ghini.desktop/branches/ghini-1.0",
+            ("https://api.github.com/repos/RoDuth/ghini.desktop/"
+             "branches/ghini-1.0-bbg"),
             timeout=5)
         response = json.load(stream)
         bauble.release_date = response['commit']['commit']['committer']['date']
 
         ## from github retrieve the version number
         github_version_stream = urllib2.urlopen(version_on_github, timeout=5)
-        bauble.release_version = newer_version_on_github(github_version_stream, force=True)
+        bauble.release_version = newer_version_on_github(github_version_stream,
+                                                         force=True)
 
         ## locally, read the installation timestamp
         main_init_path = bauble.__file__
         import os
         last_modified_seconds = os.stat(main_init_path).st_mtime
         import datetime
-        last_modified_date = datetime.datetime(1970, 1, 1) + datetime.timedelta(0, int(last_modified_seconds))
+        last_modified_date = (
+            datetime.datetime(1970, 1, 1)
+            + datetime.timedelta(0, int(last_modified_seconds))
+        )
         bauble.installation_date = last_modified_date.isoformat() + "Z"
     except urllib2.URLError:
         logger.info('connection is slow or down')
@@ -171,7 +178,7 @@ def check_and_notify_new_version(view):
     ## a different thread, which does nothing or terminates the program.
     version_on_github = (
         'https://raw.githubusercontent.com/RoDuth/ghini' +
-        '.desktop/ghini-%s.%s-mrbg/bauble/version.py'
+        '.desktop/ghini-%s.%s-bbg/bauble/version.py'
     ) % bauble.version_tuple[:2]
     try:
         import urllib2
