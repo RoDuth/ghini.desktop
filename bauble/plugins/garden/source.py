@@ -872,7 +872,7 @@ class GeneralSourceDetailExpander(view.InfoExpander):
         description = ''
         if row.description:
             description = utils.xml_safe(row.description)
-        self.widget_set_value('sd_desc_data', description)
+        self.widget_set_value('sd_desc_data', description, markup=True)
 
         source = Source.__table__
         nacc = select([source.c.id], source.c.source_detail_id == row.id).\
