@@ -864,20 +864,108 @@ class FamilyInfoBox(InfoBox):
     def __init__(self):
         '''
         '''
-
         button_defaults = [
-            {'name': 'IPNIButton', '_base_uri': "http://www.ipni.org/ipni/advPlantNameSearch.do?find_family=%(family)s&find_isAPNIRecord=on& find_isGCIRecord=on&find_isIKRecord=on&output_format=normal", '_space': ' ', 'title': _("Search IPNI"), 'tooltip': _("Search the International Plant Names Index"), },
-            {'name': 'GoogleButton', '_base_uri': "http://www.google.com/search?q=%s", '_space': '+', 'title': "Search Google", 'tooltip': None, },
-            {'name': 'GBIFButton', '_base_uri': "http://www.gbif.org/species/search?q=%s", '_space': '+', 'title': _("Search GBIF"), 'tooltip': _("Search the Global Biodiversity Information Facility"), },
-            {'name': 'ITISButton', '_base_uri': "http://www.itis.gov/servlet/SingleRpt/SingleRpt?search_topic=Scientific_Name&search_value=%s&search_kingdom=Plant&search_span=containing&categories=All&source=html&search_credRating=All", '_space': '%20', 'title': _("Search ITIS"), 'tooltip': _("Search the Intergrated Taxonomic Information System"), },
-            {'name': 'GRINButton', '_base_uri': "http://www.ars-grin.gov/cgi-bin/npgs/swish/accboth?query=%s&submit=Submit+Text+Query&si=0", '_space': '+', 'title': _("Search NPGS/GRIN"), 'tooltip': _('Search National Plant Germplasm System'), },
-            {'name': 'ALAButton', '_base_uri': "http://bie.ala.org.au/search?q=%s", '_space': '+', 'title': _("Search ALA"), 'tooltip': _("Search the Atlas of Living Australia"), },
+            {
+                '_base_uri': 'http://www.google.com/search?q=%s',
+                '_space': '+',
+                'name': 'GoogleButton',
+                'title': 'Search Google',
+                'tooltip': ''
+            },
+            {
+                '_base_uri': 'http://en.wikipedia.org/wiki/%s',
+                '_space': '+',
+                'name': 'WikipediaButton',
+                'title': 'Search Wikipedia',
+                'tooltip': 'open the wikipedia page about this species'
+            },
+            {
+                '_base_uri': 'http://bie.ala.org.au/search?q=%s',
+                '_space': '+',
+                'name': 'ALAButton',
+                'title': 'Search ALA',
+                'tooltip': 'Search the Atlas of Living Australia'
+            },
+            {
+                '_base_uri': 'https://biodiversity.org.au/nsl/services/search?product=APC&name=%s&display=apc&search=true',
+                '_space': '+',
+                'name': 'APCButton',
+                'title': 'Search APC',
+                'tooltip': 'Search the Australian Plant Census'
+            },
+            {
+                '_base_uri': 'https://biodiversity.org.au/nsl/services/search?product=APNI&name=%s&display=apni&search=true',
+                '_space': '+',
+                'name': 'APNIButton',
+                'title': 'Search APNI',
+                'tooltip': 'Search the Australian Plant Name Index'
+            },
+            {
+                '_base_uri': 'http://www.plantsoftheworldonline.org/?q=%s',
+                '_space': '+',
+                'name': 'KewSciButton',
+                'title': 'Search Kew',
+                'tooltip': 'Search the Plants of the World Online'
+            },
+            {
+                '_base_uri': 'http://www.worldfloraonline.org/search?query=%s',
+                '_space': '+',
+                'name': 'WFOButton',
+                'title': 'Search WorldFloraOnline',
+                'tooltip': 'Search the World Flora Online'
+            },
+            {
+                '_base_uri': 'http://www.ipni.org/ipni/advPlantNameSearch.do?find_family=%(family)s&find_isAPNIRecord=on& find_isGCIRecord=on&find_isIKRecord=on&output_format=normal',
+                '_space': ' ',
+                'name': 'IPNIButton',
+                'title': 'Search IPNI',
+                'tooltip': 'Search the International Plant Names Index'
+            },
+            {
+                '_base_uri': 'http://www.theplantlist.org/tpl1.1/search?q=%(genus)s',
+                '_space': '+',
+                'name': 'TPLButton',
+                'title': 'Search TPL',
+                'tooltip': 'Search The Plant List online database'
+            },
+            {
+                '_base_uri': 'http://www.gbif.org/species/search?q=%s',
+                '_space': '+',
+                'name': 'GBIFButton',
+                'title': 'Search GBIF',
+                'tooltip': 'Search the Global Biodiversity Information Facility'
+            },
+            {
+                '_base_uri': 'http://www.itis.gov/servlet/SingleRpt/SingleRpt?search_topic=Scientific_Name&search_value=%s&search_kingdom=Plant&search_span=containing&categories=All&source=html&search_credRating=All',
+                '_space': '%20',
+                'name': 'ITISButton',
+                'title': 'Search ITIS',
+                'tooltip': 'Search the Intergrated Taxonomic Information System'
+            },
+            {
+                '_base_uri': 'http://www.ars-grin.gov/cgi-bin/npgs/swish/accboth?query=%s&submit=Submit+Text+Query&si=0',
+                '_space': '+',
+                'name': 'GRINButton',
+                'title': 'Search NPGS/GRIN',
+                'tooltip': 'Search National Plant Germplasm System'
+            }
+        ]
+        if not prefs.config.has_section(self.family_web_button_defs_prefs):
+            for i in button_defaults:
+                prefs[self.family_web_button_defs_prefs + '.'
+                      + i.get('name')] = {
+                          k: v for k, v in i.items() if k != 'name'
+                      }
+            prefs.save()
 
-            ]
-        if self.family_web_button_defs_prefs not in prefs:
-            prefs[self.family_web_button_defs_prefs] = \
-                button_defaults
-        button_defs = prefs[self.family_web_button_defs_prefs]
+        butns = prefs.config.items(self.family_web_button_defs_prefs)
+        button_defs = []
+        for i in butns:
+            button_def = prefs[self.family_web_button_defs_prefs + '.'
+                               + i[0]]
+            button_def['name'] = i[0]
+            button_defs.append(button_def)
+
         InfoBox.__init__(self)
         filename = os.path.join(paths.lib_dir(), 'plugins', 'plants',
                                 'infoboxes.glade')
