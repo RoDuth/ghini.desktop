@@ -111,7 +111,7 @@ class GUI(object):
     entry_history_pref = 'bauble.history'
     history_size_pref = 'bauble.history_size'
     window_geometry_pref = "bauble.geometry"
-    _default_history_size = 12
+    _default_history_size = 36
 
     def __init__(self):
         filename = os.path.join(paths.lib_dir(), 'bauble.glade')
@@ -456,6 +456,9 @@ class GUI(object):
                                   ("help_logfile", gtk.STOCK_PROPERTIES,
                                    _("Open the log-file"), None,
                                    None, self.on_help_menu_logfile),
+                                  ("help_conffile", gtk.STOCK_PROPERTIES,
+                                   _("Open the config-file"), None,
+                                   None, self.on_help_menu_configfile),
                                   ("help_web.devel", gtk.STOCK_HOME,
                                    _("Ghini development website"), None,
                                    None, self.on_help_menu_web_devel),
@@ -749,6 +752,28 @@ class GUI(object):
         filename = os.path.join(paths.appdata_dir(), 'bauble.log')
         desktop.open(filename, dialog_on_error=True)
 
+    def on_help_menu_configfile(self, widget, data=None):  \
+            # pylint: disable=unused-argument,no-self-use
+        # save the current state of prefs first incase of any changes
+        prefs.save()
+        filename = bauble.prefs.default_prefs_file
+        msg = _('Open the config-file?\n\n'  # noqa
+                'WARNING: This file has a very specific format, any errors '
+                'could cause all settings to be lost.  Consider saving a '
+                'backup of its current state before making edits')
+        if utils.yes_no_dialog(msg):
+            import sys
+            if sys.platform == 'win32':
+                os.system('notepad.exe {}'.format(filename))
+            else:
+                desktop.open(filename, dialog_on_error=True)
+            msg = _('Reload config-file?\n\n'  # noqa
+                    'WARNING: many settings only work after restarting ghini, '
+                    'to ensure all settings are saved it is best to reload '
+                    'the file then restart ghini')
+            if utils.yes_no_dialog(msg):
+                prefs.reload()
+
     def on_help_menu_web_devel(self, widget, data=None):
         desktop.open('http://github.com/RoDuth/ghini.desktop/',
                      dialog_on_error=True)
@@ -800,7 +825,7 @@ class GUI(object):
     def on_delete_event(self, *args):
         import bauble.task as task
         if task.running():
-            msg = _('Would you like the cancel the current tasks?')
+            msg = _('Would you like to cancel the current tasks?')
             if not utils.yes_no_dialog(msg):
                 # stop other handlers for being invoked for this event
                 return True

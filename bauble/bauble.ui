@@ -21,6 +21,7 @@
       <separator/>
       <menuitem action="help_bug"/>
       <menuitem action="help_logfile"/>
+      <menuitem action="help_conffile"/>
       <menuitem action="help_web.devel"/>
       <menuitem action="help_web.wiki"/>
       <menuitem action="help_web.forum"/>

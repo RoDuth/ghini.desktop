@@ -192,6 +192,11 @@ class _prefs(dict):
         if debug_logging_prefs not in self:
             self[debug_logging_prefs] = []
 
+    def reload(self):
+        """
+        Update the current preferences to changes in the file,
+        """
+        self.config.read(self._filename)
 
     @staticmethod
     def _parse_key(name):
@@ -316,6 +321,7 @@ class PrefsCommandHandler(pluginmgr.CommandHandler):
     def get_view(self):
         if self.view is None:
             self.__class__.view = PrefsView()
+        self.view.update()
         return self.view
 
 
