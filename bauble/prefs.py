@@ -194,8 +194,10 @@ class _prefs(dict):
 
     def reload(self):
         """
-        Update the current preferences to changes in the file,
+        Update the current preferences to any external changes in the file,
         """
+        # make a new instance and reread the file into it.
+        self.config = RawConfigParser()
         self.config.read(self._filename)
 
     @staticmethod
