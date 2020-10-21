@@ -2,7 +2,7 @@
 #
 # Copyright (c) 2005,2006,2007,2008,2009 Brett Adams <brett@belizebotanic.org>
 # Copyright (c) 2015 Mario Frasca <mario@anche.no>
-# Copyright (c) 2016-2019 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright (c) 2016-2020 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -392,7 +392,7 @@ class install(_install):
             _install.run(self)
 
         # install ghini.desktop and icons
-        if sys.platform in ('linux3', 'linux2'):
+        if sys.platform in ('linux3', 'linux2', 'darwin'):
             # install everything in share
             dir_util.copy_tree(os.path.join(self.build_base, 'share'),
                                os.path.join(self.install_data, 'share'))
@@ -505,7 +505,7 @@ if sys.platform == 'win32':
 
 with open("README.rst", "r") as fh:
     long_description = fh.read()
-    
+
 setuptools.setup(name="ghini.desktop",
                  cmdclass={'build': build, 'install': install,
                            'py2exe': py2exe_cmd, 'nsis': NsisCmd,

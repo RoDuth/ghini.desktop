@@ -793,7 +793,11 @@ class GUI(object):
         gtk.about_dialog_set_url_hook(lambda d, l:
                                       desktop.open(l, dialog_on_error=True))
         about.set_website(_('http://ghini.github.io'))
-        f = os.path.join(paths.lib_dir(), 'images', 'icon.svg')
+        import sys
+        if sys.platform == 'darwin':
+            f = os.path.join(paths.lib_dir(), 'images', 'icon.png')
+        else:
+            f = os.path.join(paths.lib_dir(), 'images', 'icon.svg')
         pixbuf = gtk.gdk.pixbuf_new_from_file(f)
         about.set_logo(pixbuf)
         about.set_copyright(_(u'Copyright © by its contributors.'))
