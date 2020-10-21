@@ -581,11 +581,11 @@ class SearchView(pluginmgr.View):
             query = "%s where notes[category='%s'].note='%s'" % (domain, row[2], row[3])
             # fire it
             bauble.gui.widgets.main_comboentry.child.set_text(query)
-            bauble.gui.widgets.go_button.emit("clicked")            
+            bauble.gui.widgets.go_button.emit("clicked")
         except Exception, e:
             print type(e), e
         pass
-        
+
     def add_page_to_bottom_notebook(self, bottom_info):
         '''add notebook page for a plugin class
         '''

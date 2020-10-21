@@ -62,8 +62,7 @@ from bauble.plugins.plants.species import (
     )
 from bauble.plugins.plants.geography import (
     Geography, get_species_in_geography)
-from taxonomy_check import (
-    TaxonomyCheckTool)
+from taxonomy_check import TaxonomyCheckTool
 from stored_queries import (
     StoredQueryEditorTool)
 import bauble.search as search

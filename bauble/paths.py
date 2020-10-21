@@ -103,14 +103,14 @@ def user_dir():
     this is not the same as Application Data, for app_data is going to be
     replaced at each new installation or upgrade of the software. user_data
     is responsibility of the user and the software should use it, not
-    overrule it. 
+    overrule it.
 
     not implemented yet. will be a configuration item.
 
     """
     return appdata_dir()
 
-    
+
 def appdata_dir():
     """Returns the path to where Ghini application data and settings are saved.
 

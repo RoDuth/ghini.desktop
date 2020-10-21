@@ -189,7 +189,7 @@ class TagsMenuManager:
             return
         applying(self.active_tag_name, values)
         view.update_bottom_notebook()
-    
+
     def on_apply_active_tag_activated(self, *args, **kwargs):
         logger.debug("you're applying %s to the selection", self.active_tag_name)
         self.toggle_tag(applying=tag_objects)

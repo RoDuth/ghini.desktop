@@ -2,6 +2,7 @@
 #
 # Copyright 2008-2010 Brett Adams
 # Copyright 2015 Mario Frasca <mario@anche.no>.
+# Copyright 2020 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -312,7 +313,7 @@ class GUI(object):
             self.widgets.main_comboentry.child.set_text(query)
             self.widgets.go_button.emit("clicked")
         qb.cleanup()
-            
+
     def add_to_history(self, text, index=0):
         """
         add text to history, if text is already in the history then set its
