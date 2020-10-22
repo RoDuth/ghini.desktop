@@ -103,6 +103,8 @@ if sys.platform == 'win32' and sys.argv[1] in ('nsis', 'py2exe'):
         'pypac',
         'six',
         'tld',
+        'shapefile',
+        'polylabel',
     ]
     py2exe_includes += gtk_pkgs + plugins_pkgs + sqlalchemy_includes
     setup_args = {
@@ -528,6 +530,8 @@ setuptools.setup(name="ghini.desktop",
                                    "fibra==0.0.17",
                                    "pyparsing==2.0.1",
                                    "pypac==0.12.0",
+                                   "pyshp==2.1.2",
+                                   "python-polylabel==0.6",
                                    'python-dateutil<2.0'] + needs_sqlite,
                  extras_require={'docs': ['sphinx==1.6.7']},
                  tests_require=['nose', 'babel'],
