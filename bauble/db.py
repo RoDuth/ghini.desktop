@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-#
 # Copyright 2005-2010 Brett Adams <brett@belizebotanic.org>
 # Copyright 2015-2017 Mario Frasca <mario@anche.no>.
 # Copyright 2017 Jardín Botánico de Quito
@@ -51,7 +49,7 @@ except ImportError:
     raise
 
 
-import gtk
+from gi.repository import Gtk
 
 import sqlalchemy.orm as orm
 from sqlalchemy.ext.declarative import declarative_base, DeclarativeMeta
@@ -358,12 +356,12 @@ def create(import_defaults=True):
         meta_table = meta.BaubleMeta.__table__
         meta_table.insert(bind=connection).\
             execute(name=meta.VERSION_KEY,
-                    value=unicode(bauble.version)).close()
+                    value=str(bauble.version)).close()
         from dateutil.tz import tzlocal
         meta_table.insert(bind=connection).\
             execute(name=meta.CREATED_KEY,
-                    value=unicode(datetime.datetime.now(tz=tzlocal()))).close()
-    except GeneratorExit, e:
+                    value=str(datetime.datetime.now(tz=tzlocal()))).close()
+    except GeneratorExit as e:
         # this is here in case the main windows is closed in the middle
         # of a task
         # UPDATE 2009.06.18: i'm not sure if this is still relevant since we
@@ -372,7 +370,7 @@ def create(import_defaults=True):
         logger.warning('bauble.db.create(): %s' % utils.utf8(e))
         transaction.rollback()
         raise
-    except Exception, e:
+    except Exception as e:
         logger.warning('bauble.db.create(): %s' % utils.utf8(e))
         transaction.rollback()
         raise
@@ -385,7 +383,7 @@ def create(import_defaults=True):
     transaction = connection.begin()
     try:
         pluginmgr.install('all', import_defaults, force=True)
-    except GeneratorExit, e:
+    except GeneratorExit as e:
         # this is here in case the main windows is closed in the middle
         # of a task
         # UPDATE 2009.06.18: i'm not sure if this is still relevant since we
@@ -394,7 +392,7 @@ def create(import_defaults=True):
         logger.warning('bauble.db.create(): %s' % utils.utf8(e))
         transaction.rollback()
         raise
-    except Exception, e:
+    except Exception as e:
         logger.warning('bauble.db.create(): %s' % utils.utf8(e))
         transaction.rollback()
         raise
@@ -423,14 +421,14 @@ def verify_connection(engine, show_error_dialogs=False):
             return verify_connection(engine, False)
         except error.EmptyDatabaseError:
             msg = _('The database you have connected to is empty.')
-            utils.message_dialog(msg, gtk.MESSAGE_ERROR)
+            utils.message_dialog(msg, Gtk.MessageType.ERROR)
             raise
         except error.MetaTableError:
             msg = _('The database you have connected to does not have the '
                     'bauble meta table.  This usually means that the database '
                     'is either corrupt or it was created with an old version '
                     'of Ghini')
-            utils.message_dialog(msg, gtk.MESSAGE_ERROR)
+            utils.message_dialog(msg, Gtk.MessageType.ERROR)
             raise
         except error.TimestampError:
             msg = _('The database you have connected to does not have a '
@@ -438,9 +436,9 @@ def verify_connection(engine, show_error_dialogs=False):
                     'that there was a problem when you created the '
                     'database or the database you connected to wasn\'t '
                     'created with Ghini.')
-            utils.message_dialog(msg, gtk.MESSAGE_ERROR)
+            utils.message_dialog(msg, Gtk.MessageType.ERROR)
             raise
-        except error.VersionError, e:
+        except error.VersionError as e:
             msg = (_('You are using Ghini version %(version)s while the '
                      'database you have connected to was created with '
                      'version %(db_version)s\n\nSome things might not work as '
@@ -448,7 +446,7 @@ def verify_connection(engine, show_error_dialogs=False):
                      'corrupted.') %
                    {'version': bauble.version,
                     'db_version': '%s' % e.version})
-            utils.message_dialog(msg, gtk.MESSAGE_ERROR)
+            utils.message_dialog(msg, Gtk.MessageType.ERROR)
             raise
 
     # check if the database has any tables
@@ -515,7 +513,7 @@ def make_note_class(name, compute_serializable_fields, as_dict=None, retrieve=No
                         category == '<picture>')):
             # dirty trick: making sure it's not going to be found!
             import uuid
-            keys['category'] = unicode(uuid.uuid4())
+            keys['category'] = str(uuid.uuid4())
         result = super(globals()[class_name], cls).retrieve_or_create(session, keys, create, update)
         keys['category'] = category
         if result:
@@ -590,11 +588,11 @@ class WithNotes:
                 try:
                     return json.loads(re.sub(r'(\w+)[ ]*(?=:)', r'"\g<1>"',
                                              '{' + n.note.replace(';', ',') + '}'))
-                except Exception, e:
+                except Exception as e:
                     pass
                 try:
                     return json.loads(re.sub(r'(\w+)[ ]*(?=:)', r'"\g<1>"', n.note))
-                except Exception, e:
+                except Exception as e:
                     logger.debug('not parsed %s(%s), returning literal text »%s«', type(e), e, n.note)
                     return n.note
         if result == []:
@@ -609,14 +607,14 @@ class DefiningPictures:
 
     @property
     def pictures(self):
-        '''a list of gtk.Image objects
+        '''a list of Gtk.Image objects
         '''
 
         result = []
         for n in self.notes:
             if n.category != '<picture>':
                 continue
-            box = gtk.VBox()  # contains the image or the error message
+            box = Gtk.VBox()  # contains the image or the error message
             utils.ImageLoader(box, n.note).start()
             result.append(box)
         return result
@@ -629,7 +627,7 @@ class Serializable:
 
     def as_dict(self):
         result = dict((col, getattr(self, col))
-                      for col in self.__table__.columns.keys()
+                      for col in list(self.__table__.columns.keys())
                       if col not in ['id']
                       and col[0] != '_'
                       and getattr(self, col) is not None
@@ -685,7 +683,7 @@ class Serializable:
                 return None
             else:
                 extradict = {}
-        except Exception, e:
+        except Exception as e:
             logger.debug("this was unexpected")
             raise
 
@@ -704,7 +702,7 @@ class Serializable:
 
         logger.debug("link_values : %s" % str(link_values))
 
-        for k in keys.keys():
+        for k in list(keys.keys()):
             if k not in class_mapper(cls).mapped_table.c:
                 del keys[k]
         if 'id' in keys:
@@ -717,7 +715,7 @@ class Serializable:
         # early construct object before building links
         if not is_in_session and create:
             ## completing the task of building the links
-            logger.debug("links? %s, %s" % (cls.link_keys, keys.keys()))
+            logger.debug("links? %s, %s" % (cls.link_keys, list(keys.keys())))
             for key in cls.link_keys:
                 d = link_values.get(key)
                 if d is None:
@@ -734,7 +732,7 @@ class Serializable:
             result = is_in_session
 
             ## completing the task of building the links
-            logger.debug("links? %s, %s" % (cls.link_keys, keys.keys()))
+            logger.debug("links? %s, %s" % (cls.link_keys, list(keys.keys())))
             for key in cls.link_keys:
                 d = link_values.get(key)
                 if d is None:
@@ -746,7 +744,7 @@ class Serializable:
         logger.debug("going to update %s with %s" % (result, keys))
         if 'id' in keys:
             del keys['id']
-        for k, v in keys.items():
+        for k, v in list(keys.items()):
             if isinstance(v, dict):
                 if v.get('__class__') == 'datetime':
                     m = v.get('millis', 0)

@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-#
 # Copyright 2008-2010 Brett Adams
 # Copyright 2015 Mario Frasca <mario@anche.no>.
 #
@@ -19,7 +17,7 @@
 # along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
 
 import os
-import gtk
+from gi.repository import Gtk
 
 import logging
 logger = logging.getLogger(__name__)
@@ -136,7 +134,7 @@ Values: a list of modules names (i.e. ['bauble.plugins.plants.species'])
 """
 
 
-from ConfigParser import RawConfigParser
+from configparser import RawConfigParser
 
 
 class _prefs(dict):
@@ -262,7 +260,7 @@ class _prefs(dict):
                 % self._filename
             if bauble.gui is not None and bauble.gui.window is not None:
                 import bauble.utils as utils
-                utils.message_dialog(msg, type=gtk.MESSAGE_ERROR,
+                utils.message_dialog(msg, type=Gtk.MessageType.ERROR,
                                      parent=bauble.gui.window)
             else:
                 logger.error(msg)
@@ -298,7 +296,7 @@ class PrefsView(pluginmgr.View):
     def update(self):
         self.widgets.prefs_prefs_ls.clear()
         global prefs
-        for key, value in sorted(prefs.iteritems()):
+        for key, value in sorted(prefs.items()):
             self.widgets.prefs_prefs_ls.append(
                 (key, value, prefs[key].__class__.__name__))
 

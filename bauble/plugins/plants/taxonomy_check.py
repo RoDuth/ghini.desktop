@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-#
 # Copyright 2015 Mario Frasca <mario@anche.no>.
 #
 # This file is part of ghini.desktop.
@@ -19,11 +17,12 @@
 
 import os
 import logging
+from functools import reduce
 logger = logging.getLogger(__name__)
 from bauble import paths, pluginmgr, utils
 from bauble.plugins.plants import Species
 
-import pango
+from gi.repository import Pango
 
 
 from bauble.editor import (
@@ -154,9 +153,9 @@ class BatchTaxonomicCheckPresenter(GenericEditorPresenter):
             for l in f.readlines():
                 l = l.strip()
                 values = [i.strip() for i in l.split("\t")]
-                responses.append(dict(zip(keys, values)))
+                responses.append(dict(list(zip(keys, values))))
         for binomial, response in zip(self.binomials, responses):
-            acceptable = response['Name_matched_rank'] == u'species'
+            acceptable = response['Name_matched_rank'] == 'species'
             row = [acceptable,
                    acceptable and YES_ICON or NO_ICON,
                    binomial]
@@ -177,9 +176,9 @@ class BatchTaxonomicCheckPresenter(GenericEditorPresenter):
         'execute all that is selected in liststore2 and move to frame 3'
         self.on_frame_next(*args)
         tb = self.view.widgets.textbuffer3
-        tag_bold = tb.create_tag(None, weight=pango.WEIGHT_BOLD)
-        tag_red = tb.create_tag(None, weight=pango.WEIGHT_BOLD,
-                                foreground=pango.Color('red'))
+        tag_bold = tb.create_tag(None, weight=Pango.Weight.BOLD)
+        tag_red = tb.create_tag(None, weight=Pango.Weight.BOLD,
+                                foreground=Pango.Color('red'))
         tb.set_text('')
 
         for row in self.tick_off_list:
@@ -234,8 +233,8 @@ class BatchTaxonomicCheckPresenter(GenericEditorPresenter):
 
     def on_copy_to_clipboard_button_clicked(self, *args):
         text = '\n'.join(self.binomials)
-        import gtk
-        clipboard = gtk.Clipboard()
+        from gi.repository import Gtk
+        clipboard = Gtk.Clipboard()
         clipboard.set_text(text)
 
     def on_tnrs_browse_button_clicked(self, *args):
@@ -272,14 +271,14 @@ class BatchTaxonomicCheckPresenter(GenericEditorPresenter):
             row[STOCK_ID] = stock_id
 
     def on_filebtnbrowse_clicked(self, *args):
-        import gtk
+        from gi.repository import Gtk
         previously = self.view.widget_get_value('file_path_entry')
         last_folder, bn = os.path.split(previously)
         self.view.run_file_chooser_dialog(
             _("Choose a file…"), None,
-            action=gtk.FILE_CHOOSER_ACTION_SAVE,
-            buttons=(gtk.STOCK_OK, gtk.RESPONSE_ACCEPT,
-                     gtk.STOCK_CANCEL, gtk.RESPONSE_CANCEL),
+            action=Gtk.FileChooserAction.SAVE,
+            buttons=(Gtk.STOCK_OK, Gtk.ResponseType.ACCEPT,
+                     Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL),
             last_folder=last_folder, target='file_path_entry')
 
 

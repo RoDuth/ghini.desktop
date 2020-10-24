@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-#
 # Copyright (c) 2005,2006,2007,2008,2009 Brett Adams <brett@belizebotanic.org>
 # Copyright (c) 2012-2017 Mario Frasca <mario@anche.no>
 #
@@ -25,7 +23,7 @@
 import os
 import traceback
 
-import gtk
+from gi.repository import Gtk
 
 import logging
 logger = logging.getLogger(__name__)
@@ -72,12 +70,12 @@ class TagsMenuManager:
         self.show_active_tag()
 
     def show_active_tag(self):
-        for c in self.item_list.values():
+        for c in list(self.item_list.values()):
             c.set_image(None)
         widget = self.item_list.get(self.active_tag_name)
         if widget:
-            image = gtk.Image()
-            image.set_from_stock(gtk.STOCK_APPLY, gtk.ICON_SIZE_MENU)
+            image = Gtk.Image()
+            image.set_from_stock(Gtk.STOCK_APPLY, Gtk.IconSize.MENU)
             widget.set_image(image)
             self.apply_active_tag_menu_item.set_sensitive(True)
             self.remove_active_tag_menu_item.set_sensitive(True)
@@ -95,33 +93,33 @@ class TagsMenuManager:
             view.results_view.expand_to_path('0')
 
     def build_menu(self):
-        """build tags gtk.Menu based on current data
+        """build tags Gtk.Menu based on current data
         """
         self.item_list = {}
-        tags_menu = gtk.Menu()
-        add_tag_menu_item = gtk.MenuItem(_('Tag Selection'))
+        tags_menu = Gtk.Menu()
+        add_tag_menu_item = Gtk.MenuItem(_('Tag Selection'))
         add_tag_menu_item.connect('activate', _on_add_tag_activated)
-        self.apply_active_tag_menu_item = gtk.MenuItem(_('Apply active tag'))
+        self.apply_active_tag_menu_item = Gtk.MenuItem(_('Apply active tag'))
         self.apply_active_tag_menu_item.connect('activate', self.on_apply_active_tag_activated)
-        self.remove_active_tag_menu_item = gtk.MenuItem(_('Remove active tag'))
+        self.remove_active_tag_menu_item = Gtk.MenuItem(_('Remove active tag'))
         self.remove_active_tag_menu_item.connect('activate', self.on_remove_active_tag_activated)
         if bauble.gui:
-            accel_group = gtk.AccelGroup()
+            accel_group = Gtk.AccelGroup()
             bauble.gui.window.add_accel_group(accel_group)
             add_tag_menu_item.add_accelerator('activate', accel_group, ord('T'),
-                                              gtk.gdk.CONTROL_MASK, gtk.ACCEL_VISIBLE)
+                                              Gdk.ModifierType.CONTROL_MASK, Gtk.AccelFlags.VISIBLE)
             self.apply_active_tag_menu_item.add_accelerator('activate', accel_group, ord('Y'),
-                                                            gtk.gdk.CONTROL_MASK, gtk.ACCEL_VISIBLE)
-            key, mask = gtk.accelerator_parse('<Control><Shift>y')
+                                                            Gdk.ModifierType.CONTROL_MASK, Gtk.AccelFlags.VISIBLE)
+            key, mask = Gtk.accelerator_parse('<Control><Shift>y')
             self.remove_active_tag_menu_item.add_accelerator('activate', accel_group,
-                                                             key, mask, gtk.ACCEL_VISIBLE)
+                                                             key, mask, Gtk.AccelFlags.VISIBLE)
         tags_menu.append(add_tag_menu_item)
 
         session = db.Session()
         query = session.query(Tag).order_by(Tag.tag)
         has_tags = query.first()
         if has_tags:
-            tags_menu.append(gtk.SeparatorMenuItem())
+            tags_menu.append(Gtk.SeparatorMenuItem())
         submenu = {'': [None, tags_menu]}  # menuitem and submenu
                                            # corresponding to full item
                                            # path; it is a list because it
@@ -133,11 +131,11 @@ class TagsMenuManager:
                 name = parts.pop()
                 full_path += name
                 if full_path not in submenu:
-                    item = gtk.ImageMenuItem(name)
+                    item = Gtk.ImageMenuItem(name)
                     parent.append(item)
                     submenu[full_path] = [item, None]
                 if submenu[full_path][1] is None:
-                    take_this = gtk.Menu()
+                    take_this = Gtk.Menu()
                     submenu[full_path] = [item, take_this]
                     item.set_submenu(take_this)
                 parent = submenu[full_path]
@@ -147,7 +145,7 @@ class TagsMenuManager:
                 path = tag.tag.split('/')
                 tail = path.pop()
                 head = '/'.join(path)
-                item = gtk.ImageMenuItem(tail)
+                item = Gtk.ImageMenuItem(tail)
                 submenu[tag.tag] = [item, None]
                 item.set_image(None)
                 item.set_always_show_image(True)
@@ -159,11 +157,11 @@ class TagsMenuManager:
             logger.debug(traceback.format_exc())
             msg = _('Could not create the tags menus')
             utils.message_details_dialog(msg, traceback.format_exc(),
-                                         gtk.MESSAGE_ERROR)
+                                         Gtk.MessageType.ERROR)
         session.close()
 
         if has_tags:
-            tags_menu.append(gtk.SeparatorMenuItem())
+            tags_menu.append(Gtk.SeparatorMenuItem())
             tags_menu.append(self.apply_active_tag_menu_item)
             tags_menu.append(self.remove_active_tag_menu_item)
             self.apply_active_tag_menu_item.set_sensitive(False)
@@ -235,10 +233,10 @@ def remove_callback(tags):
         obj = session.query(Tag).get(tag.id)
         session.delete(obj)
         session.commit()
-    except Exception, e:
+    except Exception as e:
         msg = _('Could not delete.\n\n%s') % utils.xml_safe(e)
         utils.message_details_dialog(msg, traceback.format_exc(),
-                                     type=gtk.MESSAGE_ERROR)
+                                     type=Gtk.MessageType.ERROR)
 
     # reinitialize the tag menu
     tags_menu_manager.reset()
@@ -318,15 +316,15 @@ class TagItemGUI(editor.GenericEditorView):
         """
         Build the tag tree columns.
         """
-        renderer = gtk.CellRendererToggle()
+        renderer = Gtk.CellRendererToggle()
         self.connect(renderer, 'toggled', self.on_toggled)
         renderer.set_property('activatable', True)
-        toggle_column = gtk.TreeViewColumn(None, renderer)
+        toggle_column = Gtk.TreeViewColumn(None, renderer)
         toggle_column.add_attribute(renderer, "active", 0)
         toggle_column.add_attribute(renderer, "inconsistent", 2)
 
-        renderer = gtk.CellRendererText()
-        tag_column = gtk.TreeViewColumn(None, renderer, text=1)
+        renderer = Gtk.CellRendererText()
+        tag_column = Gtk.TreeViewColumn(None, renderer, text=1)
 
         return [toggle_column, tag_column]
 
@@ -335,7 +333,7 @@ class TagItemGUI(editor.GenericEditorView):
         if the user hits the delete key on a selected tag in the tag editor
         then delete the tag
         '''
-        keyname = gtk.gdk.keyval_name(event.keyval)
+        keyname = Gdk.keyval_name(event.keyval)
         if keyname != "Delete":
             return
         model, row_iter = self.tag_tree.get_selection().get_selected()
@@ -346,7 +344,7 @@ class TagItemGUI(editor.GenericEditorView):
         session = db.Session()
         try:
             query = session.query(Tag)
-            tag = query.filter_by(tag=unicode(tag_name)).one()
+            tag = query.filter_by(tag=str(tag_name)).one()
             session.delete(tag)
             session.commit()
             model.remove(row_iter)
@@ -354,10 +352,10 @@ class TagItemGUI(editor.GenericEditorView):
             view = bauble.gui.get_view()
             if hasattr(view, 'update'):
                 view.update()
-        except Exception, e:
+        except Exception as e:
             utils.message_details_dialog(utils.xml_safe(str(e)),
                                          traceback.format_exc(),
-                                         gtk.MESSAGE_ERROR)
+                                         Gtk.MessageType.ERROR)
         finally:
             session.close()
 
@@ -369,13 +367,13 @@ class TagItemGUI(editor.GenericEditorView):
         # we remove the old columns and create new ones each time the
         # tag editor is started since we have to connect and
         # disconnect the toggled signal each time
-        map(self.tag_tree.remove_column, self.tag_tree.get_columns())
+        list(map(self.tag_tree.remove_column, self.tag_tree.get_columns()))
         columns = self.build_tag_tree_columns()
         for col in columns:
             self.tag_tree.append_column(col)
 
         # create the model
-        model = gtk.ListStore(bool, str, bool)
+        model = Gtk.ListStore(bool, str, bool)
         tag_all, tag_some, tag_none = get_tag_ids(self.values)
         session = db.Session()  # we need close it
         tag_query = session.query(Tag)
@@ -383,12 +381,12 @@ class TagItemGUI(editor.GenericEditorView):
             model.append([tag.id in tag_all, tag.tag, tag.id in tag_some])
         self.tag_tree.set_model(model)
 
-        self.tag_tree.add_events(gtk.gdk.KEY_RELEASE_MASK)
+        self.tag_tree.add_events(Gdk.EventMask.KEY_RELEASE_MASK)
         self.connect(self.tag_tree, "key-release-event", self.on_key_released)
 
         response = self.get_window().run()
-        while response != gtk.RESPONSE_OK \
-                and response != gtk.RESPONSE_DELETE_EVENT:
+        while response != Gtk.ResponseType.OK \
+                and response != Gtk.ResponseType.DELETE_EVENT:
             response = self.get_window().run()
 
         self.get_window().hide()
@@ -567,15 +565,15 @@ def _get_tagged_object_pairs(tag):
                                 module_name.split('.')[1:])
             cls = getattr(module, cls_name)
             kids.append((cls, obj.obj_id))
-        except KeyError, e:
+        except KeyError as e:
             logger.warning('KeyError -- tag.get_tagged_objects(%s): %s'
                            % (tag, e))
             continue
-        except DBAPIError, e:
+        except DBAPIError as e:
             logger.warning('DBAPIError -- tag.get_tagged_objects(%s): %s'
                            % (tag, e))
             continue
-        except AttributeError, e:
+        except AttributeError as e:
             logger.warning('AttributeError -- tag.get_tagged_objects(%s): %s'
                            % (tag, e))
             logger.warning('Could not get the object for %s.%s(%s)'
@@ -591,7 +589,7 @@ def create_named_empty_tag(name):
     session = db.Session()
     try:
         tag = session.query(Tag).filter_by(tag=name).one()
-    except InvalidRequestError, e:
+    except InvalidRequestError as e:
         logger.debug("%s - %s" % (type(e), e))
         tag = Tag(tag=name)
         session.add(tag)
@@ -616,7 +614,7 @@ def untag_objects(name, objs):
     session = object_session(objs[0])
     try:
         tag = session.query(Tag).filter_by(tag=name).one()
-    except Exception, e:
+    except Exception as e:
         logger.info("Can't remove non existing tag from non-empty list of objects"
                     "%s - %s" % (type(e), e))
         return
@@ -631,7 +629,7 @@ def untag_objects(name, objs):
 
 
 # create the classname stored in the tagged_obj table
-_classname = lambda x: unicode('%s.%s', 'utf-8') % (
+_classname = lambda x: str('%s.%s', 'utf-8') % (
     type(x).__module__, type(x).__name__)
 
 
@@ -652,7 +650,7 @@ def tag_objects(name, objects):
     session = object_session(objects[0])
     try:
         tag = session.query(Tag).filter_by(tag=name).one()
-    except InvalidRequestError, e:
+    except InvalidRequestError as e:
         logger.debug("%s - %s" % (type(e), e))
         tag = Tag(tag=name)
         session.add(tag)
@@ -724,7 +722,7 @@ class GeneralTagExpander(InfoExpander):
         super(GeneralTagExpander, self).__init__(_("General"), widgets)
         general_box = self.widgets.general_box
         self.widgets.general_window.remove(general_box)
-        self.vbox.pack_start(general_box)
+        self.vbox.pack_start(general_box, True, True, 0)
         self.table_cells = []
 
     def update(self, row):
@@ -741,13 +739,13 @@ class GeneralTagExpander(InfoExpander):
         self.table_cells = []
         for c in classes:
             obj_ids = [str(o.id) for o in objects if isinstance(o, c)]
-            lab = gtk.Label()
+            lab = Gtk.Label()
             lab.set_alignment(0, .5)
             lab.set_text(c.__name__)
             table.attach(lab, 0, 1, row_no, row_no + 1)
 
-            eb = gtk.EventBox()
-            leb = gtk.Label()
+            eb = Gtk.EventBox()
+            leb = Gtk.Label()
             leb.set_alignment(0, .5)
             eb.add(leb)
             table.attach(eb, 1, 2, row_no, row_no + 1)

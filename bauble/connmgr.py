@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-#
 # Copyright 2008-2010 Brett Adams
 # Copyright 2015-2017 Mario Frasca <mario@anche.no>.
 # Copyright 2017 Jardín Botánico de Quito
@@ -34,7 +32,7 @@ import logging
 logger = logging.getLogger(__name__)
 #logger.setLevel(logging.DEBUG)
 
-import gtk
+from gi.repository import Gtk
 
 import bauble
 from bauble import paths, prefs, utils
@@ -136,11 +134,11 @@ def retrieve_latest_release_date():
         '.desktop/ghini-%s.%s-bbg/bauble/version.py'
     ) % bauble.version_tuple[:2]
     try:
-        import urllib2
+        import urllib.request, urllib.error, urllib.parse
         import ssl
         import json
         ## from github retrieve the date of the latest release
-        stream = urllib2.urlopen(
+        stream = urllib.request.urlopen(
             ("https://api.github.com/repos/RoDuth/ghini.desktop/"
              "branches/ghini-1.0-bbg"),
             timeout=5)
@@ -148,7 +146,7 @@ def retrieve_latest_release_date():
         bauble.release_date = response['commit']['commit']['committer']['date']
 
         ## from github retrieve the version number
-        github_version_stream = urllib2.urlopen(version_on_github, timeout=5)
+        github_version_stream = urllib.request.urlopen(version_on_github, timeout=5)
         bauble.release_version = newer_version_on_github(github_version_stream,
                                                          force=True)
 
@@ -162,13 +160,13 @@ def retrieve_latest_release_date():
             + datetime.timedelta(0, int(last_modified_seconds))
         )
         bauble.installation_date = last_modified_date.isoformat() + "Z"
-    except urllib2.URLError:
+    except urllib.error.URLError:
         logger.info('connection is slow or down')
-    except ssl.SSLError, e:
+    except ssl.SSLError as e:
         logger.info('SSLError %s while checking for newer version' % e)
-    except urllib2.HTTPError:
+    except urllib.error.HTTPError:
         logger.info('HTTPError while checking for newer version')
-    except Exception, e:
+    except Exception as e:
         logger.warning('unhandled %s(%s) while checking for newer version'
                        % (type(e), e))
 
@@ -181,9 +179,9 @@ def check_and_notify_new_version(view):
         '.desktop/ghini-%s.%s-bbg/bauble/version.py'
     ) % bauble.version_tuple[:2]
     try:
-        import urllib2
+        import urllib.request, urllib.error, urllib.parse
         import ssl
-        github_version_stream = urllib2.urlopen(
+        github_version_stream = urllib.request.urlopen(
             version_on_github, timeout=5)
         remote = newer_version_on_github(github_version_stream)
         if remote:
@@ -198,16 +196,16 @@ def check_and_notify_new_version(view):
 
             # Any code that modifies the UI that is called from outside the
             # main thread must be pushed into the main thread and called
-            # asynchronously in the main loop, with gobject.idle_add.
-            import gobject
-            gobject.idle_add(show_message_box)
-    except urllib2.URLError:
+            # asynchronously in the main loop, with GObject.idle_add.
+            from gi.repository import GObject
+            GObject.idle_add(show_message_box)
+    except urllib.error.URLError:
         logger.info('connection is slow or down')
-    except ssl.SSLError, e:
+    except ssl.SSLError as e:
         logger.info('SSLError %s while checking for newer version' % e)
-    except urllib2.HTTPError:
+    except urllib.error.HTTPError:
         logger.info('HTTPError while checking for newer version')
-    except Exception, e:
+    except Exception as e:
         logger.warning('unhandled %s(%s) while checking for newer version'
                        % type(e), e)
 
@@ -249,14 +247,14 @@ def check_and_notify_new_installer(view):
 
             # Any code that modifies the UI that is called from outside the
             # main thread must be pushed into the main thread and called
-            # asynchronously in the main loop, with gobject.idle_add.
-            import gobject
-            gobject.idle_add(show_message_box)
+            # asynchronously in the main loop, with GObject.idle_add.
+            from gi.repository import GObject
+            GObject.idle_add(show_message_box)
     except exceptions.Timeout:
         logger.info('connection timed out while checking for newer installer')
-    except exceptions.RequestException, e:
+    except exceptions.RequestException as e:
         logger.info('Requests error %s while checking for newer installer', e)
-    except Exception, e:
+    except Exception as e:
         logger.warning('unhandled %s(%s) while checking for newer '
                        'installer', type(e).__name__, e)
 
@@ -326,7 +324,7 @@ class ConnMgrPresenter(GenericEditorPresenter):
         view.image_set_from_file('logo_image', logo_path)
         view.set_title('%s %s' % ('Ghini', bauble.version))
         try:
-            view.set_icon(gtk.gdk.pixbuf_new_from_file(bauble.default_icon))
+            view.set_icon(GdkPixbuf.Pixbuf.new_from_file(bauble.default_icon))
         except:
             pass
 
@@ -348,9 +346,9 @@ class ConnMgrPresenter(GenericEditorPresenter):
         last_folder, bn = os.path.split(previously)
         self.view.run_file_chooser_dialog(
             _("Choose a file…"), None,
-            action=gtk.FILE_CHOOSER_ACTION_SAVE,
-            buttons=(gtk.STOCK_OK, gtk.RESPONSE_ACCEPT,
-                     gtk.STOCK_CANCEL, gtk.RESPONSE_CANCEL),
+            action=Gtk.FileChooserAction.SAVE,
+            buttons=(Gtk.STOCK_OK, Gtk.ResponseType.ACCEPT,
+                     Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL),
             last_folder=last_folder, target='file_entry')
         self.replace_leading_appdata('file_entry')
 
@@ -359,9 +357,9 @@ class ConnMgrPresenter(GenericEditorPresenter):
         last_folder, bn = os.path.split(previously)
         self.view.run_file_chooser_dialog(
             _("Choose a file…"), None,
-            action=gtk.FILE_CHOOSER_ACTION_SELECT_FOLDER,
-            buttons=(gtk.STOCK_OK, gtk.RESPONSE_ACCEPT,
-                     gtk.STOCK_CANCEL, gtk.RESPONSE_CANCEL),
+            action=Gtk.FileChooserAction.SELECT_FOLDER,
+            buttons=(Gtk.STOCK_OK, Gtk.ResponseType.ACCEPT,
+                     Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL),
             last_folder=last_folder, target='pictureroot_entry')
         self.replace_leading_appdata('pictureroot_entry')
 
@@ -370,9 +368,9 @@ class ConnMgrPresenter(GenericEditorPresenter):
         last_folder, bn = os.path.split(previously)
         self.view.run_file_chooser_dialog(
             _("Choose a file…"), None,
-            action=gtk.FILE_CHOOSER_ACTION_SELECT_FOLDER,
-            buttons=(gtk.STOCK_OK, gtk.RESPONSE_ACCEPT,
-                     gtk.STOCK_CANCEL, gtk.RESPONSE_CANCEL),
+            action=Gtk.FileChooserAction.SELECT_FOLDER,
+            buttons=(Gtk.STOCK_OK, Gtk.ResponseType.ACCEPT,
+                     Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL),
             last_folder=last_folder, target='pictureroot2_entry')
         self.replace_leading_appdata('pictureroot2_entry')
 
@@ -386,7 +384,7 @@ class ConnMgrPresenter(GenericEditorPresenter):
     def refresh_view(self):
         GenericEditorPresenter.refresh_view(self)
         conn_dict = self.connections
-        if conn_dict is None or len(conn_dict.keys()) == 0:
+        if conn_dict is None or len(list(conn_dict.keys())) == 0:
             self.view.widget_set_visible('noconnectionlabel', True)
             self.view.widget_set_visible('expander', False)
             self.prev_connection_name = None
@@ -418,17 +416,17 @@ class ConnMgrPresenter(GenericEditorPresenter):
         """
         The dialog's response signal handler.
         """
-        if response == gtk.RESPONSE_OK:
+        if response == Gtk.ResponseType.OK:
             settings = self.get_params()
             valid, msg = self.check_parameters_valid(settings)
             if not valid:
-                self.view.run_message_dialog(msg, gtk.MESSAGE_ERROR)
+                self.view.run_message_dialog(msg, Gtk.MessageType.ERROR)
             if valid:
                 # ghini grabs pictures location from global setting
                 prefs.prefs[prefs.picture_root_pref] = make_absolute(settings['pictures'])
                 self.save_current_to_prefs()
-        elif response == gtk.RESPONSE_CANCEL or \
-                response == gtk.RESPONSE_DELETE_EVENT:
+        elif response == Gtk.ResponseType.CANCEL or \
+                response == Gtk.ResponseType.DELETE_EVENT:
             if not self.are_prefs_already_saved(self.connection_name):
                 msg = _("Do you want to save your changes?")
                 if self.view.run_yes_no_dialog(msg):
@@ -484,8 +482,8 @@ class ConnMgrPresenter(GenericEditorPresenter):
         name = self.view.run_entry_dialog(
             _("Enter a connection name"),
             self.view.get_window(),
-            gtk.DIALOG_MODAL | gtk.DIALOG_DESTROY_WITH_PARENT,
-            (gtk.STOCK_OK, gtk.RESPONSE_ACCEPT))
+            Gtk.DialogFlags.MODAL | Gtk.DialogFlags.DESTROY_WITH_PARENT,
+            (Gtk.STOCK_OK, Gtk.ResponseType.ACCEPT))
         if name is not '':
             self.connection_name = name
             self.connection_names.insert(0, name)
@@ -578,8 +576,8 @@ class ConnMgrPresenter(GenericEditorPresenter):
         passwd = self.view.run_entry_dialog(
             title,
             self.view.get_window(),
-            gtk.DIALOG_MODAL | gtk.DIALOG_DESTROY_WITH_PARENT,
-            (gtk.STOCK_OK, gtk.RESPONSE_ACCEPT),
+            Gtk.DialogFlags.MODAL | Gtk.DialogFlags.DESTROY_WITH_PARENT,
+            (Gtk.STOCK_OK, Gtk.ResponseType.ACCEPT),
             visible=False)
         return passwd
 
@@ -736,7 +734,7 @@ def start_connection_manager(default_conn=None):
 
     cm = ConnMgrPresenter(view)
     result = cm.start()
-    if result == gtk.RESPONSE_OK:
+    if result == Gtk.ResponseType.OK:
         return cm.connection_name, cm.connection_uri
     else:
         return None, None

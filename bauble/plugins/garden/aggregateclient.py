@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-#
 # Copyright 2017 Mario Frasca <mario@anche.no>.
 # Copyright 2017 Jardín Botánico de Quito
 #
@@ -48,7 +46,7 @@ def get_submissions(user, pw, host, form_id, to_skip=[]):
                                                  'host': host} +
                                   submission_format % {'group_name': 'plant_form',
                                                        'uuid': uuid}), auth=auth)
-        except requests.exceptions.ConnectionError, e:
+        except requests.exceptions.ConnectionError as e:
             continue
         root = ET.fromstring(reply.text)
         data = root[0]  # media may follow
@@ -56,7 +54,7 @@ def get_submissions(user, pw, host, form_id, to_skip=[]):
         item = dict([(re.sub(r'{.*}(.*)', r'\1', i.tag), i.text) for i in form])
         item['meta:uuid'] = uuid
         result.append(item)
-        for key in item.keys():
+        for key in list(item.keys()):
             if not key.endswith('_repeat'):
                 continue
             del item[key]

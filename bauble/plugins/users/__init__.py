@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-#
 # Copyright (c) 2005,2006,2007,2008,2009 Brett Adams <brett@belizebotanic.org>
 # Copyright (c) 2012-2017 Mario Frasca <mario@anche.no>
 # Copyright 2017 Jardín Botánico de Quito
@@ -22,7 +20,7 @@
 import os
 import re
 
-import gtk
+from gi.repository import Gtk
 
 import logging
 logger = logging.getLogger(__name__)
@@ -135,7 +133,7 @@ def _create_role(name, password=None, login=False, admin=False):
         if password:
             stmt += ' PASSWORD \'%s\'' % password
         conn.execute(stmt)
-    except Exception, e:
+    except Exception as e:
         logger.error('users._create_role(): %s %s' % (type(e), utils.utf8(e)))
         trans.rollback()
         raise
@@ -164,7 +162,7 @@ def create_user(name, password=None, admin=False, groups=None):
             (bauble.db.engine.url.database, name)
         logger.debug(stmt)
         conn.execute(stmt)
-    except Exception, e:
+    except Exception as e:
         logger.error('users.create_user(): %s %s' % (type(e), utils.utf8(e)))
         trans.rollback()
         raise
@@ -263,7 +261,7 @@ def drop(role, revoke=False):
             set_privilege(role, None)
         stmt = 'drop role %s;' % role
         conn.execute(stmt)
-    except Exception, e:
+    except Exception as e:
         logger.error("users.drop(): %s %s" % (type(e), utils.utf8(e)))
         trans.rollback()
         raise
@@ -428,7 +426,7 @@ def set_privilege(role, privilege):
         # grant privileges on the tables and sequences
         for table in bauble.db.metadata.sorted_tables:
             logger.debug('granting privileges on table %s' % table)
-            tbl_privs = filter(lambda x: x.lower() in _table_privs, privs)
+            tbl_privs = [x for x in privs if x.lower() in _table_privs]
             for priv in tbl_privs:
                 stmt = 'grant %s on %s to %s' % (priv, table.name, role)
                 if privilege == 'admin':
@@ -436,8 +434,7 @@ def set_privilege(role, privilege):
                 logger.debug(stmt)
                 conn.execute(stmt)
             for col in table.c:
-                seq_privs = filter(lambda x: x.lower() in __sequence_privs,
-                                   privs)
+                seq_privs = [x for x in privs if x.lower() in __sequence_privs]
                 for priv in seq_privs:
                     if has_implicit_sequence(col):
                         sequence_name = "%s_%s_seq" % (table.name, col.name)
@@ -448,7 +445,7 @@ def set_privilege(role, privilege):
                         if privilege == 'admin':
                             stmt += ' with grant option'
                         conn.execute(stmt)
-    except Exception, e:
+    except Exception as e:
         logger.error('users.set_privilege(): %s %s' % (type(e), utils.utf8(e)))
         trans.rollback()
         raise
@@ -477,7 +474,7 @@ def set_password(password, user=None):
     try:
         stmt = "alter role %s with encrypted password '%s'" % (user, password)
         conn.execute(stmt)
-    except Exception, e:
+    except Exception as e:
         logger.error('users.set_password(): %s %s' % (type(e), utils.utf8(e)))
         trans.rollback()
     else:
@@ -517,7 +514,7 @@ class UsersEditor(editor.GenericEditorView):
         for column in tree.get_columns():
             tree.remove_column(column)
 
-        renderer = gtk.CellRendererText()
+        renderer = Gtk.CellRendererText()
         def cell_data_func(col, cell, model, it):
             value = model[it][0]
             cell.set_property('text', value)
@@ -539,8 +536,8 @@ class UsersEditor(editor.GenericEditorView):
                 logger.debug('grant %s to %s' % (priv, role))
                 try:
                     set_privilege(role, priv)
-                except Exception, e:
-                    utils.message_dialog(utils.utf8(e), gtk.MESSAGE_ERROR,
+                except Exception as e:
+                    utils.message_dialog(utils.utf8(e), Gtk.MessageType.ERROR,
                                          parent=self.get_window())
             return True
 
@@ -590,8 +587,8 @@ class UsersEditor(editor.GenericEditorView):
 
         try:
             drop(user, revoke=True)
-        except Exception, e:
-            utils.message_dialog(utils.utf8(e), gtk.MESSAGE_ERROR,
+        except Exception as e:
+            utils.message_dialog(utils.utf8(e), Gtk.MessageType.ERROR,
                                  parent=self.get_window())
         else:
             active = self.widgets.filter_check.get_active()
@@ -615,7 +612,7 @@ class UsersEditor(editor.GenericEditorView):
         """
         tree = self.widgets.users_tree
         utils.clear_model(tree)
-        model = gtk.ListStore(str)
+        model = Gtk.ListStore(str)
         for user in get_users():
             if only_bauble and has_privileges(user, 'read'):
                 model.append([user])
@@ -638,27 +635,27 @@ class UsersEditor(editor.GenericEditorView):
         self.widgets.pwd_entry1.set_text('')
         self.widgets.pwd_entry2.set_text('')
         response = dialog.run()
-        if response == gtk.RESPONSE_OK:
+        if response == Gtk.ResponseType.OK:
             pwd1 = self.widgets.pwd_entry1.get_text()
             pwd2 = self.widgets.pwd_entry2.get_text()
             user = self.get_selected_user()
             if pwd1 == '' or pwd2 == '':
                 msg = _('The password for user <b>%s</b> has not been '
                         'changed.') % user
-                utils.message_dialog(msg, gtk.MESSAGE_WARNING,
+                utils.message_dialog(msg, Gtk.MessageType.WARNING,
                                      parent=self.get_window())
                 return
             elif pwd1 != pwd2:
                 msg = _('The passwords do not match.  The password for '
                         'user <b>%s</b> has not been changed.') % user
-                utils.message_dialog(msg, gtk.MESSAGE_WARNING,
+                utils.message_dialog(msg, Gtk.MessageType.WARNING,
                                      parent=self.get_window())
                 return
             else:
                 try:
                     set_password(pwd1, user)
-                except Exception, e:
-                    utils.message_dialog(utils.utf8(e), gtk.MESSAGE_ERROR,
+                except Exception as e:
+                    utils.message_dialog(utils.utf8(e), Gtk.MessageType.ERROR,
                                          parent=self.get_window())
 
         # TODO: show a dialog that says the pwd has been changed or
@@ -686,7 +683,7 @@ class UsersEditor(editor.GenericEditorView):
             logger.debug('%s: %s' % (role, mode))
             if mode:
                 self.widgets[self.buttons[mode]].set_active(True)
-            not_modes = filter(lambda p: p != mode, self.buttons.keys())
+            not_modes = [p for p in list(self.buttons.keys()) if p != mode]
             for m in not_modes:
                 self.widgets[self.buttons[m]].props.active = False
 
@@ -722,8 +719,8 @@ class UsersEditor(editor.GenericEditorView):
         try:
             create_user(user)
             set_privilege(user, 'read')
-        except Exception, e:
-            utils.message_dialog(utils.utf8(e), gtk.MESSAGE_ERROR,
+        except Exception as e:
+            utils.message_dialog(utils.utf8(e), Gtk.MessageType.ERROR,
                                  parent=self.get_window())
             model.remove(model.get_iter(path))
         else:

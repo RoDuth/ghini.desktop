@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-#
 # Copyright 2008-2010 Brett Adams
 # Copyright 2015-2016 Mario Frasca <mario@anche.no>.
 # Copyright 2017 Jardín Botánico de Quito
@@ -30,8 +28,8 @@ from random import random
 import logging
 logger = logging.getLogger(__name__)
 
-import gtk
-import gobject
+from gi.repository import Gtk
+from gi.repository import GObject
 
 from sqlalchemy import Column, Unicode, Integer, ForeignKey,\
     Float, UnicodeText, select
@@ -123,18 +121,18 @@ class Source(db.Base):
         backref=backref('used_source', uselist=True))
 
 
-source_type_values = [(u'Expedition', _('Expedition')),
-                      (u'GeneBank', _('Gene Bank')),
-                      (u'BG', _('Botanic Garden or Arboretum')),
-                      (u'Research/FieldStation', _('Research/Field Station')),
-                      (u'Staff', _('Staff member')),
-                      (u'UniversityDepartment', _('University Department')),
-                      (u'Club', _('Horticultural Association/Garden Club')),
-                      (u'MunicipalDepartment', _('Municipal department')),
-                      (u'Commercial', _('Nursery/Commercial')),
-                      (u'Individual', _('Individual')),
-                      (u'Other', _('Other')),
-                      (u'Unknown', _('Unknown')),
+source_type_values = [('Expedition', _('Expedition')),
+                      ('GeneBank', _('Gene Bank')),
+                      ('BG', _('Botanic Garden or Arboretum')),
+                      ('Research/FieldStation', _('Research/Field Station')),
+                      ('Staff', _('Staff member')),
+                      ('UniversityDepartment', _('University Department')),
+                      ('Club', _('Horticultural Association/Garden Club')),
+                      ('MunicipalDepartment', _('Municipal department')),
+                      ('Commercial', _('Nursery/Commercial')),
+                      ('Individual', _('Individual')),
+                      ('Other', _('Other')),
+                      ('Unknown', _('Unknown')),
                       (None, '')]
 
 
@@ -340,7 +338,7 @@ class CollectionPresenter(editor.ChildPresenter):
             self.geo_menu = GeographyMenu(self.set_region)
             self.geo_menu.attach_to_widget(add_button, None)
             add_button.set_sensitive(True)
-        gobject.idle_add(_init_geo)
+        GObject.idle_add(_init_geo)
 
         self._dirty = False
 
@@ -357,7 +355,7 @@ class CollectionPresenter(editor.ChildPresenter):
         super(CollectionPresenter, self).set_model_attr(
             field, value, validator)
         self._dirty = True
-        if self.model.locale is None or self.model.locale in ('', u''):
+        if self.model.locale is None or self.model.locale in ('', ''):
             self.add_problem(self.PROBLEM_INVALID_LOCALE)
         else:
             self.remove_problem(self.PROBLEM_INVALID_LOCALE)
@@ -383,7 +381,7 @@ class CollectionPresenter(editor.ChildPresenter):
     def refresh_view(self):
         from bauble.plugins.garden.accession import latitude_to_dms, \
             longitude_to_dms
-        for widget, field in self.widget_to_field_map.iteritems():
+        for widget, field in self.widget_to_field_map.items():
             value = getattr(self.model, field)
             logger.debug('%s, %s, %s' % (widget, field, value))
             if value is not None and field == 'date':
@@ -393,7 +391,7 @@ class CollectionPresenter(editor.ChildPresenter):
 
         latitude = self.model.latitude
         if latitude is not None:
-            dms_string = u'%s %s\u00B0%s\'%s"' % latitude_to_dms(latitude)
+            dms_string = '%s %s\u00B0%s\'%s"' % latitude_to_dms(latitude)
             self.view.widgets.lat_dms_label.set_text(dms_string)
             if float(latitude) < 0:
                 self.view.widgets.south_radio.set_active(True)
@@ -405,7 +403,7 @@ class CollectionPresenter(editor.ChildPresenter):
 
         longitude = self.model.longitude
         if longitude is not None:
-            dms_string = u'%s %s\u00B0%s\'%s"' % longitude_to_dms(longitude)
+            dms_string = '%s %s\u00B0%s\'%s"' % longitude_to_dms(longitude)
             self.view.widgets.lon_dms_label.set_text(dms_string)
             if float(longitude) < 0:
                 self.view.widgets.west_radio.set_active(True)
@@ -428,7 +426,7 @@ class CollectionPresenter(editor.ChildPresenter):
         PROBLEM = 'INVALID_DATE'
         try:
             value = editor.DateValidator().to_python(entry.props.text)
-        except ValidatorError, e:
+        except ValidatorError as e:
             logger.debug("%s(%s)" % (type(e).__name__, e))
             self.parent_ref().add_problem(PROBLEM, entry)
         else:
@@ -446,7 +444,7 @@ class CollectionPresenter(editor.ChildPresenter):
             # make sure that the first part of the string is an
             # integer before toggling
             int(lon_text.split(' ')[0])
-        except Exception, e:
+        except Exception as e:
             logger.warn("east-west %s(%s)" % (type(e), e))
             return
 
@@ -466,7 +464,7 @@ class CollectionPresenter(editor.ChildPresenter):
             # make sure that the first part of the string is an
             # integer before toggling
             int(lat_text.split(' ')[0])
-        except Exception, e:
+        except Exception as e:
             logger.debug("%s(%s)" % (type(e).__name__, e))
             return
 
@@ -491,10 +489,10 @@ class CollectionPresenter(editor.ChildPresenter):
             if dec > 0 and direction in ('W', 'S'):
                 dec = -dec
         elif len(parts) == 2:
-            deg, min = map(Decimal, parts)
+            deg, min = list(map(Decimal, parts))
             dec = dms_to_decimal(direction, deg, min, 0)
         elif len(parts) == 3:
-            dec = dms_to_decimal(direction, *map(Decimal, parts))
+            dec = dms_to_decimal(direction, *list(map(Decimal, parts)))
         else:
             raise ValueError(_('_parse_lat_lon() -- incorrect format: %s') %
                              text)
@@ -540,10 +538,10 @@ class CollectionPresenter(editor.ChildPresenter):
                 direction = self._get_lat_direction()
                 latitude = CollectionPresenter._parse_lat_lon(direction, text)
                 #u"\N{DEGREE SIGN}"
-                dms_string = u'%s %s\u00B0%s\'%s"' % latitude_to_dms(latitude)
+                dms_string = '%s %s\u00B0%s\'%s"' % latitude_to_dms(latitude)
         except Exception:
             logger.debug(traceback.format_exc())
-            #bg_color = gtk.gdk.color_parse("red")
+            #bg_color = Gdk.color_parse("red")
             self.add_problem(self.PROBLEM_BAD_LATITUDE,
                              self.view.widgets.lat_entry)
         else:
@@ -572,11 +570,11 @@ class CollectionPresenter(editor.ChildPresenter):
                 east_radio.handler_unblock(self.east_toggle_signal_id)
                 direction = self._get_lon_direction()
                 longitude = CollectionPresenter._parse_lat_lon(direction, text)
-                dms_string = u'%s %s\u00B0%s\'%s"' % longitude_to_dms(
+                dms_string = '%s %s\u00B0%s\'%s"' % longitude_to_dms(
                     longitude)
         except Exception:
             logger.debug(traceback.format_exc())
-            #bg_color = gtk.gdk.color_parse("red")
+            #bg_color = Gdk.color_parse("red")
             self.add_problem(self.PROBLEM_BAD_LONGITUDE,
                              self.view.widgets.lon_entry)
         else:
@@ -662,7 +660,7 @@ class PropagationChooserPresenter(editor.ChildPresenter):
             query = self.session.query(Plant).\
                     filter(Plant.propagations.any()).\
                     join('accession').\
-                    filter(utils.ilike(Accession.code, u'%s%%' % text)).\
+                    filter(utils.ilike(Accession.code, '%s%%' % text)).\
                     filter(Accession.id != self.model.accession.id).\
                     order_by(Accession.code, Plant.code)
             result = []
@@ -685,7 +683,7 @@ class PropagationChooserPresenter(editor.ChildPresenter):
                 treeview.props.sensitive = False
                 return
             utils.clear_model(treeview)
-            model = gtk.ListStore(object)
+            model = Gtk.ListStore(object)
             for propagation in value.propagations:
                 if propagation.accessible_quantity == 0:
                     continue
@@ -718,7 +716,7 @@ class PropagationChooserPresenter(editor.ChildPresenter):
             treeview.props.sensitive = False
             return
         utils.clear_model(treeview)
-        model = gtk.ListStore(object)
+        model = Gtk.ListStore(object)
         for propagation in parent_plant.propagations:
             model.append([propagation])
         treeview.set_model(model)
@@ -774,10 +772,10 @@ def source_detail_remove_callback(details):
         obj = session.query(Contact).get(detail.id)
         session.delete(obj)
         session.commit()
-    except Exception, e:
+    except Exception as e:
         msg = _('Could not delete.\n\n%s') % utils.xml_safe(e)
         utils.message_details_dialog(msg, traceback.format_exc(),
-                                     type=gtk.MESSAGE_ERROR)
+                                     type=Gtk.MessageType.ERROR)
     finally:
         session.close()
     return True
@@ -857,7 +855,7 @@ class GeneralSourceDetailExpander(view.InfoExpander):
             _('General'), widgets)
         gen_box = self.widgets.sd_gen_box
         self.widgets.remove_parent(gen_box)
-        self.vbox.pack_start(gen_box)
+        self.vbox.pack_start(gen_box, True, True, 0)
 
     def update(self, row):
         #from textwrap import TextWrapper

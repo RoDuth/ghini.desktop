@@ -51,27 +51,27 @@ def get_genus(session, keys):
     try:
         keys['gn_epit'], keys['sp_epit'] = keys['species'].split(' ')
     except:
-        keys['gn_epit'], keys['sp_epit'] = (u'Zzz', u'sp')
+        keys['gn_epit'], keys['sp_epit'] = ('Zzz', 'sp')
 
     genus = session.query(Genus).filter(Genus.epithet == keys['gn_epit']).one()
     return genus
 
 
 def get_species(session, keys):
-    if keys['sp_epit'] == u'sp':
-        keys['infrasp1'], keys['sp_epit'] = u'sp', u''
+    if keys['sp_epit'] == 'sp':
+        keys['infrasp1'], keys['sp_epit'] = 'sp', ''
     else:
-        keys['infrasp1'] = u''
+        keys['infrasp1'] = ''
 
-    if keys['sp_epit'] == u'':
+    if keys['sp_epit'] == '':
         try:
             species = session.query(Species).filter(
                 Species.genus == genus).filter(
-                Species.infrasp1 == u'sp').first()
+                Species.infrasp1 == 'sp').first()
             if species != zzz:  # no hace falta mencionarlo
                 sys.stdout.write('+')  # encontramos fictive species
         except:
-            species = Species(genus=genus, sp=u'', infrasp1=u'sp')
+            species = Species(genus=genus, sp='', infrasp1='sp')
             session.add(species)
             session.flush()
             sys.stdout.write('*')  # tuvimos que crear fictive species
@@ -79,11 +79,11 @@ def get_species(session, keys):
         try:
             species = session.query(Species).filter(
                 Species.genus == genus).filter(
-                Species.infrasp1 == u'').filter(
+                Species.infrasp1 == '').filter(
                 Species.epithet == keys['sp_epit']).one()
             sys.stdout.write('+')  # encontramos Species
         except:
-            species = Species(genus=genus, sp=u'', epithet=keys['sp_epit'])
+            species = Species(genus=genus, sp='', epithet=keys['sp_epit'])
             session.add(species)
             session.flush()
             sys.stdout.write('*')  # tuvimos que crear Species
@@ -92,7 +92,7 @@ def get_species(session, keys):
 
 def get_location(session, keys):
     try:
-        loc = session.query(Location).filter(bauble.utils.ilike(Location.code, unicode(keys['location']))).one()
+        loc = session.query(Location).filter(bauble.utils.ilike(Location.code, str(keys['location']))).one()
     except:
         loc = Location(code=keys['location'].upper())
         session.add(loc)
@@ -111,8 +111,8 @@ with open(os.path.join(path, 'settings.json'), 'r') as f:
 bauble.db.open(dburi, True, True)
 session = bauble.db.Session()
 
-q = session.query(Species).filter(Species.infrasp1 == u'sp')
-q = q.join(Genus).filter(Genus.epithet == u'Zzz')
+q = session.query(Species).filter(Species.infrasp1 == 'sp')
+q = q.join(Genus).filter(Genus.epithet == 'Zzz')
 zzz = q.one()
 
 import csv
@@ -124,7 +124,7 @@ last_loc = None
 import fileinput
 for line in fileinput.input():
     sys.stdout.flush()
-    obj = dict(zip(header, [i.strip() for i in unicode(line).split(':')]))
+    obj = dict(list(zip(header, [i.strip() for i in str(line).split(':')])))
     if len(obj) < 3:
         continue  # ignore blank lines
     obj.setdefault('species', 'Zzz sp')
@@ -140,33 +140,33 @@ for line in fileinput.input():
     try:
         q = session.query(Plant)
         q = q.join(Accession).filter(Accession.code == obj['acc_code'])
-        q = q.filter(Plant.code == u'1')
+        q = q.filter(Plant.code == '1')
         plant = q.one()
         if plant.location != loc:
             plant.location = loc
             sys.stdout.write(':')  # we altered a plant location
         else:
             sys.stdout.write('.')  # we confirmed a plant location
-    except Exception, e:
+    except Exception as e:
         try:
             accession = session.query(Accession).filter(Accession.code == obj['acc_code']).one()
-        except Exception, e:
+        except Exception as e:
             accession = Accession(species=species, code=obj['acc_code'])
             session.add(accession)
             sys.stdout.write('a')  # we added a new accession
-        plant = Plant(accession=accession, location=loc, quantity=1, code=u'1')
+        plant = Plant(accession=accession, location=loc, quantity=1, code='1')
         session.add(plant)
         session.flush()
         sys.stdout.write('p')  # we added a new plant
     # operación perro - mark the plant as seen today
     q = session.query(PlantNote)
     q = q.filter(PlantNote.plant == plant)
-    q = q.filter(PlantNote.category == u'inventario')
+    q = q.filter(PlantNote.category == 'inventario')
     q = q.filter(PlantNote.note == obj['timestamp'][:8])
     if q.count() == 0:
-        note = PlantNote(plant=plant, category=u'inventario', note=obj['timestamp'][:8])
+        note = PlantNote(plant=plant, category='inventario', note=obj['timestamp'][:8])
         session.add(note)
         session.flush()
 
-print
+print()
 session.commit()

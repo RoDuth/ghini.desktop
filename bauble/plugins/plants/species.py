@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-#
 # Copyright 2008-2010 Brett Adams
 # Copyright 2012-2015 Mario Frasca <mario@anche.no>.
 # Copyright 2017 Jardín Botánico de Quito
@@ -20,7 +18,7 @@
 # along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
 #
 
-import gtk
+from gi.repository import Gtk
 
 import logging
 logger = logging.getLogger(__name__)
@@ -84,7 +82,7 @@ def remove_callback(values):
         msg = (_('The species <i>%(1)s</i> has %(2)s accessions.'
                  '\n\n') % {'1': safe_str, '2': nacc} +
                _('You cannot remove a species with accessions.'))
-        utils.message_dialog(msg, type=gtk.MESSAGE_WARNING)
+        utils.message_dialog(msg, type=Gtk.MessageType.WARNING)
         return
     else:
         msg = _("Are you sure you want to remove the species <i>%s</i>?") \
@@ -95,10 +93,10 @@ def remove_callback(values):
         obj = session.query(Species).get(species.id)
         session.delete(obj)
         session.commit()
-    except Exception, e:
+    except Exception as e:
         msg = _('Could not delete.\n\n%s') % utils.xml_safe(e)
         utils.message_details_dialog(msg, traceback.format_exc(),
-                                     type=gtk.MESSAGE_ERROR)
+                                     type=Gtk.MessageType.ERROR)
     return True
 
 
@@ -146,7 +144,7 @@ class SynonymSearch(search.SearchStrategy):
             prefs.save()
 
     def search(self, text, session):
-        from genus import Genus, GenusSynonym
+        from .genus import Genus, GenusSynonym
         super(SynonymSearch, self).search(text, session)
         if not prefs[self.return_synonyms_pref]:
             return []
@@ -187,7 +185,7 @@ class VernacularExpander(InfoExpander):
         InfoExpander.__init__(self, _("Vernacular names"), widgets)
         vernacular_box = self.widgets.sp_vernacular_box
         self.widgets.remove_parent(vernacular_box)
-        self.vbox.pack_start(vernacular_box)
+        self.vbox.pack_start(vernacular_box, True, True, 0)
 
     def update(self, row):
         '''
@@ -220,7 +218,7 @@ class SynonymsExpander(InfoExpander):
         InfoExpander.__init__(self, _("Synonyms"), widgets)
         synonyms_box = self.widgets.sp_synonyms_box
         self.widgets.remove_parent(synonyms_box)
-        self.vbox.pack_start(synonyms_box)
+        self.vbox.pack_start(synonyms_box, True, True, 0)
 
     def update(self, row):
         '''
@@ -244,8 +242,8 @@ class SynonymsExpander(InfoExpander):
             self.set_label(_("Accepted name"))
             # create clickable label that will select the synonym
             # in the search results
-            box = gtk.EventBox()
-            label = gtk.Label()
+            box = Gtk.EventBox()
+            label = Gtk.Label()
             label.set_alignment(0, .5)
             label.set_markup(accepted.str(markup=True, authors=True))
             box.add(label)
@@ -263,8 +261,8 @@ class SynonymsExpander(InfoExpander):
             for syn in row.synonyms:
                 # create clickable label that will select the synonym
                 # in the search results
-                box = gtk.EventBox()
-                label = gtk.Label()
+                box = Gtk.EventBox()
+                label = Gtk.Label()
                 label.set_alignment(0, .5)
                 label.set_markup(syn.str(markup=True, authors=True))
                 box.add(label)
@@ -288,7 +286,7 @@ class GeneralSpeciesExpander(InfoExpander):
         InfoExpander.__init__(self, _("General"), widgets)
         general_box = self.widgets.sp_general_box
         self.widgets.remove_parent(general_box)
-        self.vbox.pack_start(general_box)
+        self.vbox.pack_start(general_box, True, True, 0)
         self.widgets.sp_epithet_data.set_line_wrap(True)
 
         # make the check buttons read only
@@ -330,7 +328,7 @@ class GeneralSpeciesExpander(InfoExpander):
         # TODO put genus markup in genus.markup() like species.markup()
         genus = row.genus.genus
         if not genus.isupper():
-            genus = u'<i>{}</i>'.format(genus).replace(u'x ', u'</i>×<i>')
+            genus = '<i>{}</i>'.format(genus).replace('x ', '</i>×<i>')
         self.widget_set_value('sp_gen_data', '<big>%s</big>' %
                               genus, markup=True)
         utils.make_label_clickable(
@@ -404,8 +402,8 @@ class SpeciesInfoBox(InfoBox):
         super(SpeciesInfoBox, self).__init__(tabbed=True)
         page = SpeciesInfoPage()
         label = page.label
-        if isinstance(label, basestring):
-            label = gtk.Label(label)
+        if isinstance(label, str):
+            label = Gtk.Label(label=label)
         self.insert_page(page, label, 0)
 
 
@@ -554,7 +552,7 @@ class SpeciesInfoPage(InfoBoxPage):
             for i in button_defaults:
                 prefs[self.species_web_button_defs_prefs + '.'
                       + i.get('name')] = {
-                          k: v for k, v in i.items() if k != 'name'
+                          k: v for k, v in list(i.items()) if k != 'name'
                       }
             prefs.save()
 

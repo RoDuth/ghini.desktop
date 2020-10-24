@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-#
 # Copyright (c) 2005,2006,2007,2008,2009 Brett Adams <brett@belizebotanic.org>
 # Copyright (c) 2012-2016,2018 Mario Frasca <mario@anche.no>
 # Copyright (c) 2016 Ross Demuth <rossdemuth123@gmail.com>

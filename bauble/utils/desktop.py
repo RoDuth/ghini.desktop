@@ -118,7 +118,7 @@ except ImportError:
         return opener.poll() == 0
 
 
-import commands
+import subprocess
 
 #
 # Private functions.
@@ -252,7 +252,7 @@ def open(url, desktop=None, wait=0, dialog_on_error=False):
     desktop_in_use = use_desktop(desktop)
     cmd = None
     if desktop_in_use == "standard":
-        arg = "".join([os.environ["DESKTOP_LAUNCH"], commands.mkarg(url)])
+        arg = "".join([os.environ["DESKTOP_LAUNCH"], subprocess.mkarg(url)])
         return _run(arg, 1, wait)
 
     elif desktop_in_use == "Windows":
@@ -279,10 +279,10 @@ def open(url, desktop=None, wait=0, dialog_on_error=False):
     try:
         if not cmd:
             # TODO: maybe we should tell the user to define DESKTOP_LAUNCH
-            raise OSError, _("Could not open %(url)s\n\n"
+            raise OSError(_("Could not open %(url)s\n\n"
                              "Unknown desktop environment: %(desktop)s\n\n") \
-                % dict(url=url, desktop=desktop_in_use)
-    except Exception, e:
+                % dict(url=url, desktop=desktop_in_use))
+    except Exception as e:
         if dialog_on_error:
             utils.message_dialog(utils.utf8(e))
         else:

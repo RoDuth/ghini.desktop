@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-#
 # Copyright 2008-2010 Brett Adams
 # Copyright 2012-2015 Mario Frasca <mario@anche.no>.
 # Copyright 2017 Jardín Botánico de Quito
@@ -34,7 +32,7 @@ import logging
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
-import gtk
+from gi.repository import Gtk
 
 from sqlalchemy import ColumnDefault, Boolean
 
@@ -81,10 +79,10 @@ class UnicodeReader(object):
         self.reader = csv.DictReader(f, dialect=dialect, **kwds)
         self.encoding = encoding
 
-    def next(self):
-        row = self.reader.next()
+    def __next__(self):
+        row = next(self.reader)
         t = {}
-        for k, v in row.iteritems():
+        for k, v in row.items():
             if v == '':
                 t[k] = None
             else:
@@ -113,7 +111,7 @@ class UnicodeWriter(object):
         returns a consisten order.
         """
         if isinstance(row, dict):
-            row = row.values()
+            row = list(row.values())
         t = []
         for s in row:
             if s is None:
@@ -211,13 +209,13 @@ class CSVImporter(Importer):
         # create pairs from the values in the lines where pair[0]
         # should come before pair[1] when the lines are sorted
         pairs = []
-        for line in bychild.values():
+        for line in list(bychild.values()):
             for parent, child in key_pairs:
                 if line[parent] and line[child]:
                     pairs.append((line[parent], line[child]))
 
         # sort the keys and flatten the lines back into a list
-        sorted_keys = utils.topological_sort(bychild.keys(), pairs)
+        sorted_keys = utils.topological_sort(list(bychild.keys()), pairs)
         sorted_lines = []
         for key in sorted_keys:
             sorted_lines.append(bychild[key])
@@ -258,10 +256,10 @@ class CSVImporter(Importer):
             # up the parent connection and the transaction
             connection = metadata.bind.connect()
             transaction = connection.begin()
-        except Exception, e:
+        except Exception as e:
             msg = _('Error connecting to database.\n\n%s') % \
                 utils.xml_safe(e)
-            utils.message_dialog(msg, gtk.MESSAGE_ERROR)
+            utils.message_dialog(msg, Gtk.MessageType.ERROR)
             return
 
         # create a mapping of table names to filenames
@@ -277,7 +275,7 @@ class CSVImporter(Importer):
                 msg = _('More than one file given to import into table '
                         '<b>%(table_name)s</b>: %(file_name)s, '
                         '(file_name2)s') % values
-                utils.message_dialog(msg, gtk.MESSAGE_ERROR)
+                utils.message_dialog(msg, Gtk.MessageType.ERROR)
                 return
             filename_dict[table_name] = f
 
@@ -286,14 +284,14 @@ class CSVImporter(Importer):
         for table in metadata.sorted_tables:
             try:
                 sorted_tables.insert(0, (table, filename_dict.pop(table.name)))
-            except KeyError, e:
+            except KeyError as e:
                 # table.name not in list of filenames
                 pass
 
         if len(filename_dict) > 0:
             msg = _('Could not match all filenames to table names.\n\n%s') \
                 % filename_dict
-            utils.message_dialog(msg, gtk.MESSAGE_ERROR)
+            utils.message_dialog(msg, Gtk.MessageType.ERROR)
             return
 
         total_lines = 0
@@ -405,7 +403,7 @@ class CSVImporter(Importer):
                 f = open(filename, "rb")
                 tmp = UnicodeReader(f, quotechar=QUOTE_CHAR,
                                     quoting=QUOTE_STYLE)
-                tmp.next()
+                next(tmp)
                 csv_columns = set(tmp.reader.fieldnames)
                 del tmp
                 f.close()
@@ -418,24 +416,22 @@ class CSVImporter(Importer):
                 for column in table.c:
                     if isinstance(column.default, ColumnDefault):
                         defaults[column.name] = column.default.execute()
-                column_names = table.c.keys()
+                column_names = list(table.c.keys())
 
                 # check if there are any foreign keys to on the table
                 # that refer to itself, if so create a new file with
                 # the lines sorted in order of dependency so that we
                 # don't get errors about importing values into a
                 # foreign_key that don't reference and existin row
-                self_keys = filter(lambda f: f.column.table == table,
-                                   table.foreign_keys)
+                self_keys = [f for f in table.foreign_keys if f.column.table == table]
                 if self_keys:
-                    key_pairs = map(lambda x: (x.parent.name, x.column.name),
-                                    self_keys)
+                    key_pairs = [(x.parent.name, x.column.name) for x in self_keys]
                     filename = self._toposort_file(filename, key_pairs)
 
                 # the column keys for the insert are a union of the
                 # columns in the CSV file and the columns with
                 # defaults
-                column_keys = list(csv_columns.union(defaults.keys()))
+                column_keys = list(csv_columns.union(list(defaults.keys())))
                 insert = table.insert(bind=connection).\
                     compile(column_keys=column_keys)
 
@@ -465,7 +461,7 @@ class CSVImporter(Importer):
 
                     # fill in default values and None for "empty"
                     # columns in line
-                    for column in table.c.keys():
+                    for column in list(table.c.keys()):
                         if column in defaults \
                                 and (column not in line
                                      or isempty(line[column])):
@@ -510,10 +506,10 @@ class CSVImporter(Importer):
             # TODO: need to get those tables from depends that need to
             # be created but weren't created already
             metadata.create_all(connection, depends, checkfirst=True)
-        except GeneratorExit, e:
+        except GeneratorExit as e:
             transaction.rollback()
             raise
-        except Exception, e:
+        except Exception as e:
             logger.error("%s(%s)" % (type(e).__name__, e))
             logger.error(traceback.format_exc())
             transaction.rollback()
@@ -531,7 +527,7 @@ class CSVImporter(Importer):
             for table, filename in sorted_tables:
                 for col in table.c:
                     utils.reset_sequence(col)
-        except Exception, e:
+        except Exception as e:
             col_name = None
             try:
                 col_name = col.name
@@ -541,7 +537,7 @@ class CSVImporter(Importer):
                 % col_name
             utils.message_details_dialog(utils.xml_safe(msg),
                                          traceback.format_exc(),
-                                         type=gtk.MESSAGE_ERROR)
+                                         type=Gtk.MessageType.ERROR)
 
     def _get_filenames(self):
         def on_selection_changed(filechooser, data=None):
@@ -553,15 +549,15 @@ class CSVImporter(Importer):
                 return
             ok = filechooser.action_area.get_children()[1]
             ok.set_sensitive(os.path.isfile(f))
-        fc = gtk.FileChooserDialog(_("Choose file(s) to import…"),
+        fc = Gtk.FileChooserDialog(_("Choose file(s) to import…"),
                                    None,
-                                   gtk.FILE_CHOOSER_ACTION_OPEN,
-                                   (gtk.STOCK_OK, gtk.RESPONSE_ACCEPT,
-                                    gtk.STOCK_CANCEL, gtk.RESPONSE_REJECT))
+                                   Gtk.FileChooserAction.OPEN,
+                                   (Gtk.STOCK_OK, Gtk.ResponseType.ACCEPT,
+                                    Gtk.STOCK_CANCEL, Gtk.ResponseType.REJECT))
         fc.set_select_multiple(True)
         fc.connect("selection-changed", on_selection_changed)
         filenames = None
-        if fc.run() == gtk.RESPONSE_ACCEPT:
+        if fc.run() == Gtk.ResponseType.ACCEPT:
             filenames = fc.get_filenames()
         fc.destroy()
         return filenames
@@ -577,14 +573,14 @@ class CSVExporter(object):
 
     def start(self, path=None):
         if path is None:
-            d = gtk.FileChooserDialog(_("Select a directory"), None,
-                                      gtk.FILE_CHOOSER_ACTION_SELECT_FOLDER,
-                                      (gtk.STOCK_OK, gtk.RESPONSE_ACCEPT,
-                                       gtk.STOCK_CANCEL, gtk.RESPONSE_CANCEL))
+            d = Gtk.FileChooserDialog(_("Select a directory"), None,
+                                      Gtk.FileChooserAction.SELECT_FOLDER,
+                                      (Gtk.STOCK_OK, Gtk.ResponseType.ACCEPT,
+                                       Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL))
             response = d.run()
             path = d.get_filename()
             d.destroy()
-            if response != gtk.RESPONSE_ACCEPT:
+            if response != Gtk.ResponseType.ACCEPT:
                 return
 
         if not os.path.exists(path):
@@ -592,7 +588,7 @@ class CSVExporter(object):
 
         try:
             bauble.task.queue(self.__export_task(path))
-        except Exception, e:
+        except Exception as e:
             logger.debug("%s(%s)" % (type(e).__name__, e))
 
     def __export_task(self, path):
@@ -611,7 +607,7 @@ class CSVExporter(object):
                     return
 
         def replace(s):
-            if isinstance(s, (str, unicode)):
+            if isinstance(s, str):
                 s.replace('\n', '\\n').replace('\r', '\\r')
             return s
 
@@ -627,7 +623,7 @@ class CSVExporter(object):
         if main_is_frozen:
             spinner = '-\\|/'
         else:
-            spinner = u'⣄⡆⠇⠋⠙⠸⢰⣠'
+            spinner = '⣄⡆⠇⠋⠙⠸⢰⣠'
         for table in db.metadata.sorted_tables:
             filename = filename_template % table.name
             steps_so_far += 1
@@ -645,16 +641,16 @@ class CSVExporter(object):
 
             # create empty files with only the column names
             if len(results) == 0:
-                write_csv(filename, [table.c.keys()])
+                write_csv(filename, [list(table.c.keys())])
                 yield
                 continue
 
             rows = []
-            rows.append(table.c.keys())  # append col names
+            rows.append(list(table.c.keys()))  # append col names
             ctr = 0
             for row in results:
                 try:
-                    rows.append(map(replace, row.values()))
+                    rows.append(list(map(replace, list(row.values()))))
                 except:
                     import traceback
                     logger.error(traceback.format_exc())

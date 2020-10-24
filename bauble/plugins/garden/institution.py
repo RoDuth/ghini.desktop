@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-#
 # Copyright 2008-2010 Brett Adams
 # Copyright 2015,2018 Mario Frasca <mario@anche.no>.
 # Copyright 2017 Jardín Botánico de Quito
@@ -25,7 +23,7 @@
 
 import os
 
-import gtk
+from gi.repository import Gtk
 
 import logging
 logger = logging.getLogger(__name__)
@@ -57,7 +55,7 @@ class Institution(object):
 
     def __init__(self):
         # initialize properties to None
-        map(lambda p: setattr(self, p, None), self.__properties)
+        list(map(lambda p: setattr(self, p, None), self.__properties))
 
         for prop in self.__properties:
             db_prop = utils.utf8('inst_' + prop)
@@ -115,7 +113,7 @@ class InstitutionPresenter(editor.GenericEditorPresenter):
         self.on_email_text_entry_changed('inst_email')
         if not model.uuid:
             import uuid
-            model.uuid = unicode(uuid.uuid4())
+            model.uuid = str(uuid.uuid4())
 
     def cleanup(self):
         super(InstitutionPresenter, self).cleanup()
@@ -174,7 +172,7 @@ class InstitutionPresenter(editor.GenericEditorPresenter):
 
         # produce the log record
         registrations.info([(key, getattr(self.model, key))
-                            for key in self.widget_to_field_map.values()])
+                            for key in list(self.widget_to_field_map.values())])
 
         # remove the handler after usage
         registrations.removeHandler(handler)
@@ -223,7 +221,7 @@ def start_institution_editor():
     o = Institution()
     inst_pres = InstitutionPresenter(o, view)
     response = inst_pres.start()
-    if response == gtk.RESPONSE_OK:
+    if response == Gtk.ResponseType.OK:
         o.write()
         inst_pres.commit_changes()
     else:

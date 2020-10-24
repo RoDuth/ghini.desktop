@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-#
 # Copyright 2015 Mario Frasca <mario@anche.no>.
 # Copyright 2019 Ross Demuth <rossdemuth123@gmail.com>
 #
@@ -83,7 +81,7 @@ class AskTPL(threading.Thread):
                                                 for k in l if k)]
             header = result[0]
             result = result[1:]
-            return [dict(zip(header, k)) for k in result if k[7] == '']
+            return [dict(list(zip(header, k))) for k in result if k[7] == '']
 
         class ShouldStopNow(Exception):
             pass
@@ -135,7 +133,7 @@ class AskTPL(threading.Thread):
             logger.debug("%s interrupted : do not invoke callback",
                          self.name)
             return
-        except Exception, e:
+        except Exception as e:
             logger.debug("%s (%s)%s : completed with trouble",
                          self.name, type(e).__name__, e)
             self.__class__.running = None
@@ -143,8 +141,8 @@ class AskTPL(threading.Thread):
         self.__class__.running = None
         logger.debug("%s before invoking callback" % self.name)
         if self.gui:
-            import gobject
-            gobject.idle_add(self.callback, found, accepted)
+            from gi.repository import GObject
+            GObject.idle_add(self.callback, found, accepted)
         else:
             self.callback(found, accepted)
 

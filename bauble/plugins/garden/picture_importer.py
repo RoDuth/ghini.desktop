@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-#
 # Copyright 2018 Mario Frasca <mario@anche.no>.
 #
 # This file is part of ghini.desktop.
@@ -21,10 +19,10 @@
 import logging
 logger = logging.getLogger(__name__)
 
-import gtk
-import gobject
+from gi.repository import Gtk
+from gi.repository import GObject
 import threading
-import glib
+from gi.repository import GLib
 import re
 import os.path
 from bauble import pluginmgr, db, utils
@@ -100,14 +98,14 @@ class ListStoreHandler(logging.Handler):
     def __init__(self, container, *args, **kwargs):
         super(ListStoreHandler, self).__init__(*args, **kwargs)
         self.container = container
-        gobject.idle_add(none, self.container.clear)
+        GObject.idle_add(none, self.container.clear)
 
     def emit(self, record):
         msg = self.format(record)
         stock = {11: 'gtk-directory',
                  12: 'gtk-file',
                  13: 'gtk-new', }[record.levelno]
-        gobject.idle_add(none, self.container.append, [stock, msg])
+        GObject.idle_add(none, self.container.append, [stock, msg])
 
 
 def query_session_new(session, cls, **kwargs):
@@ -115,7 +113,7 @@ def query_session_new(session, cls, **kwargs):
         found = False
         if type(i) == cls:
             found = True
-            for k, v in kwargs.items():
+            for k, v in list(kwargs.items()):
                 if getattr(i, k) != v:
                     found = False
         if found:
@@ -185,7 +183,7 @@ class PictureImporterPresenter(GenericEditorPresenter):
         for fname, path in self.pixbufs_to_load:
             if not self.keep_running:
                 return
-            pixbuf = gtk.gdk.pixbuf_new_from_file(fname)
+            pixbuf = GdkPixbuf.Pixbuf.new_from_file(fname)
             try:
                 pixbuf = pixbuf.apply_embedded_orientation()
                 scale_x = pixbuf.get_width() / 144
@@ -193,14 +191,14 @@ class PictureImporterPresenter(GenericEditorPresenter):
                 scale = max(scale_x, scale_y, 1)
                 x = int(pixbuf.get_width() / scale)
                 y = int(pixbuf.get_height() / scale)
-                pixbuf = pixbuf.scale_simple(x, y, gtk.gdk.INTERP_BILINEAR)
+                pixbuf = pixbuf.scale_simple(x, y, GdkPixbuf.InterpType.BILINEAR)
                 def set_thumbnail(store, path, col, value):
                     store[path][col] = value
-                gobject.idle_add(set_thumbnail, self.review_liststore, path, thumbnail_col, pixbuf)
-            except glib.GError, e:
-                logger.debug("picture %s caused glib.GError %s" %
+                GObject.idle_add(set_thumbnail, self.review_liststore, path, thumbnail_col, pixbuf)
+            except GLib.GError as e:
+                logger.debug("picture %s caused GLib.GError %s" %
                              (fname, e))
-            except Exception, e:
+            except Exception as e:
                 logger.warning("picture %s caused Exception %s:%s" %
                                (fname, type(e), e))
 
@@ -243,7 +241,7 @@ class PictureImporterPresenter(GenericEditorPresenter):
         from bauble.plugins.garden import (Location, Accession, Plant, PlantNote)
         # make sure selected location exists
         if self.model.location is None:
-            self.model.location = u'imported'
+            self.model.location = 'imported'
         location = session.query(Location).filter_by(code=self.model.location).first()
         if location is not None:
             logger.log(11, 'location %s already in database' % (location, ))
@@ -259,9 +257,9 @@ class PictureImporterPresenter(GenericEditorPresenter):
             if not row[use_me_col]:
                 continue
             # get unicode strings from row
-            epgn, epsp = unicode(row[binomial_col] + ' sp').split(' ')[:2]
-            filename = unicode(row[filename_col])
-            complete_plant_code = unicode(row[accno_col])
+            epgn, epsp = str(row[binomial_col] + ' sp').split(' ')[:2]
+            filename = str(row[filename_col])
+            complete_plant_code = str(row[accno_col])
             accession_code, plant_code = complete_plant_code.rsplit(Plant.get_delimiter(), 1)
 
             # create or retrieve genus and species
@@ -308,13 +306,13 @@ class PictureImporterPresenter(GenericEditorPresenter):
             utils.copy_picture_with_thumbnail(self.model.filepath, filename)
 
             # add picture note
-            note = session.query(PlantNote).filter_by(plant=plant, note=filename, category=u'<picture>').first()
+            note = session.query(PlantNote).filter_by(plant=plant, note=filename, category='<picture>').first()
             if note is not None:
                 logger.log(11, 'picture %s already in plant %s' % (filename, complete_plant_code))
             else:
-                note = query_session_new(session, PlantNote, plant=plant, note=filename, category=u'<picture>')
+                note = query_session_new(session, PlantNote, plant=plant, note=filename, category='<picture>')
                 if note is None:
-                    note = PlantNote(plant=plant, note=filename, category=u'<picture>', user=u'initial-import')
+                    note = PlantNote(plant=plant, note=filename, category='<picture>', user='initial-import')
                     session.add(note)
                     logger.log(13, 'picture %s added to plant %s' % (filename, complete_plant_code))
                 else:
@@ -356,7 +354,7 @@ class PictureImporterPresenter(GenericEditorPresenter):
 
     def show_gtk_stock_icons(self):
         '''this is just some code to show an overview of gtk stock name/image'''
-        for i in gtk.stock_list_ids():
+        for i in Gtk.stock_list_ids():
             self.view.widgets.log_liststore.append([i, i])
 
     def on_action_cancel_activate(self, *args, **kwargs):
@@ -366,7 +364,7 @@ class PictureImporterPresenter(GenericEditorPresenter):
                 self.lock.release()  # don't stop `do_import` at the lock
             self.running_thread.join()
             self.running_thread = None
-        self.view.get_window().emit('response', gtk.RESPONSE_DELETE_EVENT)
+        self.view.get_window().emit('response', Gtk.ResponseType.DELETE_EVENT)
 
     def on_action_ok_activate(self, *args, **kwargs):
         # OK is set active only in do_import.  if we're here, means that
@@ -375,13 +373,13 @@ class PictureImporterPresenter(GenericEditorPresenter):
         self.lock.release()
         self.running_thread.join()  # do_import is now committing
         self.running_thread = None
-        self.view.get_window().emit('response', gtk.RESPONSE_OK)
+        self.view.get_window().emit('response', Gtk.ResponseType.OK)
 
     def on_action_browse_activate(self, *args, **kwargs):
         text = _('Select pictures source directory')
         parent = None
-        action = gtk.FILE_CHOOSER_ACTION_SELECT_FOLDER
-        buttons = (_('Cancel'), gtk.RESPONSE_CANCEL, _('Ok'), gtk.RESPONSE_ACCEPT, )
+        action = Gtk.FileChooserAction.SELECT_FOLDER
+        buttons = (_('Cancel'), Gtk.ResponseType.CANCEL, _('Ok'), Gtk.ResponseType.ACCEPT, )
         last_folder = self.model.filepath
         target = 'filepath_entry'
         self.view.run_file_chooser_dialog(text, parent, action, buttons, last_folder, target)
@@ -414,6 +412,6 @@ class PictureImporterTool(pluginmgr.Tool):
         try:
             from bauble import gui
             gui.get_view().update()
-        except Exception, e:
+        except Exception as e:
             pass
         return True

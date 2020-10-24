@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-#
 # Copyright (c) 2005,2006,2007,2008,2009 Brett Adams <brett@belizebotanic.org>
 # Copyright (c) 2012-2015 Mario Frasca <mario@anche.no>
 # Copyright 2017 Jardín Botánico de Quito
@@ -40,9 +38,9 @@ def update_gui():
     """
     Flush any GTK Events.  Used for doing GUI testing.
     """
-    import gtk
-    while gtk.events_pending():
-        gtk.main_iteration(block=False)
+    from gi.repository import Gtk
+    while Gtk.events_pending():
+        Gtk.main_iteration(block=False)
 
 
 def check_dupids(filename):
@@ -93,8 +91,8 @@ class BaubleTestCase(unittest.TestCase):
         try:
             # we know we're connecting to an empty database
             db.open(uri, verify=False, show_error_dialogs=False)
-        except Exception, e:
-            print >>sys.stderr, e
+        except Exception as e:
+            print(e, file=sys.stderr)
         if not bauble.db.engine:
             raise BaubleError('not connected to a database')
         pluginmgr.load()

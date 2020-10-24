@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-#
 # Copyright 2008-2010 Brett Adams
 # Copyright 2015-2016 Mario Frasca <mario@anche.no>.
 # Copyright 2017 Jardín Botánico de Quito
@@ -32,17 +30,18 @@ import traceback
 import weakref
 
 import logging
+from functools import reduce
 logger = logging.getLogger(__name__)
 
 from bauble.prefs import prefs, debug_logging_prefs, testing
 if not testing and __name__ in prefs[debug_logging_prefs]:
     logger.setLevel(logging.DEBUG)
 
-import gtk
+from gi.repository import Gtk
 
 
 import lxml.etree as etree
-import pango
+from gi.repository import Pango
 from sqlalchemy import and_, or_, func
 from sqlalchemy import ForeignKey, Column, Unicode, Integer, Boolean, \
     UnicodeText
@@ -151,7 +150,7 @@ def generic_taxon_add_action(model, view, presenter, top_presenter,
         presenter.session.add(committed)
         taxon_entry.set_text("%s" % committed)
         presenter.remove_problem(
-            hash(gtk.Buildable.get_name(taxon_entry)), None)
+            hash(Gtk.Buildable.get_name(taxon_entry)), None)
         setattr(model, 'species', committed)
         presenter._dirty = True
         top_presenter.refresh_sensitivity()
@@ -184,11 +183,11 @@ def remove_callback(accessions):
         msg = (_('%(num_plants)s plants depend on this accession: '
                  '<b>%(plant_codes)s</b>\n\n') % values +
                _('You cannot remove an accession with plants.'))
-        utils.message_dialog(msg, type=gtk.MESSAGE_WARNING)
+        utils.message_dialog(msg, type=Gtk.MessageType.WARNING)
         return
     else:
         msg = _("Are you sure you want to remove accession <b>%s</b>?") % \
-            utils.xml_safe(unicode(acc))
+            utils.xml_safe(str(acc))
     if not utils.yes_no_dialog(msg):
         return
     try:
@@ -196,10 +195,10 @@ def remove_callback(accessions):
         obj = session.query(Accession).get(acc.id)
         session.delete(obj)
         session.commit()
-    except Exception, e:
-        msg = _('Could not delete.\n\n%s') % utils.xml_safe(unicode(e))
+    except Exception as e:
+        msg = _('Could not delete.\n\n%s') % utils.xml_safe(str(e))
         utils.message_details_dialog(msg, traceback.format_exc(),
-                                     type=gtk.MESSAGE_ERROR)
+                                     type=Gtk.MessageType.ERROR)
     finally:
         session.close()
     return True
@@ -369,10 +368,10 @@ class AccessionMapperExtension(MapperExtension):
 
 # ITF2 - E.1; Provenance Type Flag; Transfer code: prot
 prov_type_values = [
-    (u'Wild', _('Accession of wild source')),  # W
-    (u'Cultivated', _('Propagule(s) from a wild source plant')),  # Z
-    (u'NotWild', _("Accession not of wild source")),  # G
-    (u'InsufficientData', _("Insufficient Data")),  # U
+    ('Wild', _('Accession of wild source')),  # W
+    ('Cultivated', _('Propagule(s) from a wild source plant')),  # Z
+    ('NotWild', _("Accession not of wild source")),  # G
+    ('InsufficientData', _("Insufficient Data")),  # U
     (None, ''),  # do not transfer this field
     ]
 
@@ -389,73 +388,73 @@ prov_type_values = [
 # user not familiar with ITF2 standard.
 wild_prov_status_values = [
     # Endemic found within indigenous range
-    (u'WildNative', _("Wild native")),
+    ('WildNative', _("Wild native")),
     # found outside indigenous range
-    (u'WildNonNative', _("Wild non-native")),
+    ('WildNonNative', _("Wild non-native")),
     # Endemic, cultivated, reintroduced or translocated within its
     # indigenous range
-    (u'CultivatedNative', _("Cultivated native")),
+    ('CultivatedNative', _("Cultivated native")),
     # cultivated, found outside its indigenous range
-    (u'CultivatedNonNative', _("Cultivated non-native")),
+    ('CultivatedNonNative', _("Cultivated non-native")),
     # Not transferred
     (None, '')]
 
 # not ITF2
 # - further specifies the Z prov type flag value
 cultivated_prov_status_values = [
-    (u'InVitro', _("In vitro")),
-    (u'Division', _("Division")),
-    (u'Seed', _("Seed")),
-    (u'Unknown', _("Unknown")),
+    ('InVitro', _("In vitro")),
+    ('Division', _("Division")),
+    ('Seed', _("Seed")),
+    ('Unknown', _("Unknown")),
     (None, '')]
 
 # not ITF2
 # - further specifies the G prov type flag value
 purchase_prov_status_values = [
-    (u'National', _("National")),
-    (u'Imported', _("Imported")),
-    (u'Unknown', _("Unknown")),
+    ('National', _("National")),
+    ('Imported', _("Imported")),
+    ('Unknown', _("Unknown")),
     (None, '')]
 
 # not ITF2
 recvd_type_values = {
-    u'ALAY': _('Air layer'),
-    U'BBPL': _('Balled & burlapped plant'),
-    u'BRPL': _('Bare root plant'),
-    u'BUDC': _('Bud cutting'),
-    u'BUDD': _('Budded'),
-    u'BULB': _('Bulb'),
-    u'CLUM': _('Clump'),
-    u'CORM': _('Corm'),
-    u'DIVI': _('Division'),
-    u'GRAF': _('Graft'),
-    u'GRFS': _('Grafted standard'),
-    u'LAYE': _('Layer'),
-    u'FLAS': _('Flask seed or spore'),
-    u'FLAT': _('Flask tissue culture'),
-    u'SEED': _('Seed'),
-    u'SEDL': _('Seedling'),
-    u'PLTP': _('Plant punnett or plug'),
-    u'PLNT': _('Plant tubestock'),
-    u'PLTS': _('Plant potted (sml)'),
-    u'PLTM': _('Plant potted (med)'),
-    u'PLTL': _('Plant potted (lrg)'),
-    u'PLTX': _('Plant ex-ground'),
-    u'PLXA': _('Plant advanced ex-Ground'),
-    u'PSBU': _('Pseudobulb'),
-    u'RCUT': _('Rooted cutting'),
-    u'RHIZ': _('Rhizome'),
-    u'ROOC': _('Root cutting'),
-    u'ROOT': _('Root'),
-    u'SCIO': _('Scion'),
-    u'SPOR': _('Spore'),
-    u'SPRL': _('Sporeling'),
-    u'TUBE': _('Tuber'),
-    u'UNKN': _('Unknown'),
-    u'URCU': _('Unrooted cutting'),
-    u'BBIL': _('Bulbil'),
-    u'VEGS': _('Vegetative spreading'),
-    u'SCKR': _('Root sucker'),
+    'ALAY': _('Air layer'),
+    'BBPL': _('Balled & burlapped plant'),
+    'BRPL': _('Bare root plant'),
+    'BUDC': _('Bud cutting'),
+    'BUDD': _('Budded'),
+    'BULB': _('Bulb'),
+    'CLUM': _('Clump'),
+    'CORM': _('Corm'),
+    'DIVI': _('Division'),
+    'GRAF': _('Graft'),
+    'GRFS': _('Grafted standard'),
+    'LAYE': _('Layer'),
+    'FLAS': _('Flask seed or spore'),
+    'FLAT': _('Flask tissue culture'),
+    'SEED': _('Seed'),
+    'SEDL': _('Seedling'),
+    'PLTP': _('Plant punnett or plug'),
+    'PLNT': _('Plant tubestock'),
+    'PLTS': _('Plant potted (sml)'),
+    'PLTM': _('Plant potted (med)'),
+    'PLTL': _('Plant potted (lrg)'),
+    'PLTX': _('Plant ex-ground'),
+    'PLXA': _('Plant advanced ex-Ground'),
+    'PSBU': _('Pseudobulb'),
+    'RCUT': _('Rooted cutting'),
+    'RHIZ': _('Rhizome'),
+    'ROOC': _('Root cutting'),
+    'ROOT': _('Root'),
+    'SCIO': _('Scion'),
+    'SPOR': _('Spore'),
+    'SPRL': _('Sporeling'),
+    'TUBE': _('Tuber'),
+    'UNKN': _('Unknown'),
+    'URCU': _('Unrooted cutting'),
+    'BBIL': _('Bulbil'),
+    'VEGS': _('Vegetative spreading'),
+    'SCKR': _('Root sucker'),
     None: ''
     }
 
@@ -468,43 +467,43 @@ recvd_type_values = {
 # no matter how they are recieved they are all are likely to become plants at
 # some point
 accession_type_to_plant_material = {
-    u'ALAY': u'Plant',
-    U'BBPL': u'Plant',
-    u'BRPL': u'Plant',
-    u'BUDC': u'Plant',
-    u'BUDD': u'Plant',
-    u'BULB': u'Vegetative',
-    u'CLUM': u'Plant',
-    u'CORM': u'Vegetative',
-    u'DIVI': u'Plant',
-    u'GRAF': u'Plant',
-    u'GRFS': u'Plant',
-    u'LAYE': u'Plant',
-    u'FLAS': u'Tissue',
-    u'FLAT': u'Tissue',
-    u'SEED': u'Seed',
-    u'SEDL': u'Plant',
-    u'PLTP': u'Plant',
-    u'PLNT': u'Plant',
-    u'PLTS': u'Plant',
-    u'PLTM': u'Plant',
-    u'PLTL': u'Plant',
-    u'PLTX': u'Plant',
-    u'PLXA': u'Plant',
-    u'PSBU': u'Plant',
-    u'RCUT': u'Plant',
-    u'RHIZ': u'Vegetative',
-    u'ROOC': u'Plant',
-    u'ROOT': u'Vegetative',
-    u'SCIO': u'Vegetative',
-    u'SPOR': u'Seed',
-    u'SPRL': u'Plant',
-    u'TUBE': u'Vegetative',
-    u'UNKN': u'Other',
-    u'URCU': u'Vegetative',
-    u'BBIL': u'Vegetative',
-    u'VEGS': u'Plant',
-    u'SCKR': u'Plant',
+    'ALAY': 'Plant',
+    'BBPL': 'Plant',
+    'BRPL': 'Plant',
+    'BUDC': 'Plant',
+    'BUDD': 'Plant',
+    'BULB': 'Vegetative',
+    'CLUM': 'Plant',
+    'CORM': 'Vegetative',
+    'DIVI': 'Plant',
+    'GRAF': 'Plant',
+    'GRFS': 'Plant',
+    'LAYE': 'Plant',
+    'FLAS': 'Tissue',
+    'FLAT': 'Tissue',
+    'SEED': 'Seed',
+    'SEDL': 'Plant',
+    'PLTP': 'Plant',
+    'PLNT': 'Plant',
+    'PLTS': 'Plant',
+    'PLTM': 'Plant',
+    'PLTL': 'Plant',
+    'PLTX': 'Plant',
+    'PLXA': 'Plant',
+    'PSBU': 'Plant',
+    'RCUT': 'Plant',
+    'RHIZ': 'Vegetative',
+    'ROOC': 'Plant',
+    'ROOT': 'Vegetative',
+    'SCIO': 'Vegetative',
+    'SPOR': 'Seed',
+    'SPRL': 'Plant',
+    'TUBE': 'Vegetative',
+    'UNKN': 'Other',
+    'URCU': 'Vegetative',
+    'BBIL': 'Vegetative',
+    'VEGS': 'Plant',
+    'SCKR': 'Plant',
     None: None
     }
 
@@ -597,7 +596,7 @@ class Accession(db.Base, db.Serializable, db.WithNotes):
     # columns
     #: the accession code
     code = Column(Unicode(20), nullable=False, unique=True)
-    code_format = u'%Y%PD####'
+    code_format = '%Y%PD####'
 
     @validates('code')
     def validate_stripping(self, key, value):
@@ -617,7 +616,7 @@ class Accession(db.Base, db.Serializable, db.WithNotes):
     date_accd = Column(types.Date)
     date_recvd = Column(types.Date)
     quantity_recvd = Column(Integer, autoincrement=False)
-    recvd_type = Column(types.Enum(values=recvd_type_values.keys(),
+    recvd_type = Column(types.Enum(values=list(recvd_type_values.keys()),
                                    translations=recvd_type_values),
                         default=None)
 
@@ -682,7 +681,7 @@ class Accession(db.Base, db.Serializable, db.WithNotes):
         if format.find('%{Y-1}') >= 0:
             format = format.replace('%{Y-1}', str(today.year - 1))
         format = today.strftime(format)
-        start = unicode(format.rstrip('#'))
+        start = str(format.rstrip('#'))
         if start == format:
             # fixed value
             return start
@@ -697,18 +696,18 @@ class Accession(db.Base, db.Serializable, db.WithNotes):
                 next = format % (max(codes)+1)
             else:
                 next = format % 1
-        except Exception, e:
+        except Exception as e:
             logger.debug("%s(%s)" % (type(e).__name, e))
             pass
         finally:
             session.close()
-        return unicode(next)
+        return str(next)
 
     def search_view_markup_pair(self):
         """provide the two lines describing object for SearchView row.
 
         """
-        first, second = (utils.xml_safe(unicode(self)),
+        first, second = (utils.xml_safe(str(self)),
                          self.species_str(markup=True))
         suffix = _("%(1)s plant groups in %(2)s location(s)") % {
             '1': len(set(self.plants)),
@@ -849,7 +848,7 @@ class Accession(db.Base, db.Serializable, db.WithNotes):
                     'infrasp4_rank'
                 }
                 sp_parts = {key: keys[key] for key in
-                            _parts.intersection(keys.keys())}
+                            _parts.intersection(list(keys.keys()))}
                 sp_dict.update(sp_parts)
                 # if have details for the species parts updating with epithet
                 # is likely to just breaks things
@@ -865,7 +864,7 @@ class Accession(db.Base, db.Serializable, db.WithNotes):
             elif keys['rank'] == 'genus':
                 result['species'] = Species.retrieve_or_create(
                     session, {'ht-epithet': keys['taxon'],
-                              'epithet': u'sp'})
+                              'epithet': 'sp'})
             elif keys['rank'] == 'familia':
                 unknown_genus = 'Zzz-' + keys['taxon'][:-1]
                 Genus.retrieve_or_create(
@@ -873,7 +872,7 @@ class Accession(db.Base, db.Serializable, db.WithNotes):
                               'epithet': unknown_genus})
                 result['species'] = Species.retrieve_or_create(
                     session, {'ht-epithet': unknown_genus,
-                              'epithet': u'sp'})
+                              'epithet': 'sp'})
             logger.debug('compute_serializable_fields results = %s' % result)
         return result
 
@@ -978,7 +977,7 @@ class AccessionEditorView(editor.GenericEditorView):
                                             minimum_key_length=1,
                                             match_func=self.datum_match,
                                             text_column=0)
-        model = gtk.ListStore(str)
+        model = Gtk.ListStore(str)
         for abbr in sorted(datums.keys()):
             # TODO: should create a marked up string with the datum description
             model.append([abbr])
@@ -1011,14 +1010,14 @@ class AccessionEditorView(editor.GenericEditorView):
         '''
         save the current state of the gui to the preferences
         '''
-        for expander, pref in self.expanders_pref_map.iteritems():
+        for expander, pref in self.expanders_pref_map.items():
             prefs.prefs[pref] = self.widgets[expander].get_expanded()
 
     def restore_state(self):
         '''
         restore the state of the gui from the preferences
         '''
-        for expander, pref in self.expanders_pref_map.iteritems():
+        for expander, pref in self.expanders_pref_map.items():
             expanded = prefs.prefs.get(pref, True)
             self.widgets[expander].set_expanded(expanded)
 
@@ -1097,7 +1096,7 @@ class VoucherPresenter(editor.GenericEditorPresenter):
         # intialize vouchers treeview
         treeview = self.view.widgets.voucher_treeview
         utils.clear_model(treeview)
-        model = gtk.ListStore(object)
+        model = Gtk.ListStore(object)
         for voucher in self.model.vouchers:
             if not voucher.parent_material:
                 model.append([voucher])
@@ -1106,7 +1105,7 @@ class VoucherPresenter(editor.GenericEditorPresenter):
         # initialize parent vouchers treeview
         treeview = self.view.widgets.parent_voucher_treeview
         utils.clear_model(treeview)
-        model = gtk.ListStore(object)
+        model = Gtk.ListStore(object)
         for voucher in self.model.vouchers:
             if voucher.parent_material:
                 model.append([voucher])
@@ -1175,7 +1174,7 @@ class VerificationPresenter(editor.GenericEditorPresenter):
         # remove any verification boxes that would have been added to
         # the widget in a previous run
         box = self.view.widgets.verifications_parent_box
-        map(box.remove, box.get_children())
+        list(map(box.remove, box.get_children()))
 
         # order by date of the existing verifications
         for ver in model.verifications:
@@ -1211,7 +1210,7 @@ class VerificationPresenter(editor.GenericEditorPresenter):
         box.show_all()
         return box
 
-    class VerificationBox(gtk.HBox):
+    class VerificationBox(Gtk.HBox):
 
         def __init__(self, parent, model):
             super(VerificationPresenter.VerificationBox, self).__init__(self)
@@ -1228,7 +1227,7 @@ class VerificationPresenter(editor.GenericEditorPresenter):
                                     "acc_editor.glade")
             xml = etree.parse(filename)
             el = xml.find("//object[@id='ver_box']")
-            builder = gtk.Builder()
+            builder = Gtk.Builder()
             s = '<interface>%s</interface>' % etree.tostring(el)
             if sys.platform == 'win32':
                 # NOTE: PyGTK for Win32 is broken so we have to include
@@ -1313,8 +1312,8 @@ class VerificationPresenter(editor.GenericEditorPresenter):
                 ver_new_taxon_entry)
 
             combo = self.widgets.ver_level_combo
-            renderer = gtk.CellRendererText()
-            renderer.props.wrap_mode = pango.WRAP_WORD
+            renderer = Gtk.CellRendererText()
+            renderer.props.wrap_mode = Pango.WrapMode.WORD
             # TODO: should auto calculate the wrap width with a
             # on_size_allocation callback
             renderer.props.wrap_width = 400
@@ -1326,8 +1325,8 @@ class VerificationPresenter(editor.GenericEditorPresenter):
                 cell.set_property('markup', '<b>%s</b>  :  %s'
                                   % (level, descr))
             combo.set_cell_data_func(renderer, cell_data_func)
-            model = gtk.ListStore(int, str)
-            for level, descr in ver_level_descriptions.iteritems():
+            model = Gtk.ListStore(int, str)
+            for level, descr in ver_level_descriptions.items():
                 model.append([level, descr])
             combo.set_model(model)
             if self.model.level:
@@ -1338,7 +1337,7 @@ class VerificationPresenter(editor.GenericEditorPresenter):
             # notes text view
             textview = self.widgets.ver_notes_textview
             textview.set_border_width(1)
-            buff = gtk.TextBuffer()
+            buff = Gtk.TextBuffer()
             if self.model.notes:
                 buff.props.text = self.model.notes
             textview.set_buffer(buff)
@@ -1363,7 +1362,7 @@ class VerificationPresenter(editor.GenericEditorPresenter):
             PROBLEM = 'INVALID_DATE'
             try:
                 value = editor.DateValidator().to_python(entry.props.text)
-            except ValidatorError, e:
+            except ValidatorError as e:
                 logger.debug("%s(%s)" % (type(e).__name__, e))
                 self.presenter().add_problem(PROBLEM, entry)
             else:
@@ -1672,12 +1671,12 @@ class SourcePresenter(editor.GenericEditorPresenter):
             if treeiter:
                 active = combo.get_model()[treeiter][0]
         combo.set_model(None)
-        model = gtk.ListStore(object)
+        model = Gtk.ListStore(object)
         none_iter = model.append([''])
         model.append([self.garden_prop_str])
-        map(lambda x: model.append([x]), self.session.query(Contact))
+        list(map(lambda x: model.append([x]), self.session.query(Contact)))
         combo.set_model(model)
-        combo.child.get_completion().set_model(model)
+        combo.get_child().get_completion().set_model(model)
 
         combo._populate = True
         if active:
@@ -1706,13 +1705,13 @@ class SourcePresenter(editor.GenericEditorPresenter):
 
         combo = self.view.widgets.acc_source_comboentry
         combo.clear()
-        cell = gtk.CellRendererText()
-        combo.pack_start(cell)
+        cell = Gtk.CellRendererText()
+        combo.pack_start(cell, True, True, 0)
         combo.set_cell_data_func(cell, cell_data_func)
 
-        completion = gtk.EntryCompletion()
-        cell = gtk.CellRendererText()  # set up the completion renderer
-        completion.pack_start(cell)
+        completion = Gtk.EntryCompletion()
+        cell = Gtk.CellRendererText()  # set up the completion renderer
+        completion.pack_start(cell, True, True, 0)
         completion.set_cell_data_func(cell, cell_data_func)
 
         def match_func(completion, key, treeiter, data=None):
@@ -1726,7 +1725,7 @@ class SourcePresenter(editor.GenericEditorPresenter):
             return False
         completion.set_match_func(match_func)
 
-        entry = combo.child
+        entry = combo.get_child()
         entry.set_completion(completion)
 
         def update_visible():
@@ -1740,7 +1739,7 @@ class SourcePresenter(editor.GenericEditorPresenter):
             else:
                 #self.model.source.source_detail = value
                 widget_visibility['source_sw'] = True
-            for widget, value in widget_visibility.iteritems():
+            for widget, value in widget_visibility.items():
                 self.view.widgets[widget].props.visible = value
             self.view.widgets.source_alignment.props.sensitive = True
 
@@ -1750,10 +1749,10 @@ class SourcePresenter(editor.GenericEditorPresenter):
             # source is changed and restore them if they are switched
             # back
             if not value:
-                combo.child.props.text = ''
+                combo.get_child().props.text = ''
                 on_select(None)
             else:
-                combo.child.props.text = utils.utf8(value)
+                combo.get_child().props.text = utils.utf8(value)
                 on_select(value)
 
             # don't set the model as dirty if this is called during
@@ -1795,9 +1794,9 @@ class SourcePresenter(editor.GenericEditorPresenter):
                 # set the text value on the entry since it does all the
                 # validation
                 if not detail:
-                    combo.child.props.text = ''
+                    combo.get_child().props.text = ''
                 else:
-                    combo.child.props.text = utils.utf8(detail)
+                    combo.get_child().props.text = utils.utf8(detail)
             update_visible()
             return True
 
@@ -1942,7 +1941,7 @@ class AccessionEditorPresenter(editor.GenericEditorPresenter):
                     completion = self.view.widgets.acc_species_entry.\
                         get_completion()
                     utils.clear_model(completion)
-                    model = gtk.ListStore(object)
+                    model = Gtk.ListStore(object)
                     model.append([syn.species])
                     completion.set_model(model)
                     self.view.widgets.acc_species_entry.\
@@ -1962,7 +1961,7 @@ class AccessionEditorPresenter(editor.GenericEditorPresenter):
         # connect recvd_type comboentry widget and child entry
         self.view.connect('acc_recvd_type_comboentry', 'changed',
                           self.on_recvd_type_comboentry_changed)
-        self.view.connect(self.view.widgets.acc_recvd_type_comboentry.child,
+        self.view.connect(self.view.widgets.acc_recvd_type_comboentry.get_child(),
                           'changed', self.on_recvd_type_entry_changed)
 
         self.view.connect('acc_code_entry', 'changed',
@@ -2035,7 +2034,7 @@ class AccessionEditorPresenter(editor.GenericEditorPresenter):
         if values is None:
             query = self.session.\
                 query(meta.BaubleMeta).\
-                filter(meta.BaubleMeta.name.like(u'acidf_%')).\
+                filter(meta.BaubleMeta.name.like('acidf_%')).\
                 order_by(meta.BaubleMeta.name)
             if query.count():
                 Accession.code_format = query.first().value
@@ -2057,7 +2056,7 @@ class AccessionEditorPresenter(editor.GenericEditorPresenter):
         ls.clear()
         query = self.session.\
             query(meta.BaubleMeta).\
-            filter(meta.BaubleMeta.name.like(u'acidf_%')).\
+            filter(meta.BaubleMeta.name.like('acidf_%')).\
             order_by(meta.BaubleMeta.name)
         for i, row in enumerate(query):
             ls.append([i+1, row.value])
@@ -2080,7 +2079,7 @@ class AccessionEditorPresenter(editor.GenericEditorPresenter):
         if presenter.start() > 0:
             presenter.session.\
                 query(meta.BaubleMeta).\
-                filter(meta.BaubleMeta.name.like(u'acidf_%')).\
+                filter(meta.BaubleMeta.name.like('acidf_%')).\
                 delete(synchronize_session=False)
             i = 1
             iter = ls.get_iter_first()
@@ -2091,7 +2090,7 @@ class AccessionEditorPresenter(editor.GenericEditorPresenter):
                 i += 1
                 if not value:
                     continue
-                obj = meta.BaubleMeta(name=u'acidf_%02d' % i,
+                obj = meta.BaubleMeta(name='acidf_%02d' % i,
                                       value=value)
                 values.append(value)
                 presenter.session.add(obj)
@@ -2107,14 +2106,14 @@ class AccessionEditorPresenter(editor.GenericEditorPresenter):
         utils.clear_model(combo)
         if not self.model.species:
             return
-        model = gtk.ListStore(str, str)
+        model = Gtk.ListStore(str, str)
         species = self.model.species
         it = model.append([str(species.genus), 'genus'])
         active = None
         if self.model.id_qual_rank == 'genus':
             active = it
-        it = model.append([str(species.sp), u'sp'])
-        if self.model.id_qual_rank == u'sp':
+        it = model.append([str(species.sp), 'sp'])
+        if self.model.id_qual_rank == 'sp':
             active = it
 
         infrasp_parts = []
@@ -2168,10 +2167,10 @@ class AccessionEditorPresenter(editor.GenericEditorPresenter):
             value = combo.get_model()[treeiter][0]
         else:
             # the changed handler is fired again after the
-            # combo.child.props.text with the activer iter set to None
+            # combo.get_child().props.text with the activer iter set to None
             return True
         # the entry change handler does the validation of the model
-        combo.child.props.text = recvd_type_values[value]
+        combo.get_child().props.text = recvd_type_values[value]
 
     def on_recvd_type_entry_changed(self, entry, *args):
         """
@@ -2199,7 +2198,7 @@ class AccessionEditorPresenter(editor.GenericEditorPresenter):
         text = entry.get_text()
         query = self.session.query(Accession)
         if text != self._original_code \
-                and query.filter_by(code=unicode(text)).count() > 0:
+                and query.filter_by(code=str(text)).count() > 0:
             self.add_problem(self.PROBLEM_DUPLICATE_ACCESSION,
                              self.view.widgets.acc_code_entry)
             self.set_model_attr('code', None)
@@ -2224,7 +2223,7 @@ class AccessionEditorPresenter(editor.GenericEditorPresenter):
         PROBLEM = 'INVALID_DATE'
         try:
             value = editor.DateValidator().to_python(entry.props.text)
-        except ValidatorError, e:
+        except ValidatorError as e:
             logger.debug("%s(%s)" % (type(e).__name, e))
             self.add_problem(PROBLEM, entry)
         else:
@@ -2295,7 +2294,7 @@ class AccessionEditorPresenter(editor.GenericEditorPresenter):
             prop = self.model.source.propagation
             prop_ignore = ['id', 'propagation_id']
             prop_model = None
-            if prop and prop.prop_type == u'Seed':
+            if prop and prop.prop_type == 'Seed':
                 prop_model = prop._seed
             elif prop and prop.prop_type == 'UnrootedCutting':
                 prop_model = prop._cutting
@@ -2331,7 +2330,7 @@ class AccessionEditorPresenter(editor.GenericEditorPresenter):
         '''
         self.initializing = initializing
         date_format = prefs.prefs[prefs.date_format_pref]
-        for widget, field in self.widget_to_field_map.iteritems():
+        for widget, field in self.widget_to_field_map.items():
             if field == 'species_id':
                 value = self.model.species
             else:
@@ -2404,7 +2403,7 @@ class AccessionEditor(editor.GenericModelViewPresenterEditor):
         handle the response from self.presenter.start() in self.start()
         '''
         not_ok_msg = _('Are you sure you want to lose your changes?')
-        if response == gtk.RESPONSE_OK or response in self.ok_responses:
+        if response == Gtk.ResponseType.OK or response in self.ok_responses:
             try:
                 if not self.presenter.validate():
                     # TODO: ideally the accept buttons wouldn't have
@@ -2417,17 +2416,17 @@ class AccessionEditor(editor.GenericModelViewPresenterEditor):
                 if self.presenter.is_dirty():
                     self.commit_changes()
                     self._committed.append(self.model)
-            except DBAPIError, e:
+            except DBAPIError as e:
                 msg = _('Error committing changes.\n\n%s') % \
-                    utils.xml_safe(unicode(e.orig))
-                utils.message_details_dialog(msg, str(e), gtk.MESSAGE_ERROR)
+                    utils.xml_safe(str(e.orig))
+                utils.message_details_dialog(msg, str(e), Gtk.MessageType.ERROR)
                 return False
-            except Exception, e:
+            except Exception as e:
                 msg = _('Unknown error when committing changes. See the '
                         'details for more information.\n\n%s') \
                     % utils.xml_safe(e)
                 utils.message_details_dialog(msg, traceback.format_exc(),
-                                             gtk.MESSAGE_ERROR)
+                                             Gtk.MessageType.ERROR)
                 return False
         elif self.presenter.is_dirty() and utils.yes_no_dialog(not_ok_msg) \
                 or not self.presenter.is_dirty():
@@ -2526,7 +2525,7 @@ class AccessionEditor(editor.GenericModelViewPresenterEditor):
             logger.debug('creating plant for new accession')
             accession = self.model
             location = accession.intended_location
-            plant = Plant(accession=accession, code=u'1', quantity=accession.quantity_recvd, location=location,
+            plant = Plant(accession=accession, code='1', quantity=accession.quantity_recvd, location=location,
                           acc_type=accession_type_to_plant_material.get(self.model.recvd_type))
             self.session.add(plant)
             
@@ -2556,7 +2555,7 @@ class GeneralAccessionExpander(InfoExpander):
         super(GeneralAccessionExpander, self).__init__(_("General"), widgets)
         general_box = self.widgets.general_box
         self.widgets.general_window.remove(general_box)
-        self.vbox.pack_start(general_box)
+        self.vbox.pack_start(general_box, True, True, 0)
         self.current_obj = None
         self.private_image = self.widgets.acc_private_data
 
@@ -2580,7 +2579,7 @@ class GeneralAccessionExpander(InfoExpander):
         '''
         self.current_obj = row
         self.widget_set_value('acc_code_data', '<big>%s</big>' %
-                              utils.xml_safe(unicode(row.code)),
+                              utils.xml_safe(str(row.code)),
                               markup=True)
 
         # TODO: i don't know why we can't just set the visible
@@ -2588,7 +2587,7 @@ class GeneralAccessionExpander(InfoExpander):
         acc_private = self.widgets.acc_private_data
         if row.private:
             if acc_private.parent != self.widgets.acc_code_box:
-                self.widgets.acc_code_box.pack_start(acc_private)
+                self.widgets.acc_code_box.pack_start(acc_private, True, True, 0)
         else:
             self.widgets.remove_parent(acc_private)
 
@@ -2604,7 +2603,7 @@ class GeneralAccessionExpander(InfoExpander):
             plant_locations[plant.location] = q + plant.quantity
         if plant_locations:
             strs = []
-            for location, quantity in plant_locations.iteritems():
+            for location, quantity in plant_locations.items():
                 strs.append(_('%(quantity)s in %(location)s')
                             % dict(location=str(location), quantity=quantity))
             s = '\n'.join(strs)
@@ -2627,15 +2626,15 @@ class GeneralAccessionExpander(InfoExpander):
         self.widget_set_value('quantity_recvd_data', quantity_str)
 
         prov_str = dict(prov_type_values)[row.prov_type]
-        if row.prov_type == u'Wild' and row.wild_prov_status:
+        if row.prov_type == 'Wild' and row.wild_prov_status:
             prov_str = '%s (%s)' % \
                 (prov_str, dict(wild_prov_status_values)[row.wild_prov_status])
         self.widget_set_value('prov_data', prov_str, False)
 
-        image_size = gtk.ICON_SIZE_MENU
-        stock = gtk.STOCK_NO
+        image_size = Gtk.IconSize.MENU
+        stock = Gtk.STOCK_NO
         if row.private:
-            stock = gtk.STOCK_YES
+            stock = Gtk.STOCK_YES
         self.widgets.private_image.set_from_stock(stock, image_size)
 
         loc_map = (('intended_loc_data', 'intended_location'),
@@ -2660,7 +2659,7 @@ class SourceExpander(InfoExpander):
         super(SourceExpander, self).__init__(_('Source'), widgets)
         source_box = self.widgets.source_box
         self.widgets.source_window.remove(source_box)
-        self.vbox.pack_start(source_box)
+        self.vbox.pack_start(source_box, True, True, 0)
 
     def update_collection(self, collection):
         self.widget_set_value('loc_data', collection.locale)
@@ -2760,7 +2759,7 @@ class VerificationsExpander(InfoExpander):
             _("Verifications"), widgets)
         # notes_box = self.widgets.notes_box
         # self.widgets.notes_window.remove(notes_box)
-        # self.vbox.pack_start(notes_box)
+        # self.vbox.pack_start(notes_box, True, True, 0)
 
     def update(self, row):
         pass
@@ -2788,20 +2787,20 @@ class VouchersExpander(InfoExpander):
         self.set_expanded(True)
         self.set_sensitive(True)
 
-        parents = filter(lambda v: v.parent_material, row.vouchers)
+        parents = [v for v in row.vouchers if v.parent_material]
         for voucher in parents:
             s = '%s %s (parent)' % (voucher.herbarium, voucher.code)
-            label = gtk.Label(s)
+            label = Gtk.Label(label=s)
             label.set_alignment(0.0, 0.5)
-            self.vbox.pack_start(label)
+            self.vbox.pack_start(label, True, True, 0)
             label.show()
 
-        not_parents = filter(lambda v: not v.parent_material, row.vouchers)
+        not_parents = [v for v in row.vouchers if not v.parent_material]
         for voucher in not_parents:
             s = '%s %s' % (voucher.herbarium, voucher.code)
-            label = gtk.Label(s)
+            label = Gtk.Label(label=s)
             label.set_alignment(0.0, 0.5)
-            self.vbox.pack_start(label)
+            self.vbox.pack_start(label, True, True, 0)
             label.show()
 
 
@@ -2847,8 +2846,7 @@ class AccessionInfoBox(InfoBox):
 
         # self.vouchers.update(row)
 
-        urls = filter(lambda x: x != [],
-                      [utils.get_urls(note.note) for note in row.notes])
+        urls = [x for x in [utils.get_urls(note.note) for note in row.notes] if x != []]
         if not urls:
             self.links.props.visible = False
             self.links._sep.props.visible = False

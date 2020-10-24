@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-#
 # Copyright 2008-2010 Brett Adams
 # Copyright 2015 Mario Frasca <mario@anche.no>.
 #
@@ -22,7 +20,7 @@
 #
 import os
 import traceback
-import gtk
+from gi.repository import Gtk
 
 import logging
 logger = logging.getLogger(__name__)
@@ -65,7 +63,7 @@ def remove_callback(locations):
     if len(loc.plants) > 0:
         msg = _('Please remove the plants from <b>%(location)s</b> '
                 'before deleting it.') % {'location': loc}
-        utils.message_dialog(msg, gtk.MESSAGE_WARNING)
+        utils.message_dialog(msg, Gtk.MessageType.WARNING)
         return
     msg = _("Are you sure you want to remove %s?") % \
         utils.xml_safe(s)
@@ -76,10 +74,10 @@ def remove_callback(locations):
         obj = session.query(Location).get(loc.id)
         session.delete(obj)
         session.commit()
-    except Exception, e:
+    except Exception as e:
         msg = _('Could not delete.\n\n%s') % utils.xml_safe(e)
         utils.message_details_dialog(msg, traceback.format_exc(),
-                                     type=gtk.MESSAGE_ERROR)
+                                     type=Gtk.MessageType.ERROR)
     return True
 
 edit_action = Action('loc_edit', _('_Edit'),
@@ -274,9 +272,9 @@ class LocationEditorPresenter(GenericEditorPresenter):
         logger.debug('request to merge %s into %s' %
                      (self.model, self.merger_candidate, ))
 
-        md = gtk.MessageDialog(
-            self.view.get_window(), gtk.DIALOG_DESTROY_WITH_PARENT,
-            gtk.MESSAGE_QUESTION, gtk.BUTTONS_YES_NO,
+        md = Gtk.MessageDialog(
+            self.view.get_window(), Gtk.DialogFlags.DESTROY_WITH_PARENT,
+            Gtk.MessageType.QUESTION, Gtk.ButtonsType.YES_NO,
             (_('please confirm merging %(1)s into %(2)s') %
              {'1': self.model, '2': self.merger_candidate, }))
         confirm = md.run()
@@ -345,7 +343,7 @@ class LocationEditorPresenter(GenericEditorPresenter):
         return self._dirty
 
     def refresh_view(self):
-        for widget, field in self.widget_to_field_map.iteritems():
+        for widget, field in self.widget_to_field_map.items():
             value = getattr(self.model, field)
             self.view.widget_set_value(widget, value)
 
@@ -385,23 +383,23 @@ class LocationEditor(GenericModelViewPresenterEditor):
         handle the response from self.presenter.start() in self.start()
         '''
         not_ok_msg = 'Are you sure you want to lose your changes?'
-        if response == gtk.RESPONSE_OK or response in self.ok_responses:
+        if response == Gtk.ResponseType.OK or response in self.ok_responses:
             try:
                 if self.presenter.is_dirty():
                     self.commit_changes()
                 self._committed.append(self.model)
-            except DBAPIError, e:
+            except DBAPIError as e:
                 msg = _('Error committing changes.\n\n%s') % \
                     utils.xml_safe(e.orig)
-                utils.message_details_dialog(msg, str(e), gtk.MESSAGE_ERROR)
+                utils.message_details_dialog(msg, str(e), Gtk.MessageType.ERROR)
                 self.session.rollback()
                 return False
-            except Exception, e:
+            except Exception as e:
                 msg = _('Unknown error when committing changes. See the '
                         'details for more information.\n\n%s') % \
                     utils.xml_safe(e)
                 utils.message_details_dialog(msg, traceback.format_exc(),
-                                             gtk.MESSAGE_ERROR)
+                                             Gtk.MessageType.ERROR)
                 self.session.rollback()
                 return False
         elif self.presenter.is_dirty() \
@@ -458,7 +456,7 @@ class GeneralLocationExpander(InfoExpander):
         InfoExpander.__init__(self, _("General"), widgets)
         general_box = self.widgets.loc_gen_box
         self.widgets.remove_parent(general_box)
-        self.vbox.pack_start(general_box)
+        self.vbox.pack_start(general_box, True, True, 0)
         self.current_obj = None
 
         def on_nplants_clicked(*args):
@@ -489,7 +487,7 @@ class DescriptionExpander(InfoExpander):
         InfoExpander.__init__(self, _("Description"), widgets)
         descr_box = self.widgets.loc_descr_box
         self.widgets.remove_parent(descr_box)
-        self.vbox.pack_start(descr_box)
+        self.vbox.pack_start(descr_box, True, True, 0)
 
     def update(self, row):
         '''

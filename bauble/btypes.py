@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-#
 # Copyright (c) 2005,2006,2007,2008,2009 Brett Adams <brett@belizebotanic.org>
 # Copyright (c) 2012-2017 Mario Frasca <mario@anche.no>
 #
@@ -59,12 +57,12 @@ class Enum(types.TypeDecorator):
         except TypeError:
             raise EnumError(_('Enum requires string values (or None)'))
         if set(type(x) for x in values if x is not None) - \
-                set([type(''), type(u'')]) != set():
+                set([type(''), type('')]) != set():
             raise EnumError(_('Enum requires string values (or None)'))
         if len(values) != len(set(values)):
             raise EnumError(_('Enum requires the values to be different'))
         self.translations = dict((v, v) for v in values)
-        for key, value in translations.iteritems():
+        for key, value in translations.items():
             self.translations[key] = value
         if empty_to_none and None not in values:
             raise EnumError(_('You have configured empty_to_none=True but '
@@ -112,7 +110,7 @@ class DateTime(types.TypeDecorator):
     _rx_tz = re.compile('[+-]')
 
     def process_bind_param(self, value, dialect):
-        if not isinstance(value, basestring):
+        if not isinstance(value, str):
             return value
         try:
             DateTime._dayfirst
@@ -140,7 +138,7 @@ class Date(types.TypeDecorator):
     impl = types.Date
 
     def process_bind_param(self, value, dialect):
-        if not isinstance(value, basestring):
+        if not isinstance(value, str):
             return value
         try:
             Date._dayfirst

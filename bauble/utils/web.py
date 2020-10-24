@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-#
 # Copyright 2008-2010 Brett Adams
 # Copyright 2014-2017 Mario Frasca <mario@anche.no>.
 # Copyright 2016 Ross Demuth <rossdemuth123@gmail.com>
@@ -20,7 +18,7 @@
 # along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
 
 
-import gtk
+from gi.repository import Gtk
 import re
 
 import logging
@@ -47,16 +45,16 @@ def _open_link(*args, **kwargs):
     else:
         desktop.open(data)
 
-gtk.link_button_set_uri_hook(_open_link)
+Gtk.link_button_set_uri_hook(_open_link)
 
 
-class BaubleLinkButton(gtk.LinkButton):
+class BaubleLinkButton(Gtk.LinkButton):
 
     _base_uri = "%s"
     _space = "_"
     title = _("Search")
     tooltip = None
-    pt = re.compile(ur'%\(([a-z_\.]*)\)s')
+    pt = re.compile(r'%\(([a-z_\.]*)\)s')
 
     def __init__(self, title=_("Search"), tooltip=None):
         super(BaubleLinkButton, self).__init__("", self.title)

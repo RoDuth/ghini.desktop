@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-#
 # Copyright 2018 Mario Frasca <mario@anche.no>.
 # Copyright 2018 Tanager Botanical Garden <tanagertourism@gmail.com>
 #
@@ -21,8 +19,8 @@
 # implements the xmlrcp server for the p2d and d2p streams
 #
 
-from __future__ import print_function
-from __future__ import unicode_literals
+
+
 
 import logging
 logger = logging.getLogger(__name__)
@@ -69,8 +67,8 @@ def get_code():
 
 
 from threading import Thread
-from SimpleXMLRPCServer import SimpleXMLRPCServer
-from SimpleXMLRPCServer import SimpleXMLRPCRequestHandler
+from xmlrpc.server import SimpleXMLRPCServer
+from xmlrpc.server import SimpleXMLRPCRequestHandler
 
 
 class RequestHandler(SimpleXMLRPCRequestHandler):
@@ -256,7 +254,7 @@ class PocketServerPresenter(GenericEditorPresenter):
         if row is None:
             row = meta.BaubleMeta(name='pocket-clients')
             self.session.add(row)
-        row.value = unicode(dict((i[1], i[2]) for i in self.clients_ls))
+        row.value = str(dict((i[1], i[2]) for i in self.clients_ls))
         self.session.commit()
 
     def treeview_changed(self, widget, event, data=None):

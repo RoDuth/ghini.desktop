@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-#
 # Copyright 2008-2010 Brett Adams
 # Copyright 2015 Mario Frasca <mario@anche.no>.
 #
@@ -34,12 +32,12 @@ def requests_get(x, timeout=None):
     }
     result = type('FooBar', (object,), {})()
     result.text = answers.get(x, "")
-    print x
+    print(x)
     return result
 
 requests.get = requests_get
 
-from ask_tpl import AskTPL, what_to_do_with_it
+from .ask_tpl import AskTPL, what_to_do_with_it
 
 class TestOne(BaubleTestCase):
 
@@ -48,25 +46,25 @@ class TestOne(BaubleTestCase):
         binomial = 'Mangifera indica'
         AskTPL(binomial, what_to_do_with_it, timeout=2).run()
         infolog = self.handler.messages['bauble.plugins.plants.ask_tpl']['info']
-        self.assertEquals(len(infolog), 1)
-        self.assertEquals(infolog[0], 'Mangifera indica L. (Anacardiaceae)')
+        self.assertEqual(len(infolog), 1)
+        self.assertEqual(infolog[0], 'Mangifera indica L. (Anacardiaceae)')
 
     def test_taxon_is_synonym(self):
         self.handler.reset()
         binomial = 'Iris florentina'
         AskTPL(binomial, what_to_do_with_it, timeout=2).run()
         infolog = self.handler.messages['bauble.plugins.plants.ask_tpl']['info']
-        self.assertEquals(len(infolog), 2)
-        self.assertEquals(infolog[0], 'Iris \xc3\x97florentina L. (Iridaceae)')
-        self.assertEquals(infolog[1], 'Iris \xc3\x97germanica L. (Iridaceae) - is its accepted form')
+        self.assertEqual(len(infolog), 2)
+        self.assertEqual(infolog[0], 'Iris \xc3\x97florentina L. (Iridaceae)')
+        self.assertEqual(infolog[1], 'Iris \xc3\x97germanica L. (Iridaceae) - is its accepted form')
 
     def test_empty_answer(self):
         self.handler.reset()
         binomial = 'Manducaria italica'
         AskTPL(binomial, what_to_do_with_it, timeout=2).run()
         infolog = self.handler.messages['bauble.plugins.plants.ask_tpl']['info']
-        self.assertEquals(len(infolog), 1)
-        self.assertEquals(infolog[0], 'nothing matches')
+        self.assertEqual(len(infolog), 1)
+        self.assertEqual(infolog[0], 'nothing matches')
 
     def test_do_not_run_same_query_twice(self):
         self.handler.reset()

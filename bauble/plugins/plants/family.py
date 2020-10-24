@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-#
 # Copyright 2008-2010 Brett Adams
 # Copyright 2014-2015 Mario Frasca <mario@anche.no>.
 # Copyright 2017 Jardín Botánico de Quito
@@ -25,7 +23,7 @@ import os
 import traceback
 import weakref
 
-import gtk
+from gi.repository import Gtk
 
 import logging
 logger = logging.getLogger(__name__)
@@ -84,7 +82,7 @@ def remove_callback(families):
         msg = (_('The family <i>%(1)s</i> has %(2)s genera.'
                  '\n\n') % {'1': safe_str, '2': ngen} +
                _('You cannot remove a family with genera.'))
-        utils.message_dialog(msg, type=gtk.MESSAGE_WARNING)
+        utils.message_dialog(msg, type=Gtk.MessageType.WARNING)
         return
     else:
         msg = _("Are you sure you want to remove the family <i>%s</i>?") \
@@ -95,10 +93,10 @@ def remove_callback(families):
         obj = session.query(Family).get(family.id)
         session.delete(obj)
         session.commit()
-    except Exception, e:
+    except Exception as e:
         msg = _('Could not delete.\n\n%s') % utils.xml_safe(e)
         utils.message_details_dialog(msg, traceback.format_exc(),
-                                     type=gtk.MESSAGE_ERROR)
+                                     type=Gtk.MessageType.ERROR)
     finally:
         session.close()
     return True
@@ -176,8 +174,8 @@ class Family(db.Base, db.Serializable, db.WithNotes):
 
     # we use the blank string here instead of None so that the
     # contraints will work properly,
-    qualifier = Column(types.Enum(values=[u's. lat.', u's. str.', u'']),
-                       default=u'')
+    qualifier = Column(types.Enum(values=['s. lat.', 's. str.', '']),
+                       default='')
 
     # relations
     # `genera` relation is defined outside of `Family` class definition
@@ -455,7 +453,7 @@ class FamilyEditorPresenter(editor.GenericEditorPresenter):
             or self.notes_presenter.dirty()
 
     def refresh_view(self):
-        for widget, field in self.widget_to_field_map.iteritems():
+        for widget, field in self.widget_to_field_map.items():
             value = getattr(self.model, field)
             self.view.widget_set_value(widget, value)
 
@@ -512,7 +510,7 @@ class SynonymsPresenter(editor.GenericEditorPresenter):
 
     def init_treeview(self):
         '''
-        initialize the gtk.TreeView
+        initialize the Gtk.TreeView
         '''
         self.treeview = self.view.widgets.fam_syn_treeview
         # remove any columns that were setup previous, this became a
@@ -530,12 +528,12 @@ class SynonymsPresenter(editor.GenericEditorPresenter):
                 cell.set_property('foreground', 'blue')
             else:
                 cell.set_property('foreground', None)
-        cell = gtk.CellRendererText()
-        col = gtk.TreeViewColumn('Synonym', cell)
+        cell = Gtk.CellRendererText()
+        col = Gtk.TreeViewColumn('Synonym', cell)
         col.set_cell_data_func(cell, _syn_data_func)
         self.treeview.append_column(col)
 
-        tree_model = gtk.ListStore(object)
+        tree_model = Gtk.ListStore(object)
         for syn in self.model._synonyms:
             tree_model.append([syn])
         self.treeview.set_model(tree_model)
@@ -626,22 +624,22 @@ class FamilyEditor(editor.GenericModelViewPresenterEditor):
         None if we want to keep editing
         '''
         not_ok_msg = 'Are you sure you want to lose your changes?'
-        if response == gtk.RESPONSE_OK or response in self.ok_responses:
+        if response == Gtk.ResponseType.OK or response in self.ok_responses:
             try:
                 if self.presenter.dirty():
                     self.commit_changes()
                     self._committed.append(self.model)
-            except DBAPIError, e:
+            except DBAPIError as e:
                 msg = _('Error committing changes.\n\n%s') % \
                     utils.xml_safe(e.orig)
-                utils.message_details_dialog(msg, str(e), gtk.MESSAGE_ERROR)
+                utils.message_details_dialog(msg, str(e), Gtk.MessageType.ERROR)
                 return False
-            except Exception, e:
+            except Exception as e:
                 msg = _('Unknown error when committing changes. See the '
                         'details for more information.\n\n%s') % \
                     utils.xml_safe(e)
                 utils.message_details_dialog(msg, traceback.format_exc(),
-                                             gtk.MESSAGE_ERROR)
+                                             Gtk.MessageType.ERROR)
                 return False
         elif (self.presenter.dirty() and utils.yes_no_dialog(not_ok_msg)) or \
                 not self.presenter.dirty():
@@ -704,7 +702,7 @@ class GeneralFamilyExpander(InfoExpander):
         InfoExpander.__init__(self, _("General"), widgets)
         general_box = self.widgets.fam_general_box
         self.widgets.remove_parent(general_box)
-        self.vbox.pack_start(general_box)
+        self.vbox.pack_start(general_box, True, True, 0)
 
         def on_ngen_clicked(*args):
             f = self.current_obj
@@ -808,7 +806,7 @@ class SynonymsExpander(InfoExpander):
         InfoExpander.__init__(self, _("Synonyms"), widgets)
         synonyms_box = self.widgets.fam_synonyms_box
         self.widgets.remove_parent(synonyms_box)
-        self.vbox.pack_start(synonyms_box)
+        self.vbox.pack_start(synonyms_box, True, True, 0)
 
     def update(self, row):
         '''
@@ -829,8 +827,8 @@ class SynonymsExpander(InfoExpander):
             on_clicked = lambda l, e, syn: select_in_search_results(syn)
             # create clickable label that will select the synonym
             # in the search results
-            box = gtk.EventBox()
-            label = gtk.Label()
+            box = Gtk.EventBox()
+            label = Gtk.Label()
             label.set_alignment(0, .5)
             label.set_markup(Family.str(row.accepted, author=True))
             box.add(label)
@@ -845,8 +843,8 @@ class SynonymsExpander(InfoExpander):
             for syn in row.synonyms:
                 # create clickable label that will select the synonym
                 # in the search results
-                box = gtk.EventBox()
-                label = gtk.Label()
+                box = Gtk.EventBox()
+                label = Gtk.Label()
                 label.set_alignment(0, .5)
                 label.set_markup(Family.str(syn))
                 box.add(label)
@@ -954,7 +952,7 @@ class FamilyInfoBox(InfoBox):
             for i in button_defaults:
                 prefs[self.family_web_button_defs_prefs + '.'
                       + i.get('name')] = {
-                          k: v for k, v in i.items() if k != 'name'
+                          k: v for k, v in list(i.items()) if k != 'name'
                       }
             prefs.save()
 

@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-#
 # Copyright 2017 Mario Frasca <mario@anche.no>.
 # Copyright 2017 Jardín Botánico de Quito
 #
@@ -99,8 +97,8 @@ class ExportToPocketThread(threading.Thread):
     def run(self):
         from bauble.plugins.plants import Species
         if self.progressbar:
-            gobject.idle_add(self.progressbar.show)
-            gobject.idle_add(self.progressbar.set_fraction, 0)
+            GObject.idle_add(self.progressbar.show)
+            GObject.idle_add(self.progressbar.set_fraction, 0)
         session = db.Session()
         plant_query = (session.query(Plant)
                        .order_by(Plant.code)
@@ -128,10 +126,10 @@ class ExportToPocketThread(threading.Thread):
                        (i.id, i.genus.family.epithet, i.genus.epithet, i.epithet,
                         i.infraspecific_rank, i.infraspecific_epithet,
                         i.infraspecific_author or i.sp_author or ''))
-            except Exception, e:
+            except Exception as e:
                 logger.info("error exporting species %s: %s %s" % (i.id, type(e), e))
             if self.progressbar:
-                gobject.idle_add(self.progressbar.set_fraction, 0.05 * count / len(species))
+                GObject.idle_add(self.progressbar.set_fraction, 0.05 * count / len(species))
             count += 1
             if not self.keep_running:
                 break
@@ -146,10 +144,10 @@ class ExportToPocketThread(threading.Thread):
                            '(_id, code, species_id, source, start_date) '
                            'VALUES (?, ?, ?, ?, ?);',
                            (i.id, i.code, i.species_id, source_name, i.date_accd))
-            except Exception, e:
+            except Exception as e:
                 logger.info("error exporting accession %s: %s %s" % (i.id, type(e), e))
             if self.progressbar:
-                gobject.idle_add(self.progressbar.set_fraction, 0.05 + 0.4 * count / len(accessions))
+                GObject.idle_add(self.progressbar.set_fraction, 0.05 + 0.4 * count / len(accessions))
             count += 1
             if not self.keep_running:
                 break
@@ -160,19 +158,19 @@ class ExportToPocketThread(threading.Thread):
                            '(_id, accession_id, code, location, end_date, n_of_pics, quantity) '
                            'VALUES (?, ?, ?, ?, ?, ?, ?);',
                            (i.id, i.accession_id, "." + i.code, i.location.code, i.date_of_death, len(i.pictures), i.quantity))
-            except Exception, e:
+            except Exception as e:
                 logger.info("error exporting plant %s: %s %s" % (i.id, type(e), e))
             if self.progressbar:
-                gobject.idle_add(self.progressbar.set_fraction, 0.45 + 0.55 * count / len(plants))
+                GObject.idle_add(self.progressbar.set_fraction, 0.45 + 0.55 * count / len(plants))
             count += 1
             if not self.keep_running:
                 break
         cn.commit()
         session.close()
         if self.progressbar:
-            gobject.idle_add(self.progressbar.hide)
+            GObject.idle_add(self.progressbar.hide)
         if self.callback is not None:
-            gobject.idle_add(self.callback)
+            GObject.idle_add(self.callback)
         return True
 
     def cancel(self):

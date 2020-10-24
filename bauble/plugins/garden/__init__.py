@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-#
 # Copyright 2008-2010 Brett Adams
 # Copyright 2015 Mario Frasca <mario@anche.no>.
 # Copyright 2017 Jardín Botánico de Quito
@@ -125,7 +123,7 @@ class GardenPlugin(pluginmgr.Plugin):
             context_menu=collection_context_menu)
 
         # done here b/c the Species table is not part of this plugin
-        SearchView.row_meta[Species].child = "accessions"
+        SearchView.row_meta[Species].get_child() = "accessions"
 
         if bauble.gui is not None:
             bauble.gui.add_to_insert_menu(AccessionEditor, _('Accession'))
@@ -161,25 +159,25 @@ def init_location_comboentry(presenter, combo, on_select, required=True):
     def cell_data_func(col, cell, model, treeiter, data=None):
         cell.props.text = utils.utf8(model[treeiter][0])
 
-    import gtk
-    completion = gtk.EntryCompletion()
-    cell = gtk.CellRendererText()  # set up the completion renderer
-    completion.pack_start(cell)
+    from gi.repository import Gtk
+    completion = Gtk.EntryCompletion()
+    cell = Gtk.CellRendererText()  # set up the completion renderer
+    completion.pack_start(cell, True, True, 0)
     completion.set_cell_data_func(cell, cell_data_func)
     completion.props.popup_set_width = False
 
-    entry = combo.child
+    entry = combo.get_child()
     entry.set_completion(completion)
 
     combo.clear()
-    cell = gtk.CellRendererText()
-    combo.pack_start(cell)
+    cell = Gtk.CellRendererText()
+    combo.pack_start(cell, True, True, 0)
     combo.set_cell_data_func(cell, cell_data_func)
 
-    model = gtk.ListStore(object)
+    model = Gtk.ListStore(object)
     locations = [''] + sorted(presenter.session.query(Location).all(),
                        key=lambda loc: utils.natsort_key(loc.code))
-    map(lambda loc: model.append([loc]), locations)
+    list(map(lambda loc: model.append([loc]), locations))
     combo.set_model(model)
     completion.set_model(model)
 
@@ -255,7 +253,7 @@ def init_location_comboentry(presenter, combo, on_select, required=True):
         if not i:
             return
         location = combo.get_model()[i][0]
-        combo.child.props.text = str(location)
+        combo.get_child().props.text = str(location)
     presenter.view.connect(combo, 'changed', on_combo_changed)
 
 

@@ -25,7 +25,7 @@
 # will query tropicos and generate a json file for the same species, but
 # with authorship. pipe the output to a different json file.
 
-from __future__ import print_function
+
 
 import sys
 import json

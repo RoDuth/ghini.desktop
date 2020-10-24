@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-#
 # Copyright 2015 Mario Frasca <mario@anche.no>.
 #
 # This file is part of ghini.desktop.

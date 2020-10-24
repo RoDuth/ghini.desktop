@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-#
 # Copyright 2008-2010 Brett Adams
 # Copyright 2015-2017 Mario Frasca <mario@anche.no>.
 # Copyright 2017 Jardín Botánico de Quito
@@ -32,7 +30,7 @@ import logging
 logger = logging.getLogger(__name__)
 # logger.setLevel(logging.DEBUG)
 
-import gtk
+from gi.repository import Gtk
 
 
 from sqlalchemy import and_, func
@@ -63,8 +61,8 @@ import bauble.view as view
 # location combo that shows the description of the currently selected
 # location
 
-plant_delimiter_key = u'plant_delimiter'
-default_plant_delimiter = u'.'
+plant_delimiter_key = 'plant_delimiter'
+default_plant_delimiter = '.'
 
 
 def edit_callback(plants):
@@ -76,7 +74,7 @@ def branch_callback(plants):
     if plants[0].quantity <= 1:
         msg = _("Not enough plants to split.  A plant should have at least "
                 "a quantity of 2 before it can be divided")
-        utils.message_dialog(msg, gtk.MESSAGE_WARNING)
+        utils.message_dialog(msg, Gtk.MessageType.WARNING)
         return
 
     e = PlantEditor(model=plants[0], branch_mode=True)
@@ -96,11 +94,11 @@ def remove_callback(plants):
         session.delete(obj)
     try:
         session.commit()
-    except Exception, e:
+    except Exception as e:
         msg = _('Could not delete.\n\n%s') % utils.xml_safe(e)
 
         utils.message_details_dialog(msg, traceback.format_exc(),
-                                     type=gtk.MESSAGE_ERROR)
+                                     type=Gtk.MessageType.ERROR)
     finally:
         session.close()
     return True
@@ -139,7 +137,7 @@ def get_next_code(acc):
     if codes:
         try:
             next = max([int(code[0]) for code in codes])+1
-        except Exception, e:
+        except Exception as e:
             logger.debug("%s(%s)" % (type(e).__name__, e))
             return None
     return utils.utf8(next)
@@ -155,7 +153,7 @@ def is_code_unique(plant, code):
     # if the range builder only creates one number then we assume the
     # code is not a range and so we test against the string version of
     # code
-    codes = map(utils.utf8, utils.range_builder(code))  # test if a range
+    codes = list(map(utils.utf8, utils.range_builder(code)))  # test if a range
     if len(codes) == 1:
         codes = [utils.utf8(code)]
 
@@ -198,10 +196,10 @@ class PlantSearch(SearchStrategy):
         try:
             from bauble.plugins.garden import Accession
             query = session.query(Plant).filter(
-                Plant.code == unicode(plant_code)).join(Accession).filter(
-                utils.ilike(Accession.code, u'%%%s' % unicode(acc_code)))
+                Plant.code == str(plant_code)).join(Accession).filter(
+                utils.ilike(Accession.code, '%%%s' % str(acc_code)))
             return query.all()
-        except Exception, e:
+        except Exception as e:
             logger.debug("%s %s" % (e.__class__.name, e))
             return []
 
@@ -218,8 +216,8 @@ def retrieve(cls, session, keys):
         acc_code, plant_code = keys['plant'].rsplit(
             Plant.get_delimiter(), 1)
         q = q.join(
-            Plant).filter(Plant.code == unicode(plant_code)).join(
-            Accession).filter(Accession.code == unicode(acc_code))
+            Plant).filter(Plant.code == str(plant_code)).join(
+            Accession).filter(Accession.code == str(acc_code))
     if 'date' in keys:
         q = q.filter(cls.date == keys['date'])
     if 'category' in keys:
@@ -237,8 +235,8 @@ def compute_serializable_fields(cls, session, keys):
         Plant.get_delimiter(), 1)
     logger.debug("acc-plant: %s-%s" % (acc_code, plant_code))
     q = session.query(Plant).filter(
-        Plant.code == unicode(plant_code)).join(
-        Accession).filter(Accession.code == unicode(acc_code))
+        Plant.code == str(plant_code)).join(
+        Accession).filter(Accession.code == str(acc_code))
     plant = q.one()
 
     result['plant'] = plant
@@ -249,26 +247,26 @@ PlantNote = db.make_note_class('Plant', compute_serializable_fields, as_dict, re
 
 
 change_reasons = {
-    u'DEAD': _('Dead'),
-    u'DELE': _('Deleted, yr. dead. unknown'),
-    u'DNGM': _('Did not germinate'),
-    u'DISC': _('Discarded'),
-    u'DISW': _('Discarded, weedy'),
-    u'DISN': _('Discarded, seedling in nursery'),
-    u'DIST': _('Distributed elsewhere'),
-    u'ERRO': _('Error correction'),
-    u'GIVE': _('Given away (specify person)'),
-    u'HOSP': _('Hospitalised'),
-    u'LOST': _('Lost, whereabouts unknown'),
-    u'QUAR': _('Quarantined'),
-    u'STOL': _('Stolen'),
-    U'SUMK': _('Summer Kill'),
-    u'ASS#': _('Transferred to another acc.no.'),
-    u'TRAN': _('Transplanted to another area'),
-    u'VAND': _('Vandalised'),
-    u'WINK': _('Winter kill'),
-    u'WETH': _('Weather or natural event'),
-    u'OTHR': _('Other'),
+    'DEAD': _('Dead'),
+    'DELE': _('Deleted, yr. dead. unknown'),
+    'DNGM': _('Did not germinate'),
+    'DISC': _('Discarded'),
+    'DISW': _('Discarded, weedy'),
+    'DISN': _('Discarded, seedling in nursery'),
+    'DIST': _('Distributed elsewhere'),
+    'ERRO': _('Error correction'),
+    'GIVE': _('Given away (specify person)'),
+    'HOSP': _('Hospitalised'),
+    'LOST': _('Lost, whereabouts unknown'),
+    'QUAR': _('Quarantined'),
+    'STOL': _('Stolen'),
+    'SUMK': _('Summer Kill'),
+    'ASS#': _('Transferred to another acc.no.'),
+    'TRAN': _('Transplanted to another area'),
+    'VAND': _('Vandalised'),
+    'WINK': _('Winter kill'),
+    'WETH': _('Weather or natural event'),
+    'OTHR': _('Other'),
     None: ''
     }
 
@@ -294,7 +292,7 @@ class PlantChange(db.Base):
     quantity = Column(Integer, autoincrement=False, nullable=False)
     note_id = Column(Integer, ForeignKey('plant_note.id'))
 
-    reason = Column(types.Enum(values=change_reasons.keys(),
+    reason = Column(types.Enum(values=list(change_reasons.keys()),
                                translations=change_reasons))
 
     # date of change
@@ -316,34 +314,34 @@ class PlantChange(db.Base):
 
 
 condition_values = {
-    u'Excellent': _('Excellent'),
-    u'Good': _('Good'),
-    u'Fair': _('Fair'),
-    u'Poor': _('Poor'),
-    u'Questionable': _('Questionable'),
-    u'Indistinguishable': _('Indistinguishable Mass'),
-    u'UnableToLocate': _('Unable to Locate'),
-    u'Dead': _('Dead'),
+    'Excellent': _('Excellent'),
+    'Good': _('Good'),
+    'Fair': _('Fair'),
+    'Poor': _('Poor'),
+    'Questionable': _('Questionable'),
+    'Indistinguishable': _('Indistinguishable Mass'),
+    'UnableToLocate': _('Unable to Locate'),
+    'Dead': _('Dead'),
     None: ''}
 
 flowering_values = {
-    u'Immature': _('Immature'),
-    u'Flowering': _('Flowering'),
-    u'Old': _('Old Flowers'),
+    'Immature': _('Immature'),
+    'Flowering': _('Flowering'),
+    'Old': _('Old Flowers'),
     None: ''}
 
 fruiting_values = {
-    u'Unripe': _('Unripe'),
-    u'Ripe': _('Ripe'),
+    'Unripe': _('Unripe'),
+    'Ripe': _('Ripe'),
     None: '',
 }
 
 # TODO: should sex be recorded at the species, accession or plant
 # level or just as part of a check since sex can change in some species
 sex_values = {
-    u'Female': _('Female'),
-    u'Male': _('Male'),
-    u'Both': ''}
+    'Female': _('Female'),
+    'Male': _('Male'),
+    'Both': ''}
 
 # class Container(db.Base):
 #     __tablename__ = 'container'
@@ -361,32 +359,32 @@ class PlantStatus(db.Base):
     """
     __tablename__ = 'plant_status'
     date = Column(types.Date, default=func.now())
-    condition = Column(types.Enum(values=condition_values.keys(),
+    condition = Column(types.Enum(values=list(condition_values.keys()),
                                   translations=condition_values))
     comment = Column(UnicodeText)
     checked_by = Column(Unicode(64))
 
-    flowering_status = Column(types.Enum(values=flowering_values.keys(),
+    flowering_status = Column(types.Enum(values=list(flowering_values.keys()),
                                          translations=flowering_values))
-    fruiting_status = Column(types.Enum(values=fruiting_values.keys(),
+    fruiting_status = Column(types.Enum(values=list(fruiting_values.keys()),
                                         translations=fruiting_values))
 
     autumn_color_pct = Column(Integer, autoincrement=False)
     leaf_drop_pct = Column(Integer, autoincrement=False)
     leaf_emergence_pct = Column(Integer, autoincrement=False)
 
-    sex = Column(types.Enum(values=sex_values.keys(),
+    sex = Column(types.Enum(values=list(sex_values.keys()),
                             translations=sex_values))
 
     # TODO: needs container table
     #container_id = Column(Integer)
 
 
-acc_type_values = {u'Plant': _('Plant'),
-                   u'Seed': _('Seed/Spore'),
-                   u'Vegetative': _('Vegetative Part'),
-                   u'Tissue': _('Tissue Culture'),
-                   u'Other': _('Other'),
+acc_type_values = {'Plant': _('Plant'),
+                   'Seed': _('Seed/Spore'),
+                   'Vegetative': _('Vegetative Part'),
+                   'Tissue': _('Tissue Culture'),
+                   'Other': _('Other'),
                    None: ''}
 
 
@@ -444,7 +442,7 @@ class Plant(db.Base, db.Serializable, db.DefiningPictures, db.WithNotes):
             return None
         return value.strip()
 
-    acc_type = Column(types.Enum(values=acc_type_values.keys(),
+    acc_type = Column(types.Enum(values=list(acc_type_values.keys()),
                                  translations=acc_type_values),
                       default=None)
     memorial = Column(Boolean, default=False)
@@ -520,8 +518,7 @@ class Plant(db.Base, db.Serializable, db.DefiningPictures, db.WithNotes):
                 session.add(plant)
 
         ignore = ('id', 'code', 'changes', 'notes', 'propagations', '_created')
-        properties = filter(lambda p: p.key not in ignore,
-                            object_mapper(self).iterate_properties)
+        properties = [p for p in object_mapper(self).iterate_properties if p.key not in ignore]
         for prop in properties:
             setattr(plant, prop.key, getattr(self, prop.key))
         plant.code = code
@@ -603,7 +600,7 @@ class PlantEditorView(GenericEditorView):
             'The location of the planting in your collection.'),
         'plant_acc_type_combo': _('The type of the plant material.\n\n'
                                   'Possible values: %s') % (
-            ', '.join(acc_type_values.values())),
+            ', '.join(list(acc_type_values.values()))),
         'plant_loc_add_button': _('Create a new location.'),
         'plant_loc_edit_button': _('Edit the selected location.'),
         'prop_add_button': _(
@@ -681,7 +678,7 @@ class PlantEditorPresenter(GenericEditorPresenter):
 
         # set default values for acc_type
         if self.model.id is None and self.model.acc_type is None:
-            self.model.acc_type = u'Plant'
+            self.model.acc_type = 'Plant'
 
         notes_parent = self.view.widgets.notes_parent_box
         notes_parent.foreach(notes_parent.remove)
@@ -742,7 +739,7 @@ class PlantEditorPresenter(GenericEditorPresenter):
         # been filled in
         def acc_get_completions(text):
             query = self.session.query(Accession)
-            return query.filter(Accession.code.like(unicode('%s%%' % text))).\
+            return query.filter(Accession.code.like(str('%s%%' % text))).\
                 order_by(Accession.code)
 
         def on_select(value):
@@ -804,7 +801,7 @@ class PlantEditorPresenter(GenericEditorPresenter):
         value = entry.props.text
         try:
             value = int(value)
-        except ValueError, e:
+        except ValueError as e:
             logger.debug("%s(%s)" % (type(e).__name__, e))
             value = None
         self.set_model_attr('quantity', value)
@@ -827,7 +824,7 @@ class PlantEditorPresenter(GenericEditorPresenter):
         Validates the accession number and the plant code from the editors.
         """
         text = utils.utf8(entry.get_text())
-        if text == u'':
+        if text == '':
             self.set_model_attr('code', None)
         else:
             self.set_model_attr('code', utils.utf8(text))
@@ -849,8 +846,8 @@ class PlantEditorPresenter(GenericEditorPresenter):
         else:
             # remove_problem() won't complain if problem doesn't exist
             self.remove_problem(self.PROBLEM_DUPLICATE_PLANT_CODE, entry)
-            entry.modify_bg(gtk.STATE_NORMAL, None)
-            entry.modify_base(gtk.STATE_NORMAL, None)
+            entry.modify_bg(Gtk.StateType.NORMAL, None)
+            entry.modify_base(Gtk.StateType.NORMAL, None)
             entry.queue_draw()
 
         self.refresh_sensitivity()
@@ -864,7 +861,7 @@ class PlantEditorPresenter(GenericEditorPresenter):
                           self.model.quantity is not None,
                           self.is_dirty(),
                           len(self.problems) == 0))
-        except OperationalError, e:
+        except OperationalError as e:
             logger.debug('(%s)%s' % (type(e), e))
             return
         logger.debug(self.problems)
@@ -873,7 +870,7 @@ class PlantEditorPresenter(GenericEditorPresenter):
         # character is entered then the edit button doesn't sensitize
         # properly
         #
-        # combo_entry = self.view.widgets.plant_loc_comboentry.child
+        # combo_entry = self.view.widgets.plant_loc_comboentry.get_child()
         # self.view.widgets.plant_loc_edit_button.\
         #     set_sensitive(self.model.location is not None \
         #                       and not self.has_problems(combo_entry))
@@ -916,7 +913,7 @@ class PlantEditorPresenter(GenericEditorPresenter):
         self.initializing = initializing
         if prefs.testing:
             return
-        for widget, field in self.widget_to_field_map.iteritems():
+        for widget, field in self.widget_to_field_map.items():
             value = getattr(self.model, field)
             self.view.widget_set_value(widget, value)
             logger.debug('%s: %s = %s' % (widget, field, value))
@@ -933,7 +930,7 @@ class PlantEditorPresenter(GenericEditorPresenter):
     def cleanup(self):
         super(PlantEditorPresenter, self).cleanup()
         msg_box_parent = self.view.widgets.message_box_parent
-        map(msg_box_parent.remove, msg_box_parent.get_children())
+        list(map(msg_box_parent.remove, msg_box_parent.get_children()))
         # the entry is made not editable for branch mode
         self.view.widgets.plant_acc_entry.props.editable = True
         self.view.get_window().props.title = _('Plant Editor')
@@ -1083,7 +1080,7 @@ class PlantEditor(GenericModelViewPresenterEditor):
                     setattr(new_note, prop.key, getattr(note, prop.key))
                 new_note.plant = new_plant
         try:
-            map(self.session.expunge, self.model.notes)
+            list(map(self.session.expunge, self.model.notes))
             self.session.expunge(self.model)
             super(PlantEditor, self).commit_changes()
         except:
@@ -1093,26 +1090,26 @@ class PlantEditor(GenericModelViewPresenterEditor):
 
     def handle_response(self, response):
         not_ok_msg = _('Are you sure you want to lose your changes?')
-        if response == gtk.RESPONSE_OK or response in self.ok_responses:
+        if response == Gtk.ResponseType.OK or response in self.ok_responses:
             try:
                 if self.presenter.is_dirty():
                     # commit_changes() will append the commited plants
                     # to self._committed
                     self.commit_changes()
-            except DBAPIError, e:
+            except DBAPIError as e:
                 exc = traceback.format_exc()
                 logger.debug(exc)
                 msg = _('Error committing changes.\n\n%s') % e.orig
-                utils.message_details_dialog(msg, str(e), gtk.MESSAGE_ERROR)
+                utils.message_details_dialog(msg, str(e), Gtk.MessageType.ERROR)
                 self.session.rollback()
                 return False
-            except Exception, e:
+            except Exception as e:
                 msg = _('Unknown error when committing changes. See the '
                         'details for more information.\n\n%s') \
                     % utils.xml_safe(e)
                 logger.debug(traceback.format_exc())
                 utils.message_details_dialog(msg, traceback.format_exc(),
-                                             gtk.MESSAGE_ERROR)
+                                             Gtk.MessageType.ERROR)
                 self.session.rollback()
                 return False
         elif (self.presenter.is_dirty() and utils.yes_no_dialog(not_ok_msg)) \
@@ -1167,7 +1164,7 @@ class PlantEditor(GenericModelViewPresenterEditor):
             self.presenter.view.get_window().props.title += \
                 utils.utf8(' - %s' % _('Split Mode'))
             message_box_parent = self.presenter.view.widgets.message_box_parent
-            map(message_box_parent.remove, message_box_parent.get_children())
+            list(map(message_box_parent.remove, message_box_parent.get_children()))
             msg = _('Splitting from %(plant_code)s.  The quantity will '
                     'be subtracted from %(plant_code)s') \
                 % {'plant_code': str(self.branched_plant)}
@@ -1201,7 +1198,7 @@ class GeneralPlantExpander(InfoExpander):
         super(GeneralPlantExpander, self).__init__(_("General"), widgets)
         general_box = self.widgets.general_box
         self.widgets.remove_parent(general_box)
-        self.vbox.pack_start(general_box)
+        self.vbox.pack_start(general_box, True, True, 0)
         self.current_obj = None
 
         def on_acc_code_clicked(*args):
@@ -1230,10 +1227,10 @@ class GeneralPlantExpander(InfoExpander):
         head, tail = plant_code[:len(acc_code)], plant_code[len(acc_code):]
 
         self.widget_set_value('acc_code_data', '<big>%s</big>' %
-                              utils.xml_safe(unicode(head)),
+                              utils.xml_safe(str(head)),
                               markup=True)
         self.widget_set_value('plant_code_data', '<big>%s</big>' %
-                              utils.xml_safe(unicode(tail)), markup=True)
+                              utils.xml_safe(str(tail)), markup=True)
         self.widget_set_value('name_data',
                               row.accession.species_str(markup=True),
                               markup=True)
@@ -1248,10 +1245,10 @@ class GeneralPlantExpander(InfoExpander):
         self.widget_set_value('type_data', acc_type_values[row.acc_type],
                               False)
 
-        image_size = gtk.ICON_SIZE_MENU
-        stock = gtk.STOCK_NO
+        image_size = Gtk.IconSize.MENU
+        stock = Gtk.STOCK_NO
         if row.memorial:
-            stock = gtk.STOCK_YES
+            stock = Gtk.STOCK_YES
         self.widgets.memorial_image.set_from_stock(stock, image_size)
 
 
@@ -1265,7 +1262,7 @@ class ChangesExpander(InfoExpander):
         """
         super(ChangesExpander, self).__init__(_('Changes'), widgets)
         self.vbox.props.spacing = 5
-        self.table = gtk.Table()
+        self.table = Gtk.Table()
         self.vbox.pack_start(self.table, expand=False, fill=False)
         self.table.props.row_spacing = 3
         self.table.props.column_spacing = 5
@@ -1310,10 +1307,10 @@ class ChangesExpander(InfoExpander):
                 divided_plant = None
 
             date = change.date.strftime(date_format)
-            label = gtk.Label('%s:' % date)
+            label = Gtk.Label(label='%s:' % date)
             label.set_alignment(0, 0)
             self.table.attach(label, 0, 1, current_row, current_row+1,
-                              xoptions=gtk.FILL)
+                              xoptions=Gtk.AttachOptions.FILL)
             if change.to_location and change.from_location:
                 s = '%(quantity)s Transferred from %(from_loc)s to %(to)s' % \
                     dict(quantity=change.quantity,
@@ -1330,21 +1327,21 @@ class ChangesExpander(InfoExpander):
                                       change.to_location)
             if change.reason is not None:
                 s += '\n%s' % change_reasons[change.reason]
-            label = gtk.Label(s)
+            label = Gtk.Label(label=s)
             label.set_alignment(0, .5)
             self.table.attach(label, 1, 2, current_row, current_row+1,
-                              xoptions=gtk.FILL)
+                              xoptions=Gtk.AttachOptions.FILL)
             current_row += 1
             if change.parent_plant:
                 s = _('<i>Split from %(plant)s</i>') % \
                     dict(plant=utils.xml_safe(change.parent_plant))
-                label = gtk.Label()
+                label = Gtk.Label()
                 label.set_alignment(0.0, 0.0)
                 label.set_markup(s)
-                eb = gtk.EventBox()
+                eb = Gtk.EventBox()
                 eb.add(label)
                 self.table.attach(eb, 1, 2, current_row, current_row+1,
-                                  xoptions=gtk.FILL)
+                                  xoptions=Gtk.AttachOptions.FILL)
 
                 def on_clicked(widget, event, parent):
                     select_in_search_results(parent)
@@ -1355,13 +1352,13 @@ class ChangesExpander(InfoExpander):
             if divided_plant:
                 s = _('<i>Split as %(plant)s</i>') % \
                     dict(plant=utils.xml_safe(divided_plant))
-                label = gtk.Label()
+                label = Gtk.Label()
                 label.set_alignment(0.0, 0.0)
                 label.set_markup(s)
-                eb = gtk.EventBox()
+                eb = Gtk.EventBox()
                 eb.add(label)
                 self.table.attach(eb, 1, 2, current_row, current_row+1,
-                                  xoptions=gtk.FILL)
+                                  xoptions=Gtk.AttachOptions.FILL)
 
                 def on_clicked(widget, event, parent):
                     select_in_search_results(parent)
@@ -1397,25 +1394,25 @@ class PropagationExpander(InfoExpander):
         format = prefs.prefs[prefs.date_format_pref]
         for prop in row.propagations:
             # (h1 (v1 (date_lbl)) (v2 (eventbox (accession_lbl)) (label)))
-            h1 = gtk.HBox()
+            h1 = Gtk.HBox()
             h1.set_spacing(3)
-            self.vbox.pack_start(h1)
+            self.vbox.pack_start(h1, True, True, 0)
 
-            v1 = gtk.VBox()
-            v2 = gtk.VBox()
-            h1.pack_start(v1)
-            h1.pack_start(v2)
+            v1 = Gtk.VBox()
+            v2 = Gtk.VBox()
+            h1.pack_start(v1, True, True, 0)
+            h1.pack_start(v2, True, True, 0)
 
-            date_lbl = gtk.Label()
-            v1.pack_start(date_lbl)
+            date_lbl = Gtk.Label()
+            v1.pack_start(date_lbl, True, True, 0)
             date_lbl.set_markup("<b>%s</b>" % prop.date.strftime(format))
             date_lbl.set_alignment(0.0, 0.0)
 
             for acc in prop.accessions:
-                accession_lbl = gtk.Label()
-                eventbox = gtk.EventBox()
+                accession_lbl = Gtk.Label()
+                eventbox = Gtk.EventBox()
                 eventbox.add(accession_lbl)
-                v2.pack_start(eventbox)
+                v2.pack_start(eventbox, True, True, 0)
                 accession_lbl.set_alignment(0.0, 0.0)
                 accession_lbl.set_text(acc.code)
 
@@ -1424,14 +1421,14 @@ class PropagationExpander(InfoExpander):
 
                 utils.make_label_clickable(accession_lbl, on_clicked, acc)
 
-            label = gtk.Label()
-            v2.pack_start(label)
+            label = Gtk.Label()
+            v2.pack_start(label, True, True, 0)
 
             label.set_text(prop.get_summary(partial=2))
             label.props.wrap = True
             label.set_alignment(0.0, 0.0)
             label.connect("size-allocate", label_size_allocate)
-            self.vbox.pack_start(label)
+            self.vbox.pack_start(label, True, True, 0)
         self.vbox.show_all()
 
 
@@ -1473,8 +1470,7 @@ class PlantInfoBox(InfoBox):
         self.transfers.update(row)
         self.propagations.update(row)
 
-        urls = filter(lambda x: x != [],
-                      [utils.get_urls(note.note) for note in row.notes])
+        urls = [x for x in [utils.get_urls(note.note) for note in row.notes] if x != []]
         if not urls:
             self.links.props.visible = False
             self.links._sep.props.visible = False

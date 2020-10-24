@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-#
 # Copyright (c) 2005,2006,2007,2008,2009 Brett Adams <brett@belizebotanic.org>
 # Copyright (c) 2012-2017 Mario Frasca <mario@anche.no>
 # Copyright 2017 Jardín Botánico de Quito
@@ -82,9 +80,9 @@ if paths.main_is_frozen():  # main is frozen
            os.pathsep, os.environ['PATH'])
 
 
-# if not hasattr(gtk.Widget, 'set_tooltip_markup'):
+# if not hasattr(Gtk.Widget, 'set_tooltip_markup'):
 #     msg = _('Ghini requires GTK+ version 2.12 or greater')
-#     utils.message_dialog(msg, gtk.MESSAGE_ERROR)
+#     utils.message_dialog(msg, Gtk.MessageType.ERROR)
 #     sys.exit(1)
 
 # make sure we look in the lib path for modules
@@ -130,18 +128,18 @@ def quit():
     """
     Stop all tasks and quit Ghini.
     """
-    import gtk
+    from gi.repository import Gtk
     import bauble.utils as utils
     try:
         import bauble.task as task
-    except Exception, e:
+    except Exception as e:
         logger.error('bauble.quit(): %s' % utils.utf8(e))
     else:
         task.kill()
     try:
         save_state()
-        gtk.main_quit()
-    except RuntimeError, e:
+        Gtk.main_quit()
+    except RuntimeError as e:
         # in case main_quit is called before main, e.g. before
         # bauble.main() is called
         sys.exit(1)
@@ -161,14 +159,14 @@ def command_handler(cmd, arg):
     :type arg: list
     """
     logger.debug('entering ui.command_handler %s %s' % (cmd, arg))
-    import gtk
+    from gi.repository import Gtk
     import bauble.utils as utils
     import bauble.pluginmgr as pluginmgr
     global last_handler
     handler_cls = None
     try:
         handler_cls = pluginmgr.commands[cmd]
-    except KeyError, e:
+    except KeyError as e:
         if cmd is None:
             utils.message_dialog(_('No default handler registered'))
         else:
@@ -190,11 +188,11 @@ def command_handler(cmd, arg):
             gui.window.add_accel_group(handler_view.accel_group)
     try:
         last_handler(cmd, arg)
-    except Exception, e:
+    except Exception as e:
         msg = utils.xml_safe(e)
         logger.error('bauble.command_handler(): %s' % msg)
         utils.message_details_dialog(
-            msg, traceback.format_exc(), gtk.MESSAGE_ERROR)
+            msg, traceback.format_exc(), Gtk.MessageType.ERROR)
 
 
 conn_default_pref = "conn.default"
@@ -212,16 +210,16 @@ dbengine.html#create-engine-url-arguments>`_
     :type uri: str
     """
     # TODO: it would be nice to show a Tk dialog here saying we can't
-    # import gtk...but then we would have to include all of the Tk libs in
+    # import Gtk...but then we would have to include all of the Tk libs in
     # with the win32 batteries-included installer
     try:
-        import gtk
-        import gobject
-    except ImportError, e:
-        print _('** Error: could not import gtk and/or gobject')
-        print e
+        from gi.repository import Gtk
+        from gi.repository import GObject
+    except ImportError as e:
+        print(_('** Error: could not import gtk and/or gobject'))
+        print(e)
         if sys.platform == 'win32':
-            print _('Please make sure that GTK_ROOT\\bin is in your PATH.')
+            print(_('Please make sure that GTK_ROOT\\bin is in your PATH.'))
         sys.exit(1)
 
     # create the user directory
@@ -282,30 +280,30 @@ dbengine.html#create-engine-url-arguments>`_
         else:
             logger.debug('not registering sentry client')
 
-    except Exception, e:
+    except Exception as e:
         logger.warning("can't configure sentry client")
         logger.debug("%s(%s)" % (type(e).__name__, e))
 
-    import gtk.gdk
-    import pygtk
+    import Gtk.gdk
+    import gi
     if not paths.main_is_frozen():
-        pygtk.require("2.0")
+        gi.require_version("Gtk", "3.0")
 
-    display = gtk.gdk.display_get_default()
+    display = Gdk.Display.get_default()
     if display is None:
-        print _("**Error: Ghini must be run in a windowed environment.")
+        print(_("**Error: Ghini must be run in a windowed environment."))
         sys.exit(1)
 
     import bauble.pluginmgr as pluginmgr
     import bauble.utils as utils
 
     # initialize threading
-    gobject.threads_init()
+    GObject.threads_init()
 
     try:
         import bauble.db as db
-    except Exception, e:
-        utils.message_dialog(utils.xml_safe(e), gtk.MESSAGE_ERROR)
+    except Exception as e:
+        utils.message_dialog(utils.xml_safe(e), Gtk.MessageType.ERROR)
         sys.exit(1)
 
     # declare module level variables
@@ -330,26 +328,26 @@ dbengine.html#create-engine-url-arguments>`_
                     break
                 else:
                     uri = conn_name = None
-            except err.VersionError, e:
+            except err.VersionError as e:
                 logger.warning("%s(%s)" % (type(e), e))
                 db.open(uri, False)
                 break
             except (err.EmptyDatabaseError, err.MetaTableError,
                     err.VersionError, err.TimestampError,
-                    err.RegistryError), e:
+                    err.RegistryError) as e:
                 logger.info("%s(%s)" % (type(e), e))
                 open_exc = e
                 # reopen without verification so that db.Session and
                 # db.engine, db.metadata will be bound to an engine
                 db.open(uri, False)
                 break
-            except err.DatabaseError, e:
+            except err.DatabaseError as e:
                 logger.debug("%s(%s)" % (type(e).__name__, e))
                 open_exc = e
-            except Exception, e:
+            except Exception as e:
                 msg = _("Could not open connection.\n\n%s") % e
                 utils.message_details_dialog(msg, traceback.format_exc(),
-                                             gtk.MESSAGE_ERROR)
+                                             Gtk.MessageType.ERROR)
                 uri = None
     else:
         db.open(uri, True, True)
@@ -371,7 +369,7 @@ dbengine.html#create-engine-url-arguments>`_
     gui = ui.GUI()
 
     def _post_loop():
-        gtk.gdk.threads_enter()
+        Gdk.threads_enter()
         try:
             if isinstance(open_exc, err.DatabaseError):
                 msg = _('Would you like to create a new Ghini database at '
@@ -388,22 +386,22 @@ dbengine.html#create-engine-url-arguments>`_
                         pluginmgr.init()
                         # set the default connection
                         prefs[conn_default_pref] = conn_name
-                    except Exception, e:
+                    except Exception as e:
                         utils.message_details_dialog(utils.xml_safe(e),
                                                      traceback.format_exc(),
-                                                     gtk.MESSAGE_ERROR)
+                                                     Gtk.MessageType.ERROR)
                         logger.error("%s(%s)" % (type(e).__name__, e))
             else:
                 pluginmgr.init()
-        except Exception, e:
+        except Exception as e:
             logger.warning("%s\n%s(%s)"
                            % (traceback.format_exc(), type(e).__name__, e))
             msg = utils.utf8("%s(%s)" % (type(e).__name__, e))
-            utils.message_dialog(msg, gtk.MESSAGE_WARNING)
+            utils.message_dialog(msg, Gtk.MessageType.WARNING)
         gui.get_view().update()
-        gtk.gdk.threads_leave()
+        Gdk.threads_leave()
 
-    gobject.idle_add(_post_loop)
+    GObject.idle_add(_post_loop)
     logger.info('This version installed on: %s; '
                 'This version installed at: %s; '
                 'Latest published version: %s; '
@@ -411,9 +409,9 @@ dbengine.html#create-engine-url-arguments>`_
                 (bauble.installation_date, __file__, bauble.release_version, bauble.release_date, ))
 
     gui.show()
-    gtk.threads_enter()
-    gtk.main()
+    Gtk.threads_enter()
+    Gtk.main()
     active_view = gui.get_view()
     if active_view:
         active_view.cancel_threads()
-    gtk.threads_leave()
+    Gtk.threads_leave()

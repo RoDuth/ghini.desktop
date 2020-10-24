@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-#
 # Copyright (c) 2005,2006,2007,2008,2009 Brett Adams <brett@belizebotanic.org>
 # Copyright (c) 2012-2015 Mario Frasca <mario@anche.no>
 #
@@ -25,9 +23,9 @@ from sqlalchemy import Unicode, UnicodeText, Column
 import bauble.db as db
 import bauble.utils as utils
 
-VERSION_KEY = u'version'
-CREATED_KEY = u'created'
-REGISTRY_KEY = u'registry'
+VERSION_KEY = 'version'
+CREATED_KEY = 'created'
+REGISTRY_KEY = 'registry'
 
 # date format strings:
 # yy - short year
@@ -36,7 +34,7 @@ REGISTRY_KEY = u'registry'
 # d - number day, two digits when necessary
 # mm -number month, always two digits
 # m - number month, two digits when necessary
-DATE_FORMAT_KEY = u'date_format'
+DATE_FORMAT_KEY = 'date_format'
 
 
 def get_default(name, default=None, session=None):

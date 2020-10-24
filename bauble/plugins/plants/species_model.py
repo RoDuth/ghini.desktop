@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-#
 # Copyright 2008-2010 Brett Adams
 # Copyright 2012-2016 Mario Frasca <mario@anche.no>.
 # Copyright 2017 Jardín Botánico de Quito
@@ -44,7 +42,7 @@ import bauble.btypes as types
 def _remove_zws(s):
     "remove_zero_width_space"
     if s:
-        return s.replace(u'\u200b', '')
+        return s.replace('\u200b', '')
     return s
 
 
@@ -61,16 +59,16 @@ class VNList(list):
         try:
             if vn.species.default_vernacular_name == vn:
                 del vn.species.default_vernacular_name
-        except Exception, e:
+        except Exception as e:
             logger.debug("%s(%s)" % (type(e).__name__, e))
 
 
-infrasp_rank_values = {u'subsp.': _('subsp.'),
-                       u'var.': _('var.'),
-                       u'subvar.': _('subvar'),
-                       u'f.': _('f.'),
-                       u'subf.': _('subf.'),
-                       u'cv.': _('cv.'),
+infrasp_rank_values = {'subsp.': _('subsp.'),
+                       'var.': _('var.'),
+                       'subvar.': _('subvar'),
+                       'f.': _('f.'),
+                       'subf.': _('subf.'),
+                       'cv.': _('cv.'),
                        None: ''}
 
 
@@ -87,9 +85,9 @@ infrasp_rank_values = {u'subsp.': _('subsp.'),
 def compare_rank(rank1, rank2):
     'implement the binary comparison operation needed for sorting'
 
-    ordering = [u'familia', u'subfamilia', u'tribus', u'subtribus',
-                u'genus', u'subgenus', u'species', None, u'subsp.',
-                u'var.', u'subvar.', u'f.', u'subf.', u'cv.']
+    ordering = ['familia', 'subfamilia', 'tribus', 'subtribus',
+                'genus', 'subgenus', 'species', None, 'subsp.',
+                'var.', 'subvar.', 'f.', 'subf.', 'cv.']
     return ordering.index(rank1).__cmp__(ordering.index(rank2))
 
 
@@ -182,7 +180,7 @@ class Species(db.Base, db.Serializable, db.DefiningPictures, db.WithNotes):
                 citation = citation.replace(authorship_text, '<span weight="light">' + authorship_text + '</span>')
             return citation + trail, substring
         except:
-            return u'...', u'...'
+            return '...', '...'
 
     @property
     def cites(self):
@@ -193,7 +191,7 @@ class Species(db.Base, db.Serializable, db.DefiningPictures, db.WithNotes):
         '''
 
         cites_notes = [i.note for i in self.notes
-                       if i.category and i.category.upper() == u'CITES']
+                       if i.category and i.category.upper() == 'CITES']
         if not cites_notes:
             return self.genus.cites
         return cites_notes[0]
@@ -218,7 +216,7 @@ class Species(db.Base, db.Serializable, db.DefiningPictures, db.WithNotes):
          'NE': _('Not Evaluated (NE)')}
 
         notes = [i.note for i in self.notes
-                 if i.category and i.category.upper() == u'IUCN']
+                 if i.category and i.category.upper() == 'IUCN']
         return (notes + ['DD'])[0]
 
     @property
@@ -232,7 +230,7 @@ class Species(db.Base, db.Serializable, db.DefiningPictures, db.WithNotes):
         [_('endemic'), _('indigenous'), _('native'), _('introduced')]
 
         notes = [i.note for i in self.notes
-                 if i.category.lower() == u'condition']
+                 if i.category.lower() == 'condition']
         return (notes + [None])[0]
 
     def __lowest_infraspecific(self):
@@ -244,22 +242,22 @@ class Species(db.Base, db.Serializable, db.DefiningPictures, db.WithNotes):
                     self.infrasp3_author),
                    (self.infrasp4_rank, self.infrasp4,
                     self.infrasp4_author)]
-        infrasp = [i for i in infrasp if i[0] not in [u'cv.', '', None]]
+        infrasp = [i for i in infrasp if i[0] not in ['cv.', '', None]]
         if infrasp == []:
-            return (u'', u'', u'')
+            return ('', '', '')
         return sorted(infrasp, cmp=lambda a, b: compare_rank(a[0], b[0]))[-1]
 
     @property
     def infraspecific_rank(self):
-        return self.__lowest_infraspecific()[0] or u''
+        return self.__lowest_infraspecific()[0] or ''
 
     @property
     def infraspecific_epithet(self):
-        return self.__lowest_infraspecific()[1] or u''
+        return self.__lowest_infraspecific()[1] or ''
 
     @property
     def infraspecific_author(self):
-        return self.__lowest_infraspecific()[2] or u''
+        return self.__lowest_infraspecific()[2] or ''
 
     @property
     def cultivar_epithet(self):
@@ -272,9 +270,9 @@ class Species(db.Base, db.Serializable, db.DefiningPictures, db.WithNotes):
                    (self.infrasp4_rank, self.infrasp4,
                     self.infrasp4_author))
         for rank, epithet, author in infrasp:
-            if rank == u'cv.':
+            if rank == 'cv.':
                 return epithet
-        return u''
+        return ''
 
     # columns
     sp = Column(Unicode(64), index=True)
@@ -288,22 +286,22 @@ class Species(db.Base, db.Serializable, db.DefiningPictures, db.WithNotes):
     trade_name = Column(Unicode(64))
 
     infrasp1 = Column(Unicode(64))
-    infrasp1_rank = Column(types.Enum(values=infrasp_rank_values.keys(),
+    infrasp1_rank = Column(types.Enum(values=list(infrasp_rank_values.keys()),
                                       translations=infrasp_rank_values))
     infrasp1_author = Column(Unicode(64))
 
     infrasp2 = Column(Unicode(64))
-    infrasp2_rank = Column(types.Enum(values=infrasp_rank_values.keys(),
+    infrasp2_rank = Column(types.Enum(values=list(infrasp_rank_values.keys()),
                                       translations=infrasp_rank_values))
     infrasp2_author = Column(Unicode(64))
 
     infrasp3 = Column(Unicode(64))
-    infrasp3_rank = Column(types.Enum(values=infrasp_rank_values.keys(),
+    infrasp3_rank = Column(types.Enum(values=list(infrasp_rank_values.keys()),
                                       translations=infrasp_rank_values))
     infrasp3_author = Column(Unicode(64))
 
     infrasp4 = Column(Unicode(64))
-    infrasp4_rank = Column(types.Enum(values=infrasp_rank_values.keys(),
+    infrasp4_rank = Column(types.Enum(values=list(infrasp_rank_values.keys()),
                                       translations=infrasp_rank_values))
     infrasp4_author = Column(Unicode(64))
 
@@ -383,7 +381,7 @@ class Species(db.Base, db.Serializable, db.DefiningPictures, db.WithNotes):
             return ''
         else:
             dist = ['%s' % d for d in self.distribution]
-            return unicode(', ').join(sorted(dist))
+            return str(', ').join(sorted(dist))
 
     def markup(self, authors=False, genus=True):
         '''returns this object as a string with markup
@@ -395,7 +393,7 @@ class Species(db.Base, db.Serializable, db.DefiningPictures, db.WithNotes):
         return self.str(authors, markup=True, genus=genus)
 
     # in PlantPlugins.init() we set this to 'x' for win32
-    hybrid_char = u'×'
+    hybrid_char = '×'
 
     def str(self, authors=False, markup=False, remove_zws=False, genus=True,
             qualification=None):
@@ -419,7 +417,7 @@ class Species(db.Base, db.Serializable, db.DefiningPictures, db.WithNotes):
         else:
             genus = ''
         if self.sp and not remove_zws:
-            sp = u'\u200b' + self.sp  # prepend with zero_width_space
+            sp = '\u200b' + self.sp  # prepend with zero_width_space
         else:
             sp = self.sp
         sp2 = self.sp2
@@ -429,8 +427,8 @@ class Species(db.Base, db.Serializable, db.DefiningPictures, db.WithNotes):
             if genus.isupper():
                 genus = escape(genus)
             else:
-                genus = u'<i>{}</i>'.format(
-                    escape(genus).replace(u'x ', u'</i>×<i>'))
+                genus = '<i>{}</i>'.format(
+                    escape(genus).replace('x ', '</i>×<i>'))
             if sp is not None:
                 sp = italicize(escape(sp))
             if sp2 is not None:
@@ -584,7 +582,7 @@ class Species(db.Base, db.Serializable, db.DefiningPictures, db.WithNotes):
 
     def as_dict(self, recurse=True):
         result = dict((col, getattr(self, col))
-                      for col in self.__table__.columns.keys()
+                      for col in list(self.__table__.columns.keys())
                       if col not in ['id', 'sp']
                       and col[0] != '_'
                       and getattr(self, col) is not None
@@ -609,7 +607,7 @@ class Species(db.Base, db.Serializable, db.DefiningPictures, db.WithNotes):
     @classmethod
     def retrieve(cls, session, keys):
         logger.debug('retrieve species with keys %s', keys)
-        from genus import Genus
+        from .genus import Genus
         # NOTE need to include infrasp parts if they are included in keys...
         # Issue is they have to match exactly or won't get the right item back
         # make sure to include only parts we know we can search
@@ -625,7 +623,7 @@ class Species(db.Base, db.Serializable, db.DefiningPictures, db.WithNotes):
             'infrasp4',
             'infrasp4_rank'
         }
-        sp_parts = {key: keys[key] for key in _parts.intersection(keys.keys())}
+        sp_parts = {key: keys[key] for key in _parts.intersection(list(keys.keys()))}
         logger.debug('sp_parts in keys %s', sp_parts)
         # only add the sp part in if there is a value to give it. (e.g.
         # cultivars may not have a sp value)
@@ -648,7 +646,7 @@ class Species(db.Base, db.Serializable, db.DefiningPictures, db.WithNotes):
 
     @classmethod
     def compute_serializable_fields(cls, session, keys):
-        from genus import Genus
+        from .genus import Genus
         result = {'genus': None}
         ## retrieve genus object
         specifies_family = keys.get('familia')
@@ -690,7 +688,7 @@ def compute_serializable_fields(cls, session, keys):
     return result
 
 def retrieve(cls, session, keys):
-    from genus import Genus
+    from .genus import Genus
     genus, epithet = keys['species'].split(' ', 1)
     try:
         return session.query(cls).filter(
@@ -790,7 +788,7 @@ class VernacularName(db.Base, db.Serializable):
 
     @classmethod
     def retrieve(cls, session, keys):
-        from genus import Genus
+        from .genus import Genus
         g_epithet, s_epithet = keys['species'].split(' ', 1)
         sp = session.query(Species).filter(
             Species.sp == s_epithet).join(Genus).filter(

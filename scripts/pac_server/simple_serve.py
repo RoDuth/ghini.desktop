@@ -68,16 +68,16 @@ In a virtualbox client vm http://10.0.2.2:8080/test.html should see the same.
 #   page.
 #   Use Ctrl-C to stop this script.
 
-import SimpleHTTPServer
-import SocketServer
+import http.server
+import socketserver
 
-HANDLER = SimpleHTTPServer.SimpleHTTPRequestHandler
+HANDLER = http.server.SimpleHTTPRequestHandler
 
 # consider pac files content type
 HANDLER.extensions_map.update({'.pac': 'application/x-ns-proxy-autoconfig'})
 
 
-class SimpleServer(SocketServer.TCPServer):
+class SimpleServer(socketserver.TCPServer):
     """
     Simplest way to ensure we make the socket accessable after we ctrl-c.
     """

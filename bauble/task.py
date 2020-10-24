@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-#
 # Copyright (c) 2005,2006,2007,2008,2009 Brett Adams <brett@belizebotanic.org>
 # Copyright (c) 2012-2015 Mario Frasca <mario@anche.no>
 #
@@ -25,7 +23,7 @@ running tasks still block but allows the GUI to update.
 """
 
 import fibra
-import gtk
+from gi.repository import Gtk
 import bauble
 
 import logging
@@ -72,8 +70,8 @@ def _idle():
     """
     Called when a task is idle.
     """
-    while gtk.events_pending():
-        gtk.main_iteration(block=False)
+    while Gtk.events_pending():
+        Gtk.main_iteration(block=False)
 
     global __kill
     if __kill:
@@ -132,7 +130,7 @@ def set_message(msg):
     global _context_id
     try:
         _context_id
-    except NameError, e:
+    except NameError as e:
         # this is expected to happen, it's normal behaviour.
         logger.info(e)  # global name '_context_id' is not defined
         _context_id = bauble.gui.widgets.statusbar.get_context_id('__task')

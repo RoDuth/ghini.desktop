@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-#
 # Copyright 2008-2010 Brett Adams
 # Copyright 2012-2015 Mario Frasca <mario@anche.no>.
 #
@@ -34,7 +32,7 @@
 
 import os
 import sys
-import gtk
+from gi.repository import Gtk
 
 import logging
 logger = logging.getLogger(__name__)
@@ -62,8 +60,8 @@ from bauble.plugins.plants.species import (
     )
 from bauble.plugins.plants.geography import (
     Geography, get_species_in_geography)
-from taxonomy_check import TaxonomyCheckTool
-from stored_queries import (
+from .taxonomy_check import TaxonomyCheckTool
+from .stored_queries import (
     StoredQueryEditorTool)
 import bauble.search as search
 from bauble.view import SearchView
@@ -193,11 +191,11 @@ class SplashInfoBox(pluginmgr.View):
         statusbar = bauble.gui.widgets.statusbar
         sbcontext_id = statusbar.get_context_id('searchview.nresults')
         statusbar.pop(sbcontext_id)
-        bauble.gui.widgets.main_comboentry.child.set_text('')
+        bauble.gui.widgets.main_comboentry.get_child().set_text('')
 
         ssn = db.Session()
         q = ssn.query(bauble.meta.BaubleMeta)
-        q = q.filter(bauble.meta.BaubleMeta.name.startswith(u'stqr'))
+        q = q.filter(bauble.meta.BaubleMeta.name.startswith('stqr'))
         name_tooltip_query = dict(
             (int(i.name[5:]), (i.value.split(':', 2)))
             for i in q.all())
@@ -306,13 +304,13 @@ class SplashInfoBox(pluginmgr.View):
     def on_sqb_clicked(self, btn_no, *args):
         try:
             query = self.name_tooltip_query[btn_no][2]
-            bauble.gui.widgets.main_comboentry.child.set_text(query)
+            bauble.gui.widgets.main_comboentry.get_child().set_text(query)
             bauble.gui.widgets.go_button.emit("clicked")
         except:
             pass
 
     def on_splash_stqr_button_clicked(self, *args):
-        from stored_queries import edit_callback
+        from .stored_queries import edit_callback
         edit_callback()
 
 
@@ -378,20 +376,20 @@ class PlantsPlugin(pluginmgr.Plugin):
         # suggest some useful defaults for stored queries
         import bauble.meta as meta
         session = db.Session()
-        default = u'false'
-        q = session.query(bauble.meta.BaubleMeta).filter(bauble.meta.BaubleMeta.name.startswith(u'stqr-'))
+        default = 'false'
+        q = session.query(bauble.meta.BaubleMeta).filter(bauble.meta.BaubleMeta.name.startswith('stqr-'))
         for i in q.all():
             default = i.name
             session.delete(i)
             session.commit()
-        init_marker = meta.get_default(u'stqv_initialized', default, session)
-        if init_marker.value == u'false':
-            init_marker.value = u'true'
+        init_marker = meta.get_default('stqv_initialized', default, session)
+        if init_marker.value == 'false':
+            init_marker.value = 'true'
             for index, name, tooltip, query in [
                     (9, _('history'), _('the history in this database'), ':history'),
                     (10, _('preferences'), _('your user preferences'), ':prefs')]:
-                meta.get_default(u'stqr_%02d' % index,
-                                 u"%s:%s:%s" % (name, tooltip, query),
+                meta.get_default('stqr_%02d' % index,
+                                 "%s:%s:%s" % (name, tooltip, query),
                                  session)
             session.commit()
         session.close()
@@ -405,10 +403,10 @@ class PlantsPlugin(pluginmgr.Plugin):
         if not import_defaults:
             return
         path = os.path.join(paths.lib_dir(), "plugins", "plants", "default")
-        filenames = [os.path.join(path, f) for f in 'family.txt',
+        filenames = [os.path.join(path, f) for f in ('family.txt',
                      'family_synonym.txt',
                      'genus.txt', 'genus_synonym.txt', 'geography.txt',
-                     'habit.txt']
+                     'habit.txt')]
 
         from bauble.plugins.imex.csv_ import CSVImporter
         csv = CSVImporter()

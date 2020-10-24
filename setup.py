@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 #
 # Copyright (c) 2005,2006,2007,2008,2009 Brett Adams <brett@belizebotanic.org>
 # Copyright (c) 2015 Mario Frasca <mario@anche.no>
@@ -26,6 +26,9 @@ except ImportError:
     from ez_setup import use_setuptools
     use_setuptools()
     import setuptools
+import gi
+gi.require_version('Gtk', '3.0')
+
 import os
 import sys
 import glob
@@ -113,7 +116,6 @@ if sys.platform == 'win32' and sys.argv[1] in ('nsis', 'py2exe'):
     setup_options = {
         "py2exe": {
             # no compression makes for better NSIS compression
-            # "dist_dir": "ghini-runtime",
             "compressed": False,
             "optimize": 2,
             "includes": py2exe_includes,
@@ -134,7 +136,7 @@ if sys.platform == 'win32' and sys.argv[1] in ('nsis', 'py2exe'):
 
     # py2exe doesn't seem to respect packages_data so build data_files from
     # package_data
-    for package, patterns in package_data.iteritems():
+    for package, patterns in list(package_data.items()):
         pkg_dir = all_package_dirs[package]
         for p in patterns:
             matches = glob.glob(pkg_dir + '/' + p)
@@ -160,7 +162,7 @@ if sys.platform == 'win32' and sys.argv[1] in ('nsis', 'py2exe'):
             src = os.path.join(build_base, locales)
             dir_util.copy_tree(src, os.path.join(self.dist_dir, locales))
 
-            # copy GTK to the ghini-runtime directory, assuming PyGTK
+            # copy GTK to the dist directory, assuming PyGTK
             # all-in-one installer.
             gtk_root = 'c:\\python27\\lib\\site-packages\\gtk-2.0\\runtime'
             dist_gtk = os.path.join(self.dist_dir, 'gtk')
@@ -183,9 +185,9 @@ if sys.platform == 'win32' and sys.argv[1] in ('nsis', 'py2exe'):
             dest2 = '%s\\lib\\gdk-pixbuf-2.0\\2.10.0\\loaders.cache' % dist_gtk
             cmd1 = 'call "%s" > "%s"' % (exe, dest1)
             cmd2 = 'call "%s" > "%s"' % (exe, dest2)
-            print cmd1
+            print(cmd1)
             os.system(cmd1)
-            print cmd2
+            print(cmd2)
             os.system(cmd2)
 
             # copy the the MS-Windows gtkrc to make it the default theme
@@ -258,7 +260,7 @@ if sys.platform == 'win32' and sys.argv[1] in ('nsis', 'py2exe'):
                                 % self.nsis_script)
 
         def run(self):
-            print 'using %s to build %s' % (self.makensis, self.nsis_script)
+            print(f'using {self.makensis} to build {self.nsis_script}')
             os.system('"%s" %s' % (self.makensis, self.nsis_script))
 
 else:
@@ -275,8 +277,8 @@ else:
             pass
 
         def run(self):
-            print "**Error: Can't run this command."
-            print sys.exit(1)
+            print("**Error: Can't run this command.")
+            print((sys.exit(1)))
 
     class py2exe_cmd(_empty_cmd):
         description = 'build Windows executable *ONLY AVAILABLE IN WINDOWS'
@@ -299,7 +301,7 @@ class build(_build):
             msg = '** Error: Building Ghini requires the gettext utilities ' \
                   'be installed.  If they are installed please ensure that ' \
                   'the msgfmt command is in your PATH'
-            print msg
+            print(msg)
             sys.exit(1)
 
         # create build/share directory
@@ -323,7 +325,7 @@ class build(_build):
                 spawn.spawn(['msgfmt', po, '-o', mo])
 
         # copy .desktop and icons
-        if sys.platform in ('linux3', 'linux2'):
+        if sys.platform in ('linux3', 'linux2', 'linux'):
             app_dir = os.path.join(self.build_base, 'share', 'applications')
             dir_util.mkpath(app_dir)
             file_util.copy_file('data/ghini.desktop', app_dir)
@@ -365,9 +367,9 @@ class install(_install):
         _install.finalize_options(self)
 
     def run(self):
-        if sys.platform not in ('linux3', 'linux2', 'win32', 'darwin'):
+        if sys.platform not in ('linux', 'win32', 'darwin'):
             msg = "**Error: Can't install on this platform: %s" % sys.platform
-            print msg
+            print(msg)
             sys.exit(1)
 
         # create build/share/ghini directory tree
@@ -379,7 +381,7 @@ class install(_install):
             os.path.join(self.build_base, 'share', 'ghini', 'LICENSE'))
 
         if not self.single_version_externally_managed:
-            print 'before installing new egg, remove old ones!'
+            print('before installing new egg, remove old ones!')
             old_egg_dirs = [a for (a, _, _) in os.walk(self.install_data)
                             if (
                                 os.path.basename(a).startswith('bauble')
@@ -425,8 +427,8 @@ class docs(Command):
             import sphinx
             sphinx
         except ImportError:
-            print 'Building the docs requires the '\
-                  'Sphinx(http://sphinx.pocoo.org) package'
+            print('Building the docs requires the '\
+                  'Sphinx(http://sphinx.pocoo.org) package')
             return
         if not os.path.exists(DOC_BUILD_PATH):
             dir_util.mkpath(DOC_BUILD_PATH)
@@ -439,8 +441,7 @@ class docs(Command):
 
 # clean command
 class clean(Command):
-    user_options = [('all', 'a', 'clean everything'),
-    ]
+    user_options = [('all', 'a', 'clean everything')]
 
     def initialize_options(self):
         self.all = False
@@ -457,9 +458,9 @@ class clean(Command):
                 matches = fnmatch.filter(files, pattern)
                 if matches:
                     def delete(p):
-                        print 'removing %s' % p
+                        print(f'removing {p}')
                         os.remove(p)
-                    map(delete, [os.path.join(path, m) for m in matches])
+                    list(map(delete, [os.path.join(path, m) for m in matches]))
         if os.path.exists('dist'):
             dir_util.remove_tree('dist')
         if os.path.exists('build'):
@@ -518,22 +519,22 @@ setuptools.setup(name="ghini.desktop",
                  package_dir=all_package_dirs,
                  package_data=package_data,
                  data_files=data_files,
-                 install_requires=["SQLAlchemy==1.0.8",
+                 install_requires=["SQLAlchemy<1.3",
                                    "raven==6.7.0",
                                    "Pillow==2.3.0",
                                    "lxml",
                                    "tld==0.10",
                                    "pyqrcode==1.2.1",
-                                   "mako==0.9.1",
+                                   "mako==1.0.7",
                                    "gdata==2.0.18",
                                    "requests",
-                                   "fibra==0.0.17",
-                                   "pyparsing==2.0.1",
+                                   "fibra==0.0.20",
+                                   "pyparsing==2.2.0",
                                    "pypac==0.12.0",
                                    "pyshp==2.1.2",
                                    "python-polylabel==0.6",
-                                   'python-dateutil<2.0'] + needs_sqlite,
-                 extras_require={'docs': ['sphinx==1.6.7']},
+                                   'python-dateutil==2.7.3'] + needs_sqlite,
+                 extras_require={'docs': ['sphinx==1.7.9']},
                  tests_require=['nose', 'babel'],
                  test_suite="nose.collector",
                  author="Mario Frasca",
@@ -543,7 +544,7 @@ setuptools.setup(name="ghini.desktop",
                  license="GPLv2+",
                  keywords="database biodiversity botanic collection "
                  "botany herbarium arboretum",
-                 url="http://github.com/Ghini/ghini.desktop/",
+                 url="http://github.com/RoDuth/ghini.desktop/",
                  options=setup_options,
                  **setup_args
                  )

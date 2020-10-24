@@ -104,7 +104,7 @@ vernacular_keys = [
 
 
 import sys
-print("invoked with args:", sys.argv)
+print(("invoked with args:", sys.argv))
 
 #input_file_name = '/tmp/species.csv'
 input_file_name = sys.argv[1]
@@ -121,7 +121,7 @@ family_hidden = []  # [vernacular_key, binomial_key]
 family_name = re.compile(r'^[A-Z][a-z]*aceae$')
 
 for r in csv.reader(open(input_file_name)):
-    obj = dict(zip(header, [i.strip() for i in r]))
+    obj = dict(list(zip(header, [i.strip() for i in r])))
     for key in family_hidden:
         obj['family'] = ''
         if family_name.match(obj[key]):
@@ -145,7 +145,7 @@ for r in csv.reader(open(input_file_name)):
             obj['lat'], obj['lon'] = float(obj[northing_key]), float(obj[easting_key])
     k.append(obj)
 
-print count, skipped
+print(count, skipped)
 
 # first produce the taxomomy
 
@@ -197,7 +197,7 @@ def make_accession_code(obj):
             return int(v)
         except:
             return 0
-    obj = dict((k, smart_int(v)) for (k, v) in obj.items())
+    obj = dict((k, smart_int(v)) for (k, v) in list(obj.items()))
     return accession_code_def % obj
 
 # now accessions, plants, and relative notes.
@@ -237,5 +237,5 @@ try:
         out.write('[\n ')
         out.write(',\n '.join(formatted_json))
         out.write(']')
-except Exception, e:
-    print(type(e).__name__, e)
+except Exception as e:
+    print((type(e).__name__, e))

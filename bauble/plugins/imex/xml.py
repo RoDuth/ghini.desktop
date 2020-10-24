@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-#
 # Copyright (c) 2005,2006,2007,2008,2009 Brett Adams <brett@belizebotanic.org>
 # Copyright (c) 2012-2015 Mario Frasca <mario@anche.no>
 #
@@ -29,7 +27,7 @@ import logging
 logger = logging.getLogger(__name__)
 #logger.setLevel(logging.INFO)
 
-import gtk.gdk
+import Gtk.gdk
 
 import bauble
 import bauble.db as db
@@ -50,9 +48,9 @@ def ElementFactory(parent, name, **kwargs):
     el = etree.SubElement(parent, name, **kwargs)
     try:
         if text is not None:
-            el.text = unicode(text, 'utf8')
+            el.text = str(text, 'utf8')
     except (AssertionError, TypeError):
-        el.text = unicode(str(text), 'utf8')
+        el.text = str(str(text), 'utf8')
     return el
 
 
@@ -63,21 +61,21 @@ class XMLExporter:
 
     def start(self, path=None):
 
-        d = gtk.Dialog('Ghini - XML Exporter', bauble.gui.window,
-                       gtk.DIALOG_MODAL | gtk.DIALOG_DESTROY_WITH_PARENT,
-                       (gtk.STOCK_CANCEL, gtk.RESPONSE_REJECT,
-                        gtk.STOCK_OK, gtk.RESPONSE_ACCEPT))
+        d = Gtk.Dialog('Ghini - XML Exporter', bauble.gui.window,
+                       Gtk.DialogFlags.MODAL | Gtk.DialogFlags.DESTROY_WITH_PARENT,
+                       (Gtk.STOCK_CANCEL, Gtk.ResponseType.REJECT,
+                        Gtk.STOCK_OK, Gtk.ResponseType.ACCEPT))
 
-        box = gtk.VBox(spacing=20)
-        d.vbox.pack_start(box, padding=10)
+        box = Gtk.VBox(spacing=20)
+        d.vbox.pack_start(box, True, True, 10)
 
-        file_chooser = gtk.FileChooserButton(_('Select a directory'))
+        file_chooser = Gtk.FileChooserButton(_('Select a directory'))
         file_chooser.set_select_multiple(False)
-        file_chooser.set_action(gtk.FILE_CHOOSER_ACTION_SELECT_FOLDER)
-        box.pack_start(file_chooser)
-        check = gtk.CheckButton(_('Save all data in one file'))
+        file_chooser.set_action(Gtk.FileChooserAction.SELECT_FOLDER)
+        box.pack_start(file_chooser, True, True, 0)
+        check = Gtk.CheckButton(_('Save all data in one file'))
         check.set_active(True)
-        box.pack_start(check)
+        box.pack_start(check, True, True, 0)
 
         d.connect('response', self.on_dialog_response,
                   file_chooser.get_filename(), check.get_active())
@@ -87,7 +85,7 @@ class XMLExporter:
 
     def on_dialog_response(self, dialog, response, filename, one_file):
         logger.debug('on_dialog_response(%s, %s)' % (filename, one_file))
-        if response == gtk.RESPONSE_ACCEPT:
+        if response == Gtk.ResponseType.ACCEPT:
             self.__export_task(filename, one_file)
         dialog.destroy()
 
@@ -95,24 +93,24 @@ class XMLExporter:
         if not one_file:
             tableset_el = etree.Element('tableset')
 
-        for table_name, table in db.metadata.tables.iteritems():
+        for table_name, table in db.metadata.tables.items():
             if one_file:
                 tableset_el = etree.Element('tableset')
             logger.info('exporting %s…' % table_name)
             table_el = ElementFactory(tableset_el, 'table',
                                       attrib={'name': table_name})
             results = table.select().execute().fetchall()
-            columns = table.c.keys()
+            columns = list(table.c.keys())
             try:
                 for row in results:
                     row_el = ElementFactory(table_el, 'row')
                     for col in columns:
                         ElementFactory(row_el, 'column', attrib={'name': col},
                                        text=row[col])
-            except ValueError, e:
+            except ValueError as e:
                 utils.message_details_dialog(utils.xml_safe(e),
                                              traceback.format_exc(),
-                                             gtk.MESSAGE_ERROR)
+                                             Gtk.MessageType.ERROR)
                 return
             else:
                 if one_file:

@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-#
 # Copyright (c) 2005,2006,2007,2008,2009 Brett Adams <brett@belizebotanic.org>
 # Copyright (c) 2006 Mark Mruss http://www.learningpython.com
 # Copyright (c) 2007 Kopfgeldjaeger
@@ -79,7 +77,7 @@ if sys.platform in ['win32', 'darwin']:
     locale = gettext
 
 try:
-    import gtk.glade as gtkglade
+    import Gtk.glade as gtkglade
 except ImportError:
     gtkglade = locale
 
@@ -93,5 +91,5 @@ lang = gettext.translation(TEXT_DOMAIN, paths.locale_dir(), languages=langs,
 # associate this module's as well as the global `_` functions (we marked our
 # translatable strings with it) to lang.gettext(), which translates them.
 _ = lang.gettext
-import __builtin__
-__builtin__._ = lang.gettext
+import builtins
+builtins._ = lang.gettext
