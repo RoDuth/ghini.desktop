@@ -58,7 +58,10 @@ class BaubleTests(BaubleTestCase):
         self.assertRaises(NotImplementedError, view.set_icon, title)
 
     def test_add_widget(self):
+        import gi
+        gi.require_version("Gtk", "3.0")
         from gi.repository import Gtk
+
         filename = os.path.join(paths.lib_dir(), 'bauble.glade')
         view = GenericEditorView(filename)
         label = Gtk.Label(label='testing')

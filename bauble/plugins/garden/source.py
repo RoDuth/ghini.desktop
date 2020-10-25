@@ -28,7 +28,11 @@ from random import random
 import logging
 logger = logging.getLogger(__name__)
 
-from gi.repository import Gtk
+
+import gi
+gi.require_version("Gtk", "3.0")
+from gi.repository import Gtk  # noqa
+
 from gi.repository import GObject
 
 from sqlalchemy import Column, Unicode, Integer, ForeignKey,\
@@ -44,7 +48,6 @@ import bauble.utils as utils
 import bauble.btypes as types
 import bauble.view as view
 import bauble.paths as paths
-from types import StringTypes
 
 
 def collection_edit_callback(coll):
@@ -675,7 +678,7 @@ class PropagationChooserPresenter(editor.ChildPresenter):
 
         def on_select(value):
             logger.debug('on select: %s' % value)
-            if isinstance(value, StringTypes):
+            if isinstance(value, str):
                 return
             # populate the propagation browser
             treeview = self.view.widgets.source_prop_treeview

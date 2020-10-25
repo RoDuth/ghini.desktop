@@ -30,7 +30,11 @@ from bauble.test import BaubleTestCase, check_dupids, mockfunc
 from bauble.editor import GenericEditorView, MockView
 import bauble.utils as utils
 from functools import partial
-from gi.repository import Gtk
+
+import gi
+gi.require_version("Gtk", "3.0")
+from gi.repository import Gtk  # noqa
+
 import importlib
 
 

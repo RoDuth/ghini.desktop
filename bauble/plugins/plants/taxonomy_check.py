@@ -233,7 +233,10 @@ class BatchTaxonomicCheckPresenter(GenericEditorPresenter):
 
     def on_copy_to_clipboard_button_clicked(self, *args):
         text = '\n'.join(self.binomials)
+        import gi
+        gi.require_version("Gtk", "3.0")
         from gi.repository import Gtk
+
         clipboard = Gtk.Clipboard()
         clipboard.set_text(text)
 
@@ -271,7 +274,10 @@ class BatchTaxonomicCheckPresenter(GenericEditorPresenter):
             row[STOCK_ID] = stock_id
 
     def on_filebtnbrowse_clicked(self, *args):
+        import gi
+        gi.require_version("Gtk", "3.0")
         from gi.repository import Gtk
+
         previously = self.view.widget_get_value('file_path_entry')
         last_folder, bn = os.path.split(previously)
         self.view.run_file_chooser_dialog(

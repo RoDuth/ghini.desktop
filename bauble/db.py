@@ -49,7 +49,11 @@ except ImportError:
     raise
 
 
-from gi.repository import Gtk
+
+import gi
+gi.require_version("Gtk", "3.0")
+from gi.repository import Gtk  # noqa
+
 
 import sqlalchemy.orm as orm
 from sqlalchemy.ext.declarative import declarative_base, DeclarativeMeta

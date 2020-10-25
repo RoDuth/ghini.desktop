@@ -25,7 +25,11 @@ import traceback
 import weakref
 import xml
 
-from gi.repository import Gtk
+
+import gi
+gi.require_version("Gtk", "3.0")
+from gi.repository import Gtk  # noqa
+
 
 import logging
 logger = logging.getLogger(__name__)

@@ -38,7 +38,10 @@ def update_gui():
     """
     Flush any GTK Events.  Used for doing GUI testing.
     """
+    import gi
+    gi.require_version("Gtk", "3.0")
     from gi.repository import Gtk
+
     while Gtk.events_pending():
         Gtk.main_iteration(block=False)
 

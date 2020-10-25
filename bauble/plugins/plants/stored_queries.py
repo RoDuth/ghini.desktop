@@ -16,7 +16,11 @@
 # along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
 #
 
-from gi.repository import Gtk
+
+import gi
+gi.require_version("Gtk", "3.0")
+from gi.repository import Gtk  # noqa
+
 from gi.repository import Pango
 
 import logging
@@ -118,12 +122,11 @@ class StoredQueriesPresenter(editor.GenericEditorPresenter):
 
     weight = {False: Pango.AttrList(),
               True: Pango.AttrList()}
-    weight[True].insert(Pango.AttrWeight(Pango.Weight.HEAVY, 0, 50))
 
     view_accept_buttons = ['stqr_ok_button', ]
 
     def __init__(self, *args, **kwargs):
-        super(StoredQueriesPresenter, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         for self.model.page in range(1, 11):
             name = 'stqr_%02d_label' % self.model.page
             self.view.widget_set_text(name, self.model.label or _('<empty>'))
@@ -138,7 +141,7 @@ class StoredQueriesPresenter(editor.GenericEditorPresenter):
                                             self.weight[i == self.model.page])
 
     def refresh_view(self):
-        super(StoredQueriesPresenter, self).refresh_view()
+        super().refresh_view()
         self.refresh_toggles()
 
     def on_button_clicked(self, widget, *args):

@@ -23,20 +23,18 @@ The top level module for Ghini.
 """
 
 import logging
-logger = logging.getLogger(__name__)
-# logger.setLevel(logging.DEBUG)
-consoleLevel = logging.INFO
-
-import imp
 import os
 import sys
+import gi
 import bauble.paths as paths
 
-try:
-    import faulthandler
-    faulthandler.enable()
-except:
-    pass
+# try:
+#     import faulthandler
+#     faulthandler.enable()
+# except:
+#     pass
+
+gi.require_version("Gtk", "3.0")
 
 from bauble.version import version
 version_tuple = tuple(version.split('.'))
@@ -46,6 +44,10 @@ installation_date = "1970-01-01T00:00:00Z"
 
 import bauble.i18n
 
+
+logger = logging.getLogger(__name__)
+# logger.setLevel(logging.DEBUG)
+consoleLevel = logging.INFO
 
 def pb_set_fraction(fraction):
     """set progressbar fraction safely
@@ -213,7 +215,10 @@ dbengine.html#create-engine-url-arguments>`_
     # import Gtk...but then we would have to include all of the Tk libs in
     # with the win32 batteries-included installer
     try:
+        import gi
+        gi.require_version("Gtk", "3.0")
         from gi.repository import Gtk
+
         from gi.repository import GObject
     except ImportError as e:
         print(_('** Error: could not import gtk and/or gobject'))

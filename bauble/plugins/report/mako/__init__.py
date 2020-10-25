@@ -29,7 +29,11 @@ import shutil
 import tempfile
 import math
 
-from gi.repository import Gtk
+
+import gi
+gi.require_version("Gtk", "3.0")
+from gi.repository import Gtk  # noqa
+
 
 from mako.template import Template
 

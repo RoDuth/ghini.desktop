@@ -16,7 +16,11 @@
 # along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
 #
 
-from gi.repository import Gtk
+
+import gi
+gi.require_version("Gtk", "3.0")
+from gi.repository import Gtk  # noqa
+
 
 import logging
 logger = logging.getLogger(__name__)

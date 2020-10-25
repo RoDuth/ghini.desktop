@@ -32,7 +32,11 @@
 
 import os
 import sys
-from gi.repository import Gtk
+
+import gi
+gi.require_version("Gtk", "3.0")
+from gi.repository import Gtk  # noqa
+
 
 import logging
 logger = logging.getLogger(__name__)
@@ -73,12 +77,13 @@ from bauble import utils
 Familia, SpeciesDistribution,
 
 from threading import Thread
-from gobject import idle_add
+from gi.repository import GObject
+idle_add = GObject.idle_add
 
 
 class LabelUpdater(Thread):
     def __init__(self, widget, query, *args, **kwargs):
-        super(LabelUpdater, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.query = query
         self.widget = widget
 
@@ -98,7 +103,7 @@ class SplashInfoBox(pluginmgr.View):
         '''
         '''
         logger.debug('SplashInfoBox::__init__')
-        super(SplashInfoBox, self).__init__()
+        super().__init__()
         filename = os.path.join(paths.lib_dir(), 'plugins', 'plants',
                                 'infoboxes.glade')
         self.widgets = utils.load_widgets(filename)

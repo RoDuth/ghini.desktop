@@ -20,7 +20,11 @@
 # Species table definition
 #
 
-from gi.repository import Gtk
+
+import gi
+gi.require_version("Gtk", "3.0")
+from gi.repository import Gtk  # noqa
+
 from gi.repository import GObject
 
 import logging
@@ -33,7 +37,6 @@ import weakref
 from sqlalchemy.orm.session import object_session
 from sqlalchemy.exc import DBAPIError
 
-from types import StringTypes
 import bauble
 
 from bauble.prefs import prefs, debug_logging_prefs, testing
@@ -269,7 +272,7 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
         # called when a genus is selected from the genus completions
         def on_select(value):
             logger.debug('on select: %s' % value)
-            if isinstance(value, StringTypes):
+            if isinstance(value, str):
                 value = self.session.query(Genus).filter(
                     Genus.genus == value).first()
             while self.genus_check_messages:

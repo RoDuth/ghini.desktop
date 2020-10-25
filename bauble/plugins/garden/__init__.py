@@ -123,7 +123,7 @@ class GardenPlugin(pluginmgr.Plugin):
             context_menu=collection_context_menu)
 
         # done here b/c the Species table is not part of this plugin
-        SearchView.row_meta[Species].get_child() = "accessions"
+        SearchView.row_meta[Species].child = "accessions"
 
         if bauble.gui is not None:
             bauble.gui.add_to_insert_menu(AccessionEditor, _('Accession'))
@@ -159,7 +159,10 @@ def init_location_comboentry(presenter, combo, on_select, required=True):
     def cell_data_func(col, cell, model, treeiter, data=None):
         cell.props.text = utils.utf8(model[treeiter][0])
 
+    import gi
+    gi.require_version("Gtk", "3.0")
     from gi.repository import Gtk
+
     completion = Gtk.EntryCompletion()
     cell = Gtk.CellRendererText()  # set up the completion renderer
     completion.pack_start(cell, True, True, 0)

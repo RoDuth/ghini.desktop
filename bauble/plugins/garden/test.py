@@ -275,7 +275,10 @@ class PlantTests(GardenTestCase):
         """
         Test creating multiple plants with the plant editor.
         """
+        import gi
+        gi.require_version("Gtk", "3.0")
         from gi.repository import Gtk
+
 
         # use our own plant because PlantEditor.commit_changes() will
         # only work in bulk mode when the plant is in session.new
@@ -363,7 +366,10 @@ class PlantTests(GardenTestCase):
         self.assertEqual(change.from_location, editor.branched_plant.location)
 
     def test_branch_editor(self):
+        import gi
+        gi.require_version("Gtk", "3.0")
         from gi.repository import Gtk
+
 
         # test argument checks
         #
@@ -1394,7 +1400,10 @@ class AccessionTests(GardenTestCase):
 
         # commit the changes and cleanup
         self.editor.model.name = 'asda'
+        import gi
+        gi.require_version("Gtk", "3.0")
         from gi.repository import Gtk
+
         self.editor.handle_response(Gtk.ResponseType.OK)
         self.editor.session.close()
 

@@ -37,7 +37,11 @@ from bauble.prefs import prefs, debug_logging_prefs, testing
 if not testing and __name__ in prefs[debug_logging_prefs]:
     logger.setLevel(logging.DEBUG)
 
-from gi.repository import Gtk
+
+import gi
+gi.require_version("Gtk", "3.0")
+from gi.repository import Gtk  # noqa
+
 
 
 import lxml.etree as etree
@@ -67,7 +71,6 @@ from bauble.view import InfoBox, InfoExpander, PropertiesExpander, \
     select_in_search_results, Action
 import bauble.view as view
 from bauble.search import SearchStrategy
-from types import StringTypes
 from bauble.utils import safe_int
 
 # TODO: underneath the species entry create a label that shows information
@@ -1912,7 +1915,7 @@ class AccessionEditorPresenter(editor.GenericEditorPresenter):
 
         def on_select(value):
             logger.debug('on select: %s' % value)
-            if isinstance(value, StringTypes):
+            if isinstance(value, str):
                 value = Species.retrieve(
                     self.session, {'species': value})
             def set_model(v):

@@ -33,7 +33,11 @@ from bauble.prefs import prefs, debug_logging_prefs, testing
 if not testing and __name__ in prefs[debug_logging_prefs]:
     logger.setLevel(logging.DEBUG)
 
-from gi.repository import Gtk
+
+import gi
+gi.require_version("Gtk", "3.0")
+from gi.repository import Gtk  # noqa
+
 from gi.repository import GObject
 
 from sqlalchemy import union

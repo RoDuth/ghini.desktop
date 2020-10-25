@@ -20,7 +20,11 @@
 #
 from operator import itemgetter
 
-from gi.repository import Gtk
+
+import gi
+gi.require_version("Gtk", "3.0")
+from gi.repository import Gtk  # noqa
+
 
 from sqlalchemy import select, Column, Unicode, String, Integer, ForeignKey
 from sqlalchemy.orm import object_session, relation, backref

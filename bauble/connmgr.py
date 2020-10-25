@@ -32,7 +32,11 @@ import logging
 logger = logging.getLogger(__name__)
 #logger.setLevel(logging.DEBUG)
 
-from gi.repository import Gtk
+
+import gi
+gi.require_version("Gtk", "3.0")
+from gi.repository import Gtk  # noqa
+
 
 import bauble
 from bauble import paths, prefs, utils
@@ -484,7 +488,7 @@ class ConnMgrPresenter(GenericEditorPresenter):
             self.view.get_window(),
             Gtk.DialogFlags.MODAL | Gtk.DialogFlags.DESTROY_WITH_PARENT,
             (Gtk.STOCK_OK, Gtk.ResponseType.ACCEPT))
-        if name is not '':
+        if name != '':
             self.connection_name = name
             self.connection_names.insert(0, name)
             self.connections[name] = self.get_params(new=name)

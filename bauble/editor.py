@@ -30,8 +30,12 @@ import logging
 logger = logging.getLogger(__name__)
 # logger.setLevel(logging.DEBUG)
 
+import gi
+gi.require_version("Gtk", "3.0")
+from gi.repository import Gtk  # noqa
 from gi.repository import GLib
-from gi.repository import Gtk
+from gi.repository import Gdk
+from gi.repository import GdkPixbuf
 from gi.repository import GObject
 
 from random import random
@@ -49,7 +53,6 @@ import bauble.paths as paths
 import bauble.prefs as prefs
 import bauble.utils as utils
 from bauble.error import CheckConditionError
-from types import StringTypes
 
 # TODO: create a generic date entry that can take a mask for the date format
 # see the date entries for the accession and accession source presenters
@@ -529,7 +532,7 @@ class GenericEditorView(object):
 
     def combobox_remove(self, widget, item):
         widget = self.__get_widget(widget)
-        if isinstance(item, StringTypes):
+        if isinstance(item, str):
             # remove matching
             model = widget.get_model()
             for i, row in enumerate(model):
@@ -1229,8 +1232,7 @@ class GenericEditorPresenter(object):
             self.view.set_accept_buttons_sensitive(not self.has_problems())
 
     def __get_widget_name(self, widget):
-        from types import StringTypes
-        return (isinstance(widget, StringTypes)
+        return (isinstance(widget, str)
                 and widget
                 or Gtk.Buildable.get_name(widget))
 
@@ -1482,8 +1484,7 @@ class GenericEditorPresenter(object):
             except:
                 logger.info("can't get widget %s" % widget)
         self.problems.add((problem_id, widget))
-        from types import StringTypes
-        if isinstance(widget, StringTypes):
+        if isinstance(widget, str):
             self.view.mark_problem(widget)
         elif widget is not None:
             widget.modify_bg(Gtk.StateType.NORMAL, self.problem_color)
@@ -2171,19 +2172,7 @@ class NotesPresenter(GenericEditorPresenter):
         # box, which will host all expanders.  In the content box we
         # extract, from the same file, the widget named 'notes_box'.
         filename = os.path.join(paths.lib_dir(), self.ContentBox.glade_ui)
-        xml = etree.parse(filename)
-        builder = Gtk.Builder()
-        import sys
-        if sys.platform == 'win32':
-            # NOTE: PyGTK for Win32 is broken so we have to include
-            # this little hack
-            #
-            # TODO: is this only a specific set of version of
-            # PyGTK/GTK...it was only tested with PyGTK 2.12
-            builder.add_from_string(etree.tostring(xml), -1)
-        else:
-            builder.add_from_string(etree.tostring(xml))
-        self.widgets = utils.BuilderWidgets(builder)
+        self.widgets = utils.BuilderWidgets(filename)
 
         self.parent_ref = weakref.ref(presenter)
         self.note_cls = object_mapper(presenter.model).\
@@ -2242,8 +2231,7 @@ class PicturesPresenter(NotesPresenter):
     ContentBox = PictureBox
 
     def __init__(self, presenter, notes_property, parent_container):
-        super(PicturesPresenter, self).__init__(
-            presenter, notes_property, parent_container)
+        super().__init__(presenter, notes_property, parent_container)
 
         notes = self.box.get_children()
         if notes:

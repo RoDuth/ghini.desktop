@@ -18,7 +18,11 @@
 # along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
 
 
-from gi.repository import Gtk
+
+import gi
+gi.require_version("Gtk", "3.0")
+from gi.repository import Gtk  # noqa
+
 import re
 
 import logging
@@ -29,7 +33,6 @@ if not testing and __name__ in prefs[debug_logging_prefs]:
     logger.setLevel(logging.DEBUG)
 
 import bauble.utils.desktop as desktop
-
 
 
 def _open_link(*args, **kwargs):
@@ -45,7 +48,8 @@ def _open_link(*args, **kwargs):
     else:
         desktop.open(data)
 
-Gtk.link_button_set_uri_hook(_open_link)
+
+# Gtk.link_button_set_uri_hook(_open_link)
 
 
 class BaubleLinkButton(Gtk.LinkButton):

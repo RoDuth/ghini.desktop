@@ -35,7 +35,7 @@ installed plugins in to the registry (happens in load())
 
 import logging
 logger = logging.getLogger(__name__)
-#logger.setLevel(logging.INFO)
+logger.setLevel(logging.INFO)
 
 import types
 import os
@@ -43,7 +43,9 @@ import re
 import sys
 import traceback
 
-from gi.repository import Gtk
+import gi
+gi.require_version("Gtk", "3.0")
+from gi.repository import Gtk  # noqa
 
 
 from sqlalchemy import Column, Unicode, select
@@ -274,7 +276,7 @@ def init(force=False):
 
     # don't build the tools menu if we're running from the tests and
     # we don't have a gui
-    if bauble.gui:
+    if bauble.gui is not None:
         bauble.gui.build_tools_menu()
 
 
@@ -293,8 +295,8 @@ def install(plugins_to_install, import_defaults=True, force=False):
     :type force: book
     """
 
-    logger.debug('pluginmgr.install(%s)' % str(plugins_to_install))
-    if plugins_to_install is 'all':
+    logger.debug('pluginmgr.install(%s)', str(plugins_to_install))
+    if plugins_to_install == 'all':
         to_install = list(plugins.values())
     else:
         to_install = plugins_to_install
@@ -575,6 +577,7 @@ def _find_plugins(path):
         plugin_names = ['bauble.plugins.%s' % m
                         for m in _find_module_names(path)]
 
+    from importlib import import_module
     for name in plugin_names:
         mod = None
         # Fast path: see if the module has already been imported.
@@ -583,7 +586,7 @@ def _find_plugins(path):
             mod = sys.modules[name]
         else:
             try:
-                mod = __import__(name, globals(), locals(), [name], -1)
+                mod = import_module(f"bauble.plugins.{name}")
             except Exception as e:
                 msg = _('Could not import the %(module)s module.\n\n'
                         '%(error)s') % {'module': name, 'error': e}

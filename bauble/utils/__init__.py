@@ -30,7 +30,11 @@ import re
 import textwrap
 import xml.sax.saxutils as saxutils
 
-from gi.repository import Gtk
+
+import gi
+gi.require_version("Gtk", "3.0")
+from gi.repository import Gtk  # noqa
+
 from gi.repository import GObject
 from gi.repository import GLib
 
@@ -254,8 +258,9 @@ def find_dependent_tables(table, metadata=None):
 
 
 def load_widgets(filename):
-    b = BuilderLoader.load(filename)
-    return BuilderWidgets(b)
+    # b = BuilderLoader.load(filename)
+    # return BuilderWidgets(b)
+    return BuilderWidgets(filename)
 
 
 class BuilderLoader(object):
@@ -542,9 +547,8 @@ def set_widget_value(widget, value, markup=False, default=None, index=0):
             widget.get_child().props.text = value or ''
     elif isinstance(widget,
                     (Gtk.ToggleButton, Gtk.CheckButton, Gtk.RadioButton)):
-        from types import StringTypes
         if (isinstance(widget, Gtk.CheckButton)
-                and isinstance(value, StringTypes)):
+                and isinstance(value, str)):
             value = (value == Gtk.Buildable.get_name(widget))
         if value is True:
             widget.set_inconsistent(False)
@@ -885,14 +889,13 @@ def to_unicode(obj, encoding='utf-8'):
     object it will not try to decode it to converted it to <encoding>
     but will just return the original obj
     """
-    if isinstance(obj, str):
-        if not isinstance(obj, str):
-            obj = str(obj, encoding)
-    else:
+    if isinstance(obj, str) or obj is None:
+        return obj
+    if not isinstance(obj, str):
         try:
             obj = str(obj, encoding)
         except Exception:
-            obj = str(str(obj), encoding)
+            obj = f'{obj}'
     return obj
 
 
