@@ -27,7 +27,10 @@ import logging
 logger = logging.getLogger(__name__)
 #logger.setLevel(logging.INFO)
 
-import Gtk.gdk
+import gi
+gi.require_version("Gtk", "3.0")
+from gi.repository import Gtk  # noqa
+# import Gtk.gdk
 
 import bauble
 import bauble.db as db

@@ -43,7 +43,7 @@ def update_gui():
     from gi.repository import Gtk
 
     while Gtk.events_pending():
-        Gtk.main_iteration(block=False)
+        Gtk.main_iteration()
 
 
 def check_dupids(filename):
@@ -82,11 +82,11 @@ class MockLoggingHandler(logging.Handler):
     def reset(self):
         self.messages = {}
 
-        
+
 class BaubleTestCase(unittest.TestCase):
 
     def __init__(self, *args, **kwargs):
-        super(BaubleTestCase, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         prefs.testing = True
 
     def setUp(self):
@@ -101,7 +101,7 @@ class BaubleTestCase(unittest.TestCase):
         pluginmgr.load()
         prefs.init()
         prefs.testing = True
-        db.create(import_defaults=False)
+        db.create(False)
         pluginmgr.install('all', False, force=True)
         pluginmgr.init()
         self.session = db.Session()

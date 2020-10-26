@@ -34,9 +34,11 @@ import xml.sax.saxutils as saxutils
 import gi
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk  # noqa
+from gi.repository import Gdk  # noqa
 
 from gi.repository import GObject
 from gi.repository import GLib
+from gi.repository import GdkPixbuf
 
 import logging
 logger = logging.getLogger(__name__)
@@ -689,7 +691,7 @@ def yes_no_dialog(msg, parent=None, yes_delay=-1):
     return r == Gtk.ResponseType.YES
 
 
-def create_message_details_dialog(msg, details, type=Gtk.MessageType.INFO,
+def create_message_details_dialog(msg, details='', type=Gtk.MessageType.INFO,
                                   buttons=Gtk.ButtonsType.OK, parent=None):
     '''
     Create a message dialog with a details expander.
@@ -702,7 +704,7 @@ def create_message_details_dialog(msg, details, type=Gtk.MessageType.INFO,
 
     d = Gtk.MessageDialog(flags=Gtk.DialogFlags.MODAL |
                           Gtk.DialogFlags.DESTROY_WITH_PARENT,
-                          parent=parent, type=type, buttons=buttons)
+                          parent=parent, message_type=type, buttons=buttons)
     d.set_title('Ghini')
     d.set_markup(msg)
 
@@ -717,7 +719,7 @@ def create_message_details_dialog(msg, details, type=Gtk.MessageType.INFO,
     if width/Pango.SCALE*len(msg) < 300:
         d.set_size_request(300, -1)
 
-    expand = Gtk.Expander(_("Details"))
+    expand = Gtk.Expander()
     text_view = Gtk.TextView()
     text_view.set_editable(False)
     text_view.set_wrap_mode(Gtk.WrapMode.WORD)
@@ -786,12 +788,12 @@ def setup_text_combobox(combo, values=None, cell_data_func=None):
     if cell_data_func:
         combo.set_cell_data_func(renderer, cell_data_func)
 
-    if not isinstance(combo, Gtk.ComboBoxEntry):
+    if not isinstance(combo, Gtk.ComboBox):
         return
 
     # enables things like scrolling through values with keyboard and
     # other goodies
-    combo.props.text_column = 0
+    # combo.props.text_column = 0
 
     # if combo is a Gtk.ComboBoxEntry then setup completions
     def compl_cell_data_func(col, cell, model, treeiter, data=None):
@@ -799,10 +801,10 @@ def setup_text_combobox(combo, values=None, cell_data_func=None):
     completion = Gtk.EntryCompletion()
     completion.set_model(model)
     cell = Gtk.CellRendererText()  # set up the completion renderer
-    completion.pack_start(cell, True, True, 0)
+    completion.pack_start(cell, True)
     completion.set_cell_data_func(cell, compl_cell_data_func)
     completion.props.text_column = 0
-    combo.get_child().set_completion(completion)
+    # combo.get_child().set_completion(completion)
 
     def match_func(completion, key, treeiter, data=None):
         model = completion.get_model()

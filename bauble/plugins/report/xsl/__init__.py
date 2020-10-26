@@ -437,7 +437,7 @@ class FileChooserButton(Gtk.Button):
 class XSLFormatterSettingsBox(SettingsBox):
 
     def __init__(self, report_dialog=None, *args):
-        super(XSLFormatterSettingsBox, self).__init__(*args)
+        super().__init__(*args)
         filename = os.path.join(paths.lib_dir(), "plugins", "report", 'xsl',
                                 'gui.glade')
         self.widgets = utils.load_widgets(filename)

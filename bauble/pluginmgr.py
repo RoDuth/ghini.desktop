@@ -586,7 +586,8 @@ def _find_plugins(path):
             mod = sys.modules[name]
         else:
             try:
-                mod = import_module(f"bauble.plugins.{name}")
+                # mod = __import__(name, globals(), locals(), [name], -1)
+                mod = import_module(name, bauble.plugins)
             except Exception as e:
                 msg = _('Could not import the %(module)s module.\n\n'
                         '%(error)s') % {'module': name, 'error': e}

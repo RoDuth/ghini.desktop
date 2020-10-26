@@ -179,7 +179,7 @@ class MapperBase(DeclarativeMeta):
                 utils.xml_safe(str(x)),
                 '(%s)' % type(x).__name__)
 
-        super(MapperBase, cls).__init__(classname, bases, dict_)
+        super().__init__(classname, bases, dict_)
 
 
 engine = None
@@ -518,7 +518,8 @@ def make_note_class(name, compute_serializable_fields, as_dict=None, retrieve=No
             # dirty trick: making sure it's not going to be found!
             import uuid
             keys['category'] = str(uuid.uuid4())
-        result = super(globals()[class_name], cls).retrieve_or_create(session, keys, create, update)
+        result = super(globals()[class_name], cls
+                       ).retrieve_or_create(session, keys, create, update)
         keys['category'] = category
         if result:
             result.category = category
@@ -576,29 +577,39 @@ class WithNotes:
         the result can be an atomic value, a list, or a dictionary.
         '''
 
+        if name.startswith('_sa'):  # _sa are internal sqlalchemy fields
+            raise AttributeError(name)
+
         result = []
         is_dict = False
-        for n in self.notes:
-            if n.category is None:
+        for note in self.notes:
+            if note.category is None:
                 pass
-            elif n.category == ('[%s]' % name):
-                result.append(n.note)
-            elif n.category.startswith('{%s:' % name) and n.category.endswith('}'):
+            elif note.category == ('[%s]' % name):
+                result.append(note.note)
+            elif (note.category.startswith('{%s:' % name)
+                  and
+                  note.category.endswith('}')):
                 is_dict = True
-                match = self.key_pattern.match(n.category)
+                match = self.key_pattern.match(note.category)
                 key = match.group(1)
-                result.append((key, n.note))
-            elif n.category == ('<%s>' % name):
+                result.append((key, note.note))
+            elif note.category == ('<%s>' % name):
                 try:
-                    return json.loads(re.sub(r'(\w+)[ ]*(?=:)', r'"\g<1>"',
-                                             '{' + n.note.replace(';', ',') + '}'))
+                    return json.loads(
+                        re.sub(r'(\w+)[ ]*(?=:)', r'"\g<1>"',
+                               '{' + note.note.replace(';', ',') + '}')
+                    )
                 except Exception as e:
                     pass
                 try:
-                    return json.loads(re.sub(r'(\w+)[ ]*(?=:)', r'"\g<1>"', n.note))
+                    return json.loads(
+                        re.sub(r'(\w+)[ ]*(?=:)', r'"\g<1>"', note.note))
                 except Exception as e:
-                    logger.debug('not parsed %s(%s), returning literal text »%s«', type(e), e, n.note)
-                    return n.note
+                    logger.debug(
+                        'not parsed %s(%s), returning literal text »%s«',
+                        type(e), e, note.note)
+                    return note.note
         if result == []:
             # if nothing was found, do not break the proxy.
             raise AttributeError(name)
