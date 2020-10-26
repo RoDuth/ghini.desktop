@@ -521,9 +521,9 @@ class SearchView(pluginmgr.View):
         the constructor
         '''
         logger.debug('SearchView::__init__')
-        super(SearchView, self).__init__()
+        super().__init__()
         filename = os.path.join(paths.lib_dir(), 'bauble.glade')
-        self.widgets = utils.load_widgets(filename)
+        self.widgets = utils.BuilderWidgets(filename)
         self.view = editor.GenericEditorView(
             filename, root_widget_name='main_window')
 
@@ -591,15 +591,15 @@ class SearchView(pluginmgr.View):
         '''add notebook page for a plugin class
         '''
         glade_name = bottom_info['glade_name']
-        builder = utils.BuilderLoader.load(glade_name)
-        widgets = utils.BuilderWidgets(builder)
-        page = getattr(widgets, bottom_info['page_widget'])
+        # builder = utils.BuilderLoader.load(glade_name)
+        bwid = utils.BuilderWidgets(glade_name)
+        page = bwid[bottom_info['page_widget']]
         # 2: detach it from parent (its container)
-        widgets.remove_parent(page)
+        bwid.remove_parent(page)
         # 3: create the label object
         label = Gtk.Label(label=bottom_info['name'])
         # 4: add the page, non sensitive
-        self.view.widget_append_page('bottom_notebook', page, label)
+        self.widget['bottom_notebook'].append_page(page, label)
         # 5: store the values for later use
         bottom_info['tree'] = page.get_children()[0]
         bottom_info['label'] = label

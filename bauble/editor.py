@@ -219,7 +219,8 @@ class GenericEditorView(object):
 
     def __init__(self, filename, parent=None, root_widget_name=None):
         self.root_widget_name = root_widget_name
-        builder = self.builder = utils.BuilderLoader.load(filename)
+        builder = self.builder = Gtk.Builder()
+        builder.add_from_file(filename)
         self.filename = filename
         self.widgets = utils.BuilderWidgets(builder)
         if parent:
@@ -686,7 +687,7 @@ class GenericEditorView(object):
         # completions regardless of the length of the string
         completion = Gtk.EntryCompletion()
         cell = Gtk.CellRendererText()  # set up the completion renderer
-        completion.pack_start(cell, True, True, 0)
+        completion.pack_start(cell, True)
         completion.set_cell_data_func(cell, cell_data_func)
         completion.set_match_func(match_func)
         completion.set_property('text-column', text_column)

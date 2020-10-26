@@ -370,9 +370,9 @@ def search_tree_model(parent, data, cmp=lambda row, data: row[0] == data):
      data, default is C{lambda row, data: row[0] == data}
     """
     if isinstance(parent, Gtk.TreeModel):
-        if not parent.get_iter_root():  # model empty
+        if not parent.get_iter_first():  # model empty
             return []
-        return search_tree_model(parent[parent.get_iter_root()], data, cmp)
+        return search_tree_model(parent[parent.get_iter_first()], data, cmp)
     results = set()
 
     def func(model, path, iter, dummy=None):
@@ -545,8 +545,8 @@ def set_widget_value(widget, value, markup=False, default=None, index=0):
                 widget.set_active_iter(treeiter)
             else:
                 widget.set_active(-1)
-        if isinstance(widget, Gtk.ComboBoxEntry):
-            widget.get_child().props.text = value or ''
+        if isinstance(widget, Gtk.ComboBoxText):
+            widget.get_child().append_text = value or ''
     elif isinstance(widget,
                     (Gtk.ToggleButton, Gtk.CheckButton, Gtk.RadioButton)):
         if (isinstance(widget, Gtk.CheckButton)

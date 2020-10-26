@@ -120,17 +120,7 @@ class HistoryExtension(orm.MapperExtension):
         """
         Add a new entry to the history table.
         """
-        user = None
-        try:
-            if engine.name.startswith('sqlite'):
-                raise TypeError("this engine know nothing of users")
-            import bauble.plugins.users as users
-            user = current_user()
-        except:
-            if 'USER' in os.environ and os.environ['USER']:
-                user = os.environ['USER']
-            elif 'USERNAME' in os.environ and os.environ['USERNAME']:
-                user = os.environ['USERNAME']
+        user = current_user()
 
         row = {}
         for c in mapper.local_table.c:

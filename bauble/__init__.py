@@ -289,10 +289,10 @@ dbengine.html#create-engine-url-arguments>`_
         logger.warning("can't configure sentry client")
         logger.debug("%s(%s)" % (type(e).__name__, e))
 
-    import Gtk.gdk
     import gi
-    if not paths.main_is_frozen():
-        gi.require_version("Gtk", "3.0")
+    # if not paths.main_is_frozen():
+    gi.require_version("Gtk", "3.0")
+    from gi.repository import Gdk
 
     display = Gdk.Display.get_default()
     if display is None:

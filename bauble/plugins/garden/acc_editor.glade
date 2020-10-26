@@ -443,7 +443,7 @@
                                       </packing>
                                     </child>
                                     <child>
-                                      <object class="GtkComboBoxEntry" id="acc_recvd_type_comboentry">
+                                      <object class="GtkComboBoxText" id="acc_recvd_type_comboentry">
                                         <property name="visible">True</property>
                                         <property name="can_focus">False</property>
                                         <child internal-child="entry">

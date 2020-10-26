@@ -937,7 +937,10 @@ class AccessionEditorView(editor.GenericEditorView):
                                      'material being accessioned.'),
         'intended2_loc_comboentry': _('The intended location for plant '
                                       'material being accessioned.'),
-        'intended_loc_create_plant_checkbutton': _('Immediately create a plant at this location, using all plant material.'),
+        'intended_loc_create_plant_checkbutton': _(
+            'Immediately create a plant at this location, using all plant '
+            'material.'
+        ),
 
         'acc_prov_combo': (_('The origin or source of this accession.\n\n'
                              'Possible values: %s') %
@@ -955,17 +958,19 @@ class AccessionEditorView(editor.GenericEditorView):
         'acc_next_button': _('Save your changes and add another '
                              'accession.'),
 
-        'sources_code_entry': "ITF2 - E7 - Donor's Accession Identifier - donacc",
+        'sources_code_entry': ("ITF2 - E7 - Donor's Accession Identifier - "
+                               "donacc"),
         }
 
     def __init__(self, parent=None):
         """
 
         """
-        super(AccessionEditorView, self).\
-            __init__(os.path.join(paths.lib_dir(), 'plugins', 'garden',
-                                  'acc_editor.glade'),
-                     parent=parent)
+        glade_file = os.path.join(paths.lib_dir(),
+                                  'plugins',
+                                  'garden',
+                                  'acc_editor.glade')
+        super().__init__(glade_file, parent=parent)
         self.attach_completion('acc_species_entry',
                                cell_data_func=self.species_cell_data_func,
                                match_func=self.species_match_func)
@@ -1996,7 +2001,7 @@ class AccessionEditorPresenter(editor.GenericEditorPresenter):
             self.view.widgets.intended2_loc_comboentry,
             'intended2_location')
 
-        ## add a taxon implies setting the acc_species_entry
+        # add a taxon implies setting the acc_species_entry
         self.view.connect(
             self.view.widgets.acc_taxon_add_button, 'clicked',
             lambda b, w: generic_taxon_add_action(
@@ -2208,7 +2213,7 @@ class AccessionEditorPresenter(editor.GenericEditorPresenter):
             return
         self.remove_problem(self.PROBLEM_DUPLICATE_ACCESSION,
                             self.view.widgets.acc_code_entry)
-        if text is '':
+        if text == '':
             self.set_model_attr('code', None)
         else:
             self.set_model_attr('code', utils.utf8(text))
