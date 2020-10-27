@@ -414,7 +414,7 @@ dbengine.html#create-engine-url-arguments>`_
                 (bauble.installation_date, __file__, bauble.release_version, bauble.release_date, ))
 
     gui.show()
-    Gtk.threads_enter()
+    Gdk.threads_enter()
     Gtk.main()
     active_view = gui.get_view()
     if active_view:

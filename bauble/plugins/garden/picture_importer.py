@@ -27,6 +27,7 @@ from gi.repository import Gtk  # noqa
 from gi.repository import GObject
 import threading
 from gi.repository import GLib
+from gi.repository import GdkPixbuf
 import re
 import os.path
 from bauble import pluginmgr, db, utils

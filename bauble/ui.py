@@ -27,6 +27,8 @@ import traceback
 import gi
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk  # noqa
+from gi.repository import Gdk
+from gi.repository import GdkPixbuf
 
 
 import logging
@@ -153,7 +155,8 @@ class GUI(object):
         main_entry.connect('activate', self.on_main_entry_activate)
         accel_group = Gtk.AccelGroup()
         main_entry.add_accelerator("grab-focus", accel_group, ord('L'),
-                                   Gdk.ModifierType.CONTROL_MASK, Gtk.AccelFlags.VISIBLE)
+                                   Gdk.ModifierType.CONTROL_MASK,
+                                   Gtk.AccelFlags.VISIBLE)
         self.window.add_accel_group(accel_group)
 
         self.widgets.home_button.connect(
@@ -175,7 +178,7 @@ class GUI(object):
         # future versions of gtk
         statusbar = self.widgets.statusbar
         statusbar.set_spacing(10)
-        statusbar.set_has_resize_grip(True)
+        # statusbar.set_has_resize_grip(True)
         self._cids = []
 
         def on_statusbar_push(sb, cid, txt):
@@ -357,7 +360,7 @@ class GUI(object):
 
         if history is not None:
             for herstory in history:
-                main_combo.append_text(herstory)
+                model.append([herstory, ])
                 compl_model.append([herstory])
 
     def __get_title(self):
