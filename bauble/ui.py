@@ -33,7 +33,7 @@ from gi.repository import GdkPixbuf
 
 import logging
 logger = logging.getLogger(__name__)
-#logger.setLevel(logging.DEBUG)
+# logger.setLevel(logging.DEBUG)
 
 import bauble
 import bauble.db as db
@@ -85,7 +85,8 @@ class DefaultView(pluginmgr.View):
         if self.infoboxclass and not self.infobox:
             logger.debug('DefaultView::update - creating infobox')
             self.infobox = self.infoboxclass()
-            self.hbox.pack_end(self.infobox, expand=False, padding=8)
+            self.hbox.pack_end(self.infobox, expand=False, fill=False,
+                               padding=8)
             self.infobox.show()
         if self.infobox:
             logger.debug('DefaultView::update - updating infobox')
@@ -95,7 +96,7 @@ class DefaultView(pluginmgr.View):
 class SplashCommandHandler(pluginmgr.CommandHandler):
 
     def __init__(self):
-        super(SplashCommandHandler, self).__init__()
+        super().__init__()
         if self.view is None:
             logger.warning('SplashCommandHandler.view is None, expect trouble')
 
@@ -374,9 +375,10 @@ class GUI(object):
     def set_busy(self, busy):
         self.widgets.main_box.set_sensitive(not busy)
         if busy:
-            self.window.window.set_cursor(Gdk.Cursor.new(Gdk.CursorType.WATCH))
+            self.window.get_property('window').set_cursor(
+                Gdk.Cursor.new(Gdk.CursorType.WATCH))
         else:
-            self.window.window.set_cursor(None)
+            self.window.get_property('window').set_cursor(None)
 
     def set_default_view(self):
         main_entry = self.widgets.main_comboentry.get_child()
@@ -572,7 +574,7 @@ class GUI(object):
                     tools['__root'].append(tool)
 
         # add the tools with no category to the root menu
-        root_tools = sorted(tools.pop('__root'))
+        root_tools = sorted(tools.pop('__root'), key=lambda tool: tool.label)
         for tool in root_tools:
             item = Gtk.MenuItem(tool.label)
             item.show()
@@ -587,8 +589,7 @@ class GUI(object):
             submenu_item = Gtk.MenuItem(category)
             submenu_item.set_submenu(submenu)
             menu.append(submenu_item)
-            for tool in sorted(tools[category],
-                               cmp=lambda x, y: cmp(x.label, y.label)):
+            for tool in sorted(tools[category], key=lambda tool: tool.label):
                 item = Gtk.MenuItem(tool.label)
                 item.connect("activate", self.on_tools_menu_item_activate,
                              tool)
@@ -796,14 +797,10 @@ class GUI(object):
         about = Gtk.AboutDialog()
         about.set_name('Ghini (BBG)')
         about.set_version(bauble.version)
-        Gtk.about_dialog_set_url_hook(lambda d, l:
-                                      desktop.open(l, dialog_on_error=True))
+        # Gtk.about_dialog_set_url_hook(lambda d, l:
+        #                               desktop.open(l, dialog_on_error=True))
         about.set_website(_('http://ghini.github.io'))
-        import sys
-        if sys.platform == 'darwin':
-            f = os.path.join(paths.lib_dir(), 'images', 'icon.png')
-        else:
-            f = os.path.join(paths.lib_dir(), 'images', 'icon.svg')
+        f = os.path.join(paths.lib_dir(), 'images', 'icon.svg')
         pixbuf = GdkPixbuf.Pixbuf.new_from_file(f)
         about.set_logo(pixbuf)
         about.set_copyright(_('Copyright © by its contributors.'))
@@ -828,7 +825,7 @@ class GUI(object):
         """
         this is usually called from bauble.py when it shuts down
         """
-        rect = self.window.allocation
+        rect = self.window.get_size()
         prefs[self.window_geometry_pref] = rect.width, rect.height
         # prefs.save() is called in bauble/__init__.py
 

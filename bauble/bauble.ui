@@ -13,7 +13,7 @@
       <!--<separator/>
       <menuitem action="edit_preferences"/>
       <separator/>-->
-    </menu>    
+    </menu>
     <menu name="insert_menu" action="insert"/>
     <menu name="tools_menu" action="tools"/>
     <menu name="help_menu" action="help">

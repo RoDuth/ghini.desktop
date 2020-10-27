@@ -1224,7 +1224,7 @@ def make_label_clickable(label, on_clicked, *args):
     :param on_clicked: callback to be called when the label is clicked
       on_clicked(label, event, data)
     """
-    eventbox = label.parent
+    eventbox = label.get_parent()
 
     check(eventbox is not None, 'label must have a parent')
     check(isinstance(eventbox, Gtk.EventBox),

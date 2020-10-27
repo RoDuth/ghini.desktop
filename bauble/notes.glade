@@ -64,8 +64,9 @@
                           </packing>
                         </child>
                         <child>
-                          <object class="GtkComboBoxEntry" id="category_comboentry">
+                          <object class="GtkComboBox" id="category_comboentry">
                             <property name="visible">True</property>
+                            <property name="has-entry">True</property>
                           </object>
                           <packing>
                             <property name="left_attach">1</property>

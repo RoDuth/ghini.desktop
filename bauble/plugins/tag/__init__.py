@@ -27,6 +27,7 @@ import traceback
 import gi
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk  # noqa
+from gi.repository import Gdk  # noqa
 
 
 import logging

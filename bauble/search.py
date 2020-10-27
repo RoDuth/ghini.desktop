@@ -861,11 +861,11 @@ class MapperSearch(SearchStrategy):
         have been processed or it is possible that some database backends
         could cause deadlocks.
         """
-        super(MapperSearch, self).search(text, session)
+        super().search(text, session)
         self._session = session
 
         self._results.clear()
-        statement = self.parser.parse_string(text.decode()).statement
+        statement = self.parser.parse_string(text).statement
         logger.debug("statement : %s(%s)" % (type(statement), statement))
         self._results.update(statement.invoke(self))
         logger.debug('search returns %s(%s)'
@@ -1337,7 +1337,7 @@ class QueryBuilder(GenericEditorPresenter):
         if not parsed.is_valid:
             logger.debug('cannot restore query, invalid')
             return
-        
+
         # locate domain in list of valid domains
         try:
             index = sorted(self.domain_map.keys()).index(parsed.domain)

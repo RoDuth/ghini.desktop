@@ -109,7 +109,7 @@ class SplashInfoBox(pluginmgr.View):
         self.widgets = utils.load_widgets(filename)
         self.widgets.remove_parent(self.widgets.splash_vbox)
         self.pack_start(self.widgets.splash_vbox,
-                        expand=False, padding=8)
+                        expand=False, fill=False, padding=8)
 
         utils.make_label_clickable(
             self.widgets.splash_nfamuse,

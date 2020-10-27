@@ -46,7 +46,7 @@ import bauble.i18n
 
 
 logger = logging.getLogger(__name__)
-# logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.DEBUG)
 consoleLevel = logging.INFO
 
 def pb_set_fraction(fraction):
@@ -419,4 +419,4 @@ dbengine.html#create-engine-url-arguments>`_
     active_view = gui.get_view()
     if active_view:
         active_view.cancel_threads()
-    Gtk.threads_leave()
+    Gdk.threads_leave()

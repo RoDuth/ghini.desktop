@@ -50,7 +50,7 @@ class Enum(types.TypeDecorator):
         # create the translations from the values and set those from
         # the translations argument, this way if some translations are
         # missing then the translation will be the same as value
-        if values is None or len(values) is 0:
+        if values is None or len(values) == 0:
             raise EnumError(_('Enum requires a list of values'))
         try:
             [len(x) for x in values if x is not None]
@@ -79,7 +79,7 @@ class Enum(types.TypeDecorator):
         """
         Process the value going into the database.
         """
-        if self.empty_to_none and value is '':
+        if self.empty_to_none and value == '':
             value = None
         if value is None and None not in self.values and '' in self.values:
             value = ''
