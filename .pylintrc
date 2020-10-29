@@ -61,7 +61,7 @@ confidence=
 # no Warning level messages displayed, use "--disable=all --enable=classes
 # --disable=W".
 disable=wrong-import-position,
-	missing-function-docstring
+	missing-function-docstring,
 	missing-class-docstring
 #        print-statement,
 #        parameter-unpacking,
