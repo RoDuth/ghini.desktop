@@ -492,7 +492,7 @@ class View(Gtk.VBox):
             del kwargs['filename']
             root_widget_name = kwargs.get('root_widget_name')
             del kwargs['root_widget_name']
-        super().__init__(*args, **kwargs)
+        super(View, self).__init__(*args, **kwargs)
         if filename is not None:
             from bauble import utils, editor
             self.widgets = utils.load_widgets(filename)

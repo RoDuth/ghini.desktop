@@ -193,7 +193,7 @@ class PropertiesExpander(InfoExpander):
         table.attach(updated_label, 0, 1, 3, 4)
         table.attach(self.updated_data, 1, 2, 3, 4)
 
-        box = Gtk.HBox()
+        box = Gtk.Box()
         box.pack_start(table, expand=False, fill=False, padding=0)
         self.vbox.pack_start(box, expand=False, fill=False, padding=0)
 

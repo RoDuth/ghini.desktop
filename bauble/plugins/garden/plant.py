@@ -1300,7 +1300,7 @@ class ChangesExpander(InfoExpander):
             else:
                 return 1
 
-        for change in sorted(row.changes, cmp=_cmp, reverse=True):
+        for change in sorted(row.changes, key=_cmp, reverse=True):
             try:
                 seconds, divided_plant = min(
                     [(abs((i.plant._created - change.date).total_seconds()), i.plant)
@@ -1398,7 +1398,7 @@ class PropagationExpander(InfoExpander):
         format = prefs.prefs[prefs.date_format_pref]
         for prop in row.propagations:
             # (h1 (v1 (date_lbl)) (v2 (eventbox (accession_lbl)) (label)))
-            h1 = Gtk.HBox()
+            h1 = Gtk.Box()
             h1.set_spacing(3)
             self.vbox.pack_start(h1, True, True, 0)
 

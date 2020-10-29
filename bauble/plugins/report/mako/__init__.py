@@ -332,7 +332,7 @@ class MakoFormatterSettingsBox(SettingsBox):
         current_row = 0
         # populate the options box
         for fname, ftype, fdefault, ftooltip in option_fields:
-            row = Gtk.HBox()
+            # row = Gtk.Box()
             label = Gtk.Label(fname.replace('_', ' ') + _(':'))
             label.set_alignment(0, 0.5)
             entry = Gtk.Entry()

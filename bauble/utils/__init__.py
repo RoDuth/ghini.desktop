@@ -606,13 +606,8 @@ def create_message_dialog(msg, type=Gtk.MessageType.INFO, buttons=Gtk.ButtonsTyp
     from gi.repository import Pango
     # if the character width is less than 300 pixels then set the
     # message dialog's label to be 300 to avoid tiny dialogs
-    if width/Pango.SCALE*len(msg) < 300:
-        # TODO: got this message but i don't really know what it
-        # means..should we set the width with markup???
-        #
-        #./bauble/utils/__init__.py:347: DeprecationWarning: use
-        #set_markup() instead  d.label.set_size_request(300, -1)
-        d.label.set_size_request(300, -1)
+    if width / Pango.SCALE * len(msg) < 300:
+        d.set_property('default-width', 250)
 
     if d.get_icon() is None:
         try:
@@ -621,6 +616,7 @@ def create_message_dialog(msg, type=Gtk.MessageType.INFO, buttons=Gtk.ButtonsTyp
         except Exception:
             pass
         d.set_property('skip-taskbar-hint', False)
+        d.set_property('resizable', True)
     d.show_all()
     return d
 

@@ -449,7 +449,7 @@ class PropagationTabPresenter(editor.GenericEditorPresenter):
     def create_propagation_box(self, propagation):
         """
         """
-        hbox = Gtk.HBox()
+        hbox = Gtk.Box()
         expander = Gtk.Expander()
         hbox.pack_start(expander, expand=True, fill=True)
 
@@ -471,7 +471,7 @@ class PropagationTabPresenter(editor.GenericEditorPresenter):
 
         alignment = Gtk.Alignment.new()
         hbox.pack_start(alignment, expand=False, fill=False)
-        button_box = Gtk.HBox(spacing=5)
+        button_box = Gtk.Box(spacing=5)
         alignment.add(button_box)
         button = Gtk.Button(stock=Gtk.STOCK_EDIT)
         self.view.connect(button, 'clicked', on_edit_clicked, propagation,

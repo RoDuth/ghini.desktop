@@ -1218,7 +1218,7 @@ class VerificationPresenter(editor.GenericEditorPresenter):
         box.show_all()
         return box
 
-    class VerificationBox(Gtk.HBox):
+    class VerificationBox(Gtk.Box):
 
         def __init__(self, parent, model):
             super(VerificationPresenter.VerificationBox, self).__init__(self)

@@ -582,7 +582,7 @@ class InfraspPresenter(editor.GenericEditorPresenter):
         # TODO: it is very slow to add rows to the widget...maybe if
         # we disable event on the table until all the rows have been
         # added
-        level = len(self.table_rows)+1
+        level = len(self.table_rows) + 1
         row = InfraspPresenter.Row(self, level)
         self.table_rows.append(row)
         if level >= 4:
@@ -610,24 +610,27 @@ class InfraspPresenter(editor.GenericEditorPresenter):
             utils.set_widget_value(self.rank_combo, rank)
             presenter.view.connect(self.rank_combo,
                                    'changed', self.on_rank_combo_changed)
-            table.attach(self.rank_combo, 0, 1, level, level+1,
-                         xoptions=Gtk.AttachOptions.FILL, yoptions=-1)
+            table.attach(self.rank_combo, 0, 1, level, level + 1,
+                         xoptions=Gtk.AttachOptions.FILL,
+                         yoptions=Gtk.AttachOptions.FILL)
 
             # epithet entry
             self.epithet_entry = Gtk.Entry()
             utils.set_widget_value(self.epithet_entry, epithet)
             presenter.view.connect(self.epithet_entry, 'changed',
                                    self.on_epithet_entry_changed)
-            table.attach(self.epithet_entry, 1, 2, level, level+1,
-                         xoptions=Gtk.AttachOptions.FILL | Gtk.AttachOptions.EXPAND, yoptions=-1)
+            table.attach(self.epithet_entry, 1, 2, level, level + 1,
+                         xoptions=Gtk.AttachOptions.FILL | Gtk.AttachOptions.EXPAND,
+                         yoptions=Gtk.AttachOptions.FILL)
 
             # author entry
             self.author_entry = Gtk.Entry()
             utils.set_widget_value(self.author_entry, author)
             presenter.view.connect(self.author_entry, 'changed',
                                    self.on_author_entry_changed)
-            table.attach(self.author_entry, 2, 3, level, level+1,
-                         xoptions=Gtk.AttachOptions.FILL | Gtk.AttachOptions.EXPAND, yoptions=-1)
+            table.attach(self.author_entry, 2, 3, level, level + 1,
+                         xoptions=Gtk.AttachOptions.FILL | Gtk.AttachOptions.EXPAND,
+                         yoptions=Gtk.AttachOptions.FILL)
 
             self.remove_button = Gtk.Button()
             img = Gtk.Image.new_from_stock(Gtk.STOCK_REMOVE,
@@ -635,8 +638,9 @@ class InfraspPresenter(editor.GenericEditorPresenter):
             self.remove_button.props.image = img
             presenter.view.connect(self.remove_button, 'clicked',
                                    self.on_remove_button_clicked)
-            table.attach(self.remove_button, 3, 4, level, level+1,
-                         xoptions=Gtk.AttachOptions.FILL, yoptions=-1)
+            table.attach(self.remove_button, 3, 4, level, level + 1,
+                         xoptions=Gtk.AttachOptions.FILL,
+                         yoptions=Gtk.AttachOptions.FILL)
             table.show_all()
 
         def on_remove_button_clicked(self, *args):
@@ -733,7 +737,7 @@ class DistributionPresenter(editor.GenericEditorPresenter):
         label.set_text(s)
 
     def on_add_button_pressed(self, button, event):
-        self.geo_menu.popup(None, None, None, event.button, event.time)
+        self.geo_menu.popup(None, None, None, None, event.button, event.time)
 
     def on_remove_button_pressed(self, button, event):
         # clear the menu
@@ -1098,7 +1102,7 @@ class SynonymsPresenter(editor.GenericEditorPresenter):
         # tmp.session.commit()
         # tmp.session.close()
         # self.session.refresh(value)
-        #self.session.flush([value])
+        # self.session.flush([value])
         self._dirty = True
         self.parent_ref().refresh_sensitivity()
 
@@ -1106,7 +1110,7 @@ class SynonymsPresenter(editor.GenericEditorPresenter):
 class SpeciesEditorView(editor.GenericEditorView):
 
     expanders_pref_map = {}
-    #{'sp_infra_expander': 'editor.species.infra.expanded',
+    # {'sp_infra_expander': 'editor.species.infra.expanded',
     # 'sp_meta_expander': 'editor.species.meta.expanded'}
 
     _tooltips = {
@@ -1144,7 +1148,7 @@ class SpeciesEditorView(editor.GenericEditorView):
         '''
         filename = os.path.join(paths.lib_dir(), 'plugins', 'plants',
                                 'species_editor.glade')
-        super(SpeciesEditorView, self).__init__(filename, parent=parent)
+        super().__init__(filename, parent=parent)
         self.attach_completion('sp_genus_entry',
                                self.genus_completion_cell_data_func,
                                match_func=self.genus_match_func)

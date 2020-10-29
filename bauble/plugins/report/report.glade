@@ -70,7 +70,7 @@
                 <property name="border_width">5</property>
                 <property name="spacing">5</property>
                 <child>
-                  <object class="GtkComboBox" id="names_combo">
+                  <object class="GtkComboBoxText" id="names_combo">
                     <property name="visible">True</property>
                     <property name="can_focus">False</property>
                     <signal name="changed" handler="on_names_combo_changed" swapped="no"/>
@@ -142,7 +142,7 @@
                             <property name="visible">True</property>
                             <property name="can_focus">False</property>
                             <child>
-                              <object class="GtkComboBox" id="formatter_combo">
+                              <object class="GtkComboBoxText" id="formatter_combo">
                                 <property name="visible">True</property>
                                 <property name="can_focus">False</property>
                                 <signal name="changed" handler="on_formatter_combo_changed" swapped="no"/>

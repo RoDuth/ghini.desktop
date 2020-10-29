@@ -29,7 +29,7 @@ logger = logging.getLogger(__name__)
 import bauble.utils as utils
 
 
-class PicturesView(Gtk.HBox):
+class PicturesView(Gtk.Box):
     """shows pictures corresponding to selection.
 
     at any time, no more than one PicturesView object will exist.
@@ -79,7 +79,7 @@ class PicturesView(Gtk.HBox):
                 pics = []
             for p in pics:
                 logger.debug('object %s has picture %s' % (o, p))
-                expander = Gtk.HBox()
+                expander = Gtk.Box()
                 expander.add(p)
                 self.box.pack_end(expander, expand=False, fill=False)
                 self.box.reorder_child(expander, 0)

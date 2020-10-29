@@ -538,12 +538,12 @@ class GenericEditorView(object):
             model = widget.get_model()
             for i, row in enumerate(model):
                 if item == row[0]:
-                    widget.remove_text(i)
+                    widget.remove(i)
                     break
             logger.warning("combobox_remove - not found >%s<" % item)
         elif isinstance(item, int):
             # remove at position
-            widget.remove_text(item)
+            widget.remove(item)
         else:
             logger.warning('invoked combobox_remove with item=(%s)%s' %
                            (type(item), item))
@@ -566,7 +566,7 @@ class GenericEditorView(object):
 
     def combobox_set_active(self, widget, index):
         widget = self.__get_widget(widget)
-        widget.set_active(index)
+        widget.set_entry_text_column(index)
 
     def combobox_get_model(self, widget):
         'get the list of values in the combo'
@@ -726,10 +726,14 @@ class GenericEditorView(object):
         # using 'object' avoids SA unicode warning
         model = Gtk.ListStore(object, str)
         if isinstance(translations, dict):
-            translations = sorted(iter(translations.items()), key=lambda x: x[1])
+            translations = sorted(iter(translations.items()),
+                                  key=lambda x: x[1])
+        # if cmp is not None:
+        #     translations = sorted(translations,
+        #                           cmp=lambda a, b: cmp(a[0], b[0]))
         if cmp is not None:
-            translations = sorted(translations,
-                                  cmp=lambda a, b: cmp(a[0], b[0]))
+            translations = sorted(translations, key=lambda a:
+                                  cmp.get(str(a[0])))
         for key, value in translations:
             model.append([key, value])
         combo.set_model(model)
@@ -1776,7 +1780,7 @@ class ChildPresenter(GenericEditorPresenter):
     """
 
     def __init__(self, model, view):
-        super(ChildPresenter, self).__init__(model, view)
+        super().__init__(model, view)
         #self._view_ref = weakref.ref(view)
 
     def _get_view(self):
@@ -1840,7 +1844,7 @@ class GenericModelViewPresenterEditor(object):
             self.session.close()
 
 
-class NoteBox(Gtk.HBox):
+class NoteBox(Gtk.Box):
     glade_ui = 'notes.glade'
 
     def set_content(self, text):
@@ -1853,7 +1857,7 @@ class NoteBox(Gtk.HBox):
         buff.connect('changed', self.on_note_buffer_changed, self.widgets.note_textview)
 
     def __init__(self, presenter, model=None):
-        super(NoteBox, self).__init__()
+        super().__init__()
 
         # open the glade file and extract the markup that the
         # expander will use
@@ -1875,7 +1879,7 @@ class NoteBox(Gtk.HBox):
 
         notes_box = self.widgets.notes_box
         self.widgets.remove_parent(notes_box)
-        self.pack_start(notes_box, expand=True, fill=True)
+        self.pack_start(notes_box, True, True, 0)
 
         self.session = object_session(presenter.model)
         self.presenter = presenter
@@ -2055,7 +2059,7 @@ class PictureBox(NoteBox):
     last_folder = '.'
 
     def __init__(self, presenter, model=None):
-        super(PictureBox, self).__init__(presenter, model)
+        super().__init__(presenter, model)
         utils.set_widget_value(self.widgets.category_comboentry,
                                '<picture>')
         self.presenter._dirty = False
@@ -2064,7 +2068,7 @@ class PictureBox(NoteBox):
             "clicked", self.on_activate_browse_button)
 
     def set_content(self, basename):
-        for w in list(self.widgets.picture_button.children()):
+        for w in list(self.widgets.picture_button.get_children()):
             w.destroy()
         if basename is not None:
             im = Gtk.Image()
@@ -2165,7 +2169,7 @@ class NotesPresenter(GenericEditorPresenter):
     ContentBox = NoteBox
 
     def __init__(self, presenter, notes_property, parent_container):
-        super(NotesPresenter, self).__init__(presenter.model, None)
+        super().__init__(presenter.model, None)
 
         # The glade file named in ContentBox is structured with two top
         # GtkWindow next to each other. Here, by not doing any lookup, we
@@ -2211,7 +2215,7 @@ class NotesPresenter(GenericEditorPresenter):
         Add a new note to the model.
         """
         expander = self.ContentBox(self, note)
-        self.box.pack_start(expander, expand=False, fill=False)  # padding=10
+        self.box.pack_start(expander, False, False, 0)  # padding=10
         self.box.reorder_child(expander, 0)
         expander.show_all()
         return expander
