@@ -378,9 +378,10 @@
                                 <property name="can_focus">False</property>
                                 <property name="spacing">6</property>
                                 <child>
-                                  <object class="GtkComboBoxEntry" id="plant_loc_comboentry">
+                                  <object class="GtkComboBox" id="plant_loc_comboentry">
                                     <property name="visible">True</property>
                                     <property name="can_focus">False</property>
+                                    <property name="has-entry">true</property>
                                     <child internal-child="entry">
                                       <object class="GtkEntry" id="comboboxentry-entry2">
                                         <property name="can_focus">True</property>
@@ -1182,9 +1183,10 @@
                 <property name="can_focus">False</property>
                 <property name="spacing">6</property>
                 <child>
-                  <object class="GtkComboBoxEntry" id="split_planting_comboentry">
+                  <object class="GtkComboBox" id="split_planting_comboentry">
                     <property name="visible">True</property>
                     <property name="can_focus">False</property>
+                    <property name="has-entry">True</property>
                     <child internal-child="entry">
                       <object class="GtkEntry" id="split_planting_location">
                         <property name="can_focus">True</property>

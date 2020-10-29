@@ -294,9 +294,10 @@
                               </object>
                             </child>
                             <child>
-                              <object class="GtkComboBoxEntry" id="loc_merge_comboentry">
+                              <object class="GtkComboBox" id="loc_merge_comboentry">
                                 <property name="visible">True</property>
                                 <property name="can_focus">True</property>
+                                <property name="has-entry">True</property>
                                 <child internal-child="entry">
                                   <object class="GtkEntry" id="loc_merge_entry">
                                     <property name="can_focus">True</property>

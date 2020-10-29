@@ -740,7 +740,7 @@
                           </packing>
                         </child>
                         <child>
-                          <object class="GtkComboBoxEntry" id="sp_habit_comboentry">
+                          <object class="GtkComboBox" id="sp_habit_comboentry">
                             <property name="visible">True</property>
                             <property name="can_focus">False</property>
                             <property name="has-entry">False</property>

@@ -22,7 +22,7 @@ import itertools
 import os
 import sys
 import traceback
-import cgi
+import html
 
 import logging
 logger = logging.getLogger(__name__)
@@ -32,6 +32,7 @@ logger = logging.getLogger(__name__)
 import gi
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk  # noqa
+from gi.repository import Gdk  # noqa
 
 from gi.repository import GObject
 from gi.repository import Pango
@@ -85,7 +86,7 @@ class Action(Gtk.Action):
         The activate signal is not automatically connected to the
         callback method.
         """
-        super(Action, self).__init__(name, label, tooltip, stock_id)
+        super().__init__(name, label, tooltip, stock_id)
         self.callback = callback
         self.multiselect = multiselect
         self.singleselect = singleselect
@@ -120,7 +121,7 @@ class InfoExpander(Gtk.Expander):
 
         :param widgets: a bauble.utils.BuilderWidgets instance
         """
-        super(InfoExpander, self).__init__(label)
+        super().__init__(label)
         self.vbox = Gtk.VBox(False)
         self.vbox.set_border_width(5)
         self.add(self.vbox)
@@ -151,7 +152,7 @@ class InfoExpander(Gtk.Expander):
 class PropertiesExpander(InfoExpander):
 
     def __init__(self):
-        super(PropertiesExpander, self).__init__(_('Properties'))
+        super().__init__(_('Properties'))
         table = Gtk.Table(rows=4, columns=2)
         table.set_col_spacings(15)
         table.set_row_spacings(8)
@@ -193,8 +194,8 @@ class PropertiesExpander(InfoExpander):
         table.attach(self.updated_data, 1, 2, 3, 4)
 
         box = Gtk.HBox()
-        box.pack_start(table, expand=False, fill=False)
-        self.vbox.pack_start(box, expand=False, fill=False)
+        box.pack_start(table, expand=False, fill=False, padding=0)
+        self.vbox.pack_start(box, expand=False, fill=False, padding=0)
 
     def update(self, row):
         """"
@@ -219,7 +220,7 @@ class InfoBoxPage(Gtk.ScrolledWindow):
     """
 
     def __init__(self):
-        super(InfoBoxPage, self).__init__()
+        super().__init__()
         self.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
         self.vbox = Gtk.VBox()
         self.vbox.set_spacing(10)
@@ -239,7 +240,7 @@ class InfoBoxPage(Gtk.ScrolledWindow):
         self.expanders[expander.get_property("label")] = expander
 
         expander._sep = Gtk.HSeparator()
-        self.vbox.pack_start(expander._sep, False, False)
+        self.vbox.pack_start(expander._sep, False, False, padding=0)
 
     def get_expander(self, label):
         """
@@ -290,12 +291,12 @@ class InfoBox(Gtk.Notebook):
     """
 
     def __init__(self, tabbed=False):
-        super(InfoBox, self).__init__()
+        super().__init__()
         self.row = None
         self.set_property('show-border', False)
         if not tabbed:
             page = InfoBoxPage()
-            self.insert_page(page, position=0)
+            self.insert_page(page, tab_label=None, position=0)
             self.set_property('show-tabs', False)
         self.set_current_page(0)
         self.connect('switch-page', self.on_switch_page)
@@ -336,7 +337,7 @@ class LinksExpander(InfoExpander):
         """
         :param notes: the name of the notes property on the row
         """
-        super(LinksExpander, self).__init__(_("Links"))
+        super().__init__(_("Links"))
         self.dynamic_box = Gtk.VBox()
         self.vbox.pack_start(self.dynamic_box, True, True, 0)
         self.notes = notes
@@ -351,7 +352,7 @@ class LinksExpander(InfoExpander):
                 logger.debug('wrong link definition %s, %s(%s)' %
                              (link, type(e), e))
         for b in self.buttons:
-            b.set_alignment(0, -1)
+            b.set_alignment(0, 1)
             self.vbox.pack_start(b, True, True, 0)
 
     def update(self, row):
@@ -369,9 +370,9 @@ class LinksExpander(InfoExpander):
                     label.set_ellipsize(Pango.EllipsizeMode.END)
                     button = Gtk.LinkButton(uri=url)
                     button.add(label)
-                    button.set_alignment(0, -1)
+                    button.set_alignment(0.0, 0.0)
                     self.dynamic_box.pack_start(
-                        button, expand=False, fill=False)
+                        button, expand=False, fill=False, padding=0)
             self.dynamic_box.show_all()
 
 
@@ -385,8 +386,7 @@ class AddOneDot(threading.Thread):
         statusbar.push(sbcontext_id, _('counting results') + '.' * dotno)
 
     def __init__(self, group=None, verbose=None, **kwargs):
-        super(AddOneDot, self).__init__(
-            group=group, target=None, name=None, verbose=verbose)
+        super().__init__(group=group, target=None, name=None)
         self.__stopped = threading.Event()
         self.dotno = 0
 
@@ -402,8 +402,7 @@ class AddOneDot(threading.Thread):
 class CountResultsTask(threading.Thread):
     def __init__(self, klass, ids, dots_thread,
                  group=None, verbose=None, **kwargs):
-        super(CountResultsTask, self).__init__(
-            group=group, target=None, name=None, verbose=verbose)
+        super().__init__(group=group, target=None, name=None)
         self.klass = klass
         self.ids = ids
         self.dots_thread = dots_thread
@@ -493,7 +492,8 @@ class SearchView(pluginmgr.View):
                 self.context_menu = context_menu
                 self.actions = []
                 if self.context_menu:
-                    self.actions = [x for x in self.context_menu if isinstance(x, Action)]
+                    self.actions = [
+                        x for x in self.context_menu if isinstance(x, Action)]
 
             def get_children(self, obj):
                 '''
@@ -599,7 +599,9 @@ class SearchView(pluginmgr.View):
         # 3: create the label object
         label = Gtk.Label(label=bottom_info['name'])
         # 4: add the page, non sensitive
-        self.widget['bottom_notebook'].append_page(page, label)
+        # NOT SURE OF THIS
+        # self.widgets['bottom_notebook'].append_page(page, label)
+        self.widgets.bottom_notebook.append_page(page, label)
         # 5: store the values for later use
         bottom_info['tree'] = page.get_children()[0]
         bottom_info['label'] = label
@@ -618,7 +620,7 @@ class SearchView(pluginmgr.View):
 
         """
         values = self.get_selected_values()
-        ## Only one should be selected
+        # Only one should be selected
         if len(values) != 1:
             self.view.widget_set_visible('bottom_notebook', False)
             return
@@ -626,13 +628,14 @@ class SearchView(pluginmgr.View):
         self.view.widget_set_visible('bottom_notebook', True)
         row = values[0]  # the selected row
 
-        ## loop over bottom_info plugin classes (eg: Tag)
+        # loop over bottom_info plugin classes (eg: Tag)
         for klass, bottom_info in list(self.bottom_info.items()):
             if 'label' not in bottom_info:  # late initialization
                 self.add_page_to_bottom_notebook(bottom_info)
             label = bottom_info['label']
             if not hasattr(klass, 'attached_to'):
-                logging.warn('class %s does not implement attached_to' % klass)
+                logging.warning('class %s does not implement attached_to',
+                                klass)
                 continue
             objs = klass.attached_to(row)
             model = bottom_info['tree'].get_model()
@@ -644,7 +647,10 @@ class SearchView(pluginmgr.View):
                 label.set_use_markup(True)
                 label.set_label('<b>%s</b>' % bottom_info['name'])
                 for obj in objs:
-                    model.append([getattr(obj, k)
+                    # not sure of using str here but the error states "expected
+                    # string but got ... an object basically" and this does get
+                    # the pain to show (although not notes)
+                    model.append([str(getattr(obj, k))
                                   for k in bottom_info['fields_used']])
 
     def update_infobox(self):
@@ -827,7 +833,7 @@ class SearchView(pluginmgr.View):
         statusbar.pop(sbcontext_id)
         if len(results) == 0:
             model = Gtk.ListStore(str)
-            msg = bold % cgi.escape(
+            msg = bold % html.escape(
                 _('Couldn\'t find anything for search: "%s"') % text)
             model.append([msg])
             self.results_view.set_model(model)
@@ -996,7 +1002,7 @@ class SearchView(pluginmgr.View):
                 model.append(i, ["_dummy"])
         return model
 
-    def cell_data_func(self, col, cell, model, treeiter):
+    def cell_data_func(self, col, cell, model, treeiter, data=None):
         # start with a (redundant) check, whether the cell is visible.
         path = model.get_path(treeiter)
         tree_rect = self.results_view.get_visible_rect()
@@ -1005,8 +1011,8 @@ class SearchView(pluginmgr.View):
             return
         # now update the the cell
         value = model[treeiter][0]
-        #logger.debug('TBR: far too detailed, please do not keep us here')
-        #logger.debug('TBR: %s' % value)
+        # logger.debug('TBR: far too detailed, please do not keep us here')
+        # logger.debug('TBR: %s' % value)
         if isinstance(value, str):
             cell.set_property('markup', value)
         else:
@@ -1024,7 +1030,7 @@ class SearchView(pluginmgr.View):
                     self.session.merge(value)
             try:
                 r = value.search_view_markup_pair()
-                #logger.debug('TBR: %s' % str(r))
+                # logger.debug('TBR: %s' % str(r))
                 try:
                     main, substr = r
                 except:
@@ -1304,8 +1310,7 @@ class AppendThousandRows(threading.Thread):
         self.view.liststore.append(row)
 
     def __init__(self, view, group=None, verbose=None, **kwargs):
-        super(AppendThousandRows, self).__init__(
-            group=group, target=None, name=None, verbose=verbose)
+        super().__init__(group=group, target=None, name=None)
         self.__stopped = threading.Event()
         self.view = view
 
@@ -1341,7 +1346,7 @@ class HistoryView(pluginmgr.View):
 
     def __init__(self):
         logger.debug('PrefsView::__init__')
-        super(HistoryView, self).__init__(
+        super().__init__(
             filename=os.path.join(paths.lib_dir(), 'bauble.glade'),
             root_widget_name='history_window')
         self.view.connect_signals(self)
@@ -1426,7 +1431,7 @@ class HistoryCommandHandler(pluginmgr.CommandHandler):
     view = None
 
     def __init__(self):
-        super(HistoryCommandHandler, self).__init__()
+        super().__init__()
 
     def get_view(self):
         if not self.view:
@@ -1471,7 +1476,7 @@ def select_in_search_results(obj):
 class DefaultCommandHandler(pluginmgr.CommandHandler):
 
     def __init__(self):
-        super(DefaultCommandHandler, self).__init__()
+        super().__init__()
 
     command = [None]
     view = None

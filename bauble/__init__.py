@@ -27,6 +27,7 @@ import os
 import sys
 import gi
 import bauble.paths as paths
+gi.require_version("Gtk", "3.0")
 
 # try:
 #     import faulthandler
@@ -34,7 +35,6 @@ import bauble.paths as paths
 # except:
 #     pass
 
-gi.require_version("Gtk", "3.0")
 
 from bauble.version import version
 version_tuple = tuple(version.split('.'))
@@ -49,6 +49,7 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 consoleLevel = logging.INFO
 
+
 def pb_set_fraction(fraction):
     """set progressbar fraction safely
 
@@ -58,16 +59,19 @@ def pb_set_fraction(fraction):
     if gui is not None and gui.progressbar is not None:
         gui.progressbar.set_fraction(fraction)
 
+
 def pb_grab():
     if gui is not None and gui.progressbar is not None:
         gui.set_busy(True)
         gui.progressbar.show()
         gui.progressbar.set_fraction(0)
 
+
 def pb_release():
     if gui is not None and gui.progressbar is not None:
         gui.progressbar.hide()
         gui.set_busy(False)
+
 
 if paths.main_is_frozen():  # main is frozen
     # put library.zip first in the path when using py2exe so libxml2
@@ -90,13 +94,12 @@ if paths.main_is_frozen():  # main is frozen
 # make sure we look in the lib path for modules
 sys.path.append(paths.lib_dir())
 
-#if False:
+# if False:
 #    sys.stderr.write('sys.path: %s\n' % sys.path)
 #    sys.stderr.write('PATH: %s\n' % os.environ['PATH'])
 
 
 # set SQLAlchemy logging level
-import logging
 logging.getLogger('sqlalchemy').setLevel(logging.WARNING)
 
 gui = None
@@ -111,6 +114,7 @@ conn_name = None
 """The name of the current connection.
 """
 
+# pylint: disable=wrong-import-order,import-outside-toplevel
 import traceback
 import bauble.error as err
 
@@ -126,7 +130,7 @@ def save_state():
     prefs.save()
 
 
-def quit():
+def quit():  # pylint: disable=redefined-builtin
     """
     Stop all tasks and quit Ghini.
     """
@@ -207,7 +211,7 @@ def main(uri=None):
 
     :param uri:  the URI of the database to connect to.  For more information
                  about database URIs see `<http://www.sqlalchemy.org/docs/05/\
-dbengine.html#create-engine-url-arguments>`_
+    dbengine.html#create-engine-url-arguments>`
 
     :type uri: str
     """
@@ -218,7 +222,6 @@ dbengine.html#create-engine-url-arguments>`_
         import gi
         gi.require_version("Gtk", "3.0")
         from gi.repository import Gtk
-
         from gi.repository import GObject
     except ImportError as e:
         print(_('** Error: could not import gtk and/or gobject'))
@@ -289,9 +292,6 @@ dbengine.html#create-engine-url-arguments>`_
         logger.warning("can't configure sentry client")
         logger.debug("%s(%s)" % (type(e).__name__, e))
 
-    import gi
-    # if not paths.main_is_frozen():
-    gi.require_version("Gtk", "3.0")
     from gi.repository import Gdk
 
     display = Gdk.Display.get_default()

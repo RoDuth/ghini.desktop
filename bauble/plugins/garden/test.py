@@ -393,7 +393,7 @@ class PlantTests(GardenTestCase):
         update_gui()
 
         widgets = self.editor.presenter.view.widgets
-        new_quantity = 2
+        new_quantity = '2'
         widgets.plant_quantity_entry.props.text = new_quantity
         update_gui()
         self.editor.handle_response(Gtk.ResponseType.OK)

@@ -472,7 +472,7 @@ def get_widget_value(widget, index=0):
     elif isinstance(widget, Gtk.Entry):
         return utf8(widget.get_text())
     elif isinstance(widget, Gtk.ComboBox):
-        if isinstance(widget, Gtk.ComboBoxEntry):
+        if widget.get_has_entry():
             return utf8(widget.get_child().props.text)
     elif isinstance(widget,
                     (Gtk.ToggleButton, Gtk.CheckButton, Gtk.RadioButton)):
@@ -768,7 +768,7 @@ def setup_text_combobox(combo, values=None, cell_data_func=None):
 
     :param combo: Gtk.ComboBox
     :param values: list vales or Gtk.ListStore
-    :param cell_date_func:
+    :param cell_data_func:
     """
     combo.clear()
     if isinstance(values, Gtk.ListStore):

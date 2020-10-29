@@ -1504,7 +1504,8 @@ class GenericEditorPresenter(object):
         """
         combo = self.view.widgets[widget_name]
         mapper = object_mapper(self.model)
-        values = sorted(mapper.c[field].type.values)
+        values = sorted(mapper.c[field].type.values,
+                        key=lambda val: str(val or ''))
         # WARNING: this is really dangerous since it might mean that a
         # value is stored in the column that is not in the Enum
         #
@@ -1595,7 +1596,7 @@ class GenericEditorPresenter(object):
                 if model is None or combo.get_active_iter() is None:
                     return
                 value = combo.get_model()[combo.get_active_iter()][0]
-                if isinstance(widget, Gtk.ComboBoxEntry):
+                if widget.get_has_entry():
                     widget.get_child().set_text(utils.utf8(value))
                 self.set_model_attr(model_attr, value, validator)
 
@@ -1603,7 +1604,7 @@ class GenericEditorPresenter(object):
                 self.set_model_attr(model_attr, entry.props.text, validator)
 
             self.view.connect(widget, 'changed', combo_changed)
-            if isinstance(widget, Gtk.ComboBoxEntry):
+            if widget.get_has_entry():
                 self.view.connect(widget.get_child(), 'changed', entry_changed)
         elif isinstance(widget, (Gtk.ToggleButton, Gtk.CheckButton,
                                  Gtk.RadioButton)):

@@ -1212,8 +1212,8 @@ class VerificationPresenter(editor.GenericEditorPresenter):
         :param model:
         """
         box = VerificationPresenter.VerificationBox(self, model)
-        self.view.widgets.verifications_parent_box.pack_start(
-            box, expand=False, fill=False)
+        self.view.widgets.verifications_parent_box.pack_start(box, False,
+                                                              False, 0)
         self.view.widgets.verifications_parent_box.reorder_child(box, 0)
         box.show_all()
         return box
@@ -1250,7 +1250,7 @@ class VerificationPresenter(editor.GenericEditorPresenter):
 
             ver_box = self.widgets.ver_box
             self.widgets.remove_parent(ver_box)
-            self.pack_start(ver_box, expand=True, fill=True)
+            self.pack_start(ver_box, True, True, 0)
 
             # verifier entry
             entry = self.widgets.ver_verifier_entry
@@ -1297,7 +1297,7 @@ class VerificationPresenter(editor.GenericEditorPresenter):
             self.presenter().view.attach_completion(
                 ver_prev_taxon_entry, sp_cell_data_func)
             if self.model.prev_species:
-                ver_prev_taxon_entry.props.text = self.model.prev_species
+                ver_prev_taxon_entry.props.text = str(self.model.prev_species)
             self.presenter().assign_completions_handler(
                 ver_prev_taxon_entry, sp_get_completions, on_prevsp_select)
 
@@ -1714,12 +1714,12 @@ class SourcePresenter(editor.GenericEditorPresenter):
         combo = self.view.widgets.acc_source_comboentry
         combo.clear()
         cell = Gtk.CellRendererText()
-        combo.pack_start(cell, True, True, 0)
+        combo.pack_start(cell, True)
         combo.set_cell_data_func(cell, cell_data_func)
 
         completion = Gtk.EntryCompletion()
         cell = Gtk.CellRendererText()  # set up the completion renderer
-        completion.pack_start(cell, True, True, 0)
+        completion.pack_start(cell, True)
         completion.set_cell_data_func(cell, cell_data_func)
 
         def match_func(completion, key, treeiter, data=None):

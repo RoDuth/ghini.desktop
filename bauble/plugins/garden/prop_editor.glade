@@ -8,7 +8,6 @@
     <property name="title" translatable="yes">Propagation Editor</property>
     <property name="resizable">False</property>
     <property name="type_hint">normal</property>
-    <property name="has_separator">False</property>
     <child internal-child="vbox">
       <object class="GtkVBox" id="dialog-vbox4">
         <property name="visible">True</property>
@@ -481,8 +480,9 @@
                                           </packing>
                                         </child>
                                         <child>
-                                          <object class="GtkComboBoxEntry" id="cutting_media_comboentry">
+                                          <object class="GtkComboBox" id="cutting_media_comboentry">
                                             <property name="visible">True</property>
+                                            <property name="has-entry">True</property>
                                           </object>
                                           <packing>
                                             <property name="left_attach">1</property>
@@ -521,8 +521,9 @@
                                               </packing>
                                             </child>
                                             <child>
-                                              <object class="GtkComboBoxEntry" id="cutting_container_comboentry">
+                                              <object class="GtkComboBox" id="cutting_container_comboentry">
                                                 <property name="visible">True</property>
+                                                <property name="has-entry">True</property>
                                               </object>
                                               <packing>
                                                 <property name="left_attach">1</property>
@@ -545,8 +546,9 @@
                                               </packing>
                                             </child>
                                             <child>
-                                              <object class="GtkComboBoxEntry" id="cutting_location_comboentry">
+                                              <object class="GtkComboBox" id="cutting_location_comboentry">
                                                 <property name="visible">True</property>
+                                                <property name="has-entry">True</property>
                                               </object>
                                               <packing>
                                                 <property name="left_attach">1</property>
@@ -627,8 +629,9 @@
                                               </packing>
                                             </child>
                                             <child>
-                                              <object class="GtkComboBoxEntry" id="cutting_cover_comboentry">
+                                              <object class="GtkComboBox" id="cutting_cover_comboentry">
                                                 <property name="visible">True</property>
+                                                <property name="has-entry">True</property>
                                               </object>
                                               <packing>
                                                 <property name="left_attach">1</property>
@@ -712,8 +715,9 @@
                                       </packing>
                                     </child>
                                     <child>
-                                      <object class="GtkComboBoxEntry" id="cutting_fungal_comboentry">
+                                      <object class="GtkComboBox" id="cutting_fungal_comboentry">
                                         <property name="visible">True</property>
+                                        <property name="has-entry">True</property>
                                       </object>
                                       <packing>
                                         <property name="left_attach">1</property>
@@ -722,8 +726,9 @@
                                       </packing>
                                     </child>
                                     <child>
-                                      <object class="GtkComboBoxEntry" id="cutting_hormone_comboentry">
+                                      <object class="GtkComboBox" id="cutting_hormone_comboentry">
                                         <property name="visible">True</property>
+                                        <property name="has-entry">True</property>
                                       </object>
                                       <packing>
                                         <property name="left_attach">1</property>
@@ -991,8 +996,9 @@
                                       </packing>
                                     </child>
                                     <child>
-                                      <object class="GtkComboBoxEntry" id="seed_container_comboentry">
+                                      <object class="GtkComboBox" id="seed_container_comboentry">
                                         <property name="visible">True</property>
+                                        <property name="has-entry">True</property>
                                       </object>
                                       <packing>
                                         <property name="left_attach">1</property>
@@ -1015,8 +1021,9 @@
                                       </packing>
                                     </child>
                                     <child>
-                                      <object class="GtkComboBoxEntry" id="seed_media_comboentry">
+                                      <object class="GtkComboBox" id="seed_media_comboentry">
                                         <property name="visible">True</property>
+                                        <property name="has-entry">True</property>
                                       </object>
                                       <packing>
                                         <property name="left_attach">1</property>
@@ -1039,8 +1046,9 @@
                                       </packing>
                                     </child>
                                     <child>
-                                      <object class="GtkComboBoxEntry" id="seed_location_comboentry">
+                                      <object class="GtkComboBox" id="seed_location_comboentry">
                                         <property name="visible">True</property>
+                                        <property name="has-entry">True</property>
                                       </object>
                                       <packing>
                                         <property name="left_attach">1</property>
