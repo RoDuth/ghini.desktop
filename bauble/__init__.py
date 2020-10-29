@@ -29,11 +29,12 @@ import gi
 import bauble.paths as paths
 gi.require_version("Gtk", "3.0")
 
-# try:
-#     import faulthandler
-#     faulthandler.enable()
-# except:
-#     pass
+try:
+    import faulthandler
+    faulthandler.enable()
+except Exception as e:
+    print(f'{e} error of type: {type(e).__name__} while trying to load'
+          '"faulthandler"')
 
 
 from bauble.version import version
