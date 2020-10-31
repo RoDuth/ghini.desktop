@@ -529,7 +529,6 @@ class SearchView(pluginmgr.View):
 
         self.create_gui()
 
-        from . import pictures_view
         pictures_view.floating_window = pictures_view.PicturesView(
             parent=self.widgets.search_h2pane)
 
@@ -781,9 +780,9 @@ class SearchView(pluginmgr.View):
                         if func(sel):
                             self.update()
                     return _impl
-                self.accel_group.connect_group(keyval, mod,
-                                               Gtk.AccelFlags.VISIBLE,
-                                               cb(action.callback))
+                self.accel_group.connect(keyval, mod,
+                                         Gtk.AccelFlags.VISIBLE,
+                                         cb(action.callback))
                 self.installed_accels.append(((keyval, mod), action.callback))
             else:
                 logger.warning(
@@ -1383,13 +1382,14 @@ class HistoryView(pluginmgr.View):
         d = eval(item.values)
         del d['_created']
         del d['_last_updated']
-        friendly = ', '.join("%s: %s" % (k, self.show_typed_value(v))
-                             for k, v in sorted(list(d.items()), self.cmp_items)
-                             )
+        friendly = ', '.join(
+            "%s: %s" % (k, self.show_typed_value(v))
+            for k, v in sorted(list(d.items()))
+        )
         self.liststore.append([
             ("%s" % item.timestamp)[:19], item.operation, item.user,
             item.table_name, friendly, item.values
-            ])
+        ])
 
     def on_row_activated(self, tree, path, column):
         row = self.liststore[path]

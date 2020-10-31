@@ -780,6 +780,8 @@ class GUI(object):
                     'the file then restart ghini')
             if utils.yes_no_dialog(msg):
                 prefs.reload()
+                bauble.gui.get_view().update()
+
 
     def on_help_menu_web_devel(self, widget, data=None):
         desktop.open('http://github.com/RoDuth/ghini.desktop/',

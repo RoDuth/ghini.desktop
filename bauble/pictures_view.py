@@ -68,7 +68,7 @@ class PicturesView(Gtk.Box):
         if self.fake:
             return
         self.box = self.widgets.pictures_box
-        for k in self.box.children():
+        for k in self.box.get_children():
             k.destroy()
 
         for o in selection:

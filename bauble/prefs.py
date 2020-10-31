@@ -21,6 +21,7 @@ import os
 import gi
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk  # noqa
+from gi.repository import GObject
 
 
 import logging
@@ -272,14 +273,14 @@ class _prefs(dict):
 
 class PrefsView(pluginmgr.View):
     """
-    The PrefsView displays the values of in the preferences and the registry.
+    The PrefsView displays the values in preferences and the plugin registry.
     """
 
     pane_size_pref = 'bauble.prefs.pane_position'
 
     def __init__(self):
         logger.debug('PrefsView::__init__')
-        super(PrefsView, self).__init__(
+        super().__init__(
             filename=os.path.join(paths.lib_dir(), 'bauble.glade'),
             root_widget_name='prefs_window')
         self.view.connect_signals(self)
@@ -287,31 +288,36 @@ class PrefsView(pluginmgr.View):
         self.plugins_ls = self.view.widgets.prefs_plugins_ls
         self.update()
 
-    def on_prefs_prefs_tv_row_activated(self, tv, path, column):
+    # pylint: disable=global-statement
+    def on_prefs_prefs_tv_row_activated(self, _tv, path, _column):
         global prefs
         modified = False
-        key, repr_str, type_str = self.prefs_ls[path]
         if type_str == 'bool':
-            self.prefs_ls[path][1] = prefs[key] = not prefs[key]
+            prefs[key] = not prefs[key]
+            self.prefs_ls[path][1] = str(prefs[key])
             modified = True
         if modified:
             prefs.save()
 
-    def update(self):
-        self.widgets.prefs_prefs_ls.clear()
-        global prefs
-        for key, value in sorted(prefs.items()):
-            self.widgets.prefs_prefs_ls.append(
-                (key, value, prefs[key].__class__.__name__))
+    @staticmethod
+    def append_row(listore, data):
+        listore.append(data)
+        return False
 
-        self.widgets.prefs_plugins_ls.clear()
-        from bauble.pluginmgr import PluginRegistry
+    def update(self):
+        self.prefs_ls.clear()
+        global prefs
+        for key, value in sorted(prefs.iteritems()):
+            GObject.idle_add(self.append_row, self.prefs_ls,
+                             (key, value, prefs[key].__class__.__name__))
+
+        self.plugins_ls.clear()
+        from bauble.pluginmgr import PluginRegistry  # noqa # pylint: disable=import-outside-toplevel
         session = db.Session()
         plugins = session.query(PluginRegistry.name, PluginRegistry.version)
         for item in plugins:
-            self.widgets.prefs_plugins_ls.append(item)
+            GObject.idle_add(self.append_row, self.plugins_ls, item)
         session.close()
-        pass
 
 
 class PrefsCommandHandler(pluginmgr.CommandHandler):
