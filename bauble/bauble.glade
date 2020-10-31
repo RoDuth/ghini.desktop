@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- Generated with glade 3.38.1 -->
 <interface>
-  <requires lib="gtk+" version="3.0"/>
+  <requires lib="gtk+" version="3.22"/>
   <object class="GtkListStore" id="history_ls">
     <columns>
       <!-- column-name timestamp -->
@@ -194,9 +194,9 @@
                 <child>
                   <object class="GtkComboBox" id="main_comboentry">
                     <property name="visible">True</property>
-                    <property name="can_focus">True</property>
-                    <property name="has_entry">True</property>
-                    <property name="entry_text_column">0</property>
+                    <property name="can-focus">True</property>
+                    <property name="has-entry">True</property>
+                    <property name="entry-text-column">0</property>
                     <child>
                       <object class="GtkCellRendererText" id="main_cellrenderertext1">
                         <property name="xalign">0</property>
@@ -204,12 +204,10 @@
                     </child>
                     <child internal-child="entry">
                       <object class="GtkEntry" id="comboboxentry-entry2">
-                        <property name="can_focus">True</property>
-                        <property name="tooltip_text" translatable="yes">enter here your query or command</property>
-                        <property name="primary_icon_activatable">False</property>
-                        <property name="secondary_icon_activatable">False</property>
-                        <property name="primary_icon_sensitive">True</property>
-                        <property name="secondary_icon_sensitive">True</property>
+                        <property name="can-focus">True</property>
+                        <property name="tooltip-text" translatable="yes">enter here your query or command</property>
+                        <property name="primary-icon-activatable">False</property>
+                        <property name="secondary-icon-activatable">False</property>
                       </object>
                     </child>
                   </object>
@@ -410,9 +408,9 @@
     <columns>
       <!-- column-name name -->
       <column type="gchararray"/>
-      <!-- column-name repr -->
+        <!-- column-name repr -->
       <column type="gchararray"/>
-      <!-- column-name type -->
+        <!-- column-name type -->
       <column type="gchararray"/>
     </columns>
   </object>
@@ -423,47 +421,52 @@
         <property name="visible">True</property>
         <property name="can-focus">True</property>
         <child>
-          <object class="GtkAlignment" id="alignment1">
+          <object class="GtkScrolledWindow" id="prefs_prefs_sv">
             <property name="visible">True</property>
-            <property name="can-focus">False</property>
-            <property name="left-padding">12</property>
+            <property name="can-focus">True</property>
+            <!-- <property name="kinetic-scrolling">False</property> -->
             <child>
-              <object class="GtkScrolledWindow" id="prefs_prefs_sv">
+              <object class="GtkTreeView" id="prefs_prefs_tv">
                 <property name="visible">True</property>
                 <property name="can-focus">True</property>
+                <property name="model">prefs_prefs_ls</property>
+                <property name="headers-clickable">False</property>
+                <property name="rules-hint">True</property>
+                <property name="search-column">0</property>
+                <signal name="row-activated" handler="on_prefs_prefs_tv_row_activated" swapped="no"/>
+                <child internal-child="selection">
+                  <object class="GtkTreeSelection"/>
+                </child>
                 <child>
-                  <object class="GtkTreeView" id="prefs_prefs_tv">
-                    <property name="visible">True</property>
-                    <property name="can-focus">True</property>
-                    <property name="model">prefs_prefs_ls</property>
-                    <property name="headers-clickable">False</property>
-                    <property name="rules-hint">True</property>
-                    <property name="search-column">0</property>
-                    <signal name="row-activated" handler="on_prefs_prefs_tv_row_activated" swapped="no"/>
-                    <child internal-child="selection">
-                      <object class="GtkTreeSelection"/>
-                    </child>
+                  <object class="GtkTreeViewColumn" id="prefs_treeviewcolumn1">
+                    <property name="title" translatable="yes">Name</property>
                     <child>
-                      <object class="GtkTreeViewColumn" id="prefs_treeviewcolumn1">
-                        <property name="title" translatable="yes">Name</property>
-                        <child>
-                          <object class="GtkCellRendererText" id="prefs_cellrenderertext1"/>
-                          <attributes>
-                            <attribute name="text">0</attribute>
-                          </attributes>
-                        </child>
-                      </object>
+                      <object class="GtkCellRendererText" id="prefs_cellrenderertext1"/>
+                      <attributes>
+                        <attribute name="text">0</attribute>
+                      </attributes>
                     </child>
+                  </object>
+                </child>
+                <child>
+                  <object class="GtkTreeViewColumn" id="prefs_treeviewcolumn2">
+                    <property name="title" translatable="yes">Value</property>
                     <child>
-                      <object class="GtkTreeViewColumn" id="prefs_treeviewcolumn2">
-                        <property name="title" translatable="yes">Value</property>
-                        <child>
-                          <object class="GtkCellRendererText" id="prefs_cellrenderertext2"/>
-                          <attributes>
-                            <attribute name="text">1</attribute>
-                          </attributes>
-                        </child>
-                      </object>
+                      <object class="GtkCellRendererText" id="prefs_cellrenderertext2"/>
+                      <attributes>
+                        <attribute name="text">1</attribute>
+                      </attributes>
+                    </child>
+                  </object>
+                </child>
+                <child>
+                  <object class="GtkTreeViewColumn" id="prefs_treeviewcolumn13">
+                    <property name="title" translatable="yes">Type</property>
+                    <child>
+                      <object class="GtkCellRendererText" id="prefs_cellrenderertext13"/>
+                      <attributes>
+                        <attribute name="text">2</attribute>
+                      </attributes>
                     </child>
                   </object>
                 </child>
@@ -485,46 +488,39 @@
           </packing>
         </child>
         <child>
-          <object class="GtkAlignment" id="alignment2">
+          <object class="GtkScrolledWindow" id="prefs_plugins_sv">
             <property name="visible">True</property>
-            <property name="can-focus">False</property>
-            <property name="left-padding">12</property>
+            <property name="can-focus">True</property>
             <child>
-              <object class="GtkScrolledWindow" id="prefs_plugins_sv">
+              <object class="GtkTreeView" id="prefs_plugins_tv">
                 <property name="visible">True</property>
                 <property name="can-focus">True</property>
+                <property name="model">prefs_plugins_ls</property>
+                <property name="headers-clickable">False</property>
+                <property name="rules-hint">True</property>
+                <property name="search-column">0</property>
+                <child internal-child="selection">
+                  <object class="GtkTreeSelection"/>
+                </child>
                 <child>
-                  <object class="GtkTreeView" id="prefs_plugins_tv">
-                    <property name="visible">True</property>
-                    <property name="can-focus">True</property>
-                    <property name="model">prefs_plugins_ls</property>
-                    <property name="headers-clickable">False</property>
-                    <property name="rules-hint">True</property>
-                    <property name="search-column">0</property>
-                    <child internal-child="selection">
-                      <object class="GtkTreeSelection"/>
-                    </child>
+                  <object class="GtkTreeViewColumn" id="prefs_treeviewcolumn3">
+                    <property name="title" translatable="yes">Name</property>
                     <child>
-                      <object class="GtkTreeViewColumn" id="prefs_treeviewcolumn3">
-                        <property name="title" translatable="yes">Name</property>
-                        <child>
-                          <object class="GtkCellRendererText" id="prefs_cellrenderertext3"/>
-                          <attributes>
-                            <attribute name="text">0</attribute>
-                          </attributes>
-                        </child>
-                      </object>
+                      <object class="GtkCellRendererText" id="prefs_cellrenderertext3"/>
+                      <attributes>
+                        <attribute name="text">0</attribute>
+                      </attributes>
                     </child>
+                  </object>
+                </child>
+                <child>
+                  <object class="GtkTreeViewColumn" id="prefs_treeviewcolumn4">
+                    <property name="title" translatable="yes">Version</property>
                     <child>
-                      <object class="GtkTreeViewColumn" id="prefs_treeviewcolumn4">
-                        <property name="title" translatable="yes">Version</property>
-                        <child>
-                          <object class="GtkCellRendererText" id="prefs_cellrenderertext4"/>
-                          <attributes>
-                            <attribute name="text">1</attribute>
-                          </attributes>
-                        </child>
-                      </object>
+                      <object class="GtkCellRendererText" id="prefs_cellrenderertext4"/>
+                      <attributes>
+                        <attribute name="text">1</attribute>
+                      </attributes>
                     </child>
                   </object>
                 </child>
