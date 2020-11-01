@@ -93,7 +93,7 @@ class PicturesView(Gtk.Box):
         Add a new picture to the model.
         """
         expander = self.ContentBox(self, picture)
-        self.box.pack_start(expander, expand=False, fill=False)
+        self.box.pack_start(expander, False, False, 0)
         expander.show_all()
         return expander
 

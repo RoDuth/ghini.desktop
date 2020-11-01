@@ -1486,16 +1486,16 @@ class MessageBox(GenericMessageBox):
         self.label.set_buffer(self.buffer)
         if msg:
             self.buffer.set_text(msg)
-        self.vbox.pack_start(self.label, expand=True, fill=True)
+        self.vbox.pack_start(self.label, True, True, 0)
 
         button_box = Gtk.VBox()
-        self.box.pack_start(button_box, expand=False, fill=False)
+        self.box.pack_start(button_box, False, False, 0)
         button = Gtk.Button()
         image = Gtk.Image()
         image.set_from_stock(Gtk.STOCK_CLOSE, Gtk.IconSize.BUTTON)
         button.props.image = image
         button.set_relief(Gtk.ReliefStyle.NONE)
-        button_box.pack_start(button, expand=False, fill=False)
+        button_box.pack_start(button, False, False, 0)
 
         self.details_expander = Gtk.Expander(_('Show details'))
         self.vbox.pack_start(self.details_expander, True, True, 0)
@@ -1575,21 +1575,21 @@ class YesNoMessageBox(GenericMessageBox):
         if msg:
             self.label.set_markup(msg)
         self.label.set_alignment(.1, .1)
-        self.box.pack_start(self.label, expand=True, fill=True)
+        self.box.pack_start(self.label, True, True, 0)
 
         button_box = Gtk.VBox()
-        self.box.pack_start(button_box, expand=False, fill=False)
+        self.box.pack_start(button_box, False, False, 0)
         self.yes_button = Gtk.Button(stock=Gtk.STOCK_YES)
         if on_response:
             self.yes_button.connect('clicked', on_response, True)
-        button_box.pack_start(self.yes_button, expand=False, fill=False)
+        button_box.pack_start(self.yes_button, False, False, 0)
 
         button_box = Gtk.VBox()
-        self.box.pack_start(button_box, expand=False, fill=False)
+        self.box.pack_start(button_box, False, False, 0)
         self.no_button = Gtk.Button(stock=Gtk.STOCK_NO)
         if on_response:
             self.no_button.connect('clicked', on_response, False)
-        button_box.pack_start(self.no_button, expand=False, fill=False)
+        button_box.pack_start(self.no_button, False, False, 0)
 
         colors = [('bg', Gtk.StateType.NORMAL, '#FFFFFF'),
                   ('bg', Gtk.StateType.PRELIGHT, '#FFFFFF')]
@@ -1634,7 +1634,7 @@ def add_message_box(parent, type=MESSAGE_BOX_INFO):
         msg_box = YesNoMessageBox()
     else:
         raise ValueError('unknown message box type: %s' % type)
-    parent.pack_start(msg_box, expand=True, fill=True)
+    parent.pack_start(msg_box, True, True, 0)
     return msg_box
 
 

@@ -26,7 +26,7 @@ import html
 
 import logging
 logger = logging.getLogger(__name__)
-#logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.DEBUG)
 
 
 import gi
@@ -121,7 +121,7 @@ class InfoExpander(Gtk.Expander):
 
         :param widgets: a bauble.utils.BuilderWidgets instance
         """
-        super().__init__(label)
+        super().__init__(label=label)
         self.vbox = Gtk.VBox(False)
         self.vbox.set_border_width(5)
         self.add(self.vbox)
@@ -665,7 +665,7 @@ class SearchView(pluginmgr.View):
             # remove the current infobox if there is one and it is not needed
             if row is None:
                 if self.infobox is not None and \
-                        self.infobox.parent == self.pane:
+                        self.infobox.get_parent() == self.pane:
                     self.pane.remove(self.infobox)
                 return
 
@@ -697,7 +697,7 @@ class SearchView(pluginmgr.View):
             # remove any old infoboxes connected to the pane
             if self.infobox is not None and \
                     type(self.infobox) != type(new_infobox):
-                if self.infobox.parent == self.pane:
+                if self.infobox.get_parent() == self.pane:
                     self.pane.remove(self.infobox)
 
             # update the infobox and put it in the pane
@@ -941,7 +941,7 @@ class SearchView(pluginmgr.View):
         groups = []
 
         # sort by type so that groupby works properly
-        results = sorted(results, key=lambda x: type(x))
+        results = sorted(results, key=lambda x: str(type(x)))
 
         for key, group in itertools.groupby(results, key=lambda x: type(x)):
             # return groups by type and natural sort each of the
@@ -1149,7 +1149,7 @@ class SearchView(pluginmgr.View):
             action.enabled = (len(selected) > 1 and action.multiselect) or \
                 (len(selected) <= 1 and action.singleselect)
 
-        menu.popup(None, None, None, event.button, event.time)
+        menu.popup(None, None, None, None, event.button, event.time)
         return True
 
     def update(self):

@@ -898,7 +898,7 @@ class SchemaBrowser(Gtk.VBox):
         self.domain_map = MapperSearch.get_domain_classes().copy()
 
         frame = Gtk.Frame(_("Search Domain"))
-        self.pack_start(frame, expand=False, fill=False)
+        self.pack_start(frame, False, False, 0)
         self.table_combo = Gtk.ComboBoxText()
         frame.add(self.table_combo)
         for key in sorted(self.domain_map.keys()):
@@ -919,7 +919,7 @@ class SchemaBrowser(Gtk.VBox):
         sw = Gtk.ScrolledWindow()
         sw.add(self.prop_tree)
         frame.add(sw)
-        self.pack_start(frame, expand=True, fill=True)
+        self.pack_start(frame, True, True, 0)
 
     def _insert_props(self, mapper, model, treeiter):
         """
