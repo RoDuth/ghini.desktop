@@ -70,7 +70,7 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
                            }
 
     def __init__(self, model, view):
-        super(SpeciesEditorPresenter, self).__init__(model, view)
+        super().__init__(model, view)
         self.create_toolbar()
         self.session = object_session(model)
         self._dirty = False
@@ -383,8 +383,7 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
         Resets the sensitivity on the ok buttons and the name widgets
         when values change in the model
         '''
-        super(SpeciesEditorPresenter, self).set_model_attr(field, value,
-                                                           validator)
+        super().set_model_attr(field, value, validator)
         self._dirty = True
         sensitive = True
         if len(self.problems) != 0 \
@@ -521,7 +520,7 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
                 self.view.add_box(box)
 
     def cleanup(self):
-        super(SpeciesEditorPresenter, self).cleanup()
+        super().cleanup()
         self.vern_presenter.cleanup()
         self.synonyms_presenter.cleanup()
         self.dist_presenter.cleanup()
@@ -556,7 +555,7 @@ class InfraspPresenter(editor.GenericEditorPresenter):
         '''
         :param parent: the parent SpeciesEditorPresenter
         '''
-        super(InfraspPresenter, self).__init__(parent.model, parent.view)
+        super().__init__(parent.model, parent.view)
         self.parent_ref = weakref.ref(parent)
         self._dirty = False
         self.view.connect('add_infrasp_button', "clicked", self.append_infrasp)
@@ -711,7 +710,7 @@ class DistributionPresenter(editor.GenericEditorPresenter):
         '''
         :param parent: the parent SpeciesEditorPresenter
         '''
-        super(DistributionPresenter, self).__init__(parent.model, parent.view)
+        super().__init__(parent.model, parent.view)
         self.parent_ref = weakref.ref(parent)
         self.session = parent.session
         self._dirty = False
@@ -791,8 +790,7 @@ class VernacularNamePresenter(editor.GenericEditorPresenter):
         '''
         :param parent: the parent SpeciesEditorPresenter
         '''
-        super(VernacularNamePresenter, self
-              ).__init__(parent.model, parent.view)
+        super().__init__(parent.model, parent.view)
         self.parent_ref = weakref.ref(parent)
         self.session = parent.session
         self._dirty = False
@@ -972,7 +970,7 @@ class SynonymsPresenter(editor.GenericEditorPresenter):
         '''
         :param parent: the parent SpeciesEditorPresenter
         '''
-        super(SynonymsPresenter, self).__init__(parent.model, parent.view)
+        super().__init__(parent.model, parent.view)
         self.parent_ref = weakref.ref(parent)
         self.session = parent.session
         self.view.widgets.sp_syn_entry.props.text = ''
@@ -1242,7 +1240,7 @@ class SpeciesEditorMenuItem(editor.GenericModelViewPresenterEditor):
         '''
         if model is None:
             model = Species()
-        super(SpeciesEditorMenuItem, self).__init__(model, parent)
+        super().__init__(model, parent)
         if not parent and bauble.gui:
             parent = bauble.gui.window
         self.parent = parent
@@ -1338,7 +1336,7 @@ class SpeciesEditorMenuItem(editor.GenericModelViewPresenterEditor):
                 self.model.vernacular_names.remove(vn)
                 utils.delete_or_expunge(vn)
                 del vn
-        super(SpeciesEditorMenuItem, self).commit_changes()
+        super().commit_changes()
 
     def start(self):
         if self.session.query(Genus).count() == 0:

@@ -114,7 +114,7 @@ class SpeciesABCDAdapter(ABCDAdapter):
     does not create a valid ABCDUnit since we can't provide the required UnitID
     """
     def __init__(self, species, for_labels=False):
-        super(SpeciesABCDAdapter, self).__init__(species)
+        super().__init__(species)
 
         # hold on to the accession so it doesn't get cleaned up and closed
         self.session = object_session(species)
@@ -248,8 +248,7 @@ class AccessionABCDAdapter(SpeciesABCDAdapter):
     An adapter to convert a Plant to an ABCD Unit
     """
     def __init__(self, accession, for_labels=False):
-        super(AccessionABCDAdapter, self).__init__(accession.species,
-                                                   for_labels)
+        super().__init__(accession.species, for_labels)
         self.accession = accession
 
     def get_UnitID(self):
@@ -281,7 +280,7 @@ class AccessionABCDAdapter(SpeciesABCDAdapter):
         return self.notes_in_list(self.accession.notes, unit, self.for_labels)
 
     def extra_elements(self, unit):
-        super(AccessionABCDAdapter, self).extra_elements(unit)
+        super().extra_elements(unit)
 
         if self.accession.source and self.accession.source.collection:
             collection = self.accession.source.collection
@@ -351,7 +350,7 @@ class PlantABCDAdapter(AccessionABCDAdapter):
     An adapter to convert a Plant to an ABCD Unit
     """
     def __init__(self, plant, for_labels=False):
-        super(PlantABCDAdapter, self).__init__(plant.accession, for_labels)
+        super().__init__(plant.accession, for_labels)
         self.plant = plant
 
     def get_UnitID(self):
@@ -372,7 +371,7 @@ class PlantABCDAdapter(AccessionABCDAdapter):
         # TODO: AccessionStatus, AccessionMaterialtype,
         # ProvenanceCategory, AccessionLineage, DonorCategory,
         # PlantingDate, Propagation
-        super(PlantABCDAdapter, self).extra_elements(unit)
+        super().extra_elements(unit)
 
 
 class SettingsBoxPresenter(object):
@@ -395,7 +394,7 @@ class FileChooserButton(Gtk.Button):
     _default_label = _("Select a file…")
 
     def __init__(self, dialog_parent):
-        super(FileChooserButton, self).__init__(self._default_label)
+        super().__init__(self._default_label)
         self._filename = False
         self.props.use_underline = False
         self.props.xalign = 0

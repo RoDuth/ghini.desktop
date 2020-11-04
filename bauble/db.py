@@ -70,6 +70,7 @@ def sqlalchemy_debug(verbose):
         logging.getLogger('sqlalchemy.engine').setLevel(logging.WARN)
         logging.getLogger('sqlalchemy.orm.unitofwork').setLevel(logging.WARN)
 
+
 SQLALCHEMY_DEBUG = False
 sqlalchemy_debug(SQLALCHEMY_DEBUG)
 

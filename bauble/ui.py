@@ -64,7 +64,7 @@ class DefaultView(pluginmgr.View):
     infoboxclass = None
 
     def __init__(self):
-        super(DefaultView, self).__init__()
+        super().__init__()
 
         # splash window contains a hbox: left half is for the proper splash,
         # right half for infobox, only one infobox is allowed.

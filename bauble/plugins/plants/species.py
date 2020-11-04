@@ -142,14 +142,14 @@ class SynonymSearch(search.SearchStrategy):
     return_synonyms_pref = 'bauble.search.return_synonyms'
 
     def __init__(self):
-        super(SynonymSearch, self).__init__()
+        super().__init__()
         if self.return_synonyms_pref not in prefs:
             prefs[self.return_synonyms_pref] = True
             prefs.save()
 
     def search(self, text, session):
         from .genus import Genus, GenusSynonym
-        super(SynonymSearch, self).search(text, session)
+        super().search(text, session)
         if not prefs[self.return_synonyms_pref]:
             return []
         mapper_search = search.get_strategy('MapperSearch')
@@ -403,7 +403,7 @@ class GeneralSpeciesExpander(InfoExpander):
 class SpeciesInfoBox(InfoBox):
 
     def __init__(self):
-        super(SpeciesInfoBox, self).__init__(tabbed=True)
+        super().__init__(tabbed=True)
         page = SpeciesInfoPage()
         label = page.label
         if isinstance(label, str):
@@ -614,4 +614,4 @@ class VernacularNameInfoBox(SpeciesInfoBox):
         logger.info("VernacularNameInfoBox.update %s(%s)" % (
             row.__class__.__name__, row))
         if isinstance(row, VernacularName):
-            super(VernacularNameInfoBox, self).update(row.species)
+            super().update(row.species)

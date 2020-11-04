@@ -87,7 +87,7 @@ import threading
 
 class ExportToPocketThread(threading.Thread):
     def __init__(self, filename, progressbar=None, callback=None, include_private=True):
-        super(ExportToPocketThread, self).__init__(target=None, name=None)
+        super().__init__(target=None, name=None)
         self.filename = filename
         self.callback = callback
         self.progressbar = progressbar

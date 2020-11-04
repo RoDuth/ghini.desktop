@@ -409,7 +409,7 @@ class PropagationTabPresenter(editor.GenericEditorPresenter):
     """
 
     def __init__(self, parent, model, view, session):
-        super(PropagationTabPresenter, self).__init__(model, view)
+        super().__init__(model, view)
         self.parent_ref = weakref.ref(parent)
         self.session = session
         self.view.connect('prop_add_button', 'clicked',
@@ -544,10 +544,8 @@ class PropagationEditorView(editor.GenericEditorView):
     def __init__(self, parent=None):
         """
         """
-        super(PropagationEditorView, self).\
-            __init__(os.path.join(paths.lib_dir(), 'plugins', 'garden',
-                                  'prop_editor.glade'),
-                     parent=parent)
+        super().__init__(os.path.join(paths.lib_dir(), 'plugins', 'garden',
+                                      'prop_editor.glade'), parent=parent)
         self.init_translatable_combo('prop_type_combo', prop_type_values)
 
     def get_window(self):
@@ -590,7 +588,7 @@ class CuttingPresenter(editor.GenericEditorPresenter):
         :param model: an instance of class Propagation
         :param view: an instance of PropagationEditorView
         '''
-        super(CuttingPresenter, self).__init__(model, view)
+        super().__init__(model, view)
         self.parent_ref = weakref.ref(parent)
         self.session = session
         self._dirty = False
@@ -710,7 +708,7 @@ class CuttingPresenter(editor.GenericEditorPresenter):
 
     def set_model_attr(self, field, value, validator=None):
         #debug('%s = %s' % (field, value))
-        super(CuttingPresenter, self).set_model_attr(field, value, validator)
+        super().set_model_attr(field, value, validator)
         self._dirty = True
         self.parent_ref().refresh_sensitivity()
 
@@ -771,7 +769,7 @@ class SeedPresenter(editor.GenericEditorPresenter):
         :param model: an instance of class Propagation
         :param view: an instance of PropagationEditorView
         '''
-        super(SeedPresenter, self).__init__(model, view)
+        super().__init__(model, view)
         self._dirty = False
         self.parent_ref = weakref.ref(parent)
         self.session = session
@@ -832,7 +830,7 @@ class SeedPresenter(editor.GenericEditorPresenter):
 
     def set_model_attr(self, field, value, validator=None):
         #debug('%s = %s' % (field, value))
-        super(SeedPresenter, self).set_model_attr(field, value, validator)
+        super().set_model_attr(field, value, validator)
         self._dirty = True
         self.parent_ref().refresh_sensitivity()
 
@@ -859,7 +857,7 @@ class PropagationPresenter(editor.ChildPresenter):
         :param model: an instance of class Propagation
         :param view: an instance of PropagationEditorView
         '''
-        super(PropagationPresenter, self).__init__(model, view)
+        super().__init__(model, view)
         self.session = object_session(model)
 
         # initialize the propagation type combo and set the initial value
@@ -938,8 +936,7 @@ class PropagationPresenter(editor.ChildPresenter):
         Set attributes on the model and update the GUI as expected.
         """
         logging.debug('%s = %s' % (field, value))
-        super(PropagationPresenter, self).\
-            set_model_attr(field, value, validator)
+        super().set_model_attr(field, value, validator)
         self._dirty = True
         self.refresh_sensitivity()
 
@@ -991,7 +988,7 @@ class SourcePropagationPresenter(PropagationPresenter):
         view.widgets.prop_type_combo.get_model().append([None, ''])
 
         self._dirty = False
-        super(SourcePropagationPresenter, self).__init__(model, view)
+        super().__init__(model, view)
 
     def on_prop_type_changed(self, combo, *args):
         """
@@ -1006,13 +1003,12 @@ class SourcePropagationPresenter(PropagationPresenter):
             self.set_model_attr('prop_type', None)
             self.view.widgets.prop_details_box.props.visible = False
         else:
-            super(SourcePropagationPresenter, self).\
-                on_prop_type_changed(combo, *args)
+            super().on_prop_type_changed(combo, *args)
         self._dirty = False
 
     def set_model_attr(self, attr, value, validator=None):
         logger.debug('set_model_attr(%s, %s)' % (attr, value))
-        super(SourcePropagationPresenter, self).set_model_attr(attr, value)
+        super().set_model_attr(attr, value)
         self._dirty = True
         self.refresh_sensitivity()
 
@@ -1020,7 +1016,7 @@ class SourcePropagationPresenter(PropagationPresenter):
         self.parent_ref().refresh_sensitivity()
 
     def is_dirty(self):
-        return super(SourcePropagationPresenter, self).is_dirty() or self._dirty
+        return super().is_dirty() or self._dirty
 
 
 class PropagationEditorPresenter(PropagationPresenter):
@@ -1030,7 +1026,7 @@ class PropagationEditorPresenter(PropagationPresenter):
         :param model: an instance of class Propagation
         :param view: an instance of PropagationEditorView
         '''
-        super(PropagationEditorPresenter, self).__init__(model, view)
+        super().__init__(model, view)
         # don't allow changing the propagation type if we are editing
         # an existing propagation
         if model not in self.session.new or self.model.prop_type:
@@ -1045,7 +1041,7 @@ class PropagationEditorPresenter(PropagationPresenter):
         return r
 
     def refresh_sensitivity(self):
-        super(PropagationEditorPresenter, self).refresh_sensitivity()
+        super().refresh_sensitivity()
         sensitive = True
 
         if utils.get_invalid_columns(self.model):
@@ -1088,7 +1084,7 @@ class PropagationEditor(editor.GenericModelViewPresenterEditor):
         # the view and presenter are created in self.start()
         self.view = None
         self.presenter = None
-        super(PropagationEditor, self).__init__(model, parent)
+        super().__init__(model, parent)
         # if mode already has a session then use it, this is unique to
         # the PropagationEditor because so far it is the only editor
         # that dependent on a parent editor and the parent editor's

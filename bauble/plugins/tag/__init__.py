@@ -100,7 +100,6 @@ class TagsMenuManager:
                               .convert_widget_to_bin_window_coords(0, 0))
             path = view.results_view.get_path_at_pos(*bin_win_coords)
             view.results_view.expand_to_path(path[0])
-            print(path)
 
     def build_menu(self):
         """build tags Gtk.Menu based on current data
@@ -283,7 +282,7 @@ class TagItemGUI(editor.GenericEditorView):
     def __init__(self, values):
         filename = os.path.join(paths.lib_dir(), 'plugins', 'tag',
                                 'tag.glade')
-        super(TagItemGUI, self).__init__(filename)
+        super().__init__(filename)
         self.item_data_label = self.widgets.items_data
         self.values = values
         self.item_data_label.set_text(', '.join([str(s) for s in self.values]))
@@ -730,7 +729,7 @@ class GeneralTagExpander(InfoExpander):
     def __init__(self, widgets):
         '''
         '''
-        super(GeneralTagExpander, self).__init__(_("General"), widgets)
+        super().__init__(_("General"), widgets)
         general_box = self.widgets.general_box
         self.widgets.general_window.remove(general_box)
         self.vbox.pack_start(general_box, True, True, 0)
@@ -778,7 +777,7 @@ class TagInfoBox(InfoBox):
     - source
     """
     def __init__(self):
-        super(TagInfoBox, self).__init__()
+        super().__init__()
         filename = os.path.join(paths.lib_dir(), "plugins", "tag",
                                 "tag.glade")
         self.widgets = utils.load_widgets(filename)

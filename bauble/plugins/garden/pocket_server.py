@@ -77,7 +77,7 @@ class RequestHandler(SimpleXMLRPCRequestHandler):
 
 class PocketServer(Thread):
     def __init__(self, presenter):
-        super(PocketServer, self).__init__()
+        super().__init__()
 
         class API:
             OK = 0
@@ -211,7 +211,7 @@ class PocketServerPresenter(GenericEditorPresenter):
 
     def __init__(self, model, view):
         # invoke constructor
-        super(PocketServerPresenter, self).__init__(model=model, view=view, refresh_view=True, do_commit=True,
+        super().__init__(model=model, view=view, refresh_view=True, do_commit=True,
                          committing_results=[-5, -4, -1])  # close, ×, ESC
         # put list_store directly in presenter and grab list from database
         self.clients_ls = self.view.widgets.clients_ls
@@ -227,7 +227,7 @@ class PocketServerPresenter(GenericEditorPresenter):
             self.on_new_snapshot_button_clicked()
 
     def cleanup(self):
-        super(PocketServerPresenter, self).cleanup()
+        super().cleanup()
         self.stop_spinner()
         self.cancel_threads()
         # remove self.pocket_fn

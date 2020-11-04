@@ -80,8 +80,8 @@ class Row(dict):
 
     def __init__(self, id=None, name=None, tdwg_code=None, iso_code=None,
                  parent_id=None):
-        super(Row, self).__init__(id=id, name=name, tdwg_code=tdwg_code,
-                                  iso_code=iso_code, parent_id=parent_id)
+        super().__init__(id=id, name=name, tdwg_code=tdwg_code,
+                         iso_code=iso_code, parent_id=parent_id)
 
     columns = ['id', 'name', 'tdwg_code', 'iso_code', 'parent_id']
 

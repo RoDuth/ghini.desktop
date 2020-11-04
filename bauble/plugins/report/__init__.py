@@ -519,7 +519,7 @@ class ReportToolDialogPresenter(object):
         if child:
             expander.remove(child)
 
-        #self.widgets.ok_button.set_sensitive(title is not None)
+        # self.widgets.ok_button.set_sensitive(title is not None)
         self.view.set_sensitive('ok_button', formatter is not None)
         if not formatter:
             return
@@ -536,7 +536,7 @@ class ReportToolDialogPresenter(object):
         # TODO: should probably remember expanded state,
         # see formatter_settings_expander_pref
         expander.set_expanded(box is not None)
-        #formatter = combo.get_active_text()
+        # formatter = combo.get_active_text()
         self.set_prefs_for(name, formatter, settings)
         self.view.set_sensitive('ok_button', True)
 

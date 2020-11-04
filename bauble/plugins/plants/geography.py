@@ -66,7 +66,7 @@ def get_species_in_geography(geo):
 class GeographyMenu(Gtk.Menu):
 
     def __init__(self, callback):
-        super(GeographyMenu, self).__init__()
+        super().__init__()
         geography_table = Geography.__table__
         geos = select([geography_table.c.id, geography_table.c.name,
                        geography_table.c.parent_id]).execute().fetchall()

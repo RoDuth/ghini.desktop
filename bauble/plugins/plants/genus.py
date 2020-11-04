@@ -392,7 +392,7 @@ class GenusSynonym(db.Base):
         # it is necessary that the first argument here be synonym for
         # the Genus.synonyms association_proxy to work
         self.synonym = synonym
-        super(GenusSynonym, self).__init__(**kwargs)
+        super().__init__(**kwargs)
 
     def __str__(self):
         return str(self.synonym)
@@ -435,7 +435,7 @@ class GenusEditorView(editor.GenericEditorView):
 
         filename = os.path.join(paths.lib_dir(), 'plugins', 'plants',
                                 'genus_editor.glade')
-        super(GenusEditorView, self).__init__(filename, parent=parent)
+        super().__init__(filename, parent=parent)
         self.attach_completion('gen_syn_entry', self.syn_cell_data_func)
         self.attach_completion('gen_family_entry')
         self.set_accept_buttons_sensitive(False)
@@ -495,7 +495,7 @@ class GenusEditorPresenter(editor.GenericEditorPresenter):
         @model: should be an instance of class Genus
         @view: should be an instance of GenusEditorView
         '''
-        super(GenusEditorPresenter, self).__init__(model, view)
+        super().__init__(model, view)
         self.create_toolbar()
         self.session = object_session(model)
 
@@ -570,7 +570,7 @@ class GenusEditorPresenter(editor.GenericEditorPresenter):
         self._dirty = False
 
     def cleanup(self):
-        super(GenusEditorPresenter, self).cleanup()
+        super().cleanup()
         self.synonyms_presenter.cleanup()
         self.notes_presenter.cleanup()
 
@@ -582,8 +582,7 @@ class GenusEditorPresenter(editor.GenericEditorPresenter):
         self.view.set_accept_buttons_sensitive(sensitive)
 
     def set_model_attr(self, field, value, validator=None):
-        super(GenusEditorPresenter, self).set_model_attr(field, value,
-                                                         validator)
+        super().set_model_attr(field, value, validator)
         self._dirty = True
         self.refresh_sensitivity()
 
@@ -613,8 +612,7 @@ class SynonymsPresenter(editor.GenericEditorPresenter):
         :param parent: GenusEditorPreesnter
         '''
         self.parent_ref = weakref.ref(parent)
-        super(SynonymsPresenter, self).__init__(self.parent_ref().model,
-                                                self.parent_ref().view)
+        super().__init__(self.parent_ref().model, self.parent_ref().view)
         self.session = self.parent_ref().session
         self.view.widgets.gen_syn_entry.props.text = ''
         self.init_treeview()
@@ -757,7 +755,7 @@ class GenusEditor(editor.GenericModelViewPresenterEditor):
         self.presenter = None
         if model is None:
             model = Genus()
-        super(GenusEditor, self).__init__(model, parent)
+        super().__init__(model, parent)
         if not parent and bauble.gui:
             parent = bauble.gui.window
         self.parent = parent
@@ -1117,8 +1115,7 @@ class GenusInfoBox(InfoBox):
         butns = prefs.config.items(self.genus_web_button_defs_prefs)
         button_defs = []
         for i in butns:
-            button_def = prefs[self.genus_web_button_defs_prefs + '.'
-                               + i[0]]
+            button_def = prefs[f'{self.genus_web_button_defs_prefs}.{i[0]}']
             button_def['name'] = i[0]
             button_defs.append(button_def)
 
