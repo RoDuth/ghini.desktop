@@ -554,16 +554,14 @@ class SpeciesInfoPage(InfoBoxPage):
         ]
         if not prefs.config.has_section(self.species_web_button_defs_prefs):
             for i in button_defaults:
-                prefs[self.species_web_button_defs_prefs + '.'
-                      + i.get('name')] = {
-                          k: v for k, v in list(i.items()) if k != 'name'
-                      }
+                prefs[f'{self.species_web_button_defs_prefs}.{i.get("name")}'
+                      ] = {k: v for k, v in list(i.items()) if k != 'name'}
             prefs.save()
 
         butns = prefs.config.items(self.species_web_button_defs_prefs)
         button_defs = []
         for i in butns:
-            button_def = prefs[self.species_web_button_defs_prefs + '.' + i[0]]
+            button_def = prefs[f'{self.species_web_button_defs_prefs}.{i[0]}']
             button_def['name'] = i[0]
             button_defs.append(button_def)
 

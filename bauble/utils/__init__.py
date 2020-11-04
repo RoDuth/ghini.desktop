@@ -260,9 +260,9 @@ def find_dependent_tables(table, metadata=None):
 
 
 def load_widgets(filename):
-    # b = BuilderLoader.load(filename)
-    # return BuilderWidgets(b)
-    return BuilderWidgets(filename)
+    b = BuilderLoader.load(filename)
+    return BuilderWidgets(b)
+    # return BuilderWidgets(filename)
 
 
 class BuilderLoader(object):

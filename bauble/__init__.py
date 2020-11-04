@@ -1,7 +1,8 @@
+# pylint: disable=broad-except
 # Copyright (c) 2005,2006,2007,2008,2009 Brett Adams <brett@belizebotanic.org>
 # Copyright (c) 2012-2017 Mario Frasca <mario@anche.no>
 # Copyright 2017 Jardín Botánico de Quito
-# Copyright (c) 2016 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright (c) 2016-2020 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -29,12 +30,13 @@ import gi
 import bauble.paths as paths
 gi.require_version("Gtk", "3.0")
 
-try:
-    import faulthandler
-    faulthandler.enable()
-except Exception as e:
-    print(f'{e} error of type: {type(e).__name__} while trying to load'
-          '"faulthandler"')
+# just use PYTHONFAULTHANDLER=1 envvar
+# try:
+#     import faulthandler
+#     faulthandler.enable()
+# except Exception as e:
+#     print(f'{e} error of type: {type(e).__name__} while trying to load'
+#           '"faulthandler"')
 
 
 from bauble.version import version
@@ -87,11 +89,6 @@ if paths.main_is_frozen():  # main is frozen
            os.pathsep, os.environ['PATH'])
 
 
-# if not hasattr(Gtk.Widget, 'set_tooltip_markup'):
-#     msg = _('Ghini requires GTK+ version 2.12 or greater')
-#     utils.message_dialog(msg, Gtk.MessageType.ERROR)
-#     sys.exit(1)
-
 # make sure we look in the lib path for modules
 sys.path.append(paths.lib_dir())
 
@@ -140,16 +137,17 @@ def quit():  # pylint: disable=redefined-builtin
     try:
         import bauble.task as task
     except Exception as e:
-        logger.error('bauble.quit(): %s' % utils.utf8(e))
+        logger.error('bauble.quit(): %s' % e)
     else:
         task.kill()
     try:
         save_state()
         Gtk.main_quit()
-    except RuntimeError as e:
-        # in case main_quit is called before main, e.g. before
-        # bauble.main() is called
-        sys.exit(1)
+    except Exception as e:
+        logger.debug('quiting produced %s error', e)
+    # in case main_quit is called before main, e.g. before
+    # bauble.main() is called
+    sys.exit(1)
 
 
 last_handler = None

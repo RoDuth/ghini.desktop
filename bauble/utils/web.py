@@ -68,6 +68,7 @@ class BaubleLinkButton(Gtk.LinkButton):
     def set_string(self, row):
         if self.fields == []:
             s = str(row)
+            s = s.replace('\u200b', '')  # remove any zero width spaces
             self.set_uri(self._base_uri % s.replace(' ', self._space))
         else:
             values = {}
