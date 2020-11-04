@@ -292,6 +292,7 @@ class PrefsView(pluginmgr.View):
     def on_prefs_prefs_tv_row_activated(self, _tv, path, _column):
         global prefs
         modified = False
+        key, _repr_str, type_str = self.prefs_ls[path]
         if type_str == 'bool':
             prefs[key] = not prefs[key]
             self.prefs_ls[path][1] = str(prefs[key])

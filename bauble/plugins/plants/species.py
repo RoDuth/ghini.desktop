@@ -563,12 +563,11 @@ class SpeciesInfoPage(InfoBoxPage):
         butns = prefs.config.items(self.species_web_button_defs_prefs)
         button_defs = []
         for i in butns:
-            button_def = prefs[self.species_web_button_defs_prefs + '.'
-                               + i[0]]
+            button_def = prefs[self.species_web_button_defs_prefs + '.' + i[0]]
             button_def['name'] = i[0]
             button_defs.append(button_def)
 
-        super(SpeciesInfoPage, self).__init__()
+        super().__init__()
         filename = os.path.join(paths.lib_dir(), 'plugins', 'plants',
                                 'infoboxes.glade')
         # load the widgets directly instead of using load_widgets()

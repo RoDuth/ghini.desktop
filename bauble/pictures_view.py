@@ -24,7 +24,7 @@ from gi.repository import Gtk  # noqa
 
 import logging
 logger = logging.getLogger(__name__)
-#logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.DEBUG)
 
 import bauble.utils as utils
 
@@ -71,7 +71,7 @@ class PicturesView(Gtk.Box):
         for k in self.box.get_children():
             k.destroy()
 
-        for o in selection:
+        for o in selection or []:
             try:
                 pics = o.pictures
             except AttributeError:

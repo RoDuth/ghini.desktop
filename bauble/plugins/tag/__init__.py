@@ -69,7 +69,8 @@ class TagsMenuManager:
         if self.menu_item is None:
             self.menu_item = bauble.gui.add_menu(_("Tags"), tags_menu)
         else:
-            self.menu_item.remove_submenu()
+            # self.menu_item.remove_submenu()
+            self.menu_item.set_submenu(None)
             self.menu_item.set_submenu(tags_menu)
             self.menu_item.show_all()
         self.show_active_tag()
@@ -92,10 +93,14 @@ class TagsMenuManager:
         self.active_tag_name = tag_name
         self.show_active_tag()
         bauble.gui.send_command('tag="%s"' % tag_name)
-        from bauble.view import SearchView
         view = bauble.gui.get_view()
         if isinstance(view, SearchView):
-            view.results_view.expand_to_path('0')
+            # Works but not entirely sure its correct
+            bin_win_coords = (view.results_view
+                              .convert_widget_to_bin_window_coords(0, 0))
+            path = view.results_view.get_path_at_pos(*bin_win_coords)
+            view.results_view.expand_to_path(path[0])
+            print(path)
 
     def build_menu(self):
         """build tags Gtk.Menu based on current data
@@ -634,8 +639,9 @@ def untag_objects(name, objs):
 
 
 # create the classname stored in the tagged_obj table
-_classname = lambda x: str('%s.%s', 'utf-8') % (
-    type(x).__module__, type(x).__name__)
+def _classname(obj):
+    return f'{type(obj).__module__}.{type(obj).__name__}'
+
 
 
 def tag_objects(name, objects):

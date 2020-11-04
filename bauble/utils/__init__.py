@@ -887,14 +887,10 @@ def to_unicode(obj, encoding='utf-8'):
     object it will not try to decode it to converted it to <encoding>
     but will just return the original obj
     """
+    logger.debug('calling to_unicode with encoding = %s', encoding)
     if isinstance(obj, str) or obj is None:
         return obj
-    if not isinstance(obj, str):
-        try:
-            obj = str(obj, encoding)
-        except Exception:
-            obj = f'{obj}'
-    return obj
+    return str(obj)
 
 
 def utf8(obj):
@@ -904,14 +900,13 @@ def utf8(obj):
     return to_unicode(obj, 'utf-8')
 
 
-def xml_safe(obj, encoding='utf-8'):
+def xml_safe(obj):
     '''
     Return a string with character entities escaped safe for xml, if the
     str parameter is a string a string is returned, if str is a unicode object
     then a unicode object is returned
     '''
-    obj = to_unicode(obj, encoding)
-    return saxutils.escape(obj)
+    return saxutils.escape(str(obj))
 
 
 def xml_safe_utf8(obj):

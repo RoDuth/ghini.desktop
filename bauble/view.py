@@ -555,19 +555,20 @@ class SearchView(pluginmgr.View):
         generic add_page_to_bottom_notebook.
 
         '''
-        page = self.view.widgets.notes_scrolledwindow
+        page = self.widgets.notes_scrolledwindow
         # detach it from parent (its container)
-        self.view.widgets.remove_parent(page)
+        self.widgets.remove_parent(page)
         # create the label object
         label = Gtk.Label(label='Notes')
-        self.view.widgets.bottom_notebook.append_page(page, label)
+        self.widgets.bottom_notebook.append_page(page, label)
         self.bottom_info[Note] = {
             'fields_used': ['date', 'user', 'category', 'note'],
             'tree': page.get_children()[0],
             'label': label,
             'name': _('Notes'),
-            }
-        self.view.widgets.notes_treeview.connect("row-activated", self.on_note_row_activated)
+        }
+        self.widgets.notes_treeview.connect("row-activated",
+                                            self.on_note_row_activated)
 
     def on_note_row_activated(self, tree, path, column):
         try:
@@ -590,7 +591,6 @@ class SearchView(pluginmgr.View):
         '''add notebook page for a plugin class
         '''
         glade_name = bottom_info['glade_name']
-        # builder = utils.BuilderLoader.load(glade_name)
         bwid = utils.BuilderWidgets(glade_name)
         page = bwid[bottom_info['page_widget']]
         # 2: detach it from parent (its container)
@@ -598,8 +598,6 @@ class SearchView(pluginmgr.View):
         # 3: create the label object
         label = Gtk.Label(label=bottom_info['name'])
         # 4: add the page, non sensitive
-        # NOT SURE OF THIS
-        # self.widgets['bottom_notebook'].append_page(page, label)
         self.widgets.bottom_notebook.append_page(page, label)
         # 5: store the values for later use
         bottom_info['tree'] = page.get_children()[0]
@@ -620,7 +618,7 @@ class SearchView(pluginmgr.View):
         """
         values = self.get_selected_values()
         # Only one should be selected
-        if len(values) != 1:
+        if len(values or []) != 1:
             self.view.widget_set_visible('bottom_notebook', False)
             return
 
