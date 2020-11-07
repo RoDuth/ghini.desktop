@@ -30,7 +30,7 @@ import copy
 
 import logging
 logger = logging.getLogger(__name__)
-#logger.setLevel(logging.DEBUG)
+# logger.setLevel(logging.DEBUG)
 
 
 import gi
@@ -311,7 +311,7 @@ class ConnMgrPresenter(GenericEditorPresenter):
         self.connection_names = []
         self.connections = prefs.prefs[bauble.conn_list_pref] or {}
         for ith_connection_name in sorted(self.connections):
-            view.combobox_append_text('name_combo', ith_connection_name)
+            view.comboboxtext_append_text('name_combo', ith_connection_name)
             self.connection_names.append(ith_connection_name)
         if self.connection_names:
             self.connection_name = prefs.prefs[bauble.conn_default_pref]
@@ -428,10 +428,11 @@ class ConnMgrPresenter(GenericEditorPresenter):
                 self.view.run_message_dialog(msg, Gtk.MessageType.ERROR)
             if valid:
                 # ghini grabs pictures location from global setting
-                prefs.prefs[prefs.picture_root_pref] = make_absolute(settings['pictures'])
+                prefs.prefs[prefs.picture_root_pref] = make_absolute(
+                    settings['pictures'])
                 self.save_current_to_prefs()
-        elif response == Gtk.ResponseType.CANCEL or \
-                response == Gtk.ResponseType.DELETE_EVENT:
+        elif response in (Gtk.ResponseType.CANCEL,
+                          Gtk.ResponseType.DELETE_EVENT):
             if not self.are_prefs_already_saved(self.connection_name):
                 msg = _("Do you want to save your changes?")
                 if self.view.run_yes_no_dialog(msg):
@@ -441,7 +442,6 @@ class ConnMgrPresenter(GenericEditorPresenter):
         # case we want to hide it
         if response < 0:
             dialog.hide()
-            #dialog.emit_stop_by_name('response')
 
         return response
 
@@ -493,9 +493,10 @@ class ConnMgrPresenter(GenericEditorPresenter):
             self.connection_name = name
             self.connection_names.insert(0, name)
             self.connections[name] = self.get_params(new=name)
-            self.view.combobox_prepend_text('name_combo', name)
+            self.view.comboboxtext_prepend_text('name_combo', name)
             self.view.widget_set_expanded('expander', True)
             self.view.combobox_set_active('name_combo', 0)
+            self.refresh_view()
 
     def save_current_to_prefs(self):
         """add current named params to saved connections

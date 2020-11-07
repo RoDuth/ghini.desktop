@@ -286,7 +286,6 @@ class PrefsView(pluginmgr.View):
         self.view.connect_signals(self)
         self.prefs_ls = self.view.widgets.prefs_prefs_ls
         self.plugins_ls = self.view.widgets.prefs_plugins_ls
-        self.update()
 
     # pylint: disable=global-statement
     def on_prefs_prefs_tv_row_activated(self, _tv, path, _column):
@@ -313,7 +312,7 @@ class PrefsView(pluginmgr.View):
                              (key, value, prefs[key].__class__.__name__))
 
         self.plugins_ls.clear()
-        from bauble.pluginmgr import PluginRegistry  # noqa # pylint: disable=import-outside-toplevel
+        from bauble.pluginmgr import PluginRegistry
         session = db.Session()
         plugins = session.query(PluginRegistry.name, PluginRegistry.version)
         for item in plugins:

@@ -1314,7 +1314,7 @@ class VerificationPresenter(editor.GenericEditorPresenter):
             self.presenter().assign_completions_handler(
                 ver_new_taxon_entry, sp_get_completions, on_sp_select)
 
-            ## add a taxon implies setting the ver_new_taxon_entry
+            # add a taxon implies setting the ver_new_taxon_entry
             self.presenter().view.connect(
                 self.widgets.ver_taxon_add_button, 'clicked',
                 self.on_taxon_add_button_clicked,
@@ -1814,20 +1814,21 @@ class SourcePresenter(editor.GenericEditorPresenter):
 
 class AccessionEditorPresenter(editor.GenericEditorPresenter):
 
-    widget_to_field_map = {'acc_code_entry': 'code',
-                           'acc_id_qual_combo': 'id_qual',
-                           'acc_date_accd_entry': 'date_accd',
-                           'acc_date_recvd_entry': 'date_recvd',
-                           'acc_recvd_type_comboentry': 'recvd_type',
-                           'acc_quantity_recvd_entry': 'quantity_recvd',
-                           'intended_loc_comboentry': 'intended_location',
-                           'intended2_loc_comboentry': 'intended2_location',
-                           'acc_prov_combo': 'prov_type',
-                           'acc_wild_prov_combo': 'wild_prov_status',
-                           'acc_species_entry': 'species',
-                           'acc_private_check': 'private',
-                           'intended_loc_create_plant_checkbutton': 'create_plant',
-                           }
+    widget_to_field_map = {
+        'acc_code_entry': 'code',
+        'acc_id_qual_combo': 'id_qual',
+        'acc_date_accd_entry': 'date_accd',
+        'acc_date_recvd_entry': 'date_recvd',
+        'acc_recvd_type_comboentry': 'recvd_type',
+        'acc_quantity_recvd_entry': 'quantity_recvd',
+        'intended_loc_comboentry': 'intended_location',
+        'intended2_loc_comboentry': 'intended2_location',
+        'acc_prov_combo': 'prov_type',
+        'acc_wild_prov_combo': 'wild_prov_status',
+        'acc_species_entry': 'species',
+        'acc_private_check': 'private',
+        'intended_loc_create_plant_checkbutton': 'create_plant',
+    }
 
     PROBLEM_INVALID_DATE = random()
     PROBLEM_DUPLICATE_ACCESSION = random()
@@ -1887,6 +1888,7 @@ class AccessionEditorPresenter(editor.GenericEditorPresenter):
         # ComboBoxes need a model, to receive values.
 
         from bauble.plugins.garden import init_location_comboentry
+
         def on_loc_select(field_name, value):
             if self.initializing:
                 return
@@ -1970,8 +1972,10 @@ class AccessionEditorPresenter(editor.GenericEditorPresenter):
         # connect recvd_type comboentry widget and child entry
         self.view.connect('acc_recvd_type_comboentry', 'changed',
                           self.on_recvd_type_comboentry_changed)
-        self.view.connect(self.view.widgets.acc_recvd_type_comboentry.get_child(),
-                          'changed', self.on_recvd_type_entry_changed)
+        self.view.connect(
+            self.view.widgets.acc_recvd_type_comboentry.get_child(),
+            'changed', self.on_recvd_type_entry_changed
+        )
 
         self.view.connect('acc_code_entry', 'changed',
                           self.on_acc_code_entry_changed)
@@ -2337,7 +2341,6 @@ class AccessionEditorPresenter(editor.GenericEditorPresenter):
 
         '''
         self.initializing = initializing
-        date_format = prefs.prefs[prefs.date_format_pref]
         for widget, field in self.widget_to_field_map.items():
             if field == 'species_id':
                 value = self.model.species
@@ -2365,6 +2368,7 @@ class AccessionEditorPresenter(editor.GenericEditorPresenter):
         sensitive = self.model.prov_type == 'Wild'
         self.view.widgets.acc_wild_prov_combo.set_sensitive(sensitive)
         self.view.widgets.acc_wild_prov_combo.set_sensitive(sensitive)
+        self.initializing = False
 
     def cleanup(self):
         super().cleanup()

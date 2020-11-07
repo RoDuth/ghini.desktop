@@ -468,10 +468,8 @@ class PropagationTabPresenter(editor.GenericEditorPresenter):
                 self._dirty = True
             self.parent_ref().refresh_sensitivity()
 
-        alignment = Gtk.Alignment.new()
-        hbox.pack_start(alignment, False, False, 0)
         button_box = Gtk.Box(spacing=5)
-        alignment.add(button_box)
+        hbox.pack_start(button_box, False, False, 0)
         button = Gtk.Button(stock=Gtk.STOCK_EDIT)
         self.view.connect(button, 'clicked', on_edit_clicked, propagation,
                           label)
@@ -1101,7 +1099,7 @@ class PropagationEditor(editor.GenericModelViewPresenterEditor):
 
         view = PropagationEditorView(parent=self.parent)
         self.presenter = PropagationEditorPresenter(self.model, view)
-            
+
     def handle_response(self, response, commit=True):
         '''
         handle the response from self.presenter.start() in self.start()

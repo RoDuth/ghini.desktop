@@ -530,6 +530,10 @@ def set_widget_value(widget, value, markup=False, default=None, index=0):
     elif isinstance(widget, Gtk.TextBuffer):
         widget.set_text(str(value))
     elif isinstance(widget, Gtk.Entry):
+        # This can create a "Warning: g_value_get_int: assertion
+        # 'G_VALUE_HOLDS_INT (value)' failed
+        #   widget.set_text(utf8(value))", seems safe to ignore it.
+        #   see: https://stackoverflow.com/a/40163816
         widget.set_text(utf8(value))
     elif isinstance(widget, Gtk.ComboBox):
         # handles Gtk.ComboBox and Gtk.ComboBoxEntry
@@ -1303,7 +1307,6 @@ def range_builder(text):
     rng = Group(Word(nums) + Suppress('-') + Word(nums))
     range_list = delimitedList(rng | Word(nums))
 
-    token = None
     try:
         tokens = range_list.parseString(text)
     except (AttributeError, ParseException) as e:
@@ -1331,15 +1334,13 @@ def gc_objects_by_type(tipe):
     import gc
     if isinstance(tipe, str):
         return [o for o in gc.get_objects() if type(o).__name__ == tipe]
-    elif inspect.isclass(tipe):
+    if inspect.isclass(tipe):
         return [o for o in gc.get_objects() if isinstance(o, tipe)]
-    else:
-        return [o for o in gc.get_objects() if isinstance(o, type(tipe))]
+    return [o for o in gc.get_objects() if isinstance(o, type(tipe))]
 
 
 def mem(size="rss"):
     """Generalization; memory sizes: rss, rsz, vsz."""
-    import os
     return int(os.popen('ps -p %d -o %s | tail -1' %
                         (os.getpid(), size)).read())
 
@@ -1458,8 +1459,8 @@ class GenericMessageBox(Gtk.EventBox):
 
     def show_all(self):
         self.get_parent().show_all()
-        width, height = self.size_request()
-        self.set_size_request(width, height+10)
+        size_req = self.get_preferred_size()[1]
+        self.set_size_request(size_req.width, size_req.height + 10)
 
     def show(self):
         self.show_all()
@@ -1518,10 +1519,13 @@ class MessageBox(GenericMessageBox):
                 parent.remove(self)
         button.connect('clicked', on_close, True)
 
-        colors = [('bg', Gtk.StateType.NORMAL, '#FFFFFF'),
-                  ('bg', Gtk.StateType.PRELIGHT, '#FFFFFF')]
-        for color in colors:
-            self.set_color(*color)
+        # TODO <RD> not to sure about this, do we need to re-impliment?  Seems
+        # not, haven't found the situation where I need to supress BG colours.
+        # Leaving here for now incase I do.
+        # colors = [('bg', Gtk.StateType.NORMAL, '#FFFFFF'),
+        #           ('bg', Gtk.StateType.PRELIGHT, '#FFFFFF')]
+        # for color in colors:
+        #     self.set_color(*color)
 
     def show_all(self):
         super().show_all()
@@ -1586,10 +1590,11 @@ class YesNoMessageBox(GenericMessageBox):
             self.no_button.connect('clicked', on_response, False)
         button_box.pack_start(self.no_button, False, False, 0)
 
-        colors = [('bg', Gtk.StateType.NORMAL, '#FFFFFF'),
-                  ('bg', Gtk.StateType.PRELIGHT, '#FFFFFF')]
-        for color in colors:
-            self.set_color(*color)
+        # don't think I need this? This is just white for all which seem normal
+        # colors = [('bg', Gtk.StateType.NORMAL, '#FFFFFF'),
+        #           ('bg', Gtk.StateType.PRELIGHT, '#FFFFFF')]
+        # for color in colors:
+        #     self.set_color(*color)
 
     def _set_on_response(self, func):
         self.yes_button.connect('clicked', func, True)

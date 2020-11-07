@@ -62,7 +62,8 @@ confidence=
 # --disable=W".
 disable=wrong-import-position,
 	missing-function-docstring,
-	missing-class-docstring
+	missing-class-docstring,
+	import-outside-toplevel
 #        print-statement,
 #        parameter-unpacking,
 #        unpacking-in-except,

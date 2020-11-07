@@ -548,11 +548,13 @@ class GenericEditorView(object):
             logger.warning('invoked combobox_remove with item=(%s)%s' %
                            (type(item), item))
 
-    def combobox_append_text(self, widget, value):
+    def comboboxtext_append_text(self, widget, value):
+        # only works on a GtkComboBoxText not a standard GtkComboBox,
         widget = self.__get_widget(widget)
         widget.append_text(value)
 
-    def combobox_prepend_text(self, widget, value):
+    def comboboxtext_prepend_text(self, widget, value):
+        # only works on a GtkComboBoxText not a standard GtkComboBox,
         widget = self.__get_widget(widget)
         widget.prepend_text(value)
 
@@ -566,7 +568,8 @@ class GenericEditorView(object):
 
     def combobox_set_active(self, widget, index):
         widget = self.__get_widget(widget)
-        widget.set_entry_text_column(index)
+        path = Gtk.TreePath.new_from_string(f'0:{index}')
+        widget.get_child().set_displayed_row(path)
 
     def combobox_get_model(self, widget):
         'get the list of values in the combo'
@@ -984,14 +987,14 @@ class MockView:
         else:
             model.remove((item, ))
 
-    def combobox_append_text(self, name, value):
-        self.invoked.append('combobox_append_text')
+    def comboboxtext_append_text(self, name, value):
+        self.invoked.append('comboboxtext_append_text')
         self.invoked_detailed.append((self.invoked[-1], [name, value]))
         model = self.models.setdefault(name, [])
         model.append((value, ))
 
-    def combobox_prepend_text(self, name, value):
-        self.invoked.append('combobox_prepend_text')
+    def comboboxtext_prepend_text(self, name, value):
+        self.invoked.append('comboboxtext_prepend_text')
         self.invoked_detailed.append((self.invoked[-1], [name, value]))
         model = self.models.setdefault(name, [])
         model.insert(0, (value, ))
@@ -1728,9 +1731,8 @@ class GenericEditorPresenter(object):
             value = compl_model[treeiter][0]
             # temporarily block the changed ID so that this function
             # doesn't get called twice
-            widget.handler_block(_changed_sid)
-            widget.props.text = utils.utf8(value)
-            widget.handler_unblock(_changed_sid)
+            with widget.handler_block(_changed_sid):
+                widget.props.text = str(value)
             self.remove_problem(PROBLEM, widget)
             on_select(value)
             return True  # return True or on_changed() will be called with ''

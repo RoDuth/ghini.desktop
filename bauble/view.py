@@ -23,6 +23,7 @@ import os
 import sys
 import traceback
 import html
+from functools import cmp_to_key
 
 import logging
 logger = logging.getLogger(__name__)
@@ -1382,7 +1383,7 @@ class HistoryView(pluginmgr.View):
         del d['_last_updated']
         friendly = ', '.join(
             "%s: %s" % (k, self.show_typed_value(v))
-            for k, v in sorted(list(d.items()))
+            for k, v in sorted(list(d.items()), key=cmp_to_key(self.cmp_items))
         )
         self.liststore.append([
             ("%s" % item.timestamp)[:19], item.operation, item.user,
