@@ -98,10 +98,9 @@ class UnicodeReader(object):
         return self
 
 
-# TODO: UnicodeWriter needs to be more thoroughly needs to be more
-# tested, i came across a small problem once when createing a tempory
-# geography table from _topsort_file and it exported the numbers in
-# some strange format
+# TODO: UnicodeWriter needs to be more thoroughly  tested, i came across a
+# small problem once when creating a temporary geography table from
+# _toposort_file and it exported the numbers in some strange format
 class UnicodeWriter(object):
 
     def __init__(self, f, dialect=csv.excel, encoding="utf-8", **kwds):
@@ -197,7 +196,7 @@ class CSVImporter(Importer):
         foreign_key column and child is usually the column that the
         foreign key points to, e.g ('parent_id', 'id')
         """
-        f = open(filename, 'rb')
+        f = open(filename, 'r', encoding='utf-8', newline='')
         reader = UnicodeReader(f, quotechar=QUOTE_CHAR,
                                quoting=QUOTE_STYLE)
 
@@ -229,9 +228,9 @@ class CSVImporter(Importer):
         tmppath = tempfile.mkdtemp()
         head, tail = os.path.split(filename)
         filename = os.path.join(tmppath, tail)
-        tmpfile = open(filename, 'wb')
+        tmpfile = open(filename, 'w', encoding='utf-8', newline='')
         tmpfile.write('%s\n' % ','.join(fields))
-        #writer = UnicodeWriter(tmpfile, fields, quotechar=QUOTE_CHAR,
+        # writer = UnicodeWriter(tmpfile, fields, quotechar=QUOTE_CHAR,
         writer = csv.DictWriter(tmpfile, fields, quotechar=QUOTE_CHAR,
                                 quoting=QUOTE_STYLE)
         writer.writerows(sorted_lines)
@@ -302,7 +301,7 @@ class CSVImporter(Importer):
         filesizes = {}
         for filename in filenames:
             #get the total number of lines for all the files
-            nlines = len(open(filename).readlines())
+            nlines = len(open(filename, encoding='utf-8', newline='').readlines())
             filesizes[filename] = nlines
             total_lines += nlines
 
@@ -404,7 +403,7 @@ class CSVImporter(Importer):
 
                 # open a temporary reader to get the column keys so we
                 # can later precompile our insert statement
-                f = open(filename, "rb")
+                f = open(filename, 'r', encoding='utf-8', newline='')
                 tmp = UnicodeReader(f, quotechar=QUOTE_CHAR,
                                     quoting=QUOTE_STYLE)
                 next(tmp)
@@ -451,7 +450,7 @@ class CSVImporter(Importer):
 
                 isempty = lambda v: v in ('', None)
 
-                f = open(filename, "rb")
+                f = open(filename, 'r', encoding='utf-8', newline='')
                 reader = UnicodeReader(f, quotechar=QUOTE_CHAR,
                                        quoting=QUOTE_STYLE)
                 # NOTE: we shouldn't get this far if the file doesn't
@@ -616,18 +615,14 @@ class CSVExporter(object):
             return s
 
         def write_csv(filename, rows):
-            f = open(filename, 'wb')
+            f = open(filename, 'w', encoding='utf-8', newline='')
             writer = UnicodeWriter(f, quotechar=QUOTE_CHAR,
                                    quoting=QUOTE_STYLE)
             writer.writerows(rows)
             f.close()
 
         update_every = 30
-        from bauble.paths import main_is_frozen
-        if main_is_frozen:
-            spinner = '-\\|/'
-        else:
-            spinner = '⣄⡆⠇⠋⠙⠸⢰⣠'
+        spinner = '⣄⡆⠇⠋⠙⠸⢰⣠'
         for table in db.metadata.sorted_tables:
             filename = filename_template % table.name
             steps_so_far += 1
@@ -643,7 +638,7 @@ class CSVExporter(object):
             # get the data
             results = table.select().execute().fetchall()
 
-            # create empty files with only the column names
+            # if empty tables, create empty files with only the column names
             if len(results) == 0:
                 write_csv(filename, [list(table.c.keys())])
                 yield

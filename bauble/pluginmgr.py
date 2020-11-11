@@ -120,10 +120,7 @@ def load(path=None):
     """
 
     if path is None:
-        if paths.main_is_frozen():
-            path = os.path.join(paths.main_dir(), 'library.zip')
-        else:
-            path = os.path.join(paths.lib_dir(), 'plugins')
+        path = os.path.join(paths.lib_dir(), 'plugins')
     logger.debug('pluginmgr.load(%s)' % path)
     found, errors = _find_plugins(path)
     logger.debug('found=%s, errors=%s' % (found, errors))
@@ -544,20 +541,9 @@ def _find_module_names(path):
     :param path: where to look for modules
     '''
     modules = []
-    if path.find("library.zip") != -1:  # using py2exe
-        from zipfile import ZipFile
-        z = ZipFile(path)
-        filenames = z.namelist()
-        rx = re.compile('(.+)\\__init__.py[oc]')
-        for f in filenames:
-            m = rx.match(f)
-            if m is not None:
-                modules.append(m.group(1).replace('/', '.')[:-1])
-        z.close()
-    else:
-        for dir, subdir, files in os.walk(path):
-            if dir != path and '__init__.py' in files:
-                modules.append(dir[len(path)+1:].replace(os.sep, '.'))
+    for root, subdirs, files in os.walk(path):
+        if root != path and any(i.startswith('__init__.p') for i in files):
+            modules.append(root[len(path)+1:].replace(os.sep, '.'))
     return modules
 
 
@@ -567,7 +553,6 @@ def _find_plugins(path):
     """
     plugins = []
     import bauble.plugins
-    plugin_module = bauble.plugins
     errors = {}
 
     if path.find('library.zip') != -1:

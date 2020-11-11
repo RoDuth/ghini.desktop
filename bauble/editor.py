@@ -123,9 +123,10 @@ class UnicodeOrNoneValidator(Validator):
         self.encoding = encoding
 
     def to_python(self, value):
-        if value in ('', '', None):
+        if value in ('', None):
             return None
-        return utils.to_unicode(value, self.encoding)
+        # return utils.to_unicode(value, self.encoding)
+        return str(value)
 
 
 class UnicodeOrEmptyValidator(Validator):
@@ -1265,7 +1266,7 @@ class GenericEditorPresenter(object):
         if value is None:
             value = widget.props.text
             value = value and utils.utf8(value) or None
-        logger.debug("on_text_entry_changed(%s, %s) - %s → %s"
+        logger.debug("on_text_entry_changed(%s, %s) - %s -> %s"
                      % (widget, attr, getattr(self.model, attr), value))
         self.__set_model_attr(attr, value)
 
@@ -1276,7 +1277,7 @@ class GenericEditorPresenter(object):
         if attr is None:
             return
         value = self.view.widget_get_value(widget)
-        logger.debug("on_text_entry_changed(%s, %s) - %s → %s"
+        logger.debug("on_text_entry_changed(%s, %s) - %s -> %s"
                      % (widget, attr, getattr(self.model, attr), value))
         self.__set_model_attr(attr, value)
         return value
@@ -1868,15 +1869,7 @@ class NoteBox(Gtk.Box):
         el = xml.find("//object[@id='notes_box']")
         builder = Gtk.Builder()
         s = '<interface>%s</interface>' % etree.tostring(el)
-        if sys.platform == 'win32':
-            # NOTE: PyGTK for Win32 is broken so we have to include
-            # this little hack
-            #
-            # TODO: is this only a specific set of version of
-            # PyGTK/GTK...it was only tested with PyGTK 2.12
-            builder.add_from_string(s, -1)
-        else:
-            builder.add_from_string(s)
+        builder.add_from_string(s)
         self.widgets = utils.BuilderWidgets(builder)
 
         notes_box = self.widgets.notes_box

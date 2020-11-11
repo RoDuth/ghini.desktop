@@ -35,23 +35,6 @@ if not testing and __name__ in prefs[debug_logging_prefs]:
 import bauble.utils.desktop as desktop
 
 
-def _open_link(*args, **kwargs):
-    """Open a web link"""
-    # windows generates odd characters in the uri unless its in ascii
-    logger.debug("_open_link received args=%s, kwargs=%s" % (args, kwargs))
-    data = args[1]
-    import sys
-    if sys.platform == 'win32':
-        udata = data.decode("utf-8")
-        asciidata = udata.encode("ascii", "ignore")
-        desktop.open(asciidata)
-    else:
-        desktop.open(data)
-
-
-# Gtk.link_button_set_uri_hook(_open_link)
-
-
 class BaubleLinkButton(Gtk.LinkButton):
 
     _base_uri = "%s"
@@ -64,11 +47,18 @@ class BaubleLinkButton(Gtk.LinkButton):
         super().__init__("", self.title)
         self.set_tooltip_text(self.tooltip or self.title)
         self.__class__.fields = self.pt.findall(self._base_uri)
+        self.connect('activate-link', self.on_link_activated)
+
+    def on_link_activated(self, view):
+        logger.debug("opening link %s", self.get_uri())
+        desktop.open(self.get_uri())
+        return True
 
     def set_string(self, row):
         if self.fields == []:
             s = str(row)
-            s = s.replace('\u200b', '')  # remove any zero width spaces
+            # remove any zws (species string)
+            s = s.replace('\u200b', '')
             self.set_uri(self._base_uri % s.replace(' ', self._space))
         else:
             values = {}

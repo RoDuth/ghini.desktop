@@ -95,7 +95,7 @@ class CSVTests(ImexTestCase):
                 ('species', species_data))
         for table_name, data in data:
             filename = os.path.join(self.path, '%s.txt' % table_name)
-            f = open(filename, 'wb')
+            f = open(filename, 'w', encoding='utf-8', newline='')
             format = {'delimiter': ',', 'quoting': QUOTE_STYLE,
                       'quotechar': QUOTE_CHAR}
 
@@ -121,7 +121,7 @@ class CSVTests(ImexTestCase):
                     {'id': 2, 'name': '2', 'parent_id': 1},
                     ]
         filename = os.path.join(self.path, 'geography.txt')
-        f = open(filename, 'wb')
+        f = open(filename, 'w', encoding='utf-8', newline='')
         format = {'delimiter': ',', 'quoting': QUOTE_STYLE,
                   'quotechar': QUOTE_CHAR}
         fields = list(geo_data[0].keys())
@@ -148,7 +148,7 @@ class CSVTests(ImexTestCase):
                 {'id': 3, 'col1': ''},
                 ]
         filename = os.path.join(self.path, 'bool_test.txt')
-        f = open(filename, 'wb')
+        f = open(filename, 'w', encoding='utf-8', newline='')
         format = {'delimiter': ',', 'quoting': QUOTE_STYLE,
                   'quotechar': QUOTE_CHAR}
         fields = list(data[0].keys())
@@ -178,7 +178,7 @@ class CSVTests(ImexTestCase):
         """
         list(self.session.query(Family))
         filename = os.path.join(self.path, 'family.txt')
-        f = open(filename, 'wb')
+        f = open(filename, 'w', encoding='utf-8', newline='')
         format = {'delimiter': ',', 'quoting': QUOTE_STYLE,
                   'quotechar': QUOTE_CHAR}
         fields = list(family_data[0].keys())
@@ -295,7 +295,8 @@ class CSVTests(ImexTestCase):
         temp_path = mkdtemp()
         exporter = CSVExporter()
         exporter.start(temp_path)
-        f = open(os.path.join(temp_path, 'species.txt'))
+        f = open(os.path.join(temp_path, 'species.txt'), encoding='utf-8',
+                 newline='')
         reader = csv.DictReader(f, dialect=csv.excel)
         row = next(reader)
         self.assertTrue(row['cv_group'] == '')

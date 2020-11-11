@@ -1238,15 +1238,7 @@ class VerificationPresenter(editor.GenericEditorPresenter):
             el = xml.find("//object[@id='ver_box']")
             builder = Gtk.Builder()
             s = '<interface>%s</interface>' % etree.tostring(el)
-            if sys.platform == 'win32':
-                # NOTE: PyGTK for Win32 is broken so we have to include
-                # this little hack
-                #
-                # TODO: is this only a specific set of version of
-                # PyGTK/GTK...it was only tested with PyGTK 2.12
-                builder.add_from_string(s, -1)
-            else:
-                builder.add_from_string(s)
+            builder.add_from_string(s)
             self.widgets = utils.BuilderWidgets(builder)
 
             ver_box = self.widgets.ver_box

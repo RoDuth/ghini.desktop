@@ -1,3 +1,5 @@
 [flake8]
 builtins = _
 ignore = E402
+per-file-ignores =
+    ghini.spec:F821

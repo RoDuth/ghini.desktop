@@ -1493,7 +1493,7 @@ class MessageBox(GenericMessageBox):
         button.set_relief(Gtk.ReliefStyle.NONE)
         button_box.pack_start(button, False, False, 0)
 
-        self.details_expander = Gtk.Expander(_('Show details'))
+        self.details_expander = Gtk.Expander(label=_('Show details'))
         self.vbox.pack_start(self.details_expander, True, True, 0)
 
         sw = Gtk.ScrolledWindow()

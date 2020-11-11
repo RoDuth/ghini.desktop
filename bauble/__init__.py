@@ -76,19 +76,6 @@ def pb_release():
         gui.set_busy(False)
 
 
-if paths.main_is_frozen():  # main is frozen
-    # put library.zip first in the path when using py2exe so libxml2
-    # gets imported correctly,
-    zipfile = sys.path[-1]
-    sys.path.insert(0, zipfile)
-    # put the bundled gtk at the beginning of the path to make it the
-    # preferred version
-    os.environ['PATH'] = '%s%s%s%s%s%s' \
-        % (os.pathsep, os.path.join(paths.main_dir(), 'gtk', 'bin'),
-           os.pathsep, os.path.join(paths.main_dir(), 'gtk', 'lib'),
-           os.pathsep, os.environ['PATH'])
-
-
 # make sure we look in the lib path for modules
 sys.path.append(paths.lib_dir())
 
@@ -233,30 +220,12 @@ def main(uri=None):
     if not os.path.exists(paths.appdata_dir()):
         os.makedirs(paths.appdata_dir())
 
-    # a hack to write stderr and stdout to a file in a py2exe environment
-    # prevents failed attempts at creating ghini.exe.log
-    if paths.main_is_frozen():
-        _stdout = os.path.join(paths.user_dir(), 'stdout.log')
-        _stderr = os.path.join(paths.user_dir(), 'stderr.log')
-        sys.stdout = open(_stdout, 'w')
-        sys.stderr = open(_stderr, 'w')
-        # also requests needs this to know where to find SSL cert
-        # use share/cacert.pem - see: https://stackoverflow.com/a/21206079
-        cert = 'cacert.pem'
-        os.environ['REQUESTS_CA_BUNDLE'] = os.path.join(paths.main_dir(),
-                                                        'share', cert)
-        # and tld needs this for its starting point for top level domains
-        from tld.conf import set_setting
-        set_setting('NAMES_LOCAL_PATH_PARENT',
-                    os.path.join(paths.main_dir(), 'share'))
-        set_setting('NAMES_LOCAL_PATH', 'effective_tld_names.dat.txt')
-
     # add console root handler, and file root handler, set it at the logging
     # level specified by BAUBLE_LOGGING, or at INFO level.
     filename = os.path.join(paths.appdata_dir(), 'bauble.log')
     formatter = logging.Formatter(
         '%(asctime)s - %(name)s - %(levelname)s - %(thread)d - %(message)s')
-    fileHandler = logging.FileHandler(filename, 'w+')
+    fileHandler = logging.FileHandler(filename, 'w+', 'utf-8')
     logging.getLogger().addHandler(fileHandler)
     consoleHandler = logging.StreamHandler()
     logging.getLogger().addHandler(consoleHandler)
