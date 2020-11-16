@@ -166,25 +166,25 @@ class BaubleTests(BaubleTestCase):
         # own date parsing and use the dateutils module instead
 
         # with negative timezone
-        s = '2008-12-1 11:50:01.001-05:00'
+        s = '2008-12-01 11:50:01.001-05:00'
         result = '2008-12-01 11:50:01.001000-05:00'
         v = dt.process_bind_param(s, None)
         self.assertTrue(str(v) == result, '%s == %s' % (v, result))
 
         # test with positive timezone
-        s = '2008-12-1 11:50:01.001+05:00'
+        s = '2008-12-01 11:50:01.001+05:00'
         result = '2008-12-01 11:50:01.001000+05:00'
         v = dt.process_bind_param(s, None)
         self.assertTrue(str(v) == result, '%s == %s' % (v, result))
 
         # test with no timezone
-        s = '2008-12-1 11:50:01.001'
+        s = '2008-12-01 11:50:01.001'
         result = '2008-12-01 11:50:01.001000'
         v = dt.process_bind_param(s, None)
         self.assertTrue(str(v) == result, '%s == %s' % (v, result))
 
         # test with no milliseconds
-        s = '2008-12-1 11:50:01'
+        s = '2008-12-01 11:50:01'
         result = '2008-12-01 11:50:01'
         v = dt.process_bind_param(s, None)
         self.assertTrue(v.isoformat(' ') == result)

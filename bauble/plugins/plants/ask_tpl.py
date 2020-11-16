@@ -70,14 +70,13 @@ class AskTPL(threading.Thread):
         def ask_tpl(binomial):
             logger.debug('tpl request for %s, with timeout %s', binomial,
                          self.timeout)
-            result = session.get(
+            result = sess.get(
                 'http://www.theplantlist.org/tpl1.1/search?q=' + binomial +
                 '&csv=true',
                 timeout=self.timeout)
             logger.debug(result.text)
             l = result.text[1:].split('\n')
-            result = [row for row in csv.reader(k.encode('utf-8')
-                                                for k in l if k)]
+            result = [row for row in csv.reader(str(k) for k in l if k)]
             header = result[0]
             result = result[1:]
             return [dict(list(zip(header, k))) for k in result if k[7] == '']
@@ -105,7 +104,13 @@ class AskTPL(threading.Thread):
                                                   b='%s %s' % (g, s))
                     item['_score_'] = seq.ratio()
 
-                found = sorted(candidates, cmp=lambda a, b: cmp(a['_score_'], b['_score_']) or cmp(b['Taxonomic status in TPL'], a['Taxonomic status in TPL']))[-1]
+                # put 'Accepted' last
+                order = {'Accepted': 3, 'Synonym': 2, 'Unresolved': 1}
+                found = sorted(
+                    candidates,
+                    key=lambda x: (x['_score_'],
+                                   order.get(x['Taxonomic status in TPL'], 0)),
+                )[-1]
                 logger.debug('best match has score %s', found['_score_'])
                 if found['_score_'] < self.threshold:
                     found['_score_'] = 0

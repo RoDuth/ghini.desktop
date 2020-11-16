@@ -85,7 +85,7 @@ addasdadadad"""
 
         to_find.append(model.append(None, ['something']))
 
-        root = model.get_iter_root()
+        root = model.get_iter_first()
         results = utils.search_tree_model(model[root], 'something')
         self.assertTrue(sorted([model.get_path(r) for r in results]),
                      sorted(to_find))

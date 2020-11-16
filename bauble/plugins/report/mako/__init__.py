@@ -222,7 +222,8 @@ class Code39:
             'colour': colour,
         }
 
-    
+
+# TODO <RD> pyqrcode is dead it looks.  Try python-qrcode
 class add_qr_functor:
     import pyqrcode
     def __init__(self):

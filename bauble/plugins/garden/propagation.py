@@ -104,7 +104,7 @@ class Propagation(db.Base):
         for us in self.used_source:
             if us.accession not in session.new:
                 accessions.append(us.accession)
-        return sorted(accessions)
+        return sorted(accessions, key=utils.natsort_key)
 
     @property
     def accessible_quantity(self):
@@ -298,8 +298,8 @@ hormone_values = {'Liquid': _('Liquid'),
                   'Powder': _('Powder'),
                   'No': _('No')}
 
-bottom_heat_unit_values = {'F': _('\302\260F'),
-                           'C': _('\302\260C'),
+bottom_heat_unit_values = {'F': _('°F'),
+                           'C': _('°C'),
                            None: ''}
 
 length_unit_values = {'mm': _('mm'),

@@ -119,9 +119,12 @@ class DateTime(types.TypeDecorator):
             import bauble.prefs as prefs
             DateTime._dayfirst = prefs.prefs[prefs.parse_dayfirst_pref]
             DateTime._yearfirst = prefs.prefs[prefs.parse_yearfirst_pref]
-        result = date_parser.parse(
-            value, dayfirst=DateTime._dayfirst,
-            yearfirst=DateTime._yearfirst)
+        try:
+            result = date_parser.isoparse(value)
+        except ValueError:
+            result = date_parser.parse(
+                value, dayfirst=DateTime._dayfirst,
+                yearfirst=DateTime._yearfirst)
         return result
 
     def process_result_value(self, value, dialect):

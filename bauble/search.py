@@ -1155,7 +1155,10 @@ class ExpressionRow(object):
             model = Gtk.ListStore(str, str)
             if prop.columns[0].type.translations:
                 trans = prop.columns[0].type.translations
-                prop_values = [(k, trans[k]) for k in sorted(trans.keys())]
+                sorted_keys = [
+                    i for i in trans.keys() if i is None
+                ] + sorted(i for i in trans.keys() if i is not None)
+                prop_values = [(k, trans[k]) for k in sorted_keys]
             else:
                 values = prop.columns[0].type.values
                 prop_values = [(v, v) for v in sorted(values)]
@@ -1307,7 +1310,8 @@ class QueryBuilder(GenericEditorPresenter):
         domain = self.domain_map[self.domain]
         self.mapper = class_mapper(domain)
         self.table_row_count += 1
-        row = ExpressionRow(self, self.remove_expression_row, self.table_row_count)
+        row = ExpressionRow(self, self.remove_expression_row,
+                            self.table_row_count)
         self.expression_rows.append(row)
         self.view.widgets.expressions_table.show_all()
 

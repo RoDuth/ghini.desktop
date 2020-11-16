@@ -261,7 +261,8 @@ class Species(db.Base, db.Serializable, db.DefiningPictures, db.WithNotes):
         infrasp = [i for i in infrasp if i[0] not in ['cv.', '', None]]
         if infrasp == []:
             return ('', '', '')
-        return sorted(infrasp, key=lambda a: compare_rank.get(str(a)))
+        return sorted(infrasp, key=lambda a: compare_rank.get(str(a[0]),
+                                                              150))[-1]
 
     @property
     def infraspecific_rank(self):

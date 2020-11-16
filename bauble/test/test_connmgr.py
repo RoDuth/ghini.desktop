@@ -24,7 +24,12 @@ from nose import SkipTest
 from bauble.test import BaubleTestCase, check_dupids
 from bauble.connmgr import ConnMgrPresenter
 from bauble.editor import MockView, MockDialog
-from gtk import RESPONSE_OK, RESPONSE_CANCEL
+import gi
+gi.require_version("Gtk", "3.0")
+from gi.repository import Gtk  # noqa
+
+RESPONSE_OK = Gtk.ResponseType.OK
+RESPONSE_CANCEL = Gtk.ResponseType.CANCEL
 
 
 def test_duplicate_ids():
@@ -478,7 +483,8 @@ class AddConnectionTests(BaubleTestCase):
         presenter.view.reply_entry_dialog.append('new_conn')
         presenter.on_add_button_clicked('button')
         presenter.refresh_view()  # this is done by gtk
-        self.assertTrue(('combobox_prepend_text', ['name_combo', 'new_conn'])
+        self.assertTrue(('comboboxtext_prepend_text',
+                         ['name_combo', 'new_conn'])
                         in presenter.view.invoked_detailed)
         self.assertTrue(('widget_set_value', ['name_combo', 'new_conn', ()])
                         in presenter.view.invoked_detailed)

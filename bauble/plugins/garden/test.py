@@ -402,7 +402,7 @@ class PlantTests(GardenTestCase):
         new_plant = self.session.query(Plant).\
             filter(Plant.code != self.plant.code).first()
         # test the quantity was set properly on the new plant
-        assert new_plant.quantity == new_quantity, new_plant.quantity
+        assert new_plant.quantity == int(new_quantity), new_plant.quantity
         self.session.refresh(self.plant)
         # test the quantity is updated on the original plant
         assert self.plant.quantity == quantity - new_plant.quantity, \
@@ -680,7 +680,8 @@ class PropagationTests(GardenTestCase):
             accs.append(a)
         self.session.commit()
         self.assertEqual(len(prop.accessions), 2)
-        self.assertEqual(sorted(accs), sorted(prop.accessions))
+        self.assertEqual(sorted(accs, key=utils.natsort_key),
+                         sorted(prop.accessions, key=utils.natsort_key))
 
     def test_accession_source_plant_propagation_points_at_parent_plant(self):
         self.add_plants(['1'])

@@ -225,8 +225,7 @@ def check_and_notify_new_installer(view):
         from requests import exceptions
         from bauble.utils import get_session
         session = get_session()
-        github_release_req = session.get(github_release_api.encode('utf-8'),
-                                         timeout=5)
+        github_release_req = session.get(github_release_api, timeout=5)
         if github_release_req.ok:
             github_release_json = json.loads(github_release_req.text)
             github_release = github_release_json['tag_name'][1:]
