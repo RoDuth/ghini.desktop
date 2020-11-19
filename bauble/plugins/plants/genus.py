@@ -512,9 +512,10 @@ class GenusEditorPresenter(editor.GenericEditorPresenter):
         def on_select(value):
             for kid in self.view.widgets.message_box_parent.get_children():
                 self.view.widgets.remove_parent(kid)
-            self.set_model_attr('family', value)
-            if not value:
+            # This is just an arbitrary fix, need to look into why
+            if not value or isinstance(value, str):
                 return
+            self.set_model_attr('family', value)
             syn = self.session.query(FamilySynonym).filter(
                 FamilySynonym.synonym_id == value.id).first()
             if not syn:

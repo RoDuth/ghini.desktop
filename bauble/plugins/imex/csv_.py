@@ -111,7 +111,7 @@ class UnicodeWriter(object):
         """
         Write a row.  If row is a dict then row.values() is written
         and therefore care should be taken to ensure that row.values()
-        returns a consisten order.
+        returns a consistent order.
         """
         if isinstance(row, dict):
             row = list(row.values())
@@ -120,7 +120,7 @@ class UnicodeWriter(object):
             if s is None:
                 t.append(None)
             else:
-                t.append(utils.to_unicode(s, self.encoding))
+                t.append(str(s))
         self.writer.writerow(t)
 
     def writerows(self, rows):

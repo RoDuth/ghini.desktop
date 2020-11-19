@@ -57,8 +57,17 @@ class VNList(list):
     def remove(self, vn):
         super().remove(vn)
         try:
-            if vn.species.default_vernacular_name == vn:
-                del vn.species.default_vernacular_name
+            # see if the deleted vernacular name is the default then remove
+            # from both if it is.
+            from sqlalchemy.orm import object_session
+            session = object_session(vn)
+            vn_sp = session.query(Species).filter_by(id=vn.species_id).one()
+            if vn_sp.default_vernacular_name == vn:
+                del vn_sp.default_vernacular_name
+            # TODO <RD> Not sure why we lose the link to species here but the
+            # above (expensive) works while the below (cheap) no longer does...
+            # if vn.species.default_vernacular_name == vn:
+            #     del vn.species.default_vernacular_name
         except Exception as e:
             logger.debug("%s(%s)" % (type(e).__name__, e))
 
@@ -389,6 +398,7 @@ class Species(db.Base, db.Serializable, db.DefiningPictures, db.WithNotes):
     def _del_default_vernacular_name(self):
         utils.delete_or_expunge(self._default_vernacular_name)
         del self._default_vernacular_name
+
     default_vernacular_name = property(_get_default_vernacular_name,
                                        _set_default_vernacular_name,
                                        _del_default_vernacular_name)

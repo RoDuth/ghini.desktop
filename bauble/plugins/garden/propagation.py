@@ -611,7 +611,9 @@ class CuttingPresenter(editor.GenericEditorPresenter):
 
         widgets = self.view.widgets
 
-        distinct = lambda c: utils.get_distinct_values(c, self.session)
+        def distinct(current):
+            return utils.get_distinct_values(current, self.session)
+
         utils.setup_text_combobox(widgets.cutting_hormone_comboentry,
                                   distinct(PropCutting.hormone))
         utils.setup_text_combobox(widgets.cutting_cover_comboentry,

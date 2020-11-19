@@ -157,7 +157,7 @@ def init_location_comboentry(presenter, combo, on_select, required=True):
     re_code_name_splitter = re.compile('\(([^)]+)\) ?(.*)')
 
     def cell_data_func(col, cell, model, treeiter, data=None):
-        cell.props.text = utils.utf8(model[treeiter][0])
+        cell.props.text = str(model[treeiter][0])
 
     import gi
     gi.require_version("Gtk", "3.0")
@@ -166,6 +166,7 @@ def init_location_comboentry(presenter, combo, on_select, required=True):
     completion = Gtk.EntryCompletion()
     cell = Gtk.CellRendererText()  # set up the completion renderer
     completion.pack_start(cell, True)
+    combo.add_attribute(cell, 'text', 0)
     completion.set_cell_data_func(cell, cell_data_func)
     completion.props.popup_set_width = False
 
@@ -180,7 +181,8 @@ def init_location_comboentry(presenter, combo, on_select, required=True):
     model = Gtk.ListStore(object)
     locations = [''] + sorted(presenter.session.query(Location).all(),
                        key=lambda loc: utils.natsort_key(loc.code))
-    list(map(lambda loc: model.append([loc]), locations))
+    for loc in locations:
+        model.append([loc])
     combo.set_model(model)
     completion.set_model(model)
 

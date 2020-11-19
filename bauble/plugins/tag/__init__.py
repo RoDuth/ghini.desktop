@@ -457,6 +457,9 @@ class Tag(db.Base):
         if self.__my_own_timestamp is not None:
             # should I update my list?
             session = object_session(self)
+            # tag must have been removed
+            if session is None:
+                self.__last_objects = None
             last_history = session.query(db.History)\
                 .order_by(db.History.timestamp.desc())\
                 .limit(1).one()

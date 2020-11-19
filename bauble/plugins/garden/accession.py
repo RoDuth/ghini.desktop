@@ -960,7 +960,7 @@ class AccessionEditorView(editor.GenericEditorView):
 
         'sources_code_entry': ("ITF2 - E7 - Donor's Accession Identifier - "
                                "donacc"),
-        }
+    }
 
     def __init__(self, parent=None):
         """
@@ -996,6 +996,7 @@ class AccessionEditorView(editor.GenericEditorView):
                                      wild_prov_status_values)
         self.init_translatable_combo('acc_recvd_type_comboentry',
                                      recvd_type_values)
+
         adjustment = self.widgets.source_sw.get_vadjustment()
         adjustment.props.value = 0.0
         self.widgets.source_sw.set_vadjustment(adjustment)
@@ -1032,8 +1033,8 @@ class AccessionEditorView(editor.GenericEditorView):
     def start(self):
         return self.get_window().run()
 
-    @staticmethod
     # staticmethod ensures the AccessionEditorView gets garbage collected.
+    @staticmethod
     def datum_match(completion, key, treeiter, data=None):
         datum = completion.get_model()[treeiter][0]
         words = datum.split(' ')
@@ -1042,8 +1043,8 @@ class AccessionEditorView(editor.GenericEditorView):
                 return True
         return False
 
-    @staticmethod
     # staticmethod ensures the AccessionEditorView gets garbage collected.
+    @staticmethod
     def species_match_func(completion, key, treeiter, data=None):
         species = completion.get_model()[treeiter][0]
         epg, eps = (species.str(remove_zws=True).lower() + ' ').split(' ')[:2]
@@ -1054,8 +1055,8 @@ class AccessionEditorView(editor.GenericEditorView):
             return True
         return False
 
-    @staticmethod
     # staticmethod ensures the AccessionEditorView gets garbage collected.
+    @staticmethod
     def species_cell_data_func(column, renderer, model, treeiter, data=None):
         v = model[treeiter][0]
         renderer.set_property(
@@ -1302,7 +1303,7 @@ class VerificationPresenter(editor.GenericEditorPresenter):
             self.presenter().view.attach_completion(
                 ver_new_taxon_entry, sp_cell_data_func)
             if self.model.species:
-                ver_new_taxon_entry.props.text = self.model.species
+                ver_new_taxon_entry.props.text = self.model.species.str()
             self.presenter().assign_completions_handler(
                 ver_new_taxon_entry, sp_get_completions, on_sp_select)
 
@@ -1352,6 +1353,8 @@ class VerificationPresenter(editor.GenericEditorPresenter):
 
             # copy to general tab
             button = self.widgets.ver_copy_to_taxon_general
+            button.set_tooltip_text("Set this accession's species to this "
+                                    "verifications new taxon.")
             self._sid = self.presenter().view.connect(
                 button, 'clicked', self.on_copy_to_taxon_general_clicked)
 
@@ -1373,14 +1376,14 @@ class VerificationPresenter(editor.GenericEditorPresenter):
         def on_copy_to_taxon_general_clicked(self, button):
             if self.model.species is None:
                 return
-            parent = self.get_parent()
-            msg = _("Are you sure you want to copy this verification to the general taxon?")
+            msg = _("Are you sure you want to copy this verification to the "
+                    "general taxon?")
             if not utils.yes_no_dialog(msg):
                 return
             # copy verification species to general tab
             if self.model.accession:
                 self.presenter().parent_ref().view.widgets.acc_species_entry.\
-                    set_text(utils.utf8(self.model.species))
+                    set_text(self.model.species.str())
                 self.presenter()._dirty = True
                 self.presenter().parent_ref().refresh_sensitivity()
 
@@ -2186,7 +2189,7 @@ class AccessionEditorPresenter(editor.GenericEditorPresenter):
             self.remove_problem(problem, entry)
             self.set_model_attr('recvd_type', None)
             return
-        model = entry.get_parent().get_model()
+        model = entry.get_completion().get_model()
 
         def match_func(row, data):
             return str(row[0]).lower() == str(data).lower() or \
@@ -2248,7 +2251,7 @@ class AccessionEditorPresenter(editor.GenericEditorPresenter):
         wild_prov_combo = self.view.widgets.acc_wild_prov_combo
         if field == 'prov_type':
             if self.model.prov_type == 'Wild':
-                self.model.wild_prov_status = wild_prov_combo.get_active_text()
+                self.model.wild_prov_status = wild_prov_combo.get_active_iter()
             else:
                 # remove the value in the model from the wild_prov_combo
                 prov_sensitive = False

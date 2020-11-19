@@ -140,11 +140,11 @@ def get_next_code(acc):
     next = 1
     if codes:
         try:
-            next = max([int(code[0]) for code in codes])+1
+            next = max([int(code[0]) for code in codes]) + 1
         except Exception as e:
             logger.debug("%s(%s)" % (type(e).__name__, e))
             return None
-    return utils.utf8(next)
+    return str(next)
 
 
 def is_code_unique(plant, code):
@@ -832,7 +832,7 @@ class PlantEditorPresenter(GenericEditorPresenter):
             self.set_model_attr('code', None)
         else:
             self.set_model_attr('code', utils.utf8(text))
-            
+
         if not self.model.accession:
             self.remove_problem(self.PROBLEM_DUPLICATE_PLANT_CODE, entry)
             self.refresh_sensitivity()
@@ -1040,8 +1040,9 @@ class PlantEditor(GenericModelViewPresenterEditor):
                 if self.model.location != change.from_location:
                     # transfer
                     change.to_location = self.model.location
-                elif self.model.quantity > self.presenter._original_quantity \
-                        and not change.to_location:
+                elif (int(self.model.quantity or 0) >    # noqa
+                      int(self.presenter._original_quantity or 0)
+                      and not change.to_location):  # noqa
                     # additions should use to_location
                     change.to_location = self.model.location
                     change.from_location = None

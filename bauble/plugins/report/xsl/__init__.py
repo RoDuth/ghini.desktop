@@ -469,11 +469,16 @@ class XSLFormatterSettingsBox(SettingsBox):
         except OSError:
             additional = False
 
+        source_iter = self.widgets.source_type_combo.get_active_iter()
+        source_model = self.widgets.source_type_combo.get_model()
+        source_entry = source_model[source_iter][0]
+
+
         return {
             'stylesheet': stylesheet,
             'additional': additional,
             'renderer': self.widgets.renderer_combo.get_active_text(),
-            'source_type': self.widgets.source_type_combo.get_active_text(),
+            'source_type': source_entry,
             'authors': self.widgets.author_check.get_active(),
             'private': self.widgets.private_check.get_active()}
 

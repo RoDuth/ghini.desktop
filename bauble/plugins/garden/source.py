@@ -332,7 +332,8 @@ class CollectionPresenter(editor.ChildPresenter):
         self.view.widgets.add_region_button.set_sensitive(False)
 
         def on_add_button_pressed(button, event):
-            self.geo_menu.popup(None, None, None, event.button, event.time)
+            self.geo_menu.popup(None, None, None, None, event.button,
+                                event.time)
         self.view.connect('add_region_button', 'button-press-event',
                           on_add_button_pressed)
 

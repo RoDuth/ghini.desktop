@@ -70,7 +70,7 @@ class AskTPL(threading.Thread):
         def ask_tpl(binomial):
             logger.debug('tpl request for %s, with timeout %s', binomial,
                          self.timeout)
-            result = sess.get(
+            result = session.get(
                 'http://www.theplantlist.org/tpl1.1/search?q=' + binomial +
                 '&csv=true',
                 timeout=self.timeout)

@@ -44,7 +44,7 @@ from functools import partial
 
 import logging
 logging.basicConfig()
-#logging.getLogger('sqlalchemy.engine').setLevel(logging.INFO)
+# logging.getLogger('sqlalchemy.engine').setLevel(logging.INFO)
 
 #
 # TODO: things to create tests for
@@ -919,23 +919,25 @@ class SpeciesTests(PlantTestCase):
         self.assertTrue(sp.default_vernacular_name == default)
 
         # test that set_attr work on default vernacular name
-        default = VernacularName(name='default')
+        default = VernacularName(name='default2')
         setattr(sp, 'default_vernacular_name', default)
         self.session.commit()
         self.assertTrue(vn in sp.vernacular_names)
+        self.assertTrue(default in sp.vernacular_names)
         self.assertTrue(sp.default_vernacular_name == default)
 
         # test that if you set the default_vernacular_name on a
         # species then it automatically adds it to vernacular_names
-        default = VernacularName(name='default')
+        default = VernacularName(name='default3')
         sp.default_vernacular_name = default
         self.session.commit()
         self.assertTrue(vn in sp.vernacular_names)
+        self.assertTrue(default in sp.vernacular_names)
         self.assertTrue(sp.default_vernacular_name == default)
 
         # test that removing a vernacular name removes it from
         # default_vernacular_name, this test also effectively tests VNList
-        dvid = sp._default_vernacular_name.id
+        dvid = int(sp._default_vernacular_name.id)
         sp.vernacular_names.remove(default)
         self.session.commit()
         self.assertEqual(sp.default_vernacular_name, None)

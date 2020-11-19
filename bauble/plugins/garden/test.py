@@ -111,8 +111,7 @@ default_seed_values = {
     'pretreatment': 'Soaked in peroxide solution',
     'nseeds': 24,
     'date_sown': datetime.date(2017, 1, 1),
-    'container': "tray",
-    'media': 'standard seed compost',
+    'container': 'tray',
     'location': 'mist tent',
     'moved_from': 'mist tent',
     'moved_to': 'hardening table',
@@ -120,8 +119,8 @@ default_seed_values = {
     'germ_date': datetime.date(2017, 2, 1),
     'germ_pct': 99,
     'nseedlings': 23,
-    'date_planted': datetime.date(2017,2,8),
-    }
+    'date_planted': datetime.date(2017, 2, 8),
+}
 
 test_data_table_control = ((Accession, accession_test_data),
                            (Location, location_test_data),
@@ -800,7 +799,7 @@ class PropagationTests(GardenTestCase):
                               default_propagation_values['notes'])
         for widget, attr in seed_presenter.widget_to_field_map.items():
             w = widgets[widget]
-            if isinstance(w, Gtk.ComboBoxEntry) and not w.get_model():
+            if isinstance(w, Gtk.ComboBox) and not w.get_model():
                 widgets[widget].get_child().props.text = default_seed_values[attr]
             view.widget_set_value(widget, default_seed_values[attr])
 
@@ -856,8 +855,9 @@ class PropagationTests(GardenTestCase):
                 return w.get_buffer().props.text
             elif isinstance(w, Gtk.Entry):
                 return w.props.text
-            elif isinstance(w, Gtk.ComboBoxEntry):
-                return w.get_active_text()
+            elif isinstance(w, Gtk.ComboBox) and w.get_has_entry():
+                # ComboBox.with_entry
+                return w.get_child().get_text()
             else:
                 raise ValueError('%s not supported' % type(w))
 

@@ -745,6 +745,20 @@ class GenericEditorView(object):
         combo.pack_start(cell, True)
         combo.add_attribute(cell, 'text', 1)
 
+        # only place completions seem to be needed is accession
+        # acc_recvd_type_comboentry
+        if combo.get_has_entry():
+            # add completion using the first column of the model for the text
+            entry = combo.get_child()
+            completion = Gtk.EntryCompletion()
+            entry.set_completion(completion)
+            completion.set_model(model)
+            completion.set_text_column(1)
+            completion.set_popup_completion(True)
+            completion.set_inline_completion(True)
+            completion.set_inline_selection(True)
+            # completion.set_minimum_key_length(2)
+
     def save_state(self):
         '''
         Save the state of the view by setting a value in the preferences
@@ -1692,7 +1706,7 @@ class GenericEditorPresenter(object):
                     # type a match in the entry without having to select
                     # it from the popup
                     def _cmp(row, data):
-                        return utils.utf8(row[0])[:len(text)].lower() == data.lower()
+                        return str(row[0])[:len(text)].lower() == data.lower()
                     found = utils.search_tree_model(comp_model, text, _cmp)
                     logger.debug("matches found in ListStore: %s" % str(found))
                     if not found:

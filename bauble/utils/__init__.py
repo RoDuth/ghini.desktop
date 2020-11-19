@@ -28,6 +28,7 @@ import datetime
 import os
 import re
 import textwrap
+import inspect
 import xml.sax.saxutils as saxutils
 
 
@@ -103,6 +104,7 @@ def copy_picture_with_thumbnail(path, basename=None):
     return base64 representation of thumbnail
     """
     import os.path
+    import base64
     if basename is None:
         filename = path
         path, basename = os.path.split(filename)
@@ -128,7 +130,7 @@ def copy_picture_with_thumbnail(path, basename=None):
         im_data = output.getvalue()
         result = base64.b64encode(im_data)
     except IOError as e:
-        logger.warning("can't make thumbnail")
+        logger.warning("can't make thumbnail %s", e)
     except Exception as e:
         logger.warning("unexpected exception making thumbnail: "
                        "(%s)%s" % (type(e), e))
@@ -536,7 +538,14 @@ def set_widget_value(widget, value, markup=False, default=None, index=0):
         #   see: https://stackoverflow.com/a/40163816
         widget.set_text(utf8(value))
     elif isinstance(widget, Gtk.ComboBox):
-        # handles Gtk.ComboBox and Gtk.ComboBoxEntry
+        # ComboBox.with_entry
+        if widget.get_has_entry():
+            widget.get_child().set_text(str(value or ''))
+            return
+        # Gtk.ComboBoxText
+        if isinstance(widget, Gtk.ComboBoxText):
+            widget.get_child().append_text = value or ''
+        # Gtk.ComboBox
         treeiter = None
         if not widget.get_model():
             logger.warning(
@@ -549,8 +558,6 @@ def set_widget_value(widget, value, markup=False, default=None, index=0):
                 widget.set_active_iter(treeiter)
             else:
                 widget.set_active(-1)
-        if isinstance(widget, Gtk.ComboBoxText):
-            widget.get_child().append_text = value or ''
     elif isinstance(widget,
                     (Gtk.ToggleButton, Gtk.CheckButton, Gtk.RadioButton)):
         if (isinstance(widget, Gtk.CheckButton)
@@ -757,7 +764,7 @@ def message_details_dialog(msg, details, type=Gtk.MessageType.INFO,
     return r
 
 
-def setup_text_combobox(combo, values=None, cell_data_func=None):
+def setup_text_combobox(combo, values=[], cell_data_func=None):
     """
     Configure a Gtk.ComboBox as a text combobox
 
@@ -770,14 +777,12 @@ def setup_text_combobox(combo, values=None, cell_data_func=None):
     :param values: list vales or Gtk.ListStore
     :param cell_data_func:
     """
-    combo.clear()
     if isinstance(values, Gtk.ListStore):
         model = values
     else:
-        if values is None:
-            values = []
         model = Gtk.ListStore(str)
-        list(map(lambda v: model.append([v]), values))
+        for val in values:
+            model.append(row=[val])
 
     combo.clear()
     combo.set_model(model)
@@ -785,43 +790,29 @@ def setup_text_combobox(combo, values=None, cell_data_func=None):
     combo.pack_start(renderer, True)
     combo.add_attribute(renderer, 'text', 0)
 
+    if not isinstance(combo, Gtk.ComboBox):
+        logger.debug('not a Gtk.ComboBox')
+        return
+
     if cell_data_func:
         combo.set_cell_data_func(renderer, cell_data_func)
-
-    if not isinstance(combo, Gtk.ComboBox):
-        return
 
     # enables things like scrolling through values with keyboard and
     # other goodies
     # combo.props.text_column = 0
 
-    # if combo is a Gtk.ComboBoxEntry then setup completions
-    def compl_cell_data_func(col, cell, model, treeiter, data=None):
-        cell.props.text = utf8(model[treeiter][0])
-    completion = Gtk.EntryCompletion()
-    completion.set_model(model)
-    cell = Gtk.CellRendererText()  # set up the completion renderer
-    completion.pack_start(cell, True)
-    completion.set_cell_data_func(cell, compl_cell_data_func)
-    completion.props.text_column = 0
-    # combo.get_child().set_completion(completion)
-
-    def match_func(completion, key, treeiter, data=None):
-        model = completion.get_model()
-        value = model[treeiter][0]
-        return utf8(value).lower().startswith(key.lower())
-    completion.set_match_func(match_func)
-
-    def on_match_select(completion, model, treeiter):
-        value = model[treeiter][0]
-        if value:
-            set_combo_from_value(combo, value)
-            combo.get_child().props.text = utf8(value)
-        else:
-            combo.get_child().props.text = ''
-
-    # TODO: we should be able to disconnect this signal handler
-    completion.connect('match-selected', on_match_select)
+    if combo.get_has_entry():
+        # add completion using the first column of the model for the text
+        logger.debug('ComboBox has entry')
+        entry = combo.get_child()
+        completion = Gtk.EntryCompletion()
+        entry.set_completion(completion)
+        completion.set_model(model)
+        completion.set_text_column(0)
+        completion.set_popup_completion(True)
+        completion.set_inline_completion(True)
+        completion.set_inline_selection(True)
+        # completion.set_minimum_key_length(2)
 
 
 def prettify_format(format):
@@ -891,7 +882,8 @@ def to_unicode(obj, encoding='utf-8'):
     object it will not try to decode it to converted it to <encoding>
     but will just return the original obj
     """
-    logger.debug('calling to_unicode with encoding = %s', encoding)
+    # Deprecated?
+    # logger.debug('to_unicode called by > %s', inspect.stack()[1])
     if isinstance(obj, str) or obj is None:
         return obj
     return str(obj)
@@ -901,6 +893,8 @@ def utf8(obj):
     """
     This function is an alias for to_unicode(obj, 'utf-8')
     """
+    # Deprecated?
+    # logger.debug('utf8 called by %s', inspect.stack()[1])
     return to_unicode(obj, 'utf-8')
 
 
@@ -1390,7 +1384,8 @@ def topological_sort(items, partial_order):
 
     # (ABCDE, (AB, BC, BD)) becomes:
     # {a: [0, b], b: [1, c, d], c: [1], d: [1], e: [0]}
-    # requesting B and E from the above should result in including all except A, and prepending C and D to B.
+    # requesting B and E from the above should result in including all except
+    # A, and prepending C and D to B.
 
     graph = {}
     for v in items:
