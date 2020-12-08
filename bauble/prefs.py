@@ -1,5 +1,6 @@
 # Copyright 2008-2010 Brett Adams
 # Copyright 2015 Mario Frasca <mario@anche.no>.
+# Copyright 2019-2020 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -138,6 +139,25 @@ file.
 Values: a list of modules names (i.e. ['bauble.plugins.plants.species'])
 """
 
+web_proxy_prefs = 'web.proxies'
+"""
+If None then we use pypac to try to find proxy settings.
+To manually set proxies (and use requests over pypac) add something like
+this to your config file:
+
+[web]
+proxies = {"https": "http://10.10.10.10/8000", "http": "http://10.10.10.10:8000"}
+
+To just make sure we use requests over PACSession then use anything other
+than a dict for the value of proxies e.g.:
+
+proxies = "no"
+"""
+
+templates_root_pref = 'template_downloader.root_dir'
+"""
+Directory to store downloaded templates and their config etc..
+"""
 
 from configparser import RawConfigParser
 

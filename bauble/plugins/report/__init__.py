@@ -1,7 +1,7 @@
 # Copyright 2008-2010 Brett Adams
 # Copyright 2012-2017 Mario Frasca <mario@anche.no>.
 # Copyright 2017 Jardín Botánico de Quito
-# Copyright 2017 Ross Demuth
+# Copyright 2017-2020 Ross Demuth
 #
 # This file is part of ghini.desktop.
 #
@@ -29,6 +29,7 @@ import traceback
 import logging
 logger = logging.getLogger(__name__)
 
+from .template_downloader import TemplateDownloadTool
 from bauble.prefs import prefs, debug_logging_prefs, testing
 if not testing and __name__ in prefs[debug_logging_prefs]:
     logger.setLevel(logging.DEBUG)
@@ -633,7 +634,9 @@ class ReportToolDialog(object):
 
 class ReportTool(pluginmgr.Tool):
 
-    label = _("Report")
+    category = _("Report")
+    label = _("Generate Report")
+
 
     @classmethod
     def start(self):
@@ -685,7 +688,7 @@ class ReportTool(pluginmgr.Tool):
 class ReportToolPlugin(pluginmgr.Plugin):
     '''
     '''
-    tools = [ReportTool]
+    tools = [ReportTool, TemplateDownloadTool]
 
 
 try:

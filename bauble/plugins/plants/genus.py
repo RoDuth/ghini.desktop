@@ -362,7 +362,7 @@ class Genus(db.Base, db.Serializable, db.WithNotes):
 def compute_serializable_fields(cls, session, keys):
     result = {'genus': None}
 
-    genus_dict = {'epithet': keys['genus']}
+    genus_keys = {'epithet': keys['genus']}
     result['genus'] = Genus.retrieve_or_create(
         session, genus_keys, create=False)
 

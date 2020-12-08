@@ -1,6 +1,7 @@
 # Copyright 2008-2010 Brett Adams
 # Copyright 2015 Mario Frasca <mario@anche.no>.
 # Copyright 2017 Jardín Botánico de Quito
+# Copyright 2020 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -32,8 +33,11 @@ from bauble.view import SearchView
 from bauble.plugins.garden.accession import AccessionEditor, \
     Accession, AccessionInfoBox, AccessionNote, \
     acc_context_menu, Verification
-from bauble.plugins.garden.location import LocationEditor, \
-    Location, LocationInfoBox, loc_context_menu
+from bauble.plugins.garden.location import (LocationEditor,
+                                            Location,
+                                            LocationNote,
+                                            LocationInfoBox,
+                                            loc_context_menu)
 from bauble.plugins.garden.plant import PlantEditor, PlantNote, \
     Plant, PlantSearch, PlantInfoBox, plant_context_menu, \
     plant_delimiter_key, default_plant_delimiter
@@ -63,6 +67,7 @@ class GardenPlugin(pluginmgr.Plugin):
     provides = {'Accession': Accession,
                 'AccessionNote': AccessionNote,
                 'Location': Location,
+                'LocationNote': LocationNote,
                 'Plant': Plant,
                 'PlantNote': PlantNote,
                 'Source': Source,
@@ -275,3 +280,4 @@ db.AccessionNote = AccessionNote
 db.Plant = Plant
 db.PlantNote = PlantNote
 db.Location = Location
+db.LocationNote = LocationNote

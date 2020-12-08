@@ -40,6 +40,7 @@ from mako.template import Template
 
 import bauble.db as db
 import bauble.paths as paths
+from bauble.prefs import prefs, templates_root_pref
 from bauble.plugins.report import FormatterPlugin, SettingsBox
 import bauble.utils as utils
 import bauble.utils.desktop as desktop
@@ -405,10 +406,23 @@ class MakoFormatterPlugin(FormatterPlugin):
         """
         cls.install()  # plugins still not versioned...
 
-        src_dir = os.path.join(paths.lib_dir(), "plugins", "report", 'mako', 'templates')
+        src_dir = os.path.join(paths.lib_dir(), "plugins", "report", 'mako',
+                               'templates')
+
+        # If user has selected a directory to store templates add the examples
+        # to it otherwise use appdata
+        template_root = prefs.get(templates_root_pref, None)
+        if template_root:
+            template_root = os.path.join(template_root, "ghini_examples",
+                                         "mako")
+            if not os.path.exists(template_root):
+                os.makedirs(template_root)
+        else:
+            template_root = cls.plugin_dir
+
         for template in cls.templates:
             src = os.path.join(src_dir, template)
-            dst = os.path.join(cls.plugin_dir, template)
+            dst = os.path.join(template_root, template)
             if not os.path.exists(dst) and os.path.exists(src):
                 shutil.copy(src, dst)
 

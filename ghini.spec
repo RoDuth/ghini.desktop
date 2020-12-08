@@ -29,6 +29,8 @@ a = Analysis(['scripts/ghini'],
                   'bauble/plugins/plants/default'),
                  ('bauble/plugins/report/mako/templates/*',
                   'bauble/plugins/report/mako/templates'),
+                 ('bauble/plugins/report/xsl/stylesheets',
+                  'bauble/plugins/report/xsl/stylesheets'),
              ] + glade_files + tld_names,  # noqa
              hiddenimports=['sqlalchemy.dialects.sqlite',
                             'sqlalchemy.dialects.postgresql',

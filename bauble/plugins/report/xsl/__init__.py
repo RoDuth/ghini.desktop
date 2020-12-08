@@ -1,6 +1,6 @@
 # Copyright (c) 2005,2006,2007,2008,2009 Brett Adams <brett@belizebotanic.org>
 # Copyright (c) 2012-2015 Mario Frasca <mario@anche.no>
-# Copyright (c) 2018 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright (c) 2018-2020 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -543,7 +543,6 @@ class XSLFormatterPlugin(FormatterPlugin):
 
         src_dir = os.path.join(paths.lib_dir(), "plugins", "report", 'xsl',
                                'stylesheets')
-        # stylesheets = [i for i in os.listdir(src_dir) if i.endswith('.xsl')]
         stylesheets = []
         for root, _, filenames in os.walk(src_dir):
             for fname in filenames:
@@ -551,9 +550,20 @@ class XSLFormatterPlugin(FormatterPlugin):
                 if fname.endswith(('xsl', 'png', 'svg', 'jpg')):
                     stylesheets.append((dest, fname))
 
+        # If user has selected a directory to store templates add the examples
+        # to it otherwise use appdata
+        template_root = prefs.prefs.get(prefs.templates_root_pref, None)
+        if template_root:
+            template_root = os.path.join(template_root, "ghini_examples",
+                                         "xsl")
+            if not os.path.exists(template_root):
+                os.makedirs(template_root)
+        else:
+            template_root = cls.plugin_dir
+
         for dest, stylesheet in stylesheets:
             src = os.path.join(src_dir, dest, stylesheet)
-            dst_dir = os.path.join(cls.plugin_dir, dest)
+            dst_dir = os.path.join(template_root, dest)
             dst = os.path.join(dst_dir, stylesheet)
             if not os.path.exists(dst_dir):
                 os.mkdir(dst_dir)

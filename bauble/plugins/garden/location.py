@@ -1,5 +1,6 @@
 # Copyright 2008-2010 Brett Adams
 # Copyright 2015 Mario Frasca <mario@anche.no>.
+# Copyright 2020 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -42,6 +43,7 @@ from bauble.editor import GenericModelViewPresenterEditor, GenericEditorView, \
     GenericEditorPresenter, UnicodeOrNoneValidator
 import bauble.utils as utils
 import bauble.paths as paths
+import bauble.editor as editor
 from bauble.view import Action
 
 
@@ -97,7 +99,20 @@ remove_action = Action('loc_remove', _('_Delete'),
 loc_context_menu = [edit_action, add_plant_action, remove_action]
 
 
-class Location(db.Base, db.Serializable):
+def compute_serializable_fields(cls, session, keys):
+    result = {'location': None}
+
+    location_keys = {'code': keys['location']}
+    result['location'] = Location.retrieve_or_create(
+        session, location_keys, create=False)
+
+    return result
+
+
+LocationNote = db.make_note_class('Location', compute_serializable_fields)
+
+
+class Location(db.Base, db.Serializable, db.WithNotes):
     """
     :Table name: location
 
@@ -204,6 +219,7 @@ class LocationEditorView(GenericEditorView):
                                    parent=parent)
         self.use_ok_and_add = True
         self.set_accept_buttons_sensitive(False)
+        self.widgets.notebook.set_current_page(0)
         # if the parent isn't the main bauble window then we assume
         # that the LocationEditor was opened from the PlantEditor and
         # so we shouldn't enable adding more plants...this is a bit of
@@ -239,6 +255,11 @@ class LocationEditorPresenter(GenericEditorPresenter):
         self.create_toolbar()
         self.session = object_session(model)
         self._dirty = False
+
+        notes_parent = self.view.widgets.notes_parent_box
+        notes_parent.foreach(notes_parent.remove)
+        self.notes_presenter = editor.NotesPresenter(self, 'notes',
+                                                     notes_parent)
 
         # initialize widgets
         self.refresh_view()  # put model values in view
@@ -343,7 +364,7 @@ class LocationEditorPresenter(GenericEditorPresenter):
         self.refresh_sensitivity()
 
     def is_dirty(self):
-        return self._dirty
+        return self._dirty or self.notes_presenter.is_dirty()
 
     def refresh_view(self):
         for widget, field in self.widget_to_field_map.items():
