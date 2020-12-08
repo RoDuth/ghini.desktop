@@ -32,7 +32,7 @@ from gi.repository import Gdk  # noqa
 
 import logging
 logger = logging.getLogger(__name__)
-#logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.DEBUG)
 
 from sqlalchemy import (
     Column, Unicode, UnicodeText, Integer, String, ForeignKey)

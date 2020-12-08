@@ -40,7 +40,7 @@ from gi.repository import Gtk  # noqa
 
 import logging
 logger = logging.getLogger(__name__)
-#logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.DEBUG)
 
 #from sqlalchemy import *
 from sqlalchemy.orm import object_session

@@ -23,7 +23,7 @@ from nose import SkipTest
 
 import logging
 logger = logging.getLogger(__name__)
-#logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.DEBUG)
 
 from pyparsing import ParseException
 
