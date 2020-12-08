@@ -645,9 +645,6 @@ class SearchView(pluginmgr.View):
                 label.set_use_markup(True)
                 label.set_label('<b>%s</b>' % bottom_info['name'])
                 for obj in objs:
-                    # not sure of using str here but the error states "expected
-                    # string but got ... an object basically" and this does get
-                    # the pain to show (although not notes)
                     model.append([str(getattr(obj, k))
                                   for k in bottom_info['fields_used']])
 

@@ -258,8 +258,8 @@ class GenericEditorView(object):
     def update(self):
         pass
 
-    def run_file_chooser_dialog(
-            self, text, parent, action, buttons, last_folder, target):
+    def run_file_chooser_dialog(self, text, parent, action, buttons,
+                                last_folder, target):
         """create and run FileChooserDialog, then write result in target
 
         this is just a bit more than a wrapper. it adds 'last_folder', a
@@ -288,6 +288,8 @@ class GenericEditorView(object):
         d = Gtk.Dialog(title, parent, flags, buttons)
         d.set_default_response(Gtk.ResponseType.ACCEPT)
         d.set_default_size(250, -1)
+        d.set_position(Gtk.WindowPosition.CENTER)
+        d.set_destroy_with_parent(True)
         entry = Gtk.Entry()
         if visible is not True:
             entry.set_visibility(False)
@@ -1127,14 +1129,19 @@ class GenericEditorPresenter(object):
             view.connect_signals(self)
 
     def create_toolbar(self, *args, **kwargs):
+        # TODO <RD> This causes leaks, temp disable for now...
+        return
+
         view, model = self.view, self.model
-        logging.debug('creating toolbar in content_area presenter %s' % self.__class__.__name__)
+        logger.debug('creating toolbar in content_area presenter %s',
+        self.__class__.__name__)
         actiongroup = Gtk.ActionGroup('window-clip-actions')
         accelgroup = Gtk.AccelGroup()
         fake_toolbar = Gtk.Toolbar()
         fake_toolbar.set_name('toolbar')
         view.get_window().add_accel_group(accelgroup)
-        view.get_window().get_content_area().pack_start(fake_toolbar, True, True, 0)
+        view.get_window().get_content_area().pack_start(fake_toolbar, True,
+                                                        True, 0)
         for shortcut, cb in (('<ctrl><shift>c', self.on_window_clip_copy),
                              ('<ctrl><shift>v', self.on_window_clip_paste)):
             action = Gtk.Action(shortcut, shortcut, 'clip-action', None)
@@ -1162,10 +1169,10 @@ class GenericEditorPresenter(object):
         for presenter in self.clipboard_presenters:
             for name in presenter.widget_to_field_map:
                 container = presenter.view.widgets[name]
-                while container.parent != notebook:
+                while container.get_parent() != notebook:
                     if current_page_widget == container:
                         break
-                    container = container.parent
+                    container = container.get_parent()
                 if current_page_widget == container:
                     value = presenter.view.widget_get_value(name)
                     logger.debug('writing »%s« in clipboard %s for %s' % (value, presenter.__class__.__name__, name))
@@ -1182,10 +1189,10 @@ class GenericEditorPresenter(object):
         for presenter in self.clipboard_presenters:
             for name in presenter.widget_to_field_map:
                 container = presenter.view.widgets[name]
-                while container.parent != notebook:
+                while container.get_parent() != notebook:
                     if current_page_widget == container:
                         break
-                    container = container.parent
+                    container = container.get_parent()
                 if current_page_widget == container:
                     if presenter.view.widget_get_value(name):
                         logger.debug('skipping %s in clipboard %s because widget has value' % (name, presenter.__class__.__name__))
@@ -1896,6 +1903,12 @@ class NoteBox(Gtk.Box):
             self.model = model
         else:
             self.model = presenter.note_cls()
+            # new note, append our model and set default date and user.
+            self.presenter.notes.append(self.model)
+            self.set_model_attr('user', utils.get_user_display_name(),
+                                dirty=False)
+            date_str = utils.today_str()
+            self.set_model_attr('date', date_str, dirty=False)
 
         self.widgets.notes_expander.props.use_markup = True
         self.widgets.notes_expander.props.label = ''
@@ -1913,11 +1926,16 @@ class NoteBox(Gtk.Box):
                                 self.widgets.date_button)
         date_str = utils.today_str()
         if self.model.date:
-            format = prefs.prefs[prefs.date_format_pref]
-            date_str = self.model.date.strftime(format)
+            try:
+                format = prefs.prefs[prefs.date_format_pref]
+                date_str = self.model.date.strftime(format)
+            except AttributeError:
+                # new note, date already a string
+                pass
         utils.set_widget_value(self.widgets.date_entry, date_str)
-        utils.set_widget_value(self.widgets.user_entry,
-                               self.model.user or '')
+
+        utils.set_widget_value(self.widgets.user_entry, self.model.user or '')
+
         self.set_content(self.model.note)
 
         # connect the signal handlers
@@ -1961,9 +1979,9 @@ class NoteBox(Gtk.Box):
             self.set_model_attr('date', text)
 
     def on_user_entry_changed(self, entry, *args):
-        value = utils.utf8(entry.props.text)
-        if not value:  # if value == ''
-            value = None
+        value = entry.props.text
+        # only want either empty string or a name (a string), not None.
+        # Presetting new notes with the current users display name ensures this
         self.set_model_attr('user', value)
 
     def on_category_combo_changed(self, combo, *args):
@@ -2034,25 +2052,9 @@ class NoteBox(Gtk.Box):
 
         self.widgets.notes_expander.set_label(' '.join(label))
 
-    def set_model_attr(self, attr, value):
+    def set_model_attr(self, attr, value, dirty=True):
         setattr(self.model, attr, value)
-        self.presenter._dirty = True
-        if attr != 'date' and not self.model.date:
-            # this is a little voodoo to set the date on the model
-            # since when we create a new note box we add today's
-            # date to the entry but we don't set the model so the
-            # presenter doesn't appear dirty...we have to use a
-            # tmp variable since the changed signal won't fire if
-            # the new value is the same as the old
-            entry = self.widgets.date_entry
-            tmp = entry.props.text
-            entry.props.text = ''
-            entry.props.text = tmp
-            # if the note is new and isn't yet associated with an
-            # accession then set the accession when we start
-            # changing values, this way we can setup a dummy
-            # verification in the interface
-            self.presenter.notes.append(self.model)
+        self.presenter._dirty = dirty
 
         self.update_label()
 

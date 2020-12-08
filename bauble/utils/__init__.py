@@ -43,7 +43,7 @@ from gi.repository import GdkPixbuf
 
 import logging
 logger = logging.getLogger(__name__)
-#logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.DEBUG)
 
 import threading
 
@@ -470,7 +470,8 @@ def get_widget_value(widget, index=0):
         return utf8(widget.get_text())
     elif isinstance(widget, Gtk.TextView):
         textbuffer = widget.get_buffer()
-        return utf8(textbuffer.get_text(textbuffer.get_start_iter(), textbuffer.get_end_iter()))
+        return utf8(textbuffer.get_text(textbuffer.get_start_iter(),
+                                        textbuffer.get_end_iter(), False))
     elif isinstance(widget, Gtk.Entry):
         return utf8(widget.get_text())
     elif isinstance(widget, Gtk.ComboBox):
@@ -1324,7 +1325,6 @@ def gc_objects_by_type(tipe):
     """
     Return a list of objects from the garbage collector by type.
     """
-    import inspect
     import gc
     if isinstance(tipe, str):
         return [o for o in gc.get_objects() if type(o).__name__ == tipe]
@@ -1442,16 +1442,6 @@ class GenericMessageBox(Gtk.EventBox):
         self.box.set_spacing(10)
         self.add(self.box)
 
-    def set_color(self, attr, state, color):
-        colormap = self.get_colormap()
-        style = self.get_style().copy()
-        c = colormap.alloc_color(color)
-        getattr(style, attr)[state] = c
-        # is it ok to set the style the expander and button even
-        # though the style was copied from the eventbox
-        self.set_style(style)
-        return style
-
     def show_all(self):
         self.get_parent().show_all()
         size_req = self.get_preferred_size()[1]
@@ -1503,8 +1493,8 @@ class MessageBox(GenericMessageBox):
         self.details_expander.add(sw)
 
         def on_expanded(*args):
-            width, height = self.size_request()
-            self.set_size_request(width, -1)
+            requisition = self.size_request()
+            self.set_size_request(requisition.width, -1)
             self.queue_resize()
         self.details_expander.connect('notify::expanded', on_expanded)
 
@@ -1513,14 +1503,6 @@ class MessageBox(GenericMessageBox):
             if parent is not None:
                 parent.remove(self)
         button.connect('clicked', on_close, True)
-
-        # TODO <RD> not to sure about this, do we need to re-impliment?  Seems
-        # not, haven't found the situation where I need to supress BG colours.
-        # Leaving here for now incase I do.
-        # colors = [('bg', Gtk.StateType.NORMAL, '#FFFFFF'),
-        #           ('bg', Gtk.StateType.PRELIGHT, '#FFFFFF')]
-        # for color in colors:
-        #     self.set_color(*color)
 
     def show_all(self):
         super().show_all()
@@ -1584,12 +1566,6 @@ class YesNoMessageBox(GenericMessageBox):
         if on_response:
             self.no_button.connect('clicked', on_response, False)
         button_box.pack_start(self.no_button, False, False, 0)
-
-        # don't think I need this? This is just white for all which seem normal
-        # colors = [('bg', Gtk.StateType.NORMAL, '#FFFFFF'),
-        #           ('bg', Gtk.StateType.PRELIGHT, '#FFFFFF')]
-        # for color in colors:
-        #     self.set_color(*color)
 
     def _set_on_response(self, func):
         self.yes_button.connect('clicked', func, True)
@@ -1677,46 +1653,54 @@ def get_urls(text):
         matches.append(match.groups())
     return matches
 
-def get_session():
+
+def get_net_sess():
     """
     return a requests or pypac session for making api calls, depending on
     prefrences.
     """
-    from bauble.prefs import prefs, debug_logging_prefs, testing
-    if not testing and __name__ in prefs[debug_logging_prefs]:
-        logger.setLevel(logging.DEBUG)
+    from bauble.prefs import prefs, web_proxy_prefs, testing
 
-    if not testing:
-        prefs_proxies = prefs.get('web.proxies', None)
-    else:
+    prefs_proxies = prefs.get(web_proxy_prefs, None)
+    logger.debug('getting a network session')
+    # in testing we use vanilla requests
+    if testing:
         prefs_proxies = "Use requests without proxies"
-    """
-    If web.proxies is None then we use pypac to try to find proxy settings.
-    To manually set proxies (and use requests over pypac) add something like
-    this to your config file:
-
-    [web]
-    proxies = {"https": "http://10.10.10.10/8000", "http": "http://10.10.10.10:8000"}
-
-    To just make sure we use requests over PACSession then use anything other
-    than a dict for the value of proxies e.g.:
-
-    proxies = "no"
-
-    in testing we use vanilla requests
-    """
 
     if prefs_proxies:
         from requests import Session
-        session = Session()
+        net_sess = Session()
         logger.debug('using requests directly')
         if isinstance(prefs_proxies, dict):
-            session.proxies = prefs_proxies
-            logger.debug('session proxies manually set to %s', session.proxies)
+            net_sess.proxies = prefs_proxies
+            logger.debug('net_sess proxies manually set to %s',
+                         net_sess.proxies)
     else:
         from pypac import PACSession
-        session = PACSession()
-        pac = session.get_pac()
+        net_sess = PACSession()
+        pac = net_sess.get_pac()
         logger.debug('pac file = %s', pac)
 
-    return session
+    return net_sess
+
+
+def get_user_display_name():
+    import sys
+    from bauble import db
+    if sys.platform == 'win32':
+        import ctypes
+
+        GetUserNameEx = ctypes.windll.secur32.GetUserNameExW
+        NameDisplay = 3
+
+        size = ctypes.pointer(ctypes.c_ulong(0))
+        GetUserNameEx(NameDisplay, None, size)
+
+        nameBuffer = ctypes.create_unicode_buffer(size.contents.value)
+        GetUserNameEx(NameDisplay, nameBuffer, size)
+        fname = str(nameBuffer.value)
+    else:
+        import pwd
+        fname = str(pwd.getpwuid(os.getuid())[4])
+
+    return fname or db.current_user()

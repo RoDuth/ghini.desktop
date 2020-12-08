@@ -754,7 +754,11 @@ class PlantEditorPresenter(GenericEditorPresenter):
             if value is not None:
                 sp_str = self.model.accession.species.str(markup=True)
                 self.view.widgets.acc_species_label.set_markup(sp_str)
-                self.view.widgets.plant_code_entry.emit('changed')
+                # set the plant code to the next available
+                code = get_next_code(self.model.accession)
+                if code:
+                    # if get_next_code() returns None there was an error
+                    self.view.widgets.plant_code_entry.set_text(code)
         self.assign_completions_handler('plant_acc_entry', acc_get_completions,
                                         on_select=on_select)
         if self.model.accession:

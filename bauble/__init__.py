@@ -129,6 +129,10 @@ def quit():  # pylint: disable=redefined-builtin
         task.kill()
     try:
         save_state()
+        # cancel threads on quit avoids a delay
+        active_view = gui.get_view()
+        if active_view:
+            active_view.cancel_threads()
         Gtk.main_quit()
     except Exception as e:
         logger.debug('quiting produced %s error', e)
@@ -224,7 +228,8 @@ def main(uri=None):
     # level specified by BAUBLE_LOGGING, or at INFO level.
     filename = os.path.join(paths.appdata_dir(), 'bauble.log')
     formatter = logging.Formatter(
-        '%(asctime)s - %(name)s - %(levelname)s - %(thread)d - %(message)s')
+        '%(asctime)s - %(name)s:%(lineno)d - %(levelname)s - %(thread)d '
+        '- %(message)s')
     fileHandler = logging.FileHandler(filename, 'w+', 'utf-8')
     logging.getLogger().addHandler(fileHandler)
     consoleHandler = logging.StreamHandler()

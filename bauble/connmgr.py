@@ -223,9 +223,9 @@ def check_and_notify_new_installer(view):
     try:
         import json
         from requests import exceptions
-        from bauble.utils import get_session
-        session = get_session()
-        github_release_req = session.get(github_release_api, timeout=5)
+        from bauble.utils import get_net_sess
+        net_sess = get_net_sess()
+        github_release_req = net_sess.get(github_release_api, timeout=5)
         if github_release_req.ok:
             github_release_json = json.loads(github_release_req.text)
             github_release = github_release_json['tag_name'][1:]
@@ -713,7 +713,7 @@ class ConnMgrPresenter(GenericEditorPresenter):
     def set_params(self, params=None):
         if params is None:
             params = self.connections[self.connection_name]
-            self.dbtype = params['type']
+        self.dbtype = params['type']
         if self.dbtype == 'SQLite':
             self.filename = params['file']
             self.use_defaults = params['default']
@@ -738,8 +738,14 @@ def start_connection_manager(default_conn=None):
         root_widget_name='main_dialog')
 
     cm = ConnMgrPresenter(view)
+    # on mac osx connection manager starts in the background.
+    import sys
+    if sys.platform == 'darwin':
+        cm.view.get_window().set_keep_above(True)
+        cm.view.get_window().set_keep_above(False)
     result = cm.start()
     if result == Gtk.ResponseType.OK:
+        cm.view.get_window().destroy()
         return cm.connection_name, cm.connection_uri
     else:
         return None, None

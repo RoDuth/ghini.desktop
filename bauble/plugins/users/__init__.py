@@ -1,6 +1,7 @@
 # Copyright (c) 2005,2006,2007,2008,2009 Brett Adams <brett@belizebotanic.org>
 # Copyright (c) 2012-2017 Mario Frasca <mario@anche.no>
 # Copyright 2017 Jardín Botánico de Quito
+# Copyright (c) 2020 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -518,22 +519,22 @@ class UsersEditor(editor.GenericEditorView):
         for column in tree.get_columns():
             tree.remove_column(column)
 
-        renderer = Gtk.CellRendererText()
+        self.renderer = Gtk.CellRendererText()
+
         def cell_data_func(col, cell, model, it):
             value = model[it][0]
             cell.set_property('text', value)
-        tree.insert_column_with_data_func(0, _('Users'), renderer,
+        tree.insert_column_with_data_func(0, _('Users'), self.renderer,
                                           cell_data_func)
         self.connect(tree, 'cursor-changed', self.on_cursor_changed)
-        self.connect(renderer, 'edited', self.on_cell_edited)
+
+        self.connect(self.renderer, 'edited', self.on_cell_edited)
 
         # connect the filter_check and also adds the users to the users_tree
         self.connect('filter_check', 'toggled', self.on_filter_check_toggled)
         self.widgets.filter_check.set_active(True)
 
         def on_toggled(button, priv=None):
-            buttons = (self.widgets.read_button, self.widgets.write_button,
-                       self.widgets.admin_button)
             role = self.get_selected_user()
             active = button.get_active()
             if active and not has_privileges(role, priv):
@@ -565,14 +566,15 @@ class UsersEditor(editor.GenericEditorView):
         """
         tree = self.widgets.users_tree
         path, column = tree.get_cursor()
-        return tree.get_model()[path][0]
+        if path:
+            return tree.get_model()[path][0]
+        return None
 
     new_user_message = _('Enter a user name')
 
     def on_add_button_clicked(self, button, *args):
         tree = self.widgets.users_tree
         column = tree.get_column(0)
-        cell = column.get_cell_renderers()[0]
         model = tree.get_model()
         treeiter = model.append([self.new_user_message])
         path = model.get_path(treeiter)
@@ -695,9 +697,7 @@ class UsersEditor(editor.GenericEditorView):
         if role not in get_users():
             # the cell is being editing and the user hasn't been added
             # to the database
-            column = tree.get_column(0)
-            cell = column.get_cell_renderers()[0]
-            cell.props.editable = True
+            self.renderer.props.editable = True
             _set_buttons(None)
             return
 
@@ -716,7 +716,7 @@ class UsersEditor(editor.GenericEditorView):
         user = new_text
         if user == self.new_user_message:
             # didn't change so don't add the user
-            treeiter = model.get_iter((len(model)-1,))
+            treeiter = model.get_iter((len(model) - 1,))
             model.remove(treeiter)
             return True
         model[path] = (user,)

@@ -325,7 +325,7 @@ class build(_build):
                 spawn.spawn(['msgfmt', po, '-o', mo])
 
         # copy .desktop and icons
-        if sys.platform in ('linux3', 'linux2', 'linux'):
+        if sys.platform == 'linux':
             app_dir = os.path.join(self.build_base, 'share', 'applications')
             dir_util.mkpath(app_dir)
             file_util.copy_file('data/ghini.desktop', app_dir)
@@ -396,7 +396,7 @@ class install(_install):
             _install.run(self)
 
         # install ghini.desktop and icons
-        if sys.platform in ('linux3', 'linux2', 'darwin'):
+        if sys.platform in ('linux', 'darwin'):
             # install everything in share
             dir_util.copy_tree(os.path.join(self.build_base, 'share'),
                                os.path.join(self.install_data, 'share'))

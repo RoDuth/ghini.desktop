@@ -308,7 +308,9 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
             self.view.add_box(box)
             self.genus_check_messages.append(box)
 
+        # select the current genus but don't dirty the presenter
         on_select(self.model.genus)
+        self._dirty = False
 
         self.assign_completions_handler('sp_genus_entry',  # 'genus',
                                         gen_get_completions,
@@ -953,7 +955,6 @@ class VernacularNamePresenter(editor.GenericEditorPresenter):
             utils.message_dialog(msg)
             first = tree_model.get_iter_first()
             value = tree_model[first][0]
-            path = tree_model.get_path(first)
             #self.set_model_attr('default_vernacular_name', value)
             self.model.default_vernacular_name = value
             self._dirty = True

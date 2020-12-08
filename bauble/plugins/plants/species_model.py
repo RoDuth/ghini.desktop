@@ -202,7 +202,9 @@ class Species(db.Base, db.Serializable, db.DefiningPictures, db.WithNotes):
             citation = self.markup(authors=True)
             authorship_text = utils.xml_safe(self.sp_author)
             if authorship_text:
-                citation = citation.replace(authorship_text, '<span weight="light">' + authorship_text + '</span>')
+                citation = citation.replace(
+                    authorship_text,
+                    '<span weight="light">' + authorship_text + '</span>')
             return citation + trail, substring
         except:
             return '...', '...'
@@ -565,7 +567,8 @@ class Species(db.Base, db.Serializable, db.DefiningPictures, db.WithNotes):
         previous_synonymy_link = session.query(SpeciesSynonym).filter(
             SpeciesSynonym.synonym_id == self.id).first()
         if previous_synonymy_link:
-            a = session.query(Species).filter(Species.id==previous_synonymy_link.species_id).one()
+            a = session.query(Species).filter(
+                Species.id==previous_synonymy_link.species_id).one()
             a.synonyms.remove(self)
         session.flush()
         if value != self:

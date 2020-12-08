@@ -752,7 +752,7 @@ class Accession(db.Base, db.Serializable, db.WithNotes):
         self.__cached_species_str = {}
 
     def __str__(self):
-        return self.code
+        return str(self.code)
 
     def species_str(self, authors=False, markup=False):
         """
@@ -1837,6 +1837,7 @@ class AccessionEditorPresenter(editor.GenericEditorPresenter):
         super().__init__(model, view)
         self.create_toolbar()
         self._dirty = False
+        self._dirty_pass = False
         self.session = object_session(model)
         self._original_code = self.model.code
         self.current_source_box = None
@@ -1905,6 +1906,7 @@ class AccessionEditorPresenter(editor.GenericEditorPresenter):
         def sp_get_completions(text):
             query = self.session.query(Species)
             genus = ''
+            self._dirty_pass = False
             try:
                 genus = text.split(' ')[0]
             except Exception:
@@ -1926,13 +1928,14 @@ class AccessionEditorPresenter(editor.GenericEditorPresenter):
                 self.refresh_id_qual_rank_combo()
             for kid in self.view.widgets.message_box_parent.get_children():
                 self.view.widgets.remove_parent(kid)
-            set_model(value)
+            if not self._dirty_pass:
+                set_model(value)
+            self._dirty_pass = False
             if not value:
                 return
             syn = self.session.query(SpeciesSynonym).\
                 filter(SpeciesSynonym.synonym_id == value.id).first()
             if not syn:
-                set_model(value)
                 return
             msg = _('The species <b>%(synonym)s</b> is a synonym of '
                     '<b>%(species)s</b>.\n\nWould you like to choose '
@@ -1951,12 +1954,13 @@ class AccessionEditorPresenter(editor.GenericEditorPresenter):
                     model.append([syn.species])
                     completion.set_model(model)
                     self.view.widgets.acc_species_entry.\
-                        set_text(utils.utf8(syn.species))
+                        set_text(str(syn.species))
                     set_model(syn.species)
             box = self.view.add_message_box(utils.MESSAGE_BOX_YESNO)
             box.message = msg
             box.on_response = on_response
             box.show()
+
 
         self.assign_completions_handler('acc_species_entry',
                                         sp_get_completions,
@@ -2071,6 +2075,14 @@ class AccessionEditorPresenter(editor.GenericEditorPresenter):
         ls.append([len(ls)+1, ''])
 
         class Presenter(editor.GenericEditorPresenter):
+            def __init__(self, *args, **kwargs):
+                '''
+                '''
+                super().__init__(*args, **kwargs)
+                self.view.connect('acc_cf_renderer', 'edited',
+                                  self.on_acc_cf_renderer_edited)
+
+
             def on_acc_cf_renderer_edited(self, widget, iter, value):
                 i = ls.get_iter_from_string(str(iter))
                 ls.set_value(i, 1, value)
@@ -2401,9 +2413,16 @@ class AccessionEditor(editor.GenericModelViewPresenterEditor):
 
         # set the default focus
         if self.model.species is None:
+            # new accession
             view.widgets.acc_species_entry.grab_focus()
         else:
             view.widgets.acc_code_entry.grab_focus()
+            # check if the current species is a synonym (and hence open a
+            # message window saying so) without dirtying the presenter, this
+            # little hack with _dirty_pass should only happen once on opening
+            # an accession editor for an existing accession.
+            view.widgets.acc_species_entry.emit('changed')
+            self.presenter._dirty_pass = True
 
     def handle_response(self, response):
         '''
@@ -2435,7 +2454,7 @@ class AccessionEditor(editor.GenericModelViewPresenterEditor):
                 utils.message_details_dialog(msg, traceback.format_exc(),
                                              Gtk.MessageType.ERROR)
                 return False
-        elif self.presenter.is_dirty() and utils.yes_no_dialog(not_ok_msg) \
+        elif (self.presenter.is_dirty() and utils.yes_no_dialog(not_ok_msg)) \
                 or not self.presenter.is_dirty():
             self.session.rollback()
             return True

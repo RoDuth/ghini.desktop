@@ -16,7 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
 
-from bauble.utils import get_session
+from bauble.utils import get_net_sess
 import difflib
 import csv
 
@@ -30,10 +30,10 @@ if not testing and __name__ in prefs[debug_logging_prefs]:
 
 import threading
 
-session = get_session()
+net_sess = get_net_sess()
 
-logger.debug("session type = %s", type(session))
-logger.debug("session proxies = %s", session.proxies)
+logger.debug("net session type = %s", type(net_sess))
+logger.debug("net session proxies = %s", net_sess.proxies)
 
 class AskTPL(threading.Thread):
     running = None
@@ -70,7 +70,7 @@ class AskTPL(threading.Thread):
         def ask_tpl(binomial):
             logger.debug('tpl request for %s, with timeout %s', binomial,
                          self.timeout)
-            result = session.get(
+            result = net_sess.get(
                 'http://www.theplantlist.org/tpl1.1/search?q=' + binomial +
                 '&csv=true',
                 timeout=self.timeout)

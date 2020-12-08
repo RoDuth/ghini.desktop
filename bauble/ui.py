@@ -118,6 +118,15 @@ class GUI(object):
     history_size_pref = 'bauble.history_size'
     window_geometry_pref = "bauble.geometry"
     _default_history_size = 36
+    msg_css = Gtk.CssProvider()
+    msg_css.load_from_data(
+        b'.err-bg * {background-color: #FF9999;}'
+        b'.inf-bg * {background-color: #b6daf2;}'
+    )
+    Gtk.StyleContext.add_provider_for_screen(
+        Gdk.Screen.get_default(), msg_css,
+        Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
+
 
     def __init__(self):
         filename = os.path.join(paths.lib_dir(), 'bauble.glade')
@@ -130,9 +139,11 @@ class GUI(object):
         geometry = prefs[self.window_geometry_pref]
         if geometry is not None:
             self.window.set_default_size(*geometry)
+            self.window.set_position(Gtk.WindowPosition.CENTER)
 
         self.window.connect('delete-event', self.on_delete_event)
         self.window.connect("destroy", self.on_quit)
+        self.window.connect("size_allocate", self.on_resize)
         self.window.set_title(self.title)
 
         try:
@@ -234,10 +245,9 @@ class GUI(object):
                                     utils.MESSAGE_BOX_INFO)
         box.message = msg
         box.details = details
-        colors = [('bg', Gtk.StateType.NORMAL, '#FF9999'),
-                  ('bg', Gtk.StateType.PRELIGHT, '#FFAAAA')]
-        for color in colors:
-            box.set_color(*color)
+        # set red background
+        box.get_style_context().add_class('err-bg')
+
         box.show()
 
     def show_message_box(self, msg):
@@ -248,10 +258,10 @@ class GUI(object):
         box = utils.add_message_box(self.widgets.msg_box_parent,
                                     utils.MESSAGE_BOX_INFO)
         box.message = msg
+        # set a light blue background
+        box.get_style_context().add_class('inf-bg')
+
         box.show()
-        # colors = [('bg', Gtk.StateType.NORMAL, '#b6daf2')]
-        # self._msg_common(msg, colors)
-        # self.widgets.msg_eventbox.show()
 
     def show(self):
         self.window.show()
@@ -619,7 +629,7 @@ class GUI(object):
             # editor_cls can be a class, of which we get an instance, and we
             # invoke the `start` method of this instance. or it is a
             # callable, then we just use its return value and we are done.
-            if isinstance(editor_cls, type(lambda x:x)):
+            if isinstance(editor_cls, type(lambda x: x)):
                 editor = None
                 committed = editor_cls()
             else:
@@ -827,9 +837,7 @@ class GUI(object):
         """
         this is usually called from bauble.py when it shuts down
         """
-        rect = self.window.get_size()
-        prefs[self.window_geometry_pref] = rect.width, rect.height
-        # prefs.save() is called in bauble/__init__.py
+        pass
 
     def on_delete_event(self, *args):
         import bauble.task as task
@@ -840,6 +848,10 @@ class GUI(object):
                 return True
             task.kill()
         return False
+
+    def on_resize(self, widget, data):
+        rect = self.window.get_size()
+        prefs[self.window_geometry_pref] = rect.width, rect.height
 
     def on_quit(self, widget, data=None):
         bauble.quit()

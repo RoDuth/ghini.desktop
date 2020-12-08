@@ -22,7 +22,7 @@
 import gi
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk  # noqa
-
+from gi.repository import Pango
 
 import logging
 logger = logging.getLogger(__name__)
@@ -291,7 +291,8 @@ class GeneralSpeciesExpander(InfoExpander):
         general_box = self.widgets.sp_general_box
         self.widgets.remove_parent(general_box)
         self.vbox.pack_start(general_box, True, True, 0)
-        self.widgets.sp_epithet_data.set_line_wrap(True)
+        # wrapping the species but not the genus looks odd, better to ellipsize
+        self.widgets.sp_epithet_data.set_ellipsize(Pango.EllipsizeMode.END)
 
         # make the check buttons read only
         def on_enter(button, *args):

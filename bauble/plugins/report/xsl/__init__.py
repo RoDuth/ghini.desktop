@@ -541,12 +541,22 @@ class XSLFormatterPlugin(FormatterPlugin):
         """
         cls.install()  # plugins still not versioned...
 
-        templates = ['basic.xsl', 'labels.xsl', 'plant_list.xsl',
-                     'plant_list_ex.xsl', 'small_labels.xsl']
-        src_dir = os.path.join(paths.lib_dir(), "plugins", "report", 'xsl')
-        for template in templates:
-            src = os.path.join(src_dir, template)
-            dst = os.path.join(cls.plugin_dir, template)
+        src_dir = os.path.join(paths.lib_dir(), "plugins", "report", 'xsl',
+                               'stylesheets')
+        # stylesheets = [i for i in os.listdir(src_dir) if i.endswith('.xsl')]
+        stylesheets = []
+        for root, _, filenames in os.walk(src_dir):
+            for fname in filenames:
+                dest = os.path.split(root.replace(src_dir, ''))[1]
+                if fname.endswith(('xsl', 'png', 'svg', 'jpg')):
+                    stylesheets.append((dest, fname))
+
+        for dest, stylesheet in stylesheets:
+            src = os.path.join(src_dir, dest, stylesheet)
+            dst_dir = os.path.join(cls.plugin_dir, dest)
+            dst = os.path.join(dst_dir, stylesheet)
+            if not os.path.exists(dst_dir):
+                os.mkdir(dst_dir)
             if not os.path.exists(dst) and os.path.exists(src):
                 shutil.copy(src, dst)
 
@@ -556,7 +566,6 @@ class XSLFormatterPlugin(FormatterPlugin):
 
     @staticmethod
     def format(objs, **kwargs):
-#        debug('format(%s)' % kwargs)
         stylesheet = kwargs['stylesheet']
         additional = kwargs['additional']
         authors = kwargs['authors']
