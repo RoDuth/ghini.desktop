@@ -382,56 +382,6 @@ class SettingsBoxPresenter(object):
             self.widgets.renderer_combo.append_text(name)
 
 
-# TODO: could make this look more a Gtk.FileChooserButton but make it
-# an hbox and adding the separator and file icon
-class FileChooserButton(Gtk.Button):
-    """
-    Create our own basic FileChooserButton to work around the issue that
-    if you click the Gtk.FileChooseButton the label gets reset to "None"
-    but doesn't revert back to the original file of the dialog is cancelled.
-    """
-
-    _default_label = _("Select a file…")
-
-    def __init__(self, dialog_parent):
-        super().__init__(self._default_label)
-        self._filename = False
-        self.props.use_underline = False
-        self.props.xalign = 0
-        self.dialog = \
-            Gtk.FileChooserDialog(title=_('Select a stylesheet'),
-                                  parent=dialog_parent,
-                                  buttons=(
-                                      Gtk.STOCK_CANCEL, Gtk.ResponseType.REJECT,
-                                      Gtk.STOCK_OK, Gtk.ResponseType.ACCEPT))
-        self.dialog.set_select_multiple(False)
-        self.dialog.set_current_folder(paths.appdata_dir())
-        self.dialog.connect('response', self._on_response)
-        self.connect('clicked', self._on_clicked)
-
-    def _on_clicked(self, *args):
-        self.dialog.run()
-        self.dialog.hide()
-
-    def _on_response(self, dialog, response):
-        if response == Gtk.ResponseType.ACCEPT:
-            self.set_filename(self.dialog.get_filename())
-
-    def get_filename(self):
-        return self._filename
-
-    def set_filename(self, filename):
-        if not filename:
-            self._filename = None
-            self.dialog.set_filename('')
-            self.dialog.set_current_folder(paths.appdata_dir())
-            self.props.label = self._default_label
-        else:
-            self._filename = filename
-            head, tail = os.path.split(self._filename)
-            self.dialog.set_filename(self._filename)
-            self.props.label = tail
-
 
 class XSLFormatterSettingsBox(SettingsBox):
 
@@ -454,8 +404,8 @@ class XSLFormatterSettingsBox(SettingsBox):
         self.pack_start(self.settings_box, True, True, 0)
         self.presenter = SettingsBoxPresenter(self.widgets)
 
-        self.stylesheet_chooser = FileChooserButton(
-            dialog_parent=report_dialog)
+        self.stylesheet_chooser = Gtk.FileChooserButton.new(
+            'Choose a stylesheet...', Gtk.FileChooserAction.OPEN)
         self.widgets.stylesheet_alignment.add(self.stylesheet_chooser)
 
     def get_settings(self):
@@ -485,8 +435,6 @@ class XSLFormatterSettingsBox(SettingsBox):
     def update(self, settings):
         if 'stylesheet' in settings and settings['stylesheet'] is not None:
             self.stylesheet_chooser.set_filename(settings['stylesheet'])
-        else:
-            self.stylesheet_chooser.set_filename(None)
 
         if 'renderer' not in settings:
             utils.combo_set_active_text(self.widgets.renderer_combo,

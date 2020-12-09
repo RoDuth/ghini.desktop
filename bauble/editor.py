@@ -260,18 +260,17 @@ class GenericEditorView(object):
 
     def run_file_chooser_dialog(self, text, parent, action, buttons,
                                 last_folder, target):
-        """create and run FileChooserDialog, then write result in target
+        """create and run FileChooser, then write result in target
 
         this is just a bit more than a wrapper. it adds 'last_folder', a
-        string indicationg the location where to put the FileChooserDialog,
+        string indicationg the location where to put the FileChooserNative,
         and 'target', an Entry widget or its name.
 
         make sure you have a Gtk.ResponseType.ACCEPT button.
 
         """
-        chooser = Gtk.FileChooserDialog(text, parent, action, buttons)
-        #chooser.set_do_overwrite_confirmation(True)
-        #chooser.connect("confirm-overwrite", confirm_overwrite_callback)
+        chooser = Gtk.FileChooserNative.new(text, parent, action)
+
         try:
             if last_folder:
                 chooser.set_current_folder(last_folder)
@@ -2120,10 +2119,7 @@ class PictureBox(NoteBox):
         self.widgets.picture_button.show()
 
     def on_activate_browse_button(self, widget, data=None):
-        fileChooserDialog = Gtk.FileChooserDialog(
-            _("Choose a file…"), None,
-            buttons=(Gtk.STOCK_OK, Gtk.ResponseType.ACCEPT,
-                     Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL))
+        fileChooserDialog = Gtk.FileChooserNative()
         try:
             logger.debug('about to set current folder - %s' % self.last_folder)
             fileChooserDialog.set_current_folder(self.last_folder)
