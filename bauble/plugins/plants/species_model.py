@@ -303,7 +303,7 @@ class Species(db.Base, db.Serializable, db.DefiningPictures, db.WithNotes):
         return ''
 
     # columns
-    sp = Column(Unicode(64), index=True)
+    sp = Column(Unicode(128), index=True)
     epithet = synonym('sp')
     sp2 = Column(Unicode(64), index=True)  # in case hybrid=True
     sp_author = Column(Unicode(128))

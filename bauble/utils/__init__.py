@@ -1661,11 +1661,12 @@ def get_net_sess():
     """
     from bauble.prefs import prefs, web_proxy_prefs, testing
 
-    prefs_proxies = prefs.get(web_proxy_prefs, None)
     logger.debug('getting a network session')
-    # in testing we use vanilla requests
-    if testing:
-        prefs_proxies = "Use requests without proxies"
+
+    if not testing:
+        prefs_proxies = prefs.get(web_proxy_prefs, None)
+    else:
+        prefs_proxies = "Use vanilla requests without proxies"
 
     if prefs_proxies:
         from requests import Session

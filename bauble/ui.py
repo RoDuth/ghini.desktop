@@ -781,7 +781,8 @@ class GUI(object):
         if utils.yes_no_dialog(msg):
             import sys
             if sys.platform == 'win32':
-                os.system('notepad.exe {}'.format(filename))
+                import subprocess
+                subprocess.run(['notepad.exe', filename])
             else:
                 desktop.open(filename, dialog_on_error=True)
             msg = _('Reload config-file?\n\n'  # noqa

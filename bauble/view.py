@@ -29,7 +29,6 @@ import logging
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
-
 import gi
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk  # noqa
@@ -706,7 +705,7 @@ class SearchView(pluginmgr.View):
         # start of update_infobox
         logger.debug('update_infobox')
         values = self.get_selected_values()
-        if not values:
+        if not values or not values[0]:
             set_infobox_from_row(None)
             return
 
@@ -728,7 +727,7 @@ class SearchView(pluginmgr.View):
         Return the values in all the selected rows.
         '''
         model, rows = self.results_view.get_selection().get_selected_rows()
-        if model is None:
+        if model is None or rows is None:
             return None
         return [model[row][0] for row in rows]
 
@@ -798,13 +797,9 @@ class SearchView(pluginmgr.View):
         error_details_msg = None
         # stop whatever it might still be doing
         self.cancel_threads()
-        if False:
-            # create a new session for each search...
-            self.session.close()
-            self.session = db.Session()
-        else:
-            # reuse session, but undo all that has not been committed
-            self.session.rollback()
+        self.session.close()
+        self.session = db.Session()
+        # self.session.rollback()
         bold = '<b>%s</b>'
         results = []
         try:
@@ -833,21 +828,21 @@ class SearchView(pluginmgr.View):
             model.append([msg])
             self.results_view.set_model(model)
         else:
-            if len(results) > 5000:
+            statusbar.push(sbcontext_id, _("Retrieving %s search "
+                                           "results…") % len(results))
+            if len(results) > 4000:
                 msg = _('This query returned %s results.  It may take a '
                         'long time to get all the data. Are you sure you '
                         'want to continue?') % len(results)
                 if not utils.yes_no_dialog(msg):
                     return
-            statusbar.push(sbcontext_id, _("Retrieving %s search "
-                                           "results…") % len(results))
             try:
                 # don't bother with a task if the results are small,
                 # this keeps the screen from flickering when the main
                 # window is set to a busy state
                 import time
                 start = time.time()
-                if len(results) < 1000:
+                if len(results) > 1000:
                     self.populate_results(results)
                 else:
                     task = self._populate_worker(results)
@@ -930,8 +925,13 @@ class SearchView(pluginmgr.View):
         """
         nresults = len(results)
         model = Gtk.TreeStore(object)
-        model.set_default_sort_func(lambda *args: -1)
-        model.set_sort_column_id(-1, Gtk.SortType.ASCENDING)
+        # docs suggests this method and did work in pygtk but now doesn't
+        # model.set_default_sort_func(None)
+        # now this seems the only way to remove sorting function (i.e.
+        # has_default_sort_func returns false)
+        model.set_sort_column_id(Gtk.TREE_SORTABLE_UNSORTED_SORT_COLUMN_ID,
+                                 Gtk.SortType.ASCENDING)
+        logger.debug('_populate_worker clear model')
         utils.clear_model(self.results_view)
 
         groups = []
@@ -946,7 +946,7 @@ class SearchView(pluginmgr.View):
 
         # sort the groups by type so we more or less always get the
         # results by type in the same order
-        groups = sorted(groups, key=lambda x: type(x[0]), reverse=True)
+        groups = sorted(groups, key=lambda x: str(type(x[0])), reverse=True)
 
         update_every = 200
         steps_so_far = 0
@@ -1203,7 +1203,7 @@ class SearchView(pluginmgr.View):
         self.results_view = self.widgets.results_treeview
 
         self.results_view.set_headers_visible(False)
-        self.results_view.set_rules_hint(True)
+        # self.results_view.set_rules_hint(True)  # depricated
         self.results_view.set_fixed_height_mode(True)
 
         selection = self.results_view.get_selection()

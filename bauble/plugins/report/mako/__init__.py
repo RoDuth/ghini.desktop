@@ -300,8 +300,7 @@ class MakoFormatterSettingsBox(SettingsBox):
     def update(self, settings):
         if settings.get('template'):
             self.widgets.template_chooser.set_filename(settings['template'])
-            # only need settings here because of win32 bug
-            self.on_file_set(settings=settings)
+            self.widgets.template_chooser.emit('file-set')
         if 'private' in settings:
             self.widgets.private_check.set_active(settings['private'])
 
@@ -315,17 +314,7 @@ class MakoFormatterSettingsBox(SettingsBox):
             with open(self.widgets.template_chooser.get_filename()) as f:
                 # scan the header filtering lines starting with # OPTION
                 option_lines = [_f for _f in [self.pattern.match(i.strip())
-                                       for i in f.readlines()] if _f]
-        except TypeError:
-            # win32 bug with get_filename first time around...
-            try:
-                with open(kwargs.get('settings', {}).get('template')) as f:
-                    # scan the header filtering lines starting with # OPTION
-                    option_lines = [_f for _f in [self.pattern.match(i.strip())
-                                           for i in f.readlines()] if _f]
-            except IOError:
-                # self.update(kwargs.get('settings'))
-                option_lines = []
+                                              for i in f.readlines()] if _f]
         except IOError:
             option_lines = []
 
