@@ -391,23 +391,12 @@ def clear_model(obj_with_model):
     :param obj_with_model: a gtk Widget that has a Gtk.TreeModel that
       can be retrieved with obj_with_mode.get_model
 
-    Remove the model from the object, deletes all the items in the
-    model, clear the model and then delete the model and set the model
-    on the object to None
+    Remove the model from the object and set the model on the object to None
     """
     model = obj_with_model.get_model()
     if model is None:
         return
 
-    ncols = model.get_n_columns()
-
-    def del_cb(model, path, iter, data=None):
-        for c in range(0, ncols):
-            v = model.get_value(iter, c)
-            del v
-        del iter
-    model.foreach(del_cb)
-    model.clear()
     del model
     obj_with_model.set_model(None)
 

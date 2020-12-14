@@ -103,7 +103,7 @@ def newer_version_on_github(input_stream, force=False):
     """
 
     try:
-        version_lines = input_stream.read().split('\n')
+        version_lines = str(input_stream.read()).split('\n')
         valid_lines = [i for i in version_lines
                        if not i.startswith('#') and i.strip()]
         if len(valid_lines) == 1:
@@ -117,8 +117,8 @@ def newer_version_on_github(input_stream, force=False):
                 return github_version
             if int(github_patch) < int(bauble.version_tuple[2]):
                 logger.info("running unreleased version")
-    except TypeError:
-        logger.warning('TypeError while reading github stream')
+    except TypeError as e:
+        logger.warning('TypeError while reading github stream: %s', e)
     except IndexError:
         logger.warning('incorrect format for github version')
     except ValueError:

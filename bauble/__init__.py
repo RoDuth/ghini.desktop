@@ -383,8 +383,8 @@ def main(uri=None):
     logger.info('This version installed on: %s; '
                 'This version installed at: %s; '
                 'Latest published version: %s; '
-                'Publication date: %s' % 
-                (bauble.installation_date, __file__, bauble.release_version, bauble.release_date, ))
+                'Publication date: %s', bauble.installation_date, __file__,
+                bauble.release_version, bauble.release_date)
 
     gui.show()
     Gdk.threads_enter()

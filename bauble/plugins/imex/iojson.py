@@ -16,6 +16,7 @@
 # along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
 
 import os
+from pathlib import Path
 
 import gi
 gi.require_version("Gtk", "3.0")
@@ -68,7 +69,7 @@ class JSONExporter(editor.GenericEditorPresenter):
 
     the Presenter ((M)VP)'''
 
-    last_folder = ''
+    last_folder = str(Path.home())
     widget_to_field_map = {
         'sbo_selection': 'selection_based_on',
         'sbo_taxa': 'selection_based_on',
@@ -265,7 +266,7 @@ class JSONImporter(editor.GenericEditorPresenter):
                            'chk_update': 'update',
                            'input_filename': 'filename',
                            }
-    last_folder = ''
+    last_folder = str(Path.home())
 
     view_accept_buttons = ['sid-button-ok', 'sid-button-cancel', ]
 

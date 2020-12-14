@@ -22,6 +22,7 @@
 #
 import os
 import traceback
+from pathlib import Path
 
 import logging
 logger = logging.getLogger(__name__)
@@ -75,6 +76,7 @@ class XMLExporter:
         file_chooser = Gtk.FileChooserButton(_('Select a directory'))
         file_chooser.set_select_multiple(False)
         file_chooser.set_action(Gtk.FileChooserAction.SELECT_FOLDER)
+        file_chooser.set_current_folder(str(Path.home()))
         box.pack_start(file_chooser, True, True, 0)
         check = Gtk.CheckButton(_('Save all data in one file'))
         check.set_active(True)

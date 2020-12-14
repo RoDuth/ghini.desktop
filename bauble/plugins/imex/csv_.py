@@ -27,6 +27,7 @@
 import os
 import csv
 import traceback
+from pathlib import Path
 
 import logging
 logger = logging.getLogger(__name__)
@@ -555,6 +556,7 @@ class CSVImporter(Importer):
         fc = Gtk.FileChooserNative.new(_("Choose file(s) to import…"), None,
                                        Gtk.FileChooserAction.OPEN)
         fc.set_select_multiple(True)
+        fc.set_current_folder(str(Path.home()))
         fc.connect("selection-changed", on_selection_changed)
         filenames = None
         if fc.run() == Gtk.ResponseType.ACCEPT:
@@ -575,6 +577,7 @@ class CSVExporter(object):
         if path is None:
             d = Gtk.FileChooserNative.new(_("Select a directory"), None,
                                           Gtk.FileChooserAction.SELECT_FOLDER)
+            d.set_current_folder(str(Path.home()))
             response = d.run()
             path = d.get_filename()
             d.destroy()

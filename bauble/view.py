@@ -584,8 +584,7 @@ class SearchView(pluginmgr.View):
             bauble.gui.widgets.main_comboentry.get_child().set_text(query)
             bauble.gui.widgets.go_button.emit("clicked")
         except Exception as e:
-            print(type(e), e)
-        pass
+            logger.debug('on_note_row_actived %s, %s', type(e), e)
 
     def add_page_to_bottom_notebook(self, bottom_info):
         '''add notebook page for a plugin class

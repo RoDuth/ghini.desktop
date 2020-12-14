@@ -26,7 +26,6 @@
                   <object class="GtkFileChooserButton" id="template_chooser">
                     <property name="visible">True</property>
                     <property name="can_focus">False</property>
-                    <signal name="file-set" handler="on_template_chooser_file_set" swapped="no"/>
                   </object>
                 </child>
               </object>

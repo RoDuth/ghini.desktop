@@ -24,7 +24,7 @@ Intended for users who will never "look under the hood" of a report template
 and just want a bunch of reliable templates to use.
 """
 
-import os
+from pathlib import Path
 
 import logging
 import gi
@@ -45,31 +45,32 @@ TEMPLATES_URI = ('https://github.com/RoDuth/ghini_report_templates/archive'
                  '/master.zip')
 
 
-def set_template_save_to_dir(path=None):
+def set_templates_root_pref(path=None):
     """set the root directory to store templates"""
     if path is None:
-        dlog = Gtk.FileChooserNative.new('Select a templates directory...',
+        dlog = Gtk.FileChooserNative.new(_('Select a templates directory...'),
                                          None,
                                          Gtk.FileChooserAction.SELECT_FOLDER,
                                          None, None)
+        home_folder = str(Path.home())
+        dlog.set_current_folder(home_folder)
         response = dlog.run()
-        path = dlog.get_filename()
+        path = Path(dlog.get_filename())
         dlog.destroy()
         if response != Gtk.ResponseType.ACCEPT:
-            return
+            return False
 
-    if not os.path.exists(path):
-        raise ValueError(_("local path does not exist.\n%s") % path)
+    if not path.exists():
+        raise ValueError(_("directory does not exist.\n%s") % path)
 
-    prefs[templates_root_pref] = path
+    prefs[templates_root_pref] = str(path)
     prefs.save()
+    return True
 
 
-def update_report_template_prefs(root):
+def update_report_template_prefs(root, conf_file):
     # Add config to prefs and save it
-    conf_file = os.path.join(root,
-                             'ghini_report_templates-master/config.cfg')
-    if os.path.exists(conf_file):
+    if Path(conf_file).exists():
         from bauble.prefs import _prefs
         from configparser import RawConfigParser
         temp_prefs = _prefs(filename=conf_file)
@@ -82,11 +83,10 @@ def update_report_template_prefs(root):
             for k, v in default_formatters.items():
                 template_path = v[1].get('template')
                 if template_path:
-                    v[1]['template'] = os.path.join(root, template_path)
+                    v[1]['template'] = str(Path(root, template_path))
                 stylesheet_path = v[1].get('stylesheet')
                 if stylesheet_path:
-                    v[1]['stylesheet'] = os.path.join(root,
-                                                      stylesheet_path)
+                    v[1]['stylesheet'] = str(Path(root, stylesheet_path))
                 formatters[k] = v
             prefs[CONFIG_LIST_PREF] = formatters
             prefs.save()
@@ -101,16 +101,15 @@ def download_templates(root):
     except exceptions.Timeout:
         msg = 'connection timed out while getting templates'
         logger.info(msg)
-        return
+        return None
     except exceptions.RequestException as e:
         logger.info('Requests error %s while getting templates', e)
-        return
+        return None
     except Exception as e:   # pylint: disable=broad-except
         logger.warning('unhandled %s(%s) getting templates',
                        type(e).__name__, e)
-        return
+        return None
 
-    # unzip them
     try:
         from zipfile import ZipFile
         from io import BytesIO
@@ -120,8 +119,8 @@ def download_templates(root):
                 [i for i in zipped.namelist() if i.endswith('/')],
                 key=len
             )
-            zip_root = os.path.join(root, zip_root)
-            if os.path.exists(zip_root):
+            zip_root = Path(root, zip_root)
+            if zip_root.exists():
                 msg = _('Delete previous version?\n\n'  # noqa
                         'Yes keeps local version matching online exactly, '
                         'but...\n'
@@ -134,7 +133,9 @@ def download_templates(root):
     except Exception as e:   # pylint: disable=broad-except
         logger.warning('unhandled %s(%s) extracting templates',
                        type(e).__name__, e)
-        return
+        return None
+
+    return zip_root
 
 
 class TemplateDownloadTool(pluginmgr.Tool):
@@ -144,13 +145,22 @@ class TemplateDownloadTool(pluginmgr.Tool):
 
     @classmethod
     def start(cls):
-        # make sure we have the directory to save to first
+        # get the directory to save to first
         if templates_root_pref not in prefs:
-            set_template_save_to_dir()
+            if not set_templates_root_pref():
+                return
         root = prefs.get(templates_root_pref, None)
 
-        msg = 'Download online reports?\n\nSource: {}?'.format(TEMPLATES_URI)
+        msg = f'Download online report templates?\n\nSource: {TEMPLATES_URI}?'
         if yes_no_dialog(msg):
-            download_templates(root)
-            update_report_template_prefs(root)
+            dload_root = download_templates(root)
+            # look for config files to update prefs with.
+            if dload_root.exists():
+                for cfg in dload_root.glob('**/config.cfg'):
+                    update_report_template_prefs(root, cfg)
+                    # delete the config file...
+                    cfg.unlink()
+                # delete all the README files to avoid clutter
+                for readme in dload_root.glob('**/README.md'):
+                    readme.unlink()
             set_message(_('Templates update complete'))

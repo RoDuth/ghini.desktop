@@ -405,7 +405,7 @@ class XSLFormatterSettingsBox(SettingsBox):
         self.presenter = SettingsBoxPresenter(self.widgets)
 
         self.stylesheet_chooser = Gtk.FileChooserButton.new(
-            'Choose a stylesheet...', Gtk.FileChooserAction.OPEN)
+            _('Choose a stylesheet...'), Gtk.FileChooserAction.OPEN)
         self.widgets.stylesheet_alignment.add(self.stylesheet_chooser)
 
     def get_settings(self):
@@ -423,7 +423,6 @@ class XSLFormatterSettingsBox(SettingsBox):
         source_model = self.widgets.source_type_combo.get_model()
         source_entry = source_model[source_iter][0]
 
-
         return {
             'stylesheet': stylesheet,
             'additional': additional,
@@ -433,30 +432,43 @@ class XSLFormatterSettingsBox(SettingsBox):
             'private': self.widgets.private_check.get_active()}
 
     def update(self, settings):
-        if 'stylesheet' in settings and settings['stylesheet'] is not None:
-            self.stylesheet_chooser.set_filename(settings['stylesheet'])
+        stylesheet = settings.get('stylesheet')
+        renderer = source_type = authors = private = None
 
-        if 'renderer' not in settings:
+        if stylesheet:
+            self.stylesheet_chooser.set_filename(stylesheet)
+            renderer = settings.get('renderer')
+            source_type = settings.get('source_type')
+            authors = settings.get('authprs')
+            private = settings.get('private')
+        else:
+            examples_root = os.path.join(paths.appdata_dir(), 'templates',
+                                         'xsl')
+            templates_root = prefs.prefs.get(prefs.templates_root_pref,
+                                             examples_root)
+            self.stylesheet_chooser.unselect_all()
+            self.stylesheet_chooser.set_current_folder(templates_root)
+
+        if renderer:
+            utils.combo_set_active_text(self.widgets.renderer_combo, renderer)
+        else:
             utils.combo_set_active_text(self.widgets.renderer_combo,
                                         default_renderer)
-        else:
-            utils.combo_set_active_text(self.widgets.renderer_combo,
-                                        settings['renderer'])
 
-        if 'source_type' not in settings:
+        if source_type:
+            utils.combo_set_active_text(self.widgets.source_type_combo,
+                                        source_type)
+        else:
             utils.combo_set_active_text(self.widgets.source_type_combo,
                                         default_source_type)
-        else:
-            utils.combo_set_active_text(self.widgets.source_type_combo,
-                                        settings['source_type'])
 
-        if 'authors' in settings:
-            self.widgets.author_check.set_active(settings['authors'])
+        if authors:
+            self.widgets.author_check.set_active(authors)
         else:
             self.widgets.author_check.set_active(False)
 
-        if 'private' in settings:
-            self.widgets.private_check.set_active(settings['private'])
+        if private:
+            self.widgets.private_check.set_active(private)
         else:
             self.widgets.private_check.set_active(False)
 
@@ -500,18 +512,18 @@ class XSLFormatterPlugin(FormatterPlugin):
 
         # If user has selected a directory to store templates add the examples
         # to it otherwise use appdata
-        template_root = prefs.prefs.get(prefs.templates_root_pref, None)
-        if template_root:
-            template_root = os.path.join(template_root, "ghini_examples",
-                                         "xsl")
-            if not os.path.exists(template_root):
-                os.makedirs(template_root)
+        templates_root = prefs.prefs.get(prefs.templates_root_pref, None)
+        if templates_root:
+            templates_root = os.path.join(templates_root, "ghini_examples",
+                                          "xsl")
+            if not os.path.exists(templates_root):
+                os.makedirs(templates_root)
         else:
-            template_root = cls.plugin_dir
+            templates_root = cls.plugin_dir
 
         for dest, stylesheet in stylesheets:
             src = os.path.join(src_dir, dest, stylesheet)
-            dst_dir = os.path.join(template_root, dest)
+            dst_dir = os.path.join(templates_root, dest)
             dst = os.path.join(dst_dir, stylesheet)
             if not os.path.exists(dst_dir):
                 os.mkdir(dst_dir)

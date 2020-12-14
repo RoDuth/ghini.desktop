@@ -266,8 +266,7 @@ class GenericEditorView(object):
         string indicationg the location where to put the FileChooserNative,
         and 'target', an Entry widget or its name.
 
-        make sure you have a Gtk.ResponseType.ACCEPT button.
-
+        :param buttons: Note - deprecated since FileChooserNative.
         """
         chooser = Gtk.FileChooserNative.new(text, parent, action)
 
@@ -2066,7 +2065,8 @@ class NoteBox(Gtk.Box):
 
 class PictureBox(NoteBox):
     glade_ui = 'pictures.glade'
-    last_folder = '.'
+    from pathlib import Path
+    last_folder = str(Path.home())
 
     def __init__(self, presenter, model=None):
         super().__init__(presenter, model)

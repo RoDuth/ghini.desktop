@@ -410,8 +410,10 @@ class ReportToolDialogPresenter(object):
         combo = self.view.widgets.formatter_combo
         if val is None:
             combo.set_active(-1)
+            combo.emit('changed')
         elif isinstance(val, int):
             combo.set_active(val)
+            combo.emit('changed')
         else:
             utils.combo_set_active_text(combo, val)
 
@@ -509,8 +511,9 @@ class ReportToolDialogPresenter(object):
     def _formatter_combo_changed_idle(self, combo):
         formatter = combo.get_active_text()
         name = self.view.widgets.names_combo.get_active_text()
+        settings = {}
         try:
-            saved_name, settings = prefs[config_list_pref][name]
+            _name, settings = prefs[config_list_pref][name]
         except KeyError as e:
             logger.debug("%s(%s)" % (type(e).__name__, e))
             return

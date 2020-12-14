@@ -25,6 +25,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 import os
+from pathlib import Path
 import shutil
 import tempfile
 import math
@@ -299,17 +300,29 @@ class MakoFormatterSettingsBox(SettingsBox):
 
     def update(self, settings):
         if settings.get('template'):
+            # TODO in windows, set_filename writes the label on the button but
+            # doesn't open the FileChooserNative at that location, instead
+            # opening at the last place you had any open filechooser.
             self.widgets.template_chooser.set_filename(settings['template'])
+            logger.debug('template = %s', settings['template'])
             self.widgets.template_chooser.emit('file-set')
+        else:
+            # open at the template root for new reports.
+            examples_root = os.path.join(paths.appdata_dir(), 'templates',
+                                         'mako')
+            templates_root = prefs.get(templates_root_pref, examples_root)
+            self.widgets.template_chooser.unselect_all()
+            self.clear_options_box()
+            self.widgets.template_chooser.set_current_folder(
+                templates_root)
         if 'private' in settings:
             self.widgets.private_check.set_active(settings['private'])
 
     def on_file_set(self, *args, **kwargs):
         self.defaults = []
-        options_box = self.widgets.mako_options_box
-        # empty the options box
-        list(map(options_box.remove, options_box.get_children()))
+        self.clear_options_box()
         # which options does the template accept? (can be None)
+        options_box = self.widgets.mako_options_box
         try:
             with open(self.widgets.template_chooser.get_filename()) as f:
                 # scan the header filtering lines starting with # OPTION
@@ -344,6 +357,12 @@ class MakoFormatterSettingsBox(SettingsBox):
             options_box.attach(button, 0, 2, current_row, current_row+1,
                                xoptions=Gtk.AttachOptions.FILL)
         options_box.show_all()
+
+    def clear_options_box(self):
+        options_box = self.widgets.mako_options_box
+        # empty the options box
+        for widget in options_box.get_children():
+            options_box.remove(widget)
 
     def reset_options(self, widget):
         for entry, text in self.defaults:
@@ -400,18 +419,18 @@ class MakoFormatterPlugin(FormatterPlugin):
 
         # If user has selected a directory to store templates add the examples
         # to it otherwise use appdata
-        template_root = prefs.get(templates_root_pref, None)
-        if template_root:
-            template_root = os.path.join(template_root, "ghini_examples",
-                                         "mako")
-            if not os.path.exists(template_root):
-                os.makedirs(template_root)
+        templates_root = prefs.get(templates_root_pref, None)
+        if templates_root:
+            templates_root = os.path.join(templates_root, "ghini_examples",
+                                          "mako")
+            if not os.path.exists(templates_root):
+                os.makedirs(templates_root)
         else:
-            template_root = cls.plugin_dir
+            templates_root = cls.plugin_dir
 
         for template in cls.templates:
             src = os.path.join(src_dir, template)
-            dst = os.path.join(template_root, template)
+            dst = os.path.join(templates_root, template)
             if not os.path.exists(dst) and os.path.exists(src):
                 shutil.copy(src, dst)
 

@@ -30,6 +30,7 @@ from gi.repository import GLib
 from gi.repository import GdkPixbuf
 import re
 import os.path
+from pathlib import Path
 from bauble import pluginmgr, db, utils
 from sqlalchemy.orm.exc import NoResultFound
 
@@ -385,7 +386,7 @@ class PictureImporterPresenter(GenericEditorPresenter):
         parent = None
         action = Gtk.FileChooserAction.SELECT_FOLDER
         buttons = (_('Cancel'), Gtk.ResponseType.CANCEL, _('Ok'), Gtk.ResponseType.ACCEPT, )
-        last_folder = self.model.filepath
+        last_folder = self.model.filepath or str(Path.home())
         target = 'filepath_entry'
         self.view.run_file_chooser_dialog(text, parent, action, buttons, last_folder, target)
 
