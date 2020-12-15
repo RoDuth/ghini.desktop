@@ -1,4 +1,4 @@
-; Copyright (c) 2016-2019 Ross Demuth <rossdemuth123@gmail.com>
+; Copyright (c) 2016-2020 Ross Demuth <rossdemuth123@gmail.com>
 ;
 ; This file is part of ghini.desktop.
 ;
@@ -60,7 +60,7 @@
 ; Global
 Name "ghini.desktop"
 !define VERSION "1.0.93-BBG" ; :bump
-!define SRC_DIR "..\dist"
+!define SRC_DIR "..\dist\ghini"
 !define PRODUCT_NAME "ghini.desktop"
 Outfile "${PRODUCT_NAME}-${VERSION}-setup.exe"
 !define PROGEXE "ghini.exe"
@@ -72,18 +72,17 @@ Outfile "${PRODUCT_NAME}-${VERSION}-setup.exe"
 
 ; FOP
 !define FOP_MIRROR "http://www.apache.org/dyn/closer.cgi?filename=/xmlgraphics/fop/binaries"
-!define FOP_VERSION "2.1"
+!define FOP_VERSION "2.2"
 !define FOP_BINZIP "fop-${FOP_VERSION}-bin.zip"
 !define FOP_MD5 "http://www-eu.apache.org/dist/xmlgraphics/fop/binaries/${FOP_BINZIP}.md5"
-!define FOP_JRE "1.6"
-!define JRE_WEB "https://java.com/download"
+!define FOP_JRE "1.7"
 
 ; JRE (Currently Amazon Corretto OpenJDK)
 !define JRE_DISP_NAME "Amazon Corretto 8"
-!define JRE_VERSION "8.212.04.2"
-!define JRE_FILE "amazon-corretto-${JRE_VERSION}-1-windows-x86.msi"
-!define JRE_URL "https://d3pxv6yz143wms.cloudfront.net/${JRE_VERSION}/"
-!define JRE_CHECKSUM_MD5 "9e41040131d850b4da2277f062026992"
+!define JRE_VERSION "8.275.01.1"
+!define JRE_FILE "amazon-corretto-${JRE_VERSION}-windows-x86.msi"
+!define JRE_URL "https://corretto.aws/downloads/resources/${JRE_VERSION}/"
+!define JRE_CHECKSUM_MD5 "2015065ec94312c56fae1d53f75a7d5f"
 
 
 ;------------------------------
@@ -154,7 +153,7 @@ CRCCheck on
 ;  PAGES
 
 ; Installer
-!insertmacro MUI_PAGE_LICENSE "${SRC_DIR}\${LICENSE_FILE}"
+!insertmacro MUI_PAGE_LICENSE "${SRC_DIR}\share\ghini\${LICENSE_FILE}"
 !insertmacro MULTIUSER_PAGE_INSTALLMODE
 ; this will show the 2 install options, unless it's an elevated inner process
 ; (in that case we know we should install for all users)
@@ -216,13 +215,6 @@ Section "!Ghini.desktop" SecMain
     CreateShortCut "$DESKTOP\${PRODUCT_NAME}.lnk" "$INSTDIR\${PROGEXE}" \
         "" "$INSTDIR\${PROGEXE}" "" SW_SHOWNORMAL \
         "" "Ghini biodiversity collection manager"
-
-    ; Register pixbufs, immodules, pango
-    ReadEnvStr $0 COMSPEC
-    nsExec::ExecToLog '$0 /C gtk\bin\pango-querymodules.exe > gtk\etc\pango\pango.modules'
-    nsExec::ExecToLog '$0 /C gtk\bin\gtk-query-immodules-2.0.exe > gtk\etc\gtk-2.0\gtk.immodules'
-    nsExec::ExecToLog '$0 /C gtk\bin\gdk-pixbuf-query-loaders.exe > gtk\etc\gtk-2.0\gdk-pixbuf.loaders'
-    nsExec::ExecToLog '$0 /C gtk\bin\gdk-pixbuf-query-loaders.exe > gtk\lib\gdk-pixbuf-2.0\2.10.0\loaders.cache'
 
 SectionEnd
 
@@ -448,7 +440,7 @@ LangString DESC_SecUnMain ${LANG_ENGLISH} "Removes the main component - Ghini.de
 Function AddFOPtoPATH
 
     ; Checking before adding FOP to PATH, this may be a reinstall?
-    StrCpy $0 "$R0\fop-${FOP_VERSION}"
+    StrCpy $0 "$R0\fop-${FOP_VERSION}\fop\"
     StrLen $1 $0
     ReadEnvStr $2 PATH
     DetailPrint "Checking it FOP is already in the PATH"
@@ -471,9 +463,9 @@ Function AddFOPtoPATH
         SetOutPath "$PLUGINSDIR\"
         SetOverwrite on
         File /a "add_to_path.vbs"
-        ExecWait '"$SYSDIR\wscript.exe" //E:vbscript "$PLUGINSDIR\add_to_path.vbs" /path:"$R0\fop-${FOP_VERSION}\" \
+        ExecWait '"$SYSDIR\wscript.exe" //E:vbscript "$PLUGINSDIR\add_to_path.vbs" /path:"$R0\fop-${FOP_VERSION}\fop\" \
                 /env:"$R1"'
-        DetailPrint "Apache FOP added to $R1 PATH as: $R0\fop-${FOP_VERSION}\"
+        DetailPrint "Apache FOP added to $R1 PATH as: $R0\fop-${FOP_VERSION}\fop\"
         SetRebootFlag True
         DetailPrint "Reboot flag = True"
         Return
