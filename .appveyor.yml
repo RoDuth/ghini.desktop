@@ -5,17 +5,17 @@ branches:
     - ghini-1.3-bbg
 
 install:
-  - ps: C:\msys64\usr\bin\bash -lc "pacman --noconfirm -Syuu"
-  - ps: C:\msys64\usr\bin\bash -lc "pacman --noconfirm -Syuu"
-  - ps: $env:PATH += ";C:\Program Files (x86)\NSIS\Bin"
-  - ps: $env:CHERE_INVOKING = 1
-  - ps: $env:MSYSTEM = 'MINGW64'
-  - ps: C:\msys64\usr\bin\bash -lc "pacman --noconfirm -S - < ./scripts/mingw64_pkglist.txt"
+  - C:\msys64\usr\bin\bash -lc "pacman --noconfirm -Syuu"
+  - C:\msys64\usr\bin\bash -lc "pacman --noconfirm -Syuu"
+  - C:\msys64\usr\bin\bash -lc "pacman --noconfirm -S - < ./scripts/mingw64_pkglist.txt"
 
 build_script:
+  - ps: $env:CHERE_INVOKING = 1
+  - ps: $env:MSYSTEM = 'MINGW64'
   - ps: C:\msys64\usr\bin\bash -lc "pip install ."
   - ps: C:\msys64\usr\bin\bash -lc "pip install pyinstaller"
   - ps: C:\msys64\usr\bin\bash -lc "python -m PyInstaller --clean -w --noconfirm ghini.spec"
+  - ps: $env:PATH += ";C:\Program Files (x86)\NSIS\Bin"
   - ps: makensis scripts\build-multiuser.nsi
 
 artifacts:
