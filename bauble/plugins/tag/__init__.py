@@ -598,7 +598,7 @@ def create_named_empty_tag(name):
     try:
         tag = session.query(Tag).filter_by(tag=name).one()
     except InvalidRequestError as e:
-        logger.debug("%s - %s" % (type(e), e))
+        logger.debug("create_named_empty_tag: %s - %s" % (type(e), e))
         tag = Tag(tag=name)
         session.add(tag)
         session.commit()
@@ -660,7 +660,7 @@ def tag_objects(name, objects):
     try:
         tag = session.query(Tag).filter_by(tag=name).one()
     except InvalidRequestError as e:
-        logger.debug("%s - %s" % (type(e), e))
+        logger.debug("tag_objects: %s - %s" % (type(e), e))
         tag = Tag(tag=name)
         session.add(tag)
     tag.tag_objects(objects)

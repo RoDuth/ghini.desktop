@@ -125,7 +125,7 @@ class HistoryExtension(orm.MapperExtension):
 
         row = {}
         for c in mapper.local_table.c:
-            row[c.name] = utils.utf8(getattr(instance, c.name))
+            row[c.name] = str(getattr(instance, c.name))
         table = History.__table__
         stmt = table.insert(dict(table_name=mapper.local_table.name,
                                  table_id=instance.id, values=str(row),

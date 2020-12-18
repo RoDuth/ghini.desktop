@@ -239,6 +239,7 @@ class HistoryTests(BaubleTestCase):
         Test the HistoryMapperExtension
         """
         from bauble.plugins.plants import Family
+        from time import sleep
         f = Family(family='Family')
         self.session.add(f)
         self.session.commit()
@@ -247,6 +248,7 @@ class HistoryTests(BaubleTestCase):
         self.assertEqual(history.table_name, 'family')
         self.assertEqual(history.operation, 'insert')
 
+        sleep(0.02)
         f.family = 'Family2'
         self.session.commit()
         history = self.session.query(db.History).\
@@ -254,6 +256,7 @@ class HistoryTests(BaubleTestCase):
         self.assertEqual(history.table_name, 'family')
         self.assertEqual(history.operation, 'update')
 
+        sleep(0.02)
         self.session.delete(f)
         self.session.commit()
         history = self.session.query(db.History).\

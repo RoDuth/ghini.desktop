@@ -115,12 +115,6 @@ class BaubleTestCase(unittest.TestCase):
         bauble.pluginmgr.commands.clear()
         pluginmgr.plugins.clear()
 
-    # assertIsNone is not available before 2.7
-    import sys
-    if sys.version_info[:2] < (2, 7):
-        def assertIsNone(self, item):
-            self.assertTrue(item is None)
-
 
 def mockfunc(msg=None, name=None, caller=None, result=False, *args, **kwargs):
     caller.invoked.append((name, msg))
