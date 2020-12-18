@@ -699,6 +699,8 @@ class CSVImportTool(pluginmgr.Tool):
         if utils.yes_no_dialog(msg):
             c = CSVImporter()
             c.start()
+            bauble.command_handler('home', None)
+
 
 
 class CSVExportTool(pluginmgr.Tool):

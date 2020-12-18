@@ -95,11 +95,7 @@ class TagsMenuManager:
         bauble.gui.send_command('tag="%s"' % tag_name)
         view = bauble.gui.get_view()
         if isinstance(view, SearchView):
-            # Works but not entirely sure its correct
-            bin_win_coords = (view.results_view
-                              .convert_widget_to_bin_window_coords(0, 0))
-            path = view.results_view.get_path_at_pos(*bin_win_coords)
-            view.results_view.expand_to_path(path[0])
+            view.results_view.expand_to_path(Gtk.TreePath.new_first())
 
     def build_menu(self):
         """build tags Gtk.Menu based on current data

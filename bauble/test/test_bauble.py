@@ -244,19 +244,22 @@ class HistoryTests(BaubleTestCase):
         self.session.commit()
         history = self.session.query(db.History).\
             order_by(db.History.timestamp.desc()).first()
-        assert history.table_name == 'family' and history.operation == 'insert'
+        self.assertEqual(history.table_name, 'family')
+        self.assertEqual(history.operation, 'insert')
 
         f.family = 'Family2'
         self.session.commit()
         history = self.session.query(db.History).\
             order_by(db.History.timestamp.desc()).first()
-        assert history.table_name == 'family' and history.operation == 'update'
+        self.assertEqual(history.table_name, 'family')
+        self.assertEqual(history.operation, 'update')
 
         self.session.delete(f)
         self.session.commit()
         history = self.session.query(db.History).\
             order_by(db.History.timestamp.desc()).first()
-        assert history.table_name == 'family' and history.operation == 'delete'
+        self.assertEqual(history.table_name, 'family')
+        self.assertEqual(history.operation, 'delete')
 
 
 class MVPTests(BaubleTestCase):
@@ -308,13 +311,15 @@ class GlobalFunctionsTests(unittest.TestCase):
     def test_newer_version_on_github(self):
         import io
         from bauble.connmgr import newer_version_on_github
+        stream = io.StringIO('version = "1.3.0"  # comment')
+        self.assertFalse(newer_version_on_github(stream) and True or False)
         stream = io.StringIO('version = "1.0.0"  # comment')
         self.assertFalse(newer_version_on_github(stream) and True or False)
-        stream = io.StringIO('version = "1.0.99999"  # comment')
+        stream = io.StringIO('version = "1.3.99999"  # comment')
         self.assertTrue(newer_version_on_github(stream) and True or False)
-        stream = io.StringIO('version = "1.0.99999"  # comment')
-        self.assertEqual(newer_version_on_github(stream), '1.0.99999')
-        stream = io.StringIO('version = "1.099999"  # comment')
-        self.assertFalse(newer_version_on_github(stream) and True or False)
-        stream = io.StringIO('version = "1.0.99999-dev"  # comment')
-        self.assertFalse(newer_version_on_github(stream) and True or False)
+        stream = io.StringIO('version = "1.3.99999"  # comment')
+        self.assertEqual(newer_version_on_github(stream), '1.3.99999')
+        stream = io.StringIO('version = "1.399999"  # comment')
+        self.assertTrue(newer_version_on_github(stream) and True or False)
+        stream = io.StringIO('version = "1.3.99999-a"  # comment')
+        self.assertTrue(newer_version_on_github(stream) and True or False)

@@ -112,10 +112,11 @@ def newer_version_on_github(input_stream, force=False):
             except:
                 logger.warning("can't parse github version.")
                 return False
-            github_patch = github_version.split('.')[2]
-            if force or int(github_patch) > int(bauble.version_tuple[2]):
+            github_patch = github_version
+            current_patch = bauble.version
+            if force or github_patch > current_patch:
                 return github_version
-            if int(github_patch) < int(bauble.version_tuple[2]):
+            if github_patch < current_patch:
                 logger.info("running unreleased version")
     except TypeError as e:
         logger.warning('TypeError while reading github stream: %s', e)
@@ -189,11 +190,17 @@ def check_and_notify_new_version(view):
         github_version_stream = urllib.request.urlopen(
             version_on_github, timeout=5)
         remote = newer_version_on_github(github_version_stream)
-        if remote:
+        if remote and remote:
             def show_message_box():
-                msg = _("new remote version %s available.\n"
-                        "continue, or exit to upgrade."
-                        ) % remote
+                # if remote has '-' in it its likely a development version
+                if '-' in remote:
+                    msg = _("remote development version %s available.\n"
+                            "continue, or exit to upgrade."
+                            ) % remote
+                else:
+                    msg = _("new remote version %s available.\n"
+                            "continue, or exit to upgrade."
+                            ) % remote
                 box = view.add_message_box()
                 box.message = msg
                 box.show()
@@ -217,33 +224,39 @@ def check_and_notify_new_version(view):
 
 def check_and_notify_new_installer(view):
     '''check for a newer installer in releases on github'''
-    remote = False
+    newer = False
+    github_prerelease = False
     github_release_api = ('https://api.github.com/repos/RoDuth/ghini'
-                          '.desktop/releases/latest')
+                          '.desktop/releases')
     try:
-        import json
         from requests import exceptions
         from bauble.utils import get_net_sess
         net_sess = get_net_sess()
         github_release_req = net_sess.get(github_release_api, timeout=5)
         if github_release_req.ok:
-            github_release_json = json.loads(github_release_req.text)
-            github_release = github_release_json['tag_name'][1:]
-            github_release_int = [int(''.join(i for i in s if i.isdigit())) for
-                                  s in github_release.split('.')]
-            current_release_int = [int(i) for i in bauble.version_tuple]
-            logger.debug('current installer on github is version %s',
-                         current_release_int)
-            remote = github_release_int > current_release_int
-            if github_release_int < current_release_int:
-                logger.info('running unreleased windows install version')
+            github_release = github_release_req.json()[0]['name']
+            github_version = github_release.split()[0][1:]
+            github_prerelease = github_release_req.json()[0]['prerelease']
+            current_version = bauble.version
+            logger.debug('latest installer on github is release: %s',
+                         github_release)
+            logger.debug('latest installer on github is a prerelease?: %s',
+                         github_prerelease)
+            logger.debug('this version %s', current_version)
+            newer = github_version > current_version
+            if github_version < current_version:
+                logger.info('running unreleased windows installer version')
         else:
             logger.info('client or server error while checking for a newer '
                         'installer')
-        if remote:
+        if newer:
             def show_message_box():
-                msg = _('new installer %s available.\n'     # noqa
-                        'continue, or exit to upgrade.') % github_release
+                if github_prerelease:
+                    msg = _('prerelease installer %s available.\n'   # noqa
+                            'continue, or exit to upgrade.') % github_release
+                else:
+                    msg = _('new installer %s available.\n'     # noqa
+                            'continue, or exit to upgrade.') % github_release
                 box = view.add_message_box()
                 box.message = msg
                 box.show()
