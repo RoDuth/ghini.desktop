@@ -70,10 +70,10 @@ plant_data = [
 class ImexTestCase(BaubleTestCase):
 
     def __init__(self, *args):
-        super(ImexTestCase, self).__init__(*args)
+        super().__init__(*args)
 
     def setUp(self):
-        super(ImexTestCase, self).setUp()
+        super().setUp()
         plants_test.setUp_data()
         garden_test.setUp_data()
 
@@ -89,7 +89,7 @@ class CSVTests(ImexTestCase):
 
     def setUp(self):
         self.path = tempfile.mkdtemp()
-        super(CSVTests, self).setUp()
+        super().setUp()
 
         data = (('family', family_data), ('genus', genus_data),
                 ('species', species_data))
@@ -110,7 +110,7 @@ class CSVTests(ImexTestCase):
 
     def tearDown(self):
         shutil.rmtree(self.path)
-        super(CSVTests, self).tearDown()
+        super().tearDown()
 
     def test_import_self_referential_table(self):
         """
@@ -421,7 +421,7 @@ class MockExportView:
 class JSONExportTests(BaubleTestCase):
 
     def setUp(self):
-        super(JSONExportTests, self).setUp()
+        super().setUp()
         from tempfile import mkstemp
         handle, self.temp_path = mkstemp()
         os.close(handle)
@@ -443,7 +443,7 @@ class JSONExportTests(BaubleTestCase):
         self.session.commit()
 
     def tearDown(self):
-        super(JSONExportTests, self).tearDown()
+        super().tearDown()
         os.remove(self.temp_path)
 
     def test_writes_complete_database(self):
@@ -768,7 +768,7 @@ class JSONExportTests(BaubleTestCase):
 class JSONImportTests(BaubleTestCase):
 
     def setUp(self):
-        super(JSONImportTests, self).setUp()
+        super().setUp()
         from tempfile import mkstemp
         handle, self.temp_path = mkstemp()
         os.close(handle)
@@ -784,7 +784,7 @@ class JSONImportTests(BaubleTestCase):
         self.session.commit()
 
     def tearDown(self):
-        super(JSONImportTests, self).tearDown()
+        super().tearDown()
         os.remove(self.temp_path)
 
     def test_import_new_inserts(self):
@@ -859,7 +859,7 @@ class JSONImportTests(BaubleTestCase):
                            'epithet': "pallidus"})
         note = SpeciesNote(category='<picture>', note='a')
         self.session.commit()
-        
+
         json_string = (
             '[{"ht-epithet": "Calopogon", "epithet": "pallidus", "author": "Chapm.", '\
             ' "rank": "Species", "ht-rank": "Genus", "hybrid": false}, '\

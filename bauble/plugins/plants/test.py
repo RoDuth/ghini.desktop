@@ -270,16 +270,16 @@ class DuplicateIdsGlade(TestCase):
 class PlantTestCase(BaubleTestCase):
 
     def __init__(self, *args):
-        super(PlantTestCase, self).__init__(*args)
+        super().__init__(*args)
         from bauble import prefs
         prefs.testing = True
 
     def setUp(self):
-        super(PlantTestCase, self).setUp()
+        super().setUp()
         setUp_data()
 
     def tearDown(self):
-        super(PlantTestCase, self).tearDown()
+        super().tearDown()
 
 
 class FamilyTests(PlantTestCase):
@@ -705,12 +705,12 @@ class GenusTests(PlantTestCase):
         q = self.session.query(Species).filter_by(sp="papaya")
         matching = q.all()
         self.assertEqual(matching, [gf5])
-        
+
 
 class GenusSynonymyTests(PlantTestCase):
 
     def setUp(self):
-        super(GenusSynonymyTests, self).setUp()
+        super().setUp()
         f = self.session.query(Family).filter(Family.family == 'Orchidaceae'
                                               ).one()
         bu = Genus(family=f, genus='Bulbophyllum')  # accepted
@@ -790,10 +790,10 @@ class GenusSynonymyTests(PlantTestCase):
 class SpeciesTests(PlantTestCase):
 
     def setUp(self):
-        super(SpeciesTests, self).setUp()
+        super().setUp()
 
     def tearDown(self):
-        super(SpeciesTests, self).tearDown()
+        super().tearDown()
 
     def test_editor(self):
         raise SkipTest('Not Implemented')
@@ -1060,8 +1060,8 @@ class SpeciesTests(PlantTestCase):
         sp4 = create_tmp_sp(54)
         self.session.commit()
         self.assertEqual(sp1.accepted, None)
-        self.assertEqual(sp2.accepted, None) 
-        self.assertEqual(sp3.accepted, None) 
+        self.assertEqual(sp2.accepted, None)
+        self.assertEqual(sp3.accepted, None)
         self.assertEqual(sp4.accepted, None)
 
     def test_synonyms_and_accepted_properties(self):
@@ -1090,13 +1090,13 @@ class SpeciesTests(PlantTestCase):
         self.assertEqual([i.epithet for i in sp4.synonyms], [sp2.epithet])
         self.assertEqual([i.epithet for i in sp1.synonyms], [sp3.epithet])
         self.assertEqual(sp1.accepted, None)
-        self.assertEqual(sp2.accepted, sp4) 
-        self.assertEqual(sp3.accepted, sp1) 
+        self.assertEqual(sp2.accepted, sp4)
+        self.assertEqual(sp3.accepted, sp1)
         self.assertEqual(sp4.accepted, None)
         sp2.accepted = sp4  # does not change anything
         self.assertEqual(sp1.accepted, None)
-        self.assertEqual(sp2.accepted, sp4) 
-        self.assertEqual(sp3.accepted, sp1) 
+        self.assertEqual(sp2.accepted, sp4)
+        self.assertEqual(sp3.accepted, sp1)
         self.assertEqual(sp4.accepted, None)
 
     def test_remove_callback_no_accessions_no_confirm(self):
@@ -1197,10 +1197,10 @@ class SpeciesTests(PlantTestCase):
 class GeographyTests(PlantTestCase):
 
     def __init__(self, *args):
-        super(GeographyTests, self).__init__(*args)
+        super().__init__(*args)
 
     def setUp(self):
-        super(GeographyTests, self).setUp()
+        super().setUp()
         self.family = Family(family='family')
         self.genus = Genus(genus='genus', family=self.family)
         self.session.add_all([self.family, self.genus])
@@ -1215,7 +1215,7 @@ class GeographyTests(PlantTestCase):
         self.session.commit()
 
     def tearDown(self):
-        super(GeographyTests, self).tearDown()
+        super().tearDown()
 
     def test_get_species(self):
         mexico_id = 53
@@ -2014,13 +2014,13 @@ import bauble.search
 class BaubleSearchSearchTest(BaubleTestCase):
     def test_search_search_uses_Synonym_Search(self):
         bauble.search.search("genus like %", self.session)
-        self.assertTrue('SearchStrategy "genus like %"(SynonymSearch)' in 
+        self.assertTrue('SearchStrategy "genus like %"(SynonymSearch)' in
                    self.handler.messages['bauble.search']['debug'])
         self.handler.reset()
         bauble.search.search("12.11.13", self.session)
-        self.assertTrue('SearchStrategy "12.11.13"(SynonymSearch)' in 
+        self.assertTrue('SearchStrategy "12.11.13"(SynonymSearch)' in
                    self.handler.messages['bauble.search']['debug'])
         self.handler.reset()
         bauble.search.search("So ha", self.session)
-        self.assertTrue('SearchStrategy "So ha"(SynonymSearch)' in 
+        self.assertTrue('SearchStrategy "So ha"(SynonymSearch)' in
                    self.handler.messages['bauble.search']['debug'])

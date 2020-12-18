@@ -175,11 +175,11 @@ class DuplicateIdsGlade(TestCase):
 class GardenTestCase(BaubleTestCase):
 
     def __init__(self, *args, **kwargs):
-        super(GardenTestCase, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         prefs.testing = True
 
     def setUp(self):
-        super(GardenTestCase, self).setUp()
+        super().setUp()
         plants_test.setUp_data()
         self.family = Family(family='Cactaceae')
         self.genus = Genus(family=self.family, genus='Echinocactus')
@@ -189,7 +189,7 @@ class GardenTestCase(BaubleTestCase):
         self.session.commit()
 
     def tearDown(self):
-        super(GardenTestCase, self).tearDown()
+        super().tearDown()
 
     def create(self, class_, **kwargs):
         obj = class_(**kwargs)
@@ -200,10 +200,10 @@ class GardenTestCase(BaubleTestCase):
 class PlantTests(GardenTestCase):
 
     def __init__(self, *args):
-        super(PlantTests, self).__init__(*args)
+        super().__init__(*args)
 
     def setUp(self):
-        super(PlantTests, self).setUp()
+        super().setUp()
         self.accession = self.create(Accession,
                                      species=self.species, code='1')
         self.location = self.create(Location, name='site', code='STE')
@@ -212,7 +212,7 @@ class PlantTests(GardenTestCase):
         self.session.commit()
 
     def tearDown(self):
-        super(PlantTests, self).tearDown()
+        super().tearDown()
 
     def test_constraints(self):
         """
@@ -469,10 +469,10 @@ class PlantTests(GardenTestCase):
 class PropagationTests(GardenTestCase):
 
     def __init__(self, *args):
-        super(PropagationTests, self).__init__(*args)
+        super().__init__(*args)
 
     def setUp(self):
-        super(PropagationTests, self).setUp()
+        super().setUp()
         self.accession = self.create(
             Accession, species=self.species, code='1')
         self.plants = []
@@ -504,7 +504,7 @@ class PropagationTests(GardenTestCase):
         self.session.query(Location).delete()
         self.session.query(Accession).delete()
         self.session.commit()
-        super(PropagationTests, self).tearDown()
+        super().tearDown()
 
     def test_propagation_cutting_quantity_new_zero(self):
         self.add_plants(['1'])
@@ -904,7 +904,7 @@ class PropagationTests(GardenTestCase):
 class AccessionEditorSpeciesMatchTests(GardenTestCase):
 
     def setUp(self):
-        super(AccessionEditorSpeciesMatchTests, self).setUp()
+        super().setUp()
         self.sp3 = Species(genus=self.genus, sp='inexistente')
         self.session.add_all([self.sp3])
         self.session.commit()
@@ -951,16 +951,16 @@ class AccessionEditorSpeciesMatchTests(GardenTestCase):
 class VoucherTests(GardenTestCase):
 
     def __init__(self, *args):
-        super(VoucherTests, self).__init__(*args)
+        super().__init__(*args)
 
     def setUp(self):
-        super(VoucherTests, self).setUp()
+        super().setUp()
         self.accession = self.create(
             Accession, species=self.species, code='1')
         self.session.commit()
 
     def tearDown(self):
-        super(VoucherTests, self).tearDown()
+        super().tearDown()
 
     def test_voucher(self):
         """
@@ -990,15 +990,15 @@ class VoucherTests(GardenTestCase):
 class SourceTests(GardenTestCase):
 
     def __init__(self, *args):
-        super(SourceTests, self).__init__(*args)
+        super().__init__(*args)
 
     def setUp(self):
-        super(SourceTests, self).setUp()
+        super().setUp()
         self.accession = self.create(
             Accession, species=self.species, code='1')
 
     def tearDown(self):
-        super(SourceTests, self).tearDown()
+        super().tearDown()
 
     def _make_prop(self, source):
         '''associate a seed Propagation to source
@@ -1088,10 +1088,10 @@ class SourceTests(GardenTestCase):
 class AccessionQualifiedTaxon(GardenTestCase):
 
     def __init__(self, *args):
-        super(AccessionQualifiedTaxon, self).__init__(*args)
+        super().__init__(*args)
 
     def setUp(self):
-        super(AccessionQualifiedTaxon, self).setUp()
+        super().setUp()
         self.sp3 = Species(genus=self.genus, sp='grusonii',
                            infrasp1_rank='var.', infrasp1='albispinus')
         self.session.add(self.sp3)
@@ -1100,7 +1100,7 @@ class AccessionQualifiedTaxon(GardenTestCase):
         self.ac2 = self.create(Accession, species=self.sp3, code='2')
 
     def tearDown(self):
-        super(AccessionQualifiedTaxon, self).tearDown()
+        super().tearDown()
 
     def test_species_str_plain(self):
         s = 'Echinocactus grusonii'
@@ -1272,13 +1272,13 @@ class AccessionQualifiedTaxon(GardenTestCase):
 class AccessionTests(GardenTestCase):
 
     def __init__(self, *args):
-        super(AccessionTests, self).__init__(*args)
+        super().__init__(*args)
 
     def setUp(self):
-        super(AccessionTests, self).setUp()
+        super().setUp()
 
     def tearDown(self):
-        super(AccessionTests, self).tearDown()
+        super().tearDown()
 
     def test_delete(self):
         """
@@ -1566,13 +1566,13 @@ class AccessionTests(GardenTestCase):
 class VerificationTests(GardenTestCase):
 
     def __init__(self, *args):
-        super(VerificationTests, self).__init__(*args)
+        super().__init__(*args)
 
     def setUp(self):
-        super(VerificationTests, self).setUp()
+        super().setUp()
 
     def tearDown(self):
-        super(VerificationTests, self).tearDown()
+        super().tearDown()
 
     def test_verifications(self):
         acc = self.create(Accession, species=self.species, code='1')
@@ -1594,13 +1594,13 @@ class VerificationTests(GardenTestCase):
 class LocationTests(GardenTestCase):
 
     def __init__(self, *args):
-        super(LocationTests, self).__init__(*args)
+        super().__init__(*args)
 
     def setUp(self):
-        super(LocationTests, self).setUp()
+        super().setUp()
 
     def tearDown(self):
-        super(LocationTests, self).tearDown()
+        super().tearDown()
 
     def test_location_editor(self):
         loc = self.create(Location, name='some site', code='STE')
@@ -1665,13 +1665,13 @@ class LocationTests(GardenTestCase):
 class CollectionTests(GardenTestCase):
 
     def __init__(self, *args):
-        super(CollectionTests, self).__init__(*args)
+        super().__init__(*args)
 
     def setUp(self):
-        super(CollectionTests, self).setUp()
+        super().setUp()
 
     def tearDown(self):
-        super(CollectionTests, self).tearDown()
+        super().tearDown()
 
     def test_collection_search_view_markup_pair(self):
         """Test Collection.accession property
@@ -1812,9 +1812,9 @@ class InstitutionPresenterTests(GardenTestCase):
         p = InstitutionPresenter(o, view)
         p.on_inst_register_clicked()
         print(self.handler.messages['bauble.registrations']['info'][0])
-        target = [('fax', None), ('address', None), ('name', ''), 
-                                  ('contact', None), ('technical_contact', None), ('geo_diameter', None), 
-                                  ('abbreviation', None), ('code', None), ('geo_longitude', None), 
+        target = [('fax', None), ('address', None), ('name', ''),
+                                  ('contact', None), ('technical_contact', None), ('geo_diameter', None),
+                                  ('abbreviation', None), ('code', None), ('geo_longitude', None),
                                   ('tel', None), ('email', ''), ('geo_latitude', None)]
         for i in eval(self.handler.messages['bauble.registrations']['info'][0]):
             self.assertTrue(i in target, i)
@@ -2130,10 +2130,10 @@ import bauble.search as search
 
 class PlantSearchTest(GardenTestCase):
     def __init__(self, *args):
-        super(PlantSearchTest, self).__init__(*args)
+        super().__init__(*args)
 
     def setUp(self):
-        super(PlantSearchTest, self).setUp()
+        super().setUp()
         setUp_data()
 
     def test_searchbyplantcode_unquoted(self):
@@ -2364,7 +2364,7 @@ class GlobalFunctionsTests(GardenTestCase):
 class ContactTests(GardenTestCase):
 
     def __init__(self, *args):
-        super(ContactTests, self).__init__(*args)
+        super().__init__(*args)
 
     def test_delete(self):
 

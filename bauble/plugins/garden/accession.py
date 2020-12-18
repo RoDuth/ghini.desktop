@@ -1222,7 +1222,6 @@ class VerificationPresenter(editor.GenericEditorPresenter):
     class VerificationBox(Gtk.Box):
 
         def __init__(self, parent, model):
-            # super(VerificationPresenter.VerificationBox, self).__init__(self)
             super().__init__(self)
             check(not model or isinstance(model, Verification))
 

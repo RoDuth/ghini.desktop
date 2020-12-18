@@ -254,7 +254,7 @@ class ImportNewPlant(BaubleTestCase):
 
 class ImportExistingPlant(BaubleTestCase):
     def setUp(self):
-        super(ImportExistingPlant, self).setUp()
+        super().setUp()
         fam_fictive = Family(epithet='Zz-Plantae')
         gen_fictive = Genus(epithet='Zzd-Plantae', family=fam_fictive)
         fam = Family(epithet='Myrtaceae')
@@ -331,7 +331,7 @@ class ImportExistingPlant(BaubleTestCase):
 
 class ImportInventoryLines(BaubleTestCase):
     def setUp(self):
-        super(ImportInventoryLines, self).setUp()
+        super().setUp()
         loc = Location(code='somewhere')
         fam_fictive = Family(epithet='Zz-Plantae')
         gen_fictive = Genus(epithet='Zzd-Plantae', family=fam_fictive)
@@ -439,7 +439,7 @@ class ImportInventoryLines(BaubleTestCase):
 
 class ImportGPSCoordinates(BaubleTestCase):
     def setUp(self):
-        super(ImportGPSCoordinates, self).setUp()
+        super().setUp()
         loc = Location(code='somewhere')
         fam_fictive = Family(epithet='Zz-Plantae')
         gen_fictive = Genus(epithet='Zzd-Plantae', family=fam_fictive)
@@ -490,7 +490,7 @@ class ImportGPSCoordinates(BaubleTestCase):
 
 class ImportPictures(BaubleTestCase):
     def setUp(self):
-        super(ImportPictures, self).setUp()
+        super().setUp()
         loc = Location(code='somewhere')
         fam_fictive = Family(epithet='Zz-Plantae')
         gen_fictive = Genus(epithet='Zzd-Plantae', family=fam_fictive)

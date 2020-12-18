@@ -109,7 +109,6 @@ settings.json
 odk-seen.json
 lab-csv2json.py
 /.gtm/
-test.py
 imex-it.rst
 ghini.py
 ghini.desktop*setup.exe
