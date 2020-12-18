@@ -36,6 +36,5 @@ deploy:
   prerelease: true
   force_update: true
 
-# can't seem to get this working in mingw64
 test_script:
-  - bash -lc "set BAUBLE_TEST=True nosetests"
+  - bash -lc "BAUBLE_TEST=True nosetests --traverse-namespace -vv"
