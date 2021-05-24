@@ -240,6 +240,7 @@ class HistoryTests(BaubleTestCase):
         """
         from bauble.plugins.plants import Family
         from time import sleep
+        sleep(0.02)
         f = Family(family='Family')
         self.session.add(f)
         self.session.commit()
