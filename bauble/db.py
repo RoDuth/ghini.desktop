@@ -75,17 +75,6 @@ SQLALCHEMY_DEBUG = False
 sqlalchemy_debug(SQLALCHEMY_DEBUG)
 
 
-def get_or_create(session, model, **kwargs):
-    instance = session.query(model).filter_by(**kwargs).first()
-    if instance:
-        return instance
-    else:
-        instance = model(**kwargs)
-        session.add(instance)
-        session.flush()
-        return instance
-
-
 def natsort(attr, obj):
     """return the naturally sorted list of the object attribute
 
@@ -792,6 +781,123 @@ def class_of_object(o):
         from bauble import pluginmgr
         cls = pluginmgr.provided.get(name)
     return cls
+
+
+def get_or_create(session, model, **kwargs):
+    instance = session.query(model).filter_by(**kwargs).first()
+    if instance:
+        return instance
+    else:
+        instance = model(**kwargs)
+        session.add(instance)
+        session.flush()
+        return instance
+
+
+def get_create_or_update(session, model, **kwargs):
+    """get, create or update and add to the session an appropriate database
+    entry given its model and some data.
+
+    Intended for use when possibly looking to update values but unsure
+    what those updates are.  It is best to provide something clearly
+    identifying (i.e. a primary key or all unique fields) when updating.
+    Note: when using unique fields and not a primary key it is generally not
+    possible to update any unique fields, a new entry will be created instead.
+    Note: will add related items to the session but not flush or commit
+    anything.
+
+    :param session: instance of db.Session()
+    :param model: sqlalchemy table class
+    :param kwargs: database values
+    """
+    from sqlalchemy.orm.exc import MultipleResultsFound, NoResultFound
+    from sqlalchemy.exc import SQLAlchemyError
+    logger.debug('looking for record matching: %s', kwargs)
+    # first try using just one
+    try:
+        inst = session.query(model).filter_by(**kwargs).one()
+        return inst
+    except MultipleResultsFound:
+        # no unique entry found, abort or we risk overwriting the wrong one.
+        return None
+    except SQLAlchemyError:
+        # any other error (i.e. no result, error in the statement - can occur
+        # with new data not flushed yet.)
+        inst = None
+
+    logger.debug("couldn't find matching object just using kwargs")
+    # try using a primary key
+    if not inst:
+        for col in model.__table__.columns:
+            if col.primary_key and (pkey := kwargs.get(col.key)):
+                logger.debug(f'trying using primary key: %s', col.key)
+                inst = session.query(model).get(pkey)
+
+    # try using unique fields
+    if not inst:
+        unique = dict()
+        uniq_cols = []
+        if hasattr(model, '__table_args__'):
+            from sqlalchemy import UniqueConstraint
+            uniq_const = [i for i in model.__table_args__ if
+                          isinstance(i, UniqueConstraint)][0]
+            uniq_cols = uniq_const.columns.keys()
+        # - add any joining columns (i.e. in plant we have accession_id as part
+        # of the UniqueConstraint so "accession_id" would also include
+        # "accession")
+        uniq_joins = [i[:-3] for i in uniq_cols if i.endswith('_id')]
+        uniq_cols += uniq_joins
+        # - add columns with the unique attribute set
+        uniq_table_cols = [i.key for i in model.__table__.columns if
+                           i.unique and i.key not in uniq_cols]
+        uniq_cols += uniq_table_cols
+        # include epithet - synonym used on all taxonomic levels
+        uniq_cols += ['epithet']
+        logger.debug('unique columns: %s', uniq_cols)
+        # get the kwargs that have keys in uniq_cols and try finding a match
+        for col in uniq_cols:
+            if (uniq_val := kwargs.get(col)):
+                unique[col] = uniq_val
+        if unique:
+            try:
+                print(f'trying using unique columns: {unique}')
+                inst = session.query(model).filter_by(**unique).one()
+            except MultipleResultsFound:
+                return None
+            except SQLAlchemyError:
+                inst = None
+        else:
+            logger.debug("couldn't find unique columns to use.")
+
+    # last try, when available use uniq_props
+    if not inst and hasattr(model, 'uniq_props'):
+        unique = dict()
+        for k in kwargs:
+            if k in model.uniq_props:
+                unique[k] = kwargs.get(k)
+        if unique:
+            try:
+                print(f'trying using uniq_props columns: {unique}')
+                inst = session.query(model).filter_by(**unique).one()
+            except MultipleResultsFound:
+                return None
+            except SQLAlchemyError:
+                inst = None
+        else:
+            print("couldn't find uniq_props columns to use.")
+
+    # if none of the above got a result it should be safe to create a new entry
+    if not inst:
+        print(f'creating new {model} with {kwargs}')
+        inst = model(**kwargs)
+        session.add(inst)
+        return inst
+
+    # update the columns values.
+    for k, v in kwargs.items():
+        setattr(inst, k, v)
+
+    return inst
 
 
 class current_user_functor:

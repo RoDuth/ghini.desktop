@@ -935,7 +935,11 @@ class SchemaMenu(Gtk.Menu):
             menu = menuitem.get_parent()
         full_path = '.'.join(reversed(path))
         if self.selectable_relations and hasattr(prop, '__table__'):
-            full_path = full_path.removesuffix(f'.{prop.__table__.key}')
+            # python 3.9 only  - not currently available in mingw packages
+            # full_path = full_path.removesuffix(f'.{prop.__table__.key}')
+            suffix = f'.{prop.__table__.key}'
+            if full_path.endswith(suffix):
+                full_path = full_path[:-len(suffix)]
         self.activate_cb(menuitem, full_path, prop)
 
     def on_select(self, menuitem, prop):
