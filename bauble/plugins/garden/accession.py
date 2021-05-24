@@ -1233,12 +1233,9 @@ class VerificationPresenter(editor.GenericEditorPresenter):
 
             # copy UI definitions from the accession editor glade file
             filename = os.path.join(paths.lib_dir(), "plugins", "garden",
-                                    "acc_editor.glade")
-            xml = etree.parse(filename)
-            el = xml.find("//object[@id='ver_box']")
+                                    "acc_ver_box.glade")
             builder = Gtk.Builder()
-            s = '<interface>%s</interface>' % etree.tostring(el)
-            builder.add_from_string(s)
+            builder.add_from_file(filename)
             self.widgets = utils.BuilderWidgets(builder)
 
             ver_box = self.widgets.ver_box

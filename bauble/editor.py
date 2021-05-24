@@ -1883,12 +1883,9 @@ class NoteBox(Gtk.Box):
 
         # open the glade file and extract the markup that the
         # expander will use
-        filename = os.path.join(paths.lib_dir(), self.glade_ui)
-        xml = etree.parse(filename)
-        el = xml.find("//object[@id='notes_box']")
+        filename = os.path.join(paths.lib_dir(), 'notes_box.glade')
         builder = Gtk.Builder()
-        s = '<interface>%s</interface>' % etree.tostring(el)
-        builder.add_from_string(s)
+        builder.add_from_file(filename)
         self.widgets = utils.BuilderWidgets(builder)
 
         notes_box = self.widgets.notes_box
