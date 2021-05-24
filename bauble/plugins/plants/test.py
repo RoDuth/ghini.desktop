@@ -975,6 +975,20 @@ class SpeciesTests(PlantTestCase):
         sp.default_vernacular_name = vn2
         self.session.commit()
 
+        # test hybrid property setter and expression
+        q = self.session.query(Species).filter(
+            Species.default_vernacular_name == 'vn2').one()
+        self.assertEqual(q, sp)
+        sp.default_vernacular_name = 'hybrid set'
+        self.session.commit()
+        self.assertEqual(sp.default_vernacular_name.name, 'hybrid set')
+        self.assertIsNone(sp.default_vernacular_name.language)
+        # Test the language is added
+        sp.default_vernacular_name = 'set hybrid:Lang'
+        self.session.commit()
+        self.assertEqual(sp.default_vernacular_name.name, 'set hybrid')
+        self.assertEqual(sp.default_vernacular_name.language, 'Lang')
+
     def test_synonyms_low_level(self):
         """
         Test the Species.synonyms property
@@ -1788,6 +1802,106 @@ Lauraceae,,Cinnamomum,,"camphora",var.,"nominale","Hats. & Hayata"
         self.assertEqual(cv.infraspecific_epithet, 'multicaulis')
         self.assertEqual(cv.infraspecific_author, '')
         self.assertEqual(cv.cultivar_epithet, 'Bellissima')
+
+    def test_infraspecific_hybrid_properties(self):
+        family = Family(family='family')
+        genus = Genus(family=family, genus='genus')
+        sp = Species(genus=genus, sp='sp')
+        # Check all parts end up where they should
+        parts = "var. variety f. form"
+        sp.infraspecific_parts = parts
+        cul = "Cultivar In Parts"
+        sp.cultivar_epithet = cul
+        self.session.add_all([family, genus, sp])
+        self.session.commit()
+        # Make sure we cover the expression for each
+        q = self.session.query(Species).filter_by(
+            infraspecific_rank=parts.split()[-2]).one()
+        self.assertEqual(sp, q)
+        q = self.session.query(Species).filter_by(
+            infraspecific_epithet=parts.split()[-1]).one()
+        self.assertEqual(sp, q)
+        q = self.session.query(Species).filter_by(
+            cultivar_epithet=cul).one()
+        self.assertEqual(sp, q)
+        self.assertEqual(sp.infraspecific_parts, parts)
+        self.assertEqual(sp.infrasp1_rank, parts.split()[0])
+        self.assertEqual(sp.infrasp1, parts.split()[1])
+        self.assertEqual(sp.infrasp2_rank, parts.split()[2])
+        self.assertEqual(sp.infrasp2, parts.split()[3])
+        self.assertEqual(sp.infrasp3_rank, 'cv.')
+        self.assertEqual(sp.infrasp3, cul)
+        self.assertEqual(sp.cultivar_epithet, cul)
+        # test if we remove the infraspecific parts the cultivar remains (and
+        # is moved to the first position)
+        sp.infraspecific_parts = None
+        self.session.commit()
+        self.assertEqual(sp.infrasp1_rank, 'cv.')
+        self.assertEqual(sp.infrasp1, cul)
+        self.assertEqual(sp.cultivar_epithet, cul)
+        # test removing cultivar_epithet with no other parts removes everything
+        sp.cultivar_epithet = None
+        self.session.commit()
+        self.assertIsNone(sp.infrasp1_rank)
+        self.assertIsNone(sp.infrasp1)
+        self.assertIsNone(sp.infrasp2_rank)
+        self.assertIsNone(sp.infrasp2)
+        self.assertIsNone(sp.infrasp3_rank)
+        self.assertIsNone(sp.infrasp3)
+        self.assertIsNone(sp.infrasp4_rank)
+        self.assertIsNone(sp.infrasp4)
+
+    def test_infraspecific_hybrid_properties_w_cv_rank_only(self):
+        family = Family(family='family')
+        genus = Genus(family=family, genus='genus')
+        sp = Species(genus=genus, sp='sp')
+        parts = "var. variety f. form"
+        sp.infraspecific_parts = parts
+        self.session.add_all([family, genus, sp])
+        self.session.commit()
+        # test 'cv.'
+        cul = 'cv.'
+        sp.cultivar_epithet = cul
+        self.session.commit()
+        self.assertEqual(sp.infraspecific_parts, parts)
+        self.assertEqual(sp.infrasp1_rank, parts.split()[0])
+        self.assertEqual(sp.infrasp1, parts.split()[1])
+        self.assertEqual(sp.infrasp2_rank, parts.split()[2])
+        self.assertEqual(sp.infrasp2, parts.split()[3])
+        self.assertEqual(sp.infrasp3_rank, 'cv.')
+        self.assertIsNone(sp.infrasp3)
+        # test removing parts leaves cv in correct place
+        sp.infraspecific_parts = None
+        self.session.commit()
+        self.assertEqual(sp.infrasp1_rank, 'cv.')
+        self.assertIsNone(sp.infrasp1)
+        self.assertEqual(sp.cultivar_epithet, cul)
+
+    def test_infraspecific_hybrid_properties_wo_cv(self):
+        family = Family(family='family')
+        genus = Genus(family=family, genus='genus')
+        sp = Species(genus=genus, sp='sp')
+        parts = "var. variety f. form"
+        sp.infraspecific_parts = parts
+        self.session.add_all([family, genus, sp])
+        self.session.commit()
+        self.assertEqual(sp.infraspecific_parts, parts)
+        self.assertEqual(sp.infrasp1_rank, parts.split()[0])
+        self.assertEqual(sp.infrasp1, parts.split()[1])
+        self.assertEqual(sp.infrasp2_rank, parts.split()[2])
+        self.assertEqual(sp.infrasp2, parts.split()[3])
+        self.assertIsNone(sp.infrasp3_rank)
+        # test if we remove the infraspecific parts everything is removed
+        sp.infraspecific_parts = None
+        self.session.commit()
+        self.assertIsNone(sp.infrasp1_rank)
+        self.assertIsNone(sp.infrasp1)
+        self.assertIsNone(sp.infrasp2_rank)
+        self.assertIsNone(sp.infrasp2)
+        self.assertIsNone(sp.infrasp3_rank)
+        self.assertIsNone(sp.infrasp3)
+        self.assertIsNone(sp.infrasp4_rank)
+        self.assertIsNone(sp.infrasp4)
 
 
 class SpeciesProperties_test(PlantTestCase):

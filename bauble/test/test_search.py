@@ -928,6 +928,125 @@ class BinomialSearchTests(BaubleTestCase):
         self.assertEqual(results, set([self.ic, sp5]))
 
 
+from sqlalchemy.orm import class_mapper
+from bauble.search import SchemaMenu
+from bauble.plugins.garden.plant import Plant
+from bauble.plugins.plants.species import Species
+from sqlalchemy.ext.hybrid import hybrid_property
+from sqlalchemy.orm.attributes import InstrumentedAttribute
+
+
+class SchemaMenuTests(BaubleTestCase):
+    def setUp(self):
+        super().setUp()
+        self.selected = []
+
+    def menu_activated(self, widget, path, prop):
+        self.selected.append((path, prop))
+
+    @staticmethod
+    def key(prop):
+        key = prop.key if hasattr(prop, 'key') else prop.__name__
+        return key
+
+    def test_menu_populates_w_plants(self):
+        schema_menu = SchemaMenu(class_mapper(Plant), self.menu_activated)
+        for i in class_mapper(Plant).all_orm_descriptors:
+            self.assertTrue(i.key in [j.get_label() for j in
+                                      schema_menu.get_children()],
+                            f'key:{i.key} not found in schema menu')
+
+    def test_menu_populates_w_species(self):
+        mapper = class_mapper(Species)
+        schema_menu = SchemaMenu(mapper, self.menu_activated)
+        for i in class_mapper(Species).all_orm_descriptors:
+            if (isinstance(i, (hybrid_property, InstrumentedAttribute)) or
+                    i.key in [i.key for i in mapper.synonyms]):
+                key = self.key(i)
+                self.assertTrue(key in [j.get_label() for j in
+                                        schema_menu.get_children()],
+                                f'key:{key} not found in schema menu')
+            else:
+                key = self.key(i)
+                self.assertFalse(key in [j.get_label() for j in
+                                         schema_menu.get_children()],
+                                 f'key:{key} should not be in schema menu')
+
+    def test_selectable_relations(self):
+        schema_menu = SchemaMenu(class_mapper(Plant),
+                                 self.menu_activated,
+                                 selectable_relations=True)
+        for i in class_mapper(Plant).all_orm_descriptors:
+            self.assertTrue(i.key in [j.get_label() for j in
+                                      schema_menu.get_children()],
+                            f'key:{i.key} not found in schema menu')
+            self.assertTrue(
+                'plant' in [i.get_label() for i in schema_menu.get_children()])
+        items = {i.get_label(): i for i in schema_menu.get_children()}
+        schema_menu.on_activate(items.get('plant'), None)
+        self.assertTrue(('plant', None) in self.selected)
+
+    def test_column_filter(self):
+        def test_filter(prop):
+            if prop.key == 'code':
+                return False
+            return True
+
+        schema_menu = SchemaMenu(class_mapper(Plant),
+                                 self.menu_activated,
+                                 column_filter=test_filter)
+        self.assertFalse('code' in [i.get_label() for i in
+                                    schema_menu.get_children()],
+                         'key:code should be filtered from schema menu')
+
+    def test_relation_filter(self):
+        def test_filter(prop):
+            if prop.key == 'accession':
+                return False
+            return True
+
+        schema_menu = SchemaMenu(class_mapper(Plant),
+                                 self.menu_activated,
+                                 relation_filter=test_filter)
+        self.assertFalse('accession' in [i.get_label() for i in
+                                         schema_menu.get_children()],
+                         'key:accession should be filtered from schema menu')
+
+    def test_on_activate(self):
+        schema_menu = SchemaMenu(class_mapper(Plant), self.menu_activated)
+        items = {i.get_label(): i for i in schema_menu.get_children()}
+        schema_menu.on_activate(items.get('code'), None)
+        self.assertTrue(('code', None) in self.selected)
+
+    def test_on_select(self):
+        schema_menu = SchemaMenu(class_mapper(Plant), self.menu_activated)
+        items = {i.get_label(): i for i in schema_menu.get_children()}
+        schema_menu.on_select(items.get('accession'), Plant.accession)
+        sub_menu = items.get('accession').get_submenu()
+        self.assertEqual(sub_menu.get_children()[0].get_label(),
+                         'id')
+
+    def test_on_activate_with_submenus(self):
+        schema_menu = SchemaMenu(class_mapper(Plant), self.menu_activated)
+        items = {i.get_label(): i for i in schema_menu.get_children()}
+        schema_menu.on_select(items.get('accession'), Plant.accession)
+        sub_menu = items.get('accession').get_submenu()
+        schema_menu.on_activate(sub_menu.get_children()[0], None)
+        self.assertTrue(('accession.id', None) in self.selected)
+
+    def test_on_activate_w_selecable_relations_submenus(self):
+        schema_menu = SchemaMenu(class_mapper(Plant),
+                                 self.menu_activated,
+                                 selectable_relations=True)
+        items = {i.get_label(): i for i in schema_menu.get_children()}
+        schema_menu.on_select(items.get('accession'), Plant.accession)
+        sub_menu = items.get('accession').get_submenu()
+        from bauble.plugins.garden.accession import Accession
+        schema_menu.on_activate(sub_menu.get_children()[0], Accession)
+        self.assertTrue(('accession', Accession) in self.selected,
+                        f'{self.selected}')
+
+
 class QueryBuilderTests(BaubleTestCase):
 
     def test_cancreatequerybuilder(self):
@@ -1182,28 +1301,56 @@ class FilterThenMatchTests(BaubleTestCase):
 
 class ParseTypedValue(BaubleTestCase):
     def test_parse_typed_value_floats(self):
-        result = search.parse_typed_value('0.0')
-        self.assertEqual(result, 0.0)
-        result = search.parse_typed_value('-4.0')
-        self.assertEqual(result, -4.0)
+        from sqlalchemy import Float
+        result = search.parse_typed_value('0.0', Float())
+        self.assertEqual(result, '0.0')
+        result = search.parse_typed_value('-4.0', Float())
+        self.assertEqual(result, '-4.0')
 
     def test_parse_typed_value_int(self):
-        result = search.parse_typed_value('0')
-        self.assertEqual(result, 0)
-        result = search.parse_typed_value('-4')
-        self.assertEqual(result, -4)
+        from sqlalchemy import Integer
+        result = search.parse_typed_value('0', Integer())
+        self.assertEqual(result, '0')
+        result = search.parse_typed_value('-4', Integer())
+        self.assertEqual(result, '-4')
 
-    def test_parse_typed_value_None(self):
-        result = search.parse_typed_value('None')
-        self.assertEqual(result, None)
+    def test_parsed_typed_value_bool(self):
+        from sqlalchemy import Boolean
+        result = search.parse_typed_value('True', Boolean())
+        self.assertEqual(result, '|bool|True|')
+        result = search.parse_typed_value('False', Boolean())
+        self.assertEqual(result, '|bool|False|')
+        result = search.parse_typed_value(None, Boolean())
+        self.assertIsNone(result)
+
+    def test_parse_typed_value_date(self):
+        from bauble.btypes import DateTime, Date
+        result = search.parse_typed_value('2020,01,1', DateTime())
+        self.assertEqual(result, '|datetime|2020,01,1|')
+        result = search.parse_typed_value('2020,01,1', Date())
+        self.assertEqual(result, '|datetime|2020,01,1|')
+        result = search.parse_typed_value('-30', Date())
+        self.assertEqual(result, '|datetime|-30|')
+        result = search.parse_typed_value('1-1-20', Date())
+        self.assertEqual(result, '|datetime|2020, 1, 1|')
+        result = search.parse_typed_value('1/1/20', Date())
+        self.assertEqual(result, '|datetime|2020, 1, 1|')
+        result = search.parse_typed_value('2020/1/1', Date())
+        self.assertEqual(result, '|datetime|2020, 1, 1|')
+        result = search.parse_typed_value('2020-1-1', Date())
+        self.assertEqual(result, '|datetime|2020, 1, 1|')
+
+    def test_parse_typed_value_none(self):
+        result = search.parse_typed_value('None', None)
+        self.assertEqual(result, 'None')
 
     def test_parse_typed_value_empty_set(self):
-        result = search.parse_typed_value('Empty')
+        result = search.parse_typed_value('Empty', None)
         self.assertEqual(type(result), search.EmptyToken)
 
     def test_parse_typed_value_fallback(self):
-        result = search.parse_typed_value('whatever else')
-        self.assertEqual(result, 'whatever else')
+        result = search.parse_typed_value('whatever else', None)
+        self.assertEqual(result, "'whatever else'")
 
 
 class EmptySetEqualityTest(unittest.TestCase):

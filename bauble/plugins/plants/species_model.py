@@ -32,6 +32,7 @@ from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy import Column, Boolean, Unicode, Integer, ForeignKey, \
     UnicodeText, func, UniqueConstraint
 from sqlalchemy.orm import relation, backref, synonym
+from sqlalchemy.ext.hybrid import hybrid_property
 import bauble.db as db
 import bauble.error as error
 import bauble.utils as utils
@@ -275,32 +276,147 @@ class Species(db.Base, db.Serializable, db.DefiningPictures, db.WithNotes):
         return sorted(infrasp, key=lambda a: compare_rank.get(str(a[0]),
                                                               150))[-1]
 
-    @property
+    @hybrid_property
     def infraspecific_rank(self):
         return self.__lowest_infraspecific()[0] or ''
 
-    @property
+    @infraspecific_rank.expression
+    def infraspecific_rank(cls):   # noqa pylint: disable=no-self-argument,no-self-use
+        # use the last epithet that is not 'cv'. available (the user should be
+        # keeping their infraspecific parts in order)
+        from sqlalchemy.sql.expression import case
+        return (
+            case([
+                (cls.infrasp4_rank != 'cv.', cls.infrasp4_rank),
+                (cls.infrasp3_rank != 'cv.', cls.infrasp3_rank),
+                (cls.infrasp2_rank != 'cv.', cls.infrasp2_rank),
+                (cls.infrasp1_rank != 'cv.', cls.infrasp1_rank),
+            ])
+            .label('infraspecific_rank')
+        )
+
+    @hybrid_property
     def infraspecific_epithet(self):
         return self.__lowest_infraspecific()[1] or ''
+
+    @infraspecific_epithet.expression
+    def infraspecific_epithet(cls):   # noqa pylint: disable=no-self-argument,no-self-use
+        # use the last epithet that is not 'cv'.
+        from sqlalchemy.sql.expression import case
+        return (
+            case([
+                (cls.infrasp4_rank != 'cv.', cls.infrasp4),
+                (cls.infrasp3_rank != 'cv.', cls.infrasp3),
+                (cls.infrasp2_rank != 'cv.', cls.infrasp2),
+                (cls.infrasp1_rank != 'cv.', cls.infrasp1),
+            ])
+            .label('infraspecific_epithet')
+        )
 
     @property
     def infraspecific_author(self):
         return self.__lowest_infraspecific()[2] or ''
 
-    @property
+    @hybrid_property
     def cultivar_epithet(self):
-        infrasp = ((self.infrasp1_rank, self.infrasp1,
-                    self.infrasp1_author),
-                   (self.infrasp2_rank, self.infrasp2,
-                    self.infrasp2_author),
-                   (self.infrasp3_rank, self.infrasp3,
-                    self.infrasp3_author),
-                   (self.infrasp4_rank, self.infrasp4,
-                    self.infrasp4_author))
-        for rank, epithet, author in infrasp:
+        infrasp = ((self.infrasp1_rank, self.infrasp1),
+                   (self.infrasp2_rank, self.infrasp2),
+                   (self.infrasp3_rank, self.infrasp3),
+                   (self.infrasp4_rank, self.infrasp4))
+        for rank, epithet in infrasp:
             if rank == 'cv.':
-                return epithet
+                if epithet:
+                    return epithet
+                return rank
         return ''
+
+    @cultivar_epithet.expression
+    def cultivar_epithet(cls):  # noqa pylint: disable=no-self-argument,no-self-use
+        from sqlalchemy.sql.expression import case
+        return (
+            case([
+                (cls.infrasp4_rank == 'cv.', cls.infrasp4),
+                (cls.infrasp3_rank == 'cv.', cls.infrasp3),
+                (cls.infrasp2_rank == 'cv.', cls.infrasp2),
+                (cls.infrasp1_rank == 'cv.', cls.infrasp1),
+            ])
+            .label('cultivar_epithet')
+        )
+
+    @cultivar_epithet.setter
+    def cultivar_epithet(self, value):
+        infrasp = ((self.infrasp1_rank, self.infrasp1),
+                   (self.infrasp2_rank, self.infrasp2),
+                   (self.infrasp3_rank, self.infrasp3),
+                   (self.infrasp4_rank, self.infrasp4))
+        for i, (rank, epithet) in enumerate(infrasp):
+            if rank in ['cv.', None]:
+                if value:
+                    if value == 'cv.':
+                        value = None
+                    self.set_infrasp(i + 1, 'cv.', value)
+                    value = None  # only set once
+                else:
+                    self.set_infrasp(i + 1, None, None)
+                    return
+
+    @hybrid_property
+    def infraspecific_parts(self):
+        parts = []
+        for rank, epithet in [(self.infrasp1_rank, self.infrasp1),
+                              (self.infrasp2_rank, self.infrasp2),
+                              (self.infrasp3_rank, self.infrasp3),
+                              (self.infrasp4_rank, self.infrasp4)]:
+            if rank not in [None, '', 'cv.']:
+                parts.append(rank)
+                parts.append(epithet)
+        parts = ' '.join(parts)
+        return parts
+
+    @infraspecific_parts.expression
+    def infraspecific_parts(cls):   # noqa pylint: disable=no-self-argument,no-self-use
+        from sqlalchemy.sql.expression import case, text, cast
+        from sqlalchemy.types import String
+        return case([
+            (cls.infrasp4_rank != 'cv.', cast(
+                cls.infrasp1_rank + text("' '") + cls.infrasp1 + text("' '") +
+                cls.infrasp2_rank + text("' '") + cls.infrasp2 + text("' '") +
+                cls.infrasp3_rank + text("' '") + cls.infrasp3 + text("' '") +
+                cls.infrasp4_rank + text("' '") + cls.infrasp4, String)),
+            (cls.infrasp3_rank != 'cv.', cast(
+                cls.infrasp1_rank + text("' '") + cls.infrasp1 + text("' '") +
+                cls.infrasp2_rank + text("' '") + cls.infrasp2 + text("' '") +
+                cls.infrasp3_rank + text("' '") + cls.infrasp3, String)),
+            (cls.infrasp2_rank != 'cv.', cast(
+                cls.infrasp1_rank + text("' '") + cls.infrasp1 + text("' '") +
+                cls.infrasp2_rank + text("' '") + cls.infrasp2, String)),
+            (cls.infrasp1_rank != 'cv.', cast(
+                cls.infrasp1_rank + text("' '") + cls.infrasp1, String)),
+        ]).label('infraspecific_parts')
+
+    @infraspecific_parts.setter
+    def infraspecific_parts(self, value):
+        if value:
+            parts = value.split()
+            parts = list(zip(parts[0::2], parts[1::2]))
+        else:
+            parts = []
+        cul = None
+        infrasp = ((self.infrasp1_rank, self.infrasp1),
+                   (self.infrasp2_rank, self.infrasp2),
+                   (self.infrasp3_rank, self.infrasp3),
+                   (self.infrasp4_rank, self.infrasp4))
+        for i, (rank, epithet) in enumerate(infrasp):
+            if rank == 'cv.':
+                # keep cultivar to add back in.
+                cul = epithet if epithet else 'cv.'
+            if i < len(parts):
+                self.set_infrasp(i + 1, *parts[i])
+            else:
+                # set remainder to null
+                self.set_infrasp(i + 1, None, None)
+        if cul:
+            self.cultivar_epithet = cul
 
     # columns
     sp = Column(Unicode(128), index=True)
@@ -382,12 +498,46 @@ class Species(db.Base, db.Serializable, db.DefiningPictures, db.WithNotes):
         'return the default string representation for self.'
         return self.str()
 
-    def _get_default_vernacular_name(self):
+
+    @hybrid_property
+    def default_vernacular_name(self):
         if self._default_vernacular_name is None:
             return None
         return self._default_vernacular_name.vernacular_name
 
-    def _set_default_vernacular_name(self, vn):
+    @default_vernacular_name.expression
+    def default_vernacular_name(cls): # noqa pylint: disable=no-self-argument,no-self-use
+        from sqlalchemy.sql.expression import select, and_
+        # pylint: disable=no-member
+        return (
+            select([VernacularName.name])
+            .where(
+                and_(DefaultVernacularName.species_id == cls.id,
+                     VernacularName.id ==
+                     DefaultVernacularName.vernacular_name_id))
+            .label('default_vernacular_name')
+        )
+
+    @default_vernacular_name.setter
+    def default_vernacular_name(self, vn):
+        if isinstance(vn, str):
+            print('vernacular_name is a string', vn)
+            lang = None
+            if ':' in vn:
+                vn, lang = vn.split(':')
+            kwargs = {'name': vn, 'species': self}
+            if lang:
+                kwargs['language'] = lang
+            vnobj = None
+            from sqlalchemy.orm.session import object_session
+            session = object_session(self)
+            if session:
+                vnobj = db.get_create_or_update(session, VernacularName,
+                                                **kwargs)
+            if not vnobj:
+                vn = VernacularName(**kwargs)
+            else:
+                vn = vnobj
         if vn is None:
             del self.default_vernacular_name
             return
@@ -397,13 +547,11 @@ class Species(db.Base, db.Serializable, db.DefiningPictures, db.WithNotes):
         d.vernacular_name = vn
         self._default_vernacular_name = d
 
-    def _del_default_vernacular_name(self):
-        utils.delete_or_expunge(self._default_vernacular_name)
-        del self._default_vernacular_name
-
-    default_vernacular_name = property(_get_default_vernacular_name,
-                                       _set_default_vernacular_name,
-                                       _del_default_vernacular_name)
+    @default_vernacular_name.deleter
+    def default_vernacular_name(self):
+        if self._default_vernacular_name:
+            utils.delete_or_expunge(self._default_vernacular_name)
+            del self._default_vernacular_name
 
     def distribution_str(self):
         if self.distribution is None:
@@ -568,7 +716,7 @@ class Species(db.Base, db.Serializable, db.DefiningPictures, db.WithNotes):
             SpeciesSynonym.synonym_id == self.id).first()
         if previous_synonymy_link:
             a = session.query(Species).filter(
-                Species.id==previous_synonymy_link.species_id).one()
+                Species.id == previous_synonymy_link.species_id).one()
             a.synonyms.remove(self)
         session.flush()
         if value != self:
@@ -576,10 +724,9 @@ class Species(db.Base, db.Serializable, db.DefiningPictures, db.WithNotes):
         session.flush()
 
     def has_accessions(self):
-        '''true if species is linked to at least one accession
-        '''
-
-        return False
+        """true if species is linked to at least one accession
+        """
+        return bool(self.accessions)
 
     infrasp_attr = {1: {'rank': 'infrasp1_rank',
                         'epithet': 'infrasp1',
