@@ -84,7 +84,7 @@ The preferences key for the default data format.
 
 picture_root_pref = 'bauble.picture_root'
 """
-The preferences key for the default data format.
+The preferences key for the default pictures root
 """
 
 parse_dayfirst_pref = 'bauble.parse_dayfirst'
@@ -152,12 +152,56 @@ To just make sure we use requests over PACSession then use anything other
 than a dict for the value of proxies e.g.:
 
 proxies = "no"
-"""
+"""   # noqa
 
 templates_root_pref = 'template_downloader.root_dir'
 """
 Directory to store downloaded templates and their config etc..
 """
+
+PLT_DEFAULTS = {
+    'search_by': ['plt_code', 'accession'],
+    'fields': {
+        'plt_id': 'id',
+        'accession': 'accession.code',
+        'plt_code': 'code',
+        'quantity': 'quantity',
+        'bed': 'location.code',
+        'family': 'accession.species.genus.family.epithet',
+        'genus': 'accession.species.genus.epithet',
+        'species': 'accession.species.epithet',
+        'infrasp': 'accession.species.infraspecific_parts',
+        'cultivar': 'accession.species.cultivar_epithet',
+        'vernacular': 'accession.species.default_vernacular_name',
+        'field_note': 'Note',
+    }
+}
+
+plant_shapefile_prefs = 'shapefile.plant'
+"""
+The default search_by, field map and read only field definitions that are safe
+to use for records based on Plant objects.  PLT_DEFAULTS contains the base
+defaults.
+"""
+
+LOC_DEFAULTS = {
+    'search_by': ['loc_code'],
+    'fields': {
+        'loc_id': 'id',
+        'loc_code': 'code',
+        'name': 'name',
+        'descript': 'description',
+        'field_note': 'Note'
+    }
+}
+
+location_shapefile_prefs = 'shapefile.location'
+"""
+The default search_by, field map and read only field definitions that are safe
+to use for records based on Location objects.  LOC_DEFAULTS contains the base
+defaults.
+"""
+
 
 from configparser import RawConfigParser
 
@@ -214,6 +258,12 @@ class _prefs(dict):
             self[units_pref] = 'metric'
         if debug_logging_prefs not in self:
             self[debug_logging_prefs] = []
+        for k, v in LOC_DEFAULTS.items():
+            if (section := f'{location_shapefile_prefs}.{k}') not in self:
+                self[section] = v
+        for k, v in PLT_DEFAULTS.items():
+            if (section := f'{plant_shapefile_prefs}.{k}') not in self:
+                self[section] = v
 
     def reload(self):
         """

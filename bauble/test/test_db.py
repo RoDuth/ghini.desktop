@@ -31,12 +31,38 @@ prefs.testing = True
 
 
 class GlobalFunctionsTests(BaubleTestCase):
-    def test_get_next_code_first_this_year(self):
-        self.assertEqual(db.class_of_object("genus"),
-                         bauble.plugins.plants.genus.Genus)
-        self.assertEqual(db.class_of_object("accession_note"),
-                         bauble.plugins.garden.accession.AccessionNote)
+    def test_class_of_object(self):
+        self.assertEqual(db.class_of_object("genus"), Genus)
+        self.assertEqual(db.class_of_object("accession_note"), AccessionNote)
         self.assertEqual(db.class_of_object("not_existing"), None)
+
+    def test_get_related_class(self):
+        self.assertEqual(db.get_related_class(Plant, 'accession'), Accession)
+        self.assertEqual(
+            db.get_related_class(Plant, 'accession.species.genus.family'),
+            Family
+        )
+        self.assertEqual(
+            db.get_related_class(Plant, 'accession.source.source_detail'),
+            Contact
+        )
+        self.assertEqual(
+            db.get_related_class(Plant, 'location'),
+            Location
+        )
+        self.assertEqual(
+            db.get_related_class(Location, 'plants'),
+            Plant
+        )
+        self.assertEqual(
+            db.get_related_class(Location,
+                                 'plants.accession.source.source_detail'),
+            Contact
+        )
+        self.assertEqual(
+            db.get_related_class(Species, 'vernacular_names'),
+            VernacularName
+        )
 
     def test_get_create_or_update(self):
         loc1 = {'code': 'XYZ001',

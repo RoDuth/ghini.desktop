@@ -338,6 +338,9 @@ class GenericEditorView(object):
     def set_label(self, widget_name, value):
         getattr(self.widgets, widget_name).set_markup(value)
 
+    def set_button_label(self, widget_name, value):
+        getattr(self.widgets, widget_name).set_label(value)
+
     def close_boxes(self):
         while self.boxes:
             logger.debug('box is being forcibly removed')
@@ -909,6 +912,11 @@ class MockView:
         self.invoked_detailed.append((self.invoked[-1], args))
         pass
 
+    def set_button_label(self, *args):
+        self.invoked.append('set_button_label')
+        self.invoked_detailed.append((self.invoked[-1], args))
+        pass
+
     def connect_after(self, *args):
         self.invoked.append('connect_after')
         self.invoked_detailed.append((self.invoked[-1], args))
@@ -1173,7 +1181,9 @@ class GenericEditorPresenter(object):
                     container = container.get_parent()
                 if current_page_widget == container:
                     value = presenter.view.widget_get_value(name)
-                    logger.debug('writing »%s« in clipboard %s for %s' % (value, presenter.__class__.__name__, name))
+                    logger.debug(
+                        'writing »%s« in clipboard %s for %s' % (
+                            value, presenter.__class__.__name__, name))
                     presenter.clipboard[name] = value
 
     def on_window_clip_paste(self, widget, *args, **kwargs):
@@ -1193,13 +1203,18 @@ class GenericEditorPresenter(object):
                     container = container.get_parent()
                 if current_page_widget == container:
                     if presenter.view.widget_get_value(name):
-                        logger.debug('skipping %s in clipboard %s because widget has value' % (name, presenter.__class__.__name__))
+                        logger.debug(
+                            'skipping %s in clipboard %s because widget has '
+                            'value' % (name, presenter.__class__.__name__))
                         continue
                     clipboard_value = presenter.clipboard.get(name)
                     if not clipboard_value:
-                        logger.debug('skipping %s because clipboard %s has no value' % (name, presenter.__class__.__name__))
+                        logger.debug('skipping %s because clipboard %s has no '
+                                     'value' % (name,
+                                                presenter.__class__.__name__))
                         continue
-                    logger.debug('setting »%s« from clipboard %s for %s' % (clipboard_value, presenter.__class__.__name__, name))
+                    logger.debug('setting »%s« from clipboard %s for %s' % (
+                        clipboard_value, presenter.__class__.__name__, name))
                     presenter.view.widget_set_value(name, clipboard_value)
 
     def refresh_sensitivity(self):

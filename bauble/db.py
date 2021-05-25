@@ -788,6 +788,26 @@ def class_of_object(o):
     return cls
 
 
+def get_related_class(model, path):
+    """Follow the path from the model class provided to get the related table's
+    class.
+
+    :param model: sqlalchemy table class
+    :param path: string dot seperated path to a related table
+
+    :return: sqlalchemy table class
+    """
+    if not path:
+        return model
+    relation, path = path.split('.', 1) if '.' in path else (path, None)
+    # we have one relationship with a synonym - default_vernacular_name
+    if syn := model.__mapper__.synonyms.get(relation):
+        relation = syn.name
+    model = model.__mapper__.relationships.get(
+        relation).mapper.class_
+    return get_related_class(model, path)
+
+
 def get_or_create(session, model, **kwargs):
     instance = session.query(model).filter_by(**kwargs).first()
     if instance:
@@ -815,7 +835,7 @@ def get_create_or_update(session, model, **kwargs):
     :param model: sqlalchemy table class
     :param kwargs: database values
     """
-    from sqlalchemy.orm.exc import MultipleResultsFound, NoResultFound
+    from sqlalchemy.orm.exc import MultipleResultsFound
     from sqlalchemy.exc import SQLAlchemyError
     logger.debug('looking for record matching: %s', kwargs)
     # first try using just one
@@ -835,7 +855,7 @@ def get_create_or_update(session, model, **kwargs):
     if not inst:
         for col in model.__table__.columns:
             if col.primary_key and (pkey := kwargs.get(col.key)):
-                logger.debug(f'trying using primary key: %s', col.key)
+                logger.debug('trying using primary key: %s', col.key)
                 inst = session.query(model).get(pkey)
 
     # try using unique fields
@@ -865,7 +885,7 @@ def get_create_or_update(session, model, **kwargs):
                 unique[col] = uniq_val
         if unique:
             try:
-                print(f'trying using unique columns: {unique}')
+                logger.debug('trying using unique columns: %s', unique)
                 inst = session.query(model).filter_by(**unique).one()
             except MultipleResultsFound:
                 return None

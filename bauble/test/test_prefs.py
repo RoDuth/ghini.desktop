@@ -54,6 +54,16 @@ class PreferencesTests(BaubleTestCase):
         self.assertEqual(p[prefs.parse_dayfirst_pref], True)
         self.assertEqual(p[prefs.parse_yearfirst_pref], False)
         self.assertEqual(p[prefs.units_pref], 'metric')
+        for k, v in prefs.LOC_DEFAULTS.items():
+            self.assertTrue(f'{prefs.location_shapefile_prefs}.{k}' in p,
+                            f'{prefs.location_shapefile_prefs}.{k} not found')
+            self.assertEqual(p[f'{prefs.location_shapefile_prefs}.{k}'], v,
+                             f'{prefs.location_shapefile_prefs}.{k} != {v}')
+        for k, v in prefs.PLT_DEFAULTS.items():
+            self.assertTrue(f'{prefs.plant_shapefile_prefs}.{k}' in p,
+                            f'{prefs.plant_shapefile_prefs}.{k} not found')
+            self.assertEqual(p[f'{prefs.plant_shapefile_prefs}.{k}'], v,
+                             f'{prefs.plant_shapefile_prefs}.{k} != {v}')
 
     def test_not_saved_while_testing(self):
         handle, pname = mkstemp(suffix='.dict')
