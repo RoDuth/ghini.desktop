@@ -69,6 +69,37 @@ def get_default(name, default=None, session=None):
     return meta
 
 
+def confirm_default(name, default, msg):
+    """
+    Allow the user to confirm the value of a BaubleMeta object the first time
+    it is needed.
+    """
+    current_default = get_default(name)
+    if not current_default:
+        import gi
+        gi.require_version("Gtk", "3.0")
+        from gi.repository import Gtk  # noqa
+        dialog = utils.create_message_dialog(msg=msg)
+        box = dialog.get_message_area()
+        frame = Gtk.Frame(shadow_type=Gtk.ShadowType.NONE)
+        label = Gtk.Label(justify=Gtk.Justification.LEFT)
+        label.set_markup(f"<b>{name}:</b>")
+        frame.set_label_widget(label)
+        entry = Gtk.Entry()
+        entry.set_text(default)
+        frame.add(entry)
+        box.add(frame)
+        dialog.resize(1, 1)
+        dialog.show_all()
+        response = dialog.run()
+        if response == Gtk.ResponseType.OK:
+            current_default = get_default(name, entry.get_text())
+
+        dialog.destroy()
+    return current_default
+
+
+
 class BaubleMeta(db.Base):
     """
     The BaubleMeta class is used to set and retrieve meta information
