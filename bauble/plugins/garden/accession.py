@@ -653,7 +653,7 @@ class Accession(db.Base, db.Serializable, db.WithNotes):
 
     # use Plant.code for the order_by to avoid ambiguous column names
     plants = relation('Plant', cascade='all, delete-orphan',
-                      #order_by='plant.code',
+                      # order_by='plant.code',
                       backref=backref('accession', uselist=False))
     verifications = relation('Verification',  # order_by='date',
                              cascade='all, delete-orphan',
@@ -1675,8 +1675,8 @@ class SourcePresenter(editor.GenericEditorPresenter):
         model = Gtk.ListStore(object)
         none_iter = model.append([''])
         model.append([self.garden_prop_str])
-        for i in self.session.query(Contact).order_by(collate(Contact.name,
-                                                              'NOCASE')):
+        for i in self.session.query(Contact).order_by(
+                func.lower(Contact.name)):
             model.append([i])
         combo.set_model(model)
         combo.get_child().get_completion().set_model(model)
@@ -2582,7 +2582,6 @@ class GeneralAccessionExpander(InfoExpander):
         self.widgets.general_window.remove(general_box)
         self.vbox.pack_start(general_box, True, True, 0)
         self.current_obj = None
-        self.private_image = self.widgets.acc_private_data
 
         def on_species_clicked(*args):
             select_in_search_results(self.current_obj.species)
@@ -2606,15 +2605,6 @@ class GeneralAccessionExpander(InfoExpander):
         self.widget_set_value('acc_code_data', '<big>%s</big>' %
                               utils.xml_safe(str(row.code)),
                               markup=True)
-
-        # TODO: i don't know why we can't just set the visible
-        # property to False here
-        acc_private = self.widgets.acc_private_data
-        if row.private:
-            if acc_private.parent != self.widgets.acc_code_box:
-                self.widgets.acc_code_box.pack_start(acc_private, True, True, 0)
-        else:
-            self.widgets.remove_parent(acc_private)
 
         self.widget_set_value('name_data', row.species_str(markup=True),
                               markup=True)
@@ -2657,10 +2647,10 @@ class GeneralAccessionExpander(InfoExpander):
         self.widget_set_value('prov_data', prov_str, False)
 
         image_size = Gtk.IconSize.MENU
-        stock = Gtk.STOCK_NO
+        icon = 'media-playback-stop'
         if row.private:
-            stock = Gtk.STOCK_YES
-        self.widgets.private_image.set_from_stock(stock, image_size)
+            icon = 'media-record'
+        self.widgets.private_image.set_from_icon_name(icon, image_size)
 
         loc_map = (('intended_loc_data', 'intended_location'),
                    ('intended2_loc_data', 'intended2_location'))
