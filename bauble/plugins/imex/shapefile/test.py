@@ -809,42 +809,40 @@ class ShapefileExportTests(BaubleTestCase):
             self.assertEqual(len(namelist), 4)
             with z.open([i for i in namelist if i.endswith('.prj')][0]) as prj:
                 self.assertEqual(prj.read().decode('utf-8'), prj_str_4326)
-            with (
-                z.open([i for i in namelist if i.endswith('.shp')][0]) as shp,
-                z.open([i for i in namelist if i.endswith('.dbf')][0]) as dbf,
-            ):
-                with Reader(shp=shp, dbf=dbf) as shpf:
-                    # field_names = [i[0] for i in shpf.fields]
-                    self.assertEqual(len(shpf.shapes()), 2)
-                    self.assertEqual(shpf.record(0)['loc_id'],
-                                     location_data[0].get('id'))
-                    self.assertEqual(shpf.record(0)['loc_code'],
-                                     location_data[0].get('code'))
-                    self.assertEqual(shpf.record(0)['descript'],
-                                     location_data[0].get('description', ''))
-                    self.assertEqual(shpf.record(0)['field_note'],
-                                     loc_note_data[1].get('note', ''))
-                    self.assertEqual(shpf.record(1)['loc_id'],
-                                     location_data[1].get('id'))
-                    self.assertEqual(shpf.record(1)['loc_code'],
-                                     location_data[1].get('code'))
-                    self.assertEqual(shpf.record(1)['descript'],
-                                     location_data[1].get('description', ''))
-                    self.assertEqual(shpf.record(1)['field_note'],
-                                     loc_note_data[0].get('note', ''))
+            with z.open([i for i in namelist if i.endswith('.shp')][0]) as shp:
+                with z.open([i for i in namelist if i.endswith('.dbf')][0]) as dbf:
+                    with Reader(shp=shp, dbf=dbf) as shpf:
+                        # field_names = [i[0] for i in shpf.fields]
+                        self.assertEqual(len(shpf.shapes()), 2)
+                        self.assertEqual(shpf.record(0)['loc_id'],
+                                         location_data[0].get('id'))
+                        self.assertEqual(shpf.record(0)['loc_code'],
+                                         location_data[0].get('code'))
+                        self.assertEqual(shpf.record(0)['descript'],
+                                         location_data[0].get('description', ''))
+                        self.assertEqual(shpf.record(0)['field_note'],
+                                         loc_note_data[1].get('note', ''))
+                        self.assertEqual(shpf.record(1)['loc_id'],
+                                         location_data[1].get('id'))
+                        self.assertEqual(shpf.record(1)['loc_code'],
+                                         location_data[1].get('code'))
+                        self.assertEqual(shpf.record(1)['descript'],
+                                         location_data[1].get('description', ''))
+                        self.assertEqual(shpf.record(1)['field_note'],
+                                         loc_note_data[0].get('note', ''))
 
-                    # use transform to make sure the format is the same
-                    # (lists vs tuples for coordinates)
-                    self.assertEqual(
-                        transform(shpf.shapes()[0].__geo_interface__,
-                                  in_crs='epsg:4326',
-                                  out_crs='epsg:4326'),
-                        epsg4326_poly_xy)
-                    self.assertEqual(
-                        transform(shpf.shapes()[1].__geo_interface__,
-                                  in_crs='epsg:4326',
-                                  out_crs='epsg:4326'),
-                        epsg4326_poly_xy2)
+                        # use transform to make sure the format is the same
+                        # (lists vs tuples for coordinates)
+                        self.assertEqual(
+                            transform(shpf.shapes()[0].__geo_interface__,
+                                      in_crs='epsg:4326',
+                                      out_crs='epsg:4326'),
+                            epsg4326_poly_xy)
+                        self.assertEqual(
+                            transform(shpf.shapes()[1].__geo_interface__,
+                                      in_crs='epsg:4326',
+                                      out_crs='epsg:4326'),
+                            epsg4326_poly_xy2)
 
     def test_exports_all_plants(self):
         exporter = self.exporter
@@ -862,104 +860,98 @@ class ShapefileExportTests(BaubleTestCase):
             self.assertEqual(len(namelist), 4)
             with z.open([i for i in namelist if i.endswith('.prj')][0]) as prj:
                 self.assertEqual(prj.read().decode('utf-8'), prj_str_4326)
-            with (
-                z.open([i for i in namelist if i.endswith('.shp')][0]) as shp,
-                z.open([i for i in namelist if i.endswith('.dbf')][0]) as dbf,
-            ):
-                with Reader(shp=shp, dbf=dbf) as shpf:
-                    # field_names = [i[0] for i in shpf.fields]
-                    self.assertEqual(len(shpf.shapes()), 1)
-                    self.assertEqual(shpf.record(0)['plt_id'],
-                                     plant_data[0].get('id'))
-                    self.assertEqual(shpf.record(0)['plt_code'],
-                                     plant_data[0].get('code'))
-                    self.assertEqual(shpf.record(0)['quantity'],
-                                     plant_data[0].get('quantity'))
-                    acc = [i.get('code') for i in accession_data if
-                           i.get('id') == plant_data[0].get('accession_id')][0]
-                    self.assertEqual(shpf.record(0)['accession'], acc)
-                    loc = [i.get('code') for i in location_data if
-                           i.get('id') == plant_data[0].get('location_id')][0]
-                    self.assertEqual(shpf.record(0)['bed'], loc)
-                    self.assertEqual(shpf.record(0)['family'],
-                                     self.taxa_to_acc.get(
-                                         plant_data[0].get('accession_id'))[0]
-                                     )
-                    self.assertEqual(
-                        shpf.record(0)['genus'],
-                        self.taxa_to_acc.get(
-                            plant_data[0].get('accession_id'))[1]
-                    )
-                    self.assertEqual(
-                        shpf.record(0)['species'],
-                        self.taxa_to_acc.get(
-                            plant_data[0].get('accession_id'))[2]
-                    )
-                    self.assertEqual(
-                        transform(shpf.shapes()[0].__geo_interface__,
-                                  in_crs='epsg:4326',
-                                  out_crs='epsg:4326'),
-                        epsg4326_point_xy)
+            with z.open([i for i in namelist if i.endswith('.shp')][0]) as shp:
+                with z.open([i for i in namelist if i.endswith('.dbf')][0]) as dbf:
+                    with Reader(shp=shp, dbf=dbf) as shpf:
+                        # field_names = [i[0] for i in shpf.fields]
+                        self.assertEqual(len(shpf.shapes()), 1)
+                        self.assertEqual(shpf.record(0)['plt_id'],
+                                         plant_data[0].get('id'))
+                        self.assertEqual(shpf.record(0)['plt_code'],
+                                         plant_data[0].get('code'))
+                        self.assertEqual(shpf.record(0)['quantity'],
+                                         plant_data[0].get('quantity'))
+                        acc = [i.get('code') for i in accession_data if
+                               i.get('id') == plant_data[0].get('accession_id')][0]
+                        self.assertEqual(shpf.record(0)['accession'], acc)
+                        loc = [i.get('code') for i in location_data if
+                               i.get('id') == plant_data[0].get('location_id')][0]
+                        self.assertEqual(shpf.record(0)['bed'], loc)
+                        self.assertEqual(shpf.record(0)['family'],
+                                         self.taxa_to_acc.get(
+                                             plant_data[0].get('accession_id'))[0]
+                                         )
+                        self.assertEqual(
+                            shpf.record(0)['genus'],
+                            self.taxa_to_acc.get(
+                                plant_data[0].get('accession_id'))[1]
+                        )
+                        self.assertEqual(
+                            shpf.record(0)['species'],
+                            self.taxa_to_acc.get(
+                                plant_data[0].get('accession_id'))[2]
+                        )
+                        self.assertEqual(
+                            transform(shpf.shapes()[0].__geo_interface__,
+                                      in_crs='epsg:4326',
+                                      out_crs='epsg:4326'),
+                            epsg4326_point_xy)
         with ZipFile([i for i in out if 'line.zip' in i][0], 'r') as z:
             namelist = z.namelist()
             self.assertEqual(len(namelist), 4)
             with z.open([i for i in namelist if i.endswith('.prj')][0]) as prj:
                 self.assertEqual(prj.read().decode('utf-8'), prj_str_4326)
-            with (
-                z.open([i for i in namelist if i.endswith('.shp')][0]) as shp,
-                z.open([i for i in namelist if i.endswith('.dbf')][0]) as dbf,
-            ):
-                with Reader(shp=shp, dbf=dbf) as shpf:
-                    # field_names = [i[0] for i in shpf.fields]
-                    self.assertEqual(len(shpf.shapes()), 1)
-                    self.assertEqual(shpf.record(0)['plt_id'],
-                                     plant_data[1].get('id'))
-                    self.assertEqual(shpf.record(0)['plt_code'],
-                                     plant_data[1].get('code'))
-                    self.assertEqual(shpf.record(0)['quantity'],
-                                     plant_data[1].get('quantity'))
-                    acc = [i.get('code') for i in accession_data if
-                           i.get('id') == plant_data[1].get('accession_id')][0]
-                    self.assertEqual(shpf.record(0)['accession'], acc)
-                    loc = [i.get('code') for i in location_data if
-                           i.get('id') == plant_data[1].get('location_id')][0]
-                    self.assertEqual(shpf.record(0)['bed'], loc)
-                    self.assertEqual(shpf.record(0)['family'],
-                                     self.taxa_to_acc.get(
-                                         plant_data[1].get('accession_id'))[0]
-                                     )
-                    self.assertEqual(
-                        shpf.record(0)['genus'],
-                        self.taxa_to_acc.get(
-                            plant_data[1].get('accession_id'))[1]
-                    )
-                    self.assertEqual(
-                        shpf.record(0)['species'],
-                        self.taxa_to_acc.get(
-                            plant_data[1].get('accession_id'))[2]
-                    )
-                    self.assertEqual(
-                        transform(shpf.shapes()[0].__geo_interface__,
-                                  in_crs='epsg:4326',
-                                  out_crs='epsg:4326'),
-                        epsg4326_line_xy)
+            with z.open([i for i in namelist if i.endswith('.shp')][0]) as shp:
+                with z.open([i for i in namelist if i.endswith('.dbf')][0]) as dbf:
+                    with Reader(shp=shp, dbf=dbf) as shpf:
+                        # field_names = [i[0] for i in shpf.fields]
+                        self.assertEqual(len(shpf.shapes()), 1)
+                        self.assertEqual(shpf.record(0)['plt_id'],
+                                         plant_data[1].get('id'))
+                        self.assertEqual(shpf.record(0)['plt_code'],
+                                         plant_data[1].get('code'))
+                        self.assertEqual(shpf.record(0)['quantity'],
+                                         plant_data[1].get('quantity'))
+                        acc = [i.get('code') for i in accession_data if
+                               i.get('id') == plant_data[1].get('accession_id')][0]
+                        self.assertEqual(shpf.record(0)['accession'], acc)
+                        loc = [i.get('code') for i in location_data if
+                               i.get('id') == plant_data[1].get('location_id')][0]
+                        self.assertEqual(shpf.record(0)['bed'], loc)
+                        self.assertEqual(shpf.record(0)['family'],
+                                         self.taxa_to_acc.get(
+                                             plant_data[1].get('accession_id'))[0]
+                                         )
+                        self.assertEqual(
+                            shpf.record(0)['genus'],
+                            self.taxa_to_acc.get(
+                                plant_data[1].get('accession_id'))[1]
+                        )
+                        self.assertEqual(
+                            shpf.record(0)['species'],
+                            self.taxa_to_acc.get(
+                                plant_data[1].get('accession_id'))[2]
+                        )
+                        self.assertEqual(
+                            transform(shpf.shapes()[0].__geo_interface__,
+                                      in_crs='epsg:4326',
+                                      out_crs='epsg:4326'),
+                            epsg4326_line_xy)
         with ZipFile([i for i in out if 'poly.zip' in i][0], 'r') as z:
             namelist = z.namelist()
             self.assertEqual(len(namelist), 4)
             with z.open([i for i in namelist if i.endswith('.prj')][0]) as prj:
                 self.assertEqual(prj.read().decode('utf-8'), prj_str_4326)
-            with (
-                z.open([i for i in namelist if i.endswith('.shp')][0]) as shp,
-                z.open([i for i in namelist if i.endswith('.dbf')][0]) as dbf,
-            ):
-                with Reader(shp=shp, dbf=dbf) as shpf:
-                    # field_names = [i[0] for i in shpf.fields]
-                    self.assertEqual(len(shpf.shapes()), 1)
-                    self.assertEqual(
-                        transform(shpf.shapes()[0].__geo_interface__,
-                                  in_crs='epsg:4326',
-                                  out_crs='epsg:4326'),
-                        epsg4326_poly_xy)
+            with z.open([i for i in namelist if i.endswith('.shp')][0]) as shp:
+                with z.open([i for i in namelist if i.endswith('.dbf')][0]) as dbf:
+                    with Reader(shp=shp, dbf=dbf) as shpf:
+                        # field_names = [i[0] for i in shpf.fields]
+                        self.assertEqual(len(shpf.shapes()), 1)
+                        self.assertEqual(
+                            transform(shpf.shapes()[0].__geo_interface__,
+                                      in_crs='epsg:4326',
+                                      out_crs='epsg:4326'),
+                            epsg4326_poly_xy)
 
     def test_exports_all_plants_with_advanced_settings(self):
         fields = {
@@ -992,41 +984,39 @@ class ShapefileExportTests(BaubleTestCase):
             self.assertEqual(len(namelist), 4)
             with z.open([i for i in namelist if i.endswith('.prj')][0]) as prj:
                 self.assertEqual(prj.read().decode('utf-8'), prj_str_4326)
-            with (
-                z.open([i for i in namelist if i.endswith('.shp')][0]) as shp,
-                z.open([i for i in namelist if i.endswith('.dbf')][0]) as dbf,
-            ):
-                with Reader(shp=shp, dbf=dbf) as shpf:
-                    # field_names = [i[0] for i in shpf.fields]
-                    self.assertEqual(len(shpf.shapes()), 1)
-                    acc = [i.get('code') for i in accession_data if
-                           i.get('id') == plant_data[0].get('accession_id')][0]
-                    self.assertEqual(shpf.record(0)['plant'],
-                                     acc + '.' + plant_data[0].get('code'))
-                    self.assertEqual(shpf.record(0)['quantity'],
-                                     plant_data[0].get('quantity'))
-                    loc_code = [i.get('code') for i in location_data if
-                                i.get('id') ==
-                                plant_data[0].get('location_id')][0]
-                    loc_name = [i.get('name') for i in location_data if
-                                i.get('id') ==
-                                plant_data[0].get('location_id')][0]
-                    self.assertEqual(shpf.record(0)['bed'],
-                                     f'({loc_code}) {loc_name}')
-                    self.assertEqual(shpf.record(0)['family'],
-                                     self.taxa_to_acc.get(
-                                         plant_data[0].get('accession_id'))[0]
-                                     )
-                    self.assertEqual(shpf.record(0)['source'], '')
-                    self.assertEqual(shpf.record(0)['plc_holder'], '')
-                    self.assertIsNone(shpf.record(0)['coll_accy'], '')
-                    self.assertEqual([i for i in shpf.fields if i[0] ==
-                                      'coll_accy'][0][3], 10)
-                    self.assertEqual(
-                        transform(shpf.shapes()[0].__geo_interface__,
-                                  in_crs='epsg:4326',
-                                  out_crs='epsg:4326'),
-                        epsg4326_point_xy)
+            with z.open([i for i in namelist if i.endswith('.shp')][0]) as shp:
+                with z.open([i for i in namelist if i.endswith('.dbf')][0]) as dbf:
+                    with Reader(shp=shp, dbf=dbf) as shpf:
+                        # field_names = [i[0] for i in shpf.fields]
+                        self.assertEqual(len(shpf.shapes()), 1)
+                        acc = [i.get('code') for i in accession_data if
+                               i.get('id') == plant_data[0].get('accession_id')][0]
+                        self.assertEqual(shpf.record(0)['plant'],
+                                         acc + '.' + plant_data[0].get('code'))
+                        self.assertEqual(shpf.record(0)['quantity'],
+                                         plant_data[0].get('quantity'))
+                        loc_code = [i.get('code') for i in location_data if
+                                    i.get('id') ==
+                                    plant_data[0].get('location_id')][0]
+                        loc_name = [i.get('name') for i in location_data if
+                                    i.get('id') ==
+                                    plant_data[0].get('location_id')][0]
+                        self.assertEqual(shpf.record(0)['bed'],
+                                         f'({loc_code}) {loc_name}')
+                        self.assertEqual(shpf.record(0)['family'],
+                                         self.taxa_to_acc.get(
+                                             plant_data[0].get('accession_id'))[0]
+                                         )
+                        self.assertEqual(shpf.record(0)['source'], '')
+                        self.assertEqual(shpf.record(0)['plc_holder'], '')
+                        self.assertIsNone(shpf.record(0)['coll_accy'], '')
+                        self.assertEqual([i for i in shpf.fields if i[0] ==
+                                          'coll_accy'][0][3], 10)
+                        self.assertEqual(
+                            transform(shpf.shapes()[0].__geo_interface__,
+                                      in_crs='epsg:4326',
+                                      out_crs='epsg:4326'),
+                            epsg4326_point_xy)
 
     def test_exports_all_plants_not_private(self):
         exporter = self.exporter
@@ -1047,44 +1037,42 @@ class ShapefileExportTests(BaubleTestCase):
             self.assertEqual(len(namelist), 4)
             with z.open([i for i in namelist if i.endswith('.prj')][0]) as prj:
                 self.assertEqual(prj.read().decode('utf-8'), prj_str_4326)
-            with (
-                z.open([i for i in namelist if i.endswith('.shp')][0]) as shp,
-                z.open([i for i in namelist if i.endswith('.dbf')][0]) as dbf,
-            ):
-                with Reader(shp=shp, dbf=dbf) as shpf:
-                    # field_names = [i[0] for i in shpf.fields]
-                    self.assertEqual(len(shpf.shapes()), 1)
-                    self.assertEqual(shpf.record(0)['plt_id'],
-                                     plant_data[0].get('id'))
-                    self.assertEqual(shpf.record(0)['plt_code'],
-                                     plant_data[0].get('code'))
-                    self.assertEqual(shpf.record(0)['quantity'],
-                                     plant_data[0].get('quantity'))
-                    acc = [i.get('code') for i in accession_data if
-                           i.get('id') == plant_data[0].get('accession_id')][0]
-                    self.assertEqual(shpf.record(0)['accession'], acc)
-                    loc = [i.get('code') for i in location_data if
-                           i.get('id') == plant_data[0].get('location_id')][0]
-                    self.assertEqual(shpf.record(0)['bed'], loc)
-                    self.assertEqual(shpf.record(0)['family'],
-                                     self.taxa_to_acc.get(
-                                         plant_data[0].get('accession_id'))[0]
-                                     )
-                    self.assertEqual(
-                        shpf.record(0)['genus'],
-                        self.taxa_to_acc.get(
-                            plant_data[0].get('accession_id'))[1]
-                    )
-                    self.assertEqual(
-                        shpf.record(0)['species'],
-                        self.taxa_to_acc.get(
-                            plant_data[0].get('accession_id'))[2]
-                    )
-                    self.assertEqual(
-                        transform(shpf.shapes()[0].__geo_interface__,
-                                  in_crs='epsg:4326',
-                                  out_crs='epsg:4326'),
-                        epsg4326_point_xy)
+            with z.open([i for i in namelist if i.endswith('.shp')][0]) as shp:
+                with z.open([i for i in namelist if i.endswith('.dbf')][0]) as dbf:
+                    with Reader(shp=shp, dbf=dbf) as shpf:
+                        # field_names = [i[0] for i in shpf.fields]
+                        self.assertEqual(len(shpf.shapes()), 1)
+                        self.assertEqual(shpf.record(0)['plt_id'],
+                                         plant_data[0].get('id'))
+                        self.assertEqual(shpf.record(0)['plt_code'],
+                                         plant_data[0].get('code'))
+                        self.assertEqual(shpf.record(0)['quantity'],
+                                         plant_data[0].get('quantity'))
+                        acc = [i.get('code') for i in accession_data if
+                               i.get('id') == plant_data[0].get('accession_id')][0]
+                        self.assertEqual(shpf.record(0)['accession'], acc)
+                        loc = [i.get('code') for i in location_data if
+                               i.get('id') == plant_data[0].get('location_id')][0]
+                        self.assertEqual(shpf.record(0)['bed'], loc)
+                        self.assertEqual(shpf.record(0)['family'],
+                                         self.taxa_to_acc.get(
+                                             plant_data[0].get('accession_id'))[0]
+                                         )
+                        self.assertEqual(
+                            shpf.record(0)['genus'],
+                            self.taxa_to_acc.get(
+                                plant_data[0].get('accession_id'))[1]
+                        )
+                        self.assertEqual(
+                            shpf.record(0)['species'],
+                            self.taxa_to_acc.get(
+                                plant_data[0].get('accession_id'))[2]
+                        )
+                        self.assertEqual(
+                            transform(shpf.shapes()[0].__geo_interface__,
+                                      in_crs='epsg:4326',
+                                      out_crs='epsg:4326'),
+                            epsg4326_point_xy)
 
     def test_exports_all(self):
         exporter = self.exporter
@@ -1105,63 +1093,55 @@ class ShapefileExportTests(BaubleTestCase):
             self.assertEqual(len(namelist), 4)
             with z.open([i for i in namelist if i.endswith('.prj')][0]) as prj:
                 self.assertEqual(prj.read().decode('utf-8'), prj_str_4326)
-            with (
-                z.open([i for i in namelist if i.endswith('.shp')][0]) as shp,
-                z.open([i for i in namelist if i.endswith('.dbf')][0]) as dbf,
-            ):
-                with Reader(shp=shp, dbf=dbf) as shpf:
-                    # field_names = [i[0] for i in shpf.fields]
-                    self.assertEqual(len(shpf.shapes()), 1)
-                    self.assertEqual(shpf.record(0)['plt_id'],
-                                     plant_data[0].get('id'))
+            with z.open([i for i in namelist if i.endswith('.shp')][0]) as shp:
+                with z.open([i for i in namelist if i.endswith('.dbf')][0]) as dbf:
+                    with Reader(shp=shp, dbf=dbf) as shpf:
+                        # field_names = [i[0] for i in shpf.fields]
+                        self.assertEqual(len(shpf.shapes()), 1)
+                        self.assertEqual(shpf.record(0)['plt_id'],
+                                         plant_data[0].get('id'))
 
         with ZipFile([i for i in out if 'plants_line.zip' in i][0]) as z:
             namelist = z.namelist()
             self.assertEqual(len(namelist), 4)
             with z.open([i for i in namelist if i.endswith('.prj')][0]) as prj:
                 self.assertEqual(prj.read().decode('utf-8'), prj_str_4326)
-            with (
-                z.open([i for i in namelist if i.endswith('.shp')][0]) as shp,
-                z.open([i for i in namelist if i.endswith('.dbf')][0]) as dbf,
-            ):
-                with Reader(shp=shp, dbf=dbf) as shpf:
-                    # field_names = [i[0] for i in shpf.fields]
-                    self.assertEqual(len(shpf.shapes()), 1)
-                    self.assertEqual(shpf.record(0)['plt_code'],
-                                     plant_data[1].get('code'))
+            with z.open([i for i in namelist if i.endswith('.shp')][0]) as shp:
+                with z.open([i for i in namelist if i.endswith('.dbf')][0]) as dbf:
+                    with Reader(shp=shp, dbf=dbf) as shpf:
+                        # field_names = [i[0] for i in shpf.fields]
+                        self.assertEqual(len(shpf.shapes()), 1)
+                        self.assertEqual(shpf.record(0)['plt_code'],
+                                         plant_data[1].get('code'))
 
         with ZipFile([i for i in out if 'plants_poly.zip' in i][0]) as z:
             namelist = z.namelist()
             self.assertEqual(len(namelist), 4)
             with z.open([i for i in namelist if i.endswith('.prj')][0]) as prj:
                 self.assertEqual(prj.read().decode('utf-8'), prj_str_4326)
-            with (
-                z.open([i for i in namelist if i.endswith('.shp')][0]) as shp,
-                z.open([i for i in namelist if i.endswith('.dbf')][0]) as dbf,
-            ):
-                with Reader(shp=shp, dbf=dbf) as shpf:
-                    # field_names = [i[0] for i in shpf.fields]
-                    self.assertEqual(len(shpf.shapes()), 1)
-                    self.assertEqual(
-                        transform(shpf.shapes()[0].__geo_interface__,
-                                  in_crs='epsg:4326',
-                                  out_crs='epsg:4326'),
-                        epsg4326_poly_xy)
+            with z.open([i for i in namelist if i.endswith('.shp')][0]) as shp:
+                with z.open([i for i in namelist if i.endswith('.dbf')][0]) as dbf:
+                    with Reader(shp=shp, dbf=dbf) as shpf:
+                        # field_names = [i[0] for i in shpf.fields]
+                        self.assertEqual(len(shpf.shapes()), 1)
+                        self.assertEqual(
+                            transform(shpf.shapes()[0].__geo_interface__,
+                                      in_crs='epsg:4326',
+                                      out_crs='epsg:4326'),
+                            epsg4326_poly_xy)
 
         with ZipFile([i for i in out if 'locations_poly.zip' in i][0]) as z:
             namelist = z.namelist()
             self.assertEqual(len(namelist), 4)
             with z.open([i for i in namelist if i.endswith('.prj')][0]) as prj:
                 self.assertEqual(prj.read().decode('utf-8'), prj_str_4326)
-            with (
-                z.open([i for i in namelist if i.endswith('.shp')][0]) as shp,
-                z.open([i for i in namelist if i.endswith('.dbf')][0]) as dbf,
-            ):
-                with Reader(shp=shp, dbf=dbf) as shpf:
-                    # field_names = [i[0] for i in shpf.fields]
-                    self.assertEqual(len(shpf.shapes()), 2)
-                    self.assertEqual(shpf.record(0)['loc_id'],
-                                     location_data[0].get('id'))
+            with z.open([i for i in namelist if i.endswith('.shp')][0]) as shp:
+                with z.open([i for i in namelist if i.endswith('.dbf')][0]) as dbf:
+                    with Reader(shp=shp, dbf=dbf) as shpf:
+                        # field_names = [i[0] for i in shpf.fields]
+                        self.assertEqual(len(shpf.shapes()), 2)
+                        self.assertEqual(shpf.record(0)['loc_id'],
+                                         location_data[0].get('id'))
 
     def test_exports_all_w_generated_plant_points(self):
         exporter = self.exporter
@@ -1186,63 +1166,55 @@ class ShapefileExportTests(BaubleTestCase):
             self.assertEqual(len(namelist), 4)
             with z.open([i for i in namelist if i.endswith('.prj')][0]) as prj:
                 self.assertEqual(prj.read().decode('utf-8'), prj_str_4326)
-            with (
-                z.open([i for i in namelist if i.endswith('.shp')][0]) as shp,
-                z.open([i for i in namelist if i.endswith('.dbf')][0]) as dbf,
-            ):
-                with Reader(shp=shp, dbf=dbf) as shpf:
-                    # field_names = [i[0] for i in shpf.fields]
-                    self.assertEqual(len(shpf.shapes()), 1)
-                    self.assertEqual(shpf.record(0)['plt_id'],
-                                     plant_data[0].get('id'))
+            with z.open([i for i in namelist if i.endswith('.shp')][0]) as shp:
+                with z.open([i for i in namelist if i.endswith('.dbf')][0]) as dbf:
+                    with Reader(shp=shp, dbf=dbf) as shpf:
+                        # field_names = [i[0] for i in shpf.fields]
+                        self.assertEqual(len(shpf.shapes()), 1)
+                        self.assertEqual(shpf.record(0)['plt_id'],
+                                         plant_data[0].get('id'))
 
         with ZipFile([i for i in out if 'plants_line.zip' in i][0]) as z:
             namelist = z.namelist()
             self.assertEqual(len(namelist), 4)
             with z.open([i for i in namelist if i.endswith('.prj')][0]) as prj:
                 self.assertEqual(prj.read().decode('utf-8'), prj_str_4326)
-            with (
-                z.open([i for i in namelist if i.endswith('.shp')][0]) as shp,
-                z.open([i for i in namelist if i.endswith('.dbf')][0]) as dbf,
-            ):
-                with Reader(shp=shp, dbf=dbf) as shpf:
-                    # field_names = [i[0] for i in shpf.fields]
-                    self.assertEqual(len(shpf.shapes()), 1)
-                    self.assertEqual(shpf.record(0)['plt_code'],
-                                     plant_data[1].get('code'))
+            with z.open([i for i in namelist if i.endswith('.shp')][0]) as shp:
+                with z.open([i for i in namelist if i.endswith('.dbf')][0]) as dbf:
+                    with Reader(shp=shp, dbf=dbf) as shpf:
+                        # field_names = [i[0] for i in shpf.fields]
+                        self.assertEqual(len(shpf.shapes()), 1)
+                        self.assertEqual(shpf.record(0)['plt_code'],
+                                         plant_data[1].get('code'))
 
         with ZipFile([i for i in out if 'plants_poly.zip' in i][0]) as z:
             namelist = z.namelist()
             self.assertEqual(len(namelist), 4)
             with z.open([i for i in namelist if i.endswith('.prj')][0]) as prj:
                 self.assertEqual(prj.read().decode('utf-8'), prj_str_4326)
-            with (
-                z.open([i for i in namelist if i.endswith('.shp')][0]) as shp,
-                z.open([i for i in namelist if i.endswith('.dbf')][0]) as dbf,
-            ):
-                with Reader(shp=shp, dbf=dbf) as shpf:
-                    # field_names = [i[0] for i in shpf.fields]
-                    self.assertEqual(len(shpf.shapes()), 1)
-                    self.assertEqual(
-                        transform(shpf.shapes()[0].__geo_interface__,
-                                  in_crs='epsg:4326',
-                                  out_crs='epsg:4326'),
-                        epsg4326_poly_xy)
+            with z.open([i for i in namelist if i.endswith('.shp')][0]) as shp:
+                with z.open([i for i in namelist if i.endswith('.dbf')][0]) as dbf:
+                    with Reader(shp=shp, dbf=dbf) as shpf:
+                        # field_names = [i[0] for i in shpf.fields]
+                        self.assertEqual(len(shpf.shapes()), 1)
+                        self.assertEqual(
+                            transform(shpf.shapes()[0].__geo_interface__,
+                                      in_crs='epsg:4326',
+                                      out_crs='epsg:4326'),
+                            epsg4326_poly_xy)
 
         with ZipFile([i for i in out if 'locations_poly.zip' in i][0]) as z:
             namelist = z.namelist()
             self.assertEqual(len(namelist), 4)
             with z.open([i for i in namelist if i.endswith('.prj')][0]) as prj:
                 self.assertEqual(prj.read().decode('utf-8'), prj_str_4326)
-            with (
-                z.open([i for i in namelist if i.endswith('.shp')][0]) as shp,
-                z.open([i for i in namelist if i.endswith('.dbf')][0]) as dbf,
-            ):
-                with Reader(shp=shp, dbf=dbf) as shpf:
-                    # field_names = [i[0] for i in shpf.fields]
-                    self.assertEqual(len(shpf.shapes()), 2)
-                    self.assertEqual(shpf.record(0)['loc_id'],
-                                     location_data[0].get('id'))
+            with z.open([i for i in namelist if i.endswith('.shp')][0]) as shp:
+                with z.open([i for i in namelist if i.endswith('.dbf')][0]) as dbf:
+                    with Reader(shp=shp, dbf=dbf) as shpf:
+                        # field_names = [i[0] for i in shpf.fields]
+                        self.assertEqual(len(shpf.shapes()), 2)
+                        self.assertEqual(shpf.record(0)['loc_id'],
+                                         location_data[0].get('id'))
 
     def test_exports_search_all_w_generated_plants(self):
         objs = self.session.query(Genus).filter_by(genus='Eucalyptus').all()
@@ -1266,56 +1238,52 @@ class ShapefileExportTests(BaubleTestCase):
             self.assertEqual(len(namelist), 4)
             with z.open([i for i in namelist if i.endswith('.prj')][0]) as prj:
                 self.assertEqual(prj.read().decode('utf-8'), prj_str_4326)
-            with (
-                z.open([i for i in namelist if i.endswith('.shp')][0]) as shp,
-                z.open([i for i in namelist if i.endswith('.dbf')][0]) as dbf,
-            ):
-                with Reader(shp=shp, dbf=dbf) as shpf:
-                    self.assertEqual(len(shpf.shapes()), 1)
-                    self.assertEqual(shpf.record(0)['plt_id'],
-                                     self.full_plant_data[3].get('id'))
-                    self.assertEqual(shpf.record(0)['plt_code'],
-                                     self.full_plant_data[3].get('code'))
-                    self.assertEqual(shpf.record(0)['quantity'],
-                                     self.full_plant_data[3].get('quantity'))
-                    acc = [i.get('code') for i in accession_data if
-                           i.get('id') ==
-                           self.full_plant_data[3].get('accession_id')][0]
-                    self.assertEqual(shpf.record(0)['accession'], acc)
-                    loc = [i.get('code') for i in location_data if
-                           i.get('id') ==
-                           self.full_plant_data[3].get('location_id')][0]
-                    self.assertEqual(shpf.record(0)['bed'], loc)
-                    self.assertEqual(
-                        shpf.record(0)['family'],
-                        self.taxa_to_acc.get(
-                            self.full_plant_data[3].get('accession_id'))[0]
-                    )
-                    self.assertEqual(
-                        shpf.record(0)['genus'],
-                        self.taxa_to_acc.get(
-                            self.full_plant_data[3].get('accession_id'))[1]
-                    )
-                    self.assertEqual(
-                        shpf.record(0)['species'],
-                        self.taxa_to_acc.get(
-                            self.full_plant_data[3].get('accession_id'))[2]
-                    )
-                    self.assertEqual(
-                        shpf.shapes()[0].__geo_interface__,
-                        {'type': 'Point', 'coordinates': (0.2956, 51.4787)}
-                    )
+            with z.open([i for i in namelist if i.endswith('.shp')][0]) as shp:
+                with z.open([i for i in namelist if i.endswith('.dbf')][0]) as dbf:
+                    with Reader(shp=shp, dbf=dbf) as shpf:
+                        self.assertEqual(len(shpf.shapes()), 1)
+                        self.assertEqual(shpf.record(0)['plt_id'],
+                                         self.full_plant_data[3].get('id'))
+                        self.assertEqual(shpf.record(0)['plt_code'],
+                                         self.full_plant_data[3].get('code'))
+                        self.assertEqual(shpf.record(0)['quantity'],
+                                         self.full_plant_data[3].get('quantity'))
+                        acc = [i.get('code') for i in accession_data if
+                               i.get('id') ==
+                               self.full_plant_data[3].get('accession_id')][0]
+                        self.assertEqual(shpf.record(0)['accession'], acc)
+                        loc = [i.get('code') for i in location_data if
+                               i.get('id') ==
+                               self.full_plant_data[3].get('location_id')][0]
+                        self.assertEqual(shpf.record(0)['bed'], loc)
+                        self.assertEqual(
+                            shpf.record(0)['family'],
+                            self.taxa_to_acc.get(
+                                self.full_plant_data[3].get('accession_id'))[0]
+                        )
+                        self.assertEqual(
+                            shpf.record(0)['genus'],
+                            self.taxa_to_acc.get(
+                                self.full_plant_data[3].get('accession_id'))[1]
+                        )
+                        self.assertEqual(
+                            shpf.record(0)['species'],
+                            self.taxa_to_acc.get(
+                                self.full_plant_data[3].get('accession_id'))[2]
+                        )
+                        self.assertEqual(
+                            shpf.shapes()[0].__geo_interface__,
+                            {'type': 'Point', 'coordinates': (0.2956, 51.4787)}
+                        )
         with ZipFile([i for i in out if 'locations_poly.zip' in i][0]) as z:
             namelist = z.namelist()
             self.assertEqual(len(namelist), 4)
             with z.open([i for i in namelist if i.endswith('.prj')][0]) as prj:
                 self.assertEqual(prj.read().decode('utf-8'), prj_str_4326)
-            with (
-                z.open([i for i in namelist if i.endswith('.shp')][0]) as shp,
-                z.open([i for i in namelist if i.endswith('.dbf')][0]) as dbf,
-            ):
-                with Reader(shp=shp, dbf=dbf) as shpf:
-                    self.assertEqual(len(shpf.shapes()), 2)
+            with z.open([i for i in namelist if i.endswith('.shp')][0]) as shp:
+                with z.open([i for i in namelist if i.endswith('.dbf')][0]) as dbf:
+                    with Reader(shp=shp, dbf=dbf) as shpf:
+                        self.assertEqual(len(shpf.shapes()), 2)
 
     def test_exports_search_all_w_generated_plants_under_100(self):
         accs = self.session.query(Accession).all()
@@ -1349,21 +1317,19 @@ class ShapefileExportTests(BaubleTestCase):
             self.assertEqual(len(namelist), 4)
             with z.open([i for i in namelist if i.endswith('.prj')][0]) as prj:
                 self.assertEqual(prj.read().decode('utf-8'), prj_str_4326)
-            with (
-                z.open([i for i in namelist if i.endswith('.shp')][0]) as shp,
-                z.open([i for i in namelist if i.endswith('.dbf')][0]) as dbf,
-            ):
-                with Reader(shp=shp, dbf=dbf) as shpf:
-                    self.assertEqual(len(shpf.shapes()), 32)
-                    self.assertEqual(
-                        shpf.shapes()[1].__geo_interface__,
-                        {'type': 'Point', 'coordinates': (0.2956, 51.4787)}
-                    )
-                    self.assertEqual(
-                        shpf.shapes()[31].__geo_interface__,
-                        {'type': 'Point',
-                         'coordinates': (0.2956 + (0.0001 * 30), 51.4787)}
-                    )
+            with z.open([i for i in namelist if i.endswith('.shp')][0]) as shp:
+                with z.open([i for i in namelist if i.endswith('.dbf')][0]) as dbf:
+                    with Reader(shp=shp, dbf=dbf) as shpf:
+                        self.assertEqual(len(shpf.shapes()), 32)
+                        self.assertEqual(
+                            shpf.shapes()[1].__geo_interface__,
+                            {'type': 'Point', 'coordinates': (0.2956, 51.4787)}
+                        )
+                        self.assertEqual(
+                            shpf.shapes()[31].__geo_interface__,
+                            {'type': 'Point',
+                             'coordinates': (0.2956 + (0.0001 * 30), 51.4787)}
+                        )
 
     def test_exports_search_all_w_generated_plants_over_100(self):
         import bauble
@@ -1418,43 +1384,41 @@ class ShapefileExportTests(BaubleTestCase):
             self.assertEqual(len(namelist), 4)
             with z.open([i for i in namelist if i.endswith('.prj')][0]) as prj:
                 self.assertEqual(prj.read().decode('utf-8'), prj_str_4326)
-            with (
-                z.open([i for i in namelist if i.endswith('.shp')][0]) as shp,
-                z.open([i for i in namelist if i.endswith('.dbf')][0]) as dbf,
-            ):
-                with Reader(shp=shp, dbf=dbf) as shpf:
-                    self.assertEqual(len(shpf.shapes()), 1)
-                    self.assertEqual(shpf.record(0)['plt_id'],
-                                     plant_data[0].get('id'))
-                    self.assertEqual(shpf.record(0)['plt_code'],
-                                     plant_data[0].get('code'))
-                    self.assertEqual(shpf.record(0)['quantity'],
-                                     plant_data[0].get('quantity'))
-                    acc = [i.get('code') for i in accession_data if
-                           i.get('id') == plant_data[0].get('accession_id')][0]
-                    self.assertEqual(shpf.record(0)['accession'], acc)
-                    loc = [i.get('code') for i in location_data if
-                           i.get('id') == plant_data[0].get('location_id')][0]
-                    self.assertEqual(shpf.record(0)['bed'], loc)
-                    self.assertEqual(shpf.record(0)['family'],
-                                     self.taxa_to_acc.get(
-                                         plant_data[0].get('accession_id'))[0]
-                                     )
-                    self.assertEqual(
-                        shpf.record(0)['genus'],
-                        self.taxa_to_acc.get(
-                            plant_data[0].get('accession_id'))[1]
-                    )
-                    self.assertEqual(
-                        shpf.record(0)['species'],
-                        self.taxa_to_acc.get(
-                            plant_data[0].get('accession_id'))[2]
-                    )
-                    self.assertEqual(
-                        transform(shpf.shapes()[0].__geo_interface__,
-                                  in_crs='epsg:4326',
-                                  out_crs='epsg:4326'),
-                        epsg4326_point_xy)
+            with z.open([i for i in namelist if i.endswith('.shp')][0]) as shp:
+                with z.open([i for i in namelist if i.endswith('.dbf')][0]) as dbf:
+                    with Reader(shp=shp, dbf=dbf) as shpf:
+                        self.assertEqual(len(shpf.shapes()), 1)
+                        self.assertEqual(shpf.record(0)['plt_id'],
+                                         plant_data[0].get('id'))
+                        self.assertEqual(shpf.record(0)['plt_code'],
+                                         plant_data[0].get('code'))
+                        self.assertEqual(shpf.record(0)['quantity'],
+                                         plant_data[0].get('quantity'))
+                        acc = [i.get('code') for i in accession_data if
+                               i.get('id') == plant_data[0].get('accession_id')][0]
+                        self.assertEqual(shpf.record(0)['accession'], acc)
+                        loc = [i.get('code') for i in location_data if
+                               i.get('id') == plant_data[0].get('location_id')][0]
+                        self.assertEqual(shpf.record(0)['bed'], loc)
+                        self.assertEqual(shpf.record(0)['family'],
+                                         self.taxa_to_acc.get(
+                                             plant_data[0].get('accession_id'))[0]
+                                         )
+                        self.assertEqual(
+                            shpf.record(0)['genus'],
+                            self.taxa_to_acc.get(
+                                plant_data[0].get('accession_id'))[1]
+                        )
+                        self.assertEqual(
+                            shpf.record(0)['species'],
+                            self.taxa_to_acc.get(
+                                plant_data[0].get('accession_id'))[2]
+                        )
+                        self.assertEqual(
+                            transform(shpf.shapes()[0].__geo_interface__,
+                                      in_crs='epsg:4326',
+                                      out_crs='epsg:4326'),
+                            epsg4326_point_xy)
 
     def test_exports_search_plants_with_no_geojson(self):
         rec1 = self.session.query(Plant).get(1)
@@ -1491,12 +1455,10 @@ class ShapefileExportTests(BaubleTestCase):
             self.assertEqual(len(namelist), 4)
             with z.open([i for i in namelist if i.endswith('.prj')][0]) as prj:
                 self.assertEqual(prj.read().decode('utf-8'), prj_str_4326)
-            with (
-                z.open([i for i in namelist if i.endswith('.shp')][0]) as shp,
-                z.open([i for i in namelist if i.endswith('.dbf')][0]) as dbf,
-            ):
-                with Reader(shp=shp, dbf=dbf) as shpf:
-                    self.assertEqual(len(shpf.shapes()), 2)
+            with z.open([i for i in namelist if i.endswith('.shp')][0]) as shp:
+                with z.open([i for i in namelist if i.endswith('.dbf')][0]) as dbf:
+                    with Reader(shp=shp, dbf=dbf) as shpf:
+                        self.assertEqual(len(shpf.shapes()), 2)
 
     def test_on_btnbrowse_clicked(self):
         exporter = self.exporter
@@ -1566,13 +1528,11 @@ class ShapefileExportTests(BaubleTestCase):
             self.assertEqual(len(namelist), 4)
             with z.open([i for i in namelist if i.endswith('.prj')][0]) as prj:
                 self.assertEqual(prj.read().decode('utf-8'), prj_str_4326)
-            with (
-                z.open([i for i in namelist if i.endswith('.shp')][0]) as shp,
-                z.open([i for i in namelist if i.endswith('.dbf')][0]) as dbf,
-            ):
-                with Reader(shp=shp, dbf=dbf) as shpf:
-                    # field_names = [i[0] for i in shpf.fields]
-                    self.assertEqual(len(shpf.shapes()), 2)
+            with z.open([i for i in namelist if i.endswith('.shp')][0]) as shp:
+                with z.open([i for i in namelist if i.endswith('.dbf')][0]) as dbf:
+                    with Reader(shp=shp, dbf=dbf) as shpf:
+                        # field_names = [i[0] for i in shpf.fields]
+                        self.assertEqual(len(shpf.shapes()), 2)
 
     def test_export_tool_plants(self):
         export_tool = ShapefileExportTool()
