@@ -411,10 +411,8 @@
         <property name="orientation">vertical</property>
         <child>
           <object class="GtkScrolledWindow" id="notes_sw">
-            <property name="visible">True</property>
             <property name="can-focus">True</property>
             <property name="border-width">5</property>
-            <property name="hscrollbar-policy">never</property>
             <property name="shadow-type">in</property>
             <child>
               <object class="GtkTextView" id="notes_data">
@@ -444,39 +442,26 @@
         <property name="orientation">vertical</property>
         <property name="spacing">10</property>
         <child>
-          <object class="GtkTable" id="table1">
+          <!-- n-columns=2 n-rows=4 -->
+          <object class="GtkGrid" id="table1">
             <property name="visible">True</property>
             <property name="can-focus">False</property>
-            <property name="n-rows">4</property>
-            <property name="n-columns">2</property>
-            <property name="column-spacing">15</property>
             <property name="row-spacing">8</property>
+            <property name="column-spacing">15</property>
             <child>
               <object class="GtkLabel" id="source_name_label">
                 <property name="visible">True</property>
                 <property name="can-focus">False</property>
-                <property name="label" translatable="yes">&lt;b&gt;Contact:&lt;/b&gt;</property>
+                <property name="label" translatable="yes">Contact:</property>
                 <property name="use-markup">True</property>
                 <property name="xalign">1</property>
+                <attributes>
+                  <attribute name="weight" value="bold"/>
+                </attributes>
               </object>
               <packing>
-                <property name="x-options">GTK_FILL</property>
-                <property name="y-options"/>
-              </packing>
-            </child>
-            <child>
-              <object class="GtkLabel" id="sources_code_labe">
-                <property name="visible">True</property>
-                <property name="can-focus">False</property>
-                <property name="label" translatable="yes">&lt;b&gt;Source's ID:&lt;/b&gt;</property>
-                <property name="use-markup">True</property>
-                <property name="xalign">1</property>
-              </object>
-              <packing>
-                <property name="top-attach">1</property>
-                <property name="bottom-attach">2</property>
-                <property name="x-options">GTK_FILL</property>
-                <property name="y-options"/>
+                <property name="left-attach">0</property>
+                <property name="top-attach">0</property>
               </packing>
             </child>
             <child>
@@ -494,9 +479,23 @@
               </object>
               <packing>
                 <property name="left-attach">1</property>
-                <property name="right-attach">2</property>
-                <property name="x-options">GTK_FILL</property>
-                <property name="y-options"/>
+                <property name="top-attach">0</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkLabel" id="sources_code_labe">
+                <property name="visible">True</property>
+                <property name="can-focus">False</property>
+                <property name="label" translatable="yes">Source's ID:</property>
+                <property name="use-markup">True</property>
+                <property name="xalign">1</property>
+                <attributes>
+                  <attribute name="weight" value="bold"/>
+                </attributes>
+              </object>
+              <packing>
+                <property name="left-attach">0</property>
+                <property name="top-attach">1</property>
               </packing>
             </child>
             <child>
@@ -508,26 +507,23 @@
               </object>
               <packing>
                 <property name="left-attach">1</property>
-                <property name="right-attach">2</property>
                 <property name="top-attach">1</property>
-                <property name="bottom-attach">2</property>
-                <property name="x-options">GTK_FILL</property>
-                <property name="y-options"/>
               </packing>
             </child>
             <child>
               <object class="GtkLabel" id="parent_plant_label">
                 <property name="visible">True</property>
                 <property name="can-focus">False</property>
-                <property name="label" translatable="yes">&lt;b&gt;Parent Plant:&lt;/b&gt;</property>
+                <property name="label" translatable="yes">Parent Plant:</property>
                 <property name="use-markup">True</property>
                 <property name="xalign">1</property>
+                <attributes>
+                  <attribute name="weight" value="bold"/>
+                </attributes>
               </object>
               <packing>
+                <property name="left-attach">0</property>
                 <property name="top-attach">2</property>
-                <property name="bottom-attach">3</property>
-                <property name="x-options">GTK_FILL</property>
-                <property name="y-options"/>
               </packing>
             </child>
             <child>
@@ -545,27 +541,24 @@
               </object>
               <packing>
                 <property name="left-attach">1</property>
-                <property name="right-attach">2</property>
                 <property name="top-attach">2</property>
-                <property name="bottom-attach">3</property>
-                <property name="x-options">GTK_FILL</property>
-                <property name="y-options"/>
               </packing>
             </child>
             <child>
               <object class="GtkLabel" id="propagation_label">
                 <property name="visible">True</property>
                 <property name="can-focus">False</property>
-                <property name="label" translatable="yes">&lt;b&gt;Propagation:&lt;/b&gt;</property>
+                <property name="label" translatable="yes">Propagation:</property>
                 <property name="use-markup">True</property>
                 <property name="xalign">1</property>
                 <property name="yalign">0</property>
+                <attributes>
+                  <attribute name="weight" value="bold"/>
+                </attributes>
               </object>
               <packing>
+                <property name="left-attach">0</property>
                 <property name="top-attach">3</property>
-                <property name="bottom-attach">4</property>
-                <property name="x-options">GTK_FILL</property>
-                <property name="y-options">GTK_FILL</property>
               </packing>
             </child>
             <child>
@@ -579,10 +572,7 @@
               </object>
               <packing>
                 <property name="left-attach">1</property>
-                <property name="right-attach">2</property>
                 <property name="top-attach">3</property>
-                <property name="bottom-attach">4</property>
-                <property name="x-options">GTK_FILL</property>
               </packing>
             </child>
           </object>
@@ -608,384 +598,318 @@
             <property name="visible">True</property>
             <property name="can-focus">True</property>
             <child>
-              <object class="GtkAlignment" id="alignment1">
+              <object class="GtkBox" id="collections_box">
                 <property name="visible">True</property>
                 <property name="can-focus">False</property>
-                <property name="top-padding">5</property>
-                <property name="left-padding">15</property>
+                <property name="orientation">vertical</property>
+                <property name="spacing">8</property>
                 <child>
-                  <object class="GtkBox" id="collections_box">
+                  <!-- n-columns=2 n-rows=8 -->
+                  <object class="GtkGrid" id="collection_table">
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
-                    <property name="orientation">vertical</property>
-                    <property name="spacing">8</property>
+                    <property name="row-spacing">8</property>
+                    <property name="column-spacing">15</property>
                     <child>
-                      <object class="GtkTable" id="collection_table">
+                      <object class="GtkLabel" id="lat_label">
                         <property name="visible">True</property>
                         <property name="can-focus">False</property>
-                        <property name="n-rows">8</property>
-                        <property name="n-columns">2</property>
-                        <property name="column-spacing">15</property>
-                        <property name="row-spacing">8</property>
-                        <child>
-                          <object class="GtkLabel" id="datum_data">
-                            <property name="visible">True</property>
-                            <property name="can-focus">False</property>
-                            <property name="label">--</property>
-                            <property name="xalign">0</property>
-                          </object>
-                          <packing>
-                            <property name="left-attach">1</property>
-                            <property name="right-attach">2</property>
-                            <property name="top-attach">3</property>
-                            <property name="bottom-attach">4</property>
-                            <property name="x-options">GTK_FILL</property>
-                            <property name="y-options"/>
-                          </packing>
-                        </child>
-                        <child>
-                          <object class="GtkLabel" id="datum_label">
-                            <property name="visible">True</property>
-                            <property name="can-focus">False</property>
-                            <property name="label" translatable="yes">GPS Datum</property>
-                            <property name="xalign">1</property>
-                            <attributes>
-                              <attribute name="weight" value="bold"/>
-                            </attributes>
-                          </object>
-                          <packing>
-                            <property name="top-attach">3</property>
-                            <property name="bottom-attach">4</property>
-                            <property name="x-options">GTK_FILL</property>
-                            <property name="y-options"/>
-                          </packing>
-                        </child>
-                        <child>
-                          <object class="GtkLabel" id="elev_data">
-                            <property name="visible">True</property>
-                            <property name="can-focus">False</property>
-                            <property name="label">--</property>
-                            <property name="xalign">0</property>
-                          </object>
-                          <packing>
-                            <property name="left-attach">1</property>
-                            <property name="right-attach">2</property>
-                            <property name="top-attach">4</property>
-                            <property name="bottom-attach">5</property>
-                            <property name="x-options">GTK_FILL</property>
-                            <property name="y-options"/>
-                          </packing>
-                        </child>
-                        <child>
-                          <object class="GtkLabel" id="elev_label">
-                            <property name="visible">True</property>
-                            <property name="can-focus">False</property>
-                            <property name="label" translatable="yes">Elevation:</property>
-                            <property name="xalign">1</property>
-                            <attributes>
-                              <attribute name="weight" value="bold"/>
-                            </attributes>
-                          </object>
-                          <packing>
-                            <property name="top-attach">4</property>
-                            <property name="bottom-attach">5</property>
-                            <property name="x-options">GTK_FILL</property>
-                            <property name="y-options"/>
-                          </packing>
-                        </child>
-                        <child>
-                          <object class="GtkLabel" id="coll_data">
-                            <property name="visible">True</property>
-                            <property name="can-focus">False</property>
-                            <property name="label">--</property>
-                            <property name="xalign">0</property>
-                          </object>
-                          <packing>
-                            <property name="left-attach">1</property>
-                            <property name="right-attach">2</property>
-                            <property name="top-attach">5</property>
-                            <property name="bottom-attach">6</property>
-                            <property name="x-options">GTK_FILL</property>
-                            <property name="y-options"/>
-                          </packing>
-                        </child>
-                        <child>
-                          <object class="GtkLabel" id="coll_label">
-                            <property name="visible">True</property>
-                            <property name="can-focus">False</property>
-                            <property name="label" translatable="yes">Collector:</property>
-                            <property name="xalign">1</property>
-                            <attributes>
-                              <attribute name="weight" value="bold"/>
-                            </attributes>
-                          </object>
-                          <packing>
-                            <property name="top-attach">5</property>
-                            <property name="bottom-attach">6</property>
-                            <property name="x-options">GTK_FILL</property>
-                            <property name="y-options"/>
-                          </packing>
-                        </child>
-                        <child>
-                          <object class="GtkLabel" id="date_data">
-                            <property name="visible">True</property>
-                            <property name="can-focus">False</property>
-                            <property name="label">--</property>
-                            <property name="xalign">0</property>
-                          </object>
-                          <packing>
-                            <property name="left-attach">1</property>
-                            <property name="right-attach">2</property>
-                            <property name="top-attach">6</property>
-                            <property name="bottom-attach">7</property>
-                            <property name="x-options">GTK_FILL</property>
-                            <property name="y-options"/>
-                          </packing>
-                        </child>
-                        <child>
-                          <object class="GtkLabel" id="date_label">
-                            <property name="visible">True</property>
-                            <property name="can-focus">False</property>
-                            <property name="label" translatable="yes">Date collected:</property>
-                            <property name="xalign">1</property>
-                            <attributes>
-                              <attribute name="weight" value="bold"/>
-                            </attributes>
-                          </object>
-                          <packing>
-                            <property name="top-attach">6</property>
-                            <property name="bottom-attach">7</property>
-                            <property name="x-options">GTK_FILL</property>
-                            <property name="y-options"/>
-                          </packing>
-                        </child>
-                        <child>
-                          <object class="GtkLabel" id="collid_data">
-                            <property name="visible">True</property>
-                            <property name="can-focus">False</property>
-                            <property name="label">--</property>
-                            <property name="xalign">0</property>
-                          </object>
-                          <packing>
-                            <property name="left-attach">1</property>
-                            <property name="right-attach">2</property>
-                            <property name="top-attach">7</property>
-                            <property name="bottom-attach">8</property>
-                            <property name="y-options"/>
-                          </packing>
-                        </child>
-                        <child>
-                          <object class="GtkLabel" id="collid_label">
-                            <property name="visible">True</property>
-                            <property name="can-focus">False</property>
-                            <property name="label" translatable="yes">Collection ID:</property>
-                            <property name="xalign">1</property>
-                            <attributes>
-                              <attribute name="weight" value="bold"/>
-                            </attributes>
-                          </object>
-                          <packing>
-                            <property name="top-attach">7</property>
-                            <property name="bottom-attach">8</property>
-                            <property name="x-options">GTK_FILL</property>
-                            <property name="y-options"/>
-                          </packing>
-                        </child>
-                        <child>
-                          <object class="GtkLabel" id="loc_label">
-                            <property name="visible">True</property>
-                            <property name="can-focus">False</property>
-                            <property name="label" translatable="yes">Location:</property>
-                            <property name="xalign">1</property>
-                            <attributes>
-                              <attribute name="weight" value="bold"/>
-                            </attributes>
-                          </object>
-                          <packing>
-                            <property name="x-options">GTK_FILL</property>
-                            <property name="y-options"/>
-                          </packing>
-                        </child>
-                        <child>
-                          <object class="GtkLabel" id="lat_label">
-                            <property name="visible">True</property>
-                            <property name="can-focus">False</property>
-                            <property name="label" translatable="yes">Latitude:</property>
-                            <property name="xalign">1</property>
-                            <attributes>
-                              <attribute name="weight" value="bold"/>
-                            </attributes>
-                          </object>
-                          <packing>
-                            <property name="top-attach">1</property>
-                            <property name="bottom-attach">2</property>
-                            <property name="x-options">GTK_FILL</property>
-                            <property name="y-options"/>
-                          </packing>
-                        </child>
-                        <child>
-                          <object class="GtkLabel" id="lon_label">
-                            <property name="visible">True</property>
-                            <property name="can-focus">False</property>
-                            <property name="label" translatable="yes">Longitude:</property>
-                            <property name="xalign">1</property>
-                            <attributes>
-                              <attribute name="weight" value="bold"/>
-                            </attributes>
-                          </object>
-                          <packing>
-                            <property name="top-attach">2</property>
-                            <property name="bottom-attach">3</property>
-                            <property name="x-options">GTK_FILL</property>
-                            <property name="y-options"/>
-                          </packing>
-                        </child>
-                        <child>
-                          <object class="GtkLabel" id="loc_data">
-                            <property name="visible">True</property>
-                            <property name="can-focus">False</property>
-                            <property name="label">--</property>
-                            <property name="xalign">0</property>
-                          </object>
-                          <packing>
-                            <property name="left-attach">1</property>
-                            <property name="right-attach">2</property>
-                            <property name="x-options">GTK_FILL</property>
-                            <property name="y-options"/>
-                          </packing>
-                        </child>
-                        <child>
-                          <object class="GtkLabel" id="lat_data">
-                            <property name="visible">True</property>
-                            <property name="can-focus">False</property>
-                            <property name="label">--</property>
-                            <property name="xalign">0</property>
-                          </object>
-                          <packing>
-                            <property name="left-attach">1</property>
-                            <property name="right-attach">2</property>
-                            <property name="top-attach">1</property>
-                            <property name="bottom-attach">2</property>
-                            <property name="x-options">GTK_FILL</property>
-                            <property name="y-options"/>
-                          </packing>
-                        </child>
-                        <child>
-                          <object class="GtkLabel" id="lon_data">
-                            <property name="visible">True</property>
-                            <property name="can-focus">False</property>
-                            <property name="label">--</property>
-                            <property name="xalign">0</property>
-                          </object>
-                          <packing>
-                            <property name="left-attach">1</property>
-                            <property name="right-attach">2</property>
-                            <property name="top-attach">2</property>
-                            <property name="bottom-attach">3</property>
-                            <property name="x-options">GTK_FILL</property>
-                            <property name="y-options"/>
-                          </packing>
-                        </child>
+                        <property name="label" translatable="yes">Latitude:</property>
+                        <property name="xalign">1</property>
+                        <attributes>
+                          <attribute name="weight" value="bold"/>
+                        </attributes>
                       </object>
                       <packing>
-                        <property name="expand">False</property>
-                        <property name="fill">True</property>
-                        <property name="position">0</property>
+                        <property name="left-attach">0</property>
+                        <property name="top-attach">0</property>
                       </packing>
                     </child>
                     <child>
-                      <object class="GtkFrame" id="habitat_frame">
+                      <object class="GtkLabel" id="loc_data">
                         <property name="visible">True</property>
                         <property name="can-focus">False</property>
-                        <property name="label-xalign">0</property>
-                        <property name="shadow-type">none</property>
-                        <child>
-                          <object class="GtkAlignment" id="alignment2">
-                            <property name="visible">True</property>
-                            <property name="can-focus">False</property>
-                            <property name="left-padding">12</property>
-                            <child>
-                              <object class="GtkScrolledWindow" id="scrolledwindow3">
-                                <property name="visible">True</property>
-                                <property name="can-focus">True</property>
-                                <property name="shadow-type">in</property>
-                                <child>
-                                  <object class="GtkTextView" id="habitat_data">
-                                    <property name="visible">True</property>
-                                    <property name="can-focus">True</property>
-                                    <property name="editable">False</property>
-                                    <property name="wrap-mode">word</property>
-                                    <property name="cursor-visible">False</property>
-                                  </object>
-                                </child>
-                              </object>
-                            </child>
-                          </object>
-                        </child>
-                        <child type="label">
-                          <object class="GtkLabel" id="habitat_label">
-                            <property name="visible">True</property>
-                            <property name="can-focus">False</property>
-                            <property name="label" translatable="yes">Habitat</property>
-                            <attributes>
-                              <attribute name="weight" value="bold"/>
-                            </attributes>
-                          </object>
-                        </child>
+                        <property name="label">--</property>
+                        <property name="xalign">0</property>
                       </object>
                       <packing>
-                        <property name="expand">False</property>
-                        <property name="fill">True</property>
-                        <property name="position">1</property>
+                        <property name="left-attach">1</property>
+                        <property name="top-attach">0</property>
                       </packing>
                     </child>
                     <child>
-                      <object class="GtkFrame" id="notes_frame">
+                      <object class="GtkLabel" id="lon_label">
                         <property name="visible">True</property>
                         <property name="can-focus">False</property>
-                        <property name="label-xalign">0</property>
-                        <property name="shadow-type">none</property>
-                        <child>
-                          <object class="GtkAlignment" id="alignment3">
-                            <property name="visible">True</property>
-                            <property name="can-focus">False</property>
-                            <property name="left-padding">12</property>
-                            <child>
-                              <object class="GtkScrolledWindow" id="scrolledwindow4">
-                                <property name="visible">True</property>
-                                <property name="can-focus">True</property>
-                                <property name="shadow-type">in</property>
-                                <child>
-                                  <object class="GtkTextView" id="collnotes_data">
-                                    <property name="visible">True</property>
-                                    <property name="can-focus">True</property>
-                                    <property name="editable">False</property>
-                                    <property name="wrap-mode">word</property>
-                                    <property name="cursor-visible">False</property>
-                                  </object>
-                                </child>
-                              </object>
-                            </child>
-                          </object>
-                        </child>
-                        <child type="label">
-                          <object class="GtkLabel" id="notes_label">
-                            <property name="visible">True</property>
-                            <property name="can-focus">False</property>
-                            <property name="label" translatable="yes">Notes</property>
-                            <attributes>
-                              <attribute name="weight" value="bold"/>
-                            </attributes>
-                          </object>
-                        </child>
+                        <property name="label" translatable="yes">Longitude:</property>
+                        <property name="xalign">1</property>
+                        <attributes>
+                          <attribute name="weight" value="bold"/>
+                        </attributes>
                       </object>
                       <packing>
-                        <property name="expand">False</property>
-                        <property name="fill">True</property>
-                        <property name="position">2</property>
+                        <property name="left-attach">0</property>
+                        <property name="top-attach">1</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <object class="GtkLabel" id="lon_data">
+                        <property name="visible">True</property>
+                        <property name="can-focus">False</property>
+                        <property name="label">--</property>
+                        <property name="xalign">0</property>
+                      </object>
+                      <packing>
+                        <property name="left-attach">1</property>
+                        <property name="top-attach">1</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <object class="GtkLabel" id="datum_label">
+                        <property name="visible">True</property>
+                        <property name="can-focus">False</property>
+                        <property name="label" translatable="yes">GPS Datum</property>
+                        <property name="xalign">1</property>
+                        <attributes>
+                          <attribute name="weight" value="bold"/>
+                        </attributes>
+                      </object>
+                      <packing>
+                        <property name="left-attach">0</property>
+                        <property name="top-attach">2</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <object class="GtkLabel" id="datum_data">
+                        <property name="visible">True</property>
+                        <property name="can-focus">False</property>
+                        <property name="label">--</property>
+                        <property name="xalign">0</property>
+                      </object>
+                      <packing>
+                        <property name="left-attach">1</property>
+                        <property name="top-attach">2</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <object class="GtkLabel" id="elev_label">
+                        <property name="visible">True</property>
+                        <property name="can-focus">False</property>
+                        <property name="label" translatable="yes">Elevation:</property>
+                        <property name="xalign">1</property>
+                        <attributes>
+                          <attribute name="weight" value="bold"/>
+                        </attributes>
+                      </object>
+                      <packing>
+                        <property name="left-attach">0</property>
+                        <property name="top-attach">3</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <object class="GtkLabel" id="elev_data">
+                        <property name="visible">True</property>
+                        <property name="can-focus">False</property>
+                        <property name="label">--</property>
+                        <property name="xalign">0</property>
+                      </object>
+                      <packing>
+                        <property name="left-attach">1</property>
+                        <property name="top-attach">3</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <object class="GtkLabel" id="coll_label">
+                        <property name="visible">True</property>
+                        <property name="can-focus">False</property>
+                        <property name="label" translatable="yes">Collector:</property>
+                        <property name="xalign">1</property>
+                        <attributes>
+                          <attribute name="weight" value="bold"/>
+                        </attributes>
+                      </object>
+                      <packing>
+                        <property name="left-attach">0</property>
+                        <property name="top-attach">4</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <object class="GtkLabel" id="coll_data">
+                        <property name="visible">True</property>
+                        <property name="can-focus">False</property>
+                        <property name="label">--</property>
+                        <property name="xalign">0</property>
+                      </object>
+                      <packing>
+                        <property name="left-attach">1</property>
+                        <property name="top-attach">4</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <object class="GtkLabel" id="date_label">
+                        <property name="visible">True</property>
+                        <property name="can-focus">False</property>
+                        <property name="label" translatable="yes">Date collected:</property>
+                        <property name="xalign">1</property>
+                        <attributes>
+                          <attribute name="weight" value="bold"/>
+                        </attributes>
+                      </object>
+                      <packing>
+                        <property name="left-attach">0</property>
+                        <property name="top-attach">5</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <object class="GtkLabel" id="date_data">
+                        <property name="visible">True</property>
+                        <property name="can-focus">False</property>
+                        <property name="label">--</property>
+                        <property name="xalign">0</property>
+                      </object>
+                      <packing>
+                        <property name="left-attach">1</property>
+                        <property name="top-attach">5</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <object class="GtkLabel" id="collid_label">
+                        <property name="visible">True</property>
+                        <property name="can-focus">False</property>
+                        <property name="label" translatable="yes">Collection ID:</property>
+                        <property name="xalign">1</property>
+                        <attributes>
+                          <attribute name="weight" value="bold"/>
+                        </attributes>
+                      </object>
+                      <packing>
+                        <property name="left-attach">0</property>
+                        <property name="top-attach">6</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <object class="GtkLabel" id="collid_data">
+                        <property name="visible">True</property>
+                        <property name="can-focus">False</property>
+                        <property name="label">--</property>
+                        <property name="xalign">0</property>
+                      </object>
+                      <packing>
+                        <property name="left-attach">1</property>
+                        <property name="top-attach">6</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <object class="GtkLabel" id="loc_label">
+                        <property name="visible">True</property>
+                        <property name="can-focus">False</property>
+                        <property name="label" translatable="yes">Location:</property>
+                        <property name="xalign">1</property>
+                        <attributes>
+                          <attribute name="weight" value="bold"/>
+                        </attributes>
+                      </object>
+                      <packing>
+                        <property name="left-attach">0</property>
+                        <property name="top-attach">7</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <object class="GtkLabel" id="lat_data">
+                        <property name="visible">True</property>
+                        <property name="can-focus">False</property>
+                        <property name="label">--</property>
+                        <property name="xalign">0</property>
+                      </object>
+                      <packing>
+                        <property name="left-attach">1</property>
+                        <property name="top-attach">7</property>
                       </packing>
                     </child>
                   </object>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="fill">True</property>
+                    <property name="position">0</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkFrame" id="habitat_frame">
+                    <property name="visible">True</property>
+                    <property name="can-focus">False</property>
+                    <property name="label-xalign">0</property>
+                    <property name="shadow-type">none</property>
+                    <child>
+                      <object class="GtkScrolledWindow" id="scrolledwindow3">
+                        <property name="visible">True</property>
+                        <property name="can-focus">True</property>
+                        <property name="shadow-type">in</property>
+                        <child>
+                          <object class="GtkTextView" id="habitat_data">
+                            <property name="visible">True</property>
+                            <property name="can-focus">True</property>
+                            <property name="editable">False</property>
+                            <property name="wrap-mode">word</property>
+                            <property name="cursor-visible">False</property>
+                          </object>
+                        </child>
+                      </object>
+                    </child>
+                    <child type="label">
+                      <object class="GtkLabel" id="habitat_label">
+                        <property name="visible">True</property>
+                        <property name="can-focus">False</property>
+                        <property name="label" translatable="yes">Habitat</property>
+                        <attributes>
+                          <attribute name="weight" value="bold"/>
+                        </attributes>
+                      </object>
+                    </child>
+                  </object>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="fill">True</property>
+                    <property name="position">1</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkFrame" id="notes_frame">
+                    <property name="visible">True</property>
+                    <property name="can-focus">False</property>
+                    <property name="label-xalign">0</property>
+                    <property name="shadow-type">none</property>
+                    <child>
+                      <object class="GtkScrolledWindow" id="scrolledwindow4">
+                        <property name="visible">True</property>
+                        <property name="can-focus">True</property>
+                        <property name="shadow-type">in</property>
+                        <child>
+                          <object class="GtkTextView" id="collnotes_data">
+                            <property name="visible">True</property>
+                            <property name="can-focus">True</property>
+                            <property name="editable">False</property>
+                            <property name="wrap-mode">word</property>
+                            <property name="cursor-visible">False</property>
+                          </object>
+                        </child>
+                      </object>
+                    </child>
+                    <child type="label">
+                      <object class="GtkLabel" id="notes_label">
+                        <property name="visible">True</property>
+                        <property name="can-focus">False</property>
+                        <property name="label" translatable="yes">Notes</property>
+                        <attributes>
+                          <attribute name="weight" value="bold"/>
+                        </attributes>
+                      </object>
+                    </child>
+                  </object>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="fill">True</property>
+                    <property name="position">2</property>
+                  </packing>
                 </child>
               </object>
             </child>
