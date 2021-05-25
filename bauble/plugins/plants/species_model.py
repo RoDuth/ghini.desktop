@@ -181,6 +181,30 @@ class Species(db.Base, db.Serializable, db.DefiningPictures, db.WithNotes):
     __tablename__ = 'species'
     __mapper_args__ = {'order_by': ['sp', 'sp_author']}
 
+    # for internal use when importing records, accounts for the lack of
+    # UniqueConstraints and the complex of hybrid_properties etc.
+    uniq_props = [
+        'genus',
+        'genus_id',
+        'sp',
+        'epithet',
+        'sp_author',
+        'hybrid',
+        'sp_qual',
+        'infrasp1',
+        'infrasp1_rank',
+        'infrasp2',
+        'infrasp2_rank',
+        'infrasp3',
+        'infrasp3_rank',
+        'infrasp4',
+        'infrasp4_rank',
+        'infraspecific_parts',
+        'infraspecific_epithet',
+        'infraspecific_rank',
+        'cultivar_epithet'
+    ]
+
     rank = 'species'
     link_keys = ['accepted']
 
