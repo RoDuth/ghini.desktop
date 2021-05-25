@@ -636,7 +636,7 @@ class SearchView(pluginmgr.View):
             objs = klass.attached_to(row)
             model = bottom_info['tree'].get_model()
             model.clear()
-            if len(objs) == 0:
+            if not objs or not isinstance(objs, list):
                 label.set_use_markup(False)
                 label.set_label(bottom_info['name'])
             else:

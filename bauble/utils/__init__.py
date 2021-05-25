@@ -574,14 +574,15 @@ def set_widget_value(widget, value, markup=False, default=None, index=0):
                         (type(widget), widget.name))
 
 
-def create_message_dialog(msg, type=Gtk.MessageType.INFO, buttons=Gtk.ButtonsType.OK,
+def create_message_dialog(msg, typ=Gtk.MessageType.INFO,
+                          buttons=Gtk.ButtonsType.OK,
                           parent=None):
     '''
     Create a message dialog.
 
     :param msg: The markup to use for the message. The value should be
       escaped in case it contains any HTML entities.
-    :param type: A GTK message type constant.  The default is Gtk.MessageType.INFO.
+    :param typ: A GTK message type constant.  The default is Gtk.MessageType.INFO.
     :param buttons: A GTK buttons type constant.  The default is
       Gtk.ButtonsType.OK.
     :param parent:  The parent window for the dialog
@@ -593,12 +594,12 @@ def create_message_dialog(msg, type=Gtk.MessageType.INFO, buttons=Gtk.ButtonsTyp
             parent = bauble.gui.window
         except Exception:
             parent = None
-    d = Gtk.MessageDialog(flags=Gtk.DialogFlags.MODAL |
-                          Gtk.DialogFlags.DESTROY_WITH_PARENT,
-                          parent=parent, type=type, buttons=buttons)
+    d = Gtk.MessageDialog(modal=True, destroy_with_parent=True,
+                          parent=parent, message_type=typ, buttons=buttons)
     d.set_position(Gtk.WindowPosition.CENTER)
     d.set_title('Ghini')
     d.set_markup(msg)
+    d.set_property('resizable', True)
 
     # get the width of a character
     context = d.get_pango_context()
@@ -609,7 +610,7 @@ def create_message_dialog(msg, type=Gtk.MessageType.INFO, buttons=Gtk.ButtonsTyp
     # if the character width is less than 300 pixels then set the
     # message dialog's label to be 300 to avoid tiny dialogs
     if width / Pango.SCALE * len(msg) < 300:
-        d.set_property('default-width', 250)
+        d.set_property('default-width', 300)
 
     if d.get_icon() is None:
         try:
@@ -617,8 +618,8 @@ def create_message_dialog(msg, type=Gtk.MessageType.INFO, buttons=Gtk.ButtonsTyp
             d.set_icon(pixbuf)
         except Exception:
             pass
-        d.set_property('skip-taskbar-hint', False)
-        d.set_property('resizable', True)
+    d.set_property('skip-taskbar-hint', False)
+    d.set_property('resizable', True)
     d.show_all()
     return d
 
@@ -690,7 +691,7 @@ def yes_no_dialog(msg, parent=None, yes_delay=-1):
     return r == Gtk.ResponseType.YES
 
 
-def create_message_details_dialog(msg, details='', type=Gtk.MessageType.INFO,
+def create_message_details_dialog(msg, details='', typ=Gtk.MessageType.INFO,
                                   buttons=Gtk.ButtonsType.OK, parent=None):
     '''
     Create a message dialog with a details expander.
@@ -701,11 +702,14 @@ def create_message_details_dialog(msg, details='', type=Gtk.MessageType.INFO,
         except Exception:
             parent = None
 
-    d = Gtk.MessageDialog(flags=Gtk.DialogFlags.MODAL |
-                          Gtk.DialogFlags.DESTROY_WITH_PARENT,
-                          parent=parent, message_type=type, buttons=buttons)
+    d = Gtk.MessageDialog(modal=True, destroy_with_parent=True,
+                          parent=parent, message_type=typ, buttons=buttons)
     d.set_title('Ghini')
     d.set_markup(msg)
+    # allows resize and copying error messages etc.
+    d.set_property('resizable', True)
+    message_label = d.get_message_area().get_children()[0]
+    message_label.set_selectable(True)
 
     # get the width of a character
     context = d.get_pango_context()
@@ -715,7 +719,7 @@ def create_message_details_dialog(msg, details='', type=Gtk.MessageType.INFO,
     from gi.repository import Pango
     # if the character width is less than 300 pixels then set the
     # message dialog's label to be 300 to avoid tiny dialogs
-    if width/Pango.SCALE*len(msg) < 300:
+    if width / Pango.SCALE * len(msg) < 300:
         d.set_size_request(300, -1)
 
     expand = Gtk.Expander()
@@ -956,10 +960,10 @@ def xml_safe_name(obj):
 
 def complex_hyb(tax):
     """
-    a helper function to splits a complex hybrid formula
-    into its parts.
-    :param: a string containing brackets surounding 2 phrases seperated by a
-      cross/multipy symbol
+    a helper function that splits a complex hybrid formula into its parts.
+
+    :param tax: string containing brackets surounding 2 phrases seperated by
+        a cross/multipy symbol
     """
     # break apart the name parts
     prts = tax.split("×")
@@ -980,7 +984,7 @@ def complex_hyb(tax):
                 right = i + 1
         if right:
             result.append(''.join(
-                j for j in prts[left-1:right]).strip().replace('  ', ' × '))
+                j for j in prts[left - 1:right]).strip().replace('  ', ' × '))
             left = right = find = found = 0
         elif left == right == find == found == 0:
             result.append(prt)
@@ -988,7 +992,7 @@ def complex_hyb(tax):
         # Just return what we can.
         elif i == len_prts - 1:
             result.append(''.join(
-                j for j in prts[left-1:]).strip().replace('  ', ' × '))
+                j for j in prts[left - 1:]).strip().replace('  ', ' × '))
 
     # if have a bracketed part remove the outer brackets and parse that else
     # return the part italicised

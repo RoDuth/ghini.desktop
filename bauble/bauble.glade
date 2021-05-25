@@ -181,7 +181,7 @@
                       <object class="GtkImage" id="image2">
                         <property name="visible">True</property>
                         <property name="can-focus">True</property>
-                        <property name="icon-name">go-up</property>
+                        <property name="icon-name">applications-system</property>
                       </object>
                     </child>
                   </object>
@@ -203,11 +203,15 @@
                       </object>
                     </child>
                     <child internal-child="entry">
-                      <object class="GtkEntry" id="comboboxentry-entry2">
+                      <object class="GtkEntry" id="main_comboentry_entry">
                         <property name="can-focus">True</property>
                         <property name="tooltip-text" translatable="yes">enter here your query or command</property>
-                        <property name="primary-icon-activatable">False</property>
-                        <property name="secondary-icon-activatable">False</property>
+                        <property name="primary_icon_name">edit-find</property>
+                        <property name="primary_icon_activatable">False</property>
+                        <property name="primary_icon_sensitive">False</property>
+                        <property name="secondary_icon_name">mail-attachment</property>
+                        <property name="secondary_icon_activatable">True</property>
+                        <property name="secondary_icon_sensitive">True</property>
                       </object>
                     </child>
                   </object>

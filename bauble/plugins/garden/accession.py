@@ -53,6 +53,7 @@ from sqlalchemy.orm import EXT_CONTINUE, MapperExtension, \
     backref, relation, reconstructor, validates
 from sqlalchemy.orm.session import object_session
 from sqlalchemy.exc import DBAPIError
+from sqlalchemy.sql import collate
 
 import bauble
 import bauble.db as db
@@ -508,7 +509,7 @@ accession_type_to_plant_material = {
     'VEGS': 'Plant',
     'SCKR': 'Plant',
     None: None
-    }
+}
 
 
 def compute_serializable_fields(cls, session, keys):
@@ -1674,7 +1675,9 @@ class SourcePresenter(editor.GenericEditorPresenter):
         model = Gtk.ListStore(object)
         none_iter = model.append([''])
         model.append([self.garden_prop_str])
-        list(map(lambda x: model.append([x]), self.session.query(Contact)))
+        for i in self.session.query(Contact).order_by(collate(Contact.name,
+                                                              'NOCASE')):
+            model.append([i])
         combo.set_model(model)
         combo.get_child().get_completion().set_model(model)
 

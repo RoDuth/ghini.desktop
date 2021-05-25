@@ -626,7 +626,13 @@ class PlantEditorView(GenericEditorView):
 
         def acc_cell_data_func(column, renderer, model, treeiter, data=None):
             v = model[treeiter][0]
-            renderer.set_property('text', '%s (%s)' % (str(v), str(v.species)))
+            # when cancelling an insert sometimes the session gets lost and can
+            # result in a long cycle of DettachedInstanceErrors. So check first
+            from sqlalchemy import inspect as sa_inspect
+            if sa_inspect(v).persistent:
+                renderer.set_property(
+                    'text', '%s (%s)' % (str(v), str(v.species))
+                )
 
         self.attach_completion('plant_acc_entry', acc_cell_data_func,
                                minimum_key_length=2)
@@ -747,6 +753,11 @@ class PlantEditorPresenter(GenericEditorPresenter):
                 order_by(Accession.code)
 
         def on_select(value):
+            # We need value to be an Accession object before we can do anything
+            # with it. (Avoids the first 2 letters prior to the completions
+            # handler kicking in - i.e. when called programatically.)
+            if not isinstance(value, Accession):
+                return
             self.set_model_attr('accession', value)
             # reset the plant code to check that this is a valid code for the
             # new accession, fixes bug #103946
@@ -813,7 +824,8 @@ class PlantEditorPresenter(GenericEditorPresenter):
             logger.debug("%s(%s)" % (type(e).__name__, e))
             value = None
         self.set_model_attr('quantity', value)
-        if value < self.lower_quantity_limit or value >= self.upper_quantity_limit:
+        if (value is None or value < self.lower_quantity_limit or value >=
+                self.upper_quantity_limit):
             self.add_problem(self.PROBLEM_INVALID_QUANTITY, entry)
         else:
             self.remove_problem(self.PROBLEM_INVALID_QUANTITY, entry)
@@ -1254,10 +1266,10 @@ class GeneralPlantExpander(InfoExpander):
                               False)
 
         image_size = Gtk.IconSize.MENU
-        stock = Gtk.STOCK_NO
+        icon = 'media-playback-stop'
         if row.memorial:
-            stock = Gtk.STOCK_YES
-        self.widgets.memorial_image.set_from_stock(stock, image_size)
+            icon = 'media-record'
+        self.widgets.memorial_image.set_from_icon_name(icon, image_size)
 
 
 class ChangesExpander(InfoExpander):

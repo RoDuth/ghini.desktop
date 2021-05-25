@@ -38,6 +38,7 @@ from bauble.plugins.imex.iojson import JSONImporter, JSONExporter
 from bauble.test import BaubleTestCase
 import json
 from bauble.editor import MockView
+from bauble.utils import get_user_display_name
 
 
 family_data = [{'id': 1, 'family': 'Orchidaceae', 'qualifier': None},
@@ -576,7 +577,11 @@ class JSONExportTests(BaubleTestCase):
         self.assertEqual(result[0], {'ht-epithet': 'Calopogon', 'hybrid': False, 'object': 'taxon', 'ht-rank': 'genus', 'rank': 'species', 'epithet': 'tuberosus'})
         date_dict = result[1]['date']
         del result[1]['date']
-        self.assertEqual(result[1], {'category': '<coords>', 'note': '{1: 1, 2: 2}', 'species': 'Calopogon tuberosus', 'object': 'species_note'})
+        self.assertEqual(result[1], {
+            'category': '<coords>', 'note': '{1: 1, 2: 2}',
+            'species': 'Calopogon tuberosus',
+            'object': 'species_note', 'user':
+            get_user_display_name()})
         self.assertEqual(set(date_dict.keys()), set(['millis', '__class__']))
 
     def test_export_single_species_with_vernacular_name(self):

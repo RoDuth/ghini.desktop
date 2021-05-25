@@ -279,7 +279,7 @@ class Genus(db.Base, db.Serializable, db.WithNotes):
     def str(genus, author=False):
         # TODO: the genus should be italicized for markup
         if genus.genus is None:
-            return repr(genus)
+            return ''
         elif not author or genus.author is None:
             return ' '.join([s for s in [genus.genus, genus.qualifier]
                              if s not in ('', None)])
@@ -512,8 +512,10 @@ class GenusEditorPresenter(editor.GenericEditorPresenter):
         def on_select(value):
             for kid in self.view.widgets.message_box_parent.get_children():
                 self.view.widgets.remove_parent(kid)
-            # This is just an arbitrary fix, need to look into why
-            if not value or isinstance(value, str):
+            # We need value to be an Family object before we can do anything
+            # with it. (Avoids the first 2 letters prior to the completions
+            # handler kicking in - i.e. when called programatically.)
+            if not value or not isinstance(value, Family):
                 return
             self.set_model_attr('family', value)
             syn = self.session.query(FamilySynonym).filter(

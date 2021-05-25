@@ -327,3 +327,24 @@ class GlobalFunctionsTests(unittest.TestCase):
         self.assertTrue(newer_version_on_github(stream) and True or False)
         stream = io.StringIO('version = "1.3.99999-a"  # comment')
         self.assertTrue(newer_version_on_github(stream) and True or False)
+
+    def test_check_new_installer(self):
+        from bauble.connmgr import check_new_installer
+        test_data = {'name': 'v1.3.999-a (BBG Branch)', 'prerelease': True}
+        self.assertEqual(check_new_installer(test_data), test_data)
+        test_data = {'name': 'v1.4999-a (BBG Branch)', 'prerelease': True}
+        self.assertEqual(check_new_installer(test_data), test_data)
+        test_data = {'name': 'v1.3 (BBG Branch)', 'prerelease': True}
+        self.assertFalse(check_new_installer(test_data))
+        test_data = {'name': 'v1.3.999 (BBG Branch)', 'prerelease': False}
+        self.assertEqual(check_new_installer(test_data), test_data)
+        test_data = {'name': 'v1.3.999 (MRBG Branch)', 'prerelease': False}
+        self.assertEqual(check_new_installer(test_data), test_data)
+        test_data = {'name': 'v1.3.999-a (BBG Branch)', 'prerelease': True}
+        self.assertTrue(check_new_installer(test_data) and True or False)
+        test_data = {'name': 'v1.0.0 (BBG Branch)', 'prerelease': False}
+        self.assertFalse(check_new_installer(test_data))
+        test_data = {'name': 'v1.0.0-a (BBG Branch)', 'prerelease': False}
+        self.assertFalse(check_new_installer(test_data))
+        test_data = {'name': 'v1.0.0-b (BBG Branch)', 'prerelease': False}
+        self.assertFalse(check_new_installer(test_data) and True or False)

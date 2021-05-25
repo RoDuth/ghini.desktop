@@ -1,7 +1,7 @@
 # Copyright 2008-2010 Brett Adams
 # Copyright 2015-2017 Mario Frasca <mario@anche.no>.
 # Copyright 2017 Jardín Botánico de Quito
-# Copyright 2016-2019 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright 2016-2021 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -42,8 +42,7 @@ from gi.repository import GdkPixbuf
 import bauble
 from bauble import paths, prefs, utils
 
-from bauble.editor import (
-    GenericEditorView, GenericEditorPresenter)
+from bauble.editor import GenericEditorView, GenericEditorPresenter
 
 if not prefs.testing and __name__ in prefs.prefs[prefs.debug_logging_prefs]:
     logger.setLevel(logging.DEBUG)
@@ -190,7 +189,7 @@ def check_and_notify_new_version(view):
         github_version_stream = urllib.request.urlopen(
             version_on_github, timeout=5)
         remote = newer_version_on_github(github_version_stream)
-        if remote and remote:
+        if remote:
             def show_message_box():
                 # if remote has '-' in it its likely a development version
                 if '-' in remote:
@@ -222,51 +221,22 @@ def check_and_notify_new_version(view):
                        % type(e), e)
 
 
-def check_and_notify_new_installer(view):
-    '''check for a newer installer in releases on github'''
-    newer = False
-    github_prerelease = False
-    github_release_api = ('https://api.github.com/repos/RoDuth/ghini'
-                          '.desktop/releases')
+def retrieve_latest_release_data():
+    """
+    Using the github API to grab the latests release info and return the json
+    data if successful, otherwise return None
+    """
+    github_releases_uri = ('https://api.github.com/repos/RoDuth/ghini'
+                           '.desktop/releases')
     try:
         from requests import exceptions
-        from bauble.utils import get_net_sess
-        net_sess = get_net_sess()
-        github_release_req = net_sess.get(github_release_api, timeout=5)
+        net_sess = utils.get_net_sess()
+        github_release_req = net_sess.get(github_releases_uri, timeout=5)
         if github_release_req.ok:
-            github_release = github_release_req.json()[0]['name']
-            github_version = github_release.split()[0][1:]
-            github_prerelease = github_release_req.json()[0]['prerelease']
-            current_version = bauble.version
-            logger.debug('latest installer on github is release: %s',
-                         github_release)
-            logger.debug('latest installer on github is a prerelease?: %s',
-                         github_prerelease)
-            logger.debug('this version %s', current_version)
-            newer = github_version > current_version
-            if github_version < current_version:
-                logger.info('running unreleased windows installer version')
+            return github_release_req.json()[0]
         else:
             logger.info('client or server error while checking for a newer '
                         'installer')
-        if newer:
-            def show_message_box():
-                if github_prerelease:
-                    msg = _('prerelease installer %s available.\n'   # noqa
-                            'continue, or exit to upgrade.') % github_release
-                else:
-                    msg = _('new installer %s available.\n'     # noqa
-                            'continue, or exit to upgrade.') % github_release
-                box = view.add_message_box()
-                box.message = msg
-                box.show()
-                view.add_box(box)
-
-            # Any code that modifies the UI that is called from outside the
-            # main thread must be pushed into the main thread and called
-            # asynchronously in the main loop, with GObject.idle_add.
-            from gi.repository import GObject
-            GObject.idle_add(show_message_box)
     except exceptions.Timeout:
         logger.info('connection timed out while checking for newer installer')
     except exceptions.RequestException as e:
@@ -274,6 +244,55 @@ def check_and_notify_new_installer(view):
     except Exception as e:
         logger.warning('unhandled %s(%s) while checking for newer '
                        'installer', type(e).__name__, e)
+    return None
+
+
+def check_new_installer(github_release_data):
+    """
+    Check if the supplied json data descibes a newer release than the current
+    version.
+
+    If if is return the data, otherwise return False
+    """
+    github_release = github_release_data.get('name')
+    github_prerelease = github_release_data.get('prerelease')
+    github_version = github_release.split()[0][1:]
+    current_version = bauble.version
+    logger.debug('latest installer on github is release: %s',
+                 github_release)
+    logger.debug('latest installer on github is a prerelease?: %s',
+                 github_prerelease)
+    logger.debug('this version %s', current_version)
+    if github_version > current_version:
+        return github_release_data
+    if github_version < current_version:
+        logger.info('running unreleased windows installer version')
+    return False
+
+
+def notify_new_installer(view):
+    """
+    If the latest release on github is newer than the current version notify
+    the user.  If its a prerelease version state so.
+    """
+    github_release_data = retrieve_latest_release_data()
+    new_installer = check_new_installer(github_release_data)
+    if new_installer:
+        def show_message_box():
+            if new_installer.get('prerelease'):
+                msg = _('prerelease installer %s available.\ncontinue, or '
+                        'exit to try it.') % new_installer.get("release")
+            else:
+                msg = _('new installer %s available.\ncontinue, or exit to '
+                        'upgrade.') % new_installer.get("release")
+            box = view.add_message_box()
+            box.message = msg
+            box.show()
+            view.add_box(box)
+
+        from gi.repository import GObject
+        GObject.idle_add(show_message_box)
+
 
 def make_absolute(path):
     if path.startswith('./') or path.startswith('.\\'):
@@ -335,8 +354,7 @@ class ConnMgrPresenter(GenericEditorPresenter):
         else:
             self.dbtype = ''
             self.connection_name = None
-        GenericEditorPresenter.__init__(
-            self, model=self, view=view, refresh_view=True)
+        super().__init__(model=self, view=view, refresh_view=True)
         logo_path = os.path.join(paths.lib_dir(), "images", "bauble_logo.png")
         view.image_set_from_file('logo_image', logo_path)
         view.set_title('%s %s' % ('Ghini', bauble.version))
@@ -349,7 +367,7 @@ class ConnMgrPresenter(GenericEditorPresenter):
         from threading import Thread
         if main_is_frozen():
             logger.debug('checking win installer version')
-            self.start_thread(Thread(target=check_and_notify_new_installer,
+            self.start_thread(Thread(target=notify_new_installer,
                                  args=[self.view]))
         else:
             logger.debug('checking github version')

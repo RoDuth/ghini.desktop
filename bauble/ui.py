@@ -116,8 +116,18 @@ class GUI(object):
 
     entry_history_pref = 'bauble.history'
     history_size_pref = 'bauble.history_size'
+    entry_history_pins_pref = 'bauble.history_pins'
+    history_pins_size_pref = 'bauble.history_pins_size'
     window_geometry_pref = "bauble.geometry"
-    _default_history_size = 36
+
+    _default_history_size = 26
+    _default_history_pin_size = 10
+    # if not prefs.config.has_section(history_pins_size_pref):
+    #     prefs[history_pins_size_pref] = 10
+    #     prefs.save()
+    # history_pins_size = int(prefs.get(history_pins_size_pref, 10))
+
+    # TODO a global approach to css
     msg_css = Gtk.CssProvider()
     msg_css.load_from_data(
         b'.err-bg * {background-color: #FF9999;}'
@@ -126,7 +136,6 @@ class GUI(object):
     Gtk.StyleContext.add_provider_for_screen(
         Gdk.Screen.get_default(), msg_css,
         Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
-
 
     def __init__(self):
         filename = os.path.join(paths.lib_dir(), 'bauble.glade')
@@ -161,6 +170,10 @@ class GUI(object):
         combo = self.widgets.main_comboentry
         model = Gtk.ListStore(str)
         combo.set_model(model)
+        self.widgets.main_comboentry_entry.connect(
+            'icon-press',
+            self.on_history_pinned_clicked
+        )
         self.populate_main_entry()
 
         main_entry = combo.get_child()
@@ -266,12 +279,19 @@ class GUI(object):
     def show(self):
         self.window.show()
 
-    def _get_history_size(self):
+    @property
+    def history_size(self):
         history = prefs[self.history_size_pref]
         if history is None:
             prefs[self.history_size_pref] = self._default_history_size
         return int(prefs[self.history_size_pref])
-    history_size = property(_get_history_size)
+
+    @property
+    def history_pins_size(self):
+        pins = prefs[self.history_pins_size_pref]
+        if pins is None:
+            prefs[self.history_pins_size_pref] = self._default_history_pin_size
+        return int(prefs[self.history_pins_size_pref])
 
     def send_command(self, command):
         self.widgets.main_comboentry.get_child().set_text(command)
@@ -330,6 +350,34 @@ class GUI(object):
             self.widgets.go_button.emit("clicked")
         qb.cleanup()
 
+    def on_history_pinned_clicked(self, widget, icon_pos, event):
+        """
+        add or remove a pin search string to the history pins
+        """
+        text = widget.get_text()
+
+        history_pins = prefs.get(self.entry_history_pins_pref, [])
+        history = prefs.get(self.entry_history_pref, [])
+        # already pinned entry - remove the pin and add it back history
+        if text in history_pins:
+            history_pins.remove(text)
+            prefs[self.entry_history_pins_pref] = history_pins
+            self.add_to_history(text)
+            self.populate_main_entry()
+            return
+
+        if text in history:
+            history.remove(text)
+            prefs[self.entry_history_pref] = history
+
+        # trim the history_pins if the size is larger than the pref
+        while len(history_pins) >= self.history_pins_size - 1:
+            history_pins.pop()
+
+        history_pins.insert(0, text)
+        prefs[self.entry_history_pins_pref] = history_pins
+        self.populate_main_entry()
+
     def add_to_history(self, text, index=0):
         """
         add text to history, if text is already in the history then set its
@@ -341,9 +389,13 @@ class GUI(object):
         history = prefs.get(self.entry_history_pref, [])
         if text in history:
             history.remove(text)
+        # if its a pinned history entry bail
+        history_pins = prefs.get(self.entry_history_pins_pref, [])
+        if text in history_pins:
+            return
 
         # trim the history if the size is larger than the history_size pref
-        while len(history) >= self.history_size-1:
+        while len(history) >= self.history_size - 1:
             history.pop()
 
         history.insert(index, text)
@@ -351,8 +403,16 @@ class GUI(object):
         self.populate_main_entry()
 
     def populate_main_entry(self):
+        history_pins = prefs[self.entry_history_pins_pref]
         history = prefs[self.entry_history_pref]
         main_combo = self.widgets.main_comboentry
+
+        def separate(model, tree_iter):
+            if model.get(tree_iter, 0) == ('--separator--', ):
+                return True
+            return False
+
+        main_combo.set_row_separator_func(separate)
         model = main_combo.get_model()
         model.clear()
         main_entry = self.widgets.main_comboentry.get_child()
@@ -368,6 +428,14 @@ class GUI(object):
             completion.set_minimum_key_length(2)
         else:
             compl_model = completion.get_model()
+
+        if history_pins is not None:
+            for pin in history_pins:
+                logger.debug('adding pin to main entry: %s', pin)
+                model.append([pin, ])
+                compl_model.append([pin])
+
+        model.append(['--separator--', ])
 
         if history is not None:
             for herstory in history:
