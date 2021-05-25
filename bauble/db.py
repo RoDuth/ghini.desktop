@@ -114,6 +114,9 @@ class HistoryExtension(orm.MapperExtension):
 
         row = {}
         for c in mapper.local_table.c:
+            # skip defered geojson columns
+            if c.name == 'geojson':
+                continue
             row[c.name] = str(getattr(instance, c.name))
         table = History.__table__
         stmt = table.insert(dict(table_name=mapper.local_table.name,

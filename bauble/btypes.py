@@ -164,3 +164,26 @@ class Date(types.TypeDecorator):
 
     def copy(self):
         return Date()
+
+
+class JSON(types.TypeDecorator):
+    """ Platform-independent JSON type
+
+    Use JSONB for postgresql JSON for all others
+    """
+    impl = types.JSON()
+
+    cache_ok = True
+
+    def load_dialect_impl(self, dialect):
+        # NOTE does not provide access to the JSONB specific comparators
+        # has_any, has_key, etc.. For consistent use the value of impl above
+        # sets the available SQL operations regardless of the type used to
+        # store the data.
+        if dialect.name == 'postgresql':
+            from sqlalchemy.dialects.postgresql import JSONB
+            return dialect.type_descriptor(JSONB(none_as_null=True))
+        return dialect.type_descriptor(types.JSON(none_as_null=True))
+
+    def coerce_compared_value(self, op, value):
+        return self.impl.coerce_compared_value(op, value)

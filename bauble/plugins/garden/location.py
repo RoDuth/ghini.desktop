@@ -32,13 +32,15 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
 from sqlalchemy import Column, Unicode, UnicodeText
-from sqlalchemy.orm import relation, backref, validates
+from sqlalchemy.orm import relation, backref, validates, deferred
 from sqlalchemy.orm.session import object_session
 from sqlalchemy.exc import DBAPIError
 
 
 import bauble
 import bauble.db as db
+import bauble.btypes as types
+
 from bauble.editor import GenericModelViewPresenterEditor, GenericEditorView, \
     GenericEditorPresenter, UnicodeOrNoneValidator
 import bauble.utils as utils
@@ -117,9 +119,15 @@ class Location(db.Base, db.Serializable, db.WithNotes):
     :Table name: location
 
     :Columns:
+        *code*:
+            unique
+
         *name*:
 
         *description*:
+
+        *geojson*:
+            spatial data
 
     :Relation:
         *plants*:
@@ -133,6 +141,8 @@ class Location(db.Base, db.Serializable, db.WithNotes):
     code = Column(Unicode(12), unique=True, nullable=False)
     name = Column(Unicode(128))
     description = Column(UnicodeText)
+    # spatial data
+    geojson = deferred(Column(types.JSON()))
 
     # relations
     plants = relation('Plant', backref=backref('location', uselist=False))
@@ -251,7 +261,7 @@ class LocationEditorPresenter(GenericEditorPresenter):
         model: should be an instance of class Accession
         view: should be an instance of AccessionEditorView
         '''
-        GenericEditorPresenter.__init__(self, model, view)
+        super().__init__(model, view)
         self.create_toolbar()
         self.session = object_session(model)
         self._dirty = False
@@ -500,6 +510,8 @@ class GeneralLocationExpander(InfoExpander):
         session = object_session(row)
         nplants = session.query(Plant).filter_by(location_id=row.id).count()
         self.widget_set_value('loc_nplants_data', nplants)
+        shape = row.geojson.get('type', '') if row.geojson else ''
+        self.widget_set_value('geojson_type', shape)
 
 
 class DescriptionExpander(InfoExpander):

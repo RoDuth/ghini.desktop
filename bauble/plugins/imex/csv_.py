@@ -485,6 +485,10 @@ class CSVImporter(Importer):
                             # for some reason whereas True will import
                             # as True automatically...probably because
                             # bool('False') == True
+                        # geojson.
+                        elif column == 'geojson':
+                            from ast import literal_eval
+                            line[column] = literal_eval(line[column])
                     values.append(line)
                     steps_so_far += 1
                     if steps_so_far % update_every == 0:
@@ -638,7 +642,7 @@ class CSVExporter(object):
 
             # if empty tables, create empty files with only the column names
             if len(results) == 0:
-                write_csv(filename, [list(table.c.keys())])
+                write_csv(filename, [table.c.keys()])
                 yield
                 continue
 
@@ -647,8 +651,9 @@ class CSVExporter(object):
             ctr = 0
             for row in results:
                 try:
-                    rows.append(list(map(replace, list(row.values()))))
-                except:
+                    # rows.append(list(map(replace, list(row.values()))))
+                    rows.append([replace(i) for i in row.values()])
+                except Exception:
                     import traceback
                     logger.error(traceback.format_exc())
                 if ctr == update_every:

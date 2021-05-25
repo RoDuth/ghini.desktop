@@ -35,12 +35,11 @@ import gi
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk  # noqa
 
-
-
 from sqlalchemy import and_, func
 from sqlalchemy import ForeignKey, Column, Unicode, Integer, Boolean, \
     UnicodeText, UniqueConstraint
-from sqlalchemy.orm import relation, backref, object_mapper, validates
+from sqlalchemy.orm import (relation, backref, object_mapper, validates,
+                            deferred)
 from sqlalchemy.orm.session import object_session
 from sqlalchemy.exc import DBAPIError, OperationalError
 
@@ -422,6 +421,9 @@ class Plant(db.Base, db.Serializable, db.DefiningPictures, db.WithNotes):
         *location_id*: :class:`sqlalchemy.types.Integer`
             Required.
 
+        *geojson*:
+            spatial data
+
     :Properties:
         *accession*:
             The accession for this plant.
@@ -454,6 +456,9 @@ class Plant(db.Base, db.Serializable, db.DefiningPictures, db.WithNotes):
 
     accession_id = Column(Integer, ForeignKey('accession.id'), nullable=False)
     location_id = Column(Integer, ForeignKey('location.id'), nullable=False)
+    # spatial data deferred mainly to avoid comparison issues in union search
+    # (i.e. reports)
+    geojson = deferred(Column(types.JSON()))
 
     propagations = relation('Propagation', cascade='all, delete-orphan',
                             single_parent=True,
@@ -1256,6 +1261,8 @@ class GeneralPlantExpander(InfoExpander):
                               markup=True)
         self.widget_set_value('location_data', str(row.location))
         self.widget_set_value('quantity_data', row.quantity)
+        shape = row.geojson.get('type', '') if row.geojson else ''
+        self.widget_set_value('geojson_type', shape)
 
         status_str = _('Alive')
         if row.quantity <= 0:
