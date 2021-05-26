@@ -360,7 +360,7 @@ def create_shapefile(name, prj_string, fields, records, out_dir):  \
                 record = rec.get('record')
                 geo_type = rec.get('type')
                 # ensure all the fields are included even if they are blank
-                record = blank | record
+                record = {**blank, **record}
                 shpf.record(**record)
                 coords = rec.get('coordinates')
                 if geo_type == 'Point':
