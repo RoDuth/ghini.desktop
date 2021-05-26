@@ -718,7 +718,7 @@ def add_rec_to_db(session, item, rec):
         # blocked in relation_filter
         if (root and root.endswith('._default_vernacular_name') and
                 atr == 'vernacular_name'):
-            root = root.removesuffix('._default_vernacular_name')
+            root = root[:-len('._default_vernacular_name')]
             atr = 'default_vernacular_name'
         if remainder.get(root):
             remainder[root][atr] = value
