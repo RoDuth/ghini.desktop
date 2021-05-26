@@ -23,6 +23,13 @@ import logging
 logger = logging.getLogger(__name__)
 from pyproj import Transformer, ProjError
 
+from bauble.paths import main_is_frozen, main_dir
+
+if main_is_frozen():
+    import os
+    import pyproj
+    pyproj.datadir.set_data_dir(os.path.join(main_dir(), 'share', 'proj'))
+
 # EPSG codes are easy to work with and ESRI AGOL data is generally in EPSG:3857
 # recommended sys preference = EPSG:4326 - more common in GPS, KML, etc.
 DEFAULT_IN_PROJ = 'epsg:3857'
