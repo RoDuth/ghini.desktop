@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- Generated with glade 3.38.1 -->
+<!-- Generated with glade 3.38.2 -->
 <interface>
-  <requires lib="gtk+" version="3.22"/>
+  <requires lib="gtk+" version="3.24"/>
   <object class="GtkListStore" id="history_ls">
     <columns>
       <!-- column-name timestamp -->
@@ -30,7 +30,6 @@
             <property name="can-focus">True</property>
             <property name="model">history_ls</property>
             <property name="reorderable">True</property>
-            <property name="rules-hint">True</property>
             <signal name="row-activated" handler="on_row_activated" swapped="no"/>
             <child internal-child="selection">
               <object class="GtkTreeSelection"/>
@@ -103,17 +102,20 @@
     <property name="default-height">600</property>
     <property name="startup-id">bauble</property>
     <child>
-      <object class="GtkVBox" id="top_box">
+      <object class="GtkBox" id="top_box">
         <property name="visible">True</property>
         <property name="can-focus">True</property>
+        <property name="orientation">vertical</property>
         <child>
-          <object class="GtkVBox" id="main_box">
+          <object class="GtkBox" id="main_box">
             <property name="visible">True</property>
             <property name="can-focus">True</property>
+            <property name="orientation">vertical</property>
             <child>
-              <object class="GtkVBox" id="menu_box">
+              <object class="GtkBox" id="menu_box">
                 <property name="visible">True</property>
                 <property name="can-focus">True</property>
+                <property name="orientation">vertical</property>
                 <child>
                   <placeholder/>
                 </child>
@@ -125,12 +127,11 @@
               </packing>
             </child>
             <child>
-              <object class="GtkHBox" id="hbox1">
+              <object class="GtkBox" id="hbox1">
                 <property name="visible">True</property>
                 <property name="can-focus">True</property>
                 <child>
                   <object class="GtkButton" id="home_button">
-                    <property name="use-action-appearance">False</property>
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
                     <property name="receives-default">True</property>
@@ -151,7 +152,6 @@
                 </child>
                 <child>
                   <object class="GtkButton" id="prev_view_button">
-                    <property name="use-action-appearance">False</property>
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
                     <property name="receives-default">True</property>
@@ -172,7 +172,6 @@
                 </child>
                 <child>
                   <object class="GtkButton" id="query_button">
-                    <property name="use-action-appearance">False</property>
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
                     <property name="receives-default">True</property>
@@ -206,12 +205,10 @@
                       <object class="GtkEntry" id="main_comboentry_entry">
                         <property name="can-focus">True</property>
                         <property name="tooltip-text" translatable="yes">enter here your query or command</property>
-                        <property name="primary_icon_name">edit-find</property>
-                        <property name="primary_icon_activatable">False</property>
-                        <property name="primary_icon_sensitive">False</property>
-                        <property name="secondary_icon_name">mail-attachment</property>
-                        <property name="secondary_icon_activatable">True</property>
-                        <property name="secondary_icon_sensitive">True</property>
+                        <property name="primary-icon-name">edit-find</property>
+                        <property name="secondary-icon-name">mail-attachment</property>
+                        <property name="primary-icon-activatable">False</property>
+                        <property name="primary-icon-sensitive">False</property>
                       </object>
                     </child>
                   </object>
@@ -223,7 +220,6 @@
                 </child>
                 <child>
                   <object class="GtkButton" id="go_button">
-                    <property name="use-action-appearance">False</property>
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
                     <property name="receives-default">True</property>
@@ -252,11 +248,12 @@
               </packing>
             </child>
             <child>
-              <object class="GtkVBox" id="vbox1">
+              <object class="GtkBox" id="vbox1">
                 <property name="visible">True</property>
                 <property name="can-focus">True</property>
+                <property name="orientation">vertical</property>
                 <child>
-                  <object class="GtkHBox" id="msg_box_parent">
+                  <object class="GtkBox" id="msg_box_parent">
                     <property name="visible">True</property>
                     <property name="can-focus">True</property>
                     <child>
@@ -270,9 +267,10 @@
                   </packing>
                 </child>
                 <child>
-                  <object class="GtkVBox" id="view_box">
+                  <object class="GtkBox" id="view_box">
                     <property name="visible">True</property>
                     <property name="can-focus">True</property>
+                    <property name="orientation">vertical</property>
                     <child>
                       <placeholder/>
                     </child>
@@ -412,9 +410,9 @@
     <columns>
       <!-- column-name name -->
       <column type="gchararray"/>
-        <!-- column-name repr -->
+      <!-- column-name repr -->
       <column type="gchararray"/>
-        <!-- column-name type -->
+      <!-- column-name type -->
       <column type="gchararray"/>
     </columns>
   </object>
@@ -428,14 +426,12 @@
           <object class="GtkScrolledWindow" id="prefs_prefs_sv">
             <property name="visible">True</property>
             <property name="can-focus">True</property>
-            <!-- <property name="kinetic-scrolling">False</property> -->
             <child>
               <object class="GtkTreeView" id="prefs_prefs_tv">
                 <property name="visible">True</property>
                 <property name="can-focus">True</property>
                 <property name="model">prefs_prefs_ls</property>
                 <property name="headers-clickable">False</property>
-                <property name="rules-hint">True</property>
                 <property name="search-column">0</property>
                 <signal name="row-activated" handler="on_prefs_prefs_tv_row_activated" swapped="no"/>
                 <child internal-child="selection">
@@ -501,7 +497,6 @@
                 <property name="can-focus">True</property>
                 <property name="model">prefs_plugins_ls</property>
                 <property name="headers-clickable">False</property>
-                <property name="rules-hint">True</property>
                 <property name="search-column">0</property>
                 <child internal-child="selection">
                   <object class="GtkTreeSelection"/>
@@ -555,22 +550,24 @@
   <object class="GtkWindow" id="search_window">
     <property name="can-focus">True</property>
     <child>
-      <object class="GtkVBox" id="search_vbox">
+      <object class="GtkBox" id="search_vbox">
         <property name="visible">True</property>
         <property name="can-focus">True</property>
+        <property name="orientation">vertical</property>
         <child>
-          <object class="GtkHPaned" id="search_hpane">
+          <object class="GtkPaned" id="search_hpane">
             <property name="visible">True</property>
             <property name="can-focus">True</property>
             <child>
-              <object class="GtkHPaned" id="search_h2pane">
+              <object class="GtkPaned" id="search_h2pane">
                 <property name="visible">True</property>
                 <property name="can-focus">True</property>
                 <child>
-                  <object class="GtkVPaned" id="search_vpane">
+                  <object class="GtkPaned" id="search_vpane">
                     <property name="width-request">400</property>
                     <property name="visible">True</property>
                     <property name="can-focus">True</property>
+                    <property name="orientation">vertical</property>
                     <property name="position">9999</property>
                     <child>
                       <object class="GtkScrolledWindow" id="scrolledwindow1">

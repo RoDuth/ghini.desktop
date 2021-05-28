@@ -44,8 +44,7 @@ import bauble
 from bauble.error import check
 import bauble.utils as utils
 
-from bauble.editor import (
-    GenericEditorView, GenericEditorPresenter)
+from bauble.editor import GenericEditorView, GenericEditorPresenter
 from .querybuilderparser import BuiltQuery
 
 
@@ -1060,7 +1059,7 @@ class ExpressionRow(object):
 
     def __init__(self, query_builder, remove_callback, row_number):
         self.proptype = None
-        self.table = query_builder.view.widgets.expressions_table
+        self.grid = query_builder.view.widgets.expressions_table
         self.presenter = query_builder
         self.menu_item_activated = False
 
@@ -1070,8 +1069,7 @@ class ExpressionRow(object):
             self.and_or_combo.append_text("and")
             self.and_or_combo.append_text("or")
             self.and_or_combo.set_active(0)
-            self.table.attach(self.and_or_combo, 0, 1,
-                              row_number, row_number + 1)
+            self.grid.attach(self.and_or_combo, 0, row_number, 1, 1)
 
         self.prop_button = Gtk.Button(_('Choose a property…'))
         self.prop_button.props.use_underline = False
@@ -1084,30 +1082,27 @@ class ExpressionRow(object):
                                       self.column_filter)
         self.prop_button.connect('button-press-event', on_prop_button_clicked,
                                  self.schema_menu)
-        self.table.attach(self.prop_button, 1, 2, row_number, row_number+1)
+        self.grid.attach(self.prop_button, 1, row_number, 1, 1)
 
         self.cond_combo = Gtk.ComboBoxText()
         for condition in self.conditions:
             self.cond_combo.append_text(condition)
         self.cond_combo.set_active(0)
-        self.table.attach(self.cond_combo, 2, 3, row_number, row_number+1)
+        self.grid.attach(self.cond_combo, 2, row_number, 1, 1)
 
         # by default we start with an entry but value_widget can
         # change depending on the type of the property chosen in the
         # schema menu, see self.on_schema_menu_activated
         self.value_widget = Gtk.Entry()
         self.value_widget.connect('changed', self.on_value_changed)
-        self.table.attach(self.value_widget, 3, 4, row_number, row_number+1)
+        self.grid.attach(self.value_widget, 3, row_number, 1, 1)
 
         if row_number != 1:
-            image = Gtk.Image.new_from_stock(Gtk.STOCK_REMOVE,
-                                             Gtk.IconSize.BUTTON)
-            self.remove_button = Gtk.Button()
-            self.remove_button.props.image = image
+            self.remove_button = Gtk.Button.new_from_icon_name(
+                'list-remove', Gtk.IconSize.BUTTON)
             self.remove_button.connect('clicked',
                                        lambda b: remove_callback(self))
-            self.table.attach(self.remove_button, 4, 5,
-                              row_number, row_number + 1)
+            self.grid.attach(self.remove_button, 4, row_number, 1, 1)
 
     def on_value_changed(self, widget, *args):
         """
@@ -1131,13 +1126,9 @@ class ExpressionRow(object):
         """
         self.prop_button.props.label = path
         self.menu_item_activated = True
-        top = self.table.child_get_property(self.value_widget, 'top-attach')
-        bottom = self.table.child_get_property(self.value_widget,
-                                               'bottom-attach')
-        right = self.table.child_get_property(self.value_widget,
-                                              'right-attach')
-        left = self.table.child_get_property(self.value_widget, 'left-attach')
-        self.table.remove(self.value_widget)
+        top = self.grid.child_get_property(self.value_widget, 'top-attach')
+        left = self.grid.child_get_property(self.value_widget, 'left-attach')
+        self.grid.remove(self.value_widget)
 
         # change the widget depending on the type of the selected property
         try:
@@ -1194,8 +1185,8 @@ class ExpressionRow(object):
             self.value_widget = Gtk.Entry()
             self.value_widget.connect('changed', self.on_value_changed)
 
-        self.table.attach(self.value_widget, left, right, top, bottom)
-        self.table.show_all()
+        self.grid.attach(self.value_widget, left, top, 1, 1)
+        self.grid.show_all()
         self.presenter.validate()
 
     def column_filter(self, prop):
@@ -1258,8 +1249,7 @@ class QueryBuilder(GenericEditorPresenter):
     default_size = None
 
     def __init__(self, view=None):
-        GenericEditorPresenter.__init__(
-            self, model=self, view=view, refresh_view=False)
+        super().__init__(self, view=view, refresh_view=False)
 
         self.expression_rows = []
         self.mapper = None
@@ -1331,7 +1321,6 @@ class QueryBuilder(GenericEditorPresenter):
         [i.destroy() for i in row.get_widgets()]
         self.table_row_count -= 1
         self.expression_rows.remove(row)
-        self.view.widgets.expressions_table.resize(self.table_row_count, 5)
 
     def on_add_clause(self, *args):
         """

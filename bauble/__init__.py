@@ -272,14 +272,14 @@ def main(uri=None):
         print(_("**Error: Ghini must be run in a windowed environment."))
         sys.exit(1)
 
-    import bauble.pluginmgr as pluginmgr
-    import bauble.utils as utils
+    from bauble import pluginmgr
+    from bauble import utils
 
     # initialize threading
     GObject.threads_init()
 
     try:
-        import bauble.db as db
+        from bauble import db
     except Exception as e:
         utils.message_dialog(utils.xml_safe(e), Gtk.MessageType.ERROR)
         sys.exit(1)

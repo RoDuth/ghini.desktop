@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- Generated with glade 3.38.1 -->
+<!-- Generated with glade 3.38.2 -->
 <interface>
-  <requires lib="gtk+" version="3.0"/>
+  <requires lib="gtk+" version="3.24"/>
   <object class="GtkListStore" id="liststore1">
     <columns>
       <!-- column-name gchararray1 -->
@@ -37,12 +37,11 @@
             <property name="layout-style">end</property>
             <child>
               <object class="GtkButton" id="cancel_button">
-                <property name="label">gtk-cancel</property>
+                <property name="label">Cancel</property>
                 <property name="visible">True</property>
                 <property name="can-focus">True</property>
                 <property name="can-default">True</property>
                 <property name="receives-default">False</property>
-                <property name="use-stock">True</property>
               </object>
               <packing>
                 <property name="expand">False</property>
@@ -52,13 +51,12 @@
             </child>
             <child>
               <object class="GtkButton" id="connect_button">
-                <property name="label">gtk-connect</property>
+                <property name="label">Connect</property>
                 <property name="visible">True</property>
                 <property name="can-focus">True</property>
                 <property name="has-focus">True</property>
                 <property name="can-default">True</property>
                 <property name="receives-default">False</property>
-                <property name="use-stock">True</property>
               </object>
               <packing>
                 <property name="expand">False</property>
@@ -75,11 +73,12 @@
           </packing>
         </child>
         <child>
-          <object class="GtkVBox" id="vbox">
+          <object class="GtkBox" id="vbox">
             <property name="visible">True</property>
             <property name="can-focus">False</property>
+            <property name="orientation">vertical</property>
             <child>
-              <object class="GtkHBox" id="message_box_parent">
+              <object class="GtkBox" id="message_box_parent">
                 <property name="visible">True</property>
                 <property name="can-focus">False</property>
                 <child>
@@ -96,7 +95,8 @@
               <object class="GtkImage" id="logo_image">
                 <property name="visible">True</property>
                 <property name="can-focus">False</property>
-                <property name="ypad">5</property>
+                <property name="margin-top">5</property>
+                <property name="margin-bottom">5</property>
               </object>
               <packing>
                 <property name="expand">True</property>
@@ -106,7 +106,7 @@
               </packing>
             </child>
             <child>
-              <object class="GtkHBox" id="hbox3">
+              <object class="GtkBox" id="hbox3">
                 <property name="visible">True</property>
                 <property name="can-focus">False</property>
                 <property name="border-width">10</property>
@@ -125,12 +125,11 @@
                 </child>
                 <child>
                   <object class="GtkButton" id="add_button">
-                    <property name="label">gtk-add</property>
+                    <property name="label">Add</property>
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
                     <property name="receives-default">False</property>
                     <property name="border-width">3</property>
-                    <property name="use-stock">True</property>
                     <signal name="clicked" handler="on_add_button_clicked" swapped="no"/>
                   </object>
                   <packing>
@@ -141,12 +140,11 @@
                 </child>
                 <child>
                   <object class="GtkButton" id="remove_button">
-                    <property name="label">gtk-remove</property>
+                    <property name="label">Remove</property>
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
                     <property name="receives-default">False</property>
                     <property name="border-width">3</property>
-                    <property name="use-stock">True</property>
                     <signal name="clicked" handler="on_remove_button_clicked" swapped="no"/>
                   </object>
                   <packing>
@@ -163,7 +161,7 @@
               </packing>
             </child>
             <child>
-              <object class="GtkHBox" id="hbox2">
+              <object class="GtkBox" id="hbox2">
                 <property name="visible">True</property>
                 <property name="can-focus">False</property>
                 <child>
@@ -185,12 +183,13 @@ Click on &lt;b&gt;Add&lt;/b&gt; to create a new connection.</property>
                     <property name="visible">True</property>
                     <property name="can-focus">True</property>
                     <child>
-                      <object class="GtkVBox" id="expander_box">
+                      <object class="GtkBox" id="expander_box">
                         <property name="visible">True</property>
                         <property name="can-focus">False</property>
+                        <property name="orientation">vertical</property>
                         <property name="spacing">10</property>
                         <child>
-                          <object class="GtkHBox" id="hbox4">
+                          <object class="GtkBox" id="hbox4">
                             <property name="visible">True</property>
                             <property name="can-focus">False</property>
                             <child>
@@ -226,14 +225,14 @@ Click on &lt;b&gt;Add&lt;/b&gt; to create a new connection.</property>
                           </packing>
                         </child>
                         <child>
-                          <object class="GtkHBox" id="hbox1">
+                          <object class="GtkBox" id="hbox1">
                             <property name="visible">True</property>
                             <property name="can-focus">False</property>
                             <child>
-                              <object class="GtkTable" id="sqlite_parambox">
+                              <!-- n-columns=3 n-rows=3 -->
+                              <object class="GtkGrid" id="sqlite_parambox">
                                 <property name="can-focus">False</property>
-                                <property name="n-rows">3</property>
-                                <property name="n-columns">2</property>
+                                <property name="vexpand">True</property>
                                 <child>
                                   <object class="GtkCheckButton" id="usedefaults_chkbx">
                                     <property name="label" translatable="yes">Use default locations</property>
@@ -244,37 +243,26 @@ Click on &lt;b&gt;Add&lt;/b&gt; to create a new connection.</property>
                                     <signal name="toggled" handler="on_usedefaults_chkbx_toggled" swapped="no"/>
                                   </object>
                                   <packing>
-                                    <property name="right-attach">2</property>
+                                    <property name="left-attach">0</property>
+                                    <property name="top-attach">0</property>
+                                    <property name="width">2</property>
                                   </packing>
                                 </child>
                                 <child>
                                   <object class="GtkLabel" id="label2">
                                     <property name="visible">True</property>
                                     <property name="can-focus">False</property>
-                                    <property name="xpad">5</property>
+                                    <property name="hexpand">True</property>
                                     <property name="label" translatable="yes">Filename:</property>
                                     <property name="xalign">0</property>
                                   </object>
                                   <packing>
+                                    <property name="left-attach">0</property>
                                     <property name="top-attach">1</property>
-                                    <property name="bottom-attach">2</property>
                                   </packing>
                                 </child>
                                 <child>
-                                  <object class="GtkLabel" id="label3">
-                                    <property name="visible">True</property>
-                                    <property name="can-focus">False</property>
-                                    <property name="xpad">5</property>
-                                    <property name="label" translatable="yes">Pictures root:</property>
-                                    <property name="xalign">0</property>
-                                  </object>
-                                  <packing>
-                                    <property name="top-attach">2</property>
-                                    <property name="bottom-attach">3</property>
-                                  </packing>
-                                </child>
-                                <child>
-                                  <object class="GtkHBox" id="hbox5">
+                                  <object class="GtkBox" id="hbox5">
                                     <property name="visible">True</property>
                                     <property name="can-focus">False</property>
                                     <child>
@@ -310,13 +298,24 @@ Click on &lt;b&gt;Add&lt;/b&gt; to create a new connection.</property>
                                   </object>
                                   <packing>
                                     <property name="left-attach">1</property>
-                                    <property name="right-attach">2</property>
                                     <property name="top-attach">1</property>
-                                    <property name="bottom-attach">2</property>
                                   </packing>
                                 </child>
                                 <child>
-                                  <object class="GtkHBox" id="hbox6">
+                                  <object class="GtkLabel" id="label3">
+                                    <property name="visible">True</property>
+                                    <property name="can-focus">False</property>
+                                    <property name="hexpand">True</property>
+                                    <property name="label" translatable="yes">Pictures root:</property>
+                                    <property name="xalign">0</property>
+                                  </object>
+                                  <packing>
+                                    <property name="left-attach">0</property>
+                                    <property name="top-attach">2</property>
+                                  </packing>
+                                </child>
+                                <child>
+                                  <object class="GtkBox" id="hbox6">
                                     <property name="visible">True</property>
                                     <property name="can-focus">False</property>
                                     <child>
@@ -352,10 +351,17 @@ Click on &lt;b&gt;Add&lt;/b&gt; to create a new connection.</property>
                                   </object>
                                   <packing>
                                     <property name="left-attach">1</property>
-                                    <property name="right-attach">2</property>
                                     <property name="top-attach">2</property>
-                                    <property name="bottom-attach">3</property>
                                   </packing>
+                                </child>
+                                <child>
+                                  <placeholder/>
+                                </child>
+                                <child>
+                                  <placeholder/>
+                                </child>
+                                <child>
+                                  <placeholder/>
                                 </child>
                               </object>
                               <packing>
@@ -365,10 +371,9 @@ Click on &lt;b&gt;Add&lt;/b&gt; to create a new connection.</property>
                               </packing>
                             </child>
                             <child>
-                              <object class="GtkTable" id="dbms_parambox">
+                              <!-- n-columns=3 n-rows=6 -->
+                              <object class="GtkGrid" id="dbms_parambox">
                                 <property name="can-focus">False</property>
-                                <property name="n-rows">6</property>
-                                <property name="n-columns">2</property>
                                 <child>
                                   <object class="GtkLabel" id="label6">
                                     <property name="visible">True</property>
@@ -376,53 +381,9 @@ Click on &lt;b&gt;Add&lt;/b&gt; to create a new connection.</property>
                                     <property name="label" translatable="yes">Database:</property>
                                     <property name="xalign">0</property>
                                   </object>
-                                </child>
-                                <child>
-                                  <object class="GtkLabel" id="label7">
-                                    <property name="visible">True</property>
-                                    <property name="can-focus">False</property>
-                                    <property name="label" translatable="yes">Host:</property>
-                                    <property name="xalign">0</property>
-                                  </object>
                                   <packing>
-                                    <property name="top-attach">1</property>
-                                    <property name="bottom-attach">2</property>
-                                  </packing>
-                                </child>
-                                <child>
-                                  <object class="GtkLabel" id="label8">
-                                    <property name="visible">True</property>
-                                    <property name="can-focus">False</property>
-                                    <property name="label" translatable="yes">User:</property>
-                                    <property name="xalign">0</property>
-                                  </object>
-                                  <packing>
-                                    <property name="top-attach">3</property>
-                                    <property name="bottom-attach">4</property>
-                                  </packing>
-                                </child>
-                                <child>
-                                  <object class="GtkLabel" id="label9">
-                                    <property name="visible">True</property>
-                                    <property name="can-focus">False</property>
-                                    <property name="label" translatable="yes">Password:</property>
-                                    <property name="xalign">0</property>
-                                  </object>
-                                  <packing>
-                                    <property name="top-attach">4</property>
-                                    <property name="bottom-attach">5</property>
-                                  </packing>
-                                </child>
-                                <child>
-                                  <object class="GtkLabel" id="label10">
-                                    <property name="visible">True</property>
-                                    <property name="can-focus">False</property>
-                                    <property name="label" translatable="yes">Pictures root:</property>
-                                    <property name="xalign">0</property>
-                                  </object>
-                                  <packing>
-                                    <property name="top-attach">5</property>
-                                    <property name="bottom-attach">6</property>
+                                    <property name="left-attach">0</property>
+                                    <property name="top-attach">0</property>
                                   </packing>
                                 </child>
                                 <child>
@@ -436,7 +397,19 @@ Click on &lt;b&gt;Add&lt;/b&gt; to create a new connection.</property>
                                   </object>
                                   <packing>
                                     <property name="left-attach">1</property>
-                                    <property name="right-attach">2</property>
+                                    <property name="top-attach">0</property>
+                                  </packing>
+                                </child>
+                                <child>
+                                  <object class="GtkLabel" id="label7">
+                                    <property name="visible">True</property>
+                                    <property name="can-focus">False</property>
+                                    <property name="label" translatable="yes">Host:</property>
+                                    <property name="xalign">0</property>
+                                  </object>
+                                  <packing>
+                                    <property name="left-attach">0</property>
+                                    <property name="top-attach">1</property>
                                   </packing>
                                 </child>
                                 <child>
@@ -450,9 +423,45 @@ Click on &lt;b&gt;Add&lt;/b&gt; to create a new connection.</property>
                                   </object>
                                   <packing>
                                     <property name="left-attach">1</property>
-                                    <property name="right-attach">2</property>
                                     <property name="top-attach">1</property>
-                                    <property name="bottom-attach">2</property>
+                                  </packing>
+                                </child>
+                                <child>
+                                  <object class="GtkLabel" id="label1">
+                                    <property name="visible">True</property>
+                                    <property name="can-focus">False</property>
+                                    <property name="label" translatable="yes">Port:</property>
+                                    <property name="xalign">0</property>
+                                  </object>
+                                  <packing>
+                                    <property name="left-attach">0</property>
+                                    <property name="top-attach">2</property>
+                                  </packing>
+                                </child>
+                                <child>
+                                  <object class="GtkEntry" id="port_entry">
+                                    <property name="visible">True</property>
+                                    <property name="can-focus">True</property>
+                                    <property name="invisible-char">•</property>
+                                    <property name="primary-icon-activatable">False</property>
+                                    <property name="secondary-icon-activatable">False</property>
+                                    <signal name="changed" handler="on_text_entry_changed" swapped="no"/>
+                                  </object>
+                                  <packing>
+                                    <property name="left-attach">1</property>
+                                    <property name="top-attach">2</property>
+                                  </packing>
+                                </child>
+                                <child>
+                                  <object class="GtkLabel" id="label8">
+                                    <property name="visible">True</property>
+                                    <property name="can-focus">False</property>
+                                    <property name="label" translatable="yes">User:</property>
+                                    <property name="xalign">0</property>
+                                  </object>
+                                  <packing>
+                                    <property name="left-attach">0</property>
+                                    <property name="top-attach">3</property>
                                   </packing>
                                 </child>
                                 <child>
@@ -466,9 +475,19 @@ Click on &lt;b&gt;Add&lt;/b&gt; to create a new connection.</property>
                                   </object>
                                   <packing>
                                     <property name="left-attach">1</property>
-                                    <property name="right-attach">2</property>
                                     <property name="top-attach">3</property>
-                                    <property name="bottom-attach">4</property>
+                                  </packing>
+                                </child>
+                                <child>
+                                  <object class="GtkLabel" id="label9">
+                                    <property name="visible">True</property>
+                                    <property name="can-focus">False</property>
+                                    <property name="label" translatable="yes">Password:</property>
+                                    <property name="xalign">0</property>
+                                  </object>
+                                  <packing>
+                                    <property name="left-attach">0</property>
+                                    <property name="top-attach">4</property>
                                   </packing>
                                 </child>
                                 <child>
@@ -481,13 +500,23 @@ Click on &lt;b&gt;Add&lt;/b&gt; to create a new connection.</property>
                                   </object>
                                   <packing>
                                     <property name="left-attach">1</property>
-                                    <property name="right-attach">2</property>
                                     <property name="top-attach">4</property>
-                                    <property name="bottom-attach">5</property>
                                   </packing>
                                 </child>
                                 <child>
-                                  <object class="GtkHBox" id="hbox7">
+                                  <object class="GtkLabel" id="label10">
+                                    <property name="visible">True</property>
+                                    <property name="can-focus">False</property>
+                                    <property name="label" translatable="yes">Pictures root:</property>
+                                    <property name="xalign">0</property>
+                                  </object>
+                                  <packing>
+                                    <property name="left-attach">0</property>
+                                    <property name="top-attach">5</property>
+                                  </packing>
+                                </child>
+                                <child>
+                                  <object class="GtkBox" id="hbox7">
                                     <property name="visible">True</property>
                                     <property name="can-focus">False</property>
                                     <child>
@@ -523,38 +552,26 @@ Click on &lt;b&gt;Add&lt;/b&gt; to create a new connection.</property>
                                   </object>
                                   <packing>
                                     <property name="left-attach">1</property>
-                                    <property name="right-attach">2</property>
                                     <property name="top-attach">5</property>
-                                    <property name="bottom-attach">6</property>
                                   </packing>
                                 </child>
                                 <child>
-                                  <object class="GtkLabel" id="label1">
-                                    <property name="visible">True</property>
-                                    <property name="can-focus">False</property>
-                                    <property name="label" translatable="yes">Port:</property>
-                                    <property name="xalign">0</property>
-                                  </object>
-                                  <packing>
-                                    <property name="top-attach">2</property>
-                                    <property name="bottom-attach">3</property>
-                                  </packing>
+                                  <placeholder/>
                                 </child>
                                 <child>
-                                  <object class="GtkEntry" id="port_entry">
-                                    <property name="visible">True</property>
-                                    <property name="can-focus">True</property>
-                                    <property name="invisible-char">•</property>
-                                    <property name="primary-icon-activatable">False</property>
-                                    <property name="secondary-icon-activatable">False</property>
-                                    <signal name="changed" handler="on_text_entry_changed" swapped="no"/>
-                                  </object>
-                                  <packing>
-                                    <property name="left-attach">1</property>
-                                    <property name="right-attach">2</property>
-                                    <property name="top-attach">2</property>
-                                    <property name="bottom-attach">3</property>
-                                  </packing>
+                                  <placeholder/>
+                                </child>
+                                <child>
+                                  <placeholder/>
+                                </child>
+                                <child>
+                                  <placeholder/>
+                                </child>
+                                <child>
+                                  <placeholder/>
+                                </child>
+                                <child>
+                                  <placeholder/>
                                 </child>
                               </object>
                               <packing>

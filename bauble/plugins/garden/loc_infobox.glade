@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- Generated with glade 3.38.2
+<!-- Generated with glade 3.38.2 
 
-ghini.desktop
-Copyright (C)
+ghini.desktop - 
+Copyright (C) 
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -39,7 +39,9 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
               <object class="GtkLabel" id="loc_name_data">
                 <property name="visible">True</property>
                 <property name="can-focus">False</property>
-                <property name="ypad">8</property>
+                <property name="margin-top">8</property>
+                <property name="margin-bottom">8</property>
+                <property name="vexpand">False</property>
                 <property name="label">--</property>
                 <property name="xalign">0</property>
               </object>

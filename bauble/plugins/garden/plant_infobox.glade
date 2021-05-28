@@ -54,7 +54,8 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
                         <property name="visible">True</property>
                         <property name="can-focus">False</property>
                         <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
-                        <property name="ypad">5</property>
+                        <property name="margin-top">5</property>
+                        <property name="margin-bottom">5</property>
                         <property name="label">--</property>
                         <property name="use-markup">True</property>
                         <property name="xalign">1</property>
@@ -72,7 +73,8 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
                     <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
-                    <property name="ypad">5</property>
+                    <property name="margin-top">5</property>
+                    <property name="margin-bottom">5</property>
                     <property name="label">--</property>
                     <property name="use-markup">True</property>
                     <property name="xalign">0</property>
@@ -297,7 +299,6 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
               <object class="GtkImage" id="memorial_image">
                 <property name="visible">True</property>
                 <property name="can-focus">False</property>
-                <property name="xalign">0</property>
                 <property name="icon-name">media-playback-stop</property>
               </object>
               <packing>
