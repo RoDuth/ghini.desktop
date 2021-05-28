@@ -15,6 +15,7 @@ environment:
 install:
   - bash -lc "pacman --noconfirm -Syuu"
   - bash -lc "pacman --noconfirm -Syuu"
+  - bash -lc "pacman --noconfirm -Syuu"
   - bash -lc "pacman --noconfirm -S - < ./scripts/mingw64_pkglist.txt"
 
 build_script:
