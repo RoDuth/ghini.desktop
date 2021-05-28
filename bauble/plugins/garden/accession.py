@@ -1234,10 +1234,33 @@ class VerificationPresenter(editor.GenericEditorPresenter):
 
             # copy UI definitions from the accession editor glade file
             filename = os.path.join(paths.lib_dir(), "plugins", "garden",
-                                    "acc_ver_box.glade")
+                                    "acc_editor.glade")
+            # TODO <RD> TEMP FIX for mingw need to revert this and work out
+            # what the problem is with mingw and lxml  (lxml always returns the
+            # whole file)
+            with open(filename) as f:
+                xml_string = ""
+                start = False
+                for line in f:
+                    if line == '      <object class="GtkBox" id="ver_box">\n':
+                        start = True
+                    elif start and line == '      </object>\n':
+                        xml_string += line
+                        break
+                    if start:
+                        xml_string += line
+            s = f'<interface>\n{xml_string}</interface>'.strip()
+            # print(s)
             builder = Gtk.Builder()
-            builder.add_from_file(filename)
+            builder.add_from_string(s)
             self.widgets = utils.BuilderWidgets(builder)
+            # filename = os.path.join(paths.lib_dir(), "plugins", "garden",
+            #                         "acc_editor.glade")
+            # xml = etree.parse(filename)
+            # el = xml.find("//object[@id='ver_box']")
+            # builder = Gtk.Builder()
+            # s = f'<interface>{etree.tostring(el).decode("utf-8")}</interface>'
+            # builder.add_from_string(s)
 
             ver_box = self.widgets.ver_box
             self.widgets.remove_parent(ver_box)

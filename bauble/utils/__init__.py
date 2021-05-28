@@ -312,8 +312,10 @@ class BuilderWidgets(dict):
         if isinstance(ui, str):
             self.builder = Gtk.Builder()
             self.builder.add_from_file(ui)
+            self.filename = ui
         else:
             self.builder = ui
+            self.filename = f'from object {ui}'
 
     def __getitem__(self, name):
         '''
@@ -321,9 +323,8 @@ class BuilderWidgets(dict):
         '''
         w = self.builder.get_object(name)
         if not w:
-            raise KeyError(
-                _('no widget named "%(widget_name)s" in glade file') %
-                {'widget_name': name})
+            raise KeyError(_('no widget named "%s" in glade file: %s') %
+                           (name, self.filename))
         return w
 
     def __getattr__(self, name):
@@ -334,9 +335,8 @@ class BuilderWidgets(dict):
             return self.builder
         w = self.builder.get_object(name)
         if not w:
-            raise KeyError(
-                _('no widget named "%(widget_name)s" in glade file') %
-                {'widget_name': name})
+            raise KeyError(_('no widget named "%s" in glade file: %s') %
+                           (name, self.filename))
         return w
 
     def remove_parent(self, widget):

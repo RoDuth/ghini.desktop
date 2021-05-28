@@ -1898,9 +1898,28 @@ class NoteBox(Gtk.Box):
 
         # open the glade file and extract the markup that the
         # expander will use
-        filename = os.path.join(paths.lib_dir(), 'notes_box.glade')
+        filename = os.path.join(paths.lib_dir(), self.glade_ui)
+        # TODO <RD> TEMP FIX for mingw need to revert this and work out what
+        # the problem is with mingw and lxml  (lxml always returns the whole
+        # file)
+        with open(filename) as f:
+            xml_string = ""
+            start = False
+            for line in f:
+                if line == '      <object class="GtkBox" id="notes_box">\n':
+                    start = True
+                elif start and line == '      </object>\n':
+                    xml_string += line
+                    break
+                if start:
+                    xml_string += line
+        s = f'<interface>\n{xml_string}</interface>'.strip()
+
+        # xml = etree.parse(filename)
+        # el = xml.find("//object[@id='notes_box']")
+        # s = '<interface>%s</interface>' % etree.tostring(el)
         builder = Gtk.Builder()
-        builder.add_from_file(filename)
+        builder.add_from_string(s)
         self.widgets = utils.BuilderWidgets(builder)
 
         notes_box = self.widgets.notes_box
