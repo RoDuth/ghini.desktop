@@ -39,6 +39,7 @@ import bauble.meta as meta
 import bauble.paths as paths
 import bauble.pluginmgr as pluginmgr
 import bauble.utils as utils
+from bauble.editor import GenericEditorView
 
 
 class Institution(object):
@@ -89,6 +90,40 @@ class Institution(object):
                 logger.debug('update: %s = %s' % (prop, value))
                 self.table.update(
                     self.table.c.name == db_prop).execute(value=value)
+
+
+class InstitutionEditorView(GenericEditorView):
+
+    _tooltips = {
+        'inst_name': _('The full name of the institution.'),
+        'inst_abbr': _('The standard abbreviation of the '
+                       'institution.'),
+        'inst_code': _('The intitution code should be unique among '
+                       'all institions.'),
+        'inst_contact': _('The name of the person to contact for '
+                          'information related to the institution.'),
+        'inst_tech': _('The email address or phone number of the '
+                       'person to contact for technical '
+                       'information related to the institution.'),
+        'inst_email': _('The email address of the institution.'),
+        'inst_tel': _('The telephone number of the institution.'),
+        'inst_fax': _('The fax number of the institution.'),
+        'inst_addr': _('The mailing address of the institition.'),
+        'inst_geo_latitude': _('The latitude of the geographic centre of the '
+                               'garden.'),
+        'inst_geo_longitude': _('The longitude of the geographic centre of '
+                                'the garden.'),
+        'inst_geo_diameter': _('An approximation of the garden size: '
+                               'the diameter of the smallest circle '
+                               'completely containing the garden location.'),
+    }
+
+    def __init__(self):
+        filename = os.path.join(paths.lib_dir(),
+                                "plugins", "garden", "institution.glade")
+        parent = None
+        root_widget_name = 'inst_dialog'
+        super().__init__(filename, parent, root_widget_name)
 
 
 class InstitutionPresenter(editor.GenericEditorPresenter):
@@ -142,89 +177,24 @@ class InstitutionPresenter(editor.GenericEditorPresenter):
 
     def on_email_text_entry_changed(self, widget, value=None):
         value = super().on_text_entry_changed(widget, value)
-        self.view.widget_set_sensitive(
-            'inst_register', self.email_regexp.match(value or ''))
 
-    def get_sentry_handler(self):
-        from bauble import prefs
-        if prefs.testing:
-            from bauble.test import MockLoggingHandler
-            return MockLoggingHandler()
-        else:
-            from raven import Client
-            from raven.handlers.logging import SentryHandler
-            sentry_client = Client('https://59105d22a4ad49158796088c26bf8e4c:'
-                                   '00268114ed47460b94ce2b1b0b2a4a20@'
-                                   'app.getsentry.com/45704')
-            sentry_client.name = hex(hash(sentry_client.name) + 2**64)[2:-1]
-            return SentryHandler(sentry_client)
-
-    def on_inst_register_clicked(self, *args, **kwargs):
-        '''send the registration data as sentry info log message
-        '''
-
-        # create the handler first
-        handler = self.get_sentry_handler()
-        handler.setLevel(logging.INFO)
-
-        # the registration logger gets the above handler
-        registrations = logging.getLogger('bauble.registrations')
-        registrations.setLevel(logging.INFO)
-        registrations.addHandler(handler)
-
-        # produce the log record
-        registrations.info([(key, getattr(self.model, key))
-                            for key in list(self.widget_to_field_map.values())])
-
-        # remove the handler after usage
-        registrations.removeHandler(handler)
-
-        # disable button, so user will not send registration twice
-        self.view.widget_set_sensitive('inst_register', False)
-
+    # TODO <RD> - remove
     def on_inst_addr_tb_changed(self, widget, value=None, attr=None):
         return self.on_textbuffer_changed(widget, value, attr='address')
 
 
 def start_institution_editor():
-    glade_path = os.path.join(paths.lib_dir(),
-                              "plugins", "garden", "institution.glade")
     from bauble import prefs
-    from bauble.editor import GenericEditorView, MockView
     if prefs.testing:
+        from bauble.editor import MockView
         view = MockView()
     else:
-        view = GenericEditorView(
-            glade_path,
-            parent=None,
-            root_widget_name='inst_dialog')
-    view._tooltips = {
-        'inst_name': _('The full name of the institution.'),
-        'inst_abbr': _('The standard abbreviation of the '
-                       'institution.'),
-        'inst_code': _('The intitution code should be unique among '
-                       'all institions.'),
-        'inst_contact': _('The name of the person to contact for '
-                          'information related to the institution.'),
-        'inst_tech': _('The email address or phone number of the '
-                       'person to contact for technical '
-                       'information related to the institution.'),
-        'inst_email': _('The email address of the institution.'),
-        'inst_tel': _('The telephone number of the institution.'),
-        'inst_fax': _('The fax number of the institution.'),
-        'inst_addr': _('The mailing address of the institition.'),
-        'inst_geo_latitude': _('The latitude of the geographic centre of the garden.'),
-        'inst_geo_longitude': _('The longitude of the geographic centre of the garden.'),
-        'inst_diameter': _('An approximation of the garden size: '
-                           'the diameter of the smallest circle completely '
-                           'containing the garden location.'),
-        }
-
-    o = Institution()
-    inst_pres = InstitutionPresenter(o, view)
+        view = InstitutionEditorView()
+    model = Institution()
+    inst_pres = InstitutionPresenter(model, view)
     response = inst_pres.start()
     if response == Gtk.ResponseType.OK:
-        o.write()
+        model.write()
         inst_pres.commit_changes()
     else:
         inst_pres.session.rollback()

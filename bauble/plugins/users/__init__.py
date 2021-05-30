@@ -496,7 +496,7 @@ class UsersEditor(editor.GenericEditorView):
         """
         """
         filename = os.path.join(
-            paths.lib_dir(), 'plugins', 'users', 'ui.glade')
+            paths.lib_dir(), 'plugins', 'users', 'users.glade')
         super().__init__(filename)
 
         if db.engine.name not in ('postgres', 'postgresql'):
