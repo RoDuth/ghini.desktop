@@ -619,7 +619,6 @@ def create_message_dialog(msg, typ=Gtk.MessageType.INFO,
         except Exception:
             pass
     d.set_property('skip-taskbar-hint', False)
-    d.set_property('resizable', True)
     d.show_all()
     return d
 
@@ -699,20 +698,23 @@ def create_message_details_dialog(msg, details='', typ=Gtk.MessageType.INFO,
     if parent is None:
         try:  # this might get called before bauble has started
             parent = bauble.gui.window
-        except Exception:
+        except AttributeError:
             parent = None
 
-    d = Gtk.MessageDialog(modal=True, destroy_with_parent=True,
-                          parent=parent, message_type=typ, buttons=buttons)
-    d.set_title('Ghini')
-    d.set_markup(msg)
+    dialog = Gtk.MessageDialog(modal=True,
+                               destroy_with_parent=True,
+                               parent=parent,
+                               message_type=typ,
+                               buttons=buttons)
+    dialog.set_title('Ghini')
+    dialog.set_markup(msg)
     # allows resize and copying error messages etc.
-    d.set_property('resizable', True)
-    message_label = d.get_message_area().get_children()[0]
+    dialog.set_property('resizable', True)
+    message_label = dialog.get_message_area().get_children()[0]
     message_label.set_selectable(True)
 
     # get the width of a character
-    context = d.get_pango_context()
+    context = dialog.get_pango_context()
     font_metrics = context.get_metrics(context.get_font_description(),
                                        context.get_language())
     width = font_metrics.get_approximate_char_width()
@@ -720,33 +722,34 @@ def create_message_details_dialog(msg, details='', typ=Gtk.MessageType.INFO,
     # if the character width is less than 300 pixels then set the
     # message dialog's label to be 300 to avoid tiny dialogs
     if width / Pango.SCALE * len(msg) < 300:
-        d.set_size_request(300, -1)
+        dialog.set_size_request(300, -1)
 
     expand = Gtk.Expander()
     text_view = Gtk.TextView()
     text_view.set_editable(False)
     text_view.set_wrap_mode(Gtk.WrapMode.WORD)
-    tb = Gtk.TextBuffer()
-    tb.set_text(details)
-    text_view.set_buffer(tb)
-    sw = Gtk.ScrolledWindow()
-    sw.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
-    sw.set_size_request(-1, 200)
-    sw.add(text_view)
-    expand.add(sw)
-    d.vbox.pack_start(expand, True, True, 0)
+    buffer = Gtk.TextBuffer()
+    buffer.set_text(details)
+    text_view.set_buffer(buffer)
+    scroll_win = Gtk.ScrolledWindow(propagate_natural_height=True)
+    scroll_win.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+    # text_view.set_size_request(-1, 400)
+    scroll_win.add(text_view)
+    expand.add(scroll_win)
+    content_box = dialog.get_content_area()
+    content_box.pack_start(expand, True, True, 0)
     # make "OK" the default response
-    d.set_default_response(Gtk.ResponseType.OK)
-    if d.get_icon() is None:
+    dialog.set_default_response(Gtk.ResponseType.OK)
+    if dialog.get_icon() is None:
         try:
             pixbuf = GdkPixbuf.Pixbuf.new_from_file(bauble.default_icon)
-            d.set_icon(pixbuf)
+            dialog.set_icon(pixbuf)
         except Exception:
             pass
-        d.set_property('skip-taskbar-hint', False)
+        dialog.set_property('skip-taskbar-hint', False)
 
-    d.show_all()
-    return d
+    dialog.show_all()
+    return dialog
 
 
 def message_details_dialog(msg, details, type=Gtk.MessageType.INFO,
