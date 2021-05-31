@@ -477,7 +477,7 @@ class Tool(object):
         pass
 
 
-class View(Gtk.VBox):
+class View(Gtk.Box):
 
     def __init__(self, *args, **kwargs):
         """
@@ -489,7 +489,7 @@ class View(Gtk.VBox):
             del kwargs['filename']
             root_widget_name = kwargs.get('root_widget_name')
             del kwargs['root_widget_name']
-        super().__init__(*args, **kwargs)
+        super().__init__(*args, orientation=Gtk.Orientation.VERTICAL, **kwargs)
         if filename is not None:
             from bauble import utils, editor
             self.widgets = utils.load_widgets(filename)
