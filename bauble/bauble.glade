@@ -24,6 +24,8 @@
       <object class="GtkScrolledWindow" id="history_sv">
         <property name="visible">True</property>
         <property name="can-focus">True</property>
+        <property name="hexpand">True</property>
+        <property name="vexpand">True</property>
         <child>
           <object class="GtkTreeView" id="history_tv">
             <property name="visible">True</property>
@@ -422,6 +424,8 @@
       <object class="GtkNotebook" id="prefs_view">
         <property name="visible">True</property>
         <property name="can-focus">True</property>
+        <property name="hexpand">True</property>
+        <property name="vexpand">True</property>
         <child>
           <object class="GtkScrolledWindow" id="prefs_prefs_sv">
             <property name="visible">True</property>
