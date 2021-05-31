@@ -563,8 +563,7 @@ class InfraspPresenter(editor.GenericEditorPresenter):
         self.view.connect('add_infrasp_button', "clicked", self.append_infrasp)
 
         # will table.resize() remove the children??
-        table = self.view.widgets.infrasp_table
-        for item in self.view.widgets.infrasp_table.get_children():
+        for item in self.view.widgets.infrasp_grid.get_children():
             if not isinstance(item, Gtk.Label):
                 self.view.widgets.remove_parent(item)
 
@@ -597,9 +596,7 @@ class InfraspPresenter(editor.GenericEditorPresenter):
             """
             self.presenter = presenter
             self.species = presenter.model
-            table = self.presenter.view.widgets.infrasp_table
-            nrows = table.props.n_rows
-            ncols = table.props.n_columns
+            grid = self.presenter.view.widgets.infrasp_grid
             self.level = level
 
             rank, epithet, author = self.species.get_infrasp(self.level)
@@ -609,61 +606,52 @@ class InfraspPresenter(editor.GenericEditorPresenter):
             self.presenter.view.init_translatable_combo(
                 self.rank_combo, infrasp_rank_values, cmp=compare_rank)
             utils.set_widget_value(self.rank_combo, rank)
-            presenter.view.connect(self.rank_combo,
-                                   'changed', self.on_rank_combo_changed)
-            table.attach(self.rank_combo, 0, 1, level, level + 1,
-                         xoptions=Gtk.AttachOptions.FILL,
-                         yoptions=Gtk.AttachOptions.FILL)
+            presenter.view.connect(self.rank_combo, 'changed',
+                                   self.on_rank_combo_changed)
+            grid.attach(self.rank_combo, 0, level, 1, 1)
 
             # epithet entry
-            self.epithet_entry = Gtk.Entry()
+            self.epithet_entry = Gtk.Entry(hexpand=True)
             utils.set_widget_value(self.epithet_entry, epithet)
             presenter.view.connect(self.epithet_entry, 'changed',
                                    self.on_epithet_entry_changed)
-            table.attach(self.epithet_entry, 1, 2, level, level + 1,
-                         xoptions=Gtk.AttachOptions.FILL | Gtk.AttachOptions.EXPAND,
-                         yoptions=Gtk.AttachOptions.FILL)
+            grid.attach(self.epithet_entry, 1, level, 1, 1)
 
             # author entry
-            self.author_entry = Gtk.Entry()
+            self.author_entry = Gtk.Entry(hexpand=True)
             utils.set_widget_value(self.author_entry, author)
             presenter.view.connect(self.author_entry, 'changed',
                                    self.on_author_entry_changed)
-            table.attach(self.author_entry, 2, 3, level, level + 1,
-                         xoptions=Gtk.AttachOptions.FILL | Gtk.AttachOptions.EXPAND,
-                         yoptions=Gtk.AttachOptions.FILL)
+            grid.attach(self.author_entry, 2, level, 1, 1)
 
-            self.remove_button = Gtk.Button()
-            img = Gtk.Image.new_from_stock(Gtk.STOCK_REMOVE,
-                                           Gtk.IconSize.BUTTON)
-            self.remove_button.props.image = img
+            # remove button
+            self.remove_button = Gtk.Button.new_from_icon_name(
+                'list-remove', 1)
             presenter.view.connect(self.remove_button, 'clicked',
                                    self.on_remove_button_clicked)
-            table.attach(self.remove_button, 3, 4, level, level + 1,
-                         xoptions=Gtk.AttachOptions.FILL,
-                         yoptions=Gtk.AttachOptions.FILL)
-            table.show_all()
+            grid.attach(self.remove_button, 3, level, 1, 1)
+            grid.show_all()
 
         def on_remove_button_clicked(self, *args):
             # remove the widgets
-            table = self.presenter.view.widgets.infrasp_table
+            grid = self.presenter.view.widgets.infrasp_grid
 
             # remove the infrasp from the species and reset the levels
             # on the remaining infrasp that have a higher level than
             # the one being deleted
-            table.remove(self.rank_combo)
-            table.remove(self.epithet_entry)
-            table.remove(self.author_entry)
-            table.remove(self.remove_button)
+            grid.remove(self.rank_combo)
+            grid.remove(self.epithet_entry)
+            grid.remove(self.author_entry)
+            grid.remove(self.remove_button)
 
             self.set_model_attr('rank', None)
             self.set_model_attr('epithet', None)
             self.set_model_attr('author', None)
 
             # move all the infrasp values up a level
-            for i in range(self.level+1, 5):
+            for i in range(self.level + 1, 5):
                 rank, epithet, author = self.species.get_infrasp(i)
-                self.species.set_infrasp(i-1, rank, epithet, author)
+                self.species.set_infrasp(i - 1, rank, epithet, author)
 
             self.presenter._dirty = False
             self.presenter.parent_ref().refresh_fullname_label()
@@ -751,7 +739,8 @@ class DistributionPresenter(editor.GenericEditorPresenter):
                               self.on_activate_remove_menu_item, dist)
             self.remove_menu.append(item)
         self.remove_menu.show_all()
-        self.remove_menu.popup(None, None, None, event.button, event.time)
+        self.remove_menu.popup(None, None, None, None, event.button,
+                               event.time)
 
     def on_activate_add_menu_item(self, widget, geoid=None):
         logger.debug('on_activate_add_menu_item %s %s' % (widget, geoid))
