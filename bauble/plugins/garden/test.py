@@ -1772,6 +1772,7 @@ class InstitutionPresenterTests(GardenTestCase):
         self.assertEqual(presenter.view.boxes, set())
 
     def test_no_email_means_no_registering(self):
+        raise SkipTest('Not currently enabled in this version')
         from bauble.editor import MockView
         view = MockView(sensitive={'inst_register': None,
                                    'inst_ok': None})
@@ -1782,6 +1783,7 @@ class InstitutionPresenterTests(GardenTestCase):
         self.assertFalse(view.widget_get_sensitive('inst_register'))
 
     def test_invalid_email_means_no_registering(self):
+        raise SkipTest('Not currently enabled in this version')
         from bauble.editor import MockView
         view = MockView(sensitive={'inst_register': None,
                                    'inst_ok': None})
@@ -1792,6 +1794,7 @@ class InstitutionPresenterTests(GardenTestCase):
         self.assertFalse(view.widget_get_sensitive('inst_register'))
 
     def test_no_email_means_can_register(self):
+        raise SkipTest('Not currently enabled in this version')
         from bauble.editor import MockView
         view = MockView(sensitive={'inst_register': None,
                                    'inst_ok': None})
@@ -1802,6 +1805,7 @@ class InstitutionPresenterTests(GardenTestCase):
         self.assertTrue(view.widget_get_sensitive('inst_register'))
 
     def test_when_user_registers_info_is_logged(self):
+        raise SkipTest('Not currently enabled in this version')
         from bauble.utils import desktop
         from bauble.test import mockfunc
         from functools import partial
