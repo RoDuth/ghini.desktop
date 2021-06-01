@@ -40,7 +40,7 @@ from gi.repository import GObject
 
 from random import random
 import dateutil.parser as date_parser
-import lxml.etree as etree
+from lxml import etree
 from gi.repository import Pango
 from sqlalchemy.orm import object_mapper, object_session
 from sqlalchemy.orm.exc import UnmappedInstanceError
@@ -373,7 +373,6 @@ class GenericEditorView(object):
     def connect_signals(self, target):
         'connect all signals declared in the glade file'
         if not hasattr(self, 'signals'):
-            from lxml import etree
             doc = etree.parse(self.filename)
             self.signals = doc.xpath('//signal')
         for s in self.signals:
@@ -1428,7 +1427,9 @@ class GenericEditorPresenter(object):
         self.refresh_view()
 
     def dirty(self):
-        logger.info('calling deprecated "dirty". use "is_dirty".')
+        import inspect
+        logger.debug('calling deprecated "dirty" instead of "is_dirty" by %s',
+                     inspect.stack()[1])
         return self.is_dirty()
 
     # whether the presenter should be commited or not

@@ -78,8 +78,8 @@ class JSONExporter(editor.GenericEditorPresenter):
         'ei_referred': 'export_includes',
         'ei_referring': 'export_includes',
         'chkincludeprivate': 'include_private',
-        'filename': 'filename',
-        }
+        'output_filename': 'filename',
+    }
 
     view_accept_buttons = ['sed-button-ok', 'sed-button-cancel', ]
 
@@ -204,8 +204,8 @@ class JSONExporter(editor.GenericEditorPresenter):
             action=Gtk.FileChooserAction.SAVE,
             buttons=(Gtk.STOCK_OK, Gtk.ResponseType.ACCEPT,
                      Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL),
-            last_folder=self.last_folder, target='filename')
-        filename = self.view.widget_get_value('filename')
+            last_folder=self.last_folder, target='output_filename')
+        filename = self.view.widget_get_value('output_filename')
         JSONExporter.last_folder, bn = os.path.split(filename)
 
     def on_btnok_clicked(self, widget):
