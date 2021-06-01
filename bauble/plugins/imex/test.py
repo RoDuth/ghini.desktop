@@ -730,7 +730,7 @@ class JSONExportTests(BaubleTestCase):
         exporter = JSONExporter(view)
         view.reply_file_chooser_dialog = ['/tmp/test.json']
         exporter.on_btnbrowse_clicked('button')
-        exporter.on_text_entry_changed('filename')
+        exporter.on_text_entry_changed('output_filename')
         self.assertEqual(exporter.filename, '/tmp/test.json')
         self.assertEqual(JSONExporter.last_folder, '/tmp')
 

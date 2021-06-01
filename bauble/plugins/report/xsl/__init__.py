@@ -406,7 +406,8 @@ class XSLFormatterSettingsBox(SettingsBox):
 
         self.stylesheet_chooser = Gtk.FileChooserButton.new(
             _('Choose a stylesheet...'), Gtk.FileChooserAction.OPEN)
-        self.widgets.stylesheet_alignment.add(self.stylesheet_chooser)
+        self.widgets.stylesheet_box.pack_start(self.stylesheet_chooser, True,
+                                               True, 1)
 
     def get_settings(self):
         '''
