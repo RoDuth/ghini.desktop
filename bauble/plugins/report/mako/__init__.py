@@ -338,7 +338,8 @@ class MakoFormatterSettingsBox(SettingsBox):
         for fname, ftype, fdefault, ftooltip in option_fields:
             # row = Gtk.Box()
             label = Gtk.Label(fname.replace('_', ' ') + _(':'))
-            label.set_alignment(0, 0.5)
+            label.set_halign(Gtk.Align.END)
+            label.set_margin_right(5)
             entry = Gtk.Entry()
             options.setdefault(fname, fdefault)
             entry.set_text(options[fname])
@@ -346,16 +347,13 @@ class MakoFormatterSettingsBox(SettingsBox):
             # entry updates the corresponding item in report.options
             entry.connect('changed', self.set_option, fname)
             self.defaults.append((entry, fdefault))
-            options_box.attach(label, 0, 1, current_row, current_row+1,
-                               xoptions=Gtk.AttachOptions.FILL)
-            options_box.attach(entry, 1, 2, current_row, current_row+1,
-                               xoptions=Gtk.AttachOptions.FILL)
+            options_box.attach(label, 0, current_row, 1, 1)
+            options_box.attach(entry, 1, current_row, 1, 1)
             current_row += 1
         if self.defaults:
             button = Gtk.Button(_('Reset to defaults'))
             button.connect('clicked', self.reset_options)
-            options_box.attach(button, 0, 2, current_row, current_row+1,
-                               xoptions=Gtk.AttachOptions.FILL)
+            options_box.attach(button, 1, current_row, 1, 1)
         options_box.show_all()
 
     def clear_options_box(self):
