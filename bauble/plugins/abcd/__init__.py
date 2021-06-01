@@ -211,7 +211,7 @@ def create_abcd(decorated_objects, authors=True, validate=True):
     :param validate: whether we should validate the data before returning
     :returns: a valid ABCD ElementTree
     """
-    import bauble.plugins.garden.institution as institution
+    from bauble.plugins.garden import institution
     inst = institution.Institution()
     if not verify_institution(inst):
         msg = _('Some or all of the information about your institution or '
@@ -219,7 +219,7 @@ def create_abcd(decorated_objects, authors=True, validate=True):
                 'Name, Technical Contact, Email, Contact and Institution '
                 'Code fields are filled in.')
         utils.message_dialog(msg)
-        institution.InstitutionEditor().start()
+        institution.InstitutionTool().start()
         return create_abcd(decorated_objects, authors, validate)
 
     datasets = DataSets()

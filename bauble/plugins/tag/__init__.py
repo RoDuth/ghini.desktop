@@ -44,12 +44,7 @@ from sqlalchemy.orm.session import object_session
 
 
 import bauble
-import bauble.db as db
-import bauble.editor as editor
-import bauble.pluginmgr as pluginmgr
-import bauble.paths as paths
-import bauble.search as search
-import bauble.utils as utils
+from bauble import db, editor, pluginmgr, paths, search, utils
 from bauble.view import InfoBox, InfoExpander, SearchView, Action
 
 from bauble.editor import (
@@ -735,39 +730,40 @@ class GeneralTagExpander(InfoExpander):
         self.table_cells = []
 
     def update(self, row):
-        on_label_clicked = lambda l, e, x: bauble.gui.send_command(x)
         self.current_obj = row
         self.widget_set_value('ib_name_label', row.tag)
         self.widget_set_value('ib_description_label', row.description)
         objects = row.objects
         classes = set(type(o) for o in objects)
         row_no = 1
-        table = self.widgets.tag_ib_general_table
-        for w in self.table_cells:
-            table.remove(w)
+        grid = self.widgets.tag_ib_general_grid
+        for widget in self.table_cells:
+            grid.remove(widget)
         self.table_cells = []
-        for c in classes:
-            obj_ids = [str(o.id) for o in objects if isinstance(o, c)]
+        for cls in classes:
+            obj_ids = [str(o.id) for o in objects if isinstance(o, cls)]
             lab = Gtk.Label()
             lab.set_alignment(0, .5)
-            lab.set_text(c.__name__)
-            table.attach(lab, 0, 1, row_no, row_no + 1)
+            lab.set_text(cls.__name__)
+            grid.attach(lab, 0, row_no, 1, 1)
 
-            eb = Gtk.EventBox()
-            leb = Gtk.Label()
-            leb.set_alignment(0, .5)
-            eb.add(leb)
-            table.attach(eb, 1, 2, row_no, row_no + 1)
-            leb.set_text(" %s " % len(obj_ids))
+            eventbox = Gtk.EventBox()
+            label = Gtk.Label()
+            label.set_alignment(0, .5)
+            eventbox.add(label)
+            grid.attach(eventbox, 1, row_no, 1, 1)
+            label.set_text(" %s " % len(obj_ids))
             utils.make_label_clickable(
-                leb, on_label_clicked,
-                '%s where id in %s' % (c.__name__.lower(), ', '.join(obj_ids)))
+                label,
+                lambda l, e, x: bauble.gui.send_command(x),
+                f'{cls.__name__.lower()} where id in {", ".join(obj_ids)}'
+            )
 
             self.table_cells.append(lab)
-            self.table_cells.append(eb)
+            self.table_cells.append(eventbox)
 
             row_no += 1
-        table.show_all()
+        grid.show_all()
 
 
 class TagInfoBox(InfoBox):
