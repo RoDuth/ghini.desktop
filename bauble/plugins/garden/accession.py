@@ -1633,7 +1633,7 @@ class SourcePresenter(editor.GenericEditorPresenter):
             self.collection_presenter.is_dirty()
 
     def refresh_sensitivity(self):
-        logger.warning('refresh_sensitivity: %s' % str(self.problems))
+        logger.debug('refresh_sensitivity: %s' % str(self.problems))
         self.parent_ref().refresh_sensitivity()
 
     def on_coll_add_button_clicked(self, *args):
@@ -1696,7 +1696,7 @@ class SourcePresenter(editor.GenericEditorPresenter):
                 active = combo.get_model()[treeiter][0]
         combo.set_model(None)
         model = Gtk.ListStore(object)
-        none_iter = model.append([''])
+        model.append(None)
         model.append([self.garden_prop_str])
         for i in self.session.query(Contact).order_by(
                 func.lower(Contact.name)):
@@ -1710,7 +1710,7 @@ class SourcePresenter(editor.GenericEditorPresenter):
             if results:
                 combo.set_active_iter(results[0])
         else:
-            combo.set_active_iter(none_iter)
+            combo.set_active_iter(None)
         combo._populate = False
 
     def init_source_comboentry(self, on_select):
@@ -1744,10 +1744,14 @@ class SourcePresenter(editor.GenericEditorPresenter):
             model = completion.get_model()
             value = model[treeiter][0]
             # allows completions of source details by their ID
-            if utils.utf8(value).lower().startswith(key.lower()) or \
-                    (isinstance(value, Contact) and
-                     str(value.id).startswith(key)):
-                return True
+            try:
+                if utils.utf8(value).lower().startswith(key.lower()) or \
+                        (isinstance(value, Contact) and
+                         str(value.id).startswith(key)):
+                    return True
+            except AttributeError:
+                # the item is most likely None so safe to ignore
+                pass
             return False
         completion.set_match_func(match_func)
 
@@ -1803,6 +1807,7 @@ class SourcePresenter(editor.GenericEditorPresenter):
                     return False
 
             found = utils.search_tree_model(comp.get_model(), text, _cmp)
+
             if len(found) == 1:
                 # the model and iter here should technically be the tree
                 comp.emit('match-selected', comp.get_model(), found[0])
@@ -2036,6 +2041,7 @@ class AccessionEditorPresenter(editor.GenericEditorPresenter):
 
         self.has_plants = len(model.plants) > 0
         view.widget_set_sensitive('intended_loc_create_plant_checkbutton', not self.has_plants)
+
         def refresh_create_plant_checkbutton_sensitivity(*args):
             if self.has_plants:
                 view.widget_set_sensitive('intended_loc_create_plant_checkbutton', False)
@@ -2573,8 +2579,14 @@ class AccessionEditor(editor.GenericModelViewPresenterEditor):
             logger.debug('creating plant for new accession')
             accession = self.model
             location = accession.intended_location
-            plant = Plant(accession=accession, code='1', quantity=accession.quantity_recvd, location=location,
-                          acc_type=accession_type_to_plant_material.get(self.model.recvd_type))
+            plant = Plant(
+                accession=accession,
+                code='1',
+                quantity=accession.quantity_recvd,
+                location=location,
+                acc_type=accession_type_to_plant_material.get(
+                    self.model.recvd_type)
+            )
             self.session.add(plant)
 
         return super().commit_changes()

@@ -1311,8 +1311,6 @@ class AccessionTests(GardenTestCase):
         self.assertRaises(IntegrityError, self.session.commit)
 
     def test_accession_source_editor(self, accession=None):
-        # TODO review this when updating the glade files
-        raise SkipTest('Problem cannot be found in presenter at this point')
         ## create an accession, a location, a plant
         parent = self.create(Accession, species=self.species, code='parent',
                              quantity_recvd=1)

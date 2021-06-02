@@ -34,17 +34,12 @@ import logging
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
-from sqlalchemy import Column, Integer, ForeignKey, UnicodeText, Unicode
+from sqlalchemy import Column, Integer, ForeignKey, UnicodeText
 from sqlalchemy.orm import backref, relation
 from sqlalchemy.orm.session import object_session
 from sqlalchemy.exc import DBAPIError
 
-import bauble
-import bauble.db as db
-import bauble.utils as utils
-import bauble.paths as paths
-import bauble.editor as editor
-import bauble.prefs as prefs
+from bauble import db, utils, paths, editor, prefs
 import bauble.btypes as types
 
 
@@ -175,7 +170,7 @@ class Propagation(db.Base):
             if c.leaves:
                 s = _('Leaves') + ': %s' % leaves_values[c.leaves]
                 if c.leaves == 'Removed' and c.leaves_reduced_pct:
-                    s.append('(%s%%)' % c.leaves_reduced_pct)
+                    s += '(%s%%)' % c.leaves_reduced_pct
                 values.append(s)
             if c.flower_buds:
                 values.append(_('Flower buds') + ': %s' %
@@ -560,6 +555,10 @@ class PropagationEditorView(editor.GenericEditorView):
 # doesn't get reset properly
 
 
+def distinct(current, session):
+    return utils.get_distinct_values(current, session)
+
+
 class CuttingPresenter(editor.GenericEditorPresenter):
 
     widget_to_field_map = {'cutting_type_combo': 'cutting_type',
@@ -611,21 +610,25 @@ class CuttingPresenter(editor.GenericEditorPresenter):
 
         widgets = self.view.widgets
 
-        def distinct(current):
-            return utils.get_distinct_values(current, self.session)
-
         utils.setup_text_combobox(widgets.cutting_hormone_comboentry,
-                                  distinct(PropCutting.hormone))
+                                  distinct(PropCutting.hormone, self.session))
         utils.setup_text_combobox(widgets.cutting_cover_comboentry,
-                                  distinct(PropCutting.cover))
+                                  distinct(PropCutting.cover, self.session))
         utils.setup_text_combobox(widgets.cutting_fungal_comboentry,
-                                  distinct(PropCutting.fungicide))
+                                  distinct(PropCutting.fungicide,
+                                           self.session))
+        nursery_locations = distinct(PropCutting.location, self.session)
+        nursery_locations += distinct(PropSeed.location, self.session)
         utils.setup_text_combobox(widgets.cutting_location_comboentry,
-                                  distinct(PropCutting.location))
+                                  sorted(set(nursery_locations)))
+        containers = distinct(PropCutting.container, self.session)
+        containers += distinct(PropSeed.container, self.session)
         utils.setup_text_combobox(widgets.cutting_container_comboentry,
-                                  distinct(PropCutting.container))
+                                  sorted(set(containers)))
+        media = distinct(PropCutting.media, self.session)
+        media += distinct(PropSeed.media, self.session)
         utils.setup_text_combobox(widgets.cutting_media_comboentry,
-                                  distinct(PropCutting.media))
+                                  sorted(set(media)))
 
         # set default units
         units = prefs.prefs[prefs.units_pref]
@@ -642,11 +645,21 @@ class CuttingPresenter(editor.GenericEditorPresenter):
         rooted_liststore = Gtk.ListStore(object)
         self.view.widgets.rooted_treeview.set_model(rooted_liststore)
 
-        from functools import partial
-        def rooted_cell_data_func(attr_name, column, cell, rooted_liststore, treeiter):
+        def rooted_cell_data_func(column, cell, rooted_liststore,
+                                  treeiter, attr_name):
             # extract attr from the object and show it in the cell
             v = rooted_liststore[treeiter][0]
-            cell.set_property('text', getattr(v, attr_name))
+            # datetime change format to the pref
+            print(type(getattr(v, attr_name)))
+            attr = getattr(v, attr_name)
+            if isinstance(attr, datetime.date):
+                from bauble import prefs
+                frmt = prefs.prefs[prefs.date_format_pref]
+                attr = attr.strftime(frmt)
+
+            cell.set_property('text', str(attr))
+
+        from functools import partial
 
         def on_rooted_cell_edited(attr_name, cell, path, new_text):
             # update object if field was modified, refresh sensitivity
@@ -665,7 +678,7 @@ class CuttingPresenter(editor.GenericEditorPresenter):
             self.view.connect(
                 cell, 'edited', partial(on_rooted_cell_edited, attr_name))
             column.set_cell_data_func(
-                cell, partial(rooted_cell_data_func, attr_name))
+                cell, rooted_cell_data_func, attr_name)
 
         self.refresh_view()
 
@@ -782,15 +795,18 @@ class SeedPresenter(editor.GenericEditorPresenter):
         # TODO: if % germinated is not entered and nseeds and #
         # germinated are then automatically calculate the % germinated
 
-        widgets = self.view.widgets
-        distinct = lambda c: utils.get_distinct_values(c, self.session)
-        # TODO: should also setup a completion on the entry
+        media = distinct(PropCutting.media, self.session)
+        media += distinct(PropSeed.media, self.session)
         utils.setup_text_combobox(self.view.widgets.seed_media_comboentry,
-                                  distinct(PropSeed.media))
+                                  sorted(set(media)))
+        containers = distinct(PropCutting.container, self.session)
+        containers += distinct(PropSeed.container, self.session)
         utils.setup_text_combobox(self.view.widgets.seed_container_comboentry,
-                                  distinct(PropSeed.container))
+                                  sorted(set(containers)))
+        nursery_locations = distinct(PropCutting.location, self.session)
+        nursery_locations += distinct(PropSeed.location, self.session)
         utils.setup_text_combobox(self.view.widgets.seed_location_comboentry,
-                                  distinct(PropSeed.location))
+                                  sorted(set(nursery_locations)))
 
         self.refresh_view()
 
@@ -1095,6 +1111,7 @@ class PropagationEditor(editor.GenericModelViewPresenterEditor):
             self.session = sess
             self.model = model
 
+        import bauble
         if not parent and bauble.gui:
             parent = bauble.gui.window
         self.parent = parent
