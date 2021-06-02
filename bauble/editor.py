@@ -1618,7 +1618,7 @@ class GenericEditorPresenter(object):
         if validator:
             validator = ProblemValidator(self, validator)
 
-        if isinstance(widget, Gtk.Entry):
+        if isinstance(widget, Gtk.Entry):       # also catches SpinButtons
             def on_changed(entry):
                 self.set_model_attr(model_attr, entry.props.text, validator)
             self.view.connect(widget, 'changed', on_changed)

@@ -25,6 +25,8 @@ logger.setLevel(logging.DEBUG)
 
 from sqlalchemy.orm import object_session, eagerload
 
+from gi.repository import Gtk
+
 import bauble
 
 import bauble.utils as utils
@@ -164,14 +166,9 @@ def init_location_comboentry(presenter, combo, on_select, required=True):
     def cell_data_func(col, cell, model, treeiter, data=None):
         cell.props.text = str(model[treeiter][0])
 
-    import gi
-    gi.require_version("Gtk", "3.0")
-    from gi.repository import Gtk
-
     completion = Gtk.EntryCompletion()
     cell = Gtk.CellRendererText()  # set up the completion renderer
     completion.pack_start(cell, True)
-    combo.add_attribute(cell, 'text', 0)
     completion.set_cell_data_func(cell, cell_data_func)
     completion.props.popup_set_width = False
 
@@ -181,6 +178,7 @@ def init_location_comboentry(presenter, combo, on_select, required=True):
     combo.clear()
     cell = Gtk.CellRendererText()
     combo.pack_start(cell, True)
+    combo.add_attribute(cell, 'text', 0)
     combo.set_cell_data_func(cell, cell_data_func)
 
     model = Gtk.ListStore(object)

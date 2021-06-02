@@ -1438,7 +1438,6 @@ class PropagationExpander(InfoExpander):
             label.props.wrap = True
             label.set_alignment(0.0, 0.0)
             label.connect("size-allocate", label_size_allocate)
-            self.vbox.pack_start(label, True, True, 0)
         self.vbox.show_all()
 
 
