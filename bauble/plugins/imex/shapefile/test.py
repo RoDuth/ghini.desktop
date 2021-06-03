@@ -44,8 +44,8 @@ from bauble.plugins.imex.shapefile.import_tool import (ShapefileImporter,
 from bauble.plugins.imex.shapefile.export_tool import (ShapefileExporter,
                                                        get_field_properties)
 
-from bauble.plugins.imex.shapefile.import_tool import SettingsBox as ImpSetBox
-from bauble.plugins.imex.shapefile.export_tool import SettingsBox as ExpSetBox
+from .import_tool import ShapefileImportSettingsBox as ImpSetBox
+from .export_tool import ShapefileExportSettingsBox as ExpSetBox
 # test data - avoiding tuples as they end up lists in the database anyway
 epsg3857_point = {'type': 'Point',
                   'coordinates': [17029543.308700003, -3183278.8702000007]}

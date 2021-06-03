@@ -60,7 +60,7 @@ class ShapefileReader():
     A wrapper for reading zipped shapefile data and the settings used.  By
     making changes here we can change how the shapefile data is read and hence
     imported into the database e.g. mapping fields to database fields.
-    Primarily changes are made in the SettingsBox.
+    Primarily changes are made in the ShapefileImportSettingsBox.
     """
     from contextlib import contextmanager
 
@@ -243,7 +243,7 @@ class ShapefileReader():
             reader.close()
 
 
-class SettingsBox(Gtk.ScrolledWindow):
+class ShapefileImportSettingsBox(Gtk.ScrolledWindow):
     """
     Advanced settings used to change the behaviour of the ShapefileReader.
     """
@@ -827,7 +827,7 @@ class ShapefileImportDialogPresenter(GenericEditorPresenter):
     last_folder = str(Path.home())
 
     def __init__(self, model, view):
-        super().__init__(model=model, view=view)
+        super().__init__(model=model, view=view, session=False)
         self.prj_string = None
         self.proj_db_match = None
         self.proj_text = None
@@ -903,7 +903,7 @@ class ShapefileImportDialogPresenter(GenericEditorPresenter):
         child = expander.get_child()
         if child:
             expander.remove(child)
-        settings_box = SettingsBox(shape_reader=self.model.shape_reader)
+        settings_box = ShapefileImportSettingsBox(shape_reader=self.model.shape_reader)
         expander.add(settings_box)
         settings_box.show_all()
         return False

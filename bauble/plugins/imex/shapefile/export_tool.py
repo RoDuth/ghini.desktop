@@ -113,7 +113,7 @@ def get_field_properties(model, path):
     return field_type, size
 
 
-class SettingsBox(Gtk.ScrolledWindow):
+class ShapefileExportSettingsBox(Gtk.ScrolledWindow):
     """Advanced settings used to set the database fields to export.
     """
     def __init__(self, model,   # pylint: disable=too-many-arguments
@@ -791,7 +791,7 @@ class ShapefileExportDialogPresenter(GenericEditorPresenter):
     last_folder = str(Path.home())
 
     def __init__(self, model, view):
-        super().__init__(model=model, view=view)
+        super().__init__(model=model, view=view, session=False)
         from bauble.view import SearchView
         # bauble.gui is None when testing
         main_view = None if bauble.gui is None else bauble.gui.get_view()
@@ -844,7 +844,7 @@ class ShapefileExportDialogPresenter(GenericEditorPresenter):
             expander.remove(child)
         notebook = Gtk.Notebook()
         if self.model.export_plants:
-            plt_settings_box = SettingsBox(
+            plt_settings_box = ShapefileExportSettingsBox(
                 Plant,
                 fields=self.model.plant_fields,
                 gen_settings=self.model.gen_settings,
@@ -854,7 +854,7 @@ class ShapefileExportDialogPresenter(GenericEditorPresenter):
                                  Gtk.Label(label="Plants"))
             self.settings_boxes.append(plt_settings_box)
         if self.model.export_locations:
-            loc_settings_box = SettingsBox(
+            loc_settings_box = ShapefileExportSettingsBox(
                 Location, fields=self.model.location_fields,
                 resize_func=self.reset_win_size)
             notebook.append_page(loc_settings_box,

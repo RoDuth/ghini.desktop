@@ -1082,6 +1082,12 @@ class GenericEditorPresenter(object):
 
     :param model: an object instance mapped to an SQLAlchemy table
     :param view: should be an instance of GenericEditorView
+    :param refresh_view: if True fill the values in the widgets from the
+        approapriate fields values from the model.
+    :param session: instance of db.Session, if None try to get appropriate one,
+        if False then a session is not needed for this editor.
+    :param committing_results: list of ResponseTypes that if returned from the
+        view should trigger a session.commit.
 
     The presenter should usually be initialized in the following order:
     1. initialize the widgets
@@ -1111,7 +1117,11 @@ class GenericEditorPresenter(object):
             logging.debug('creating clipboard in presenter class %s' % self.__class__.__name__)
             self.__class__.clipboard = {}
 
-        if session is None:
+        if session is False:
+            self.session = None
+            self.owns_session = False
+            logger.debug("GenericEditorPresenter::__init__ - sessionless")
+        elif session is None:
             try:
                 self.session = object_session(model)
             except Exception as e:
