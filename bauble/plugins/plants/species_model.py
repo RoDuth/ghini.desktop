@@ -545,7 +545,7 @@ class Species(db.Base, db.Serializable, db.DefiningPictures, db.WithNotes):
     @default_vernacular_name.setter
     def default_vernacular_name(self, vn):
         if isinstance(vn, str):
-            print('vernacular_name is a string', vn)
+            logger.debug('vernacular_name is a string: %s', vn)
             lang = None
             if ':' in vn:
                 vn, lang = vn.split(':')

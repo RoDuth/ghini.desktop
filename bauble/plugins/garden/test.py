@@ -1485,7 +1485,6 @@ class AccessionTests(GardenTestCase):
 
         # effect
         self.assertFalse('message_details_dialog' in [f for (f, m) in self.invoked])
-        print(self.invoked)
         self.assertTrue(('yes_no_dialog', 'Are you sure you want to remove accession <b>010101</b>?')
                         in self.invoked)
         self.assertEqual(result, None)
@@ -1515,7 +1514,6 @@ class AccessionTests(GardenTestCase):
         self.session.flush()
 
         # effect
-        print(self.invoked)
         self.assertFalse('message_details_dialog' in
                          [f for (f, m) in self.invoked])
         self.assertTrue(('yes_no_dialog', 'Are you sure you want to remove accession <b>010101</b>?')
@@ -1549,7 +1547,6 @@ class AccessionTests(GardenTestCase):
         self.session.flush()
 
         # effect
-        print(self.invoked)
         self.assertFalse('message_details_dialog' in
                          [f for (f, m) in self.invoked])
         self.assertTrue(('message_dialog', '1 plants depend on this accession: <b>010101.1</b>\n\n'
@@ -1815,7 +1812,6 @@ class InstitutionPresenterTests(GardenTestCase):
         o = Institution()
         p = InstitutionPresenter(o, view)
         p.on_inst_register_clicked()
-        print(self.handler.messages['bauble.registrations']['info'][0])
         target = [('fax', None), ('address', None), ('name', ''),
                                   ('contact', None), ('technical_contact', None), ('geo_diameter', None),
                                   ('abbreviation', None), ('code', None), ('geo_longitude', None),

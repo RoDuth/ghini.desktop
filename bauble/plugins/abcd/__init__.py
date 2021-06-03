@@ -321,7 +321,6 @@ def create_abcd(decorated_objects, authors=True, validate=True):
         # add anything that comes past Notes, e.g. RecordURI,
         # EAnnotations, UnitExtension
         notes_list = obj.get_Notes(unit)
-        print(notes_list)
         notes_str = ''
         if notes_list:
             for note in notes_list:

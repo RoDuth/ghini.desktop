@@ -192,19 +192,16 @@ class GlobalFunctionsTests(BaubleTestCase):
 
         def max_diff_point(a, b):
             diff = max(coord_diff(a.get('coordinates'), b.get('coordinates')))
-            print(diff)
             return diff
 
         def max_diff_line(a, b):
             diff = max(max(coord_diff(i[0], i[1])) for i in zip(
                 a.get('coordinates'), b.get('coordinates')))
-            print(diff)
             return diff
 
         def max_diff_poly(a, b):
             diff = max(max(coord_diff(i[0], i[1])) for i in zip(
                 a.get('coordinates')[0], b.get('coordinates')[0]))
-            print(diff)
             return diff
 
         # epsg:3857 point

@@ -186,22 +186,18 @@ class UtilsDBTests(BaubleTestCase):
 
         # tables that depend on table 1 are 3, 4, 2
         depends = list(utils.find_dependent_tables(table1, metadata))
-        print('table1: %s' % [table.name for table in depends])
         self.assertTrue(list(depends) == [table2, table4, table3])
 
         # tables that depend on table 2 are 3, 4
         depends = list(utils.find_dependent_tables(table2, metadata))
-        print('table2: %s' % [table.name for table in depends])
         self.assertTrue(depends == [table4, table3])
 
         # no tables depend on table 3
         depends = list(utils.find_dependent_tables(table3, metadata))
-        print('table3: %s' % [table.name for table in depends])
         self.assertTrue(depends == [])
 
         # table that depend on table 4 are 3
         depends = list(utils.find_dependent_tables(table4, metadata))
-        print('table4: %s' % [table.name for table in depends])
         self.assertTrue(depends == [table3])
 
 
@@ -301,7 +297,6 @@ class TopologicalSortTests(unittest.TestCase):
 
     def test_partial_dependencies(self):
         r = topological_sort(['b', 'e'], [('a', 'b'), ('b', 'c'), ('b', 'd')])
-        print(r)
         self.assertTrue('e' in r)
         r.remove('e')
         any = set([r.pop(), r.pop()])

@@ -32,7 +32,6 @@ def requests_get(x, timeout=None):
     }
     result = type('FooBar', (object,), {})()
     result.text = answers.get(x, "")
-    print(x)
     return result
 
 

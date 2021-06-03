@@ -650,7 +650,6 @@ class CuttingPresenter(editor.GenericEditorPresenter):
             # extract attr from the object and show it in the cell
             v = rooted_liststore[treeiter][0]
             # datetime change format to the pref
-            print(type(getattr(v, attr_name)))
             attr = getattr(v, attr_name)
             if isinstance(attr, datetime.date):
                 from bauble import prefs

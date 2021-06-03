@@ -902,18 +902,18 @@ def get_create_or_update(session, model, **kwargs):
                 unique[k] = kwargs.get(k)
         if unique:
             try:
-                print(f'trying using uniq_props columns: {unique}')
+                logger.debug('trying using uniq_props columns: %s', unique)
                 inst = session.query(model).filter_by(**unique).one()
             except MultipleResultsFound:
                 return None
             except SQLAlchemyError:
                 inst = None
         else:
-            print("couldn't find uniq_props columns to use.")
+            logger.debug("couldn't find uniq_props columns to use.")
 
     # if none of the above got a result it should be safe to create a new entry
     if not inst:
-        print(f'creating new {model} with {kwargs}')
+        logger.debug('creating new %s with %s', model, kwargs)
         inst = model(**kwargs)
         session.add(inst)
         return inst

@@ -599,7 +599,7 @@ class ShapefileExporter():
         item.geojson = {
             'type': 'Point',
             'coordinates': [xxx, yyy]}
-        print(item.geojson)
+        logger.debug('adding generated point %s', item.geojson)
         self.add_shapefile_record(item, fields, shapefiles)
 
     def get_shapes_and_items(self, session, model, allowable_shapetypes):
@@ -688,7 +688,6 @@ class ShapefileExporter():
             logger.debug('shape_type wasn\'t found: %s', e)
             self.error += 1
             if self._generate_points > 0:
-                print(self.gen_settings)
                 if self.error > 100:
                     msg = ('<b>Over 100 records have no geojson.\n\n This is '
                            'too many points to generate, please select a '

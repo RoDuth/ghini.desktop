@@ -34,7 +34,6 @@ class BaubleTests(BaubleTestCase):
     def test_create_generic_view(self):
         filename = os.path.join(paths.lib_dir(), 'bauble.glade')
         view = GenericEditorView(filename)
-        print(type(view.widgets))
         self.assertTrue(type(view.widgets) is utils.BuilderWidgets)
 
     def test_set_title_ok(self):
@@ -105,7 +104,6 @@ class TimeStampParserTests(unittest.TestCase):
 
     def test_date_parser_generic(self):
         import dateutil
-        print((help(dateutil.tz)))
         target = parse_date('2019-01-18 18:20 +0500')
         result = parse_date('18 January 2019 18:20 +0500')
         self.assertEqual(result, target)

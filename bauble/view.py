@@ -672,9 +672,9 @@ class SearchView(pluginmgr.View):
             # if selected_type defines an infobox class:
             elif selected_type in self.row_meta and \
                     self.row_meta[selected_type].infobox is not None:
-                logger.debug('%s defines infobox class %s'
-                             % (selected_type,
-                                self.row_meta[selected_type].infobox))
+                logger.debug('%s defines infobox class %s',
+                             selected_type,
+                             self.row_meta[selected_type].infobox)
                 # it might be in cache under different name
                 for ib in list(self.infobox_cache.values()):
                     if isinstance(ib, self.row_meta[selected_type].infobox):
@@ -713,6 +713,7 @@ class SearchView(pluginmgr.View):
             return
 
         try:
+            # send an object (e.g. a Plant instance)
             set_infobox_from_row(values[0])
         except Exception as e:
             # if an error occurrs, log it and empty infobox.

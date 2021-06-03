@@ -231,7 +231,6 @@ class TagTests(BaubleTestCase):
         self.session.flush()
 
         # effect
-        print(self.invoked)
         self.assertFalse('message_details_dialog' in
                          [f for (f, m) in self.invoked])
         self.assertTrue(('yes_no_dialog', 'Are you sure you want to '
@@ -261,7 +260,6 @@ class TagTests(BaubleTestCase):
         self.session.flush()
 
         # effect
-        print(self.invoked)
         self.assertTrue('_reset_tags_menu' in
                          [f for (f, m) in self.invoked])
         self.assertTrue(('yes_no_dialog', 'Are you sure you want to '

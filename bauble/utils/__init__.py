@@ -379,7 +379,7 @@ def search_tree_model(parent, data, cmp=lambda row, data: row[0] == data):
 
     def func(model, path, iter, dummy=None):
         if cmp(model[iter], data):
-            #debug('add: %s' % model[iter])
+            # debug('add: %s' % model[iter])
             results.add(iter)
         return False
     parent.model.foreach(func)

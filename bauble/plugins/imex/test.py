@@ -756,7 +756,6 @@ class JSONExportTests(BaubleTestCase):
         ## check
         with open(self.temp_path) as f:
             result = json.load(f)
-        print(result)
         contacts_from_json = [i for i in result
                               if i['object'] == 'contact']
         self.assertEqual(len(contacts_from_json), 1)

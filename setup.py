@@ -427,7 +427,7 @@ class docs(Command):
             import sphinx
             sphinx
         except ImportError:
-            print('Building the docs requires the '\
+            print('Building the docs requires the '
                   'Sphinx(http://sphinx.pocoo.org) package')
             return
         if not os.path.exists(DOC_BUILD_PATH):
