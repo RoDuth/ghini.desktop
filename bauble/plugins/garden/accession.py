@@ -1248,7 +1248,7 @@ class VerificationPresenter(editor.GenericEditorPresenter):
             # TODO <RD> TEMP FIX for mingw need to revert this and work out
             # what the problem is with mingw and lxml  (lxml always returns the
             # whole file)
-            with open(filename) as f:
+            with open(filename, encoding='utf-8') as f:
                 xml_string = ""
                 start = False
                 for line in f:
