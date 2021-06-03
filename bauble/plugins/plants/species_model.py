@@ -596,7 +596,7 @@ class Species(db.Base, db.Serializable, db.DefiningPictures, db.WithNotes):
     # in PlantPlugins.init() we set this to 'x' for win32
     hybrid_char = '×'
 
-    def str(self, authors=False, markup=False, remove_zws=False, genus=True,
+    def str(self, authors=False, markup=False, remove_zws=True, genus=True,
             qualification=None):
         '''
         returns a string for species

@@ -1134,7 +1134,7 @@ class SpeciesTests(PlantTestCase):
         self.assertFalse('message_details_dialog' in
                          [f for (f, m) in self.invoked])
         print(self.invoked)
-        self.assertTrue(('yes_no_dialog', 'Are you sure you want to remove the species <i>Carica \u200bpapaya</i>?')
+        self.assertTrue(('yes_no_dialog', 'Are you sure you want to remove the species <i>Carica papaya</i>?')
                         in self.invoked)
         self.assertEqual(result, None)
         q = self.session.query(Species).filter_by(genus=f5, sp="papaya")
@@ -1163,7 +1163,7 @@ class SpeciesTests(PlantTestCase):
         print(self.invoked)
         self.assertFalse('message_details_dialog' in
                          [f for (f, m) in self.invoked])
-        self.assertTrue(('yes_no_dialog', 'Are you sure you want to remove the species <i>Carica \u200bpapaya</i>?')
+        self.assertTrue(('yes_no_dialog', 'Are you sure you want to remove the species <i>Carica papaya</i>?')
                         in self.invoked)
 
         self.assertEqual(result, True)
@@ -1197,7 +1197,7 @@ class SpeciesTests(PlantTestCase):
         print(self.invoked)
         self.assertFalse('message_details_dialog' in
                          [f for (f, m) in self.invoked])
-        self.assertTrue(('message_dialog', 'The species <i>Carica \u200bpapaya</i> has 1 accessions.\n\nYou cannot remove a species with accessions.')
+        self.assertTrue(('message_dialog', 'The species <i>Carica papaya</i> has 1 accessions.\n\nYou cannot remove a species with accessions.')
                         in self.invoked)
         q = self.session.query(Species).filter_by(genus=f5, sp="papaya")
         matching = q.all()
