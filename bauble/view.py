@@ -697,9 +697,9 @@ class SearchView(pluginmgr.View):
             # update the infobox and put it in the pane
             self.infobox = new_infobox
             if self.infobox is not None:
+                self.infobox.update(row)
                 self.pane.pack2(self.infobox, resize=False, shrink=True)
                 self.pane.show_all()
-                self.infobox.update(row)
 
         # start of update_infobox
         logger.debug('update_infobox')
@@ -740,7 +740,6 @@ class SearchView(pluginmgr.View):
         self.update_infobox()
         ## update all backward-looking info boxes
         self.update_bottom_notebook()
-        pictures_view.floating_window.set_selection(self.get_selected_values())
 
         for accel, cb in self.installed_accels:
             # disconnect previously installed accelerators by the key
@@ -755,6 +754,7 @@ class SearchView(pluginmgr.View):
         selected = self.get_selected_values()
         if not selected:
             return
+        pictures_view.floating_window.set_selection(selected)
         selected_type = type(selected[0])
 
         for action in self.row_meta[selected_type].actions:

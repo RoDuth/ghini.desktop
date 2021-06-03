@@ -656,7 +656,7 @@ class CuttingPresenter(editor.GenericEditorPresenter):
                 frmt = prefs.prefs[prefs.date_format_pref]
                 attr = attr.strftime(frmt)
 
-            cell.set_property('text', str(attr))
+            cell.set_property('text', str(attr) if attr else None)
 
         from functools import partial
 

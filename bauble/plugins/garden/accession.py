@@ -922,7 +922,10 @@ class AccessionEditorView(editor.GenericEditorView):
         'acc_species_entry': _(
             "The species must be selected from the list of completions. "
             "To add a species use the Species editor."),
-        'acc_code_entry': _("The accession ID must be a unique code"),
+        'acc_code_entry': _("The accession ID must be a unique code.  This is "
+                            "usually set by auto incrementing the next "
+                            "available code as described by the current ID "
+                            "format"),
         'acc_id_qual_combo': (_("The ID Qualifier\n\n"
                                 "Possible values: %s")
                               % utils.enum_values_str('accession.id_qual')),
@@ -959,8 +962,15 @@ class AccessionEditorView(editor.GenericEditorView):
         'acc_next_button': _('Save your changes and add another '
                              'accession.'),
 
-        'sources_code_entry': ("ITF2 - E7 - Donor's Accession Identifier - "
+        'sources_code_entry': _("ITF2 - E7 - Donor's Accession Identifier - "
                                "donacc"),
+        'acc_code_format_comboentry': _('Set the format for the Accession ID '
+                                        'code generally you will not need to '
+                                        'set this unless you do not want to '
+                                        'use you do not want to use the '
+                                        'system default.'),
+        'acc_code_format_edit_btn': _("Click here to edit or add to the "
+                                      "avialable ID formats.")
     }
 
     def __init__(self, parent=None):
@@ -1696,7 +1706,7 @@ class SourcePresenter(editor.GenericEditorPresenter):
                 active = combo.get_model()[treeiter][0]
         combo.set_model(None)
         model = Gtk.ListStore(object)
-        model.append(None)
+        none_iter = model.append([''])
         model.append([self.garden_prop_str])
         for i in self.session.query(Contact).order_by(
                 func.lower(Contact.name)):
@@ -1710,7 +1720,7 @@ class SourcePresenter(editor.GenericEditorPresenter):
             if results:
                 combo.set_active_iter(results[0])
         else:
-            combo.set_active_iter(None)
+            combo.set_active_iter(none_iter)
         combo._populate = False
 
     def init_source_comboentry(self, on_select):
@@ -1744,14 +1754,10 @@ class SourcePresenter(editor.GenericEditorPresenter):
             model = completion.get_model()
             value = model[treeiter][0]
             # allows completions of source details by their ID
-            try:
-                if utils.utf8(value).lower().startswith(key.lower()) or \
-                        (isinstance(value, Contact) and
-                         str(value.id).startswith(key)):
-                    return True
-            except AttributeError:
-                # the item is most likely None so safe to ignore
-                pass
+            if str(value).lower().startswith(key.lower()) or \
+                    (isinstance(value, Contact) and
+                     str(value.id).startswith(key)):
+                return True
             return False
         completion.set_match_func(match_func)
 

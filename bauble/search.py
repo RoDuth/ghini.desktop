@@ -1181,7 +1181,8 @@ class ExpressionRow(object):
                                         bauble.btypes.DateTime)):
             self.value_widget = Gtk.Entry()
             self.value_widget.connect('changed', self.on_date_value_changed)
-        elif not isinstance(self.value_widget, Gtk.Entry):
+        elif (not isinstance(self.value_widget, Gtk.Entry) or
+              isinstance(self.value_widget, Gtk.SpinButton)):
             self.value_widget = Gtk.Entry()
             self.value_widget.connect('changed', self.on_value_changed)
 

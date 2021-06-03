@@ -122,6 +122,11 @@
       <action-widget response="1">button1</action-widget>
     </action-widgets>
   </object>
+  <object class="GtkAdjustment" id="alt_accuracy">
+    <property name="upper">10000</property>
+    <property name="step-increment">1</property>
+    <property name="page-increment">10</property>
+  </object>
   <object class="GtkWindow" id="collection_window">
     <property name="can-focus">False</property>
     <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
@@ -655,7 +660,7 @@
                                     <child>
                                       <object class="GtkComboBoxText" id="acc_code_format_comboentry">
                                         <property name="visible">True</property>
-                                        <property name="can-focus">False</property>
+                                        <property name="can-focus">True</property>
                                         <property name="has-entry">True</property>
                                         <signal name="changed" handler="on_acc_code_format_comboentry_changed" swapped="no"/>
                                         <child internal-child="entry">
@@ -1887,6 +1892,7 @@
                                                             <property name="width-chars">6</property>
                                                             <property name="primary-icon-activatable">False</property>
                                                             <property name="secondary-icon-activatable">False</property>
+                                                            <property name="adjustment">alt_accuracy</property>
                                                           </object>
                                                           <packing>
                                                             <property name="expand">False</property>
@@ -1924,7 +1930,7 @@
                                                             <property name="can-focus">True</property>
                                                             <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
                                                             <property name="invisible-char">●</property>
-                                                            <property name="width-chars">10</property>
+                                                            <property name="width-chars">12</property>
                                                             <property name="primary-icon-activatable">False</property>
                                                             <property name="secondary-icon-activatable">False</property>
                                                           </object>
