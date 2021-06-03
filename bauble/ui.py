@@ -69,8 +69,10 @@ class DefaultView(pluginmgr.View):
         # splash window contains a hbox: left half is for the proper splash,
         # right half for infobox, only one infobox is allowed.
 
-        self.hbox = Gtk.Box(False, 0)
+        self.hbox = Gtk.Box()
         self.add(self.hbox)
+        self.hbox.set_hexpand(True)
+        self.hbox.set_vexpand(True)
 
         image = Gtk.Image()
         image.set_from_file(os.path.join(paths.lib_dir(), 'images',
@@ -85,8 +87,9 @@ class DefaultView(pluginmgr.View):
         if self.infoboxclass and not self.infobox:
             logger.debug('DefaultView::update - creating infobox')
             self.infobox = self.infoboxclass()
-            self.hbox.pack_end(self.infobox, expand=False, fill=False,
-                               padding=8)
+            self.hbox.pack_end(self.infobox, False, False, 8)
+            self.infobox.set_vexpand(False)
+            self.infobox.set_hexpand(False)
             self.infobox.show()
         if self.infobox:
             logger.debug('DefaultView::update - updating infobox')
