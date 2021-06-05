@@ -2274,6 +2274,14 @@
                                       </object>
                                     </child>
                                     <child>
+                                      <object class="GtkTreeViewColumn" id="prop_plant_code_column">
+                                        <property name="title" translatable="yes">Plant</property>
+                                        <child>
+                                          <object class="GtkCellRendererText" id="prop_plant_code_cell"/>
+                                        </child>
+                                      </object>
+                                    </child>
+                                    <child>
                                       <object class="GtkTreeViewColumn" id="prop_summary_column">
                                         <property name="title" translatable="yes">Propagation</property>
                                         <child>

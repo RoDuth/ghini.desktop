@@ -643,11 +643,13 @@ class PropagationChooserPresenter(editor.ChildPresenter):
 
         self.view.connect_after(cell, 'toggled', on_toggled)
 
-        self.view.widgets.prop_summary_column.\
-            set_cell_data_func(self.view.widgets.prop_summary_cell,
-                               self.summary_cell_data_func)
+        self.view.widgets.prop_plant_code_column.set_cell_data_func(
+            self.view.widgets.prop_plant_code_cell, self.plant_code_data_func)
 
-        #assign_completions_handler
+        self.view.widgets.prop_summary_column.set_cell_data_func(
+            self.view.widgets.prop_summary_cell, self.summary_cell_data_func)
+
+        # assign_completions_handler
         def plant_cell_data_func(column, renderer, model, iter, data=None):
             v = model[iter][0]
             renderer.set_property('text', '%s (%s)' %
@@ -657,15 +659,15 @@ class PropagationChooserPresenter(editor.ChildPresenter):
                                     plant_cell_data_func, minimum_key_length=1)
 
         def plant_get_completions(text):
-            logger.debug('in PropagationChooserPresenter:plant_get_completions')
+            logger.debug('PropagationChooserPresenter::plant_get_completions')
             from bauble.plugins.garden.accession import Accession
             from bauble.plugins.garden.plant import Plant
-            query = self.session.query(Plant).\
-                    filter(Plant.propagations.any()).\
-                    join('accession').\
-                    filter(utils.ilike(Accession.code, '%s%%' % text)).\
-                    filter(Accession.id != self.model.accession.id).\
-                    order_by(Accession.code, Plant.code)
+            query = (self.session.query(Plant)
+                     .filter(Plant.propagations.any())
+                     .join('accession')
+                     .filter(utils.ilike(Accession.code, '%s%%' % text))
+                     .filter(Accession.id != self.model.accession.id)
+                     .order_by(Accession.code, Plant.code))
             result = []
             for plant in query:
                 has_accessible = False
@@ -677,7 +679,7 @@ class PropagationChooserPresenter(editor.ChildPresenter):
             return result
 
         def on_select(value):
-            logger.debug('on select: %s' % value)
+            logger.debug('on select: %s', value)
             if isinstance(value, str):
                 return
             # populate the propagation browser
@@ -698,6 +700,37 @@ class PropagationChooserPresenter(editor.ChildPresenter):
                                         plant_get_completions,
                                         on_select=on_select)
 
+    def populate_with_all(self):
+        from bauble.plugins.garden.accession import Accession
+        from bauble.plugins.garden.plant import Plant
+        query = (self.session.query(Plant)
+                 .filter(Plant.propagations.any())
+                 .join('accession')
+                 .filter(Accession.id != self.model.accession.id)
+                 .order_by(Accession.code, Plant.code))
+        results = []
+        print(results)
+        for plant in query:
+            has_accessible = False
+            for propagation in plant.propagations:
+                if propagation.accessible_quantity > 0:
+                    has_accessible = True
+            if has_accessible:
+                results.append(plant)
+        treeview = self.view.widgets.source_prop_treeview
+        if not results:
+            treeview.props.sensitive = False
+            return
+        # utils.clear_model(treeview)
+        model = Gtk.ListStore(object)
+        for plant in results:
+            for propagation in plant.propagations:
+                if propagation.accessible_quantity == 0:
+                    continue
+                model.append([propagation])
+        treeview.set_model(model)
+        treeview.props.sensitive = True
+
     # def on_acc_entry_changed(entry, *args):
     #     # TODO: desensitize the propagation tree until on_select is called
     #     pass
@@ -707,7 +740,7 @@ class PropagationChooserPresenter(editor.ChildPresenter):
         if not self.model.plant_propagation:
             self.view.widgets.source_prop_plant_entry.props.text = ''
             utils.clear_model(treeview)
-            treeview.props.sensitive = False
+            self.populate_with_all()
             return
 
         parent_plant = self.model.plant_propagation.plant
@@ -725,16 +758,24 @@ class PropagationChooserPresenter(editor.ChildPresenter):
         treeview.set_model(model)
         treeview.props.sensitive = True
 
+    # pylint: disable=unused-argument,too-many-arguments
     def toggle_cell_data_func(self, column, cell, model, treeiter, data=None):
         propagation = model[treeiter][0]
         active = self.model.plant_propagation == propagation
         cell.set_active(active)
         cell.set_sensitive(True)
 
-    def summary_cell_data_func(self, column, cell, model, treeiter, data=None):
+    @staticmethod
+    def summary_cell_data_func(column, cell, model, treeiter, data=None):
         propagation = model[treeiter][0]
         cell.props.text = propagation.get_summary()
         cell.set_sensitive(True)
+
+    @staticmethod
+    def plant_code_data_func(column, cell, model, treeiter, data=None):
+        propagation = model[treeiter][0]
+        cell.props.text = str(propagation.plant)
+    # pylint: enable=unused-argument,too-many-arguments
 
     def dirty(self):
         return self._dirty
@@ -846,7 +887,7 @@ class ContactPresenter(editor.GenericEditorPresenter):
     def on_textbuffer_changed_description(self, widget, value=None, attr=None):
         return self.on_textbuffer_changed(widget, value, attr='description')
 
-    
+
 class GeneralSourceDetailExpander(view.InfoExpander):
     '''
     Displays name, number of donations, address, email, fax, tel,
