@@ -2629,16 +2629,20 @@ class GeneralAccessionExpander(InfoExpander):
 
         def on_species_clicked(*args):
             select_in_search_results(self.current_obj.species)
+
         utils.make_label_clickable(self.widgets.name_data, on_species_clicked)
 
         def on_parent_plant_clicked(*args):
-            select_in_search_results(self.current_obj.source.plant_propagation.plant)
+            select_in_search_results(
+                self.current_obj.source.plant_propagation.plant)
+
         utils.make_label_clickable(self.widgets.parent_plant_data,
                                    on_parent_plant_clicked)
 
         def on_nplants_clicked(*args):
             cmd = 'plant where accession.code="%s"' % self.current_obj.code
             bauble.gui.send_command(cmd)
+
         utils.make_label_clickable(self.widgets.nplants_data,
                                    on_nplants_clicked)
 
@@ -2764,40 +2768,70 @@ class SourceExpander(InfoExpander):
             return
 
         if row.source.source_detail:
-            self.widgets.source_name_label.props.visible = True
-            self.widgets.source_name_data.props.visible = True
+            self.widgets.source_name_label.set_visible(True)
+            self.widgets.source_name_label.set_no_show_all(False)
+            self.widgets.source_name_data.set_visible(True)
+            self.widgets.source_name_data.set_no_show_all(False)
             self.widget_set_value('source_name_data',
                                   utils.utf8(row.source.source_detail))
 
             def on_source_clicked(w, e, x):
                 select_in_search_results(x)
+
             utils.make_label_clickable(self.widgets.source_name_data,
                                        on_source_clicked,
                                        row.source.source_detail)
         else:
-            self.widgets.source_name_label.props.visible = False
-            self.widgets.source_name_data.props.visible = False
+            self.widgets.source_name_label.set_visible(False)
+            self.widgets.source_name_label.set_no_show_all(True)
+            self.widgets.source_name_data.set_visible(False)
+            self.widgets.source_name_data.set_no_show_all(True)
 
         sources_code = ''
-        if row.source.sources_code:
-            sources_code = row.source.sources_code
-        self.widget_set_value('sources_code_data', utils.utf8(sources_code))
 
-        if row.source.plant_propagation:
-            self.widgets.parent_plant_label.props.visible = True
-            self.widgets.parent_plant_eventbox.props.visible = True
-            self.widget_set_value('parent_plant_data',
-                                  str(row.source.plant_propagation.plant))
-            self.widget_set_value('propagation_data',
-                                  row.source.plant_propagation.get_summary())
+        if row.source.sources_code:
+            self.widgets.sources_code_data.set_visible(True)
+            self.widgets.sources_code_data.set_no_show_all(False)
+            self.widgets.sources_code_label.set_visible(True)
+            self.widgets.sources_code_label.set_no_show_all(False)
+            sources_code = row.source.sources_code
+            self.widget_set_value('sources_code_data', str(sources_code))
         else:
-            self.widgets.parent_plant_label.props.visible = False
-            self.widgets.parent_plant_eventbox.props.visible = False
+            self.widgets.sources_code_data.set_visible(False)
+            self.widgets.sources_code_data.set_no_show_all(True)
+            self.widgets.sources_code_label.set_visible(False)
+            self.widgets.sources_code_label.set_no_show_all(True)
 
         prop_str = ''
+        if row.source.plant_propagation:
+            self.widgets.parent_plant_label.set_visible(True)
+            self.widgets.parent_plant_label.set_no_show_all(False)
+            self.widgets.parent_plant_eventbox.set_visible(True)
+            self.widgets.parent_plant_eventbox.set_no_show_all(False)
+            self.widget_set_value('parent_plant_data',
+                                  str(row.source.plant_propagation.plant))
+            prop_str = row.source.plant_propagation.get_summary(partial=2)
+        else:
+            self.widgets.parent_plant_label.set_visible(False)
+            self.widgets.parent_plant_label.set_no_show_all(True)
+            self.widgets.parent_plant_eventbox.set_visible(False)
+            self.widgets.parent_plant_eventbox.set_no_show_all(True)
+
         if row.source.propagation:
             prop_str = row.source.propagation.get_summary()
+
         self.widget_set_value('propagation_data', prop_str)
+
+        if prop_str:
+            self.widgets.propagation_label.set_visible(True)
+            self.widgets.propagation_label.set_no_show_all(False)
+            self.widgets.propagation_data.set_visible(True)
+            self.widgets.propagation_data.set_no_show_all(False)
+        else:
+            self.widgets.propagation_label.set_visible(False)
+            self.widgets.propagation_label.set_no_show_all(True)
+            self.widgets.propagation_data.set_visible(False)
+            self.widgets.propagation_data.set_no_show_all(True)
 
         if row.source.collection:
             self.widgets.collection_expander.props.expanded = True
@@ -2904,13 +2938,19 @@ class AccessionInfoBox(InfoBox):
 
         # self.vouchers.update(row)
 
-        urls = [x for x in [utils.get_urls(note.note) for note in row.notes] if x != []]
+        urls = [x for x in
+                [utils.get_urls(note.note) for note in row.notes]
+                if x != []]
         if not urls:
-            self.links.props.visible = False
-            self.links._sep.props.visible = False
+            self.links.set_visible(False)
+            self.links.set_no_show_all(True)
+            self.links._sep.set_visible(False)
+            self.links._sep.set_no_show_all(True)
         else:
-            self.links.props.visible = True
-            self.links._sep.props.visible = True
+            self.links.set_visible(True)
+            self.links.set_no_show_all(False)
+            self.links._sep.set_visible(True)
+            self.links._sep.set_no_show_all(False)
             self.links.update(row)
 
         # TODO: should test if the source should be expanded from the prefs

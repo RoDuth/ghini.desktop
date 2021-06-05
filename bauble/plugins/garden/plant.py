@@ -1289,95 +1289,98 @@ class ChangesExpander(InfoExpander):
         """
         """
         super().__init__(_('Changes'), widgets)
-        self.vbox.props.spacing = 5
-        self.table = Gtk.Table()
-        self.vbox.pack_start(self.table, False, False, 0)
-        self.table.props.row_spacing = 3
-        self.table.props.column_spacing = 5
+        self.add_change_grid()
+
+    def add_change_grid(self):
+        self.change_grid = Gtk.Grid()
+        self.change_grid.set_column_spacing(3)
+        self.change_grid.set_row_spacing(3)
+        self.vbox.pack_start(self.change_grid, False, False, 0)
 
     def update(self, row):
-        '''
-        '''
-        self.table.foreach(self.table.remove)
+        self.vbox.remove(self.change_grid)
+        self.add_change_grid()
         if not row.changes:
             return
-        nrows = len(row.changes)
-        self.table.resize(nrows, 2)
-        date_format = prefs.prefs[prefs.date_format_pref]
-        current_row = 0
 
+        def on_clicked(widget, event, obj):
+            select_in_search_results(obj)
+
+        frmt = prefs.prefs[prefs.date_format_pref]
+        count = 0
         for change in sorted(row.changes, key=lambda x: (x.date, x._created),
                              reverse=True):
+            date = change.date.strftime(frmt)
+            date_lbl = Gtk.Label()
+            date_lbl.set_markup(f'<b>{date}</b>')
+            date_lbl.set_xalign(0.0)
+            date_lbl.set_yalign(0.0)
+            self.change_grid.attach(date_lbl, 0, count, 1, 1)
+            count += 1
+
+            if change.to_location and change.from_location:
+                summary = (f'{change.quantity} Transferred from '
+                           f'{change.from_location} to {change.to_location}')
+            elif change.quantity < 0:
+                summary = (f'{-change.quantity} Removed from '
+                           f'{change.from_location}')
+            elif change.quantity > 0:
+                summary = (f'{change.quantity} Added to '
+                           f'{change.to_location}')
+            else:
+                summary = (f'{change.quantity}: {change.from_location} -> '
+                           f'{change.to_location}')
+            summary_lbl = Gtk.Label()
+            summary_lbl.set_text(summary)
+            summary_lbl.set_xalign(0.0)
+            summary_lbl.set_yalign(0.0)
+            summary_lbl.set_line_wrap(True)
+            self.change_grid.attach(summary_lbl, 0, count, 1, 1)
+            count += 1
+
+            if change.reason:
+                reason_lbl = Gtk.Label()
+                reason_lbl.set_text(change_reasons.get(change.reason))
+                reason_lbl.set_xalign(0.0)
+                reason_lbl.set_yalign(0.0)
+                self.change_grid.attach(reason_lbl, 0, count, 1, 1)
+                count += 1
+
+            if change.parent_plant:
+                parent_lbl = Gtk.Label()
+                parent_lbl.set_markup(
+                    f'<i>Split from {change.parent_plant}</i>')
+                eventbox = Gtk.EventBox()
+                eventbox.add(parent_lbl)
+                self.change_grid.attach(eventbox, 0, count, 1, 1)
+                count += 1
+
+                utils.make_label_clickable(parent_lbl, on_clicked,
+                                           change.parent_plant)
+
             try:
                 seconds, divided_plant = min(
-                    [(abs((i.plant._created - change.date).total_seconds()), i.plant)
-                     for i in row.branches])
+                    [(abs((i.plant._created - change.date).total_seconds()),
+                      i.plant) for i in row.branches])
                 if seconds > 3:
                     divided_plant = None
             except:
                 divided_plant = None
 
-            date = change.date.strftime(date_format)
-            label = Gtk.Label(label='%s:' % date)
-            label.set_alignment(0, 0)
-            self.table.attach(label, 0, 1, current_row, current_row+1,
-                              xoptions=Gtk.AttachOptions.FILL)
-            if change.to_location and change.from_location:
-                s = '%(quantity)s Transferred from %(from_loc)s to %(to)s' % \
-                    dict(quantity=change.quantity,
-                         from_loc=change.from_location, to=change.to_location)
-            elif change.quantity < 0:
-                s = '%(quantity)s Removed from %(location)s' % \
-                    dict(quantity=-change.quantity,
-                         location=change.from_location)
-            elif change.quantity > 0:
-                s = '%(quantity)s Added to %(location)s' % \
-                    dict(quantity=change.quantity, location=change.to_location)
-            else:
-                s = '%s: %s -> %s' % (change.quantity, change.from_location,
-                                      change.to_location)
-            if change.reason is not None:
-                s += '\n%s' % change_reasons[change.reason]
-            label = Gtk.Label(label=s)
-            label.set_alignment(0, .5)
-            self.table.attach(label, 1, 2, current_row, current_row+1,
-                              xoptions=Gtk.AttachOptions.FILL)
-            current_row += 1
-            if change.parent_plant:
-                s = _('<i>Split from %(plant)s</i>') % \
-                    dict(plant=utils.xml_safe(change.parent_plant))
-                label = Gtk.Label()
-                label.set_alignment(0.0, 0.0)
-                label.set_markup(s)
-                eb = Gtk.EventBox()
-                eb.add(label)
-                self.table.attach(eb, 1, 2, current_row, current_row+1,
-                                  xoptions=Gtk.AttachOptions.FILL)
-
-                def on_clicked(widget, event, parent):
-                    select_in_search_results(parent)
-
-                utils.make_label_clickable(label, on_clicked,
-                                           change.parent_plant)
-                current_row += 1
             if divided_plant:
-                s = _('<i>Split as %(plant)s</i>') % \
-                    dict(plant=utils.xml_safe(divided_plant))
-                label = Gtk.Label()
-                label.set_alignment(0.0, 0.0)
-                label.set_markup(s)
-                eb = Gtk.EventBox()
-                eb.add(label)
-                self.table.attach(eb, 1, 2, current_row, current_row+1,
-                                  xoptions=Gtk.AttachOptions.FILL)
+                div_lbl = Gtk.Label()
+                div_lbl.set_markup(
+                    f'<i>Split as {utils.xml_safe(divided_plant)}</i>')
+                eventbox = Gtk.EventBox()
+                eventbox.add(div_lbl)
+                self.change_grid.attach(eventbox, 0, count, 1, 1)
+                count += 1
 
-                def on_clicked(widget, event, parent):
-                    select_in_search_results(parent)
+                utils.make_label_clickable(div_lbl, on_clicked,
+                                           change.parent_plant)
 
-                utils.make_label_clickable(label, on_clicked, divided_plant)
-                current_row += 1
-
-        self.vbox.show_all()
+        # trigger resize
+        self.get_preferred_size()
 
 
 def label_size_allocate(widget, rect):
@@ -1393,53 +1396,63 @@ class PropagationExpander(InfoExpander):
         """
         """
         super().__init__(_('Propagations'), widgets)
-        self.vbox.set_spacing(4)
+        self.add_prop_grid()
+
+    def add_prop_grid(self):
+        self.prop_grid = Gtk.Grid()
+        self.prop_grid.set_column_spacing(3)
+        self.prop_grid.set_row_spacing(3)
+        self.vbox.pack_start(self.prop_grid, False, False, 0)
 
     def update(self, row):
-        sensitive = True
+        self.vbox.remove(self.prop_grid)
+        self.add_prop_grid()
         if not row.propagations:
-            sensitive = False
-        self.props.expanded = sensitive
-        self.props.sensitive = sensitive
-        self.vbox.foreach(self.vbox.remove)
-        format = prefs.prefs[prefs.date_format_pref]
+            return
+        frmt = prefs.prefs[prefs.date_format_pref]
+        count = 0
         for prop in row.propagations:
-            # (h1 (v1 (date_lbl)) (v2 (eventbox (accession_lbl)) (label)))
-            h1 = Gtk.Box()
-            h1.set_spacing(3)
-            self.vbox.pack_start(h1, True, True, 0)
-
-            v1 = Gtk.VBox()
-            v2 = Gtk.VBox()
-            h1.pack_start(v1, True, True, 0)
-            h1.pack_start(v2, True, True, 0)
 
             date_lbl = Gtk.Label()
-            v1.pack_start(date_lbl, True, True, 0)
-            date_lbl.set_markup("<b>%s</b>" % prop.date.strftime(format))
-            date_lbl.set_alignment(0.0, 0.0)
+            date = prop.date.strftime(frmt)
+            date_lbl.set_markup(f'<b>{date}</b>')
+            date_lbl.set_xalign(0.0)
+            date_lbl.set_yalign(0.0)
+            self.prop_grid.attach(date_lbl, 0, count, 2, 1)
+            count += 1
 
-            for acc in prop.accessions:
-                accession_lbl = Gtk.Label()
-                eventbox = Gtk.EventBox()
-                eventbox.add(accession_lbl)
-                v2.pack_start(eventbox, True, True, 0)
-                accession_lbl.set_alignment(0.0, 0.0)
-                accession_lbl.set_text(acc.code)
+            if prop.accessions:
+                used_lbl = Gtk.Label()
+                used_lbl.set_text("Parent of: ")
+                used_lbl.set_xalign(1.0)
+                used_lbl.set_yalign(0.0)
+                self.prop_grid.attach(used_lbl, 0, count, 1, 1)
+                for acc in prop.accessions:
+                    accession_lbl = Gtk.Label()
+                    eventbox = Gtk.EventBox()
+                    eventbox.add(accession_lbl)
+                    accession_lbl.set_xalign(0.0)
+                    accession_lbl.set_yalign(0.0)
+                    accession_lbl.set_text(acc.code)
 
-                def on_clicked(widget, event, obj):
-                    select_in_search_results(obj)
+                    def on_clicked(widget, event, obj):
+                        select_in_search_results(obj)
 
-                utils.make_label_clickable(accession_lbl, on_clicked, acc)
+                    utils.make_label_clickable(accession_lbl, on_clicked, acc)
+                    self.prop_grid.attach(eventbox, 1, count, 2, 1)
+                    count += 1
 
-            label = Gtk.Label()
-            v2.pack_start(label, True, True, 0)
+            summary_label = Gtk.Label()
+            self.prop_grid.attach(summary_label, 0, count, 2, 1)
 
-            label.set_text(prop.get_summary(partial=2))
-            label.props.wrap = True
-            label.set_alignment(0.0, 0.0)
-            label.connect("size-allocate", label_size_allocate)
-        self.vbox.show_all()
+            summary_label.set_text(prop.get_summary(partial=2))
+            summary_label.set_line_wrap(True)
+            summary_label.set_xalign(0.0)
+            summary_label.set_yalign(0.0)
+            summary_label.set_size_request(-1, -1)
+            count += 1
+        # trigger resize
+        self.get_preferred_size()
 
 
 class PlantInfoBox(InfoBox):
@@ -1450,7 +1463,7 @@ class PlantInfoBox(InfoBox):
     def __init__(self):
         '''
         '''
-        InfoBox.__init__(self)
+        super().__init__()
         filename = os.path.join(paths.lib_dir(), "plugins", "garden",
                                 "plant_infobox.glade")
         self.widgets = utils.load_widgets(filename)
@@ -1482,11 +1495,15 @@ class PlantInfoBox(InfoBox):
 
         urls = [x for x in [utils.get_urls(note.note) for note in row.notes] if x != []]
         if not urls:
-            self.links.props.visible = False
-            self.links._sep.props.visible = False
+            self.links.set_visible(False)
+            self.links.set_no_show_all(True)
+            self.links._sep.set_visible(False)
+            self.links._sep.set_no_show_all(True)
         else:
-            self.links.props.visible = True
-            self.links._sep.props.visible = True
+            self.links.set_visible(True)
+            self.links.set_no_show_all(False)
+            self.links._sep.set_visible(True)
+            self.links._sep.set_no_show_all(False)
             self.links.update(row)
 
         self.props.update(row)
