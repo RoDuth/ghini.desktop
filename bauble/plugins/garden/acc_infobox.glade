@@ -483,7 +483,7 @@
               </packing>
             </child>
             <child>
-              <object class="GtkLabel" id="sources_code_labe">
+              <object class="GtkLabel" id="sources_code_label">
                 <property name="visible">True</property>
                 <property name="can-focus">False</property>
                 <property name="label" translatable="yes">Source's ID:</property>

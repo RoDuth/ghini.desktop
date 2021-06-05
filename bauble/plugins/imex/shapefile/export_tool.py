@@ -217,13 +217,13 @@ class ShapefileExportSettingsBox(Gtk.ScrolledWindow):
                                      'coordinate of the starting point.')
         gen_x_entry.connect('changed', self.on_coord_changed, 1)
         gen_x_entry.set_text(
-            meta.get_default('inst_geo_latitude', '0.0').value)
+            meta.get_default('inst_geo_latitude', '0.0').value or '')
         gen_y_entry = Gtk.Entry()
         gen_y_entry.set_tooltip_text(msg + 'use this field to set the Y '
                                      'coordinate of the starting point.')
         gen_y_entry.connect('changed', self.on_coord_changed, 0)
         gen_y_entry.set_text(
-            meta.get_default('inst_geo_longitude', '0.0').value)
+            meta.get_default('inst_geo_longitude', '0.0').value or '')
         gen_combo = Gtk.ComboBoxText()
         gen_combo.set_tooltip_text(msg + 'set the axis for the line of '
                                    'plants. Unset this to an empty value if '

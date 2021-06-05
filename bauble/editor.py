@@ -796,7 +796,7 @@ class GenericEditorView(object):
 class MockDialog:
     def __init__(self):
         self.hidden = False
-        self.content_area = Gtk.VBox()
+        self.content_area = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
 
     def hide(self):
         self.hidden = True

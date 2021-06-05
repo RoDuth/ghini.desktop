@@ -616,7 +616,8 @@ class DefiningPictures:
         for n in self.notes:
             if n.category != '<picture>':
                 continue
-            box = Gtk.VBox()  # contains the image or the error message
+            # contains the image or the error message
+            box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
             utils.ImageLoader(box, n.note).start()
             result.append(box)
         return result

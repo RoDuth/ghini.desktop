@@ -447,12 +447,10 @@ class PropagationTabPresenter(editor.GenericEditorPresenter):
         expander = Gtk.Expander()
         hbox.pack_start(expander, True, True, 0)
 
-        from bauble.plugins.garden.plant import label_size_allocate
         label = Gtk.Label(label=propagation.get_summary())
         label.props.wrap = True
         label.set_alignment(0, 0)
         label.set_padding(0, 2)
-        label.connect("size-allocate", label_size_allocate)
         expander.add(label)
 
         def on_edit_clicked(button, prop, label):

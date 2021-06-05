@@ -70,7 +70,7 @@ class XMLExporter:
                        (Gtk.STOCK_CANCEL, Gtk.ResponseType.REJECT,
                         Gtk.STOCK_OK, Gtk.ResponseType.ACCEPT))
 
-        box = Gtk.VBox(spacing=20)
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=20)
         d.vbox.pack_start(box, True, True, 10)
 
         file_chooser = Gtk.FileChooserButton(_('Select a directory'))

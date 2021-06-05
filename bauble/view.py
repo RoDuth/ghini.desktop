@@ -122,7 +122,7 @@ class InfoExpander(Gtk.Expander):
         :param widgets: a bauble.utils.BuilderWidgets instance
         """
         super().__init__(label=label)
-        self.vbox = Gtk.VBox(False)
+        self.vbox = Gtk.Box(False, orientation=Gtk.Orientation.VERTICAL)
         self.vbox.set_border_width(5)
         self.add(self.vbox)
         self.widgets = widgets
@@ -222,7 +222,7 @@ class InfoBoxPage(Gtk.ScrolledWindow):
     def __init__(self):
         super().__init__()
         self.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
-        self.vbox = Gtk.VBox()
+        self.vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         self.vbox.set_spacing(10)
         viewport = Gtk.Viewport()
         viewport.add(self.vbox)
@@ -239,7 +239,7 @@ class InfoBoxPage(Gtk.ScrolledWindow):
         self.vbox.pack_start(expander, expand=False, fill=True, padding=5)
         self.expanders[expander.get_property("label")] = expander
 
-        expander._sep = Gtk.HSeparator()
+        expander._sep = Gtk.Separator()
         self.vbox.pack_start(expander._sep, False, False, padding=0)
 
     def get_expander(self, label):
@@ -338,7 +338,7 @@ class LinksExpander(InfoExpander):
         :param notes: the name of the notes property on the row
         """
         super().__init__(_("Links"))
-        self.dynamic_box = Gtk.VBox()
+        self.dynamic_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         self.vbox.pack_start(self.dynamic_box, True, True, 0)
         self.notes = notes
         self.buttons = []
@@ -357,7 +357,8 @@ class LinksExpander(InfoExpander):
 
     def update(self, row):
         from gi.repository import Pango
-        list(map(self.dynamic_box.remove, self.dynamic_box.get_children()))
+        for child in self.dynamic_box.get_children():
+            self.dynamic_box.remove(child)
         for b in self.buttons:
             b.set_string(row)
         if self.notes:
@@ -663,34 +664,21 @@ class SearchView(pluginmgr.View):
                     self.pane.remove(self.infobox)
                 return
 
-            new_infobox = None
             selected_type = type(row)
+            new_infobox = self.infobox_cache.get(selected_type)
 
             # if we have already created an infobox of this type:
-            if selected_type in list(self.infobox_cache.keys()):
-                new_infobox = self.infobox_cache[selected_type]
-            # if selected_type defines an infobox class:
-            elif selected_type in self.row_meta and \
-                    self.row_meta[selected_type].infobox is not None:
-                logger.debug('%s defines infobox class %s',
-                             selected_type,
-                             self.row_meta[selected_type].infobox)
-                # it might be in cache under different name
-                for ib in list(self.infobox_cache.values()):
-                    if isinstance(ib, self.row_meta[selected_type].infobox):
-                        logger.debug('found same infobox under different name')
-                        new_infobox = ib
                 # otherwise create one and put in the infobox_cache
-                if not new_infobox:
-                    logger.debug('not found infobox, we make a new one')
-                    new_infobox = self.row_meta[selected_type].infobox()
+            if not new_infobox:
+                logger.debug('not found infobox, we make a new one')
+                new_infobox = self.row_meta[selected_type].infobox()
                 self.infobox_cache[selected_type] = new_infobox
             logger.debug('created or retrieved infobox %s %s'
                          % (type(new_infobox), new_infobox))
 
             # remove any old infoboxes connected to the pane
             if self.infobox is not None and \
-                    type(self.infobox) != type(new_infobox):
+                    type(self.infobox) is not type(new_infobox):
                 if self.infobox.get_parent() == self.pane:
                     self.pane.remove(self.infobox)
 

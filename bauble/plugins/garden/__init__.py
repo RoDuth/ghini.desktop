@@ -161,10 +161,13 @@ def init_location_comboentry(presenter, combo, on_select, required=True):
     :param on_select: a one-parameter function
     """
     PROBLEM = 'UNKNOWN_LOCATION'
-    re_code_name_splitter = re.compile('\(([^)]+)\) ?(.*)')
+    re_code_name_splitter = re.compile(r'\(([^)]+)\) ?(.*)')
 
     def cell_data_func(col, cell, model, treeiter, data=None):
-        cell.props.text = str(model[treeiter][0])
+        val = model[treeiter][0]
+        from sqlalchemy import inspect as sa_inspect
+        if isinstance(val, str) or sa_inspect(val).persistent:
+            cell.props.text = str(val)
 
     completion = Gtk.EntryCompletion()
     cell = Gtk.CellRendererText()  # set up the completion renderer

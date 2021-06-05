@@ -222,10 +222,10 @@ class GUI(object):
         frame.remove(label)
 
         # replace label with hbox and put label and progress bar in hbox
-        hbox = Gtk.HBox(False, 5)
+        hbox = Gtk.Box(False, 5)
         frame.add(hbox)
         hbox.pack_start(label, True, True, 0)
-        vbox = Gtk.VBox(True, 0)
+        vbox = Gtk.Box(True, 0, orientation=Gtk.Orientation.VERTICAL)
         hbox.pack_end(vbox, False, True, 15)
         self.progressbar = Gtk.ProgressBar()
         vbox.pack_start(self.progressbar, False, False, 0)

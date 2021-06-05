@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- Generated with glade 3.38.2 -->
 <interface>
-  <requires lib="gtk+" version="3.22"/>
+  <requires lib="gtk+" version="3.24"/>
   <!-- interface-license-type gplv2 -->
   <!-- interface-name ghini.desktop -->
   <!-- interface-copyright Ross Demuth 2021 -->
@@ -304,7 +304,7 @@
           <object class="GtkExpander" id="exp_settings_expander">
             <property name="visible">True</property>
             <property name="sensitive">False</property>
-            <property name="can_focus">False</property>
+            <property name="can-focus">False</property>
             <signal name="activate" handler="on_settings_activate" swapped="no"/>
             <child>
               <placeholder/>
@@ -312,9 +312,9 @@
             <child type="label">
               <object class="GtkLabel" id="label8">
                 <property name="visible">True</property>
-                <property name="can_focus">False</property>
+                <property name="can-focus">False</property>
                 <property name="label" translatable="yes">advanced settings (WARNING!)</property>
-                <property name="use_markup">True</property>
+                <property name="use-markup">True</property>
                 <attributes>
                   <attribute name="weight" value="bold"/>
                 </attributes>
@@ -588,7 +588,7 @@
           <object class="GtkExpander" id="imp_settings_expander">
             <property name="visible">True</property>
             <property name="sensitive">False</property>
-            <property name="can_focus">False</property>
+            <property name="can-focus">False</property>
             <signal name="activate" handler="on_settings_activate" swapped="no"/>
             <child>
               <placeholder/>
@@ -596,9 +596,9 @@
             <child type="label">
               <object class="GtkLabel" id="label7">
                 <property name="visible">True</property>
-                <property name="can_focus">False</property>
+                <property name="can-focus">False</property>
                 <property name="label" translatable="yes">advanced settings (WARNING!)</property>
-                <property name="use_markup">True</property>
+                <property name="use-markup">True</property>
                 <attributes>
                   <attribute name="weight" value="bold"/>
                 </attributes>

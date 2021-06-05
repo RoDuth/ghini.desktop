@@ -1515,9 +1515,12 @@ class SourcePresenter(editor.GenericEditorPresenter):
         self.view.connect('new_source_button', 'clicked',
                           self.on_new_source_button_clicked)
 
-        self.view.widgets.source_garden_prop_box.props.visible = False
-        self.view.widgets.source_sw.props.visible = False
-        self.view.widgets.source_none_label.props.visible = True
+        self.view.widgets.source_garden_prop_box.set_visible(False)
+        self.view.widgets.source_garden_prop_box.set_no_show_all(True)
+        self.view.widgets.source_sw.set_visible(False)
+        self.view.widgets.source_sw.set_no_show_all(True)
+        self.view.widgets.source_none_label.set_visible(True)
+        self.view.widgets.source_none_label.set_no_show_all(False)
 
         # populate the source combo
         def on_select(source):
@@ -1806,7 +1809,7 @@ class SourcePresenter(editor.GenericEditorPresenter):
 
             def _cmp(row, data):
                 val = row[0]
-                if (utils.utf8(val) == data or
+                if (str(val) == data or
                         (isinstance(val, Contact) and val.id == data)):
                     return True
                 else:

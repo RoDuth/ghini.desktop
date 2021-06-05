@@ -632,7 +632,7 @@ class PlantEditorView(GenericEditorView):
         def acc_cell_data_func(column, renderer, model, treeiter, data=None):
             v = model[treeiter][0]
             # when cancelling an insert sometimes the session gets lost and can
-            # result in a long cycle of DettachedInstanceErrors. So check first
+            # result in a long cycle of DetachedInstanceErrors. So check first
             from sqlalchemy import inspect as sa_inspect
             if sa_inspect(v).persistent:
                 renderer.set_property(
@@ -717,11 +717,12 @@ class PlantEditorPresenter(GenericEditorPresenter):
                 self.set_model_attr('code', code)
 
         def on_location_select(location):
-            if self.initializing:
+            if self.initializing or not isinstance(location, Location):
                 return
             self.set_model_attr('location', location)
             if self.change.quantity is None:
                 self.change.quantity = self.model.quantity
+
         from bauble.plugins.garden import init_location_comboentry
         init_location_comboentry(self, self.view.widgets.plant_loc_comboentry,
                                  on_location_select)
@@ -768,7 +769,7 @@ class PlantEditorPresenter(GenericEditorPresenter):
             # new accession, fixes bug #103946
             self.view.widgets.acc_species_label.set_markup('')
             if value is not None:
-                sp_str = self.model.accession.species.str(markup=True)
+                sp_str = self.model.accession.species_str(markup=True)
                 self.view.widgets.acc_species_label.set_markup(sp_str)
                 # set the plant code to the next available
                 code = get_next_code(self.model.accession)
@@ -778,7 +779,7 @@ class PlantEditorPresenter(GenericEditorPresenter):
         self.assign_completions_handler('plant_acc_entry', acc_get_completions,
                                         on_select=on_select)
         if self.model.accession:
-            sp_str = self.model.accession.species.str(markup=True)
+            sp_str = self.model.accession.species_str(markup=True)
         else:
             sp_str = ''
         self.view.widgets.acc_species_label.set_markup(sp_str)
@@ -906,7 +907,7 @@ class PlantEditorPresenter(GenericEditorPresenter):
             and self.is_dirty() and len(self.problems) == 0
         self.view.widgets.pad_ok_button.set_sensitive(sensitive)
         self.view.widgets.pad_next_button.set_sensitive(sensitive)
-        self.view.widgets.split_planting_button.props.visible = False
+        self.view.widgets.split_planting_button.set_visible(False)
 
     def set_model_attr(self, field, value, validator=None):
         logger.debug('set_model_attr(%s, %s)' % (field, value))

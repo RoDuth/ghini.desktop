@@ -266,14 +266,14 @@ def get_locations_pertinent_to(objs, session=None):
         key=str)
 
 
-class SettingsBox(Gtk.VBox):
+class SettingsBox(Gtk.Box):
     """
     the interface to use for the settings box, formatters should
     implement this interface and return it from the formatters's get_settings
     method
     """
     def __init__(self):
-        super().__init__()
+        super().__init__(orientation=Gtk.Orientation.VERTICAL)
 
     def get_settings(self):
         raise NotImplementedError

@@ -1436,7 +1436,7 @@ class GenericMessageBox(Gtk.EventBox):
     """
     def __init__(self):
         super().__init__()
-        self.box = Gtk.HBox()
+        self.box = Gtk.Box()
         self.box.set_spacing(10)
         self.add(self.box)
 
@@ -1456,7 +1456,7 @@ class MessageBox(GenericMessageBox):
 
     def __init__(self, msg=None, details=None):
         super().__init__()
-        self.vbox = Gtk.VBox()
+        self.vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         self.box.pack_start(self.vbox, True, True, 0)
 
         self.label = Gtk.TextView()
@@ -1467,7 +1467,7 @@ class MessageBox(GenericMessageBox):
             self.buffer.set_text(msg)
         self.vbox.pack_start(self.label, True, True, 0)
 
-        button_box = Gtk.VBox()
+        button_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         self.box.pack_start(button_box, False, False, 0)
         button = Gtk.Button()
         image = Gtk.Image()
@@ -1551,14 +1551,14 @@ class YesNoMessageBox(GenericMessageBox):
         self.label.set_alignment(.1, .1)
         self.box.pack_start(self.label, True, True, 0)
 
-        button_box = Gtk.VBox()
+        button_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         self.box.pack_start(button_box, False, False, 0)
         self.yes_button = Gtk.Button(stock=Gtk.STOCK_YES)
         if on_response:
             self.yes_button.connect('clicked', on_response, True)
         button_box.pack_start(self.yes_button, False, False, 0)
 
-        button_box = Gtk.VBox()
+        button_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         self.box.pack_start(button_box, False, False, 0)
         self.no_button = Gtk.Button(stock=Gtk.STOCK_NO)
         if on_response:
