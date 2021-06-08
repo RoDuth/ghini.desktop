@@ -507,9 +507,9 @@ class ExportSettingsBoxTests(BaubleTestCase):
                                  resize_func=lambda: False,
                                  grid=MockGrid())
         # a item for each value plus a remove button for each row plus a label
-        # for item row, an add row button and the 4 parts of the generate
-        # plants fields
-        generate_plants = 4
+        # for item row, an add row button and nothing for the generate plants
+        # fields as we haven't provided the option here (i.e. not search) (65)
+        generate_plants = 0
         total_grid_items = (
             (len(self.plant_fields) + 1) *
             (len(self.plant_fields[0]) + 1)
@@ -530,11 +530,12 @@ class ExportSettingsBoxTests(BaubleTestCase):
         settings_box = ExpSetBox(Plant,
                                  fields=fields,
                                  resize_func=lambda: False,
+                                 gen_settings={'start': [0.0, 0.0]},
                                  grid=MockGrid())
         # a item for each value plus a remove button for each row plus a label
-        # for item row, an add row button and the 4 parts of the generate
+        # for item row, an add row button and the 1 box of the generate
         # plants fields
-        generate_plants = 4
+        generate_plants = 1
         total_grid_items = (
             (len(fields) + 1) *
             (len(fields[0]) + 1)
@@ -571,10 +572,21 @@ class ExportSettingsBoxTests(BaubleTestCase):
         settings_box = ExpSetBox(Plant,
                                  fields=self.plant_fields,
                                  resize_func=lambda: False,
+                                 gen_settings={'start': [0, 0],
+                                               'increment': 0,
+                                               'axis': ''},
                                  grid=MockGrid())
         start = settings_box.gen_settings.copy()
-        gen_combo_widget = settings_box.grid.items[14][2]
-        gen_combo_widget.set_active(1)
+        gen_chkbtn = type('MockCheckButton', (object, ), {
+            'get_active': lambda: True
+        })
+        settings_box.on_gen_chkbtn_toggled(gen_chkbtn)
+        gen_combo = type('MockComboBox', (object, ), {
+            'get_active_text': lambda: 'NS'
+        })
+        settings_box.on_gen_combo_changed(gen_combo)
+        # gen_combo_widget = settings_box.grid.items[14][2]
+        # gen_combo_widget.set_active(1)
         result = settings_box.gen_settings
         self.assertNotEqual(start, result)
         self.assertEqual(result.get('axis'), 'NS')
@@ -609,6 +621,40 @@ class ExportSettingsBoxTests(BaubleTestCase):
         type_widget.set_active(settings_box.type_vals.get('C'))
         result = self.plant_fields[1][1]
         self.assertEqual('C', result)
+
+    def test_on_gen_chkbtn_toggled(self):
+        from bauble.meta import BaubleMeta
+        self.session.add(BaubleMeta(name='inst_geo_latitude',
+                                    value='10.001'))
+        self.session.add(BaubleMeta(name='inst_geo_longitude',
+                                    value='10.001'))
+        self.session.commit()
+        settings_box = ExpSetBox(Plant,
+                                 fields=self.plant_fields,
+                                 resize_func=lambda: False,
+                                 gen_settings={'start': [0, 0],
+                                               'increment': 0,
+                                               'axis': ''},
+                                 grid=MockGrid())
+        start = settings_box.gen_settings.copy()
+        # check when set true it grabs the system defaults
+        gen_chkbtn = type('MockCheckButton', (object, ), {
+            'get_active': lambda: True
+        })
+        settings_box.on_gen_chkbtn_toggled(gen_chkbtn)
+        result = settings_box.gen_settings
+        self.assertNotEqual(start, result)
+        self.assertEqual(result.get('axis'), '')
+        self.assertEqual(result.get('start'), [10.001, 10.001])
+        self.assertEqual(result.get('increment'), 0.00001)
+
+        # check if set false the gen_button is not sensitive
+        gen_chkbtn = type('MockCheckButton', (object, ), {
+            'get_active': lambda: False
+        })
+        settings_box.on_gen_chkbtn_toggled(gen_chkbtn)
+        self.assertFalse(settings_box.gen_button.get_sensitive())
+        # TODO check the button is not active.
 
     def test_on_length_entry_changed_field_changes(self):
         settings_box = ExpSetBox(Plant,
@@ -677,16 +723,169 @@ class ExportSettingsBoxTests(BaubleTestCase):
                                  resize_func=lambda: False,
                                  grid=MockGrid())
 
-        self.assertEqual(settings_box.floatify_text('ahj-12.09.'), '-12.09')
-        self.assertEqual(settings_box.floatify_text('12.09.ahj-'), '12.09')
-        self.assertEqual(settings_box.float_or_zero('ahj-12.09.'), 0.0)
-        self.assertEqual(settings_box.float_or_zero('-'), 0.0)
-        self.assertEqual(settings_box.float_or_zero('-12.345'), -12.345)
-        self.assertEqual(settings_box.float_or_zero('12.345'), 12.345)
         mockprop = type('Prop', (object, ), {
             'key': '_default_vernacular_name'
         })()
         self.assertFalse(settings_box.relation_filter(mockprop))
+
+    def test_generated_points_settings_dialog(self):
+        from bauble.meta import BaubleMeta
+        self.session.add(BaubleMeta(name='inst_geo_latitude',
+                                    value='10.001'))
+        self.session.add(BaubleMeta(name='inst_geo_longitude',
+                                    value='10.001'))
+        gen_settings = {'start': [0, 0], 'increment': 0, 'axis': ''}
+        start_settings = gen_settings.copy()
+        self.session.commit()
+        settings_box = ExpSetBox(Plant,
+                                 fields=self.plant_fields,
+                                 resize_func=lambda: False,
+                                 gen_settings=gen_settings,
+                                 grid=MockGrid())
+        # pick up the system default
+        settings_box.reset_gen_settings()
+
+        from bauble import utils
+        _orig_create_message_dialog = utils.create_message_dialog
+        import gi
+        gi.require_version("Gtk", "3.0")
+        from gi.repository import Gtk  # noqa
+
+        class MockDialog:
+            def __init__(self):
+                self.msg = None
+                self.box = set()
+                self.size = dict()
+
+            def get_message_area(self):
+                return self.box
+
+            def resize(self, x, y):
+                return
+
+            def show_all(self):
+                return
+
+            def set_keep_above(self, val):
+                return
+
+            def run(self):
+                return Gtk.ResponseType.OK
+
+            def destroy(self):
+                return
+
+        mock_dialog = MockDialog()
+
+        def mock_create_message_dialog(msg):
+            mock_dialog.msg = msg
+            return mock_dialog
+
+        utils.create_message_dialog = mock_create_message_dialog
+
+        # trigger the dialog box
+        dialog = settings_box.generated_points_settings_dialog()
+        dialog.run()
+
+        # test values
+        self.assertNotEqual(gen_settings, start_settings)
+        self.assertEqual(gen_settings.get('start'), [10.001, 10.001])
+        self.assertEqual(gen_settings.get('increment'), 0.00001)
+        self.assertEqual(gen_settings.get('axis'), '')
+
+        grid = mock_dialog.box.pop()
+        self.assertEqual(len(grid.get_children()), 8)
+
+        gen_combo = grid.get_child_at(1, 2)
+        gen_combo.set_active(1)
+        self.assertEqual(gen_settings.get('axis'), 'NS')
+
+        gen_inc_entry = grid.get_child_at(1, 3)
+        gen_inc_entry.set_value(0.1)
+        self.assertEqual(gen_settings.get('increment'), 0.1)
+
+        utils.create_message_dialog = _orig_create_message_dialog
+
+    def test_on_gen_button_clicked(self):
+        from bauble.meta import BaubleMeta
+        self.session.add(BaubleMeta(name='inst_geo_latitude',
+                                    value='10.001'))
+        self.session.add(BaubleMeta(name='inst_geo_longitude',
+                                    value='10.001'))
+        gen_settings = {'start': [0, 0], 'increment': 0, 'axis': ''}
+        start_settings = gen_settings.copy()
+        self.session.commit()
+        settings_box = ExpSetBox(Plant,
+                                 fields=self.plant_fields,
+                                 resize_func=lambda: False,
+                                 gen_settings=gen_settings,
+                                 grid=MockGrid())
+        # pick up the system default
+        settings_box.reset_gen_settings()
+
+        from bauble import utils
+        _orig_create_message_dialog = utils.create_message_dialog
+        import gi
+        gi.require_version("Gtk", "3.0")
+        from gi.repository import Gtk  # noqa
+
+        class MockDialog:
+            def __init__(self):
+                self.msg = None
+                self.box = set()
+                self.size = dict()
+
+            def get_message_area(self):
+                return self.box
+
+            def resize(self, x, y):
+                return
+
+            def show_all(self):
+                return
+
+            def set_keep_above(self, val):
+                return
+
+            def run(self):
+                return Gtk.ResponseType.OK
+
+            def destroy(self):
+                return
+
+        mock_dialog = MockDialog()
+
+        def mock_create_message_dialog(msg):
+            mock_dialog.msg = msg
+            return mock_dialog
+
+        utils.create_message_dialog = mock_create_message_dialog
+
+        settings_box.on_gen_button_clicked(None)
+        grid = mock_dialog.box.pop()
+        self.assertEqual(len(grid.get_children()), 8)
+
+        self.assertFalse('err-btn' in
+                         (settings_box.gen_button
+                          .get_style_context()
+                          .list_classes()))
+
+        class MockDialog2(MockDialog):
+            def run(self):
+                return Gtk.ResponseType.CANCEL
+
+        mock_dialog = MockDialog2()
+
+        settings_box.on_gen_button_clicked(None)
+        grid = mock_dialog.box.pop()
+        self.assertEqual(len(grid.get_children()), 8)
+
+        self.assertTrue('err-btn' in
+                        (settings_box.gen_button
+                         .get_style_context()
+                         .list_classes()))
+
+        utils.create_message_dialog = _orig_create_message_dialog
 
 
 class ShapefileExportTestsEmptyDB(BaubleTestCase):
@@ -1225,7 +1424,7 @@ class ShapefileExportTests(BaubleTestCase):
         exporter.export_locations = True
         exporter.export_plants = True
         # here this does make a difference and should add an extra shapefile
-        # and a plant in it
+        # with a plant in it
         exporter.gen_settings = {'start': [0.2956, 51.4787],
                                  'increment': 0.0001,
                                  'axis': 'NS'}

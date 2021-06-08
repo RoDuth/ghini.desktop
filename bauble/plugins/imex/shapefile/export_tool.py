@@ -115,6 +115,13 @@ def get_field_properties(model, path):
 
 class ShapefileExportSettingsBox(Gtk.ScrolledWindow):
     """Advanced settings used to set the database fields to export.
+
+    :param model: Plant or Location, the class of exports that the settings are
+        intended for.
+    :param fields: dictionary of fields settings used for the export.
+    :param gen_settings: dictionary of auto-generated points settings (Plants).
+    :param resize_func: function that can resize the presenter window.
+    :param grid: a grid to use for widgets (for testing).
     """
     def __init__(self, model,   # pylint: disable=too-many-arguments
                  fields=None,
@@ -125,9 +132,7 @@ class ShapefileExportSettingsBox(Gtk.ScrolledWindow):
         self.fields = fields
         self.model = model
         self.resize_func = resize_func
-        self.gen_settings = gen_settings or {'start': [0, 0],
-                                             'increment': 0,
-                                             'axis': ''}
+        self.gen_settings = gen_settings
         # for testing
         if grid is None:
             grid = Gtk.Grid(column_spacing=6, row_spacing=6)
@@ -202,82 +207,117 @@ class ShapefileExportSettingsBox(Gtk.ScrolledWindow):
             remove_button.drag_dest_add_text_targets()
             self.grid.attach(remove_button, 4, attach_row, 1, 1)
         add_button = Gtk.Button.new_from_icon_name('list-add', 1)
+        add_button.set_halign(Gtk.Align.START)
         add_button.connect('clicked', self.on_add_button_clicked)
         self.grid.attach(add_button, 0, attach_row + 1, 1, 1)
-        if self.model is Plant:
-            self.add_plant_generate_options(attach_row)
+        if self.gen_settings:
+            gen_hbox = Gtk.Box()
+            gen_chkbtn = Gtk.CheckButton(label="Auto-generate points")
+            gen_chkbtn.connect('toggled', self.on_gen_chkbtn_toggled)
+            gen_hbox.pack_start(gen_chkbtn, False, False, 3)
+            self.gen_button = Gtk.Button(label="generate points settings")
+            self.gen_button.set_sensitive(False)
+            self.gen_button.connect('clicked', self.on_gen_button_clicked)
+            gen_hbox.pack_start(self.gen_button, False, False, 3)
+            self.grid.attach(gen_hbox, 0, attach_row + 2, 5, 1)
 
-    def add_plant_generate_options(self, attach_row):
-        from bauble import meta
-        msg = ('auto-generate points for plants without geojson entries, '
-               '(only avialable when using search items and limited to '
-               '100 results) ')
-        gen_x_entry = Gtk.Entry()
-        gen_x_entry.set_tooltip_text(msg + 'use this field to set the X '
-                                     'coordinate of the starting point.')
-        gen_x_entry.connect('changed', self.on_coord_changed, 1)
-        gen_x_entry.set_text(
-            meta.get_default('inst_geo_latitude', '0.0').value or '')
-        gen_y_entry = Gtk.Entry()
-        gen_y_entry.set_tooltip_text(msg + 'use this field to set the Y '
-                                     'coordinate of the starting point.')
-        gen_y_entry.connect('changed', self.on_coord_changed, 0)
-        gen_y_entry.set_text(
-            meta.get_default('inst_geo_longitude', '0.0').value or '')
+    def generated_points_settings_dialog(self):
+        """
+        Settings for generated points.
+        """
+        from bauble.utils import create_message_dialog
+        msg = _("Auto generated points for plants that don't currently "
+                "have geojson entries. (only avialable when using search "
+                "items and limited to 100 points - will fail otherwise)"
+                "\n\nA default starting point can be set by setting the "
+                "instituion's latitude and longitude in the Institution "
+                "Editor in the tools menu.")
+        dialog = create_message_dialog(msg=msg)
+        dialog.set_keep_above(True)
+        box = dialog.get_message_area()
+        grid = Gtk.Grid(column_spacing=6, row_spacing=6)
+        box.add(grid)
+        x_adj = Gtk.Adjustment(upper=1000, lower=-1000, step_increment=0.0001,
+                               page_increment=10)
+        gen_x_entry = Gtk.SpinButton(adjustment=x_adj, digits=10)
+        gen_x_entry.set_tooltip_text("set the X coordinate for the starting "
+                                     "point. Default is the institution's "
+                                     "longitude.")
+        gen_x_entry.connect('value-changed', self.on_coord_changed, 1)
+        gen_x_entry.set_value(self.gen_settings.get('start')[1])
+        y_adj = Gtk.Adjustment(upper=1000, lower=-1000, step_increment=0.0001,
+                               page_increment=10)
+        gen_y_entry = Gtk.SpinButton(adjustment=y_adj, digits=10)
+        gen_y_entry.set_tooltip_text("set the Y coordinate for the starting "
+                                     "point. Default is the institution's "
+                                     "latitude.")
+        gen_y_entry.connect('value-changed', self.on_coord_changed, 0)
+        gen_y_entry.set_value(self.gen_settings.get('start')[0])
         gen_combo = Gtk.ComboBoxText()
-        gen_combo.set_tooltip_text(msg + 'set the axis for the line of '
-                                   'plants. Unset this to an empty value if '
-                                   'you do not wish to generate points.')
+        gen_combo.set_tooltip_text('Set the axis for the line of '
+                                   'auto-generated plant points.')
         for i in ['', 'NS', 'EW']:
             gen_combo.append_text(i)
         gen_combo.connect('changed', self.on_gen_combo_changed)
-        gen_increment_entry = Gtk.Entry()
-        gen_increment_entry.connect('changed', self.on_increment_changed)
-        gen_increment_entry.set_text('0.00001')
-        gen_combo.set_tooltip_text(msg + 'set the spacing and direction '
-                                   'of the line of plants.')
-        self.grid.attach(gen_x_entry, 0, attach_row + 2, 1, 1)
-        self.grid.attach(gen_y_entry, 1, attach_row + 2, 1, 1)
-        self.grid.attach(gen_combo, 2, attach_row + 2, 1, 1)
-        self.grid.attach(gen_increment_entry, 3, attach_row + 2, 1, 1)
+        increment_adj = Gtk.Adjustment(upper=1000, lower=-1000,
+                                       step_increment=0.0001,
+                                       page_increment=10)
+        gen_increment_entry = Gtk.SpinButton(adjustment=increment_adj,
+                                             digits=10)
+        gen_increment_entry.connect('value-changed', self.on_increment_changed)
+        gen_increment_entry.set_value(self.gen_settings.get('increment'))
+        gen_increment_entry.set_tooltip_text(
+            'set the spacing and direction (+/-) of the line of plants.')
+        grid.attach(Gtk.Label(label='X:'), 0, 0, 1, 1)
+        grid.attach(gen_x_entry, 1, 0, 1, 1)
+        grid.attach(Gtk.Label(label='Y:'), 0, 1, 1, 1)
+        grid.attach(gen_y_entry, 1, 1, 1, 1)
+        grid.attach(Gtk.Label(label='axis:'), 0, 2, 1, 1)
+        grid.attach(gen_combo, 1, 2, 1, 1)
+        grid.attach(Gtk.Label(label='increment:'), 0, 3, 1, 1)
+        grid.attach(gen_increment_entry, 1, 3, 1, 1)
+        dialog.resize(1, 1)
+        dialog.show_all()
+        return dialog
 
-    @staticmethod
-    def floatify_text(val):
-        """return text that may be a part of typing a float into an entry field
-        """
-        val = ''.join([i for i in val if i in '.-0123456789'])
-        negative = val.startswith('-')
-        point = val.find('.')
-        numbers = ''.join([i for i in val if i in '0123456789'])
-        if negative:
-            numbers = '-' + numbers
-        if point != -1:
-            numbers = numbers[0:point] + '.' + numbers[point:]
-        return numbers
+    def on_gen_button_clicked(self, widget):
+        dialog = self.generated_points_settings_dialog()
+        response = dialog.run()
+        dialog.destroy()
+        if response == Gtk.ResponseType.OK:
+            self.gen_button.get_style_context().remove_class('err-btn')
+        else:
+            self.reset_gen_settings()
+            self.gen_button.get_style_context().add_class('err-btn')
 
-    @staticmethod
-    def float_or_zero(val):
-        """returns zero or the val as a float.
+    def reset_gen_settings(self):
+        session = db.Session()
+        # These should always have some value, even if it is Null as its
+        # set when a new database is started
+        start_lat = get_default('inst_geo_latitude',
+                                session=session).value
+        start_lng = get_default('inst_geo_longitude',
+                                session=session).value
+        # mutate the original dict - don't overwrite it with a new one.
+        self.gen_settings['start'][0] = float(start_lng or 0.0)
+        self.gen_settings['start'][1] = float(start_lat or 0.0)
+        self.gen_settings['increment'] = 0.00001
+        self.gen_settings['axis'] = ''
 
-        main use if for when the user has only typed something like '-' so far.
-        """
-        try:
-            val = float(val)
-        except ValueError:
-            val = 0.0
-        return val
+    def on_gen_chkbtn_toggled(self, widget):
+        if widget.get_active() is True:
+            self.reset_gen_settings()
+            self.gen_button.get_style_context().add_class('err-btn')
+            self.gen_button.set_sensitive(True)
+        else:
+            self.gen_button.get_style_context().remove_class('err-btn')
+            self.gen_button.set_sensitive(False)
 
     def on_increment_changed(self, widget):
-        val = widget.get_text()
-        numbers = self.floatify_text(val)
-        widget.set_text(numbers)
-        self.gen_settings['increment'] = self.float_or_zero(numbers)
+        self.gen_settings['increment'] = widget.get_value()
 
     def on_coord_changed(self, widget, axis):
-        val = widget.get_text()
-        numbers = self.floatify_text(val)
-        widget.set_text(numbers)
-        self.gen_settings['start'][axis] = self.float_or_zero(numbers)
+        self.gen_settings['start'][axis] = widget.get_value()
 
     def on_gen_combo_changed(self, widget):
         self.gen_settings['axis'] = widget.get_active_text()
@@ -589,13 +629,13 @@ class ShapefileExporter():
         increment_x = 0
         increment_y = 0
         if self.gen_settings.get('axis') == 'NS':
-            increment_y = self.gen_settings.get('increment')
+            increment_y = float(self.gen_settings.get('increment'))
         else:
-            increment_x = self.gen_settings.get('increment')
-        xxx = self.gen_settings.get(
-            'start')[0] + (increment_x * records_done)
-        yyy = self.gen_settings.get(
-            'start')[1] + (increment_y * records_done)
+            increment_x = float(self.gen_settings.get('increment'))
+        xxx = float(self.gen_settings.get(
+            'start')[0]) + (increment_x * records_done)
+        yyy = float(self.gen_settings.get(
+            'start')[1]) + (increment_y * records_done)
         item.geojson = {
             'type': 'Point',
             'coordinates': [xxx, yyy]}
@@ -689,6 +729,7 @@ class ShapefileExporter():
             self.error += 1
             if self._generate_points > 0:
                 if self.error > 100:
+                    logger.debug('too many generated_items')
                     msg = ('<b>Over 100 records have no geojson.\n\n This is '
                            'too many points to generate, please select a '
                            'smaller search.</b>')
@@ -697,6 +738,7 @@ class ShapefileExporter():
                     self.generated_items = []
                     self._generate_points -= 2
                     return
+                logger.debug('appending to generated_items')
                 self.generated_items.append(item)
             return
         shape = self.SHAPE_MAP.get(shape_type)
@@ -844,10 +886,13 @@ class ShapefileExportDialogPresenter(GenericEditorPresenter):
             expander.remove(child)
         notebook = Gtk.Notebook()
         if self.model.export_plants:
+            gen_settings = None
+            if self.model.search_or_all == 'rb_search_results':
+                gen_settings = self.model.gen_settings
             plt_settings_box = ShapefileExportSettingsBox(
                 Plant,
                 fields=self.model.plant_fields,
-                gen_settings=self.model.gen_settings,
+                gen_settings=gen_settings,
                 resize_func=self.reset_win_size
             )
             notebook.append_page(plt_settings_box,
@@ -855,8 +900,10 @@ class ShapefileExportDialogPresenter(GenericEditorPresenter):
             self.settings_boxes.append(plt_settings_box)
         if self.model.export_locations:
             loc_settings_box = ShapefileExportSettingsBox(
-                Location, fields=self.model.location_fields,
-                resize_func=self.reset_win_size)
+                Location,
+                fields=self.model.location_fields,
+                resize_func=self.reset_win_size
+            )
             notebook.append_page(loc_settings_box,
                                  Gtk.Label(label="Locations"))
             self.settings_boxes.append(loc_settings_box)
