@@ -264,18 +264,14 @@ def open(uri, verify=True, show_error_dialogs=False):
     global engine
     new_engine = None
 
-    import sqlalchemy.pool
-    import bauble.prefs
-    if bauble.prefs.testing:  # this causes trouble in production but works
-                              # in testing.  who can explain?  #133, #425
-        new_engine = sa.create_engine(uri, echo=SQLALCHEMY_DEBUG,
-                                      implicit_returning=False,
-                                      poolclass=sqlalchemy.pool.SingletonThreadPool,
-                                      pool_size=20)
-    else:
-        new_engine = sa.create_engine(uri, echo=SQLALCHEMY_DEBUG,
-                                      implicit_returning=False,
-                                      poolclass=sqlalchemy.pool.NullPool)
+
+    # NOTE sqla, by default, for sqlite uses SingletonThreadPool for
+    # :memory: databases and NullPool for files.  For other DBs QueuePool
+    # is used
+    # docs states: re: SingletonThreadPool is only intended for sqlite memory
+    # data, generally testing, and 'not recommended for production use'.
+    new_engine = sa.create_engine(uri, echo=SQLALCHEMY_DEBUG,
+                                  implicit_returning=False)
 
     # TODO: there is a problem here: the code may cause an exception, but we
     # immediately loose the 'new_engine', which should know about the
