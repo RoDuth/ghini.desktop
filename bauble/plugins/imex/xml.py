@@ -26,7 +26,7 @@ from pathlib import Path
 
 import logging
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
+logger.setLevel(logging.DEBUG)
 
 import gi
 gi.require_version("Gtk", "3.0")
@@ -38,6 +38,11 @@ import bauble.db as db
 import bauble.utils as utils
 import bauble.pluginmgr as pluginmgr
 import bauble.task
+
+from bauble.prefs import prefs, debug_logging_prefs, testing
+
+if not testing and __name__ in prefs.get(debug_logging_prefs, []):
+    logger.setLevel(logging.DEBUG)
 
 
 
@@ -54,7 +59,7 @@ def ElementFactory(parent, name, **kwargs):
         if text is not None:
             el.text = str(text, 'utf8')
     except (AssertionError, TypeError):
-        el.text = str(str(text), 'utf8')
+        el.text = str(text)
     return el
 
 
@@ -65,16 +70,18 @@ class XMLExporter:
 
     def start(self, path=None):
 
-        d = Gtk.Dialog('Ghini - XML Exporter', bauble.gui.window,
-                       Gtk.DialogFlags.MODAL | Gtk.DialogFlags.DESTROY_WITH_PARENT,
-                       (Gtk.STOCK_CANCEL, Gtk.ResponseType.REJECT,
-                        Gtk.STOCK_OK, Gtk.ResponseType.ACCEPT))
+        d = Gtk.Dialog('Ghini - XML Exporter',
+                       modal=True,
+                       destroy_with_parent=True,
+                       parent=bauble.gui.window)
+
+        d.add_buttons("Cancel", Gtk.ResponseType.REJECT,
+                      "OK", Gtk.ResponseType.ACCEPT)
 
         box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=20)
         d.vbox.pack_start(box, True, True, 10)
 
         file_chooser = Gtk.FileChooserButton(_('Select a directory'))
-        file_chooser.set_select_multiple(False)
         file_chooser.set_action(Gtk.FileChooserAction.SELECT_FOLDER)
         file_chooser.set_current_folder(str(Path.home()))
         box.pack_start(file_chooser, True, True, 0)
@@ -83,23 +90,26 @@ class XMLExporter:
         box.pack_start(check, True, True, 0)
 
         d.connect('response', self.on_dialog_response,
-                  file_chooser.get_filename(), check.get_active())
+                  file_chooser.get_filename, check.get_active)
         d.show_all()
         d.run()
         d.hide()
 
     def on_dialog_response(self, dialog, response, filename, one_file):
-        logger.debug('on_dialog_response(%s, %s)' % (filename, one_file))
+        logger.debug('on_dialog_response(%s, %s)', filename(), one_file())
         if response == Gtk.ResponseType.ACCEPT:
-            self.__export_task(filename, one_file)
+            print(filename())
+            print(one_file())
+            self.__export_task(filename(), one_file())
         dialog.destroy()
 
     def __export_task(self, path, one_file=True):
-        if not one_file:
+        if one_file:
+            print('is one_file')
             tableset_el = etree.Element('tableset')
 
         for table_name, table in db.metadata.tables.items():
-            if one_file:
+            if not one_file:
                 tableset_el = etree.Element('tableset')
             logger.info('exporting %s…' % table_name)
             table_el = ElementFactory(tableset_el, 'table',
@@ -118,15 +128,17 @@ class XMLExporter:
                                              Gtk.MessageType.ERROR)
                 return
             else:
-                if one_file:
+                if not one_file:
                     tree = etree.ElementTree(tableset_el)
                     filename = os.path.join(path, '%s.xml' % table_name)
                     # TODO: can figure out why this keeps crashing
+                    logger.debug('writing xml to %s', filename)
                     tree.write(filename, encoding='utf8', xml_declaration=True)
 
-        if not one_file:
+        if one_file:
             tree = etree.ElementTree(tableset_el)
             filename = os.path.join(path, 'bauble.xml')
+            logger.debug('writing xml to %s', filename)
             tree.write(filename, encoding='utf8', xml_declaration=True)
 
 
