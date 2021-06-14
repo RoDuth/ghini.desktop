@@ -129,7 +129,7 @@ def quit():  # pylint: disable=redefined-builtin
         task.kill()
     try:
         save_state()
-        # cancel threads on quit avoids a delay
+        # cancel threads on quit avoids a delay (this is not Gtk.threads)
         active_view = gui.get_view()
         if active_view:
             active_view.cancel_threads()

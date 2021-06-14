@@ -40,7 +40,7 @@ from gi.repository import GObject
 
 from random import random
 import dateutil.parser as date_parser
-from lxml import etree
+# from lxml import etree
 from gi.repository import Pango
 from sqlalchemy.orm import object_mapper, object_session
 from sqlalchemy.orm.exc import UnmappedInstanceError
@@ -373,6 +373,10 @@ class GenericEditorView(object):
     def connect_signals(self, target):
         'connect all signals declared in the glade file'
         if not hasattr(self, 'signals'):
+            # NOTE import here rather than module level due to temp fix for
+            # lxml.etree errors in mingw and using xml.etree.ElementTree as a
+            # drop in replacement in NoteBox()
+            from lxml import etree
             doc = etree.parse(self.filename)
             self.signals = doc.xpath('//signal')
         for s in self.signals:
@@ -1910,25 +1914,15 @@ class NoteBox(Gtk.Box):
         # open the glade file and extract the markup that the
         # expander will use
         filename = os.path.join(paths.lib_dir(), self.glade_ui)
-        # TODO <RD> TEMP FIX for mingw need to revert this and work out what
-        # the problem is with mingw and lxml  (lxml always returns the whole
-        # file)
-        with open(filename, encoding='utf-8') as f:
-            xml_string = ""
-            start = False
-            for line in f:
-                if line == '      <object class="GtkBox" id="notes_box">\n':
-                    start = True
-                elif start and line == '      </object>\n':
-                    xml_string += line
-                    break
-                if start:
-                    xml_string += line
-        s = f'<interface>\n{xml_string}</interface>'.strip()
-
-        # xml = etree.parse(filename)
+        # TODO <RD> TEMP FIX for mingw need to revert this if possible
+        # NOTE after discovering this bug in lxml on mingw:
+        # https://github.com/msys2/MINGW-packages/issues/8864
+        # decided to use this approach for the time being
+        from xml.etree import ElementTree as etree
+        xml = etree.parse(filename)
         # el = xml.find("//object[@id='notes_box']")
-        # s = '<interface>%s</interface>' % etree.tostring(el)
+        el = xml.find(".//object[@id='notes_box']")
+        s = '<interface>%s</interface>' % etree.tostring(el)
         builder = Gtk.Builder()
         builder.add_from_string(s)
         self.widgets = utils.BuilderWidgets(builder)
