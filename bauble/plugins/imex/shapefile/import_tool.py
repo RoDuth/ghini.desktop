@@ -344,9 +344,9 @@ class ShapefileImportSettingsBox(Gtk.ScrolledWindow):
         menu.popup(None, None, None, None, event.button, event.time)
 
     def _get_prop_button(self, field, chk_button):
-        if self.shape_reader.type == 'plant':
-            model = Plant
-        elif self.shape_reader.type == 'location':
+        # default model is plant
+        model = Plant
+        if self.shape_reader.type == 'location':
             model = Location
         db_field = self.shape_reader.field_map.get(field[0], '')
         prop_button = Gtk.Button()
@@ -496,6 +496,9 @@ class ShapefileImporter():
             self.model = Plant
         elif self.shape_reader.type == 'location':
             self.model = Location
+        else:
+            from bauble.error import BaubleError
+            raise BaubleError('No "type" set for the records.')
 
         with self.shape_reader.get_records() as records:
             for record in records:
@@ -621,7 +624,7 @@ class ShapefileImporter():
                 else:
                     # use the field name
                     note_category = sf_col
-                note_text = in_dict.get(sf_col)
+                note_text = str(in_dict.get(sf_col))
                 if not note_text:
                     continue
                 note_model = self.model.__mapper__.relationships.get(
@@ -686,6 +689,9 @@ def add_rec_to_db(session, item, rec):
              Keys are paths from the item class to either fields of that class
              or to related tables.  Values are item columns values or the
              related table columns and values as a nested dict.
+             e.g.:
+             {'accession.species.genus.family': {'epithet': 'Alliaceae'},
+             'accession.species.genus': {'epithet': 'Agapanthus'}, ...}
     """
     # peel of the first record to work on
     first, *remainder = rec.items()
@@ -695,8 +701,20 @@ def add_rec_to_db(session, item, rec):
     # related records
     if isinstance(value, dict):
         # after this "value" will be in the session
-        value = db.get_create_or_update(
-            session, db.get_related_class(type(item), key), **value)
+        # Try convert values to the correct type
+        model = db.get_related_class(type(item), key)
+        for k, v in value.items():
+            if v is not None and not hasattr(v, '__table__'):
+                try:
+                    path_type = getattr(model, k).type
+                    v = path_type.python_type(v)
+                except Exception:
+                    # for anything that doesn't have an obvious python_type a
+                    # string SHOULD generally work
+                    v = str(v)
+                value[k] = v
+
+        value = db.get_create_or_update(session, model, **value)
         root, atr = key.rsplit('.', 1) if '.' in key else (None, key)
         # NOTE default vernacular names need to be added directly as they use
         # their own methods,
@@ -735,6 +753,14 @@ def add_rec_to_db(session, item, rec):
                 setattr(link_item, atr, value)
                 logger.debug('adding: %s to %s', atr2, link)
                 remainder[link][atr2] = link_item
+    elif value is not None and not hasattr(value, '__table__'):
+        try:
+            path_type = getattr(item, key).type
+            value = path_type.python_type(value)
+        except Exception:
+            # for anything that doesn't have an obvious python_type a
+            # string SHOULD generally work
+            value = str(value)
 
     # if there are more records continue to add them
     if len(remainder) > 0:

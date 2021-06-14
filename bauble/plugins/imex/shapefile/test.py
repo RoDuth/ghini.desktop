@@ -170,6 +170,13 @@ plant_fields = [('plt_id', 'N'), ('accession', 'C', 16), ('plt_code', 'C', 16),
                 ('species', 'C', 126), ('infrasp', 'C', 126),
                 ('cultivar', 'C', 126), ('vernacular', 'C', 64)]
 
+plant_fields_wrong_types = [
+    ('plt_id', 'F', 6), ('accession', 'N'), ('plt_code', 'F', 6),
+    ('quantity', 'F', 6), ('bed', 'N', 24), ('field_note', 'C', 255),
+    ('family', 'C', 126), ('genus', 'C', 124), ('species', 'C', 126),
+    ('infrasp', 'C', 126), ('cultivar', 'C', 126), ('vernacular', 'C', 64)
+]
+
 loc_recs_4326 = [
     {'record':
      {'loc_id': 1, 'loc_code': 'QCC01', 'name': 'SE Qld Rainforest',
@@ -234,6 +241,18 @@ plt_rec_3857_points = [
     {'record':
      {'plt_id': 2, 'accession': '2021002', 'plt_code': '2', 'quantity': 3,
       'bed': 'APC01', 'field_note': '', 'family': 'Myrtaceae',
+      'genus': 'Eucalyptus', 'species': 'major', 'infrasp': ''},
+     **epsg3857_point2},
+]
+plt_rec_3857_points_wrong_types = [
+    {'record':
+     {'plt_id': 1.00, 'accession': 2021001, 'plt_code': 1.00, 'quantity': 2.00,
+      'bed': 1, 'field_note': 'in decline', 'family': 'Proteaceae',
+      'genus': 'Grevillea', 'species': 'robusta', 'infrasp': ''},
+     **epsg3857_point},
+    {'record':
+     {'plt_id': 2.00, 'accession': 2021002, 'plt_code': 2.00, 'quantity': 3.00,
+      'bed': 2, 'field_note': '', 'family': 'Myrtaceae',
       'genus': 'Eucalyptus', 'species': 'major', 'infrasp': ''},
      **epsg3857_point2},
 ]
@@ -2023,6 +2042,9 @@ class ShapefileImportEmptyDBTests(BaubleTestCase):
 
     def test_add_or_update_all_plant_records(self):
         """Option 4, location data: extra data, extra entries, system CRS"""
+        # NOTE this produces a SQWaring - Fully NULL primary key.... Not
+        # entirely sure why.  Cause is usually using something like
+        # Plant.get(None)
         importer = self.importer
         importer.filename = create_shapefile('test',
                                              prj_str_3857,
@@ -2049,6 +2071,35 @@ class ShapefileImportEmptyDBTests(BaubleTestCase):
             self.assertEqual(plt.quantity,
                              rec.get('quantity'))
         self.assertEqual(len(result), len(plt_rec_3857_points))
+
+    def test_add_or_update_all_plant_records_w_wrong_types(self):
+        """Option 4, location data: extra data, extra entries, system CRS"""
+        importer = self.importer
+        importer.filename = create_shapefile('test',
+                                             prj_str_3857,
+                                             plant_fields_wrong_types,
+                                             plt_rec_3857_points_wrong_types,
+                                             self.temp_dir.name)
+        importer.shape_reader.filename = importer.filename
+        importer.option = '4'
+        importer.projection = 'epsg:3857'
+        importer.use_id = True
+        importer.run()
+        result = self.session.query(Plant).all()
+        # Check we got the right amount of records
+        self.assertEqual(len(result), len(plt_rec_3857_points_wrong_types))
+        for record in plt_rec_3857_points_wrong_types:
+            rec = record.get('record')
+            plt = [p for p in result if p.id == int(rec.get('plt_id'))][0]
+            self.assertEqual(plt.accession.code, str(rec.get('accession')))
+            self.assertEqual(plt.accession.species.sp, rec.get('species'))
+            self.assertEqual(plt.accession.species.genus.genus,
+                             rec.get('genus'))
+            self.assertEqual(plt.accession.species.genus.family.family,
+                             rec.get('family'))
+            self.assertEqual(plt.quantity,
+                             rec.get('quantity'))
+        self.assertEqual(len(result), len(plt_rec_3857_points_wrong_types))
 
 
 class ShapefileImportTests(BaubleTestCase):

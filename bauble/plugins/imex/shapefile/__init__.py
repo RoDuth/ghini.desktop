@@ -16,7 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
 """
-Shapefile Import Output plugins
+Shapefile import export plugins
 """
 import logging
 logger = logging.getLogger(__name__)
@@ -24,8 +24,8 @@ logger = logging.getLogger(__name__)
 from gi.repository import Gtk, Gdk  # noqa
 
 from bauble import pluginmgr
-from bauble.plugins.imex.shapefile.import_tool import ShapefileImporter
-from bauble.plugins.imex.shapefile.export_tool import ShapefileExporter
+from .import_tool import ShapefileImporter
+from .export_tool import ShapefileExporter
 
 from bauble.prefs import prefs, debug_logging_prefs, testing
 if not testing and __name__ in prefs.get(debug_logging_prefs, []):

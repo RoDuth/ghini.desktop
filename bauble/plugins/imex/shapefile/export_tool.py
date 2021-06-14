@@ -468,7 +468,7 @@ class ShapefileExportSettingsBox(Gtk.ScrolledWindow):
         # return prop_button, schema_menu
 
 
-class ShapefileExporter():
+class ShapefileExporter:
     """
     The interface for exporting data in a shapefile.  The intent for one of
     these exports is to provide a way to gather information for importing, i.e.
