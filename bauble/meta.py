@@ -99,7 +99,6 @@ def confirm_default(name, default, msg):
     return current_default
 
 
-
 class BaubleMeta(db.Base):
     """
     The BaubleMeta class is used to set and retrieve meta information

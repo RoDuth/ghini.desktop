@@ -1396,6 +1396,8 @@ class QueryBuilder(GenericEditorPresenter):
                              (type(e), e))
                 return
             row.on_schema_menu_activated(None, clause.field, prop)
+            if isinstance(row.value_widget, Gtk.SpinButton):
+                row.value_widget.set_value(float(clause.value))
             if isinstance(row.value_widget, Gtk.Entry):
                 row.value_widget.set_text(clause.value)
             elif isinstance(row.value_widget, Gtk.ComboBox):

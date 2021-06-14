@@ -47,8 +47,8 @@ installation_date = "1970-01-01T00:00:00Z"
 
 import bauble.i18n
 
-
 logger = logging.getLogger(__name__)
+# this will set a global logging level
 logger.setLevel(logging.DEBUG)
 consoleLevel = logging.INFO
 
@@ -343,8 +343,8 @@ def main(uri=None):
 
     # now that we have a connection create the gui, start before the plugins
     # are initialized in case they have to do anything like add a menu
-    import bauble.ui as ui
-    gui = ui.GUI()
+    from .ui import GUI
+    gui = GUI()
 
     def _post_loop():
         Gdk.threads_enter()

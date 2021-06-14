@@ -47,12 +47,17 @@ from sqlalchemy.orm.exc import UnmappedInstanceError
 
 
 import bauble
-import bauble.db as db
+from bauble import db
 from bauble.error import check
-import bauble.paths as paths
-import bauble.prefs as prefs
-import bauble.utils as utils
+from bauble import paths
+from bauble import prefs
+from bauble import utils
 from bauble.error import CheckConditionError
+
+# from bauble.prefs import prefs, debug_logging_prefs, testing
+if not prefs.testing and __name__ in prefs.prefs.get(prefs.debug_logging_prefs,
+                                                     []):
+    logger.setLevel(logging.DEBUG)
 
 # TODO: create a generic date entry that can take a mask for the date format
 # see the date entries for the accession and accession source presenters
@@ -2228,7 +2233,7 @@ class NotesPresenter(GenericEditorPresenter):
             get_property(notes_property).mapper.class_
         self.notes = getattr(presenter.model, notes_property)
         self.parent_container = parent_container
-        editor_box = self.widgets.notes_editor_box  # Gtk.VBox()
+        editor_box = self.widgets.notes_editor_box
         self.widgets.remove_parent(editor_box)
         parent_container.add(editor_box)
 

@@ -49,7 +49,7 @@ from bauble.view import PropertiesExpander, Action
 import bauble.view as view
 
 from bauble.prefs import prefs, debug_logging_prefs, testing
-if not testing and __name__ in prefs[debug_logging_prefs]:
+if not testing and __name__ in prefs.get(debug_logging_prefs, []):
     logger.setLevel(logging.DEBUG)
 
 SpeciesDistribution  # will be imported by clients of this module
@@ -186,7 +186,7 @@ class VernacularExpander(InfoExpander):
     :param widgets:
     '''
     def __init__(self, widgets):
-        InfoExpander.__init__(self, _("Vernacular names"), widgets)
+        super().__init__(_("Vernacular names"), widgets)
         vernacular_box = self.widgets.sp_vernacular_box
         self.widgets.remove_parent(vernacular_box)
         self.vbox.pack_start(vernacular_box, True, True, 0)
@@ -219,7 +219,7 @@ class VernacularExpander(InfoExpander):
 class SynonymsExpander(InfoExpander):
 
     def __init__(self, widgets):
-        InfoExpander.__init__(self, _("Synonyms"), widgets)
+        super().__init__(_("Synonyms"), widgets)
         synonyms_box = self.widgets.sp_synonyms_box
         self.widgets.remove_parent(synonyms_box)
         self.vbox.pack_start(synonyms_box, True, True, 0)
@@ -228,7 +228,7 @@ class SynonymsExpander(InfoExpander):
         '''
         update the expander
 
-        :param row: the row to get thevalues from
+        :param row: the row to get the values from
         '''
         syn_box = self.widgets.sp_synonyms_box
         # remove old labels
@@ -248,7 +248,8 @@ class SynonymsExpander(InfoExpander):
             # in the search results
             box = Gtk.EventBox()
             label = Gtk.Label()
-            label.set_alignment(0, .5)
+            label.set_xalign(0.0)
+            label.set_yalign(0.5)
             label.set_markup(accepted.str(markup=True, authors=True))
             box.add(label)
             utils.make_label_clickable(label, on_label_clicked, accepted)
@@ -267,7 +268,8 @@ class SynonymsExpander(InfoExpander):
                 # in the search results
                 box = Gtk.EventBox()
                 label = Gtk.Label()
-                label.set_alignment(0, .5)
+                label.set_xalign(0.0)
+                label.set_yalign(0.5)
                 label.set_markup(syn.str(markup=True, authors=True))
                 box.add(label)
                 utils.make_label_clickable(label, on_label_clicked, syn)
@@ -287,17 +289,12 @@ class GeneralSpeciesExpander(InfoExpander):
         '''
         the constructor
         '''
-        InfoExpander.__init__(self, _("General"), widgets)
+        super().__init__(_("General"), widgets)
         general_box = self.widgets.sp_general_box
         self.widgets.remove_parent(general_box)
         self.vbox.pack_start(general_box, True, True, 0)
         # wrapping the species but not the genus looks odd, better to ellipsize
         self.widgets.sp_epithet_data.set_ellipsize(Pango.EllipsizeMode.END)
-
-        # make the check buttons read only
-        def on_enter(button, *args):
-            button.emit_stop_by_name("enter-notify-event")
-            return True
 
         self.current_obj = None
 

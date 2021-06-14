@@ -1,7 +1,7 @@
 # Copyright 2008-2010 Brett Adams
 # Copyright 2015-2016 Mario Frasca <mario@anche.no>.
 # Copyright 2017 Jardín Botánico de Quito
-# Copyright 2020 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright 2020-2021 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -17,15 +17,14 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
-#
-# accessions module
-#
+"""
+accessions module
+"""
 
 import datetime
 from decimal import Decimal, ROUND_DOWN
 import os
 from random import random
-import sys
 import traceback
 import weakref
 
@@ -33,9 +32,6 @@ import logging
 from functools import reduce
 logger = logging.getLogger(__name__)
 
-from bauble.prefs import prefs, debug_logging_prefs, testing
-if not testing and __name__ in prefs[debug_logging_prefs]:
-    logger.setLevel(logging.DEBUG)
 
 import gi
 gi.require_version("Gtk", "3.0")
@@ -51,26 +47,27 @@ from sqlalchemy.orm import EXT_CONTINUE, MapperExtension, \
     backref, relation, reconstructor, validates
 from sqlalchemy.orm.session import object_session
 from sqlalchemy.exc import DBAPIError
-from sqlalchemy.sql import collate
+
+from bauble.prefs import prefs, debug_logging_prefs, testing
+if not testing and __name__ in prefs.get(debug_logging_prefs, []):
+    logger.setLevel(logging.DEBUG)
 
 import bauble
-import bauble.db as db
-import bauble.editor as editor
+from bauble import db
+from bauble import editor
 from bauble import meta
 from bauble.error import check
-import bauble.paths as paths
-from bauble.plugins.garden.propagation import SourcePropagationPresenter, \
-    Propagation
-from bauble.plugins.garden.source import Contact, create_contact, \
-    Source, Collection, CollectionPresenter, PropagationChooserPresenter
-import bauble.prefs as prefs
-import bauble.btypes as types
-import bauble.utils as utils
-from bauble.view import InfoBox, InfoExpander, PropertiesExpander, \
-    select_in_search_results, Action
-import bauble.view as view
-from bauble.search import SearchStrategy
+from bauble import paths
+from bauble import prefs
+from bauble import btypes as types
+from bauble import utils
+from bauble.view import (InfoBox, InfoExpander, PropertiesExpander,
+                         select_in_search_results, Action)
+from bauble import view
 from bauble.utils import safe_int
+from .propagation import SourcePropagationPresenter, Propagation
+from .source import (Contact, create_contact, Source, Collection,
+                     CollectionPresenter, PropagationChooserPresenter)
 
 # TODO: underneath the species entry create a label that shows information
 # about the family of the genus of the species selected as well as more
@@ -99,7 +96,7 @@ def decimal_to_dms(decimal, long_or_lat):
     else:
         check(abs(decimal) <= 90)
     dir_map = {'long': ['E', 'W'],
-               'lat':  ['N', 'S']}
+               'lat': ['N', 'S']}
     direction = dir_map[long_or_lat][0]
     if decimal < 0:
         direction = dir_map[long_or_lat][1]

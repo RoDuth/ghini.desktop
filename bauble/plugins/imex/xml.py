@@ -45,8 +45,6 @@ if not testing and __name__ in prefs.get(debug_logging_prefs, []):
     logger.setLevel(logging.DEBUG)
 
 
-
-
 # TODO: single file or one file per table
 
 def ElementFactory(parent, name, **kwargs):

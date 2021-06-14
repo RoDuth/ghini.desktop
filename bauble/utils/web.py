@@ -18,7 +18,6 @@
 # along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
 
 
-
 import gi
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk  # noqa
@@ -29,7 +28,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 from bauble.prefs import prefs, debug_logging_prefs, testing
-if not testing and __name__ in prefs[debug_logging_prefs]:
+if not testing and __name__ in prefs.get(debug_logging_prefs, []):
     logger.setLevel(logging.DEBUG)
 
 import bauble.utils.desktop as desktop

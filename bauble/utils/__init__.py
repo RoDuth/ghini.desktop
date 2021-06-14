@@ -646,9 +646,8 @@ def create_yes_no_dialog(msg, parent=None):
             parent = bauble.gui.window
         except Exception:
             parent = None
-    d = Gtk.MessageDialog(flags=Gtk.DialogFlags.MODAL |
-                          Gtk.DialogFlags.DESTROY_WITH_PARENT,
-                          parent=parent, type=Gtk.MessageType.QUESTION,
+    d = Gtk.MessageDialog(modal=True, destroy_with_parent=True,
+                          parent=parent, message_type=Gtk.MessageType.QUESTION,
                           buttons=Gtk.ButtonsType.YES_NO)
     d.set_title('Ghini')
     d.set_position(Gtk.WindowPosition.CENTER)

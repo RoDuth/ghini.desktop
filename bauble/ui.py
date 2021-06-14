@@ -36,19 +36,19 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
 import bauble
-import bauble.db as db
+from bauble import db
 
-import bauble.paths as paths
-import bauble.pluginmgr as pluginmgr
+from bauble import paths
+from bauble import pluginmgr
 from bauble.prefs import prefs, debug_logging_prefs, testing
-import bauble.search as search
-import bauble.utils as utils
-import bauble.utils.desktop as desktop
+from bauble import search
+from bauble import utils
+from bauble.utils import desktop
 from bauble.view import SearchView
 from bauble.editor import (
     GenericEditorView, GenericEditorPresenter)
 
-if not testing and __name__ in prefs[debug_logging_prefs]:
+if not testing and __name__ in prefs.get(debug_logging_prefs, []):
     logger.setLevel(logging.DEBUG)
 
 

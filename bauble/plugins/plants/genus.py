@@ -44,19 +44,19 @@ from sqlalchemy.ext.associationproxy import association_proxy
 
 
 import bauble
-import bauble.db as db
-import bauble.error as error
-import bauble.pluginmgr as pluginmgr
-import bauble.editor as editor
-import bauble.utils as utils
-import bauble.btypes as types
-import bauble.paths as paths
+from bauble import db
+from bauble import error
+from bauble import pluginmgr
+from bauble import editor
+from bauble import utils
+from bauble import btypes as types
+from bauble import paths
 from bauble.prefs import prefs, debug_logging_prefs, testing
 from bauble.view import (InfoBox, InfoExpander, PropertiesExpander,
                          select_in_search_results, Action)
 import bauble.view as view
 
-if not testing and __name__ in prefs[debug_logging_prefs]:
+if not testing and __name__ in prefs.get(debug_logging_prefs, []):
     logger.setLevel(logging.DEBUG)
 
 
@@ -876,7 +876,7 @@ class GeneralGenusExpander(InfoExpander):
         '''
         the constructor
         '''
-        InfoExpander.__init__(self, _("General"), widgets)
+        super().__init__(_("General"), widgets)
         general_box = self.widgets.gen_general_box
         self.widgets.remove_parent(general_box)
         self.vbox.pack_start(general_box, True, True, 0)
@@ -971,7 +971,7 @@ class SynonymsExpander(InfoExpander):
     expanded_pref = 'infobox.genus.synonyms.expanded'
 
     def __init__(self, widgets):
-        InfoExpander.__init__(self, _("Synonyms"), widgets)
+        super().__init__(_("Synonyms"), widgets)
         synonyms_box = self.widgets.gen_synonyms_box
         self.widgets.remove_parent(synonyms_box)
         self.vbox.pack_start(synonyms_box, True, True, 0)

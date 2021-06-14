@@ -55,7 +55,7 @@ class BuiltQuery(object):
             self.is_valid = True
         except:
             self.is_valid = False
-        
+
     @property
     def clauses(self):
         if not self.__clauses:

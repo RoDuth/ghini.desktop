@@ -31,7 +31,7 @@ logger = logging.getLogger(__name__)
 
 from .template_downloader import TemplateDownloadTool
 from bauble.prefs import prefs, debug_logging_prefs, testing
-if not testing and __name__ in prefs[debug_logging_prefs]:
+if not testing and __name__ in prefs.get(debug_logging_prefs, []):
     logger.setLevel(logging.DEBUG)
 
 
