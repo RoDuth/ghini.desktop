@@ -610,11 +610,16 @@ class Species(db.Base, db.Serializable, db.DefiningPictures, db.WithNotes):
         :param qualification: pair or None. if specified, first is the
         qualified rank, second is the qualification.
         '''
-        # TODO: this method will raise an error if the session is none
-        # since it won't be able to look up the genus....we could
-        # probably try to query the genus directly with the genus_id
         if genus is True:
-            genus = str(self.genus)
+            # get the genus by ID incase the session is None
+            from .genus import Genus
+            from sqlalchemy.orm import object_session
+            session = object_session(self)
+            genus = session.query(Genus).get(self.genus_id)
+            if markup:
+                genus = genus.markup()
+            else:
+                genus = str(genus)
         else:
             genus = ''
         if self.sp and not remove_zws:
@@ -625,11 +630,6 @@ class Species(db.Base, db.Serializable, db.DefiningPictures, db.WithNotes):
         if markup:
             escape = utils.xml_safe
             italicize = utils.markup_italics
-            if genus.isupper():
-                genus = escape(genus)
-            else:
-                genus = '<i>{}</i>'.format(
-                    escape(genus).replace('x ', '</i>×<i>'))
             if sp is not None:
                 sp = italicize(escape(sp))
             if sp2 is not None:

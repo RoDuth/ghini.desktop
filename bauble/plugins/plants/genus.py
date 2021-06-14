@@ -175,7 +175,13 @@ class Genus(db.Base, db.Serializable, db.WithNotes):
     def search_view_markup_pair(self):
         '''provide the two lines describing object for SearchView row.
         '''
-        return utils.xml_safe(self), utils.xml_safe(self.family)
+        citation = self.markup(authors=True)
+        authorship_text = utils.xml_safe(self.author)
+        if authorship_text:
+            citation = citation.replace(
+                authorship_text,
+                f'<span weight="light">{authorship_text}</span>')
+        return citation, utils.xml_safe(self.family)
 
     @property
     def cites(self):
@@ -288,6 +294,19 @@ class Genus(db.Base, db.Serializable, db.WithNotes):
                 [s for s in [genus.genus, genus.qualifier,
                              xml.sax.saxutils.escape(genus.author)]
                  if s not in ('', None)])
+
+    def markup(self, authors=False):
+        escape = utils.xml_safe
+        if self.genus.isupper():
+            gen = escape(self.genus)
+        else:
+            gen = '<i>{}</i>'.format(
+                escape(self.genus).replace('x ', '</i>×<i>'))
+        if self.qualifier:
+            gen += ' ' + self.qualifier
+        if authors and self.author:
+            gen += ' ' + escape(self.author)
+        return gen
 
     def has_accessions(self):
         '''true if genus is linked to at least one accession
@@ -902,7 +921,7 @@ class GeneralGenusExpander(InfoExpander):
         session = object_session(row)
         self.current_obj = row
         self.widget_set_value('gen_name_data', '<big>%s</big> %s' %
-                              (row, utils.xml_safe(str(row.author))),
+                              (row.markup(), utils.xml_safe(str(row.author))),
                               markup=True)
         self.widget_set_value('gen_fam_data',
                               (utils.xml_safe(str(row.family))))
