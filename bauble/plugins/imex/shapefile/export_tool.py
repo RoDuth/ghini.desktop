@@ -280,7 +280,7 @@ class ShapefileExportSettingsBox(Gtk.ScrolledWindow):
         dialog.show_all()
         return dialog
 
-    def on_gen_button_clicked(self, widget):
+    def on_gen_button_clicked(self, widget):  # pylint: disable=unused-argument
         dialog = self.generated_points_settings_dialog()
         response = dialog.run()
         dialog.destroy()

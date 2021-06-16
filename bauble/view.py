@@ -351,9 +351,9 @@ class LinksExpander(InfoExpander):
             except Exception as e:
                 logger.debug('wrong link definition %s, %s(%s)' %
                              (link, type(e), e))
-        for b in self.buttons:
-            b.set_alignment(0, 1)
-            self.vbox.pack_start(b, True, True, 0)
+        for btn in self.buttons:
+            btn.set_alignment(0.0, 0.5)
+            self.vbox.pack_start(btn, True, True, 0)
 
     def update(self, row):
         from gi.repository import Pango

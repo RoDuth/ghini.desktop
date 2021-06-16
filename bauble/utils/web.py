@@ -31,7 +31,7 @@ from bauble.prefs import prefs, debug_logging_prefs, testing
 if not testing and __name__ in prefs.get(debug_logging_prefs, []):
     logger.setLevel(logging.DEBUG)
 
-import bauble.utils.desktop as desktop
+from bauble.utils import desktop
 
 
 class BaubleLinkButton(Gtk.LinkButton):

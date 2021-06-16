@@ -319,8 +319,11 @@ class GeneralSpeciesExpander(InfoExpander):
         '''
         self.current_obj = row
         session = object_session(row)
+
         # link function
-        on_label_clicked = lambda l, e, x: select_in_search_results(x)
+        def on_label_clicked(label, event, data):
+            return select_in_search_results(data)
+
         # Link to family
         self.widget_set_value('sp_fam_data', '<small>(%s)</small>' %
                               row.genus.family.family, markup=True)

@@ -1254,9 +1254,9 @@ def enum_values_str(col):
 
     return a string with of the values on an enum type join by a comma
     """
-    import bauble.db as db
+    from bauble import db
     table_name, col_name = col.split('.')
-    #debug('%s.%s' % (table_name, col_name))
+    # debug('%s.%s' % (table_name, col_name))
     values = db.metadata.tables[table_name].c[col_name].type.values[:]
     if None in values:
         values[values.index(None)] = '&lt;None&gt;'

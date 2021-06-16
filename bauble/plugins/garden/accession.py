@@ -921,11 +921,11 @@ class AccessionEditorView(editor.GenericEditorView):
                             "usually set by auto incrementing the next "
                             "available code as described by the current ID "
                             "format"),
-        'acc_id_qual_combo': (_("The ID Qualifier\n\n"
-                                "Possible values: %s")
-                              % utils.enum_values_str('accession.id_qual')),
-        'acc_id_qual_rank_combo': _('The part of the taxon name that the id '
-                                    'qualifier refers to.'),
+        'acc_id_qual_combo': _("The identification qualifier. i.e. indicates "
+                               "a degree of uncertanty for the "
+                               "identification of the accession."),
+        'acc_id_qual_rank_combo': _('The part of the taxon name that the '
+                                    'identification qualifier refers to.'),
         'acc_date_accd_entry': _('The date this species was accessioned.'),
         'acc_date_recvd_entry': _('The date this species was received.'),
         'acc_recvd_type_comboentry': _(
