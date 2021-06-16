@@ -32,15 +32,6 @@ if not testing and __name__ in prefs.get(debug_logging_prefs, []):
     logger.setLevel(logging.DEBUG)
 logger.setLevel(logging.DEBUG)
 
-# TODO <RD> this is just a temp approach should do this more globally
-_css = Gtk.CssProvider()
-_css.load_from_data(
-    b'.err-btn * {color: #FF9999;}'
-)
-Gtk.StyleContext.add_provider_for_screen(
-    Gdk.Screen.get_default(), _css,
-    Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
-
 
 class ShapefileImportTool(pluginmgr.Tool):
 

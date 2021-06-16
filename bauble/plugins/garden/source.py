@@ -544,7 +544,6 @@ class CollectionPresenter(editor.ChildPresenter):
                 dms_string = '%s %s\u00B0%s\'%s"' % latitude_to_dms(latitude)
         except Exception:
             logger.debug(traceback.format_exc())
-            #bg_color = Gdk.color_parse("red")
             self.add_problem(self.PROBLEM_BAD_LATITUDE,
                              self.view.widgets.lat_entry)
         else:
@@ -577,7 +576,6 @@ class CollectionPresenter(editor.ChildPresenter):
                     longitude)
         except Exception:
             logger.debug(traceback.format_exc())
-            #bg_color = Gdk.color_parse("red")
             self.add_problem(self.PROBLEM_BAD_LONGITUDE,
                              self.view.widgets.lon_entry)
         else:

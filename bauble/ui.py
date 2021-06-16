@@ -131,13 +131,16 @@ class GUI(object):
     # history_pins_size = int(prefs.get(history_pins_size_pref, 10))
 
     # TODO a global approach to css
-    msg_css = Gtk.CssProvider()
-    msg_css.load_from_data(
+    _css = Gtk.CssProvider()
+    _css.load_from_data(
         b'.err-bg * {background-color: #FF9999;}'
         b'.inf-bg * {background-color: #b6daf2;}'
+        b'.click-label {color: blue;}'
+        b'.problem {background-color: #FFDCDF;}'
+        b'.err-btn * {color: #FF9999;}'
     )
     Gtk.StyleContext.add_provider_for_screen(
-        Gdk.Screen.get_default(), msg_css,
+        Gdk.Screen.get_default(), _css,
         Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
 
     def __init__(self):
@@ -217,7 +220,6 @@ class GUI(object):
 
         # remove label from frame
         frame = statusbar.get_children()[0]
-        #frame.modify_bg(Gtk.StateType.NORMAL, Gdk.color_parse('#FF0000'))
         label = frame.get_children()[0]
         frame.remove(label)
 

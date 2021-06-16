@@ -1219,12 +1219,10 @@ def make_label_clickable(label, on_clicked, *args):
     label.__pressed = False
 
     def on_enter_notify(widget, *args):
-        widget.modify_bg(Gtk.StateType.NORMAL, Gdk.color_parse("#faf8f7"))
-        label.modify_fg(Gtk.StateType.NORMAL, Gdk.color_parse("blue"))
+        label.get_style_context().add_class('click-label')
 
     def on_leave_notify(widget, *args):
-        widget.modify_bg(Gtk.StateType.NORMAL, None)
-        label.modify_fg(Gtk.StateType.NORMAL, None)
+        label.get_style_context().remove_class('click-label')
         label.__pressed = False
 
     def on_press(*args):
@@ -1233,7 +1231,7 @@ def make_label_clickable(label, on_clicked, *args):
     def on_release(widget, event, *args):
         if label.__pressed:
             label.__pressed = False
-            label.modify_fg(Gtk.StateType.NORMAL, None)
+            label.get_style_context().remove_class('click-label')
             on_clicked(label, event, *args)
 
     try:

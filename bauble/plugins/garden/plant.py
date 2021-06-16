@@ -872,9 +872,6 @@ class PlantEditorPresenter(GenericEditorPresenter):
         else:
             # remove_problem() won't complain if problem doesn't exist
             self.remove_problem(self.PROBLEM_DUPLICATE_PLANT_CODE, entry)
-            entry.modify_bg(Gtk.StateType.NORMAL, None)
-            entry.modify_base(Gtk.StateType.NORMAL, None)
-            entry.queue_draw()
 
         self.refresh_sensitivity()
 

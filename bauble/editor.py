@@ -1108,7 +1108,6 @@ class GenericEditorPresenter(object):
     2. refresh the view, put values from the model into the widgets
     3. connect the signal handlers
     """
-    problem_color = Gdk.color_parse('#FFDCDF')
     widget_to_field_map = {}
     view_accept_buttons = []
 
@@ -1520,9 +1519,7 @@ class GenericEditorPresenter(object):
                     (widget is None and p == problem_id) or \
                     (w == widget and problem_id is None):
                 if w and not prefs.testing:
-                    w.modify_bg(Gtk.StateType.NORMAL, None)
-                    w.modify_base(Gtk.StateType.NORMAL, None)
-                    w.queue_draw()
+                    w.get_style_context().remove_class('problem')
                 self.problems.remove((p, w))
         logger.debug('problems now: %s' % self.problems)
 
@@ -1555,9 +1552,7 @@ class GenericEditorPresenter(object):
         if isinstance(widget, str):
             self.view.mark_problem(widget)
         elif widget is not None:
-            widget.modify_bg(Gtk.StateType.NORMAL, self.problem_color)
-            widget.modify_base(Gtk.StateType.NORMAL, self.problem_color)
-            widget.queue_draw()
+            widget.get_style_context().add_class('problem')
         logger.debug('problems now: %s' % self.problems)
 
     def init_enum_combo(self, widget_name, field):
