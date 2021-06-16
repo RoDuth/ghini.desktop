@@ -856,7 +856,7 @@ class ShapefileExportDialogPresenter(GenericEditorPresenter):
         self.view.run_file_chooser_dialog(
             _("Select a shapefile"),
             None,
-            Gtk.FileChooserAction.SELECT_FOLDER, None,
+            Gtk.FileChooserAction.CREATE_FOLDER,
             self.__class__.last_folder,
             'input_dirname'
         )

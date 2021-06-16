@@ -98,7 +98,7 @@ def installation_dir():
 def user_dir():
     """Returns the path to where user data are saved.
 
-    this is not the same as Application Data, for app_data is going to be
+    this is not the same as Application Data, for appdata_dir is going to be
     replaced at each new installation or upgrade of the software. user_data
     is responsibility of the user and the software should use it, not
     overrule it.
@@ -163,3 +163,12 @@ def is_portable_installation():
         return True
     except:
         return False
+
+
+def templates_dir():
+    """This is just a wrapper for prefs templates_root_pref for convenience.
+
+    :return: the template root directory if one is set else None
+    """
+    from bauble.prefs import prefs, templates_root_pref
+    return prefs.get(templates_root_pref, None)

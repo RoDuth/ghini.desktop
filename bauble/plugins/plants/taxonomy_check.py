@@ -283,8 +283,6 @@ class BatchTaxonomicCheckPresenter(GenericEditorPresenter):
         self.view.run_file_chooser_dialog(
             _("Choose a file…"), None,
             action=Gtk.FileChooserAction.SAVE,
-            buttons=(Gtk.STOCK_OK, Gtk.ResponseType.ACCEPT,
-                     Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL),
             last_folder=last_folder, target='file_path_entry')
 
 

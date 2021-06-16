@@ -26,6 +26,7 @@ The connection manager provides a GUI for creating and opening
 connections. This is the first thing displayed when Ghini starts.
 """
 import os
+from pathlib import Path
 import copy
 
 import logging
@@ -368,53 +369,58 @@ class ConnMgrPresenter(GenericEditorPresenter):
         if main_is_frozen():
             logger.debug('checking win installer version')
             self.start_thread(Thread(target=notify_new_installer,
-                                 args=[self.view]))
+                                     args=[self.view]))
         else:
             logger.debug('checking github version')
             self.start_thread(Thread(target=check_and_notify_new_version,
-                                 args=[self.view]))
+                                     args=[self.view]))
             self.start_thread(Thread(target=retrieve_latest_release_date))
         logger.debug('main_is_frozen = %s' % (main_is_frozen()))
 
     def on_file_btnbrowse_clicked(self, *args):
         previously = self.view.widget_get_value('file_entry')
-        last_folder, bn = os.path.split(previously)
+        last_folder = self.get_parent_folder(previously)
         self.view.run_file_chooser_dialog(
-            _("Choose a file…"), None,
+            _("Choose a file…"),
+            None,
             action=Gtk.FileChooserAction.SAVE,
-            buttons=(Gtk.STOCK_OK, Gtk.ResponseType.ACCEPT,
-                     Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL),
             last_folder=last_folder, target='file_entry')
         self.replace_leading_appdata('file_entry')
 
     def on_pictureroot_btnbrowse_clicked(self, *args):
         previously = self.view.widget_get_value('pictureroot_entry')
-        last_folder, bn = os.path.split(previously)
+        last_folder = self.get_parent_folder(previously)
         self.view.run_file_chooser_dialog(
-            _("Choose a file…"), None,
-            action=Gtk.FileChooserAction.SELECT_FOLDER,
-            buttons=(Gtk.STOCK_OK, Gtk.ResponseType.ACCEPT,
-                     Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL),
+            _("Choose a file…"),
+            None,
+            action=Gtk.FileChooserAction.CREATE_FOLDER,
             last_folder=last_folder, target='pictureroot_entry')
         self.replace_leading_appdata('pictureroot_entry')
 
     def on_pictureroot2_btnbrowse_clicked(self, *args):
         previously = self.view.widget_get_value('pictureroot2_entry')
-        last_folder, bn = os.path.split(previously)
+        last_folder = self.get_parent_folder(previously)
         self.view.run_file_chooser_dialog(
-            _("Choose a file…"), None,
-            action=Gtk.FileChooserAction.SELECT_FOLDER,
-            buttons=(Gtk.STOCK_OK, Gtk.ResponseType.ACCEPT,
-                     Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL),
+            _("Choose a file…"),
+            None,
+            action=Gtk.FileChooserAction.CREATE_FOLDER,
             last_folder=last_folder, target='pictureroot2_entry')
         self.replace_leading_appdata('pictureroot2_entry')
 
     def replace_leading_appdata(self, entry):
-        value = self.view.widget_get_value(entry).replace('\\', '/')
-        if value.startswith(paths.appdata_dir().replace('\\', '/')):
-            value = os.path.join('.', value[len(paths.appdata_dir()) + 1:])
-            value = os.path.join(*value.split('/'))
+        value = self.view.widget_get_value(entry)
+        if value.startswith(paths.appdata_dir()):
+            value = './' + value[len(paths.appdata_dir()) + 1:]
             self.view.widget_set_value(entry, value)
+
+    @staticmethod
+    def get_parent_folder(path):
+        if not path:
+            return paths.appdata_dir()
+        if path.startswith('.'):
+            path = Path(paths.appdata_dir()) / Path(path)
+            return str(path.parent)
+        return str(Path(path).parent)
 
     def refresh_view(self):
         GenericEditorPresenter.refresh_view(self)

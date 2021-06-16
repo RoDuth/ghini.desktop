@@ -385,10 +385,11 @@ class PictureImporterPresenter(GenericEditorPresenter):
         text = _('Select pictures source directory')
         parent = None
         action = Gtk.FileChooserAction.SELECT_FOLDER
-        buttons = (_('Cancel'), Gtk.ResponseType.CANCEL, _('Ok'), Gtk.ResponseType.ACCEPT, )
         last_folder = self.model.filepath or str(Path.home())
         target = 'filepath_entry'
-        self.view.run_file_chooser_dialog(text, parent, action, buttons, last_folder, target)
+        self.view.run_file_chooser_dialog(text, parent, action, last_folder,
+                                          target)
+
 
 class PictureImporterTool(pluginmgr.Tool):
     category = _('Import')

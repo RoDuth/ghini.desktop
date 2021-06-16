@@ -883,7 +883,7 @@ class ShapefileImportDialogPresenter(GenericEditorPresenter):
         self.view.run_file_chooser_dialog(
             _("Select a shapefile"),
             None,
-            Gtk.FileChooserAction.OPEN, None,
+            Gtk.FileChooserAction.OPEN,
             self.__class__.last_folder,
             'input_filename'
         )

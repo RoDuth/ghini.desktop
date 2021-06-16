@@ -263,15 +263,20 @@ class GenericEditorView(object):
     def update(self):
         pass
 
-    def run_file_chooser_dialog(self, text, parent, action, buttons,
-                                last_folder, target):
+    def run_file_chooser_dialog(self, text, parent, action, last_folder,
+                                target):
         """create and run FileChooser, then write result in target
 
         this is just a bit more than a wrapper. it adds 'last_folder', a
         string indicationg the location where to put the FileChooserNative,
         and 'target', an Entry widget or its name.
 
-        :param buttons: Note - deprecated since FileChooserNative.
+        :param text: window label text.
+        :param parent: the parent window or None.
+        :param action: a Gtk.FileChooserAction value.
+        :param last_folder: the folder to open the window at.
+        :param target: the name of the widget that has it value set to the
+            selected filename.
         """
         chooser = Gtk.FileChooserNative.new(text, parent, action)
 
@@ -860,8 +865,8 @@ class MockView:
         pass
 
     def run_file_chooser_dialog(
-            self, text, parent, action, buttons, last_folder, target):
-        args = [text, parent, action, buttons, last_folder, target]
+            self, text, parent, action, last_folder, target):
+        args = [text, parent, action, last_folder, target]
         self.invoked.append('run_file_chooser_dialog')
         self.invoked_detailed.append((self.invoked[-1], args))
         try:
