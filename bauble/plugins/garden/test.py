@@ -1310,7 +1310,7 @@ class AccessionTests(GardenTestCase):
         self.session.add(acc)
         self.assertRaises(IntegrityError, self.session.commit)
 
-    def test_accession_source_editor(self, accession=None):
+    def test_accession_source_editor(self):
         ## create an accession, a location, a plant
         parent = self.create(Accession, species=self.species, code='parent',
                              quantity_recvd=1)
@@ -1448,8 +1448,7 @@ class AccessionTests(GardenTestCase):
         seed.propagation = prop
         plant.propagations.append(prop)
 
-        source_detail = Contact(name='Test Source',
-                                     source_type='Expedition')
+        source_detail = Contact(name='Test Source', source_type='Expedition')
         source = Source(sources_code='22')
         source.source_detail = source_detail
         acc.source = source

@@ -125,10 +125,6 @@ class GUI(object):
 
     _default_history_size = 26
     _default_history_pin_size = 10
-    # if not prefs.config.has_section(history_pins_size_pref):
-    #     prefs[history_pins_size_pref] = 10
-    #     prefs.save()
-    # history_pins_size = int(prefs.get(history_pins_size_pref, 10))
 
     # TODO a global approach to css
     _css = Gtk.CssProvider()

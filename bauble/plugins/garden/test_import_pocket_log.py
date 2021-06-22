@@ -506,7 +506,11 @@ class ImportPictures(BaubleTestCase):
         self.assertEqual(a, None)
 
         # action
-        line = '20180223_130951 :PENDING_EDIT: 2015.0901 :  :  : (@;@) : file:///storage/sdcard/Android/data/me.ghini.pocket/files/Pictures/GPP_20180223_130931-958344128.jpg : file:///storage/sdcard/Android/data/me.ghini.pocket/files/Pictures/GPP_20180223_130943948184518.jpg'
+        line = ('20180223_130951 :PENDING_EDIT: 2015.0901 :  :  : (@;@) : '
+                'file:///storage/sdcard/Android/data/me.ghini.pocket/files/'
+                'Pictures/GPP_20180223_130931-958344128.jpg : file:///storage'
+                '/sdcard/Android/data/me.ghini.pocket/files/Pictures/'
+                'GPP_20180223_130943948184518.jpg')
         db.current_user.override('Antonio')
         process_line(self.session, line, 1536845535)
         db.current_user.override()

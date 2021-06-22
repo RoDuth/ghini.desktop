@@ -91,7 +91,8 @@ class Cache:
         else:
             if len(self.storage) == self.size:
                 # remove the oldest entry
-                k = min(list(zip(list(self.storage.values()), list(self.storage.keys()))))[1]
+                k = min(list(zip(list(self.storage.values()),
+                                 list(self.storage.keys()))))[1]
                 del self.storage[k]
             value = getter()
         import time
@@ -166,7 +167,8 @@ class ImageLoader(threading.Thread):
             scale = max(scale_x, scale_y, 1)
             x = int(pixbuf.get_width() / scale)
             y = int(pixbuf.get_height() / scale)
-            scaled_buf = pixbuf.scale_simple(x, y, GdkPixbuf.InterpType.BILINEAR)
+            scaled_buf = pixbuf.scale_simple(x, y,
+                                             GdkPixbuf.InterpType.BILINEAR)
             if self.box.get_children():
                 image = self.box.get_children()[0]
             else:
@@ -174,8 +176,7 @@ class ImageLoader(threading.Thread):
                 self.box.add(image)
             image.set_from_pixbuf(scaled_buf)
         except GLib.GError as e:
-            logger.debug("picture %s caused GLib.GError %s" %
-                         (self.url, e))
+            logger.debug("picture %s caused GLib.GError %s", self.url, e)
             text = _('picture file %s not found.') % self.url
             label = Gtk.Label()
             label.set_text(text)
@@ -197,7 +198,7 @@ class ImageLoader(threading.Thread):
                 self.url, self.reader_function, on_hit=self.loader.write)
             self.loader.connect("closed", self.loader_notified)
         except Exception as e:
-            logger.debug("%s(%s) while loading image" % (type(e).__name__, e))
+            logger.debug("%s(%s) while loading image", type(e).__name__, e)
         self.loader.close()
 
     def read_base64(self):
@@ -526,7 +527,7 @@ def set_widget_value(widget, value, markup=False, default=None, index=0):
         # 'G_VALUE_HOLDS_INT (value)' failed
         #   widget.set_text(utf8(value))", seems safe to ignore it.
         #   see: https://stackoverflow.com/a/40163816
-        widget.set_text(utf8(value))
+        widget.set_text(str(value))
     elif isinstance(widget, Gtk.ComboBox):
         # ComboBox.with_entry
         if widget.get_has_entry():

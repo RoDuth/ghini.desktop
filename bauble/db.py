@@ -29,7 +29,7 @@ from sqlalchemy.orm import class_mapper
 import datetime
 import os
 import re
-import bauble.error as error
+from bauble import error
 import json
 
 
@@ -55,11 +55,11 @@ gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk  # noqa
 
 
-import sqlalchemy.orm as orm
+from sqlalchemy import orm
 from sqlalchemy.ext.declarative import declarative_base, DeclarativeMeta
 
-import bauble.btypes as types
-import bauble.utils as utils
+from bauble import btypes as types
+from bauble import utils
 
 
 def sqlalchemy_debug(verbose):
@@ -352,11 +352,11 @@ def create(import_defaults=True):
         # UPDATE 2009.06.18: i'm not sure if this is still relevant since we
         # switched the task system to use fibra...but it doesn't hurt
         # having it here until we can make sure
-        logger.warning('bauble.db.create(): %s' % utils.utf8(e))
+        logger.warning('bauble.db.create(): %s', e)
         transaction.rollback()
         raise
     except Exception as e:
-        logger.warning('bauble.db.create(): %s' % utils.utf8(e))
+        logger.warning('bauble.db.create(): %s', e)
         transaction.rollback()
         raise
     else:
@@ -374,11 +374,11 @@ def create(import_defaults=True):
         # UPDATE 2009.06.18: i'm not sure if this is still relevant since we
         # switched the task system to use fibra...but it doesn't hurt
         # having it here until we can make sure
-        logger.warning('bauble.db.create(): %s' % utils.utf8(e))
+        logger.warning('bauble.db.create(): %s', e)
         transaction.rollback()
         raise
     except Exception as e:
-        logger.warning('bauble.db.create(): %s' % utils.utf8(e))
+        logger.warning('bauble.db.create(): %s', e)
         transaction.rollback()
         raise
     else:
@@ -851,7 +851,7 @@ def get_create_or_update(session, model, **kwargs):
         inst = None
 
     logger.debug("couldn't find matching object just using kwargs")
-    # try using a primary key
+    # try using a primary key if one is provided
     if not inst:
         for col in model.__table__.columns:
             if col.primary_key and (pkey := kwargs.get(col.key)):

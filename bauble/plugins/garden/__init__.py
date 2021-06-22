@@ -186,7 +186,7 @@ def init_location_comboentry(presenter, combo, on_select, required=True):
 
     model = Gtk.ListStore(object)
     locations = [''] + sorted(presenter.session.query(Location).all(),
-                       key=lambda loc: utils.natsort_key(loc.code))
+                              key=lambda loc: utils.natsort_key(loc.code))
     for loc in locations:
         model.append([loc])
     combo.set_model(model)
@@ -216,7 +216,7 @@ def init_location_comboentry(presenter, combo, on_select, required=True):
 
     def on_entry_changed(entry, presenter):
         logger.debug('on_entry_changed(%s, %s)', entry, presenter)
-        text = utils.utf8(entry.props.text)
+        text = str(entry.props.text)
 
         if not text and not required:
             presenter.remove_problem(PROBLEM, entry)
@@ -227,7 +227,7 @@ def init_location_comboentry(presenter, combo, on_select, required=True):
         compl_model = comp.get_model()
 
         def _cmp(row, data):
-            return utils.utf8(row[0]) == data
+            return str(row[0]) == data
 
         found = utils.search_tree_model(compl_model, text, _cmp)
         if len(found) == 1:
@@ -263,11 +263,12 @@ def init_location_comboentry(presenter, combo, on_select, required=True):
 
     def on_combo_changed(combo, *args):
         # model = combo.get_model()
-        i = combo.get_active_iter()
-        if not i:
+        active = combo.get_active_iter()
+        if not active:
             return
-        location = combo.get_model()[i][0]
-        combo.get_child().props.text = str(location)
+        location = combo.get_model()[active][0]
+        combo.get_child().set_text(str(location))
+
     presenter.view.connect(combo, 'changed', on_combo_changed)
 
 

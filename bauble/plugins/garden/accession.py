@@ -1518,21 +1518,19 @@ class SourcePresenter(editor.GenericEditorPresenter):
                 self.model.source.source_detail = None
             else:
                 logger.warning('unknown source: %s' % source)
-            #self.model.source = self.source
-            #self.model.source.source_detail = source_detail
 
         self.init_source_comboentry(on_select)
 
         if self.model.source:
             self.source = self.model.source
-            self.view.widgets.sources_code_entry.props.text = \
-                self.source.sources_code
+            self.view.widgets.sources_code_entry.set_text(
+                self.source.sources_code or '')
         else:
             self.source = Source()
             # self.model.source will be reset the None if the source
             # combo value is None in commit_changes()
             self.model.source = self.source
-            self.view.widgets.sources_code_entry.props.text = ''
+            self.view.widgets.sources_code_entry.set_text('')
 
         if self.source.collection:
             self.collection = self.source.collection
@@ -1584,7 +1582,7 @@ class SourcePresenter(editor.GenericEditorPresenter):
         def on_changed(entry, *args):
             text = entry.props.text
             if text.strip():
-                self.source.sources_code = utils.utf8(text)
+                self.source.sources_code = text
             else:
                 self.source.sources_code = None
             self._dirty = True
@@ -1724,7 +1722,7 @@ class SourcePresenter(editor.GenericEditorPresenter):
         PROBLEM = 'unknown_source'
 
         def cell_data_func(col, cell, model, treeiter, data=None):
-            cell.props.text = utils.utf8(model[treeiter][0])
+            cell.props.text = str(model[treeiter][0])
 
         combo = self.view.widgets.acc_source_comboentry
         combo.clear()
@@ -1772,10 +1770,10 @@ class SourcePresenter(editor.GenericEditorPresenter):
             # source is changed and restore them if they are switched
             # back
             if not value:
-                combo.get_child().props.text = ''
+                combo.get_child().set_text('')
                 on_select(None)
             else:
-                combo.get_child().props.text = utils.utf8(value)
+                combo.get_child().set_text(str(value))
                 on_select(value)
 
             # don't set the model as dirty if this is called during
@@ -1818,9 +1816,9 @@ class SourcePresenter(editor.GenericEditorPresenter):
                 # set the text value on the entry since it does all the
                 # validation
                 if not detail:
-                    combo.get_child().props.text = ''
+                    combo.get_child().set_text('')
                 else:
-                    combo.get_child().props.text = utils.utf8(detail)
+                    combo.get_child().set_text(str(detail))
             update_visible()
             return True
 

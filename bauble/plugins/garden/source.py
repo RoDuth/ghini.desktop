@@ -41,13 +41,13 @@ from sqlalchemy.exc import DBAPIError
 from sqlalchemy.orm import relation, backref
 
 
-import bauble.db as db
-import bauble.editor as editor
+from bauble import db
+from bauble import editor
 from bauble.plugins.plants.geography import Geography, GeographyMenu
-import bauble.utils as utils
-import bauble.btypes as types
-import bauble.view as view
-import bauble.paths as paths
+from bauble import utils
+from bauble import btypes as types
+from bauble import view
+from bauble import paths
 
 
 def collection_edit_callback(coll):
@@ -106,17 +106,17 @@ class Source(db.Base):
                           backref=backref('source', uselist=False))
 
     # relation to a propagation that is specific to this Source and
-    # not attached to a Plant. 2017-06-04 : WHAT IS THIS ?
+    # not attached to a Plant
+    # i.e. a Propagation of source material (i.e. purchased seeds etc.)
     propagation_id = Column(Integer, ForeignKey('propagation.id'))
     propagation = relation('Propagation', uselist=False, single_parent=True,
                            primaryjoin='Source.propagation_id==Propagation.id',
                            cascade='all, delete-orphan',
                            backref=backref('source', uselist=False))
 
-    # an Accession of known Source (what we are describing here) may be in
-    # relation to a successful Plant Propagation trial. In this case, the
-    # Propagation points back to all Accessions that resulted from it, via
-    # `used_source[i].accession`. Arguably not practical.
+    # relation to a Propagation that already exists and is attached
+    # to a Plant
+    # i.e. a plant is propagation from to create a new accession
     plant_propagation_id = Column(Integer, ForeignKey('propagation.id'))
     plant_propagation = relation(
         'Propagation', uselist=False,
@@ -707,7 +707,6 @@ class PropagationChooserPresenter(editor.ChildPresenter):
                  .filter(Accession.id != self.model.accession.id)
                  .order_by(Accession.code, Plant.code))
         results = []
-        print(results)
         for plant in query:
             has_accessible = False
             for propagation in plant.propagations:
@@ -736,15 +735,14 @@ class PropagationChooserPresenter(editor.ChildPresenter):
     def refresh_view(self):
         treeview = self.view.widgets.source_prop_treeview
         if not self.model.plant_propagation:
-            self.view.widgets.source_prop_plant_entry.props.text = ''
+            self.view.widgets.source_prop_plant_entry.set_text('')
             utils.clear_model(treeview)
             self.populate_with_all()
             return
 
         parent_plant = self.model.plant_propagation.plant
         # set the parent accession
-        self.view.widgets.source_prop_plant_entry.props.text = str(
-            parent_plant)
+        self.view.widgets.source_prop_plant_entry.set_text(str(parent_plant))
 
         if not parent_plant.propagations:
             treeview.props.sensitive = False
@@ -849,7 +847,7 @@ class Contact(db.Base, db.Serializable):
                          default=None)
 
     def __str__(self):
-        return utils.utf8(self.name)
+        return str(self.name)
 
     def search_view_markup_pair(self):
         '''provide the two lines describing object for SearchView row.

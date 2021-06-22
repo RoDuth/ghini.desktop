@@ -229,7 +229,7 @@ def init(force=False):
                             'can happen if two plugins directly or '
                             'indirectly rely on each other'))
 
-    # call init() for each ofthe plugins
+    # call init() for each of the plugins
     for plugin in ordered:
         logger.debug('about to invoke init on: %s' % plugin)
         try:

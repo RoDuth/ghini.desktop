@@ -55,6 +55,9 @@ class TagsMenuManager:
     def __init__(self):
         self.menu_item = None
         self.active_tag_name = None
+        self.apply_active_tag_menu_item = None
+        self.remove_active_tag_menu_item = None
+        self.item_list = {}
 
     def reset(self, make_active_tag=None):
         """initialize or replace Tags menu in main menu
@@ -95,24 +98,27 @@ class TagsMenuManager:
     def build_menu(self):
         """build tags Gtk.Menu based on current data
         """
-        self.item_list = {}
         tags_menu = Gtk.Menu()
         add_tag_menu_item = Gtk.MenuItem(_('Tag Selection'))
         add_tag_menu_item.connect('activate', _on_add_tag_activated)
         self.apply_active_tag_menu_item = Gtk.MenuItem(_('Apply active tag'))
-        self.apply_active_tag_menu_item.connect('activate', self.on_apply_active_tag_activated)
+        self.apply_active_tag_menu_item.connect(
+            'activate', self.on_apply_active_tag_activated)
         self.remove_active_tag_menu_item = Gtk.MenuItem(_('Remove active tag'))
-        self.remove_active_tag_menu_item.connect('activate', self.on_remove_active_tag_activated)
+        self.remove_active_tag_menu_item.connect(
+            'activate', self.on_remove_active_tag_activated)
         if bauble.gui:
             accel_group = Gtk.AccelGroup()
             bauble.gui.window.add_accel_group(accel_group)
-            add_tag_menu_item.add_accelerator('activate', accel_group, ord('T'),
-                                              Gdk.ModifierType.CONTROL_MASK, Gtk.AccelFlags.VISIBLE)
-            self.apply_active_tag_menu_item.add_accelerator('activate', accel_group, ord('Y'),
-                                                            Gdk.ModifierType.CONTROL_MASK, Gtk.AccelFlags.VISIBLE)
+            add_tag_menu_item.add_accelerator(
+                'activate', accel_group, ord('T'),
+                Gdk.ModifierType.CONTROL_MASK, Gtk.AccelFlags.VISIBLE)
+            self.apply_active_tag_menu_item.add_accelerator(
+                'activate', accel_group, ord('Y'),
+                Gdk.ModifierType.CONTROL_MASK, Gtk.AccelFlags.VISIBLE)
             key, mask = Gtk.accelerator_parse('<Control><Shift>y')
-            self.remove_active_tag_menu_item.add_accelerator('activate', accel_group,
-                                                             key, mask, Gtk.AccelFlags.VISIBLE)
+            self.remove_active_tag_menu_item.add_accelerator(
+                'activate', accel_group, key, mask, Gtk.AccelFlags.VISIBLE)
         tags_menu.append(add_tag_menu_item)
 
         session = db.Session()
@@ -120,10 +126,10 @@ class TagsMenuManager:
         has_tags = query.first()
         if has_tags:
             tags_menu.append(Gtk.SeparatorMenuItem())
-        submenu = {'': [None, tags_menu]}  # menuitem and submenu
-                                           # corresponding to full item
-                                           # path; it is a list because it
-                                           # needs to be mutable
+        # menuitem and submenu corresponding to full item path; it is a list
+        # because it needs to be mutable
+        submenu = {'': [None, tags_menu]}
+
         def confirm_attach_path(parts):
             full_path = ''
             parent = tags_menu
@@ -173,8 +179,8 @@ class TagsMenuManager:
         try:
             values = view.get_selected_values()
         except AttributeError:
-            msg = _('In order to tag or untag an item you must first search for '
-                    'something and select one of the results.')
+            msg = _('In order to tag or untag an item you must first search '
+                    'for something and select one of the results.')
             bauble.gui.show_message_box(msg)
             return
         if len(values) == 0:
@@ -189,11 +195,13 @@ class TagsMenuManager:
         view.update_bottom_notebook()
 
     def on_apply_active_tag_activated(self, *args, **kwargs):
-        logger.debug("you're applying %s to the selection", self.active_tag_name)
+        logger.debug("you're applying %s to the selection",
+                     self.active_tag_name)
         self.toggle_tag(applying=tag_objects)
 
     def on_remove_active_tag_activated(self, *args, **kwargs):
-        logger.debug("you're removing %s from the selection", self.active_tag_name)
+        logger.debug("you're removing %s from the selection",
+                     self.active_tag_name)
         self.toggle_tag(applying=untag_objects)
 
 
@@ -716,8 +724,8 @@ def _on_add_tag_activated(*args, **kwargs):
 
 class GeneralTagExpander(InfoExpander):
     """
-    generic information about an accession like
-    number of clones, provenance type, wild provenance type, speciess
+    generic information about a tag.  Displays the tag name, description and a
+    table of the types and count(with link) of tagged items.
     """
 
     def __init__(self, widgets):
@@ -788,7 +796,6 @@ class TagPlugin(pluginmgr.Plugin):
     @classmethod
     def init(cls):
         pluginmgr.provided.update(cls.provides)
-        from bauble.view import SearchView
         from functools import partial
         mapper_search = search.get_strategy('MapperSearch')
         mapper_search.add_meta(('tag', 'tags'), Tag, ['tag'])

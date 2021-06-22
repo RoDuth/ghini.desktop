@@ -272,7 +272,7 @@ class StandalonePluginMgrTests(unittest.TestCase):
             FailingInstallPlugin.__name__] = FailingInstallPlugin()
         bauble.pluginmgr.plugins[
             DependsOnFailingInstallPlugin.__name__
-            ] = DependsOnFailingInstallPlugin()
+        ] = DependsOnFailingInstallPlugin()
         self.assertRaises(BaubleError, bauble.pluginmgr.init, force=True)
 
     def test_install(self):

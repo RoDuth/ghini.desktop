@@ -1994,7 +1994,6 @@ class ShapefileImportEmptyDBTests(BaubleTestCase):
         super().tearDown()
 
     def test_add_or_update_all_location_records_succeeds(self):
-        """Option 4, location data: extra data, extra entries, system CRS"""
         importer = self.importer
         importer.filename = create_shapefile('test',
                                              prj_str_4326,
@@ -2023,7 +2022,6 @@ class ShapefileImportEmptyDBTests(BaubleTestCase):
         self.assertEqual(len(result[1].notes), 0)
 
     def test_add_or_update_all_bulk_location_records_succeeds(self):
-        """Option 4, location data: extra data, extra entries, system CRS"""
         importer = self.importer
         importer.filename = create_shapefile('test',
                                              prj_str_4326,
@@ -2041,7 +2039,6 @@ class ShapefileImportEmptyDBTests(BaubleTestCase):
         self.assertEqual(result[0].geojson, epsg4326_poly_xy)
 
     def test_add_or_update_all_plant_records(self):
-        """Option 4, location data: extra data, extra entries, system CRS"""
         # NOTE this produces a SQWaring - Fully NULL primary key.... Not
         # entirely sure why.  Cause is usually using something like
         # Plant.get(None)
@@ -2073,7 +2070,6 @@ class ShapefileImportEmptyDBTests(BaubleTestCase):
         self.assertEqual(len(result), len(plt_rec_3857_points))
 
     def test_add_or_update_all_plant_records_w_wrong_types(self):
-        """Option 4, location data: extra data, extra entries, system CRS"""
         importer = self.importer
         importer.filename = create_shapefile('test',
                                              prj_str_3857,
@@ -2149,7 +2145,6 @@ class ShapefileImportTests(BaubleTestCase):
         super().tearDown()
 
     def test_add_missing_geo_data_only(self):
-        """Option 0, location data: extra data, system CRS"""
         importer = self.importer
         importer.filename = create_shapefile('test', prj_str_4326,
                                              location_fields, loc_recs_4326,
@@ -2175,7 +2170,6 @@ class ShapefileImportTests(BaubleTestCase):
         self.assertEqual(len(result[0].notes), 1)
 
     def test_add_missing_geo_data_only_plants_always_xy_nonsys_crs(self):
-        """Option 0, plant data: extra data, none system CRS"""
         importer = self.importer
         importer.filename = create_shapefile('test',
                                              prj_str_3857,
@@ -2205,7 +2199,6 @@ class ShapefileImportTests(BaubleTestCase):
         self.assertEqual(len(result[0].notes), 1)
 
     def test_add_missing_geo_data_only_doesnt_overwrite_existing(self):
-        """Option 0, location data: extra data, system CRS"""
         importer = self.importer
         # import some geojson
         importer.filename = create_shapefile('test', prj_str_4326,
@@ -2227,7 +2220,6 @@ class ShapefileImportTests(BaubleTestCase):
         self.assertEqual(result[1].geojson, epsg4326_poly_xy2)
 
     def test_update_geo_data_only_does_only_overwrite_geojson(self):
-        """Option 1, location data: extra data, system CRS"""
         importer = self.importer
         # import some geojson
         importer.filename = create_shapefile('test', prj_str_4326,
@@ -2257,7 +2249,6 @@ class ShapefileImportTests(BaubleTestCase):
         self.assertEqual(len(result[0].notes), 1)
 
     def test_add_or_update_all_data_existing_records(self):
-        """Option 2, location data: differing data, extra data, system CRS"""
         importer = self.importer
         # import existing records with some changes
         importer.filename = create_shapefile('test',
@@ -2318,8 +2309,6 @@ class ShapefileImportTests(BaubleTestCase):
         self.assertEqual(len(result[1].notes), 1)
 
     def test_add_new_records_only(self):
-        """Option 3, location data: different data, extra data, extra entries,
-        system CRS"""
         importer = self.importer
         in_data = loc_recs_4326_diff_name_descript + loc_recs_4326_new_data
         importer.filename = create_shapefile('test',
@@ -2355,8 +2344,6 @@ class ShapefileImportTests(BaubleTestCase):
         self.assertEqual(len(result[1].notes), 1)
 
     def test_skip_unknown_records(self):
-        """Option 0, location data: different data, extra data, extra entries,
-        system CRS"""
         importer = self.importer
         in_data = loc_recs_4326_diff_name_descript + loc_recs_4326_new_data
         importer.filename = create_shapefile('test',
@@ -2385,7 +2372,6 @@ class ShapefileImportTests(BaubleTestCase):
         )
 
     def test_add_or_update_all_records(self):
-        """Option 4, location data: extra data, extra entries, system CRS"""
         importer = self.importer
         in_data = loc_recs_4326_diff_name_descript + loc_recs_4326_new_data
         importer.filename = create_shapefile('test',
@@ -2422,8 +2408,6 @@ class ShapefileImportTests(BaubleTestCase):
         self.assertEqual(len(result[3].notes), 1)
 
     def test_add_or_update_all_records_commit_every(self):
-        """Option 4, location data: extra data, extra entries, system CRS,
-        commit regularly"""
         importer = self.importer
         in_data = loc_recs_4326_diff_name_descript + loc_recs_4326_new_data
         importer.filename = create_shapefile('test',
@@ -2462,7 +2446,6 @@ class ShapefileImportTests(BaubleTestCase):
         self.assertEqual(len(result[3].notes), 1)
 
     def test_add_or_update_all_records_plants_nonsys_crs_new_recs(self):
-        """Option 4, plant data: extra data, extra entries, system CRS"""
         importer = self.importer
         importer.filename = create_shapefile('test',
                                              prj_str_3857,
@@ -2691,7 +2674,6 @@ class ShapefileImportTests(BaubleTestCase):
         self.assertEqual(len(result[4].notes), 1)
 
     def test_add_or_update_all_records_plants_some_bad_records(self):
-        """Option 4, plant data: extra data, extra entries, system CRS"""
         importer = self.importer
         in_data = plt_rec_3857_points + plt_rec_3857_points_new_some_bad
         importer.filename = create_shapefile('test',
@@ -2734,7 +2716,6 @@ class ShapefileImportTests(BaubleTestCase):
         self.assertEqual(len(result[2].notes), 0)
 
     def test_add_or_update_all_records_failed_transform(self):
-        """Option 4, location data: extra data, extra entries, system CRS"""
         # make sure test update also - add some base data
         rec1 = self.session.query(Location).get(1)
         rec1.geojson = epsg3857_poly
@@ -2776,7 +2757,6 @@ class ShapefileImportTests(BaubleTestCase):
         self.assertEqual(len(result[1].notes), 1)
 
     def test_add_or_update_all_records_plants_nonsys_crs_by_id(self):
-        """Option 4, plant data: extra data, extra entries, system CRS"""
         importer = self.importer
         importer.filename = create_shapefile('test',
                                              prj_str_3857,
