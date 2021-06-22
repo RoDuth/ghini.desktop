@@ -610,8 +610,7 @@ class Species(db.Base, db.Serializable, db.DefiningPictures, db.WithNotes):
         :param qualification: pair or None. if specified, first is the
         qualified rank, second is the qualification.
         '''
-        if genus is True:
-            # get the genus by ID incase the session is None
+        if genus is True and self.genus_id:
             from .genus import Genus
             from sqlalchemy.orm import object_session
             session = object_session(self)

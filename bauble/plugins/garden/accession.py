@@ -1053,7 +1053,11 @@ class AccessionEditorView(editor.GenericEditorView):
     @staticmethod
     def species_match_func(completion, key, treeiter, data=None):
         species = completion.get_model()[treeiter][0]
-        epg, eps = (species.str(remove_zws=True).lower() + ' ').split(' ')[:2]
+        from sqlalchemy import inspect as sa_inspect
+        if not sa_inspect(species).persistent:
+            return False
+        epg, eps = (
+            species.str(remove_zws=True).lower() + ' ').split(' ')[:2]
         key_epg, key_eps = (key.lower() + ' ').split(' ')[:2]
         if not epg:
             epg = str(species.genus.epithet).lower()

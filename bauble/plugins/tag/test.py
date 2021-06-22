@@ -488,16 +488,31 @@ class AttachedToTests(BaubleTestCase):
 
 
 class TagInfoBoxTest(BaubleTestCase):
-    def test_can_create_infobox(self):
-        ib = TagInfoBox()
+    def setUp(self):
+        self.ib = TagInfoBox()
+        super().setUp()
+
+    def tearDown(self):
+        # due to way BuilderLoader caches Gtk.Bulder need to reattach
+        # general_box each time or will get these annoying errors each run:
+        # Gtk-CRITICAL: gtk_bin_remove: assertion 'priv->child == child' failed
+        # Gtk-CRITICAL: gtk_box_pack: assertion '_gtk_widget_get_parent (child)
+        # == NULL' failed
+        # Doesn't occur in usage
+        gbox = self.ib.widgets.general_box
+        gbox.get_parent().remove(gbox)
+        # self.ib.destroy()
+        self.ib.widgets.general_window.add(gbox)
+        super().tearDown()
 
     def test_update_infobox_from_empty_tag(self):
         t = Tag(tag='name', description='description')
-        ib = TagInfoBox()
-        ib.update(t)
-        self.assertEqual(ib.widgets.ib_description_label.get_text(), t.description)
-        self.assertEqual(ib.widgets.ib_name_label.get_text(), t.tag)
-        self.assertEqual(ib.general.table_cells, [])
+        # ib = TagInfoBox()
+        self.ib.update(t)
+        self.assertEqual(self.ib.widgets.ib_description_label.get_text(),
+                         t.description)
+        self.assertEqual(self.ib.widgets.ib_name_label.get_text(), t.tag)
+        self.assertEqual(self.ib.general.table_cells, [])
 
     def test_update_infobox_from_tagging_tag(self):
         t = Tag(tag='name', description='description')
@@ -507,15 +522,16 @@ class TagInfoBoxTest(BaubleTestCase):
         self.session.add_all([t, x, y, z])
         self.session.commit()
         t.tag_objects([x, y, z])
-        ib = TagInfoBox()
-        self.assertEqual(ib.general.table_cells, [])
-        ib.update(t)
-        self.assertEqual(ib.widgets.ib_description_label.get_text(), t.description)
-        self.assertEqual(ib.widgets.ib_name_label.get_text(), t.tag)
-        self.assertEqual(len(ib.general.table_cells), 2)
-        self.assertEqual(ib.general.table_cells[0].get_text(), 'Tag')
-        self.assertEqual(type(ib.general.table_cells[1]), Gtk.EventBox)
-        label = ib.general.table_cells[1].get_children()[0]
+        # ib = TagInfoBox()
+        self.assertEqual(self.ib.general.table_cells, [])
+        self.ib.update(t)
+        self.assertEqual(self.ib.widgets.ib_description_label.get_text(),
+                         t.description)
+        self.assertEqual(self.ib.widgets.ib_name_label.get_text(), t.tag)
+        self.assertEqual(len(self.ib.general.table_cells), 2)
+        self.assertEqual(self.ib.general.table_cells[0].get_text(), 'Tag')
+        self.assertEqual(type(self.ib.general.table_cells[1]), Gtk.EventBox)
+        label = self.ib.general.table_cells[1].get_children()[0]
         self.assertEqual(label.get_text(), ' 3 ')
 
 

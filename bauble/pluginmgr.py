@@ -247,7 +247,7 @@ def init(force=False):
         except Exception as e:
             logger.error("%s: %s" % (type(e), e))
             ordered.remove(plugin)
-            logger.debug(traceback.print_exc())
+            logger.info(traceback.format_exc())
             safe = utils.xml_safe
             values = dict(entry_name=plugin.__class__.__name__,
                           exception=safe(e))

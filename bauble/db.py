@@ -614,7 +614,10 @@ class DefiningPictures:
                 continue
             # contains the image or the error message
             box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-            utils.ImageLoader(box, n.note).start()
+            # Avoid pixbuf errors during test_import_pocket_log
+            from bauble.prefs import testing
+            if not testing:
+                utils.ImageLoader(box, n.note).start()
             result.append(box)
         return result
 
