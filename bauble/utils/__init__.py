@@ -522,6 +522,9 @@ def set_widget_value(widget, value, markup=False, default=None, index=0):
         widget.get_buffer().set_text(str(value))
     elif isinstance(widget, Gtk.TextBuffer):
         widget.set_text(str(value))
+    elif isinstance(widget, Gtk.SpinButton):
+        if value:
+            widget.set_value(float(value or 0))
     elif isinstance(widget, Gtk.Entry):
         # This can create a "Warning: g_value_get_int: assertion
         # 'G_VALUE_HOLDS_INT (value)' failed
@@ -763,6 +766,23 @@ def message_details_dialog(msg, details, type=Gtk.MessageType.INFO,
     return r
 
 
+# Avoids: Gtk-CRITICAL: gtk_entry_set_text: assertion 'text != NULL'
+def format_combo_entry_text(combo, path):
+    """Return text for a Gtk.Entry of a Gtk.ComboBox with model and entry where
+    the model contains a list of objects that should be displayed as strings.
+
+    Connect this to the "format-entry-text" signal of the combobox.
+
+    :param combo: the Gtk.ComboBox widget with attached Gtk.Liststore(object)
+        model and Gtk.Entry
+    :param path: the Gtk.TreePath string
+    """
+    detail = combo.get_model()[path][0]
+    if not detail:
+        return ''
+    return str(detail)
+
+
 def setup_text_combobox(combo, values=[], cell_data_func=None):
     """
     Configure a Gtk.ComboBox as a text combobox
@@ -813,6 +833,7 @@ def setup_text_combobox(combo, values=[], cell_data_func=None):
         completion.set_inline_selection(True)
         # completion.set_minimum_key_length(2)
 
+        combo.connect('format-entry-text', format_combo_entry_text)
 
 def prettify_format(format):
     """

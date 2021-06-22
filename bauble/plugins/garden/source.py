@@ -764,13 +764,13 @@ class PropagationChooserPresenter(editor.ChildPresenter):
     @staticmethod
     def summary_cell_data_func(column, cell, model, treeiter, data=None):
         propagation = model[treeiter][0]
-        cell.props.text = propagation.get_summary()
+        cell.props.text = propagation.get_summary() or ''
         cell.set_sensitive(True)
 
     @staticmethod
     def plant_code_data_func(column, cell, model, treeiter, data=None):
         propagation = model[treeiter][0]
-        cell.props.text = str(propagation.plant)
+        cell.props.text = str(propagation.plant or '')
     # pylint: enable=unused-argument,too-many-arguments
 
     def dirty(self):

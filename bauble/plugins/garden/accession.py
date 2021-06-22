@@ -1824,6 +1824,9 @@ class SourcePresenter(editor.GenericEditorPresenter):
 
         self.view.connect(combo, 'changed', on_combo_changed)
 
+        self.view.connect(combo, 'format-entry-text',
+                          utils.format_combo_entry_text)
+
 
 class AccessionEditorPresenter(editor.GenericEditorPresenter):
 

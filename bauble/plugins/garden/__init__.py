@@ -181,7 +181,6 @@ def init_location_comboentry(presenter, combo, on_select, required=True):
     combo.clear()
     cell = Gtk.CellRendererText()
     combo.pack_start(cell, True)
-    combo.add_attribute(cell, 'text', 0)
     combo.set_cell_data_func(cell, cell_data_func)
 
     model = Gtk.ListStore(object)
@@ -270,6 +269,9 @@ def init_location_comboentry(presenter, combo, on_select, required=True):
         combo.get_child().set_text(str(location))
 
     presenter.view.connect(combo, 'changed', on_combo_changed)
+
+    presenter.view.connect(combo, 'format-entry-text',
+                           utils.format_combo_entry_text)
 
 
 import bauble.db as db

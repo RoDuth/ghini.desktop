@@ -775,6 +775,8 @@ class GenericEditorView(object):
             completion.set_inline_selection(True)
             # completion.set_minimum_key_length(2)
 
+            combo.connect('format-entry-text', utils.format_combo_entry_text)
+
     def save_state(self):
         '''
         Save the state of the view by setting a value in the preferences
