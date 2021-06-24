@@ -129,6 +129,7 @@ test_data_table_control = ((Accession, accession_test_data),
                            (Collection, collection_test_data))
 testing_today = datetime.date(2017, 1, 1)
 
+
 def setUp_data():
     """
     create_test_data()
@@ -997,92 +998,100 @@ class SourceTests(GardenTestCase):
         self.accession = self.create(
             Accession, species=self.species, code='1')
 
-    def tearDown(self):
-        super().tearDown()
-
-    def _make_prop(self, source):
-        '''associate a seed Propagation to source
-
-        we create a seed propagation that is referred to by both a PropSeed
-        and a PropCutting, something that is not going to happen in the
-        code, we're just being lazy.
-
-        '''
+    def test_cutting_propagation_cascades(self):
+        source = Source()
+        self.accession.source = source
         source.propagation = Propagation(prop_type='Seed')
 
-        seed = PropSeed(**default_seed_values)
-        seed.propagation = source.propagation
         cutting = PropCutting(**default_cutting_values)
         cutting.propagation = source.propagation
         self.session.commit()
-        return (source.propagation.id,
-                source.propagation._seed.id,
-                source.propagation._cutting.id)
+        prop_id = source.propagation.id
+        cutting_id = source.propagation._cutting.id
+        self.assertTrue(prop_id)
+        self.assertTrue(cutting_id)
+        # make sure the propagation gets cleaned up when we set the
+        # source.propagation attribute to None - and commit
+        source.propagation = None
+        self.session.commit()
+        self.assertFalse(self.session.query(PropCutting).get(cutting_id))
+        self.assertFalse(self.session.query(Propagation).get(prop_id))
 
-    def test_propagation(self):
+    def test_seed_propagation_cascades(self):
         """
         Test cascading for the Source.propagation relation
         """
         source = Source()
         self.accession.source = source
-        prop_id, seed_id, cutting_id = self._make_prop(source)
-        self.assertTrue(seed_id)
-        self.assertTrue(cutting_id)
+        source.propagation = Propagation(prop_type='Seed')
+
+        seed = PropSeed(**default_seed_values)
+        seed.propagation = source.propagation
+        self.session.commit()
+        prop_id = source.propagation.id
+        seed_id = source.propagation._seed.id
         self.assertTrue(prop_id)
+        self.assertTrue(seed_id)
         # make sure the propagation gets cleaned up when we set the
         # source.propagation attribute to None - and commit
         source.propagation = None
         self.session.commit()
-        self.assertTrue(not self.session.query(PropSeed).get(seed_id))
-        self.assertTrue(not self.session.query(PropCutting).get(cutting_id))
-        self.assertTrue(not self.session.query(Propagation).get(prop_id))
+        self.assertFalse(self.session.query(PropSeed).get(seed_id))
+        self.assertFalse(self.session.query(Propagation).get(prop_id))
 
-    def test(self):
-        """
-        Test bauble.plugins.garden.Source and related properties
-        """
-        # I consider this test a very good example of how NOT TO write unit
-        # tests: it has a non-descriptive name, it does not state what it
-        # tests, it uses a non-standard 'assert_' method, it tests several
-        # things at the same time, it does not fit in a single page, it even
-        # contains commented code, which distracts the reader by describing
-        # things that do not happen. Dear Reader: you're welcome decyphering
-        # it and rewriting it as unit tests. (Mario Frasca)
+    def test_propagation_of_source_material_cascades(self):
+        # create a source object with a collection and propagation (this could
+        # be a expedition or a purchase of seed etc.)
         source = Source()
-        #self.assert_(hasattr(source, 'plant_propagation'))
-
-        location = Location(code='1', name='site1')
-        plant = Plant(accession=self.accession, location=location, code='1',
-                      quantity=1)
-        plant.propagations.append(Propagation(prop_type='Seed'))
-        self.session.commit()
-
-        source.source_detail = Contact()
-        source.source_detail.name = 'name'
+        source.source_detail = Contact(name='name2')
         source.sources_code = '1'
         source.collection = Collection(locale='locale')
         source.propagation = Propagation(prop_type='Seed')
-        source.plant_propagation = plant.propagations[0]
-        source.accession = self.accession  # test source's accession property
+        # use it as a source for the accession
+        source.accession = self.accession
         self.session.commit()
 
         # test that cascading works properly
         source_detail_id = source.source_detail.id
         coll_id = source.collection.id
         prop_id = source.propagation.id
-        plant_prop_id = source.plant_propagation.id
-        self.accession.source = None  # tests the accessions source
+        # remove the accessions source
+        self.accession.source = None
         self.session.commit()
 
         # the Collection and Propagation should be
         # deleted since they are specific to the source
-        self.assertTrue(not self.session.query(Collection).get(coll_id))
-        self.assertTrue(not self.session.query(Propagation).get(prop_id))
+        self.assertFalse(self.session.query(Collection).get(coll_id))
+        self.assertFalse(self.session.query(Propagation).get(prop_id))
 
-        # the Contact and plant Propagation shouldn't be deleted
-        # since they are independent of the source
-        self.assertTrue(self.session.query(Propagation).get(plant_prop_id))
+        # the Contact shouldn't be deleted as it is independent of the source
         self.assertTrue(self.session.query(Contact).get(source_detail_id))
+
+    def test_plant_propagation_as_source_cascades(self):
+        # create a source object
+        source = Source()
+
+        # create a plant and propagation from it
+        location = Location(code='1', name='site1')
+        plant = Plant(accession=self.accession, location=location, code='1',
+                      quantity=1)
+        plant.propagations.append(Propagation(prop_type='Seed'))
+        self.session.commit()
+
+        # add plant propagation to the source and use it as the source for an
+        # accession
+        source.plant_propagation = plant.propagations[0]
+        source.accession = self.accession
+        self.session.commit()
+
+        # remove the accessions source
+        plant_prop_id = source.plant_propagation.id
+        self.accession.source = None
+        self.session.commit()
+
+        # the Propagation shouldn't be deleted as it is independant of the
+        # source
+        self.assertTrue(self.session.query(Propagation).get(plant_prop_id))
 
 
 class AccessionQualifiedTaxon(GardenTestCase):
@@ -1650,12 +1659,12 @@ class LocationTests(GardenTestCase):
 
         del editor
         self.assertEqual(utils.gc_objects_by_type('LocationEditor'), [],
-                          'LocationEditor not deleted')
+                         'LocationEditor not deleted')
         self.assertEqual(
             utils.gc_objects_by_type('LocationEditorPresenter'), [],
             'LocationEditorPresenter not deleted')
         self.assertEqual(utils.gc_objects_by_type('LocationEditorView'), [],
-                          'LocationEditorView not deleted')
+                         'LocationEditorView not deleted')
 
 
 class CollectionTests(GardenTestCase):
