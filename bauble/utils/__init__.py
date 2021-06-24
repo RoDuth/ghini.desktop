@@ -41,7 +41,6 @@ from gi.repository import GObject
 from gi.repository import GLib
 from gi.repository import GdkPixbuf
 
-logger.setLevel(logging.DEBUG)
 import bauble
 from bauble.error import check
 from bauble import paths
@@ -241,7 +240,7 @@ def find_dependent_tables(table, metadata=None):
     # dependent on table at all
     from sqlalchemy.sql.util import sort_tables
     if metadata is None:
-        import bauble.db as db
+        from bauble import db
         metadata = db.metadata
     tables = []
 
@@ -494,7 +493,7 @@ def set_widget_value(widget, value, markup=False, default=None, index=0):
 
     # assume that if value is a date then we want to display it with
     # the default date format
-    import bauble.prefs as prefs
+    from bauble import prefs
     if isinstance(value, datetime.date):
         date_format = prefs.prefs[prefs.date_format_pref]
         value = value.strftime(date_format)
@@ -845,7 +844,7 @@ def today_str(format=None):
 
     If format=None then the format uses the prefs.date_format_pref
     """
-    import bauble.prefs as prefs
+    from bauble import prefs
     if not format:
         format = prefs.prefs[prefs.date_format_pref]
     import datetime
@@ -1175,7 +1174,7 @@ def reset_sequence(column):
     This function only works for PostgreSQL database.  It does nothing
     for other database engines.
     """
-    import bauble.db as db
+    from bauble import db
     from sqlalchemy.types import Integer
     from sqlalchemy import schema
     if not db.engine.name == 'postgresql':

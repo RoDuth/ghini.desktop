@@ -27,11 +27,6 @@ from bauble import pluginmgr
 from .import_tool import ShapefileImporter
 from .export_tool import ShapefileExporter
 
-from bauble.prefs import prefs, debug_logging_prefs, testing
-if not testing and __name__ in prefs.get(debug_logging_prefs, []):
-    logger.setLevel(logging.DEBUG)
-logger.setLevel(logging.DEBUG)
-
 
 class ShapefileImportTool(pluginmgr.Tool):
 

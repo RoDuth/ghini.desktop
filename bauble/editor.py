@@ -28,7 +28,6 @@ from random import random
 
 import logging
 logger = logging.getLogger(__name__)
-# logger.setLevel(logging.DEBUG)
 
 import dateutil.parser as date_parser
 
@@ -49,11 +48,6 @@ from bauble import paths
 from bauble import prefs
 from bauble import utils
 from bauble.error import CheckConditionError
-
-# from bauble.prefs import prefs, debug_logging_prefs, testing
-if not prefs.testing and __name__ in prefs.prefs.get(prefs.debug_logging_prefs,
-                                                     []):
-    logger.setLevel(logging.DEBUG)
 
 # TODO: create a generic date entry that can take a mask for the date format
 # see the date entries for the accession and accession source presenters

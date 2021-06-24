@@ -21,7 +21,6 @@
 
 import logging
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
 
 from sqlalchemy.orm import object_session, eagerload
 
@@ -29,8 +28,8 @@ from gi.repository import Gtk
 
 import bauble
 
-import bauble.utils as utils
-import bauble.pluginmgr as pluginmgr
+from bauble import utils
+from bauble import pluginmgr
 from bauble.view import SearchView
 from bauble.plugins.garden.accession import AccessionEditor, \
     Accession, AccessionInfoBox, AccessionNote, \
@@ -51,9 +50,7 @@ from bauble.plugins.garden.institution import (
     Institution, InstitutionCommand, InstitutionTool, start_institution_editor)
 from bauble.plugins.garden.pocket_server import PocketServerTool
 from bauble.plugins.garden.picture_importer import PictureImporterTool
-
-#from bauble.plugins.garden.propagation import *
-import bauble.search as search
+from bauble import search
 import re
 
 # other ideas:
@@ -139,7 +136,7 @@ class GardenPlugin(pluginmgr.Plugin):
             bauble.gui.add_to_insert_menu(create_contact, _('Contact'))
 
         # if the plant delimiter isn't in the bauble meta then add the default
-        import bauble.meta as meta
+        from bauble import meta
         meta.get_default(plant_delimiter_key, default_plant_delimiter)
 
         institution = Institution()
@@ -274,7 +271,7 @@ def init_location_comboentry(presenter, combo, on_select, required=True):
                            utils.format_combo_entry_text)
 
 
-import bauble.db as db
+from bauble import db
 
 plugin = GardenPlugin
 

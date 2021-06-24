@@ -23,20 +23,16 @@ from itertools import chain
 import logging
 logger = logging.getLogger(__name__)
 
-from bauble.prefs import prefs, debug_logging_prefs, testing
-if not testing and __name__ in prefs.get(debug_logging_prefs, []):
-    logger.setLevel(logging.DEBUG)
-
 from sqlalchemy.ext.associationproxy import association_proxy
 
 from sqlalchemy import Column, Boolean, Unicode, Integer, ForeignKey, \
     UnicodeText, func, UniqueConstraint
 from sqlalchemy.orm import relation, backref, synonym
 from sqlalchemy.ext.hybrid import hybrid_property
-import bauble.db as db
-import bauble.error as error
-import bauble.utils as utils
-import bauble.btypes as types
+from bauble import db
+from bauble import error
+from bauble import utils
+from bauble import btypes as types
 
 
 

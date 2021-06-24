@@ -16,24 +16,20 @@
 # You should have received a copy of the GNU General Public License
 # along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
 
-from bauble.utils import get_net_sess
+import threading
 import difflib
 import csv
 
 import logging
 logger = logging.getLogger(__name__)
 
-from bauble.prefs import prefs, debug_logging_prefs, testing
-if not testing and __name__ in prefs.get(debug_logging_prefs, []):
-    logger.setLevel(logging.DEBUG)
-
-
-import threading
+from bauble.utils import get_net_sess
 
 net_sess = get_net_sess()
 
 logger.debug("net session type = %s", type(net_sess))
 logger.debug("net session proxies = %s", net_sess.proxies)
+
 
 class AskTPL(threading.Thread):
     running = None

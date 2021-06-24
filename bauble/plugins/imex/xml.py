@@ -26,7 +26,6 @@ from pathlib import Path
 
 import logging
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
 
 from gi.repository import Gtk  # noqa
 
@@ -35,11 +34,6 @@ from bauble import db
 from bauble import utils
 from bauble import pluginmgr
 import bauble.task
-
-from bauble.prefs import prefs, debug_logging_prefs, testing
-
-if not testing and __name__ in prefs.get(debug_logging_prefs, []):
-    logger.setLevel(logging.DEBUG)
 
 
 # TODO: single file or one file per table

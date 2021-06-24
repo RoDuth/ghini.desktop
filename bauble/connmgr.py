@@ -31,7 +31,6 @@ import copy
 
 import logging
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
 
 from gi.repository import Gtk  # noqa
 from gi.repository import GdkPixbuf
@@ -39,9 +38,6 @@ from gi.repository import GdkPixbuf
 import bauble
 from bauble import paths, prefs, utils
 from bauble.editor import GenericEditorView, GenericEditorPresenter
-
-if not prefs.testing and __name__ in prefs.prefs[prefs.debug_logging_prefs]:
-    logger.setLevel(logging.DEBUG)
 
 
 def is_package_name(name):

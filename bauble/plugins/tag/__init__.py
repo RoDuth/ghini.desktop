@@ -29,7 +29,6 @@ logger = logging.getLogger(__name__)
 from gi.repository import Gtk  # noqa
 from gi.repository import Gdk  # noqa
 
-logger.setLevel(logging.DEBUG)
 from sqlalchemy import (
     Column, Unicode, UnicodeText, Integer, String, ForeignKey)
 from sqlalchemy.orm import relation

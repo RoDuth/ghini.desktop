@@ -248,7 +248,7 @@ def open(url, desktop=None, wait=0, dialog_on_error=False):
     """
 
     # Decide on the desktop environment in use.
-    import bauble.utils as utils
+    from bauble import utils
     desktop_in_use = use_desktop(desktop)
     cmd = None
     if desktop_in_use == "standard":

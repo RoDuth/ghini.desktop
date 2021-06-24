@@ -35,7 +35,7 @@ in :mod:`bauble`
 import os
 import locale
 import gettext
-import bauble.paths as paths
+from bauble import paths
 from bauble import version_tuple
 
 # the following has effect on Windows: to set the environment variables as

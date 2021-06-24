@@ -36,10 +36,6 @@ from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.associationproxy import association_proxy
 
 import bauble
-from bauble.prefs import prefs, debug_logging_prefs, testing
-if not testing and __name__ in prefs.get(debug_logging_prefs, []):
-    logger.setLevel(logging.DEBUG)
-
 from bauble import db
 from bauble import pluginmgr
 from bauble import editor

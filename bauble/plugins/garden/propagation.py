@@ -26,7 +26,6 @@ import traceback
 
 import logging
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
 
 from gi.repository import Gtk  # noqa
 
@@ -36,7 +35,7 @@ from sqlalchemy.orm.session import object_session
 from sqlalchemy.exc import DBAPIError
 
 from bauble import db, utils, paths, editor, prefs
-import bauble.btypes as types
+from bauble import btypes as types
 
 
 prop_type_values = {'Seed': _("Seed"),

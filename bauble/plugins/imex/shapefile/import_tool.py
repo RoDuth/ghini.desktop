@@ -34,14 +34,9 @@ from bauble.utils.geo import ProjDB, transform
 # NOTE importing shapefile Reader Writer above wipes out gettext _
 from bauble.i18n import _
 from bauble.prefs import (prefs,
-                          debug_logging_prefs,
                           testing,
                           location_shapefile_prefs,
                           plant_shapefile_prefs)
-
-if not testing and __name__ in prefs.get(debug_logging_prefs, []):
-    logger.setLevel(logging.DEBUG)
-logger.setLevel(logging.DEBUG)
 
 import bauble
 from bauble import db, task, pb_set_fraction

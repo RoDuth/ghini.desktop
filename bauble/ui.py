@@ -30,19 +30,15 @@ from gi.repository import Gtk  # noqa
 from gi.repository import Gdk
 from gi.repository import GdkPixbuf
 
-logger.setLevel(logging.DEBUG)
 import bauble
 from bauble import db
 from bauble import paths
 from bauble import pluginmgr
-from bauble.prefs import prefs, debug_logging_prefs, testing
+from bauble.prefs import prefs
 from bauble import search
 from bauble import utils
 from bauble.utils import desktop
 from bauble.view import SearchView
-
-if not testing and __name__ in prefs.get(debug_logging_prefs, []):
-    logger.setLevel(logging.DEBUG)
 from bauble.editor import GenericEditorView
 
 
@@ -906,7 +902,7 @@ class GUI(object):
         pass
 
     def on_delete_event(self, *args):
-        import bauble.task as task
+        from bauble import task
         if task.running():
             msg = _('Would you like to cancel the current tasks?')
             if not utils.yes_no_dialog(msg):

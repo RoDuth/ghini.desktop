@@ -46,13 +46,9 @@ from bauble import editor
 from bauble import utils
 from bauble import btypes as types
 from bauble import paths
-from bauble.prefs import prefs, debug_logging_prefs, testing
+from bauble.prefs import prefs
 from bauble.view import (InfoBox, InfoExpander, PropertiesExpander,
                          select_in_search_results, Action)
-
-if not testing and __name__ in prefs.get(debug_logging_prefs, []):
-    logger.setLevel(logging.DEBUG)
-
 from bauble import view
 
 # TODO: warn the user that a duplicate genus name is being entered

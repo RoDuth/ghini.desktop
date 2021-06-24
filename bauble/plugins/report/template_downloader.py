@@ -38,7 +38,6 @@ from bauble import pluginmgr  # , task
 from bauble.prefs import prefs, templates_root_pref
 from bauble.task import set_message
 
-logger.setLevel(logging.DEBUG)
 CONFIG_LIST_PREF = 'report.configs'
 TEMPLATES_URI = ('https://github.com/RoDuth/ghini_report_templates/archive'
                  '/master.zip')

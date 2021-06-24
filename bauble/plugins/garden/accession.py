@@ -44,10 +44,6 @@ from sqlalchemy.orm import EXT_CONTINUE, MapperExtension, \
 from sqlalchemy.orm.session import object_session
 from sqlalchemy.exc import DBAPIError
 
-from bauble.prefs import prefs, debug_logging_prefs, testing
-if not testing and __name__ in prefs.get(debug_logging_prefs, []):
-    logger.setLevel(logging.DEBUG)
-
 import bauble
 from bauble import db
 from bauble import editor

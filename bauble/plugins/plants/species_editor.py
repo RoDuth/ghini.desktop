@@ -34,7 +34,7 @@ from sqlalchemy.orm.session import object_session
 from sqlalchemy.exc import DBAPIError
 
 import bauble
-from bauble.prefs import prefs, debug_logging_prefs, testing
+from bauble.prefs import prefs
 from bauble import utils
 from bauble import paths
 from bauble import editor
@@ -44,9 +44,6 @@ from bauble.plugins.plants.genus import Genus, GenusSynonym
 from bauble.plugins.plants.species_model import (
     Species, SpeciesDistribution, VernacularName, SpeciesSynonym, Habit,
     infrasp_rank_values, compare_rank)
-
-if not testing and __name__ in prefs.get(debug_logging_prefs, []):
-    logger.setLevel(logging.DEBUG)
 
 
 class SpeciesEditorPresenter(editor.GenericEditorPresenter):

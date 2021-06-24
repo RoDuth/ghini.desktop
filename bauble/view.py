@@ -28,7 +28,6 @@ from functools import cmp_to_key
 
 import logging
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
 
 from pyparsing import ParseException
 

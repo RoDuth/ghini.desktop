@@ -21,7 +21,6 @@ import os
 
 import logging
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
 
 from gi.repository import Gtk  # noqa
 from gi.repository import GObject
@@ -129,10 +128,14 @@ Values: True, False (Default: False)
 
 debug_logging_prefs = "bauble.debug_logging_modules"
 """
-for modules that have this enabled you can turn debug logging on in the config
-file.
+Modules listed here will have debug level logging.  The level is inherited by
+sub modules.  To enable all set it to:
 
-Values: a list of modules names (i.e. ['bauble.plugins.plants.species'])
+debug_logging_modules = ['bauble']
+
+Values: a list of modules names e.g.:
+
+['bauble.plugins.plants.species', 'bauble.plugins.garden']
 """
 
 web_proxy_prefs = 'web.proxies'
@@ -330,7 +333,7 @@ class _prefs(dict):
                     "check the file permissions of your config file:\n %s") \
                 % self._filename
             if bauble.gui is not None and bauble.gui.window is not None:
-                import bauble.utils as utils
+                from bauble import utils
                 utils.message_dialog(msg, type=Gtk.MessageType.ERROR,
                                      parent=bauble.gui.window)
             else:

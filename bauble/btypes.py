@@ -20,10 +20,9 @@
 #
 
 import dateutil.parser as date_parser
-import sqlalchemy.types as types
+from sqlalchemy import types
 
-
-import bauble.error as error
+from bauble import error
 
 # TODO: store all times as UTC or support timezones
 
@@ -116,7 +115,7 @@ class DateTime(types.TypeDecorator):
             DateTime._dayfirst
             DateTime._yearfirst
         except AttributeError:
-            import bauble.prefs as prefs
+            from bauble import prefs
             DateTime._dayfirst = prefs.prefs[prefs.parse_dayfirst_pref]
             DateTime._yearfirst = prefs.prefs[prefs.parse_yearfirst_pref]
         try:
@@ -148,7 +147,7 @@ class Date(types.TypeDecorator):
             Date._dayfirst
             Date._yearfirst
         except AttributeError:
-            import bauble.prefs as prefs
+            from bauble import prefs
             Date._dayfirst = prefs.prefs[prefs.parse_dayfirst_pref]
             Date._yearfirst = prefs.prefs[prefs.parse_yearfirst_pref]
         try:

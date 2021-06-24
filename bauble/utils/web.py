@@ -22,9 +22,6 @@ import re
 import logging
 logger = logging.getLogger(__name__)
 
-from bauble.prefs import prefs, debug_logging_prefs, testing
-if not testing and __name__ in prefs.get(debug_logging_prefs, []):
-    logger.setLevel(logging.DEBUG)
 from gi.repository import Gtk  # noqa
 
 from bauble.utils import desktop

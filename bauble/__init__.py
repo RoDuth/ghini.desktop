@@ -43,8 +43,6 @@ installation_date = "1970-01-01T00:00:00Z"
 import bauble.i18n
 
 logger = logging.getLogger(__name__)
-# this will set a global logging level
-logger.setLevel(logging.DEBUG)
 consoleLevel = logging.INFO
 
 
@@ -96,7 +94,7 @@ conn_name = None
 
 # pylint: disable=wrong-import-order,import-outside-toplevel
 import traceback
-import bauble.error as err
+from bauble import error as err
 
 
 def save_state():
@@ -115,9 +113,9 @@ def quit():  # pylint: disable=redefined-builtin
     Stop all tasks and quit Ghini.
     """
     from gi.repository import Gtk
-    import bauble.utils as utils
+    from bauble import utils
     try:
-        import bauble.task as task
+        from bauble import task
     except Exception as e:
         logger.error('bauble.quit(): %s' % e)
     else:
@@ -151,8 +149,8 @@ def command_handler(cmd, arg):
     """
     logger.debug('entering ui.command_handler %s %s' % (cmd, arg))
     from gi.repository import Gtk
-    import bauble.utils as utils
-    import bauble.pluginmgr as pluginmgr
+    from bauble import utils
+    from bauble import pluginmgr
     global last_handler
     handler_cls = None
     try:
@@ -235,8 +233,12 @@ def main(uri=None):
     consoleHandler.setLevel(consoleLevel)
 
     # intialize the user preferences
-    from bauble.prefs import prefs, use_sentry_client_pref
+    from bauble.prefs import prefs, use_sentry_client_pref, debug_logging_prefs
     prefs.init()
+
+    # set the logging level to debug per module
+    for handler in prefs.get(debug_logging_prefs, []):
+        logging.getLogger(handler).setLevel(logging.DEBUG)
 
     try:
         # no raven.conf.setup_logging: just standard Python logging

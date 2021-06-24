@@ -43,11 +43,10 @@ from bauble.plugins.plants.species_model import (
     DefaultVernacularName)
 from bauble import search
 from bauble.view import PropertiesExpander, Action
-from bauble.prefs import prefs, debug_logging_prefs, testing
-if not testing and __name__ in prefs.get(debug_logging_prefs, []):
-    logger.setLevel(logging.DEBUG)
-
 from bauble import view
+from bauble.prefs import prefs
+
+# imported by clients of this modules
 __all__ = [
     'SpeciesDistribution', 'SpeciesEditorPresenter', 'SpeciesEditorView',
     'SpeciesEditorMenuItem', 'edit_species', 'DefaultVernacularName',

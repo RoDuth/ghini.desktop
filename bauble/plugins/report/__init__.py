@@ -29,10 +29,6 @@ import traceback
 import logging
 logger = logging.getLogger(__name__)
 
-from bauble.prefs import prefs, debug_logging_prefs, testing
-if not testing and __name__ in prefs.get(debug_logging_prefs, []):
-    logger.setLevel(logging.DEBUG)
-
 from gi.repository import Gtk  # noqa
 from gi.repository import GObject
 
@@ -40,6 +36,7 @@ from sqlalchemy import union
 
 import bauble
 from bauble.error import BaubleError
+from bauble.prefs import prefs
 from bauble import utils
 from bauble import paths
 from bauble import pluginmgr
@@ -76,7 +73,7 @@ def _get_pertinent_objects(cls, get_query_func, objs, session):
     :param session:
     """
     if session is None:
-        import bauble.db as db
+        from bauble import db
         session = db.Session()
     if not isinstance(objs, (tuple, list)):
         objs = [objs]

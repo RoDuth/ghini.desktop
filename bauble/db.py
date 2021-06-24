@@ -313,7 +313,7 @@ def create(import_defaults=True):
     if not engine:
         raise ValueError('engine is None, not connected to a database')
     import bauble
-    import bauble.meta as meta
+    from bauble import meta
     from bauble import pluginmgr
     import datetime
 
@@ -428,7 +428,7 @@ def verify_connection(engine, show_error_dialogs=False):
     if len(engine.table_names()) == 0:
         raise error.EmptyDatabaseError()
 
-    import bauble.meta as meta
+    from bauble import meta
     # check that the database we connected to has the bauble meta table
     if not engine.has_table(meta.BaubleMeta.__tablename__):
         raise error.MetaTableError()
