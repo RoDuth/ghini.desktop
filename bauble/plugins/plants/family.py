@@ -23,35 +23,30 @@ import os
 import traceback
 import weakref
 
-
-import gi
-gi.require_version("Gtk", "3.0")
-from gi.repository import Gtk  # noqa
-
-
 import logging
 logger = logging.getLogger(__name__)
 
-from sqlalchemy import Column, Unicode, Integer, ForeignKey, \
-    UnicodeText, func, and_, UniqueConstraint, String
-from sqlalchemy.orm import relation, backref, validates, synonym
+from gi.repository import Gtk  # noqa
+
+from sqlalchemy import (Column, Integer, ForeignKey, and_, UniqueConstraint,
+                        String)
+from sqlalchemy.orm import relation, validates, synonym
 from sqlalchemy.orm.session import object_session
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.associationproxy import association_proxy
 
 import bauble
-import bauble.db as db
-import bauble.pluginmgr as pluginmgr
-import bauble.editor as editor
-import bauble.utils as utils
-import bauble.utils.web as web
-import bauble.btypes as types
 from bauble.prefs import prefs, debug_logging_prefs, testing
-import bauble.view as view
-
 if not testing and __name__ in prefs.get(debug_logging_prefs, []):
     logger.setLevel(logging.DEBUG)
 
+from bauble import db
+from bauble import pluginmgr
+from bauble import editor
+from bauble import utils
+from bauble import btypes as types
+from bauble.prefs import prefs
+from bauble import view
 
 
 def edit_callback(families):

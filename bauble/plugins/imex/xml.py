@@ -28,15 +28,12 @@ import logging
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
-import gi
-gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk  # noqa
-# import Gtk.gdk
 
 import bauble
-import bauble.db as db
-import bauble.utils as utils
-import bauble.pluginmgr as pluginmgr
+from bauble import db
+from bauble import utils
+from bauble import pluginmgr
 import bauble.task
 
 from bauble.prefs import prefs, debug_logging_prefs, testing

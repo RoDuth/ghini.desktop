@@ -20,29 +20,24 @@
 # Species table definition
 #
 
-
-import gi
-gi.require_version("Gtk", "3.0")
-from gi.repository import Gtk  # noqa
-
-from gi.repository import GObject
+import os
+import traceback
+import weakref
 
 import logging
 logger = logging.getLogger(__name__)
 
-import os
-import traceback
-import weakref
+from gi.repository import Gtk  # noqa
+from gi.repository import GObject
 
 from sqlalchemy.orm.session import object_session
 from sqlalchemy.exc import DBAPIError
 
 import bauble
-
 from bauble.prefs import prefs, debug_logging_prefs, testing
-import bauble.utils as utils
-import bauble.paths as paths
-import bauble.editor as editor
+from bauble import utils
+from bauble import paths
+from bauble import editor
 from bauble.plugins.plants.geography import GeographyMenu
 from bauble.plugins.plants.family import Family
 from bauble.plugins.plants.genus import Genus, GenusSynonym

@@ -27,16 +27,12 @@ import os
 from random import random
 import traceback
 import weakref
+from functools import reduce
 
 import logging
-from functools import reduce
 logger = logging.getLogger(__name__)
 
-
-import gi
-gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk  # noqa
-
 
 # from lxml import etree
 from gi.repository import Pango

@@ -23,23 +23,20 @@ import os
 import sys
 import traceback
 import html
+import threading
 from functools import cmp_to_key
 
 import logging
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
-import gi
-gi.require_version("Gtk", "3.0")
+from pyparsing import ParseException
+
 from gi.repository import Gtk  # noqa
 from gi.repository import Gdk  # noqa
-
 from gi.repository import GObject
 from gi.repository import Pango
-import threading
 
-
-from pyparsing import ParseException
 from sqlalchemy.orm import object_session
 import sqlalchemy.exc as saexc
 

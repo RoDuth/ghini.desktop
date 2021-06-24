@@ -27,17 +27,12 @@ import logging
 import os
 import sys
 import gi
-import bauble.paths as paths
+from bauble import paths
+
 gi.require_version("Gtk", "3.0")
 
-# just use PYTHONFAULTHANDLER=1 envvar
-# try:
-#     import faulthandler
-#     faulthandler.enable()
-# except Exception as e:
-#     print(f'{e} error of type: {type(e).__name__} while trying to load'
-#           '"faulthandler"')
-
+# to use faulthandler set env var:
+# PYTHONFAULTHANDLER=1
 
 from bauble.version import version
 version_tuple = tuple(version.split('.'))

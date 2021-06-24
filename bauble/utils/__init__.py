@@ -29,25 +29,19 @@ import os
 import re
 import textwrap
 import inspect
-import xml.sax.saxutils as saxutils
+import threading
+from xml.sax import saxutils
 
+import logging
+logger = logging.getLogger(__name__)
 
-import gi
-gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk  # noqa
 from gi.repository import Gdk  # noqa
-
 from gi.repository import GObject
 from gi.repository import GLib
 from gi.repository import GdkPixbuf
 
-import logging
-logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
-
-import threading
-
-
 import bauble
 from bauble.error import check
 from bauble import paths

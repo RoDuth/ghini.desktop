@@ -28,18 +28,12 @@ from random import random
 import logging
 logger = logging.getLogger(__name__)
 
-
-import gi
-gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk  # noqa
-
 from gi.repository import GObject
 
 from sqlalchemy import Column, Unicode, Integer, ForeignKey,\
     Float, UnicodeText, select
-from sqlalchemy.exc import DBAPIError
 from sqlalchemy.orm import relation, backref
-
 
 from bauble import db
 from bauble import editor

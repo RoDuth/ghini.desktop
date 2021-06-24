@@ -65,8 +65,6 @@ addasdadadad"""
         """
         Test bauble.utils.search_tree_model
         """
-        import gi
-        gi.require_version("Gtk", "3.0")
         from gi.repository import Gtk
 
         model = Gtk.TreeStore(str)

@@ -16,17 +16,13 @@
 # along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
 #
 
-
-import gi
-gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk  # noqa
-
 
 import logging
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
-import bauble.utils as utils
+from bauble import utils
 
 
 class PicturesView(Gtk.Box):

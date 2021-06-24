@@ -15,31 +15,29 @@
 # You should have received a copy of the GNU General Public License
 # along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
 
+import threading
+import re
+import os.path
+from pathlib import Path
 
 import logging
 logger = logging.getLogger(__name__)
 
-
-import gi
-gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk  # noqa
-
 from gi.repository import GObject
-import threading
 from gi.repository import GLib
 from gi.repository import GdkPixbuf
-import re
-import os.path
-from pathlib import Path
+
 from bauble import pluginmgr, db, utils
-from sqlalchemy.orm.exc import NoResultFound
+from bauble.editor import GenericEditorView, GenericEditorPresenter
 
-from bauble.editor import (GenericEditorView, GenericEditorPresenter)
 
-accno_re = re.compile(r'([12][0-9][0-9][0-9]\.[0-9][0-9][0-9][0-9])(?:\.([0-9]+))?')
+accno_re = re.compile(
+    r'([12][0-9][0-9][0-9]\.[0-9][0-9][0-9][0-9])(?:\.([0-9]+))?')
 species_re = re.compile(r'([A-Z][a-z]+(?: [a-z-]*)?)')
 picname_re = re.compile(r'([A-Z]+[0-9]+)')
 number_re = re.compile(r'([0-9]+)')
+
 
 def decode_parts(name, acc_format=None):
     """return the dictionary of parts in name
@@ -59,7 +57,7 @@ def decode_parts(name, acc_format=None):
     # accession number with optional plant number, original picture name,
     # some other number overruling the original picture name.
 
-    #only scan name part, ignore location
+    # only scan name part, ignore location
     path, name = os.path.split(name)
 
     result = {'accession': None,

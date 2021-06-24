@@ -23,21 +23,16 @@
 import os
 import traceback
 
+import logging
+logger = logging.getLogger(__name__)
 
-import gi
-gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk  # noqa
 from gi.repository import Gdk
 from gi.repository import GdkPixbuf
 
-
-import logging
-logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
-
 import bauble
 from bauble import db
-
 from bauble import paths
 from bauble import pluginmgr
 from bauble.prefs import prefs, debug_logging_prefs, testing
@@ -45,13 +40,14 @@ from bauble import search
 from bauble import utils
 from bauble.utils import desktop
 from bauble.view import SearchView
-from bauble.editor import (
-    GenericEditorView, GenericEditorPresenter)
 
 if not testing and __name__ in prefs.get(debug_logging_prefs, []):
     logger.setLevel(logging.DEBUG)
+from bauble.editor import GenericEditorView
 
 
+# NOTE pluginmgr.View is a Gtk.Box vertical orientation that can take a root
+# widget or glade file.
 class DefaultView(pluginmgr.View):
     '''consider DefaultView a splash screen.
 

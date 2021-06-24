@@ -22,30 +22,25 @@
 import os
 import traceback
 
-import gi
-gi.require_version("Gtk", "3.0")
-from gi.repository import Gtk  # noqa
-
-
 import logging
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
+
+from gi.repository import Gtk  # noqa
 
 from sqlalchemy import Column, Unicode, UnicodeText
 from sqlalchemy.orm import relation, backref, validates, deferred
 from sqlalchemy.orm.session import object_session
 from sqlalchemy.exc import DBAPIError
 
-
 import bauble
-import bauble.db as db
-import bauble.btypes as types
-
+from bauble import db
+from bauble import btypes as types
 from bauble.editor import GenericModelViewPresenterEditor, GenericEditorView, \
     GenericEditorPresenter, UnicodeOrNoneValidator
-import bauble.utils as utils
-import bauble.paths as paths
-import bauble.editor as editor
+from bauble import utils
+from bauble import paths
+from bauble import editor
 from bauble.view import Action
 
 

@@ -27,19 +27,18 @@ and just want a bunch of reliable templates to use.
 from pathlib import Path
 
 import logging
-import gi
-gi.require_version("Gtk", "3.0")
+logger = logging.getLogger(__name__)
+
 from gi.repository import Gtk  # noqa
 
 from requests import exceptions
+
 from bauble.utils import get_net_sess, yes_no_dialog
 from bauble import pluginmgr  # , task
 from bauble.prefs import prefs, templates_root_pref
 from bauble.task import set_message
 
-logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
-
 CONFIG_LIST_PREF = 'report.configs'
 TEMPLATES_URI = ('https://github.com/RoDuth/ghini_report_templates/archive'
                  '/master.zip')

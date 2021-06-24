@@ -25,14 +25,10 @@ import traceback
 import weakref
 import xml
 
-
-import gi
-gi.require_version("Gtk", "3.0")
-from gi.repository import Gtk  # noqa
-
-
 import logging
 logger = logging.getLogger(__name__)
+
+from gi.repository import Gtk  # noqa
 
 from sqlalchemy import (
     Column, Unicode, Integer, ForeignKey, UnicodeText, String,
@@ -41,7 +37,6 @@ from sqlalchemy.orm import relation, backref, validates, synonym
 from sqlalchemy.orm.session import object_session
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.associationproxy import association_proxy
-
 
 import bauble
 from bauble import db
@@ -54,11 +49,11 @@ from bauble import paths
 from bauble.prefs import prefs, debug_logging_prefs, testing
 from bauble.view import (InfoBox, InfoExpander, PropertiesExpander,
                          select_in_search_results, Action)
-import bauble.view as view
 
 if not testing and __name__ in prefs.get(debug_logging_prefs, []):
     logger.setLevel(logging.DEBUG)
 
+from bauble import view
 
 # TODO: warn the user that a duplicate genus name is being entered
 # even if only the author or qualifier is different

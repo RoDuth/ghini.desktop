@@ -18,44 +18,41 @@
 # along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
 #
 
-
-import gi
-gi.require_version("Gtk", "3.0")
-from gi.repository import Gtk  # noqa
-from gi.repository import Pango
+import os
+import traceback
 
 import logging
 logger = logging.getLogger(__name__)
 
-import os
-import traceback
+from gi.repository import Gtk  # noqa
+from gi.repository import Pango
 
 from sqlalchemy.orm.session import object_session
 
 import bauble
-import bauble.paths as paths
-import bauble.db as db
+from bauble import paths
+from bauble import db
 
-import bauble.pluginmgr as pluginmgr
-import bauble.utils as utils
+from bauble import pluginmgr
+from bauble import utils
 from bauble.plugins.plants.species_editor import (
     SpeciesDistribution, SpeciesEditorPresenter, SpeciesEditorView,
     SpeciesEditorMenuItem, edit_species)
 from bauble.plugins.plants.species_model import (
     Species, SpeciesNote, VernacularName, SpeciesSynonym,
     DefaultVernacularName)
-import bauble.search as search
+from bauble import search
 from bauble.view import PropertiesExpander, Action
-import bauble.view as view
-
 from bauble.prefs import prefs, debug_logging_prefs, testing
 if not testing and __name__ in prefs.get(debug_logging_prefs, []):
     logger.setLevel(logging.DEBUG)
 
-SpeciesDistribution  # will be imported by clients of this module
-SpeciesEditorPresenter, SpeciesEditorView, SpeciesEditorMenuItem, edit_species,
-DefaultVernacularName
-SpeciesNote
+from bauble import view
+__all__ = [
+    'SpeciesDistribution', 'SpeciesEditorPresenter', 'SpeciesEditorView',
+    'SpeciesEditorMenuItem', 'edit_species', 'DefaultVernacularName',
+    'SpeciesNote'
+]
 
 # TODO: we need to make sure that this will still work if the
 # AccessionPlugin is not present, this means that we would have to
@@ -64,7 +61,6 @@ SpeciesNote
 
 
 def edit_callback(values):
-    from bauble.plugins.plants.species_editor import edit_species
     sp = values[0]
     if isinstance(sp, VernacularName):
         sp = sp.species

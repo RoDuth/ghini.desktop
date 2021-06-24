@@ -17,34 +17,24 @@
 # You should have received a copy of the GNU General Public License
 # along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
 
-
-import weakref
-
-
-import gi
-gi.require_version("Gtk", "3.0")
-from gi.repository import Gtk  # noqa
-
-
 import logging
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
+from gi.repository import Gtk  # noqa
+
 from sqlalchemy import or_, and_
 from sqlalchemy import Unicode
 from sqlalchemy import UnicodeText, Boolean, Integer, Float
-from sqlalchemy.orm import class_mapper
-from sqlalchemy.orm.properties import ColumnProperty, RelationshipProperty
+from sqlalchemy.orm import class_mapper, RelationshipProperty
+from sqlalchemy.orm.properties import ColumnProperty
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm.attributes import InstrumentedAttribute
-from sqlalchemy.orm import SynonymProperty
-RelationProperty = RelationshipProperty
 
 import bauble
 from bauble.error import check
-import bauble.utils as utils
-
-from bauble.editor import GenericEditorView, GenericEditorPresenter
+from bauble import utils
+from bauble.editor import GenericEditorPresenter
 from .querybuilderparser import BuiltQuery
 
 

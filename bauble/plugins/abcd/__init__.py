@@ -26,23 +26,17 @@
 import os
 from pathlib import Path
 
-import gi
-gi.require_version("Gtk", "3.0")
-from gi.repository import Gtk  # noqa
-
-
-#from sqlalchemy import *
-#from sqlalchemy.orm import *
-
-import bauble.db as db
-from bauble.error import check
-import bauble.paths as paths
-import bauble.utils as utils
-import bauble.pluginmgr as pluginmgr
-from bauble.plugins.garden.plant import Plant
-
 import logging
 logger = logging.getLogger(__name__)
+
+from gi.repository import Gtk  # noqa
+
+from bauble import db
+from bauble.error import check
+from bauble import paths
+from bauble import utils
+from bauble import pluginmgr
+from bauble.plugins.garden.plant import Plant
 
 # NOTE: see biocase provider software for reading and writing ABCD data
 # files, already downloaded software to desktop
@@ -61,7 +55,6 @@ logger = logging.getLogger(__name__)
 # accessions so we can print labels for plants that don't have accessions,
 # though this could be a problem b/c abcd data expects 'unitid' fields but
 # we could have a special case just for generating labels
-#
 
 
 def validate_xml(root):
@@ -85,11 +78,14 @@ def validate_xml(root):
 # only problem is that accessions don't keep status, like dead, etc.
 
 def verify_institution(institution):
-    test = lambda x: x != '' and x is not None
-    return test(institution.name) and \
-        test(institution.technical_contact) and \
-        test(institution.email) and test(institution.contact) and \
-        test(institution.code)
+
+    def verify(item):
+        return item != '' and item is not None
+
+    return verify(institution.name) and \
+        verify(institution.technical_contact) and \
+        verify(institution.email) and verify(institution.contact) and \
+        verify(institution.code)
 
 
 namespaces = {'abcd': 'http://www.tdwg.org/schemas/abcd/2.06'}

@@ -23,28 +23,24 @@
 
 import datetime
 import os
-import sys
 import weakref
+from random import random
 
 import logging
 logger = logging.getLogger(__name__)
 # logger.setLevel(logging.DEBUG)
 
-import gi
-gi.require_version("Gtk", "3.0")
+import dateutil.parser as date_parser
+
 from gi.repository import Gtk  # noqa
 from gi.repository import GLib
-from gi.repository import Gdk
 from gi.repository import GdkPixbuf
 from gi.repository import GObject
-
-from random import random
-import dateutil.parser as date_parser
-# from lxml import etree
 from gi.repository import Pango
-from sqlalchemy.orm import object_mapper, object_session
-from sqlalchemy.orm.exc import UnmappedInstanceError
 
+from sqlalchemy.orm import object_mapper, object_session
+
+# from lxml import etree
 
 import bauble
 from bauble import db

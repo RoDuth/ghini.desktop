@@ -19,21 +19,17 @@
 # __init__.py -- tag plugin
 #
 # Description:
-#
+
 import os
 import traceback
 
+import logging
+logger = logging.getLogger(__name__)
 
-import gi
-gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk  # noqa
 from gi.repository import Gdk  # noqa
 
-
-import logging
-logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
-
 from sqlalchemy import (
     Column, Unicode, UnicodeText, Integer, String, ForeignKey)
 from sqlalchemy.orm import relation
@@ -41,7 +37,6 @@ from sqlalchemy.orm.exc import DetachedInstanceError
 from sqlalchemy import and_
 from sqlalchemy.exc import DBAPIError, InvalidRequestError
 from sqlalchemy.orm.session import object_session
-
 
 import bauble
 from bauble import db, editor, pluginmgr, paths, search, utils
@@ -55,6 +50,7 @@ class TagsMenuManager:
     def __init__(self):
         self.menu_item = None
         self.active_tag_name = None
+        # silence pylint attribute-defined-outside-init
         self.apply_active_tag_menu_item = None
         self.remove_active_tag_menu_item = None
         self.item_list = {}
@@ -745,8 +741,10 @@ class GeneralTagExpander(InfoExpander):
         classes = set(type(o) for o in objects)
         row_no = 1
         grid = self.widgets.tag_ib_general_grid
+
         for widget in self.table_cells:
             grid.remove(widget)
+
         self.table_cells = []
         for cls in classes:
             obj_ids = [str(o.id) for o in objects if isinstance(o, cls)]

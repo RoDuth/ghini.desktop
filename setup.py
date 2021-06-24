@@ -26,8 +26,6 @@ except ImportError:
     from ez_setup import use_setuptools
     use_setuptools()
     import setuptools
-import gi
-gi.require_version('Gtk', '3.0')
 
 import os
 import sys
@@ -37,7 +35,7 @@ dep_util = setuptools.distutils.dep_util
 dir_util = setuptools.distutils.dir_util
 file_util = setuptools.distutils.file_util
 from distutils.command.build import build as _build
-#from setuptools.command.build_py import build_py as _build
+# from setuptools.command.build_py import build_py as _build
 from setuptools import Command
 from setuptools.command.install import install as _install
 from bauble import version

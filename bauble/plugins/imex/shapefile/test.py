@@ -766,9 +766,6 @@ class ExportSettingsBoxTests(BaubleTestCase):
 
         from bauble import utils
         _orig_create_message_dialog = utils.create_message_dialog
-        import gi
-        gi.require_version("Gtk", "3.0")
-        from gi.repository import Gtk  # noqa
 
         class MockDialog:
             def __init__(self):
@@ -832,7 +829,6 @@ class ExportSettingsBoxTests(BaubleTestCase):
         self.session.add(BaubleMeta(name='inst_geo_longitude',
                                     value='10.001'))
         gen_settings = {'start': [0, 0], 'increment': 0, 'axis': ''}
-        start_settings = gen_settings.copy()
         self.session.commit()
         settings_box = ExpSetBox(Plant,
                                  fields=self.plant_fields,
@@ -844,9 +840,6 @@ class ExportSettingsBoxTests(BaubleTestCase):
 
         from bauble import utils
         _orig_create_message_dialog = utils.create_message_dialog
-        import gi
-        gi.require_version("Gtk", "3.0")
-        from gi.repository import Gtk  # noqa
 
         class MockDialog:
             def __init__(self):

@@ -16,12 +16,8 @@
 # along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
 
 import os
+import json
 from pathlib import Path
-
-import gi
-gi.require_version("Gtk", "3.0")
-from gi.repository import Gtk  # noqa
-
 
 import logging
 logger = logging.getLogger(__name__)
@@ -30,18 +26,17 @@ from bauble.prefs import prefs, debug_logging_prefs, testing
 if not testing and __name__ in prefs.get(debug_logging_prefs, []):
     logger.setLevel(logging.DEBUG)
 
+from gi.repository import Gtk  # noqa
 
-from bauble import utils
 from bauble import db
-from bauble.plugins.plants import (Familia, Genus, Species, VernacularName, SpeciesNote)
-from bauble.plugins.garden.plant import (Plant, PlantNote)
-from bauble.plugins.garden.accession import (Accession, AccessionNote)
-from bauble.plugins.garden.source import (Source, Contact)
-from bauble.plugins.garden.location import (Location)
+from bauble.plugins.plants import (Familia, Genus, Species, VernacularName,
+                                   SpeciesNote)
+from bauble.plugins.garden.plant import Plant, PlantNote
+from bauble.plugins.garden.accession import Accession, AccessionNote
+from bauble.plugins.garden.location import Location
 import bauble.task
 from bauble import editor
 from bauble import paths
-import json
 from bauble import pluginmgr
 from bauble import pb_set_fraction
 

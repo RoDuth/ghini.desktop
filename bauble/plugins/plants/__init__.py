@@ -31,53 +31,46 @@
 # database is created there should be a way to recreate everything from scratch
 
 import os
-import sys
-
-import gi
-gi.require_version("Gtk", "3.0")
-from gi.repository import Gtk  # noqa
-
+from threading import Thread
+from functools import partial
 
 import logging
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
-from functools import partial
+from gi.repository import Gtk  # noqa
+from gi.repository import GObject
 
 import bauble
-import bauble.db as db
-import bauble.paths as paths
-import bauble.pluginmgr as pluginmgr
+from bauble import db
+from bauble import paths
+from bauble import pluginmgr
 from bauble.plugins.plants.family import (
     Familia, Family, FamilyInfoBox, FamilyEditor, FamilyNote,
     family_context_menu)
 from bauble.plugins.plants.genus import (
     Genus, GenusEditor, GenusInfoBox, GenusNote,
     genus_context_menu,
-    )
+)
 from bauble.plugins.plants.species import (
     Species, SpeciesEditorMenuItem, SpeciesInfoBox, SpeciesNote,
     species_context_menu, add_accession_action,
     SynonymSearch, SpeciesDistribution,
     VernacularName, VernacularNameInfoBox,
     vernname_context_menu,
-    )
+)
 from bauble.plugins.plants.geography import (
     Geography, get_species_in_geography)
-from .taxonomy_check import TaxonomyCheckTool
-from .stored_queries import (
-    StoredQueryEditorTool)
-import bauble.search as search
+from bauble import search
 from bauble.view import SearchView
 from bauble.ui import DefaultView
 from bauble import utils
+from .taxonomy_check import TaxonomyCheckTool
+from .stored_queries import StoredQueryEditorTool
 
+# imported by clients of the module
+__all__ = ['Familia', 'SpeciesDistribution']
 
-## naming locally unused objects. will be imported by clients of the module
-Familia, SpeciesDistribution,
-
-from threading import Thread
-from gi.repository import GObject
 idle_add = GObject.idle_add
 
 

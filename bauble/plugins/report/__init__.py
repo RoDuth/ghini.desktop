@@ -29,29 +29,24 @@ import traceback
 import logging
 logger = logging.getLogger(__name__)
 
-from .template_downloader import TemplateDownloadTool
 from bauble.prefs import prefs, debug_logging_prefs, testing
 if not testing and __name__ in prefs.get(debug_logging_prefs, []):
     logger.setLevel(logging.DEBUG)
 
-
-import gi
-gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk  # noqa
-
 from gi.repository import GObject
 
 from sqlalchemy import union
 
 import bauble
-
 from bauble.error import BaubleError
-import bauble.utils as utils
-import bauble.paths as paths
-import bauble.pluginmgr as pluginmgr
+from bauble import utils
+from bauble import paths
+from bauble import pluginmgr
 from bauble.plugins.plants import Family, Genus, Species, VernacularName
 from bauble.plugins.garden import Accession, Plant, Location, Contact
 from bauble.plugins.tag import Tag
+from .template_downloader import TemplateDownloadTool
 
 # TODO: this module should depend on PlantPlugin, GardenPlugin,
 # TagPlugin and should also allow other plugins to register between
@@ -118,7 +113,7 @@ def get_plant_query(obj, session):
         return q.filter_by(location_id=obj.id)
     elif isinstance(obj, Contact):
         return q.join('accession', 'source', 'source_detail').\
-                filter_by(id=obj.id)
+            filter_by(id=obj.id)
     elif isinstance(obj, Tag):
         plants = get_plants_pertinent_to(obj.objects, session)
         return q.filter(Plant.id.in_([p.id for p in plants]))

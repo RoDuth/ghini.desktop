@@ -16,17 +16,16 @@
 # along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
 
 import os
-import logging
 from functools import reduce
+
+import logging
 logger = logging.getLogger(__name__)
-from bauble import paths, pluginmgr, utils
-from bauble.plugins.plants import Species
 
 from gi.repository import Pango
 
-
-from bauble.editor import (
-    GenericEditorView, GenericEditorPresenter)
+from bauble import paths, pluginmgr, utils
+from bauble.plugins.plants import Species
+from bauble.editor import GenericEditorView, GenericEditorPresenter
 
 
 def start_taxonomy_check():

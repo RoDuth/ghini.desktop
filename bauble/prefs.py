@@ -19,21 +19,17 @@
 
 import os
 
-import gi
-gi.require_version("Gtk", "3.0")
-from gi.repository import Gtk  # noqa
-from gi.repository import GObject
-
-
 import logging
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
-import bauble
+from gi.repository import Gtk  # noqa
+from gi.repository import GObject
 
-import bauble.db as db
-import bauble.paths as paths
-import bauble.pluginmgr as pluginmgr
+import bauble
+from bauble import db
+from bauble import paths
+from bauble import pluginmgr
 
 testing = os.environ.get('BAUBLE_TEST')  # set this to True when testing via
 # the BAUBLE_TEST environment variable i.e. in bash or similar shells use:

@@ -20,16 +20,15 @@
 #
 from operator import itemgetter
 
+import logging
+logger = logging.getLogger(__name__)
 
-import gi
-gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk  # noqa
-
 
 from sqlalchemy import select, Column, Unicode, String, Integer, ForeignKey
 from sqlalchemy.orm import object_session, relation, backref
 
-import bauble.db as db
+from bauble import db
 
 
 def get_species_in_geography(geo):
@@ -179,7 +178,7 @@ class Geography(db.Base):
     parent_id = Column(Integer, ForeignKey('geography.id'))
 
     def __str__(self):
-        return self.name
+        return str(self.name)
 
 
 # late bindings

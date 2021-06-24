@@ -20,8 +20,8 @@
 #
 from sqlalchemy import Unicode, UnicodeText, Column
 
-import bauble.db as db
-import bauble.utils as utils
+from bauble import db
+from bauble import utils
 
 VERSION_KEY = 'version'
 CREATED_KEY = 'created'
@@ -76,8 +76,6 @@ def confirm_default(name, default, msg):
     """
     current_default = get_default(name)
     if not current_default:
-        import gi
-        gi.require_version("Gtk", "3.0")
         from gi.repository import Gtk  # noqa
         dialog = utils.create_message_dialog(msg=msg)
         box = dialog.get_message_area()

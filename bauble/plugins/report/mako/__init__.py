@@ -21,30 +21,24 @@
 # report/mako/
 #
 
-import logging
-logger = logging.getLogger(__name__)
-
 import os
-from pathlib import Path
 import shutil
 import tempfile
 import math
 
+import logging
+logger = logging.getLogger(__name__)
 
-import gi
-gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk  # noqa
-
 
 from mako.template import Template
 
-
-import bauble.db as db
-import bauble.paths as paths
+from bauble import db
+from bauble import paths
 from bauble.prefs import prefs, templates_root_pref
 from bauble.plugins.report import FormatterPlugin, SettingsBox
-import bauble.utils as utils
-import bauble.utils.desktop as desktop
+from bauble import utils
+from bauble.utils import desktop
 
 
 font = {

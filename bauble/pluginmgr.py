@@ -37,25 +37,20 @@ import logging
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
-import types
 import os
-import re
 import sys
 import traceback
 
-import gi
-gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk  # noqa
-
 
 from sqlalchemy import Column, Unicode, select
 import sqlalchemy.orm.exc as orm_exc
 
 import bauble
-import bauble.db as db
+from bauble import db
 from bauble.error import BaubleError
-import bauble.paths as paths
-import bauble.utils as utils
+from bauble import paths
+from bauble import utils
 
 plugins = {}
 commands = {}

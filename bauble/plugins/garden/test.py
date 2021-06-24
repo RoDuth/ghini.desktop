@@ -21,20 +21,19 @@ import os
 import datetime
 from unittest import TestCase
 
-from gi.repository import Gtk
-
 import logging
 logger = logging.getLogger(__name__)
+
+from gi.repository import Gtk
 
 from nose import SkipTest
 from sqlalchemy import and_
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import object_session
 
-#import bauble
-import bauble.db as db
+from bauble import db
 from bauble.test import BaubleTestCase, update_gui, check_dupids, mockfunc
-import bauble.utils as utils
+from bauble import utils
 from bauble.plugins.garden.accession import Accession, AccessionEditor, \
     AccessionNote, Voucher, SourcePresenter, Verification, dms_to_decimal, \
     latitude_to_dms, longitude_to_dms, AccessionEditorView
@@ -275,10 +274,6 @@ class PlantTests(GardenTestCase):
         """
         Test creating multiple plants with the plant editor.
         """
-        import gi
-        gi.require_version("Gtk", "3.0")
-        from gi.repository import Gtk
-
 
         # use our own plant because PlantEditor.commit_changes() will
         # only work in bulk mode when the plant is in session.new
@@ -366,10 +361,6 @@ class PlantTests(GardenTestCase):
         self.assertEqual(change.from_location, editor.branched_plant.location)
 
     def test_branch_editor(self):
-        import gi
-        gi.require_version("Gtk", "3.0")
-        from gi.repository import Gtk
-
 
         # test argument checks
         #
@@ -1410,9 +1401,6 @@ class AccessionTests(GardenTestCase):
 
         # commit the changes and cleanup
         self.editor.model.name = 'asda'
-        import gi
-        gi.require_version("Gtk", "3.0")
-        from gi.repository import Gtk
 
         self.editor.handle_response(Gtk.ResponseType.OK)
         self.editor.session.close()

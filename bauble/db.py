@@ -18,23 +18,19 @@
 # You should have received a copy of the GNU General Public License
 # along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
 
-import logging
-logger = logging.getLogger(__name__)
-
-# XXX can't set logging via prefs.debug_logging_prefs in windows
-logger.setLevel(logging.DEBUG)
-
-from sqlalchemy.orm import class_mapper
-
 import datetime
 import os
 import re
-from bauble import error
 import json
 
+import logging
+logger = logging.getLogger(__name__)
+
+from gi.repository import Gtk  # noqa
 
 try:
     import sqlalchemy as sa
+    from bauble import error
     parts = tuple(int(i) for i in sa.__version__.split('.')[:2])
     if parts < (0, 6):
         msg = _('This version of Ghini requires SQLAlchemy 0.6 or greater. '
@@ -48,14 +44,8 @@ except ImportError:
             'http://www.sqlalchemy.org')
     raise
 
-
-
-import gi
-gi.require_version("Gtk", "3.0")
-from gi.repository import Gtk  # noqa
-
-
 from sqlalchemy import orm
+from sqlalchemy.orm import class_mapper
 from sqlalchemy.ext.declarative import declarative_base, DeclarativeMeta
 
 from bauble import btypes as types

@@ -32,31 +32,23 @@ import sys
 import os
 import tempfile
 
-
-import gi
-gi.require_version("Gtk", "3.0")
-from gi.repository import Gtk  # noqa
-
-
 import logging
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
-#from sqlalchemy import *
+from gi.repository import Gtk  # noqa
+
 from sqlalchemy.orm import object_session
 
-import bauble.db as db
-import bauble.paths as paths
-from bauble.plugins.plants.species import Species
-#from bauble.plugins.garden.plant import Plant
-#from bauble.plugins.garden.accession import Accession
+from bauble import db
+from bauble import paths
 from bauble.plugins.abcd import create_abcd, ABCDAdapter, ABCDElement
 from bauble.plugins.report import (
     get_plants_pertinent_to, get_species_pertinent_to,
     get_accessions_pertinent_to, FormatterPlugin, SettingsBox)
-import bauble.prefs as prefs
-import bauble.utils as utils
-import bauble.utils.desktop as desktop
+from bauble import prefs
+from bauble import utils
+from bauble.utils import desktop
 
 
 if sys.platform == "win32":

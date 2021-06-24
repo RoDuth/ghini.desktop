@@ -22,26 +22,25 @@ import os
 import re
 
 
-import gi
-gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk  # noqa
-
 
 import logging
 logger = logging.getLogger(__name__)
 
+# TODO star imports should be removed but the bigger issue is a complete
+# rewrite.
 from sqlalchemy import *
 from sqlalchemy.exc import *
 from sqlalchemy.orm.exc import *
 from sqlalchemy.ext.declarative import declarative_base, DeclarativeMeta
 
 import bauble
-import bauble.editor as editor
+from bauble import editor
 from bauble.error import check, CheckConditionError
-import bauble.db as db
-import bauble.paths as paths
-import bauble.pluginmgr as pluginmgr
-import bauble.utils as utils
+from bauble import db
+from bauble import paths
+from bauble import pluginmgr
+from bauble import utils
 
 # WARNING: "roles" are specific to PostgreSQL database from 8.1 and
 # greater, therefore this module won't work on earlier PostgreSQL

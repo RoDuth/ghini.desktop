@@ -33,15 +33,11 @@ import logging
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
-import gi
-gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk  # noqa
 from gi.repository import GdkPixbuf
 
-
 import bauble
 from bauble import paths, prefs, utils
-
 from bauble.editor import GenericEditorView, GenericEditorPresenter
 
 if not prefs.testing and __name__ in prefs.prefs[prefs.debug_logging_prefs]:
@@ -58,6 +54,7 @@ def is_package_name(name):
     except ImportError:
         return False
 
+
 working_dbtypes = []
 dbtypes = []
 
@@ -73,6 +70,7 @@ def populate_dbtypes(package_list):
     dbtypes = [second for first, second in package_list]
     working_dbtypes = [second for first, second in package_list
                        if is_package_name(first)]
+
 
 populate_dbtypes([('sqlite3', 'SQLite'),
                   ('psycopg2', 'PostgreSQL'),

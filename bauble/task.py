@@ -22,16 +22,14 @@ The bauble.task module allows you to queue up long running tasks. The
 running tasks still block but allows the GUI to update.
 """
 
+import logging
+logger = logging.getLogger(__name__)
+
 import fibra
 
-import gi
-gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk  # noqa
 
 import bauble
-
-import logging
-logger = logging.getLogger(__name__)
 
 # TODO: after some specified time the status bar should be cleared but not
 # too soon, maybe 30 seconds or so but only once the queue is empty, anytime

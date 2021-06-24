@@ -17,26 +17,19 @@
 # along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
 
 import os
-
-from sqlalchemy import or_
-#from sqlalchemy.exc import *
-
 from sys import platform
+from functools import partial
+import importlib
 from nose import SkipTest
+
+from gi.repository import Gtk  # noqa
 
 import bauble.plugins.tag as tag_plugin
 from bauble.plugins.plants import Family
 from bauble.plugins.tag import Tag, TagEditorPresenter, TagInfoBox
 from bauble.test import BaubleTestCase, check_dupids, mockfunc
 from bauble.editor import GenericEditorView, MockView
-import bauble.utils as utils
-from functools import partial
-
-import gi
-gi.require_version("Gtk", "3.0")
-from gi.repository import Gtk  # noqa
-
-import importlib
+from bauble import utils
 
 
 def test_duplicate_ids():

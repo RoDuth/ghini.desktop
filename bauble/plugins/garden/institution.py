@@ -21,24 +21,19 @@
 # meta
 #
 
+import re
 import os
-
-
-import gi
-gi.require_version("Gtk", "3.0")
-from gi.repository import Gtk  # noqa
-
 
 import logging
 logger = logging.getLogger(__name__)
 
-import re
+from gi.repository import Gtk  # noqa
 
-import bauble.editor as editor
-import bauble.meta as meta
-import bauble.paths as paths
-import bauble.pluginmgr as pluginmgr
-import bauble.utils as utils
+from bauble import editor
+from bauble import meta
+from bauble import paths
+from bauble import pluginmgr
+from bauble import utils
 from bauble.editor import GenericEditorView
 
 

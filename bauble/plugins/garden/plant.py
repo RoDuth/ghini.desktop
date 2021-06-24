@@ -30,9 +30,6 @@ import logging
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
-
-import gi
-gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk  # noqa
 
 from sqlalchemy import and_, func
@@ -43,22 +40,21 @@ from sqlalchemy.orm import (relation, backref, object_mapper, validates,
 from sqlalchemy.orm.session import object_session
 from sqlalchemy.exc import DBAPIError, OperationalError
 
-import bauble.db as db
+from bauble import db
 from bauble.error import CheckConditionError
 from bauble.editor import GenericEditorView, GenericEditorPresenter, \
     GenericModelViewPresenterEditor, NotesPresenter, PicturesPresenter
-import bauble.meta as meta
-import bauble.paths as paths
-from bauble.plugins.plants.species_model import Species
+from bauble import meta
+from bauble import paths
 from bauble.plugins.garden.location import Location, LocationEditor
 from bauble.plugins.garden.propagation import PlantPropagation
-import bauble.prefs as prefs
+from bauble import prefs
 from bauble.search import SearchStrategy
-import bauble.btypes as types
-import bauble.utils as utils
+from bauble import btypes as types
+from bauble import utils
 from bauble.view import InfoBox, InfoExpander, PropertiesExpander, \
     select_in_search_results, Action
-import bauble.view as view
+from bauble import view
 
 # TODO: might be worthwhile to have a label or textview next to the
 # location combo that shows the description of the currently selected

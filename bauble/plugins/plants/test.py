@@ -393,17 +393,16 @@ class FamilyTests(PlantTestCase):
         Interactively test the FamilyEditor
         """
         raise SkipTest('Not Implemented')
-        #loc = self.create(Family, name=u'some site')
         fam = Family(family='some family')
         editor = FamilyEditor(model=fam)
-        editor.start()
+        # editor.start()
         del editor
-        assert utils.gc_objects_by_type('FamilyEditor') == [], \
-            'FamilyEditor not deleted'
-        assert utils.gc_objects_by_type('FamilyEditorPresenter') == [], \
-            'FamilyEditorPresenter not deleted'
-        assert utils.gc_objects_by_type('FamilyEditorView') == [], \
-            'FamilyEditorView not deleted'
+        self.assertEqual(utils.gc_objects_by_type('FamilyEditor'),
+                         [], 'FamilyEditor not deleted')
+        self.assertEqual(utils.gc_objects_by_type('FamilyEditorPresenter'),
+                         [], 'FamilyEditorPresenter not deleted')
+        self.assertEqual(utils.gc_objects_by_type('FamilyEditorView'),
+                         [], 'FamilyEditorView not deleted')
 
     def test_remove_callback_no_genera_no_confirm(self):
         # T_0
@@ -814,12 +813,12 @@ class SpeciesTests(PlantTestCase):
         self.session.commit()
         sp = Species(genus=g, sp='sp')
         edit_species(model=sp)
-        assert utils.gc_objects_by_type('SpeciesEditorMenuItem') == [], \
-            'SpeciesEditor not deleted'
-        assert utils.gc_objects_by_type('SpeciesEditorPresenter') == [], \
-            'SpeciesEditorPresenter not deleted'
-        assert utils.gc_objects_by_type('SpeciesEditorView') == [], \
-            'SpeciesEditorView not deleted'
+        self.assertEqual(utils.gc_objects_by_type('SpeciesEditorMenuItem'),
+                         [], 'SpeciesEditor not deleted')
+        self.assertEqual(utils.gc_objects_by_type('SpeciesEditorPresenter'),
+                         [], 'SpeciesEditorPresenter not deleted')
+        self.assertEqual(utils.gc_objects_by_type('SpeciesEditorView'),
+                         [], 'SpeciesEditorView not deleted')
 
     def test_str(self):
         """
