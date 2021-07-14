@@ -254,6 +254,12 @@ def open(uri, verify=True, show_error_dialogs=False):
     global engine
     new_engine = None
 
+    # avoid sqlite thread errors
+    connect_args = {}
+    if uri.find('sqlite') != -1:
+        connect_args = {"check_same_thread": False}
+        logger.info('using sqlite DB with check_same_thread set False. If this'
+                    ' is causing errors consider removing it')
 
     # NOTE sqla, by default, for sqlite uses SingletonThreadPool for
     # :memory: databases and NullPool for files.  For other DBs QueuePool
@@ -261,6 +267,7 @@ def open(uri, verify=True, show_error_dialogs=False):
     # docs states: re: SingletonThreadPool is only intended for sqlite memory
     # data, generally testing, and 'not recommended for production use'.
     new_engine = sa.create_engine(uri, echo=SQLALCHEMY_DEBUG,
+                                  connect_args=connect_args,
                                   implicit_returning=False)
 
     # TODO: there is a problem here: the code may cause an exception, but we
