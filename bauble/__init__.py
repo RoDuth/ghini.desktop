@@ -26,13 +26,12 @@ The top level module for Ghini.
 import logging
 import os
 import sys
+import traceback
+import warnings
 import gi
 from bauble import paths
 
 gi.require_version("Gtk", "3.0")
-
-# to use faulthandler set env var:
-# PYTHONFAULTHANDLER=1
 
 from bauble.version import version
 version_tuple = tuple(version.split('.'))
@@ -44,6 +43,23 @@ import bauble.i18n
 
 logger = logging.getLogger(__name__)
 consoleLevel = logging.INFO
+
+
+def warn_with_traceback(message, category, filename, lineno, file=None,
+                        line=None):
+    log = file if hasattr(file, 'write') else sys.stderr
+    traceback.print_stack(file=log)
+    log.write(warnings.formatwarning(
+        message, category, filename, lineno, line))
+
+
+# to print a traceback for warnings set env var:
+# BAUBLE_WARN_TRACE=True
+if os.environ.get('BAUBLE_WARN_TRACE'):
+    warnings.showwarning = warn_with_traceback
+
+# to use faulthandler set env var:
+# PYTHONFAULTHANDLER=1
 
 
 def pb_set_fraction(fraction):
