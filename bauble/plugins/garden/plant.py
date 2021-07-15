@@ -241,7 +241,9 @@ def compute_serializable_fields(cls, session, keys):
 
     return result
 
-PlantNote = db.make_note_class('Plant', compute_serializable_fields, as_dict, retrieve)
+
+PlantNote = db.make_note_class('Plant', compute_serializable_fields, as_dict,
+                               retrieve)
 
 
 change_reasons = {
@@ -503,9 +505,9 @@ class Plant(db.Base, db.Serializable, db.DefiningPictures, db.WithNotes):
         except ValueError:
             return None
 
-    def _get_delimiter(self):
+    @property
+    def delimiter(self):
         return Plant.get_delimiter()
-    delimiter = property(lambda self: self._get_delimiter())
 
     def __str__(self):
         return "%s%s%s" % (self.accession, self.delimiter, self.code)
@@ -513,7 +515,6 @@ class Plant(db.Base, db.Serializable, db.DefiningPictures, db.WithNotes):
     def duplicate(self, code=None, session=None):
         """Return a Plant that is a flat (not deep) duplicate of self. For notes,
         changes and propagations, you should refer to the original plant.
-
         """
         plant = Plant()
         if not session:
@@ -957,22 +958,22 @@ class PlantEditorPresenter(GenericEditorPresenter):
 
 
 def move_quantity_between_plants(from_plant, to_plant, to_plant_change=None):
-    ######################################################
-    s = object_session(to_plant)
+
+    session = object_session(to_plant)
     if to_plant_change is None:
         to_plant_change = PlantChange()
-        s.add(to_plant_change)
+        session.add(to_plant_change)
     from_plant_change = PlantChange()
-    s.add(from_plant_change)
-    ######################################################
+    session.add(from_plant_change)
+
     from_plant.quantity -= to_plant.quantity
-    ######################################################
+
     to_plant_change.plant = to_plant
     to_plant_change.parent_plant = from_plant
     to_plant_change.quantity = to_plant.quantity
     to_plant_change.to_location = to_plant.location
     to_plant_change.from_location = from_plant.location
-    ######################################################
+
     from_plant_change.plant = from_plant
     from_plant_change.quantity = to_plant.quantity
     from_plant_change.to_location = to_plant.location

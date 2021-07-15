@@ -217,10 +217,10 @@ class LocationEditorView(GenericEditorView):
         }
 
     def __init__(self, parent=None):
-        GenericEditorView.__init__(self, os.path.join(paths.lib_dir(),
-                                                      'plugins', 'garden',
-                                                      'loc_editor.glade'),
-                                   parent=parent)
+        super().__init__(
+            os.path.join(paths.lib_dir(),
+                         'plugins', 'garden', 'loc_editor.glade'),
+            parent=parent)
         self.use_ok_and_add = True
         self.set_accept_buttons_sensitive(False)
         self.widgets.notebook.set_current_page(0)

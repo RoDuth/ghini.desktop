@@ -264,6 +264,7 @@
                           <object class="GtkExpander" id="danger_zone">
                             <property name="visible">True</property>
                             <property name="can-focus">True</property>
+                            <property name="resize-toplevel">True</property>
                             <child>
                               <!-- n-columns=3 n-rows=2 -->
                               <object class="GtkGrid" id="table2">

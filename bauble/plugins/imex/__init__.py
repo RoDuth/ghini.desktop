@@ -25,7 +25,7 @@
 # TODO: would be best to provide some intermediate format so that we could
 # transform from any format to another
 
-import bauble.pluginmgr as pluginmgr
+from bauble import pluginmgr
 from bauble.plugins.imex.csv_ import CSVImportTool, CSVExportTool, \
     CSVExportCommandHandler, CSVImportCommandHandler
 from bauble.plugins.imex.iojson import JSONImportTool, JSONExportTool

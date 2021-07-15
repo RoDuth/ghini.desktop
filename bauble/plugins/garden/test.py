@@ -260,7 +260,8 @@ class PlantTests(GardenTestCase):
                   quantity=52)
         self.session.add(p)
         self.assertEqual(p.search_view_markup_pair(),
-                          ('1.2 <span foreground="#555555" size="small" weight="light">- 52 alive in (STE) site</span>',
+                         ('1.2 <span foreground="#555555" size="small" '
+                          'weight="light">- 52 alive in (STE) site</span>',
                            '<i>Echinocactus</i> <i>grusonii</i>'))
         # dead plant
         p = Plant(accession=self.accession, location=self.location, code='2',
@@ -335,12 +336,15 @@ class PlantTests(GardenTestCase):
         editor.start()
 
     def test_double_change(self):
-        plant = Plant(accession=self.accession, code='11', location=self.location, quantity=10)
+        plant = Plant(accession=self.accession, code='11',
+                      location=self.location, quantity=10)
         loc2a = Location(name='site2a', code='2a')
         self.session.add_all([plant, loc2a])
         self.session.flush()
         editor = PlantEditor(model=plant, branch_mode=True)
-        loc2a = object_session(editor.branched_plant).query(Location).filter(Location.code == '2a').one()
+        loc2a = object_session(
+            editor.branched_plant).query(
+                Location).filter(Location.code == '2a').one()
         editor.branched_plant.location = loc2a
         update_gui()
         editor.model.quantity = 3

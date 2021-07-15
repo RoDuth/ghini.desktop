@@ -338,17 +338,19 @@ class PropCutting(db.Base):
     # not null
 
     # F/C
-    bottom_heat_unit = Column(types.Enum(values=list(bottom_heat_unit_values.keys()),
-                                         translations=bottom_heat_unit_values),
-                              nullable=True)
+    bottom_heat_unit = Column(
+        types.Enum(values=list(bottom_heat_unit_values.keys()),
+                   translations=bottom_heat_unit_values),
+        nullable=True)
     rooted_pct = Column(Integer, autoincrement=False)
 
     propagation_id = Column(Integer, ForeignKey('propagation.id'),
                             nullable=False)
 
-    rooted = relation('PropCuttingRooted', cascade='all,delete-orphan',
-                      primaryjoin='PropCutting.id==PropCuttingRooted.cutting_id',
-                      backref=backref('cutting', uselist=False))
+    rooted = relation(
+        'PropCuttingRooted', cascade='all, delete-orphan',
+        primaryjoin='PropCutting.id == PropCuttingRooted.cutting_id',
+        backref=backref('cutting', uselist=False))
 
 
 class PropSeed(db.Base):
@@ -592,8 +594,7 @@ class CuttingPresenter(editor.GenericEditorPresenter):
         self.model = self.model._cutting
 
         init_combo = self.view.init_translatable_combo
-        init_combo('cutting_type_combo', cutting_type_values,
-                   editor.UnicodeOrNoneValidator())
+        init_combo('cutting_type_combo', cutting_type_values)
         init_combo('cutting_length_unit_combo', length_unit_values)
         init_combo('cutting_tip_combo', tip_values)
         init_combo('cutting_leaves_combo', leaves_values)
@@ -854,7 +855,6 @@ class SeedPresenter(editor.GenericEditorPresenter):
 class PropagationPresenter(editor.ChildPresenter):
     """PropagationPresenter is extended by SourcePropagationPresenter and
     PropagationEditorPresenter.
-
     """
     widget_to_field_map = {'prop_type_combo': 'prop_type',
                            'prop_date_entry': 'date',

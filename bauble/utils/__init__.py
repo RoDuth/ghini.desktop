@@ -383,7 +383,7 @@ def search_tree_model(parent, data, cmp=lambda row, data: row[0] == data):
 def clear_model(obj_with_model):
     """
     :param obj_with_model: a gtk Widget that has a Gtk.TreeModel that
-      can be retrieved with obj_with_mode.get_model
+      can be retrieved with obj_with_model.get_model
 
     Remove the model from the object and set the model on the object to None
     """
@@ -473,7 +473,8 @@ def get_widget_value(widget, index=0):
 
 
 def set_widget_value(widget, value, markup=False, default=None, index=0):
-    '''
+    """Set the value of the widget.
+
     :param widget: an instance of Gtk.Widget
     :param value: the value to put in the widget
     :param markup: whether or not value is markup
@@ -482,7 +483,7 @@ def set_widget_value(widget, value, markup=False, default=None, index=0):
 
     .. note:: any values passed in for widgets that expect a string will call
       the values __str__ method
-    '''
+    """
 
     if value is None:  # set the value from the default
         if isinstance(widget, (Gtk.Label, Gtk.TextView, Gtk.Entry)) \
@@ -1154,10 +1155,10 @@ def delete_or_expunge(obj):
     if session is None:
         return
     if obj not in session.new:
-        logger.debug('delete obj: %s -- %s' % (obj, repr(obj)))
+        logger.debug('delete obj: %s -- %s', obj, repr(obj))
         session.delete(obj)
     else:
-        logger.debug('expunge obj: %s -- %s' % (obj, repr(obj)))
+        logger.debug('expunge obj: %s -- %s', obj, repr(obj))
         session.expunge(obj)
         del obj
 
@@ -1315,7 +1316,7 @@ def range_builder(text):
     try:
         tokens = range_list.parseString(text)
     except (AttributeError, ParseException) as e:
-        logger.debug("%s(%s)" % (type(e).__name__, e))
+        logger.debug("%s(%s)", type(e).__name__, e)
         return []
     values = set()
     for rng in tokens:

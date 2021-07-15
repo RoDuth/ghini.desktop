@@ -48,8 +48,10 @@ from sqlalchemy import orm
 from sqlalchemy.orm import class_mapper
 from sqlalchemy.ext.declarative import declarative_base, DeclarativeMeta
 
-from bauble import btypes as types
+# pylint: disable=ungrouped-imports
 from bauble import utils
+from bauble import btypes as types
+# pylint: enable=ungrouped-imports
 
 
 def sqlalchemy_debug(verbose):
