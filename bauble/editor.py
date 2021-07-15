@@ -399,7 +399,7 @@ class GenericEditorView(object):
     def connect(self, obj, signal, callback, *args):
         """
         Attach a signal handler for signal on obj.  For more
-        information see :meth:`GObject.connect_after`
+        information see :meth:`GObject.connect`
 
         :param obj: An instance of a subclass of gobject that will
           receive the signal
@@ -709,14 +709,14 @@ class GenericEditorView(object):
         else:
             entry.set_completion(completion)
 
+        # TODO <RD> can not see need for this..
         # allow later access to the match func just in case
         completion._match_func = match_func
 
         return completion
 
-    # TODO: add a default value to set in the combo
     def init_translatable_combo(self, combo, translations, default=None,
-                                cmp=None):
+                                key=None):
         """
         Initialize a Gtk.ComboBox with translations values where
         model[row][0] is the value that will be stored in the database
@@ -729,23 +729,21 @@ class GenericEditorView(object):
         :param combo:
         :param translations: a list of pairs, or a dictionary,
             of values->translation.
+        :param default: the index of the intial value as an int.
+        :param key: a callable that returns a key for sorting
         """
         if isinstance(combo, str):
             combo = self.widgets[combo]
         combo.clear()
-        # using 'object' avoids SA unicode warning
-        model = Gtk.ListStore(object, str)
+        model = Gtk.ListStore(str, str)
         if isinstance(translations, dict):
             translations = sorted(iter(translations.items()),
                                   key=lambda x: x[1])
-        # if cmp is not None:
-        #     translations = sorted(translations,
-        #                           cmp=lambda a, b: cmp(a[0], b[0]))
-        if cmp is not None:
-            translations = sorted(translations, key=lambda a:
-                                  cmp.get(str(a[0])))
-        for key, value in translations:
-            model.append([key, value])
+
+        if key is not None:
+            translations = sorted(translations, key=key)
+        for k, v in translations:
+            model.append([k, v])
         combo.set_model(model)
         cell = Gtk.CellRendererText()
         combo.pack_start(cell, True)
@@ -766,6 +764,10 @@ class GenericEditorView(object):
             # completion.set_minimum_key_length(2)
 
             combo.connect('format-entry-text', utils.format_combo_entry_text)
+
+        if default is not None:
+            treeiter = utils.combo_get_value_iter(combo, default)
+            combo.set_active_iter(treeiter)
 
     def save_state(self):
         '''
@@ -1421,7 +1423,7 @@ class GenericEditorPresenter(object):
             % (widget, attr, type(value), value))
 
     def on_group_changed(self, widget, *args):
-        "handle group-changed signal on radio-button"
+        """handle group-changed signal on radio-button"""
         if args:
             logger.warning("on_group_changed received extra arguments" +
                            str(args))
