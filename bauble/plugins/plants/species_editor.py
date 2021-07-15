@@ -596,7 +596,9 @@ class InfraspPresenter(editor.GenericEditorPresenter):
             # rank combo
             self.rank_combo = Gtk.ComboBox()
             self.presenter.view.init_translatable_combo(
-                self.rank_combo, infrasp_rank_values, cmp=compare_rank)
+                self.rank_combo,
+                infrasp_rank_values,
+                key=lambda x: compare_rank.get(str(x[0])))
             utils.set_widget_value(self.rank_combo, rank)
             presenter.view.connect(self.rank_combo, 'changed',
                                    self.on_rank_combo_changed)
