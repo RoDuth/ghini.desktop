@@ -1,6 +1,7 @@
 # Copyright 2008-2010 Brett Adams
 # Copyright 2015-2017 Mario Frasca <mario@anche.no>.
 # Copyright 2017 Jardín Botánico de Quito
+# Copyright 2020-2021 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -31,13 +32,14 @@ logger = logging.getLogger(__name__)
 
 from gi.repository import Gtk  # noqa
 
-from sqlalchemy import and_, func
+from sqlalchemy import and_, func, event
 from sqlalchemy import ForeignKey, Column, Unicode, Integer, Boolean, \
     UnicodeText, UniqueConstraint
 from sqlalchemy.orm import (relation, backref, object_mapper, validates,
                             deferred)
 from sqlalchemy.orm.session import object_session
 from sqlalchemy.exc import DBAPIError, OperationalError
+from sqlalchemy.orm.attributes import get_history
 
 from bauble import db
 from bauble.error import CheckConditionError
@@ -247,6 +249,10 @@ PlantNote = db.make_note_class('Plant', compute_serializable_fields, as_dict,
 
 
 change_reasons = {
+    'PLTD': _('New planting'),
+    'NTRL': _('Capture naturalised or original'),
+    'PRIR': _('Unrecorded prior planting'),
+    'ESTM': _('Estimated planting date'),
     'DEAD': _('Dead'),
     'DELE': _('Deleted, yr. dead. unknown'),
     'DNGM': _('Did not germinate'),
@@ -266,9 +272,26 @@ change_reasons = {
     'VAND': _('Vandalised'),
     'WINK': _('Winter kill'),
     'WETH': _('Weather or natural event'),
+    'VPIP': _('Vegetative propagated (in place)'),
+    'SLFS': _('Self seeded'),
+    'TBAC': _('Transferred back'),
     'OTHR': _('Other'),
     None: ''
-    }
+}
+
+common_reasons = ['ERRO', 'OTHR', None]
+new_plt_reasons = ['PLTD', 'NTRL', 'PRIR', 'ESTM']
+added_reasons = ['TBAC', 'SLFS', 'VPIP']
+transfer_reasons = ['HOSP', 'QUAR', 'TRAN', 'DIST', 'TBAC']
+
+deleted_reasons = {k: v for k, v in change_reasons.items() if k not in
+                   added_reasons + new_plt_reasons}
+new_plt_reasons = {k: v for k, v in change_reasons.items() if k in
+                   new_plt_reasons + common_reasons}
+added_reasons = {k: v for k, v in change_reasons.items() if k in
+                 added_reasons + common_reasons}
+transfer_reasons = {k: v for k, v in change_reasons.items() if k in
+                    transfer_reasons + common_reasons}
 
 
 class PlantChange(db.Base):
@@ -279,6 +302,7 @@ class PlantChange(db.Base):
 
     plant_id = Column(Integer, ForeignKey('plant.id'), nullable=False)
     parent_plant_id = Column(Integer, ForeignKey('plant.id'))
+    child_plant_id = Column(Integer, ForeignKey('plant.id'))
 
     # - if to_location_id is None changeis a removal
     # - if from_location_id is None then this change is a creation
@@ -287,7 +311,7 @@ class PlantChange(db.Base):
     to_location_id = Column(Integer, ForeignKey('location.id'))
 
     # the name of the person who made the change
-    person = Column(Unicode(64))
+    person = Column(Unicode(64), default=utils.get_user_display_name())
 
     quantity = Column(Integer, autoincrement=False, nullable=False)
     note_id = Column(Integer, ForeignKey('plant_note.id'))
@@ -306,6 +330,11 @@ class PlantChange(db.Base):
         'Plant', uselist=False,
         primaryjoin='PlantChange.parent_plant_id == Plant.id',
         backref=backref('branches', cascade='delete, delete-orphan'))
+
+    child_plant = relation(
+        'Plant', uselist=False,
+        primaryjoin='PlantChange.child_plant_id == Plant.id',
+        backref=backref('branched_from', cascade='delete, delete-orphan'))
 
     from_location = relation(
         'Location', primaryjoin='PlantChange.from_location_id == Location.id')
@@ -462,6 +491,45 @@ class Plant(db.Base, db.Serializable, db.DefiningPictures, db.WithNotes):
                             secondary=PlantPropagation.__table__,
                             backref=backref('plant', uselist=False))
 
+    # TODO <RD> Test these and changes in general better (i.e.:
+    # # can we edit them?, i.e. if we export the planting date in a shapefile
+    #   can we import a new date?  (shapefile import tests)
+    # # create a split and check they all get an appropriate
+    #   planted.date/person/etc and so does the parent_plant change
+    # - change the location and quantity at once and check that we get 2
+    #   changes
+    # - what about importing shapefile, json tests in their test
+    # )
+
+    # provide a way to search and use the change that recorded either a death
+    # or a planting date directly.  This is not fool proof but close enough.
+    death = relation("PlantChange",
+                     primaryjoin="and_(PlantChange.plant_id == Plant.id, "
+                     "PlantChange.id == select([PlantChange.id])"
+                     ".where(and_("
+                     "PlantChange.plant_id == Plant.id, "
+                     "PlantChange.from_location_id is not None, "
+                     "Plant.quantity == 0, "
+                     "PlantChange.quantity < 0))"
+                     ".correlate(Plant)"
+                     ".order_by(desc(PlantChange.date))"
+                     ".limit(1))",
+                     uselist=False)
+
+    planted = relation("PlantChange",
+                       primaryjoin="and_(PlantChange.plant_id == Plant.id, "
+                       "PlantChange.id == select([PlantChange.id])"
+                       ".where(and_("
+                       "PlantChange.plant_id == Plant.id, "
+                       "PlantChange.to_location_id != None, "
+                       "PlantChange.child_plant_id == None, "
+                       "PlantChange.quantity > 0))"
+                       ".correlate(Plant)"
+                       ".order_by(PlantChange.date)"
+                       ".limit(1)"
+                       ".as_scalar())",
+                       uselist=False)
+
     _delimiter = None
 
     def search_view_markup_pair(self):
@@ -497,15 +565,6 @@ class Plant(db.Base, db.Serializable, db.DefiningPictures, db.WithNotes):
         return cls._delimiter
 
     @property
-    def date_of_death(self):
-        if self.quantity != 0:
-            return None
-        try:
-            return max([i.date for i in self.changes])
-        except ValueError:
-            return None
-
-    @property
     def delimiter(self):
         return Plant.get_delimiter()
 
@@ -522,10 +581,12 @@ class Plant(db.Base, db.Serializable, db.DefiningPictures, db.WithNotes):
             if session:
                 session.add(plant)
 
-        ignore = ('id', 'code', 'changes', 'notes', 'propagations', '_created')
-        properties = [p for p in object_mapper(self).iterate_properties if p.key not in ignore]
-        for prop in properties:
-            setattr(plant, prop.key, getattr(self, prop.key))
+        include = ('acc_type', 'memorial', 'quantity', 'accession_id',
+                   'location_id', 'accession', 'location', 'branches')
+        for prop in include:
+            val = getattr(self, prop)
+            logger.debug('duplicating plant with %s: %s', prop, val)
+            setattr(plant, prop, val)
         plant.code = code
 
         return plant
@@ -588,6 +649,127 @@ class Plant(db.Base, db.Serializable, db.DefiningPictures, db.WithNotes):
                 }
 
 
+# ensure an appropriate change has been capture for all changes or insertions.
+# In the editor this will create 2 changes if both the location and the
+# quantity are changed (using the supplied reason). The current change will be
+# corrected and a new one adding.  In imports etc. this should trigger the
+# creation of an approariate change without a reason.
+@event.listens_for(Plant, 'after_update')
+def plant_after_update(mapper, connection, target):  \
+        # pylint: disable=unused-argument,too-many-locals
+    changes = []
+    to_update = None
+    session = object_session(target)
+    reason = date = None
+    for change in target.changes:
+        if change in session.new:
+            logger.debug("%s has new change %s", target, change.__dict__)
+            reason = str(change.reason) if change.reason else None
+            date = str(change.date) if change.date else None
+            # capture change to use below
+            to_update = change
+            # bail early if a split change
+            if to_update.child_plant:
+                return
+
+    from_loc = (get_history(target, 'location_id').deleted[0]
+                if get_history(target, 'location_id').deleted else None)
+    to_loc = (get_history(target, 'location_id').added[0]
+              if get_history(target, 'location_id').added else None)
+    # NOTE if we have changed both location and quantity we most likely want 2
+    # changes
+    if get_history(target, 'location_id').has_changes():
+        quantity_change = (get_history(target, 'quantity').deleted[0] if
+                           get_history(target, 'quantity').deleted else
+                           target.quantity)
+        logger.debug("%s has location change %s->%s", target, from_loc, to_loc)
+        values = {
+            'plant_id': target.id,
+            'date': date,
+            'reason': reason,
+            'quantity': quantity_change,
+            'from_location_id': from_loc,
+            'to_location_id': to_loc
+        }
+        values = {k: v for k, v in values.items() if v is not None}
+        changes.append(values)
+
+    if get_history(target, 'quantity').has_changes():
+        # NOTE has_changes can pick up str/int/etc changes and not just ints so
+        # to be sure convert to int first.  It also possible that only added or
+        # deleted will exist not both.
+        added = int(get_history(target, 'quantity').added[0] if
+                    get_history(target, 'quantity').added else 0)
+        deleted = int(get_history(target, 'quantity').deleted[0] if
+                      get_history(target, 'quantity').deleted else 0)
+        quantity_change = (added - deleted)
+        logger.debug("%s has quantity change %s", target, quantity_change)
+        if quantity_change > 0:
+            logger.debug("%s has quantity increase %s", target,
+                         quantity_change)
+            values = {
+                'plant_id': target.id,
+                'date': date,
+                'reason': reason,
+                'quantity': quantity_change,
+                'to_location_id': target.location_id
+            }
+            values = {k: v for k, v in values.items() if v is not None}
+            changes.append(values)
+        else:
+            logger.debug("%s has quantity decrease %s", target,
+                         quantity_change)
+            values = {
+                'plant_id': target.id,
+                'date': date,
+                'reason': reason,
+                'quantity': quantity_change,
+                'from_location_id': target.location_id
+            }
+            values = {k: v for k, v in values.items() if v is not None}
+            changes.append(values)
+    for values in changes:
+        if to_update:
+            logger.debug("update existing change with %s", values)
+            to_update.to_location_id = None
+            to_update.from_location_id = None
+            for k, v in values.items():
+                setattr(to_update, k, v)
+            to_update = None
+        else:
+            logger.debug("creating new change with %s", values)
+            connection.execute(
+                PlantChange.__table__.insert().values(values))  # noqa pylint: disable=no-member
+
+
+@event.listens_for(Plant, 'after_insert')
+def plant_after_insert(mapper, connection, target):  \
+        # pylint: disable=unused-argument
+    session = object_session(target)
+    for change in target.changes:
+        if change in session.new:
+            logger.debug("new plant has change")
+            # Imports etc. may not have added these.  Add them when needed.
+            if change.quantity is None:
+                logger.debug("new plant change, adding quantity")
+                change.quantity = target.quantity
+            if change.to_location is None:
+                # this wont deal with a branched/split plants, branches should
+                # only happen in the editor
+                logger.debug("new plant change, adding location")
+                change.to_location_id = target.location_id
+            return
+
+    logger.debug("new plant adding a change")
+    plant_changes_table = PlantChange.__table__   # noqa pylint: disable=no-member
+    connection.execute(
+        plant_changes_table.insert().values(
+            plant_id=target.id,
+            quantity=target.quantity,
+            to_location_id=target.location_id
+        ))
+
+
 from bauble.plugins.garden.accession import Accession
 
 
@@ -616,7 +798,12 @@ class PlantEditorView(GenericEditorView):
             'Save your changes and add another plant.'),
         'pad_nextaccession_button': _(
             'Save your changes and add another accession.'),
-        }
+        'plant_changes_treeview': _(
+            'While some minimal editing is possible here it is most often not '
+            'wise to do so. Changes are normally triggered by events. '
+            'Date changes may confuse the plants history and reasons are not '
+            'constrained here as in the main editor. Use at your own risk.')
+    }
 
     def __init__(self, parent=None):
         glade_file = os.path.join(paths.lib_dir(), 'plugins', 'garden',
@@ -638,7 +825,6 @@ class PlantEditorView(GenericEditorView):
         self.attach_completion('plant_acc_entry', acc_cell_data_func,
                                minimum_key_length=2)
         self.init_translatable_combo('plant_acc_type_combo', acc_type_values)
-        self.init_translatable_combo('reason_combo', change_reasons)
         utils.setup_date_button(self, 'plant_date_entry', 'plant_date_button')
         self.widgets.notebook.set_current_page(0)
 
@@ -675,6 +861,7 @@ class PlantEditorPresenter(GenericEditorPresenter):
         self.session = object_session(model)
         self._original_accession_id = self.model.accession_id
         self._original_code = self.model.code
+        self._original_location = self.model.location
 
         # if the model is in session.new then it might be a branched
         # plant so don't store it....is this hacky?
@@ -718,13 +905,11 @@ class PlantEditorPresenter(GenericEditorPresenter):
             self.set_model_attr('location', location)
             if self.change.quantity is None:
                 self.change.quantity = self.model.quantity
+            self.refresh_view()
 
         from bauble.plugins.garden import init_location_comboentry
         init_location_comboentry(self, self.view.widgets.plant_loc_comboentry,
                                  on_location_select)
-
-        # put initial model values in view and sets `initializing` to True
-        self.refresh_view(initializing=True)
 
         self.change = PlantChange()
         self.session.add(self.change)
@@ -733,17 +918,20 @@ class PlantEditorPresenter(GenericEditorPresenter):
         self.change.quantity = self.model.quantity
 
         def on_reason_changed(combo):
-            it = combo.get_active_iter()
-            self.change.reason = combo.get_model()[it][0]
+            itr = combo.get_active_iter()
+            self.change.reason = combo.get_model()[itr][0]
 
-        sensitive = False
-        if self.model not in self.session.new:
-            self.view.connect(self.view.widgets.reason_combo, 'changed',
-                              on_reason_changed)
-            sensitive = True
-        self.view.widgets.reason_combo.props.sensitive = sensitive
-        self.view.widgets.reason_label.props.sensitive = sensitive
+        self.view.connect(self.view.widgets.reason_combo, 'changed',
+                          on_reason_changed)
+        self.reasons = change_reasons
+        # put initial model values in view and sets `initializing` to True
+        self.refresh_view(initializing=True)
+        # self.refresh_view()
 
+        self.view.init_translatable_combo('reason_combo', self.reasons)
+
+        date_str = utils.today_str()
+        utils.set_widget_value(self.view.widgets.plant_date_entry, date_str)
         self.view.connect('plant_date_entry', 'changed',
                           self.on_date_entry_changed)
 
@@ -794,7 +982,7 @@ class PlantEditorPresenter(GenericEditorPresenter):
         if self.model.quantity == 0:
             self.view.widgets.notebook.set_sensitive(False)
             msg = _('This plant is marked with quantity zero. \n'
-                    'In practice, it is not any more part of the collection. \n'
+                    'In practice, it is not any more part of the collection.\n'
                     'Are you sure you want to edit it anyway?')
             box = None
             def on_response(button, response):
@@ -808,6 +996,124 @@ class PlantEditorPresenter(GenericEditorPresenter):
             self.view.add_box(box)
         # done initializing, reset it
         self.initializing = False
+        self.history_expanded = False
+
+        self.init_changes_history_view()
+
+    def init_changes_history_view(self):
+        default_cell_data_func = utils.default_cell_data_func
+        frmt = prefs.prefs[prefs.date_format_pref]
+
+        self.view.widgets.changes_date_column.set_cell_data_func(
+            self.view.widgets.changes_date_cell,
+            default_cell_data_func,
+            func_data=lambda obj: obj.date.strftime(frmt)
+        )
+
+        changes_treeview = self.view.widgets.plant_changes_treeview
+
+        def on_date_cell_edited(cell, path, new_text):  \
+                # pylint: disable=unused-argument
+            treemodel = changes_treeview.get_model()
+            obj = treemodel[path][0]
+            if obj.date.strftime(frmt) == new_text:
+                return
+            from dateutil import parser
+            val = parser.parse(
+                new_text,
+                dayfirst=prefs.prefs[prefs.parse_dayfirst_pref],
+                yearfirst=prefs.prefs[prefs.parse_yearfirst_pref])
+            obj.date = val
+            self._dirty = True
+            self.refresh_sensitivity()
+
+        def on_cell_edited(cell, path, new_text, prop):  \
+                # pylint: disable=unused-argument
+            treemodel = changes_treeview.get_model()
+            obj = treemodel[path][0]
+            if getattr(obj, prop) == new_text:
+                return  # didn't change
+            setattr(obj, prop, str(new_text))
+            self._dirty = True
+            self.refresh_sensitivity()
+
+        self.view.connect(self.view.widgets.changes_date_cell, 'edited',
+                          on_date_cell_edited)
+
+        self.view.widgets.changes_quantity_column.set_cell_data_func(
+            self.view.widgets.changes_quantity_cell,
+            default_cell_data_func,
+            func_data=lambda obj: str(obj.quantity or '')
+        )
+
+        self.view.widgets.changes_from_column.set_cell_data_func(
+            self.view.widgets.changes_from_cell,
+            default_cell_data_func,
+            func_data=(lambda obj:
+                       obj.from_location.code if obj.from_location else '')
+        )
+
+        self.view.widgets.changes_to_column.set_cell_data_func(
+            self.view.widgets.changes_to_cell,
+            default_cell_data_func,
+            func_data=(lambda obj:
+                       obj.to_location.code if obj.to_location else '')
+        )
+
+        self.view.widgets.changes_parent_column.set_cell_data_func(
+            self.view.widgets.changes_parent_cell,
+            default_cell_data_func,
+            func_data=lambda obj: str(obj.parent_plant or '')
+        )
+
+        self.view.widgets.changes_child_column.set_cell_data_func(
+            self.view.widgets.changes_child_cell,
+            default_cell_data_func,
+            func_data=lambda obj: str(obj.child_plant or '')
+        )
+
+        # TODO can/should the options be limited to appropriate values only?
+        reason_store = Gtk.ListStore(str, str)
+        for key, val in change_reasons.items():
+            reason_store.append([key, val])
+
+        self.view.widgets.changes_reason_cell.props.model = reason_store
+
+        self.view.widgets.changes_reason_column.set_cell_data_func(
+            self.view.widgets.changes_reason_cell,
+            default_cell_data_func,
+            func_data=lambda obj: str(change_reasons.get(obj.reason) or '')
+        )
+
+        def on_reason_cell_changed(widget, path, new_iter):  \
+                # pylint: disable=unused-argument
+            treemodel = changes_treeview.get_model()
+            obj = treemodel[path][0]
+            obj.reason = widget.props.model[new_iter][0]
+            self._dirty = True
+            self.refresh_sensitivity()
+
+        self.view.connect(self.view.widgets.changes_reason_cell, 'changed',
+                          on_reason_cell_changed)
+
+        self.view.widgets.changes_user_column.set_cell_data_func(
+            self.view.widgets.changes_user_cell,
+            default_cell_data_func,
+            func_data=lambda obj: str(obj.person or '')
+        )
+
+        self.view.connect(self.view.widgets.changes_user_cell, 'edited',
+                          on_cell_edited, 'person')
+
+        utils.clear_model(changes_treeview)
+        store = Gtk.ListStore(object)
+
+        # all but the current/active change
+        for change in sorted(
+                self.model.changes[:-1], key=lambda row: (row.date, row.id)):
+            store.append([change])
+
+        changes_treeview.set_model(store)
 
     def is_dirty(self):
         return (self.pictures_presenter.is_dirty() or
@@ -826,8 +1132,13 @@ class PlantEditorPresenter(GenericEditorPresenter):
             logger.debug("%s(%s)" % (type(e).__name__, e))
             value = None
         self.set_model_attr('quantity', value)
-        if (value is None or value < self.lower_quantity_limit or value >=
-                self.upper_quantity_limit):
+        # incase splitting into multiple
+        codes = utils.range_builder(self.model.code)
+        tru_value = value
+        if len(codes) > 1:
+            tru_value = value * len(codes)
+        if (value is None or tru_value < self.lower_quantity_limit or
+                tru_value >= self.upper_quantity_limit):
             self.add_problem(self.PROBLEM_INVALID_QUANTITY, entry)
         else:
             self.remove_problem(self.PROBLEM_INVALID_QUANTITY, entry)
@@ -835,8 +1146,8 @@ class PlantEditorPresenter(GenericEditorPresenter):
         if value is None:
             return
         if self._original_quantity:
-            self.change.quantity = \
-                abs(self._original_quantity-self.model.quantity)
+            self.change.quantity = abs(
+                self._original_quantity - self.model.quantity)
         else:
             self.change.quantity = self.model.quantity
         self.refresh_view()
@@ -934,21 +1245,44 @@ class PlantEditorPresenter(GenericEditorPresenter):
         for widget, field in self.widget_to_field_map.items():
             value = getattr(self.model, field)
             self.view.widget_set_value(widget, value)
-            logger.debug('%s: %s = %s' % (widget, field, value))
+            logger.debug('%s: %s = %s', widget, field, value)
 
         self.view.widget_set_value('plant_acc_type_combo',
                                    acc_type_values[self.model.acc_type],
                                    index=1)
         self.view.widgets.plant_memorial_check.set_inconsistent(False)
-        self.view.widgets.plant_memorial_check.\
-            set_active(self.model.memorial is True)
+        self.view.widgets.plant_memorial_check.set_active(
+            self.model.memorial is True)
+
+        reasons = {}
+        default = None
+        if self.model in self.session.new:
+            reasons = new_plt_reasons
+            default = 'PLTD'
+        elif self.model.location != self._original_location:
+            reasons = transfer_reasons
+        elif self.model.quantity > self._original_quantity:
+            reasons = added_reasons
+        elif self.model.quantity < self._original_quantity:
+            reasons = deleted_reasons
+        else:
+            reasons = change_reasons
+
+        if self.change.reason in reasons:
+            default = self.change.reason
+
+        if self.reasons != reasons:
+            self.reasons = reasons
+            self.view.init_translatable_combo('reason_combo', reasons,
+                                              default=default)
 
         self.refresh_sensitivity()
 
     def cleanup(self):
         super().cleanup()
         msg_box_parent = self.view.widgets.message_box_parent
-        list(map(msg_box_parent.remove, msg_box_parent.get_children()))
+        for widget in msg_box_parent.get_children():
+            msg_box_parent.remove(widget)
         # the entry is made not editable for branch mode
         self.view.widgets.plant_acc_entry.props.editable = True
         self.view.get_window().props.title = _('Plant Editor')
@@ -960,6 +1294,7 @@ class PlantEditorPresenter(GenericEditorPresenter):
 def move_quantity_between_plants(from_plant, to_plant, to_plant_change=None):
 
     session = object_session(to_plant)
+    logger.debug('from_plant = %s', from_plant.as_dict())
     if to_plant_change is None:
         to_plant_change = PlantChange()
         session.add(to_plant_change)
@@ -975,7 +1310,9 @@ def move_quantity_between_plants(from_plant, to_plant, to_plant_change=None):
     to_plant_change.from_location = from_plant.location
 
     from_plant_change.plant = from_plant
+    from_plant_change.child_plant = to_plant
     from_plant_change.quantity = to_plant.quantity
+    from_plant_change.date = to_plant_change.date
     from_plant_change.to_location = to_plant.location
     from_plant_change.from_location = from_plant.location
 
@@ -1003,8 +1340,11 @@ class PlantEditor(GenericModelViewPresenterEditor):
 
         self.branched_plant = None
         if branch_mode:
-            # we work on 'model', we keep the original at 'branched_plant'.
-            self.branched_plant, model = model, model.duplicate(code=None)
+            # duplicate the model so we can branch from it without
+            # destroying the first
+            logger.debug('branching %s', model)
+            self.branched_plant = model
+            model = self.branched_plant.duplicate(code=None)
             model.quantity = 1
 
         super().__init__(model, parent)
@@ -1049,8 +1389,9 @@ class PlantEditor(GenericModelViewPresenterEditor):
                         change.from_location == self.model.location and
                         change.quantity == self.presenter._original_quantity):
                 # if quantity and location haven't changed, nothing changed.
+                self.model.changes.remove(change)
+                # is this needed?
                 utils.delete_or_expunge(change)
-                self.model.change = None
             else:
                 if self.model.location != change.from_location:
                     # transfer
@@ -1068,10 +1409,10 @@ class PlantEditor(GenericModelViewPresenterEditor):
             self._committed.append(self.model)
             return
 
+        # TODO possibly offer a way to allow separate locations and quantities
         # this method will create new plants from self.model even if
         # the plant code is not a range....it's a small price to pay
         plants = []
-        mapper = object_mapper(self.model)
 
         # TODO: precompute the _created and _last_updated attributes
         # in case we have to create lots of plants. it won't be too slow
@@ -1080,29 +1421,37 @@ class PlantEditor(GenericModelViewPresenterEditor):
         # individually since session.merge won't create a new object
         # since the object is already in the session
         for code in codes:
-            new_plant = Plant()
-            self.session.add(new_plant)
-
-            # TODO: can't we use Plant.duplicate here?
-            ignore = ('changes', 'notes', 'propagations')
-            for prop in mapper.iterate_properties:
-                if prop.key not in ignore:
-                    setattr(new_plant, prop.key, getattr(self.model, prop.key))
-            new_plant.code = utils.utf8(code)
+            new_plant = self.model.duplicate(code=str(code))
             new_plant.id = None
             new_plant._created = None
             new_plant._last_updated = None
+            # new_plant.location = self.model.location
             plants.append(new_plant)
+            # copy over change (this gets reason, date etc.)
+            change = self.presenter.change
+            new_change = PlantChange()
+            for prop in object_mapper(change).iterate_properties:
+                setattr(new_change, prop.key, getattr(change, prop.key))
+            # add the plant and location
+            new_change.plant = new_plant
+            new_change.to_location = new_plant.location
+            # if we are branching need to transfer and record changes
+            if self.branched_plant:
+                move_quantity_between_plants(from_plant=self.branched_plant,
+                                             to_plant=new_plant,
+                                             to_plant_change=new_change)
             for note in self.model.notes:
                 new_note = PlantNote()
                 for prop in object_mapper(note).iterate_properties:
                     setattr(new_note, prop.key, getattr(note, prop.key))
                 new_note.plant = new_plant
         try:
-            list(map(self.session.expunge, self.model.notes))
+            for note in self.model.notes:
+                self.session.expunge(note)
+
             self.session.expunge(self.model)
             super().commit_changes()
-        except:
+        except Exception as e:
             self.session.add(self.model)
             raise
         self._committed.extend(plants)
@@ -1183,7 +1532,8 @@ class PlantEditor(GenericModelViewPresenterEditor):
             self.presenter.view.get_window().props.title += \
                 utils.utf8(' - %s' % _('Split Mode'))
             message_box_parent = self.presenter.view.widgets.message_box_parent
-            list(map(message_box_parent.remove, message_box_parent.get_children()))
+            for child in message_box_parent.get_children():
+                message_box_parent.remove(child)
             msg = _('Splitting from %(plant_code)s.  The quantity will '
                     'be subtracted from %(plant_code)s') \
                 % {'plant_code': str(self.branched_plant)}
@@ -1301,11 +1651,14 @@ class ChangesExpander(InfoExpander):
 
         frmt = prefs.prefs[prefs.date_format_pref]
         count = 0
-        for change in sorted(row.changes, key=lambda x: (x.date, x._created),
+        for change in sorted(row.changes, key=lambda x: (x.date, x.id),
                              reverse=True):
             date = change.date.strftime(frmt)
             date_lbl = Gtk.Label()
-            date_lbl.set_markup(f'<b>{date}</b>')
+            if change.reason == 'PLTD':
+                date_lbl.set_markup(f'<b>{date}</b> (Planted)')
+            else:
+                date_lbl.set_markup(f'<b>{date}</b>')
             date_lbl.set_xalign(0.0)
             date_lbl.set_yalign(0.0)
             self.change_grid.attach(date_lbl, 0, count, 1, 1)
@@ -1318,8 +1671,14 @@ class ChangesExpander(InfoExpander):
                 summary = (f'{-change.quantity} Removed from '
                            f'{change.from_location}')
             elif change.quantity > 0:
-                summary = (f'{change.quantity} Added to '
-                           f'{change.to_location}')
+                txt = 'Added to'
+                if change.reason == 'PLTD':
+                    txt = 'Planted in'
+                if change.reason == 'ESTM':
+                    txt = 'Planted (estm.) in'
+                if change.reason in ['NTRL', 'PRIR']:
+                    txt = 'Captured in'
+                summary = (f'{change.quantity} {txt} {change.to_location}')
             else:
                 summary = (f'{change.quantity}: {change.from_location} -> '
                            f'{change.to_location}')
@@ -1331,7 +1690,7 @@ class ChangesExpander(InfoExpander):
             self.change_grid.attach(summary_lbl, 0, count, 1, 1)
             count += 1
 
-            if change.reason:
+            if change.reason and not change.reason == 'PLTD':
                 reason_lbl = Gtk.Label()
                 reason_lbl.set_text(change_reasons.get(change.reason))
                 reason_lbl.set_xalign(0.0)
@@ -1342,7 +1701,7 @@ class ChangesExpander(InfoExpander):
             if change.parent_plant:
                 parent_lbl = Gtk.Label()
                 parent_lbl.set_markup(
-                    f'<i>Split from {change.parent_plant}</i>')
+                    f'<i>Split from {utils.xml_safe(change.parent_plant)}</i>')
                 eventbox = Gtk.EventBox()
                 eventbox.add(parent_lbl)
                 self.change_grid.attach(eventbox, 0, count, 1, 1)
@@ -1351,33 +1710,20 @@ class ChangesExpander(InfoExpander):
                 utils.make_label_clickable(parent_lbl, on_clicked,
                                            change.parent_plant)
 
-            try:
-                seconds, divided_plant = min(
-                    [(abs((i.plant._created - change.date).total_seconds()),
-                      i.plant) for i in row.branches])
-                if seconds > 3:
-                    divided_plant = None
-            except:
-                divided_plant = None
-
-            if divided_plant:
+            if change.child_plant:
                 div_lbl = Gtk.Label()
                 div_lbl.set_markup(
-                    f'<i>Split as {utils.xml_safe(divided_plant)}</i>')
+                    f'<i>Split as {utils.xml_safe(change.child_plant)}</i>')
                 eventbox = Gtk.EventBox()
                 eventbox.add(div_lbl)
                 self.change_grid.attach(eventbox, 0, count, 1, 1)
                 count += 1
 
                 utils.make_label_clickable(div_lbl, on_clicked,
-                                           change.parent_plant)
+                                           change.child_plant)
 
         # trigger resize
         self.get_preferred_size()
-
-
-def label_size_allocate(widget, rect):
-    widget.set_size_request(rect.width, -1)
 
 
 class PropagationExpander(InfoExpander):

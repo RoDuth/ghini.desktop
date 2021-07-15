@@ -1,6 +1,7 @@
 # Copyright 2008-2010 Brett Adams
 # Copyright 2015,2017 Mario Frasca <mario@anche.no>.
 # Copyright 2017 Jardín Botánico de Quito
+# Copyright 2021 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -313,6 +314,12 @@ class PlantTests(GardenTestCase):
                             Plant.code == utils.utf8(code)))
             self.assertTrue(q.first(), 'plant %s.%s not created' %
                          (self.accession, code))
+            self.assertIsNotNone(q.first().location_id)
+            # test a planted change was created
+            plt = q.first()
+            self.assertIsNotNone(plt.planted)
+            self.assertEqual(plt.planted.to_location, self.location)
+            self.assertEqual(plt.planted.quantity, plt.quantity)
 
     def test_editor(self):
         """
@@ -335,7 +342,7 @@ class PlantTests(GardenTestCase):
         editor = PlantEditor(model=p)
         editor.start()
 
-    def test_double_change(self):
+    def test_branch_change(self):
         plant = Plant(accession=self.accession, code='11',
                       location=self.location, quantity=10)
         loc2a = Location(name='site2a', code='2a')
@@ -352,6 +359,7 @@ class PlantTests(GardenTestCase):
 
         self.assertEqual(editor.branched_plant.quantity, 7)
         change = editor.branched_plant.changes[0]
+        self.assertEqual(change.child_plant, editor.model)
         self.assertEqual(change.plant, editor.branched_plant)
         self.assertEqual(change.quantity, editor.model.quantity)
         self.assertEqual(change.to_location, editor.model.location)
@@ -359,10 +367,60 @@ class PlantTests(GardenTestCase):
 
         self.assertEqual(editor.model.quantity, 3)
         change = editor.model.changes[0]
+        self.assertEqual(change.parent_plant, editor.branched_plant)
         self.assertEqual(change.plant, editor.model)
         self.assertEqual(change.quantity, editor.model.quantity)
         self.assertEqual(change.to_location, editor.model.location)
         self.assertEqual(change.from_location, editor.branched_plant.location)
+
+    def test_bulk_branch(self):
+        # use our own plant because PlantEditor.commit_changes() will
+        # only work in bulk mode when the plant is in session.new
+        plant = Plant(accession=self.accession, code='5',
+                      location=self.location, quantity=20)
+        loc2a = Location(name='site2a', code='2a')
+        self.session.add_all([plant, loc2a])
+        self.session.flush()
+        editor = PlantEditor(model=plant, branch_mode=True)
+        loc2a = object_session(
+            editor.branched_plant).query(
+                Location).filter(Location.code == '2a').one()
+        editor.model.location = loc2a
+        widgets = editor.presenter.view.widgets
+        rng = '6-9'
+        widgets.plant_code_entry.set_text(rng)
+        widgets.plant_quantity_entry.set_text('8')
+        update_gui()
+        problem = (editor.presenter.PROBLEM_INVALID_QUANTITY,
+                   editor.presenter.view.widgets.plant_quantity_entry)
+        self.assertTrue(problem in editor.presenter.problems)
+        widgets.plant_quantity_entry.set_text('3')
+        update_gui()
+        editor.handle_response(Gtk.ResponseType.OK)
+
+        for code in utils.range_builder(rng):
+            q = self.session.query(Plant).join('accession').\
+                filter(and_(Accession.id == plant.accession.id,
+                            Plant.code == str(code)))
+            self.assertIsNotNone(q.first())
+            plt = q.first()
+            self.assertEqual(plt.quantity, 3)
+            self.assertEqual(plt.location.code, loc2a.code)
+            # test a planted change was created with appropriate values
+            self.assertIsNotNone(plt.planted)
+            self.assertEqual(plt.planted.parent_plant, plant)
+            self.assertEqual(plt.planted.from_location, plant.location)
+            self.assertEqual(plt.planted.to_location, plt.location)
+            self.assertEqual(plt.planted.quantity, plt.quantity)
+            q2 = self.session.query(PlantChange).filter(
+                and_(PlantChange.plant_id == plant.id,
+                     PlantChange.child_plant_id == plt.id))
+            self.assertEqual(len(q2.all()), 1)
+            change = q2.one()
+            self.assertEqual(change.child_plant, plt)
+            self.assertEqual(change.quantity, plt.quantity)
+            self.assertEqual(change.to_location, plt.location)
+            self.assertEqual(change.from_location, plant.location)
 
     def test_branch_editor(self):
 
@@ -448,18 +506,121 @@ class PlantTests(GardenTestCase):
         self.assertFalse(is_code_unique(self.plant, '1-2'))
         self.assertFalse(is_code_unique(self.plant, '01-2'))
 
-    def test_living_plant_has_no_date_of_death(self):
-        self.assertEqual(self.plant.date_of_death, None)
+    def test_living_plant_has_no_death(self):
+        self.assertIsNone(self.plant.death)
 
-    def test_setting_quantity_to_zero_defines_date_of_death(self):
+    def test_living_plant_planted(self):
+        plant = Plant(accession=self.accession, location=self.location,
+                      code='11', quantity=1)
+        change = PlantChange()
+        # should be able to leave all these off and still get appropriate
+        # values, see below
+        change.plant = plant
+        change.to_location = plant.location
+        change.quantity = plant.quantity
+        change.reason = 'PLTD'
+        plant.changes.append(change)
+        self.session.add_all([plant, change])
+        self.session.flush()
+        self.session.refresh(plant)
+        self.assertIsNotNone(plant.planted)
+        self.assertEqual(plant.planted.reason, 'PLTD')
+
+    def test_living_plant_planted_reason_only(self):
+        plant = Plant(accession=self.accession, location=self.location,
+                      code='11', quantity=1)
+        change = PlantChange()
+        change.reason = 'PLTD'
+        plant.changes.append(change)
+        self.session.add_all([plant, change])
+        self.session.flush()
+        self.session.refresh(plant)
+        self.assertIsNotNone(plant.planted)
+        self.assertEqual(plant.planted.to_location, plant.location)
+        self.assertEqual(plant.planted.reason, 'PLTD')
+        self.assertEqual(plant.planted.quantity, plant.quantity)
+
+    def test_living_plant_always_has_planted(self):
+        # this is generated in event.listen
+        self.assertIsNotNone(self.plant.planted)
+        self.assertEqual(self.plant.planted.to_location, self.plant.location)
+        self.assertEqual(self.plant.planted.quantity, self.plant.quantity)
+        self.assertIsNone(self.plant.planted.from_location)
+        self.assertIsNone(self.plant.planted.child_plant)
+        self.assertIsNone(self.plant.planted.parent_plant)
+        # test a reason can be added after the fact.
+        # first check reason is not set.
+        self.assertIsNone(self.plant.planted.reason)
+        # set it and commit.
+        self.plant.planted.reason = 'PLTD'
+        self.session.add(self.plant)
+        self.session.commit()
+        # refresh plant from the database
+        self.session.refresh(self.plant)
+        self.assertEqual(self.plant.planted.reason, 'PLTD')
+
+    def test_setting_quantity_to_zero_defines_a_death(self):
         self.change = PlantChange()
         self.session.add(self.change)
         self.change.plant = self.plant
         self.change.from_location = self.plant.location
-        self.change.quantity = self.plant.quantity
+        self.change.quantity = -self.plant.quantity
+        self.change.reason = 'DEAD'
         self.plant.quantity = 0
         self.session.flush()
-        self.assertNotEqual(self.plant.date_of_death, None)
+        self.assertIsNotNone(self.plant.death)
+        self.assertEqual(self.plant.death.reason, 'DEAD')
+
+    def test_setting_quantity_to_zero_defines_a_death_wo_manual_change(self):
+        # resfresh plant from the database
+        self.session.refresh(self.plant)
+        self.plant.quantity = 0
+        self.session.add(self.plant)
+        self.session.flush()
+        self.assertIsNotNone(self.plant.death)
+        # test a reason can be added after the fact.
+        # first check reason is not set.
+        self.assertIsNone(self.plant.death.reason)
+        # set it and commit.
+        self.plant.death.reason = 'DEAD'
+        self.session.add(self.plant)
+        self.session.commit()
+        # resfresh plant from the database
+        self.session.refresh(self.plant)
+        self.assertEqual(self.plant.death.reason, 'DEAD')
+
+    def test_setting_quantity_location_produces_2_changes(self):
+        loc2a = Location(name='site2a', code='2a')
+        self.session.add(loc2a)
+        self.session.commit()
+        self.assertEqual(len(self.plant.changes), 1)
+        self.plant.quantity = 10
+        self.plant.location = loc2a
+        self.session.flush()
+        self.session.refresh(self.plant)
+        self.assertEqual(len(self.plant.changes), 3)
+
+    def test_setting_quantity_location_w_date_reason_produces_2_changes(self):
+        import datetime
+        date = datetime.datetime(2020, 12, 2, 0, 0)
+        loc2a = Location(name='site2a', code='2a')
+        self.session.add(loc2a)
+        self.session.commit()
+        # should just have one change at this point
+        self.assertEqual(len(self.plant.changes), 1)
+        change = PlantChange()
+        change.date = date
+        change.reason = 'ERRO'
+        self.plant.changes.append(change)
+        self.plant.quantity = 10
+        self.plant.location = loc2a
+        self.session.flush()
+        self.session.refresh(self.plant)
+        self.assertEqual(len(self.plant.changes), 3)
+        for chg in self.plant.changes[1:]:
+            self.assertEqual(chg.reason, 'ERRO')
+            self.assertEqual(chg.date, date)
+
 
 
 class PropagationTests(GardenTestCase):
@@ -603,7 +764,13 @@ class PropagationTests(GardenTestCase):
         rooted.cutting = cutting
         self.session.commit()
         summary = prop.get_summary()
-        self.assertEqual(summary, 'Cutting; Cutting type: Nodal; Length: 2mm; Tip: Intact; Leaves: Intact; Flower buds: None; Wounded: Singled; Fungal soak: Physan; Hormone treatment: Auxin powder; Bottom heat: 65°F; Container: 4" pot; Media: standard mix; Location: Mist frame; Cover: Poly cover; Rooted: 90%')
+        self.assertEqual(summary,
+                         ('Cutting; Cutting type: Nodal; Length: 2mm; Tip: '
+                          'Intact; Leaves: Intact; Flower buds: None; Wounded:'
+                          ' Singled; Fungal soak: Physan; Hormone treatment: '
+                          'Auxin powder; Bottom heat: 65°F; Container: 4" pot;'
+                          ' Media: standard mix; Location: Mist frame; Cover:'
+                          ' Poly cover; Rooted: 90%'))
 
     def test_get_summary_seed_complete(self):
         self.add_plants(['1'])
@@ -614,7 +781,12 @@ class PropagationTests(GardenTestCase):
         seed.propagation = prop
         self.session.commit()
         summary = prop.get_summary()
-        self.assertEqual(summary, 'Seed; Pretreatment: Soaked in peroxide solution; # of seeds: 24; Date sown: 01-01-2017; Container: tray; Media: standard mix; Location: mist tent; Germination date: 01-02-2017; # of seedlings: 23; Germination rate: 99%; Date planted: 08-02-2017')
+        self.assertEqual(summary,
+                         ('Seed; Pretreatment: Soaked in peroxide solution; # '
+                          'of seeds: 24; Date sown: 01-01-2017; Container: '
+                          'tray; Media: standard mix; Location: mist tent; '
+                          'Germination date: 01-02-2017; # of seedlings: 23; '
+                          'Germination rate: 99%; Date planted: 08-02-2017'))
 
     def test_get_summary_seed_partial_1_still_unused(self):
         self.add_plants(['1'])

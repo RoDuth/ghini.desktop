@@ -153,11 +153,12 @@ class ExportToPocketThread(threading.Thread):
                 break
         count = 1
         for i in plants:
+            death_date = i.death.date if i.death else None
             try:
                 cr.execute('INSERT INTO "plant" '
                            '(_id, accession_id, code, location, end_date, n_of_pics, quantity) '
                            'VALUES (?, ?, ?, ?, ?, ?, ?);',
-                           (i.id, i.accession_id, "." + i.code, i.location.code, i.date_of_death, len(i.pictures), i.quantity))
+                           (i.id, i.accession_id, "." + i.code, i.location.code, death_date, len(i.pictures), i.quantity))
             except Exception as e:
                 logger.info("error exporting plant %s: %s %s" % (i.id, type(e), e))
             if self.progressbar:

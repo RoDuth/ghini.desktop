@@ -241,7 +241,7 @@ subtribusd = {
     no_acta = ([n.note for n in v.accession.notes if n.category == 'No.Acta'] + [''])[0]
     anotaciones = '; '.join([n.note for n in v.accession.notes if n.category == 'anotaciones'])
     ingreso = v.accession._created
-    egreso = v.date_of_death or ''
+    egreso = v.death.date if v.death else ''
 %>\
 ${ingreso}	\
 ${egreso}	\

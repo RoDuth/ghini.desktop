@@ -678,21 +678,25 @@
                         </child>
                       </object>
                       <packing>
-                        <property name="expand">True</property>
+                        <property name="expand">False</property>
                         <property name="fill">True</property>
                         <property name="position">1</property>
                       </packing>
                     </child>
                     <child>
-                      <object class="GtkFrame" id="frame1">
-                        <property name="can-focus">False</property>
-                        <property name="label-xalign">0</property>
-                        <property name="shadow-type">none</property>
+                      <object class="GtkExpander" id="changes_history_expander">
+                        <property name="visible">True</property>
+                        <property name="can-focus">True</property>
+                        <property name="hexpand">True</property>
+                        <property name="vexpand">True</property>
+                        <property name="resize-toplevel">True</property>
                         <child>
                           <object class="GtkScrolledWindow" id="scrolledwindow1">
                             <property name="height-request">100</property>
                             <property name="visible">True</property>
                             <property name="can-focus">True</property>
+                            <property name="hexpand">True</property>
+                            <property name="vexpand">True</property>
                             <child>
                               <object class="GtkTreeView" id="plant_changes_treeview">
                                 <property name="visible">True</property>
@@ -706,23 +710,16 @@
                                     <property name="resizable">True</property>
                                     <property name="title">Date</property>
                                     <child>
-                                      <object class="GtkCellRendererText" id="changes_date_cell"/>
-                                    </child>
-                                  </object>
-                                </child>
-                                <child>
-                                  <object class="GtkTreeViewColumn" id="changes_change_column">
-                                    <property name="resizable">True</property>
-                                    <property name="title">Change</property>
-                                    <child>
-                                      <object class="GtkCellRendererText" id="changes_change_cell"/>
+                                      <object class="GtkCellRendererText" id="changes_date_cell">
+                                        <property name="editable">True</property>
+                                      </object>
                                     </child>
                                   </object>
                                 </child>
                                 <child>
                                   <object class="GtkTreeViewColumn" id="changes_quantity_column">
                                     <property name="resizable">True</property>
-                                    <property name="title">Quantity</property>
+                                    <property name="title">Qty</property>
                                     <child>
                                       <object class="GtkCellRendererText" id="changes_quantity_cell"/>
                                     </child>
@@ -747,11 +744,33 @@
                                   </object>
                                 </child>
                                 <child>
+                                  <object class="GtkTreeViewColumn" id="changes_parent_column">
+                                    <property name="resizable">True</property>
+                                    <property name="title">Parent</property>
+                                    <child>
+                                      <object class="GtkCellRendererText" id="changes_parent_cell"/>
+                                    </child>
+                                  </object>
+                                </child>
+                                <child>
+                                  <object class="GtkTreeViewColumn" id="changes_child_column">
+                                    <property name="resizable">True</property>
+                                    <property name="title">child</property>
+                                    <child>
+                                      <object class="GtkCellRendererText" id="changes_child_cell"/>
+                                    </child>
+                                  </object>
+                                </child>
+                                <child>
                                   <object class="GtkTreeViewColumn" id="changes_reason_column">
                                     <property name="resizable">True</property>
                                     <property name="title">Reason</property>
                                     <child>
-                                      <object class="GtkCellRendererText" id="changes_reason_cell"/>
+                                      <object class="GtkCellRendererCombo" id="changes_reason_cell">
+                                        <property name="editable">True</property>
+                                        <property name="text_column">1</property>
+                                        <property name="has_entry">False</property>
+                                      </object>
                                     </child>
                                   </object>
                                 </child>
@@ -760,7 +779,9 @@
                                     <property name="resizable">True</property>
                                     <property name="title">User</property>
                                     <child>
-                                      <object class="GtkCellRendererText" id="changes_user_cell"/>
+                                      <object class="GtkCellRendererText" id="changes_user_cell">
+                                        <property name="editable">True</property>
+                                      </object>
                                     </child>
                                   </object>
                                 </child>
@@ -772,7 +793,7 @@
                           <object class="GtkLabel" id="label12">
                             <property name="visible">True</property>
                             <property name="can-focus">False</property>
-                            <property name="label" translatable="yes">Change history</property>
+                            <property name="label" translatable="yes">Change history (CAUTION!)</property>
                             <attributes>
                               <attribute name="weight" value="bold"/>
                             </attributes>

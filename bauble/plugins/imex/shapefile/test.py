@@ -2060,6 +2060,8 @@ class ShapefileImportEmptyDBTests(BaubleTestCase):
                              rec.get('family'))
             self.assertEqual(plt.quantity,
                              rec.get('quantity'))
+            # test a planted change was added
+            self.assertIsNotNone(plt.planted)
         self.assertEqual(len(result), len(plt_rec_3857_points))
 
     def test_add_or_update_all_plant_records_w_wrong_types(self):
