@@ -1,6 +1,7 @@
 # Copyright 2008-2010 Brett Adams
 # Copyright 2015-2016 Mario Frasca <mario@anche.no>.
 # Copyright 2017 Jardín Botánico de Quito
+# Copyright 2021 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -42,6 +43,7 @@ from bauble import utils
 from bauble import btypes as types
 from bauble import view
 from bauble import paths
+from bauble import prefs
 
 
 def collection_edit_callback(coll):
@@ -577,7 +579,6 @@ class CollectionPresenter(editor.ChildPresenter):
                                 self.view.widgets.lon_entry)
 
         self.view.widgets.lon_dms_label.set_text(dms_string)
-        # self.set_model_attr('longitude', utils.utf8(longitude))
         if text is None or text.strip() == '':
             self.set_model_attr('longitude', None)
         else:
@@ -636,19 +637,56 @@ class PropagationChooserPresenter(editor.ChildPresenter):
         self.view.connect_after(cell, 'toggled', on_toggled)
 
         self.view.widgets.prop_plant_code_column.set_cell_data_func(
-            self.view.widgets.prop_plant_code_cell, self.plant_code_data_func)
+            self.view.widgets.prop_plant_code_cell,
+            utils.default_cell_data_func,
+            func_data=lambda obj: str(obj.plant or '')
+        )
+
+        self.view.widgets.prop_plant_sp_column.set_cell_data_func(
+            self.view.widgets.prop_plant_sp_cell,
+            utils.default_cell_data_func,
+            func_data=lambda obj: str(obj.plant.accession.species or '')
+        )
+
+        self.view.widgets.prop_plant_loc_column.set_cell_data_func(
+            self.view.widgets.prop_plant_loc_cell,
+            utils.default_cell_data_func,
+            func_data=lambda obj: str(obj.plant.location.code or '')
+        )
+
+        frmt = prefs.prefs[prefs.date_format_pref]
+        self.view.widgets.prop_date_column.set_cell_data_func(
+            self.view.widgets.prop_date_cell,
+            utils.default_cell_data_func,
+            func_data=lambda obj: obj.date.strftime(frmt)
+        )
 
         self.view.widgets.prop_summary_column.set_cell_data_func(
-            self.view.widgets.prop_summary_cell, self.summary_cell_data_func)
+            self.view.widgets.prop_summary_cell,
+            utils.default_cell_data_func,
+            func_data=lambda obj: str(obj.get_summary() or '')
+        )
 
         # assign_completions_handler
-        def plant_cell_data_func(column, renderer, model, iter, data=None):
-            v = model[iter][0]
+        def plant_cell_data_func(column, renderer, model, itr, data=None):
+            v = model[itr][0]
             renderer.set_property('text', '%s (%s)' %
                                   (str(v), str(v.accession.species)))
 
+        def prop_match_func(completion, key, treeiter):
+            value = completion.get_model()[treeiter][0]
+            # match the plant code
+            if str(value).lower().startswith(key):
+                return True
+            # or the species
+            if str(value.accession.species).lower().startswith(key):
+                return True
+            return False
+
         self.view.attach_completion('source_prop_plant_entry',
-                                    plant_cell_data_func, minimum_key_length=1)
+                                    cell_data_func=plant_cell_data_func,
+                                    match_func=prop_match_func,
+                                    minimum_key_length=1)
 
         def plant_get_completions(text):
             logger.debug('PropagationChooserPresenter::plant_get_completions')
@@ -657,7 +695,6 @@ class PropagationChooserPresenter(editor.ChildPresenter):
             query = (self.session.query(Plant)
                      .filter(Plant.propagations.any())
                      .join('accession')
-                     .filter(utils.ilike(Accession.code, '%s%%' % text))
                      .filter(Accession.id != self.model.accession.id)
                      .order_by(Accession.code, Plant.code))
             result = []
@@ -677,6 +714,11 @@ class PropagationChooserPresenter(editor.ChildPresenter):
             # populate the propagation browser
             treeview = self.view.widgets.source_prop_treeview
             if not value:
+                # if there is nothing in the entry show all again
+                if not self.view.widgets.source_prop_plant_entry.get_text():
+                    treeview.props.sensitive = True
+                    self.populate_with_all()
+                    return
                 treeview.props.sensitive = False
                 return
             utils.clear_model(treeview)
@@ -712,7 +754,7 @@ class PropagationChooserPresenter(editor.ChildPresenter):
         if not results:
             treeview.props.sensitive = False
             return
-        # utils.clear_model(treeview)
+        utils.clear_model(treeview)
         model = Gtk.ListStore(object)
         for plant in results:
             for propagation in plant.propagations:
@@ -721,10 +763,6 @@ class PropagationChooserPresenter(editor.ChildPresenter):
                 model.append([propagation])
         treeview.set_model(model)
         treeview.props.sensitive = True
-
-    # def on_acc_entry_changed(entry, *args):
-    #     # TODO: desensitize the propagation tree until on_select is called
-    #     pass
 
     def refresh_view(self):
         treeview = self.view.widgets.source_prop_treeview
@@ -748,24 +786,12 @@ class PropagationChooserPresenter(editor.ChildPresenter):
         treeview.set_model(model)
         treeview.props.sensitive = True
 
-    # pylint: disable=unused-argument,too-many-arguments
-    def toggle_cell_data_func(self, column, cell, model, treeiter, data=None):
+    def toggle_cell_data_func(self, column, cell, model, treeiter, data=None):\
+            # pylint: disable=unused-argument,too-many-arguments
         propagation = model[treeiter][0]
         active = self.model.plant_propagation == propagation
         cell.set_active(active)
         cell.set_sensitive(True)
-
-    @staticmethod
-    def summary_cell_data_func(column, cell, model, treeiter, data=None):
-        propagation = model[treeiter][0]
-        cell.props.text = propagation.get_summary() or ''
-        cell.set_sensitive(True)
-
-    @staticmethod
-    def plant_code_data_func(column, cell, model, treeiter, data=None):
-        propagation = model[treeiter][0]
-        cell.props.text = str(propagation.plant or '')
-    # pylint: enable=unused-argument,too-many-arguments
 
     def dirty(self):
         return self._dirty

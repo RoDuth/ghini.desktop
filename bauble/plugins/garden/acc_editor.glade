@@ -2282,6 +2282,30 @@
                                       </object>
                                     </child>
                                     <child>
+                                      <object class="GtkTreeViewColumn" id="prop_plant_sp_column">
+                                        <property name="title" translatable="yes">Taxon</property>
+                                        <child>
+                                          <object class="GtkCellRendererText" id="prop_plant_sp_cell"/>
+                                        </child>
+                                      </object>
+                                    </child>
+                                    <child>
+                                      <object class="GtkTreeViewColumn" id="prop_plant_loc_column">
+                                        <property name="title" translatable="yes">Location</property>
+                                        <child>
+                                          <object class="GtkCellRendererText" id="prop_plant_loc_cell"/>
+                                        </child>
+                                      </object>
+                                    </child>
+                                    <child>
+                                      <object class="GtkTreeViewColumn" id="prop_date_column">
+                                        <property name="title" translatable="yes">Date</property>
+                                        <child>
+                                          <object class="GtkCellRendererText" id="prop_date_cell"/>
+                                        </child>
+                                      </object>
+                                    </child>
+                                    <child>
                                       <object class="GtkTreeViewColumn" id="prop_summary_column">
                                         <property name="title" translatable="yes">Propagation</property>
                                         <child>

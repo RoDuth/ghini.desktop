@@ -957,7 +957,9 @@ class AccessionEditorView(editor.GenericEditorView):
                                         'use you do not want to use the '
                                         'system default.'),
         'acc_code_format_edit_btn': _("Click here to edit or add to the "
-                                      "avialable ID formats.")
+                                      "avialable ID formats."),
+        'source_prop_plant_entry': _('Type a plant code or species name here '
+                                     'to narrow the selections below.')
     }
 
     def __init__(self, parent=None):

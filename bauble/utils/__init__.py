@@ -1,7 +1,7 @@
 # Copyright (c) 2005,2006,2007,2008,2009 Brett Adams <brett@belizebotanic.org>
 # Copyright (c) 2015-2016 Mario Frasca <mario@anche.no>
 # Copyright 2017 Jardín Botánico de Quito
-# Copyright (c) 2018-2020 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright (c) 2018-2021 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -775,6 +775,18 @@ def format_combo_entry_text(combo, path):
     if not detail:
         return ''
     return str(detail)
+
+
+def default_cell_data_func(column, cell, model, treeiter, data=None): \
+        # pylint: disable=unused-argument
+    """generic cell_data_func.
+
+    :param data: a callable, provided to the func_data parameter of the
+        columns's set_cell_data_func, that when supplied obj will return an
+        appropriate string for the cell's text property
+    """
+    obj = model[treeiter][0]
+    cell.props.text = data(obj)
 
 
 def setup_text_combobox(combo, values=[], cell_data_func=None):
