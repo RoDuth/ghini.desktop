@@ -703,7 +703,8 @@ def add_rec_to_db(session, item, rec):
                 try:
                     path_type = getattr(model, k).type
                     v = path_type.python_type(v)
-                except Exception:
+                except Exception as e:   # pylint: disable=broad-except
+                    logger.debug('convert type %s (%s)', type(e).__name__, e)
                     # for anything that doesn't have an obvious python_type a
                     # string SHOULD generally work
                     v = str(v)
@@ -711,6 +712,7 @@ def add_rec_to_db(session, item, rec):
 
         value = db.get_create_or_update(session, model, **value)
         root, atr = key.rsplit('.', 1) if '.' in key else (None, key)
+        # _default_vernacular_name is blocked in relation_filter
         # NOTE default vernacular names need to be added directly as they use
         # their own methods,
         # Below accepts
@@ -727,8 +729,6 @@ def add_rec_to_db(session, item, rec):
         # value = VernacularName(...)
         # This will generally work but is not full proof.  It is preferable to
         # use the hybrid_property default_vernacular_name
-        # Could probably remove this now that _default_vernacular_name is
-        # blocked in relation_filter
         if (root and root.endswith('._default_vernacular_name') and
                 atr == 'vernacular_name'):
             root = root[:-len('._default_vernacular_name')]
@@ -750,9 +750,11 @@ def add_rec_to_db(session, item, rec):
                 remainder[link][atr2] = link_item
     elif value is not None and not hasattr(value, '__table__'):
         try:
-            path_type = getattr(item, key).type
+            model = type(item)
+            path_type = getattr(model, key).type
             value = path_type.python_type(value)
-        except Exception:
+        except Exception as e:
+            logger.debug('convert type for value %s (%s)', type(e).__name__, e)
             # for anything that doesn't have an obvious python_type a
             # string SHOULD generally work
             value = str(value)
@@ -924,7 +926,8 @@ class ShapefileImportDialogPresenter(GenericEditorPresenter):
         child = expander.get_child()
         if child:
             expander.remove(child)
-        settings_box = ShapefileImportSettingsBox(shape_reader=self.model.shape_reader)
+        settings_box = ShapefileImportSettingsBox(
+            shape_reader=self.model.shape_reader)
         expander.add(settings_box)
         settings_box.show_all()
         return False
