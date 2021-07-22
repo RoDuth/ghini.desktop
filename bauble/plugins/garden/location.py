@@ -61,25 +61,30 @@ def add_plants_callback(locations):
 
 def remove_callback(locations):
     loc = locations[0]
-    s = '%s: %s' % (loc.__class__.__name__, str(loc))
-    if len(loc.plants) > 0:
-        msg = _('Please remove the plants from <b>%(location)s</b> '
-                'before deleting it.') % {'location': loc}
-        utils.message_dialog(msg, Gtk.MessageType.WARNING)
-        return
-    msg = _("Are you sure you want to remove %s?") % \
-        utils.xml_safe(s)
+    loc_lst = []
+    for loc in locations:
+        loc_lst.append(utils.xml_safe(loc))
+        if len(loc.plants) > 0:
+            msg = _('Please remove the plants from <b>%s</b> '
+                    'before deleting it.') % utils.xml_safe(loc)
+            utils.message_dialog(msg, Gtk.MessageType.WARNING)
+            return False
+    msg = _("Are you sure you want to remove the following locations "
+            "<b>%s</b>?") % ', '.join(i for i in loc_lst)
     if not utils.yes_no_dialog(msg):
-        return
+        return False
+    session = object_session(loc)
+    for loc in locations:
+        session.delete(loc)
     try:
-        session = db.Session()
-        obj = session.query(Location).get(loc.id)
-        session.delete(obj)
+        utils.remove_from_results_view(locations)
         session.commit()
-    except Exception as e:
+    except Exception as e:  # pylint: disable=broad-except
         msg = _('Could not delete.\n\n%s') % utils.xml_safe(e)
         utils.message_details_dialog(msg, traceback.format_exc(),
                                      type=Gtk.MessageType.ERROR)
+    finally:
+        session.rollback()
     return True
 
 edit_action = Action('loc_edit', _('_Edit'),

@@ -797,10 +797,7 @@ class PropagationChooserPresenter(editor.ChildPresenter):
         return self._dirty
 
 
-############################################################
-#
 # Contact / SourceDetails / Donor
-#
 
 def create_contact(parent=None):
     model = Contact()
@@ -823,21 +820,25 @@ def source_detail_edit_callback(details, parent=None):
 
 def source_detail_remove_callback(details):
     detail = details[0]
-    s = '%s: %s' % (detail.__class__.__name__, str(detail))
-    msg = _("Are you sure you want to remove %s?") % utils.xml_safe(s)
+    s_lst = []
+    for detail in details:
+        s_lst.append(utils.xml_safe(detail))
+    msg = _("Are you sure you want to remove the following contacts: \n"
+            "%s?") % ', '.join(i for i in s_lst)
     if not utils.yes_no_dialog(msg):
-        return
+        return False
+    from sqlalchemy.orm.session import object_session
+    session = object_session(detail)
+    for detail in details:
+        session.delete(detail)
     try:
-        session = db.Session()
-        obj = session.query(Contact).get(detail.id)
-        session.delete(obj)
+        utils.remove_from_results_view(details)
         session.commit()
-    except Exception as e:
+    except Exception as e:   # pylint: disable=broad-except
         msg = _('Could not delete.\n\n%s') % utils.xml_safe(e)
         utils.message_details_dialog(msg, traceback.format_exc(),
                                      type=Gtk.MessageType.ERROR)
-    finally:
-        session.close()
+        session.rollback()
     return True
 
 

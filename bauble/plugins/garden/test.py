@@ -1657,9 +1657,10 @@ class AccessionTests(GardenTestCase):
 
         # effect
         self.assertFalse('message_details_dialog' in [f for (f, m) in self.invoked])
-        self.assertTrue(('yes_no_dialog', 'Are you sure you want to remove accession <b>010101</b>?')
+        self.assertTrue(('yes_no_dialog', 'Are you sure you want to remove '
+                         'the following accessions <b>010101</b>?')
                         in self.invoked)
-        self.assertEqual(result, None)
+        self.assertEqual(result, False)
         q = self.session.query(Accession).filter_by(code='010101', species=sp)
         matching = q.all()
         self.assertEqual(matching, [acc])
@@ -1688,7 +1689,8 @@ class AccessionTests(GardenTestCase):
         # effect
         self.assertFalse('message_details_dialog' in
                          [f for (f, m) in self.invoked])
-        self.assertTrue(('yes_no_dialog', 'Are you sure you want to remove accession <b>010101</b>?')
+        self.assertTrue(('yes_no_dialog', 'Are you sure you want to remove '
+                         'the following accessions <b>010101</b>?')
                         in self.invoked)
 
         self.assertEqual(result, True)

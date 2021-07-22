@@ -1,6 +1,7 @@
 # Copyright 2008-2010 Brett Adams
 # Copyright 2012-2015 Mario Frasca <mario@anche.no>.
 # Copyright 2017 Jardín Botánico de Quito
+# Copyright 2020-2021 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -72,30 +73,35 @@ def remove_callback(values):
     """
     from bauble.plugins.garden.accession import Accession
     species = values[0]
+    s_lst = []
     session = object_session(species)
-    if isinstance(species, VernacularName):
-        species = species.species
-    nacc = session.query(Accession).filter_by(species_id=species.id).count()
-    safe_str = utils.xml_safe(str(species))
-    if nacc > 0:
-        msg = (_('The species <i>%(1)s</i> has %(2)s accessions.'
-                 '\n\n') % {'1': safe_str, '2': nacc} +
-               _('You cannot remove a species with accessions.'))
-        utils.message_dialog(msg, type=Gtk.MessageType.WARNING)
-        return
-    else:
-        msg = _("Are you sure you want to remove the species <i>%s</i>?") \
-            % safe_str
+    for species in values:
+        if isinstance(species, VernacularName):
+            species = species.species
+        nacc = session.query(Accession).filter_by(
+            species_id=species.id).count()
+        safe_str = utils.xml_safe(str(species))
+        s_lst.append(safe_str)
+        if nacc > 0:
+            msg = (_('The species <i>%(1)s</i> has %(2)s accessions.'
+                     '\n\n') % {'1': safe_str, '2': nacc} +
+                   _('You cannot remove a species with accessions.'))
+            utils.message_dialog(msg, type=Gtk.MessageType.WARNING)
+            return False
+    msg = _("Are you sure you want to remove the following species "
+            "<i>%s</i>?") % ', '.join(i for i in s_lst)
     if not utils.yes_no_dialog(msg):
-        return
+        return False
+    for species in values:
+        session.delete(species)
     try:
-        obj = session.query(Species).get(species.id)
-        session.delete(obj)
+        utils.remove_from_results_view(values)
         session.commit()
-    except Exception as e:
+    except Exception as e:  # pylint: disable=broad-except
         msg = _('Could not delete.\n\n%s') % utils.xml_safe(e)
         utils.message_details_dialog(msg, traceback.format_exc(),
                                      type=Gtk.MessageType.ERROR)
+        session.rollback()
     return True
 
 

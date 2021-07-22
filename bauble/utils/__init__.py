@@ -380,6 +380,22 @@ def search_tree_model(parent, data, cmp=lambda row, data: row[0] == data):
     return tuple(results)
 
 
+def remove_from_results_view(objs):
+    """Remove the supplied objects from the SearchView results. This will only
+    succeed when the current view is a SearchView.  Intended for use in remove
+    callbacks.
+
+    :param obj: the item to remove"""
+    # Avoid errors in tests
+    if not bauble.gui:
+        return
+    search_view = bauble.gui.get_view()
+    results_model = search_view.results_view.get_model()
+    for obj in objs:
+        for itr in search_tree_model(results_model, obj):
+            results_model.remove(itr)
+
+
 def clear_model(obj_with_model):
     """
     :param obj_with_model: a gtk Widget that has a Gtk.TreeModel that

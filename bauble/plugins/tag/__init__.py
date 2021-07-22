@@ -1,5 +1,6 @@
 # Copyright (c) 2005,2006,2007,2008,2009 Brett Adams <brett@belizebotanic.org>
 # Copyright (c) 2012-2017 Mario Frasca <mario@anche.no>
+# Copyright (c) 2021 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -227,19 +228,23 @@ def remove_callback(tags):
     :param tags: a list of :class:`Tag` objects.
     """
     tag = tags[0]
-    s = '%s: %s' % (tag.__class__.__name__, utils.xml_safe(tag))
-    msg = _("Are you sure you want to remove %s?") % s
+    tlst = []
+    for tag in tags:
+        tlst.append('%s: %s' % (tag.__class__.__name__, utils.xml_safe(tag)))
+    msg = _("Are you sure you want to remove %s?") % ', '.join(i for i in tlst)
     if not utils.yes_no_dialog(msg):
-        return
+        return False
     session = object_session(tag)
+    for tag in tags:
+        session.delete(tag)
     try:
-        obj = session.query(Tag).get(tag.id)
-        session.delete(obj)
+        utils.remove_from_results_view(tags)
         session.commit()
-    except Exception as e:
+    except Exception as e:   # pylint: disable=broad-except
         msg = _('Could not delete.\n\n%s') % utils.xml_safe(e)
         utils.message_details_dialog(msg, traceback.format_exc(),
                                      type=Gtk.MessageType.ERROR)
+        session.rollback()
 
     # reinitialize the tag menu
     tags_menu_manager.reset()

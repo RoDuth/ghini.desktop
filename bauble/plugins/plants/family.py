@@ -1,6 +1,7 @@
 # Copyright 2008-2010 Brett Adams
 # Copyright 2014-2015 Mario Frasca <mario@anche.no>.
 # Copyright 2017 Jardín Botánico de Quito
+# Copyright 2020-2021 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -71,29 +72,30 @@ def remove_callback(families):
     family = families[0]
     from bauble.plugins.plants.genus import Genus
     session = object_session(family)
-    ngen = session.query(Genus).filter_by(family_id=family.id).count()
-    safe_str = utils.xml_safe(str(family))
-    if ngen > 0:
-        msg = (_('The family <i>%(1)s</i> has %(2)s genera.'
-                 '\n\n') % {'1': safe_str, '2': ngen} +
-               _('You cannot remove a family with genera.'))
-        utils.message_dialog(msg, type=Gtk.MessageType.WARNING)
-        return
-    else:
-        msg = _("Are you sure you want to remove the family <i>%s</i>?") \
-            % safe_str
+    for family in families:
+        ngen = session.query(Genus).filter_by(family_id=family.id).count()
+        safe_str = utils.xml_safe(str(family))
+        if ngen > 0:
+            msg = (_('The family <i>%(1)s</i> has %(2)s genera.'
+                     '\n\n') % {'1': safe_str, '2': ngen} +
+                   _('You cannot remove a family with genera.'))
+            utils.message_dialog(msg, type=Gtk.MessageType.WARNING)
+            return
+    fams = ', '.join([utils.xml_safe(i) for i in families])
+    msg = _("Are you sure you want to remove the following families "
+            "<i>%s</i>?") % fams
     if not utils.yes_no_dialog(msg):
         return
+    for family in families:
+        session.delete(family)
     try:
-        obj = session.query(Family).get(family.id)
-        session.delete(obj)
+        utils.remove_from_results_view(families)
         session.commit()
     except Exception as e:
         msg = _('Could not delete.\n\n%s') % utils.xml_safe(e)
         utils.message_details_dialog(msg, traceback.format_exc(),
                                      type=Gtk.MessageType.ERROR)
-    finally:
-        session.close()
+        session.rollback()
     return True
 
 

@@ -1,6 +1,7 @@
 # Copyright 2008-2010 Brett Adams
 # Copyright 2015 Mario Frasca <mario@anche.no>.
 # Copyright 2017 Jardín Botánico de Quito
+# Copyright 2020-2021 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -81,29 +82,34 @@ def remove_callback(genera):
     The callback function to remove a genus from the genus context menu.
     """
     genus = genera[0]
+    g_lst = []
     from bauble.plugins.plants.species_model import Species
     session = object_session(genus)
-    nsp = session.query(Species).filter_by(genus_id=genus.id).count()
-    safe_str = utils.xml_safe(str(genus))
-    if nsp > 0:
-        msg = (_('The genus <i>%(1)s</i> has %(2)s species.'
-                 '\n\n') % {'1': safe_str, '2': nsp} +
-               _('You cannot remove a genus with species.'))
-        utils.message_dialog(msg, type=Gtk.MessageType.WARNING)
-        return
+    for genus in genera:
+        g_lst.append(utils.xml_safe(genus))
+        nsp = session.query(Species).filter_by(genus_id=genus.id).count()
+        safe_str = utils.xml_safe(str(genus))
+        if nsp > 0:
+            msg = (_('The genus <i>%(1)s</i> has %(2)s species.'
+                     '\n\n') % {'1': safe_str, '2': nsp} +
+                   _('You cannot remove a genus with species.'))
+            utils.message_dialog(msg, type=Gtk.MessageType.WARNING)
+            return False
     else:
-        msg = (_("Are you sure you want to remove the genus <i>%s</i>?")
-               % safe_str)
+        msg = _("Are you sure you want to remove the following genera "
+                "<i>%s</i>?") % ', '.join(i for i in g_lst)
     if not utils.yes_no_dialog(msg):
-        return
+        return False
+    for genus in genera:
+        session.delete(genus)
     try:
-        obj = session.query(Genus).get(genus.id)
-        session.delete(obj)
+        utils.remove_from_results_view(genera)
         session.commit()
     except Exception as e:
         msg = _('Could not delete.\n\n%s') % utils.xml_safe(e)
         utils.message_details_dialog(msg, traceback.format_exc(),
                                      type=Gtk.MessageType.ERROR)
+        session.rollback()
     return True
 
 

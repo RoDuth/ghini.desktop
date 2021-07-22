@@ -229,7 +229,7 @@ class TagTests(BaubleTestCase):
         self.assertTrue(('yes_no_dialog', 'Are you sure you want to '
                          'remove Tag: Arecaceae?')
                         in self.invoked)
-        self.assertEqual(result, None)
+        self.assertEqual(result, False)
         q = self.session.query(Tag).filter_by(tag="Arecaceae")
         matching = q.all()
         self.assertEqual(matching, [f5])

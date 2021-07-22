@@ -1,6 +1,7 @@
 # Copyright 2008-2010 Brett Adams
 # Copyright 2015 Mario Frasca <mario@anche.no>.
 # Copyright 2017 Jardín Botánico de Quito
+# Copyright 2021 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -424,7 +425,7 @@ class FamilyTests(PlantTestCase):
         self.assertFalse('message_details_dialog' in
                          [f for (f, m) in self.invoked])
         self.assertTrue(('yes_no_dialog', 'Are you sure you want to '
-                         'remove the family <i>Arecaceae</i>?')
+                         'remove the following families <i>Arecaceae</i>?')
                         in self.invoked)
         self.assertEqual(result, None)
         q = self.session.query(Family).filter_by(family="Arecaceae")
@@ -452,7 +453,7 @@ class FamilyTests(PlantTestCase):
         self.assertFalse('message_details_dialog' in
                          [f for (f, m) in self.invoked])
         self.assertTrue(('yes_no_dialog', 'Are you sure you want to '
-                         'remove the family <i>Arecaceae</i>?')
+                         'remove the following families <i>Arecaceae</i>?')
                         in self.invoked)
 
         self.assertEqual(result, True)
@@ -634,9 +635,9 @@ class GenusTests(PlantTestCase):
         self.assertFalse('message_details_dialog' in
                          [f for (f, m) in self.invoked])
         self.assertTrue(('yes_no_dialog', 'Are you sure you want to '
-                         'remove the genus <i>Carica</i>?')
+                         'remove the following genera <i>Carica</i>?')
                         in self.invoked)
-        self.assertEqual(result, None)
+        self.assertEqual(result, False)
         q = self.session.query(Genus).filter_by(genus="Carica")
         matching = q.all()
         self.assertEqual(matching, [f5])
@@ -663,7 +664,7 @@ class GenusTests(PlantTestCase):
         self.assertFalse('message_details_dialog' in
                          [f for (f, m) in self.invoked])
         self.assertTrue(('yes_no_dialog', 'Are you sure you want to '
-                         'remove the genus <i>Carica</i>?')
+                         'remove the following genera <i>Carica</i>?')
                         in self.invoked)
 
         self.assertEqual(result, True)
@@ -1133,9 +1134,10 @@ class SpeciesTests(PlantTestCase):
         self.assertFalse('message_details_dialog' in
                          [f for (f, m) in self.invoked])
         print(self.invoked)
-        self.assertTrue(('yes_no_dialog', 'Are you sure you want to remove the species <i>Carica papaya</i>?')
+        self.assertTrue(('yes_no_dialog', 'Are you sure you want to remove '
+                         'the following species <i>Carica papaya</i>?')
                         in self.invoked)
-        self.assertEqual(result, None)
+        self.assertEqual(result, False)
         q = self.session.query(Species).filter_by(genus=f5, sp="papaya")
         matching = q.all()
         self.assertEqual(matching, [sp])
@@ -1162,7 +1164,8 @@ class SpeciesTests(PlantTestCase):
         print(self.invoked)
         self.assertFalse('message_details_dialog' in
                          [f for (f, m) in self.invoked])
-        self.assertTrue(('yes_no_dialog', 'Are you sure you want to remove the species <i>Carica papaya</i>?')
+        self.assertTrue(('yes_no_dialog', 'Are you sure you want to remove '
+                         'the following species <i>Carica papaya</i>?')
                         in self.invoked)
 
         self.assertEqual(result, True)

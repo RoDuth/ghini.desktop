@@ -166,32 +166,35 @@ def add_plants_callback(accessions):
 
 def remove_callback(accessions):
     acc = accessions[0]
-    if len(acc.plants) > 0:
-        safe = utils.xml_safe
-        plants = [str(plant) for plant in acc.plants]
-        values = dict(num_plants=len(acc.plants),
-                      plant_codes=safe(', '.join(plants)))
-        msg = (_('%(num_plants)s plants depend on this accession: '
-                 '<b>%(plant_codes)s</b>\n\n') % values +
-               _('You cannot remove an accession with plants.'))
-        utils.message_dialog(msg, type=Gtk.MessageType.WARNING)
-        return
-    else:
-        msg = _("Are you sure you want to remove accession <b>%s</b>?") % \
-            utils.xml_safe(str(acc))
+    a_lst = []
+    for acc in accessions:
+        a_lst.append(utils.xml_safe(str(acc)))
+        if len(acc.plants) > 0:
+            safe = utils.xml_safe
+            plants = [str(plant) for plant in acc.plants]
+            values = dict(num_plants=len(acc.plants),
+                          plant_codes=safe(', '.join(plants)))
+            msg = (_('%(num_plants)s plants depend on this accession: '
+                     '<b>%(plant_codes)s</b>\n\n') % values +
+                   _('You cannot remove an accession with plants.'))
+            utils.message_dialog(msg, type=Gtk.MessageType.WARNING)
+            return False
+    msg = _("Are you sure you want to remove the following accessions "
+            "<b>%s</b>?") % ', '.join(i for i in a_lst)
     if not utils.yes_no_dialog(msg):
-        return
+        return False
+
+    session = object_session(acc)
+    for acc in accessions:
+        session.delete(acc)
     try:
-        session = db.Session()
-        obj = session.query(Accession).get(acc.id)
-        session.delete(obj)
+        utils.remove_from_results_view(accessions)
         session.commit()
-    except Exception as e:
+    except Exception as e:  # pylint: disable=broad-except
         msg = _('Could not delete.\n\n%s') % utils.xml_safe(str(e))
         utils.message_details_dialog(msg, traceback.format_exc(),
                                      type=Gtk.MessageType.ERROR)
-    finally:
-        session.close()
+        session.rollback()
     return True
 
 
@@ -203,7 +206,7 @@ add_plant_action = Action('acc_add', _('_Add plants'),
                           accelerator='<ctrl>k')
 remove_action = Action('acc_remove', _('_Delete'),
                        callback=remove_callback,
-                       accelerator='<ctrl>Delete')
+                       accelerator='<ctrl>Delete', multiselect=True)
 
 acc_context_menu = [edit_action, add_plant_action, remove_action]
 

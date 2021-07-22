@@ -1,5 +1,6 @@
 # Copyright 2008-2010 Brett Adams
 # Copyright 2015 Mario Frasca <mario@anche.no>.
+# Copyright 2021 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -37,6 +38,7 @@ from gi.repository import GObject
 from gi.repository import Pango
 
 from sqlalchemy.orm import object_session
+from sqlalchemy.orm.exc import ObjectDeletedError
 import sqlalchemy.exc as saexc
 
 import bauble
@@ -88,17 +90,17 @@ class Action(Gtk.Action):
         self.singleselect = singleselect
         self.accelerator = accelerator
 
-    def _set_enabled(self, enable):
+    @property
+    def enabled(self):
+        return self.get_visible()
+
+    @enabled.setter
+    def enabled(self, enable):
         self.set_visible(enable)
         # if enable:
         #     self.connect_accelerator()
         # else:
         #     self.disconnect_accelerator()
-
-    def _get_enabled(self):
-        return self.get_visible()
-
-    enabled = property(_get_enabled, _set_enabled)
 
 
 class InfoExpander(Gtk.Expander):
@@ -715,14 +717,14 @@ class SearchView(pluginmgr.View):
             return None
         return [model[row][0] for row in rows]
 
-    def on_cursor_changed(self, view):
-        '''
+    def on_cursor_changed(self, tree_view):
+        """
         Update the infobox and switch the accelerators depending on the
         type of the row that the cursor points to.
-        '''
-        ## update all forward-looking info boxes
+        """
+        # update all forward-looking info boxes
         self.update_infobox()
-        ## update all backward-looking info boxes
+        # update all backward-looking info boxes
         self.update_bottom_notebook()
 
         for accel, cb in self.installed_accels:
@@ -990,6 +992,13 @@ class SearchView(pluginmgr.View):
             return
         # now update the the cell
         value = model[treeiter][0]
+
+        def remove():
+            model = self.results_view.get_model()
+            self.results_view.set_model(None)  # detach model
+            for found in utils.search_tree_model(model, value):
+                model.remove(found)
+            self.results_view.set_model(model)
         # logger.debug('TBR: far too detailed, please do not keep us here')
         # logger.debug('TBR: %s' % value)
         if isinstance(value, str):
@@ -1020,17 +1029,20 @@ class SearchView(pluginmgr.View):
                     (_mainstr_tmpl % utils.utf8(main),
                      _substr_tmpl % utils.utf8(substr)))
 
+            except ObjectDeletedError as e:
+                # incase object has been deleted but for some reason not
+                # removed from the results_view
+                logger.debug(
+                    'bauble.view.SearchView.cell_data_func(): \n(%s)%s' %
+                    (type(e), e))
+
+                GObject.idle_add(remove)
+
             except (saexc.InvalidRequestError, TypeError) as e:
                 logger.warning(
                     'bauble.view.SearchView.cell_data_func(): \n(%s)%s' %
                     (type(e), e))
 
-                def remove():
-                    model = self.results_view.get_model()
-                    self.results_view.set_model(None)  # detach model
-                    for found in utils.search_tree_model(model, value):
-                        model.remove(found)
-                    self.results_view.set_model(model)
                 GObject.idle_add(remove)
 
             except Exception as e:
@@ -1146,17 +1158,19 @@ class SearchView(pluginmgr.View):
             # object has been deleted then we won't try to reselect it later
             ref = Gtk.TreeRowReference(model, paths[0])
         except:
+            logger.warning('unable to get ref to selected object')
             pass
 
         self.session.expire_all()
 
-        # the invalidate_str_cache() method are specific to Species
-        # and Accession right now....it's a bit of a hack since there's
+        # the invalidate_str_cache() method are specific to
+        # Accession right now....it's a bit of a hack since there's
         # no real interface that the method complies to...but it does
         # fix our string caching issues
         def invalidate_cache(model, path, treeiter, data=None):
             obj = model[path][0]
-            if hasattr(obj, 'invalidate_str_cache'):
+            from bauble.plugins.garden.accession import Accession
+            if isinstance(obj, Accession):
                 obj.invalidate_str_cache()
         model.foreach(invalidate_cache)
         expanded_rows = self.get_expanded_rows()
@@ -1217,13 +1231,15 @@ class SearchView(pluginmgr.View):
             """
             if event.button == 3:
                 if (event.get_state() & Gdk.ModifierType.CONTROL_MASK) == 0:
-                    path, _, _, _ = view.get_path_at_pos(int(event.x),
-                                                         int(event.y))
+                    pos = view.get_path_at_pos(int(event.x), int(event.y))
+                    # occasionally pos will return None and can't be unpacked
+                    if not pos:
+                        return False
+                    path, _, _, _ = pos
                     if not view.get_selection().path_is_selected(path):
                         return False
                 return True
-            else:
-                return False
+            return False
 
         self.results_view.connect("button-press-event", on_press)
 

@@ -82,25 +82,26 @@ def branch_callback(plants):
 
 
 def remove_callback(plants):
-    s = ', '.join([str(p) for p in plants])
-    msg = _("Are you sure you want to remove the following plants?\n\n%s") \
-        % utils.xml_safe(s)
+    p_str = ', '.join([str(p) for p in plants])
+    msg = _("Are you sure you want to remove the following plants?\n\n%s"
+            ) % utils.xml_safe(p_str)
     if not utils.yes_no_dialog(msg):
-        return
+        return False
 
-    session = db.Session()
+    # this is a bit of a belt and braces approach, object_session should always
+    # returning a session
+    session = object_session(plants[0])
     for plant in plants:
-        obj = session.query(Plant).get(plant.id)
-        session.delete(obj)
+        session.delete(plant)
     try:
+        utils.remove_from_results_view(plants)
         session.commit()
-    except Exception as e:
+    except Exception as e:  # pylint: disable=broad-except
         msg = _('Could not delete.\n\n%s') % utils.xml_safe(e)
 
         utils.message_details_dialog(msg, traceback.format_exc(),
                                      type=Gtk.MessageType.ERROR)
-    finally:
-        session.close()
+        session.rollback()
     return True
 
 
