@@ -606,17 +606,20 @@ class Species(db.Base, db.Serializable, db.DefiningPictures, db.WithNotes):
         :param qualification: pair or None. if specified, first is the
         qualified rank, second is the qualification.
         '''
-        if genus is True and self.genus_id:
-            from .genus import Genus
-            from sqlalchemy.orm import object_session
-            session = object_session(self)
-            genus = session.query(Genus).get(self.genus_id)
+        session = False
+        from sqlalchemy import inspect
+        if inspect(self).detached:
+            session = db.Session()
+            session.enable_relationship_loading(self)
+        if genus is True:
             if markup:
-                genus = genus.markup()
+                genus = self.genus.markup()
             else:
-                genus = str(genus)
+                genus = str(self.genus)
         else:
             genus = ''
+        if session:
+            session.close()
         if self.sp and not remove_zws:
             sp = '\u200b' + self.sp  # prepend with zero_width_space
         else:
