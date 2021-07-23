@@ -288,9 +288,6 @@ def main(uri=None):
     from bauble import pluginmgr
     from bauble import utils
 
-    # initialize threading
-    GObject.threads_init()
-
     try:
         from bauble import db
     except Exception as e:
@@ -360,7 +357,6 @@ def main(uri=None):
     gui = GUI()
 
     def _post_loop():
-        Gdk.threads_enter()
         try:
             if isinstance(open_exc, err.DatabaseError):
                 msg = _('Would you like to create a new Ghini database at '
@@ -390,7 +386,6 @@ def main(uri=None):
             msg = utils.utf8("%s(%s)" % (type(e).__name__, e))
             utils.message_dialog(msg, Gtk.MessageType.WARNING)
         gui.get_view().update()
-        Gdk.threads_leave()
 
     GObject.idle_add(_post_loop)
     logger.info('This version installed on: %s; '
@@ -400,9 +395,7 @@ def main(uri=None):
                 bauble.release_version, bauble.release_date)
 
     gui.show()
-    Gdk.threads_enter()
     Gtk.main()
     active_view = gui.get_view()
     if active_view:
         active_view.cancel_threads()
-    Gdk.threads_leave()
