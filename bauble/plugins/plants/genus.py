@@ -275,7 +275,7 @@ class Genus(db.Base, db.Serializable, db.WithNotes):
         session.commit()
         value.synonyms.append(self)
 
-    def __repr__(self):
+    def __str__(self):
         return Genus.str(self)
 
     @staticmethod

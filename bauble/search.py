@@ -220,12 +220,11 @@ class FilteredIdentifierAction(object):
             'ilike': lambda x, y: utils.ilike(x, '%s' % y),
             'icontains': lambda x, y: utils.ilike(x, '%%%s%%' % y),
             'ihas': lambda x, y: utils.ilike(x, '%%%s%%' % y),
-            }.get(self.filter_op)
+        }.get(self.filter_op)
 
     def __repr__(self):
-        return "%s[%s%s%s].%s" % ('.'.join(self.steps),
-                                  self.filter_attr, self.filter_op, self.filter_value,
-                                  self.leaf)
+        return "%s[%s%s%s].%s" % ('.'.join(self.steps), self.filter_attr,
+                                  self.filter_op, self.filter_value, self.leaf)
 
     def evaluate(self, env):
         """return pair (query, attribute)"""
@@ -487,7 +486,8 @@ class BinomialNameAction(object):
         from bauble.plugins.plants.species import Species
         result = search_strategy._session.query(Species).filter(
             or_(Species.sp.startswith(self.species_epithet),
-                and_(self.species_epithet == 'sp', Species.infrasp1 == 'sp'))).join(Genus).filter(
+                and_(self.species_epithet == 'sp', Species.infrasp1 == 'sp')
+                )).join(Genus).filter(
             Genus.genus.startswith(self.genus_epithet)).all()
         result = set(result)
         if None in result:
@@ -721,11 +721,13 @@ class SearchParser(object):
 
     query_expression = Forward()('filter')
 
-    atomic_identifier = Word(alphas+'_', alphanums+'_')
+    atomic_identifier = Word(alphas + '_', alphanums + '_')
     identifier = (
-        Group(atomic_identifier + ZeroOrMore('.' + atomic_identifier) + '[' + atomic_identifier + binop + value + ']' + '.' + atomic_identifier).setParseAction(FilteredIdentifierAction)
-        | Group(atomic_identifier + ZeroOrMore('.' + atomic_identifier)).setParseAction(IdentifierAction)
-    )
+        Group(atomic_identifier + ZeroOrMore('.' + atomic_identifier) + '[' +
+              atomic_identifier + binop + value + ']' + '.' +
+              atomic_identifier).setParseAction(FilteredIdentifierAction) |
+        Group(atomic_identifier + ZeroOrMore('.' + atomic_identifier)
+              ).setParseAction(IdentifierAction))
 
     aggregated = (aggregating_func + Literal('(') + identifier + Literal(')')
                   ).setParseAction(AggregatingAction)
@@ -778,7 +780,7 @@ class SearchStrategy(object):
         Return an iterator that iterates over mapped classes retrieved
         from the search.
         '''
-        logger.debug('SearchStrategy "%s"(%s)' % (text, self.__class__.__name__))
+        logger.debug('SearchStrategy "%s"(%s)', text, self.__class__.__name__)
         pass
 
 
@@ -1096,7 +1098,8 @@ class ExpressionRow(object):
     def on_value_changed(self, widget, *args):
         """
         Call the QueryBuilder.validate() for this row.
-        Set the sensitivity of the Gtk.ResponseType.OK button on the QueryBuilder.
+        Set the sensitivity of the Gtk.ResponseType.OK button on the
+        QueryBuilder.
         """
         self.presenter.validate()
 
@@ -1193,9 +1196,9 @@ class ExpressionRow(object):
         Returns a tuple of the and_or_combo, prop_button, cond_combo,
         value_widget, and remove_button widgets.
         """
-        return (i for i in (self.and_or_combo, self.prop_button, self.cond_combo,
-                            self.value_widget, self.remove_button)
-                if i)
+        return (
+            i for i in (self.and_or_combo, self.prop_button, self.cond_combo,
+                        self.value_widget, self.remove_button) if i)
 
     def get_expression(self):
         """
@@ -1326,7 +1329,8 @@ class QueryBuilder(GenericEditorPresenter):
 
     def start(self):
         if self.default_size is None:
-            self.__class__.default_size = self.view.widgets.main_dialog.get_size()
+            self.__class__.default_size = (self.view.widgets.main_dialog
+                                           .get_size())
         else:
             self.view.widgets.main_dialog.resize(*self.default_size)
         return self.view.start()
@@ -1366,7 +1370,8 @@ class QueryBuilder(GenericEditorPresenter):
                 self.on_add_clause()
             row = self.expression_rows[-1]
             if clause.connector:
-                row.and_or_combo.set_active({'and': 0, 'or': 1}[clause.connector])
+                row.and_or_combo.set_active(
+                    {'and': 0, 'or': 1}[clause.connector])
 
             # the part about the value is a bit more complex: where the
             # clause.field leads to an enumerated property, on_add_clause

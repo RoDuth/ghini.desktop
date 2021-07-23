@@ -663,10 +663,10 @@ class SearchView(pluginmgr.View):
                 return
 
             selected_type = type(row)
+            # if we have already created an infobox of this type:
             new_infobox = self.infobox_cache.get(selected_type)
 
-            # if we have already created an infobox of this type:
-                # otherwise create one and put in the infobox_cache
+            # otherwise create one and put in the infobox_cache
             if not new_infobox:
                 logger.debug('not found infobox, we make a new one')
                 new_infobox = self.row_meta[selected_type].infobox()

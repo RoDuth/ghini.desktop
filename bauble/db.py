@@ -604,8 +604,8 @@ class DefiningPictures:
 
     @property
     def pictures(self):
-        '''a list of Gtk.Image objects
-        '''
+        """a list of Gtk.Image objects
+        """
 
         result = []
         for n in self.notes:

@@ -42,6 +42,7 @@ from sqlalchemy import (ForeignKey, Column, Unicode, Integer, Boolean,
 from sqlalchemy.orm import backref, relation, validates
 from sqlalchemy.orm.session import object_session
 from sqlalchemy.exc import DBAPIError
+from sqlalchemy import inspect as sa_inspect
 
 import bauble
 from bauble import db
@@ -1006,7 +1007,6 @@ class AccessionEditorView(editor.GenericEditorView):
     @staticmethod
     def species_match_func(completion, key, treeiter, data=None):
         species = completion.get_model()[treeiter][0]
-        from sqlalchemy import inspect as sa_inspect
         if not sa_inspect(species).persistent:
             return False
         epg, eps = (
@@ -1022,8 +1022,11 @@ class AccessionEditorView(editor.GenericEditorView):
     @staticmethod
     def species_cell_data_func(column, renderer, model, treeiter, data=None):
         v = model[treeiter][0]
-        renderer.set_property(
-            'text', '%s (%s)' % (v.str(authors=True), v.genus.family))
+        # occassionally the session gets lost and can result in
+        # DetachedInstanceErrors. So check first
+        if sa_inspect(v).persistent:
+            renderer.set_property(
+                'text', '%s (%s)' % (v.str(authors=True), v.genus.family))
 
 
 class VoucherPresenter(editor.GenericEditorPresenter):

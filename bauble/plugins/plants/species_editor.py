@@ -412,8 +412,8 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
         self.view.connect_after('sp_hybrid_check', 'toggled', refresh)
 
     def on_sp_species_entry_insert_text(self, entry, text, length, position):
-        '''remove all spaces from epithet
-        '''
+        """validate species epithet
+        """
 
         while self.species_check_messages:
             kid = self.species_check_messages.pop()
@@ -803,7 +803,6 @@ class VernacularNamePresenter(editor.GenericEditorPresenter):
         path = treemodel.get_path(treeiter)
         self.treeview.set_cursor(path, column, start_editing=True)
         if len(treemodel) == 1:
-            #self.set_model_attr('default_vernacular_name', vn)
             self.model.default_vernacular_name = vn
 
     def on_remove_button_clicked(self, button, data=None):
@@ -829,8 +828,8 @@ class VernacularNamePresenter(editor.GenericEditorPresenter):
             # default vernacular name
             first = treemodel.get_iter_first()
             if first:
-#                 self.set_model_attr('default_vernacular_name',
-#                                     tree_model[first][0])
+                # seems we can't always use self.set_model_attr for
+                # default_vernacular_name, see commit 099f97090
                 self.model.default_vernacular_name = treemodel[first][0]
         self.parent_ref().refresh_sensitivity()
         self._dirty = True
@@ -874,8 +873,6 @@ class VernacularNamePresenter(editor.GenericEditorPresenter):
                 cell.set_property('foreground', 'blue')
             else:
                 cell.set_property('foreground', None)
-        column = self.view.widgets.vn_name_column
-        #column.set_sizing(Gtk.TreeViewColumnSizing.AUTOSIZE)
         cell = self.view.widgets.vn_name_cell
         self.view.widgets.vn_name_column.\
             set_cell_data_func(cell, _name_data_func)
@@ -928,7 +925,6 @@ class VernacularNamePresenter(editor.GenericEditorPresenter):
 
     def refresh_view(self, default_vernacular_name):
         tree_model = self.treeview.get_model()
-        #if len(self.model) > 0 and default_vernacular_name is None:
         vernacular_names = self.model.vernacular_names
         default_vernacular_name = self.model.default_vernacular_name
         if len(vernacular_names) > 0 and default_vernacular_name is None:
@@ -938,7 +934,6 @@ class VernacularNamePresenter(editor.GenericEditorPresenter):
             utils.message_dialog(msg)
             first = tree_model.get_iter_first()
             value = tree_model[first][0]
-            #self.set_model_attr('default_vernacular_name', value)
             self.model.default_vernacular_name = value
             self._dirty = True
             self.parent_ref().refresh_sensitivity()

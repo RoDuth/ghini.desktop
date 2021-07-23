@@ -201,7 +201,7 @@ class PlantSearch(SearchStrategy):
                 utils.ilike(Accession.code, '%%%s' % str(acc_code)))
             return query.all()
         except Exception as e:
-            logger.debug("%s %s" % (e.__class__.name, e))
+            logger.debug("%s %s" % (e.__class__.__name__, e))
             return []
 
 
