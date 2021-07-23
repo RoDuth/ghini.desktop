@@ -1393,20 +1393,6 @@ class AccessionQualifiedTaxon(GardenTestCase):
         sp_str = self.ac1.species_str(markup=True)
         self.assertEqual(remove_zws(sp_str), s)
 
-    def test_species_str_is_cached(self):
-        self.ac1.species.set_infrasp(1, 'cv.', 'Cultivar')
-        self.ac1.id_qual = 'cf.'
-        self.ac1.id_qual_rank = 'infrasp'
-        s = "Echinocactus grusonii cf. 'Cultivar'"
-        sp_str = self.ac1.species_str()
-        self.assertEqual(remove_zws(sp_str), s)
-
-        # have to commit because the cached string won't be returned
-        # on dirty species
-        self.session.commit()
-        s2 = self.ac1.species_str()
-        self.assertEqual(id(sp_str), id(s2))
-
     def test_species_str_be_specific_in_infraspecific(self):
         'be specific qualifying infraspecific identification - still unused'
         ## add  to species with variety and refer to it as cf.

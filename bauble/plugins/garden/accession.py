@@ -37,10 +37,9 @@ from gi.repository import Gtk  # noqa
 # from lxml import etree
 from gi.repository import Pango
 from sqlalchemy import and_, or_, func
-from sqlalchemy import ForeignKey, Column, Unicode, Integer, Boolean, \
-    UnicodeText
-from sqlalchemy.orm import EXT_CONTINUE, MapperExtension, \
-    backref, relation, reconstructor, validates
+from sqlalchemy import (ForeignKey, Column, Unicode, Integer, Boolean,
+                        UnicodeText)
+from sqlalchemy.orm import backref, relation, validates
 from sqlalchemy.orm.session import object_session
 from sqlalchemy.exc import DBAPIError
 
@@ -352,14 +351,6 @@ class Voucher(db.Base):
     #                                       cascade='all, delete-orphan'))
 
 
-# invalidate an accessions string cache after it has been updated
-class AccessionMapperExtension(MapperExtension):
-
-    def after_update(self, mapper, conn, instance):
-        instance.invalidate_str_cache()
-        return EXT_CONTINUE
-
-
 # ITF2 - E.1; Provenance Type Flag; Transfer code: prot
 prov_type_values = [
     ('Wild', _('Accession of wild source')),  # W
@@ -584,8 +575,7 @@ class Accession(db.Base, db.Serializable, db.WithNotes):
 
     """
     __tablename__ = 'accession'
-    __mapper_args__ = {'order_by': 'accession.code',
-                       'extension': AccessionMapperExtension()}
+    __mapper_args__ = {'order_by': 'accession.code'}
 
     # columns
     #: the accession code
@@ -727,21 +717,6 @@ class Accession(db.Base, db.Serializable, db.WithNotes):
         import operator
         return reduce(operator.add, [p.pictures for p in self.plants], [])
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.__cached_species_str = {}
-
-    @reconstructor
-    def init_on_load(self):
-        """
-        Called instead of __init__() when an Accession is loaded from
-        the database.
-        """
-        self.__cached_species_str = {}
-
-    def invalidate_str_cache(self):
-        self.__cached_species_str = {}
-
     def __str__(self):
         return str(self.code)
 
@@ -749,25 +724,7 @@ class Accession(db.Base, db.Serializable, db.WithNotes):
         """
         Return the string of the species with the id qualifier(id_qual)
         injected into the proper place.
-
-        If the species isn't part of a session of if the species is dirty,
-        i.e. in object_session(species).dirty, then a new string will be
-        built even if the species hasn't been changeq since the last call
-        to this method.
         """
-        # WARNING: don't use session.is_modified() here because it
-        # will query lots of dependencies
-        try:
-            cached = self.__cached_species_str[(markup, authors)]
-        except KeyError:
-            self.__cached_species_str[(markup, authors)] = None
-            cached = None
-        session = object_session(self.species)
-        if session:
-            # if not part of a session or if the species is dirty then
-            # build a new string
-            if cached is not None and self.species not in session.dirty:
-                return cached
         if not self.species:
             return None
 
@@ -791,7 +748,6 @@ class Accession(db.Base, db.Serializable, db.WithNotes):
         else:
             sp_str = self.species.str(authors, markup, remove_zws=True)
 
-        self.__cached_species_str[(markup, authors)] = sp_str
         return sp_str
 
     def markup(self):

@@ -1157,22 +1157,12 @@ class SearchView(pluginmgr.View):
             # try to get the reference to the selected object, if the
             # object has been deleted then we won't try to reselect it later
             ref = Gtk.TreeRowReference(model, paths[0])
-        except:
-            logger.warning('unable to get ref to selected object')
-            pass
+        except IndexError as e:
+            logger.debug('unable to get ref to selected object: %s %s',
+                         type(e).__name__, e)
 
         self.session.expire_all()
 
-        # the invalidate_str_cache() method are specific to
-        # Accession right now....it's a bit of a hack since there's
-        # no real interface that the method complies to...but it does
-        # fix our string caching issues
-        def invalidate_cache(model, path, treeiter, data=None):
-            obj = model[path][0]
-            from bauble.plugins.garden.accession import Accession
-            if isinstance(obj, Accession):
-                obj.invalidate_str_cache()
-        model.foreach(invalidate_cache)
         expanded_rows = self.get_expanded_rows()
         self.results_view.collapse_all()
         # expand_to_all_refs will invalidate the ref so get the path first
