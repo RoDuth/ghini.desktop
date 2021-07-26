@@ -24,9 +24,11 @@ import os
 import shutil
 import tempfile
 
-from sqlalchemy import Column, Integer, Boolean
+from sqlalchemy import Column, Integer
 
-import bauble.db as db
+from bauble.btypes import Boolean
+
+from bauble import db
 from bauble.plugins.plants import (
     Familia, Family, Genus, Species, VernacularName, SpeciesNote)
 from bauble.plugins.garden import Accession, Location, Plant, Contact, Source

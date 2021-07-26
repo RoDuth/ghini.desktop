@@ -74,7 +74,7 @@ config_version = bauble.version_tuple[0], bauble.version_tuple[1]
 
 date_format_pref = 'bauble.default_date_format'
 """
-The preferences key for the default data format.
+The preferences key for the default date format.
 """
 
 picture_root_pref = 'bauble.picture_root'

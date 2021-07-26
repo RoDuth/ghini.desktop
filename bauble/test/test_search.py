@@ -1090,6 +1090,136 @@ class QueryBuilderTests(BaubleTestCase):
         qb.set_query("accession where recvd_type = 'BBIL'")
         self.assertEqual(len(qb.expression_rows), 1)
 
+    def test_invalid_domain(self):
+        import os
+        gladefilepath = os.path.join(paths.lib_dir(), "querybuilder.glade")
+        view = GenericEditorView(
+            gladefilepath,
+            parent=None,
+            root_widget_name='main_dialog')
+        qb = search.QueryBuilder(view)
+        qb.set_query("nonexistentdomain where id = 1")
+        self.assertFalse(qb.validate())
+
+    def test_invalid_target(self):
+        import os
+        gladefilepath = os.path.join(paths.lib_dir(), "querybuilder.glade")
+        view = GenericEditorView(
+            gladefilepath,
+            parent=None,
+            root_widget_name='main_dialog')
+        qb = search.QueryBuilder(view)
+        qb.set_query("plant where accession.invalid = 1")
+        self.assertFalse(qb.validate())
+
+    def test_invalid_query(self):
+        import os
+        gladefilepath = os.path.join(paths.lib_dir(), "querybuilder.glade")
+        view = GenericEditorView(
+            gladefilepath,
+            parent=None,
+            root_widget_name='main_dialog')
+        qb = search.QueryBuilder(view)
+        qb.set_query("plant where id between 1 and 10")
+        self.assertFalse(qb.validate())
+
+    def test_nonetype_query(self):
+        import os
+        gladefilepath = os.path.join(paths.lib_dir(), "querybuilder.glade")
+        view = GenericEditorView(
+            gladefilepath,
+            parent=None,
+            root_widget_name='main_dialog')
+        qb = search.QueryBuilder(view)
+        query = "plant where notes.category = 'None'"
+        qb.set_query(query)
+        self.assertTrue(qb.validate())
+        self.assertEqual(qb.get_query(), query)
+
+    def test_none_string_query(self):
+        import os
+        gladefilepath = os.path.join(paths.lib_dir(), "querybuilder.glade")
+        view = GenericEditorView(
+            gladefilepath,
+            parent=None,
+            root_widget_name='main_dialog')
+        qb = search.QueryBuilder(view)
+        query = "plant where notes.category = None"
+        qb.set_query(query)
+        self.assertTrue(qb.validate())
+        self.assertEqual(qb.get_query(), query)
+
+    def test_boolean_query(self):
+        import os
+        gladefilepath = os.path.join(paths.lib_dir(), "querybuilder.glade")
+        view = GenericEditorView(
+            gladefilepath,
+            parent=None,
+            root_widget_name='main_dialog')
+        qb = search.QueryBuilder(view)
+        query = "plant where memorial = True"
+        qb.set_query(query)
+        self.assertTrue(qb.validate())
+        self.assertEqual(qb.get_query(), query)
+
+    def test_date_query(self):
+        import os
+        gladefilepath = os.path.join(paths.lib_dir(), "querybuilder.glade")
+        view = GenericEditorView(
+            gladefilepath,
+            parent=None,
+            root_widget_name='main_dialog')
+        qb = search.QueryBuilder(view)
+        # isoparse
+        query = "plant where _created = 2020-02-01"
+        qb.set_query(query)
+        self.assertTrue(qb.validate())
+        self.assertEqual(qb.get_query(), query)
+        # parse
+        query = "plant where _created = 01-02-2020"
+        qb.set_query(query)
+        self.assertTrue(qb.validate())
+        self.assertEqual(qb.get_query(), query)
+
+    def test_int_query(self):
+        import os
+        gladefilepath = os.path.join(paths.lib_dir(), "querybuilder.glade")
+        view = GenericEditorView(
+            gladefilepath,
+            parent=None,
+            root_widget_name='main_dialog')
+        qb = search.QueryBuilder(view)
+        query = "plant where quantity > 2"
+        qb.set_query(query)
+        self.assertTrue(qb.validate())
+        self.assertEqual(qb.get_query(), query)
+
+    def test_float_query(self):
+        import os
+        gladefilepath = os.path.join(paths.lib_dir(), "querybuilder.glade")
+        view = GenericEditorView(
+            gladefilepath,
+            parent=None,
+            root_widget_name='main_dialog')
+        qb = search.QueryBuilder(view)
+        query = "collection where elevation > 0.01"
+        qb.set_query(query)
+        self.assertTrue(qb.validate())
+        self.assertEqual(qb.get_query(), query)
+
+    def test_not_translated_enum_query(self):
+        import os
+        gladefilepath = os.path.join(paths.lib_dir(), "querybuilder.glade")
+        view = GenericEditorView(
+            gladefilepath,
+            parent=None,
+            root_widget_name='main_dialog')
+        qb = search.QueryBuilder(view)
+        query = "family where qualifier = 's. lat.'"
+        qb.set_query(query)
+        self.assertTrue(qb.validate())
+        self.assertEqual(qb.get_query(), query)
+
 
 class BuildingSQLStatements(BaubleTestCase):
     import bauble.search
@@ -1315,13 +1445,17 @@ class ParseTypedValue(BaubleTestCase):
         self.assertEqual(result, '-4')
 
     def test_parsed_typed_value_bool(self):
-        from sqlalchemy import Boolean
+        from bauble.btypes import Boolean
+        result = search.parse_typed_value('true', Boolean())
+        self.assertEqual(result, '|bool|true|')
+        result = search.parse_typed_value('false', Boolean())
+        self.assertEqual(result, '|bool|false|')
         result = search.parse_typed_value('True', Boolean())
-        self.assertEqual(result, '|bool|True|')
+        self.assertEqual(result, 'True')
         result = search.parse_typed_value('False', Boolean())
-        self.assertEqual(result, '|bool|False|')
+        self.assertEqual(result, 'False')
         result = search.parse_typed_value(None, Boolean())
-        self.assertIsNone(result)
+        self.assertIsNone(result.express())
 
     def test_parse_typed_value_date(self):
         from bauble.btypes import DateTime, Date
@@ -1332,17 +1466,20 @@ class ParseTypedValue(BaubleTestCase):
         result = search.parse_typed_value('-30', Date())
         self.assertEqual(result, '|datetime|-30|')
         result = search.parse_typed_value('1-1-20', Date())
-        self.assertEqual(result, '|datetime|2020, 1, 1|')
+        self.assertEqual(result, '1-1-20')
         result = search.parse_typed_value('1/1/20', Date())
-        self.assertEqual(result, '|datetime|2020, 1, 1|')
+        self.assertEqual(result, '1-1-20')
         result = search.parse_typed_value('2020/1/1', Date())
-        self.assertEqual(result, '|datetime|2020, 1, 1|')
+        self.assertEqual(result, '2020-1-1')
         result = search.parse_typed_value('2020-1-1', Date())
-        self.assertEqual(result, '|datetime|2020, 1, 1|')
+        self.assertEqual(result, '2020-1-1')
 
     def test_parse_typed_value_none(self):
         result = search.parse_typed_value('None', None)
-        self.assertEqual(result, 'None')
+        self.assertEqual(str(result), '(None<NoneType>)')
+        self.assertIsNone(result.express())
+        result = search.parse_typed_value("'None'", None)
+        self.assertEqual(result, "'None'")
 
     def test_parse_typed_value_empty_set(self):
         result = search.parse_typed_value('Empty', None)

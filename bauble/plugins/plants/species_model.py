@@ -25,8 +25,8 @@ logger = logging.getLogger(__name__)
 
 from sqlalchemy.ext.associationproxy import association_proxy
 
-from sqlalchemy import Column, Boolean, Unicode, Integer, ForeignKey, \
-    UnicodeText, func, UniqueConstraint
+from sqlalchemy import (Column, Unicode, Integer, ForeignKey, UnicodeText,
+                        func, UniqueConstraint)
 from sqlalchemy.orm import relation, backref, synonym
 from sqlalchemy.ext.hybrid import hybrid_property
 from bauble import db
@@ -443,7 +443,7 @@ class Species(db.Base, db.Serializable, db.DefiningPictures, db.WithNotes):
     epithet = synonym('sp')
     sp2 = Column(Unicode(64), index=True)  # in case hybrid=True
     sp_author = Column(Unicode(128))
-    hybrid = Column(Boolean, default=False)
+    hybrid = Column(types.Boolean, default=False)
     sp_qual = Column(types.Enum(values=['agg.', 's. lat.', 's. str.', None]),
                      default=None)
     cv_group = Column(Unicode(50))
@@ -470,7 +470,7 @@ class Species(db.Base, db.Serializable, db.DefiningPictures, db.WithNotes):
     infrasp4_author = Column(Unicode(64))
 
     genus_id = Column(Integer, ForeignKey('genus.id'), nullable=False)
-    ## the Species.genus property is defined as backref in Genus.species
+    # the Species.genus property is defined as backref in Genus.species
 
     label_distribution = Column(UnicodeText)
     bc_distribution = Column(UnicodeText)

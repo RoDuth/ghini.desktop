@@ -22,13 +22,17 @@
 # QueryBuilder will be able to start from there
 #
 # if the query does not follow the grammar, start from scratch.
+"""
+Parse a query string for its domain and clauses to preloading the QueryBuilder.
+"""
 
 from pyparsing import (Word, alphas, alphanums, delimitedList, Group,
-                       alphas8bit, removeQuotes, quotedString, Regex, oneOf,
-                       Forward, CaselessLiteral, WordStart, WordEnd,
-                       ZeroOrMore)
+                       alphas8bit, quotedString, Regex, oneOf,
+                       CaselessLiteral, WordStart, WordEnd,
+                       ZeroOrMore, Literal, ParseException)
 
-class BuiltQuery(object):
+
+class BuiltQuery:
 
     wordStart, wordEnd = WordStart(), WordEnd()
 
@@ -37,14 +41,27 @@ class BuiltQuery(object):
     BETWEEN_ = wordStart + CaselessLiteral('between') + wordEnd
 
     numeric_value = Regex(r'[-]?\d+(\.\d*)?([eE]\d+)?')
+    date_str = Regex(r'(\d{1,4})-(\d{1,2})-(\d{1,4})')
+    date = (date_str |
+            Regex(r'(\d{4}),[ ]?(\d{1,2}),[ ]?(\d{1,2})'))
+    true_false = (Literal('True') | Literal('False'))
     unquoted_string = Word(alphanums + alphas8bit + '%.-_*;:')
-    string_value = (quotedString.setParseAction(removeQuotes) | unquoted_string)
-    fieldname = Group(delimitedList(Word(alphas+'_', alphanums+'_'), '.'))
-    value = (numeric_value | string_value)
+    string_value = (quotedString | unquoted_string)
+    value_part = (date | numeric_value | true_false)
+    typed_value = (Literal("|") + Word(alphas) + Literal("|") +
+                   value_part + Literal("|")).setParseAction(
+                       lambda s, l, t: t[3])
+    none_token = Literal('None').setParseAction(lambda s, l, t: '<None>')
+    fieldname = Group(delimitedList(Word(alphas + '_', alphanums + '_'), '.'))
+    value = (none_token | date_str | numeric_value | string_value |
+             typed_value)
     binop = oneOf('= == != <> < <= > >= has like contains', caseless=True)
     clause = fieldname + binop + value
-    unparseable_clause = (fieldname + BETWEEN_ + value + AND_ + value) | (Word(alphanums) + '(' + fieldname + ')' + binop + value)
-    expression = Group(clause) + ZeroOrMore(Group( AND_ + clause | OR_ + clause | ((OR_|AND_) + unparseable_clause).suppress()))
+    unparseable_clause = (fieldname + BETWEEN_ + value + AND_ + value) | (
+        Word(alphanums) + '(' + fieldname + ')' + binop + value)
+    expression = Group(clause) + ZeroOrMore(Group(
+        AND_ + clause | OR_ + clause | ((OR_ | AND_) + unparseable_clause)
+        .suppress()))
     query = Word(alphas) + CaselessLiteral("where") + expression
 
     def __init__(self, s):
@@ -53,18 +70,19 @@ class BuiltQuery(object):
         try:
             self.parsed = self.query.parseString(s)
             self.is_valid = True
-        except:
+        except ParseException as e:
             self.is_valid = False
 
     @property
     def clauses(self):
         if not self.__clauses:
-            self.__clauses = [type('FooBar', (object,),
-                                   dict(connector=len(i)==4 and i[0] or None,
-                                        field='.'.join(i[-3]),
-                                        operator=i[-2],
-                                        value=i[-1]))()
-                              for i in [k for k in self.parsed if len(k)>0][2:]]
+            self.__clauses = [
+                type('FooBar', (object,),
+                     dict(connector=len(i) == 4 and i[0] or None,
+                          field='.'.join(i[-3]),
+                          operator=i[-2],
+                          value=i[-1]))()
+                for i in [k for k in self.parsed if len(k) > 0][2:]]
         return self.__clauses
 
     @property

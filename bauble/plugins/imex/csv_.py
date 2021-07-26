@@ -34,8 +34,9 @@ logger = logging.getLogger(__name__)
 
 from gi.repository import Gtk  # noqa
 
-from sqlalchemy import ColumnDefault, Boolean
+from sqlalchemy import ColumnDefault
 
+from bauble.btypes import Boolean
 import bauble
 from bauble import db
 from bauble.error import BaubleError
@@ -460,26 +461,11 @@ class CSVImporter(Importer):
                     # fill in default values and None for "empty"
                     # columns in line
                     for column in list(table.c.keys()):
-                        if column in defaults \
-                                and (column not in line
-                                     or isempty(line[column])):
+                        if (column in defaults and (column not in line or
+                                                    isempty(line[column]))):
                             line[column] = defaults[column]
                         elif column in line and isempty(line[column]):
                             line[column] = None
-                        elif column in line and line[column] == 'False' and \
-                                isinstance(table.c[column].type, Boolean):
-                            # need bool value, not 'False' string
-                            line[column] = False
-                        elif column in line and line[column] == 'True' and \
-                                isinstance(table.c[column].type, Boolean):
-                            # need bool value, not 'True' string
-                            line[column] = True
-                            # in SA 0.5.5 and only on an SQLite
-                            # database the 'False' will import as True
-                            # for some reason whereas True will import
-                            # as True automatically...probably because
-                            # bool('False') == True
-                        # geojson.
                         elif column == 'geojson':
                             from ast import literal_eval
                             line[column] = literal_eval(line[column])
@@ -574,7 +560,7 @@ class CSVExporter(object):
     def start(self, path=None):
         if path is None:
             d = Gtk.FileChooserNative.new(_("Select a directory"), None,
-                                          Gtk.FileChooserAction.SELECT_FOLDER)
+                                          Gtk.FileChooserAction.CREATE_FOLDER)
             d.set_current_folder(str(Path.home()))
             response = d.run()
             path = d.get_filename()

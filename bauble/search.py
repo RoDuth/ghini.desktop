@@ -24,7 +24,7 @@ from gi.repository import Gtk  # noqa
 
 from sqlalchemy import or_, and_
 from sqlalchemy import Unicode
-from sqlalchemy import UnicodeText, Boolean, Integer, Float
+from sqlalchemy import UnicodeText, Integer, Float
 from sqlalchemy.orm import class_mapper, RelationshipProperty
 from sqlalchemy.orm.properties import ColumnProperty
 from sqlalchemy.ext.hybrid import hybrid_property
@@ -76,7 +76,7 @@ class EmptyToken(object):
 
 
 class ValueABC(object):
-    ## abstract base class.
+    # abstract base class.
 
     def express(self):
         return self.value
@@ -109,13 +109,13 @@ class NumericToken(ValueABC):
     def __repr__(self):
         return "%s" % (self.value)
 
+
 def smartdatetime(year_or_offset, *args):
     """return either datetime.datetime, or a day with given offset.
 
     When given only one argument, this is interpreted as an offset for
     timedelta, and it is added to datetime.today().  If given more
     arguments, it just behaves as datetime.datetime.
-
     """
     from datetime import datetime, timedelta
     if not args:
@@ -124,6 +124,7 @@ def smartdatetime(year_or_offset, *args):
                 timedelta(year_or_offset))
     else:
         return datetime(year_or_offset, *args)
+
 
 def smartboolean(*args):
     """translate args into boolean value
@@ -141,10 +142,9 @@ def smartboolean(*args):
 
 
 class TypedValueToken(ValueABC):
-    ## |<name>|<paramlist>|
+    # |<name>|<paramlist>|
     constructor = {'datetime': (smartdatetime, int),
-                   'bool': (smartboolean, str),
-                   }
+                   'bool': (smartboolean, str)}
 
     def __init__(self, t):
         logger.debug('constructing typedvaluetoken %s' % str(t))
@@ -667,11 +667,11 @@ class SearchParser(object):
 
     numeric_value = Regex(
         r'[-]?\d+(\.\d*)?([eE]\d+)?'
-        ).setParseAction(NumericToken)('number')
+    ).setParseAction(NumericToken)('number')
     unquoted_string = Word(alphanums + alphas8bit + '%.-_*;:')
     string_value = (
         quotedString.setParseAction(removeQuotes) | unquoted_string
-        ).setParseAction(StringToken)('string')
+    ).setParseAction(StringToken)('string')
 
     none_token = Literal('None').setParseAction(NoneToken)
     empty_token = Literal('Empty').setParseAction(EmptyToken)
@@ -680,7 +680,7 @@ class SearchParser(object):
     typed_value = (
         Literal("|") + unquoted_string + Literal("|") +
         value_list + Literal("|")
-        ).setParseAction(TypedValueToken)
+    ).setParseAction(TypedValueToken)
 
     value = (
         typed_value |
@@ -688,10 +688,10 @@ class SearchParser(object):
         none_token |
         empty_token |
         string_value
-        ).setParseAction(ValueToken)('value')
+    ).setParseAction(ValueToken)('value')
     value_list << Group(
         OneOrMore(value) ^ delimitedList(value)
-        ).setParseAction(ValueListAction)('value_list')
+    ).setParseAction(ValueListAction)('value_list')
 
     domain = Word(alphas, alphanums)
     binop = oneOf('= == != <> < <= > >= not like contains has ilike '
@@ -701,23 +701,23 @@ class SearchParser(object):
     star_value = Literal('*')
     domain_values = (value_list.copy())('domain_values')
     domain_expression = (
-        (domain + equals + star_value + stringEnd)
-        | (domain + binop + domain_values + stringEnd)
-        ).setParseAction(DomainExpressionAction)('domain_expression')
+        (domain + equals + star_value + stringEnd) |
+        (domain + binop + domain_values + stringEnd)
+    ).setParseAction(DomainExpressionAction)('domain_expression')
 
     caps = srange("[A-Z]")
     lowers = caps.lower()
     binomial_name = (
         Word(caps, lowers) + Word(lowers)
-        ).setParseAction(BinomialNameAction)('binomial_name')
+    ).setParseAction(BinomialNameAction)('binomial_name')
 
     AND_ = wordStart + (CaselessLiteral("AND") | Literal("&&")) + wordEnd
     OR_ = wordStart + (CaselessLiteral("OR") | Literal("||")) + wordEnd
     NOT_ = wordStart + (CaselessLiteral("NOT") | Literal('!')) + wordEnd
     BETWEEN_ = wordStart + CaselessLiteral("BETWEEN") + wordEnd
 
-    aggregating_func = (Literal('sum') | Literal('min') | Literal('max')
-                        | Literal('count'))
+    aggregating_func = (Literal('sum') | Literal('min') | Literal('max') |
+                        Literal('count'))
 
     query_expression = Forward()('filter')
 
@@ -732,28 +732,28 @@ class SearchParser(object):
     aggregated = (aggregating_func + Literal('(') + identifier + Literal(')')
                   ).setParseAction(AggregatingAction)
     ident_expression = (Group(identifier + binop + value
-                              ).setParseAction(IdentExpression)
-                        | Group(identifier + binop_set + value_list
-                                ).setParseAction(ElementSetExpression)
-                        | Group(aggregated + binop + value
-                                ).setParseAction(AggregatedExpression)
-                        | (Literal('(') + query_expression + Literal(')')
-                           ).setParseAction(ParenthesisedQuery))
+                              ).setParseAction(IdentExpression) |
+                        Group(identifier + binop_set + value_list
+                              ).setParseAction(ElementSetExpression) |
+                        Group(aggregated + binop + value
+                              ).setParseAction(AggregatedExpression) |
+                        (Literal('(') + query_expression + Literal(')')
+                         ).setParseAction(ParenthesisedQuery))
     between_expression = Group(
         identifier + BETWEEN_ + value + AND_ + value
-        ).setParseAction(BetweenExpressionAction)
+    ).setParseAction(BetweenExpressionAction)
     query_expression << infixNotation(
         (ident_expression | between_expression),
         [(NOT_, 1, opAssoc.RIGHT, SearchNotAction),
-         (AND_, 2, opAssoc.LEFT,  SearchAndAction),
-         (OR_,  2, opAssoc.LEFT,  SearchOrAction)])
+         (AND_, 2, opAssoc.LEFT, SearchAndAction),
+         (OR_, 2, opAssoc.LEFT, SearchOrAction)])
     query = (domain + Keyword('where', caseless=True).suppress() +
              Group(query_expression) + stringEnd).setParseAction(QueryAction)
 
-    statement = (query('query')
-                 | domain_expression('domain')
-                 | binomial_name('binomial')
-                 | value_list('value_list')
+    statement = (query('query') |
+                 domain_expression('domain') |
+                 binomial_name('binomial') |
+                 value_list('value_list')
                  ).setParseAction(StatementAction)('statement')
 
     def parse_string(self, text):
@@ -867,7 +867,7 @@ class MapperSearch(SearchStrategy):
         return self._results
 
 
-## list of search strategies to be tried on each search string
+# list of search strategies to be tried on each search string
 _search_strategies = {'MapperSearch': MapperSearch()}
 
 
@@ -1007,29 +1007,21 @@ def parse_typed_value(value, proptype):
     handles boolean, integers, floats, datetime, None, Empty, and falls back to
     string.
     """
-    from sqlalchemy import Integer, Float
-    if value == 'None':
-        pass
+    if value in ['None', None]:
+        value = NoneToken()
+    elif value in ["'None'", '"None"']:
+        # in case user really does want to use "None" as a string.
+        value = repr(str(value[1:-1]))
     elif value == 'Empty':
         value = EmptyToken()
     elif isinstance(proptype, (bauble.btypes.DateTime, bauble.btypes.Date)):
+        # btypes.DateTime/Date accepts string dates
         value = value.replace('/', '-')
-        if value.count('-') > 1:
-            from dateutil import parser
-            date = None
-            try:
-                date = parser.isoparse(value)
-            except ValueError:
-                try:
-                    date = parser.parse(value)
-                except ValueError:
-                    pass
-            if date:
-                value = f'{date.year}, {date.month}, {date.day}'
-
-        value = f'|datetime|{value}|'
-    elif isinstance(proptype, (Boolean)):
-        if value:
+        if not value.count('-') == 2:
+            value = f'|datetime|{value}|'
+    elif isinstance(proptype, bauble.btypes.Boolean):
+        # btypes.Boolean accepts strings and 0, 1
+        if value not in ['True', 'False', 1, 0]:
             value = f'|bool|{value}|'
     elif isinstance(proptype, Integer):
         value = ''.join([i for i in value if i in '-0123456789.'])
@@ -1042,7 +1034,7 @@ def parse_typed_value(value, proptype):
     return value
 
 
-class ExpressionRow(object):
+class ExpressionRow:
     """
     """
 
@@ -1163,7 +1155,7 @@ class ExpressionRow(object):
                                                numeric=True)
             self.value_widget.connect('changed', self.on_value_changed)
 
-        elif isinstance(self.proptype, Boolean):
+        elif isinstance(self.proptype, bauble.btypes.Boolean):
             self.value_widget = Gtk.ComboBoxText()
             self.value_widget.append_text('False')
             self.value_widget.append_text('True')
@@ -1183,9 +1175,6 @@ class ExpressionRow(object):
         self.presenter.validate()
 
     def column_filter(self, prop):
-        # if isinstance(prop, ColumnProperty) and \
-        #         isinstance(prop.columns[0].type, bauble.btypes.Date):
-        #     return False
         return True
 
     def relation_filter(self, prop):
@@ -1230,6 +1219,8 @@ class ExpressionRow(object):
         if value == EmptyToken():
             field_name = field_name.rsplit('.', 1)[0]
             value = repr(value)
+        if isinstance(value, NoneToken):
+            value = 'None'
         result = ' '.join([and_or, field_name,
                            self.cond_combo.get_active_text(),
                            value]).strip()
@@ -1366,6 +1357,10 @@ class QueryBuilder(GenericEditorPresenter):
 
         # now scan all clauses, one ExpressionRow per clause
         for clause in parsed.clauses:
+            if clause.value == 'None':
+                clause.value = "'None'"
+            elif clause.value == '<None>':
+                clause.value = 'None'
             if clause.connector:
                 self.on_add_clause()
             row = self.expression_rows[-1]
@@ -1386,8 +1381,8 @@ class QueryBuilder(GenericEditorPresenter):
                     mapper = mapper.get_property(target).mapper
                 prop = mapper.get_property(steps[-1])
             except Exception as e:
-                logger.debug('cannot restore query details, %s(%s)' %
-                             (type(e), e))
+                logger.debug('cannot restore query details, %s(%s)',
+                             type(e).__name__, e)
                 return
             row.on_schema_menu_activated(None, clause.field, prop)
             if isinstance(row.value_widget, Gtk.SpinButton):
@@ -1396,7 +1391,8 @@ class QueryBuilder(GenericEditorPresenter):
                 row.value_widget.set_text(clause.value)
             elif isinstance(row.value_widget, Gtk.ComboBox):
                 for item in row.value_widget.props.model:
-                    if item[0] == clause.value:
+                    val = clause.value if clause.value != 'None' else None
+                    if item[0] == val:
                         row.value_widget.set_active_iter(item.iter)
                         break
             row.cond_combo.set_active(row.conditions.index(clause.operator))

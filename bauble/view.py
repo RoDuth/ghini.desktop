@@ -577,8 +577,10 @@ class SearchView(pluginmgr.View):
             domain = selected.__class__.__name__.lower()
             # retrieve the activated row
             row = tree.get_model()[path]
+            cat = None if row[2] == '' else repr(row[2])
+            note = repr(row[3])
             # construct the query
-            query = "%s where notes[category='%s'].note='%s'" % (domain, row[2], row[3])
+            query = f"{domain} where notes[category={cat}].note={note}"
             # fire it
             bauble.gui.widgets.main_comboentry.get_child().set_text(query)
             bauble.gui.widgets.go_button.emit("clicked")
@@ -642,7 +644,7 @@ class SearchView(pluginmgr.View):
                 label.set_use_markup(True)
                 label.set_label('<b>%s</b>' % bottom_info['name'])
                 for obj in objs:
-                    model.append([str(getattr(obj, k))
+                    model.append([str(getattr(obj, k) or '')
                                   for k in bottom_info['fields_used']])
 
     def update_infobox(self):

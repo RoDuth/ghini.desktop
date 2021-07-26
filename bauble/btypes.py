@@ -186,3 +186,23 @@ class JSON(types.TypeDecorator):
 
     def coerce_compared_value(self, op, value):
         return self.impl.coerce_compared_value(op, value)
+
+
+class Boolean(types.TypeDecorator):
+    """
+    A Boolean type that allows True/False as strings
+    """
+    impl = types.Boolean
+
+    cache_ok = True
+
+    def process_bind_param(self, value, dialect):
+        if not isinstance(value, str):
+            return value
+        if value == 'True':
+            return True
+        if value == 'False':
+            return False
+
+    def copy(self):
+        return Boolean()

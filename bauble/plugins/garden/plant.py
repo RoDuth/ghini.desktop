@@ -33,8 +33,8 @@ logger = logging.getLogger(__name__)
 from gi.repository import Gtk  # noqa
 
 from sqlalchemy import and_, func, event
-from sqlalchemy import ForeignKey, Column, Unicode, Integer, Boolean, \
-    UnicodeText, UniqueConstraint
+from sqlalchemy import (ForeignKey, Column, Unicode, Integer, UnicodeText,
+                        UniqueConstraint)
 from sqlalchemy.orm import (relation, backref, object_mapper, validates,
                             deferred)
 from sqlalchemy.orm.session import object_session
@@ -43,8 +43,9 @@ from sqlalchemy.orm.attributes import get_history
 
 from bauble import db
 from bauble.error import CheckConditionError
-from bauble.editor import GenericEditorView, GenericEditorPresenter, \
-    GenericModelViewPresenterEditor, NotesPresenter, PicturesPresenter
+from bauble.editor import (GenericEditorView, GenericEditorPresenter,
+                           GenericModelViewPresenterEditor, NotesPresenter,
+                           PicturesPresenter)
 from bauble import meta
 from bauble import paths
 from bauble.plugins.garden.location import Location, LocationEditor
@@ -53,8 +54,8 @@ from bauble import prefs
 from bauble.search import SearchStrategy
 from bauble import btypes as types
 from bauble import utils
-from bauble.view import InfoBox, InfoExpander, PropertiesExpander, \
-    select_in_search_results, Action
+from bauble.view import (InfoBox, InfoExpander, PropertiesExpander,
+                         select_in_search_results, Action)
 from bauble import view
 
 # TODO: might be worthwhile to have a label or textview next to the
@@ -478,7 +479,7 @@ class Plant(db.Base, db.Serializable, db.DefiningPictures, db.WithNotes):
     acc_type = Column(types.Enum(values=list(acc_type_values.keys()),
                                  translations=acc_type_values),
                       default=None)
-    memorial = Column(Boolean, default=False)
+    memorial = Column(types.Boolean, default=False)
     quantity = Column(Integer, autoincrement=False, nullable=False)
 
     accession_id = Column(Integer, ForeignKey('accession.id'), nullable=False)

@@ -37,8 +37,7 @@ from gi.repository import Gtk  # noqa
 # from lxml import etree
 from gi.repository import Pango
 from sqlalchemy import and_, or_, func
-from sqlalchemy import (ForeignKey, Column, Unicode, Integer, Boolean,
-                        UnicodeText)
+from sqlalchemy import ForeignKey, Column, Unicode, Integer, UnicodeText
 from sqlalchemy.orm import backref, relation, validates
 from sqlalchemy.orm.session import object_session
 from sqlalchemy.exc import DBAPIError
@@ -334,7 +333,7 @@ class Voucher(db.Base):
         The name of the herbarium.
       code: :class:`sqlalchemy.types.Unicode`
         The herbarium code for the voucher.
-      parent_material: :class:`sqlalchemy.types.Boolean`
+      parent_material: :class:`bauble.btypes.Boolean`
         Is this voucher relative to the parent material of the accession.
       accession_id: :class:`sqlalchemy.types.Integer`
         Foreign key to the :class:`Accession` .
@@ -344,7 +343,7 @@ class Voucher(db.Base):
     __tablename__ = 'voucher'
     herbarium = Column(Unicode(5), nullable=False)
     code = Column(Unicode(32), nullable=False)
-    parent_material = Column(Boolean, default=False)
+    parent_material = Column(types.Boolean, default=False)
     accession_id = Column(Integer, ForeignKey('accession.id'), nullable=False)
 
     # accession  = relation('Accession', uselist=False,
@@ -552,7 +551,7 @@ class Accession(db.Base, db.Serializable, db.WithNotes):
         *id_qual_rank*: :class:`sqlalchemy.types.Unicode`
             The rank of the species that the id_qaul refers to.
 
-        *private*: :class:`sqlalchemy.types.Boolean`
+        *private*: :class:`bauble.btypes.Boolean`
             Flag to indicate where this information is sensitive and
             should be kept private
 
@@ -615,8 +614,7 @@ class Accession(db.Base, db.Serializable, db.WithNotes):
                                         'forsan', 'near', '?', None]),
                      default=None)
 
-    # "private" new in 0.8b2
-    private = Column(Boolean, default=False)
+    private = Column(types.Boolean, default=False)
     species_id = Column(Integer, ForeignKey('species.id'), nullable=False)
 
     # intended location
