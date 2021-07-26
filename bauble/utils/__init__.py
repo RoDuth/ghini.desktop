@@ -1501,6 +1501,7 @@ class MessageBox(GenericMessageBox):
         self.box.pack_start(self.vbox, True, True, 0)
 
         self.label = Gtk.TextView()
+        self.label.set_wrap_mode(Gtk.WrapMode.WORD)
         self.label.set_can_focus(False)
         self.buffer = Gtk.TextBuffer()
         self.label.set_buffer(self.buffer)
