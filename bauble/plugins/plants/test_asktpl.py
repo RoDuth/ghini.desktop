@@ -22,6 +22,7 @@
 from bauble.test import BaubleTestCase
 import requests
 
+
 def requests_get(x, timeout=None):
     import time
     time.sleep(0.1)
@@ -38,6 +39,10 @@ def requests_get(x, timeout=None):
 requests.get = requests_get
 
 from .ask_tpl import AskTPL, what_to_do_with_it
+
+import bauble  # pylint: disable=wrong-import-order
+bauble.plugins.plants.ask_tpl.net_sess = requests
+
 
 class TestOne(BaubleTestCase):
 
