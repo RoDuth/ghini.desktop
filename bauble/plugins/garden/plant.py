@@ -84,13 +84,30 @@ def branch_callback(plants):
 
 def remove_callback(plants):
     p_str = ', '.join([str(p) for p in plants])
-    msg = _("Are you sure you want to remove the following plants?\n\n%s"
-            ) % utils.xml_safe(p_str)
+    msg = _("Are you sure you want to remove the following plants?\n\n{}\n\n"
+            "<small>Note that deleting a plant can destroy related data.  If "
+            "the plant has died set its quantity to zero rather than delete "
+            "it.</small>").format(utils.xml_safe(p_str))
     if not utils.yes_no_dialog(msg):
         return False
 
     session = object_session(plants[0])
     for plant in plants:
+        if plant.branches:
+            msg = _("{0} has plant(s) split from it.  Removing this plant "
+                    "will destroy their link back.  Are you sure you want to "
+                    "want to delete {0}?").format(utils.xml_safe(p_str))
+            if not utils.yes_no_dialog(msg):
+                plants.remove(plant)
+                continue
+        if plant.propagations:
+            msg = _("{0} has propagations.  Removing this plant will destroy "
+                    "these propagations and possibly the source data for any "
+                    "accessions created from them.  Are you sure you want to "
+                    "want to delete {0}?").format(utils.xml_safe(p_str))
+            if not utils.yes_no_dialog(msg):
+                plants.remove(plant)
+                continue
         session.delete(plant)
     try:
         utils.remove_from_results_view(plants)
@@ -338,7 +355,8 @@ class PlantChange(db.Base):
     child_plant = relation(
         'Plant', uselist=False,
         primaryjoin='PlantChange.child_plant_id == Plant.id',
-        backref=backref('branched_from', cascade='delete, delete-orphan'))
+        backref=backref('branched_from', uselist=False,
+                        cascade='delete, delete-orphan'))
 
     from_location = relation(
         'Location', primaryjoin='PlantChange.from_location_id == Location.id')
