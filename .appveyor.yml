@@ -32,7 +32,7 @@ deploy:
   description: 'Alpha release, backup your data first, use at own risk!'
   provider: GitHub
   auth_token:
-    secure: m0gg+fMh1ot3TOipC0zQmOQNABEZUE5Xbkg6nR9Hl3kK05u/u0qcWkdJFIOHGeh3
+    secure: OyO6yWwEa7RpZdY1m+zj5ZBtTYxDSb8Q/7+5dkX8nakRUrEgHeRHIwnTNLlwv9Fk
   draft: false
   prerelease: true
   force_update: true
