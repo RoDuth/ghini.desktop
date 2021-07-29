@@ -2460,6 +2460,8 @@ class AccessionEditor(editor.GenericModelViewPresenterEditor):
             msg = _('You must first add or import at least one species into '
                     'the database before you can add accessions.')
             utils.message_dialog(msg)
+            # close session here or __del__ will commit the blank accession
+            self.session.close()
             return
 
         while True:
