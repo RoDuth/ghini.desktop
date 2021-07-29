@@ -89,8 +89,6 @@ def remove_callback(plants):
     if not utils.yes_no_dialog(msg):
         return False
 
-    # this is a bit of a belt and braces approach, object_session should always
-    # returning a session
     session = object_session(plants[0])
     for plant in plants:
         session.delete(plant)
@@ -99,7 +97,7 @@ def remove_callback(plants):
         session.commit()
     except Exception as e:  # pylint: disable=broad-except
         msg = _('Could not delete.\n\n%s') % utils.xml_safe(e)
-
+        logger.debug(msg)
         utils.message_details_dialog(msg, traceback.format_exc(),
                                      type=Gtk.MessageType.ERROR)
         session.rollback()
@@ -227,7 +225,10 @@ def retrieve(cls, session, keys):
         q = q.filter(cls.category == keys['category'])
     try:
         return q.one()
-    except:
+    except Exception as e:
+        logger.debug('cant retrieve %s with %s: %s:%s', cls, keys,
+                     type(e).__name__, e)
+        session.rollback()
         return None
 
 def compute_serializable_fields(cls, session, keys):
@@ -332,7 +333,7 @@ class PlantChange(db.Base):
     parent_plant = relation(
         'Plant', uselist=False,
         primaryjoin='PlantChange.parent_plant_id == Plant.id',
-        backref=backref('branches', cascade='delete, delete-orphan'))
+        backref=backref('branches'))
 
     child_plant = relation(
         'Plant', uselist=False,
@@ -577,6 +578,12 @@ class Plant(db.Base, db.Serializable, db.DefiningPictures, db.WithNotes):
     def duplicate(self, code=None, session=None):
         """Return a Plant that is a flat (not deep) duplicate of self. For notes,
         changes and propagations, you should refer to the original plant.
+
+        :param code: the new plants code
+        :param session: the session to add the duplicate to.
+
+        ... Note if no session is supplied it will be in the same session
+        as the plant currently is.  This is most likely not what you want.
         """
         plant = Plant()
         if not session:
@@ -585,7 +592,7 @@ class Plant(db.Base, db.Serializable, db.DefiningPictures, db.WithNotes):
                 session.add(plant)
 
         include = ('acc_type', 'memorial', 'quantity', 'accession_id',
-                   'location_id', 'accession', 'location', 'branches')
+                   'location_id', 'accession', 'location')
         for prop in include:
             val = getattr(self, prop)
             logger.debug('duplicating plant with %s: %s', prop, val)
@@ -636,7 +643,8 @@ class Plant(db.Base, db.Serializable, db.DefiningPictures, db.WithNotes):
             return session.query(cls).filter(
                 cls.code == keys['code']).join(Accession).filter(
                 Accession.code == keys['accession']).one()
-        except:
+        except Exception as e:
+            logger.debug('cant retrieve plant: %s:%s', type(e).__name__, e)
             return None
 
     def top_level_count(self):
@@ -1339,16 +1347,16 @@ class PlantEditor(GenericModelViewPresenterEditor):
         if model is None:
             model = Plant()
 
+        super().__init__(model, parent)
+
         self.branched_plant = None
         if branch_mode:
             # duplicate the model so we can branch from it without
             # destroying the first
             logger.debug('branching %s', model)
-            self.branched_plant = model
-            model = self.branched_plant.duplicate(code=None)
-            model.quantity = 1
-
-        super().__init__(model, parent)
+            self.branched_plant = self.model
+            self.model = self.model.duplicate(code=None, session=self.session)
+            self.model.quantity = 1
 
         if self.branched_plant and self.branched_plant not in self.session:
             # make a copy of the branched plant for this session
@@ -1422,7 +1430,8 @@ class PlantEditor(GenericModelViewPresenterEditor):
         # individually since session.merge won't create a new object
         # since the object is already in the session
         for code in codes:
-            new_plant = self.model.duplicate(code=str(code))
+            new_plant = self.model.duplicate(code=str(code),
+                                             session=self.session)
             new_plant.id = None
             new_plant._created = None
             new_plant._last_updated = None

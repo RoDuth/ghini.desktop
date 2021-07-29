@@ -883,13 +883,13 @@ class SearchView(pluginmgr.View):
             if len(kids) == 0:
                 return True
         except saexc.InvalidRequestError as e:
-            logger.debug(utils.utf8(e))
+            logger.debug("on_test_expand_row: %s:%s", type(e).__name__, e)
             model = self.results_view.get_model()
             for found in utils.search_tree_model(model, row):
                 model.remove(found)
             return True
         except Exception as e:
-            logger.debug(utils.utf8(e))
+            logger.debug("on_test_expand_row: %s:%s", type(e).__name__, e)
             logger.debug(traceback.format_exc())
             return True
         else:

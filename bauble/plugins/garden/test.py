@@ -342,28 +342,37 @@ class PlantTests(GardenTestCase):
         editor = PlantEditor(model=p)
         editor.start()
 
+    def test_remove_callback(self):
+        # action
+        self.invoked = []
+        utils.yes_no_dialog = partial(mockfunc, name='yes_no_dialog',
+                                      caller=self, result=True)
+        from bauble.plugins.garden.plant import remove_callback
+        result = remove_callback([self.plant])
+        self.assertTrue(result)
+        self.session.flush()
+
+        # effect
+        self.assertTrue('yes_no_dialog' in [f for (f, m) in self.invoked])
+        match = self.session.query(Plant).filter_by(
+            accession=self.accession).all()
+        self.assertEqual(match, [])
+
     def test_branch_change(self):
         plant = Plant(accession=self.accession, code='11',
                       location=self.location, quantity=10)
         loc2a = Location(name='site2a', code='2a')
         self.session.add_all([plant, loc2a])
-        self.session.flush()
+        # self.session.flush()
+        self.session.commit()
         editor = PlantEditor(model=plant, branch_mode=True)
         loc2a = object_session(
-            editor.branched_plant).query(
+            editor.model).query(
                 Location).filter(Location.code == '2a').one()
-        editor.branched_plant.location = loc2a
+        editor.model.location = loc2a
         update_gui()
         editor.model.quantity = 3
         editor.compute_plant_split_changes()
-
-        self.assertEqual(editor.branched_plant.quantity, 7)
-        change = editor.branched_plant.changes[0]
-        self.assertEqual(change.child_plant, editor.model)
-        self.assertEqual(change.plant, editor.branched_plant)
-        self.assertEqual(change.quantity, editor.model.quantity)
-        self.assertEqual(change.to_location, editor.model.location)
-        self.assertEqual(change.from_location, editor.branched_plant.location)
 
         self.assertEqual(editor.model.quantity, 3)
         change = editor.model.changes[0]
@@ -372,6 +381,60 @@ class PlantTests(GardenTestCase):
         self.assertEqual(change.quantity, editor.model.quantity)
         self.assertEqual(change.to_location, editor.model.location)
         self.assertEqual(change.from_location, editor.branched_plant.location)
+
+        self.assertEqual(editor.branched_plant.quantity, 7)
+        # first change is planting second is the split
+        change = editor.branched_plant.changes[1]
+        self.assertEqual(change.child_plant, editor.model)
+        self.assertEqual(change.plant, editor.branched_plant)
+        self.assertEqual(change.quantity, editor.model.quantity)
+        self.assertEqual(change.to_location, editor.model.location)
+        self.assertEqual(change.from_location, editor.branched_plant.location)
+
+    def test_branch_then_delete_parent(self):
+        plant = Plant(accession=self.accession, code='11',
+                      location=self.location, quantity=10)
+        loc2a = Location(name='site2a', code='2a')
+        self.session.add_all([plant, loc2a])
+        # self.session.flush()
+        self.session.commit()
+        editor = PlantEditor(model=plant, branch_mode=True)
+        loc2a = object_session(
+            editor.model).query(
+                Location).filter(Location.code == '2a').one()
+        editor.model.location = loc2a
+        editor.model.quantity = 3
+        editor.compute_plant_split_changes()
+        update_gui()
+        editor.handle_response(Gtk.ResponseType.OK)
+        # test that if we delete the original plant using remove_callback it
+        # doesn't error, fail or delete the planting date of the split plant
+        # NOTE in the above self.session is equivalent to the searchview's
+        # session. Branching the plant it is done within the editors session.
+        # If the searchview is unchanged and the original plant deleted an
+        # error can occur if plant.duplication is called on the instance in
+        # searchview's session not the editors.
+        self.invoked = []
+        utils.yes_no_dialog = partial(mockfunc, name='yes_no_dialog',
+                                      caller=self, result=True)
+        from bauble.plugins.garden.plant import remove_callback
+        result = remove_callback([plant])
+        self.assertTrue(result)
+
+        self.assertTrue('yes_no_dialog' in [f for (f, m) in self.invoked])
+        qry = self.session.query(Plant).filter_by(
+            accession=self.accession)
+        match = qry.filter_by(code='11').all()
+        self.assertEqual(match, [])
+        splt = qry.filter_by(quantity=3).all()
+        self.assertEqual(len(splt), 1)
+        # test that the parent_plant entry in the change is nullified rather
+        # than deleting the whole change.  (which would lose the planted entry
+        # and all data with it.)
+        self.assertTrue(splt[0].planted)
+        self.assertTrue(splt[0].planted.from_location)
+        self.assertTrue(splt[0].planted.to_location)
+        self.assertFalse(splt[0].planted.parent_plant)
 
     def test_bulk_branch(self):
         # use our own plant because PlantEditor.commit_changes() will
@@ -399,9 +462,9 @@ class PlantTests(GardenTestCase):
         editor.handle_response(Gtk.ResponseType.OK)
 
         for code in utils.range_builder(rng):
-            q = self.session.query(Plant).join('accession').\
-                filter(and_(Accession.id == plant.accession.id,
-                            Plant.code == str(code)))
+            q = self.session.query(Plant).join('accession').filter(
+                and_(Accession.id == plant.accession.id,
+                     Plant.code == str(code)))
             self.assertIsNotNone(q.first())
             plt = q.first()
             self.assertEqual(plt.quantity, 3)
