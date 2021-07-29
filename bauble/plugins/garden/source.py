@@ -355,9 +355,9 @@ class CollectionPresenter(editor.ChildPresenter):
         super().set_model_attr(field, value, validator)
         self._dirty = True
         if self.model.locale is None or self.model.locale in ('', ''):
-            self.add_problem(self.PROBLEM_INVALID_LOCALE)
+            self.add_problem(self.PROBLEM_INVALID_LOCALE, 'locale_entry')
         else:
-            self.remove_problem(self.PROBLEM_INVALID_LOCALE)
+            self.remove_problem(self.PROBLEM_INVALID_LOCALE, 'locale_entry')
 
         if field in ('longitude', 'latitude'):
             sensitive = self.model.latitude is not None \
