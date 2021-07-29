@@ -444,15 +444,16 @@ class MakoFormatterPlugin(FormatterPlugin):
 
         # make sure the options dictionary is initialized at all
         with open(template_filename) as f:
-            option_lines = [_f for _f in [MakoFormatterSettingsBox.pattern.match(i.strip())
-                                   for i in f.readlines()] if _f]
+            option_lines = [_f for _f in
+                            [MakoFormatterSettingsBox.pattern.match(i.strip())
+                             for i in f.readlines()] if _f]
         option_fields = [i.groups() for i in option_lines]
         from bauble.plugins.report import options
         for fname, ftype, fdefault, ftooltip in option_fields:
             options.setdefault(fname, fdefault)
 
         session = db.Session()
-        values = list(map(session.merge, objs))
+        values = [session.merge(obj) for obj in objs]
         report = template.render(values=values)
         session.close()
         # assume the template is the same file type as the output file

@@ -631,7 +631,6 @@ class CSVExporter(object):
             ctr = 0
             for row in results:
                 try:
-                    # rows.append(list(map(replace, list(row.values()))))
                     rows.append([replace(i) for i in row.values()])
                 except Exception:
                     import traceback

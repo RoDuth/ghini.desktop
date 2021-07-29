@@ -93,8 +93,8 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
 
         combo = self.view.widgets.sp_habit_comboentry
         model = Gtk.ListStore(str, object)
-        list(map(lambda p: model.append(p),
-            [(str(h), h) for h in self.session.query(Habit)]))
+        for habit in self.session.query(Habit):
+            model.append((str(habit), habit))
         utils.setup_text_combobox(combo, model)
 
         def on_focus_out(entry, event):

@@ -539,20 +539,20 @@ class DomainExpressionAction(object):
         mapper = class_mapper(cls)
 
         if self.cond in ('like', 'ilike'):
-            condition = lambda col: \
-                lambda val: utils.ilike(mapper.c[col], '%s' % val)
+            def condition(col):
+                return lambda val: utils.ilike(mapper.c[col], '%s' % val)
         elif self.cond in ('contains', 'icontains', 'has', 'ihas'):
-            condition = lambda col: \
-                lambda val: utils.ilike(mapper.c[col], '%%%s%%' % val)
+            def condition(col):
+                return lambda val: utils.ilike(mapper.c[col], '%%%s%%' % val)
         elif self.cond == '=':
-            condition = lambda col: \
-                lambda val: mapper.c[col] == utils.utf8(val)
+            def condition(col):
+                return lambda val: mapper.c[col] == utils.utf8(val)
         else:
-            condition = lambda col: \
-                lambda val: mapper.c[col].op(self.cond)(val)
+            def condition(col):
+                return mapper.c[col].op(self.cond)
 
         for col in properties:
-            ors = or_(*list(map(condition(col), self.values.express())))
+            ors = or_(*[condition(col)(i) for i in self.values.express()])
             result.update(query.filter(ors).all())
 
         if None in result:
@@ -1244,7 +1244,8 @@ class QueryBuilder(GenericEditorPresenter):
         self.view.widgets.domain_combo.set_active(-1)
 
         table = self.view.widgets.expressions_table
-        list(map(table.remove, table.get_children()))
+        for child in table.get_children():
+            table.remove(child)
 
         self.view.widgets.domain_liststore.clear()
         for key in sorted(self.domain_map.keys()):
@@ -1268,7 +1269,8 @@ class QueryBuilder(GenericEditorPresenter):
 
         # remove all clauses, they became useless in new domain
         table = self.view.widgets.expressions_table
-        list(map(table.remove, table.get_children()))
+        for child in table.get_children():
+            table.remove(child)
         del self.expression_rows[:]
         # initialize view at 1 clause, however invalid
         self.table_row_count = 0

@@ -54,11 +54,11 @@ class Institution(object):
     table = meta.BaubleMeta.__table__
 
     def __init__(self):
-        # initialize properties to None
-        list(map(lambda p: setattr(self, p, None), self.__properties))
 
         for prop in self.__properties:
-            db_prop = utils.utf8('inst_' + prop)
+            # initialize properties to None
+            setattr(self, prop, None)
+            db_prop = str('inst_' + prop)
             result = self.table.select(self.table.c.name == db_prop).execute()
             row = result.fetchone()
             if row:

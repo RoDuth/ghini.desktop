@@ -1477,8 +1477,8 @@ class GenericEditorPresenter(object):
         """
         Clear all the problems from all widgets associated with the presenter
         """
-        tmp = self.problems.copy()
-        list(map(lambda p: self.remove_problem(p[0], p[1]), tmp))
+        for prob in self.problems.copy():
+            self.remove_problem(prob[0], prob[1])
         self.problems.clear()
 
     def remove_problem(self, problem_id, widget=None):
@@ -1528,14 +1528,15 @@ class GenericEditorPresenter(object):
           whose background color should change to indicate a problem
           (default=None)
         """
-        ## map case list of widget to list of cases single widget.
+        # list of widgets.
         logger.debug('add_problem(%s, %s, %s)' %
                      (self, problem_id, problem_widgets))
         if isinstance(problem_widgets, (tuple, list)):
-            list(map(lambda w: self.add_problem(problem_id, w), problem_widgets))
+            for widget in problem_widgets:
+                self.add_problem(problem_id, widget)
             return
 
-        ## here single widget.
+        # single widget.
         widget = problem_widgets
         if not isinstance(widget, Gtk.Widget):
             try:

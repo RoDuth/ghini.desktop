@@ -52,9 +52,8 @@ from bauble import paths
 from bauble import prefs
 from bauble import btypes as types
 from bauble import utils
-from bauble.view import (InfoBox, InfoExpander, PropertiesExpander,
-                         select_in_search_results, Action)
-from bauble import view
+from bauble.view import (InfoBox, InfoExpander, LinksExpander,
+                         PropertiesExpander, select_in_search_results, Action)
 from bauble.utils import safe_int
 from .propagation import SourcePropagationPresenter, Propagation
 from .source import (Contact, create_contact, Source, Collection,
@@ -1034,7 +1033,6 @@ class VoucherPresenter(editor.GenericEditorPresenter):
         self.parent_ref = weakref.ref(parent)
         self.session = session
         self._dirty = False
-        #self.refresh_view()
         self.view.connect('voucher_add_button', 'clicked', self.on_add_clicked)
         self.view.connect('voucher_remove_button', 'clicked',
                           self.on_remove_clicked)
@@ -1147,7 +1145,8 @@ class VerificationPresenter(editor.GenericEditorPresenter):
         # remove any verification boxes that would have been added to
         # the widget in a previous run
         box = self.view.widgets.verifications_parent_box
-        list(map(box.remove, box.get_children()))
+        for child in box.get_children():
+            box.remove(child)
 
         # order by date of the existing verifications
         for ver in model.verifications:
@@ -2464,8 +2463,6 @@ class AccessionEditor(editor.GenericModelViewPresenterEditor):
             return
 
         while True:
-            #debug(self.presenter.source_presenter.source)
-            #debug(self.presenter.source_presenter.source.collection)
             response = self.presenter.start()
             self.presenter.view.save_state()
             if self.handle_response(response):
@@ -2855,7 +2852,7 @@ class AccessionInfoBox(InfoBox):
         # self.verifications = VerificationsExpander(self.widgets)
         # self.add_expander(self.verifications)
 
-        self.links = view.LinksExpander('notes')
+        self.links = LinksExpander('notes')
         self.add_expander(self.links)
 
         self.props = PropertiesExpander()

@@ -133,14 +133,15 @@ def get_next_code(acc):
     # auto generate/increment the accession code
     session = db.Session()
     from bauble.plugins.garden import Accession
-    codes = session.query(Plant.code).join(Accession).\
-        filter(Accession.id == acc.id).all()
+    codes = session.query(Plant.code).join(Accession).filter(
+        Accession.id == acc.id).all()
     next = 1
     if codes:
         try:
             next = max([int(code[0]) for code in codes]) + 1
         except Exception as e:
-            logger.debug("%s(%s)" % (type(e).__name__, e))
+            logger.debug("can't get next plant code %s(%s)",
+                         type(e).__name__, e)
             return None
     return str(next)
 
@@ -155,18 +156,18 @@ def is_code_unique(plant, code):
     # if the range builder only creates one number then we assume the
     # code is not a range and so we test against the string version of
     # code
-    codes = list(map(utils.utf8, utils.range_builder(code)))  # test if a range
+    codes = [str(i) for i in utils.range_builder(code)]
     if len(codes) == 1:
-        codes = [utils.utf8(code)]
+        codes = [str(code)]
 
     # reference accesssion.id instead of accession_id since
     # setting the accession on the model doesn't set the
     # accession_id until the session is flushed
     session = db.Session()
     from bauble.plugins.garden import Accession
-    count = session.query(Plant).join('accession').\
-        filter(and_(Accession.id == plant.accession.id,
-                    Plant.code.in_(codes))).count()
+    count = session.query(Plant).join('accession').filter(
+        and_(Accession.id == plant.accession.id,
+             Plant.code.in_(codes))).count()
     session.close()
     return count == 0
 
@@ -202,7 +203,7 @@ class PlantSearch(SearchStrategy):
                 utils.ilike(Accession.code, '%%%s' % str(acc_code)))
             return query.all()
         except Exception as e:
-            logger.debug("%s %s" % (e.__class__.__name__, e))
+            logger.debug("PlantSearch %s %s", type(e).__name__, e)
             return []
 
 
@@ -798,8 +799,6 @@ class PlantEditorView(GenericEditorView):
         'pad_ok_button': _('Save your changes.'),
         'pad_next_button': _(
             'Save your changes and add another plant.'),
-        'pad_nextaccession_button': _(
-            'Save your changes and add another accession.'),
         'plant_changes_treeview': _(
             'While some minimal editing is possible here it is most often not '
             'wise to do so. Changes are normally triggered by events. '
@@ -1131,7 +1130,7 @@ class PlantEditorPresenter(GenericEditorPresenter):
         try:
             value = int(value)
         except ValueError as e:
-            logger.debug("%s(%s)" % (type(e).__name__, e))
+            logger.debug("quantity change %s(%s)", type(e).__name__, e)
             value = None
         self.set_model_attr('quantity', value)
         # incase splitting into multiple
@@ -1194,7 +1193,7 @@ class PlantEditorPresenter(GenericEditorPresenter):
                           self.is_dirty(),
                           len(self.problems) == 0))
         except OperationalError as e:
-            logger.debug('(%s)%s' % (type(e), e))
+            logger.debug('(%s)%s', type(e).__name__, e)
             return
         logger.debug(self.problems)
 
@@ -1453,7 +1452,7 @@ class PlantEditor(GenericModelViewPresenterEditor):
 
             self.session.expunge(self.model)
             super().commit_changes()
-        except Exception as e:
+        except:  # noqa  re-raise any other exceptions
             self.session.add(self.model)
             raise
         self._committed.extend(plants)

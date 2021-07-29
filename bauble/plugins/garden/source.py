@@ -488,10 +488,11 @@ class CollectionPresenter(editor.ChildPresenter):
             if dec > 0 and direction in ('W', 'S'):
                 dec = -dec
         elif len(parts) == 2:
-            deg, min = list(map(Decimal, parts))
-            dec = dms_to_decimal(direction, deg, min, 0)
+            degs = Decimal(parts[0])
+            mins = Decimal(parts[1])
+            dec = dms_to_decimal(direction, degs, mins, 0)
         elif len(parts) == 3:
-            dec = dms_to_decimal(direction, *list(map(Decimal, parts)))
+            dec = dms_to_decimal(direction, *[Decimal(i) for i in parts])
         else:
             raise ValueError(_('_parse_lat_lon() -- incorrect format: %s') %
                              text)

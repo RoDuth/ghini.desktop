@@ -458,7 +458,8 @@ class clean(Command):
                     def delete(p):
                         print(f'removing {p}')
                         os.remove(p)
-                    list(map(delete, [os.path.join(path, m) for m in matches]))
+                    for match in matches:
+                        delete(os.path.join(path, match))
         if os.path.exists('dist'):
             dir_util.remove_tree('dist')
         if os.path.exists('build'):

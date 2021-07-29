@@ -375,7 +375,8 @@ class TagItemGUI(editor.GenericEditorView):
         # we remove the old columns and create new ones each time the
         # tag editor is started since we have to connect and
         # disconnect the toggled signal each time
-        list(map(self.tag_tree.remove_column, self.tag_tree.get_columns()))
+        for col in self.tag_tree.get_columns():
+            self.tag_tree.remove_column(col)
         columns = self.build_tag_tree_columns()
         for col in columns:
             self.tag_tree.append_column(col)
