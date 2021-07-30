@@ -1851,6 +1851,7 @@ class AccessionEditorPresenter(editor.GenericEditorPresenter):
                 return
             text, col = combo.get_model()[it]
             self.set_model_attr('id_qual_rank', utils.utf8(col))
+
         self.view.connect('acc_id_qual_rank_combo', 'changed', on_changed)
 
         # refresh_view fires signal handlers for any connected widgets.
@@ -1897,9 +1898,11 @@ class AccessionEditorPresenter(editor.GenericEditorPresenter):
             if isinstance(value, str):
                 value = Species.retrieve(
                     self.session, {'species': value})
+
             def set_model(v):
                 self.set_model_attr('species', v)
                 self.refresh_id_qual_rank_combo()
+
             for kid in self.view.widgets.message_box_parent.get_children():
                 self.view.widgets.remove_parent(kid)
             if not self._dirty_pass:
@@ -2101,12 +2104,15 @@ class AccessionEditorPresenter(editor.GenericEditorPresenter):
         utils.clear_model(combo)
         if not self.model.species:
             return
+
         model = Gtk.ListStore(str, str)
         species = self.model.species
-        it = model.append([str(species.genus), 'genus'])
         active = None
+
+        it = model.append([str(species.genus), 'genus'])
         if self.model.id_qual_rank == 'genus':
             active = it
+
         it = model.append([str(species.sp), 'sp'])
         if self.model.id_qual_rank == 'sp':
             active = it
@@ -2118,16 +2124,9 @@ class AccessionEditorPresenter(editor.GenericEditorPresenter):
                 infrasp_parts.append(' '.join(infrasp))
         if infrasp_parts:
             it = model.append([' '.join(infrasp_parts), 'infrasp'])
+
             if self.model.id_qual_rank == 'infrasp':
                 active = it
-
-        # if species.infrasp:
-        #     s = ' '.join([str(isp) for isp in species.infrasp])
-        #     if len(s) > 32:
-        #         s = '%s...' % s[:29]
-        #     it = model.append([s, 'infrasp'])
-        #     if self.model.id_qual_rank == 'infrasp':
-        #         active = it
 
         it = model.append(('', None))
         if not active:
@@ -2293,7 +2292,8 @@ class AccessionEditorPresenter(editor.GenericEditorPresenter):
             elif prop and prop.prop_type == 'UnrootedCutting':
                 prop_model = prop._cutting
             else:
-                logger.debug('AccessionEditorPresenter.validate(): unknown prop_type')
+                logger.debug(
+                    'AccessionEditorPresenter.validate(): unknown prop_type')
                 return True  # let user save it anyway
 
             if utils.get_invalid_columns(prop_model, prop_ignore):
@@ -2310,6 +2310,9 @@ class AccessionEditorPresenter(editor.GenericEditorPresenter):
             self.view.widgets.acc_id_qual_rank_combo.set_sensitive(True)
         else:
             self.view.widgets.acc_id_qual_rank_combo.set_sensitive(False)
+            if self.view.widgets.acc_id_qual_rank_combo.get_model():
+                utils.set_widget_value(
+                    self.view.widgets.acc_id_qual_rank_combo, None, index=1)
 
         sensitive = self.is_dirty() and self.validate() \
             and not self.problems \

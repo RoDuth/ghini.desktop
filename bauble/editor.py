@@ -617,7 +617,7 @@ class GenericEditorView(object):
 
     def widget_set_value(self, widget, value, markup=False, default=None,
                          index=0):
-        '''
+        """
         :param widget: a widget or name of a widget in self.widgets
         :param value: the value to put in the widgets
         :param markup: whether the data in value uses pango markup
@@ -625,7 +625,7 @@ class GenericEditorView(object):
         :param index: the row index to use for those widgets who use a model
 
         This method calls bauble.utils.set_widget_value()
-        '''
+        """
         if isinstance(widget, Gtk.Widget):
             utils.set_widget_value(widget, value, markup, default, index)
         else:

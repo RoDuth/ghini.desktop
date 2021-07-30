@@ -623,6 +623,13 @@ class PropagationChooserPresenter(editor.ChildPresenter):
                     'acc_species_entry',
                     utils.utf8(prop.plant.accession.species))
                 acc_view.widget_set_value(
+                    'acc_id_qual_combo',
+                    utils.utf8(prop.plant.accession.id_qual))
+                # need to set the model value for id_qual_rank
+                self.parent_ref().model.id_qual_rank = utils.utf8(
+                    prop.plant.accession.id_qual_rank)
+                self.parent_ref().refresh_id_qual_rank_combo()
+                acc_view.widget_set_value(
                     'acc_quantity_recvd_entry',
                     utils.utf8(prop.accessible_quantity))
                 from bauble.plugins.garden.accession import recvd_type_values
@@ -643,10 +650,15 @@ class PropagationChooserPresenter(editor.ChildPresenter):
             func_data=lambda obj: str(obj.plant or '')
         )
 
+        def sp_cell_data_func(column, cell, model, treeiter, data=None): \
+                # pylint: disable=unused-argument
+            obj = model[treeiter][0]
+            cell.props.markup = (
+                obj.plant.accession.species_str(markup=True) or '')
+
         self.view.widgets.prop_plant_sp_column.set_cell_data_func(
             self.view.widgets.prop_plant_sp_cell,
-            utils.default_cell_data_func,
-            func_data=lambda obj: str(obj.plant.accession.species or '')
+            sp_cell_data_func
         )
 
         self.view.widgets.prop_plant_loc_column.set_cell_data_func(

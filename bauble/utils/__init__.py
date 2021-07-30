@@ -564,8 +564,8 @@ def set_widget_value(widget, value, markup=False, default=None, index=0):
                 widget.set_active(-1)
     elif isinstance(widget,
                     (Gtk.ToggleButton, Gtk.CheckButton, Gtk.RadioButton)):
-        if (isinstance(widget, Gtk.CheckButton)
-                and isinstance(value, str)):
+        if (isinstance(widget, Gtk.CheckButton) and
+                isinstance(value, str)):
             value = (value == Gtk.Buildable.get_name(widget))
         if value is True:
             widget.set_inconsistent(False)
@@ -573,7 +573,7 @@ def set_widget_value(widget, value, markup=False, default=None, index=0):
         elif value is False:  # why do we need unset `inconsistent` for False?
             widget.set_inconsistent(False)
             widget.set_active(False)
-        else: # treat None as False, we do not handle inconsistent cases.
+        else:  # treat None as False, we do not handle inconsistent cases.
             widget.set_inconsistent(False)
             widget.set_active(False)
     elif isinstance(widget, Gtk.Button):
