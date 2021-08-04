@@ -608,15 +608,15 @@ class DefiningPictures:
         """
 
         result = []
-        for n in self.notes:
-            if n.category != '<picture>':
+        for note in self.notes:
+            if note.category != '<picture>':
                 continue
             # contains the image or the error message
             box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
             # Avoid pixbuf errors during test_import_pocket_log
             from bauble.prefs import testing
             if not testing:
-                utils.ImageLoader(box, n.note).start()
+                utils.ImageLoader(box, note.note).start()
             result.append(box)
         return result
 

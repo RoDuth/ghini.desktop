@@ -92,42 +92,42 @@ class Cache:
         self.storage[key] = time.time(), value
         return value
 
+
 def copy_picture_with_thumbnail(path, basename=None):
     """copy file from path to picture_root, and make thumbnail, preserving name
 
     return base64 representation of thumbnail
     """
-    import os.path
+    from bauble import prefs
     import base64
+    import shutil
+    from PIL import Image
+    from io import BytesIO
     if basename is None:
         filename = path
         path, basename = os.path.split(filename)
     else:
         filename = os.path.join(path, basename)
-    from bauble import prefs
     if not filename.startswith(prefs.prefs[prefs.picture_root_pref]):
-        import shutil
         shutil.copy(filename, prefs.prefs[prefs.picture_root_pref])
-    ## make thumbnail in thumbs subdirectory
-    from PIL import Image
+    # make thumbnail in thumbs subdirectory
     full_dest_path = os.path.join(prefs.prefs[prefs.picture_root_pref],
                                   'thumbs', basename)
     result = ""
     try:
-        im = Image.open(filename)
-        im.thumbnail((400, 400))
-        logger.debug('copying %s to %s' % (filename, full_dest_path))
-        im.save(full_dest_path)
-        from io import BytesIO
+        img = Image.open(filename)
+        img.thumbnail((400, 400))
+        logger.debug('copying %s to %s', filename, full_dest_path)
+        img.save(full_dest_path)
         output = BytesIO()
-        im.save(output, format='JPEG')
+        img.save(output, format='JPEG')
         im_data = output.getvalue()
         result = base64.b64encode(im_data)
     except IOError as e:
         logger.warning("can't make thumbnail %s", e)
-    except Exception as e:
+    except Exception as e:  # pylint: disable=broad-except
         logger.warning("unexpected exception making thumbnail: "
-                       "(%s)%s" % (type(e), e))
+                       "(%s)%s", type(e).__name__, e)
     return result
 
 
@@ -153,33 +153,22 @@ class ImageLoader(threading.Thread):
 
     def callback(self):
         pixbuf = self.loader.get_pixbuf()
-        try:
-            pixbuf = pixbuf.apply_embedded_orientation()
-            scale_x = pixbuf.get_width() / 400
-            scale_y = pixbuf.get_height() / 400
-            scale = max(scale_x, scale_y, 1)
-            x = int(pixbuf.get_width() / scale)
-            y = int(pixbuf.get_height() / scale)
-            scaled_buf = pixbuf.scale_simple(x, y,
-                                             GdkPixbuf.InterpType.BILINEAR)
-            if self.box.get_children():
-                image = self.box.get_children()[0]
-            else:
-                image = Gtk.Image()
-                self.box.add(image)
-            image.set_from_pixbuf(scaled_buf)
-        except GLib.GError as e:
-            logger.debug("picture %s caused GLib.GError %s", self.url, e)
-            text = _('picture file %s not found.') % self.url
-            label = Gtk.Label()
-            label.set_text(text)
-            self.box.add(label)
-        except Exception as e:
-            logger.warning("picture %s caused Exception %s:%s" %
-                           (self.url, type(e), e))
-            label = Gtk.Label()
-            label.set_text(str(e))
-            self.box.add(label)
+        if not pixbuf:
+            return
+        pixbuf = pixbuf.apply_embedded_orientation()
+        scale_x = pixbuf.get_width() / 400
+        scale_y = pixbuf.get_height() / 400
+        scale = max(scale_x, scale_y, 1)
+        x = int(pixbuf.get_width() / scale)
+        y = int(pixbuf.get_height() / scale)
+        scaled_buf = pixbuf.scale_simple(x, y,
+                                         GdkPixbuf.InterpType.BILINEAR)
+        if self.box.get_children():
+            image = self.box.get_children()[0]
+        else:
+            image = Gtk.Image()
+            self.box.add(image)
+        image.set_from_pixbuf(scaled_buf)
         self.box.show_all()
 
     def loader_notified(self, pixbufloader):
@@ -190,9 +179,23 @@ class ImageLoader(threading.Thread):
             self.cache.get(
                 self.url, self.reader_function, on_hit=self.loader.write)
             self.loader.connect("closed", self.loader_notified)
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-except
             logger.debug("%s(%s) while loading image", type(e).__name__, e)
-        self.loader.close()
+        try:
+            self.loader.close()
+        except GLib.Error as e:
+            logger.debug("picture %s caused GLib.GError %s", self.url, e)
+            text = _('picture file %s not found.') % self.url
+            label = Gtk.Label(wrap=True)
+            label.set_text(text)
+            self.box.add(label)
+        except Exception as e:  # pylint: disable=broad-except
+            logger.warning("picture %s caused Exception %s:%s", self.url,
+                           type(e).__name__, e)
+            label = Gtk.Label(wrap=True)
+            label.set_text(f'picture {self.url} error "{e}"')
+            self.box.add(label)
+        self.box.show_all()
 
     def read_base64(self):
         self.loader.connect("area-prepared", self.loader_notified)
@@ -203,14 +206,32 @@ class ImageLoader(threading.Thread):
 
     def read_global_url(self):
         self.loader.connect("area-prepared", self.loader_notified)
-        import urllib.request, urllib.parse, urllib.error
-        import contextlib
-        pieces = []
-        with contextlib.closing(urllib.request.urlopen(self.url)) as f:
-            for piece in read_in_chunks(f, 4096):
-                self.loader.write(piece)
-                pieces.append(piece)
-        return ''.join(pieces)
+        # display something to show an image is loading
+        label = Gtk.Label()
+        text = '   loading image....'
+        label.set_text(text)
+        spinner = Gtk.Spinner()
+        spinner.start()
+        self.box.add(label)
+        self.box.add(spinner)
+        self.box.show_all()
+        net_sess = get_net_sess()
+        # # Leaving this here for reference, the result was hit and miss,
+        # # seemed to load correctly sometimes but not others.
+        # response = net_sess.get(self.url, stream=True)
+        # if response.ok:
+        #     self.box.remove(label)
+        #     self.box.remove(spinner)
+        #     for piece in response.iter_content(4096):
+        #         self.loader.write(piece)
+        #     return response.content
+        response = net_sess.get(self.url)
+        self.box.remove(label)
+        self.box.remove(spinner)
+        if response.ok:
+            self.loader.write(response.content)
+            return response.content
+        return None
 
     def read_local_url(self):
         self.loader.connect("area-prepared", self.loader_notified)
