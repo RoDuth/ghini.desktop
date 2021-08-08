@@ -28,6 +28,7 @@ from random import random
 import traceback
 import weakref
 from functools import reduce
+from pathlib import Path
 
 import logging
 logger = logging.getLogger(__name__)
@@ -56,8 +57,9 @@ from bauble.view import (InfoBox, InfoExpander, LinksExpander,
                          PropertiesExpander, select_in_search_results, Action)
 from bauble.utils import safe_int
 from .propagation import SourcePropagationPresenter, Propagation
-from .source import (Contact, create_contact, Source, Collection,
-                     CollectionPresenter, PropagationChooserPresenter)
+from .source import (Contact, ContactPresenter, create_contact, Source,
+                     Collection, CollectionPresenter,
+                     PropagationChooserPresenter)
 
 # TODO: underneath the species entry create a label that shows information
 # about the family of the genus of the species selected as well as more
@@ -1625,12 +1627,16 @@ class SourcePresenter(editor.GenericEditorPresenter):
         Opens a new ContactEditor when clicked and repopulates the
         source combo if a new Contact is created.
         """
-        committed = create_contact(parent=self.view.get_window())
-        new_detail = None
-        if committed:
-            new_detail = committed[0]
-            self.session.add(new_detail)
-            self.populate_source_combo(new_detail)
+        view = editor.GenericEditorView(
+            str(Path(paths.lib_dir(), "plugins", "garden", "contact.glade")),
+            parent=self.view.get_window(),
+            root_widget_name='source_details_dialog')
+        source = Contact()
+        presenter = ContactPresenter(source, view)
+        if presenter.start() == Gtk.ResponseType.OK:
+            source = presenter.model
+            self.session.add(source)
+            self.populate_source_combo(source)
 
     def populate_source_combo(self, active=None):
         """
@@ -2102,6 +2108,7 @@ class AccessionEditorPresenter(editor.GenericEditorPresenter):
         """
         combo = self.view.widgets.acc_id_qual_rank_combo
         utils.clear_model(combo)
+
         if not self.model.species:
             return
 
