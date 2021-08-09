@@ -182,7 +182,8 @@ class ShapefileExportSettingsBox(Gtk.ScrolledWindow):
             self.grid.attach(length_entry, SIZE, attach_row, 1, 1)
 
             self._add_prop_button(path, attach_row)
-            remove_button = Gtk.Button.new_from_icon_name('list-remove', 1)
+            remove_button = Gtk.Button.new_from_icon_name('list-remove',
+                                                          Gtk.IconSize.BUTTON)
             remove_button.connect('clicked', self.on_remove_button_clicked)
             remove_button.set_tooltip_text(
                 _("click to remove a row, drag and drop to move."))
@@ -199,7 +200,8 @@ class ShapefileExportSettingsBox(Gtk.ScrolledWindow):
             remove_button.drag_source_add_text_targets()
             remove_button.drag_dest_add_text_targets()
             self.grid.attach(remove_button, 4, attach_row, 1, 1)
-        add_button = Gtk.Button.new_from_icon_name('list-add', 1)
+        add_button = Gtk.Button.new_from_icon_name('list-add',
+                                                   Gtk.IconSize.BUTTON)
         add_button.set_halign(Gtk.Align.START)
         add_button.connect('clicked', self.on_add_button_clicked)
         self.grid.attach(add_button, 0, attach_row + 1, 1, 1)

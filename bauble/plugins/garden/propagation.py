@@ -460,7 +460,7 @@ class PropagationTabPresenter(editor.GenericEditorPresenter):
 
         button_box = Gtk.Box(spacing=5)
         hbox.pack_start(button_box, False, False, 0)
-        button = Gtk.Button(stock=Gtk.STOCK_EDIT)
+        button = Gtk.Button(label='Edit')
         self.view.connect(button, 'clicked', on_edit_clicked, propagation,
                           label)
         button_box.pack_start(button, False, False, 0)
@@ -494,9 +494,8 @@ class PropagationTabPresenter(editor.GenericEditorPresenter):
             self._dirty = True
             self.parent_ref().refresh_sensitivity()
 
-        remove_button = Gtk.Button()
-        img = Gtk.Image.new_from_stock(Gtk.STOCK_REMOVE, Gtk.IconSize.BUTTON)
-        remove_button.props.image = img
+        remove_button = Gtk.Button.new_from_icon_name('list-remove',
+                                                      Gtk.IconSize.BUTTON)
         self.view.connect(remove_button, 'clicked', on_remove_clicked,
                           propagation, hbox)
         button_box.pack_start(remove_button, False, False, 0)

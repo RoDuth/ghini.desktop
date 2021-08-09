@@ -28,6 +28,7 @@ connections. This is the first thing displayed when Ghini starts.
 import os
 from pathlib import Path
 import copy
+from importlib import import_module
 
 import logging
 logger = logging.getLogger(__name__)
@@ -41,11 +42,11 @@ from bauble.editor import GenericEditorView, GenericEditorPresenter
 
 
 def is_package_name(name):
-    '''True if name identifies a package and it can be imported
-    '''
+    """True if name identifies a package and it can be imported
+    """
 
     try:
-        __import__(name)
+        import_module(name)
         return True
     except ImportError:
         return False
@@ -517,7 +518,7 @@ class ConnMgrPresenter(GenericEditorPresenter):
             _("Enter a connection name"),
             self.view.get_window(),
             Gtk.DialogFlags.MODAL | Gtk.DialogFlags.DESTROY_WITH_PARENT,
-            (Gtk.STOCK_OK, Gtk.ResponseType.ACCEPT))
+            ('OK', Gtk.ResponseType.ACCEPT))
         if name != '':
             self.connection_name = name
             self.connection_names.insert(0, name)
@@ -612,7 +613,7 @@ class ConnMgrPresenter(GenericEditorPresenter):
             title,
             self.view.get_window(),
             Gtk.DialogFlags.MODAL | Gtk.DialogFlags.DESTROY_WITH_PARENT,
-            (Gtk.STOCK_OK, Gtk.ResponseType.ACCEPT),
+            ('OK', Gtk.ResponseType.ACCEPT),
             visible=False)
         return passwd
 

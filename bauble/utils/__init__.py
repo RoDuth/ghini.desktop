@@ -216,15 +216,6 @@ class ImageLoader(threading.Thread):
         self.box.add(spinner)
         self.box.show_all()
         net_sess = get_net_sess()
-        # # Leaving this here for reference, the result was hit and miss,
-        # # seemed to load correctly sometimes but not others.
-        # response = net_sess.get(self.url, stream=True)
-        # if response.ok:
-        #     self.box.remove(label)
-        #     self.box.remove(spinner)
-        #     for piece in response.iter_content(4096):
-        #         self.loader.write(piece)
-        #     return response.content
         response = net_sess.get(self.url)
         self.box.remove(label)
         self.box.remove(spinner)
@@ -378,7 +369,7 @@ def tree_model_has(tree, value):
 
 def search_tree_model(parent, data, cmp=lambda row, data: row[0] == data):
     """
-    Return a iterable of Gtk.TreeIter instances to all occurences
+    Return an iterable of Gtk.TreeIter instances to all occurences
     of data in model
 
     :param parent: a Gtk.TreeModel or a Gtk.TreeModelRow instance
@@ -1532,10 +1523,8 @@ class MessageBox(GenericMessageBox):
 
         button_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         self.box.pack_start(button_box, False, False, 0)
-        button = Gtk.Button()
-        image = Gtk.Image()
-        image.set_from_stock(Gtk.STOCK_CLOSE, Gtk.IconSize.BUTTON)
-        button.props.image = image
+        button = Gtk.Button.new_from_icon_name('window-close',
+                                               Gtk.IconSize.BUTTON)
         button.set_relief(Gtk.ReliefStyle.NONE)
         button_box.pack_start(button, False, False, 0)
 
@@ -1616,14 +1605,14 @@ class YesNoMessageBox(GenericMessageBox):
 
         button_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         self.box.pack_start(button_box, False, False, 0)
-        self.yes_button = Gtk.Button(stock=Gtk.STOCK_YES)
+        self.yes_button = Gtk.Button(label='Yes')
         if on_response:
             self.yes_button.connect('clicked', on_response, True)
         button_box.pack_start(self.yes_button, False, False, 0)
 
         button_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         self.box.pack_start(button_box, False, False, 0)
-        self.no_button = Gtk.Button(stock=Gtk.STOCK_NO)
+        self.no_button = Gtk.Button(label='No')
         if on_response:
             self.no_button.connect('clicked', on_response, False)
         button_box.pack_start(self.no_button, False, False, 0)

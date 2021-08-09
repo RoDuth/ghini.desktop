@@ -2249,6 +2249,7 @@ class AccessionEditorPresenter(editor.GenericEditorPresenter):
                 # remove the value in the model from the wild_prov_combo
                 prov_sensitive = False
                 self.model.wild_prov_status = None
+                wild_prov_combo.set_active(-1)
             wild_prov_combo.set_sensitive(prov_sensitive)
             self.view.widgets.acc_wild_prov_combo.set_sensitive(prov_sensitive)
 

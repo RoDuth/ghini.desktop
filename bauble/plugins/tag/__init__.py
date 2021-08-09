@@ -23,6 +23,7 @@
 
 import os
 import traceback
+from importlib import import_module
 
 import logging
 logger = logging.getLogger(__name__)
@@ -74,8 +75,8 @@ class TagsMenuManager:
             c.set_image(None)
         widget = self.item_list.get(self.active_tag_name)
         if widget:
-            image = Gtk.Image()
-            image.set_from_stock(Gtk.STOCK_APPLY, Gtk.IconSize.MENU)
+            image = Gtk.Image.new_from_icon_name('emblem-default',
+                                                 Gtk.IconSize.MENU)
             widget.set_image(image)
             self.apply_active_tag_menu_item.set_sensitive(True)
             self.remove_active_tag_menu_item.set_sensitive(True)
@@ -457,14 +458,16 @@ class Tag(db.Base):
         if self.__my_own_timestamp is not None:
             # should I update my list?
             session = object_session(self)
-            # tag must have been removed
+            # tag must have been removed or session lost
             if session is None:
-                self.__last_objects = None
-            last_history = session.query(db.History)\
-                .order_by(db.History.timestamp.desc())\
-                .limit(1).one()
-            if last_history.timestamp > self.__my_own_timestamp:
-                self.__last_objects = None
+                return []
+            else:
+                last_history = (session.query(db.History)
+                                .order_by(db.History.timestamp.desc())
+                                .limit(1)
+                                .one())
+                if last_history.timestamp > self.__my_own_timestamp:
+                    self.__last_objects = None
         if self.__last_objects is None:
             # here I update my list
             from datetime import datetime
@@ -481,18 +484,27 @@ class Tag(db.Base):
 
     def get_tagged_objects(self):
         """
-        Return all object tagged with tag.
-
+        Return all object tagged with tag and clean up any that are left
+        hanging.
         """
         session = object_session(self)
 
-        r = [session.query(mapper).filter_by(id=obj_id).first()
-             for mapper, obj_id in _get_tagged_object_pairs(self)]
+        if session is None:
+            return []
 
-        # if `self` was tagging objects that have been later removed from
-        # the database, those reference here become `None`. we filter them
-        # out, but what about we remove the reference pair?
-        return [i for i in r if i is not None]
+        items = []
+        for obj in self._objects:
+            if result := _get_tagged_object_pair(obj):
+                mapper, obj_id = result
+                rec = session.query(mapper).filter_by(id=obj_id).first()
+                if rec:
+                    items.append(rec)
+                else:
+                    logger.debug('deleting tagged_obj: %s', obj)
+                    # delete any tagged objects no longer in the database
+                    session.delete(obj)
+                    session.commit()
+        return items
 
     @classmethod
     def attached_to(cls, obj):
@@ -563,36 +575,19 @@ class TaggedObj(db.Base):
         return '%s: %s' % (self.obj_class, self.obj_id)
 
 
-def _get_tagged_object_pairs(tag):
+def _get_tagged_object_pair(obj):
     """
-    :param tag: a Tag instance
+    :param obj: a TaggedObj instance
     """
-
-    kids = []
-    for obj in tag._objects:
-        try:
-            # __import__ "from_list" parameters has to be a list of strings
-            module_name, part, cls_name = str(obj.obj_class).rpartition('.')
-            module = __import__(module_name, globals(), locals(),
-                                module_name.split('.')[1:])
-            cls = getattr(module, cls_name)
-            kids.append((cls, obj.obj_id))
-        except KeyError as e:
-            logger.warning('KeyError -- tag.get_tagged_objects(%s): %s'
-                           % (tag, e))
-            continue
-        except DBAPIError as e:
-            logger.warning('DBAPIError -- tag.get_tagged_objects(%s): %s'
-                           % (tag, e))
-            continue
-        except AttributeError as e:
-            logger.warning('AttributeError -- tag.get_tagged_objects(%s): %s'
-                           % (tag, e))
-            logger.warning('Could not get the object for %s.%s(%s)'
-                           % (module_name, cls_name, obj.obj_id))
-            continue
-
-    return kids
+    try:
+        module_name, part, cls_name = str(obj.obj_class).rpartition('.')
+        module = import_module(module_name)
+        cls = getattr(module, cls_name)
+        return(cls, obj.obj_id)
+    except (KeyError, DBAPIError, AttributeError) as e:
+        logger.warning('_get_tagged_object_pair (%s) error: %s:%s', obj,
+                       type(e).__name__, e)
+    return None
 
 
 def create_named_empty_tag(name):
@@ -630,7 +625,6 @@ def untag_objects(name, objs):
         logger.info("Can't remove non existing tag from non-empty list of objects"
                     "%s - %s" % (type(e), e))
         return
-    # same = lambda item, y: item.obj_class == _classname(y) and item.obj_id == y.id
     objs = set((_classname(y), y.id) for y in objs)
     for item in tag._objects:
         if (item.obj_class, item.obj_id) not in objs:
@@ -643,7 +637,6 @@ def untag_objects(name, objs):
 # create the classname stored in the tagged_obj table
 def _classname(obj):
     return f'{type(obj).__module__}.{type(obj).__name__}'
-
 
 
 def tag_objects(name, objects):
