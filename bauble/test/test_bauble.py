@@ -239,6 +239,7 @@ class HistoryTests(BaubleTestCase):
         Test the HistoryMapperExtension
         """
         from bauble.plugins.plants import Family
+        # sleep required for windows tests to succeed due to 16ms resolution
         from time import sleep
         sleep(0.02)
         f = Family(family='Family')

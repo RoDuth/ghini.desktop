@@ -22,6 +22,7 @@
 
 import os
 import traceback
+from pathlib import Path
 
 import logging
 logger = logging.getLogger(__name__)
@@ -869,7 +870,7 @@ class GUI(object):
 
     def on_help_menu_about(self, widget, data=None):
         about = Gtk.AboutDialog()
-        about.set_name('Ghini (BBG)')
+        about.set_program_name('Ghini (BBG)')
         about.set_version(bauble.version)
         # Gtk.about_dialog_set_url_hook(lambda d, l:
         #                               desktop.open(l, dialog_on_error=True))
@@ -879,9 +880,12 @@ class GUI(object):
         about.set_logo(pixbuf)
         about.set_copyright(_('Copyright © by its contributors.'))
 
-        import codecs
-        with codecs.open(os.path.join(paths.installation_dir(), 'share', 'ghini',
-                                      'LICENSE')) as f:
+        lic_path = Path(paths.installation_dir(), 'share', 'ghini', 'LICENSE')
+
+        if not lic_path.exists():
+            lic_path = Path(paths.main_dir(), 'LICENSE')
+
+        with open(lic_path) as f:
             license = f.read()
         about.set_license(license)  # not translated
         about.set_comments(_('This version installed on: %s\n'
