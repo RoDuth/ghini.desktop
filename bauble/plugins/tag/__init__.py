@@ -647,7 +647,7 @@ def tag_objects(name, objects):
       this name doesn't exist it will be created
     :type name: str
     :param obj: A list of mapped objects to tag.
-    :type obj: list
+    :type objects: list
     """
     name = utils.utf8(name)
     if not objects:

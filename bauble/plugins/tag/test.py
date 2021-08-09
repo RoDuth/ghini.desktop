@@ -1,5 +1,6 @@
 # Copyright (c) 2005,2006,2007,2008,2009 Brett Adams <brett@belizebotanic.org>
 # Copyright (c) 2012-2015 Mario Frasca <mario@anche.no>
+# Copyright (c) 2021 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -127,9 +128,6 @@ class TagTests(BaubleTestCase):
                            '(Tag) - <span weight="light">description</span>'))
 
     def test_tag_objects(self):
-        if platform == 'win32':
-            raise SkipTest('this test randomly fails in windows (mingw64), '
-                           'need to find out why, skip for now')
         family2 = Family(family='family2')
         self.session.add(family2)
         self.session.commit()
@@ -143,15 +141,19 @@ class TagTests(BaubleTestCase):
         tagged_objs = tag.objects
         sorted_pairs = sorted([(type(o), o.id) for o in tagged_objs])
         self.assertEqual(sorted([(Family, family1_id),
-                                  (Family, family2_id)]),
-                          sorted_pairs)
+                                 (Family, family2_id)]),
+                         sorted_pairs)
 
+        # required for windows tests to succeed due to 16ms resolution
+        from time import sleep
+        sleep(0.02)
         tag_plugin.tag_objects('test', [self.family, family2])
         self.assertEqual(tag.objects, [self.family, family2])
 
         #
         # first untag one, then both
         #
+        sleep(0.02)
         tag_plugin.untag_objects('test', [self.family])
 
         # get object by tag
@@ -162,6 +164,7 @@ class TagTests(BaubleTestCase):
         #
         # first untag one, then both
         #
+        sleep(0.02)
         tag_plugin.untag_objects('test', [self.family, family2])
 
         # get object by tag
@@ -170,24 +173,21 @@ class TagTests(BaubleTestCase):
         self.assertEqual(tagged_objs, [])
 
     def test_is_tagging(self):
-        if platform == 'win32':
-            raise SkipTest('this test randomly fails in windows (mingw64), '
-                           'need to find out why, skip for now')
         family2 = Family(family='family2')
         t1 = Tag(tag='test1')
         self.session.add_all([family2, t1])
         self.session.flush()
         self.assertFalse(t1.is_tagging(family2))
         self.assertFalse(t1.is_tagging(self.family))
+        # required for windows tests to succeed due to 16ms resolution
+        from time import sleep
+        sleep(0.02)
         t1.tag_objects([self.family])
         self.session.flush()
         self.assertFalse(t1.is_tagging(family2))
         self.assertTrue(t1.is_tagging(self.family))
 
     def test_search_view_markup_pair(self):
-        if platform == 'win32':
-            raise SkipTest('this test randomly fails in windows (mingw64), '
-                           'need to find out why, skip for now')
         family2 = Family(family='family2')
         t1 = Tag(tag='test1')
         t2 = Tag(tag='test2')
@@ -195,17 +195,26 @@ class TagTests(BaubleTestCase):
         self.session.flush()
         t1.tag_objects([self.family, family2])
         t2.tag_objects([self.family])
-        self.assertEqual(t1.search_view_markup_pair(),
-                          ('test1 - <span weight="light">tagging 2 objects of type Family</span>',
-                           '(Tag) - <span weight="light"></span>'))
-        self.assertEqual(t2.search_view_markup_pair(),
-                          ('test2 - <span weight="light">tagging 1 objects of type Family</span>',
-                           '(Tag) - <span weight="light"></span>'))
+        self.assertEqual(
+            t1.search_view_markup_pair(),
+            ('test1 - <span weight="light">tagging 2 objects of type '
+             'Family</span>',
+             '(Tag) - <span weight="light"></span>'))
+        self.assertEqual(
+            t2.search_view_markup_pair(),
+            ('test2 - <span weight="light">tagging 1 objects of type '
+             'Family</span>',
+             '(Tag) - <span weight="light"></span>'))
+        # required for windows tests to succeed due to 16ms resolution
+        from time import sleep
+        sleep(0.02)
         t2.tag_objects([t1])
         self.session.flush()
-        self.assertEqual(t2.search_view_markup_pair(),
-                          ('test2 - <span weight="light">tagging 2 objects of 2 different types: Family, Tag</span>',
-                           '(Tag) - <span weight="light"></span>'))
+        self.assertEqual(
+            t2.search_view_markup_pair(),
+            ('test2 - <span weight="light">tagging 2 objects of 2 different '
+             'types: Family, Tag</span>',
+             '(Tag) - <span weight="light"></span>'))
 
     def test_remove_callback_no_confirm(self):
         # T_0
@@ -254,7 +263,7 @@ class TagTests(BaubleTestCase):
 
         # effect
         self.assertTrue('_reset_tags_menu' in
-                         [f for (f, m) in self.invoked])
+                        [f for (f, m) in self.invoked])
         self.assertTrue(('yes_no_dialog', 'Are you sure you want to '
                          'remove Tag: Arecaceae?')
                         in self.invoked)
@@ -262,6 +271,24 @@ class TagTests(BaubleTestCase):
         q = self.session.query(Tag).filter_by(tag="Arecaceae")
         matching = q.all()
         self.assertEqual(matching, [])
+
+    def test_get_tagged_objects_deletes_redundant(self):
+        family2 = Family(family='family2')
+        t1 = Tag(tag='test1')
+        self.session.add_all([family2, t1])
+        self.session.flush()
+        self.assertFalse(t1.is_tagging(family2))
+        self.assertFalse(t1.is_tagging(self.family))
+        # required for windows tests to succeed due to 16ms resolution
+        from time import sleep
+        sleep(0.02)
+        t1.tag_objects([self.family, family2])
+        self.session.flush()
+        self.assertEqual(len(t1.objects), 2)
+        sleep(0.02)
+        self.session.delete(family2)
+        self.session.commit()
+        self.assertEqual(len(t1.objects), 1)
 
 
 class GetTagIdsTests(BaubleTestCase):
