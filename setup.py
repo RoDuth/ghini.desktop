@@ -492,14 +492,6 @@ class run(Command):
         os.system(os.path.join(cwd, 'ghini.sh'))
 
 
-# require pysqlite if not using python2.5 or greater
-needs_sqlite = []
-try:
-    import sqlite3
-    sqlite3
-except ImportError:
-    needs_sqlite = ["pysqlite>=2.3.2"]
-
 scripts = ["scripts/ghini"]
 if sys.platform == 'win32':
     scripts = ["scripts/ghini", "scripts/ghini.bat", "scripts/ghini.vbs",
@@ -521,18 +513,18 @@ setuptools.setup(name="ghini.desktop",
                  install_requires=["SQLAlchemy==1.3.24",
                                    "Pillow",
                                    "lxml",
-                                   "tld==0.10",
+                                   "tld==0.12.6",
                                    "pyqrcode==1.2.1",
-                                   "mako==1.1.1",
+                                   "mako==1.1.4",
                                    "gdata==2.0.18",
                                    "requests",
                                    "fibra==0.0.20",
-                                   "pyparsing==2.2.0",
-                                   "pypac==0.12.0",
-                                   "pyshp==2.1.2",
-                                   "pyproj==2.6",
+                                   "pyparsing==2.4.7",
+                                   "pypac==0.15.0",
+                                   "pyshp==2.1.3",
+                                   "pyproj",
                                    "python-polylabel==0.6",
-                                   'python-dateutil==2.7.3'] + needs_sqlite,
+                                   'python-dateutil==2.7.3'],
                  extras_require={'docs': ['sphinx==1.7.9']},
                  tests_require=['nose', 'babel'],
                  test_suite="nose.collector",

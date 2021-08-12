@@ -182,7 +182,7 @@ def check_and_notify_new_version(view):
     ## check whether there's a newer version on github.  this is executed in
     ## a different thread, which does nothing or terminates the program.
     version_on_github = (
-        'https://raw.githubusercontent.com/RoDuth/ghini' +
+        'https://raw.githubusercontent.com/RoDuth/ghini'
         '.desktop/ghini-%s.%s-bbg/bauble/version.py'
     ) % bauble.version_tuple[:2]
     try:
@@ -219,8 +219,8 @@ def check_and_notify_new_version(view):
     except urllib.error.HTTPError:
         logger.info('HTTPError while checking for newer version')
     except Exception as e:
-        logger.warning('unhandled %s(%s) while checking for newer version'
-                       % type(e), e)
+        logger.warning('unhandled %s(%s) while checking for newer version',
+                       type(e), e)
 
 
 def retrieve_latest_release_data():

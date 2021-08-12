@@ -321,7 +321,6 @@ class CSVImporter(Importer):
                 del d
 
             # drop all of the dependencies together
-            metadata.reflect()
             # have added one table since v1.0 and a user may choose to drop
             # one or 2 tables (e.g plugin, history)
             if len(filenames) >= len(metadata.tables) - 3:
@@ -332,8 +331,8 @@ class CSVImporter(Importer):
                             'are doing</b>.\n\nWould you like to continue a '
                             'full restore?')
                     response = utils.yes_no_dialog(msg)
-                if response:
-                    force = True
+                    if response:
+                        force = True
 
             if len(depends) > 0:
                 if not force:

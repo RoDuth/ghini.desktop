@@ -12,8 +12,8 @@ for root, _, files in os.walk('bauble'):
         glade_files.append((root + '/*.ui', root))
 
 # effective_tld_names.dat.txt from tld
-from tld.defaults import NAMES_LOCAL_PATH_PARENT, NAMES_LOCAL_PATH
-tld_names = [(os.path.join(NAMES_LOCAL_PATH_PARENT, NAMES_LOCAL_PATH),
+from tld.defaults import NAMES_LOCAL_PATH_PARENT
+tld_names = [(os.path.join(NAMES_LOCAL_PATH_PARENT, 'res', '*.txt'),
              'tld/res')]
 
 block_cipher = None

@@ -372,7 +372,7 @@ def create_shapefile(name, prj_string, fields, records, out_dir):  \
         with open(prj_path, "w") as prj:
             prj.write(prj_string)
             prj.close()
-        with Writer(path) as shpf:
+        with Writer(str(path)) as shpf:
             for field in fields:
                 shpf.field(*field)
             for rec in records:
