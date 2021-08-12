@@ -296,7 +296,7 @@ class CSVImporter(Importer):
         total_lines = 0
         filesizes = {}
         for filename in filenames:
-            #get the total number of lines for all the files
+            # get the total number of lines for all the files
             nlines = len(open(filename, encoding='utf-8', newline='').readlines())
             filesizes[filename] = nlines
             total_lines += nlines
@@ -313,14 +313,28 @@ class CSVImporter(Importer):
         depends = set()  # the type will be changed to a [] later
         try:
             logger.debug('entering try block in csv importer')
-            ## get all the dependencies
+            # get all the dependencies
             for table, filename in sorted_tables:
                 logger.debug('get table dependendencies for table %s' % table.name)
                 d = utils.find_dependent_tables(table)
                 depends.update(list(d))
                 del d
 
-            ## drop all of the dependencies together
+            # drop all of the dependencies together
+            metadata.reflect()
+            # have added one table since v1.0 and a user may choose to drop
+            # one or 2 tables (e.g plugin, history)
+            if len(filenames) >= len(metadata.tables) - 3:
+                if not force:
+                    msg = _('It appears you are attempting a full restore. To '
+                            'do this requires deleting all data.\n\n'
+                            '<b>CAUTION! only preceed if you know what you '
+                            'are doing</b>.\n\nWould you like to continue a '
+                            'full restore?')
+                    response = utils.yes_no_dialog(msg)
+                if response:
+                    force = True
+
             if len(depends) > 0:
                 if not force:
                     msg = _('In order to import the files the following '
@@ -415,7 +429,6 @@ class CSVImporter(Importer):
                 for column in table.c:
                     if isinstance(column.default, ColumnDefault):
                         defaults[column.name] = column.default.execute()
-                column_names = list(table.c.keys())
 
                 # check if there are any foreign keys to on the table
                 # that refer to itself, if so create a new file with
@@ -431,8 +444,8 @@ class CSVImporter(Importer):
                 # columns in the CSV file and the columns with
                 # defaults
                 column_keys = list(csv_columns.union(list(defaults.keys())))
-                insert = table.insert(bind=connection).\
-                    compile(column_keys=column_keys)
+                insert = table.insert(bind=connection).compile(
+                    column_keys=column_keys)
 
                 values = []
 
@@ -466,9 +479,19 @@ class CSVImporter(Importer):
                             line[column] = defaults[column]
                         elif column in line and isempty(line[column]):
                             line[column] = None
+                        elif column not in line:
+                            line[column] = None
                         elif column == 'geojson':
+                            # eval json data
                             from ast import literal_eval
-                            line[column] = literal_eval(line[column])
+                            line[column] = literal_eval(
+                                line.get(column, 'None'))
+                        elif (filename.endswith('bauble.txt') and
+                              line.get(column) == 'version'):
+                            # as this is recreating the database it's more
+                            # accurate to say the current version created the
+                            # data.
+                            line['value'] = bauble.version
                     values.append(line)
                     steps_so_far += 1
                     if steps_so_far % update_every == 0:
