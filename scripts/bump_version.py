@@ -3,7 +3,7 @@
 #
 # Copyright 2004-2010 Brett Adams <brett@bauble.io>
 # Copyright 2015 Mario Frasca <mario@anche.no>.
-# Copyright 2017-2019 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright 2017-2021 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -44,10 +44,13 @@ def usage_and_exit(msg=None):
         print(msg, file=sys.stderr)
     sys.exit(1)
 
+
 if len(sys.argv) != 2:
     usage_and_exit()
 version = sys.argv[1]
 
+# make sure that there is only one instance of version=some_version in a file.
+# Place ":bump" somewhere in the comment on the same line
 bump_tag = ':bump'
 
 # should I just increment version as of bauble.version?
@@ -55,14 +58,15 @@ if version in ['+', '++', '+++']:
     inc_patch = version == '+'
     inc_minor = version == '++'
     inc_major = version == '+++'
-    rx = re.compile("^version\s*=\s*(?:\'|\")(.*)\.(.*)\.(.*)(?:\'|\").*%s.*$"
-                    % bump_tag)
+    rgx = re.compile(
+        r"^version\s*=\s*(?:\'|\")(.*)\.(.*)\.(.*)(?:\'|\").*%s.*$"
+        % bump_tag)
 
-    matches = [rx.match(l).groups()
-               for l in open(
+    matches = [rgx.match(line).groups()
+               for line in open(
                    os.path.join(root_of_clone(), "bauble/version.py"),
                    'r')
-               if rx.match(l)]
+               if rgx.match(line)]
     if matches:
         major, minor, patch = [int(i) for i in matches[0]]
         if inc_major:
@@ -76,30 +80,27 @@ if version in ['+', '++', '+++']:
             patch += 1
         version = "%s.%s.%s" % (major, minor, patch)
 
-if not re.match('.*?\..*?\..*?', version):
+if not re.match(r'.*?\..*?\..*?', version):
     usage_and_exit('bad version string')
 
 
-def bump_file(filename, rx):
+def bump_file(filename, reg):
     """
-    rx is either a compiled regular expression or a string that can be
-    compiled into one.  rx should have two groups, everything before the
+    reg is either a compiled regular expression or a string that can be
+    compiled into one.  reg should have two groups, everything before the
     version and everything after the version.
     """
 
-    # TODO; make sure that there is only one instance of
-    # version=some_version in a file...don't have to if we can add
-    # :bump somewhere in the comment on the same line
-    if isinstance(rx, str):
-        rx = re.compile(rx)
+    if isinstance(reg, str):
+        reg = re.compile(reg)
 
     from io import StringIO
     buf = StringIO()
     for line in open(filename, 'r'):
-        match = rx.match(line)
+        match = reg.match(line)
         if match:
-            s = rx.sub(r'\1%s\2', line)
-            line = s % version
+            string = reg.sub(r'\1%s\2', line)
+            line = string % version
             print(('%s: %s' % (filename, line)).strip())
         buf.write(line)
 
@@ -113,16 +114,16 @@ def bump_py_file(filename, varname='version'):
     bump python files
     """
 
-    rx = "^(%s\s*=\s*(?:\'|\")).*((?:\'|\").*%s.*)$" % (varname, bump_tag)
-    bump_file(filename, rx)
+    reg = r"^(%s\s*=\s*(?:\'|\")).*((?:\'|\").*%s.*)$" % (varname, bump_tag)
+    bump_file(filename, reg)
 
 
 def bump_desktop_file(filename):
     """
     bump xdf .desktop files
     """
-    rx = "(^Version=).*?\..*?\..*?(\s+?.*?%s.*?$)" % bump_tag
-    bump_file(filename, rx)
+    reg = r"(^Version=).*?\..*?\..*?(\s+?.*?%s.*?$)" % bump_tag
+    bump_file(filename, reg)
 
 
 # bump and grind
@@ -130,29 +131,24 @@ bump_py_file(os.path.join(root_of_clone(), 'bauble/version.py'))
 bump_py_file(os.path.join(root_of_clone(), 'doc/conf.py'), 'release')
 bump_desktop_file(os.path.join(root_of_clone(), 'data/ghini.desktop'))
 
-rx = "(^VERSION=\").*?\..*?\..*?(\".*?%s.*?$)" % bump_tag
-bump_file(os.path.join(root_of_clone(), 'packages/builddeb.sh'), rx)
+rgx = r"(^VERSION=\").*?\..*?\..*?(\".*?%s.*?$)" % bump_tag
+bump_file(os.path.join(root_of_clone(), 'packages/builddeb.sh'), rgx)
 
-rx = "(^version=)[0-9]*\.[0-9]*\.[0-9]*(.*?%s.*$)" % bump_tag
-bump_file(os.path.join(root_of_clone(), 'scripts/installer.cfg'), rx)
+rgx = r"(^  release: \'v).*?\..*?\..*?( \(BBG Branch\)\'.*?%s.*?$)" % bump_tag
+bump_file(os.path.join(root_of_clone(), '.appveyor.yml'), rgx)
 
-rx = "(^  release: \'v).*?\..*?\..*?( \(BBG Branch\)\'.*?%s.*?$)" % bump_tag
-bump_file(os.path.join(root_of_clone(), '.appveyor.yml'), rx)
+rgx = r'(^!define VERSION ").*?\..*?\..*?(-BBG".*?%s.*?$)' % bump_tag
+bump_file(os.path.join(root_of_clone(), 'scripts/build-multiuser.nsi'), rgx)
 
-rx = '(^!define VERSION ").*?\..*?\..*?(-BBG".*?%s.*?$)' % bump_tag
-bump_file(os.path.join(root_of_clone(), 'scripts/build-multiuser.nsi'), rx)
-
-# TODO: commit the changes
 print()
 print(('git commit -m "bumping_to_%s" '
       'bauble/version.py '
-      'doc/conf.py '
-      'data/ghini.desktop '
-      'packages/builddeb.sh '
-      'scripts/installer.cfg '
-      'scripts/build-multiuser.nsi '
-      '.appveyor.yml'
-      % version))
+       'doc/conf.py '
+       'data/ghini.desktop '
+       'packages/builddeb.sh '
+       'scripts/build-multiuser.nsi '
+       '.appveyor.yml'
+       % version))
 print()
 print('after appveyor creates the release, you can get the version tag with:')
 print('git fetch')

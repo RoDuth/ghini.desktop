@@ -27,8 +27,8 @@ artifacts:
   - path: scripts/ghini.desktop-*-setup.exe
 
 deploy:
-  release: 'v1.3.0-a (BBG Branch)' # :bump
-  description: 'Alpha release, backup your data first, use at own risk!'
+  release: 'v1.3.0-b (BBG Branch)' # :bump
+  description: 'Beta release, backup your data first. - From a v1.0 install: create a csv backup before upgrading, upgrade to this version, then restore the backup.'
   provider: GitHub
   auth_token:
     secure: OyO6yWwEa7RpZdY1m+zj5ZBtTYxDSb8Q/7+5dkX8nakRUrEgHeRHIwnTNLlwv9Fk
