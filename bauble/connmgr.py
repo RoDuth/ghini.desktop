@@ -294,10 +294,10 @@ def notify_new_installer(view):
         def show_message_box():
             if new_installer.get('prerelease'):
                 msg = _('prerelease installer %s available.\ncontinue, or '
-                        'exit to try it.') % new_installer.get("release")
+                        'exit to try it.') % new_installer.get('name')
             else:
                 msg = _('new installer %s available.\ncontinue, or exit to '
-                        'upgrade.') % new_installer.get("release")
+                        'upgrade.') % new_installer.get('name')
             box = view.add_message_box()
             box.message = msg
             box.show()
