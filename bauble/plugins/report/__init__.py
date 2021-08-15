@@ -632,11 +632,8 @@ class ReportTool(pluginmgr.Tool):
     category = _("Report")
     label = _("Generate Report")
 
-
     @classmethod
-    def start(self):
-        '''
-        '''
+    def start(cls):
         # get the select results from the search view
         from bauble.view import SearchView
         view = bauble.gui.get_view()
@@ -661,19 +658,16 @@ class ReportTool(pluginmgr.Tool):
                 if ok:
                     break
         except AssertionError as e:
-            logger.debug("%s(%s)" % (type(e).__name__, e))
+            logger.debug("%s(%s)", type(e).__name__, e)
             logger.debug(traceback.format_exc())
-            parent = None
-            if hasattr(self, 'view') and hasattr(self.view, 'dialog'):
-                parent = self.view.dialog
 
-            utils.message_details_dialog(str(e), traceback.format_exc(),
-                                         Gtk.MessageType.ERROR, parent=parent)
-        except Exception as e:
+            utils.message_details_dialog(utils.xml_safe(e),
+                                         traceback.format_exc(),
+                                         Gtk.MessageType.ERROR)
+        except Exception as e:   # pylint: disable=broad-except
             logger.debug(traceback.format_exc())
-            utils.message_details_dialog(_('Formatting Error\n\n'
-                                           '%(exception)s') %
-                                         {"exception": utils.utf8(e)},
+            utils.message_details_dialog(_('Formatting Error\n\n%s') %
+                                         utils.xml_safe(e),
                                          traceback.format_exc(),
                                          Gtk.MessageType.ERROR)
         bauble.gui.set_busy(False)
@@ -681,8 +675,6 @@ class ReportTool(pluginmgr.Tool):
 
 
 class ReportToolPlugin(pluginmgr.Plugin):
-    '''
-    '''
     tools = [ReportTool, TemplateDownloadTool]
 
 
