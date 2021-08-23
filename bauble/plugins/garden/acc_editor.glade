@@ -806,11 +806,12 @@
                       </packing>
                     </child>
                     <child>
-                      <object class="GtkFrame" id="frame5">
+                      <object class="GtkExpander" id="intended_locs_expander">
                         <property name="visible">True</property>
-                        <property name="can-focus">False</property>
-                        <property name="label-xalign">0</property>
-                        <property name="shadow-type">none</property>
+                        <property name="can-focus">True</property>
+                        <property name="hexpand">True</property>
+                        <property name="vexpand">True</property>
+                        <property name="resize-toplevel">True</property>
                         <child>
                           <object class="GtkBox" id="hbox9">
                             <property name="visible">True</property>
