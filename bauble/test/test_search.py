@@ -28,7 +28,7 @@ logger.setLevel(logging.DEBUG)
 from pyparsing import ParseException
 
 import bauble.db as db
-import bauble.search as search
+from bauble import search
 from bauble.editor import MockView, GenericEditorView
 from bauble import prefs
 from bauble import paths
@@ -1585,13 +1585,13 @@ class AggregatingFunctions(BaubleTestCase):
 class BaubleSearchSearchTest(BaubleTestCase):
     def test_search_search_uses_Mapper_Search(self):
         search.search("genus like %", self.session)
-        self.assertTrue('SearchStrategy "genus like %"(MapperSearch)' in 
-                   self.handler.messages['bauble.search']['debug'])
+        self.assertTrue('SearchStrategy "genus like %" (MapperSearch)' in
+                        self.handler.messages['bauble.search']['debug'])
         self.handler.reset()
         search.search("12.11.13", self.session)
-        self.assertTrue('SearchStrategy "12.11.13"(MapperSearch)' in 
-                   self.handler.messages['bauble.search']['debug'])
+        self.assertTrue('SearchStrategy "12.11.13" (MapperSearch)' in
+                        self.handler.messages['bauble.search']['debug'])
         self.handler.reset()
         search.search("So ha", self.session)
-        self.assertTrue('SearchStrategy "So ha"(MapperSearch)' in 
-                   self.handler.messages['bauble.search']['debug'])
+        self.assertTrue('SearchStrategy "So ha" (MapperSearch)' in
+                        self.handler.messages['bauble.search']['debug'])

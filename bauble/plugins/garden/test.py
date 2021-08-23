@@ -684,6 +684,23 @@ class PlantTests(GardenTestCase):
             self.assertEqual(chg.reason, 'ERRO')
             self.assertEqual(chg.date, date)
 
+    def test_plant_from_dict(self):
+        p = Plant.retrieve_or_create(
+            self.session, {'object': 'plant',
+                           'accession': '1',
+                           'code': '1'},
+            create=False)
+        self.assertFalse(p is None)
+
+    def test_plant_note_from_dict(self):
+        p = PlantNote.retrieve_or_create(
+            self.session, {'object': 'plant_note',
+                           'plant': '1.1',
+                           'note': '1',
+                           'category': 'RBW'},
+            create=True)
+        self.assertFalse(p is None)
+
 
 
 class PropagationTests(GardenTestCase):
@@ -2348,106 +2365,135 @@ class AccessionNotesSerializeTest(GardenTestCase):
         self.assertTrue(obj is not None)
         self.assertEqual(obj.note, "url://")
 
-import bauble.search as search
+
+from bauble.plugins.garden import PlantSearch
+from bauble import search
 
 
-class PlantSearchTest(GardenTestCase):
-    def __init__(self, *args):
-        super().__init__(*args)
+class PlantSearchTests(BaubleTestCase):
 
     def setUp(self):
         super().setUp()
-        setUp_data()
+        from bauble.plugins.garden import Location
+        fam = Family(family='Myrtaceae')
+        gen = Genus(family=fam, genus='Eucalyptus')
+        spc = Species(sp="curtisii", genus=gen)
+        acc1 = Accession(code='XXXX', species=spc)
+        acc2 = Accession(code='YYYY', species=spc)
+        loc = Location(code='Bed1')
+        # XXXX.1
+        self.plt1 = Plant(code='1', quantity=1, accession=acc1, location=loc)
+        # XXXX.2
+        self.plt2 = Plant(code='2', quantity=1, accession=acc1, location=loc)
+        # YYYY.1
+        self.plt3 = Plant(code='1', quantity=1, accession=acc2, location=loc)
+        # YYYY.3
+        self.plt4 = Plant(code='3', quantity=1, accession=acc2, location=loc)
+        self.session.add_all([
+            fam, gen, spc, acc1, acc2, loc, self.plt1, self.plt2, self.plt3,
+            self.plt3
+        ])
+        self.session.commit()
 
-    def test_searchbyplantcode_unquoted(self):
+    def tearDown(self):
+        super().tearDown()
+
+    def test_plant_search_directly(self):
         mapper_search = search.get_strategy('PlantSearch')
+        self.assertTrue(isinstance(mapper_search, PlantSearch))
 
-        results = mapper_search.search('1.1.1', self.session)
-        self.assertEqual(len(results), 1)
-        self.assertEqual(self.handler.messages['bauble.plugins.garden.plant']['debug'][0],
-            'text is not quoted, should strategy apply?')
-        p = results.pop()
-        ex = self.session.query(Plant).filter(Plant.id == 1).first()
-        self.assertEqual(p, ex)
-        results = mapper_search.search('1.2.1', self.session)
-        logger.debug(results)
-        self.assertEqual(len(results), 1)
-        p = results.pop()
-        ex = self.session.query(Plant).filter(Plant.id == 2).first()
-        self.assertEqual(p, ex)
-        results = mapper_search.search('1.2.2', self.session)
-        self.assertEqual(len(results), 1)
-        p = results.pop()
-        ex = self.session.query(Plant).filter(Plant.id == 3).first()
-        self.assertEqual(p, ex)
+        qry = 'planting = XXXX.1'
+        results = mapper_search.search(qry, self.session)
+        self.assertEqual(results, [self.plt1])
 
-    def test_searchbyplantcode_quoted(self):
-        mapper_search = search.get_strategy('PlantSearch')
-
-        results = mapper_search.search('"1.1.1"', self.session)
-        self.assertEqual(len(results), 1)
-        p = results.pop()
-        ex = self.session.query(Plant).filter(Plant.id == 1).first()
-        self.assertEqual(p, ex)
-        results = mapper_search.search("'1.2.1'", self.session)
-        logger.debug(results)
-        self.assertEqual(len(results), 1)
-        p = results.pop()
-        ex = self.session.query(Plant).filter(Plant.id == 2).first()
-        self.assertEqual(p, ex)
-        results = mapper_search.search('\'1.2.2\'', self.session)
-        self.assertEqual(len(results), 1)
-        p = results.pop()
-        ex = self.session.query(Plant).filter(Plant.id == 3).first()
-        self.assertEqual(p, ex)
-
-    def test_searchbyplantcode_invalid_values(self):
-        mapper_search = search.get_strategy('PlantSearch')
-
-        results = mapper_search.search('1.11', self.session)
-        self.assertEqual(len(results), 0)
-        self.assertEqual(self.handler.messages['bauble.plugins.garden.plant']['debug'], [
-            'text is not quoted, should strategy apply?', 'ac: 1, pl: 11'])
+    def test__eq__plant_search(self):
+        qry = 'planting = "XXXX.1"'
+        results = search.search(qry, self.session)
+        self.assertTrue(f'SearchStrategy "{qry}" (PlantSearch)' in
+                        self.handler.messages['bauble.search']['debug'])
+        self.assertTrue(
+            '"equals" PlantSearch accession: XXXX plant: 1' in
+            self.handler.messages['bauble.plugins.garden.plant']['debug'])
         self.handler.reset()
-        results = mapper_search.search("'121'", self.session)
-        self.assertEqual(len(results), 0)
-        self.assertEqual(self.handler.messages['bauble.plugins.garden.plant']['debug'], [
-            "delimiter not found, can't split the code"])
+        self.assertEqual(results, [self.plt1])
 
-    def test_searchbyaccessioncode(self):
-        mapper_search = search.get_strategy('MapperSearch')
+    def test__in__plant_search(self):
+        qry = 'planting in XXXX.1 YYYY.3'
+        results = search.search(qry, self.session)
+        results = search.search(qry, self.session)
+        self.assertTrue(f'SearchStrategy "{qry}" (PlantSearch)' in
+                        self.handler.messages['bauble.search']['debug'])
+        self.assertTrue(
+            '"in" PlantSearch vals: [(\'XXXX\', \'1\'), (\'YYYY\', \'3\')]' in
+            self.handler.messages['bauble.plugins.garden.plant']['debug'])
+        self.handler.reset()
+        self.assertCountEqual(results, [self.plt1, self.plt4])
+        qry = "planting in 'XXXX.1' 'YYYY.3'"
+        results = search.search(qry, self.session)
+        self.assertTrue(f'SearchStrategy "{qry}" (PlantSearch)' in
+                        self.handler.messages['bauble.search']['debug'])
+        self.assertTrue(
+            '"in" PlantSearch vals: [(\'XXXX\', \'1\'), (\'YYYY\', \'3\')]' in
+            self.handler.messages['bauble.plugins.garden.plant']['debug'])
+        self.handler.reset()
+        self.assertCountEqual(results, [self.plt1, self.plt4])
 
-        results = mapper_search.search('2001.1', self.session)
-        self.assertEqual(len(results), 1)
-        a = results.pop()
-        expect = self.session.query(Accession).filter(
-            Accession.id == 1).first()
-        logger.debug("%s, %s" % (a, expect))
-        self.assertEqual(a, expect)
-        results = mapper_search.search('2001.2', self.session)
-        self.assertEqual(len(results), 1)
-        a = results.pop()
-        expect = self.session.query(Accession).filter(
-            Accession.id == 2).first()
-        logger.debug("%s, %s" % (a, expect))
-        self.assertEqual(a, expect)
+    def test__not_eq__plant_search(self):
+        qry = 'planting != XXXX.1'
+        results = search.search(qry, self.session)
+        self.assertTrue(f'SearchStrategy "{qry}" (PlantSearch)' in
+                        self.handler.messages['bauble.search']['debug'])
+        self.assertTrue(
+            '"not equals" PlantSearch accession: XXXX plant: 1' in
+            self.handler.messages['bauble.plugins.garden.plant']['debug'])
+        self.handler.reset()
+        self.assertCountEqual(results, [self.plt2, self.plt3, self.plt4])
+        qry = 'planting <> YYYY.1'
+        results = search.search(qry, self.session)
+        self.assertCountEqual(results, [self.plt2, self.plt1, self.plt4])
 
-    def test_plant_from_dict(self):
-        p = Plant.retrieve_or_create(
-            self.session, {'object': 'plant',
-                           'accession': '2001.1',
-                           'code': '1'},
-            create=False)
-        self.assertFalse(p is None)
+    def test__star__plant_search(self):
+        qry = 'planting = *'
+        results = search.search(qry, self.session)
+        self.assertTrue(f'SearchStrategy "{qry}" (PlantSearch)' in
+                        self.handler.messages['bauble.search']['debug'])
+        self.assertTrue(
+            '"star" PlantSearch, returning all plants' in
+            self.handler.messages['bauble.plugins.garden.plant']['debug'])
+        self.handler.reset()
+        self.assertCountEqual(results,
+                              [self.plt1, self.plt2, self.plt3, self.plt4])
 
-    def test_plant_note_from_dict(self):
-        p = PlantNote.retrieve_or_create(
-            self.session, {'object': 'plant_note',
-                           'plant': '2001.1.1',
-                           'note': '1',
-                           'category': 'RBW'},
-            create=True)
-        self.assertFalse(p is None)
+    def test__contains__plant_search(self):
+        qry = 'planting contains XX'
+        results = search.search(qry, self.session)
+        self.assertTrue(f'SearchStrategy "{qry}" (PlantSearch)' in
+                        self.handler.messages['bauble.search']['debug'])
+        self.assertTrue(
+            '"contains" PlantSearch accession: XX plant: XX' in
+            self.handler.messages['bauble.plugins.garden.plant']['debug'])
+        self.handler.reset()
+        self.assertCountEqual(results, [self.plt1, self.plt2])
+
+    def test__like__plant_search(self):
+        qry = 'planting like XX%.1'
+        results = search.search(qry, self.session)
+        self.assertTrue(f'SearchStrategy "{qry}" (PlantSearch)' in
+                        self.handler.messages['bauble.search']['debug'])
+        self.assertTrue(
+            '"like" PlantSearch accession: XX% plant: 1' in
+            self.handler.messages['bauble.plugins.garden.plant']['debug'])
+        self.handler.reset()
+        self.assertCountEqual(results, [self.plt1])
+        qry = 'planting like XX%.%'
+        results = search.search(qry, self.session)
+        self.assertTrue(f'SearchStrategy "{qry}" (PlantSearch)' in
+                        self.handler.messages['bauble.search']['debug'])
+        self.assertTrue(
+            '"like" PlantSearch accession: XX% plant: %' in
+            self.handler.messages['bauble.plugins.garden.plant']['debug'])
+        self.handler.reset()
+        self.assertCountEqual(results, [self.plt1, self.plt2])
 
 
 from bauble.plugins.garden.location import mergevalues
@@ -2654,19 +2700,21 @@ class ContactPresenterTests(BaubleTestCase):
 
 
 import bauble.search
+
+
 class BaubleSearchSearchTest(BaubleTestCase):
     def test_search_search_uses_Plant_Search(self):
         bauble.search.search("genus like %", self.session)
-        self.assertTrue('SearchStrategy "genus like %"(PlantSearch)' in
-                   self.handler.messages['bauble.search']['debug'])
+        self.assertTrue('SearchStrategy "genus like %" (PlantSearch)' in
+                        self.handler.messages['bauble.search']['debug'])
         self.handler.reset()
         bauble.search.search("12.11.13", self.session)
-        self.assertTrue('SearchStrategy "12.11.13"(PlantSearch)' in
-                   self.handler.messages['bauble.search']['debug'])
+        self.assertTrue('SearchStrategy "12.11.13" (PlantSearch)' in
+                        self.handler.messages['bauble.search']['debug'])
         self.handler.reset()
         bauble.search.search("So ha", self.session)
-        self.assertTrue('SearchStrategy "So ha"(PlantSearch)' in
-                   self.handler.messages['bauble.search']['debug'])
+        self.assertTrue('SearchStrategy "So ha" (PlantSearch)' in
+                        self.handler.messages['bauble.search']['debug'])
 
 
 from bauble.plugins.garden.exporttopocket import create_pocket, ExportToPocketThread

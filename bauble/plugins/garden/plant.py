@@ -32,7 +32,7 @@ logger = logging.getLogger(__name__)
 
 from gi.repository import Gtk  # noqa
 
-from sqlalchemy import and_, func, event
+from sqlalchemy import or_, and_, func, event, tuple_, not_
 from sqlalchemy import (ForeignKey, Column, Unicode, Integer, UnicodeText,
                         UniqueConstraint)
 from sqlalchemy.orm import (relation, backref, object_mapper, validates,
@@ -40,6 +40,10 @@ from sqlalchemy.orm import (relation, backref, object_mapper, validates,
 from sqlalchemy.orm.session import object_session
 from sqlalchemy.exc import DBAPIError, OperationalError
 from sqlalchemy.orm.attributes import get_history
+
+from pyparsing import (Word, removeQuotes, delimitedList, OneOrMore, oneOf,
+                       Literal, printables, stringEnd, quotedString,
+                       ParseException)
 
 from bauble import db
 from bauble.error import CheckConditionError
@@ -187,39 +191,96 @@ def is_code_unique(plant, code):
     return count == 0
 
 
-class PlantSearch(SearchStrategy):
+class PlantSearch(SearchStrategy):  # pylint: disable=too-few-public-methods
 
-    def __init__(self):
-        super().__init__()
-
-    def search(self, text, session):
-        """returns a result if the text looks like a quoted plant code
+    def search(self, text, session=None): \
+            # pylint: disable=too-many-branches,too-many-locals
+        """domain search for plants, only returns a result if appropriate
+        string is supplied.  Searches a combination of Accession.code,
+        delimiter and Plant.code.
 
         special search strategy, can't be obtained in MapperSearch
         """
         super().search(text, session)
+        domain = Literal('planting') | Literal('plant')
+        operator = oneOf('= == != <> like contains has')
+        value = quotedString.setParseAction(removeQuotes) | Word(printables)
+        value_list = OneOrMore(value) | delimitedList(value)
+        equals = Literal('=')
+        star_value = Literal('*')
+        in_op = Literal('in')
+        statement = ((domain + equals + star_value + stringEnd) |
+                     (domain + operator + value + stringEnd) |
+                     (domain + in_op + value_list + stringEnd))
 
-        if text[0] == text[-1] and text[0] in ['"', "'"]:
-            text = text[1:-1]
-        else:
-            logger.debug("text is not quoted, should strategy apply?")
-            #return []
-        delimiter = Plant.get_delimiter()
-        if delimiter not in text:
-            logger.debug("delimiter not found, can't split the code")
+        if not text.startswith('plant'):
             return []
-        acc_code, plant_code = text.rsplit(delimiter, 1)
-        logger.debug("ac: %s, pl: %s" % (acc_code, plant_code))
-
+        delimiter = Plant.get_delimiter()
         try:
-            from bauble.plugins.garden import Accession
-            query = session.query(Plant).filter(
-                Plant.code == str(plant_code)).join(Accession).filter(
-                utils.ilike(Accession.code, '%%%s' % str(acc_code)))
-            return query.all()
-        except Exception as e:
+            parsed = statement.parseString(text)
+            operator = parsed[1]
+            values = parsed[2:]
+        except ParseException as e:
             logger.debug("PlantSearch %s %s", type(e).__name__, e)
             return []
+
+        if operator != 'in':
+            value = values[0]
+            acc_code = plant_code = value
+            if delimiter in value:
+                acc_code, plant_code = value.rsplit(delimiter, 1)
+
+        if operator in ['=', '==', '!=', '<>']:
+            if value == '*':
+                logger.debug('"star" PlantSearch, returning all plants')
+                return session.query(Plant).all()
+            if delimiter not in value:
+                logger.debug("delimiter not found, can't split the code")
+                return []
+            if operator in ['!=', '<>']:
+                logger.debug('"not equals" PlantSearch accession: %s plant: '
+                             '%s', acc_code, plant_code)
+                query = session.query(Plant).join(Accession).filter(
+                    not_(and_(Plant.code == plant_code,
+                              Accession.code == acc_code)))
+            else:
+                logger.debug('"equals" PlantSearch accession: %s plant: %s',
+                             acc_code, plant_code)
+                query = session.query(Plant).filter(
+                    Plant.code == plant_code).join(Accession).filter(
+                        Accession.code == acc_code)
+
+        elif operator in ['contains', 'has']:
+            # could be better possibly?
+            logger.debug('"contains" PlantSearch accession: %s plant: %s',
+                         acc_code, plant_code)
+            query = (session.query(Plant)
+                     .join(Accession)
+                     .filter(or_(utils.ilike(Plant.code, f'%%{plant_code}%%'),
+                                 utils.ilike(Accession.code, f'%%{acc_code}%%')
+                                 )))
+        elif operator == 'like':
+            logger.debug('"like" PlantSearch accession: %s plant: %s',
+                         acc_code, plant_code)
+            query = (session.query(Plant)
+                     .join(Accession)
+                     .filter(and_(utils.ilike(Plant.code, plant_code),
+                                  utils.ilike(Accession.code, acc_code))))
+        else:
+            # 'in'
+            vals = []
+            for value in values:
+                if delimiter not in value:
+                    logger.debug("delimiter not found, can't split the code")
+                    return []
+                acc_code, plant_code = value.rsplit(delimiter, 1)
+                vals.append((acc_code, plant_code))
+            logger.debug('"in" PlantSearch vals: %s', vals)
+            query = (session.query(Plant)
+                     .join(Accession)
+                     .filter(tuple_(Accession.code, Plant.code)
+                     .in_(vals)))
+        return query.all()
 
 
 def as_dict(self):

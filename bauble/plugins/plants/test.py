@@ -2125,17 +2125,20 @@ class GlobalFunctionsTest(PlantTestCase):
         vName = self.session.query(VernacularName).filter_by(id=1).one()
         self.assertEqual(partial(db.natsort, 'species.accessions')(vName), [])
 
+
 import bauble.search
+
+
 class BaubleSearchSearchTest(BaubleTestCase):
     def test_search_search_uses_Synonym_Search(self):
         bauble.search.search("genus like %", self.session)
-        self.assertTrue('SearchStrategy "genus like %"(SynonymSearch)' in
+        self.assertTrue('SearchStrategy "genus like %" (SynonymSearch)' in
                    self.handler.messages['bauble.search']['debug'])
         self.handler.reset()
         bauble.search.search("12.11.13", self.session)
-        self.assertTrue('SearchStrategy "12.11.13"(SynonymSearch)' in
+        self.assertTrue('SearchStrategy "12.11.13" (SynonymSearch)' in
                    self.handler.messages['bauble.search']['debug'])
         self.handler.reset()
         bauble.search.search("So ha", self.session)
-        self.assertTrue('SearchStrategy "So ha"(SynonymSearch)' in
+        self.assertTrue('SearchStrategy "So ha" (SynonymSearch)' in
                    self.handler.messages['bauble.search']['debug'])

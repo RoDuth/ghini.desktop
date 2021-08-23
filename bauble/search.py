@@ -29,6 +29,12 @@ from sqlalchemy.orm import class_mapper, RelationshipProperty
 from sqlalchemy.orm.properties import ColumnProperty
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm.attributes import InstrumentedAttribute
+from pyparsing import (
+    Word, alphas8bit, removeQuotes, delimitedList, Regex,
+    ZeroOrMore, OneOrMore, oneOf, alphas, alphanums, Group, Literal,
+    CaselessLiteral, WordStart, WordEnd, srange,
+    stringEnd, Keyword, quotedString,
+    infixNotation, opAssoc, Forward)
 
 import bauble
 from bauble.error import check
@@ -39,7 +45,16 @@ from .querybuilderparser import BuiltQuery
 
 def search(text, session=None):
     results = set()
-    for strategy in list(_search_strategies.values()):
+    strategies = list(_search_strategies.values())
+    # let PlantSearch take care of plant value searches
+    # (NOTE MapperSearch>DomainExpressionAction may work but not always due to
+    # the need to combine Accession.code, delimiter and Plant.code)
+    if text.startswith('plant') and text.split()[1] != 'where':
+        logger.debug("plant value search reducing strategies to PlantSearch")
+        strategies = [i for i in _search_strategies.values() if
+                      type(i).__name__ == 'PlantSearch']
+
+    for strategy in strategies:
         logger.debug("applying search strategy %s from module %s" %
                      (type(strategy).__name__, type(strategy).__module__))
         results.update(strategy.search(text, session))
@@ -525,9 +540,9 @@ class DomainExpressionAction(object):
 
         query = search_strategy._session.query(cls)
 
-        ## here is the place where to optionally filter out unrepresented
-        ## domain values. each domain class should define its own 'I have
-        ## accessions' filter. see issue #42
+        # here is the place where to optionally filter out unrepresented
+        # domain values. each domain class should define its own 'I have
+        # accessions' filter. see issue #42
 
         result = set()
 
@@ -651,13 +666,6 @@ class ValueListAction(object):
         return result
 
 
-from pyparsing import (
-    Word, alphas8bit, removeQuotes, delimitedList, Regex,
-    ZeroOrMore, OneOrMore, oneOf, alphas, alphanums, Group, Literal,
-    CaselessLiteral, WordStart, WordEnd, srange,
-    stringEnd, Keyword, quotedString,
-    infixNotation, opAssoc, Forward)
-
 wordStart, wordEnd = WordStart(), WordEnd()
 
 
@@ -773,14 +781,15 @@ class SearchStrategy(object):
     """
 
     def search(self, text, session=None):
-        '''
+        """
         :param text: the search string
         :param session: the session to use for the search
 
         Return an iterator that iterates over mapped classes retrieved
         from the search.
-        '''
-        logger.debug('SearchStrategy "%s"(%s)', text, self.__class__.__name__)
+        """
+        # NOTE this logger is used in various tests
+        logger.debug('SearchStrategy "%s" (%s)', text, self.__class__.__name__)
         pass
 
 
@@ -861,7 +870,7 @@ class MapperSearch(SearchStrategy):
         logger.debug("statement : %s(%s)" % (type(statement), statement))
         self._results.update(statement.invoke(self))
         logger.debug('search returns %s(%s)'
-                     % (type(self._results), self._results))
+                     % (type(self._results).__name__, self._results))
 
         # these _results get filled in when the parse actions are called
         return self._results
