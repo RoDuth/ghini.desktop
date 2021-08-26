@@ -959,7 +959,7 @@ class FamilyInfoBox(InfoBox):
             button_def['name'] = i[0]
             button_defs.append(button_def)
 
-        InfoBox.__init__(self)
+        super().__init__()
         filename = os.path.join(paths.lib_dir(), 'plugins', 'plants',
                                 'infoboxes.glade')
         self.widgets = utils.load_widgets(filename)

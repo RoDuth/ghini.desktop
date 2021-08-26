@@ -20,3 +20,6 @@
 # major, minor, revision version tuple
 
 version = "1.3.0-b"  # :bump
+"""
+The current version as a semantic version number MAJOR.MINOR.PATCH(-PRERELEASE)
+"""

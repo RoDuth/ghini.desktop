@@ -283,7 +283,7 @@ def install(plugins_to_install, import_defaults=True, force=False):
     :type import_defaults: bool
 
     :param force:  Force, don't ask questions.
-    :type force: book
+    :type force: bool
     """
 
     logger.debug('pluginmgr.install(%s)', str(plugins_to_install))

@@ -401,7 +401,7 @@ class GeneralSpeciesExpander(InfoExpander):
 class SpeciesInfoBox(InfoBox):
 
     def __init__(self):
-        super().__init__(tabbed=True)
+        super().__init__()
         page = SpeciesInfoPage()
         label = page.label
         if isinstance(label, str):

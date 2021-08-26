@@ -153,11 +153,6 @@ source_type_values = [('Expedition', _('Expedition')),
 # TODO: create a DMS column type to hold latitude and longitude,
 # should probably store the DMS data as a string in decimal degrees
 
-############################################################
-#
-# Collection
-#
-
 class Collection(db.Base):
     """
     :Table name: collection
@@ -188,8 +183,6 @@ class Collection(db.Base):
             *geography_id*: :class:`sqlalchemy.types.Integer`
 
             *notes*: :class:`sqlalchemy.types.UnicodeText`
-
-            *accession_id*: :class:`sqlalchemy.types.Integer`
 
 
     :Properties:

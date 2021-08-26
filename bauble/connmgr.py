@@ -261,7 +261,6 @@ def check_new_installer(github_release_data):
     github_release = github_release_data.get('name')
     github_prerelease = github_release_data.get('prerelease')
     # update release_version and release_date
-    print(type(github_prerelease), github_prerelease)
     if github_prerelease:
         bauble.release_version = github_release + ' (prerelease)'
     else:
