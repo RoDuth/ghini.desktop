@@ -30,8 +30,11 @@ from gi.repository import Gtk  # noqa
 from sqlalchemy import select, Column, Unicode, String, Integer, ForeignKey
 from sqlalchemy.orm import object_session, relation, backref, deferred
 
-from bauble import db
+from bauble import db, utils
 from bauble import btypes as types
+
+from bauble.view import (InfoBox, InfoExpander, select_in_search_results,
+                         PropertiesExpander)
 
 
 def get_species_in_geography(geo):
@@ -198,6 +201,64 @@ Geography.children = relation(
     backref=backref("parent",
                     remote_side=[Geography.__table__.c.id]),
     order_by=[Geography.name])
+
+
+class GeneralGeographyExpander(InfoExpander):
+    """Generic minimalist info about a geography
+    """
+
+    def __init__(self, widgets):
+        super().__init__(_("General"), widgets)
+        general_box = self.widgets.general_box
+        self.widgets.general_window.remove(general_box)
+        self.vbox.pack_start(general_box, True, True, 0)
+        self.table_cells = []
+
+    def update(self, value):
+        level = ['Continent', 'Region', 'Area', 'Unit'][value.tdwg_level - 1]
+        self.widget_set_value('name_label', value.name)
+        self.widget_set_value('tdwg_level', level)
+        self.widget_set_value('tdwg_code', value.tdwg_code)
+        self.widget_set_value('iso_code', value.iso_code)
+        self.widget_set_value('parent', value.parent or '')
+        shape = value.geojson.get('type', '') if value.geojson else ''
+        self.widget_set_value('geojson_type', shape)
+        if value.parent:
+            utils.make_label_clickable(self.widgets.parent, self.on_clicked,
+                                       value.parent)
+        self.widgets.childbox.foreach(self.widgets.childbox.remove)
+        for geo in value.children:
+            child_lbl = Gtk.Label()
+            child_lbl.set_xalign(0)
+            child_lbl.set_text(str(geo))
+            eventbox = Gtk.EventBox()
+            eventbox.add(child_lbl)
+            self.widgets.childbox.pack_start(eventbox, True, True, 0)
+            utils.make_label_clickable(child_lbl, self.on_clicked,
+                                       geo)
+        self.widgets.ib_general_grid.show_all()
+
+    @staticmethod
+    def on_clicked(widget, event, obj):
+        select_in_search_results(obj)
+
+
+class GeographyInfoBox(InfoBox):
+    """
+    general info
+    """
+    def __init__(self):
+        super().__init__()
+        filename = str(Path(__file__).resolve().parent / 'geo_infobox.glade')
+        self.widgets = utils.load_widgets(filename)
+        self.general = GeneralGeographyExpander(self.widgets)
+        self.add_expander(self.general)
+        self.props = PropertiesExpander()
+        self.add_expander(self.props)
+
+    def update(self, row):
+        self.general.update(row)
+        self.props.update(row)
 
 
 def geography_importer():

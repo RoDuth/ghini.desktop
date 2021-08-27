@@ -60,7 +60,7 @@ from bauble.plugins.plants.species import (
     vernname_context_menu,
 )
 from bauble.plugins.plants.geography import (
-    Geography, get_species_in_geography)
+    Geography, get_species_in_geography, GeographyInfoBox)
 from bauble import search
 from bauble.view import SearchView
 from bauble.ui import DefaultView
@@ -359,7 +359,9 @@ class PlantsPlugin(pluginmgr.Plugin):
             context_menu=vernname_context_menu)
 
         mapper_search.add_meta(('geography', 'geo'), Geography, ['name'])
-        SearchView.row_meta[Geography].set(children=get_species_in_geography)
+        SearchView.row_meta[Geography].set(
+            children=get_species_in_geography,
+            infobox=GeographyInfoBox)
 
         ## now it's the turn of the DefaultView
         logger.debug('PlantsPlugin::init, registering splash info box')
@@ -374,7 +376,9 @@ class PlantsPlugin(pluginmgr.Plugin):
         import bauble.meta as meta
         session = db.Session()
         default = 'false'
-        q = session.query(bauble.meta.BaubleMeta).filter(bauble.meta.BaubleMeta.name.startswith('stqr-'))
+        q = session.query(
+            bauble.meta.BaubleMeta).filter(
+                bauble.meta.BaubleMeta.name.startswith('stqr-'))
         for i in q.all():
             default = i.name
             session.delete(i)
@@ -383,8 +387,10 @@ class PlantsPlugin(pluginmgr.Plugin):
         if init_marker.value == 'false':
             init_marker.value = 'true'
             for index, name, tooltip, query in [
-                    (9, _('history'), _('the history in this database'), ':history'),
-                    (10, _('preferences'), _('your user preferences'), ':prefs')]:
+                    (9, _('history'), _('the history in this database'),
+                     ':history'),
+                    (10, _('preferences'), _('your user preferences'),
+                     ':prefs')]:
                 meta.get_default('stqr_%02d' % index,
                                  "%s:%s:%s" % (name, tooltip, query),
                                  session)
