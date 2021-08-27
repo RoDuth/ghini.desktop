@@ -100,6 +100,7 @@
           <object class="GtkGrid" id="mako_options_box">
             <property name="visible">True</property>
             <property name="can-focus">False</property>
+            <property name="row-homogeneous">True</property>
             <child>
               <placeholder/>
             </child>

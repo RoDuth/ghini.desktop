@@ -287,16 +287,16 @@ class MakoFormatterSettingsBox(SettingsBox):
         self.defaults = []
 
     def get_settings(self):
-        """
-        """
         return {'template': self.widgets.template_chooser.get_filename(),
                 'private': self.widgets.private_check.get_active()}
 
     def update(self, settings):
         if settings.get('template'):
             # TODO in windows, set_filename writes the label on the button but
-            # doesn't open the FileChooserNative at that location, instead
+            # the FileChooserNative wont open at that location, instead
             # opening at the last place you had any open filechooser.
+            # set_current_folder makes no difference, nor does setting filename
+            # to None prior to opening, or any combination of the 2.
             self.widgets.template_chooser.set_filename(settings['template'])
             logger.debug('template = %s', settings['template'])
             self.widgets.template_chooser.emit('file-set')
@@ -326,7 +326,6 @@ class MakoFormatterSettingsBox(SettingsBox):
             option_lines = []
 
         option_fields = [i.groups() for i in option_lines]
-        from bauble.plugins.report import options
         current_row = 0
         # populate the options box
         for fname, ftype, fdefault, ftooltip in option_fields:
@@ -334,12 +333,9 @@ class MakoFormatterSettingsBox(SettingsBox):
             label = Gtk.Label(fname.replace('_', ' ') + _(':'))
             label.set_halign(Gtk.Align.END)
             label.set_margin_right(5)
-            entry = Gtk.Entry()
-            options.setdefault(fname, fdefault)
-            entry.set_text(options[fname])
+            entry = self.get_option_widget(ftype, fdefault, fname)
             entry.set_tooltip_text(ftooltip)
             # entry updates the corresponding item in report.options
-            entry.connect('changed', self.set_option, fname)
             self.defaults.append((entry, fdefault))
             options_box.attach(label, 0, current_row, 1, 1)
             options_box.attach(entry, 1, current_row, 1, 1)
@@ -360,9 +356,30 @@ class MakoFormatterSettingsBox(SettingsBox):
         for entry, text in self.defaults:
             entry.set_text(text)
 
-    def set_option(self, widget, fname):
+    @staticmethod
+    def set_option(widget, fname):
         from bauble.plugins.report import options
         options[fname] = widget.get_text()
+
+    @staticmethod
+    def toggle_option(widget, fname):
+        from bauble.plugins.report import options
+        options[fname] = widget.get_active()
+
+    def get_option_widget(self, ftype, fdefault, fname):
+        from bauble.plugins.report import options
+        if ftype == 'boolean':
+            active = fdefault.lower() in ['1', 'true']
+            options.setdefault(fname, active)
+            entry = Gtk.CheckButton()
+            entry.set_active(options[fname])
+            entry.connect('toggled', self.toggle_option, fname)
+            return entry
+        entry = Gtk.Entry()
+        options.setdefault(fname, fdefault)
+        entry.set_text(options[fname])
+        entry.connect('changed', self.set_option, fname)
+        return entry
 
 
 _settings_box = MakoFormatterSettingsBox()
