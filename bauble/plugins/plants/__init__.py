@@ -1,5 +1,6 @@
 # Copyright 2008-2010 Brett Adams
 # Copyright 2012-2015 Mario Frasca <mario@anche.no>.
+# Copyright 2021 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -400,15 +401,18 @@ class PlantsPlugin(pluginmgr.Plugin):
             return
         path = os.path.join(paths.lib_dir(), "plugins", "plants", "default")
         filenames = [os.path.join(path, f) for f in ('family.txt',
-                     'family_synonym.txt',
-                     'genus.txt', 'genus_synonym.txt', 'geography.txt',
-                     'habit.txt')]
+                                                     'family_synonym.txt',
+                                                     'genus.txt',
+                                                     'genus_synonym.txt',
+                                                     'habit.txt')]
 
         from bauble.plugins.imex.csv_ import CSVImporter
         csv = CSVImporter()
-        #import_error = False
-        #import_exc = None
         csv.start(filenames, metadata=db.metadata, force=True)
+        from .geography import geography_importer
+        msg = _("importing TDWG geography table data")
+        bauble.task.set_message(msg)
+        bauble.task.queue(geography_importer())
 
 
 plugin = PlantsPlugin

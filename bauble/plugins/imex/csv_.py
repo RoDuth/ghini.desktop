@@ -160,6 +160,7 @@ class CSVImporter(Importer):
 
     def __init__(self):
         super().__init__()
+        self.translator = {}
         self.__error = False   # flag to indicate error on import
         self.__cancel = False  # flag to cancel importing
         self.__pause = False   # flag to pause importing
@@ -179,7 +180,139 @@ class CSVImporter(Importer):
         if filenames is None:
             return
 
+        bauble_meta = [i for i in filenames if i.endswith('bauble.txt')]
+        geography = [i for i in filenames if i.endswith('geography.txt')]
+
+        if bauble_meta and geography and not force:
+            with open(bauble_meta[0], 'r') as f:
+                in_file = csv.DictReader(f)
+                version = None
+                for line in in_file:
+                    if line.get('name') == 'version':
+                        version = line.get('value')
+                        logger.debug('importing version %s data', version)
+                        break
+
+                if version < '1.3.0-b':
+                    msg = _('You are importing data from a version prior '
+                            'to v1.3.0-b?\n\nThe geography table (e.g. '
+                            'as possibly used in species distributions and '
+                            'collection data) has changed.\n\nWould you like '
+                            'to transform your data to match the new version? '
+                            '\n(Select "Yes". To continue with your old data '
+                            'select "No")\n\nIf you keep a copy of your '
+                            'backup you can always undo this by restoring '
+                            'again. Alternatively copies of the original '
+                            'files will be saved with an appended "_ORIG_"')
+                    response = utils.yes_no_dialog(msg)
+                    if response:
+                        change_lst = [i for i in filenames if
+                                      i.endswith('species_distribution.txt') or
+                                      i.endswith('collection.txt')]
+                        filenames.remove(geography[0])
+                        bauble.task.queue(
+                            self.get_geo_translator(geography[0]))
+                        bauble.task.queue(
+                            self.upgrader(change_lst, geography[0]))
+
         bauble.task.queue(self.run(filenames, metadata, force))
+
+    def upgrader(self, change_lst, geography):
+        """ Upgrade changes from v1.0 to v1.3 prior to importing
+        """
+        for file in change_lst:
+            original = file + '_ORIG_'
+
+            msg = _('translating data in: ')
+            logger.debug('translating %s', file)
+            bauble.task.set_message(msg + file)
+
+            with open(file, 'r') as f:
+                num_lines = len(f.readlines())
+
+            os.rename(file, original)
+            with open(original, 'r') as old, open(file, 'w') as new:
+                in_file = csv.DictReader(old)
+                fieldnames = in_file.fieldnames
+                out_file = csv.DictWriter(new, fieldnames=fieldnames)
+                out_file.writeheader()
+                for count, line in enumerate(in_file):
+                    new_geo_id = self.translator.get(line.get('geography_id'))
+                    # the old system had one entry with no code or parent.
+                    if not new_geo_id:
+                        logger.debug('skipping %s', line)
+                        continue
+                    line['geography_id'] = new_geo_id
+                    out_file.writerow(line)
+                    fraction = float(count) / float(num_lines)
+                    pb_set_fraction(fraction)
+                    if count % 10 == 0:
+                        yield
+
+    def get_geo_translator(self, geography):
+        """return a dictionary of old IDs to new IDs for the geography table.
+        """
+        from bauble.plugins.plants import Geography
+
+        msg = _('creating translation table')
+        logger.debug(msg)
+        bauble.task.set_message(msg)
+
+        with open(geography, 'r') as f:
+            num_lines = len(f.readlines())
+
+        old_geos = dict()
+        with open(geography, 'r') as f:
+            geo = csv.DictReader(f)
+            for count, line in enumerate(geo):
+                id_ = line.get('id')
+                code = line.get('tdwg_code').split(',')[0]
+                parent = line.get('parent_id')
+                # code = line.get('tdwg_code').split(',')[0]
+                old_geos[id_] = {'code': code, 'parent': parent}
+                # update the gui
+                fraction = float(count) / float(num_lines)
+                pb_set_fraction(fraction)
+                if count % 10 == 0:
+                    yield
+
+        session = db.Session()
+        translator = dict()
+        num_lines = len(old_geos)
+        count = 0
+        for id_, codes in old_geos.items():
+            new = (session.query(Geography)
+                   .filter_by(tdwg_code=codes.get('code'))
+                   .all())
+            if not new:
+                parent = old_geos.get(codes.get('parent'))
+                if not parent:
+                    logger.debug('no parent for %s', codes)
+                    continue
+                new = (session.query(Geography)
+                       .filter_by(tdwg_code=parent.get('code'))
+                       .all())
+            if not new:
+                parent2 = old_geos.get(parent.get('parent'))
+                if not parent2:
+                    logger.debug('no parent for %s', codes)
+                    continue
+                new = (session.query(Geography)
+                       .filter_by(tdwg_code=parent2.get('code'))
+                       .all())
+            if new:
+                if len(new) == 1:
+                    translator[id_] = new[0].id
+                else:
+                    logger.debug('multiples records for %s', codes)
+            else:
+                logger.debug('unfound area %s', codes)
+            count += 1
+            fraction = float(count) / float(num_lines)
+            pb_set_fraction(fraction)
+            if count % 10 == 0:
+                yield
+        self.translator = translator
 
     @staticmethod
     def _toposort_file(filename, key_pairs):
@@ -315,7 +448,8 @@ class CSVImporter(Importer):
             logger.debug('entering try block in csv importer')
             # get all the dependencies
             for table, filename in sorted_tables:
-                logger.debug('get table dependendencies for table %s' % table.name)
+                logger.debug('get table dependendencies for table %s',
+                             table.name)
                 d = utils.find_dependent_tables(table)
                 depends.update(list(d))
                 del d

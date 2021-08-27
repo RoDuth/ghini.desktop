@@ -1,5 +1,6 @@
 # Copyright 2008-2010 Brett Adams
 # Copyright 2012-2015 Mario Frasca <mario@anche.no>.
+# Copyright 2021 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -19,6 +20,7 @@
 # geography.py
 #
 from operator import itemgetter
+from pathlib import Path
 
 import logging
 logger = logging.getLogger(__name__)
@@ -26,9 +28,10 @@ logger = logging.getLogger(__name__)
 from gi.repository import Gtk  # noqa
 
 from sqlalchemy import select, Column, Unicode, String, Integer, ForeignKey
-from sqlalchemy.orm import object_session, relation, backref
+from sqlalchemy.orm import object_session, relation, backref, deferred
 
 from bauble import db
+from bauble import btypes as types
 
 
 def get_species_in_geography(geo):
@@ -160,9 +163,13 @@ class Geography(db.Base):
 
         *tdwg_code*:
 
+        *tdwg_level*
+
         *iso_code*:
 
         *parent_id*:
+
+        *geojson*
 
     :Properties:
         *children*:
@@ -174,8 +181,10 @@ class Geography(db.Base):
     # columns
     name = Column(Unicode(255), nullable=False)
     tdwg_code = Column(String(6))
+    tdwg_level = Column(Integer)
     iso_code = Column(String(7))
     parent_id = Column(Integer, ForeignKey('geography.id'))
+    geojson = deferred(Column(types.JSON()))
 
     def __str__(self):
         return str(self.name)
@@ -189,3 +198,141 @@ Geography.children = relation(
     backref=backref("parent",
                     remote_side=[Geography.__table__.c.id]),
     order_by=[Geography.name])
+
+
+def geography_importer():
+
+    import json
+    from bauble import paths
+    from bauble import pb_set_fraction
+
+    lvl1_file = Path(paths.lib_dir(), "plugins", "plants", "default", "wgsrpd",
+                     "level1.geojson")
+    lvl2_file = Path(paths.lib_dir(), "plugins", "plants", "default", "wgsrpd",
+                     "level2.geojson")
+    lvl3_file = Path(paths.lib_dir(), "plugins", "plants", "default", "wgsrpd",
+                     "level3.geojson")
+    lvl4_file = Path(paths.lib_dir(), "plugins", "plants", "default", "wgsrpd",
+                     "level4.geojson")
+
+    session = db.Session()
+
+    with open(lvl1_file, 'r') as f:
+        geojson_lvl1 = json.load(f)
+
+    with open(lvl2_file, 'r') as f:
+        geojson_lvl2 = json.load(f)
+
+    with open(lvl3_file, 'r') as f:
+        geojson_lvl3 = json.load(f)
+
+    with open(lvl4_file, 'r') as f:
+        geojson_lvl4 = json.load(f)
+
+    total_items = (len(geojson_lvl1.get('features')) +
+                   len(geojson_lvl2.get('features')) +
+                   len(geojson_lvl3.get('features')) +
+                   len(geojson_lvl4.get('features')))
+
+    steps_so_far = 0
+    update_every = 20
+
+    def update_progressbar(steps_so_far):
+        percent = float(steps_so_far) / float(total_items)
+        if 0 < percent < 1.0:
+            pb_set_fraction(percent)
+
+    for feature in geojson_lvl1.get('features'):
+        row = Geography()
+        props = feature.get('properties')
+        row.tdwg_code = str(props.get('LEVEL1_COD'))
+        row.tdwg_level = 1
+        row.name = props.get('LEVEL1_NAM')
+        row.geojson = feature.get('geometry')
+        session.add(row)
+        session.commit()
+        steps_so_far += 1
+        update_progressbar(steps_so_far)
+        if steps_so_far % update_every == 0:
+            yield
+
+    for feature in geojson_lvl2.get('features'):
+        row = Geography()
+        props = feature.get('properties')
+        row.tdwg_code = str(props.get('LEVEL2_COD'))
+        row.tdwg_level = 2
+        row.name = props.get('LEVEL2_NAM')
+        row.geojson = feature.get('geometry')
+        row.parent = (session.query(Geography)
+                      .filter(Geography.tdwg_code == props.get('LEVEL1_COD'))
+                      .one())
+        session.add(row)
+        session.commit()
+        steps_so_far += 1
+        update_progressbar(steps_so_far)
+        if steps_so_far % update_every == 0:
+            yield
+
+    for feature in geojson_lvl3.get('features'):
+        row = Geography()
+        props = feature.get('properties')
+        row.tdwg_code = str(props.get('LEVEL3_COD'))
+        row.tdwg_level = 3
+        row.name = props.get('LEVEL3_NAM')
+        row.geojson = feature.get('geometry')
+        row.parent = (session.query(Geography)
+                      .filter(Geography.tdwg_code == props.get('LEVEL2_COD'))
+                      .one())
+        session.add(row)
+        session.commit()
+        steps_so_far += 1
+        update_progressbar(steps_so_far)
+        if steps_so_far % update_every == 0:
+            yield
+
+    for feature in geojson_lvl4.get('features'):
+        props = feature.get('properties')
+        if props.get('Level4_2') == 'OO':
+            # these are really only place holders and are the same as the 3rd
+            # level elements, which should be used instead.
+            steps_so_far += 1
+            update_progressbar(steps_so_far)
+            if steps_so_far % update_every == 0:
+                yield
+            continue
+        parent = (session.query(Geography)
+                  .filter(Geography.tdwg_code == props.get('Level3_cod'))
+                  .one())
+        # check for duplicates (e.g. CZE-SL has 2 entries) use the version with
+        # the most detail
+        existing = (session.query(Geography)
+                    .filter_by(tdwg_level=4,
+                               parent_id=parent.id,
+                               tdwg_code=props.get('Level4_cod'),
+                               iso_code=props.get('ISO_Code'),
+                               name=props.get('Level_4_Na'))
+                    .first())
+        if existing:
+            logger.debug('found duplicate for: %s', props)
+            # Hacky... but works
+            if (len(str(feature.get('geometry')).split(',')) >
+                    len(str(existing.geojson).split(','))):
+                row = existing
+                logger.debug('using duplicate, overwriting original')
+            else:
+                logger.debug('dropping duplicate')
+                continue
+        else:
+            row = Geography()
+        row.tdwg_code = props.get('Level4_cod')
+        row.tdwg_level = 4
+        row.iso_code = props.get('ISO_Code')
+        row.name = props.get('Level_4_Na')
+        row.geojson = feature.get('geometry')
+        row.parent = parent
+        session.add(row)
+        session.commit()
+        steps_so_far += 1
+        update_progressbar(steps_so_far)
+        if steps_so_far % update_every == 0:
+            yield
