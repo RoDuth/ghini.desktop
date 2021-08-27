@@ -412,9 +412,28 @@ class PlantsPlugin(pluginmgr.Plugin):
                                                      'genus_synonym.txt',
                                                      'habit.txt')]
 
+        # this should only occur first time around, not wipe out existing
+        # data.  Or at least ask the user.
+        with db.engine.connect() as con:
+            fams = con.execute('SELECT COUNT(*) FROM family')
+            fams = next(fams)[0]
+            gens = con.execute('SELECT COUNT(*) FROM genus')
+            gens = next(gens)[0]
+            geos = con.execute('SELECT COUNT(*) FROM geography')
+            geos = next(geos)[0]
+            if gens > 0 and fams > 0 and geos > 0:
+                msg = _(f'You already seem to have approximately <b>{gens}</b>'
+                        f' records in the genus table, <b>{fams}</b> in the '
+                        f'family table and <b>{geos}</b> in geography table. '
+                        '\n\n<b>Do you want to overwrite these tables and '
+                        'their related synonym tables?</b>')
+                if not utils.yes_no_dialog(msg):
+                    return
         from bauble.plugins.imex.csv_ import CSVImporter
         csv = CSVImporter()
         csv.start(filenames, metadata=db.metadata, force=True)
+        Geography.__table__.drop(db.engine)
+        Geography.__table__.create(db.engine)
         from .geography import geography_importer
         msg = _("importing TDWG geography table data")
         bauble.task.set_message(msg)

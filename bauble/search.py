@@ -1284,6 +1284,7 @@ class QueryBuilder(GenericEditorPresenter):
         # initialize view at 1 clause, however invalid
         self.table_row_count = 0
         self.on_add_clause()
+        self.view.get_window().resize(1, 1)
         self.view.widgets.expressions_table.show_all()
         # let user add more clauses
         self.view.widgets.add_clause_button.props.sensitive = True
@@ -1316,6 +1317,7 @@ class QueryBuilder(GenericEditorPresenter):
         [i.destroy() for i in row.get_widgets()]
         self.table_row_count -= 1
         self.expression_rows.remove(row)
+        self.view.get_window().resize(1, 1)
 
     def on_add_clause(self, *args):
         """

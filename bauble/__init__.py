@@ -383,7 +383,7 @@ def main(uri=None):
         except Exception as e:
             logger.warning("%s\n%s(%s)"
                            % (traceback.format_exc(), type(e).__name__, e))
-            msg = utils.utf8("%s(%s)" % (type(e).__name__, e))
+            msg = utils.xml_safe("%s(%s)" % (type(e).__name__, e))
             utils.message_dialog(msg, Gtk.MessageType.WARNING)
         gui.get_view().update()
 

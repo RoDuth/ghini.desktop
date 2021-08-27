@@ -361,7 +361,7 @@ class PluginRegistry(db.Base):
             name = plugin.__class__.__name__
         session = db.Session()
         p = session.query(PluginRegistry).\
-            filter_by(name=utils.utf8(name)).one()
+            filter_by(name=str(name)).one()
         session.delete(p)
         session.commit()
         session.close()
