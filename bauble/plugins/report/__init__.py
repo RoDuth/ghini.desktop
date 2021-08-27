@@ -1,7 +1,7 @@
 # Copyright 2008-2010 Brett Adams
 # Copyright 2012-2017 Mario Frasca <mario@anche.no>.
 # Copyright 2017 Jardín Botánico de Quito
-# Copyright 2017-2020 Ross Demuth
+# Copyright 2017-2021 Ross Demuth
 #
 # This file is part of ghini.desktop.
 #
@@ -40,7 +40,8 @@ from bauble.prefs import prefs
 from bauble import utils
 from bauble import paths
 from bauble import pluginmgr
-from bauble.plugins.plants import Family, Genus, Species, VernacularName
+from bauble.plugins.plants import (Family, Genus, Species, VernacularName,
+                                   Geography)
 from bauble.plugins.garden import Accession, Plant, Location, Contact
 from bauble.plugins.tag import Tag
 from .template_downloader import TemplateDownloadTool
@@ -102,6 +103,9 @@ def get_plant_query(obj, session):
     elif isinstance(obj, VernacularName):
         return q.join('accession', 'species', 'vernacular_names').\
             filter_by(id=obj.id)
+    elif isinstance(obj, Geography):
+        return q.join('accession', 'species', 'distribution', 'geography'
+                      ).filter_by(id=obj.id)
     elif isinstance(obj, Plant):
         return q.filter_by(id=obj.id)
     elif isinstance(obj, Accession):
@@ -144,6 +148,9 @@ def get_accession_query(obj, session):
             filter_by(id=obj.id)
     elif isinstance(obj, Plant):
         return q.join('plants').filter_by(id=obj.id)
+    elif isinstance(obj, Geography):
+        return q.join('species', 'distribution', 'geography'
+                      ).filter_by(id=obj.id)
     elif isinstance(obj, Accession):
         return q.filter_by(id=obj.id)
     elif isinstance(obj, Location):
@@ -180,6 +187,8 @@ def get_species_query(obj, session):
         return q.join('genus').filter_by(id=obj.id)
     elif isinstance(obj, Species):
         return q.filter_by(id=obj.id)
+    elif isinstance(obj, Geography):
+        return q.join('distribution', 'geography').filter_by(id=obj.id)
     elif isinstance(obj, VernacularName):
         return q.join('vernacular_names').\
             filter_by(id=obj.id)
@@ -235,6 +244,9 @@ def get_location_query(obj, session):
     elif isinstance(obj, VernacularName):
         return q.join('plants', 'accession', 'species', 'vernacular_names').\
             filter_by(id=obj.id)
+    elif isinstance(obj, Geography):
+        return q.join('plants', 'accession', 'species', 'distribution',
+                      'geography').filter_by(id=obj.id)
     elif isinstance(obj, Contact):
         return q.join('plants', 'accession', 'source', 'source_detail').\
                 filter_by(id=obj.id)
@@ -255,6 +267,55 @@ def get_locations_pertinent_to(objs, session=None):
     """
     return sorted(
         _get_pertinent_objects(Location, get_location_query, objs, session),
+        key=str)
+
+
+def get_geography_query(obj, session):
+    """
+    """
+    q = session.query(Geography).order_by(None)
+    if isinstance(obj, Geography):
+        return q.filter_by(id=obj.id)
+    elif isinstance(obj, Plant):
+        return q.join('distribution', 'species', 'accessions', 'plants'
+                      ).filter_by(id=obj.id)
+    # This is the exception, it uses the collection geography entry.
+    elif isinstance(obj, Accession):
+        return q.join('collection', 'source', 'accession'
+                      ).filter_by(id=obj.id)
+    elif isinstance(obj, Family):
+        return q.join('distribution', 'species', 'genus', 'family'
+                      ).filter_by(id=obj.id)
+    elif isinstance(obj, Genus):
+        return q.join('distribution', 'species', 'genus').filter_by(id=obj.id)
+    elif isinstance(obj, Species):
+        return q.join('distribution', 'species').filter_by(id=obj.id)
+    elif isinstance(obj, Location):
+        return q.join('distribution', 'species', 'accessions', 'plants',
+                      'location').filter_by(id=obj.id)
+    elif isinstance(obj, VernacularName):
+        return q.join('distribution', 'species', 'vernacular_names'
+                      ).filter_by(id=obj.id)
+    elif isinstance(obj, Contact):
+        return q.join('distribution', 'species', 'accessions', 'source',
+                      'source_detail').filter_by(id=obj.id)
+    elif isinstance(obj, Tag):
+        geos = get_geographies_pertinent_to(obj.objects, session)
+        return q.filter(Geography.id.in_([g.id for g in geos]))
+    else:
+        raise BaubleError(_("Can't get Geography from a %s") %
+                          type(obj).__name__)
+
+
+def get_geographies_pertinent_to(objs, session=None):
+    """
+    :param objs: an instance of a mapped object
+    :param session: the session to use for the queries
+
+    Return all the locations found in objs.
+    """
+    return sorted(
+        _get_pertinent_objects(Geography, get_geography_query, objs, session),
         key=str)
 
 

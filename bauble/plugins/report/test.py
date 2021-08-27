@@ -1,7 +1,7 @@
 # Copyright (c) 2005,2006,2007,2008,2009 Brett Adams <brett@belizebotanic.org>
 # Copyright (c) 2012-2017 Mario Frasca <mario@anche.no>
 # Copyright 2017 Jardín Botánico de Quito
-# Copyright (c) 2017 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright (c) 2017-2021 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -23,8 +23,10 @@ import os
 from bauble.test import BaubleTestCase, check_dupids
 from bauble.plugins.report import (
     get_species_pertinent_to, get_accessions_pertinent_to,
-    get_plants_pertinent_to, get_locations_pertinent_to)
-from bauble.plugins.plants import Family, Genus, Species, VernacularName
+    get_plants_pertinent_to, get_locations_pertinent_to,
+    get_geographies_pertinent_to)
+from bauble.plugins.plants import (Family, Genus, Species, VernacularName,
+                                   Geography)
 from bauble.plugins.garden import Accession, Plant, Location, Source, Contact
 from bauble.plugins.tag import tag_objects, Tag
 
@@ -359,6 +361,138 @@ class ReportTests(ReportTestCase):
 
         # now test all the objects
         locations = get_locations_pertinent_to(
-            [family, genus, species, accession, plant, location, tag], self.session)
+            [family, genus, species, accession, plant, location, tag],
+            self.session)
         ids = get_ids(locations)
         self.assertEqual(ids, list(range(1, 17)))
+
+    def test_get_geographies_pertinent_to(self):
+        """
+        Test getting the geographies from different types
+        """
+        from bauble.plugins.plants.geography import geography_importer
+        from bauble.plugins.garden import Collection
+        from bauble.plugins.plants import SpeciesDistribution
+        # at least we run it once during a test!
+        [i for i in geography_importer()]
+        self.assertTrue(len(self.session.query(Geography).all()) > 700)
+
+        geo1 = self.session.query(Geography).get(330)
+        geo2 = self.session.query(Geography).get(694)
+
+        acc1 = self.session.query(Accession).get(1)
+        acc1.source.collection = Collection(locale='down the road')
+        acc1.source.collection.region = geo1
+        self.assertIsNotNone(acc1.source.collection)
+        self.session.add(acc1)
+        self.session.commit()
+
+        sp1 = self.session.query(Species).get(1)
+        sp1_dist = SpeciesDistribution(species=sp1, geography=geo2)
+        self.session.add(sp1_dist)
+        self.session.commit()
+        # self.assertEqual(sp1.distribution.geography.id, geo2.id)
+
+        def get_ids(objs):
+            return [o.id for o in objs]
+
+        # get geographies from one geographies
+        ids = get_ids(get_geographies_pertinent_to([geo1, geo2], self.session))
+        self.assertCountEqual(ids, [694, 330])
+
+        # get geographies from one family
+        family = self.session.query(Family).get(1)
+        ids = get_ids(get_geographies_pertinent_to(family, self.session))
+        self.assertCountEqual(ids, [694])
+
+        # get locations from multiple families
+        family = self.session.query(Family).get(1)
+        family2 = self.session.query(Family).get(2)
+        ids = get_ids(get_geographies_pertinent_to([family, family2],
+                                                   self.session))
+        self.assertCountEqual(ids, [694])
+
+        genus = self.session.query(Genus).get(1)
+        ids = get_ids(get_geographies_pertinent_to(genus, self.session))
+        self.assertCountEqual(ids, [694])
+
+        species = self.session.query(Species).get(1)
+        ids = get_ids(get_geographies_pertinent_to(species, self.session))
+        self.assertCountEqual(ids, [694])
+
+        vn = self.session.query(VernacularName).get(1)
+        ids = get_ids(get_geographies_pertinent_to(vn, self.session))
+        self.assertCountEqual(ids, [694])
+
+        plant = self.session.query(Plant).get(1)
+        ids = get_ids(get_geographies_pertinent_to(plant, self.session))
+        self.assertCountEqual(ids, [694])
+
+        accession = self.session.query(Accession).get(1)
+        ids = get_ids(get_geographies_pertinent_to(accession, self.session))
+        self.assertCountEqual(ids, [330])
+
+        contact = self.session.query(Contact).get(1)
+        ids = get_ids(get_geographies_pertinent_to(contact, self.session))
+        self.assertCountEqual(ids, [694])
+
+        location = self.session.query(Location).get(1)
+        ids = get_ids(get_geographies_pertinent_to([location], self.session))
+        self.assertCountEqual(ids, [694])
+
+        tag_objects('test', [family, genus])
+        tag = self.session.query(Tag).filter_by(tag='test').one()
+        ids = get_ids(get_geographies_pertinent_to(tag, self.session))
+        self.assertCountEqual(ids, [694])
+
+        # now test all the objects
+        locations = get_geographies_pertinent_to(
+            [family, genus, species, accession, plant, location, tag],
+            self.session)
+        ids = get_ids(locations)
+        self.assertCountEqual(ids, [694, 330])
+
+    def test_get_items_pertinent_to_geographies(self):
+        """get geographies from various other items
+        """
+        from bauble.plugins.plants.geography import geography_importer
+        from bauble.plugins.garden import Collection
+        from bauble.plugins.plants import SpeciesDistribution
+        # at least we run it once during a test!
+        [i for i in geography_importer()]
+        self.assertTrue(len(self.session.query(Geography).all()) > 700)
+
+        geo1 = self.session.query(Geography).get(330)
+        geo2 = self.session.query(Geography).get(694)
+
+        acc1 = self.session.query(Accession).get(1)
+        acc1.source.collection = Collection(locale='down the road')
+        acc1.source.collection.region = geo1
+        self.assertIsNotNone(acc1.source.collection)
+        self.session.add(acc1)
+        self.session.commit()
+
+        sp1 = self.session.query(Species).get(1)
+        sp1_dist = SpeciesDistribution(species=sp1, geography=geo2)
+        self.session.add(sp1_dist)
+        self.session.commit()
+        # self.assertEqual(sp1.distribution.geography.id, geo2.id)
+
+        def get_ids(objs):
+            return [o.id for o in objs]
+
+        ids = get_ids(get_species_pertinent_to([geo1, geo2], self.session))
+        self.assertCountEqual(ids, [1])
+
+        ids = get_ids(get_accessions_pertinent_to([geo1, geo2], self.session))
+        # distribution of the species not the region of a sources collection.
+        self.assertCountEqual(ids, [1, 2])
+
+        ids = get_ids(get_locations_pertinent_to([geo1, geo2], self.session))
+        self.assertCountEqual(
+            ids,
+            [plt.location_id for acc in sp1.accessions for plt in acc.plants]
+        )
+
+        ids = get_ids(get_plants_pertinent_to([geo1, geo2], self.session))
+        self.assertCountEqual(ids, [1, 2, 3, 4])
