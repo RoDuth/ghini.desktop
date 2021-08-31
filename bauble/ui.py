@@ -828,6 +828,7 @@ class GUI(object):
                      dialog_on_error=True)
 
     def on_help_menu_logfile(self, widget, data=None):
+        logger.debug('opening log file from help menu')
         filename = os.path.join(paths.appdata_dir(), 'bauble.log')
         desktop.open(filename, dialog_on_error=True)
 
@@ -872,30 +873,29 @@ class GUI(object):
         about = Gtk.AboutDialog()
         about.set_program_name('Ghini (BBG)')
         about.set_version(bauble.version)
-        # Gtk.about_dialog_set_url_hook(lambda d, l:
-        #                               desktop.open(l, dialog_on_error=True))
         about.set_website(_('http://ghini.github.io'))
         f = os.path.join(paths.lib_dir(), 'images', 'icon.svg')
+        logger.debug('about using icon: %s', f)
         pixbuf = GdkPixbuf.Pixbuf.new_from_file(f)
         about.set_logo(pixbuf)
         about.set_copyright(_('Copyright © by its contributors.'))
 
-        lic_path = Path(paths.installation_dir(), 'share', 'ghini', 'LICENSE')
+        lic_path = Path(paths.main_dir(), 'share', 'ghini', 'LICENSE')
 
         if not lic_path.exists():
             lic_path = Path(paths.main_dir(), 'LICENSE')
 
+        logger.debug('about using license at %s', lic_path)
+
         with open(lic_path) as f:
-            license = f.read()
-        about.set_license(license)  # not translated
+            lics = f.read()
+        about.set_license(lics)  # not translated
         about.set_comments(_('This version installed on: %s\n'
                              'Latest published version: %s\n'
                              'Publication date: %s') % (
                                  bauble.installation_date,
                                  bauble.release_version,
-                                 bauble.release_date,
-                             )
-                           )
+                                 bauble.release_date))
         about.run()
         about.destroy()
 

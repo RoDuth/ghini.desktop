@@ -1,4 +1,6 @@
-image: Visual Studio 2019
+image:
+  - Visual Studio 2019
+  - macos
 
 platform:
   - x64
@@ -7,24 +9,54 @@ branches:
   only:
     - ghini-1.3-bbg
 
-environment:
-  MSYSTEM: MINGW64
-  CHERE_INVOKING: 1
-  PATH: C:\msys64\usr\bin;C:\Program Files (x86)\NSIS\Bin;C:\WINDOWS\system32;C:\WINDOWS;C:\WINDOWS\System32\Wbem
+for:
+-
+  matrix:
+    only:
+      - image: Visual Studio 2019
+  environment:
+    MSYSTEM: MINGW64
+    CHERE_INVOKING: 1
+    PATH: C:\msys64\usr\bin;C:\Program Files (x86)\NSIS\Bin;C:\WINDOWS\system32;C:\WINDOWS;C:\WINDOWS\System32\Wbem
 
-install:
-  - bash -lc "pacman --noconfirm -Syuu"
-  - bash -lc "pacman --noconfirm -Syuu"
-  - bash -lc "pacman --noconfirm -S - < ./scripts/mingw64_pkglist.txt"
+  install:
+    - bash -lc "pacman --noconfirm -Syuu"
+    - bash -lc "pacman --noconfirm -Syuu"
+    - bash -lc "pacman --noconfirm -S - < ./scripts/mingw64_pkglist.txt"
 
-build_script:
-  - bash -lc "pip install ."
-  - bash -lc "pip install pyinstaller"
-  - bash -lc "python -m PyInstaller --clean -w --noconfirm ghini.spec"
-  - makensis scripts\build-multiuser.nsi
+  build_script:
+    - bash -lc "pip install ."
+    - bash -lc "pip install pyinstaller"
+    - bash -lc "python -m PyInstaller --clean -w --noconfirm scripts/ghini.spec"
+    - makensis scripts\build-multiuser.nsi
 
-artifacts:
-  - path: scripts/ghini.desktop-*-setup.exe
+  artifacts:
+    - path: dist/ghini.desktop-*-setup.exe
+
+  test_script:
+    - bash -lc "BAUBLE_TEST=True nosetests --traverse-namespace -vv"
+-
+  matrix:
+    only:
+      - image: macos
+
+  install:
+    - brew install pygobject3 gtk+3
+    - brew install create-dmg
+
+  build_script:
+    - . ~/venv3.9/bin/activate
+    - cp -rf "$(find /usr/local/Cellar/pygobject3 -type d -name site-packages)"/* "$(find $VIRTUAL_ENV -type d -name site-packages)"
+    - pip install .
+    - epip install pyinstaller
+    - pyinstaller --clean -w --noconfirm scripts/ghini.spec
+    - ./scripts/dmg_create.sh
+
+  artifacts:
+    - path: dist/Ghini-*-install.dmg
+
+  test_script:
+    - BAUBLE_TEST=True nosetests --traverse-namespace -vv
 
 deploy:
   release: 'v1.3.0-b (BBG Branch)' # :bump
@@ -35,6 +67,3 @@ deploy:
   draft: false
   prerelease: true
   force_update: true
-
-test_script:
-  - bash -lc "BAUBLE_TEST=True nosetests --traverse-namespace -vv"

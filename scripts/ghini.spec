@@ -2,41 +2,44 @@
 # pylint: disable=undefined-variable,missing-module-docstring
 # -*- mode: python ; coding: utf-8 -*-
 
-import os
+from pathlib import Path
+from tld.defaults import NAMES_LOCAL_PATH_PARENT
+import pyproj
+import bauble
 
-glade_files = []
-for root, _, files in os.walk('bauble'):
-    if any(i.endswith('.glade') for i in files):
-        glade_files.append((root + '/*.glade', root))
-    if any(i.endswith('.ui') for i in files):
-        glade_files.append((root + '/*.ui', root))
+
+root = Path(bauble.__file__).parent.parent
+
+glade_files = [(f'{i}/*.glade', f'{i.relative_to(root)}') for i in
+               set(i.parent for i in root.glob('**/*.glade'))]
+glade_files += [(f'{i}/*.ui', f'{i.relative_to(root)}') for i in
+                set(i.parent for i in root.glob('**/*.ui'))]
 
 # effective_tld_names.dat.txt from tld
-from tld.defaults import NAMES_LOCAL_PATH_PARENT
-tld_names = [(os.path.join(NAMES_LOCAL_PATH_PARENT, 'res', '*.txt'),
-             'tld/res')]
+tld_names = [(str(Path(NAMES_LOCAL_PATH_PARENT, 'res', '*.txt')),
+              'tld/res')]
 
 block_cipher = None
 
 
-a = Analysis(['scripts/ghini'],
-             pathex=['C:/msys64/home/rodem/ghini.desktop'],
+a = Analysis(['ghini'],
+             pathex=[root],
              binaries=[],
              datas=[
-                 ('LICENSE', 'share/ghini'),
-                 ('bauble/utils/prj_crs.db', 'bauble/utils'),
-                 ('bauble/images/*', 'bauble/images'),
-                 ('bauble/plugins/plants/default/*.txt',
+                 ('../LICENSE', 'share/ghini'),
+                 ('../bauble/utils/prj_crs.db', 'bauble/utils'),
+                 ('../bauble/images/*', 'bauble/images'),
+                 ('../bauble/plugins/plants/default/*.txt',
                   'bauble/plugins/plants/default'),
-                 ('bauble/plugins/plants/default/wgsrpd/*.geojson',
+                 ('../bauble/plugins/plants/default/wgsrpd/*.geojson',
                   'bauble/plugins/plants/default/wgsrpd/'),
-                 ('bauble/plugins/abcd/abcd_2.06.xsd',
+                 ('../bauble/plugins/abcd/abcd_2.06.xsd',
                   'bauble/plugins/abcd'),
-                 ('bauble/plugins/report/mako/templates/*',
+                 ('../bauble/plugins/report/mako/templates/*',
                   'bauble/plugins/report/mako/templates'),
-                 ('bauble/plugins/report/xsl/stylesheets',
+                 ('../bauble/plugins/report/xsl/stylesheets',
                   'bauble/plugins/report/xsl/stylesheets'),
-                 ('C:/msys64/mingw64/share/proj', 'share/proj')
+                 (pyproj.datadir.get_data_dir(), 'share/proj')
              ] + glade_files + tld_names,  # noqa
              hiddenimports=['sqlalchemy.dialects.sqlite',
                             'sqlalchemy.dialects.postgresql',
@@ -67,14 +70,13 @@ pyz = PYZ(a.pure, a.zipped_data,
           cipher=block_cipher)
 exe = EXE(pyz,
           a.scripts,
-          [],
           exclude_binaries=True,
           name='ghini',
           bootloader_ignore_signals=False,
           strip=False,
           upx=True,
           console=False,
-          icon='bauble/images/icon.ico')
+          icon='../bauble/images/icon.ico')
 coll = COLLECT(exe,
                a.binaries,
                a.zipfiles,
@@ -83,3 +85,12 @@ coll = COLLECT(exe,
                upx=True,
                upx_exclude=[],
                name='ghini')
+app = BUNDLE(coll,
+             name='Ghini.app',
+             icon='../bauble/images/icon.ico',
+             bundle_identifier=None,
+             version=bauble.version,
+             info_plist={
+                 'NSPrincipalClass': 'NSApplication',
+                 'NSAppleScriptEnabled': False,
+             })

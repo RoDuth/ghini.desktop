@@ -38,6 +38,10 @@
 ; A component has failed to install (e.g. FOP mirror is down) so you rerun for that component only
 
 ;---
+; Generate a unicode installer, best set first
+Unicode true
+
+;---
 ; Plugins, required to compile: (included in data\nsis)
 ; -
 ; nsExec (included in NSIS v3.0) for executing commands
@@ -50,7 +54,6 @@
 ; Inetc (http://nsis.sourceforge.net/Inetc_plug-in)
 ; MD5 (http://nsis.sourceforge.net/MD5_plugin)
 ;---
-!addplugindir /x86-ansi "..\nsis\Plugins\x86-ansi\"
 !addplugindir /x86-unicode "..\nsis\Plugins\x86-unicode\"
 !addincludedir "..\nsis\Include\"
 
@@ -62,7 +65,7 @@ Name "ghini.desktop"
 !define VERSION "1.3.0-b-BBG" ; :bump
 !define SRC_DIR "..\dist\ghini"
 !define PRODUCT_NAME "ghini.desktop"
-Outfile "${PRODUCT_NAME}-${VERSION}-setup.exe"
+Outfile "..\dist\${PRODUCT_NAME}-${VERSION}-setup.exe"
 !define PROGEXE "ghini.exe"
 !define COMPANY_NAME ""
 !define LICENSE_FILE "LICENSE"
