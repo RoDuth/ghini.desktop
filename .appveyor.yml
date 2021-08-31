@@ -48,7 +48,7 @@ for:
     - . ~/venv3.9/bin/activate
     - cp -rf "$(find /usr/local/Cellar/pygobject3 -type d -name site-packages)"/* "$(find $VIRTUAL_ENV -type d -name site-packages)"
     - pip install .
-    - epip install pyinstaller
+    - pip install pyinstaller
     - pyinstaller --clean -w --noconfirm scripts/ghini.spec
     - ./scripts/dmg_create.sh
 
