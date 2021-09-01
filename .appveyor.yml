@@ -16,11 +16,12 @@ for:
       - image: macos
 
   install:
-    - brew install pygobject3 gtk+3
+    - brew install pygobject3 gtk+3 adwaita-icon-theme
 
   build_script:
     - . ~/venv3.9/bin/activate
     - cp -rf "$(find /usr/local/Cellar/pygobject3 -type d -name site-packages)"/* "$(find $VIRTUAL_ENV -type d -name site-packages)"
+    - pip install psycopg2-binary
     - pip install .
     - pip install pyinstaller
     - pyinstaller --clean -w --noconfirm scripts/ghini.spec

@@ -60,6 +60,11 @@ a = Analysis(['ghini'],
                             'pyproj',
                             ],
              hookspath=[],
+             hooksconfig={"gi": {
+                 "icons": ["Adwaita"],
+                 "themes": ["Adwaita"],
+                 "languages": ["en_GB", "en_AU", "en_US"]
+             }},
              runtime_hooks=[],
              excludes=[],
              win_no_prefer_redirects=False,
