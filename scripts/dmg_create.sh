@@ -1,5 +1,10 @@
 #!/usr/bin/env bash
 
+# NOTE should work on a physical machine but not in CI as needs to applescript
+# finder.
+# skip-jenkins should get it to work in CI but results are very minimal
+#   --skip-jenkins \
+
 version=$(python -c 'import bauble; print(bauble.version)')
 instlr_name="dist/Ghini-$version-install.dmg"
 

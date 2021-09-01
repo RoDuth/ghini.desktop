@@ -1,6 +1,6 @@
 image:
-  - Visual Studio 2019
   - macos
+  - Visual Studio 2019
 
 platform:
   - x64
@@ -10,6 +10,30 @@ branches:
     - ghini-1.3-bbg
 
 for:
+-
+  matrix:
+    only:
+      - image: macos
+
+  install:
+    - brew install pygobject3 gtk+3
+
+  build_script:
+    - . ~/venv3.9/bin/activate
+    - cp -rf "$(find /usr/local/Cellar/pygobject3 -type d -name site-packages)"/* "$(find $VIRTUAL_ENV -type d -name site-packages)"
+    - pip install .
+    - pip install pyinstaller
+    - pyinstaller --clean -w --noconfirm scripts/ghini.spec
+    - pip install dmgbuild
+    - dmgbuild -s scripts/dmgbuild_settings.py "Ghini" Ghini.dmg   # Note: 2 last args are required but overidden in dmgbuild_settings.py
+
+  artifacts:
+    - path: dist/Ghini-*-installer.dmg
+
+  test_script:
+    - . ~/venv3.9/bin/activate
+    - pip install nose
+    - BAUBLE_TEST=True nosetests --traverse-namespace -vv
 -
   matrix:
     only:
@@ -35,28 +59,6 @@ for:
 
   test_script:
     - bash -lc "BAUBLE_TEST=True nosetests --traverse-namespace -vv"
--
-  matrix:
-    only:
-      - image: macos
-
-  install:
-    - brew install pygobject3 gtk+3
-    - brew install create-dmg
-
-  build_script:
-    - . ~/venv3.9/bin/activate
-    - cp -rf "$(find /usr/local/Cellar/pygobject3 -type d -name site-packages)"/* "$(find $VIRTUAL_ENV -type d -name site-packages)"
-    - pip install .
-    - pip install pyinstaller
-    - pyinstaller --clean -w --noconfirm scripts/ghini.spec
-    - ./scripts/dmg_create.sh
-
-  artifacts:
-    - path: dist/Ghini-*-install.dmg
-
-  test_script:
-    - BAUBLE_TEST=True nosetests --traverse-namespace -vv
 
 deploy:
   release: 'v1.3.0-b (BBG Branch)' # :bump
