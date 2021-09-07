@@ -1,6 +1,6 @@
 # Copyright (c) 2005,2006,2007,2008,2009 Brett Adams <brett@belizebotanic.org>
 # Copyright (c) 2012-2016,2018 Mario Frasca <mario@anche.no>
-# Copyright (c) 2016 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright (c) 2016-2021 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -95,42 +95,35 @@ def installation_dir():
     return os.path.abspath(d)
 
 
-def user_dir():
-    """Returns the path to where user data are saved.
-
-    this is not the same as Application Data, for appdata_dir is going to be
-    replaced at each new installation or upgrade of the software. user_data
-    is responsibility of the user and the software should use it, not
-    overrule it.
-
-    not implemented yet. will be a configuration item.
-
-    """
-    return appdata_dir()
-
-
 def appdata_dir():
     """Returns the path to where Ghini application data and settings are saved.
-
     """
     if sys.platform == "win32":
         if is_portable_installation():
-            d = os.path.join(main_dir(), 'Appdata')
+            appd = os.path.join(main_dir(), 'Appdata')
         elif 'APPDATA' in os.environ:
-            d = os.path.join(os.environ["APPDATA"], "Bauble")
+            appd = os.path.join(os.environ["APPDATA"], "Bauble")
         elif 'USERPROFILE' in os.environ:
-            d = os.path.join(os.environ['USERPROFILE'], 'Application Data',
-                             'Bauble')
+            appd = os.path.join(os.environ['USERPROFILE'], 'Application Data',
+                                'Bauble')
         else:
             raise Exception('Could not get path for user settings: no '
                             'APPDATA or USERPROFILE variable')
-    elif sys.platform in ('linux', 'darwin'):
+    elif sys.platform == 'darwin':
+        # pylint: disable=no-name-in-module
+        from AppKit import (NSSearchPathForDirectoriesInDomains,
+                            NSApplicationSupportDirectory,
+                            NSUserDomainMask)
+        appd = os.path.join(NSSearchPathForDirectoriesInDomains(
+            NSApplicationSupportDirectory, NSUserDomainMask, True
+        )[0], 'Bauble')
+    elif sys.platform == 'linux':
         # using os.expanduser is more reliable than os.environ['HOME']
         # because if the user runs bauble with sudo then it will
         # return the path of the user that used sudo instead of ~root
         try:
-            d = os.path.join(os.path.expanduser('~%s' % os.environ['USER']),
-                             '.bauble')
+            appd = os.path.join(os.path.expanduser('~%s' % os.environ['USER']),
+                                '.bauble')
         except Exception:
             raise Exception('Could not get path for user settings: '
                             'could not expand $HOME for user %(username)s' %
@@ -138,7 +131,7 @@ def appdata_dir():
     else:
         raise Exception('Could not get path for user settings: '
                         'unsupported platform')
-    return os.path.abspath(d)
+    return os.path.abspath(appd)
 
 
 def is_portable_installation():
