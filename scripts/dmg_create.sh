@@ -6,7 +6,7 @@
 #   --skip-jenkins \
 
 version=$(python -c 'import bauble; print(bauble.version)')
-instlr_name="dist/Ghini-$version-install.dmg"
+instlr_name="dist/Ghini-$version-installer.dmg"
 
 [[ -f "$instlr_name" ]] && rm "$instlr_name"
 

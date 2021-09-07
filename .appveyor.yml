@@ -47,7 +47,7 @@ for:
   install:
     - bash -lc "pacman --noconfirm -Syuu"
     - bash -lc "pacman --noconfirm -Syuu"
-    - bash -lc "pacman --noconfirm -S - < ./scripts/mingw64_pkglist.txt"
+    - bash -lc "pacman --noconfirm --needed -S - < ./scripts/mingw64_pkglist.txt"
 
   build_script:
     - bash -lc "pip install ."

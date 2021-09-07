@@ -1,6 +1,5 @@
 # vim:ft=python
 # pylint: disable=undefined-variable,missing-module-docstring
-# -*- mode: python ; coding: utf-8 -*-
 
 from pathlib import Path
 from tld.defaults import NAMES_LOCAL_PATH_PARENT
@@ -20,7 +19,6 @@ tld_names = [(str(Path(NAMES_LOCAL_PATH_PARENT, 'res', '*.txt')),
               'tld/res')]
 
 block_cipher = None
-
 
 a = Analysis(['ghini'],
              pathex=[root],
@@ -51,7 +49,6 @@ a = Analysis(['ghini'],
                             'bauble.plugins.users',
                             'xmlrpc.server.SimpleXMLRPCServer',
                             'xmlrpc.server.SimpleXMLRPCRequestHandler',
-                            'pydoc',
                             'psycopg2',
                             'sysconfig._get_sysconfigdata_name()',
                             '_sysconfigdata__win32_',
