@@ -1,8 +1,8 @@
 <ui>
   <menubar name="MenuBar">
     <menu action="file">
-      <!-- <menuitem action="file_new"/> -->
       <menuitem action="file_open"/>
+      <menuitem action="file_new"/>
       <separator/>
       <menuitem action="file_quit"/>
     </menu>
@@ -10,9 +10,9 @@
       <menuitem action="edit_cut"/>
       <menuitem action="edit_copy"/>
       <menuitem action="edit_paste"/>
-      <!--<separator/>
-      <menuitem action="edit_preferences"/>
-      <separator/>-->
+      <separator/>
+      <menuitem action="edit_prefs"/>
+      <menuitem action="edit_history"/>
     </menu>
     <menu name="insert_menu" action="insert"/>
     <menu name="tools_menu" action="tools"/>
@@ -21,7 +21,6 @@
       <separator/>
       <menuitem action="help_bug"/>
       <menuitem action="help_logfile"/>
-      <menuitem action="help_conffile"/>
       <menuitem action="help_web.devel"/>
       <menuitem action="help_web.wiki"/>
       <menuitem action="help_web.forum"/>

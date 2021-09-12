@@ -1,6 +1,6 @@
 # Copyright 2008-2010 Brett Adams
 # Copyright 2015 Mario Frasca <mario@anche.no>.
-# Copyright 2019-2020 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright 2019-2021 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -18,17 +18,21 @@
 # along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
 
 import os
+from collections import UserDict
+from pathlib import Path
+from ast import literal_eval
+from configparser import ConfigParser
 
 import logging
 logger = logging.getLogger(__name__)
 
 from gi.repository import Gtk  # noqa
-from gi.repository import GObject
 
 import bauble
 from bauble import db
 from bauble import paths
 from bauble import pluginmgr
+from bauble import utils
 
 testing = os.environ.get('BAUBLE_TEST')  # set this to True when testing via
 # the BAUBLE_TEST environment variable i.e. in bash or similar shells use:
@@ -52,7 +56,7 @@ Can also access the preference keys e.g. ::
 """
 
 # TODO: maybe we should have a create method that creates the preferences
-# todo a one time thing if the files doesn't exist
+# to do a one time thing if the files doesn't exist
 
 # TODO: Consider using ConfigObj since it does validation, type
 # conversion and unicode automatically...the cons are that it adds
@@ -202,24 +206,23 @@ defaults.
 """
 
 
-from configparser import RawConfigParser
-
-
-class _prefs(dict):
+class _prefs(UserDict):
 
     def __init__(self, filename=default_prefs_file):
+        super().__init__()
         self._filename = filename
+        self.config = None
 
     def init(self):
-        '''
+        """
         initialize the preferences, should only be called from app.main
-        '''
+        """
         # create directory tree of filename if it doesn't yet exist
-        head, tail = os.path.split(self._filename)
+        head, _tail = os.path.split(self._filename)
         if not os.path.exists(head):
             os.makedirs(head)
 
-        self.config = RawConfigParser()
+        self.config = ConfigParser(interpolation=None)
 
         # set the version if the file doesn't exist
         if not os.path.exists(self._filename):
@@ -228,85 +231,110 @@ class _prefs(dict):
             self.config.read(self._filename)
         version = self[config_version_pref]
         if version is None:
-            logger.warning('%s has no config version pref' % self._filename)
-            logger.warning('setting the config version to %s.%s'
-                           % (config_version))
+            logger.warning('%s has no config version pref', self._filename)
+            logger.warning('setting the config version to %s.%s',
+                           config_version[0], config_version[1])
             self[config_version_pref] = config_version
 
         # set some defaults if they don't exist
-        if use_sentry_client_pref not in self:
-            self[use_sentry_client_pref] = False
-        if picture_root_pref not in self:
-            self[picture_root_pref] = ''
-        if date_format_pref not in self:
-            self[date_format_pref] = '%d-%m-%Y'
-        if parse_dayfirst_pref not in self:
-            format = self[date_format_pref]
-            if format.find('%d') < format.find('%m'):
-                self[parse_dayfirst_pref] = True
-            else:
-                self[parse_dayfirst_pref] = False
-        if parse_yearfirst_pref not in self:
-            format = self[date_format_pref]
-            if format.find('%Y') == 0 or format.find('%y') == 0:
-                self[parse_yearfirst_pref] = True
-            else:
-                self[parse_yearfirst_pref] = False
+        defaults = [(picture_root_pref, ''),
+                    (date_format_pref, '%d-%m-%Y'),
+                    (units_pref, 'metric'),
+                    (debug_logging_prefs, [])]
 
-        if units_pref not in self:
-            self[units_pref] = 'metric'
-        if debug_logging_prefs not in self:
-            self[debug_logging_prefs] = []
+        for key, value in defaults:
+            self.add_default(key, value)
+
         for k, v in LOC_DEFAULTS.items():
-            if (section := f'{location_shapefile_prefs}.{k}') not in self:
-                self[section] = v
+            section = f'{location_shapefile_prefs}.{k}'
+            self.add_default(section, v)
         for k, v in PLT_DEFAULTS.items():
-            if (section := f'{plant_shapefile_prefs}.{k}') not in self:
-                self[section] = v
+            section = f'{plant_shapefile_prefs}.{k}'
+            self.add_default(section, v)
+
+    @property
+    def dayfirst(self):
+        # pylint: disable=no-member
+        fmat = self[date_format_pref]
+        if fmat.find('%d') < fmat.find('%m'):
+            return True
+        return False
+
+    @property
+    def yearfirst(self):
+        # pylint: disable=no-member
+        fmat = self[date_format_pref]
+        if fmat.find('%Y') == 0 or fmat.find('%y') == 0:
+            return True
+        return False
+
+    def add_default(self, key, value):
+        if key not in self:
+            self[key] = value
 
     def reload(self):
         """
         Update the current preferences to any external changes in the file,
         """
         # make a new instance and reread the file into it.
-        self.config = RawConfigParser()
+        self.config = ConfigParser(interpolation=None)
         self.config.read(self._filename)
 
     @staticmethod
     def _parse_key(name):
         index = name.rfind(".")
-        return name[:index], name[index+1:]
+        return name[:index], name[index + 1:]
 
-    def get(self, key, default):
-        '''
+    def get(self, key, default=None):
+        """
         get value for key else return default
-        '''
+        """
         value = self[key]
         if value is None:
             return default
         return value
 
     def __getitem__(self, key):
+        if key == parse_dayfirst_pref:
+            return self.dayfirst
+        if key == parse_yearfirst_pref:
+            return self.yearfirst
+
         section, option = _prefs._parse_key(key)
         # this doesn't allow None values for preferences
-        if not self.config.has_section(section) or \
-                not self.config.has_option(section, option):
+        if (not self.config.has_section(section) or
+                not self.config.has_option(section, option)):
             return None
-        else:
-            i = self.config.get(section, option)
-            eval_chars = '{[('
-            if i == '':
-                return i
-            elif i[0] in eval_chars:  # then the value is a dict, list or tuple
-                return eval(i)
-            elif i == 'True' or i == 'False':
-                return eval(i)
+        i = self.config.get(section, option)
+
+        if i == '':
             return i
+
+        try:
+            i = literal_eval(i)
+        except (ValueError, SyntaxError):
+            pass
+
+        return i
+
+    def __delitem__(self, key):
+        section, option = _prefs._parse_key(key)
+        if (not self.config.has_section(section) or
+                not self.config.has_option(section, option)):
+            return
+        section_options = self.config.options(section)
+        logger.debug('section %s has options: %s', section, section_options)
+        if len(section_options) == 1 and section_options[0] == option:
+            logger.debug('deleting section: %s', section)
+            self.config.remove_section(section)
+        else:
+            logger.debug('deleting option: %s', str(section + '.' + option))
+            self.config.remove_option(section, option)
 
     def iteritems(self):
         return [('%s.%s' % (section, name), value)
-                for section in sorted(prefs.config.sections())
-                for name, value in prefs.config.items(section)]
+                for section in sorted(self.config.sections())
+                for name, value in self.config.items(section)]
 
     def __setitem__(self, key, value):
         section, option = _prefs._parse_key(key)
@@ -325,15 +353,13 @@ class _prefs(dict):
         if testing and not force:
             return
         try:
-            f = open(self._filename, "w+")
-            self.config.write(f)
-            f.close()
-        except Exception:
-            msg = _("Ghini can't save your user preferences. \n\nPlease "
-                    "check the file permissions of your config file:\n %s") \
-                % self._filename
+            with open(self._filename, "w+") as f:
+                self.config.write(f)
+        except Exception:  # pylint: disable=broad-except
+            msg = (_("Ghini can't save your user preferences. \n\nPlease "
+                     "check the file permissions of your config file:\n %s")
+                   % self._filename)
             if bauble.gui is not None and bauble.gui.window is not None:
-                from bauble import utils
                 utils.message_dialog(msg, type=Gtk.MessageType.ERROR,
                                      parent=bauble.gui.window)
             else:
@@ -342,10 +368,10 @@ class _prefs(dict):
 
 class PrefsView(pluginmgr.View):
     """
-    The PrefsView displays the values in preferences and the plugin registry.
+    The PrefsView displays the values in the plugin registry and displays and
+    allows limited editing of preferences only after warning users of possible
+    dangers.
     """
-
-    pane_size_pref = 'bauble.prefs.pane_position'
 
     def __init__(self):
         logger.debug('PrefsView::__init__')
@@ -355,37 +381,159 @@ class PrefsView(pluginmgr.View):
         self.view.connect_signals(self)
         self.prefs_ls = self.view.widgets.prefs_prefs_ls
         self.plugins_ls = self.view.widgets.prefs_plugins_ls
+        self.prefs_tv = self.view.widgets.prefs_prefs_tv
+        # TODO should really be using Gio.SimpleAction/Gio.Action
+        self.action = bauble.view.Action('prefs_insert', _('_Insert'),
+                                         callback=self.add_new)
+        self.button_press_id = None
 
-    # pylint: disable=global-statement
-    def on_prefs_prefs_tv_row_activated(self, _tv, path, _column):
-        global prefs
-        modified = False
-        key, _repr_str, type_str = self.prefs_ls[path]
-        if type_str == 'bool':
-            prefs[key] = not prefs[key]
-            self.prefs_ls[path][1] = str(prefs[key])
-            modified = True
-        if modified:
-            prefs.save()
+    def on_button_press_event(self, widget, event):
+        logger.debug('event.button %s', event.button)
+        if event.button == 3:
+            def on_activate(_item, callback):
+                try:
+                    model, tree_path = (self.prefs_tv
+                                        .get_selection()
+                                        .get_selected_rows())
+                    logger.debug('model: %s tree_path: %s', model, tree_path)
+                    if not model or not tree_path:
+                        logger.debug('no model or tree_path')
+                        return
+                    if not testing:
+                        callback(model, tree_path)
+                except Exception as e:   # pylint: disable=broad-except
+                    msg = utils.xml_safe(str(e))
+                    logger.warning(msg)
+            item = self.action.create_menu_item()
+            item.connect('activate', on_activate, self.action.callback)
+            menu = Gtk.Menu()
+            menu.append(item)
+            menu.attach_to_widget(widget)
+            logger.debug('attaching menu to %s', widget)
+            menu.popup(None, None, None, None, event.button, event.time)
 
     @staticmethod
-    def append_row(listore, data):
-        listore.append(data)
-        return False
+    def add_new(model, tree_path):
+        msg = _('New option name')
+        selected = [model[row][0] for row in tree_path][0]
+        section = selected.rsplit('.', 1)[0]
+        logger.debug('start a dialog for new section %s', section)
+        dialog = utils.create_message_dialog(msg=msg)
+        message_area = dialog.get_message_area()
+        box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+        option_entry = Gtk.Entry()
+        option_entry.set_text(f'{section}.')
+        box.add(option_entry)
+        message_area.add(box)
+        dialog.resize(1, 1)
+        dialog.show_all()
+        if dialog.run() == Gtk.ResponseType.OK:
+            tree_iter = model.get_iter(tree_path)
+            option = option_entry.get_text()
+            new_iter = model.insert_after(
+                tree_iter, row=[option, '', None])
+            logger.debug('adding new pref option %s', option)
+        dialog.destroy()
+        return new_iter
+
+    def on_prefs_prefs_tv_row_activated(self, _tv, path, _column):
+        key, _repr_str, type_str = self.prefs_ls[path]
+        if type_str == 'bool':
+            logger.debug('activated: %s', path)
+            prefs[key] = not prefs[key]
+            self.prefs_ls[path][1] = str(prefs[key])
+            prefs.save()
+
+    def on_prefs_edit_toggled(self, widget):
+        state = widget.get_active()
+        logger.debug('edit state %s', state)
+        msg = _(
+            '<b>CAUTION! Making incorrect changes to your preferences could '
+            'cause harm to you setup</b>\n\nOnly make changes if you know '
+            'what you are doing and consider creating a backup of '
+            'first.\n\nValues must remain the same type and format. To delete '
+            'an option clear its value.  To delete a whole section remove all '
+            'its options. Deleting a section or basic option will likely lead '
+            'to a reset to its default value next time you restart Ghini. Due '
+            'to caching some settings will not take effect until you restart '
+            'Ghini\n\n<b>Do you want to enable editing?</b>'
+        )
+        if state and utils.yes_no_dialog(msg, parent=self.view.get_window()):
+            logger.debug('enable editing prefs')
+            self.view.widgets.prefs_data_renderer.set_property(
+                'editable', state)
+            self.button_press_id = self.prefs_tv.connect(
+                "button-press-event", self.on_button_press_event)
+
+        else:
+            logger.debug('disable editing prefs')
+            widget.set_active(False)
+            self.view.widgets.prefs_data_renderer.set_property(
+                'editable', False)
+            if self.button_press_id:
+                self.prefs_tv.disconnect(self.button_press_id)
+                self.button_press_id = None
+
+    def on_prefs_edited(self, _renderer, path, new_text):
+        key, repr_str, type_str = self.prefs_ls[path]
+        if new_text == '':
+            msg = _('Delete the %s preference key?') % key
+            if utils.yes_no_dialog(msg, parent=self.view.get_window()):
+                del prefs[key]
+                prefs.save()
+                logger.debug('deleting: %s', key)
+                self.prefs_ls.remove(self.prefs_ls.get_iter_from_string(
+                    str(path)))
+                return
+
+        try:
+            new_val = literal_eval(new_text)
+        except (ValueError, SyntaxError):
+            new_val = new_text
+
+        if isinstance(new_val, str):
+            if key.endswith('picture_root') and not Path(new_val).exists():
+                new_val = ''
+
+        new_val_type = type(new_val).__name__
+
+        if type_str and (new_val == '' or new_val_type != type_str):
+            self.prefs_ls[path][1] = repr_str
+            return
+
+        prefs[key] = new_val
+        self.prefs_ls[path][1] = str(new_val)
+        self.prefs_ls[path][2] = new_val_type
+        prefs.save()
+
+    @staticmethod
+    def on_prefs_backup_clicked(_widget):
+        from shutil import copy2
+        copy2(default_prefs_file, default_prefs_file + 'BAK')
+
+    def on_prefs_restore_clicked(self, _widget):
+        from shutil import copy2
+        # pylint: disable=using-constant-test
+        if Path(default_prefs_file + 'BAK').exists():
+            copy2(default_prefs_file + 'BAK', default_prefs_file)
+            prefs.reload()
+            self.update()
+        else:
+            utils.message_dialog(_('No backup found'))
 
     def update(self):
         self.prefs_ls.clear()
-        global prefs
         for key, value in sorted(prefs.iteritems()):
-            GObject.idle_add(self.append_row, self.prefs_ls,
-                             (key, value, prefs[key].__class__.__name__))
+            logger.debug('update prefs: %s, %s, %s', key, value,
+                         prefs[key].__class__.__name__)
+            self.prefs_ls.append((key, value, prefs[key].__class__.__name__))
 
         self.plugins_ls.clear()
         from bauble.pluginmgr import PluginRegistry
         session = db.Session()
         plugins = session.query(PluginRegistry.name, PluginRegistry.version)
         for item in plugins:
-            GObject.idle_add(self.append_row, self.plugins_ls, item)
+            self.plugins_ls.append(item)
         session.close()
 
 

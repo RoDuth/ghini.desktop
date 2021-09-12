@@ -39,7 +39,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 from gi.repository import Gtk  # noqa
-from gi.repository import GObject
+from gi.repository import GLib
 
 import bauble
 from bauble import db
@@ -71,8 +71,6 @@ from .stored_queries import StoredQueryEditorTool
 # imported by clients of the module
 __all__ = ['Familia', 'SpeciesDistribution']
 
-idle_add = GObject.idle_add
-
 
 class LabelUpdater(Thread):
     def __init__(self, widget, query, *args, **kwargs):
@@ -83,7 +81,7 @@ class LabelUpdater(Thread):
     def run(self):
         ssn = db.Session()
         value, = ssn.execute(self.query).first()
-        idle_add(self.widget.set_text, str(value))
+        GLib.idle_add(self.widget.set_text, str(value))
         ssn.close()
 
 
@@ -372,31 +370,6 @@ class PlantsPlugin(pluginmgr.Plugin):
             bauble.gui.add_to_insert_menu(GenusEditor, _('Genus'))
             bauble.gui.add_to_insert_menu(SpeciesEditorMenuItem, _('Species'))
 
-        # suggest some useful defaults for stored queries
-        import bauble.meta as meta
-        session = db.Session()
-        default = 'false'
-        q = session.query(
-            bauble.meta.BaubleMeta).filter(
-                bauble.meta.BaubleMeta.name.startswith('stqr-'))
-        for i in q.all():
-            default = i.name
-            session.delete(i)
-            session.commit()
-        init_marker = meta.get_default('stqv_initialized', default, session)
-        if init_marker.value == 'false':
-            init_marker.value = 'true'
-            for index, name, tooltip, query in [
-                    (9, _('history'), _('the history in this database'),
-                     ':history'),
-                    (10, _('preferences'), _('your user preferences'),
-                     ':prefs')]:
-                meta.get_default('stqr_%02d' % index,
-                                 "%s:%s:%s" % (name, tooltip, query),
-                                 session)
-            session.commit()
-        session.close()
-
     @classmethod
     def install(cls, import_defaults=True):
         """
@@ -427,7 +400,7 @@ class PlantsPlugin(pluginmgr.Plugin):
                         f'family table and <b>{geos}</b> in geography table. '
                         '\n\n<b>Do you want to overwrite these tables and '
                         'their related synonym tables?</b>')
-                if not utils.yes_no_dialog(msg):
+                if not utils.yes_no_dialog(msg, yes_delay=2):
                     return
         from bauble.plugins.imex.csv_ import CSVImporter
         csv = CSVImporter()

@@ -108,7 +108,7 @@ class SplashCommandHandler(pluginmgr.CommandHandler):
         self.view.update()
 
 
-class GUI(object):
+class GUI():
 
     entry_history_pref = 'bauble.history'
     history_size_pref = 'bauble.history_size'
@@ -295,19 +295,13 @@ class GUI(object):
         self.widgets.go_button.emit("clicked")
 
     def on_home_button_clicked(self, widget):
-        '''
-        '''
         bauble.command_handler('home', None)
 
     def on_prev_view_button_clicked(self, widget):
-        '''
-        '''
         self.widgets.main_comboentry.get_child().set_text('')
         bauble.gui.set_view('previous')
 
     def on_go_button_clicked(self, widget):
-        '''
-        '''
         self.close_message_box()
         text = self.widgets.main_comboentry.get_child().get_text()
         if text == '':
@@ -319,13 +313,12 @@ class GUI(object):
         try:
             cmd = tokens['cmd']
         except KeyError as e:
-            pass
+            logger.debug("%s(%s)" % (type(e).__name__, e))
 
         try:
             arg = tokens['arg']
         except KeyError as e:
             logger.debug("%s(%s)" % (type(e).__name__, e))
-            pass
 
         bauble.command_handler(cmd, arg)
 
@@ -525,6 +518,12 @@ class GUI(object):
                                    None, None, self.on_edit_menu_copy),
                                   ("edit_paste", Gtk.STOCK_PASTE, _("_Paste"),
                                    None, None, self.on_edit_menu_paste),
+                                  ("edit_prefs", Gtk.STOCK_PREFERENCES,
+                                   _("_Preferences"), None, None,
+                                   self.on_edit_menu_preferences),
+                                  ("edit_history", Gtk.STOCK_HARDDISK,
+                                   _("_View History"), None, None,
+                                   self.on_edit_menu_history),
                                   ("insert", None, _("_Insert")),
                                   ("tools", None, _("_Tools")),
                                   ("help", None, _("_Help")),
@@ -536,9 +535,6 @@ class GUI(object):
                                   ("help_logfile", Gtk.STOCK_PROPERTIES,
                                    _("Open the log-file"), None,
                                    None, self.on_help_menu_logfile),
-                                  ("help_conffile", Gtk.STOCK_PROPERTIES,
-                                   _("Open the config-file"), None,
-                                   None, self.on_help_menu_configfile),
                                   ("help_web.devel", Gtk.STOCK_HOME,
                                    _("Ghini development website"), None,
                                    None, self.on_help_menu_web_devel),
@@ -551,8 +547,6 @@ class GUI(object):
                                   ("help_about", Gtk.STOCK_ABOUT, _("About"),
                                    None, None, self.on_help_menu_about),
                                   ])
-        menu_actions.get_action('file_new').set_sensitive(False)
-        menu_actions.get_action('file_open').set_sensitive(False)
         self.ui_manager.insert_action_group(menu_actions, 0)
 
         # TODO: The menubar was made available in Gtk.Builder in Gtk+
@@ -722,24 +716,33 @@ class GUI(object):
         # check for leaks
         obj = utils.gc_objects_by_type(editor_cls)
         if obj != []:
-            logger.warning('%s leaked: %s' % (editor_cls.__name__, obj))
+            logger.warning('%s leaked: %s', editor_cls.__name__, obj)
 
         if presenter_cls:
             obj = utils.gc_objects_by_type(presenter_cls)
             if obj != []:
-                logger.warning('%s leaked: %s' % (presenter_cls.__name__, obj))
+                logger.warning('%s leaked: %s', presenter_cls.__name__, obj)
             obj = utils.gc_objects_by_type(view_cls)
             if obj != []:
-                logger.warning('%s leaked: %s' % (view_cls.__name__, obj))
+                logger.warning('%s leaked: %s', view_cls.__name__, obj)
 
-    def on_edit_menu_cut(self, widget, data=None):
+    # pylint: disable=unused-argument
+    def on_edit_menu_cut(self, _widget, data=None):
         self.widgets.main_comboentry.get_child().cut_clipboard()
 
-    def on_edit_menu_copy(self, widget, data=None):
+    def on_edit_menu_copy(self, _widget, data=None):
         self.widgets.main_comboentry.get_child().copy_clipboard()
 
-    def on_edit_menu_paste(self, widget, data=None):
+    def on_edit_menu_paste(self, _widget, data=None):
         self.widgets.main_comboentry.get_child().paste_clipboard()
+
+    @staticmethod
+    def on_edit_menu_preferences(_widget, data=None):
+        bauble.command_handler('prefs', None)
+
+    @staticmethod
+    def on_edit_menu_history(_widget, data=None):
+        bauble.command_handler('history', None)
 
     def on_file_menu_new(self, widget, data=None):
         msg = "If a database already exists at this connection then creating "\
@@ -749,21 +752,21 @@ class GUI(object):
         if not utils.yes_no_dialog(msg, yes_delay=2):
             return
 
-        #if gui is not None and hasattr(gui, 'insert_menu'):
+        # if gui is not None and hasattr(gui, 'insert_menu'):
         submenu = self.insert_menu.get_submenu()
-        for c in submenu.get_children():
-            submenu.remove(c)
+        for child in submenu.get_children():
+            submenu.remove(child)
         self.insert_menu.show()
         try:
             db.create()
             pluginmgr.init()
-        except Exception as e:
-            msg = _('Could not create a new database.\n\n%s') % \
-                utils.xml_safe(e)
-            tb = utils.xml_safe(traceback.format_exc())
-            utils.message_details_dialog(msg, tb, Gtk.MessageType.ERROR)
+        except Exception as e:  # pylint: disable=broad-except
+            msg = (_('Could not create a new database.\n\n%s') %
+                   utils.xml_safe(e))
+            traceb = utils.xml_safe(traceback.format_exc())
+            utils.message_details_dialog(msg, traceb, Gtk.MessageType.ERROR)
             return
-        self.set_default_view()
+        bauble.command_handler('home', None)
 
     def on_file_menu_open(self, widget, data=None):
         """
@@ -801,10 +804,10 @@ class GUI(object):
             # using the same instance of a view that could have old
             # settings from the previous handler...
             bauble.last_handler = None
-            self.set_default_view()
             self.clear_menu('/ui/MenuBar/insert_menu')
             self.statusbar_clear()
             pluginmgr.init()
+            bauble.command_handler('home', None)
 
     def statusbar_clear(self):
         """
@@ -831,31 +834,6 @@ class GUI(object):
         logger.debug('opening log file from help menu')
         filename = os.path.join(paths.appdata_dir(), 'bauble.log')
         desktop.open(filename, dialog_on_error=True)
-
-    def on_help_menu_configfile(self, widget, data=None):  \
-            # pylint: disable=unused-argument,no-self-use
-        # save the current state of prefs first incase of any changes
-        prefs.save()
-        filename = bauble.prefs.default_prefs_file
-        msg = _('Open the config-file?\n\n'  # noqa
-                'WARNING: This file has a very specific format, any errors '
-                'could cause all settings to be lost.  Consider saving a '
-                'backup of its current state before making edits')
-        if utils.yes_no_dialog(msg):
-            import sys
-            if sys.platform == 'win32':
-                import subprocess
-                subprocess.run(['notepad.exe', filename])
-            else:
-                desktop.open(filename, dialog_on_error=True)
-            msg = _('Reload config-file?\n\n'  # noqa
-                    'WARNING: many settings only work after restarting ghini, '
-                    'to ensure all settings are saved it is best to reload '
-                    'the file then restart ghini')
-            if utils.yes_no_dialog(msg):
-                prefs.reload()
-                bauble.gui.get_view().update()
-
 
     def on_help_menu_web_devel(self, widget, data=None):
         desktop.open('http://github.com/RoDuth/ghini.desktop/',

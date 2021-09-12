@@ -427,54 +427,148 @@
         <property name="hexpand">True</property>
         <property name="vexpand">True</property>
         <child>
-          <object class="GtkScrolledWindow" id="prefs_prefs_sv">
+          <object class="GtkBox" id="prefs_box">
             <property name="visible">True</property>
             <property name="can-focus">True</property>
+            <property name="orientation">vertical</property>
             <child>
-              <object class="GtkTreeView" id="prefs_prefs_tv">
+              <object class="GtkBox" id="edit_box">
                 <property name="visible">True</property>
                 <property name="can-focus">True</property>
-                <property name="model">prefs_prefs_ls</property>
-                <property name="headers-clickable">False</property>
-                <property name="search-column">0</property>
-                <signal name="row-activated" handler="on_prefs_prefs_tv_row_activated" swapped="no"/>
-                <child internal-child="selection">
-                  <object class="GtkTreeSelection"/>
-                </child>
                 <child>
-                  <object class="GtkTreeViewColumn" id="prefs_treeviewcolumn1">
-                    <property name="title" translatable="yes">Name</property>
-                    <child>
-                      <object class="GtkCellRendererText" id="prefs_cellrenderertext1"/>
-                      <attributes>
-                        <attribute name="text">0</attribute>
-                      </attributes>
-                    </child>
+                  <object class="GtkCheckButton" id="prefs_edit_chkbx">
+                    <property name="label" translatable="yes">Enable Editing - CAUTION!</property>
+                    <property name="visible">True</property>
+                    <property name="can-focus">True</property>
+                    <property name="receives-default">False</property>
+                    <property name="halign">start</property>
+                    <property name="valign">center</property>
+                    <property name="draw-indicator">True</property>
+                    <signal name="toggled" handler="on_prefs_edit_toggled" swapped="no"/>
                   </object>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="fill">True</property>
+                    <property name="position">0</property>
+                  </packing>
                 </child>
                 <child>
-                  <object class="GtkTreeViewColumn" id="prefs_treeviewcolumn2">
-                    <property name="title" translatable="yes">Value</property>
-                    <child>
-                      <object class="GtkCellRendererText" id="prefs_cellrenderertext2"/>
-                      <attributes>
-                        <attribute name="text">1</attribute>
-                      </attributes>
-                    </child>
+                  <object class="GtkLabel" id="label13">
+                    <property name="visible">True</property>
+                    <property name="can-focus">False</property>
+                    <property name="label" translatable="yes">(Note: can toggle True/False by double clicking whithout enabling editing.)</property>
+                    <attributes>
+                      <attribute name="weight" value="bold"/>
+                    </attributes>
                   </object>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="fill">True</property>
+                    <property name="position">1</property>
+                  </packing>
                 </child>
                 <child>
-                  <object class="GtkTreeViewColumn" id="prefs_treeviewcolumn13">
-                    <property name="title" translatable="yes">Type</property>
+                  <object class="GtkButton" id="prefs_backup_btn">
+                    <property name="label" translatable="yes">Backup</property>
+                    <property name="visible">True</property>
+                    <property name="can-focus">True</property>
+                    <property name="receives-default">False</property>
+                    <property name="halign">end</property>
+                    <property name="valign">center</property>
+                    <signal name="clicked" handler="on_prefs_backup_clicked" swapped="no"/>
+                  </object>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="fill">True</property>
+                    <property name="pack-type">end</property>
+                    <property name="position">2</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkButton" id="prefs_restore_btn">
+                    <property name="label" translatable="yes">Restore</property>
+                    <property name="visible">True</property>
+                    <property name="can-focus">True</property>
+                    <property name="receives-default">False</property>
+                    <property name="halign">end</property>
+                    <property name="valign">center</property>
+                    <signal name="clicked" handler="on_prefs_restore_clicked" swapped="no"/>
+                  </object>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="fill">True</property>
+                    <property name="pack-type">end</property>
+                    <property name="position">3</property>
+                  </packing>
+                </child>
+              </object>
+              <packing>
+                <property name="expand">False</property>
+                <property name="fill">True</property>
+                <property name="position">0</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkScrolledWindow" id="prefs_prefs_sv">
+                <property name="visible">True</property>
+                <property name="can-focus">True</property>
+                <property name="hscrollbar-policy">never</property>
+                <child>
+                  <object class="GtkTreeView" id="prefs_prefs_tv">
+                    <property name="visible">True</property>
+                    <property name="can-focus">True</property>
+                    <property name="model">prefs_prefs_ls</property>
+                    <property name="headers-clickable">False</property>
+                    <property name="search-column">0</property>
+                    <signal name="row-activated" handler="on_prefs_prefs_tv_row_activated" swapped="no"/>
+                    <child internal-child="selection">
+                      <object class="GtkTreeSelection"/>
+                    </child>
                     <child>
-                      <object class="GtkCellRendererText" id="prefs_cellrenderertext13"/>
-                      <attributes>
-                        <attribute name="text">2</attribute>
-                      </attributes>
+                      <object class="GtkTreeViewColumn" id="prefs_treeviewcolumn1">
+                        <property name="title" translatable="yes">Name</property>
+                        <child>
+                          <object class="GtkCellRendererText" id="prefs_cellrenderertext1"/>
+                          <attributes>
+                            <attribute name="text">0</attribute>
+                          </attributes>
+                        </child>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkTreeViewColumn" id="prefs_treeviewcolumn2">
+                        <property name="title" translatable="yes">Value</property>
+                        <property name="expand">True</property>
+                        <child>
+                          <object class="GtkCellRendererText" id="prefs_data_renderer">
+                            <property name="ellipsize">end</property>
+                            <signal name="edited" handler="on_prefs_edited" swapped="no"/>
+                          </object>
+                          <attributes>
+                            <attribute name="text">1</attribute>
+                          </attributes>
+                        </child>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkTreeViewColumn" id="prefs_treeviewcolumn13">
+                        <property name="title" translatable="yes">Type</property>
+                        <child>
+                          <object class="GtkCellRendererText" id="prefs_cellrenderertext13"/>
+                          <attributes>
+                            <attribute name="text">2</attribute>
+                          </attributes>
+                        </child>
+                      </object>
                     </child>
                   </object>
                 </child>
               </object>
+              <packing>
+                <property name="expand">True</property>
+                <property name="fill">True</property>
+                <property name="position">1</property>
+              </packing>
             </child>
           </object>
         </child>

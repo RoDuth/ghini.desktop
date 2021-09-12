@@ -1,5 +1,6 @@
 # Copyright (c) 2005,2006,2007,2008,2009 Brett Adams <brett@belizebotanic.org>
 # Copyright (c) 2012-2015 Mario Frasca <mario@anche.no>
+# Copyright (c) 2021 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -16,17 +17,14 @@
 # You should have received a copy of the GNU General Public License
 # along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
 
+from tempfile import mkstemp
 import logging
 logger = logging.getLogger(__name__)
 
 
 from bauble.test import BaubleTestCase
 from bauble import prefs
-from tempfile import mkstemp
 from bauble import version_tuple
-
-
-prefs.testing = True
 
 
 class PreferencesTests(BaubleTestCase):
@@ -45,8 +43,6 @@ class PreferencesTests(BaubleTestCase):
         self.assertTrue(prefs.config_version_pref in p)
         self.assertTrue(prefs.picture_root_pref in p)
         self.assertTrue(prefs.date_format_pref in p)
-        self.assertTrue(prefs.parse_dayfirst_pref in p)
-        self.assertTrue(prefs.parse_yearfirst_pref in p)
         self.assertTrue(prefs.units_pref in p)
         self.assertEqual(p[prefs.config_version_pref], version_tuple[:2])
         self.assertEqual(p[prefs.picture_root_pref], '')
@@ -111,10 +107,10 @@ class PreferencesTests(BaubleTestCase):
         self.assertFalse('test.not_there_yet-1' in p)
         p['test.not_there_yet-1'] = 1
         self.assertTrue('test.not_there_yet-1' in p)
-        self.assertEqual(p['test.not_there_yet-1'], '1')
+        self.assertEqual(p['test.not_there_yet-1'], 1)
         # is the following really useful?
         p['test.not_there_yet-3'] = None
-        self.assertEqual(p['test.not_there_yet-3'], 'None')
+        self.assertEqual(p['test.not_there_yet-3'], None)
 
     def test_boolean_values_stay_boolean(self):
         handle, pname = mkstemp(suffix='.dict')
@@ -138,3 +134,203 @@ class PreferencesTests(BaubleTestCase):
             content = f.read()
             self.assertTrue(content.index('not_there_yet-1 = 1') > 0)
             self.assertTrue(content.index('[test]') > 0)
+
+
+class PrefsViewTests(BaubleTestCase):
+
+    def setUp(self):
+        super().setUp()
+        _handle, self.temp = mkstemp()
+        self.orig_pref_file = prefs.default_prefs_file
+        self.orig_prefs = prefs.prefs
+        prefs.default_prefs_file = self.temp
+        prefs.prefs = prefs._prefs(filename=self.temp)
+        prefs.prefs.init()
+
+    def tearDown(self):
+        super().tearDown()
+        prefs.default_prefs_file = self.orig_pref_file
+        prefs.prefs = self.orig_prefs
+
+    def test_prefs_view_starts_updates(self):
+        prefs_view = prefs.PrefsView()
+        self.assertIsNone(prefs_view.button_press_id)
+        prefs_view.update()
+        self.assertTrue(len(prefs_view.prefs_ls) > 8)
+
+    def test_on_button_press_event_adds_menu_can_active(self):
+        from datetime import datetime
+        from gi.repository import Gtk
+        orig_menu = Gtk.Menu
+        Gtk.Menu = type('MockMenu', (object, ), {
+            'append': lambda s, x: appended.append(x),
+            'attach_to_widget': lambda s, m: None,
+            'popup': lambda a, b, c, d, e, f, g: None
+        })
+        prefs_view = prefs.PrefsView()
+        prefs_view.update()
+        prefs_tv = prefs_view.prefs_tv
+        event = type('MockCheckButton', (object, ), {
+            'button': 3,
+            'time': datetime.now()
+        })
+        appended = []
+        prefs_view.on_button_press_event(prefs_tv, event)
+        # is a menu item added
+        self.assertIsNotNone(appended[0])
+        selection = Gtk.TreePath.new_first()
+        prefs_tv.get_selection().select_path(selection)
+        # can activate menu
+        appended = []
+        prefs_view.on_button_press_event(prefs_tv, event)
+        appended[0].activate()
+        log_str = f'model: {prefs_view.prefs_ls} tree_path: [<Gtk.TreePath obj'
+        self.assertTrue(
+            [i for i in self.handler.messages['bauble.prefs']['debug'] if
+             i.startswith(log_str)])
+        self.assertIsNotNone(appended[0])
+        Gtk.Menu = orig_menu
+
+    def test_on_prefs_prefs_tv_row_activated(self):
+        key = 'bauble.keys'
+        prefs.prefs[key] = True
+        prefs_view = prefs.PrefsView()
+        prefs_view.update()
+        orig_val = prefs.prefs[key]
+        path = [i.path for i in prefs_view.prefs_ls if i[0] == key][0]
+        prefs_view.on_prefs_prefs_tv_row_activated(None, path, None)
+        new_val = prefs.prefs[key]
+        self.assertNotEqual(orig_val, new_val)
+
+    def test_on_prefs_edit_toggled(self):
+        from bauble import utils
+        orig_yes_no_dialog = utils.yes_no_dialog
+        prefs_view = prefs.PrefsView()
+
+        # starts without editing
+        self.assertFalse(
+            prefs_view.view.widgets.prefs_data_renderer.props.editable)
+        self.assertIsNone(prefs_view.button_press_id)
+
+        # toggle editing to True with yes to dialog
+        utils.yes_no_dialog = lambda x, parent: True
+        prefs_view.view.widgets.prefs_edit_chkbx.set_active(True)
+        prefs_view.on_prefs_edit_toggled(
+            prefs_view.view.widgets.prefs_edit_chkbx)
+
+        self.assertTrue(
+            prefs_view.view.widgets.prefs_data_renderer.props.editable)
+        self.assertIsNotNone(prefs_view.button_press_id)
+
+        # toggle editing to False
+        prefs_view.view.widgets.prefs_edit_chkbx.set_active(False)
+        prefs_view.on_prefs_edit_toggled(
+            prefs_view.view.widgets.prefs_edit_chkbx)
+
+        self.assertFalse(
+            prefs_view.view.widgets.prefs_data_renderer.props.editable)
+        self.assertIsNone(prefs_view.button_press_id)
+
+        # toggle editing to True with no to dialog
+        utils.yes_no_dialog = lambda x, parent: False
+        prefs_view.view.widgets.prefs_edit_chkbx.set_active(True)
+        prefs_view.on_prefs_edit_toggled(
+            prefs_view.view.widgets.prefs_edit_chkbx)
+
+        self.assertFalse(
+            prefs_view.view.widgets.prefs_data_renderer.props.editable)
+        self.assertIsNone(prefs_view.button_press_id)
+
+        utils.yes_no_dialog = orig_yes_no_dialog
+
+    def test_on_prefs_edited(self):
+        key = 'bauble.keys'
+        prefs.prefs[key] = True
+        prefs_view = prefs.PrefsView()
+        prefs_view.update()
+        path = [i.path for i in prefs_view.prefs_ls if i[0] == key][0]
+        self.assertTrue(prefs.prefs[key])
+
+        # wrong type
+        prefs_view.on_prefs_edited(None, path, 'xyz')
+        self.assertTrue(prefs.prefs[key])
+
+        # correct type
+        prefs_view.on_prefs_edited(None, path, 'False')
+        self.assertFalse(prefs.prefs[key])
+
+        # picture root does not accept non existing path
+        key = prefs.picture_root_pref
+        orig = prefs.prefs[key]
+        path = [i.path for i in prefs_view.prefs_ls if i[0] == key][0]
+        prefs_view.on_prefs_edited(None, path, 'xxrandomstringxx')
+        self.assertEqual(prefs.prefs[key], orig)
+
+        # add new entry
+        key = 'bauble.test.option'
+        self.assertIsNone(prefs.prefs[key])
+        tree_iter = prefs_view.prefs_ls.get_iter(path)
+        prefs_view.prefs_ls.insert_after(tree_iter,
+                                         row=[key, '', None])
+        path = [i.path for i in prefs_view.prefs_ls if i[0] == key][0]
+        prefs_view.on_prefs_edited(None, path, '{"this": "that"}')
+        self.assertEqual(prefs.prefs[key], {"this": "that"})
+
+        # delete option
+        from bauble import utils
+        orig_yes_no_dialog = utils.yes_no_dialog
+        utils.yes_no_dialog = lambda x, parent: True
+        prefs_view.on_prefs_edited(None, path, '')
+        self.assertIsNone(prefs.prefs[key])
+        utils.yes_no_dialog = orig_yes_no_dialog
+
+    def test_add_new(self):
+        # warning, ugly monkey patching ahead.
+        prefs_view = prefs.PrefsView()
+        prefs_view.update()
+        from gi.repository import Gtk
+        path = Gtk.TreePath.new_first()
+        orig_mbox_run = Gtk.MessageDialog.run
+        Gtk.MessageDialog.run = lambda s: Gtk.ResponseType.OK
+        orig_get_text = Gtk.Entry.get_text
+        key = 'bauble.test.option'
+        Gtk.Entry.get_text = lambda s: key
+        new_iter = prefs_view.add_new(prefs_view.prefs_ls, path)
+        self.assertIsNotNone(new_iter)
+        self.assertTrue(f'adding new pref option {key}' in
+                        self.handler.messages['bauble.prefs']['debug'])
+        Gtk.MessageDialog.run = orig_mbox_run
+        Gtk.Entry.get_text = orig_get_text
+
+    def test_on_prefs_backup_restore(self):
+        prefs.prefs.save(force=True)
+        prefs_view = prefs.PrefsView()
+        prefs_view.update()
+        from bauble import utils
+        orig_message_dialog = utils.message_dialog
+        msg_returned = []
+        utils.message_dialog = lambda msg: msg_returned.append(msg)
+        # restore ehwn no backup
+        prefs_view.on_prefs_restore_clicked(None)
+        self.assertEqual(msg_returned[0], 'No backup found')
+        # create backup and check they are the same
+        prefs_view.on_prefs_backup_clicked(None)
+        with open(self.temp, 'r') as f:
+            start = f.read()
+        with open(self.temp + 'BAK') as f:
+            backup = f.read()
+        self.assertEqual(start, backup)
+        # save a change and check they differ
+        self.assertIsNone(prefs.prefs['bauble.test.option'])
+        prefs.prefs['bauble.test.option'] = 'test'
+        self.assertIsNotNone(prefs.prefs['bauble.test.option'])
+        prefs.prefs.save(force=True)
+        with open(self.temp, 'r') as f:
+            start = f.read()
+        with open(self.temp + 'BAK') as f:
+            backup = f.read()
+        self.assertNotEqual(start, backup)
+        # restore
+        prefs_view.on_prefs_restore_clicked(None)
+        self.assertIsNone(prefs.prefs['bauble.test.option'])
+        utils.yes_no_dialog = orig_message_dialog
