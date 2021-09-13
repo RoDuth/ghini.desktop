@@ -312,6 +312,7 @@ class CSVImporter(Importer):
             pb_set_fraction(fraction)
             if count % 10 == 0:
                 yield
+        session.close()
         self.translator = translator
 
     @staticmethod
@@ -461,7 +462,7 @@ class CSVImporter(Importer):
                 if not force:
                     msg = _('It appears you are attempting a full restore. To '
                             'do this requires deleting all data.\n\n'
-                            '<b>CAUTION! only preceed if you know what you '
+                            '<b>CAUTION! only proceed if you know what you '
                             'are doing</b>.\n\nWould you like to continue a '
                             'full restore?')
                     response = utils.yes_no_dialog(msg)

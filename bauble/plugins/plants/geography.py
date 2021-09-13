@@ -325,7 +325,8 @@ def geography_importer():
         row.name = props.get('LEVEL2_NAM')
         row.geojson = feature.get('geometry')
         row.parent = (session.query(Geography)
-                      .filter(Geography.tdwg_code == props.get('LEVEL1_COD'))
+                      .filter(Geography.tdwg_code ==
+                              str(props.get('LEVEL1_COD')))
                       .one())
         session.add(row)
         session.commit()
@@ -342,7 +343,8 @@ def geography_importer():
         row.name = props.get('LEVEL3_NAM')
         row.geojson = feature.get('geometry')
         row.parent = (session.query(Geography)
-                      .filter(Geography.tdwg_code == props.get('LEVEL2_COD'))
+                      .filter(Geography.tdwg_code ==
+                              str(props.get('LEVEL2_COD')))
                       .one())
         session.add(row)
         session.commit()
@@ -362,14 +364,14 @@ def geography_importer():
                 yield
             continue
         parent = (session.query(Geography)
-                  .filter(Geography.tdwg_code == props.get('Level3_cod'))
+                  .filter(Geography.tdwg_code == str(props.get('Level3_cod')))
                   .one())
         # check for duplicates (e.g. CZE-SL has 2 entries) use the version with
         # the most detail
         existing = (session.query(Geography)
                     .filter_by(tdwg_level=4,
                                parent_id=parent.id,
-                               tdwg_code=props.get('Level4_cod'),
+                               tdwg_code=str(props.get('Level4_cod')),
                                iso_code=props.get('ISO_Code'),
                                name=props.get('Level_4_Na'))
                     .first())
@@ -385,7 +387,7 @@ def geography_importer():
                 continue
         else:
             row = Geography()
-        row.tdwg_code = props.get('Level4_cod')
+        row.tdwg_code = str(props.get('Level4_cod'))
         row.tdwg_level = 4
         row.iso_code = props.get('ISO_Code')
         row.name = props.get('Level_4_Na')
@@ -397,3 +399,4 @@ def geography_importer():
         update_progressbar(steps_so_far)
         if steps_so_far % update_every == 0:
             yield
+    session.close()
