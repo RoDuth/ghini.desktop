@@ -505,10 +505,11 @@ class GUI():
         # create and addaction group for menu actions
         menu_actions = Gtk.ActionGroup("MenuActions")
         menu_actions.add_actions([("file", None, _("_File")),
-                                  ("file_new", Gtk.STOCK_NEW, _("_New"),
+                                  ("connection", None, _("_Connection")),
+                                  ("conn_new", Gtk.STOCK_NEW, _("_New"),
                                    None, None, self.on_file_menu_new),
-                                  ("file_open", Gtk.STOCK_OPEN, _("_Open"),
-                                   '<ctrl>o', None, self.on_file_menu_open),
+                                  ("conn_open", Gtk.STOCK_OPEN, _("_Open"),
+                                   '<ctrl>c', None, self.on_file_menu_open),
                                   ("file_quit", Gtk.STOCK_QUIT, _("_Quit"),
                                    None, None, self.on_quit),
                                   ("edit", None, _("_Edit")),
@@ -745,9 +746,11 @@ class GUI():
         bauble.command_handler('history', None)
 
     def on_file_menu_new(self, widget, data=None):
-        msg = "If a database already exists at this connection then creating "\
-              "a new database could destroy your data.\n\n<i>Are you sure "\
-              "this is what you want to do?</i>"
+        msg = _("<b>CAUTION! This will wipe all data for the current "
+                "connection</b>\n\n"
+                "If a database already exists at this connection then "
+                "creating a new database will destroy your current data.\n\n"
+                "<i>Are you sure this is what you want to do?</i>")
 
         if not utils.yes_no_dialog(msg, yes_delay=2):
             return

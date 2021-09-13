@@ -1,8 +1,10 @@
 <ui>
   <menubar name="MenuBar">
     <menu action="file">
-      <menuitem action="file_open"/>
-      <menuitem action="file_new"/>
+      <menu action="connection">
+        <menuitem action="conn_open"/>
+        <menuitem action="conn_new"/>
+      </menu>
       <separator/>
       <menuitem action="file_quit"/>
     </menu>
