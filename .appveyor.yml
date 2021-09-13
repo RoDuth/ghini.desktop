@@ -34,7 +34,7 @@ for:
   test_script:
     - . ~/venv3.9/bin/activate
     - pip install nose
-    - BAUBLE_TEST=True nosetests --traverse-namespace -vv
+    - nosetests --traverse-namespace -vv
 -
   matrix:
     only:
@@ -59,7 +59,7 @@ for:
     - path: dist/ghini.desktop-*-setup.exe
 
   test_script:
-    - bash -lc "BAUBLE_TEST=True nosetests --traverse-namespace -vv"
+    - bash -lc "nosetests --traverse-namespace -vv"
 
 deploy:
   release: 'v1.3.0-b (BBG Branch)' # :bump

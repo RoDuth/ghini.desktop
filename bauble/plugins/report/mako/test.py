@@ -38,7 +38,7 @@ from bauble.plugins.plants import Family, Genus, Species, \
 from bauble.plugins.garden import Accession, Plant, Location
 from bauble.plugins.report.mako import MakoFormatterPlugin
 
-from bauble.plugins.report.mako import add_text, Code39, add_code39, add_qr
+from bauble.plugins.report.mako import add_text, Code39, add_code39  # add_qr
 
 class MakoFormatterTests(BaubleTestCase):
 
