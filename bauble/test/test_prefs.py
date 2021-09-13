@@ -26,6 +26,8 @@ from bauble.test import BaubleTestCase
 from bauble import prefs
 from bauble import version_tuple
 
+prefs.testing = True
+
 
 class PreferencesTests(BaubleTestCase):
 
@@ -47,8 +49,7 @@ class PreferencesTests(BaubleTestCase):
         self.assertEqual(p[prefs.config_version_pref], version_tuple[:2])
         self.assertEqual(p[prefs.picture_root_pref], '')
         self.assertEqual(p[prefs.date_format_pref], '%d-%m-%Y')
-        self.assertEqual(p[prefs.parse_dayfirst_pref], True)
-        self.assertEqual(p[prefs.parse_yearfirst_pref], False)
+        self.assertEqual(p[prefs.time_format_pref], '%I:%M:%S %p')
         self.assertEqual(p[prefs.units_pref], 'metric')
         for k, v in prefs.LOC_DEFAULTS.items():
             self.assertTrue(f'{prefs.location_shapefile_prefs}.{k}' in p,
@@ -60,6 +61,10 @@ class PreferencesTests(BaubleTestCase):
                             f'{prefs.plant_shapefile_prefs}.{k} not found')
             self.assertEqual(p[f'{prefs.plant_shapefile_prefs}.{k}'], v,
                              f'{prefs.plant_shapefile_prefs}.{k} != {v}')
+        # generated
+        self.assertEqual(p[prefs.parse_dayfirst_pref], True)
+        self.assertEqual(p[prefs.parse_yearfirst_pref], False)
+        self.assertEqual(p[prefs.datetime_format_pref], '%d-%m-%Y %I:%M:%S %p')
 
     def test_not_saved_while_testing(self):
         handle, pname = mkstemp(suffix='.dict')
@@ -108,7 +113,12 @@ class PreferencesTests(BaubleTestCase):
         p['test.not_there_yet-1'] = 1
         self.assertTrue('test.not_there_yet-1' in p)
         self.assertEqual(p['test.not_there_yet-1'], 1)
-        # is the following really useful?
+
+    def test_none_stays_none(self):
+        # is this really useful?
+        handle, pname = mkstemp(suffix='.dict')
+        p = prefs._prefs(pname)
+        p.init()
         p['test.not_there_yet-3'] = None
         self.assertEqual(p['test.not_there_yet-3'], None)
 
@@ -159,6 +169,7 @@ class PrefsViewTests(BaubleTestCase):
         self.assertTrue(len(prefs_view.prefs_ls) > 8)
 
     def test_on_button_press_event_adds_menu_can_active(self):
+        # warning, ugly monkey patching ahead.
         from datetime import datetime
         from gi.repository import Gtk
         orig_menu = Gtk.Menu

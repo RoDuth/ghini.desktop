@@ -32,11 +32,6 @@ class StoredQueriesInitializeTests(BaubleTestCase):
         for i in range(1, 9):
             self.assertEqual(m[i], '::')
 
-    def test_initialize_has_defaults(self):
-        m = StoredQueriesModel()
-        for i in range(9, 11):
-            self.assertNotEqual(m[i], '::')
-
 
 class StoredQueriesTests(BaubleTestCase):
     def test_define_label(self):

@@ -71,7 +71,7 @@ class MockLoggingHandler(logging.Handler):
 
     def __init__(self, *args, **kwargs):
         self.reset()
-        logging.Handler.__init__(self, *args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def emit(self, record):
         received = self.messages.setdefault(

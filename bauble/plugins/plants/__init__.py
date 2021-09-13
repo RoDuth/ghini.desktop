@@ -180,8 +180,6 @@ class SplashInfoBox(pluginmgr.View):
         widget.connect('clicked', self.on_splash_stqr_button_clicked)
 
     def update(self):
-        '''
-        '''
         logger.debug('SplashInfoBox::update')
         statusbar = bauble.gui.widgets.statusbar
         sbcontext_id = statusbar.get_context_id('searchview.nresults')

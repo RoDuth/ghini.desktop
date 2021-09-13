@@ -62,6 +62,12 @@ if os.environ.get('BAUBLE_WARN_TRACE'):
 # to use faulthandler set env var:
 # PYTHONFAULTHANDLER=1
 
+# to set prefs.testing set envar:
+# BAUBLE_TEST=True
+
+# to set sqlalchemy debug set envar:
+# BAUBLE_SQLA_DEBUG=True
+
 
 def pb_set_fraction(fraction):
     """set progressbar fraction safely
@@ -119,9 +125,6 @@ def save_state():
     Save the gui state and preferences.
     """
     from bauble.prefs import prefs
-    # in case we quit before the gui is created
-    if gui is not None:
-        gui.save_state()
     prefs.save()
 
 

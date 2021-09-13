@@ -156,7 +156,7 @@ class PropertiesExpander(InfoExpander):
         table.set_row_spacings(8)
 
         # database id
-        id_label = Gtk.Label(label="<b>"+_("ID:")+"</b>")
+        id_label = Gtk.Label(label="<b>" + _("ID:") + "</b>")
         id_label.set_use_markup(True)
         id_label.set_alignment(1, .5)
         self.id_data = Gtk.Label(label='--')
@@ -165,7 +165,7 @@ class PropertiesExpander(InfoExpander):
         table.attach(self.id_data, 1, 2, 0, 1)
 
         # object type
-        type_label = Gtk.Label(label="<b>"+_("Type:")+"</b>")
+        type_label = Gtk.Label(label="<b>" + _("Type:") + "</b>")
         type_label.set_use_markup(True)
         type_label.set_alignment(1, .5)
         self.type_data = Gtk.Label(label='--')
@@ -174,7 +174,7 @@ class PropertiesExpander(InfoExpander):
         table.attach(self.type_data, 1, 2, 1, 2)
 
         # date created
-        created_label = Gtk.Label(label="<b>"+_("Date created:")+"</b>")
+        created_label = Gtk.Label(label="<b>" + _("Date created:") + "</b>")
         created_label.set_use_markup(True)
         created_label.set_alignment(1, .5)
         self.created_data = Gtk.Label(label='--')
@@ -183,7 +183,7 @@ class PropertiesExpander(InfoExpander):
         table.attach(self.created_data, 1, 2, 2, 3)
 
         # date last updated
-        updated_label = Gtk.Label(label="<b>"+_("Last updated:")+"</b>")
+        updated_label = Gtk.Label(label="<b>" + _("Last updated:") + "</b>")
         updated_label.set_use_markup(True)
         updated_label.set_alignment(1, .5)
         self.updated_data = Gtk.Label(label='--')

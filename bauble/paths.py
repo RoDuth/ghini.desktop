@@ -32,10 +32,7 @@ def main_is_frozen():
     """tell whether Ghini is being run from a py2exe executable.
 
     """
-    import imp
-    return (hasattr(sys, "frozen") or  # new py2exe and pyinstaller
-            hasattr(sys, "importers") or  # old py2exe
-            imp.is_frozen("__main__"))  # tools/freeze
+    return (hasattr(sys, "frozen"))  # new py2exe and pyinstaller
 
 
 def main_dir():

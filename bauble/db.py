@@ -64,6 +64,8 @@ def sqlalchemy_debug(verbose):
 
 
 SQLALCHEMY_DEBUG = False
+if os.environ.get('BAUBLE_SQLA_DEBUG') == 'True':
+    SQLALCHEMY_DEBUG = True
 sqlalchemy_debug(SQLALCHEMY_DEBUG)
 
 
@@ -260,8 +262,8 @@ def open(uri, verify=True, show_error_dialogs=False):
     connect_args = {}
     if uri.find('sqlite') != -1:
         connect_args = {"check_same_thread": False}
-        logger.info('using sqlite DB with check_same_thread set False. If this'
-                    ' is causing errors consider removing it')
+        logger.debug('using sqlite DB with check_same_thread set False. If '
+                     'this is causing errors consider removing it')
 
     # NOTE sqla, by default, for sqlite uses SingletonThreadPool for
     # :memory: databases and NullPool for files.  For other DBs QueuePool

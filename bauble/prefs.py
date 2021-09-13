@@ -34,11 +34,13 @@ from bauble import paths
 from bauble import pluginmgr
 from bauble import utils
 
-testing = os.environ.get('BAUBLE_TEST')  # set this to True when testing via
-# the BAUBLE_TEST environment variable i.e. in bash or similar shells use:
-# BAUBLE_TEST=True nosetests
+testing = os.environ.get('BAUBLE_TEST')  # set this to True when testing
+# can be set using the BAUBLE_TEST environment variable. (Handy for python
+# (IPython, etc.) REPL use)
+# i.e. in bash or similar shells use:
+# BAUBLE_TEST=True python
 # in windows you would use something like this?:
-# cmd /V /C "set BAUBLE_TEST=True&& nosetests"
+# cmd /V /C "set BAUBLE_TEST=True&& ipython"
 
 """
 The prefs module exposes an API for getting and setting user

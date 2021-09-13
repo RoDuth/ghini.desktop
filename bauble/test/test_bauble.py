@@ -331,21 +331,30 @@ class GlobalFunctionsTests(unittest.TestCase):
 
     def test_check_new_installer(self):
         from bauble.connmgr import check_new_installer
-        test_data = {'name': 'v1.3.999-a (BBG Branch)', 'prerelease': True}
+        created_date = '2021-01-01T00:00:00Z'
+        test_data = {'name': 'v1.3.0-a (BBG Branch)',
+                     'prerelease': True,
+                     'assets': [{'created_at': created_date}]}
+        test_data['name'] = 'v1.3.999-a (BBG Branch)'
         self.assertEqual(check_new_installer(test_data), test_data)
-        test_data = {'name': 'v1.4999-a (BBG Branch)', 'prerelease': True}
+        test_data['name'] = 'v1.4999-a (BBG Branch)'
         self.assertEqual(check_new_installer(test_data), test_data)
-        test_data = {'name': 'v1.3 (BBG Branch)', 'prerelease': True}
+        test_data['name'] = 'v1.3 (BBG Branch)'
         self.assertFalse(check_new_installer(test_data))
-        test_data = {'name': 'v1.3.999 (BBG Branch)', 'prerelease': False}
+        test_data['name'] = 'v1.3.999 (MRBG Branch)'
         self.assertEqual(check_new_installer(test_data), test_data)
-        test_data = {'name': 'v1.3.999 (MRBG Branch)', 'prerelease': False}
+        test_data['name'] = 'v1.3.999 (BBG Branch)'
+        test_data['prerelease'] = False
         self.assertEqual(check_new_installer(test_data), test_data)
-        test_data = {'name': 'v1.3.999-a (BBG Branch)', 'prerelease': True}
+        test_data['prerelease'] = True
         self.assertTrue(check_new_installer(test_data) and True or False)
-        test_data = {'name': 'v1.0.0 (BBG Branch)', 'prerelease': False}
+        test_data['name'] = 'v1.0.0 (BBG Branch)'
+        test_data['prerelease'] = False
         self.assertFalse(check_new_installer(test_data))
-        test_data = {'name': 'v1.0.0-a (BBG Branch)', 'prerelease': False}
+        test_data['name'] = 'v1.0.0-a (BBG Branch)'
         self.assertFalse(check_new_installer(test_data))
-        test_data = {'name': 'v1.0.0-b (BBG Branch)', 'prerelease': False}
+        test_data['name'] = 'v1.0.0-b (BBG Branch)'
         self.assertFalse(check_new_installer(test_data) and True or False)
+        import dateutil
+        self.assertEqual(bauble.release_date,
+                         dateutil.parser.isoparse(created_date))

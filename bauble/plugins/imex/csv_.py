@@ -488,6 +488,7 @@ class CSVImporter(Importer):
                     return
 
             # commit the dependency drops
+            logger.debug('commit dropped tables')
             transaction.commit()
             transaction = connection.begin()
 

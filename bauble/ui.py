@@ -879,12 +879,6 @@ class GUI():
         about.run()
         about.destroy()
 
-    def save_state(self):
-        """
-        this is usually called from bauble.py when it shuts down
-        """
-        pass
-
     def on_delete_event(self, *args):
         from bauble import task
         if task.running():
