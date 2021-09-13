@@ -195,20 +195,19 @@ class PropertiesExpander(InfoExpander):
         box.pack_start(table, expand=False, fill=False, padding=0)
         self.vbox.pack_start(box, expand=False, fill=False, padding=0)
 
-    def update(self, row):
+    def update(self, value):
         """"
         Update the widget in the expander.
         """
-        self.id_data.set_text(str(row.id))
-        self.type_data.set_text(str(type(row).__name__))
+        self.id_data.set_text(str(value.id))
+        self.type_data.set_text(str(type(value).__name__))
+        key = prefs.datetime_format_pref
+        fmat = prefs.prefs.get(key)
+        # pylint: disable=protected-access
         self.created_data.set_text(
-            row._created
-            and row._created.strftime('%Y-%m-%d %H:%m:%S')
-            or '')
+            value._created and value._created.strftime(fmat) or '')
         self.updated_data.set_text(
-            row._last_updated
-            and row._last_updated.strftime('%Y-%m-%d %H:%m:%S')
-            or '')
+            value._last_updated and value._last_updated.strftime(fmat) or '')
 
 
 class InfoBoxPage(Gtk.ScrolledWindow):

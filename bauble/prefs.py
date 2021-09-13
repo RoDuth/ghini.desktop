@@ -81,15 +81,25 @@ date_format_pref = 'bauble.default_date_format'
 The preferences key for the default date format.
 """
 
-picture_root_pref = 'bauble.picture_root'
+time_format_pref = 'bauble.default_time_format'
 """
-The preferences key for the default pictures root
+The preferences key for the default time format.
+"""
+
+datetime_format_pref = 'bauble.default_datetime_format'
+"""
+The preferences key for the default date and time format.  This is generated
+by combining the date_format_pref and time_format_pref string. It is NOT saved
+to the config file.
 """
 
 parse_dayfirst_pref = 'bauble.parse_dayfirst'
 """
 The preferences key for to determine whether the date should come
-first when parsing date string.  For more information see the
+first when parsing date string.  This is generated from the date_format_pref
+string. It is NOT saved to the config file.
+
+For more information see the.
 :meth:`dateutil.parser.parse` method.
 
 Values: True, False
@@ -98,10 +108,18 @@ Values: True, False
 parse_yearfirst_pref = 'bauble.parse_yearfirst'
 """
 The preferences key for to determine whether the date should come
-first when parsing date string.  For more information see the
+first when parsing date string.   This is generated from the date_format_pref
+string. It is NOT saved to the config file.
+
+ For more information see the
 :meth:`dateutil.parser.parse` method.
 
 Values: True, False
+"""
+
+picture_root_pref = 'bauble.picture_root'
+"""
+The preferences key for the default pictures root
 """
 
 units_pref = 'bauble.units'
@@ -239,6 +257,7 @@ class _prefs(UserDict):
         # set some defaults if they don't exist
         defaults = [(picture_root_pref, ''),
                     (date_format_pref, '%d-%m-%Y'),
+                    (time_format_pref, '%I:%M:%S %p'),
                     (units_pref, 'metric'),
                     (debug_logging_prefs, [])]
 
@@ -267,6 +286,12 @@ class _prefs(UserDict):
         if fmat.find('%Y') == 0 or fmat.find('%y') == 0:
             return True
         return False
+
+    @property
+    def datetime_format(self):
+        # could provide an option for the seperator?
+        fmat = f'{self.get(date_format_pref)} {self.get(time_format_pref)}'
+        return fmat
 
     def add_default(self, key, value):
         if key not in self:
@@ -299,6 +324,8 @@ class _prefs(UserDict):
             return self.dayfirst
         if key == parse_yearfirst_pref:
             return self.yearfirst
+        if key == datetime_format_pref:
+            return self.datetime_format
 
         section, option = _prefs._parse_key(key)
         # this doesn't allow None values for preferences

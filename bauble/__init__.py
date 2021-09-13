@@ -27,6 +27,7 @@ import logging
 import os
 import sys
 import traceback
+from datetime import datetime
 import warnings
 import gi
 from bauble import paths
@@ -35,9 +36,9 @@ gi.require_version("Gtk", "3.0")
 
 from bauble.version import version
 version_tuple = tuple(version.split('.'))
-release_date = None
+release_date = datetime.utcfromtimestamp(0)
 release_version = None
-installation_date = "1970-01-01T00:00:00Z"
+installation_date = datetime.now()
 
 import bauble.i18n
 
@@ -249,7 +250,8 @@ def main(uri=None):
     consoleHandler.setLevel(consoleLevel)
 
     # intialize the user preferences
-    from bauble.prefs import prefs, use_sentry_client_pref, debug_logging_prefs
+    from bauble.prefs import (prefs, use_sentry_client_pref,
+                              debug_logging_prefs, datetime_format_pref)
     prefs.init()
 
     # set the logging level to debug per module
@@ -391,8 +393,13 @@ def main(uri=None):
     logger.info('This version installed on: %s; '
                 'This version installed at: %s; '
                 'Latest published version: %s; '
-                'Publication date: %s', bauble.installation_date, __file__,
-                bauble.release_version, bauble.release_date)
+                'Publication date: %s',
+                bauble.installation_date.strftime(
+                    prefs.get(datetime_format_pref)),
+                __file__,
+                bauble.release_version,
+                bauble.release_date.strftime(
+                    prefs.get(datetime_format_pref)))
 
     gui.show()
     Gtk.main()

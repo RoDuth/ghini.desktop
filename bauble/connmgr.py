@@ -29,6 +29,7 @@ import os
 from pathlib import Path
 import copy
 from importlib import import_module
+import dateutil
 
 import logging
 logger = logging.getLogger(__name__)
@@ -127,12 +128,8 @@ def set_installation_date():
     # locally, read the installation timestamp
     main_init_path = bauble.__file__
     last_modified_seconds = os.stat(main_init_path).st_mtime
-    import datetime
-    last_modified_date = (
-        datetime.datetime(1970, 1, 1) +
-        datetime.timedelta(0, int(last_modified_seconds))
-    )
-    bauble.installation_date = last_modified_date.isoformat() + "Z"
+    from datetime import datetime
+    bauble.installation_date = datetime.fromtimestamp(last_modified_seconds)
 
 
 def retrieve_latest_release_date():
@@ -159,7 +156,8 @@ def retrieve_latest_release_date():
              "branches/ghini-1.3-bbg"),
             timeout=5)
         response = json.load(stream)
-        bauble.release_date = response['commit']['commit']['committer']['date']
+        release_date = response['commit']['commit']['committer']['date']
+        bauble.release_date = dateutil.parser.isoparse(release_date)
 
         # from github retrieve the version number
         github_version_stream = urllib.request.urlopen(version_on_github,
@@ -265,8 +263,9 @@ def check_new_installer(github_release_data):
         bauble.release_version = github_release + ' (prerelease)'
     else:
         bauble.release_version = github_release
-    bauble.release_date = github_release_data.get(
+    release_date = github_release_data.get(
         'assets', [{}])[0].get('created_at')
+    bauble.release_date = dateutil.parser.isoparse(release_date)
 
     github_version = github_release.split()[0][1:]
     current_version = bauble.version
@@ -712,11 +711,11 @@ class ConnMgrPresenter(GenericEditorPresenter):
                 missing_fields.append(_("DBMS host name"))
             if not valid:
                 msg = _("Current connection does not specify the fields:\n"
-                        "%s\n"
-                        "Please specify and try again.") % "\n".join(missing_fields)
+                        "%s\nPlease specify and try again."
+                        ) % "\n".join(missing_fields)
         if not valid:
             return valid, msg
-        ## now check the params['pictures']
+        # now check the params['pictures']
         # if it's a file, things are not OK
         root = make_absolute(params['pictures'])
         thumbs = os.path.join(root, 'thumbs')

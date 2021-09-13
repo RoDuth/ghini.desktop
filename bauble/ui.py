@@ -35,7 +35,7 @@ import bauble
 from bauble import db
 from bauble import paths
 from bauble import pluginmgr
-from bauble.prefs import prefs
+from bauble.prefs import prefs, datetime_format_pref
 from bauble import search
 from bauble import utils
 from bauble.utils import desktop
@@ -871,9 +871,11 @@ class GUI():
         about.set_comments(_('This version installed on: %s\n'
                              'Latest published version: %s\n'
                              'Publication date: %s') % (
-                                 bauble.installation_date,
+                                 bauble.installation_date.strftime(
+                                     prefs.get(datetime_format_pref)),
                                  bauble.release_version,
-                                 bauble.release_date))
+                                 bauble.release_date.strftime(
+                                     prefs.get(datetime_format_pref))))
         about.run()
         about.destroy()
 
