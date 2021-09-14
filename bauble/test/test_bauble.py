@@ -160,34 +160,73 @@ class BaubleTests(BaubleTestCase):
         """
         Test bauble.types.DateTime
         """
-        dt = bauble.btypes.DateTime()
+        from datetime import timezone
+        dtime = bauble.btypes.DateTime()
 
-        # TODO: *** this needs to be updated since now we don't do our
-        # own date parsing and use the dateutils module instead
+        # with naive tz - assume UTC (datetime.utcnow(), sqlite func.now())
+        now = datetime.datetime.utcnow()
+        res = now.replace(tzinfo=timezone.utc).astimezone(tz=None)
+        ret = dtime.process_result_value(now, None)
+        self.assertEqual(res, ret)
 
-        # with negative timezone
-        s = '2008-12-01 11:50:01.001-05:00'
-        result = '2008-12-01 11:50:01.001000-05:00'
-        v = dt.process_bind_param(s, None)
-        self.assertTrue(str(v) == result, '%s == %s' % (v, result))
+        # with UTC and not naive tz (postgresql func.now())
+        now = datetime.datetime.utcnow().replace(tzinfo=timezone.utc)
+        res = now.astimezone(tz=None)
+        ret = dtime.process_result_value(now, None)
+        self.assertEqual(res, ret)
 
-        # test with positive timezone
-        s = '2008-12-01 11:50:01.001+05:00'
-        result = '2008-12-01 11:50:01.001000+05:00'
-        v = dt.process_bind_param(s, None)
-        self.assertTrue(str(v) == result, '%s == %s' % (v, result))
+        # with local timezone
+        now = datetime.datetime.now().astimezone(tz=None)
+        ret = dtime.process_result_value(now, None)
+        self.assertEqual(now, ret)
 
-        # test with no timezone
-        s = '2008-12-01 11:50:01.001'
-        result = '2008-12-01 11:50:01.001000'
-        v = dt.process_bind_param(s, None)
-        self.assertTrue(str(v) == result, '%s == %s' % (v, result))
+        # string values are always assumed to be local time
+        string = '01-12-2021 11:50:01'
+        ret = dtime.process_bind_param(string, None)
+        local_tzone = datetime.datetime.now().astimezone(tz=None).tzinfo
+        self.assertEqual(ret.tzinfo, local_tzone)
+        # and don't change
+        self.assertEqual(ret.strftime('%d-%m-%Y %I:%M:%S'), string)
 
-        # test with no milliseconds
-        s = '2008-12-01 11:50:01'
-        result = '2008-12-01 11:50:01'
-        v = dt.process_bind_param(s, None)
-        self.assertTrue(v.isoformat(' ') == result)
+        # iso string value
+        string = '2021-12-01 11:50:01'
+        ret = dtime.process_bind_param(string, None)
+        local_tzone = datetime.datetime.now().astimezone(tz=None).tzinfo
+        self.assertEqual(ret.tzinfo, local_tzone)
+        # and don't change
+        self.assertEqual(ret.strftime('%Y-%m-%d %I:%M:%S'), string)
+
+        # datetime objects are returned as is
+        now = datetime.datetime.now().astimezone(tz=None)
+        ret = dtime.process_bind_param(now, None)
+        self.assertEqual(ret, now)
+        now = datetime.datetime.utcnow()
+        ret = dtime.process_bind_param(now, None)
+        self.assertEqual(ret, now)
+
+    def test_bool_type(self):
+        string = 'True'
+        boolean = bauble.btypes.Boolean()
+        ret = boolean.process_bind_param(string, None)
+        self.assertTrue(ret)
+
+        string = 'False'
+        boolean = bauble.btypes.Boolean()
+        ret = boolean.process_bind_param(string, None)
+        self.assertFalse(ret)
+
+        string = 'random'
+        boolean = bauble.btypes.Boolean()
+        ret = boolean.process_bind_param(string, None)
+        self.assertIsNone(ret)
+
+        boolean = bauble.btypes.Boolean()
+        ret = boolean.process_bind_param(False, None)
+        self.assertFalse(ret)
+
+        boolean = bauble.btypes.Boolean()
+        ret = boolean.process_bind_param(True, None)
+        self.assertTrue(ret)
 
     def test_base_table(self):
         """

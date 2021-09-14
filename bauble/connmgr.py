@@ -157,7 +157,8 @@ def retrieve_latest_release_date():
             timeout=5)
         response = json.load(stream)
         release_date = response['commit']['commit']['committer']['date']
-        bauble.release_date = dateutil.parser.isoparse(release_date)
+        release_date = dateutil.parser.isoparse(release_date)
+        bauble.release_date = release_date.astimezone(tz=None)
 
         # from github retrieve the version number
         github_version_stream = urllib.request.urlopen(version_on_github,
@@ -265,7 +266,8 @@ def check_new_installer(github_release_data):
         bauble.release_version = github_release
     release_date = github_release_data.get(
         'assets', [{}])[0].get('created_at')
-    bauble.release_date = dateutil.parser.isoparse(release_date)
+    release_date = dateutil.parser.isoparse(release_date)
+    bauble.release_date = release_date.astimezone(tz=None)
 
     github_version = github_release.split()[0][1:]
     current_version = bauble.version

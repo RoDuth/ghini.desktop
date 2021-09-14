@@ -116,7 +116,7 @@ class HistoryExtension(orm.MapperExtension):
         stmt = table.insert(dict(table_name=mapper.local_table.name,
                                  table_id=instance.id, values=str(row),
                                  operation=operation, user=user,
-                                 timestamp=datetime.datetime.today()))
+                                 timestamp=datetime.datetime.utcnow()))
         connection.execute(stmt)
 
     def after_update(self, mapper, connection, instance):

@@ -1374,7 +1374,9 @@ class HistoryView(pluginmgr.View):
             for k, v in sorted(list(d.items()), key=cmp_to_key(self.cmp_items))
         )
         self.liststore.append([
-            ("%s" % item.timestamp)[:19], item.operation, item.user,
+            item.timestamp.strftime(
+                prefs.prefs.get(prefs.datetime_format_pref)),
+            item.operation, item.user,
             item.table_name, friendly, item.values
         ])
 

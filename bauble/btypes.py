@@ -99,14 +99,14 @@ class Enum(types.TypeDecorator):
         return Enum(self.values, self.empty_to_none, self.strict)
 
 
+from datetime import timezone
+
+
 class DateTime(types.TypeDecorator):
     """
-    A DateTime type that allows strings
+    A DateTime type that allows strings and tries to always return local time.
     """
     impl = types.DateTime
-
-    import re
-    _rx_tz = re.compile('[+-]')
 
     def process_bind_param(self, value, dialect):
         if not isinstance(value, str):
@@ -125,10 +125,16 @@ class DateTime(types.TypeDecorator):
             result = date_parser.parse(
                 value, dayfirst=DateTime._dayfirst,
                 yearfirst=DateTime._yearfirst)
-        return result
+        return result.astimezone(tz=None)
 
     def process_result_value(self, value, dialect):
-        return value
+        # no tz (utc naive tz) sqlite func.now() datetime.utcnow()
+        if not value.tzinfo:
+            return value.replace(tzinfo=timezone.utc).astimezone(tz=None)
+        # with a tz - Postgres func.now() is utc, string dates are localtime
+        # already (tz=None has no effect). If other data is imported etc in
+        # another tz this returns localtime
+        return value.astimezone(tz=None)
 
     def copy(self):
         return DateTime()

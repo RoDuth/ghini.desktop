@@ -665,7 +665,7 @@ class PlantTests(GardenTestCase):
 
     def test_setting_quantity_location_w_date_reason_produces_2_changes(self):
         import datetime
-        date = datetime.datetime(2020, 12, 2, 0, 0)
+        date = '02-12-2020'
         loc2a = Location(name='site2a', code='2a')
         self.session.add(loc2a)
         self.session.commit()
@@ -682,7 +682,7 @@ class PlantTests(GardenTestCase):
         self.assertEqual(len(self.plant.changes), 3)
         for chg in self.plant.changes[1:]:
             self.assertEqual(chg.reason, 'ERRO')
-            self.assertEqual(chg.date, date)
+            self.assertEqual(chg.date.strftime('%d-%m-%Y'), date)
 
     def test_plant_from_dict(self):
         p = Plant.retrieve_or_create(
@@ -2182,26 +2182,25 @@ class FromAndToDictTest(GardenTestCase):
         self.assertEqual(plt.accession, acc)
 
     def test_set_create_timestamp_european(self):
-        from datetime import datetime
-        ## insert an object with a timestamp
-        Location.retrieve_or_create(
-            self.session, {'code': '1',
-                           '_created': '10/12/2001'})
-        ## retrieve same object from other session
+        # insert an object with a timestamp
+        date = '10/12/2001'
+        Location.retrieve_or_create(self.session, {'code': '1',
+                                                   '_created': date})
+        # retrieve same object from other session
         session = db.Session()
         loc = Location.retrieve_or_create(session, {'code': '1', })
-        self.assertEqual(loc._created, datetime(2001, 12, 10))
+        self.assertEqual(loc._created.strftime('%d/%m/%Y'), date)
 
     def test_set_create_timestamp_iso8601(self):
-        from datetime import datetime
-        ## insert an object with a timestamp
+        # insert an object with a timestamp
+        date = '2001-12-10'
         Location.retrieve_or_create(
             self.session, {'code': '1',
-                           '_created': '2001-12-10'})
-        ## retrieve same object from other session
+                           '_created': date})
+        # retrieve same object from other session
         session = db.Session()
         loc = Location.retrieve_or_create(session, {'code': '1', })
-        self.assertEqual(loc._created, datetime(2001, 12, 10))
+        self.assertEqual(loc._created.strftime('%Y-%m-%d'), date)
 
 
 class FromAndToDict_create_update_test(GardenTestCase):

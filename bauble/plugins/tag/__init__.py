@@ -471,7 +471,7 @@ class Tag(db.Base):
         if self.__last_objects is None:
             # here I update my list
             from datetime import datetime
-            self.__my_own_timestamp = datetime.now()
+            self.__my_own_timestamp = datetime.now().astimezone(tz=None)
             self.__last_objects = self.get_tagged_objects()
         # here I return my list
         return self.__last_objects
