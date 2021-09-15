@@ -125,15 +125,15 @@ class DateTime(types.TypeDecorator):
             result = date_parser.parse(
                 value, dayfirst=DateTime._dayfirst,
                 yearfirst=DateTime._yearfirst)
-        return result.astimezone(tz=None)
+        return result.astimezone(tz=timezone.utc)
 
     def process_result_value(self, value, dialect):
-        # no tz (utc naive tz) sqlite func.now() datetime.utcnow()
+        # no tz (utc naive tz) sqlite func.now(), datetime.utcnow(), string
+        # dates are all stored in utc but have no tz
         if not value.tzinfo:
             return value.replace(tzinfo=timezone.utc).astimezone(tz=None)
-        # with a tz - Postgres func.now() is utc, string dates are localtime
-        # already (tz=None has no effect). If other data is imported etc in
-        # another tz this returns localtime
+        # with a tz - Postgres func.now(), string dates, datetime.utcnow() are
+        # all stored utc
         return value.astimezone(tz=None)
 
     def copy(self):

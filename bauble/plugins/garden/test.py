@@ -664,7 +664,6 @@ class PlantTests(GardenTestCase):
         self.assertEqual(len(self.plant.changes), 3)
 
     def test_setting_quantity_location_w_date_reason_produces_2_changes(self):
-        import datetime
         date = '02-12-2020'
         loc2a = Location(name='site2a', code='2a')
         self.session.add(loc2a)

@@ -402,7 +402,7 @@ class PlantChange(db.Base):
                                translations=change_reasons))
 
     # date of change
-    date = Column(types.DateTime, default=func.now())
+    date = Column(types.DateTime(timezone=True), default=func.now())
 
     # relations
     plant = relation('Plant', uselist=False,

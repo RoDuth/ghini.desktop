@@ -161,6 +161,7 @@ class BaubleTests(BaubleTestCase):
         Test bauble.types.DateTime
         """
         from datetime import timezone
+        from dateutil import parser as date_parse
         dtime = bauble.btypes.DateTime()
 
         # with naive tz - assume UTC (datetime.utcnow(), sqlite func.now())
@@ -180,21 +181,21 @@ class BaubleTests(BaubleTestCase):
         ret = dtime.process_result_value(now, None)
         self.assertEqual(now, ret)
 
-        # string values are always assumed to be local time
+        # string values are always stored as utc
         string = '01-12-2021 11:50:01'
         ret = dtime.process_bind_param(string, None)
-        local_tzone = datetime.datetime.now().astimezone(tz=None).tzinfo
-        self.assertEqual(ret.tzinfo, local_tzone)
+        self.assertEqual(ret.tzinfo, datetime.timezone.utc)
         # and don't change
-        self.assertEqual(ret.strftime('%d-%m-%Y %I:%M:%S'), string)
+        self.assertEqual(ret.astimezone().strftime('%d-%m-%Y %I:%M:%S'),
+                         string)
 
         # iso string value
         string = '2021-12-01 11:50:01'
         ret = dtime.process_bind_param(string, None)
-        local_tzone = datetime.datetime.now().astimezone(tz=None).tzinfo
-        self.assertEqual(ret.tzinfo, local_tzone)
+        self.assertEqual(ret.tzinfo, datetime.timezone.utc)
         # and don't change
-        self.assertEqual(ret.strftime('%Y-%m-%d %I:%M:%S'), string)
+        self.assertEqual(ret.astimezone().strftime('%Y-%m-%d %I:%M:%S'),
+                         string)
 
         # datetime objects are returned as is
         now = datetime.datetime.now().astimezone(tz=None)
