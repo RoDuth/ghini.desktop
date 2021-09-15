@@ -24,8 +24,8 @@ import os
 import sys
 import traceback
 import html
+from ast import literal_eval
 import threading
-from functools import cmp_to_key
 
 import logging
 logger = logging.getLogger(__name__)
@@ -1340,39 +1340,31 @@ class HistoryView(pluginmgr.View):
         self.update()
 
     @staticmethod
-    def cmp_items(a, b):
-        ka, va = a
-        kb, vb = b
-        if ka == 'id':
-            return -1
-        if kb == 'id':
-            return 1
-        if va == 'None' and vb != 'None':
-            return 1
-        if vb == 'None' and va != 'None':
-            return -1
-        if a < b:
-            return -1
-        if b < a:
-            return 1
-        return 0
+    def cmp_items_key(val):
+        """Sort by the key after putting id first and None values last"""
+        k, v = val
+        if k == 'id':
+            return (0, k)
+        if v == 'None':
+            return (2, k)
+        return (1, k)
 
     @staticmethod
     def show_typed_value(v):
         try:
-            eval(v)
+            literal_eval(v)
             return v
-        except:
-            return "»%s«" % v
+        except (ValueError, SyntaxError):
+            # most likely a string
+            return repr(v)
 
     def add_row(self, item):
-        d = eval(item.values)
-        del d['_created']
-        del d['_last_updated']
+        dct = literal_eval(item.values)
+        del dct['_created']
+        del dct['_last_updated']
         friendly = ', '.join(
             "%s: %s" % (k, self.show_typed_value(v))
-            for k, v in sorted(list(d.items()), key=cmp_to_key(self.cmp_items))
-        )
+            for k, v in sorted(list(dct.items()), key=self.cmp_items_key))
         self.liststore.append([
             item.timestamp.strftime(
                 prefs.prefs.get(prefs.datetime_format_pref)),
@@ -1382,7 +1374,7 @@ class HistoryView(pluginmgr.View):
 
     def on_row_activated(self, tree, path, column):
         row = self.liststore[path]
-        dic = eval(row[self.TVC_DICT])
+        dic = literal_eval(row[self.TVC_DICT])
         table = row[self.TVC_TABLE]
         obj_id = int(dic['id'])
         for table_name, equivalent, key in [

@@ -191,7 +191,8 @@ class Code39:
            '$': 'b   b   b   b b',
            '+': 'b   b b   b   b',
            '/': 'b   b   b b   b',
-    }
+           }
+
     @classmethod
     def path(cls, letter, height):
         format = ('M %(0)s,0 %(0)s,H M %(1)s,H %(1)s,0 '
@@ -268,12 +269,12 @@ class Code39:
 
 class MakoFormatterSettingsBox(SettingsBox):
     import re
-    pattern = re.compile("^## OPTION ([a-z_]*): \("
-                         "type: ([a-z_]*), "
-                         "default: '(.*)', "
-                         "tooltip: '(.*)'\)$")
+    pattern = re.compile(r"^## OPTION ([a-z_]*): \("
+                         r"type: ([a-z_]*), "
+                         r"default: '(.*)', "
+                         r"tooltip: '(.*)'\)$")
 
-    def __init__(self, report_dialog=None, *args):
+    def __init__(self, *args):
         super().__init__(*args)
         self.widgets = utils.load_widgets(
             os.path.join(paths.lib_dir(),
@@ -312,13 +313,13 @@ class MakoFormatterSettingsBox(SettingsBox):
         if 'private' in settings:
             self.widgets.private_check.set_active(settings['private'])
 
-    def on_file_set(self, *args, **kwargs):
+    def on_file_set(self, widget):
         self.defaults = []
         self.clear_options_box()
         # which options does the template accept? (can be None)
         options_box = self.widgets.mako_options_box
         try:
-            with open(self.widgets.template_chooser.get_filename()) as f:
+            with open(widget.get_filename()) as f:
                 # scan the header filtering lines starting with # OPTION
                 option_lines = [_f for _f in [self.pattern.match(i.strip())
                                               for i in f.readlines()] if _f]
@@ -352,7 +353,7 @@ class MakoFormatterSettingsBox(SettingsBox):
         for widget in options_box.get_children():
             options_box.remove(widget)
 
-    def reset_options(self, widget):
+    def reset_options(self, _widget):
         for entry, text in self.defaults:
             entry.set_text(text)
 
@@ -405,7 +406,8 @@ class MakoFormatterPlugin(FormatterPlugin):
         if not os.path.exists(cls.plugin_dir):
             os.mkdir(cls.plugin_dir)
         cls.templates = []
-        src_dir = os.path.join(paths.lib_dir(), "plugins", "report", 'mako', 'templates')
+        src_dir = os.path.join(paths.lib_dir(), "plugins", "report", 'mako',
+                               'templates')
         for template in list(os.walk(src_dir))[0][2]:
             if template.endswith('~'):
                 continue

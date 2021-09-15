@@ -15,8 +15,6 @@
 # You should have received a copy of the GNU General Public License
 # along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
 
-from nose import SkipTest
-
 from bauble.plugins.plants.stored_queries import (
     StoredQueriesModel, StoredQueriesPresenter)
 from bauble.test import BaubleTestCase
