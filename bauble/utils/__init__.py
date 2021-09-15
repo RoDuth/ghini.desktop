@@ -62,7 +62,7 @@ class Cache:
     '''a simple class for caching images
 
     you instantiate a size 10 cache like this:
-    >>> cache = ImageCache(10)
+    >>> cache = Cache(10)
 
     if `getter` is a function that returns a picture, you don't immediately
     invoke it, you use the cache like this:

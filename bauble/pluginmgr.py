@@ -344,8 +344,8 @@ class PluginRegistry(db.Base):
         should be installed before adding.
         """
 
-        p = PluginRegistry(name=utils.utf8(plugin.__class__.__name__),
-                           version=utils.utf8(plugin.version))
+        p = PluginRegistry(name=plugin.__class__.__name__,
+                           version=plugin.version)
         session = db.Session()
         session.add(p)
         session.commit()
@@ -400,8 +400,8 @@ class PluginRegistry(db.Base):
         session = db.Session()
         try:
             logger.debug("not using value of version (%s)." % version)
-            session.query(PluginRegistry).\
-                filter_by(name=utils.utf8(name)).one()
+            session.query(PluginRegistry).filter_by(
+                name=utils.utf8(name)).one()
             return True
         except orm_exc.NoResultFound as e:
             logger.debug("%s(%s)" % (type(e).__name__, e))

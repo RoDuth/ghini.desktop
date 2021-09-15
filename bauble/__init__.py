@@ -2,7 +2,7 @@
 # Copyright (c) 2005,2006,2007,2008,2009 Brett Adams <brett@belizebotanic.org>
 # Copyright (c) 2012-2017 Mario Frasca <mario@anche.no>
 # Copyright 2017 Jardín Botánico de Quito
-# Copyright (c) 2016-2020 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright (c) 2016-2021 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -280,8 +280,8 @@ def main(uri=None):
             logger.debug('not registering sentry client')
 
     except Exception as e:
-        logger.warning("can't configure sentry client")
-        logger.debug("%s(%s)" % (type(e).__name__, e))
+        logger.debug("can't configure sentry client")
+        logger.debug("%s(%s)", (type(e).__name__, e))
 
     from gi.repository import Gdk
 
@@ -322,20 +322,19 @@ def main(uri=None):
                 else:
                     uri = conn_name = None
             except err.VersionError as e:
-                logger.warning("%s(%s)" % (type(e), e))
+                logger.warning("%s(%s)", type(e).__name__, e)
                 db.open(uri, False)
                 break
             except (err.EmptyDatabaseError, err.MetaTableError,
-                    err.VersionError, err.TimestampError,
-                    err.RegistryError) as e:
-                logger.info("%s(%s)" % (type(e), e))
+                    err.TimestampError, err.RegistryError) as e:
+                logger.info("%s(%s)", type(e).__name__, e)
                 open_exc = e
                 # reopen without verification so that db.Session and
                 # db.engine, db.metadata will be bound to an engine
                 db.open(uri, False)
                 break
             except err.DatabaseError as e:
-                logger.debug("%s(%s)" % (type(e).__name__, e))
+                logger.debug("%s(%s)", type(e).__name__, e)
                 open_exc = e
             except Exception as e:
                 msg = _("Could not open connection.\n\n%s") % e
