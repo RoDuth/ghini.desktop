@@ -19,7 +19,6 @@
 # test_search.py
 #
 import unittest
-from nose import SkipTest
 
 import logging
 logger = logging.getLogger(__name__)

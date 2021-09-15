@@ -10,5 +10,5 @@ mingw-w64-x86_64-gtk3
 mingw-w64-x86_64-python-gobject
 mingw-w64-x86_64-python-psycopg2
 mingw-w64-x86_64-proj
-mingw-w64-x86_64-python-nose
+mingw-w64-x86_64-python-pytest
 mingw-w64-x86_64-python-coverage

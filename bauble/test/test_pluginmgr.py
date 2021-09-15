@@ -26,13 +26,8 @@ import unittest
 import logging
 logger = logging.getLogger(__name__)
 
-#from pyparsing import *
-#from sqlalchemy import *
-#from bauble.view import SearchView
-#from bauble.search import SearchParser, MapperSearch
-
 import bauble
-import bauble.db as db
+from bauble import db
 from bauble.test import BaubleTestCase, uri
 import bauble.pluginmgr as pluginmgr
 from bauble.pluginmgr import PluginRegistry
@@ -345,7 +340,7 @@ class PluginRegistryTests(BaubleTestCase):
         Test bauble.pluginmgr.PluginRegistry
         """
 
-        ## this is the plugin object
+        # this is the plugin object
         p = A()
 
         # test that adding works

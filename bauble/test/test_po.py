@@ -34,8 +34,7 @@ class PoTests(unittest.TestCase):
         try:
             from babel.messages.pofile import read_po
         except:
-            from nose import SkipTest
-            raise SkipTest("don't test on appveyor")
+            raise unittest.SkipTest("don't test on appveyor")
 
         for filename in files:
             catalog = read_po(open(filename))

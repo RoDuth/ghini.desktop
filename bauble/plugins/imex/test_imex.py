@@ -32,8 +32,8 @@ from bauble import db
 from bauble.plugins.plants import (
     Familia, Family, Genus, Species, VernacularName, SpeciesNote)
 from bauble.plugins.garden import Accession, Location, Plant, Contact, Source
-import bauble.plugins.garden.test as garden_test
-import bauble.plugins.plants.test as plants_test
+import bauble.plugins.garden.test_garden as garden_test
+import bauble.plugins.plants.test_plants as plants_test
 from bauble.plugins.imex.csv_ import CSVImporter, CSVExporter, QUOTE_CHAR, \
     QUOTE_STYLE
 from bauble.plugins.imex.iojson import JSONImporter, JSONExporter
@@ -71,9 +71,6 @@ plant_data = [
 
 
 class ImexTestCase(BaubleTestCase):
-
-    def __init__(self, *args):
-        super().__init__(*args)
 
     def setUp(self):
         super().setUp()

@@ -31,7 +31,6 @@ import gtk as Gtk
 import logging
 logger = logging.getLogger(__name__)
 
-from nose import SkipTest
 import bauble.db as db
 from bauble.test import BaubleTestCase
 from bauble import utils

@@ -33,8 +33,8 @@ import bauble.paths as paths
 from bauble.test import BaubleTestCase
 import bauble.plugins.abcd as abcd
 from bauble.plugins.garden import Plant, Accession, Source, Collection
-import bauble.plugins.plants.test as plants_test
-import bauble.plugins.garden.test as garden_test
+import bauble.plugins.plants.test_plants as plants_test
+import bauble.plugins.garden.test_garden as garden_test
 
 
 # TODO: the ABCD tests need to be completely reworked

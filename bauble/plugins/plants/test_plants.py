@@ -27,7 +27,7 @@ from unittest import TestCase
 
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.exc import IntegrityError
-from nose import SkipTest
+import unittest
 
 import bauble.utils as utils
 import bauble.db as db
@@ -389,11 +389,11 @@ class FamilyTests(PlantTestCase):
         f.qualifier = 's. lat.'
         self.assertTrue(str(f) == 'fam s. lat.')
 
+    @unittest.skip('requires interaction')
     def test_editor(self):
         """
         Interactively test the FamilyEditor
         """
-        raise SkipTest('Not Implemented')
         fam = Family(family='some family')
         editor = FamilyEditor(model=fam)
         # editor.start()
@@ -580,11 +580,11 @@ class GenusTests(PlantTestCase):
         """
         pass
 
+    @unittest.skip('requires interaction')
     def test_editor(self):
         """
         Interactively test the GenusEditor
         """
-        raise SkipTest('Not Implemented')
         #loc = self.create(Genus, name=u'some site')
         fam = Family(family='family')
         fam2 = Family(family='family2')
@@ -794,8 +794,8 @@ class SpeciesTests(PlantTestCase):
     def tearDown(self):
         super().tearDown()
 
+    @unittest.skip('not implimented')
     def test_editor(self):
-        raise SkipTest('Not Implemented')
         # import default geography data
         import bauble.paths as paths
         default_path = os.path.join(
@@ -1322,8 +1322,8 @@ class FromAndToDictTest(PlantTestCase):
         ses_families = self.session.query(Family).all()
         self.assertTrue(fab in ses_families)
 
+    @unittest.skip('not implimented')
     def test_where_can_object_be_found_before_commit(self):  # disabled
-        raise SkipTest('Not Implemented')
         fab = Family.retrieve_or_create(
             self.session, {'rank': 'family',
                            'epithet': 'Fabaceae'})
@@ -2063,10 +2063,10 @@ class PresenterTest(PlantTestCase):
         species.author = 'Asher'
         presenter.commit_changes()
 
+    @unittest.skip('not implimented')
     def test_cantinsertsametwice(self):
         'while binomial name in view matches database item, warn user'
 
-        raise SkipTest('Not Implemented')  # presenter uses view internals
         from .species_editor import SpeciesEditorPresenter
         model = Species.retrieve_or_create(
             self.session, {'object': 'taxon',
@@ -2078,10 +2078,11 @@ class PresenterTest(PlantTestCase):
         presenter = SpeciesEditorPresenter(model, MockView())
         presenter.on_text_entry_changed('sp_species_entry', 'grandiflora')
 
+    @unittest.skip('not implimented')
     def test_cantinsertsametwice_warnonce(self):
         'while binomial name in view matches database item, warn user'
 
-        raise SkipTest('Not Implemented')  # presenter uses view internals
+        pass
 
 
 class GlobalFunctionsTest(PlantTestCase):

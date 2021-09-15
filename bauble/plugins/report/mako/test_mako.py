@@ -42,9 +42,6 @@ from bauble.plugins.report.mako import add_text, Code39, add_code39  # add_qr
 
 class MakoFormatterTests(BaubleTestCase):
 
-    def __init__(self, *args):
-        super().__init__(*args)
-
     def setUp(self, *args):
         super().setUp()
         fctr = gctr = sctr = actr = pctr = 0

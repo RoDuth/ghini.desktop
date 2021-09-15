@@ -19,7 +19,7 @@ import os
 
 ## just keeping it here because I am forgetful and I never recall how to
 ## import SkipTest otherwise! and commented out because of FlyCheck.
-from nose import SkipTest
+from unittest import SkipTest
 
 from bauble.test import BaubleTestCase, check_dupids
 from bauble.connmgr import ConnMgrPresenter

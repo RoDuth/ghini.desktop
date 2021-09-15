@@ -21,7 +21,6 @@ import os
 from sys import platform
 from functools import partial
 import importlib
-from nose import SkipTest
 
 from gi.repository import Gtk  # noqa
 

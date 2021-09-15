@@ -20,14 +20,13 @@
 
 import os
 import datetime
-from unittest import TestCase
+import unittest
 
 import logging
 logger = logging.getLogger(__name__)
 
 from gi.repository import Gtk
 
-from nose import SkipTest
 from sqlalchemy import and_
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import object_session
@@ -49,7 +48,7 @@ from bauble.plugins.plants.geography import Geography
 from bauble.plugins.plants.family import Family
 from bauble.plugins.plants.genus import Genus
 from bauble.plugins.plants.species_model import Species
-import bauble.plugins.plants.test as plants_test
+import bauble.plugins.plants.test_plants as plants_test
 from bauble.plugins.garden.institution import Institution, InstitutionPresenter
 from bauble import prefs
 
@@ -160,7 +159,7 @@ def setUp_data():
 # 5. existing accession with existing source
 # - create test for parsing latitude/longitude entered into the lat/lon entries
 
-class DuplicateIdsGlade(TestCase):
+class DuplicateIdsGlade(unittest.TestCase):
     def test_duplicate_ids(self):
         """
         Test for duplicate ids for all .glade files in the gardens plugin.
@@ -227,14 +226,16 @@ class PlantTests(GardenTestCase):
         # rollback the IntegrityError so tearDown() can do its job
         self.session.rollback()
 
+    @unittest.skip('not implimented')
     def test_delete(self):
         """
         Test that when a plant is deleted...
         """
-        raise SkipTest('Not Implemented')
+        pass
 
+    @unittest.skip('not implimented')
     def test_editor_addnote(self):
-        raise SkipTest('Not Implemented')
+        pass
 
     def test_duplicate(self):
         """
@@ -321,11 +322,11 @@ class PlantTests(GardenTestCase):
             self.assertEqual(plt.planted.to_location, self.location)
             self.assertEqual(plt.planted.quantity, plt.quantity)
 
+    @unittest.skip('requires interaction')
     def test_editor(self):
         """
         Interactively test the PlantEditor
         """
-        raise SkipTest('separate view from presenter, then test presenter')
         for plant in self.session.query(Plant):
             self.session.delete(plant)
         for location in self.session.query(Location):
@@ -533,11 +534,11 @@ class PlantTests(GardenTestCase):
         assert new_plant.changes[0].parent_plant == self.plant, \
             'change.parent_plant != original plant'
 
+    @unittest.skip('not implimented')
     def test_branch_callback(self):
         """
         Test bauble.plugins.garden.plant.branch_callback()
         """
-        raise SkipTest('Not Implemented')
         for plant in self.session.query(Plant):
             self.session.delete(plant)
         for location in self.session.query(Location):
@@ -1133,11 +1134,11 @@ class PropagationTests(GardenTestCase):
             self.assertTrue(value == default,
                          '%s = %s (%s)' % (attr, value, default))
 
+    @unittest.skip('requires interaction')
     def test_editor(self):
         """
         Interactively test the PropagationEditor
         """
-        raise SkipTest('separate view from presenter, then test presenter')
         from bauble.plugins.garden.propagation import PropagationEditor
         propagation = Propagation()
         #propagation.prop_type = u'UnrootedCutting'
@@ -1617,8 +1618,8 @@ class AccessionTests(GardenTestCase):
         logger.debug(acc.source.__dict__)
         self.assertEqual(acc.source.plant_propagation_id, plant_prop_id)
 
+    @unittest.skip('problem not found in presenter')
     def test_accession_editor(self):
-        raise SkipTest('Problem cannot be found in presenter')
         acc = Accession(code='code', species=self.species)
         self.editor = AccessionEditor(acc)
         update_gui()
@@ -1646,11 +1647,11 @@ class AccessionTests(GardenTestCase):
         self.editor.handle_response(Gtk.ResponseType.OK)
         self.editor.session.close()
 
+    @unittest.skip('requires interaction')
     def test_editor(self):
         """
         Interactively test the AccessionEditor
         """
-        raise SkipTest('separate view from presenter, then test presenter')
         #donor = self.create(Donor, name=u'test')
         sp2 = Species(genus=self.genus, sp='species')
         sp2.synonyms.append(self.species)
@@ -1883,8 +1884,9 @@ class LocationTests(GardenTestCase):
         editor.presenter.cleanup()
         return
 
+    @unittest.skip('not implimented')
     def test_deleting_editor(self):
-        raise SkipTest('TODO: what is this garbage collection testing?')
+        # TODO: what is this garbage collection testing?
         loc = self.create(Location, name='some site', code='STE')
         editor = LocationEditor(model=loc)
 
@@ -2005,8 +2007,9 @@ class InstitutionPresenterTests(GardenTestCase):
         self.assertEqual(o.name, 'bauble')
         self.assertEqual(presenter.view.boxes, set())
 
+    @unittest.skip('not implimented')
     def test_no_email_means_no_registering(self):
-        raise SkipTest('Not currently enabled in this version')
+        # TODO Not currently enabled in this version
         from bauble.editor import MockView
         view = MockView(sensitive={'inst_register': None,
                                    'inst_ok': None})
@@ -2016,8 +2019,9 @@ class InstitutionPresenterTests(GardenTestCase):
         InstitutionPresenter(o, view)
         self.assertFalse(view.widget_get_sensitive('inst_register'))
 
+    @unittest.skip('not implimented')
     def test_invalid_email_means_no_registering(self):
-        raise SkipTest('Not currently enabled in this version')
+        # TODO Not currently enabled in this version
         from bauble.editor import MockView
         view = MockView(sensitive={'inst_register': None,
                                    'inst_ok': None})
@@ -2027,8 +2031,9 @@ class InstitutionPresenterTests(GardenTestCase):
         InstitutionPresenter(o, view)
         self.assertFalse(view.widget_get_sensitive('inst_register'))
 
+    @unittest.skip('not implimented')
     def test_no_email_means_can_register(self):
-        raise SkipTest('Not currently enabled in this version')
+        # TODO Not currently enabled in this version
         from bauble.editor import MockView
         view = MockView(sensitive={'inst_register': None,
                                    'inst_ok': None})
@@ -2038,8 +2043,9 @@ class InstitutionPresenterTests(GardenTestCase):
         InstitutionPresenter(o, view)
         self.assertTrue(view.widget_get_sensitive('inst_register'))
 
+    @unittest.skip('not implimented')
     def test_when_user_registers_info_is_logged(self):
-        raise SkipTest('Not currently enabled in this version')
+        # TODO Not currently enabled in this version
         from bauble.utils import desktop
         from bauble.test import mockfunc
         from functools import partial
@@ -2110,7 +2116,7 @@ parse_lat_lon_data = ((('N', '17 21 59'), dec('17.366389')),
                       (('E', '121 40 39'), dec('121.6775')))
 
 
-class DMSConversionTests(TestCase):
+class DMSConversionTests(unittest.TestCase):
 
     # test coordinate conversions
     def test_dms_to_decimal(self):

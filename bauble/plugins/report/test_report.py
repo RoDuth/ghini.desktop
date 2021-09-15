@@ -31,12 +31,13 @@ from bauble.plugins.garden import Accession, Plant, Location, Source, Contact
 from bauble.plugins.tag import tag_objects, Tag
 
 
-def setUp_test_data():
-    pass
+# these unused functions cause nosetests to report 2 extra tests to pytest
+# def setUp_test_data():
+#     pass
 
 
-def tearDown_test_data():
-    pass
+# def tearDown_test_data():
+#     pass
 
 
 def test_duplicate_ids():

@@ -15,12 +15,12 @@
 # You should have received a copy of the GNU General Public License
 # along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
 
-
+import unittest
 from .querybuilderparser import BuiltQuery
 from bauble.test import BaubleTestCase
-from nose import SkipTest
 
-class QBP(BaubleTestCase):
+
+class TestQBP(BaubleTestCase):
     def test_and_clauses(self):
         query = BuiltQuery(
             'plant WHERE accession.species.genus.family.epithet=Fabaceae AND '
@@ -121,9 +121,10 @@ class QBP(BaubleTestCase):
         self.assertEqual(query.is_valid, True)
         self.assertEqual(len(query.clauses), 2)
 
+    @unittest.skip('not implimented')
     def test_be_able_to_skip_first_query_if_invalid(self):
         # valid query, but not for the query builder
-        raise SkipTest("we can't do that without rewriting the grammar")
+        # "we can't do that without rewriting the grammar"
         query = BuiltQuery("species WHERE count(accessions.id)>4 or "
                            "genus.epithet=Inga")
         self.assertEqual(query.is_valid, True)

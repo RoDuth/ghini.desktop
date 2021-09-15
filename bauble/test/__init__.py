@@ -98,15 +98,17 @@ class BaubleTestCase(unittest.TestCase):
             print(e, file=sys.stderr)
         if not bauble.db.engine:
             raise BaubleError('not connected to a database')
+        bauble.pluginmgr.plugins = {}
         pluginmgr.load()
         prefs.init()
         prefs.testing = True
-        db.create(False)
+        db.create(import_defaults=False)
         pluginmgr.install('all', False, force=True)
         pluginmgr.init()
         self.session = db.Session()
         self.handler = MockLoggingHandler()
         logging.getLogger().addHandler(self.handler)
+        logging.getLogger().setLevel(logging.DEBUG)
 
     def tearDown(self):
         logging.getLogger().removeHandler(self.handler)
