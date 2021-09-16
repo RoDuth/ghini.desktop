@@ -17,18 +17,19 @@
 # along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
 #
 
+import os
 import logging
+import threading
 logger = logging.getLogger(__name__)
 
 from bauble.plugins.garden.plant import Plant
 from bauble.plugins.garden.accession import Accession
 
 from bauble import db
-from bauble import pluginmgr
 
 
-import gtk, gobject
-import os
+from gi.repository import GLib
+
 
 
 def create_pocket(filename):
@@ -83,10 +84,9 @@ CREATE TABLE "plant" (
     cn.commit()
 
 
-import threading
-
 class ExportToPocketThread(threading.Thread):
-    def __init__(self, filename, progressbar=None, callback=None, include_private=True):
+    def __init__(self, filename, progressbar=None, callback=None,
+                 include_private=True):
         super().__init__(target=None, name=None)
         self.filename = filename
         self.callback = callback
@@ -97,8 +97,8 @@ class ExportToPocketThread(threading.Thread):
     def run(self):
         from bauble.plugins.plants import Species
         if self.progressbar:
-            GObject.idle_add(self.progressbar.show)
-            GObject.idle_add(self.progressbar.set_fraction, 0)
+            GLib.idle_add(self.progressbar.show)
+            GLib.idle_add(self.progressbar.set_fraction, 0)
         session = db.Session()
         plant_query = (session.query(Plant)
                        .order_by(Plant.code)
@@ -129,7 +129,7 @@ class ExportToPocketThread(threading.Thread):
             except Exception as e:
                 logger.info("error exporting species %s: %s %s" % (i.id, type(e), e))
             if self.progressbar:
-                GObject.idle_add(self.progressbar.set_fraction, 0.05 * count / len(species))
+                GLib.idle_add(self.progressbar.set_fraction, 0.05 * count / len(species))
             count += 1
             if not self.keep_running:
                 break
@@ -147,7 +147,7 @@ class ExportToPocketThread(threading.Thread):
             except Exception as e:
                 logger.info("error exporting accession %s: %s %s" % (i.id, type(e), e))
             if self.progressbar:
-                GObject.idle_add(self.progressbar.set_fraction, 0.05 + 0.4 * count / len(accessions))
+                GLib.idle_add(self.progressbar.set_fraction, 0.05 + 0.4 * count / len(accessions))
             count += 1
             if not self.keep_running:
                 break
@@ -162,16 +162,16 @@ class ExportToPocketThread(threading.Thread):
             except Exception as e:
                 logger.info("error exporting plant %s: %s %s" % (i.id, type(e), e))
             if self.progressbar:
-                GObject.idle_add(self.progressbar.set_fraction, 0.45 + 0.55 * count / len(plants))
+                GLib.idle_add(self.progressbar.set_fraction, 0.45 + 0.55 * count / len(plants))
             count += 1
             if not self.keep_running:
                 break
         cn.commit()
         session.close()
         if self.progressbar:
-            GObject.idle_add(self.progressbar.hide)
+            GLib.idle_add(self.progressbar.hide)
         if self.callback is not None:
-            GObject.idle_add(self.callback)
+            GLib.idle_add(self.callback)
         return True
 
     def cancel(self):

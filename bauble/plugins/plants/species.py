@@ -242,7 +242,7 @@ class SynonymsExpander(InfoExpander):
         logger.debug("species %s is synonym of %s and has synonyms %s" %
                      (row, accepted, row.synonyms))
         self.set_label(_("Synonyms"))  # reset default value
-        on_label_clicked = lambda l, e, syn: select_in_search_results(syn)
+        on_label_clicked = utils.generate_on_clicked(select_in_search_results)
         if accepted is not None:
             self.set_label(_("Accepted name"))
             # create clickable label that will select the synonym
@@ -322,8 +322,7 @@ class GeneralSpeciesExpander(InfoExpander):
         session = object_session(row)
 
         # link function
-        def on_label_clicked(label, event, data):
-            return select_in_search_results(data)
+        on_label_clicked = utils.generate_on_clicked(select_in_search_results)
 
         # Link to family
         self.widget_set_value('sp_fam_data', '<small>(%s)</small>' %

@@ -206,7 +206,7 @@ class Family(db.Base, db.Serializable, db.WithNotes):
         'Name that should be used if name of self should be rejected'
         session = object_session(self)
         if not session:
-            logger.warn('family:accepted - object not in session')
+            logger.warning('family:accepted - object not in session')
             return None
         syn = session.query(FamilySynonym).filter(
             FamilySynonym.synonym_id == self.id).first()
@@ -222,7 +222,7 @@ class Family(db.Base, db.Serializable, db.WithNotes):
         # remove any previous `accepted` link
         session = object_session(self)
         if not session:
-            logger.warn('family:accepted.setter - object not in session')
+            logger.warning('family:accepted.setter - object not in session')
             return
         session.query(FamilySynonym).filter(
             FamilySynonym.synonym_id == self.id).delete()
@@ -819,12 +819,13 @@ class SynonymsExpander(InfoExpander):
         self.set_label(_("Synonyms"))  # reset default value
         if row.accepted is not None:
             self.set_label(_("Accepted name"))
-            on_clicked = lambda l, e, syn: select_in_search_results(syn)
+            on_clicked = utils.generate_on_clicked(select_in_search_results)
             # create clickable label that will select the synonym
             # in the search results
             box = Gtk.EventBox()
             label = Gtk.Label()
-            label.set_alignment(0, .5)
+            label.set_xalign(0)
+            label.set_xalign(0.5)
             label.set_markup(Family.str(row.accepted, author=True))
             box.add(label)
             utils.make_label_clickable(label, on_clicked, row.accepted)
@@ -834,13 +835,14 @@ class SynonymsExpander(InfoExpander):
         elif len(row.synonyms) == 0:
             self.set_sensitive(False)
         else:
-            on_clicked = lambda l, e, syn: select_in_search_results(syn)
+            on_clicked = utils.generate_on_clicked(select_in_search_results)
             for syn in row.synonyms:
                 # create clickable label that will select the synonym
                 # in the search results
                 box = Gtk.EventBox()
                 label = Gtk.Label()
-                label.set_alignment(0, .5)
+                label.set_xalign(0)
+                label.set_xalign(0.5)
                 label.set_markup(Family.str(syn))
                 box.add(label)
                 utils.make_label_clickable(label, on_clicked, syn)

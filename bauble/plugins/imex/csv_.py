@@ -34,7 +34,7 @@ logger = logging.getLogger(__name__)
 
 from gi.repository import Gtk  # noqa
 
-from sqlalchemy import ColumnDefault
+from sqlalchemy import ColumnDefault, func, select
 
 from bauble.btypes import Boolean
 import bauble
@@ -643,9 +643,9 @@ class CSVImporter(Importer):
                 # or Postgres will complain if two tables that are
                 # being imported have a foreign key relationship
                 transaction.commit()
-                logger.debug('%s: %s' % (
-                    table.name,
-                    table.select().alias().count().execute().fetchone()[0]))
+                logger.debug('%s: %s', table.name,
+                             select([func.count()]).select_from(
+                                 table).execute().fetchone()[0])
                 transaction = connection.begin()
 
             logger.debug('creating: %s' % ', '.join([d.name for d in depends]))

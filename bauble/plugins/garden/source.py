@@ -30,7 +30,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 from gi.repository import Gtk  # noqa
-from gi.repository import GObject
+from gi.repository import GLib
 
 from sqlalchemy import Column, Unicode, Integer, ForeignKey,\
     Float, UnicodeText, select
@@ -332,7 +332,7 @@ class CollectionPresenter(editor.ChildPresenter):
             self.geo_menu = GeographyMenu(self.set_region)
             self.geo_menu.attach_to_widget(add_button, None)
             add_button.set_sensitive(True)
-        GObject.idle_add(_init_geo)
+        GLib.idle_add(_init_geo)
 
         self._dirty = False
 
@@ -438,7 +438,7 @@ class CollectionPresenter(editor.ChildPresenter):
             # integer before toggling
             int(lon_text.split(' ')[0])
         except Exception as e:
-            logger.warn("east-west %s(%s)" % (type(e), e))
+            logger.warning("east-west %s(%s)" % (type(e), e))
             return
 
         if direction == 'W' and lon_text[0] != '-':

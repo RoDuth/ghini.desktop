@@ -213,10 +213,11 @@ class GUI():
         frame.remove(label)
 
         # replace label with hbox and put label and progress bar in hbox
-        hbox = Gtk.Box(False, 5)
+        hbox = Gtk.Box(homogeneous=False, spacing=5)
         frame.add(hbox)
         hbox.pack_start(label, True, True, 0)
-        vbox = Gtk.Box(True, 0, orientation=Gtk.Orientation.VERTICAL)
+        vbox = Gtk.Box(homogeneous=True, spacing=0,
+                       orientation=Gtk.Orientation.VERTICAL)
         hbox.pack_end(vbox, False, True, 15)
         self.progressbar = Gtk.ProgressBar()
         vbox.pack_start(self.progressbar, False, False, 0)
@@ -503,7 +504,7 @@ class GUI():
         # menu item
 
         # create and addaction group for menu actions
-        menu_actions = Gtk.ActionGroup("MenuActions")
+        menu_actions = Gtk.ActionGroup(name="MenuActions")
         menu_actions.add_actions([("file", None, _("_File")),
                                   ("connection", None, _("_Connection")),
                                   ("conn_new", Gtk.STOCK_NEW, _("_New"),
@@ -587,7 +588,7 @@ class GUI():
         :param menu:
         :param index:
         '''
-        menu_item = Gtk.MenuItem(name)
+        menu_item = Gtk.MenuItem(label=name)
         menu_item.set_submenu(menu)
         self.menubar.insert(menu_item, len(self.menubar.get_children())-1)
         self.menubar.show_all()
@@ -604,7 +605,7 @@ class GUI():
         """
         menu = self.ui_manager.get_widget('/ui/MenuBar/insert_menu')
         submenu = menu.get_submenu()
-        item = Gtk.MenuItem(label)
+        item = Gtk.MenuItem(label=label)
         item.connect('activate', self.on_insert_menu_item_activate, editor)
         submenu.append(item)
         self.__insert_menu_cache[label] = item
@@ -643,7 +644,7 @@ class GUI():
         # add the tools with no category to the root menu
         root_tools = sorted(tools.pop('__root'), key=lambda tool: tool.label)
         for tool in root_tools:
-            item = Gtk.MenuItem(tool.label)
+            item = Gtk.MenuItem(label=tool.label)
             item.show()
             item.connect("activate", self.on_tools_menu_item_activate, tool)
             menu.append(item)
@@ -653,11 +654,11 @@ class GUI():
         # create submenus for the categories and add the tools
         for category in sorted(tools.keys()):
             submenu = Gtk.Menu()
-            submenu_item = Gtk.MenuItem(category)
+            submenu_item = Gtk.MenuItem(label=category)
             submenu_item.set_submenu(submenu)
             menu.append(submenu_item)
             for tool in sorted(tools[category], key=lambda tool: tool.label):
-                item = Gtk.MenuItem(tool.label)
+                item = Gtk.MenuItem(label=tool.label)
                 item.connect("activate", self.on_tools_menu_item_activate,
                              tool)
                 submenu.append(item)

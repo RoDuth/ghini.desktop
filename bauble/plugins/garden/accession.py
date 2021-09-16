@@ -1187,7 +1187,7 @@ class VerificationPresenter(editor.GenericEditorPresenter):
     class VerificationBox(Gtk.Box):
 
         def __init__(self, parent, model):
-            super().__init__(self)
+            super().__init__()
             check(not model or isinstance(model, Verification))
 
             self.presenter = weakref.ref(parent)
@@ -2555,10 +2555,6 @@ from bauble.plugins.plants.genus import Genus
 from bauble.plugins.plants.species_model import Species, SpeciesSynonym
 
 
-#
-# infobox for searchview
-#
-
 # TODO: i don't think this shows all field of an accession, like the
 # accuracy values
 class GeneralAccessionExpander(InfoExpander):
@@ -2832,7 +2828,8 @@ class VouchersExpander(InfoExpander):
         for voucher in parents:
             s = '%s %s (parent)' % (voucher.herbarium, voucher.code)
             label = Gtk.Label(label=s)
-            label.set_alignment(0.0, 0.5)
+            label.set_xalign(0)
+            label.set_xalign(0.5)
             self.vbox.pack_start(label, True, True, 0)
             label.show()
 
@@ -2840,7 +2837,8 @@ class VouchersExpander(InfoExpander):
         for voucher in not_parents:
             s = '%s %s' % (voucher.herbarium, voucher.code)
             label = Gtk.Label(label=s)
-            label.set_alignment(0.0, 0.5)
+            label.set_xalign(0)
+            label.set_xalign(0.5)
             self.vbox.pack_start(label, True, True, 0)
             label.show()
 

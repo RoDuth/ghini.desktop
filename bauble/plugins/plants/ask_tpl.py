@@ -141,8 +141,8 @@ class AskTPL(threading.Thread):
         self.__class__.running = None
         logger.debug("%s before invoking callback" % self.name)
         if self.gui:
-            from gi.repository import GObject
-            GObject.idle_add(self.callback, found, accepted)
+            from gi.repository import GLib
+            GLib.idle_add(self.callback, found, accepted)
         else:
             self.callback(found, accepted)
 
@@ -150,7 +150,7 @@ class AskTPL(threading.Thread):
 def citation(d):
     return ("%(Genus hybrid marker)s%(Genus)s "
             "%(Species hybrid marker)s%(Species)s "
-            #"%(Infraspecific rank)s %(Infraspecific epithet)s "
+            # "%(Infraspecific rank)s %(Infraspecific epithet)s "
             "%(Authorship)s (%(Family)s)" % d).replace('   ', ' ')
 
 

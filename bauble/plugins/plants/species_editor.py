@@ -28,7 +28,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 from gi.repository import Gtk  # noqa
-from gi.repository import GObject
+from gi.repository import GLib
 
 from sqlalchemy.orm.session import object_session
 from sqlalchemy.exc import DBAPIError
@@ -460,10 +460,10 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
             new_pos = position + len(text)
             # Can't modify the cursor position from within this handler,
             # so we add it to be done at the end of the main loop:
-            GObject.idle_add(entry.set_position, new_pos)
+            GLib.idle_add(entry.set_position, new_pos)
 
         # We handled the signal so stop it from being processed further.
-        entry.stop_emission("insert_text")
+        entry.stop_emission_by_name("insert_text")
 
     def refresh_fullname_label(self, widget=None):
         '''
@@ -712,7 +712,7 @@ class DistributionPresenter(editor.GenericEditorPresenter):
             self.geo_menu = GeographyMenu(self.on_activate_add_menu_item)
             self.geo_menu.attach_to_widget(add_button, None)
             add_button.set_sensitive(True)
-        GObject.idle_add(_init_geo)
+        GLib.idle_add(_init_geo)
 
     def refresh_view(self):
         label = self.view.widgets.sp_dist_label
@@ -728,7 +728,7 @@ class DistributionPresenter(editor.GenericEditorPresenter):
             self.remove_menu.remove(c)
         # add distributions to menu
         for dist in self.model.distribution:
-            item = Gtk.MenuItem(str(dist))
+            item = Gtk.MenuItem(label=str(dist))
             self.view.connect(item, 'activate',
                               self.on_activate_remove_menu_item, dist)
             self.remove_menu.append(item)
@@ -1093,10 +1093,11 @@ class SpeciesEditorView(editor.GenericEditorView):
     _tooltips = {
         'sp_genus_entry': _('Genus'),
         'sp_species_entry': _('Species epithet (to include a hybrid formula '
-                              'typing a "*" will insert a cross symbol and '
-                              'allow spaces in the entry.  Similarly typing '
-                              '"sp." or "(" will do the same for adding a '
-                              'provisional name or descirptors etc..)'),
+                              'typing a "*" (asterisk) will insert a cross '
+                              'symbol and allow spaces in the entry.  '
+                              'Similarly typing "sp." or "(" will allow '
+                              'for adding provisional or descriptors names '
+                              'etc..)'),
         'sp_author_entry': _('Species author'),
         'sp_hybrid_check': _('Species hybrid flag'),
         'sp_cvgroup_entry': _('Cultivar group'),
@@ -1115,7 +1116,7 @@ class SpeciesEditorView(editor.GenericEditorView):
                                   'accession to this species'),
         'sp_next_button': _('Save your changes and add another '
                             'species ')
-        }
+    }
 
     def __init__(self, parent=None):
         '''

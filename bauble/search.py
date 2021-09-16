@@ -468,7 +468,7 @@ class QueryAction(object):
             result.update(records)
 
         if None in result:
-            logger.warn('removing None from result set')
+            logger.warning('removing None from result set')
             result = set(i for i in result if i is not None)
         return result
 
@@ -506,7 +506,7 @@ class BinomialNameAction(object):
             Genus.genus.startswith(self.genus_epithet)).all()
         result = set(result)
         if None in result:
-            logger.warn('removing None from result set')
+            logger.warning('removing None from result set')
             result = set(i for i in result if i is not None)
         return result
 
@@ -571,7 +571,7 @@ class DomainExpressionAction(object):
             result.update(query.filter(ors).all())
 
         if None in result:
-            logger.warn('removing None from result set')
+            logger.warning('removing None from result set')
             result = set(i for i in result if i is not None)
         return result
 
@@ -661,7 +661,7 @@ class ValueListAction(object):
         result = set([replace(i) for i in result])
         logger.debug("result is now %s" % result)
         if None in result:
-            logger.warn('removing None from result set')
+            logger.warning('removing None from result set')
             result = set(i for i in result if i is not None)
         return result
 
@@ -983,7 +983,7 @@ class SchemaMenu(Gtk.Menu):
         # selected (intended for export selection where you wish to include the
         # string representation of the table)
         if self.selectable_relations:
-            item = Gtk.MenuItem(mapper.entity.__table__.key,
+            item = Gtk.MenuItem(label=mapper.entity.__table__.key,
                                 use_underline=False)
             item.connect('activate', self.on_activate, mapper.entity)
             items.append(item)
@@ -992,7 +992,7 @@ class SchemaMenu(Gtk.Menu):
         for prop in column_properties:
             if not self.column_filter(prop):
                 continue
-            item = Gtk.MenuItem(key(prop), use_underline=False)
+            item = Gtk.MenuItem(label=key(prop), use_underline=False)
             if hasattr(prop, 'prop'):
                 prop = prop.prop
             item.connect('activate', self.on_activate, prop)
@@ -1001,7 +1001,7 @@ class SchemaMenu(Gtk.Menu):
         for prop in relation_properties:
             if not self.relation_filter(prop):
                 continue
-            item = Gtk.MenuItem(prop.key, use_underline=False)
+            item = Gtk.MenuItem(label=prop.key, use_underline=False)
             submenu = Gtk.Menu()
             item.set_submenu(submenu)
             item.connect('select', self.on_select, prop)
@@ -1063,7 +1063,7 @@ class ExpressionRow:
             self.and_or_combo.set_active(0)
             self.grid.attach(self.and_or_combo, 0, row_number, 1, 1)
 
-        self.prop_button = Gtk.Button(_('Choose a property…'))
+        self.prop_button = Gtk.Button(label=_('Choose a property…'))
         self.prop_button.props.use_underline = False
 
         def on_prop_button_clicked(button, event, menu):

@@ -34,7 +34,7 @@ from pyparsing import ParseException
 
 from gi.repository import Gtk  # noqa
 from gi.repository import Gdk  # noqa
-from gi.repository import GObject
+from gi.repository import GLib
 from gi.repository import Pango
 
 from sqlalchemy.orm import object_session
@@ -84,7 +84,8 @@ class Action(Gtk.Action):
         The activate signal is not automatically connected to the
         callback method.
         """
-        super().__init__(name, label, tooltip, stock_id)
+        super().__init__(name=name, label=label, tooltip=tooltip,
+                         stock_id=stock_id)
         self.callback = callback
         self.multiselect = multiselect
         self.singleselect = singleselect
@@ -120,7 +121,7 @@ class InfoExpander(Gtk.Expander):
         :param widgets: a bauble.utils.BuilderWidgets instance
         """
         super().__init__(label=label)
-        self.vbox = Gtk.Box(False, orientation=Gtk.Orientation.VERTICAL)
+        self.vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
         self.vbox.set_border_width(5)
         self.add(self.vbox)
         self.widgets = widgets
@@ -151,45 +152,53 @@ class PropertiesExpander(InfoExpander):
 
     def __init__(self):
         super().__init__(_('Properties'))
-        table = Gtk.Table(rows=4, columns=2)
-        table.set_col_spacings(15)
-        table.set_row_spacings(8)
+        table = Gtk.Grid()
+        table.set_column_spacing(15)
+        table.set_row_spacing(8)
 
         # database id
         id_label = Gtk.Label(label="<b>" + _("ID:") + "</b>")
         id_label.set_use_markup(True)
-        id_label.set_alignment(1, .5)
+        id_label.set_xalign(1)
+        id_label.set_xalign(0.5)
         self.id_data = Gtk.Label(label='--')
-        self.id_data.set_alignment(0, .5)
-        table.attach(id_label, 0, 1, 0, 1)
-        table.attach(self.id_data, 1, 2, 0, 1)
+        self.id_data.set_xalign(0)
+        self.id_data.set_xalign(0.5)
+        table.attach(id_label, 0, 0, 1, 1)
+        table.attach(self.id_data, 1, 0, 1, 1)
 
         # object type
         type_label = Gtk.Label(label="<b>" + _("Type:") + "</b>")
         type_label.set_use_markup(True)
-        type_label.set_alignment(1, .5)
+        type_label.set_xalign(1)
+        type_label.set_xalign(0.5)
         self.type_data = Gtk.Label(label='--')
-        self.type_data.set_alignment(0, .5)
-        table.attach(type_label, 0, 1, 1, 2)
-        table.attach(self.type_data, 1, 2, 1, 2)
+        self.type_data.set_xalign(0)
+        self.type_data.set_xalign(0.5)
+        table.attach(type_label, 0, 1, 1, 1)
+        table.attach(self.type_data, 1, 1, 1, 1)
 
         # date created
         created_label = Gtk.Label(label="<b>" + _("Date created:") + "</b>")
         created_label.set_use_markup(True)
-        created_label.set_alignment(1, .5)
+        created_label.set_xalign(1)
+        created_label.set_xalign(0.5)
         self.created_data = Gtk.Label(label='--')
-        self.created_data.set_alignment(0, .5)
-        table.attach(created_label, 0, 1, 2, 3)
-        table.attach(self.created_data, 1, 2, 2, 3)
+        self.created_data.set_xalign(0)
+        self.created_data.set_xalign(0.5)
+        table.attach(created_label, 0, 2, 1, 1)
+        table.attach(self.created_data, 1, 2, 1, 1)
 
         # date last updated
         updated_label = Gtk.Label(label="<b>" + _("Last updated:") + "</b>")
         updated_label.set_use_markup(True)
-        updated_label.set_alignment(1, .5)
+        updated_label.set_xalign(1)
+        updated_label.set_xalign(0.5)
         self.updated_data = Gtk.Label(label='--')
-        self.updated_data.set_alignment(0, .5)
-        table.attach(updated_label, 0, 1, 3, 4)
-        table.attach(self.updated_data, 1, 2, 3, 4)
+        self.updated_data.set_xalign(0)
+        self.updated_data.set_xalign(0.5)
+        table.attach(updated_label, 0, 3, 1, 1)
+        table.attach(self.updated_data, 1, 3, 1, 1)
 
         box = Gtk.Box()
         box.pack_start(table, expand=False, fill=False, padding=0)
@@ -349,8 +358,8 @@ class LinksExpander(InfoExpander):
                 logger.debug('wrong link definition %s, %s(%s)' %
                              (link, type(e), e))
         for btn in self.buttons:
-            btn.set_alignment(0.0, 0.5)
-            self.vbox.pack_start(btn, True, True, 0)
+            btn.set_halign(Gtk.Align.START)
+            self.vbox.pack_start(btn, False, False, 0)
 
     def update(self, row):
         from gi.repository import Pango
@@ -368,7 +377,7 @@ class LinksExpander(InfoExpander):
                     label.set_ellipsize(Pango.EllipsizeMode.END)
                     button = Gtk.LinkButton(uri=url)
                     button.add(label)
-                    button.set_alignment(0.0, 0.0)
+                    button.set_halign(Gtk.Align.START)
                     self.dynamic_box.pack_start(
                         button, expand=False, fill=False, padding=0)
             self.dynamic_box.show_all()
@@ -394,7 +403,7 @@ class AddOneDot(threading.Thread):
     def run(self):
         while not self.__stopped.wait(1.0):
             self.dotno += 1
-            GObject.idle_add(self.callback, self.dotno)
+            GLib.idle_add(self.callback, self.dotno)
 
 
 class CountResultsTask(threading.Thread):
@@ -440,7 +449,7 @@ class CountResultsTask(threading.Thread):
                 statusbar.push(sbcontext_id, text)
             if not self.__cancel:  # check whether caller asks to cancel
                 self.dots_thread.cancel()
-                GObject.idle_add(callback, value)
+                GLib.idle_add(callback, value)
         else:
             logger.debug("showing text %s", value)
         ## we should not leave the session around
@@ -854,7 +863,7 @@ class SearchView(pluginmgr.View):
                                    _('size of non homogeneous result: %s') %
                                    len(results))
                 self.results_view.set_cursor(0)
-                GObject.idle_add(lambda: self.results_view.scroll_to_cell(0))
+                GLib.idle_add(lambda: self.results_view.scroll_to_cell(0))
 
         self.update_bottom_notebook()
 
@@ -1037,14 +1046,14 @@ class SearchView(pluginmgr.View):
                     'bauble.view.SearchView.cell_data_func(): \n(%s)%s' %
                     (type(e), e))
 
-                GObject.idle_add(remove)
+                GLib.idle_add(remove)
 
             except (saexc.InvalidRequestError, TypeError) as e:
                 logger.warning(
                     'bauble.view.SearchView.cell_data_func(): \n(%s)%s' %
                     (type(e), e))
 
-                GObject.idle_add(remove)
+                GLib.idle_add(remove)
 
             except Exception as e:
                 logger.error(
@@ -1312,11 +1321,11 @@ class AppendThousandRows(threading.Thread):
         count = q.count()
         while offset < count and not self.__stopped.isSet():
             rows = q.offset(offset).limit(step).all()
-            GObject.idle_add(self.callback, rows)
+            GLib.idle_add(self.callback, rows)
             offset += step
         session.close()
         if offset < count:
-            GObject.idle_add(self.cancel_callback)
+            GLib.idle_add(self.cancel_callback)
 
 
 class HistoryView(pluginmgr.View):

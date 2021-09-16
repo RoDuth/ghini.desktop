@@ -342,7 +342,7 @@ class MakoFormatterSettingsBox(SettingsBox):
             options_box.attach(entry, 1, current_row, 1, 1)
             current_row += 1
         if self.defaults:
-            button = Gtk.Button(_('Reset to defaults'))
+            button = Gtk.Button(label=_('Reset to defaults'))
             button.connect('clicked', self.reset_options)
             options_box.attach(button, 1, current_row, 1, 1)
         options_box.show_all()

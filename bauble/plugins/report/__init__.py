@@ -30,7 +30,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 from gi.repository import Gtk  # noqa
-from gi.repository import GObject
+from gi.repository import GLib
 
 from sqlalchemy import union
 
@@ -559,7 +559,7 @@ class ReportToolDialogPresenter(object):
         formatter_combo changed signal handler
         '''
         self.view.set_sensitive('ok_button', False)
-        GObject.idle_add(self._formatter_combo_changed_idle, combo)
+        GLib.idle_add(self._formatter_combo_changed_idle, combo)
 
     def _formatter_combo_changed_idle(self, combo):
         formatter = combo.get_active_text()

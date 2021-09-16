@@ -96,12 +96,12 @@ class TagsMenuManager:
         """build tags Gtk.Menu based on current data
         """
         tags_menu = Gtk.Menu()
-        add_tag_menu_item = Gtk.MenuItem(_('Tag Selection'))
+        add_tag_menu_item = Gtk.MenuItem(label=_('Tag Selection'))
         add_tag_menu_item.connect('activate', _on_add_tag_activated)
-        self.apply_active_tag_menu_item = Gtk.MenuItem(_('Apply active tag'))
+        self.apply_active_tag_menu_item = Gtk.MenuItem(label=_('Apply active tag'))
         self.apply_active_tag_menu_item.connect(
             'activate', self.on_apply_active_tag_activated)
-        self.remove_active_tag_menu_item = Gtk.MenuItem(_('Remove active tag'))
+        self.remove_active_tag_menu_item = Gtk.MenuItem(label=_('Remove active tag'))
         self.remove_active_tag_menu_item.connect(
             'activate', self.on_remove_active_tag_activated)
         if bauble.gui:
@@ -134,7 +134,7 @@ class TagsMenuManager:
                 name = parts.pop()
                 full_path += name
                 if full_path not in submenu:
-                    item = Gtk.ImageMenuItem(name)
+                    item = Gtk.ImageMenuItem(label=name)
                     parent.append(item)
                     submenu[full_path] = [item, None]
                 if submenu[full_path][1] is None:
@@ -148,7 +148,7 @@ class TagsMenuManager:
                 path = tag.tag.split('/')
                 tail = path.pop()
                 head = '/'.join(path)
-                item = Gtk.ImageMenuItem(tail)
+                item = Gtk.ImageMenuItem(label=tail)
                 submenu[tag.tag] = [item, None]
                 item.set_image(None)
                 item.set_always_show_image(True)
@@ -747,13 +747,15 @@ class GeneralTagExpander(InfoExpander):
         for cls in classes:
             obj_ids = [str(o.id) for o in objects if isinstance(o, cls)]
             lab = Gtk.Label()
-            lab.set_alignment(0, .5)
+            lab.set_xalign(0)
+            lab.set_yalign(0.5)
             lab.set_text(cls.__name__)
             grid.attach(lab, 0, row_no, 1, 1)
 
             eventbox = Gtk.EventBox()
             label = Gtk.Label()
-            label.set_alignment(0, .5)
+            label.set_xalign(0)
+            label.set_xalign(0.5)
             eventbox.add(label)
             grid.attach(eventbox, 1, row_no, 1, 1)
             label.set_text(" %s " % len(obj_ids))

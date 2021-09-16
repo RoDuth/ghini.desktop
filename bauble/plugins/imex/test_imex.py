@@ -78,7 +78,7 @@ class ImexTestCase(BaubleTestCase):
         garden_test.setUp_data()
 
 
-class TestImporter(CSVImporter):
+class CSVTestImporter(CSVImporter):
 
     def on_error(self, exc):
         logger.debug(exc)
@@ -105,7 +105,7 @@ class CSVTests(ImexTestCase):
             writer.writerows(data)
             f.flush()
             f.close()
-            importer = TestImporter()
+            importer = CSVTestImporter()
             importer.start([filename], force=True)
 
     def tearDown(self):
@@ -131,7 +131,7 @@ class CSVTests(ImexTestCase):
         writer.writerows(geo_data)
         f.flush()
         f.close()
-        importer = TestImporter()
+        importer = CSVTestImporter()
         importer.start([filename], force=True)
 
     def test_import_bool_column(self):
@@ -158,7 +158,7 @@ class CSVTests(ImexTestCase):
         writer.writerows(data)
         f.flush()
         f.close()
-        importer = TestImporter()
+        importer = CSVTestImporter()
         importer.start([filename], force=True)
 
         t = self.session.query(BoolTest).get(1)
@@ -187,7 +187,7 @@ class CSVTests(ImexTestCase):
         writer.writerows(family_data)
         f.flush()
         f.close()
-        importer = TestImporter()
+        importer = CSVTestImporter()
         importer.start([filename], force=True)
         list(self.session.query(Family))
 
@@ -325,7 +325,7 @@ class CSVTests2(ImexTestCase):
         # subtract for the file header
         highest_id = len(open(filename).readlines())-1
         currval = None
-        conn = db.engine.contextual_connect()
+        conn = db.engine.connect()
         if db.engine.name == 'postgres':
             stmt = "SELECT currval('family_id_seq');"
             currval = conn.execute(stmt).fetchone()[0]

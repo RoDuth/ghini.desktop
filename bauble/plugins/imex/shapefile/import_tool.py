@@ -373,7 +373,7 @@ class ShapefileImportSettingsBox(Gtk.ScrolledWindow):
 
         schema_menu.append(Gtk.SeparatorMenuItem())
         for item in ['Note', '']:
-            xtra = Gtk.MenuItem(item, use_underline=False)
+            xtra = Gtk.MenuItem(label=item, use_underline=False)
             xtra.connect('activate', menu_activated, item, None)
             schema_menu.append(xtra)
 

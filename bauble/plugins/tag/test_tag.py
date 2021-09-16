@@ -386,7 +386,7 @@ class MockTagView(GenericEditorView):
                          index=0):
         self.dict[widget] = value
 
-    def widget_get_value(self, widget, index=0):
+    def widget_get_value(self, widget):
         return self.dict.get(widget)
 
 

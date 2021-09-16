@@ -34,7 +34,7 @@ import dateutil.parser as date_parser
 from gi.repository import Gtk  # noqa
 from gi.repository import GLib
 from gi.repository import GdkPixbuf
-from gi.repository import GObject
+from gi.repository import GLib
 from gi.repository import Pango
 
 from sqlalchemy.orm import object_mapper, object_session
@@ -488,7 +488,7 @@ class GenericEditorView(object):
                     return c
         else:
             return self.widgets[widget]
-        logger.warn('cannot solve widget reference %s' % str(p))
+        logger.warning('cannot solve widget reference %s' % str(p))
         return None
 
     def widget_append_page(self, widget, page, label):
@@ -611,9 +611,9 @@ class GenericEditorView(object):
         widget = self.__get_widget(widget)
         return widget.get_text()
 
-    def widget_get_value(self, widget, index=0):
+    def widget_get_value(self, widget):
         widget = self.__get_widget(widget)
-        return utils.get_widget_value(widget, index)
+        return utils.get_widget_value(widget)
 
     def widget_set_value(self, widget, value, markup=False, default=None,
                          index=0):
@@ -1716,7 +1716,7 @@ class GenericEditorPresenter(object):
             key_length = widget.get_completion().props.minimum_key_length
             values = get_completions(text[:key_length])
             logger.debug('completions to add: %s' % str([i for i in values]))
-            GObject.idle_add(idle_callback, values)
+            GLib.idle_add(idle_callback, values)
 
         def on_changed(entry, *args):
             logger.debug('assign_completions_handler::on_changed %s %s'
@@ -1773,7 +1773,7 @@ class GenericEditorPresenter(object):
                     self.remove_problem(PROBLEM, widget)
                 logger.debug('on_changed - part two - returning')
 
-            GObject.idle_add(idle_callback, text)
+            GLib.idle_add(idle_callback, text)
             logger.debug('on_changed - part one - returning')
             return True
 

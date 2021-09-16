@@ -630,12 +630,10 @@ class Serializable:
     link_keys = []
 
     def as_dict(self):
-        result = dict((col, getattr(self, col))
-                      for col in list(self.__table__.columns.keys())
-                      if col not in ['id']
-                      and col[0] != '_'
-                      and getattr(self, col) is not None
-                      and not col.endswith('_id'))
+        result = dict((col, getattr(self, col)) for col in
+                      list(self.__table__.columns.keys()) if col not in
+                      ['id'] and col[0] != '_' and getattr(self, col) is not
+                      None and not col.endswith('_id'))
         result['object'] = self.single_cap_re.sub(
             r'_\1', self.__class__.__name__).lower()[1:]
         return result
@@ -655,79 +653,78 @@ class Serializable:
         return {}
 
     @classmethod
-    def retrieve_or_create(cls, session, keys,
-                           create=True, update=True):
+    def retrieve_or_create(cls, session, keys, create=True, update=True):
         """return database object corresponding to keys
         """
 
-        logger.debug('initial value of keys: %s' % keys)
-        ## first try retrieving
-        is_in_session = cls.retrieve(session, keys)
-        logger.debug('2 value of keys: %s' % keys)
+        logger.debug('initial value of keys: %s', keys)
+        # first try retrieving
+        is_in_session = cls.retrieve(session, keys)\
+            # pylint: disable=no-member
+        logger.debug('2 value of keys: %s', keys)
 
         if not create and not is_in_session:
-            logger.debug('not creating from %s; returning None (1)' % str(keys))
+            logger.debug('not creating from %s; returning None (1)', str(keys))
             return None
 
         if is_in_session and not update:
-            logger.debug("returning not updated existing %s" % is_in_session)
+            logger.debug("returning not updated existing %s", is_in_session)
             return is_in_session
 
         try:
-            ## some fields are given as text but actually correspond to
-            ## different fields and should be associated to objects
+            # some fields are given as text but actually correspond to
+            # different fields and should be associated to objects
             extradict = cls.compute_serializable_fields(
                 session, keys)
 
-            ## what fields must be corrected
+            # what fields must be corrected
             cls.correct_field_names(keys)
         except error.NoResultException:
             if not is_in_session:
                 logger.debug("returning None (2)")
                 return None
-            else:
-                extradict = {}
-        except Exception as e:
-            logger.debug("this was unexpected")
+            extradict = {}
+        except Exception as e:  # pylint: disable=broad-except
+            logger.debug("this was unexpected %s", e)
             raise
 
-        logger.debug('3 value of keys: %s' % keys)
+        logger.debug('3 value of keys: %s', keys)
 
-        ## at this point, resulting object is either in database or not. in
-        ## either case, the database is going to be updated.
+        # at this point, resulting object is either in database or not. in
+        # either case, the database is going to be updated.
 
-        ## link_keys are python-side properties, not database associations
-        ## and have as value objects that are possibly in the database, or
-        ## not, but they cannot be used to construct the `self` object.
+        # link_keys are python-side properties, not database associations
+        # and have as value objects that are possibly in the database, or
+        # not, but they cannot be used to construct the `self` object.
         link_values = {}
         for k in cls.link_keys:
             if keys.get(k):
                 link_values[k] = keys[k]
 
-        logger.debug("link_values : %s" % str(link_values))
+        logger.debug("link_values : %s", str(link_values))
 
         for k in list(keys.keys()):
-            if k not in class_mapper(cls).mapped_table.c:
+            if k not in class_mapper(cls).persist_selectable.c:
                 del keys[k]
         if 'id' in keys:
             del keys['id']
-        logger.debug('4 value of keys: %s' % keys)
+        logger.debug('4 value of keys: %s', keys)
 
         keys.update(extradict)
-        logger.debug('5 value of keys: %s' % keys)
+        logger.debug('5 value of keys: %s', keys)
 
         # early construct object before building links
         if not is_in_session and create:
-            ## completing the task of building the links
-            logger.debug("links? %s, %s" % (cls.link_keys, list(keys.keys())))
+            # completing the task of building the links
+            logger.debug("links? %s, %s", cls.link_keys, list(keys.keys()))
             for key in cls.link_keys:
                 d = link_values.get(key)
                 if d is None:
                     continue
-                logger.debug('recursive call to construct_from_dict %s' % d)
+                logger.debug('recursive call to construct_from_dict %s', d)
                 obj = construct_from_dict(session, d)
                 keys[key] = obj
-            logger.debug("going to create new %s with %s" % (cls, keys))
+            logger.debug("going to create new %s with %s", cls, keys)
             result = cls(**keys)
             session.add(result)
 
@@ -735,17 +732,17 @@ class Serializable:
         if is_in_session and update:
             result = is_in_session
 
-            ## completing the task of building the links
-            logger.debug("links? %s, %s" % (cls.link_keys, list(keys.keys())))
+            # completing the task of building the links
+            logger.debug("links? %s, %s", cls.link_keys, list(keys.keys()))
             for key in cls.link_keys:
                 d = link_values.get(key)
                 if d is None:
                     continue
-                logger.debug('recursive call to construct_from_dict %s' % d)
+                logger.debug('recursive call to construct_from_dict %s', d)
                 obj = construct_from_dict(session, d)
                 keys[key] = obj
 
-        logger.debug("going to update %s with %s" % (result, keys))
+        logger.debug("going to update %s with %s", result, keys)
         if 'id' in keys:
             del keys['id']
         for k, v in list(keys.items()):
@@ -758,11 +755,11 @@ class Serializable:
                     v = None
             if v is not None:
                 setattr(result, k, v)
-        logger.debug('returning updated existing %s' % result)
+        logger.debug('returning updated existing %s', result)
 
         session.flush()
 
-        logger.debug('returning new %s' % result)
+        logger.debug('returning new %s', result)
         return result
 
 

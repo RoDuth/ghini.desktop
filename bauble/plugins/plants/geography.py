@@ -101,7 +101,7 @@ class GeographyMenu(Gtk.Menu):
                 return False
 
         def build_menu(geo_id, name):
-            item = Gtk.MenuItem(name)
+            item = Gtk.MenuItem(label=name)
             if not has_kids(geo_id):
                 if item.get_submenu() is None:
                     item.connect('activate', callback, geo_id)
@@ -120,7 +120,7 @@ class GeographyMenu(Gtk.Menu):
                 submenu.append(build_menu(kid_id, kid_name))
 
             if kids_added:
-                sel_item = Gtk.MenuItem(name)
+                sel_item = Gtk.MenuItem(label=name)
                 submenu.insert(sel_item, 0)
                 submenu.insert(Gtk.SeparatorMenuItem(), 1)
                 item.set_submenu(submenu)
@@ -151,8 +151,8 @@ class GeographyMenu(Gtk.Menu):
 
             self.show_all()
 
-        from gi.repository import GObject
-        GObject.idle_add(populate)
+        from gi.repository import GLib
+        GLib.idle_add(populate)
 
 
 class Geography(db.Base):

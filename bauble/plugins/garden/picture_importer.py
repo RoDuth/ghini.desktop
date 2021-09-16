@@ -24,7 +24,6 @@ import logging
 logger = logging.getLogger(__name__)
 
 from gi.repository import Gtk  # noqa
-from gi.repository import GObject
 from gi.repository import GLib
 from gi.repository import GdkPixbuf
 
@@ -102,14 +101,7 @@ class ListStoreHandler(logging.Handler):
     def __init__(self, container, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.container = container
-        GObject.idle_add(none, self.container.clear)
-
-    def emit(self, record):
-        msg = self.format(record)
-        stock = {11: 'gtk-directory',
-                 12: 'gtk-file',
-                 13: 'gtk-new', }[record.levelno]
-        GObject.idle_add(none, self.container.append, [stock, msg])
+        GLib.idle_add(none, self.container.append, [stock, msg])
 
 
 def query_session_new(session, cls, **kwargs):
@@ -198,7 +190,8 @@ class PictureImporterPresenter(GenericEditorPresenter):
                 pixbuf = pixbuf.scale_simple(x, y, GdkPixbuf.InterpType.BILINEAR)
                 def set_thumbnail(store, path, col, value):
                     store[path][col] = value
-                GObject.idle_add(set_thumbnail, self.review_liststore, path, thumbnail_col, pixbuf)
+                GLib.idle_add(set_thumbnail, self.review_liststore, path,
+                              thumbnail_col, pixbuf)
             except GLib.GError as e:
                 logger.debug("picture %s caused GLib.GError %s" %
                              (fname, e))

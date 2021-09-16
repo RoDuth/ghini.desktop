@@ -225,9 +225,9 @@ def main(uri=None):
         import gi
         gi.require_version("Gtk", "3.0")
         from gi.repository import Gtk
-        from gi.repository import GObject
+        from gi.repository import GLib
     except ImportError as e:
-        print(_('** Error: could not import gtk and/or gobject'))
+        print(_('** Error: could not import Gtk and/or GLib'))
         print(e)
         if sys.platform == 'win32':
             print(_('Please make sure that GTK_ROOT\\bin is in your PATH.'))
@@ -281,7 +281,7 @@ def main(uri=None):
 
     except Exception as e:
         logger.debug("can't configure sentry client")
-        logger.debug("%s(%s)", (type(e).__name__, e))
+        logger.debug("%s(%s)", type(e).__name__, e)
 
     from gi.repository import Gdk
 
@@ -391,7 +391,7 @@ def main(uri=None):
             utils.message_dialog(msg, Gtk.MessageType.WARNING)
         gui.get_view().update()
 
-    GObject.idle_add(_post_loop)
+    GLib.idle_add(_post_loop)
     logger.info('This version installed on: %s; '
                 'This version installed at: %s; '
                 'Latest published version: %s; '

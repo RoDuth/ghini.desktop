@@ -29,7 +29,7 @@ logger = logging.getLogger(__name__)
 from shapefile import Writer
 
 from gi.repository import Gtk, Gdk  # noqa
-from gi.repository import GObject
+from gi.repository import GLib
 
 from sqlalchemy.orm import class_mapper
 
@@ -137,7 +137,7 @@ class ShapefileExportSettingsBox(Gtk.ScrolledWindow):
         self._construct_grid()
         self.grid.show_all()
         if not testing:
-            GObject.idle_add(self.resize_func)
+            GLib.idle_add(self.resize_func)
 
     def _construct_grid(self):   # pylint: disable=too-many-locals
         """Create the field grid layout.
@@ -441,7 +441,7 @@ class ShapefileExportSettingsBox(Gtk.ScrolledWindow):
 
         schema_menu.append(Gtk.SeparatorMenuItem())
         for item in ['Note', 'Empty']:
-            xtra = Gtk.MenuItem(item, use_underline=False)
+            xtra = Gtk.MenuItem(label=item, use_underline=False)
             xtra.connect('activate', menu_activated, item, None)
             schema_menu.append(xtra)
 

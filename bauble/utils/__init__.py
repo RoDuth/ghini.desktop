@@ -30,6 +30,7 @@ import re
 import textwrap
 import inspect
 import threading
+from collections import UserDict
 from xml.sax import saxutils
 
 import logging
@@ -37,7 +38,6 @@ logger = logging.getLogger(__name__)
 
 from gi.repository import Gtk  # noqa
 from gi.repository import Gdk  # noqa
-from gi.repository import GObject
 from gi.repository import GLib
 from gi.repository import GdkPixbuf
 
@@ -171,8 +171,8 @@ class ImageLoader(threading.Thread):
         image.set_from_pixbuf(scaled_buf)
         self.box.show_all()
 
-    def loader_notified(self, pixbufloader):
-        GObject.idle_add(self.callback)
+    def loader_notified(self, _pixbufloader):
+        GLib.idle_add(self.callback)
 
     def run(self):
         try:
@@ -256,11 +256,11 @@ def find_dependent_tables(table, metadata=None):
         metadata = db.metadata
     tables = []
 
-    def _impl(t2):
+    def _impl(tbl2):
         for tbl in metadata.sorted_tables:
-            for fk in tbl.foreign_keys:
-                if fk.column.table == t2 and tbl not in tables \
-                        and tbl is not table:
+            for fkey in tbl.foreign_keys:
+                if (fkey.column.table == tbl2 and tbl not in tables and
+                        tbl is not table):
                     tables.append(tbl)
                     _impl(tbl)
     _impl(table)
@@ -268,12 +268,12 @@ def find_dependent_tables(table, metadata=None):
 
 
 def load_widgets(filename):
-    b = BuilderLoader.load(filename)
-    return BuilderWidgets(b)
+    buidloader = BuilderLoader.load(filename)
+    return BuilderWidgets(buidloader)
     # return BuilderWidgets(filename)
 
 
-class BuilderLoader(object):
+class BuilderLoader():
     """
     This class caches the Gtk.Builder objects so that loading the same
     file with the same name returns the same Gtk.Builder.
@@ -295,26 +295,25 @@ class BuilderLoader(object):
 
     @classmethod
     def load(cls, filename):
-        """
-        """
         if filename in list(cls.builders.keys()):
             return cls.builders[filename]
-        b = Gtk.Builder()
-        b.add_from_file(filename)
-        cls.builders[filename] = b
-        return b
+        builder = Gtk.Builder()
+        builder.add_from_file(filename)
+        cls.builders[filename] = builder
+        return builder
 
 
-class BuilderWidgets(dict):
+class BuilderWidgets(UserDict):
     """
     Provides dictionary and attribute access for a
     :class:`Gtk.Builder` object.
     """
 
     def __init__(self, ui):
-        '''
+        """
         :params filename: a Gtk.Builder XML UI file
-        '''
+        """
+        super().__init__()
         if isinstance(ui, str):
             self.builder = Gtk.Builder()
             self.builder.add_from_file(ui)
@@ -324,26 +323,26 @@ class BuilderWidgets(dict):
             self.filename = f'from object {ui}'
 
     def __getitem__(self, name):
-        '''
+        """
         :param name:
-        '''
-        w = self.builder.get_object(name)
-        if not w:
+        """
+        widget = self.builder.get_object(name)
+        if not widget:
             raise KeyError(_('no widget named "%s" in glade file: %s') %
                            (name, self.filename))
-        return w
+        return widget
 
     def __getattr__(self, name):
-        '''
+        """
         :param name:
-        '''
+        """
         if name == '_builder_':
             return self.builder
-        w = self.builder.get_object(name)
-        if not w:
+        widget = self.builder.get_object(name)
+        if not widget:
             raise KeyError(_('no widget named "%s" in glade file: %s') %
                            (name, self.filename))
-        return w
+        return widget
 
     def remove_parent(self, widget):
         """
@@ -352,12 +351,10 @@ class BuilderWidgets(dict):
         # if parent is the last reference to widget then widget may be
         # automatically destroyed
         if isinstance(widget, str):
-            w = self[widget]
-        else:
-            w = widget
-        parent = w.get_parent()
+            widget = self[widget]
+        parent = widget.get_parent()
         if parent is not None:
-            parent.remove(w)
+            parent.remove(widget)
 
 
 def tree_model_has(tree, value):
@@ -383,10 +380,9 @@ def search_tree_model(parent, data, cmp=lambda row, data: row[0] == data):
         return search_tree_model(parent[parent.get_iter_first()], data, cmp)
     results = set()
 
-    def func(model, path, iter, dummy=None):
-        if cmp(model[iter], data):
-            # debug('add: %s' % model[iter])
-            results.add(iter)
+    def func(model, _path, itr, dummy=None):
+        if cmp(model[itr], data):
+            results.add(itr)
         return False
     parent.model.foreach(func)
     return tuple(results)
@@ -468,7 +464,7 @@ def combo_get_value_iter(combo, value, cmp=lambda row, value: row[0] == value):
     return matches[0]
 
 
-def get_widget_value(widget, index=0):
+def get_widget_value(widget):
     '''
     :param widget: an instance of Gtk.Widget
     :param index: the row index to use for those widgets who use a model
@@ -479,25 +475,24 @@ def get_widget_value(widget, index=0):
 
     if isinstance(widget, Gtk.Label):
         return utf8(widget.get_text())
-    elif isinstance(widget, Gtk.TextView):
+    if isinstance(widget, Gtk.TextView):
         textbuffer = widget.get_buffer()
         return utf8(textbuffer.get_text(textbuffer.get_start_iter(),
                                         textbuffer.get_end_iter(), False))
-    elif isinstance(widget, Gtk.Entry):
+    if isinstance(widget, Gtk.Entry):
         return utf8(widget.get_text())
-    elif isinstance(widget, Gtk.ComboBox):
+    if isinstance(widget, Gtk.ComboBox):
         if widget.get_has_entry():
             return utf8(widget.get_child().props.text)
-    elif isinstance(widget,
-                    (Gtk.ToggleButton, Gtk.CheckButton, Gtk.RadioButton)):
+    if isinstance(widget,
+                  (Gtk.ToggleButton, Gtk.CheckButton, Gtk.RadioButton)):
         return widget.get_active()
-    elif isinstance(widget, Gtk.Button):
+    if isinstance(widget, Gtk.Button):
         return utf8(widget.props.label)
 
-    else:
-        raise TypeError('utils.set_widget_value(): Don\'t know how to handle '
-                        'the widget type %s with name %s' %
-                        (type(widget), widget.name))
+    raise TypeError('utils.set_widget_value(): Don\'t know how to handle '
+                    'the widget type %s with name %s' %
+                    (type(widget), widget.name))
 
 
 def set_widget_value(widget, value, markup=False, default=None, index=0):
@@ -528,14 +523,6 @@ def set_widget_value(widget, value, markup=False, default=None, index=0):
         value = value.strftime(date_format)
 
     if isinstance(widget, Gtk.Label):
-        #widget.set_text(str(value))
-        # FIXME: some of the enum values that have <not set> as a values
-        # will give errors here, but we can't escape the string because
-        # if someone does pass something that needs to be marked up
-        # then it won't display as intended, maybe BaubleTable.markup()
-        # should be responsible for returning a properly escaped values
-        # or we should just catch the error(is there an error) and call
-        # set_text if set_markup fails
         if markup:
             widget.set_markup(utf8(value))
         else:
@@ -565,7 +552,7 @@ def set_widget_value(widget, value, markup=False, default=None, index=0):
         treeiter = None
         if not widget.get_model():
             logger.warning(
-                "utils.set_widget_value(): combo doesn't have a model: %s" %
+                "utils.set_widget_value(): combo doesn't have a model: %s",
                 Gtk.Buildable.get_name(widget))
         else:
             treeiter = combo_get_value_iter(
@@ -608,7 +595,8 @@ def create_message_dialog(msg, typ=Gtk.MessageType.INFO,
 
     :param msg: The markup to use for the message. The value should be
       escaped in case it contains any HTML entities.
-    :param typ: A GTK message type constant.  The default is Gtk.MessageType.INFO.
+    :param typ: A GTK message type constant.  The default is
+        Gtk.MessageType.INFO.
     :param buttons: A GTK buttons type constant.  The default is
       Gtk.ButtonsType.OK.
     :param parent:  The parent window for the dialog
@@ -620,15 +608,16 @@ def create_message_dialog(msg, typ=Gtk.MessageType.INFO,
             parent = bauble.gui.window
         except Exception:
             parent = None
-    d = Gtk.MessageDialog(modal=True, destroy_with_parent=True,
-                          parent=parent, message_type=typ, buttons=buttons)
-    d.set_position(Gtk.WindowPosition.CENTER)
-    d.set_title('Ghini')
-    d.set_markup(msg)
-    d.set_property('resizable', True)
+    dialog = Gtk.MessageDialog(modal=True, destroy_with_parent=True,
+                               transient_for=parent, message_type=typ,
+                               buttons=buttons)
+    dialog.set_position(Gtk.WindowPosition.CENTER)
+    dialog.set_title('Ghini')
+    dialog.set_markup(msg)
+    dialog.set_property('resizable', True)
 
     # get the width of a character
-    context = d.get_pango_context()
+    context = dialog.get_pango_context()
     font_metrics = context.get_metrics(context.get_font_description(),
                                        context.get_language())
     width = font_metrics.get_approximate_char_width()
@@ -636,17 +625,17 @@ def create_message_dialog(msg, typ=Gtk.MessageType.INFO,
     # if the character width is less than 300 pixels then set the
     # message dialog's label to be 300 to avoid tiny dialogs
     if width / Pango.SCALE * len(msg) < 300:
-        d.set_property('default-width', 300)
+        dialog.set_property('default-width', 300)
 
-    if d.get_icon() is None:
+    if dialog.get_icon() is None:
         try:
             pixbuf = GdkPixbuf.Pixbuf.new_from_file(bauble.default_icon)
-            d.set_icon(pixbuf)
+            dialog.set_icon(pixbuf)
         except Exception:
             pass
-    d.set_property('skip-taskbar-hint', False)
-    d.show_all()
-    return d
+    dialog.set_property('skip-taskbar-hint', False)
+    dialog.show_all()
+    return dialog
 
 
 def message_dialog(msg, type=Gtk.MessageType.INFO, buttons=Gtk.ButtonsType.OK,
@@ -657,10 +646,10 @@ def message_dialog(msg, type=Gtk.MessageType.INFO, buttons=Gtk.ButtonsType.OK,
 
     Returns the dialog's response.
     '''
-    d = create_message_dialog(msg, type, buttons, parent)
-    r = d.run()
-    d.destroy()
-    return r
+    dialog = create_message_dialog(msg, type, buttons, parent)
+    response = dialog.run()
+    dialog.destroy()
+    return response
 
 
 def create_yes_no_dialog(msg, parent=None):
@@ -672,21 +661,22 @@ def create_yes_no_dialog(msg, parent=None):
             parent = bauble.gui.window
         except Exception:
             parent = None
-    d = Gtk.MessageDialog(modal=True, destroy_with_parent=True,
-                          parent=parent, message_type=Gtk.MessageType.QUESTION,
-                          buttons=Gtk.ButtonsType.YES_NO)
-    d.set_title('Ghini')
-    d.set_position(Gtk.WindowPosition.CENTER)
-    d.set_markup(msg)
-    if d.get_icon() is None:
+    dialog = Gtk.MessageDialog(modal=True, destroy_with_parent=True,
+                               transient_for=parent,
+                               message_type=Gtk.MessageType.QUESTION,
+                               buttons=Gtk.ButtonsType.YES_NO)
+    dialog.set_title('Ghini')
+    dialog.set_position(Gtk.WindowPosition.CENTER)
+    dialog.set_markup(msg)
+    if dialog.get_icon() is None:
         try:
             pixbuf = GdkPixbuf.Pixbuf.new_from_file(bauble.default_icon)
-            d.set_icon(pixbuf)
+            dialog.set_icon(pixbuf)
         except Exception:
             pass
-        d.set_property('skip-taskbar-hint', False)
-    d.show_all()
-    return d
+        dialog.set_property('skip-taskbar-hint', False)
+    dialog.show_all()
+    return dialog
 
 
 def yes_no_dialog(msg, parent=None, yes_delay=-1):
@@ -700,19 +690,20 @@ def yes_no_dialog(msg, parent=None, yes_delay=-1):
     :param yes_delay: the number of seconds before the yes button should
       become sensitive
     """
-    d = create_yes_no_dialog(msg, parent)
+    dialog = create_yes_no_dialog(msg, parent)
     if yes_delay > 0:
-        d.set_response_sensitive(Gtk.ResponseType.YES, False)
+        dialog.set_response_sensitive(Gtk.ResponseType.YES, False)
 
         def on_timeout():
-            if d.get_property('visible'):  # conditional avoids GTK+ warning
-                d.set_response_sensitive(Gtk.ResponseType.YES, True)
+            if dialog.get_property('visible'):\
+                    # conditional avoids GTK+ warning
+                dialog.set_response_sensitive(Gtk.ResponseType.YES, True)
             return False
         from gi.repository import GObject
-        GObject.timeout_add(yes_delay*1000, on_timeout)
-    r = d.run()
-    d.destroy()
-    return r == Gtk.ResponseType.YES
+        GObject.timeout_add(yes_delay * 1000, on_timeout)
+    response = dialog.run()
+    dialog.destroy()
+    return response == Gtk.ResponseType.YES
 
 
 def create_message_details_dialog(msg, details='', typ=Gtk.MessageType.INFO,
@@ -728,7 +719,7 @@ def create_message_details_dialog(msg, details='', typ=Gtk.MessageType.INFO,
 
     dialog = Gtk.MessageDialog(modal=True,
                                destroy_with_parent=True,
-                               parent=parent,
+                               transient_for=parent,
                                message_type=typ,
                                buttons=buttons)
     dialog.set_title('Ghini')
@@ -782,10 +773,10 @@ def message_details_dialog(msg, details, type=Gtk.MessageType.INFO,
     '''
     Create and run a message dialog with a details expander.
     '''
-    d = create_message_details_dialog(msg, details, type, buttons, parent)
-    r = d.run()
-    d.destroy()
-    return r
+    dialog = create_message_details_dialog(msg, details, type, buttons, parent)
+    response = dialog.run()
+    dialog.destroy()
+    return response
 
 
 # Avoids: Gtk-CRITICAL: gtk_entry_set_text: assertion 'text != NULL'
@@ -869,15 +860,6 @@ def setup_text_combobox(combo, values=[], cell_data_func=None):
 
         combo.connect('format-entry-text', format_combo_entry_text)
 
-def prettify_format(format):
-    """
-    Return the date format in a more human readable form.
-    """
-    f = format.replate('%Y', 'yyyy')
-    f = f.replace('%m', 'mm')
-    f = f.replace('%d', 'dd')
-    return f
-
 
 def today_str(format=None):
     """
@@ -917,13 +899,13 @@ def setup_date_button(view, entry, button, date_func=None):
     button.set_tooltip_text(_("Today's date"))
     button.set_image(image)
 
-    def on_clicked(b):
-        s = ''
+    def on_clicked(_widget):
+        txt = ''
         if date_func:
-            s = date_func()
+            txt = date_func()
         else:
-            s = today_str()
-        entry.set_text(s)
+            txt = today_str()
+        entry.set_text(txt)
     if view and hasattr(view, 'connect'):
         view.connect(button, 'clicked', on_clicked)
     else:
@@ -936,7 +918,7 @@ def to_unicode(obj, encoding='utf-8'):
     object it will not try to decode it to converted it to <encoding>
     but will just return the original obj
     """
-    # Deprecated?
+    # Deprecated?  Maybe not this deals with None
     # logger.debug('to_unicode called by > %s', inspect.stack()[1])
     if isinstance(obj, str) or obj is None:
         return obj
@@ -1096,23 +1078,23 @@ def markup_italics(tax):
     elif re.match('^×[a-z-]+$', tax):
         result = '{}<i>{}</i>'.format(tax[0], tax[1:])
     # simple provisory or descriptor sp.
-    elif re.match('^sp. \([^×]+\)$', tax):  # pylint: disable=line-too-long,anomalous-backslash-in-string; # noqa
+    elif re.match(r'^sp. \([^×]+\)$', tax):
         result = '{}'.format(tax)
     # simple descriptor (brackets surrounding anything without a multiplication
     # symbol)
-    elif re.match('^\([^×]*\)$', tax):  # pylint: disable=line-too-long,anomalous-backslash-in-string; # noqa
+    elif re.match(r'^\([^×]*\)$', tax):
         result = '{}'.format(tax)
 
     # recursive parts
     # species with descriptor (part with only lower letters + space + bracketed
     # section)
-    elif re.match('^[a-z-]+ \([^×]+\)$', tax):  # pylint: disable=line-too-long,anomalous-backslash-in-string; # noqa
+    elif re.match(r'^[a-z-]+ \([^×]+\)$', tax):
         result = ''.join(
             [markup_italics(i) + ' ' for i in tax.split(' ', 1)]
         )[:-1]
     # complex hybrids (contains brackets surounding 2 phrases seperated by a
     # multipy symbol) These need to be reduce to less and less complex hybrids.
-    elif re.search('\(.+×.+\)', tax):  # pylint: disable=line-too-long,anomalous-backslash-in-string; # noqa
+    elif re.search(r'\(.+×.+\)', tax):
         result = '{}'.format(complex_hyb(tax))
     # any other type of hybrid (i.e. cv to species, provisory to cv, etc..) try
     # breaking it apart and italicizing the parts
@@ -1157,7 +1139,7 @@ def safe_int(s):
     return 0
 
 
-__natsort_rx = re.compile('(\d+(?:\.\d+)?)')
+__natsort_rx = re.compile(r'(\d+(?:\.\d+)?)')
 
 
 def natsort_key(obj):
@@ -1172,16 +1154,16 @@ def natsort_key(obj):
 
     item = str(obj)
     chunks = __natsort_rx.split(item)
-    for ii in range(len(chunks)):
-        if chunks[ii] and chunks[ii][0] in '0123456789':
-            if '.' in chunks[ii]:
+    for i in range(len(chunks)):
+        if chunks[i] and chunks[i][0] in '0123456789':
+            if '.' in chunks[i]:
                 numtype = float
             else:
                 numtype = int
             # wrap in tuple with '0' to explicitly specify numbers come first
-            chunks[ii] = (0, numtype(chunks[ii]))
+            chunks[i] = (0, numtype(chunks[i]))
         else:
-            chunks[ii] = (1, chunks[ii])
+            chunks[i] = (1, chunks[i])
     return (chunks, item)
 
 
@@ -1261,6 +1243,18 @@ def reset_sequence(column):
         conn.close()
 
 
+def generate_on_clicked(call):
+    """Closure to return a function that will call the provided callable with
+    the data provided, ignoring the label and event.  Intended for use with
+    make_label_clickable labels and a callable than only takes one argument.
+
+    :param call: a callable that takes one positional argument
+    """
+    def on_label_clicked(_label, _event, data):
+        return call(data)
+    return on_label_clicked
+
+
 def make_label_clickable(label, on_clicked, *args):
     """
     :param label: a Gtk.Label that has a Gtk.EventBox as its parent
@@ -1274,17 +1268,17 @@ def make_label_clickable(label, on_clicked, *args):
           'label must have an Gtk.EventBox as its parent')
     label.__pressed = False
 
-    def on_enter_notify(widget, *args):
+    def on_enter_notify(_widget, *_args):
         label.get_style_context().add_class('click-label')
 
-    def on_leave_notify(widget, *args):
+    def on_leave_notify(_widget, *_args):
         label.get_style_context().remove_class('click-label')
         label.__pressed = False
 
-    def on_press(*args):
+    def on_press(*_args):
         label.__pressed = True
 
-    def on_release(widget, event, *args):
+    def on_release(_widget, event, *args):
         if label.__pressed:
             label.__pressed = False
             label.get_style_context().remove_class('click-label')
@@ -1441,19 +1435,20 @@ def topological_sort(items, partial_order):
     graph = {}
     for v in items:
         add_node(graph, v)
-    for a, b in partial_order:
-        add_arc(graph, a, b)
+    for aaa, bbb in partial_order:
+        add_arc(graph, aaa, bbb)
 
     # Step 2 - find all roots (nodes with zero incoming arcs).
 
-    roots = [node for (node, nodeinfo) in list(graph.items()) if nodeinfo[0] == 0]
+    roots = [node for (node, nodeinfo) in list(graph.items()) if
+             nodeinfo[0] == 0]
 
     # step 3 - repeatedly emit a root and remove it from the graph. Removing
     # a node may convert some of the node's direct children into roots.
     # Whenever that happens, we append the new roots to the list of
     # current roots.
 
-    sorted = []
+    sortd = []
     while len(roots) != 0:
         # When len(roots) > 1, we can choose any root to send to the
         # output; this freedom represents the multiple complete orderings
@@ -1461,7 +1456,7 @@ def topological_sort(items, partial_order):
         # the roots using pop(). Note that for the algorithm to be efficient,
         # this operation must be done in O(1) time.
         root = roots.pop()
-        sorted.append(root)
+        sortd.append(root)
 
         # remove 'root' from the graph to be explored: first remove its
         # outgoing arcs, then remove the node. if any of the nodes which was
@@ -1480,7 +1475,7 @@ def topological_sort(items, partial_order):
         # There is a loop in the input.
         return None
 
-    return sorted
+    return sortd
 
 
 class GenericMessageBox(Gtk.EventBox):
@@ -1493,6 +1488,7 @@ class GenericMessageBox(Gtk.EventBox):
         self.box.set_spacing(10)
         self.add(self.box)
 
+    # TODO should these really be do_show_all and do_show?
     def show_all(self):
         self.get_parent().show_all()
         size_req = self.get_preferred_size()[1]
@@ -1600,7 +1596,8 @@ class YesNoMessageBox(GenericMessageBox):
         self.label = Gtk.Label()
         if msg:
             self.label.set_markup(msg)
-        self.label.set_alignment(.1, .1)
+        self.label.set_xalign(0.1)
+        self.label.set_xalign(0.1)
         self.box.pack_start(self.label, True, True, 0)
 
         button_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
@@ -1663,11 +1660,11 @@ def get_distinct_values(column, session):
     """
     Return a list of all the distinct values in a table column
     """
-    q = session.query(column).distinct()
-    return [v[0] for v in q if v != (None,)]
+    qry = session.query(column).distinct()
+    return [v[0] for v in qry if v != (None,)]
 
 
-def get_invalid_columns(obj, ignore_columns=['id']):
+def get_invalid_columns(obj, ignore_columns=None):
     """
     Return column names on a mapped object that have values
     which aren't valid for the model.
@@ -1676,6 +1673,9 @@ def get_invalid_columns(obj, ignore_columns=['id']):
     - nullable columns with null values
     - ...what else?
     """
+    if ignore_columns is None:
+        ignore_columns = ['id']
+
     # TODO: check for invalid enum types
     if not obj:
         return []
@@ -1684,7 +1684,6 @@ def get_invalid_columns(obj, ignore_columns=['id']):
     invalid_columns = []
     for column in [c for c in table.c if c.name not in ignore_columns]:
         v = getattr(obj, column.name)
-        #debug('%s.%s = %s' % (table.name, column.name, v))
         if v is None and not column.nullable:
             invalid_columns.append(column.name)
     return invalid_columns
@@ -1696,10 +1695,9 @@ def get_urls(text):
     label a link prefix it with [label text],
     e.g. [BBG]http://belizebotanic.org
     """
-    rx = re.compile('(?:\[(.+?)\])?((?:(?:http)|(?:https))://\S+)', re.I)
+    rgx = re.compile(r'(?:\[(.+?)\])?((?:(?:http)|(?:https))://\S+)', re.I)
     matches = []
-    for match in rx.finditer(text):
-        #print match.groups()
+    for match in rgx.finditer(text):
         matches.append(match.groups())
     return matches
 
@@ -1741,15 +1739,15 @@ def get_user_display_name():
     if sys.platform == 'win32':
         import ctypes
 
-        GetUserNameEx = ctypes.windll.secur32.GetUserNameExW
-        NameDisplay = 3
+        get_user_name_ex = ctypes.windll.secur32.GetUserNameExW
+        name_display = 3
 
         size = ctypes.pointer(ctypes.c_ulong(0))
-        GetUserNameEx(NameDisplay, None, size)
+        get_user_name_ex(name_display, None, size)
 
-        nameBuffer = ctypes.create_unicode_buffer(size.contents.value)
-        GetUserNameEx(NameDisplay, nameBuffer, size)
-        fname = str(nameBuffer.value)
+        name_buffer = ctypes.create_unicode_buffer(size.contents.value)
+        get_user_name_ex(name_display, name_buffer, size)
+        fname = str(name_buffer.value)
     else:
         import pwd
         fname = str(pwd.getpwuid(os.getuid())[4])
