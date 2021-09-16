@@ -253,7 +253,6 @@ class PropCuttingRooted(db.Base):
     Rooting dates for cutting
     """
     __tablename__ = 'prop_cutting_rooted'
-    __mapper_args__ = {'order_by': 'date'}
 
     date = Column(types.Date)
     quantity = Column(Integer, autoincrement=False)

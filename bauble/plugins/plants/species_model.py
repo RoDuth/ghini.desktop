@@ -175,7 +175,6 @@ class Species(db.Base, db.Serializable, db.DefiningPictures, db.WithNotes):
         cv_group, trade_name, genus_id
     """
     __tablename__ = 'species'
-    __mapper_args__ = {'order_by': ['sp', 'sp_author']}
 
     # for internal use when importing records, accounts for the lack of
     # UniqueConstraints and the complex of hybrid_properties etc.

@@ -45,9 +45,12 @@ except ImportError:
             'http://www.sqlalchemy.org')
     raise
 
-from sqlalchemy import orm
+from sqlalchemy import orm, event
 from sqlalchemy.orm import class_mapper
 from sqlalchemy.ext.declarative import declarative_base, DeclarativeMeta
+# sqla >1.4 i think will be:
+# from sqlalchemy.orm import class_mapper, declarative_base
+# from sqlalchemy.ext.decl_api import DeclarativeMeta
 
 # pylint: disable=ungrouped-imports
 from bauble import utils
@@ -93,43 +96,6 @@ def natsort(attr, obj):
     return sorted(obj, key=utils.natsort_key)
 
 
-class HistoryExtension(orm.MapperExtension):
-    """
-    HistoryExtension is a
-    :class:`~sqlalchemy.orm.interfaces.MapperExtension` that is added
-    to all clases that inherit from bauble.db.Base so that all
-    inserts, updates, and deletes made to the mapped objects are
-    recorded in the `history` table.
-    """
-    def _add(self, operation, mapper, connection, instance):
-        """
-        Add a new entry to the history table.
-        """
-        user = current_user()
-
-        row = {}
-        for c in mapper.local_table.c:
-            # skip defered geojson columns
-            if c.name == 'geojson':
-                continue
-            row[c.name] = str(getattr(instance, c.name))
-        table = History.__table__
-        stmt = table.insert(dict(table_name=mapper.local_table.name,
-                                 table_id=instance.id, values=str(row),
-                                 operation=operation, user=user,
-                                 timestamp=datetime.datetime.utcnow()))
-        connection.execute(stmt)
-
-    def after_update(self, mapper, connection, instance):
-        self._add('update', mapper, connection, instance)
-
-    def after_insert(self, mapper, connection, instance):
-        self._add('insert', mapper, connection, instance)
-
-    def after_delete(self, mapper, connection, instance):
-        self._add('delete', mapper, connection, instance)
-
-
 class MapperBase(DeclarativeMeta):
     """
     MapperBase adds the id, _created and _last_updated columns to all
@@ -149,7 +115,7 @@ class MapperBase(DeclarativeMeta):
                                           types.DateTime(timezone=True),
                                           default=sa.func.now(),
                                           onupdate=sa.func.now())
-            cls.__mapper_args__ = {'extension': HistoryExtension()}
+            # cls.__mapper_args__ = {'extension': HistoryExtension()}
         if 'top_level_count' not in dict_:
             cls.top_level_count = lambda x: {classname: 1}
         if 'search_view_markup_pair' not in dict_:
@@ -190,16 +156,51 @@ An instance of :class:`sqlalchemy.ext.declarative.Base`
 """
 
 
+def _add_to_history(operation, mapper, connection, instance):
+    """
+    Add a new entry to the history table.
+    """
+    user = current_user()
+
+    row = {}
+    for column in mapper.local_table.c:
+        # skip defered geojson columns
+        if column.name == 'geojson':
+            continue
+        row[column.name] = str(getattr(instance, column.name))
+    table = History.__table__   # pylint: disable=no-member
+    stmt = table.insert(dict(table_name=mapper.local_table.name,
+                             table_id=instance.id, values=str(row),
+                             operation=operation, user=user,
+                             timestamp=datetime.datetime.utcnow()))
+    connection.execute(stmt)
+
+
+@event.listens_for(Base, 'after_update', propagate=True)
+def after_update(mapper, connection, instance):
+    _add_to_history('update', mapper, connection, instance)
+
+
+@event.listens_for(Base, 'after_insert', propagate=True)
+def after_insert(mapper, connection, instance):
+    _add_to_history('insert', mapper, connection, instance)
+
+
+@event.listens_for(Base, 'after_delete', propagate=True)
+def after_delete(mapper, connection, instance):
+    _add_to_history('delete', mapper, connection, instance)
+
+
 metadata = Base.metadata
 """The default metadata for all Ghini tables.
 
 An instance of :class:`sqlalchemy.schema.Metadata`
 """
 
-history_base = declarative_base(metadata=metadata)
+HistoryBase = declarative_base(metadata=metadata)
 
 
-class History(history_base):
+class History(HistoryBase):
     """
     The history table records ever changed made to every table that
     inherits from :ref:`Base`
@@ -532,7 +533,6 @@ def make_note_class(name, compute_serializable_fields, as_dict=None, retrieve=No
 
     result = type(class_name, (Base, Serializable),
                   {'__tablename__': table_name,
-                   '__mapper_args__': {'order_by': table_name + '.date'},
 
                    'date': sa.Column(types.Date, default=sa.func.now(),
                                      nullable=False),

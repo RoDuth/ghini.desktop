@@ -143,7 +143,6 @@ class Family(db.Base, db.Serializable, db.WithNotes):
     """
     __tablename__ = 'family'
     __table_args__ = (UniqueConstraint('family'), {})
-    __mapper_args__ = {'order_by': ['Family.family', 'Family.qualifier']}
 
     rank = 'familia'
     link_keys = ['accepted']

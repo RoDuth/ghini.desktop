@@ -414,7 +414,6 @@ class Tag(db.Base):
         A description of this tag.
     """
     __tablename__ = 'tag'
-    __mapper_args__ = {'order_by': 'tag'}
 
     # columns
     tag = Column(Unicode(64), unique=True, nullable=False)

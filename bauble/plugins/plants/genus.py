@@ -164,7 +164,6 @@ class Genus(db.Base, db.Serializable, db.WithNotes):
     __table_args__ = (UniqueConstraint('genus', 'author',
                                        'qualifier', 'family_id'),
                       {})
-    __mapper_args__ = {'order_by': ['genus', 'author']}
 
     rank = 'genus'
     link_keys = ['accepted']

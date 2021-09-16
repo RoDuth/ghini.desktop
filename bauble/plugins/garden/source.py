@@ -863,7 +863,6 @@ source_detail_context_menu = [source_detail_edit_action,
 
 class Contact(db.Base, db.Serializable):
     __tablename__ = 'source_detail'
-    __mapper_args__ = {'order_by': 'name'}
 
     # ITF2 - E6 - Donor
     name = Column(Unicode(75), unique=True)

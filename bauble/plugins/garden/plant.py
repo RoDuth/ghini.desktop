@@ -380,7 +380,6 @@ class PlantChange(db.Base):
     """
     """
     __tablename__ = 'plant_change'
-    __mapper_args__ = {'order_by': 'plant_change.date'}
 
     plant_id = Column(Integer, ForeignKey('plant.id'), nullable=False)
     parent_plant_id = Column(Integer, ForeignKey('plant.id'))
@@ -457,7 +456,6 @@ sex_values = {
 
 # class Container(db.Base):
 #     __tablename__ = 'container'
-#     __mapper_args__ = {'order_by': 'name'}
 #     code = Column(Unicode)
 #     name = Column(Unicode)
 
@@ -546,7 +544,6 @@ class Plant(db.Base, db.Serializable, db.DefiningPictures, db.WithNotes):
     """
     __tablename__ = 'plant'
     __table_args__ = (UniqueConstraint('code', 'accession_id'), {})
-    __mapper_args__ = {'order_by': ['plant.accession_id', 'plant.code']}
 
     # columns
     code = Column(Unicode(6), nullable=False)
@@ -745,8 +742,8 @@ class Plant(db.Base, db.Serializable, db.DefiningPictures, db.WithNotes):
 # corrected and a new one adding.  In imports etc. this should trigger the
 # creation of an approariate change without a reason.
 @event.listens_for(Plant, 'after_update')
-def plant_after_update(mapper, connection, target):  \
-        # pylint: disable=unused-argument,too-many-locals
+def plant_after_update(_mapper, connection, target):  \
+        # pylint: disable=too-many-locals
     changes = []
     to_update = None
     session = object_session(target)
@@ -833,8 +830,7 @@ def plant_after_update(mapper, connection, target):  \
 
 
 @event.listens_for(Plant, 'after_insert')
-def plant_after_insert(mapper, connection, target):  \
-        # pylint: disable=unused-argument
+def plant_after_insert(_mapper, connection, target):
     session = object_session(target)
     for change in target.changes:
         if change in session.new:

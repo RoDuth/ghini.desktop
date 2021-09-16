@@ -273,7 +273,6 @@ class Verification(db.Base):
 
     """
     __tablename__ = 'verification'
-    __mapper_args__ = {'order_by': 'verification.date'}
 
     # columns
     verifier = Column(Unicode(64), nullable=False)
@@ -576,7 +575,6 @@ class Accession(db.Base, db.Serializable, db.WithNotes):
 
     """
     __tablename__ = 'accession'
-    __mapper_args__ = {'order_by': 'accession.code'}
 
     # columns
     #: the accession code
