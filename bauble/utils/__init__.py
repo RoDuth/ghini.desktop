@@ -1384,8 +1384,13 @@ def mem(size="rss"):
                         (os.getpid(), size)).read())
 
 
+# Original topological sort code written by Ofer Faigon (www.bitformation.com)
+# and used with permission
+# originally found at http://www.bitformation.com/art/python_toposort.html
+# can now be found in various places e.g.:
+# https://github.com/Yelp/ezio/blob/master/ezio/tsort.py
 def topological_sort(items, partial_order):
-    """return list of nodes sorted by dependencies
+    """Perform topological sort.  Return list of nodes sorted by dependencies.
 
     :param items: a list of items to be sorted.
 
@@ -1399,7 +1404,6 @@ def topological_sort(items, partial_order):
     ordering states dependencies, but they may list more nodes than
     necessary in the solution. for example, whatever dependencies are given,
     if you start from the emtpy items list, the empty list is the solution.
-
     """
 
     def add_node(graph, node):
@@ -1424,8 +1428,11 @@ def topological_sort(items, partial_order):
     # of the node. /list/'s 1st item is the count of incoming arcs, and
     # the rest are the destinations of the outgoing arcs. For example:
     # {'a':[0,'b','c'], 'b':[1], 'c':[1]}
-    # represents the graph: a --> b, a --> c
+    # represents the graph:   c <-- a --> b
     # The graph may contain loops and multiple arcs.
+    # Note that our representation does not contain reference loops to
+    # cause GC problems even when the represented graph contains loops,
+    # because we keep the node names rather than references to the nodes.
 
     # (ABCDE, (AB, BC, BD)) becomes:
     # {a: [0, b], b: [1, c, d], c: [1], d: [1], e: [0]}
@@ -1435,21 +1442,21 @@ def topological_sort(items, partial_order):
     graph = {}
     for v in items:
         add_node(graph, v)
-    for aaa, bbb in partial_order:
-        add_arc(graph, aaa, bbb)
+    for a, b in partial_order:  # pylint: disable=invalid-name
+        add_arc(graph, a, b)
 
     # Step 2 - find all roots (nodes with zero incoming arcs).
-
-    roots = [node for (node, nodeinfo) in list(graph.items()) if
-             nodeinfo[0] == 0]
+    roots = [node for (node, nodeinfo) in graph.items() if nodeinfo[0] == 0]
 
     # step 3 - repeatedly emit a root and remove it from the graph. Removing
     # a node may convert some of the node's direct children into roots.
     # Whenever that happens, we append the new roots to the list of
     # current roots.
-
     sortd = []
     while len(roots) != 0:
+        # If len(roots) is always 1 when we get here, it means that
+        # the input describes a complete ordering and there is only
+        # one possible output.
         # When len(roots) > 1, we can choose any root to send to the
         # output; this freedom represents the multiple complete orderings
         # that satisfy the input restrictions. We arbitrarily take one of
