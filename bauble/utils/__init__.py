@@ -724,7 +724,7 @@ def create_message_details_dialog(msg, details='', typ=Gtk.MessageType.INFO,
                                buttons=buttons)
     dialog.set_title('Ghini')
     dialog.set_markup(msg)
-    # allows resize and copying error messages etc.
+    # allow resize and copying error messages etc.
     dialog.set_property('resizable', True)
     message_label = dialog.get_message_area().get_children()[0]
     message_label.set_selectable(True)
@@ -1495,7 +1495,6 @@ class GenericMessageBox(Gtk.EventBox):
         self.box.set_spacing(10)
         self.add(self.box)
 
-    # TODO should these really be do_show_all and do_show?
     def show_all(self):
         self.get_parent().show_all()
         size_req = self.get_preferred_size()[1]

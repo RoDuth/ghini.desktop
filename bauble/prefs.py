@@ -442,7 +442,7 @@ class PrefsView(pluginmgr.View):
             menu.popup(None, None, None, None, event.button, event.time)
 
     @staticmethod
-    def add_new(model, tree_path):
+    def add_new(model, tree_path, text=None):
         msg = _('New option name')
         selected = [model[row][0] for row in tree_path][0]
         section = selected.rsplit('.', 1)[0]
@@ -451,7 +451,9 @@ class PrefsView(pluginmgr.View):
         message_area = dialog.get_message_area()
         box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
         option_entry = Gtk.Entry()
-        option_entry.set_text(f'{section}.')
+        if not text:
+            text = f'{section}.'
+        option_entry.set_text(text)
         box.add(option_entry)
         message_area.add(box)
         dialog.resize(1, 1)

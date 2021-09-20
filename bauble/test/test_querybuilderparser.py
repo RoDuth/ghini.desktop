@@ -16,7 +16,7 @@
 # along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
 
 import unittest
-from .querybuilderparser import BuiltQuery
+from bauble.querybuilderparser import BuiltQuery
 from bauble.test import BaubleTestCase
 
 

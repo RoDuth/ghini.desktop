@@ -25,12 +25,12 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
 import bauble
-import bauble.db as db
+from bauble import db
 from bauble.error import BaubleError
+from bauble import pluginmgr
 from bauble.prefs import prefs
-import bauble.pluginmgr as pluginmgr
 
-## for sake of testing, just use sqlite3.
+# for sake of testing, just use sqlite3.
 uri = 'sqlite:///:memory:'
 
 
@@ -84,10 +84,6 @@ class MockLoggingHandler(logging.Handler):
 
 
 class BaubleTestCase(unittest.TestCase):
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        prefs.testing = True
 
     def setUp(self):
         assert uri is not None, "The database URI is not set"

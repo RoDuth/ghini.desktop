@@ -174,10 +174,6 @@ class DuplicateIdsGlade(unittest.TestCase):
 
 class GardenTestCase(BaubleTestCase):
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        prefs.testing = True
-
     def setUp(self):
         super().setUp()
         plants_test.setUp_data()

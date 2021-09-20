@@ -17,6 +17,7 @@
 # You should have received a copy of the GNU General Public License
 # along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
 
+from unittest import mock
 from tempfile import mkstemp
 import logging
 logger = logging.getLogger(__name__)
@@ -25,8 +26,6 @@ logger = logging.getLogger(__name__)
 from bauble.test import BaubleTestCase
 from bauble import prefs
 from bauble import version_tuple
-
-prefs.testing = True
 
 
 class PreferencesTests(BaubleTestCase):
@@ -169,38 +168,31 @@ class PrefsViewTests(BaubleTestCase):
         self.assertTrue(len(prefs_view.prefs_ls) > 8)
 
     def test_on_button_press_event_adds_menu_can_active(self):
-        # warning, ugly monkey patching ahead.
         from datetime import datetime
         from gi.repository import Gtk
-        orig_menu = Gtk.Menu
-        Gtk.Menu = type('MockMenu', (object, ), {
-            'append': lambda s, x: appended.append(x),
-            'attach_to_widget': lambda s, m: None,
-            'popup': lambda a, b, c, d, e, f, g: None
-        })
         prefs_view = prefs.PrefsView()
         prefs_view.update()
+
         prefs_tv = prefs_view.prefs_tv
-        event = type('MockCheckButton', (object, ), {
-            'button': 3,
-            'time': datetime.now()
-        })
-        appended = []
-        prefs_view.on_button_press_event(prefs_tv, event)
-        # is a menu item added
-        self.assertIsNotNone(appended[0])
+        mock_event = mock.Mock(button=3, time=datetime.now().timestamp())
+
+        with mock.patch('bauble.prefs.Gtk.Menu.append') as mock_append:
+            prefs_view.on_button_press_event(prefs_tv, mock_event)
+
+            mock_append.assert_called()
+
         selection = Gtk.TreePath.new_first()
         prefs_tv.get_selection().select_path(selection)
-        # can activate menu
-        appended = []
-        prefs_view.on_button_press_event(prefs_tv, event)
-        appended[0].activate()
+
+        with mock.patch('bauble.prefs.Gtk.Menu.append') as mock_append:
+            prefs_view.on_button_press_event(prefs_tv, mock_event)
+
+            mock_append.assert_called()
+            mock_append.call_args.args[0].activate()
         log_str = f'model: {prefs_view.prefs_ls} tree_path: [<Gtk.TreePath obj'
         self.assertTrue(
             [i for i in self.handler.messages['bauble.prefs']['debug'] if
              i.startswith(log_str)])
-        self.assertIsNotNone(appended[0])
-        Gtk.Menu = orig_menu
 
     def test_on_prefs_prefs_tv_row_activated(self):
         key = 'bauble.keys'
@@ -296,22 +288,17 @@ class PrefsViewTests(BaubleTestCase):
         utils.yes_no_dialog = orig_yes_no_dialog
 
     def test_add_new(self):
-        # warning, ugly monkey patching ahead.
         prefs_view = prefs.PrefsView()
         prefs_view.update()
         from gi.repository import Gtk
         path = Gtk.TreePath.new_first()
-        orig_mbox_run = Gtk.MessageDialog.run
-        Gtk.MessageDialog.run = lambda s: Gtk.ResponseType.OK
-        orig_get_text = Gtk.Entry.get_text
         key = 'bauble.test.option'
-        Gtk.Entry.get_text = lambda s: key
-        new_iter = prefs_view.add_new(prefs_view.prefs_ls, path)
+        with mock.patch('bauble.prefs.Gtk.MessageDialog.run',
+                        return_value=Gtk.ResponseType.OK):
+            new_iter = prefs_view.add_new(prefs_view.prefs_ls, path, text=key)
         self.assertIsNotNone(new_iter)
         self.assertTrue(f'adding new pref option {key}' in
                         self.handler.messages['bauble.prefs']['debug'])
-        Gtk.MessageDialog.run = orig_mbox_run
-        Gtk.Entry.get_text = orig_get_text
 
     def test_on_prefs_backup_restore(self):
         prefs.prefs.save(force=True)
