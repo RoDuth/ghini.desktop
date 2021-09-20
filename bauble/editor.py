@@ -805,14 +805,23 @@ class MockDialog:
     def __init__(self):
         self.hidden = False
         self.content_area = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        self.message_area = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        self.size = None
+        self.response = Gtk.ResponseType.OK
 
     def hide(self):
         self.hidden = True
 
     def run(self):
-        pass
+        return self.response
 
     def show(self):
+        pass
+
+    def show_all(self):
+        pass
+
+    def set_keep_above(self, val):
         pass
 
     def add_accel_group(self, group):
@@ -821,12 +830,25 @@ class MockDialog:
     def get_content_area(self):
         return self.content_area
 
+    def get_message_area(self):
+        return self.message_area
+
+    def resize(self, x, y):
+        self.size = (x, y)
+
+    def get_size(self):
+        return self.size
+
+    def destroy(self):
+        pass
+
 
 class MockView:
-    '''mocking the view, but so generic that we share it among clients
-    '''
+    """mocking the view, but so generic that we share it among clients
+    """
     def __init__(self, **kwargs):
-        self.widgets = type('MockWidgets', (object, ), {})()
+        from unittest import mock
+        self.widgets = mock.Mock()
         self.models = {}  # dictionary of list of tuples
         self.invoked = []
         self.invoked_detailed = []
@@ -967,7 +989,7 @@ class MockView:
     def widget_set_sensitive(self, name, value=True):
         self.invoked.append('widget_set_sensitive')
         self.invoked_detailed.append((self.invoked[-1], [name, value]))
-        self.sensitive[name] = value and True or False
+        self.sensitive[name] = value
 
     def widget_get_sensitive(self, name):
         self.invoked.append('widget_get_sensitive')

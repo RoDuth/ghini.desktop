@@ -18,6 +18,7 @@
 # You should have received a copy of the GNU General Public License
 # along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
 
+from unittest import mock
 from pathlib import Path
 from zipfile import ZipFile
 from tempfile import TemporaryDirectory
@@ -25,6 +26,8 @@ from shapefile import Writer, Reader
 from gi.repository import Gtk
 
 from bauble.test import BaubleTestCase
+from bauble.editor import MockView, MockDialog
+from bauble.utils.geo import ProjDB
 from bauble.meta import get_default
 from bauble.utils.geo import DEFAULT_SYS_PROJ
 from bauble.plugins.garden import (Plant,
@@ -46,6 +49,7 @@ from bauble.plugins.imex.shapefile.export_tool import (ShapefileExporter,
 
 from .import_tool import ShapefileImportSettingsBox as ImpSetBox
 from .export_tool import ShapefileExportSettingsBox as ExpSetBox
+
 # test data - avoiding tuples as they end up lists in the database anyway
 epsg3857_point = {'type': 'Point',
                   'coordinates': [17029543.308700003, -3183278.8702000007]}
@@ -596,14 +600,10 @@ class ExportSettingsBoxTests(BaubleTestCase):
                                                'axis': ''},
                                  grid=MockGrid())
         start = settings_box.gen_settings.copy()
-        gen_chkbtn = type('MockCheckButton', (object, ), {
-            'get_active': lambda: True
-        })
-        settings_box.on_gen_chkbtn_toggled(gen_chkbtn)
-        gen_combo = type('MockComboBox', (object, ), {
-            'get_active_text': lambda: 'NS'
-        })
-        settings_box.on_gen_combo_changed(gen_combo)
+        mock_gen_chkbtn = mock.Mock(**{'get_active.return_value': True})
+        settings_box.on_gen_chkbtn_toggled(mock_gen_chkbtn)
+        mock_gen_combo = mock.Mock(**{'get_active_text.return_value': 'NS'})
+        settings_box.on_gen_combo_changed(mock_gen_combo)
         # gen_combo_widget = settings_box.grid.items[14][2]
         # gen_combo_widget.set_active(1)
         result = settings_box.gen_settings
@@ -656,22 +656,20 @@ class ExportSettingsBoxTests(BaubleTestCase):
                                                'axis': ''},
                                  grid=MockGrid())
         start = settings_box.gen_settings.copy()
+        mock_gen_chkbtn = mock.Mock(**{'get_active.return_value': True})
+
         # check when set true it grabs the system defaults
-        gen_chkbtn = type('MockCheckButton', (object, ), {
-            'get_active': lambda: True
-        })
-        settings_box.on_gen_chkbtn_toggled(gen_chkbtn)
+        settings_box.on_gen_chkbtn_toggled(mock_gen_chkbtn)
         result = settings_box.gen_settings
         self.assertNotEqual(start, result)
         self.assertEqual(result.get('axis'), '')
         self.assertEqual(result.get('start'), [10.001, 10.001])
         self.assertEqual(result.get('increment'), 0.00001)
 
+        mock_gen_chkbtn = mock.Mock(**{'get_active.return_value': False})
         # check if set false the gen_button is not sensitive
-        gen_chkbtn = type('MockCheckButton', (object, ), {
-            'get_active': lambda: False
-        })
-        settings_box.on_gen_chkbtn_toggled(gen_chkbtn)
+        settings_box.on_gen_chkbtn_toggled(mock_gen_chkbtn)
+
         self.assertFalse(settings_box.gen_button.get_sensitive())
         # TODO check the button is not active.
 
@@ -742,10 +740,8 @@ class ExportSettingsBoxTests(BaubleTestCase):
                                  resize_func=lambda: False,
                                  grid=MockGrid())
 
-        mockprop = type('Prop', (object, ), {
-            'key': '_default_vernacular_name'
-        })()
-        self.assertFalse(settings_box.relation_filter(mockprop))
+        mock_prop = mock.Mock(key='_default_vernacular_name')
+        self.assertFalse(settings_box.relation_filter(mock_prop()))
 
     def test_generated_points_settings_dialog(self):
         from bauble.meta import BaubleMeta
@@ -764,44 +760,13 @@ class ExportSettingsBoxTests(BaubleTestCase):
         # pick up the system default
         settings_box.reset_gen_settings()
 
-        from bauble import utils
-        _orig_create_message_dialog = utils.create_message_dialog
-
-        class MockDialog:
-            def __init__(self):
-                self.msg = None
-                self.box = set()
-                self.size = dict()
-
-            def get_message_area(self):
-                return self.box
-
-            def resize(self, x, y):
-                return
-
-            def show_all(self):
-                return
-
-            def set_keep_above(self, val):
-                return
-
-            def run(self):
-                return Gtk.ResponseType.OK
-
-            def destroy(self):
-                return
-
         mock_dialog = MockDialog()
 
-        def mock_create_message_dialog(msg):
-            mock_dialog.msg = msg
-            return mock_dialog
-
-        utils.create_message_dialog = mock_create_message_dialog
-
-        # trigger the dialog box
-        dialog = settings_box.generated_points_settings_dialog()
-        dialog.run()
+        with mock.patch('bauble.utils.create_message_dialog',
+                        return_value=mock_dialog):
+            # trigger the dialog box
+            dialog = settings_box.generated_points_settings_dialog()
+            dialog.run()
 
         # test values
         self.assertNotEqual(gen_settings, start_settings)
@@ -809,7 +774,7 @@ class ExportSettingsBoxTests(BaubleTestCase):
         self.assertEqual(gen_settings.get('increment'), 0.00001)
         self.assertEqual(gen_settings.get('axis'), '')
 
-        grid = mock_dialog.box.pop()
+        grid = mock_dialog.get_message_area().get_children()[0]
         self.assertEqual(len(grid.get_children()), 8)
 
         gen_combo = grid.get_child_at(1, 2)
@@ -819,8 +784,6 @@ class ExportSettingsBoxTests(BaubleTestCase):
         gen_inc_entry = grid.get_child_at(1, 3)
         gen_inc_entry.set_value(0.1)
         self.assertEqual(gen_settings.get('increment'), 0.1)
-
-        utils.create_message_dialog = _orig_create_message_dialog
 
     def test_on_gen_button_clicked(self):
         from bauble.meta import BaubleMeta
@@ -838,43 +801,12 @@ class ExportSettingsBoxTests(BaubleTestCase):
         # pick up the system default
         settings_box.reset_gen_settings()
 
-        from bauble import utils
-        _orig_create_message_dialog = utils.create_message_dialog
-
-        class MockDialog:
-            def __init__(self):
-                self.msg = None
-                self.box = set()
-                self.size = dict()
-
-            def get_message_area(self):
-                return self.box
-
-            def resize(self, x, y):
-                return
-
-            def show_all(self):
-                return
-
-            def set_keep_above(self, val):
-                return
-
-            def run(self):
-                return Gtk.ResponseType.OK
-
-            def destroy(self):
-                return
-
         mock_dialog = MockDialog()
 
-        def mock_create_message_dialog(msg):
-            mock_dialog.msg = msg
-            return mock_dialog
-
-        utils.create_message_dialog = mock_create_message_dialog
-
-        settings_box.on_gen_button_clicked(None)
-        grid = mock_dialog.box.pop()
+        with mock.patch('bauble.utils.create_message_dialog',
+                        return_value=mock_dialog):
+            settings_box.on_gen_button_clicked(None)
+        grid = mock_dialog.get_message_area().get_children()[0]
         self.assertEqual(len(grid.get_children()), 8)
 
         self.assertFalse('err-btn' in
@@ -882,22 +814,19 @@ class ExportSettingsBoxTests(BaubleTestCase):
                           .get_style_context()
                           .list_classes()))
 
-        class MockDialog2(MockDialog):
-            def run(self):
-                return Gtk.ResponseType.CANCEL
+        mock_dialog = MockDialog()
+        mock_dialog.response = Gtk.ResponseType.CANCEL
 
-        mock_dialog = MockDialog2()
-
-        settings_box.on_gen_button_clicked(None)
-        grid = mock_dialog.box.pop()
+        with mock.patch('bauble.utils.create_message_dialog',
+                        return_value=mock_dialog):
+            settings_box.on_gen_button_clicked(None)
+        grid = mock_dialog.get_message_area().get_children()[0]
         self.assertEqual(len(grid.get_children()), 8)
 
         self.assertTrue('err-btn' in
                         (settings_box.gen_button
                          .get_style_context()
                          .list_classes()))
-
-        utils.create_message_dialog = _orig_create_message_dialog
 
 
 class ShapefileExportTestsEmptyDB(BaubleTestCase):
@@ -907,15 +836,9 @@ class ShapefileExportTestsEmptyDB(BaubleTestCase):
         get_default('system_proj_string', DEFAULT_SYS_PROJ)
         # temp_dir
         self.temp_dir = TemporaryDirectory()
-        self.exporter = ShapefileExporter()
+        self.exporter = ShapefileExporter(
+            view=MockView(), proj_db=ProjDB(db_path=':memory:'), open_=False)
         self.exporter.proj_db.add(prj=prj_str_4326, crs='epsg:4326')
-        self.exporter.view.widgets.imp_settings_expander = type(
-            'MockExpander', (object, ), {
-                'get_child': lambda s: None,
-                'add': lambda s, w: None,
-                'remove': lambda s, w: None,
-            }
-        )()
 
     def tearDown(self):
         self.temp_dir.cleanup()
@@ -984,22 +907,8 @@ class ShapefileExportTests(BaubleTestCase):
                                 if fam.get('id') == gen.get('family_id'):
                                     family = fam.get('family')
             self.taxa_to_acc[acc.get('id')] = (family, genus, species)
-        self.exporter = ShapefileExporter()
-        # TODO here couldn't we just use settatr(self, 'trap', 1) etc.
-        self.trap = type('Trap', (object, ), {'vals': 0})()
-        self.exporter.view.widgets.exp_settings_expander = type(
-            'MockExpander', (object, ), {
-                'get_child': lambda s: True,
-                'add': lambda s, w: None,
-                'remove': lambda s, i: setattr(self.trap, 'vals', 1),
-            }
-        )()
-        self.win = type('MockWin', (object, ), {'vals': ()})()
-        self.exporter.view.get_window = lambda: type(
-            'MockWindow', (object, ), {
-                'resize': lambda x, y: setattr(self.win, 'vals', (x, y))
-            }
-        )
+        self.exporter = ShapefileExporter(
+            view=MockView(), proj_db=ProjDB(db_path=':memory:'), open_=False)
 
     def tearDown(self):
         self.temp_dir.cleanup()
@@ -1673,7 +1582,6 @@ class ShapefileExportTests(BaubleTestCase):
 
     def test_on_btnbrowse_clicked(self):
         exporter = self.exporter
-        exporter.view.widgets.input_dirname = 'input_dirname'
         exporter.view.reply_file_chooser_dialog = [self.temp_dir.name]
         exporter.presenter.on_btnbrowse_clicked('button')
         exporter.presenter.on_dirname_entry_changed('input_dirname')
@@ -1686,7 +1594,6 @@ class ShapefileExportTests(BaubleTestCase):
         exporter.export_plants = True
         exporter.presenter._settings_expander()
         # set last_folder
-        exporter.view.widgets.input_dirname = 'input_dirname'
         exporter.view.reply_file_chooser_dialog = [self.temp_dir.name]
         exporter.presenter.on_btnbrowse_clicked('button')
         exporter.presenter.on_dirname_entry_changed('input_dirname')
@@ -1701,73 +1608,35 @@ class ShapefileExportTests(BaubleTestCase):
         self.assertNotEqual(exporter.presenter.last_folder, bad_path)
         self.assertEqual(exporter.presenter.last_folder, self.temp_dir.name)
 
-    def test_search_view_option(self):
-        import bauble
-        _orig_gui = bauble.gui
-        MockSearchView = type('SearchView', (object, ), {
-            'results_view': type('ResultView', (object, ), {
-                'get_model': lambda s: Location
-            })()
-        })
-        _orig_search_view = bauble.view.SearchView
-        bauble.view.SearchView = MockSearchView
-        search_view = MockSearchView()
-        GUI = type('MockView', (object, ), {
-            'get_view': lambda s: search_view
-        })
-        bauble.gui = GUI()
-        # need to use a new exporter to test after search
-        exporter = ShapefileExporter()
-        bauble.gui = _orig_gui
-        bauble.view.SearchView = _orig_search_view
+    def test_search_view_option_is_sensitive_if_model(self):
+        # Mock a search view with resuls_view model of location
+        mock_result_view = mock.Mock(**{'get_model.return_value': Location})
+        from bauble.ui import SearchView
+        mock_search_view = mock.Mock(spec=SearchView)
+        mock_search_view.results_view = mock_result_view
+        mock_gui = mock.Mock(**{'get_view.return_value': mock_search_view})
+
+        with mock.patch('bauble.gui',
+                        new_callable=mock.PropertyMock(return_value=mock_gui)):
+            exporter = ShapefileExporter(
+                view=MockView(), proj_db=ProjDB(db_path=':memory:'),
+                open_=False)
+
         self.assertTrue(
             exporter.view.widget_get_sensitive('rb_search_results'))
-
-    def test_export_tool_locations(self):
-        export_tool = ShapefileExportTool()
-        exporter = export_tool.start()
-        exporter.proj_db.add(prj=prj_str_4326, crs='epsg:4326')
-        exporter.search_or_all = 'rb_all_records'
-        exporter.export_locations = True
-        exporter.export_plants = False
-        exporter.dirname = self.temp_dir.name
-        exporter.run()
-        out = [str(i) for i in Path(self.temp_dir.name).glob('*.zip')]
-        self.assertEqual(len(out), 1)
-        with ZipFile(out[0], 'r') as z:
-            namelist = z.namelist()
-            self.assertEqual(len(namelist), 4)
-            with z.open([i for i in namelist if i.endswith('.prj')][0]) as prj:
-                self.assertEqual(prj.read().decode('utf-8'), prj_str_4326)
-            with z.open([i for i in namelist if i.endswith('.shp')][0]) as shp:
-                with z.open([i for i in namelist if i.endswith('.dbf')][0]) as dbf:
-                    with Reader(shp=shp, dbf=dbf) as shpf:
-                        # field_names = [i[0] for i in shpf.fields]
-                        self.assertEqual(len(shpf.shapes()), 2)
-
-    def test_export_tool_plants(self):
-        export_tool = ShapefileExportTool()
-        exporter = export_tool.start()
-        exporter.proj_db.add(prj=prj_str_4326, crs='epsg:4326')
-        exporter.search_or_all = 'rb_all_records'
-        exporter.export_locations = False
-        exporter.export_plants = True
-        exporter.dirname = self.temp_dir.name
-        exporter.run()
-        out = [str(i) for i in Path(self.temp_dir.name).glob('*.zip')]
-        self.assertEqual(len(out), 3)
 
     def test_on_settings_activate(self):
         # somewhat superfluous
         exporter = self.exporter
+        window = exporter.view.get_window()
         exporter.presenter.on_settings_activate('exp_settings_expander')
-        self.assertEqual(self.win.vals, (1, 1))
+        self.assertEqual(window.get_size(), (1, 1))
 
     def test_reset_win_size(self):
         exporter = self.exporter
-        start = self.win.vals
+        start = exporter.view.get_window().get_size()
         exporter.presenter.reset_win_size()
-        self.assertNotEqual(start, self.win.vals)
+        self.assertNotEqual(start, exporter.view.get_window().get_size())
         exporter.presenter._settings_expander()
         self.assertEqual(len(exporter.presenter.settings_boxes), 1)
         locs_only = exporter.presenter.settings_boxes[
@@ -1860,25 +1729,22 @@ class ImportSettingsBoxTests(BaubleTestCase):
                              self.temp_dir.name))
         settings_box = ImpSetBox(shape_reader, grid=MockGrid())
         # prop_button = settings_box.grid.props.get('location.code')
-        event = type('', (), {})
-        event.button = 1
-        event.time = 100
+        from datetime import datetime
+        mock_event = mock.Mock(button=1, time=datetime.now().timestamp())
         # prop_button.clicked()
         # prop_button.do_button_press_event(prop_button, event)
-        chk_button = type('MockChkButton', (object, ), {
-            'set_active': lambda s: None
-        })
+        chk_button = mock.Mock()
         prop_button, schema_menu = settings_box._get_prop_button(
             ['bed', 'C', 126, 0], chk_button)
         MochSchemaMenu.full_path = 'bed_name'
-        settings_box.on_prop_button_press_event(prop_button, event,
+        settings_box.on_prop_button_press_event(prop_button, mock_event,
                                                 schema_menu)
         self.assertEqual(shape_reader.field_map.get('bed'), 'bed_name')
-        # testing can add a new field
+        # can add a new field
         prop_button2, schema_menu = settings_box._get_prop_button(
             ['bed_description', 'C', 126, 0], chk_button)
         MochSchemaMenu.full_path = 'location.desciption'
-        settings_box.on_prop_button_press_event(prop_button2, event,
+        settings_box.on_prop_button_press_event(prop_button2, mock_event,
                                                 schema_menu)
         self.assertEqual(shape_reader.field_map.get('bed_description'),
                          'location.desciption')
@@ -1895,16 +1761,14 @@ class ImportSettingsBoxTests(BaubleTestCase):
                              plt_rec_3857_new_data_lines,
                              self.temp_dir.name))
         settings_box = ImpSetBox(shape_reader, grid=MockGrid())
-        event = type('', (), {})
-        event.button = 1
-        event.time = 100
-        chk_button = type('MockChkButton', (object, ), {
-            'set_active': lambda s: None
-        })
+
+        from datetime import datetime
+        mock_event = mock.Mock(button=1, time=datetime.now().timestamp())
+        chk_button = mock.Mock()
         prop_button, schema_menu = settings_box._get_prop_button(
             ['bed', 'C', 126, 0], chk_button)
         MochSchemaMenu.full_path = None
-        settings_box.on_prop_button_press_event(prop_button, event,
+        settings_box.on_prop_button_press_event(prop_button, mock_event,
                                                 schema_menu)
         self.assertIsNone(shape_reader.field_map.get('bed'))
         bauble.search.SchemaMenu = _orig_schema_menu
@@ -1940,9 +1804,7 @@ class ImportSettingsBoxTests(BaubleTestCase):
                                                         loc_recs_4326,
                                                         self.temp_dir.name))
         settings_box = ImpSetBox(shape_reader, grid=MockGrid())
-        type_combo = type('MockComboBox', (object, ), {
-            'get_active_text': lambda: 'plant'
-        })
+        type_combo = mock.Mock(**{'get_active_text.return_value': 'plant'})
         settings_box.on_type_changed(type_combo)
         # assert the grid rebuilt with the same fields
         self.assertEqual(settings_box.grid.max_y, 5)
@@ -1965,22 +1827,8 @@ class ShapefileImportEmptyDBTests(BaubleTestCase):
         get_default('system_proj_string', DEFAULT_SYS_PROJ)
         # somewhere to create test shapefiles
         self.temp_dir = TemporaryDirectory()
-        self.importer = ShapefileImporter()
-        self.importer.view.widgets.input_projection = 'input_projection'
-        self.importer.view.widgets.input_filename = 'input_filename'
-        self.importer.view.widgets.imp_settings_expander = type(
-            'MockExpander', (object, ), {
-                'get_child': lambda s: None,
-                'add': lambda s, w: None,
-                'remove': lambda s, w: None,
-            }
-        )()
-        self.win = type('Win', (object, ), {'vals': ()})()
-        self.importer.view.get_window = lambda: type(
-            'MockWindow', (object, ), {
-                'resize': lambda x, y: setattr(self.win, 'vals', (x, y))
-            }
-        )
+        self.importer = ShapefileImporter(view=MockView(),
+                                          proj_db=ProjDB(db_path=':memory:'))
 
     def tearDown(self):
         self.temp_dir.cleanup()
@@ -2117,23 +1965,10 @@ class ShapefileImportTests(BaubleTestCase):
         # somewhere to create test shapefiles
         self.temp_dir = TemporaryDirectory()
         # importer
-        self.importer = ShapefileImporter()
-        self.importer.view.widgets.input_projection = 'input_projection'
+        self.importer = ShapefileImporter(view=MockView(),
+                                          proj_db=ProjDB(db_path=':memory:'))
+        # note widgets is a mock.Mock
         self.importer.view.widgets.input_filename = 'input_filename'
-        self.trap = type('Trap', (object, ), {'vals': 0})()
-        self.importer.view.widgets.imp_settings_expander = type(
-            'MockExpander', (object, ), {
-                'get_child': lambda s: True,
-                'add': lambda s, w: None,
-                'remove': lambda s, i: setattr(self.trap, 'vals', 1),
-            }
-        )()
-        self.win = type('MockWin', (object, ), {'vals': ()})()
-        self.importer.view.get_window = lambda: type(
-            'MockWindow', (object, ), {
-                'resize': lambda x, y: setattr(self.win, 'vals', (x, y))
-            }
-        )
 
     def tearDown(self):
         self.temp_dir.cleanup()
@@ -2628,7 +2463,7 @@ class ShapefileImportTests(BaubleTestCase):
                          record.get('genus'))
         self.assertEqual(result[2].accession.species.epithet,
                          record.get('species'))
-        # Testing that we can use hybrid_property values here and below
+        # can use hybrid_property values here and below
         self.assertEqual(result[2].accession.species.infraspecific_parts,
                          record.get('infrasp'))
         self.assertEqual(result[2].accession.species.cultivar_epithet,
@@ -2873,7 +2708,8 @@ class ShapefileImportTests(BaubleTestCase):
         self.assertEqual(importer.presenter.proj_db_match,
                          importer.presenter.proj_db.get_crs(prj_str_4326))
         # this just test that remove was called.
-        self.assertEqual(self.trap.vals, 1)
+        self.assertTrue(
+            importer.view.widgets.imp_settings_expander.remove.called)
 
     def test_on_btnbrowse_clicked_matched_crs(self):
         importer = self.importer
@@ -2988,39 +2824,13 @@ class ShapefileImportTests(BaubleTestCase):
         self.assertIn(('set_button_label', ('projection_button', 'Add?')),
                       importer.view.invoked_detailed)
 
-    def test_import_tool(self):
-        # somewhat superfluous
-        import_tool = ShapefileImportTool()
-
-        importer = import_tool.start()
-        importer.filename = create_shapefile('test', prj_str_4326,
-                                             location_fields, loc_recs_4326,
-                                             self.temp_dir.name)
-        importer.shape_reader.filename = importer.filename
-        importer.option = '0'
-        importer.use_id = True
-        importer.projection = 'epsg:4326'
-        importer.run()
-        result = self.session.query(Location).all()
-        # assert len hasn't changed
-        self.assertEqual(len(result), 2)
-        # assert db geojson == the shapfiles
-        self.assertEqual(result[0].geojson, epsg4326_poly_xy)
-        self.assertEqual(result[1].geojson, epsg4326_poly_xy2)
-        # assert other data hasn't changed.  Could be more thorough here.
-        self.assertIsNone(result[0].description)
-        self.assertIsNone(result[1].description)
-        # added one note when creating the database, check the import didn't
-        # bring in the other.
-        self.assertEqual(len(result[0].notes), 1)
-
     def test_on_settings_activate(self):
         # somewhat superfluous
         importer = self.importer
+        window = importer.view.get_window()
         importer.presenter.on_settings_activate('imp_settings_expander')
         importer.presenter.on_filename_entry_changed('input_filename')
-        self.assertEqual(self.win.vals, (1, 1))
-
+        self.assertEqual(window.get_size(), (1, 1))
 
 class ShapefileReaderTests(BaubleTestCase):
     def setUp(self):

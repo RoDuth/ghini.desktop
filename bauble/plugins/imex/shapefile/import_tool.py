@@ -33,9 +33,7 @@ from gi.repository import Gtk
 from bauble.utils.geo import ProjDB, transform
 # NOTE importing shapefile Reader Writer above wipes out gettext _
 from bauble.i18n import _
-from bauble.prefs import (prefs,
-                          testing,
-                          location_shapefile_prefs,
+from bauble.prefs import (prefs, location_shapefile_prefs,
                           plant_shapefile_prefs)
 
 import bauble
@@ -429,7 +427,7 @@ class ShapefileImporter():
         {'add_geo': True, 'update': True, 'add_new': True, 'all_data': True},
     ]
 
-    def __init__(self):
+    def __init__(self, view=None, proj_db=None):
         # widget fields
         # NOTE use string NOT int for option
         self.option = '0'
@@ -438,12 +436,12 @@ class ShapefileImporter():
         self.always_xy = True
         self.use_id = False
         # view and presenter
-        if testing:
-            from bauble.editor import MockView
-            self.view = MockView()
-        else:
-            self.view = ShapefileImportDialogView()
-        self.presenter = ShapefileImportDialogPresenter(self, self.view)
+        if view is None:
+            view = ShapefileImportDialogView()
+        if proj_db is None:
+            proj_db = ProjDB()
+        self.view = view
+        self.presenter = ShapefileImportDialogPresenter(self, view, proj_db)
         # reader
         self.shape_reader = ShapefileReader(None)
         # record class
@@ -849,18 +847,13 @@ class ShapefileImportDialogPresenter(GenericEditorPresenter):
 
     last_folder = str(Path.home())
 
-    def __init__(self, model, view):
+    def __init__(self, model, view, proj_db):
         super().__init__(model=model, view=view, session=False)
         self.prj_string = None
         self.proj_db_match = None
         self.proj_text = None
-
-        if testing:
-            self.proj_db = ProjDB(db_path=':memory:')
-        else:
-            self.proj_db = ProjDB()
-            self.add_problem(self.PROBLEM_EMPTY,
-                             self.view.widgets.input_filename)
+        self.proj_db = proj_db
+        self.add_problem(self.PROBLEM_EMPTY, self.view.widgets.input_filename)
         self.refresh_view()
 
     def refresh_sensitivity(self):

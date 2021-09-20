@@ -37,7 +37,7 @@ from bauble.utils.geo import ProjDB
 from bauble.meta import get_default
 # NOTE importing shapefile Writer above wipes out gettext _
 from bauble.i18n import _
-from bauble.prefs import (prefs, testing, location_shapefile_prefs,
+from bauble.prefs import (prefs, location_shapefile_prefs,
                           plant_shapefile_prefs)
 
 import bauble
@@ -136,8 +136,7 @@ class ShapefileExportSettingsBox(Gtk.ScrolledWindow):
         self.type_vals = {k: v for v, k in enumerate(set(TYPE_MAP.values()))}
         self._construct_grid()
         self.grid.show_all()
-        if not testing:
-            GLib.idle_add(self.resize_func)
+        GLib.idle_add(self.resize_func)
 
     def _construct_grid(self):   # pylint: disable=too-many-locals
         """Create the field grid layout.
@@ -463,6 +462,164 @@ class ShapefileExportSettingsBox(Gtk.ScrolledWindow):
         # return prop_button, schema_menu
 
 
+class ShapefileExportDialogView(GenericEditorView):
+    """
+    This view is mostly just inherited from GenericEditorView and kept as
+    simple as possible.
+    """
+
+    # tooltips are the reason to subclass GenericEditorView
+    _tooltips = {
+        'plants_locations': _("What is it that you want to export.  Plants "
+                              "may produce multiple files."),
+        'search_or_all': _("Base the export of the results on a search or all "
+                           "records.  NOTE: all records will use all records "
+                           "WITH spatial data.  Only when using search "
+                           "results can the user select to auto generate "
+                           "spatial data in advanced settings (and therefore "
+                           "enable the user to edit and reimport corrected "
+                           "spatial data where there currently is none)."),
+        'input_dirname': _("The full path to a folder to export files to.")
+    }
+
+    def __init__(self):
+        filename = str(Path(__file__).resolve().parent / 'shapefile.glade')
+        parent = None
+        if bauble.gui:
+            parent = bauble.gui.window
+        root_widget_name = 'shapefile_export_dialog'
+        super().__init__(filename, parent, root_widget_name)
+
+
+class ShapefileExportDialogPresenter(GenericEditorPresenter):
+    """
+    The presenter for the Dialog.
+    Manages the tasks between the model(interface) and view
+    """
+
+    widget_to_field_map = {
+        'cb_locations': 'export_locations',
+        'cb_plants': 'export_plants',
+        'cb_include_private': 'private',
+        'rb_search_results': 'search_or_all',
+        'rb_all_records': 'search_or_all',
+        'input_dirname': 'dirname',
+    }
+
+    view_accept_buttons = ['exp_button_cancel', 'exp_button_ok']
+
+    PROBLEM_NO_DIR = random()
+
+    last_folder = str(Path.home())
+
+    def __init__(self, model, view):
+        super().__init__(model=model, view=view, session=False)
+        from bauble.view import SearchView
+        # bauble.gui is None when testing
+        main_view = None if bauble.gui is None else bauble.gui.get_view()
+        if (not isinstance(main_view, SearchView) or
+                main_view.results_view.get_model() is None):
+            self.view.widget_set_sensitive('rb_search_results', False)
+            self.view.widget_set_active('rb_all_records', True)
+        else:
+            self.view.widget_set_sensitive('rb_search_results', True)
+            self.view.widget_set_active('rb_all_records', True)
+
+        self.add_problem(self.PROBLEM_EMPTY,
+                         self.view.widgets.input_dirname)
+        self.settings_boxes = []
+        self.refresh_view()
+
+    def on_btnbrowse_clicked(self, widget):  # pylint: disable=unused-argument
+        self.view.run_file_chooser_dialog(
+            _("Select a shapefile"),
+            None,
+            Gtk.FileChooserAction.CREATE_FOLDER,
+            self.__class__.last_folder,
+            'input_dirname'
+        )
+
+        self.refresh_sensitivity()
+
+    def on_dirname_entry_changed(self, widget):
+        # this will set the model value also, could just use the model's value
+        self.remove_problem(self.PROBLEM_NO_DIR)
+        path = Path(self.on_non_empty_text_entry_changed(widget))
+        logger.debug('dirname changed to %s', str(path))
+
+        if path.exists() and path.is_dir():
+            self.__class__.last_folder = str(path)
+        else:
+            self.add_problem(self.PROBLEM_NO_DIR, widget)
+
+        self.refresh_sensitivity()
+
+    def _settings_expander(self):
+        """
+        Start the settings box
+        """
+        expander = self.view.widgets.exp_settings_expander
+        child = expander.get_child()
+        if child:
+            expander.remove(child)
+        notebook = Gtk.Notebook()
+        if self.model.export_plants:
+            gen_settings = None
+            if self.model.search_or_all == 'rb_search_results':
+                gen_settings = self.model.gen_settings
+            plt_settings_box = ShapefileExportSettingsBox(
+                Plant,
+                fields=self.model.plant_fields,
+                gen_settings=gen_settings,
+                resize_func=self.reset_win_size
+            )
+            notebook.append_page(plt_settings_box,
+                                 Gtk.Label(label="Plants"))
+            self.settings_boxes.append(plt_settings_box)
+        if self.model.export_locations:
+            loc_settings_box = ShapefileExportSettingsBox(
+                Location,
+                fields=self.model.location_fields,
+                resize_func=self.reset_win_size
+            )
+            notebook.append_page(loc_settings_box,
+                                 Gtk.Label(label="Locations"))
+            self.settings_boxes.append(loc_settings_box)
+        expander.add(notebook)
+        notebook.connect('switch_page', self.on_notebook_switch)
+        notebook.show_all()
+        return False
+
+    def on_notebook_switch(self, widget, *args):\
+            # pylint: disable=unused-argument
+        self.view.get_window().resize(1, 1)
+
+    def reset_win_size(self):
+        heights = []
+        if self.model.export_plants:
+            heights.append(60 + (len(self.model.plant_fields) * 40))
+        if self.model.export_locations:
+            heights.append(60 + (len(self.model.location_fields) * 40))
+        height = min(max(heights), 650)
+        for settings_box in self.settings_boxes:
+            settings_box.set_min_content_height(height)
+        self.view.get_window().resize(1, 1)
+        return False
+
+    def on_settings_activate(self, widget):  \
+            # noqa # pylint: disable=unused-argument
+        logger.debug('settings expander toggled')
+        self._settings_expander()
+        self.view.get_window().resize(1, 1)
+
+    def refresh_sensitivity(self):
+        sensitive = False
+        if self.is_dirty() and not self.has_problems():
+            sensitive = True
+        self.view.widget_set_sensitive('exp_settings_expander', sensitive)
+        self.view.set_accept_buttons_sensitive(sensitive)
+
+
 class ShapefileExporter:
     """
     The interface for exporting data in a shapefile.  The intent for one of
@@ -475,8 +632,13 @@ class ShapefileExporter:
                  'LineString': 'line',
                  'Point': 'point'}
 
-    def __init__(self):
+    def __init__(self, view=None, proj_db=None, open_=True):
         # widget fields
+        if view is None:
+            view = ShapefileExportDialogView()
+        if proj_db is None:
+            proj_db = ProjDB()
+        self.open = open_
         self.search_or_all = 'rb_search_results'
         self.export_locations = True
         self.export_plants = False
@@ -491,14 +653,8 @@ class ShapefileExporter:
         self.location_fields = [[k, *get_field_properties(Location, v), v] for
                                 k, v in self.location_fields.items()]
         self.gen_settings = {'start': [0, 0], 'increment': 0, 'axis': ''}
-        if testing:
-            # use MockView and memory proj_db
-            from bauble.editor import MockView
-            self.view = MockView()
-            self.proj_db = ProjDB(db_path=':memory:')
-        else:
-            self.view = ShapefileExportDialogView()
-            self.proj_db = ProjDB()
+        self.view = view
+        self.proj_db = proj_db
 
         self.presenter = ShapefileExportDialogPresenter(self, self.view)
         self.generated_items = []
@@ -774,164 +930,6 @@ class ShapefileExporter:
                 for path in in_paths:
                     z.write(path, arcname=path.name)
 
-        if not testing:
+        if self.open:
             from bauble.utils import desktop
             desktop.open(self.dirname)
-
-
-class ShapefileExportDialogView(GenericEditorView):
-    """
-    This view is mostly just inherited from GenericEditorView and kept as
-    simple as possible.
-    """
-
-    # tooltips are the reason to subclass GenericEditorView
-    _tooltips = {
-        'plants_locations': _("What is it that you want to export.  Plants "
-                              "may produce multiple files."),
-        'search_or_all': _("Base the export of the results on a search or all "
-                           "records.  NOTE: all records will use all records "
-                           "WITH spatial data.  Only when using search "
-                           "results can the user select to auto generate "
-                           "spatial data in advanced settings (and therefore "
-                           "enable the user to edit and reimport corrected "
-                           "spatial data where there currently is none)."),
-        'input_dirname': _("The full path to a folder to export files to.")
-    }
-
-    def __init__(self):
-        filename = str(Path(__file__).resolve().parent / 'shapefile.glade')
-        parent = bauble.gui.window
-        root_widget_name = 'shapefile_export_dialog'
-        super().__init__(filename, parent, root_widget_name)
-
-
-class ShapefileExportDialogPresenter(GenericEditorPresenter):
-    """
-    The presenter for the Dialog.
-    Manages the tasks between the model(interface) and view
-    """
-
-    widget_to_field_map = {
-        'cb_locations': 'export_locations',
-        'cb_plants': 'export_plants',
-        'cb_include_private': 'private',
-        'rb_search_results': 'search_or_all',
-        'rb_all_records': 'search_or_all',
-        'input_dirname': 'dirname',
-    }
-
-    view_accept_buttons = ['exp_button_cancel', 'exp_button_ok']
-
-    PROBLEM_NO_DIR = random()
-
-    last_folder = str(Path.home())
-
-    def __init__(self, model, view):
-        super().__init__(model=model, view=view, session=False)
-        from bauble.view import SearchView
-        # bauble.gui is None when testing
-        main_view = None if bauble.gui is None else bauble.gui.get_view()
-        if (not isinstance(main_view, SearchView) or
-                main_view.results_view.get_model() is None):
-            self.view.widget_set_sensitive('rb_search_results', False)
-            self.view.widget_set_active('rb_all_records', True)
-        else:
-            self.view.widget_set_sensitive('rb_search_results', True)
-            self.view.widget_set_active('rb_all_records', True)
-
-        # avoids issues when mocking the search view in tests
-        if not testing:
-            self.add_problem(self.PROBLEM_EMPTY,
-                             self.view.widgets.input_dirname)
-        self.settings_boxes = []
-        self.refresh_view()
-
-    def on_btnbrowse_clicked(self, widget):  # pylint: disable=unused-argument
-        self.view.run_file_chooser_dialog(
-            _("Select a shapefile"),
-            None,
-            Gtk.FileChooserAction.CREATE_FOLDER,
-            self.__class__.last_folder,
-            'input_dirname'
-        )
-
-        self.refresh_sensitivity()
-
-    def on_dirname_entry_changed(self, widget):
-        # this will set the model value also, could just use the model's value
-        self.remove_problem(self.PROBLEM_NO_DIR)
-        path = Path(self.on_non_empty_text_entry_changed(widget))
-        logger.debug('dirname changed to %s', str(path))
-
-        if path.exists() and path.is_dir():
-            self.__class__.last_folder = str(path)
-        else:
-            self.add_problem(self.PROBLEM_NO_DIR, widget)
-
-        self.refresh_sensitivity()
-
-    def _settings_expander(self):
-        """
-        Start the settings box
-        """
-        expander = self.view.widgets.exp_settings_expander
-        child = expander.get_child()
-        if child:
-            expander.remove(child)
-        notebook = Gtk.Notebook()
-        if self.model.export_plants:
-            gen_settings = None
-            if self.model.search_or_all == 'rb_search_results':
-                gen_settings = self.model.gen_settings
-            plt_settings_box = ShapefileExportSettingsBox(
-                Plant,
-                fields=self.model.plant_fields,
-                gen_settings=gen_settings,
-                resize_func=self.reset_win_size
-            )
-            notebook.append_page(plt_settings_box,
-                                 Gtk.Label(label="Plants"))
-            self.settings_boxes.append(plt_settings_box)
-        if self.model.export_locations:
-            loc_settings_box = ShapefileExportSettingsBox(
-                Location,
-                fields=self.model.location_fields,
-                resize_func=self.reset_win_size
-            )
-            notebook.append_page(loc_settings_box,
-                                 Gtk.Label(label="Locations"))
-            self.settings_boxes.append(loc_settings_box)
-        expander.add(notebook)
-        notebook.connect('switch_page', self.on_notebook_switch)
-        notebook.show_all()
-        return False
-
-    def on_notebook_switch(self, widget, *args):\
-            # pylint: disable=unused-argument
-        self.view.get_window().resize(1, 1)
-
-    def reset_win_size(self):
-        heights = []
-        if self.model.export_plants:
-            heights.append(60 + (len(self.model.plant_fields) * 40))
-        if self.model.export_locations:
-            heights.append(60 + (len(self.model.location_fields) * 40))
-        height = min(max(heights), 650)
-        for settings_box in self.settings_boxes:
-            settings_box.set_min_content_height(height)
-        self.view.get_window().resize(1, 1)
-        return False
-
-    def on_settings_activate(self, widget):  \
-            # noqa # pylint: disable=unused-argument
-        logger.debug('settings expander toggled')
-        self._settings_expander()
-        self.view.get_window().resize(1, 1)
-
-    def refresh_sensitivity(self):
-        sensitive = False
-        if self.is_dirty() and not self.has_problems():
-            sensitive = True
-        self.view.widget_set_sensitive('exp_settings_expander', sensitive)
-        self.view.set_accept_buttons_sensitive(sensitive)
