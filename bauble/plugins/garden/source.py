@@ -34,7 +34,7 @@ from gi.repository import GLib
 
 from sqlalchemy import Column, Unicode, Integer, ForeignKey,\
     Float, UnicodeText, select
-from sqlalchemy.orm import relation, backref
+from sqlalchemy.orm import relationship, backref
 
 from bauble import db
 from bauble import editor
@@ -93,28 +93,29 @@ class Source(db.Base):
     accession_id = Column(Integer, ForeignKey('accession.id'), unique=True)
 
     source_detail_id = Column(Integer, ForeignKey('source_detail.id'))
-    source_detail = relation('Contact', uselist=False,
-                             backref=backref('sources',
-                                             cascade='all, delete-orphan'))
+    source_detail = relationship('Contact', uselist=False,
+                                 backref=backref('sources',
+                                                 cascade='all, delete-orphan'))
 
-    collection = relation('Collection', uselist=False,
-                          cascade='all, delete-orphan',
-                          backref=backref('source', uselist=False))
+    collection = relationship('Collection', uselist=False,
+                              cascade='all, delete-orphan',
+                              backref=backref('source', uselist=False))
 
     # relation to a propagation that is specific to this Source and
     # not attached to a Plant
     # i.e. a Propagation of source material (i.e. purchased seeds etc.)
     propagation_id = Column(Integer, ForeignKey('propagation.id'))
-    propagation = relation('Propagation', uselist=False, single_parent=True,
-                           primaryjoin='Source.propagation_id==Propagation.id',
-                           cascade='all, delete-orphan',
-                           backref=backref('source', uselist=False))
+    propagation = relationship(
+        'Propagation', uselist=False, single_parent=True,
+        primaryjoin='Source.propagation_id==Propagation.id',
+        cascade='all, delete-orphan',
+        backref=backref('source', uselist=False))
 
     # relation to a Propagation that already exists and is attached
     # to a Plant
     # i.e. a plant is propagation from to create a new accession
     plant_propagation_id = Column(Integer, ForeignKey('propagation.id'))
-    plant_propagation = relation(
+    plant_propagation = relationship(
         'Propagation', uselist=False,
         primaryjoin='Source.plant_propagation_id==Propagation.id',
         backref=backref('used_source', uselist=True))
@@ -217,8 +218,8 @@ class Collection(db.Base):
     notes = Column(UnicodeText)
 
     geography_id = Column(Integer, ForeignKey('geography.id'))
-    region = relation(Geography, uselist=False,
-                      backref=backref('collection', uselist=True))
+    region = relationship(Geography, uselist=False,
+                          backref=backref('collection', uselist=True))
 
     source_id = Column(Integer, ForeignKey('source.id'), unique=True)
 

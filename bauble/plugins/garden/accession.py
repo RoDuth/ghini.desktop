@@ -39,7 +39,7 @@ from gi.repository import Gtk  # noqa
 from gi.repository import Pango
 from sqlalchemy import and_, or_, func
 from sqlalchemy import ForeignKey, Column, Unicode, Integer, UnicodeText
-from sqlalchemy.orm import backref, relation, validates
+from sqlalchemy.orm import backref, relationship, validates
 from sqlalchemy.orm.session import object_session
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy import inspect as sa_inspect
@@ -289,9 +289,9 @@ class Verification(db.Base):
     # what it was verified from
     prev_species_id = Column(Integer, ForeignKey('species.id'), nullable=False)
 
-    species = relation(
+    species = relationship(
         'Species', primaryjoin='Verification.species_id==Species.id')
-    prev_species = relation(
+    prev_species = relationship(
         'Species', primaryjoin='Verification.prev_species_id==Species.id')
 
     notes = Column(UnicodeText)
@@ -346,7 +346,7 @@ class Voucher(db.Base):
     parent_material = Column(types.Boolean, default=False)
     accession_id = Column(Integer, ForeignKey('accession.id'), nullable=False)
 
-    # accession  = relation('Accession', uselist=False,
+    # accession  = relationship('Accession', uselist=False,
     #                       backref=backref('vouchers',
     #                                       cascade='all, delete-orphan'))
 
@@ -621,26 +621,26 @@ class Accession(db.Base, db.Serializable, db.WithNotes):
     intended2_location_id = Column(Integer, ForeignKey('location.id'))
 
     # the source of the accession
-    source = relation('Source', uselist=False, cascade='all, delete-orphan',
-                      backref=backref('accession', uselist=False))
+    source = relationship('Source', uselist=False, cascade='all, delete-orphan',
+                          backref=backref('accession', uselist=False))
 
     # relations
-    species = relation('Species', uselist=False,
-                       backref=backref('accessions',
-                                       cascade='all, delete-orphan'))
+    species = relationship('Species', uselist=False,
+                           backref=backref('accessions',
+                                           cascade='all, delete-orphan'))
 
     # use Plant.code for the order_by to avoid ambiguous column names
-    plants = relation('Plant', cascade='all, delete-orphan',
-                      # order_by='plant.code',
-                      backref=backref('accession', uselist=False))
-    verifications = relation('Verification',  # order_by='date',
-                             cascade='all, delete-orphan',
-                             backref=backref('accession', uselist=False))
-    vouchers = relation('Voucher', cascade='all, delete-orphan',
-                        backref=backref('accession', uselist=False))
-    intended_location = relation(
+    plants = relationship('Plant', cascade='all, delete-orphan',
+                          # order_by='plant.code',
+                          backref=backref('accession', uselist=False))
+    verifications = relationship('Verification',  # order_by='date',
+                                 cascade='all, delete-orphan',
+                                 backref=backref('accession', uselist=False))
+    vouchers = relationship('Voucher', cascade='all, delete-orphan',
+                            backref=backref('accession', uselist=False))
+    intended_location = relationship(
         'Location', primaryjoin='Accession.intended_location_id==Location.id')
-    intended2_location = relation(
+    intended2_location = relationship(
         'Location', primaryjoin='Accession.intended2_location_id==Location.id')
 
     @classmethod

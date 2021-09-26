@@ -35,7 +35,7 @@ from gi.repository import Gtk  # noqa
 from sqlalchemy import or_, and_, func, event, tuple_, not_
 from sqlalchemy import (ForeignKey, Column, Unicode, Integer, UnicodeText,
                         UniqueConstraint)
-from sqlalchemy.orm import (relation, backref, object_mapper, validates,
+from sqlalchemy.orm import (relationship, backref, object_mapper, validates,
                             deferred)
 from sqlalchemy.orm.session import object_session
 from sqlalchemy.exc import DBAPIError, OperationalError
@@ -404,23 +404,24 @@ class PlantChange(db.Base):
     date = Column(types.DateTime(timezone=True), default=func.now())
 
     # relations
-    plant = relation('Plant', uselist=False,
-                     primaryjoin='PlantChange.plant_id == Plant.id',
-                     backref=backref('changes', cascade='all, delete-orphan'))
-    parent_plant = relation(
+    plant = relationship(
+        'Plant', uselist=False,
+        primaryjoin='PlantChange.plant_id == Plant.id',
+        backref=backref('changes', cascade='all, delete-orphan'))
+    parent_plant = relationship(
         'Plant', uselist=False,
         primaryjoin='PlantChange.parent_plant_id == Plant.id',
         backref=backref('branches'))
 
-    child_plant = relation(
+    child_plant = relationship(
         'Plant', uselist=False,
         primaryjoin='PlantChange.child_plant_id == Plant.id',
         backref=backref('branched_from', uselist=False,
                         cascade='delete, delete-orphan'))
 
-    from_location = relation(
+    from_location = relationship(
         'Location', primaryjoin='PlantChange.from_location_id == Location.id')
-    to_location = relation(
+    to_location = relationship(
         'Location', primaryjoin='PlantChange.to_location_id == Location.id')
 
 
@@ -566,49 +567,41 @@ class Plant(db.Base, db.Serializable, db.DefiningPictures, db.WithNotes):
     # (i.e. reports)
     geojson = deferred(Column(types.JSON()))
 
-    propagations = relation('Propagation', cascade='all, delete-orphan',
-                            single_parent=True,
-                            secondary=PlantPropagation.__table__,
-                            backref=backref('plant', uselist=False))
-
-    # TODO <RD> Test these and changes in general better (i.e.:
-    # # can we edit them?, i.e. if we export the planting date in a shapefile
-    #   can we import a new date?  (shapefile import tests)
-    # # create a split and check they all get an appropriate
-    #   planted.date/person/etc and so does the parent_plant change
-    # - change the location and quantity at once and check that we get 2
-    #   changes
-    # - what about importing shapefile, json tests in their test
-    # )
+    propagations = relationship(
+        'Propagation', cascade='all, delete-orphan',
+        single_parent=True,
+        secondary=PlantPropagation.__table__,
+        backref=backref('plant', uselist=False))
 
     # provide a way to search and use the change that recorded either a death
     # or a planting date directly.  This is not fool proof but close enough.
-    death = relation("PlantChange",
-                     primaryjoin="and_(PlantChange.plant_id == Plant.id, "
-                     "PlantChange.id == select([PlantChange.id])"
-                     ".where(and_("
-                     "PlantChange.plant_id == Plant.id, "
-                     "PlantChange.from_location_id is not None, "
-                     "Plant.quantity == 0, "
-                     "PlantChange.quantity < 0))"
-                     ".correlate(Plant)"
-                     ".order_by(desc(PlantChange.date))"
-                     ".limit(1))",
-                     uselist=False)
+    death = relationship("PlantChange",
+                         primaryjoin="and_(PlantChange.plant_id == Plant.id, "
+                         "PlantChange.id == select([PlantChange.id])"
+                         ".where(and_("
+                         "PlantChange.plant_id == Plant.id, "
+                         "PlantChange.from_location_id is not None, "
+                         "Plant.quantity == 0, "
+                         "PlantChange.quantity < 0))"
+                         ".correlate(Plant)"
+                         ".order_by(desc(PlantChange.date))"
+                         ".limit(1))",
+                         uselist=False)
 
-    planted = relation("PlantChange",
-                       primaryjoin="and_(PlantChange.plant_id == Plant.id, "
-                       "PlantChange.id == select([PlantChange.id])"
-                       ".where(and_("
-                       "PlantChange.plant_id == Plant.id, "
-                       "PlantChange.to_location_id != None, "
-                       "PlantChange.child_plant_id == None, "
-                       "PlantChange.quantity > 0))"
-                       ".correlate(Plant)"
-                       ".order_by(PlantChange.date)"
-                       ".limit(1)"
-                       ".as_scalar())",
-                       uselist=False)
+    planted = relationship("PlantChange",
+                           primaryjoin="and_("
+                           "PlantChange.plant_id == Plant.id, "
+                           "PlantChange.id == select([PlantChange.id])"
+                           ".where(and_("
+                           "PlantChange.plant_id == Plant.id, "
+                           "PlantChange.to_location_id != None, "
+                           "PlantChange.child_plant_id == None, "
+                           "PlantChange.quantity > 0))"
+                           ".correlate(Plant)"
+                           ".order_by(PlantChange.date)"
+                           ".limit(1)"
+                           ".as_scalar())",
+                           uselist=False)
 
     _delimiter = None
 

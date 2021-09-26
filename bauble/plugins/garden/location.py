@@ -28,7 +28,7 @@ logger = logging.getLogger(__name__)
 from gi.repository import Gtk  # noqa
 
 from sqlalchemy import Column, Unicode, UnicodeText
-from sqlalchemy.orm import relation, backref, validates, deferred
+from sqlalchemy.orm import relationship, backref, validates, deferred
 from sqlalchemy.orm.session import object_session
 from sqlalchemy.exc import DBAPIError
 
@@ -143,7 +143,7 @@ class Location(db.Base, db.Serializable, db.WithNotes):
     geojson = deferred(Column(types.JSON()))
 
     # relations
-    plants = relation('Plant', backref=backref('location', uselist=False))
+    plants = relationship('Plant', backref=backref('location', uselist=False))
 
     def search_view_markup_pair(self):
         '''provide the two lines describing object for SearchView row.

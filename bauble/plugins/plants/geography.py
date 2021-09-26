@@ -28,7 +28,7 @@ logger = logging.getLogger(__name__)
 from gi.repository import Gtk  # noqa
 
 from sqlalchemy import select, Column, Unicode, String, Integer, ForeignKey
-from sqlalchemy.orm import object_session, relation, backref, deferred
+from sqlalchemy.orm import object_session, relationship, backref, deferred
 
 from bauble import db, utils
 from bauble import btypes as types
@@ -124,7 +124,7 @@ class GeographyMenu(Gtk.Menu):
                 submenu.insert(sel_item, 0)
                 submenu.insert(Gtk.SeparatorMenuItem(), 1)
                 item.set_submenu(submenu)
-                #self.view.connect(sel_item, 'activate',callback, geo_id)
+                # self.view.connect(sel_item, 'activate',callback, geo_id)
                 sel_item.connect('activate', callback, geo_id)
             else:
                 item.connect('activate', callback, geo_id)
@@ -194,7 +194,7 @@ class Geography(db.Base):
 
 
 # late bindings
-Geography.children = relation(
+Geography.children = relationship(
     Geography,
     primaryjoin=Geography.parent_id == Geography.id,
     cascade='all',

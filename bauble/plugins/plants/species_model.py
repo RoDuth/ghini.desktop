@@ -26,14 +26,13 @@ logger = logging.getLogger(__name__)
 from sqlalchemy.ext.associationproxy import association_proxy
 
 from sqlalchemy import (Column, Unicode, Integer, ForeignKey, UnicodeText,
-                        func, UniqueConstraint)
-from sqlalchemy.orm import relation, backref, synonym
+                        UniqueConstraint)
+from sqlalchemy.orm import relationship, backref, synonym
 from sqlalchemy.ext.hybrid import hybrid_property
 from bauble import db
 from bauble import error
 from bauble import utils
 from bauble import btypes as types
-
 
 
 def _remove_zws(s):
@@ -476,37 +475,40 @@ class Species(db.Base, db.Serializable, db.DefiningPictures, db.WithNotes):
 
     # relations
     synonyms = association_proxy('_synonyms', 'synonym')
-    _synonyms = relation('SpeciesSynonym',
-                         primaryjoin='Species.id==SpeciesSynonym.species_id',
-                         cascade='all, delete-orphan', uselist=True,
-                         backref='species')
+    _synonyms = relationship(
+        'SpeciesSynonym',
+        primaryjoin='Species.id==SpeciesSynonym.species_id',
+        cascade='all, delete-orphan', uselist=True,
+        backref='species')
 
     # this is a dummy relation, it is only here to make cascading work
     # correctly and to ensure that all synonyms related to this genus
     # get deleted if this genus gets deleted
-    _syn = relation('SpeciesSynonym',
-                    primaryjoin='Species.id==SpeciesSynonym.synonym_id',
-                    cascade='all, delete-orphan', uselist=True)
+    _syn = relationship('SpeciesSynonym',
+                        primaryjoin='Species.id==SpeciesSynonym.synonym_id',
+                        cascade='all, delete-orphan', uselist=True)
 
-    ## VernacularName.species gets defined here too.
-    vernacular_names = relation('VernacularName', cascade='all, delete-orphan',
-                                collection_class=VNList,
+    # VernacularName.species gets defined here too.
+    vernacular_names = relationship('VernacularName',
+                                    cascade='all, delete-orphan',
+                                    collection_class=VNList,
+                                    backref=backref('species', uselist=False))
+    _default_vernacular_name = relationship('DefaultVernacularName',
+                                            uselist=False,
+                                            cascade='all, delete-orphan',
+                                            backref=backref('species',
+                                                            uselist=False))
+    distribution = relationship('SpeciesDistribution',
+                                cascade='all, delete-orphan',
                                 backref=backref('species', uselist=False))
-    _default_vernacular_name = relation('DefaultVernacularName', uselist=False,
-                                        cascade='all, delete-orphan',
-                                        backref=backref('species',
-                                                        uselist=False))
-    distribution = relation('SpeciesDistribution',
-                            cascade='all, delete-orphan',
-                            backref=backref('species', uselist=False))
 
     habit_id = Column(Integer, ForeignKey('habit.id'), default=None)
-    habit = relation('Habit', uselist=False, backref='species')
+    habit = relationship('Habit', uselist=False, backref='species')
 
     flower_color_id = Column(Integer, ForeignKey('color.id'), default=None)
-    flower_color = relation('Color', uselist=False, backref='species')
+    flower_color = relationship('Color', uselist=False, backref='species')
 
-    #hardiness_zone = Column(Unicode(4))
+    # hardiness_zone = Column(Unicode(4))
 
     awards = Column(UnicodeText)
 
@@ -781,10 +783,10 @@ class Species(db.Base, db.Serializable, db.DefiningPictures, db.WithNotes):
     def as_dict(self, recurse=True):
         result = dict((col, getattr(self, col))
                       for col in list(self.__table__.columns.keys())
-                      if col not in ['id', 'sp']
-                      and col[0] != '_'
-                      and getattr(self, col) is not None
-                      and not col.endswith('_id'))
+                      if col not in ['id', 'sp'] and
+                      col[0] != '_' and
+                      getattr(self, col) is not None and
+                      not col.endswith('_id'))
         result['object'] = 'taxon'
         result['rank'] = 'species'
         result['epithet'] = self.sp
@@ -821,7 +823,8 @@ class Species(db.Base, db.Serializable, db.DefiningPictures, db.WithNotes):
             'infrasp4',
             'infrasp4_rank'
         }
-        sp_parts = {key: keys[key] for key in _parts.intersection(list(keys.keys()))}
+        sp_parts = {key: keys[key] for key in
+                    _parts.intersection(list(keys.keys()))}
         logger.debug('sp_parts in keys %s', sp_parts)
         # only add the sp part in if there is a value to give it. (e.g.
         # cultivars may not have a sp value)
@@ -846,7 +849,7 @@ class Species(db.Base, db.Serializable, db.DefiningPictures, db.WithNotes):
     def compute_serializable_fields(cls, session, keys):
         from .genus import Genus
         result = {'genus': None}
-        ## retrieve genus object
+        # retrieve genus object
         specifies_family = keys.get('familia')
         result['genus'] = Genus.retrieve_or_create(
             session, {'epithet': keys['ht-epithet'],
@@ -875,6 +878,7 @@ def as_dict(self):
     result['species'] = self.species.str(self.species, remove_zws=True)
     return result
 
+
 def compute_serializable_fields(cls, session, keys):
     logger.debug('compute_serializable_fields(session, %s)' % keys)
     result = {}
@@ -884,6 +888,7 @@ def compute_serializable_fields(cls, session, keys):
     result['species'] = Species.retrieve_or_create(
         session, sp_dict, create=False)
     return result
+
 
 def retrieve(cls, session, keys):
     from .genus import Genus
@@ -895,6 +900,7 @@ def retrieve(cls, session, keys):
             Genus.genus == genus).one()
     except:
         return None
+
 
 SpeciesNote = db.make_note_class('Species', compute_serializable_fields, as_dict, retrieve)
 
@@ -912,8 +918,8 @@ class SpeciesSynonym(db.Base):
                         nullable=False, unique=True)
 
     # relations
-    synonym = relation('Species', uselist=False,
-                       primaryjoin='SpeciesSynonym.synonym_id==Species.id')
+    synonym = relationship('Species', uselist=False,
+                           primaryjoin='SpeciesSynonym.synonym_id==Species.id')
 
     def __init__(self, synonym=None, **kwargs):
         # it is necessary that the first argument here be synonym for
@@ -1035,7 +1041,7 @@ class DefaultVernacularName(db.Base):
                                 nullable=False)
 
     # relations
-    vernacular_name = relation(VernacularName, uselist=False)
+    vernacular_name = relationship(VernacularName, uselist=False)
 
     def __str__(self):
         return str(self.vernacular_name)
@@ -1060,8 +1066,9 @@ class SpeciesDistribution(db.Base):
     def __str__(self):
         return str(self.geography)
 
+
 # late bindings
-SpeciesDistribution.geography = relation(
+SpeciesDistribution.geography = relationship(
     'Geography',
     primaryjoin='SpeciesDistribution.geography_id==Geography.id',
     backref='distribution',

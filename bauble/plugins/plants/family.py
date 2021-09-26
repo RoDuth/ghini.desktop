@@ -31,7 +31,7 @@ from gi.repository import Gtk  # noqa
 
 from sqlalchemy import (Column, Integer, ForeignKey, and_, UniqueConstraint,
                         String)
-from sqlalchemy.orm import relation, validates, synonym
+from sqlalchemy.orm import relationship, validates, synonym
 from sqlalchemy.orm.session import object_session
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.associationproxy import association_proxy
@@ -176,17 +176,17 @@ class Family(db.Base, db.Serializable, db.WithNotes):
     # relations
     # `genera` relation is defined outside of `Family` class definition
     synonyms = association_proxy('_synonyms', 'synonym')
-    _synonyms = relation('FamilySynonym',
-                         primaryjoin='Family.id==FamilySynonym.family_id',
-                         cascade='all, delete-orphan', uselist=True,
-                         backref='family')
+    _synonyms = relationship('FamilySynonym',
+                             primaryjoin='Family.id==FamilySynonym.family_id',
+                             cascade='all, delete-orphan', uselist=True,
+                             backref='family')
 
     # this is a dummy relation, it is only here to make cascading work
     # correctly and to ensure that all synonyms related to this family
     # get deleted if this family gets deleted
-    __syn = relation('FamilySynonym',
-                     primaryjoin='Family.id==FamilySynonym.synonym_id',
-                     cascade='all, delete-orphan', uselist=True)
+    __syn = relationship('FamilySynonym',
+                         primaryjoin='Family.id==FamilySynonym.synonym_id',
+                         cascade='all, delete-orphan', uselist=True)
 
     def __repr__(self):
         return Family.str(self)
@@ -315,8 +315,8 @@ class FamilySynonym(db.Base):
                         unique=True)
 
     # relations
-    synonym = relation('Family', uselist=False,
-                       primaryjoin='FamilySynonym.synonym_id==Family.id')
+    synonym = relationship('Family', uselist=False,
+                           primaryjoin='FamilySynonym.synonym_id==Family.id')
 
     def __init__(self, synonym=None, **kwargs):
         # it is necessary that the first argument here be synonym for
@@ -335,9 +335,9 @@ from bauble.plugins.plants.genus import Genus, GenusEditor
 
 # only now that we have `Genus` can we define the sorted `genera` in the
 # `Family` class.
-Family.genera = relation('Genus',
-                         order_by=[Genus.genus],
-                         backref='family', cascade='all, delete-orphan')
+Family.genera = relationship('Genus',
+                             order_by=[Genus.genus],
+                             backref='family', cascade='all, delete-orphan')
 
 
 class FamilyEditorView(editor.GenericEditorView):

@@ -33,7 +33,7 @@ from gi.repository import Gdk  # noqa
 
 from sqlalchemy import (
     Column, Unicode, UnicodeText, Integer, String, ForeignKey)
-from sqlalchemy.orm import relation
+from sqlalchemy.orm import relationship
 from sqlalchemy.orm.exc import DetachedInstanceError
 from sqlalchemy import and_
 from sqlalchemy.exc import DBAPIError, InvalidRequestError
@@ -84,7 +84,7 @@ class TagsMenuManager:
             self.apply_active_tag_menu_item.set_sensitive(False)
             self.remove_active_tag_menu_item.set_sensitive(False)
 
-    def item_activated(self, widget, tag_name):
+    def item_activated(self, _widget, tag_name):
         self.active_tag_name = tag_name
         self.show_active_tag()
         bauble.gui.send_command('tag="%s"' % tag_name)
@@ -98,10 +98,12 @@ class TagsMenuManager:
         tags_menu = Gtk.Menu()
         add_tag_menu_item = Gtk.MenuItem(label=_('Tag Selection'))
         add_tag_menu_item.connect('activate', _on_add_tag_activated)
-        self.apply_active_tag_menu_item = Gtk.MenuItem(label=_('Apply active tag'))
+        self.apply_active_tag_menu_item = Gtk.MenuItem(
+            label=_('Apply active tag'))
         self.apply_active_tag_menu_item.connect(
             'activate', self.on_apply_active_tag_activated)
-        self.remove_active_tag_menu_item = Gtk.MenuItem(label=_('Remove active tag'))
+        self.remove_active_tag_menu_item = Gtk.MenuItem(
+            label=_('Remove active tag'))
         self.remove_active_tag_menu_item.connect(
             'activate', self.on_remove_active_tag_activated)
         if bauble.gui:
@@ -312,10 +314,10 @@ class TagItemGUI(editor.GenericEditorView):
         '''
         active = not renderer.get_active()
         model = self.tag_tree.get_model()
-        iter = model.get_iter(path)
-        model[iter][0] = active
-        model[iter][2] = False
-        name = model[iter][1]
+        itr = model.get_iter(path)
+        model[itr][0] = active
+        model[itr][2] = False
+        name = model[itr][1]
         if active:
             tag_objects(name, self.values)
         else:
@@ -420,8 +422,8 @@ class Tag(db.Base):
     description = Column(UnicodeText)
 
     # relations
-    _objects = relation('TaggedObj', cascade='all, delete-orphan',
-                        backref='tag')
+    _objects = relationship('TaggedObj', cascade='all, delete-orphan',
+                            backref='tag')
 
     __my_own_timestamp = None
     __last_objects = None
@@ -443,7 +445,8 @@ class Tag(db.Base):
                        TaggedObj.tag_id == self.id)
             ntagged = session.query(TaggedObj).filter(cls).count()
             if ntagged == 0:
-                tagged_obj = TaggedObj(obj_class=_classname(obj), obj_id=obj.id,
+                tagged_obj = TaggedObj(obj_class=_classname(obj),
+                                       obj_id=obj.id,
                                        tag=self)
                 session.add(tagged_obj)
 
