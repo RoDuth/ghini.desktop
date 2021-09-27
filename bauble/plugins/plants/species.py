@@ -606,7 +606,7 @@ class SpeciesInfoPage(InfoBoxPage):
 class VernacularNameInfoBox(SpeciesInfoBox):
 
     def update(self, row):
-        logger.info("VernacularNameInfoBox.update %s(%s)" % (
-            row.__class__.__name__, row))
+        logger.debug("VernacularNameInfoBox.update %s(%s)",
+                     row.__class__.__name__, row)
         if isinstance(row, VernacularName):
             super().update(row.species)

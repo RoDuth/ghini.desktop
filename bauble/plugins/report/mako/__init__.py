@@ -355,7 +355,10 @@ class MakoFormatterSettingsBox(SettingsBox):
 
     def reset_options(self, _widget):
         for entry, text in self.defaults:
-            entry.set_text(text)
+            if isinstance(entry, Gtk.CheckButton):
+                entry.set_active(text.lower() in ['1', 'true'])
+            else:
+                entry.set_text(text)
 
     @staticmethod
     def set_option(widget, fname):

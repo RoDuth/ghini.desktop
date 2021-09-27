@@ -756,8 +756,7 @@ def plant_after_update(_mapper, connection, target):  \
                 if get_history(target, 'location_id').deleted else None)
     to_loc = (get_history(target, 'location_id').added[0]
               if get_history(target, 'location_id').added else None)
-    # NOTE if we have changed both location and quantity we most likely want 2
-    # changes
+    # NOTE if both location and quantity have changed likely want 2 changes
     if get_history(target, 'location_id').has_changes():
         quantity_change = (get_history(target, 'quantity').deleted[0] if
                            get_history(target, 'quantity').deleted else

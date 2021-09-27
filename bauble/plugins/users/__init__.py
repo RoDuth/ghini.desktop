@@ -304,7 +304,7 @@ def _parse_acl(acl):
     """
     returns a list of acls of (role, privs, granter)
     """
-    rx = re.compile('[{]?(.*?)=(.*?)\/(.*?)[,}]')
+    rx = re.compile(r'[{]?(.*?)=(.*?)\/(.*?)[,}]')
     return rx.findall(acl)
 
 

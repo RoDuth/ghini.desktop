@@ -373,17 +373,17 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
                 self.notes_presenter.is_dirty())
 
     def set_model_attr(self, field, value, validator=None):
-        '''
+        """
         Resets the sensitivity on the ok buttons and the name widgets
         when values change in the model
-        '''
+        """
         super().set_model_attr(field, value, validator)
         self._dirty = True
         sensitive = True
-        if len(self.problems) != 0 \
-           or len(self.vern_presenter.problems) != 0 \
-           or len(self.synonyms_presenter.problems) != 0 \
-           or len(self.dist_presenter.problems) != 0:
+        if (self.problems or
+                self.vern_presenter.problems or
+                self.synonyms_presenter.problems or
+                self.dist_presenter.problems):
             sensitive = False
         elif not self.model.genus:
             sensitive = False
@@ -399,10 +399,10 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
         self.view.set_accept_buttons_sensitive(self.is_dirty())
 
     def init_fullname_widgets(self):
-        '''
+        """
         initialized the signal handlers on the widgets that are relative to
         building the fullname string in the sp_fullname_label widget
-        '''
+        """
         self.refresh_fullname_label()
         refresh = lambda *args: self.refresh_fullname_label(*args)
         widgets = ['sp_genus_entry', 'sp_species_entry', 'sp_author_entry',
@@ -466,10 +466,10 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
         entry.stop_emission_by_name("insert_text")
 
     def refresh_fullname_label(self, widget=None):
-        '''
+        """
         set the value of sp_fullname_label to either '--' if there
         is a problem or to the name of the string returned by Species.str
-        '''
+        """
         logger.debug("SpeciesEditorPresenter:refresh_fullname_label %s"
                      % widget)
         if len(self.problems) > 0 or self.model.genus is None:
@@ -542,13 +542,10 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
 
 
 class InfraspPresenter(editor.GenericEditorPresenter):
-    """
-    """
-
     def __init__(self, parent):
-        '''
+        """
         :param parent: the parent SpeciesEditorPresenter
-        '''
+        """
         super().__init__(parent.model, parent.view)
         self.parent_ref = weakref.ref(parent)
         self._dirty = False
@@ -569,8 +566,6 @@ class InfraspPresenter(editor.GenericEditorPresenter):
         return self._dirty
 
     def append_infrasp(self, *args):
-        """
-        """
         # TODO: it is very slow to add rows to the widget...maybe if
         # we disable event on the table until all the rows have been
         # added
@@ -584,8 +579,6 @@ class InfraspPresenter(editor.GenericEditorPresenter):
     class Row(object):
 
         def __init__(self, presenter, level):
-            """
-            """
             self.presenter = presenter
             self.species = presenter.model
             grid = self.presenter.view.widgets.infrasp_grid
@@ -687,13 +680,11 @@ class InfraspPresenter(editor.GenericEditorPresenter):
 
 
 class DistributionPresenter(editor.GenericEditorPresenter):
-    """
-    """
 
     def __init__(self, parent):
-        '''
+        """
         :param parent: the parent SpeciesEditorPresenter
-        '''
+        """
         super().__init__(parent.model, parent.view)
         self.parent_ref = weakref.ref(parent)
         self.session = parent.session
@@ -772,9 +763,9 @@ class VernacularNamePresenter(editor.GenericEditorPresenter):
     objects
     """
     def __init__(self, parent):
-        '''
+        """
         :param parent: the parent SpeciesEditorPresenter
-        '''
+        """
         super().__init__(parent.model, parent.view)
         self.parent_ref = weakref.ref(parent)
         self.session = parent.session
@@ -816,8 +807,8 @@ class VernacularNamePresenter(editor.GenericEditorPresenter):
 
         msg = _('Are you sure you want to remove the vernacular '
                 'name <b>%s</b>?') % utils.xml_safe(vn.name)
-        if vn.name and not vn in self.session.new and not \
-                utils.yes_no_dialog(msg, parent=self.view.get_window()):
+        if (vn.name and vn not in self.session.new and not
+                utils.yes_no_dialog(msg, parent=self.view.get_window())):
             return
 
         treemodel.remove(treemodel.get_iter(path))
@@ -946,9 +937,9 @@ class SynonymsPresenter(editor.GenericEditorPresenter):
     PROBLEM_INVALID_SYNONYM = 1
 
     def __init__(self, parent):
-        '''
+        """
         :param parent: the parent SpeciesEditorPresenter
-        '''
+        """
         super().__init__(parent.model, parent.view)
         self.parent_ref = weakref.ref(parent)
         self.session = parent.session
@@ -983,9 +974,9 @@ class SynonymsPresenter(editor.GenericEditorPresenter):
         return self._dirty
 
     def init_treeview(self):
-        '''
+        """
         initialize the Gtk.TreeView
-        '''
+        """
         self.treeview = self.view.widgets.sp_syn_treeview
 
         def _syn_data_func(column, cell, model, treeiter, data=None):
@@ -1009,8 +1000,6 @@ class SynonymsPresenter(editor.GenericEditorPresenter):
                           self.on_tree_cursor_changed)
 
     def on_tree_cursor_changed(self, tree, data=None):
-        '''
-        '''
         path, column = tree.get_cursor()
         self.view.widgets.sp_syn_remove_button.set_sensitive(True)
 
@@ -1038,10 +1027,10 @@ class SynonymsPresenter(editor.GenericEditorPresenter):
         self.parent_ref().refresh_sensitivity()
 
     def on_remove_button_clicked(self, button, data=None):
-        '''
+        """
         removes the currently selected synonym from the list of synonyms for
         this species
-        '''
+        """
         # TODO: maybe we should only ask 'are you sure' if the selected value
         # is an instance, this means it will be deleted from the database
         tree = self.view.widgets.sp_syn_treeview
@@ -1119,11 +1108,10 @@ class SpeciesEditorView(editor.GenericEditorView):
     }
 
     def __init__(self, parent=None):
-        '''
-        the constructor
+        """the constructor
 
         :param parent: the parent window
-        '''
+        """
         filename = os.path.join(paths.lib_dir(), 'plugins', 'plants',
                                 'species_editor.glade')
         super().__init__(filename, parent=parent)
@@ -1137,9 +1125,9 @@ class SpeciesEditorView(editor.GenericEditorView):
         self.boxes = set()
 
     def get_window(self):
-        '''
+        """
         Returns the top level window or dialog.
-        '''
+        """
         return self.widgets.species_dialog
 
     @staticmethod
@@ -1156,9 +1144,9 @@ class SpeciesEditorView(editor.GenericEditorView):
         return False
 
     def set_accept_buttons_sensitive(self, sensitive):
-        '''
+        """
         set the sensitivity of all the accept/ok buttons for the editor dialog
-        '''
+        """
         self.widgets.sp_ok_button.set_sensitive(sensitive)
         try:
             import bauble.plugins.garden
@@ -1171,38 +1159,28 @@ class SpeciesEditorView(editor.GenericEditorView):
     @staticmethod
     def genus_completion_cell_data_func(column, renderer, model, treeiter,
                                         data=None):
-        '''
-        '''
         v = model[treeiter][0]
         renderer.set_property('text', '%s (%s)' % (Genus.str(v),
                                                    Family.str(v.family)))
 
     @staticmethod
     def syn_cell_data_func(column, renderer, model, treeiter, data=None):
-        '''
-        '''
         v = model[treeiter][0]
         renderer.set_property('text', str(v))
 
     def save_state(self):
-        '''
-        save the current state of the gui to the preferences
-        '''
+        """save the current state of the gui to the preferences."""
         for expander, pref in self.expanders_pref_map.items():
             prefs[pref] = self.widgets[expander].get_expanded()
 
     def restore_state(self):
-        '''
-        restore the state of the gui from the preferences
-        '''
+        """restore the state of the gui from the preferences."""
         for expander, pref in self.expanders_pref_map.items():
             expanded = prefs.get(pref, True)
             self.widgets[expander].set_expanded(expanded)
 
     def start(self):
-        '''
-        starts the views, essentially calls run() on the main dialog
-        '''
+        """starts the views, essentially calls run() on the main dialog."""
         return self.get_window().run()
 
 
@@ -1214,10 +1192,10 @@ class SpeciesEditorMenuItem(editor.GenericModelViewPresenterEditor):
     ok_responses = (RESPONSE_OK_AND_ADD, RESPONSE_NEXT)
 
     def __init__(self, model=None, parent=None, is_dependent_window=False):
-        '''
+        """
         :param model: a species instance or None
         :param parent: the parent window or None
-        '''
+        """
         if model is None:
             model = Species()
         super().__init__(model, parent)

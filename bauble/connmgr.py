@@ -779,8 +779,8 @@ class ConnMgrPresenter(GenericEditorPresenter):
 
 
 def start_connection_manager(default_conn=None):
-    '''activate connection manager and return connection name and uri
-    '''
+    """activate connection manager and return connection name and uri
+    """
     glade_path = os.path.join(paths.lib_dir(), "connmgr.glade")
     view = GenericEditorView(
         glade_path,

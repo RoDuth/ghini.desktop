@@ -67,8 +67,8 @@ def decode_parts(name, acc_format=None):
     if acc_format is None:
         use_accno_re = accno_re
     else:
-        exp_str = acc_format.replace('.', '\.').replace('#', "[0-9]")
-        exp_str = "(%s)(?:\.([0-9]+))?" % exp_str
+        exp_str = acc_format.replace('.', r'\.').replace('#', "[0-9]")
+        exp_str = r"(%s)(?:\.([0-9]+))?" % exp_str
         use_accno_re = re.compile(exp_str)
     for key, exp in [('accession', use_accno_re),
                      ('species', species_re),

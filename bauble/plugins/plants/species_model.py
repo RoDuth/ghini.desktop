@@ -35,11 +35,11 @@ from bauble import utils
 from bauble import btypes as types
 
 
-def _remove_zws(s):
+def _remove_zws(string):
     "remove_zero_width_space"
-    if s:
-        return s.replace('\u200b', '')
-    return s
+    if string:
+        return string.replace('\u200b', '')
+    return string
 
 
 class VNList(list):
@@ -50,22 +50,18 @@ class VNList(list):
     default_vernacular_name if the vernacular_name is removed from the
     list.
     """
-    def remove(self, vn):
-        super().remove(vn)
+    def remove(self, vernacular):
+        super().remove(vernacular)
         try:
             # see if the deleted vernacular name is the default then remove
             # from both if it is.
             from sqlalchemy.orm import object_session
-            session = object_session(vn)
-            vn_sp = session.query(Species).filter_by(id=vn.species_id).one()
-            if vn_sp.default_vernacular_name == vn:
+            session = object_session(vernacular)
+            vn_sp = session.query(Species).get(vernacular.species_id)
+            if vn_sp.default_vernacular_name == vernacular:
                 del vn_sp.default_vernacular_name
-            # TODO <RD> Not sure why we lose the link to species here but the
-            # above (expensive) works while the below (cheap) no longer does...
-            # if vn.species.default_vernacular_name == vn:
-            #     del vn.species.default_vernacular_name
-        except Exception as e:
-            logger.debug("%s(%s)" % (type(e).__name__, e))
+        except Exception as e:  # pylint: disable=broad-except
+            logger.debug("VNList: %s(%s)", type(e).__name__, e)
 
 
 infrasp_rank_values = {'subsp.': _('subsp.'),
@@ -203,8 +199,8 @@ class Species(db.Base, db.Serializable, db.DefiningPictures, db.WithNotes):
     link_keys = ['accepted']
 
     def search_view_markup_pair(self):
-        '''provide the two lines describing object for SearchView row.
-        '''
+        """provide the two lines describing object for SearchView row.
+        """
         try:
             if len(self.vernacular_names) > 0:
                 substring = (
@@ -225,16 +221,16 @@ class Species(db.Base, db.Serializable, db.DefiningPictures, db.WithNotes):
                     authorship_text,
                     '<span weight="light">' + authorship_text + '</span>')
             return citation + trail, substring
-        except:
+        except Exception:  # pylint: disable=broad-except
             return '...', '...'
 
     @property
     def cites(self):
-        '''the cites status of this taxon, or None
+        """the cites status of this taxon, or None
 
         cites appendix number, one of I, II, or III.
         not enforced by the software in v1.0.x
-        '''
+        """
 
         cites_notes = [i.note for i in self.notes
                        if i.category and i.category.upper() == 'CITES']
@@ -244,11 +240,11 @@ class Species(db.Base, db.Serializable, db.DefiningPictures, db.WithNotes):
 
     @property
     def conservation(self):
-        '''the IUCN conservation status of this taxon, or DD
+        """the IUCN conservation status of this taxon, or DD
 
         one of: EX, RE, CR, EN, VU, NT, LC, DD
         not enforced by the software in v1.0.x
-        '''
+        """
 
         {'EX': _('Extinct (EX)'),
          'EW': _('Extinct Wild (EW)'),
@@ -267,11 +263,11 @@ class Species(db.Base, db.Serializable, db.DefiningPictures, db.WithNotes):
 
     @property
     def condition(self):
-        '''the condition of this taxon, or None
+        """the condition of this taxon, or None
 
         this is referred to what the garden conservator considers the
         area of interest. it is really an interpretation, not a fact.
-        '''
+        """
         # one of, but not forcibly so:
         [_('endemic'), _('indigenous'), _('native'), _('introduced')]
 
@@ -512,13 +508,9 @@ class Species(db.Base, db.Serializable, db.DefiningPictures, db.WithNotes):
 
     awards = Column(UnicodeText)
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
     def __str__(self):
         'return the default string representation for self.'
         return self.str()
-
 
     @hybrid_property
     def default_vernacular_name(self):
@@ -532,21 +524,20 @@ class Species(db.Base, db.Serializable, db.DefiningPictures, db.WithNotes):
         # pylint: disable=no-member
         return (
             select([VernacularName.name])
-            .where(
-                and_(DefaultVernacularName.species_id == cls.id,
-                     VernacularName.id ==
-                     DefaultVernacularName.vernacular_name_id))
+            .where(and_(
+                DefaultVernacularName.species_id == cls.id,
+                VernacularName.id == DefaultVernacularName.vernacular_name_id))
             .label('default_vernacular_name')
         )
 
     @default_vernacular_name.setter
-    def default_vernacular_name(self, vn):
-        if isinstance(vn, str):
-            logger.debug('vernacular_name is a string: %s', vn)
+    def default_vernacular_name(self, vernacular):
+        if isinstance(vernacular, str):
+            logger.debug('vernacular_name is a string: %s', vernacular)
             lang = None
-            if ':' in vn:
-                vn, lang = vn.split(':')
-            kwargs = {'name': vn, 'species': self}
+            if ':' in vernacular:
+                vernacular, lang = vernacular.split(':')
+            kwargs = {'name': vernacular, 'species': self}
             if lang:
                 kwargs['language'] = lang
             vnobj = None
@@ -556,17 +547,17 @@ class Species(db.Base, db.Serializable, db.DefiningPictures, db.WithNotes):
                 vnobj = db.get_create_or_update(session, VernacularName,
                                                 **kwargs)
             if not vnobj:
-                vn = VernacularName(**kwargs)
+                vernacular = VernacularName(**kwargs)
             else:
-                vn = vnobj
-        if vn is None:
+                vernacular = vnobj
+        if vernacular is None:
             del self.default_vernacular_name
             return
-        if vn not in self.vernacular_names:
-            self.vernacular_names.append(vn)
-        d = DefaultVernacularName()
-        d.vernacular_name = vn
-        self._default_vernacular_name = d
+        if vernacular not in self.vernacular_names:
+            self.vernacular_names.append(vernacular)
+        default_vernacular = DefaultVernacularName()
+        default_vernacular.vernacular_name = vernacular
+        self._default_vernacular_name = default_vernacular
 
     @default_vernacular_name.deleter
     def default_vernacular_name(self):
@@ -577,17 +568,16 @@ class Species(db.Base, db.Serializable, db.DefiningPictures, db.WithNotes):
     def distribution_str(self):
         if self.distribution is None:
             return ''
-        else:
-            dist = ['%s' % d for d in self.distribution]
-            return str(', ').join(sorted(dist))
+        dist = ['%s' % d for d in self.distribution]
+        return str(', ').join(sorted(dist))
 
     def markup(self, authors=False, genus=True):
-        '''returns this object as a string with markup
+        """returns this object as a string with markup
 
         :param authors: whether the authorship should be included
         :param genus: whether the genus name should be included
 
-        '''
+        """
         return self.str(authors, markup=True, genus=genus)
 
     # in PlantPlugins.init() we set this to 'x' for win32
@@ -595,7 +585,7 @@ class Species(db.Base, db.Serializable, db.DefiningPictures, db.WithNotes):
 
     def str(self, authors=False, markup=False, remove_zws=True, genus=True,
             qualification=None):
-        '''
+        """
         returns a string for species
 
         :param authors: flag to toggle whether authorship should be included
@@ -606,7 +596,7 @@ class Species(db.Base, db.Serializable, db.DefiningPictures, db.WithNotes):
         :param genus: flag to toggle leading genus name.
         :param qualification: pair or None. if specified, first is the
         qualified rank, second is the qualification.
-        '''
+        """
         session = False
         from sqlalchemy import inspect
         if inspect(self).detached:
@@ -963,10 +953,7 @@ class VernacularName(db.Base, db.Serializable):
         return str(self), self.species.markup(authors=False)
 
     def __str__(self):
-        if self.name:
-            return self.name
-        else:
-            return ''
+        return self.name or ''
 
     def replacement(self):
         'user wants the species, not just the name'
