@@ -323,6 +323,9 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
                 self.view.widgets.sp_ok_and_add_button.set_sensitive(True)
         except Exception:
             pass
+        self.refresh_sensitivity()
+        if self.model not in self.session.new:
+            self.view.widgets.sp_ok_and_add_button.set_sensitive(True)
 
     def set_visible_buttons(self, visible):
         self.view.widgets.sp_ok_and_add_button.set_visible(visible)
@@ -822,8 +825,8 @@ class VernacularNamePresenter(editor.GenericEditorPresenter):
                 # seems we can't always use self.set_model_attr for
                 # default_vernacular_name, see commit 099f97090
                 self.model.default_vernacular_name = treemodel[first][0]
-        self.parent_ref().refresh_sensitivity()
         self._dirty = True
+        self.parent_ref().refresh_sensitivity()
 
     def on_default_toggled(self, cell, path, data=None):
         """
