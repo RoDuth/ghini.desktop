@@ -428,8 +428,7 @@ class PrefsView(pluginmgr.View):
                     if not model or not tree_path:
                         logger.debug('no model or tree_path')
                         return
-                    if not testing:
-                        callback(model, tree_path)
+                    callback(model, tree_path)
                 except Exception as e:   # pylint: disable=broad-except
                     msg = utils.xml_safe(str(e))
                     logger.warning(msg)

@@ -54,10 +54,11 @@ def warn_with_traceback(message, category, filename, lineno, file=None,
         message, category, filename, lineno, line))
 
 
-# to print a traceback for warnings set env var:
+# to print a traceback for warnings to stderr set env var:
 # BAUBLE_WARN_TRACE=True
 if os.environ.get('BAUBLE_WARN_TRACE'):
     warnings.showwarning = warn_with_traceback
+    warnings.simplefilter('always')
 
 # to use faulthandler set env var:
 # PYTHONFAULTHANDLER=1

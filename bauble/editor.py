@@ -1527,14 +1527,14 @@ class GenericEditorPresenter(object):
             try:
                 widget = getattr(self.view.widgets, widget)
             except:
-                logger.info("can't get widget %s" % widget)
+                logger.info("can't get widget %s", widget)
 
         tmp = self.problems.copy()
         for p, w in tmp:
             if (w == widget and p == problem_id) or \
                     (widget is None and p == problem_id) or \
                     (w == widget and problem_id is None):
-                if w and not prefs.testing:
+                if isinstance(w, Gtk.Widget) and not prefs.testing:
                     w.get_style_context().remove_class('problem')
                 self.problems.remove((p, w))
         logger.debug('problems now: %s' % self.problems)

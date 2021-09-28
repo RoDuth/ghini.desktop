@@ -18,8 +18,10 @@
 #
 # test for bauble.meta
 #
+from unittest import mock
+from gi.repository import Gtk
 
-import bauble.meta as meta
+from bauble import meta
 from bauble.test import BaubleTestCase
 
 
@@ -27,7 +29,6 @@ class MetaTests(BaubleTestCase):
 
     def __init__(self, *args):
         super().__init__(*args)
-
 
     def test_get_default(self):
         """
@@ -56,7 +57,8 @@ class MetaTests(BaubleTestCase):
         obj = meta.get_default('name2', default=value, session=self.session)
         self.assertTrue(obj in self.session.new)
 
-    def test_confirm_default(self):
+    def test_confirm_default_with_value(self):
+        # when value already exists it is just returned
         name = 'test'
         value = 'test value'
         obj1 = meta.get_default(name, value)
@@ -69,68 +71,37 @@ class MetaTests(BaubleTestCase):
         obj2 = meta.confirm_default(name, value, 'test msg')
         self.assertEqual(obj1.value, obj2.value)
         self.assertEqual(obj1.name, obj2.name)
-        # test that a dialog_box is created, test it offers the default and
-        # contains the message. test if we press OK it save it
-        from bauble import utils
-        _orig_create_message_dialog = utils.create_message_dialog
-        import gi
-        gi.require_version("Gtk", "3.0")
-        from gi.repository import Gtk  # noqa
 
-        class MockDialog:
-            def __init__(self):
-                self.msg = None
-                self.box = set()
-                self.size = dict()
-
-            def get_message_area(self):
-                return self.box
-
-            def resize(self, x, y):
-                return
-
-            def show_all(self):
-                return
-
-            def run(self):
-                return Gtk.ResponseType.OK
-
-            def destroy(self):
-                return
-
-        mock_dialog = MockDialog()
-
-        def mock_create_message_dialog(msg):
-            mock_dialog.msg = msg
-            return mock_dialog
-
-        utils.create_message_dialog = mock_create_message_dialog
+    @mock.patch('bauble.prefs.Gtk.MessageDialog.run',
+                return_value=Gtk.ResponseType.OK)
+    def test_confirm_default_no_value_ok(self, mock_dialog):
+        # a dialog_box is created, offers the default, contains the message and
+        # press OK saves it
         name = 'test2'
+        value = 'test value'
         msg = 'test msg2'
         obj3 = meta.confirm_default(name, value, msg)
-        self.assertEqual(mock_dialog.msg, msg)
+        mock_dialog.assert_called()
+        # self.assertEqual(mock_dialog.msg, msg)
 
         # test the new value was added and returned correctly
         result = self.session.query(meta.BaubleMeta).filter_by(name=name).one()
         self.assertEqual(result.value, value)
         self.assertEqual(result.value, obj3.value)
-        utils.create_message_dialog = _orig_create_message_dialog
 
-        # test that if the dialog is canceled the metadata is not saved
-        class MockDialog2(MockDialog):
-            def run(self):
-                return Gtk.ResponseType.CANCEL
-
-        mock_dialog = MockDialog2()
-
-        utils.create_message_dialog = mock_create_message_dialog
+    @mock.patch('bauble.prefs.Gtk.MessageDialog.run',
+                return_value=Gtk.ResponseType.CANCEL)
+    def test_confirm_default_no_value_cancel(self, mock_dialog):
+        # a dialog_box is created, offers the default, contains the message and
+        # cancelling does not save.
         name = 'test3'
+        value = 'test value'
         msg = 'test msg3'
         obj3 = meta.confirm_default(name, value, msg)
-        self.assertEqual(mock_dialog.msg, msg)
+        mock_dialog.assert_called()
 
-        # test the new value was added and returned correctly
+        # test the new value was not added and returned correctly
         result = self.session.query(meta.BaubleMeta).filter_by(
             name=name).first()
         self.assertIsNone(result)
-        utils.create_message_dialog = _orig_create_message_dialog
+        self.assertIsNone(obj3)

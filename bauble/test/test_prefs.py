@@ -22,6 +22,7 @@ from tempfile import mkstemp
 import logging
 logger = logging.getLogger(__name__)
 
+from gi.repository import Gtk
 
 from bauble.test import BaubleTestCase
 from bauble import prefs
@@ -66,6 +67,7 @@ class PreferencesTests(BaubleTestCase):
         self.assertEqual(p[prefs.datetime_format_pref], '%d-%m-%Y %I:%M:%S %p')
 
     def test_not_saved_while_testing(self):
+        prefs.testing = True
         handle, pname = mkstemp(suffix='.dict')
         p = prefs._prefs(pname)
         p.init()
@@ -74,6 +76,7 @@ class PreferencesTests(BaubleTestCase):
             self.assertEqual(f.read(), '')
 
     def test_can_force_save(self):
+        prefs.testing = True
         handle, pname = mkstemp(suffix='.dict')
         p = prefs._prefs(pname)
         p.init()
@@ -167,9 +170,12 @@ class PrefsViewTests(BaubleTestCase):
         prefs_view.update()
         self.assertTrue(len(prefs_view.prefs_ls) > 8)
 
-    def test_on_button_press_event_adds_menu_can_active(self):
+    @mock.patch('bauble.prefs.Gtk.MessageDialog.run',
+                return_value=Gtk.ResponseType.OK)
+    def test_on_button_press_event_adds_menu_can_active(self, mock_dialog):
+        # NOTE causes a deprecation warning re Gtk.Menu.popup_for_device,
+        # Gtk.Action.create_menu_item
         from datetime import datetime
-        from gi.repository import Gtk
         prefs_view = prefs.PrefsView()
         prefs_view.update()
 
@@ -189,6 +195,7 @@ class PrefsViewTests(BaubleTestCase):
 
             mock_append.assert_called()
             mock_append.call_args.args[0].activate()
+            mock_dialog.assert_called()
         log_str = f'model: {prefs_view.prefs_ls} tree_path: [<Gtk.TreePath obj'
         self.assertTrue(
             [i for i in self.handler.messages['bauble.prefs']['debug'] if
@@ -287,30 +294,28 @@ class PrefsViewTests(BaubleTestCase):
         self.assertIsNone(prefs.prefs[key])
         utils.yes_no_dialog = orig_yes_no_dialog
 
-    def test_add_new(self):
+    @mock.patch('bauble.prefs.Gtk.MessageDialog.run',
+                return_value=Gtk.ResponseType.OK)
+    def test_add_new(self, mock_dialog):
         prefs_view = prefs.PrefsView()
         prefs_view.update()
-        from gi.repository import Gtk
         path = Gtk.TreePath.new_first()
         key = 'bauble.test.option'
-        with mock.patch('bauble.prefs.Gtk.MessageDialog.run',
-                        return_value=Gtk.ResponseType.OK):
-            new_iter = prefs_view.add_new(prefs_view.prefs_ls, path, text=key)
+        new_iter = prefs_view.add_new(prefs_view.prefs_ls, path, text=key)
+        mock_dialog.assert_called()
         self.assertIsNotNone(new_iter)
         self.assertTrue(f'adding new pref option {key}' in
                         self.handler.messages['bauble.prefs']['debug'])
 
-    def test_on_prefs_backup_restore(self):
+    @mock.patch('bauble.prefs.utils.message_dialog')
+    def test_on_prefs_backup_restore(self, mock_dialog):
         prefs.prefs.save(force=True)
         prefs_view = prefs.PrefsView()
         prefs_view.update()
-        from bauble import utils
-        orig_message_dialog = utils.message_dialog
-        msg_returned = []
-        utils.message_dialog = lambda msg: msg_returned.append(msg)
-        # restore ehwn no backup
+        # restore no backup
         prefs_view.on_prefs_restore_clicked(None)
-        self.assertEqual(msg_returned[0], 'No backup found')
+        mock_dialog.assert_called()
+        mock_dialog.assert_called_with('No backup found')
         # create backup and check they are the same
         prefs_view.on_prefs_backup_clicked(None)
         with open(self.temp, 'r') as f:
@@ -331,4 +336,3 @@ class PrefsViewTests(BaubleTestCase):
         # restore
         prefs_view.on_prefs_restore_clicked(None)
         self.assertIsNone(prefs.prefs['bauble.test.option'])
-        utils.yes_no_dialog = orig_message_dialog

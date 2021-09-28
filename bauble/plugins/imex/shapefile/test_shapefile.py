@@ -743,7 +743,9 @@ class ExportSettingsBoxTests(BaubleTestCase):
         mock_prop = mock.Mock(key='_default_vernacular_name')
         self.assertFalse(settings_box.relation_filter(mock_prop()))
 
-    def test_generated_points_settings_dialog(self):
+    @mock.patch('bauble.prefs.Gtk.MessageDialog.run',
+                return_value=Gtk.ResponseType.OK)
+    def test_generated_points_settings_dialog(self, mock_dialog):
         from bauble.meta import BaubleMeta
         self.session.add(BaubleMeta(name='inst_geo_latitude',
                                     value='10.001'))
@@ -759,14 +761,8 @@ class ExportSettingsBoxTests(BaubleTestCase):
                                  grid=MockGrid())
         # pick up the system default
         settings_box.reset_gen_settings()
-
-        mock_dialog = MockDialog()
-
-        with mock.patch('bauble.utils.create_message_dialog',
-                        return_value=mock_dialog):
-            # trigger the dialog box
-            dialog = settings_box.generated_points_settings_dialog()
-            dialog.run()
+        dialog = settings_box.generated_points_settings_dialog()
+        dialog.run()
 
         # test values
         self.assertNotEqual(gen_settings, start_settings)
@@ -774,7 +770,8 @@ class ExportSettingsBoxTests(BaubleTestCase):
         self.assertEqual(gen_settings.get('increment'), 0.00001)
         self.assertEqual(gen_settings.get('axis'), '')
 
-        grid = mock_dialog.get_message_area().get_children()[0]
+        grid = [i for i in dialog.get_message_area().get_children() if
+                isinstance(i, Gtk.Grid)][0]
         self.assertEqual(len(grid.get_children()), 8)
 
         gen_combo = grid.get_child_at(1, 2)
