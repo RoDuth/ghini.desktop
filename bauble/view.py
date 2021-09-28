@@ -823,7 +823,15 @@ class SearchView(pluginmgr.View):
                 _('Couldn\'t find anything for search: "%s"') % text)
             model.append([msg])
             self.results_view.set_model(model)
+            # disconnect cursor change signal handler avoids errors with
+            # updating infopane and bottom notebooks
+            if not self.cursor_change_blocked:
+                self.results_view.handler_block(self.cursor_change_handler)
+                self.cursor_change_blocked = True
         else:
+            if self.cursor_change_blocked:
+                self.results_view.handler_unblock(self.cursor_change_handler)
+                self.cursor_change_blocked = False
             statusbar.push(sbcontext_id, _("Retrieving %s search "
                                            "results…") % len(results))
             if len(results) > 4000:
@@ -1217,7 +1225,9 @@ class SearchView(pluginmgr.View):
         self.results_view.append_column(column)
 
         # view signals
-        self.results_view.connect("cursor-changed", self.on_cursor_changed)
+        self.cursor_change_handler = self.results_view.connect(
+            "cursor-changed", self.on_cursor_changed)
+        self.cursor_change_blocked = False
         self.results_view.connect("test-expand-row",
                                   self.on_test_expand_row)
         self.results_view.connect("button-release-event",
