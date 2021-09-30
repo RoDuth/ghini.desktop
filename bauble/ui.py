@@ -163,6 +163,7 @@ class GUI():
         self.widgets.menu_box.pack_start(menubar, True, True, 0)
 
         combo = self.widgets.main_comboentry
+        combo.connect('changed', self.on_main_combo_changed)
         model = Gtk.ListStore(str)
         combo.set_model(model)
         self.widgets.main_comboentry_entry.connect(
@@ -292,6 +293,30 @@ class GUI():
         self.widgets.main_comboentry.get_child().set_text(command)
         self.widgets.go_button.emit("clicked")
 
+    def on_main_combo_changed(self, widget):
+        entry = widget.get_child()
+        history_pins = prefs.get(self.entry_history_pins_pref, [])
+        text = entry.get_text()
+        if text in history_pins:
+            entry.set_icon_from_icon_name(Gtk.EntryIconPosition.SECONDARY,
+                                          'emblem-favorite')
+            tool_tip = _('Query string is a favourite: click to return it the '
+                         'standard search history.')
+            entry.set_icon_tooltip_text(
+                Gtk.EntryIconPosition.SECONDARY,
+                tool_tip)
+        elif not text:
+            entry.set_icon_from_icon_name(Gtk.EntryIconPosition.SECONDARY,
+                                          None)
+        else:
+            entry.set_icon_from_icon_name(Gtk.EntryIconPosition.SECONDARY,
+                                          'mail-attachment')
+            tool_tip = _('Clip this query string to the top of your search '
+                         'history as a favourite')
+            entry.set_icon_tooltip_text(
+                Gtk.EntryIconPosition.SECONDARY,
+                tool_tip)
+
     def on_main_entry_activate(self, widget, data=None):
         self.widgets.go_button.emit("clicked")
 
@@ -343,6 +368,8 @@ class GUI():
         add or remove a pin search string to the history pins
         """
         text = widget.get_text()
+        if not text:
+            return
 
         history_pins = prefs.get(self.entry_history_pins_pref, [])
         history = prefs.get(self.entry_history_pref, [])

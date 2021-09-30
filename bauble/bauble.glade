@@ -206,9 +206,8 @@
                     <child internal-child="entry">
                       <object class="GtkEntry" id="main_comboentry_entry">
                         <property name="can-focus">True</property>
-                        <property name="tooltip-text" translatable="yes">enter here your query or command</property>
+                        <property name="tooltip-text" translatable="yes">enter query or command</property>
                         <property name="primary-icon-name">edit-find</property>
-                        <property name="secondary-icon-name">mail-attachment</property>
                         <property name="primary-icon-activatable">False</property>
                         <property name="primary-icon-sensitive">False</property>
                       </object>
