@@ -823,8 +823,8 @@ class SynonymsExpander(InfoExpander):
             # in the search results
             box = Gtk.EventBox()
             label = Gtk.Label()
-            label.set_xalign(0)
-            label.set_xalign(0.5)
+            label.set_xalign(0.0)
+            label.set_yalign(0.5)
             label.set_markup(Family.str(row.accepted, author=True))
             box.add(label)
             utils.make_label_clickable(label, on_clicked, row.accepted)
@@ -840,8 +840,8 @@ class SynonymsExpander(InfoExpander):
                 # in the search results
                 box = Gtk.EventBox()
                 label = Gtk.Label()
-                label.set_xalign(0)
-                label.set_xalign(0.5)
+                label.set_xalign(0.0)
+                label.set_yalign(0.5)
                 label.set_markup(Family.str(syn))
                 box.add(label)
                 utils.make_label_clickable(label, on_clicked, syn)

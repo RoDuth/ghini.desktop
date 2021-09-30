@@ -122,8 +122,8 @@ class GUI():
     # TODO a global approach to css
     _css = Gtk.CssProvider()
     _css.load_from_data(
-        b'.err-bg * {background-color: #FF9999;}'
-        b'.inf-bg * {background-color: #b6daf2;}'
+        b'.err-bg * {background-image: image(#FF9999);}'
+        b'.inf-bg * {background-image: image(#B6DAF2);}'
         b'.click-label {color: blue;}'
         b'.problem {background-color: #FFDCDF;}'
         b'.err-btn * {color: #FF9999;}'
