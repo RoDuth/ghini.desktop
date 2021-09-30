@@ -471,7 +471,7 @@ class MakoFormatterPlugin(FormatterPlugin):
                              for i in f.readlines()] if _f]
         option_fields = [i.groups() for i in option_lines]
         from bauble.plugins.report import options
-        for fname, ftype, fdefault, ftooltip in option_fields:
+        for fname, _ftype, fdefault, _ftooltip in option_fields:
             options.setdefault(fname, fdefault)
 
         session = db.Session()
@@ -479,10 +479,10 @@ class MakoFormatterPlugin(FormatterPlugin):
         report = template.render(values=values)
         session.close()
         # assume the template is the same file type as the output file
-        head, ext = os.path.splitext(template_filename)
-        fd, filename = tempfile.mkstemp(suffix=ext)
-        os.write(fd, report)
-        os.close(fd)
+        _head, ext = os.path.splitext(template_filename)
+        file_handle, filename = tempfile.mkstemp(suffix=ext)
+        os.write(file_handle, report)
+        os.close(file_handle)
         try:
             desktop.open(filename)
         except OSError:

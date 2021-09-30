@@ -407,7 +407,10 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
         building the fullname string in the sp_fullname_label widget
         """
         self.refresh_fullname_label()
-        refresh = lambda *args: self.refresh_fullname_label(*args)
+
+        def refresh(*args):
+            self.refresh_fullname_label(*args)
+
         widgets = ['sp_genus_entry', 'sp_species_entry', 'sp_author_entry',
                    'sp_cvgroup_entry', 'sp_spqual_combo']
         for widget_name in widgets:

@@ -1197,10 +1197,10 @@ class PlantEditorPresenter(GenericEditorPresenter):
                 self.prop_presenter.is_dirty() or
                 self._dirty)
 
-    def on_date_entry_changed(self, entry, *args):
+    def on_date_entry_changed(self, entry):
         self.change.date = entry.props.text
 
-    def on_quantity_changed(self, entry, *args):
+    def on_quantity_changed(self, entry):
         value = entry.props.text
         try:
             value = int(value)
@@ -1228,7 +1228,7 @@ class PlantEditorPresenter(GenericEditorPresenter):
             self.change.quantity = self.model.quantity
         self.refresh_view()
 
-    def on_plant_code_entry_changed(self, entry, *args):
+    def on_plant_code_entry_changed(self, entry):
         """
         Validates the accession number and the plant code from the editors.
         """

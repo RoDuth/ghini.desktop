@@ -140,7 +140,7 @@ class GUI():
         self.previous_view = None
 
         # restore the window size
-        geometry = prefs[self.window_geometry_pref]
+        geometry = prefs.get(self.window_geometry_pref, [])
         if geometry is not None:
             self.window.set_default_size(*geometry)
             self.window.set_position(Gtk.WindowPosition.CENTER)
@@ -151,12 +151,12 @@ class GUI():
         self.window.set_title(self.title)
 
         try:
-            logger.debug("loading icon from %s" % bauble.default_icon)
+            logger.debug("loading icon from %s", bauble.default_icon)
             pixbuf = GdkPixbuf.Pixbuf.new_from_file(bauble.default_icon)
             self.window.set_icon(pixbuf)
-        except Exception:
-            logger.warning(_('Could not load icon from %s')
-                           % bauble.default_icon)
+        except Exception:  # pylint: disable=broad-except
+            logger.warning(_('Could not load icon from %s'),
+                           bauble.default_icon)
             logger.warning(traceback.format_exc())
 
         menubar = self.create_main_menu()
@@ -199,12 +199,11 @@ class GUI():
         # future versions of gtk
         statusbar = self.widgets.statusbar
         statusbar.set_spacing(10)
-        # statusbar.set_has_resize_grip(True)
         self._cids = []
 
-        def on_statusbar_push(sb, cid, txt):
-            if cid not in self._cids:
-                self._cids.append(cid)
+        def on_statusbar_push(_statusbar, context_id, _txt):
+            if context_id not in self._cids:
+                self._cids.append(context_id)
 
         statusbar.connect('text-pushed', on_statusbar_push)
 
@@ -235,11 +234,10 @@ class GUI():
 
         combo.grab_focus()
 
-    def close_message_box(self, *args):
+    def close_message_box(self):
         parent = self.widgets.msg_box_parent
         for kid in self.widgets.msg_box_parent:
             parent.remove(kid)
-        return
 
     def show_yesno_box(self, msg):
         self.close_message_box()
@@ -317,17 +315,18 @@ class GUI():
                 Gtk.EntryIconPosition.SECONDARY,
                 tool_tip)
 
-    def on_main_entry_activate(self, widget, data=None):
+    def on_main_entry_activate(self, _widget):
         self.widgets.go_button.emit("clicked")
 
-    def on_home_button_clicked(self, widget):
+    @staticmethod
+    def on_home_button_clicked(_widget):
         bauble.command_handler('home', None)
 
-    def on_prev_view_button_clicked(self, widget):
+    def on_prev_view_button_clicked(self, _widget):
         self.widgets.main_comboentry.get_child().set_text('')
         bauble.gui.set_view('previous')
 
-    def on_go_button_clicked(self, widget):
+    def on_go_button_clicked(self, _widget):
         self.close_message_box()
         text = self.widgets.main_comboentry.get_child().get_text()
         if text == '':
@@ -339,31 +338,32 @@ class GUI():
         try:
             cmd = tokens['cmd']
         except KeyError as e:
-            logger.debug("%s(%s)" % (type(e).__name__, e))
+            logger.debug("%s(%s)", type(e).__name__, e)
 
         try:
             arg = tokens['arg']
         except KeyError as e:
-            logger.debug("%s(%s)" % (type(e).__name__, e))
+            logger.debug("%s(%s)", type(e).__name__, e)
 
         bauble.command_handler(cmd, arg)
 
-    def on_query_button_clicked(self, widget):
+    def on_query_button_clicked(self, _widget):
         gladefilepath = os.path.join(paths.lib_dir(), "querybuilder.glade")
         view = GenericEditorView(
             gladefilepath,
             parent=None,
             root_widget_name='main_dialog')
-        qb = search.QueryBuilder(view)
-        qb.set_query(self.widgets.main_comboentry.get_child().get_text())
-        response = qb.start()
+        query_builder = search.QueryBuilder(view)
+        query_builder.set_query(
+            self.widgets.main_comboentry.get_child().get_text())
+        response = query_builder.start()
         if response == Gtk.ResponseType.OK:
-            query = qb.get_query()
+            query = query_builder.get_query()
             self.widgets.main_comboentry.get_child().set_text(query)
             self.widgets.go_button.emit("clicked")
-        qb.cleanup()
+        query_builder.cleanup()
 
-    def on_history_pinned_clicked(self, widget, icon_pos, event):
+    def on_history_pinned_clicked(self, widget, _icon_pos, _event):
         """
         add or remove a pin search string to the history pins
         """
@@ -418,8 +418,8 @@ class GUI():
         self.populate_main_entry()
 
     def populate_main_entry(self):
-        history_pins = prefs[self.entry_history_pins_pref]
-        history = prefs[self.entry_history_pref]
+        history_pins = prefs.get(self.entry_history_pins_pref, [])
+        history = prefs.get(self.entry_history_pref, [])
         main_combo = self.widgets.main_comboentry
 
         def separate(model, tree_iter):
@@ -457,13 +457,12 @@ class GUI():
                 model.append([herstory, ])
                 compl_model.append([herstory])
 
-    def __get_title(self):
+    @property
+    def title(self):
         if bauble.conn_name is None:
             return '%s %s' % ('Ghini', bauble.version)
-        else:
-            return '%s %s - %s' % ('Ghini', bauble.version,
-                                   bauble.conn_name)
-    title = property(__get_title)
+        return '%s %s - %s' % ('Ghini', bauble.version,
+                               bauble.conn_name)
 
     def set_busy(self, busy):
         self.widgets.main_box.set_sensitive(not busy)
@@ -527,10 +526,7 @@ class GUI():
         accel_group = self.ui_manager.get_accel_group()
         self.window.add_accel_group(accel_group)
 
-        # TODO: get rid of new, open, and just have a connection
-        # menu item
-
-        # create and addaction group for menu actions
+        # create and add action group for menu actions
         menu_actions = Gtk.ActionGroup(name="MenuActions")
         menu_actions.add_actions([("file", None, _("_File")),
                                   ("connection", None, _("_Connection")),
@@ -603,11 +599,11 @@ class GUI():
         # clear out the insert an tools menus
         menu = self.ui_manager.get_widget(path)
         submenu = menu.get_submenu()
-        for c in submenu.get_children():
-            submenu.remove(c)
+        for child in submenu.get_children():
+            submenu.remove(child)
         menu.show()
 
-    def add_menu(self, name, menu, index=-1):
+    def add_menu(self, name, menu):
         '''
         add a menu to the menubar
 
@@ -617,7 +613,7 @@ class GUI():
         '''
         menu_item = Gtk.MenuItem(label=name)
         menu_item.set_submenu(menu)
-        self.menubar.insert(menu_item, len(self.menubar.get_children())-1)
+        self.menubar.insert(menu_item, len(self.menubar.get_children()) - 1)
         self.menubar.show_all()
         return menu_item
 
@@ -639,8 +635,8 @@ class GUI():
         item.show()
         # sort items
         i = 0
-        for label in sorted(self.__insert_menu_cache.keys()):
-            submenu.reorder_child(self.__insert_menu_cache[label], i)
+        for lbl in sorted(self.__insert_menu_cache.keys()):
+            submenu.reorder_child(self.__insert_menu_cache[lbl], i)
             i += 1
 
     def build_tools_menu(self):
@@ -656,13 +652,13 @@ class GUI():
         menu.show()
         tools = {'__root': []}
         # categorize the tools into a dict
-        for p in list(pluginmgr.plugins.values()):
-            for tool in p.tools:
+        for plugin in list(pluginmgr.plugins.values()):
+            for tool in plugin.tools:
                 if tool.category is not None:
                     try:
                         tools[tool.category].append(tool)
                     except KeyError:
-                        ## initialize tools dictionary
+                        # initialize tools dictionary
                         tools[tool.category] = []
                         tools[tool.category].append(tool)
                 else:
@@ -694,19 +690,20 @@ class GUI():
         menu.show_all()
         return menu
 
-    def on_tools_menu_item_activate(self, widget, tool):
+    @staticmethod
+    def on_tools_menu_item_activate(_widget, tool):
         """
         Start a tool on the Tool menu.
         """
         try:
             tool.start()
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-except
             utils.message_details_dialog(utils.xml_safe(str(e)),
                                          traceback.format_exc(),
                                          Gtk.MessageType.ERROR)
             logger.debug(traceback.format_exc())
 
-    def on_insert_menu_item_activate(self, widget, editor_cls):
+    def on_insert_menu_item_activate(self, _widget, editor_cls):
         try:
             view = self.get_view()
             if isinstance(view, SearchView):
@@ -723,12 +720,12 @@ class GUI():
             if committed is not None and isinstance(view, SearchView):
                 view.results_view.collapse_all()
                 view.expand_to_all_refs(expanded_rows)
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-except
             utils.message_details_dialog(utils.xml_safe(str(e)),
                                          traceback.format_exc(),
                                          Gtk.MessageType.ERROR)
-            logger.error('bauble.gui.on_insert_menu_item_activate():\n %s'
-                         % traceback.format_exc())
+            logger.error('bauble.gui.on_insert_menu_item_activate():\n %s',
+                         traceback.format_exc())
             return
 
         if editor is None:
@@ -812,7 +809,7 @@ class GUI():
         engine = None
         try:
             engine = db.open(uri, True, True)
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-except
             # we don't do anything to handle the exception since db.open()
             # should have shown an error dialog if there was a problem
             # opening the database as long as the show_error_dialogs
@@ -853,32 +850,39 @@ class GUI():
         for cid in self._cids:
             self.widgets.statusbar.pop(cid)
 
-    def on_help_menu_contents(self, widget, data=None):
+    @staticmethod
+    def on_help_menu_contents(_widget):
         desktop.open('http://ghini.readthedocs.io/en/ghini-1.0-dev/',
                      dialog_on_error=True)
 
-    def on_help_menu_bug(self, widget, data=None):
+    @staticmethod
+    def on_help_menu_bug(_widget):
         desktop.open('https://github.com/RoDuth/ghini.desktop/issues/new',
                      dialog_on_error=True)
 
-    def on_help_menu_logfile(self, widget, data=None):
+    @staticmethod
+    def on_help_menu_logfile(_widget):
         logger.debug('opening log file from help menu')
         filename = os.path.join(paths.appdata_dir(), 'bauble.log')
         desktop.open(filename, dialog_on_error=True)
 
-    def on_help_menu_web_devel(self, widget, data=None):
+    @staticmethod
+    def on_help_menu_web_devel(_widget):
         desktop.open('http://github.com/RoDuth/ghini.desktop/',
                      dialog_on_error=True)
 
-    def on_help_menu_web_wiki(self, widget, data=None):
+    @staticmethod
+    def on_help_menu_web_wiki(_widget):
         desktop.open('http://ghini.github.io/',
                      dialog_on_error=True)
 
-    def on_help_menu_web_forum(self, widget, data=None):
+    @staticmethod
+    def on_help_menu_web_forum(_widget):
         desktop.open('https://groups.google.com/forum/#!forum/bauble',
                      dialog_on_error=True)
 
-    def on_help_menu_about(self, widget, data=None):
+    @staticmethod
+    def on_help_menu_about(_widget):
         about = Gtk.AboutDialog()
         about.set_program_name('Ghini (BBG)')
         about.set_version(bauble.version)
@@ -910,7 +914,8 @@ class GUI():
         about.run()
         about.destroy()
 
-    def on_delete_event(self, *args):
+    @staticmethod
+    def on_delete_event(_widget, _event):
         from bauble import task
         if task.running():
             msg = _('Would you like to cancel the current tasks?')
@@ -924,5 +929,6 @@ class GUI():
         rect = self.window.get_size()
         prefs[self.window_geometry_pref] = rect.width, rect.height
 
-    def on_quit(self, widget, data=None):
+    @staticmethod
+    def on_quit(_widget):
         bauble.quit()

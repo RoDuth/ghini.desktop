@@ -1530,41 +1530,43 @@ class MessageBox(GenericMessageBox):
         button.set_relief(Gtk.ReliefStyle.NONE)
         button_box.pack_start(button, False, False, 0)
 
-        self.details_expander = Gtk.Expander(label=_('Show details'))
+        self.details_expander = Gtk.Expander(label=_('Show details'),
+                                             expanded=False)
         self.vbox.pack_start(self.details_expander, True, True, 0)
 
-        sw = Gtk.ScrolledWindow()
-        sw.set_size_request(-1, 200)
-        sw.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
-        viewport = Gtk.Viewport()
-        sw.add(viewport)
-        self.details_label = Gtk.Label()
-        viewport.add(self.details_label)
+        scroll_win = Gtk.ScrolledWindow()
+        scroll_win.set_size_request(-1, 200)
+        scroll_win.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+        details_label = Gtk.TextView()
+        details_label.set_wrap_mode(Gtk.WrapMode.WORD)
+        details_label.set_can_focus(False)
+        self.details_buffer = Gtk.TextBuffer()
+        details_label.set_buffer(self.details_buffer)
+        scroll_win.add(details_label)
 
         self.details = details
-        self.details_expander.add(sw)
+        self.details_expander.add(scroll_win)
 
-        def on_expanded(*args):
+        def on_expanded(_widget, expanded):
             requisition = self.size_request()
             self.set_size_request(requisition.width, -1)
             self.queue_resize()
+
         self.details_expander.connect('notify::expanded', on_expanded)
 
-        def on_close(*args):
+        def on_close(_widget):
             parent = self.get_parent()
             if parent is not None:
                 parent.remove(self)
-        button.connect('clicked', on_close, True)
 
-    def show_all(self):
-        super().show_all()
-        if not self.details_label.get_text():
-            self.details_expander.hide()
+        button.connect('clicked', on_close)
 
-    def _get_message(self, msg):
-        return self.buffer.text
+    @property
+    def message(self):
+        return self.buffer.get_property('text')
 
-    def _set_message(self, msg):
+    @message.setter
+    def message(self, msg):
         # TODO: we could probably do something smarter here that
         # involved check the font size and window width and adjust the
         # wrap widget accordingly
@@ -1572,18 +1574,17 @@ class MessageBox(GenericMessageBox):
             self.buffer.set_text(msg)
         else:
             self.buffer.set_text('')
-    message = property(_get_message, _set_message)
 
-    def _get_details(self, msg):
-        return self.details_label.text
+    @property
+    def details(self):
+        return self.details_buffer.get_property('text')
 
-    def _set_details(self, msg):
+    @details.setter
+    def details(self, msg):
         if msg:
-            msg = '\n'.join(textwrap.wrap(msg, 100))
-            self.details_label.set_markup(msg)
+            self.details_buffer.set_text(msg)
         else:
-            self.details_label.set_markup('')
-    details = property(_get_details, _set_details)
+            self.details_buffer.set_text('')
 
 
 class YesNoMessageBox(GenericMessageBox):
@@ -1623,17 +1624,19 @@ class YesNoMessageBox(GenericMessageBox):
     def _set_on_response(self, func):
         self.yes_button.connect('clicked', func, True)
         self.no_button.connect('clicked', func, False)
+
     on_response = property(fset=_set_on_response)
 
-    def _get_message(self, msg):
-        return self.label.text
+    @property
+    def message(self):
+        return self.label.get_text()
 
-    def _set_message(self, msg):
+    @message.setter
+    def message(self, msg):
         if msg:
             self.label.set_markup(msg)
         else:
             self.label.set_markup('')
-    message = property(_get_message, _set_message)
 
 
 MESSAGE_BOX_INFO = 1

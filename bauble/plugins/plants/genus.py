@@ -972,11 +972,11 @@ class SynonymsExpander(InfoExpander):
         self.vbox.pack_start(synonyms_box, True, True, 0)
 
     def update(self, row):
-        '''
+        """
         update the expander
 
         :param row: the row to get the values from
-        '''
+        """
         syn_box = self.widgets.gen_synonyms_box
         # remove old labels
         syn_box.foreach(syn_box.remove)
