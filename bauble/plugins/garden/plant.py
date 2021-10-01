@@ -365,6 +365,7 @@ common_reasons = ['ERRO', 'OTHR', None]
 new_plt_reasons = ['PLTD', 'NTRL', 'PRIR', 'ESTM']
 added_reasons = ['TBAC', 'SLFS', 'VPIP']
 transfer_reasons = ['HOSP', 'QUAR', 'TRAN', 'DIST', 'TBAC']
+split_reasons = ['PLTD'] + added_reasons + transfer_reasons + common_reasons
 
 deleted_reasons = {k: v for k, v in change_reasons.items() if k not in
                    added_reasons + new_plt_reasons}
@@ -374,6 +375,7 @@ added_reasons = {k: v for k, v in change_reasons.items() if k in
                  added_reasons + common_reasons}
 transfer_reasons = {k: v for k, v in change_reasons.items() if k in
                     transfer_reasons + common_reasons}
+split_reasons = {k: v for k, v in change_reasons.items() if k in split_reasons}
 
 
 class PlantChange(db.Base):
@@ -927,7 +929,7 @@ class PlantEditorPresenter(GenericEditorPresenter):
     PROBLEM_DUPLICATE_PLANT_CODE = str(random())
     PROBLEM_INVALID_QUANTITY = str(random())
 
-    def __init__(self, model, view):
+    def __init__(self, model, view, branch_mode=False):
         '''
         :param model: should be an instance of Plant class
         :param view: should be an instance of PlantEditorView
@@ -935,6 +937,7 @@ class PlantEditorPresenter(GenericEditorPresenter):
         super().__init__(model, view)
         self.create_toolbar()
         self.session = object_session(model)
+        self.branch_mode = branch_mode
         self._original_accession_id = self.model.accession_id
         self._original_code = self.model.code
         self._original_location = self.model.location
@@ -1332,7 +1335,9 @@ class PlantEditorPresenter(GenericEditorPresenter):
 
         reasons = {}
         default = None
-        if self.model in self.session.new:
+        if self.branch_mode:
+            reasons = split_reasons
+        elif self.model in self.session.new:
             reasons = new_plt_reasons
             default = 'PLTD'
         elif self.model.location != self._original_location:
@@ -1436,7 +1441,8 @@ class PlantEditor(GenericModelViewPresenterEditor):
         self._committed = []
 
         view = PlantEditorView(parent=self.parent)
-        self.presenter = PlantEditorPresenter(self.model, view)
+        self.presenter = PlantEditorPresenter(self.model, view,
+                                              branch_mode=branch_mode)
         if self.branched_plant:
             self.presenter.upper_quantity_limit = self.branched_plant.quantity
 
