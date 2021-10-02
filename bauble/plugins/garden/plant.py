@@ -1591,24 +1591,24 @@ class PlantEditor(GenericModelViewPresenterEditor):
         from bauble.plugins.garden.accession import Accession
         sub_editor = None
         if self.session.query(Accession).count() == 0:
-            msg = 'You must first add or import at least one Accession into '\
-                  'the database before you can add plants.\n\nWould you like '\
-                  'to open the Accession editor?'
+            msg = ('You must first add or import at least one Accession into '
+                   'the database before you can add plants.\n\nWould you like '
+                   'to open the Accession editor?')
             if utils.yes_no_dialog(msg):
                 # cleanup in case we start a new PlantEditor
                 self.presenter.cleanup()
                 from bauble.plugins.garden.accession import AccessionEditor
                 sub_editor = AccessionEditor()
-                self._commited = sub_editor.start()
+                self._committed.extend(sub_editor.start())
         if self.session.query(Location).count() == 0:
-            msg = 'You must first add or import at least one Location into '\
-                  'the database before you can add plants.\n\nWould you '\
-                  'like to open the Location editor?'
+            msg = ('You must first add or import at least one Location into '
+                   'the database before you can add plants.\n\nWould you '
+                   'like to open the Location editor?')
             if utils.yes_no_dialog(msg):
                 # cleanup in case we start a new PlantEditor
                 self.presenter.cleanup()
                 sub_editor = LocationEditor()
-                self._commited = sub_editor.start()
+                self._committed.extend(sub_editor.start())
 
         if self.branched_plant:
             # set title if in branch mode
