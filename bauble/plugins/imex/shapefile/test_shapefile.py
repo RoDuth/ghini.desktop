@@ -762,7 +762,8 @@ class ExportSettingsBoxTests(BaubleTestCase):
         # pick up the system default
         settings_box.reset_gen_settings()
         dialog = settings_box.generated_points_settings_dialog()
-        dialog.run()
+        response = dialog.run()
+        self.assertEqual(response, Gtk.ResponseType.OK)
 
         # test values
         self.assertNotEqual(gen_settings, start_settings)
@@ -781,6 +782,7 @@ class ExportSettingsBoxTests(BaubleTestCase):
         gen_inc_entry = grid.get_child_at(1, 3)
         gen_inc_entry.set_value(0.1)
         self.assertEqual(gen_settings.get('increment'), 0.1)
+        dialog.destroy()
 
     def test_on_gen_button_clicked(self):
         from bauble.meta import BaubleMeta

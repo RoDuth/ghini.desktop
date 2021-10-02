@@ -34,7 +34,7 @@ for:
   test_script:
     - . ~/venv3.9/bin/activate
     - pip install pytest
-    - pytest
+    - pytest -sv
 -
   matrix:
     only:
@@ -59,7 +59,7 @@ for:
     - path: dist/ghini.desktop-*-setup.exe
 
   test_script:
-    - bash -lc "pytest"
+    - bash -lc "pytest -sv"
 
 deploy:
   release: 'v1.3.0-b (BBG Branch)' # :bump
