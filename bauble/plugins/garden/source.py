@@ -939,8 +939,9 @@ class GeneralSourceDetailExpander(view.InfoExpander):
         self.widget_set_value('sd_desc_data', description, markup=True)
 
         source = Source.__table__
-        nacc = select([source.c.id], source.c.source_detail_id == row.id).\
-            count().execute().fetchone()[0]
+        nacc = select([source.c.id],
+                      source.c.source_detail_id == row.id
+                      ).alias('s_list').count().execute().fetchone()[0]
         self.widget_set_value('sd_nacc_data', nacc)
 
 

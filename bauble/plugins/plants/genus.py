@@ -871,35 +871,6 @@ class GeneralGenusExpander(InfoExpander):
 
         self.current_obj = None
 
-        def on_family_clicked(*args):
-            select_in_search_results(self.current_obj.family)
-        utils.make_label_clickable(
-            self.widgets.gen_fam_data, on_family_clicked)
-
-        def on_nsp_clicked(*args):
-            g = self.current_obj
-            cmd = 'species where genus.genus="%s" and genus.qualifier="%s"' \
-                % (g.genus, g.qualifier)
-            bauble.gui.send_command(cmd)
-        utils.make_label_clickable(self.widgets.gen_nsp_data, on_nsp_clicked)
-
-        def on_nacc_clicked(*args):
-            g = self.current_obj
-            cmd = 'accession where species.genus.genus="%s" ' \
-                'and species.genus.qualifier="%s"' \
-                % (g.genus, g.qualifier)
-            bauble.gui.send_command(cmd)
-        utils.make_label_clickable(self.widgets.gen_nacc_data, on_nacc_clicked)
-
-        def on_nplants_clicked(*args):
-            g = self.current_obj
-            cmd = 'plant where accession.species.genus.genus="%s" and ' \
-                'accession.species.genus.qualifier="%s"' \
-                % (g.genus, g.qualifier)
-            bauble.gui.send_command(cmd)
-        utils.make_label_clickable(
-            self.widgets.gen_nplants_data, on_nplants_clicked)
-
     def update(self, row):
         """
         update the expander
@@ -907,7 +878,6 @@ class GeneralGenusExpander(InfoExpander):
         :param row: the row to get the values from
         """
         session = object_session(row)
-        self.current_obj = row
         self.widget_set_value('gen_name_data', '<big>%s</big> %s' %
                               (row.markup(), utils.xml_safe(str(row.author))),
                               markup=True)
@@ -953,6 +923,34 @@ class GeneralGenusExpander(InfoExpander):
             self.widget_set_value('gen_nplants_data', '%s in %s accessions'
                                   % (nplants, nacc_in_plants))
 
+        on_clicked_select = utils.generate_on_clicked(select_in_search_results)
+        on_clicked_search = utils.generate_on_clicked(bauble.gui.send_command)
+
+        utils.make_label_clickable(self.widgets.gen_fam_data,
+                                   on_clicked_select,
+                                   row.family)
+
+        utils.make_label_clickable(
+            self.widgets.gen_nsp_data,
+            on_clicked_search,
+            f'species where genus.genus="{row.genus}" and '
+            f'genus.qualifier="{row.qualifier}"'
+        )
+
+        utils.make_label_clickable(
+            self.widgets.gen_nacc_data,
+            on_clicked_search,
+            f'accession where species.genus.genus="{row.genus}" and '
+            f'species.genus.qualifier="{row.qualifier}"'
+        )
+
+        utils.make_label_clickable(
+            self.widgets.gen_nplants_data,
+            on_clicked_search,
+            f'plant where accession.species.genus.genus="{row.genus}" and '
+            f'accession.species.genus.qualifier="{row.qualifier}"'
+        )
+
 
 class SynonymsExpander(InfoExpander):
 
@@ -978,9 +976,9 @@ class SynonymsExpander(InfoExpander):
         logger.debug("genus %s is synonym of %s and has synonyms %s", row,
                      row.accepted, row.synonyms)
         self.set_label(_("Synonyms"))  # reset default value
+        on_clicked = utils.generate_on_clicked(select_in_search_results)
         if row.accepted is not None:
             self.set_label(_("Accepted name"))
-            on_clicked = utils.generate_on_clicked(select_in_search_results)
             # create clickable label that will select the synonym
             # in the search results
             box = Gtk.EventBox()
@@ -996,7 +994,6 @@ class SynonymsExpander(InfoExpander):
         elif len(row.synonyms) == 0:
             self.set_sensitive(False)
         else:
-            on_clicked = utils.generate_on_clicked(select_in_search_results)
             for syn in row.synonyms:
                 # create clickable label that will select the synonym
                 # in the search results

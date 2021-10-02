@@ -160,10 +160,10 @@ class PropertiesExpander(InfoExpander):
         id_label = Gtk.Label(label="<b>" + _("ID:") + "</b>")
         id_label.set_use_markup(True)
         id_label.set_xalign(1)
-        id_label.set_xalign(0.5)
+        id_label.set_yalign(0.5)
         self.id_data = Gtk.Label(label='--')
         self.id_data.set_xalign(0)
-        self.id_data.set_xalign(0.5)
+        self.id_data.set_yalign(0.5)
         table.attach(id_label, 0, 0, 1, 1)
         table.attach(self.id_data, 1, 0, 1, 1)
 
@@ -171,10 +171,10 @@ class PropertiesExpander(InfoExpander):
         type_label = Gtk.Label(label="<b>" + _("Type:") + "</b>")
         type_label.set_use_markup(True)
         type_label.set_xalign(1)
-        type_label.set_xalign(0.5)
+        type_label.set_yalign(0.5)
         self.type_data = Gtk.Label(label='--')
         self.type_data.set_xalign(0)
-        self.type_data.set_xalign(0.5)
+        self.type_data.set_yalign(0.5)
         table.attach(type_label, 0, 1, 1, 1)
         table.attach(self.type_data, 1, 1, 1, 1)
 
@@ -182,10 +182,10 @@ class PropertiesExpander(InfoExpander):
         created_label = Gtk.Label(label="<b>" + _("Date created:") + "</b>")
         created_label.set_use_markup(True)
         created_label.set_xalign(1)
-        created_label.set_xalign(0.5)
+        created_label.set_yalign(0.5)
         self.created_data = Gtk.Label(label='--')
         self.created_data.set_xalign(0)
-        self.created_data.set_xalign(0.5)
+        self.created_data.set_yalign(0.5)
         table.attach(created_label, 0, 2, 1, 1)
         table.attach(self.created_data, 1, 2, 1, 1)
 
@@ -193,10 +193,10 @@ class PropertiesExpander(InfoExpander):
         updated_label = Gtk.Label(label="<b>" + _("Last updated:") + "</b>")
         updated_label.set_use_markup(True)
         updated_label.set_xalign(1)
-        updated_label.set_xalign(0.5)
+        updated_label.set_yalign(0.5)
         self.updated_data = Gtk.Label(label='--')
         self.updated_data.set_xalign(0)
-        self.updated_data.set_xalign(0.5)
+        self.updated_data.set_yalign(0.5)
         table.attach(updated_label, 0, 3, 1, 1)
         table.attach(self.updated_data, 1, 3, 1, 1)
 
@@ -204,19 +204,19 @@ class PropertiesExpander(InfoExpander):
         box.pack_start(table, expand=False, fill=False, padding=0)
         self.vbox.pack_start(box, expand=False, fill=False, padding=0)
 
-    def update(self, value):
+    def update(self, row):
         """"
         Update the widget in the expander.
         """
-        self.id_data.set_text(str(value.id))
-        self.type_data.set_text(str(type(value).__name__))
+        self.id_data.set_text(str(row.id))
+        self.type_data.set_text(str(type(row).__name__))
         key = prefs.datetime_format_pref
         fmat = prefs.prefs.get(key)
         # pylint: disable=protected-access
         self.created_data.set_text(
-            value._created and value._created.strftime(fmat) or '')
+            row._created and row._created.strftime(fmat) or '')
         self.updated_data.set_text(
-            value._last_updated and value._last_updated.strftime(fmat) or '')
+            row._last_updated and row._last_updated.strftime(fmat) or '')
 
 
 class InfoBoxPage(Gtk.ScrolledWindow):
@@ -339,11 +339,12 @@ class InfoBox(Gtk.Notebook):
 
 class LinksExpander(InfoExpander):
 
-    def __init__(self, notes=None, links=[]):
+    def __init__(self, notes=None, links=None):
         """
         :param notes: the name of the notes property on the row
         """
         super().__init__(_("Links"))
+        links = links or []
         self.dynamic_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         self.vbox.pack_start(self.dynamic_box, True, True, 0)
         self.notes = notes
@@ -355,18 +356,17 @@ class LinksExpander(InfoExpander):
                              link)
                 self.buttons.append(klass())
             except Exception as e:
-                logger.debug('wrong link definition %s, %s(%s)' %
-                             (link, type(e), e))
+                logger.debug('wrong link definition %s, %s(%s)', link,
+                             type(e).__name__, e)
         for btn in self.buttons:
             btn.set_halign(Gtk.Align.START)
             self.vbox.pack_start(btn, False, False, 0)
 
     def update(self, row):
-        from gi.repository import Pango
         for child in self.dynamic_box.get_children():
             self.dynamic_box.remove(child)
-        for b in self.buttons:
-            b.set_string(row)
+        for btn in self.buttons:
+            btn.set_string(row)
         if self.notes:
             notes = getattr(row, self.notes)
             for note in notes:
@@ -663,7 +663,7 @@ class SearchView(pluginmgr.View):
         def set_infobox_from_row(row):
             """implement the logic for update_infobox"""
 
-            logger.debug('set_infobox_from_row: %s --  %s' % (row, repr(row)))
+            logger.debug('set_infobox_from_row: %s --  %s', row, repr(row))
             # remove the current infobox if there is one and it is not needed
             if row is None:
                 if self.infobox is not None and \
@@ -680,8 +680,8 @@ class SearchView(pluginmgr.View):
                 logger.debug('not found infobox, we make a new one')
                 new_infobox = self.row_meta[selected_type].infobox()
                 self.infobox_cache[selected_type] = new_infobox
-            logger.debug('created or retrieved infobox %s %s'
-                         % (type(new_infobox), new_infobox))
+            logger.debug('created or retrieved infobox %s %s',
+                         type(new_infobox), new_infobox)
 
             # remove any old infoboxes connected to the pane
             if self.infobox is not None and \
@@ -712,7 +712,7 @@ class SearchView(pluginmgr.View):
             set_infobox_from_row(values[0])
         except Exception as e:
             # if an error occurrs, log it and empty infobox.
-            logger.debug('SearchView.update_infobox: %s' % e)
+            logger.debug('SearchView.update_infobox: %s', e)
             logger.debug(traceback.format_exc())
             logger.debug(values)
             set_infobox_from_row(None)

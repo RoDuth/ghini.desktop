@@ -214,33 +214,30 @@ class GeneralGeographyExpander(InfoExpander):
         self.vbox.pack_start(general_box, True, True, 0)
         self.table_cells = []
 
-    def update(self, value):
-        level = ['Continent', 'Region', 'Area', 'Unit'][value.tdwg_level - 1]
-        self.widget_set_value('name_label', value.name)
+    def update(self, row):
+        on_clicked = utils.generate_on_clicked(select_in_search_results)
+        level = ['Continent', 'Region', 'Area', 'Unit'][row.tdwg_level - 1]
+        self.widget_set_value('name_label', row.name)
         self.widget_set_value('tdwg_level', level)
-        self.widget_set_value('tdwg_code', value.tdwg_code)
-        self.widget_set_value('iso_code', value.iso_code)
-        self.widget_set_value('parent', value.parent or '')
-        shape = value.geojson.get('type', '') if value.geojson else ''
+        self.widget_set_value('tdwg_code', row.tdwg_code)
+        self.widget_set_value('iso_code', row.iso_code)
+        self.widget_set_value('parent', row.parent or '')
+        shape = row.geojson.get('type', '') if row.geojson else ''
         self.widget_set_value('geojson_type', shape)
-        if value.parent:
-            utils.make_label_clickable(self.widgets.parent, self.on_clicked,
-                                       value.parent)
+        if row.parent:
+            utils.make_label_clickable(self.widgets.parent, on_clicked,
+                                       row.parent)
         self.widgets.childbox.foreach(self.widgets.childbox.remove)
-        for geo in value.children:
+        for geo in row.children:
             child_lbl = Gtk.Label()
             child_lbl.set_xalign(0)
             child_lbl.set_text(str(geo))
             eventbox = Gtk.EventBox()
             eventbox.add(child_lbl)
             self.widgets.childbox.pack_start(eventbox, True, True, 0)
-            utils.make_label_clickable(child_lbl, self.on_clicked,
+            utils.make_label_clickable(child_lbl, on_clicked,
                                        geo)
         self.widgets.ib_general_grid.show_all()
-
-    @staticmethod
-    def on_clicked(widget, event, obj):
-        select_in_search_results(obj)
 
 
 class GeographyInfoBox(InfoBox):

@@ -695,47 +695,12 @@ class GeneralFamilyExpander(InfoExpander):
         self.widgets.remove_parent(general_box)
         self.vbox.pack_start(general_box, True, True, 0)
 
-        def on_ngen_clicked(*args):
-            f = self.current_obj
-            cmd = 'genus where family.family="%s" and family.qualifier="%s"'\
-                % (f.family, f.qualifier)
-            bauble.gui.send_command(cmd)
-        utils.make_label_clickable(self.widgets.fam_ngen_data,
-                                   on_ngen_clicked)
-
-        def on_nsp_clicked(*args):
-            f = self.current_obj
-            cmd = 'species where genus.family.family="%s" '\
-                'and genus.family.qualifier="%s"' % (f.family, f.qualifier)
-            bauble.gui.send_command(cmd)
-        utils.make_label_clickable(self.widgets.fam_nsp_data,
-                                   on_nsp_clicked)
-
-        def on_nacc_clicked(*args):
-            f = self.current_obj
-            cmd = 'accession where species.genus.family.family="%s" ' \
-                'and species.genus.family.qualifier="%s"' \
-                % (f.family, f.qualifier)
-            bauble.gui.send_command(cmd)
-        utils.make_label_clickable(self.widgets.fam_nacc_data,
-                                   on_nacc_clicked)
-
-        def on_nplants_clicked(*args):
-            f = self.current_obj
-            cmd = 'plant where accession.species.genus.family.family="%s" ' \
-                'and accession.species.genus.family.qualifier="%s"' \
-                % (f.family, f.qualifier)
-            bauble.gui.send_command(cmd)
-        utils.make_label_clickable(self.widgets.fam_nplants_data,
-                                   on_nplants_clicked)
-
     def update(self, row):
         """
         update the expander
 
         :param row: the row to get the values from
         """
-        self.current_obj = row
         self.widget_set_value('fam_name_data', '<big>%s</big>' % row,
                               markup=True)
         session = object_session(row)
@@ -788,6 +753,33 @@ class GeneralFamilyExpander(InfoExpander):
             self.widget_set_value('fam_nplants_data', '%s in %s accessions'
                                   % (nplants, nacc_in_plants))
 
+        on_clicked = utils.generate_on_clicked(bauble.gui.send_command)
+
+        utils.make_label_clickable(
+            self.widgets.fam_ngen_data, on_clicked,
+            f'genus where family.family="{row.family}" and '
+            f'family.qualifier="{row.qualifier}"'
+        )
+
+        utils.make_label_clickable(
+            self.widgets.fam_nsp_data, on_clicked,
+            f'species where genus.family.family="{row.family}" and '
+            f'genus.family.qualifier="{row.qualifier}"'
+        )
+
+        utils.make_label_clickable(
+            self.widgets.fam_nacc_data, on_clicked,
+            f'accession where species.genus.family.family="{row.family}" and '
+            f'species.genus.family.qualifier="{row.qualifier}"'
+        )
+
+        utils.make_label_clickable(
+            self.widgets.fam_nplants_data, on_clicked,
+            f'plant where accession.species.genus.family.family="{row.family}"'
+            f' and accession.species.genus.family.qualifier="{row.qualifier}"'
+        )
+
+
 
 class SynonymsExpander(InfoExpander):
 
@@ -813,9 +805,9 @@ class SynonymsExpander(InfoExpander):
         logger.debug("family %s is synonym of %s and has synonyms %s", row,
                      row.accepted, row.synonyms)
         self.set_label(_("Synonyms"))  # reset default value
+        on_clicked = utils.generate_on_clicked(select_in_search_results)
         if row.accepted is not None:
             self.set_label(_("Accepted name"))
-            on_clicked = utils.generate_on_clicked(select_in_search_results)
             # create clickable label that will select the synonym
             # in the search results
             box = Gtk.EventBox()
@@ -831,7 +823,6 @@ class SynonymsExpander(InfoExpander):
         elif len(row.synonyms) == 0:
             self.set_sensitive(False)
         else:
-            on_clicked = utils.generate_on_clicked(select_in_search_results)
             for syn in row.synonyms:
                 # create clickable label that will select the synonym
                 # in the search results

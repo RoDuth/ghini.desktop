@@ -1246,7 +1246,7 @@ def reset_sequence(column):
 def generate_on_clicked(call):
     """Closure to return a function that will call the provided callable with
     the data provided, ignoring the label and event.  Intended for use with
-    make_label_clickable labels and a callable than only takes one argument.
+    make_label_clickable labels and a callable that only takes one argument.
 
     :param call: a callable that takes one positional argument
     """
@@ -1604,7 +1604,7 @@ class YesNoMessageBox(GenericMessageBox):
         if msg:
             self.label.set_markup(msg)
         self.label.set_xalign(0.1)
-        self.label.set_xalign(0.1)
+        self.label.set_yalign(0.1)
         self.box.pack_start(self.label, True, True, 0)
 
         button_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)

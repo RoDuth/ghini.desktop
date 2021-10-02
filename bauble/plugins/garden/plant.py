@@ -1649,23 +1649,6 @@ class GeneralPlantExpander(InfoExpander):
         self.vbox.pack_start(general_box, True, True, 0)
         self.current_obj = None
 
-        def on_acc_code_clicked(*args):
-            select_in_search_results(self.current_obj.accession)
-
-        utils.make_label_clickable(self.widgets.acc_code_data,
-                                   on_acc_code_clicked)
-
-        def on_species_clicked(*args):
-            select_in_search_results(self.current_obj.accession.species)
-
-        utils.make_label_clickable(self.widgets.name_data, on_species_clicked)
-
-        def on_location_clicked(*args):
-            select_in_search_results(self.current_obj.location)
-
-        utils.make_label_clickable(self.widgets.location_data,
-                                   on_location_clicked)
-
     def update(self, row):
         self.current_obj = row
         acc_code = str(row.accession)
@@ -1699,6 +1682,15 @@ class GeneralPlantExpander(InfoExpander):
             icon = 'media-record'
         self.widgets.memorial_image.set_from_icon_name(icon, image_size)
 
+        on_clicked = utils.generate_on_clicked(select_in_search_results)
+        utils.make_label_clickable(self.widgets.acc_code_data,
+                                   on_clicked, self.current_obj.accession)
+        utils.make_label_clickable(self.widgets.name_data,
+                                   on_clicked,
+                                   self.current_obj.accession.species)
+        utils.make_label_clickable(self.widgets.location_data,
+                                   on_clicked, self.current_obj.location)
+
 
 class ChangesExpander(InfoExpander):
     """
@@ -1721,8 +1713,7 @@ class ChangesExpander(InfoExpander):
         if not row.changes:
             return
 
-        def on_clicked(widget, event, obj):
-            select_in_search_results(obj)
+        on_clicked = utils.generate_on_clicked(select_in_search_results)
 
         frmt = prefs.prefs[prefs.date_format_pref]
         count = 0
@@ -1823,6 +1814,9 @@ class PropagationExpander(InfoExpander):
             return
         frmt = prefs.prefs[prefs.date_format_pref]
         count = 0
+
+        on_clicked = utils.generate_on_clicked(select_in_search_results)
+
         for prop in row.propagations:
 
             date_lbl = Gtk.Label()
@@ -1846,9 +1840,6 @@ class PropagationExpander(InfoExpander):
                     accession_lbl.set_xalign(0.0)
                     accession_lbl.set_yalign(0.0)
                     accession_lbl.set_text(acc.code)
-
-                    def on_clicked(widget, event, obj):
-                        select_in_search_results(obj)
 
                     utils.make_label_clickable(accession_lbl, on_clicked, acc)
                     self.prop_grid.attach(eventbox, 1, count, 2, 1)

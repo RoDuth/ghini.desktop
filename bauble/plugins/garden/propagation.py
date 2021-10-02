@@ -446,7 +446,7 @@ class PropagationTabPresenter(editor.GenericEditorPresenter):
         label = Gtk.Label(label=propagation.get_summary())
         label.props.wrap = True
         label.set_xalign(0)
-        label.set_xalign(0)
+        label.set_yalign(0)
         label.set_padding(0, 2)
         expander.add(label)
 

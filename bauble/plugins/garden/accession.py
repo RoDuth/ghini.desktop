@@ -2827,7 +2827,7 @@ class VouchersExpander(InfoExpander):
             s = '%s %s (parent)' % (voucher.herbarium, voucher.code)
             label = Gtk.Label(label=s)
             label.set_xalign(0)
-            label.set_xalign(0.5)
+            label.set_yalign(0.5)
             self.vbox.pack_start(label, True, True, 0)
             label.show()
 
@@ -2836,7 +2836,7 @@ class VouchersExpander(InfoExpander):
             s = '%s %s' % (voucher.herbarium, voucher.code)
             label = Gtk.Label(label=s)
             label.set_xalign(0)
-            label.set_xalign(0.5)
+            label.set_yalign(0.5)
             self.vbox.pack_start(label, True, True, 0)
             label.show()
 

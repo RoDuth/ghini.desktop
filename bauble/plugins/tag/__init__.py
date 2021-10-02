@@ -757,7 +757,7 @@ class GeneralTagExpander(InfoExpander):
             eventbox = Gtk.EventBox()
             label = Gtk.Label()
             label.set_xalign(0)
-            label.set_xalign(0.5)
+            label.set_yalign(0.5)
             eventbox.add(label)
             grid.attach(eventbox, 1, row_no, 1, 1)
             label.set_text(" %s " % len(obj_ids))
