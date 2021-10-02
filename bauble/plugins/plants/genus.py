@@ -24,7 +24,6 @@
 import os
 import traceback
 import weakref
-import xml
 
 import logging
 logger = logging.getLogger(__name__)
@@ -70,7 +69,6 @@ def edit_callback(genera):
 def add_species_callback(genera):
     session = db.Session()
     genus = session.merge(genera[0])
-    from bauble.plugins.plants.species_editor import edit_species
     result = edit_species(model=Species(genus=genus)) is not None
     session.close()
     return result
@@ -82,7 +80,6 @@ def remove_callback(genera):
     """
     genus = genera[0]
     g_lst = []
-    from bauble.plugins.plants.species_model import Species
     session = object_session(genus)
     for genus in genera:
         g_lst.append(utils.xml_safe(genus))
@@ -94,7 +91,6 @@ def remove_callback(genera):
                    _('You cannot remove a genus with species.'))
             utils.message_dialog(msg, type=Gtk.MessageType.WARNING)
             return False
-    else:
         msg = _("Are you sure you want to remove the following genera "
                 "<i>%s</i>?") % ', '.join(i for i in g_lst)
     if not utils.yes_no_dialog(msg):
@@ -168,8 +164,8 @@ class Genus(db.Base, db.Serializable, db.WithNotes):
     link_keys = ['accepted']
 
     def search_view_markup_pair(self):
-        '''provide the two lines describing object for SearchView row.
-        '''
+        """provide the two lines describing object for SearchView row.
+        """
         citation = self.markup(authors=True)
         authorship_text = utils.xml_safe(self.author)
         if authorship_text:
@@ -180,8 +176,8 @@ class Genus(db.Base, db.Serializable, db.WithNotes):
 
     @property
     def cites(self):
-        '''the cites status of this taxon, or None
-        '''
+        """the cites status of this taxon, or None
+        """
 
         cites_notes = [i.note for i in self.notes
                        if i.category and i.category.upper() == 'CITES']
@@ -191,8 +187,8 @@ class Genus(db.Base, db.Serializable, db.WithNotes):
 
     @property
     def hybrid_epithet(self):
-        '''strip the leading char if it is an hybrid marker
-        '''
+        """strip the leading char if it is an hybrid marker
+        """
         if self.genus[0] in ['x', '×']:
             return self.genus[1:]
         if self.genus[0] in ['+', '➕']:
@@ -220,7 +216,7 @@ class Genus(db.Base, db.Serializable, db.WithNotes):
     author = Column(Unicode(255), default='')
 
     @validates('genus', 'author')
-    def validate_stripping(self, key, value):
+    def validate_stripping(self, _key, value):  # pylint: disable=no-self-use
         if value is None:
             return None
         return value.strip()
@@ -241,7 +237,8 @@ class Genus(db.Base, db.Serializable, db.WithNotes):
     # this is a dummy relation, it is only here to make cascading work
     # correctly and to ensure that all synonyms related to this genus
     # get deleted if this genus gets deleted
-    __syn = relationship('GenusSynonym',
+    __syn = relationship('GenusSynonym',\
+                         # pylint: disable=unused-private-member
                          primaryjoin='Genus.id==GenusSynonym.synonym_id',
                          cascade='all, delete-orphan', uselist=True)
 
@@ -278,17 +275,15 @@ class Genus(db.Base, db.Serializable, db.WithNotes):
 
     @staticmethod
     def str(genus, author=False):
-        # TODO: the genus should be italicized for markup
         if genus.genus is None:
             return ''
-        elif not author or genus.author is None:
+        if not author or genus.author is None:
             return ' '.join([s for s in [genus.genus, genus.qualifier]
                              if s not in ('', None)])
-        else:
-            return ' '.join(
-                [s for s in [genus.genus, genus.qualifier,
-                             xml.sax.saxutils.escape(genus.author)]
-                 if s not in ('', None)])
+        return ' '.join(
+            [s for s in [genus.genus, genus.qualifier,
+                         utils.xml_safe(genus.author)]
+             if s not in ('', None)])
 
     def markup(self, authors=False):
         escape = utils.xml_safe
@@ -304,8 +299,8 @@ class Genus(db.Base, db.Serializable, db.WithNotes):
         return gen
 
     def has_accessions(self):
-        '''true if genus is linked to at least one accession
-        '''
+        """true if genus is linked to at least one accession
+        """
 
         return False
 
@@ -347,9 +342,8 @@ class Genus(db.Base, db.Serializable, db.WithNotes):
 
     @classmethod
     def compute_serializable_fields(cls, session, keys):
-        from .family import Family
         result = {'family': None}
-        ## retrieve family object
+        # retrieve family object
         if keys.get('ht-epithet'):
             result['family'] = Family.retrieve_or_create(
                 session, {'epithet': keys['ht-epithet']},
@@ -368,12 +362,12 @@ class Genus(db.Base, db.Serializable, db.WithNotes):
                 (5, 'Plantings'): len(plants),
                 (6, 'Living plants'): sum(p.quantity for p in plants),
                 (7, 'Locations'): set(p.location.id for p in plants),
-                (8, 'Sources'): set([a.source.source_detail.id
-                                     for a in accessions
-                                     if a.source and a.source.source_detail])}
+                (8, 'Sources'): {a.source.source_detail.id for a in
+                                 accessions if a.source and
+                                 a.source.source_detail}}
 
 
-def compute_serializable_fields(cls, session, keys):
+def compute_serializable_fields(_cls, session, keys):
     result = {'genus': None}
 
     genus_keys = {'epithet': keys['genus']}
@@ -381,6 +375,7 @@ def compute_serializable_fields(cls, session, keys):
         session, genus_keys, create=False)
 
     return result
+
 
 GenusNote = db.make_note_class('Genus', compute_serializable_fields)
 
@@ -461,8 +456,8 @@ class GenusEditorView(editor.GenericEditorView):
 
     @staticmethod
     def syn_cell_data_func(column, renderer, model, iter, data=None):
-        '''
-        '''
+        """
+        """
         v = model[iter][0]
         author = None
         if v.author is None:
@@ -473,17 +468,17 @@ class GenusEditorView(editor.GenericEditorView):
                               % (Genus.str(v), author, Family.str(v.family)))
 
     def save_state(self):
-        '''
+        """
         save the current state of the gui to the preferences
-        '''
+        """
         # for expander, pref in self.expanders_pref_map.iteritems():
         #     prefs[pref] = self.widgets[expander].get_expanded()
         pass
 
     def restore_state(self):
-        '''
+        """
         restore the state of the gui from the preferences
-        '''
+        """
         # for expander, pref in self.expanders_pref_map.iteritems():
         #     expanded = prefs.get(pref, True)
         #     self.widgets[expander].set_expanded(expanded)
@@ -505,10 +500,10 @@ class GenusEditorPresenter(editor.GenericEditorPresenter):
                            'gen_author_entry': 'author'}
 
     def __init__(self, model, view):
-        '''
+        """
         @model: should be an instance of class Genus
         @view: should be an instance of GenusEditorView
-        '''
+        """
         super().__init__(model, view)
         self.create_toolbar()
         self.session = object_session(model)
@@ -625,9 +620,9 @@ class SynonymsPresenter(editor.GenericEditorPresenter):
     PROBLEM_INVALID_SYNONYM = 1
 
     def __init__(self, parent):
-        '''
+        """
         :param parent: GenusEditorPreesnter
-        '''
+        """
         self.parent_ref = weakref.ref(parent)
         super().__init__(self.parent_ref().model, self.parent_ref().view)
         self.session = self.parent_ref().session
@@ -666,9 +661,9 @@ class SynonymsPresenter(editor.GenericEditorPresenter):
         return self._dirty
 
     def init_treeview(self):
-        '''
+        """
         initialize the Gtk.TreeView
-        '''
+        """
         self.treeview = self.view.widgets.gen_syn_treeview
         # remove any columns that were setup previous, this became a
         # problem when we starting reusing the glade files with
@@ -702,8 +697,6 @@ class SynonymsPresenter(editor.GenericEditorPresenter):
                           self.on_tree_cursor_changed)
 
     def on_tree_cursor_changed(self, tree, data=None):
-        '''
-        '''
         path, column = tree.get_cursor()
         self.view.widgets.gen_syn_remove_button.set_sensitive(True)
 
@@ -714,10 +707,10 @@ class SynonymsPresenter(editor.GenericEditorPresenter):
         return
 
     def on_add_button_clicked(self, button, data=None):
-        '''
+        """
         adds the synonym from the synonym entry to the list of synonyms for
             this species
-        '''
+        """
         syn = GenusSynonym(genus=self.model, synonym=self._selected)
         tree_model = self.treeview.get_model()
         tree_model.append([syn])
@@ -731,10 +724,10 @@ class SynonymsPresenter(editor.GenericEditorPresenter):
         self.parent_ref().refresh_sensitivity()
 
     def on_remove_button_clicked(self, button, data=None):
-        '''
+        """
         removes the currently selected synonym from the list of synonyms for
         this species
-        '''
+        """
         # TODO: maybe we should only ask 'are you sure' if the selected value
         # is an instance, this means it will be deleted from the database
         tree = self.view.widgets.gen_syn_treeview
@@ -763,10 +756,10 @@ class GenusEditor(editor.GenericModelViewPresenterEditor):
     ok_responses = (RESPONSE_OK_AND_ADD, RESPONSE_NEXT)
 
     def __init__(self, model=None, parent=None):
-        '''
+        """
         :param model: Genus instance or None
         :param parent: None
-        '''
+        """
         # the view and presenter are created in self.start()
         self.view = None
         self.presenter = None
@@ -788,9 +781,9 @@ class GenusEditor(editor.GenericModelViewPresenterEditor):
             view.widgets.gen_genus_entry.grab_focus()
 
     def handle_response(self, response):
-        '''
+        """
         handle the response from self.presenter.start() in self.start()
-        '''
+        """
         not_ok_msg = _('Are you sure you want to lose your changes?')
         if response == Gtk.ResponseType.OK or response in self.ok_responses:
             try:
@@ -863,14 +856,14 @@ from bauble.plugins.plants.species_model import Species
 
 
 class GeneralGenusExpander(InfoExpander):
-    '''
+    """
     expander to present general information about a genus
-    '''
+    """
 
     def __init__(self, widgets):
-        '''
+        """
         the constructor
-        '''
+        """
         super().__init__(_("General"), widgets)
         general_box = self.widgets.gen_general_box
         self.widgets.remove_parent(general_box)
@@ -908,11 +901,11 @@ class GeneralGenusExpander(InfoExpander):
             self.widgets.gen_nplants_data, on_nplants_clicked)
 
     def update(self, row):
-        '''
+        """
         update the expander
 
         :param row: the row to get the values from
-        '''
+        """
         session = object_session(row)
         self.current_obj = row
         self.widget_set_value('gen_name_data', '<big>%s</big> %s' %
@@ -982,8 +975,8 @@ class SynonymsExpander(InfoExpander):
         syn_box.foreach(syn_box.remove)
         # use True comparison in case the preference isn't set
         self.set_expanded(prefs[self.expanded_pref] is True)
-        logger.debug("genus %s is synonym of %s and has synonyms %s" %
-                     (row, row.accepted, row.synonyms))
+        logger.debug("genus %s is synonym of %s and has synonyms %s", row,
+                     row.accepted, row.synonyms)
         self.set_label(_("Synonyms"))  # reset default value
         if row.accepted is not None:
             self.set_label(_("Accepted name"))
@@ -1020,8 +1013,6 @@ class SynonymsExpander(InfoExpander):
 
 
 class GenusInfoBox(InfoBox):
-    """
-    """
     genus_web_button_defs_prefs = 'web_button_defs.genus'
 
     def __init__(self):

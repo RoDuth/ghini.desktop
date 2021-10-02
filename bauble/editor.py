@@ -34,7 +34,6 @@ import dateutil.parser as date_parser
 from gi.repository import Gtk  # noqa
 from gi.repository import GLib
 from gi.repository import GdkPixbuf
-from gi.repository import GLib
 from gi.repository import Pango
 
 from sqlalchemy.orm import object_mapper, object_session

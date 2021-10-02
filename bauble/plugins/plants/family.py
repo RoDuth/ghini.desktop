@@ -155,8 +155,8 @@ class Family(db.Base, db.Serializable, db.WithNotes):
 
     @property
     def cites(self):
-        '''the cites status of this taxon, or None
-        '''
+        """the cites status of this taxon, or None
+        """
 
         cites_notes = [i.note for i in self.notes
                        if i.category and i.category.upper() == 'CITES']
@@ -229,8 +229,8 @@ class Family(db.Base, db.Serializable, db.WithNotes):
         value.synonyms.append(self)
 
     def has_accessions(self):
-        '''true if family is linked to at least one accession
-        '''
+        """true if family is linked to at least one accession
+        """
 
         return False
 
@@ -398,10 +398,10 @@ class FamilyEditorPresenter(editor.GenericEditorPresenter):
                            'fam_qualifier_combo': 'qualifier'}
 
     def __init__(self, model, view):
-        '''
+        """
         :param model: should be an instance of class Family
         :param view: should be an instance of FamilyEditorView
-        '''
+        """
         super().__init__(model, view)
         self.create_toolbar()
         self.session = object_session(model)
@@ -467,9 +467,9 @@ class SynonymsPresenter(editor.GenericEditorPresenter):
     PROBLEM_INVALID_SYNONYM = 1
 
     def __init__(self, parent):
-        '''
+        """
         :param parent: FamilyEditorPresenter
-        '''
+        """
         self.parent_ref = weakref.ref(parent)
         super().__init__(self.parent_ref().model, self.parent_ref().view)
         self.session = self.parent_ref().session
@@ -503,9 +503,9 @@ class SynonymsPresenter(editor.GenericEditorPresenter):
         return self._dirty
 
     def init_treeview(self):
-        '''
+        """
         initialize the Gtk.TreeView
-        '''
+        """
         self.treeview = self.view.widgets.fam_syn_treeview
         # remove any columns that were setup previous, this became a
         # problem when we starting reusing the glade files with
@@ -535,8 +535,6 @@ class SynonymsPresenter(editor.GenericEditorPresenter):
                           self.on_tree_cursor_changed)
 
     def on_tree_cursor_changed(self, tree, data=None):
-        '''
-        '''
         path, column = tree.get_cursor()
         self.view.widgets.fam_syn_remove_button.set_sensitive(True)
 
@@ -547,10 +545,10 @@ class SynonymsPresenter(editor.GenericEditorPresenter):
         return
 
     def on_add_button_clicked(self, button, data=None):
-        '''
+        """
         adds the synonym from the synonym entry to the list of synonyms for
             this species
-        '''
+        """
         syn = FamilySynonym(family=self.model, synonym=self._selected)
         tree_model = self.treeview.get_model()
         tree_model.append([syn])
@@ -564,10 +562,10 @@ class SynonymsPresenter(editor.GenericEditorPresenter):
         self.parent_ref().refresh_sensitivity()
 
     def on_remove_button_clicked(self, button, data=None):
-        '''
+        """
         removes the currently selected synonym from the list of synonyms for
         this species
-        '''
+        """
         # TODO: maybe we should only ask 'are you sure' if the selected value
         # is an instance, this means it will be deleted from the database
         tree = self.view.widgets.fam_syn_treeview
@@ -596,10 +594,10 @@ class FamilyEditor(editor.GenericModelViewPresenterEditor):
     ok_responses = (RESPONSE_OK_AND_ADD, RESPONSE_NEXT)
 
     def __init__(self, model=None, parent=None):
-        '''
+        """
         :param model: Family instance or None
         :param parent: the parent window or None
-        '''
+        """
         if model is None:
             model = Family()
         super().__init__(model, parent)
@@ -612,11 +610,11 @@ class FamilyEditor(editor.GenericModelViewPresenterEditor):
         self.presenter = FamilyEditorPresenter(self.model, view)
 
     def handle_response(self, response):
-        '''
+        """
         @return: return a list if we want to tell start() to close the editor,
         the list should either be empty or the list of committed values, return
         None if we want to keep editing
-        '''
+        """
         not_ok_msg = 'Are you sure you want to lose your changes?'
         if response == Gtk.ResponseType.OK or response in self.ok_responses:
             try:
@@ -676,16 +674,15 @@ class FamilyEditor(editor.GenericModelViewPresenterEditor):
 #
 from bauble.view import (InfoBox, InfoExpander, PropertiesExpander,
                          select_in_search_results)
-import bauble.paths as paths
-from bauble.plugins.plants.genus import Genus
+from bauble import paths
 from bauble.plugins.plants.species_model import Species
 
 
 class GeneralFamilyExpander(InfoExpander):
-    '''
+    """
     generic information about an family like number of genus, species,
     accessions and plants
-    '''
+    """
 
     def __init__(self, widgets):
         """
@@ -733,11 +730,11 @@ class GeneralFamilyExpander(InfoExpander):
                                    on_nplants_clicked)
 
     def update(self, row):
-        '''
+        """
         update the expander
 
         :param row: the row to get the values from
-        '''
+        """
         self.current_obj = row
         self.widget_set_value('fam_name_data', '<big>%s</big>' % row,
                               markup=True)
@@ -803,18 +800,18 @@ class SynonymsExpander(InfoExpander):
         self.vbox.pack_start(synonyms_box, True, True, 0)
 
     def update(self, row):
-        '''
+        """
         update the expander
 
         :param row: the row to get thevalues from
-        '''
+        """
         syn_box = self.widgets.fam_synonyms_box
         # remove old labels
         syn_box.foreach(syn_box.remove)
         # use True comparison in case the preference isn't set
         self.set_expanded(prefs[self.expanded_pref] is True)
-        logger.debug("family %s is synonym of %s and has synonyms %s" %
-                     (row, row.accepted, row.synonyms))
+        logger.debug("family %s is synonym of %s and has synonyms %s", row,
+                     row.accepted, row.synonyms)
         self.set_label(_("Synonyms"))  # reset default value
         if row.accepted is not None:
             self.set_label(_("Accepted name"))
@@ -851,13 +848,9 @@ class SynonymsExpander(InfoExpander):
 
 
 class FamilyInfoBox(InfoBox):
-    '''
-    '''
     family_web_button_defs_prefs = 'web_button_defs.family'
 
     def __init__(self):
-        '''
-        '''
         button_defaults = [
             {
                 '_base_uri': 'http://www.google.com/search?q=%s',
@@ -980,8 +973,6 @@ class FamilyInfoBox(InfoBox):
             self.widgets.remove_parent('fam_nplants_data')
 
     def update(self, row):
-        '''
-        '''
         self.general.update(row)
         self.synonyms.update(row)
         self.links.update(row)

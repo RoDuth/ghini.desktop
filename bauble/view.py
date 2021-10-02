@@ -135,16 +135,16 @@ class InfoExpander(Gtk.Expander):
             prefs.prefs.save()
 
     def widget_set_value(self, widget_name, value, markup=False, default=None):
-        '''
+        """
         a shorthand for L{bauble.utils.set_widget_value()}
-        '''
+        """
         utils.set_widget_value(self.widgets[widget_name], value,
                                markup, default)
 
-    def update(self, value):
-        '''
+    def update(self, row):
+        """
         This method should be implemented by classes that extend InfoExpander
-        '''
+        """
         raise NotImplementedError("InfoExpander.update(): not implemented")
 
 
@@ -237,11 +237,11 @@ class InfoBoxPage(Gtk.ScrolledWindow):
         self.label = None
 
     def add_expander(self, expander):
-        '''
+        """
         Add an expander to the list of exanders in this infobox
 
         :param expander: the bauble.view.InfoExpander to add to this infobox
-        '''
+        """
         self.vbox.pack_start(expander, expand=False, fill=True, padding=5)
         self.expanders[expander.get_property("label")] = expander
 
@@ -478,7 +478,7 @@ class SearchView(pluginmgr.View):
 
             def set(self, children=None, infobox=None, context_menu=None,
                     markup_func=None):
-                '''
+                """
                 :param children: where to find the children for this type,
                     can be a callable of the form C{children(row)}
 
@@ -492,7 +492,7 @@ class SearchView(pluginmgr.View):
                 the instances __str__() function is called...the
                 strings returned by this function should escape any
                 non markup characters
-                '''
+                """
                 self.children = children
                 self.infobox = infobox
                 self.markup_func = markup_func
@@ -503,12 +503,12 @@ class SearchView(pluginmgr.View):
                         x for x in self.context_menu if isinstance(x, Action)]
 
             def get_children(self, obj):
-                '''
+                """
                 :param obj: get the children from obj according to
                 self.children,
 
                 Returns a list or list-like object.
-                '''
+                """
                 if self.children is None:
                     return []
                 if callable(self.children):
@@ -524,9 +524,9 @@ class SearchView(pluginmgr.View):
     bottom_info = ViewMeta()
 
     def __init__(self):
-        '''
+        """
         the constructor
-        '''
+        """
         logger.debug('SearchView::__init__')
         super().__init__()
         filename = os.path.join(paths.lib_dir(), 'bauble.glade')
@@ -555,13 +555,13 @@ class SearchView(pluginmgr.View):
         self.running_threads = []
 
     def add_notes_page_to_bottom_notebook(self):
-        '''add notebook page for notes
+        """add notebook page for notes
 
         this is a temporary function, will be removed when notes are
         implemented as a plugin. then notes will be added with the
         generic add_page_to_bottom_notebook.
 
-        '''
+        """
         page = self.widgets.notes_scrolledwindow
         # detach it from parent (its container)
         self.widgets.remove_parent(page)
@@ -596,8 +596,8 @@ class SearchView(pluginmgr.View):
             logger.debug('on_note_row_actived %s, %s', type(e), e)
 
     def add_page_to_bottom_notebook(self, bottom_info):
-        '''add notebook page for a plugin class
-        '''
+        """add notebook page for a plugin class
+        """
         glade_name = bottom_info['glade_name']
         bwid = utils.BuilderWidgets(glade_name)
         page = bwid[bottom_info['page_widget']]
@@ -612,8 +612,7 @@ class SearchView(pluginmgr.View):
         bottom_info['label'] = label
 
     def update_bottom_notebook(self):
-        """
-        Update the bottom_notebook from the currently selected row.
+        """Update the bottom_notebook from the currently selected row.
 
         bottom_notebook has one page per type of information. Every page
         is registered by its plugin, which adds an entry to the
@@ -656,13 +655,13 @@ class SearchView(pluginmgr.View):
                                   for k in bottom_info['fields_used']])
 
     def update_infobox(self):
-        '''
+        """
         Sets the infobox according to the currently selected row.
         no infobox is shown if nothing is selected
-        '''
+        """
 
         def set_infobox_from_row(row):
-            '''implement the logic for update_infobox'''
+            """implement the logic for update_infobox"""
 
             logger.debug('set_infobox_from_row: %s --  %s' % (row, repr(row)))
             # remove the current infobox if there is one and it is not needed
@@ -719,9 +718,9 @@ class SearchView(pluginmgr.View):
             set_infobox_from_row(None)
 
     def get_selected_values(self):
-        '''
+        """
         Return the values in all the selected rows.
-        '''
+        """
         model, rows = self.results_view.get_selection().get_selected_rows()
         if model is None or rows is None:
             return None
@@ -886,10 +885,10 @@ class SearchView(pluginmgr.View):
             model.remove(child)
 
     def on_test_expand_row(self, view, treeiter, path, data=None):
-        '''
+        """
         Look up the table type of the selected row and if it has
         any children then add them to the row
-        '''
+        """
         model = view.get_model()
         row = model.get_value(treeiter, 0)
         view.collapse_row(path)
@@ -1070,9 +1069,9 @@ class SearchView(pluginmgr.View):
                 raise
 
     def get_expanded_rows(self):
-        '''
+        """
         return all the rows in the model that are expanded
-        '''
+        """
         expanded_rows = []
         expand = lambda view, path: \
             expanded_rows.append(Gtk.TreeRowReference(view.get_model(), path))
@@ -1083,13 +1082,13 @@ class SearchView(pluginmgr.View):
         return expanded_rows
 
     def expand_to_all_refs(self, references):
-        '''
+        """
         :param references: a list of TreeRowReferences to expand to
 
         Note: This method calls get_path() on each
         Gtk.TreeRowReference in <references> which apparently
         invalidates the reference.
-        '''
+        """
         for ref in references:
             if ref.valid():
                 self.results_view.expand_to_path(ref.get_path())
@@ -1193,17 +1192,17 @@ class SearchView(pluginmgr.View):
         self.results_view.set_cursor(path)
 
     def on_view_row_activated(self, view, path, column, data=None):
-        '''
+        """
         expand the row on activation
-        '''
+        """
         logger.debug("SearchView::on_view_row_activated %s %s %s %s"
                      % (view, path, column, data))
         view.expand_row(path, False)
 
     def create_gui(self):
-        '''
+        """
         create the interface
-        '''
+        """
         logger.debug('SearchView::create_gui')
         # create the results view and info box
         self.results_view = self.widgets.results_treeview
@@ -1294,8 +1293,8 @@ class Note:
 
     @classmethod
     def attached_to(cls, obj):
-        '''return the list of notes connected to obj
-        '''
+        """return the list of notes connected to obj
+        """
 
         try:
             return obj.notes

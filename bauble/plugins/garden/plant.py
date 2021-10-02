@@ -59,8 +59,8 @@ from bauble.search import SearchStrategy
 from bauble import btypes as types
 from bauble import utils
 from bauble.view import (InfoBox, InfoExpander, PropertiesExpander,
-                         select_in_search_results, Action)
-from bauble import view
+                         LinksExpander, select_in_search_results, Action)
+from bauble.plugins.garden.accession import Accession
 
 # TODO: might be worthwhile to have a label or textview next to the
 # location combo that shows the description of the currently selected
@@ -80,7 +80,7 @@ def branch_callback(plants):
         msg = _("Not enough plants to split.  A plant should have at least "
                 "a quantity of 2 before it can be divided")
         utils.message_dialog(msg, Gtk.MessageType.WARNING)
-        return
+        return None
 
     e = PlantEditor(model=plants[0], branch_mode=True)
     return e.start() is not None
@@ -151,18 +151,17 @@ def get_next_code(acc):
     """
     # auto generate/increment the accession code
     session = db.Session()
-    from bauble.plugins.garden import Accession
     codes = session.query(Plant.code).join(Accession).filter(
         Accession.id == acc.id).all()
-    next = 1
+    nxt = 1
     if codes:
         try:
-            next = max([int(code[0]) for code in codes]) + 1
-        except Exception as e:
+            nxt = max([int(code[0]) for code in codes]) + 1
+        except Exception as e:  # pylint: disable=broad-except
             logger.debug("can't get next plant code %s(%s)",
                          type(e).__name__, e)
             return None
-    return str(next)
+    return str(nxt)
 
 
 def is_code_unique(plant, code):
@@ -183,7 +182,6 @@ def is_code_unique(plant, code):
     # setting the accession on the model doesn't set the
     # accession_id until the session is flushed
     session = db.Session()
-    from bauble.plugins.garden import Accession
     count = session.query(Plant).join('accession').filter(
         and_(Accession.id == plant.accession.id,
              Plant.code.in_(codes))).count()
@@ -289,37 +287,41 @@ def as_dict(self):
                        Plant.get_delimiter() + self.plant.code)
     return result
 
+
 def retrieve(cls, session, keys):
-    q = session.query(cls)
+    query = session.query(cls)
     if 'plant' in keys:
         acc_code, plant_code = keys['plant'].rsplit(
             Plant.get_delimiter(), 1)
-        q = q.join(
-            Plant).filter(Plant.code == str(plant_code)).join(
-            Accession).filter(Accession.code == str(acc_code))
+        query = (query.join(Plant)
+                 .filter(Plant.code == str(plant_code))
+                 .join(Accession)
+                 .filter(Accession.code == str(acc_code)))
     if 'date' in keys:
-        q = q.filter(cls.date == keys['date'])
+        query = query.filter(cls.date == keys['date'])
     if 'category' in keys:
-        q = q.filter(cls.category == keys['category'])
+        query = query.filter(cls.category == keys['category'])
     try:
-        return q.one()
-    except Exception as e:
+        return query.one()
+    except Exception as e:  # pylint: disable=broad-except
         logger.debug('cant retrieve %s with %s: %s:%s', cls, keys,
                      type(e).__name__, e)
         session.rollback()
         return None
 
-def compute_serializable_fields(cls, session, keys):
+
+def compute_serializable_fields(_cls, session, keys):
     'plant is given as text, should be object'
     result = {'plant': None}
 
     acc_code, plant_code = keys['plant'].rsplit(
         Plant.get_delimiter(), 1)
-    logger.debug("acc-plant: %s-%s" % (acc_code, plant_code))
-    q = session.query(Plant).filter(
-        Plant.code == str(plant_code)).join(
-        Accession).filter(Accession.code == str(acc_code))
-    plant = q.one()
+    logger.debug("acc-plant: %s-%s", acc_code, plant_code)
+    query = (session.query(Plant)
+             .filter(Plant.code == str(plant_code))
+             .join(Accession)
+             .filter(Accession.code == str(acc_code)))
+    plant = query.one()
 
     result['plant'] = plant
 
@@ -379,8 +381,6 @@ split_reasons = {k: v for k, v in change_reasons.items() if k in split_reasons}
 
 
 class PlantChange(db.Base):
-    """
-    """
     __tablename__ = 'plant_change'
 
     plant_id = Column(Integer, ForeignKey('plant.id'), nullable=False)
@@ -490,7 +490,7 @@ class PlantStatus(db.Base):
                             translations=sex_values))
 
     # TODO: needs container table
-    #container_id = Column(Integer)
+    # container_id = Column(Integer)
 
 
 acc_type_values = {'Plant': _('Plant'),
@@ -552,7 +552,7 @@ class Plant(db.Base, db.Serializable, db.DefiningPictures, db.WithNotes):
     code = Column(Unicode(6), nullable=False)
 
     @validates('code')
-    def validate_stripping(self, key, value):
+    def validate_stripping(self, _key, value):  # pylint: disable=no-self-use
         if value is None:
             return None
         return value.strip()
@@ -608,22 +608,22 @@ class Plant(db.Base, db.Serializable, db.DefiningPictures, db.WithNotes):
     _delimiter = None
 
     def search_view_markup_pair(self):
-        '''provide the two lines describing object for SearchView row.
-        '''
+        """provide the two lines describing object for SearchView row.
+        """
         import inspect
-        logger.debug('entering search_view_markup_pair %s, %s' % (
-            self, str(inspect.stack()[1])))
+        logger.debug('entering search_view_markup_pair %s, %s', self,
+                     str(inspect.stack()[1]))
         sp_str = self.accession.species_str(markup=True)
         dead_color = "#9900ff"
         if self.quantity <= 0:
-            dead_markup = '<span foreground="%s">%s</span>' % \
-                (dead_color, utils.xml_safe(self))
+            dead_markup = '<span foreground="%s">%s</span>' % (
+                dead_color, utils.xml_safe(self))
             return dead_markup, sp_str
-        else:
-            located_counted = ('%s <span foreground="#555555" size="small" '
-                               'weight="light">- %s alive in %s</span>') % (
-                utils.xml_safe(self), self.quantity, utils.xml_safe(self.location))
-            return located_counted, sp_str
+        located_counted = ('%s <span foreground="#555555" size="small" '
+                           'weight="light">- %s alive in %s</span>') % (
+                               utils.xml_safe(self), self.quantity,
+                               utils.xml_safe(self.location))
+        return located_counted, sp_str
 
     @classmethod
     def get_delimiter(cls, refresh=False):
@@ -719,7 +719,7 @@ class Plant(db.Base, db.Serializable, db.DefiningPictures, db.WithNotes):
             return None
 
     def top_level_count(self):
-        sd = self.accession.source and self.accession.source.source_detail
+        source = self.accession.source and self.accession.source.source_detail
         return {(1, 'Plantings'): 1,
                 (2, 'Accessions'): set([self.accession.id]),
                 (3, 'Species'): set([self.accession.species.id]),
@@ -727,7 +727,7 @@ class Plant(db.Base, db.Serializable, db.DefiningPictures, db.WithNotes):
                 (5, 'Families'): set([self.accession.species.genus.family.id]),
                 (6, 'Living plants'): self.quantity,
                 (7, 'Locations'): set([self.location.id]),
-                (8, 'Sources'): set(sd and [sd.id] or []),
+                (8, 'Sources'): set(source and [source.id] or []),
                 }
 
 
@@ -850,9 +850,6 @@ def plant_after_insert(_mapper, connection, target):
         ))
 
 
-from bauble.plugins.garden.accession import Accession
-
-
 class PlantEditorView(GenericEditorView):
 
     _tooltips = {
@@ -890,7 +887,7 @@ class PlantEditorView(GenericEditorView):
         self.widgets.pad_ok_button.set_sensitive(False)
         self.widgets.pad_next_button.set_sensitive(False)
 
-        def acc_cell_data_func(column, renderer, model, treeiter, data=None):
+        def acc_cell_data_func(_column, renderer, model, treeiter):
             v = model[treeiter][0]
             # when cancelling an insert sometimes the session gets lost and can
             # result in a long cycle of DetachedInstanceErrors. So check first
@@ -930,10 +927,10 @@ class PlantEditorPresenter(GenericEditorPresenter):
     PROBLEM_INVALID_QUANTITY = str(random())
 
     def __init__(self, model, view, branch_mode=False):
-        '''
+        """
         :param model: should be an instance of Plant class
         :param view: should be an instance of PlantEditorView
-        '''
+        """
         super().__init__(model, view)
         self.create_toolbar()
         self.session = object_session(model)
@@ -1064,10 +1061,12 @@ class PlantEditorPresenter(GenericEditorPresenter):
                     'In practice, it is not any more part of the collection.\n'
                     'Are you sure you want to edit it anyway?')
             box = None
-            def on_response(button, response):
+
+            def on_response(_button, response):
                 self.view.remove_box(box)
                 if response:
                     self.view.widgets.notebook.set_sensitive(True)
+
             box = self.view.add_message_box(utils.MESSAGE_BOX_YESNO)
             box.message = msg
             box.on_response = on_response
@@ -1249,12 +1248,12 @@ class PlantEditorPresenter(GenericEditorPresenter):
         # add a problem if the code is not unique but not if it's the
         # same accession and plant code that we started with when the
         # editor was opened
-        if self.model.code is not None and not \
-                is_code_unique(self.model, self.model.code) and not \
+        if (self.model.code is not None and not
+                is_code_unique(self.model, self.model.code) and not
                 (self._original_accession_id == self.model.accession.id and
-                 self.model.code == self._original_code):
+                 self.model.code == self._original_code)):
 
-                self.add_problem(self.PROBLEM_DUPLICATE_PLANT_CODE, entry)
+            self.add_problem(self.PROBLEM_DUPLICATE_PLANT_CODE, entry)
         else:
             # remove_problem() won't complain if problem doesn't exist
             self.remove_problem(self.PROBLEM_DUPLICATE_PLANT_CODE, entry)
@@ -1283,22 +1282,22 @@ class PlantEditorPresenter(GenericEditorPresenter):
         # self.view.widgets.plant_loc_edit_button.\
         #     set_sensitive(self.model.location is not None \
         #                       and not self.has_problems(combo_entry))
-        sensitive = (self.model.accession is not None and
-                     self.model.code is not None and
-                     self.model.location is not None and
-                     self.model.quantity is not None) \
-            and self.is_dirty() and len(self.problems) == 0
+        sensitive = ((self.model.accession is not None and
+                      self.model.code is not None and
+                      self.model.location is not None and
+                      self.model.quantity is not None) and
+                     self.is_dirty() and len(self.problems) == 0)
         self.view.widgets.pad_ok_button.set_sensitive(sensitive)
         self.view.widgets.pad_next_button.set_sensitive(sensitive)
         self.view.widgets.split_planting_button.set_visible(False)
 
-    def set_model_attr(self, field, value, validator=None):
-        logger.debug('set_model_attr(%s, %s)' % (field, value))
-        super().set_model_attr(field, value, validator)
+    def set_model_attr(self, attr, value, validator=None):
+        logger.debug('set_model_attr(%s, %s)', attr, value)
+        super().set_model_attr(attr, value, validator)
         self._dirty = True
         self.refresh_sensitivity()
 
-    def on_loc_button_clicked(self, button, cmd=None):
+    def on_loc_button_clicked(self, _button, cmd=None):
         location = self.model.location
         combo = self.view.widgets.plant_loc_comboentry
         if cmd == 'edit' and location:
@@ -1399,22 +1398,23 @@ def move_quantity_between_plants(from_plant, to_plant, to_plant_change=None):
 
 
 class PlantEditor(GenericModelViewPresenterEditor):
+    # pylint: disable=protected-access
 
     # these have to correspond to the response values in the view
     RESPONSE_NEXT = 22
     ok_responses = (RESPONSE_NEXT,)
 
     def __init__(self, model=None, parent=None, branch_mode=False):
-        '''
+        """
         :param model: Plant instance or None
         :param parent: None
         :param branch_mode:
-        '''
+        """
         if branch_mode:
             if model is None:
                 raise CheckConditionError("branch_mode requires a model")
-            elif object_session(model) and model in object_session(model).new:
-                raise CheckConditionError(_("cannot split a new plant"))
+            if object_session(model) and model in object_session(model).new:
+                raise CheckConditionError("cannot split a new plant")
 
         if model is None:
             model = Plant()
@@ -1458,8 +1458,6 @@ class PlantEditor(GenericModelViewPresenterEditor):
                                      to_plant_change=self.presenter.change)
 
     def commit_changes(self):
-        """
-        """
         codes = utils.range_builder(self.model.code)
         if len(codes) <= 1 or self.model not in self.session.new \
                 and not self.branched_plant:
@@ -1551,7 +1549,8 @@ class PlantEditor(GenericModelViewPresenterEditor):
                 exc = traceback.format_exc()
                 logger.debug(exc)
                 msg = _('Error committing changes.\n\n%s') % e.orig
-                utils.message_details_dialog(msg, str(e), Gtk.MessageType.ERROR)
+                utils.message_details_dialog(msg, str(e),
+                                             Gtk.MessageType.ERROR)
                 self.session.rollback()
                 return False
             except Exception as e:
@@ -1588,7 +1587,6 @@ class PlantEditor(GenericModelViewPresenterEditor):
         return True
 
     def start(self):
-        from bauble.plugins.garden.accession import Accession
         sub_editor = None
         if self.session.query(Accession).count() == 0:
             msg = ('You must first add or import at least one Accession into '
@@ -1645,8 +1643,6 @@ class GeneralPlantExpander(InfoExpander):
     """
 
     def __init__(self, widgets):
-        '''
-        '''
         super().__init__(_("General"), widgets)
         general_box = self.widgets.general_box
         self.widgets.remove_parent(general_box)
@@ -1671,8 +1667,6 @@ class GeneralPlantExpander(InfoExpander):
                                    on_location_clicked)
 
     def update(self, row):
-        '''
-        '''
         self.current_obj = row
         acc_code = str(row.accession)
         plant_code = str(row)
@@ -1712,8 +1706,6 @@ class ChangesExpander(InfoExpander):
     """
 
     def __init__(self, widgets):
-        """
-        """
         super().__init__(_('Changes'), widgets)
         self.add_change_grid()
 
@@ -1815,8 +1807,6 @@ class PropagationExpander(InfoExpander):
     """
 
     def __init__(self, widgets):
-        """
-        """
         super().__init__(_('Propagations'), widgets)
         self.add_prop_grid()
 
@@ -1883,8 +1873,6 @@ class PlantInfoBox(InfoBox):
     """
 
     def __init__(self):
-        '''
-        '''
         super().__init__()
         filename = os.path.join(paths.lib_dir(), "plugins", "garden",
                                 "plant_infobox.glade")
@@ -1898,32 +1886,29 @@ class PlantInfoBox(InfoBox):
         self.propagations = PropagationExpander(self.widgets)
         self.add_expander(self.propagations)
 
-        self.links = view.LinksExpander('notes')
+        self.links = LinksExpander('notes')
         self.add_expander(self.links)
 
         self.props = PropertiesExpander()
         self.add_expander(self.props)
 
     def update(self, row):
-        '''
-        '''
-        # TODO: don't really need a location expander, could just
-        # use a label in the general section
-        #loc = self.get_expander("Location")
-        #loc.update(row.location)
         self.general.update(row)
         self.transfers.update(row)
         self.propagations.update(row)
 
-        urls = [x for x in [utils.get_urls(note.note) for note in row.notes] if x != []]
+        urls = [x for x in [utils.get_urls(note.note) for note in row.notes] if
+                x != []]
         if not urls:
             self.links.set_visible(False)
             self.links.set_no_show_all(True)
+            # pylint: disable=no-member,protected-access
             self.links._sep.set_visible(False)
             self.links._sep.set_no_show_all(True)
         else:
             self.links.set_visible(True)
             self.links.set_no_show_all(False)
+            # pylint: disable=no-member,protected-access
             self.links._sep.set_visible(True)
             self.links._sep.set_no_show_all(False)
             self.links.update(row)
