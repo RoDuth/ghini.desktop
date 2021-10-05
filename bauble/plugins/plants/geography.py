@@ -275,16 +275,16 @@ def geography_importer():
 
     session = db.Session()
 
-    with open(lvl1_file, 'r') as f:
+    with open(lvl1_file, 'r', encoding='utf-8', newline='') as f:
         geojson_lvl1 = json.load(f)
 
-    with open(lvl2_file, 'r') as f:
+    with open(lvl2_file, 'r', encoding='utf-8', newline='') as f:
         geojson_lvl2 = json.load(f)
 
-    with open(lvl3_file, 'r') as f:
+    with open(lvl3_file, 'r', encoding='utf-8', newline='') as f:
         geojson_lvl3 = json.load(f)
 
-    with open(lvl4_file, 'r') as f:
+    with open(lvl4_file, 'r', encoding='utf-8', newline='') as f:
         geojson_lvl4 = json.load(f)
 
     total_items = (len(geojson_lvl1.get('features')) +

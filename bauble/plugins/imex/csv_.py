@@ -1,7 +1,7 @@
 # Copyright 2008-2010 Brett Adams
 # Copyright 2012-2015 Mario Frasca <mario@anche.no>.
 # Copyright 2017 Jardín Botánico de Quito
-# Copyright 2018 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright 2018-2021 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -57,27 +57,14 @@ from bauble import pb_set_fraction
 # TODO: don't ask if we want to drop empty tables
 # https://bugs.launchpad.net/bauble/+bug/103923
 
-# TODO: allow the user set the unicode encoding on import, exports should
-# always us UTF-8, import, exports should always use UTF-8, need to figure
-# out how to extend the file open dialog,
-# http://evanjones.ca/python-utf8.html
-# import codecs
-# fileObj = codecs.open( "someFile", "r", "utf-8" )
-# u = fileObj.read() # Returns a Unicode string from the UTF-8 bytes in
-# the file
-
-# TODO: what happens when you export from one database type and try
-# and import into a different database, e.g. postgres->sqlite
-
 QUOTE_STYLE = csv.QUOTE_MINIMAL
 QUOTE_CHAR = '"'
 
 
-class UnicodeReader(object):
+class UnicodeReader:
 
-    def __init__(self, f, dialect=csv.excel, encoding="utf-8", **kwds):
-        self.reader = csv.DictReader(f, dialect=dialect, **kwds)
-        self.encoding = encoding
+    def __init__(self, f, dialect=csv.excel, **kwargs):
+        self.reader = csv.DictReader(f, dialect=dialect, **kwargs)
 
     def __next__(self):
         row = next(self.reader)
@@ -86,7 +73,7 @@ class UnicodeReader(object):
             if v == '':
                 t[k] = None
             else:
-                t[k] = utils.to_unicode(v, self.encoding)
+                t[k] = utils.utf8(v)
 
         return t
 
@@ -97,10 +84,10 @@ class UnicodeReader(object):
 # TODO: UnicodeWriter needs to be more thoroughly  tested, i came across a
 # small problem once when creating a temporary geography table from
 # _toposort_file and it exported the numbers in some strange format
-class UnicodeWriter(object):
+class UnicodeWriter:
 
-    def __init__(self, f, dialect=csv.excel, encoding="utf-8", **kwds):
-        self.writer = csv.writer(f, dialect=dialect, **kwds)
+    def __init__(self, f, dialect=csv.excel, encoding="utf-8", **kwargs):
+        self.writer = csv.writer(f, dialect=dialect, **kwargs)
         self.encoding = encoding
 
     def writerow(self, row):
@@ -229,6 +216,11 @@ class CSVImporter(Importer):
 
             with open(file, 'r') as f:
                 num_lines = len(f.readlines())
+
+            if num_lines <= 1:
+                logger.debug('%s contains no table data skip translation',
+                             file)
+                continue
 
             os.rename(file, original)
             with open(original, 'r') as old, open(file, 'w') as new:
@@ -544,17 +536,22 @@ class CSVImporter(Importer):
 
                 # do nothing more for empty tables
                 if filesizes[filename] <= 1:
+                    logger.debug('%s contains no table data skipping import',
+                                 filename)
                     continue
 
                 # open a temporary reader to get the column keys so we
                 # can later precompile our insert statement
                 f = open(filename, 'r', encoding='utf-8', newline='')
+                logger.debug('%s open', filename)
                 tmp = UnicodeReader(f, quotechar=QUOTE_CHAR,
                                     quoting=QUOTE_STYLE)
                 next(tmp)
                 csv_columns = set(tmp.reader.fieldnames)
+                logger.debug('%s columns = %s', filename, csv_columns)
                 del tmp
                 f.close()
+                logger.debug('%s closed', filename)
 
                 # precompute the defaults...this assumes that the
                 # default function doesn't depend on state after each
@@ -565,14 +562,18 @@ class CSVImporter(Importer):
                     if isinstance(column.default, ColumnDefault):
                         defaults[column.name] = column.default.execute()
 
-                # check if there are any foreign keys to on the table
-                # that refer to itself, if so create a new file with
-                # the lines sorted in order of dependency so that we
-                # don't get errors about importing values into a
-                # foreign_key that don't reference and existin row
-                self_keys = [f for f in table.foreign_keys if f.column.table == table]
+                logger.debug('column defaults: %s', defaults)
+                # check if there are any foreign keys on the table that refer
+                # to itself, if so create a new file with the lines sorted in
+                # order of dependency so that we don't get errors about
+                # importing values into a foreign_key that don't reference an
+                # existing row
+                self_keys = [f for f in table.foreign_keys if
+                             f.column.table == table]
                 if self_keys:
-                    key_pairs = [(x.parent.name, x.column.name) for x in self_keys]
+                    logger.debug('%s requires toposort')
+                    key_pairs = [
+                        (x.parent.name, x.column.name) for x in self_keys]
                     filename = self._toposort_file(filename, key_pairs)
 
                 # the column keys for the insert are a union of the
@@ -585,34 +586,39 @@ class CSVImporter(Importer):
                 values = []
 
                 def do_insert():
+                    logger.debug('do_insert')
                     if values:
+                        logger.debug('executing inserting')
                         connection.execute(insert, *values)
                     del values[:]
-                    percent = float(steps_so_far)/float(total_lines)
+                    percent = float(steps_so_far) / float(total_lines)
                     if 0 < percent < 1.0:
                         pb_set_fraction(percent)
-
-                isempty = lambda v: v in ('', None)
 
                 f = open(filename, 'r', encoding='utf-8', newline='')
                 reader = UnicodeReader(f, quotechar=QUOTE_CHAR,
                                        quoting=QUOTE_STYLE)
+                logger.debug('%s open', filename)
                 # NOTE: we shouldn't get this far if the file doesn't
                 # have any rows to import but if so there is a chance
                 # that this loop could cause problems
                 for line in reader:
                     while self.__pause:
+                        logger.debug('__pause')
                         yield
                     if self.__cancel or self.__error:
+                        logger.debug('breaking: __cancel=%s, __error=%s', self.__cancel,
+                                     self.__error)
                         break
 
                     # fill in default values and None for "empty"
                     # columns in line
                     for column in list(table.c.keys()):
-                        if (column in defaults and (column not in line or
-                                                    isempty(line[column]))):
+                        if (column in defaults and
+                                (column not in line or
+                                 line[column] in ('', None))):
                             line[column] = defaults[column]
-                        elif column in line and isempty(line[column]):
+                        elif column in line and line[column] in ('', None):
                             line[column] = None
                         elif column not in line:
                             line[column] = None
@@ -634,6 +640,8 @@ class CSVImporter(Importer):
                         yield
 
                 if self.__error or self.__cancel:
+                    logger.debug('breaking: __cancel=%s, __error=%s',
+                                 self.__cancel, self.__error)
                     break
 
                 # insert the remainder that were less than update every
