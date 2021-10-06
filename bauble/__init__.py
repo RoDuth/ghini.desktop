@@ -43,7 +43,7 @@ installation_date = datetime.now()
 import bauble.i18n
 
 logger = logging.getLogger(__name__)
-consoleLevel = logging.INFO
+consoleLevel = logging.WARNING
 
 
 def warn_with_traceback(message, category, filename, lineno, file=None,
