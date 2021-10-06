@@ -80,6 +80,11 @@ class LabelUpdater(Thread):
 
     def run(self):
         ssn = db.Session()
+        # can on occassion raise:
+        # Error in thread...
+        # SystemError: Objects/tupleobject.c:159: bad argument to internal
+        # function
+        # possibly related to?: https://bugs.python.org/issue15108
         value, = ssn.execute(self.query).first()
         GLib.idle_add(self.widget.set_text, str(value))
         ssn.close()
