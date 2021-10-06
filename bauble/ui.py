@@ -752,25 +752,24 @@ class GUI():
             if obj != []:
                 logger.warning('%s leaked: %s', view_cls.__name__, obj)
 
-    # pylint: disable=unused-argument
-    def on_edit_menu_cut(self, _widget, data=None):
+    def on_edit_menu_cut(self, _widget):
         self.widgets.main_comboentry.get_child().cut_clipboard()
 
-    def on_edit_menu_copy(self, _widget, data=None):
+    def on_edit_menu_copy(self, _widget):
         self.widgets.main_comboentry.get_child().copy_clipboard()
 
-    def on_edit_menu_paste(self, _widget, data=None):
+    def on_edit_menu_paste(self, _widget):
         self.widgets.main_comboentry.get_child().paste_clipboard()
 
     @staticmethod
-    def on_edit_menu_preferences(_widget, data=None):
+    def on_edit_menu_preferences(_widget):
         bauble.command_handler('prefs', None)
 
     @staticmethod
-    def on_edit_menu_history(_widget, data=None):
+    def on_edit_menu_history(_widget):
         bauble.command_handler('history', None)
 
-    def on_file_menu_new(self, widget, data=None):
+    def on_file_menu_new(self, _widget):
         msg = _("<b>CAUTION! This will wipe all data for the current "
                 "connection</b>\n\n"
                 "If a database already exists at this connection then "
@@ -796,7 +795,7 @@ class GUI():
             return
         bauble.command_handler('home', None)
 
-    def on_file_menu_open(self, widget, data=None):
+    def on_file_menu_open(self, _widget):
         """
         Open the connection manager.
         """
@@ -925,7 +924,7 @@ class GUI():
             task.kill()
         return False
 
-    def on_resize(self, widget, data):
+    def on_resize(self, _widget, _data):
         rect = self.window.get_size()
         prefs[self.window_geometry_pref] = rect.width, rect.height
 

@@ -332,8 +332,7 @@ class ShapefileImportSettingsBox(Gtk.ScrolledWindow):
         return True
 
     @staticmethod
-    def on_prop_button_press_event(widget, event, menu):  \
-            # pylint: disable=unused-argument
+    def on_prop_button_press_event(_widget, event, menu):
         menu.popup(None, None, None, None, event.button, event.time)
 
     def _get_prop_button(self, field, chk_button):
@@ -345,8 +344,7 @@ class ShapefileImportSettingsBox(Gtk.ScrolledWindow):
         prop_button = Gtk.Button()
         prop_button.props.use_underline = False
 
-        # pylint: disable=unused-argument
-        def menu_activated(widget, path, prop):
+        def menu_activated(_widget, path, _prop):
             """
             Closure used to set the field_map and button label.
             """
@@ -869,7 +867,7 @@ class ShapefileImportDialogPresenter(GenericEditorPresenter):
         # accept buttons
         self.view.set_accept_buttons_sensitive(sensitive)
 
-    def on_btnbrowse_clicked(self, widget):  # pylint: disable=unused-argument
+    def on_btnbrowse_clicked(self, _widget):
         self.view.run_file_chooser_dialog(
             _("Select a shapefile"),
             None,
@@ -925,7 +923,7 @@ class ShapefileImportDialogPresenter(GenericEditorPresenter):
         settings_box.show_all()
         return False
 
-    def on_settings_activate(self, widget):  # pylint: disable=unused-argument
+    def on_settings_activate(self, _widget):
         logger.debug('settings expander toggled')
         self.view.get_window().resize(1, 1)
 
@@ -956,8 +954,7 @@ class ShapefileImportDialogPresenter(GenericEditorPresenter):
             self.view.set_button_label('projection_button', 'Add?')
         self.refresh_sensitivity()
 
-    def on_projection_btn_clicked(self, widget): \
-            # noqa pylint: disable=unused-argument
+    def on_projection_btn_clicked(self, _widget):
         if self.model.projection and self.prj_string:
             logger.debug('proj btn clicked proj_text = %s, match = %s',
                          self.proj_text, self.proj_db_match)

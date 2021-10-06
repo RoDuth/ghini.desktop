@@ -796,8 +796,7 @@ def format_combo_entry_text(combo, path):
     return str(detail)
 
 
-def default_cell_data_func(column, cell, model, treeiter, data=None): \
-        # pylint: disable=unused-argument
+def default_cell_data_func(_column, cell, model, treeiter, data=None):
     """generic cell_data_func.
 
     :param data: a callable, provided to the func_data parameter of the
@@ -808,7 +807,7 @@ def default_cell_data_func(column, cell, model, treeiter, data=None): \
     cell.props.text = data(obj)
 
 
-def setup_text_combobox(combo, values=[], cell_data_func=None):
+def setup_text_combobox(combo, values=None, cell_data_func=None):
     """
     Configure a Gtk.ComboBox as a text combobox
 
@@ -821,6 +820,7 @@ def setup_text_combobox(combo, values=[], cell_data_func=None):
     :param values: list vales or Gtk.ListStore
     :param cell_data_func:
     """
+    values = values or []
     if isinstance(values, Gtk.ListStore):
         model = values
     else:
@@ -861,18 +861,16 @@ def setup_text_combobox(combo, values=[], cell_data_func=None):
         combo.connect('format-entry-text', format_combo_entry_text)
 
 
-def today_str(format=None):
+def today_str(fmat=None):
     """
     Return a string for of today's date according to format.
 
-    If format=None then the format uses the prefs.date_format_pref
+    If fmat=None then the format uses the prefs.date_format_pref
     """
     from bauble import prefs
-    if not format:
-        format = prefs.prefs[prefs.date_format_pref]
-    import datetime
+    fmat = fmat or prefs.prefs.get(prefs.date_format_pref)
     today = datetime.date.today()
-    return today.strftime(format)
+    return today.strftime(fmat)
 
 
 def setup_date_button(view, entry, button, date_func=None):
@@ -912,7 +910,7 @@ def setup_date_button(view, entry, button, date_func=None):
         button.connect('clicked', on_clicked)
 
 
-def to_unicode(obj, encoding='utf-8'):
+def to_unicode(obj):
     """
     Return obj converted to unicode.  If obj is already a unicode
     object it will not try to decode it to converted it to <encoding>
@@ -931,7 +929,7 @@ def utf8(obj):
     """
     # Deprecated?
     # logger.debug('utf8 called by %s', inspect.stack()[1])
-    return to_unicode(obj, 'utf-8')
+    return to_unicode(obj)
 
 
 def xml_safe(obj):

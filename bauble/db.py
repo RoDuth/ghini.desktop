@@ -45,7 +45,7 @@ except ImportError:
             'http://www.sqlalchemy.org')
     raise
 
-from sqlalchemy import orm, event
+from sqlalchemy import event
 from sqlalchemy.orm import class_mapper
 from sqlalchemy.ext.declarative import declarative_base, DeclarativeMeta
 # sqla >1.4 i think will be:
@@ -115,7 +115,6 @@ class MapperBase(DeclarativeMeta):
                                           types.DateTime(timezone=True),
                                           default=sa.func.now(),
                                           onupdate=sa.func.now())
-            # cls.__mapper_args__ = {'extension': HistoryExtension()}
         if 'top_level_count' not in dict_:
             cls.top_level_count = lambda x: {classname: 1}
         if 'search_view_markup_pair' not in dict_:
@@ -255,7 +254,7 @@ def open(uri, verify=True, show_error_dialogs=False):
     """
 
     # ** WARNING: this can print your passwd
-    logger.debug('db.open(%s)' % uri)
+    logger.debug('db.open(%s)', uri)
     from sqlalchemy.orm import sessionmaker, scoped_session
     global engine
     new_engine = None
@@ -479,7 +478,8 @@ def verify_connection(engine, show_error_dialogs=False):
     return True
 
 
-def make_note_class(name, compute_serializable_fields, as_dict=None, retrieve=None):
+def make_note_class(name, compute_serializable_fields, as_dict=None,
+                    retrieve=None):
     class_name = name + 'Note'
     table_name = name.lower() + '_note'
 
@@ -489,8 +489,7 @@ def make_note_class(name, compute_serializable_fields, as_dict=None, retrieve=No
     def is_empty(self):
         return not self.user and not self.category and not self.note
 
-    def retrieve_or_create(cls, session, keys,
-                           create=True, update=True):
+    def retrieve_or_create(cls, session, keys, create=True, update=True):
         """return database object corresponding to keys
         """
         category = keys.get('category', '')
@@ -510,16 +509,16 @@ def make_note_class(name, compute_serializable_fields, as_dict=None, retrieve=No
         return result
 
     def retrieve_default(cls, session, keys):
-        q = session.query(cls)
+        qry = session.query(cls)
         if name.lower() in keys:
-            q = q.join(globals()[name]).filter(
+            qry = qry.join(globals()[name]).filter(
                 globals()[name].code == keys[name.lower()])
         if 'date' in keys:
-            q = q.filter(cls.date == keys['date'])
+            qry = qry.filter(cls.date == keys['date'])
         if 'category' in keys:
-            q = q.filter(cls.category == keys['category'])
+            qry = qry.filter(cls.category == keys['category'])
         try:
-            return q.one()
+            return qry.one()
         except:
             return None
 
@@ -540,15 +539,23 @@ def make_note_class(name, compute_serializable_fields, as_dict=None, retrieve=No
                                      default=utils.get_user_display_name()),
                    'category': sa.Column(sa.Unicode(32)),
                    'note': sa.Column(sa.UnicodeText, nullable=False),
-                   name.lower() + '_id': sa.Column(sa.Integer, sa.ForeignKey(name.lower() + '.id'), nullable=False),
-                   name.lower(): sa.orm.relation(name, uselist=False, backref=sa.orm.backref(
-                       'notes', cascade='all, delete-orphan')),
+                   name.lower() + '_id': sa.Column(
+                       sa.Integer,
+                       sa.ForeignKey(name.lower() + '.id'),
+                       nullable=False),
+                   name.lower(): sa.orm.relation(
+                       name,
+                       uselist=False,
+                       backref=sa.orm.backref('notes',
+                                              cascade='all, delete-orphan')),
                    'retrieve': classmethod(retrieve),
                    'retrieve_or_create': classmethod(retrieve_or_create),
-                   'compute_serializable_fields': classmethod(compute_serializable_fields),
+                   'compute_serializable_fields':
+                   classmethod(compute_serializable_fields),
                    'is_defined': is_defined,
                    'as_dict': as_dict,
-                  })
+                   }
+                  )
     return result
 
 
@@ -572,8 +579,7 @@ class WithNotes:
                 pass
             elif note.category == ('[%s]' % name):
                 result.append(note.note)
-            elif (note.category.startswith('{%s:' % name)
-                  and
+            elif (note.category.startswith('{%s:' % name) and
                   note.category.endswith('}')):
                 is_dict = True
                 match = self.key_pattern.match(note.category)
@@ -764,8 +770,8 @@ class Serializable:
 
 
 def construct_from_dict(session, obj, create=True, update=True):
-    ## get class and remove reference
-    logger.debug("construct_from_dict %s" % obj)
+    # get class and remove reference
+    logger.debug("construct_from_dict %s", obj)
     klass = None
     if 'object' in obj:
         klass = class_of_object(obj['object'])
@@ -775,11 +781,11 @@ def construct_from_dict(session, obj, create=True, update=True):
     return klass.retrieve_or_create(session, obj, create=create, update=update)
 
 
-def class_of_object(o):
-    """what class implements object o
+def class_of_object(obj):
+    """what class implements object obj
     """
 
-    name = ''.join(p.capitalize() for p in o.split('_'))
+    name = ''.join(p.capitalize() for p in obj.split('_'))
     cls = globals().get(name)
     if cls is None:
         from bauble import pluginmgr
@@ -811,11 +817,10 @@ def get_or_create(session, model, **kwargs):
     instance = session.query(model).filter_by(**kwargs).first()
     if instance:
         return instance
-    else:
-        instance = model(**kwargs)
-        session.add(instance)
-        session.flush()
-        return instance
+    instance = model(**kwargs)
+    session.add(instance)
+    session.flush()
+    return instance
 
 
 def get_create_or_update(session, model, **kwargs):
@@ -959,5 +964,6 @@ class current_user_functor:
                     os.getenv('LOGNAME') or os.getenv('LNAME'))
 
         return user
+
 
 current_user = current_user_functor()

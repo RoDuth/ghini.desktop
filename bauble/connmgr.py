@@ -679,7 +679,7 @@ class ConnMgrPresenter(GenericEditorPresenter):
             return False, _("Please choose a name for this connection")
         valid = True
         msg = None
-        ## first check connection parameters, then pictures path
+        # first check connection parameters, then pictures path
         if params['type'] == 'SQLite':
             filename = make_absolute(params['file'])
             if not os.path.exists(filename):

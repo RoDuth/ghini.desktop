@@ -41,7 +41,7 @@ from bauble import editor
 from bauble.plugins.plants.geography import Geography, GeographyMenu
 from bauble import utils
 from bauble import btypes as types
-from bauble import view
+from bauble.view import Action, InfoExpander, InfoBox
 from bauble import paths
 from bauble import prefs
 
@@ -61,16 +61,18 @@ def collection_remove_callback(coll):
     from bauble.plugins.garden.accession import remove_callback
     return remove_callback([coll[0].source.accession])
 
-collection_edit_action = view.Action('collection_edit', _('_Edit'),
-                                     callback=collection_edit_callback,
-                                     accelerator='<ctrl>e')
-collection_add_plant_action = \
-    view.Action('collection_add', _('_Add plants'),
-                callback=collection_add_plants_callback,
-                accelerator='<ctrl>k')
-collection_remove_action = view.Action('collection_remove', _('_Delete'),
-                                       callback=collection_remove_callback,
-                                       accelerator='<ctrl>Delete')
+
+collection_edit_action = Action('collection_edit', _('_Edit'),
+                                callback=collection_edit_callback,
+                                accelerator='<ctrl>e')
+
+collection_add_plant_action = Action('collection_add', _('_Add plants'),
+                                     callback=collection_add_plants_callback,
+                                     accelerator='<ctrl>k')
+
+collection_remove_action = Action('collection_remove', _('_Delete'),
+                                  callback=collection_remove_callback,
+                                  accelerator='<ctrl>Delete')
 
 collection_context_menu = [collection_edit_action, collection_add_plant_action,
                            collection_remove_action]
@@ -224,8 +226,8 @@ class Collection(db.Base):
     source_id = Column(Integer, ForeignKey('source.id'), unique=True)
 
     def search_view_markup_pair(self):
-        '''provide the two lines describing object for SearchView row.
-        '''
+        """provide the two lines describing object for SearchView row.
+        """
         acc = self.source.accession
         safe = utils.xml_safe
         return (
@@ -273,6 +275,7 @@ class CollectionPresenter(editor.ChildPresenter):
         self.parent_ref = weakref.ref(parent)
         self.session = session
         self.refresh_view()
+        self.geo_menu = None
 
         self.assign_simple_handler('collector_entry', 'collector',
                                    editor.UnicodeOrNoneValidator())
@@ -292,11 +295,12 @@ class CollectionPresenter(editor.ChildPresenter):
                                    editor.UnicodeOrNoneValidator())
         # the list of completions are added in AccessionEditorView.__init__
 
-        def on_match(completion, model, iter, data=None):
-            value = model[iter][0]
+        def on_match(completion, model, itr, _data):
+            value = model[itr][0]
             validator = editor.UnicodeOrNoneValidator()
             self.set_model_attr('gps_data', value, validator)
             completion.get_entry().set_text(value)
+
         completion = self.view.widgets.datum_entry.get_completion()
         self.view.connect(completion, 'match-selected', on_match)
         self.assign_simple_handler('datum_entry', 'gps_datum',
@@ -313,18 +317,17 @@ class CollectionPresenter(editor.ChildPresenter):
 
         # don't need to connection to south/west since they are in the same
         # groups as north/east
-        self.north_toggle_signal_id = \
-            self.view.connect('north_radio', 'toggled',
-                              self.on_north_south_radio_toggled)
-        self.east_toggle_signal_id = \
-            self.view.connect('east_radio', 'toggled',
-                              self.on_east_west_radio_toggled)
+        self.north_toggle_signal_id = self.view.connect(
+            'north_radio', 'toggled', self.on_north_south_radio_toggled)
+        self.east_toggle_signal_id = self.view.connect(
+            'east_radio', 'toggled', self.on_east_west_radio_toggled)
 
         self.view.widgets.add_region_button.set_sensitive(False)
 
-        def on_add_button_pressed(button, event):
+        def on_add_button_pressed(_widget, event):
             self.geo_menu.popup(None, None, None, None, event.button,
                                 event.time)
+
         self.view.connect('add_region_button', 'button-press-event',
                           on_add_button_pressed)
 
@@ -333,34 +336,34 @@ class CollectionPresenter(editor.ChildPresenter):
             self.geo_menu = GeographyMenu(self.set_region)
             self.geo_menu.attach_to_widget(add_button, None)
             add_button.set_sensitive(True)
+
         GLib.idle_add(_init_geo)
 
         self._dirty = False
 
-    def set_region(self, menu_item, geo_id):
+    def set_region(self, _menu_item, geo_id):
         geography = self.session.query(Geography).get(geo_id)
         self.set_model_attr('region', geography)
         self.set_model_attr('geography_id', geo_id)
         self.view.widgets.add_region_button.props.label = str(geography)
 
-    def set_model_attr(self, field, value, validator=None):
+    def set_model_attr(self, attr, value, validator=None):
+        """Validates the fields when a attr changes.
         """
-        Validates the fields when a field changes.
-        """
-        super().set_model_attr(field, value, validator)
+        super().set_model_attr(attr, value, validator)
         self._dirty = True
         if self.model.locale is None or self.model.locale in ('', ''):
             self.add_problem(self.PROBLEM_INVALID_LOCALE, 'locale_entry')
         else:
             self.remove_problem(self.PROBLEM_INVALID_LOCALE, 'locale_entry')
 
-        if field in ('longitude', 'latitude'):
+        if attr in ('longitude', 'latitude'):
             sensitive = self.model.latitude is not None \
                 and self.model.longitude is not None
             self.view.widgets.geoacc_entry.set_sensitive(sensitive)
             self.view.widgets.datum_entry.set_sensitive(sensitive)
 
-        if field == 'elevation':
+        if attr == 'elevation':
             sensitive = self.model.elevation is not None
             self.view.widgets.altacc_entry.set_sensitive(sensitive)
 
@@ -377,7 +380,7 @@ class CollectionPresenter(editor.ChildPresenter):
             longitude_to_dms
         for widget, field in self.widget_to_field_map.items():
             value = getattr(self.model, field)
-            logger.debug('%s, %s, %s' % (widget, field, value))
+            logger.debug('%s, %s, %s', widget, field, value)
             if value is not None and field == 'date':
                 value = '%s/%s/%s' % (value.day, value.month,
                                       '%04d' % value.year)
@@ -414,20 +417,19 @@ class CollectionPresenter(editor.ChildPresenter):
             self.view.widgets.geoacc_entry.set_sensitive(False)
             self.view.widgets.datum_entry.set_sensitive(False)
 
-    def on_date_entry_changed(self, entry, data=None):
+    def on_date_entry_changed(self, entry, _data):
         from bauble.editor import ValidatorError
         value = None
-        PROBLEM = 'INVALID_DATE'
         try:
             value = editor.DateValidator().to_python(entry.props.text)
         except ValidatorError as e:
-            logger.debug("%s(%s)" % (type(e).__name__, e))
-            self.parent_ref().add_problem(PROBLEM, entry)
+            logger.debug("%s(%s)", type(e).__name__, e)
+            self.parent_ref().add_problem(self.PROBLEM_INVALID_DATE, entry)
         else:
-            self.parent_ref().remove_problem(PROBLEM, entry)
+            self.parent_ref().remove_problem(self.PROBLEM_INVALID_DATE, entry)
         self.set_model_attr('date', value)
 
-    def on_east_west_radio_toggled(self, button, data=None):
+    def on_east_west_radio_toggled(self, _widget, _data):
         direction = self._get_lon_direction()
         entry = self.view.widgets.lon_entry
         lon_text = entry.get_text()
@@ -439,7 +441,7 @@ class CollectionPresenter(editor.ChildPresenter):
             # integer before toggling
             int(lon_text.split(' ')[0])
         except Exception as e:
-            logger.warning("east-west %s(%s)" % (type(e), e))
+            logger.warning("east-west %s(%s)", type(e), e)
             return
 
         if direction == 'W' and lon_text[0] != '-':
@@ -447,7 +449,7 @@ class CollectionPresenter(editor.ChildPresenter):
         elif direction == 'E' and lon_text[0] == '-':
             entry.set_text(lon_text[1:])
 
-    def on_north_south_radio_toggled(self, button, data=None):
+    def on_north_south_radio_toggled(self, _widget, _data):
         direction = self._get_lat_direction()
         entry = self.view.widgets.lat_entry
         lat_text = entry.get_text()
@@ -459,7 +461,7 @@ class CollectionPresenter(editor.ChildPresenter):
             # integer before toggling
             int(lat_text.split(' ')[0])
         except Exception as e:
-            logger.debug("%s(%s)" % (type(e).__name__, e))
+            logger.debug("%s(%s)", type(e).__name__, e)
             return
 
         if direction == 'S' and lat_text[0] != '-':
@@ -469,9 +471,8 @@ class CollectionPresenter(editor.ChildPresenter):
 
     @staticmethod
     def _parse_lat_lon(direction, text):
-        """
-        Parse a latitude or longitude in a variety of formats and
-        return a degress decimal
+        """Parse a latitude or longitude in a variety of formats and return a
+        degress decimal
         """
 
         import re
@@ -494,29 +495,26 @@ class CollectionPresenter(editor.ChildPresenter):
         return dec
 
     def _get_lat_direction(self):
-        '''
-        return N or S from the radio
-        '''
+        """return N or S from the radio
+        """
         if self.view.widgets.north_radio.get_active():
             return 'N'
-        elif self.view.widgets.south_radio.get_active():
+        if self.view.widgets.south_radio.get_active():
             return 'S'
         raise ValueError(_('North/South radio buttons in a confused state'))
 
     def _get_lon_direction(self):
-        '''
-        return E or W from the radio
-        '''
+        """return E or W from the radio
+        """
         if self.view.widgets.east_radio.get_active():
             return 'E'
-        elif self.view.widgets.west_radio.get_active():
+        if self.view.widgets.west_radio.get_active():
             return 'W'
         raise ValueError(_('East/West radio buttons in a confused state'))
 
-    def on_lat_entry_changed(self, entry, date=None):
-        '''
-        set the latitude value from text
-        '''
+    def on_lat_entry_changed(self, entry, _data):
+        """set the latitude value from text
+        """
         from bauble.plugins.garden.accession import latitude_to_dms
         text = entry.get_text()
         latitude = None
@@ -532,7 +530,6 @@ class CollectionPresenter(editor.ChildPresenter):
                 north_radio.handler_unblock(self.north_toggle_signal_id)
                 direction = self._get_lat_direction()
                 latitude = CollectionPresenter._parse_lat_lon(direction, text)
-                #u"\N{DEGREE SIGN}"
                 dms_string = '%s %s\u00B0%s\'%s"' % latitude_to_dms(latitude)
         except Exception:
             logger.debug(traceback.format_exc())
@@ -548,7 +545,7 @@ class CollectionPresenter(editor.ChildPresenter):
         else:
             self.set_model_attr('latitude', utils.utf8(latitude))
 
-    def on_lon_entry_changed(self, entry, data=None):
+    def on_lon_entry_changed(self, entry, _data):
         from bauble.plugins.garden.accession import longitude_to_dms
         text = entry.get_text()
         longitude = None
@@ -603,10 +600,10 @@ class PropagationChooserPresenter(editor.ChildPresenter):
         self.refresh_view()
 
         cell = self.view.widgets.prop_toggle_cell
-        self.view.widgets.prop_toggle_column.\
-            set_cell_data_func(cell, self.toggle_cell_data_func)
+        self.view.widgets.prop_toggle_column.set_cell_data_func(
+            cell, self.toggle_cell_data_func)
 
-        def on_toggled(cell, path, data=None):
+        def on_toggled(cell, path):
             if cell.get_sensitive() is False:
                 return
             prop = None
@@ -645,8 +642,7 @@ class PropagationChooserPresenter(editor.ChildPresenter):
             func_data=lambda obj: str(obj.plant or '')
         )
 
-        def sp_cell_data_func(column, cell, model, treeiter, data=None): \
-                # pylint: disable=unused-argument
+        def sp_cell_data_func(column, cell, model, treeiter, _data):
             obj = model[treeiter][0]
             cell.props.markup = (
                 obj.plant.accession.species_str(markup=True) or '')
@@ -794,8 +790,7 @@ class PropagationChooserPresenter(editor.ChildPresenter):
         treeview.set_model(model)
         treeview.props.sensitive = True
 
-    def toggle_cell_data_func(self, column, cell, model, treeiter, data=None):\
-            # pylint: disable=unused-argument,too-many-arguments
+    def toggle_cell_data_func(self, column, cell, model, treeiter, _data):
         propagation = model[treeiter][0]
         active = self.model.plant_propagation == propagation
         cell.set_active(active)
@@ -850,13 +845,14 @@ def source_detail_remove_callback(details):
     return True
 
 
-source_detail_edit_action = view.Action('source_detail_edit', _('_Edit'),
-                                        callback=source_detail_edit_callback,
-                                        accelerator='<ctrl>e')
-source_detail_remove_action = \
-    view.Action('source_detail_remove', _('_Delete'),
-                callback=source_detail_remove_callback,
-                accelerator='<ctrl>Delete', multiselect=True)
+source_detail_edit_action = Action('source_detail_edit', _('_Edit'),
+                                   callback=source_detail_edit_callback,
+                                   accelerator='<ctrl>e')
+
+source_detail_remove_action = Action('source_detail_remove', _('_Delete'),
+                                     callback=source_detail_remove_callback,
+                                     accelerator='<ctrl>Delete',
+                                     multiselect=True)
 
 source_detail_context_menu = [source_detail_edit_action,
                               source_detail_remove_action]
@@ -878,8 +874,8 @@ class Contact(db.Base, db.Serializable):
         return str(self.name)
 
     def search_view_markup_pair(self):
-        '''provide the two lines describing object for SearchView row.
-        '''
+        """provide the two lines describing object for SearchView row.
+        """
         safe = utils.xml_safe
         return (
             safe(self.name),
@@ -912,11 +908,10 @@ class ContactPresenter(editor.GenericEditorPresenter):
         return self.on_textbuffer_changed(widget, value, attr='description')
 
 
-class GeneralSourceDetailExpander(view.InfoExpander):
-    '''
-    Displays name, number of donations, address, email, fax, tel,
-    type of contact
-    '''
+class GeneralSourceDetailExpander(InfoExpander):
+    """Displays name, number of donations, address, email, fax, tel, type of
+    contact
+    """
     def __init__(self, widgets):
         super().__init__(_('General'), widgets)
         gen_box = self.widgets.sd_gen_box
@@ -924,8 +919,6 @@ class GeneralSourceDetailExpander(view.InfoExpander):
         self.vbox.pack_start(gen_box, True, True, 0)
 
     def update(self, row):
-        #from textwrap import TextWrapper
-        #wrapper = TextWrapper(width=50, subsequent_indent='  ')
         self.widget_set_value('sd_name_data', '<big>%s</big>' %
                               utils.xml_safe(row.name), markup=True)
         source_type = ''
@@ -945,7 +938,7 @@ class GeneralSourceDetailExpander(view.InfoExpander):
         self.widget_set_value('sd_nacc_data', nacc)
 
 
-class ContactInfoBox(view.InfoBox):
+class ContactInfoBox(InfoBox):
 
     def __init__(self):
         super().__init__()

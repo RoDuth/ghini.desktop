@@ -105,8 +105,7 @@ class Action(Gtk.Action):
 
 
 class InfoExpander(Gtk.Expander):
-    """
-    an abstract class that is really just a generic expander with a vbox
+    """An abstract class that is really just a generic expander with a vbox
     to extend this you just have to implement the update() method
     """
 
@@ -256,8 +255,7 @@ class InfoBoxPage(Gtk.ScrolledWindow):
         """
         if label in self.expanders:
             return self.expanders[label]
-        else:
-            return None
+        return None
 
     def remove_expander(self, label):
         """
@@ -269,6 +267,7 @@ class InfoBoxPage(Gtk.ScrolledWindow):
         """
         if label in self.expanders:
             return self.vbox.remove(self.expanders[label])
+        return None
 
     def update(self, row):
         """
@@ -421,18 +420,18 @@ class CountResultsTask(threading.Thread):
     def run(self):
         session = db.Session()
         klass = self.klass
-        d = {}
+        dct = {}
         for ndx in self.ids:
             item = session.query(klass).filter(klass.id == ndx).one()
             if self.__cancel:  # check whether caller asks to cancel
                 break
             for k, v in list(item.top_level_count().items()):
                 if isinstance(v, set):
-                    d[k] = v.union(d.get(k, set()))
+                    dct[k] = v.union(dct.get(k, set()))
                 else:
-                    d[k] = v + d.get(k, 0)
+                    dct[k] = v + dct.get(k, 0)
         result = []
-        for k, v in sorted(d.items()):
+        for k, v in sorted(dct.items()):
             if isinstance(k, tuple):
                 k = k[1]
             if isinstance(v, set):
@@ -452,15 +451,15 @@ class CountResultsTask(threading.Thread):
                 GLib.idle_add(callback, value)
         else:
             logger.debug("showing text %s", value)
-        ## we should not leave the session around
+        # we should not leave the session around
         session.close()
 
 
 class SearchView(pluginmgr.View):
-    """
-    The SearchView is the main view for Ghini.  It manages the search
-    results returned when search strings are entered into the main
-    text entry.
+    """The SearchView is the main view for Ghini.
+
+    Manages the search results returned when search strings are entered into
+    the main text entry.
     """
 
     class ViewMeta(dict):
@@ -577,7 +576,7 @@ class SearchView(pluginmgr.View):
         self.widgets.notes_treeview.connect("row-activated",
                                             self.on_note_row_activated)
 
-    def on_note_row_activated(self, tree, path, column):
+    def on_note_row_activated(self, tree, path, _column):
         try:
             # retrieve the selected row from the results view (we know it's
             # one), and we only need it's domain name
@@ -666,8 +665,8 @@ class SearchView(pluginmgr.View):
             logger.debug('set_infobox_from_row: %s --  %s', row, repr(row))
             # remove the current infobox if there is one and it is not needed
             if row is None:
-                if self.infobox is not None and \
-                        self.infobox.get_parent() == self.pane:
+                if (self.infobox is not None and
+                        self.infobox.get_parent() == self.pane):
                     self.pane.remove(self.infobox)
                 return
 
@@ -684,8 +683,8 @@ class SearchView(pluginmgr.View):
                          type(new_infobox), new_infobox)
 
             # remove any old infoboxes connected to the pane
-            if self.infobox is not None and \
-                    type(self.infobox) is not type(new_infobox):
+            if (self.infobox is not None and type(self.infobox) is not
+                    type(new_infobox)):
                 if self.infobox.get_parent() == self.pane:
                     self.pane.remove(self.infobox)
 

@@ -1509,15 +1509,6 @@ class AccessionQualifiedTaxon(GardenTestCase):
 
 class AccessionTests(GardenTestCase):
 
-    def __init__(self, *args):
-        super().__init__(*args)
-
-    def setUp(self):
-        super().setUp()
-
-    def tearDown(self):
-        super().tearDown()
-
     def test_delete(self):
         """
         Test that when an accession is deleted any orphaned rows are
@@ -1549,16 +1540,16 @@ class AccessionTests(GardenTestCase):
         self.assertRaises(IntegrityError, self.session.commit)
 
     def test_accession_source_editor(self):
-        ## create an accession, a location, a plant
+        # create an accession, a location, a plant
         parent = self.create(Accession, species=self.species, code='parent',
                              quantity_recvd=1)
         plant = self.create(Plant, accession=parent, quantity=1,
                             location=Location(name='site', code='STE'),
                             code='1')
-        ## create a propagation without a related seed/cutting
+        # create a propagation without a related seed/cutting
         prop = self.create(Propagation, prop_type='Seed')
         plant.propagations.append(prop)
-        ## commit all the above to the database
+        # commit all the above to the database
         self.session.commit()
         self.assertTrue(prop.id > 0)  # we got a valid id after the commit
         plant_prop_id = prop.id

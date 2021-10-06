@@ -36,7 +36,6 @@ from gi.repository import Gtk  # noqa
 
 from sqlalchemy import ColumnDefault, func, select
 
-from bauble.btypes import Boolean
 import bauble
 from bauble import db
 from bauble.error import BaubleError
@@ -111,19 +110,17 @@ class UnicodeWriter:
             self.writerow(row)
 
 
-class Importer(object):
+class Importer:
 
     def start(self, **kwargs):
-        '''
-        start the import process, this is a non blocking method, queue the
+        """start the import process, this is a non blocking method, queue the
         process as a bauble task
-        '''
+        """
         return bauble.task.queue(self.run, **kwargs)
 
     def run(self, **kwargs):
-        '''
-        where all the action happens
-        '''
+        """where all the action happens
+        """
         raise NotImplementedError
 
 
@@ -142,7 +139,6 @@ class CSVImporter(Importer):
     for each row.  This shouldn't be a problem but it also means that your
     column default should change depending on the value of previously
     inserted rows.
-
     """
 
     def __init__(self):
@@ -154,11 +150,12 @@ class CSVImporter(Importer):
         self.__error_exc = False
 
     def start(self, filenames=None, metadata=None, force=False):
-        '''start the import process. this is a non blocking method: we queue
-        the process as a bauble task. there is no callback informing whether
-        it is successfully completed or not.
+        """start the import process.
 
-        '''
+        this is a non blocking method: we queue the process as a bauble task.
+        there is no callback informing whether it is successfully completed or
+        not.
+        """
         if metadata is None:
             metadata = db.metadata  # use the default metadata
 
@@ -362,15 +359,15 @@ class CSVImporter(Importer):
         return filename
 
     def run(self, filenames, metadata, force=False):
-        '''
-        A generator method for importing filenames into the database.
+        """A generator method for importing filenames into the database.
+
         This method periodically yields control so that the GUI can
         update.
 
         :param filenames:
         :param metadata:
         :param force: default=False
-        '''
+        """
         transaction = None
         connection = None
         self.__error_exc = BaubleError(_('Unknown Error.'))
@@ -721,7 +718,7 @@ class CSVImporter(Importer):
 
 # TODO: add support for exporting only specific tables
 
-class CSVExporter(object):
+class CSVExporter:
 
     def start(self, path=None):
         if path is None:
@@ -829,10 +826,7 @@ class CSVExportCommandHandler(pluginmgr.CommandHandler):
         exporter.start(arg)
 
 
-#
-# plugin classes
-#
-
+# pylint: disable=too-few-public-methods
 class CSVImportTool(pluginmgr.Tool):
     category = _('Backup')
     label = _('Restore')
@@ -843,14 +837,12 @@ class CSVImportTool(pluginmgr.Tool):
         Start the CSV importer.  This tool will also reinitialize the
         plugins after importing.
         """
-        msg = _('It is possible that importing data into this database could '
-                'destroy or corrupt your existing data.\n\n<i>Would you '
-                'like to continue?</i>')
-        if utils.yes_no_dialog(msg):
-            c = CSVImporter()
-            c.start()
+        msg = _('Importing data into this database will destroy or corrupt '
+                'any existing data.\n\n<i>Would you like to continue?</i>')
+        if utils.yes_no_dialog(msg, yes_delay=2):
+            csv_im = CSVImporter()
+            csv_im.start()
             bauble.command_handler('home', None)
-
 
 
 class CSVExportTool(pluginmgr.Tool):
@@ -859,5 +851,5 @@ class CSVExportTool(pluginmgr.Tool):
 
     @classmethod
     def start(cls):
-        c = CSVExporter()
-        c.start()
+        csv_ex = CSVExporter()
+        csv_ex.start()

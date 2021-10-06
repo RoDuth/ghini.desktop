@@ -274,7 +274,7 @@ class ShapefileExportSettingsBox(Gtk.ScrolledWindow):
         dialog.show_all()
         return dialog
 
-    def on_gen_button_clicked(self, widget):  # pylint: disable=unused-argument
+    def on_gen_button_clicked(self, _widget):
         dialog = self.generated_points_settings_dialog()
         response = dialog.run()
         dialog.destroy()
@@ -375,7 +375,7 @@ class ShapefileExportSettingsBox(Gtk.ScrolledWindow):
         del self.fields[row]
         self.resize_func()
 
-    def on_add_button_clicked(self, widget):  # pylint: disable=unused-argument
+    def on_add_button_clicked(self, _widget):
         # add extra field
         self.fields.append([None, None, None, None])
         # should reorder rather than rebuild
@@ -396,17 +396,14 @@ class ShapefileExportSettingsBox(Gtk.ScrolledWindow):
         return True
 
     @staticmethod
-    def on_prop_button_press_event(widget, event, menu):  \
-            # pylint: disable=unused-argument
+    def on_prop_button_press_event(_widget, event, menu):
         menu.popup(None, None, None, None, event.button, event.time)
 
     def _add_prop_button(self, db_field, row):
         prop_button = Gtk.Button(hexpand=True, use_underline=False)
 
-        def menu_activated(widget, path, prop):  \
-                # pylint: disable=unused-argument
-            """
-            Closure of sorts, used to set the field_map and button label.
+        def menu_activated(_widget, path, _prop):
+            """Closure of sorts, used to set the field_map and button label.
             """
             attached_row = self.grid.child_get_property(prop_button,
                                                         'top_attach')
@@ -530,7 +527,7 @@ class ShapefileExportDialogPresenter(GenericEditorPresenter):
         self.settings_boxes = []
         self.refresh_view()
 
-    def on_btnbrowse_clicked(self, widget):  # pylint: disable=unused-argument
+    def on_btnbrowse_clicked(self, _widget):
         self.view.run_file_chooser_dialog(
             _("Select a shapefile"),
             None,
@@ -590,8 +587,7 @@ class ShapefileExportDialogPresenter(GenericEditorPresenter):
         notebook.show_all()
         return False
 
-    def on_notebook_switch(self, widget, *args):\
-            # pylint: disable=unused-argument
+    def on_notebook_switch(self, _widget, _page, _page_num):
         self.view.get_window().resize(1, 1)
 
     def reset_win_size(self):
@@ -606,8 +602,7 @@ class ShapefileExportDialogPresenter(GenericEditorPresenter):
         self.view.get_window().resize(1, 1)
         return False
 
-    def on_settings_activate(self, widget):  \
-            # noqa # pylint: disable=unused-argument
+    def on_settings_activate(self, _widget):
         logger.debug('settings expander toggled')
         self._settings_expander()
         self.view.get_window().resize(1, 1)

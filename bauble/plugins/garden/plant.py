@@ -647,8 +647,9 @@ class Plant(db.Base, db.Serializable, db.DefiningPictures, db.WithNotes):
         return "%s%s%s" % (self.accession, self.delimiter, self.code)
 
     def duplicate(self, code=None, session=None):
-        """Return a Plant that is a flat (not deep) duplicate of self. For notes,
-        changes and propagations, you should refer to the original plant.
+        """Return a Plant that is a flat (not deep) duplicate of self. For
+        notes, changes and propagations, you should refer to the original
+        plant.
 
         :param code: the new plants code
         :param session: the session to add the duplicate to.
@@ -820,7 +821,7 @@ def plant_after_update(_mapper, connection, target):  \
         else:
             logger.debug("creating new change with %s", values)
             connection.execute(
-                PlantChange.__table__.insert().values(values))  # noqa pylint: disable=no-member
+                PlantChange.__table__.insert().values(values))
 
 
 @event.listens_for(Plant, 'after_insert')
@@ -841,7 +842,7 @@ def plant_after_insert(_mapper, connection, target):
             return
 
     logger.debug("new plant adding a change")
-    plant_changes_table = PlantChange.__table__   # noqa pylint: disable=no-member
+    plant_changes_table = PlantChange.__table__
     connection.execute(
         plant_changes_table.insert().values(
             plant_id=target.id,
@@ -1090,8 +1091,7 @@ class PlantEditorPresenter(GenericEditorPresenter):
 
         changes_treeview = self.view.widgets.plant_changes_treeview
 
-        def on_date_cell_edited(cell, path, new_text):  \
-                # pylint: disable=unused-argument
+        def on_date_cell_edited(_cell, path, new_text):
             treemodel = changes_treeview.get_model()
             obj = treemodel[path][0]
             if obj.date.strftime(frmt) == new_text:
@@ -1105,8 +1105,7 @@ class PlantEditorPresenter(GenericEditorPresenter):
             self._dirty = True
             self.refresh_sensitivity()
 
-        def on_cell_edited(cell, path, new_text, prop):  \
-                # pylint: disable=unused-argument
+        def on_cell_edited(_cell, path, new_text, prop):
             treemodel = changes_treeview.get_model()
             obj = treemodel[path][0]
             if getattr(obj, prop) == new_text:
@@ -1163,8 +1162,7 @@ class PlantEditorPresenter(GenericEditorPresenter):
             func_data=lambda obj: str(change_reasons.get(obj.reason) or '')
         )
 
-        def on_reason_cell_changed(widget, path, new_iter):  \
-                # pylint: disable=unused-argument
+        def on_reason_cell_changed(widget, path, new_iter):
             treemodel = changes_treeview.get_model()
             obj = treemodel[path][0]
             obj.reason = widget.props.model[new_iter][0]
@@ -1893,13 +1891,11 @@ class PlantInfoBox(InfoBox):
         if not urls:
             self.links.set_visible(False)
             self.links.set_no_show_all(True)
-            # pylint: disable=no-member,protected-access
             self.links._sep.set_visible(False)
             self.links._sep.set_no_show_all(True)
         else:
             self.links.set_visible(True)
             self.links.set_no_show_all(False)
-            # pylint: disable=no-member,protected-access
             self.links._sep.set_visible(True)
             self.links._sep.set_no_show_all(False)
             self.links.update(row)
