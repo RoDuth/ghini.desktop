@@ -88,16 +88,13 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
 
         self.init_enum_combo('sp_spqual_combo', 'sp_qual')
 
-        def cell_data_func(column, cell, model, treeiter, data=None):
-            cell.props.text = utils.utf8(model[treeiter][0])
-
         combo = self.view.widgets.sp_habit_comboentry
         model = Gtk.ListStore(str, object)
         for habit in self.session.query(Habit):
             model.append((str(habit), habit))
         utils.setup_text_combobox(combo, model)
 
-        def on_focus_out(entry, event):
+        def on_focus_out(entry, _event):
             # check if the combo has a problem then check if the value
             # in the entry matches one of the habit codes and if so
             # then change the value to the habit
@@ -123,7 +120,7 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
             return self.session.query(Genus).filter(clause).\
                 order_by(Genus.genus)
 
-        def sp_species_TPL_callback(found, accepted):
+        def sp_species_tpl_callback(found, accepted):
             # both found and accepted are dictionaries, their keys here
             # relevant: 'Species hybrid marker', 'Species', 'Authorship',
             # 'Taxonomic status in TPL'.
@@ -135,15 +132,14 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
 
             self.view.close_boxes()
             if found:
-                found = dict((k, utils.to_unicode(v))
-                             for k, v in list(found.items()))
-                found_s = dict((k, utils.xml_safe(utils.to_unicode(v)))
-                               for k, v in list(found.items()))
+                found = dict((k, utils.utf8(v)) for k, v in found.items())
+                found_s = dict((k, utils.xml_safe(utils.utf8(v))) for k, v in
+                               found.items())
             if accepted:
-                accepted = dict((k, utils.to_unicode(v))
-                                for k, v in list(accepted.items()))
-                accepted_s = dict((k, utils.xml_safe(utils.to_unicode(v)))
-                                  for k, v in list(accepted.items()))
+                accepted = dict((k, utils.utf8(v)) for k, v in
+                                accepted.items())
+                accepted_s = dict((k, utils.xml_safe(utils.utf8(v))) for
+                                  k, v in accepted.items())
 
             msg_box_msg = _('No match found on ThePlantList.org')
 
@@ -162,20 +158,22 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
                            ) % found_s
                     msg = _('%s is the closest match for your data.\n'
                             'Do you want to accept it?') % cit
-                    b1 = box = self.view.add_message_box(
+                    box1 = box = self.view.add_message_box(
                         utils.MESSAGE_BOX_YESNO)
                     box.message = msg
 
-                    def on_response_found(button, response):
-                        self.view.remove_box(b1)
+                    def on_response_found(_button, response):
+                        self.view.remove_box(box1)
                         if response:
                             self.set_model_attr('sp', found['Species'])
-                            self.set_model_attr('sp_author', found['Authorship'])
+                            self.set_model_attr('sp_author',
+                                                found['Authorship'])
                             self.set_model_attr(
                                 'hybrid',
                                 found['Species hybrid marker'] == '×')
                             self.refresh_view()
                             self.refresh_fullname_label()
+
                     box.on_response = on_response_found
                     box.show()
                     self.view.add_box(box)
@@ -186,38 +184,41 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
                     if not accepted:  # infraspecific synonym, can't handle
                         msg = _('closest match is a synonym of something at '
                                 'infraspecific rank, which I cannot handle.')
-                        b2 = box = self.view.add_message_box(
+                        box2 = box = self.view.add_message_box(
                             utils.MESSAGE_BOX_INFO)
                         box.message = msg
 
-                        def on_response_accepted(button, response):
-                            self.view.remove_box(b2)
+                        def on_response_accepted(_button, _response):
+                            self.view.remove_box(box2)
                     else:
-                        ## synonym is at rank species, this is fine
+                        # synonym is at rank species, this is fine
                         cit = ('<i>%(Genus)s</i> %(Species hybrid marker)s'
                                '<i>%(Species)s</i> %(Authorship)s (%(Family)s)'
-                              ) % accepted_s
+                               ) % accepted_s
                         msg = _('%s is the accepted taxon for your data.\n'
                                 'Do you want to add it?') % cit
-                        b2 = box = self.view.add_message_box(
+                        box2 = box = self.view.add_message_box(
                             utils.MESSAGE_BOX_YESNO)
                         box.message = msg
 
-                        def on_response_accepted(button, response):
-                            self.view.remove_box(b2)
+                        def on_response_accepted(_button, response):
+                            self.view.remove_box(box2)
                             if response:
-                                hybrid = accepted['Species hybrid marker'] == Species.hybrid_char
-                                self.model.accepted = Species.retrieve_or_create(
-                                    self.session, {
-                                        'object': 'taxon',
-                                        'rank': 'species',
-                                        'ht-rank': 'genus',
-                                        'familia': accepted['Family'],
-                                        'ht-epithet': accepted['Genus'],
-                                        'epithet': accepted['Species'],
-                                        'author': accepted['Authorship'],
-                                        'hybrid': hybrid}
+                                hybrid = (accepted['Species hybrid marker'] ==
+                                          Species.hybrid_char)
+                                self.model.accepted = (
+                                    Species.retrieve_or_create(
+                                        self.session, {
+                                            'object': 'taxon',
+                                            'rank': 'species',
+                                            'ht-rank': 'genus',
+                                            'familia': accepted['Family'],
+                                            'ht-epithet': accepted['Genus'],
+                                            'epithet': accepted['Species'],
+                                            'author': accepted['Authorship'],
+                                            'hybrid': hybrid}
                                     )
+                                )
                                 self.refresh_view()
                                 self.refresh_fullname_label()
 
@@ -228,14 +229,14 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
                     msg_box_msg = None
 
             if msg_box_msg is not None:
-                b0 = self.view.add_message_box(utils.MESSAGE_BOX_INFO)
-                b0.message = msg_box_msg
-                b0.on_response = lambda b, r: self.view.remove_box(b0)
-                b0.show()
-                self.view.add_box(b0)
-                self.species_check_messages.append(b0)
+                box0 = self.view.add_message_box(utils.MESSAGE_BOX_INFO)
+                box0.message = msg_box_msg
+                box0.on_response = lambda b, r: self.view.remove_box(box0)
+                box0.show()
+                self.view.add_box(box0)
+                self.species_check_messages.append(box0)
 
-        def on_sp_species_button_clicked(widget, event=None):
+        def on_sp_species_button_clicked(_widget, event=None):
             # the real activity runs in a separate thread.
             logger.debug('sp_species button clicked, importing AskTpl')
             from .ask_tpl import AskTPL
@@ -248,13 +249,13 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
             # we need a longer timeout for the first time at least when using
             # pypac to get the proxy configuration
             logger.debug('calling AskTpl with binomial=%s', binomial)
-            AskTPL(binomial, sp_species_TPL_callback, timeout=7, gui=True
+            AskTPL(binomial, sp_species_tpl_callback, timeout=7, gui=True
                    ).start()
-            b0 = self.view.add_message_box(utils.MESSAGE_BOX_INFO)
-            b0.message = _("querying the plant list")
-            b0.on_response = lambda b, r: self.view.remove_box(b0)
-            b0.show()
-            self.view.add_box(b0)
+            box0 = self.view.add_message_box(utils.MESSAGE_BOX_INFO)
+            box0.message = _("querying the plant list")
+            box0.on_response = lambda b, r: self.view.remove_box(box0)
+            box0.show()
+            self.view.add_box(box0)
             if event is not None:
                 return False
 
@@ -263,7 +264,7 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
 
         # called when a genus is selected from the genus completions
         def on_select(value):
-            logger.debug('on select: %s' % value)
+            logger.debug('on select: %s', value)
             if isinstance(value, str):
                 value = self.session.query(Genus).filter(
                     Genus.genus == value).first()
@@ -273,21 +274,21 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
             self.set_model_attr('genus', value)
             if not value:  # no choice is a fine choice
                 return
-            ## is value considered a synonym?
+            # is value considered a synonym?
             syn = self.session.query(GenusSynonym).filter(
                 GenusSynonym.synonym_id == value.id).first()
             if not syn:
                 # chosen value is not a synonym, also fine
                 return
 
-            ## value is a synonym: user alert needed
+            # value is a synonym: user alert needed
             msg = _('The genus <b>%(synonym)s</b> is a synonym of '
                     '<b>%(genus)s</b>.\n\nWould you like to choose '
                     '<b>%(genus)s</b> instead?') % \
                 {'synonym': syn.synonym, 'genus': syn.genus}
             box = None
 
-            def on_response(button, response):
+            def on_response(_button, response):
                 self.view.remove_box(box)
                 if response:
                     self.set_model_attr('genus', syn.genus)
@@ -317,7 +318,6 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
                                    editor.UnicodeOrNoneValidator())
 
         try:
-            import bauble.plugins.garden
             bauble.plugins.garden  # fake its usage
             if self.model not in self.model.new:
                 self.view.widgets.sp_ok_and_add_button.set_sensitive(True)
@@ -335,12 +335,12 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
         self.on_text_entry_changed(widget, *args)
         self.on_entry_changed_clear_boxes(widget, *args)
 
-    def on_entry_changed_clear_boxes(self, widget, *args):
+    def on_entry_changed_clear_boxes(self, _widget):
         while self.species_check_messages:
             kid = self.species_check_messages.pop()
             self.view.widgets.remove_parent(kid)
 
-    def on_habit_comboentry_changed(self, combo, *args):
+    def on_habit_comboentry_changed(self, combo):
         """
         Changed handler for sp_habit_comboentry.
 
@@ -375,12 +375,12 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
                 self.infrasp_presenter.is_dirty() or
                 self.notes_presenter.is_dirty())
 
-    def set_model_attr(self, field, value, validator=None):
+    def set_model_attr(self, attr, value, validator=None):
         """
         Resets the sensitivity on the ok buttons and the name widgets
         when values change in the model
         """
-        super().set_model_attr(field, value, validator)
+        super().set_model_attr(attr, value, validator)
         self._dirty = True
         sensitive = True
         if (self.problems or
@@ -396,9 +396,6 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
         self.view.set_accept_buttons_sensitive(sensitive)
 
     def refresh_sensitivity(self):
-        """
-        :param self:
-        """
         self.view.set_accept_buttons_sensitive(self.is_dirty())
 
     def init_fullname_widgets(self):
@@ -417,7 +414,7 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
             self.view.connect_after(widget_name, 'changed', refresh)
         self.view.connect_after('sp_hybrid_check', 'toggled', refresh)
 
-    def on_sp_species_entry_insert_text(self, entry, text, length, position):
+    def on_sp_species_entry_insert_text(self, entry, text, _length, position):
         """validate species epithet
         """
 
@@ -476,8 +473,8 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
         set the value of sp_fullname_label to either '--' if there
         is a problem or to the name of the string returned by Species.str
         """
-        logger.debug("SpeciesEditorPresenter:refresh_fullname_label %s"
-                     % widget)
+        logger.debug("SpeciesEditorPresenter:refresh_fullname_label %s",
+                     widget)
         if len(self.problems) > 0 or self.model.genus is None:
             self.view.set_label('sp_fullname_label', '--')
             return
@@ -486,15 +483,13 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
         if self.model.genus is not None:
             genus = self.model.genus
             epithet = self.view.widget_get_value('sp_species_entry')
-            omonym = self.session.query(
-                Species).filter(
+            omonym = self.session.query(Species).filter(
                 Species.genus == genus,
                 Species.sp == epithet
-                ).first()
-            logger.debug("looking for %s %s, found %s"
-                         % (genus, epithet, omonym))
+            ).first()
+            logger.debug("looking for %s %s, found %s", genus, epithet, omonym)
             if omonym in [None, self.model]:
-                ## should not warn, so check warning and remove
+                # should not warn, so check warning and remove
                 if self.omonym_box is not None:
                     self.view.remove_box(self.omonym_box)
                     self.omonym_box = None
@@ -504,7 +499,7 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
                         "Are you sure you want to insert it again?") % \
                     omonym.str(authors=True, markup=True)
 
-                def on_response(button, response):
+                def on_response(_button, response):
                     self.view.remove_box(self.omonym_box)
                     self.omonym_box = None
                     if response:
@@ -527,8 +522,8 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
         self.infrasp_presenter.cleanup()
 
     def start(self):
-        r = self.view.start()
-        return r
+        response = self.view.start()
+        return response
 
     def refresh_view(self):
         for widget, field in self.widget_to_field_map.items():
@@ -536,8 +531,7 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
                 value = self.model.genus
             else:
                 value = getattr(self.model, field)
-            logger.debug('%s, %s, %s(%s)'
-                         % (widget, field, type(value), value))
+            logger.debug('%s, %s, %s(%s)', widget, field, type(value), value)
             self.view.widget_set_value(widget, value)
 
         utils.set_widget_value(self.view.widgets.sp_habit_comboentry,
@@ -566,15 +560,12 @@ class InfraspPresenter(editor.GenericEditorPresenter):
         for index in range(1, 5):
             infrasp = self.model.get_infrasp(index)
             if infrasp != (None, None, None):
-                self.append_infrasp()
+                self.append_infrasp(None)
 
     def is_dirty(self):
         return self._dirty
 
-    def append_infrasp(self, *args):
-        # TODO: it is very slow to add rows to the widget...maybe if
-        # we disable event on the table until all the rows have been
-        # added
+    def append_infrasp(self, _widget):
         level = len(self.table_rows) + 1
         row = InfraspPresenter.Row(self, level)
         self.table_rows.append(row)
@@ -582,7 +573,7 @@ class InfraspPresenter(editor.GenericEditorPresenter):
             self.view.widgets.add_infrasp_button.props.sensitive = False
         return row
 
-    class Row(object):
+    class Row:
 
         def __init__(self, presenter, level):
             self.presenter = presenter
@@ -625,7 +616,7 @@ class InfraspPresenter(editor.GenericEditorPresenter):
             grid.attach(self.remove_button, 3, level, 1, 1)
             grid.show_all()
 
-        def on_remove_button_clicked(self, *args):
+        def on_remove_button_clicked(self, _widget):
             # remove the widgets
             grid = self.presenter.view.widgets.infrasp_grid
 
@@ -659,26 +650,26 @@ class InfraspPresenter(editor.GenericEditorPresenter):
             self.presenter.parent_ref().refresh_fullname_label()
             self.presenter.parent_ref().refresh_sensitivity()
 
-        def on_rank_combo_changed(self, combo, *args):
-            logger.info("on_rank_combo_changed(%s, %s)" % (combo, args))
+        def on_rank_combo_changed(self, combo):
+            logger.info("on_rank_combo_changed)")
             model = combo.get_model()
-            it = combo.get_active_iter()
-            value = model[it][0]
+            itr = combo.get_active_iter()
+            value = model[itr][0]
             if value is not None:
-                self.set_model_attr('rank', utils.utf8(model[it][0]))
+                self.set_model_attr('rank', utils.utf8(model[itr][0]))
             else:
                 self.set_model_attr('rank', None)
 
-        def on_epithet_entry_changed(self, entry, *args):
-            logger.info("on_epithet_entry_changed(%s, %s)" % (entry, args))
+        def on_epithet_entry_changed(self, entry):
+            logger.info("on_epithet_entry_changed")
             value = utils.utf8(entry.props.text)
             if not value:  # if None or ''
                 value = None
             self.set_model_attr('epithet', value)
-            ## now warn if same binomial is already in database
+            # now warn if same binomial is already in database
 
-        def on_author_entry_changed(self, entry, *args):
-            logger.info("on_author_entry_changed(%s, %s)" % (entry, args))
+        def on_author_entry_changed(self, entry):
+            logger.info("on_author_entry_changed")
             value = utils.utf8(entry.props.text)
             if not value:  # if None or ''
                 value = None
@@ -703,6 +694,7 @@ class DistributionPresenter(editor.GenericEditorPresenter):
         self.view.connect('sp_dist_remove_button', 'button-press-event',
                           self.on_remove_button_pressed)
         self.view.widgets.sp_dist_add_button.set_sensitive(False)
+        self.geo_menu = None
 
         def _init_geo():
             add_button = self.view.widgets.sp_dist_add_button
@@ -713,16 +705,16 @@ class DistributionPresenter(editor.GenericEditorPresenter):
 
     def refresh_view(self):
         label = self.view.widgets.sp_dist_label
-        s = ', '.join([str(d) for d in self.model.distribution])
-        label.set_text(s)
+        txt = ', '.join([str(d) for d in self.model.distribution])
+        label.set_text(txt)
 
-    def on_add_button_pressed(self, button, event):
+    def on_add_button_pressed(self, _button, event):
         self.geo_menu.popup(None, None, None, None, event.button, event.time)
 
-    def on_remove_button_pressed(self, button, event):
+    def on_remove_button_pressed(self, _button, event):
         # clear the menu
-        for c in self.remove_menu.get_children():
-            self.remove_menu.remove(c)
+        for child in self.remove_menu.get_children():
+            self.remove_menu.remove(child)
         # add distributions to menu
         for dist in self.model.distribution:
             item = Gtk.MenuItem(label=str(dist))
@@ -734,12 +726,12 @@ class DistributionPresenter(editor.GenericEditorPresenter):
                                event.time)
 
     def on_activate_add_menu_item(self, widget, geoid=None):
-        logger.debug('on_activate_add_menu_item %s %s' % (widget, geoid))
+        logger.debug('on_activate_add_menu_item %s %s', widget, geoid)
         from bauble.plugins.plants.geography import Geography
         geo = self.session.query(Geography).filter_by(id=geoid).one()
         # check that this geography isn't already in the distributions
         if geo in [d.geography for d in self.model.distribution]:
-            logger.debug('%s already in %s' % (geo, self.model))
+            logger.debug('%s already in %s', geo, self.model)
             return
         dist = SpeciesDistribution(geography=geo)
         self.model.distribution.append(dist)
@@ -748,7 +740,7 @@ class DistributionPresenter(editor.GenericEditorPresenter):
         self.refresh_view()
         self.parent_ref().refresh_sensitivity()
 
-    def on_activate_remove_menu_item(self, widget, dist):
+    def on_activate_remove_menu_item(self, _widget, dist):
         self.model.distribution.remove(dist)
         utils.delete_or_expunge(dist)
         self.refresh_view()
@@ -788,38 +780,38 @@ class VernacularNamePresenter(editor.GenericEditorPresenter):
         """
         return self._dirty
 
-    def on_add_button_clicked(self, button, data=None):
+    def on_add_button_clicked(self, _button):
         """
         Add the values in the entries to the model.
         """
         treemodel = self.treeview.get_model()
         column = self.treeview.get_column(0)
-        vn = VernacularName()
-        self.model.vernacular_names.append(vn)
-        treeiter = treemodel.append([vn])
+        vernacular = VernacularName()
+        self.model.vernacular_names.append(vernacular)
+        treeiter = treemodel.append([vernacular])
         path = treemodel.get_path(treeiter)
         self.treeview.set_cursor(path, column, start_editing=True)
         if len(treemodel) == 1:
-            self.model.default_vernacular_name = vn
+            self.model.default_vernacular_name = vernacular
 
-    def on_remove_button_clicked(self, button, data=None):
+    def on_remove_button_clicked(self, _button):
         """
         Removes the currently selected vernacular name from the view.
         """
         tree = self.view.widgets.vern_treeview
-        path, col = tree.get_cursor()
+        path, _col = tree.get_cursor()
         treemodel = tree.get_model()
-        vn = treemodel[path][0]
+        vernacular = treemodel[path][0]
 
         msg = _('Are you sure you want to remove the vernacular '
-                'name <b>%s</b>?') % utils.xml_safe(vn.name)
-        if (vn.name and vn not in self.session.new and not
+                'name <b>%s</b>?') % utils.xml_safe(vernacular.name)
+        if (vernacular.name and vernacular not in self.session.new and not
                 utils.yes_no_dialog(msg, parent=self.view.get_window())):
             return
 
         treemodel.remove(treemodel.get_iter(path))
-        self.model.vernacular_names.remove(vn)
-        utils.delete_or_expunge(vn)
+        self.model.vernacular_names.remove(vernacular)
+        utils.delete_or_expunge(vernacular)
         if not self.model.default_vernacular_name:
             # if there is only one value in the tree then set it as the
             # default vernacular name
@@ -831,23 +823,23 @@ class VernacularNamePresenter(editor.GenericEditorPresenter):
         self._dirty = True
         self.parent_ref().refresh_sensitivity()
 
-    def on_default_toggled(self, cell, path, data=None):
+    def on_default_toggled(self, cell, path):
         """
         Default column callback.
         """
         active = cell.get_active()
         if not active:  # then it's becoming active
-            vn = self.treeview.get_model()[path][0]
-            self.set_model_attr('default_vernacular_name', vn)
+            vernacular = self.treeview.get_model()[path][0]
+            self.set_model_attr('default_vernacular_name', vernacular)
         self._dirty = True
         self.parent_ref().refresh_sensitivity()
 
-    def on_cell_edited(self, cell, path, new_text, prop):
+    def on_cell_edited(self, _cell, path, new_text, prop):
         treemodel = self.treeview.get_model()
-        vn = treemodel[path][0]
-        if getattr(vn, prop) == new_text:
+        vernacular = treemodel[path][0]
+        if getattr(vernacular, prop) == new_text:
             return  # didn't change
-        setattr(vn, prop, utils.utf8(new_text))
+        setattr(vernacular, prop, utils.utf8(new_text))
         self._dirty = True
         self.parent_ref().refresh_sensitivity()
 
@@ -862,7 +854,7 @@ class VernacularNamePresenter(editor.GenericEditorPresenter):
         if not isinstance(self.treeview, Gtk.TreeView):
             return
 
-        def _name_data_func(column, cell, model, treeiter, data=None):
+        def _name_data_func(_column, cell, model, treeiter, _data):
             v = model[treeiter][0]
             cell.set_property('text', v.name)
             # just added so change the background color to indicate it's new
@@ -871,53 +863,49 @@ class VernacularNamePresenter(editor.GenericEditorPresenter):
             else:
                 cell.set_property('foreground', None)
         cell = self.view.widgets.vn_name_cell
-        self.view.widgets.vn_name_column.\
-            set_cell_data_func(cell, _name_data_func)
+        self.view.widgets.vn_name_column.set_cell_data_func(cell,
+                                                            _name_data_func)
         self.view.connect(cell, 'edited', self.on_cell_edited, 'name')
 
-        def _lang_data_func(column, cell, model, treeiter, data=None):
+        def _lang_data_func(_column, cell, model, treeiter, _data):
             v = model[treeiter][0]
             cell.set_property('text', v.language)
-            # just added so change the background color to indicate it's new
-            #if not v.isinstance:`
             if v.id is None:  # hasn't been committed
                 cell.set_property('foreground', 'blue')
             else:
                 cell.set_property('foreground', None)
         cell = self.view.widgets.vn_lang_cell
-        self.view.widgets.vn_lang_column.\
-            set_cell_data_func(cell, _lang_data_func)
+        self.view.widgets.vn_lang_column.set_cell_data_func(cell,
+                                                            _lang_data_func)
         self.view.connect(cell, 'edited', self.on_cell_edited, 'language')
 
-        def _default_data_func(column, cell, model, iter, data=None):
-            v = model[iter][0]
+        def _default_data_func(_column, cell, model, itr, _data):
+            v = model[itr][0]
             try:
                 cell.set_property(
                     'active', v == self.model.default_vernacular_name)
                 return
             except AttributeError as e:
-                logger.debug("AttributeError %s" % e)
-                pass
+                logger.debug("AttributeError %s", e)
             cell.set_property('active', False)
 
         cell = self.view.widgets.vn_default_cell
-        self.view.widgets.vn_default_column.\
-            set_cell_data_func(cell, _default_data_func)
+        self.view.widgets.vn_default_column.set_cell_data_func(
+            cell, _default_data_func)
         self.view.connect(cell, 'toggled', self.on_default_toggled)
 
         utils.clear_model(self.treeview)
 
         # add the vernacular names to the tree
         tree_model = Gtk.ListStore(object)
-        for vn in model:
-            tree_model.append([vn])
+        for vernacular in model:
+            tree_model.append([vernacular])
         self.treeview.set_model(tree_model)
 
         self.view.connect(self.treeview, 'cursor-changed',
                           self.on_tree_cursor_changed)
 
-    def on_tree_cursor_changed(self, tree, data=None):
-        path, column = tree.get_cursor()
+    def on_tree_cursor_changed(self, _tree):
         self.view.widgets.sp_vern_remove_button.set_sensitive(True)
 
     def refresh_view(self, default_vernacular_name):
@@ -985,7 +973,7 @@ class SynonymsPresenter(editor.GenericEditorPresenter):
         """
         self.treeview = self.view.widgets.sp_syn_treeview
 
-        def _syn_data_func(column, cell, model, treeiter, data=None):
+        def _syn_data_func(_column, cell, model, treeiter, _data):
             v = model[treeiter][0]
             cell.set_property('text', str(v))
             # just added so change the background color to indicate it's new
@@ -1005,8 +993,7 @@ class SynonymsPresenter(editor.GenericEditorPresenter):
         self.view.connect(self.treeview, 'cursor-changed',
                           self.on_tree_cursor_changed)
 
-    def on_tree_cursor_changed(self, tree, data=None):
-        path, column = tree.get_cursor()
+    def on_tree_cursor_changed(self, _tree):
         self.view.widgets.sp_syn_remove_button.set_sensitive(True)
 
     def refresh_view(self):
@@ -1015,7 +1002,7 @@ class SynonymsPresenter(editor.GenericEditorPresenter):
         """
         return
 
-    def on_add_button_clicked(self, button, data=None):
+    def on_add_button_clicked(self, _button):
         """
         Adds the synonym from the synonym entry to the list of synonyms for
         this species.
@@ -1032,7 +1019,7 @@ class SynonymsPresenter(editor.GenericEditorPresenter):
         self._dirty = True
         self.parent_ref().refresh_sensitivity()
 
-    def on_remove_button_clicked(self, button, data=None):
+    def on_remove_button_clicked(self, _button):
         """
         removes the currently selected synonym from the list of synonyms for
         this species
@@ -1040,13 +1027,13 @@ class SynonymsPresenter(editor.GenericEditorPresenter):
         # TODO: maybe we should only ask 'are you sure' if the selected value
         # is an instance, this means it will be deleted from the database
         tree = self.view.widgets.sp_syn_treeview
-        path, col = tree.get_cursor()
+        path, _col = tree.get_cursor()
         tree_model = tree.get_model()
         value = tree_model[tree_model.get_iter(path)][0]
-        s = value.synonym.str(markup=True)
-        msg = 'Are you sure you want to remove %s as a synonym to the ' \
-              'current species?\n\n<i>Note: This will not remove the species '\
-              '%s from the database.</i>' % (s, s)
+        syn = value.synonym.str(markup=True)
+        msg = _('Are you sure you want to remove %s as a synonym to the '
+                'current species?\n\n<i>Note: This will not remove the '
+                'species %s from the database.</i>' % (syn, syn))
         if not utils.yes_no_dialog(msg, parent=self.view.get_window()):
             return
 
@@ -1137,21 +1124,21 @@ class SpeciesEditorView(editor.GenericEditorView):
         return self.widgets.species_dialog
 
     @staticmethod
-    def genus_match_func(completion, key, iter, data=None):
+    def genus_match_func(completion, key, itr):
         """
         match against both str(genus) and str(genus.genus) so that we
         catch the genera with hybrid flags in their name when only
         entering the genus name
         """
-        genus = completion.get_model()[iter][0]
-        if str(genus).lower().startswith(key.lower()) \
-                or str(genus.genus).lower().startswith(key.lower()):
+        genus = completion.get_model()[itr][0]
+        if (str(genus).lower().startswith(key.lower()) or
+                str(genus.genus).lower().startswith(key.lower())):
             return True
         return False
 
     def set_accept_buttons_sensitive(self, sensitive):
-        """
-        set the sensitivity of all the accept/ok buttons for the editor dialog
+        """set the sensitivity of all the accept/ok buttons for the editor
+        dialog
         """
         self.widgets.sp_ok_button.set_sensitive(sensitive)
         try:
@@ -1163,14 +1150,13 @@ class SpeciesEditorView(editor.GenericEditorView):
         self.widgets.sp_next_button.set_sensitive(sensitive)
 
     @staticmethod
-    def genus_completion_cell_data_func(column, renderer, model, treeiter,
-                                        data=None):
+    def genus_completion_cell_data_func(_column, renderer, model, treeiter):
         v = model[treeiter][0]
         renderer.set_property('text', '%s (%s)' % (Genus.str(v),
                                                    Family.str(v.family)))
 
     @staticmethod
-    def syn_cell_data_func(column, renderer, model, treeiter, data=None):
+    def syn_cell_data_func(_column, renderer, model, treeiter):
         v = model[treeiter][0]
         renderer.set_property('text', str(v))
 
@@ -1214,9 +1200,9 @@ class SpeciesEditorMenuItem(editor.GenericModelViewPresenterEditor):
         self.presenter = SpeciesEditorPresenter(self.model, view)
         self.presenter.set_visible_buttons(not is_dependent_window)
 
-        ## I do not follow this: we have a MVP model, but also an extra
-        ## 'Editor' thing and is it stealing functionality from either the
-        ## view or the presenter?
+        # I do not follow this: we have a MVP model, but also an extra
+        # 'Editor' thing and is it stealing functionality from either the
+        # view or the presenter?
         self.view = view
 
         # set default focus
@@ -1244,7 +1230,8 @@ class SpeciesEditorMenuItem(editor.GenericModelViewPresenterEditor):
                 msg = _('Error committing changes.\n\n%s') % \
                     utils.xml_safe(e.orig)
                 logger.debug(traceback.format_exc())
-                utils.message_details_dialog(msg, str(e), Gtk.MessageType.ERROR)
+                utils.message_details_dialog(msg, str(e),
+                                             Gtk.MessageType.ERROR)
                 return False
             except Exception as e:
                 msg = _('Unknown error when committing changes. See the '
@@ -1295,11 +1282,11 @@ class SpeciesEditorMenuItem(editor.GenericModelViewPresenterEditor):
         #     self.model.cv_group = None
 
         # remove incomplete vernacular names
-        for vn in self.model.vernacular_names:
-            if vn.name in (None, ''):
-                self.model.vernacular_names.remove(vn)
-                utils.delete_or_expunge(vn)
-                del vn
+        for vernacular in self.model.vernacular_names:
+            if vernacular.name in (None, ''):
+                self.model.vernacular_names.remove(vernacular)
+                utils.delete_or_expunge(vernacular)
+                del vernacular
         super().commit_changes()
 
     def start(self):
@@ -1307,7 +1294,7 @@ class SpeciesEditorMenuItem(editor.GenericModelViewPresenterEditor):
             msg = _('You must first add or import at least one genus into the '
                     'database before you can add species.')
             utils.message_dialog(msg)
-            return
+            return None
 
         while True:
             response = self.presenter.start()

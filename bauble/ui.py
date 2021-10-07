@@ -46,14 +46,14 @@ from bauble.editor import GenericEditorView
 # NOTE pluginmgr.View is a Gtk.Box vertical orientation that can take a root
 # widget or glade file.
 class DefaultView(pluginmgr.View):
-    '''consider DefaultView a splash screen.
+    """consider DefaultView a splash screen.
 
     it is displayed at program start and never again.
     it's the core of the "what do I do now" screen.
 
     DefaultView is related to the SplashCommandHandler,
     not to the view.DefaultCommandHandler
-    '''
+    """
     infoboxclass = None
 
     def __init__(self):
@@ -140,7 +140,7 @@ class GUI():
         self.previous_view = None
 
         # restore the window size
-        geometry = prefs.get(self.window_geometry_pref, [])
+        geometry = prefs.get(self.window_geometry_pref)
         if geometry is not None:
             self.window.set_default_size(*geometry)
             self.window.set_position(Gtk.WindowPosition.CENTER)
@@ -258,9 +258,7 @@ class GUI():
         box.show()
 
     def show_message_box(self, msg):
-        """
-        Show an info message in the message drop down box
-        """
+        """Show an info message in the message drop down box."""
         self.close_message_box()
         box = utils.add_message_box(self.widgets.msg_box_parent,
                                     utils.MESSAGE_BOX_INFO)
@@ -298,22 +296,22 @@ class GUI():
         if text in history_pins:
             entry.set_icon_from_icon_name(Gtk.EntryIconPosition.SECONDARY,
                                           'emblem-favorite')
-            tool_tip = _('Query string is a favourite: click to return it the '
-                         'standard search history.')
+            tooltip = _('Query string is a favourite: click to return it the '
+                        'standard search history.')
             entry.set_icon_tooltip_text(
                 Gtk.EntryIconPosition.SECONDARY,
-                tool_tip)
+                tooltip)
         elif not text:
             entry.set_icon_from_icon_name(Gtk.EntryIconPosition.SECONDARY,
                                           None)
         else:
             entry.set_icon_from_icon_name(Gtk.EntryIconPosition.SECONDARY,
                                           'mail-attachment')
-            tool_tip = _('Clip this query string to the top of your search '
-                         'history as a favourite')
+            tooltip = _('Clip this query string to the top of your search '
+                        'history as a favourite')
             entry.set_icon_tooltip_text(
                 Gtk.EntryIconPosition.SECONDARY,
-                tool_tip)
+                tooltip)
 
     def on_main_entry_activate(self, _widget):
         self.widgets.go_button.emit("clicked")
@@ -364,9 +362,7 @@ class GUI():
         query_builder.cleanup()
 
     def on_history_pinned_clicked(self, widget, _icon_pos, _event):
-        """
-        add or remove a pin search string to the history pins
-        """
+        """add or remove a pin search string to the history pins."""
         text = widget.get_text()
         if not text:
             return
@@ -394,8 +390,7 @@ class GUI():
         self.populate_main_entry()
 
     def add_to_history(self, text, index=0):
-        """
-        add text to history, if text is already in the history then set its
+        """add text to history, if text is already in the history then set its
         index to index parameter
         """
         if index < 0 or index > self.history_size:
@@ -481,11 +476,10 @@ class GUI():
         pluginmgr.register_command(SplashCommandHandler)
 
     def set_view(self, view=None):
-        '''
-        set the view, if view is None then remove any views currently set
+        """set the view, if view is None then remove any views currently set
 
         :param view: default=None
-        '''
+        """
         if view == 'previous':
             view = self.previous_view
             self.previous_view = None
@@ -507,17 +501,14 @@ class GUI():
         view.show_all()
 
     def get_view(self):
-        '''
-        return the current view in the view box
-        '''
+        """return the current view in the view box."""
         for kid in self.widgets.view_box.get_children():
             if kid.get_visible():
                 return kid
         return None
 
     def create_main_menu(self):
-        """
-        get the main menu from the UIManager XML description, add its actions
+        """get the main menu from the UIManager XML description, add its actions
         and return the menubar
         """
         self.ui_manager = Gtk.UIManager()
@@ -593,9 +584,7 @@ class GUI():
         return self.menubar
 
     def clear_menu(self, path):
-        """
-        remove all the menus items from a menu
-        """
+        """remove all the menus items from a menu"""
         # clear out the insert an tools menus
         menu = self.ui_manager.get_widget(path)
         submenu = menu.get_submenu()
@@ -604,13 +593,12 @@ class GUI():
         menu.show()
 
     def add_menu(self, name, menu):
-        '''
-        add a menu to the menubar
+        """add a menu to the menubar
 
         :param name:
         :param menu:
         :param index:
-        '''
+        """
         menu_item = Gtk.MenuItem(label=name)
         menu_item.set_submenu(menu)
         self.menubar.insert(menu_item, len(self.menubar.get_children()) - 1)
@@ -620,8 +608,7 @@ class GUI():
     __insert_menu_cache = {}
 
     def add_to_insert_menu(self, editor, label):
-        """
-        add an editor to the insert menu
+        """add an editor to the insert menu
 
         :param editor: the editor to add to the menu
         :param label: the label for the menu item
@@ -640,8 +627,7 @@ class GUI():
             i += 1
 
     def build_tools_menu(self):
-        """
-        Build the tools menu from the tools provided by the plugins.
+        """Build the tools menu from the tools provided by the plugins.
 
         This method is generally called after plugin initialization
         """
@@ -692,9 +678,7 @@ class GUI():
 
     @staticmethod
     def on_tools_menu_item_activate(_widget, tool):
-        """
-        Start a tool on the Tool menu.
-        """
+        """Start a tool on the Tool menu."""
         try:
             tool.start()
         except Exception as e:  # pylint: disable=broad-except
@@ -796,9 +780,7 @@ class GUI():
         bauble.command_handler('home', None)
 
     def on_file_menu_open(self, _widget):
-        """
-        Open the connection manager.
-        """
+        """Open the connection manager."""
         from .connmgr import start_connection_manager
         default_conn = prefs[bauble.conn_default_pref]
         name, uri = start_connection_manager(default_conn)
@@ -837,11 +819,11 @@ class GUI():
             bauble.command_handler('home', None)
 
     def statusbar_clear(self):
-        """
-        Call Gtk.Statusbar.pop() for each context_id that had previously
-        been pushed() onto the the statusbar stack.  This might not clear
-        all the messages in the statusbar but it's the best we can do
-        without knowing how many messages are in the stack.
+        """Call Gtk.Statusbar.pop() for each context_id that had previously
+        been pushed() onto the the statusbar stack.
+
+        This might not clear all the messages in the statusbar but it's the
+        best we can do without knowing how many messages are in the stack.
         """
         # TODO: to clear everything in the statusbar we would probably
         # have to subclass Gtk.Statusbar to keep track of the message

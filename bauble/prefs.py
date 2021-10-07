@@ -97,9 +97,9 @@ to the config file.
 
 parse_dayfirst_pref = 'bauble.parse_dayfirst'
 """
-The preferences key for to determine whether the date should come
-first when parsing date string.  This is generated from the date_format_pref
-string. It is NOT saved to the config file.
+The preferences key for determining whether the day should come first when
+parsing date strings.  This is generated from the date_format_pref string. It
+is NOT saved to the config file.
 
 For more information see the.
 :meth:`dateutil.parser.parse` method.
@@ -109,9 +109,9 @@ Values: True, False
 
 parse_yearfirst_pref = 'bauble.parse_yearfirst'
 """
-The preferences key for to determine whether the date should come
-first when parsing date string.   This is generated from the date_format_pref
-string. It is NOT saved to the config file.
+The preferences key for determining whether the year should come first when
+parsing date strings.  This is generated from the date_format_pref string. It
+is NOT saved to the config file.
 
  For more information see the
 :meth:`dateutil.parser.parse` method.
@@ -396,10 +396,9 @@ class _prefs(UserDict):
 
 
 class PrefsView(pluginmgr.View):
-    """
-    The PrefsView displays the values in the plugin registry and displays and
-    allows limited editing of preferences only after warning users of possible
-    dangers.
+    """The PrefsView displays the values in the plugin registry and displays
+    and allows limited editing of preferences, only after warning users of
+    possible dangers.
     """
 
     def __init__(self):

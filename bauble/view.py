@@ -622,7 +622,6 @@ class SearchView(pluginmgr.View):
         the GtkNotebook pages are ScrolledWindow containing a TreeView,
         this should have a model, and the ordered names of the fields to
         be stored in the model is in bottom_info['fields_used'].
-
         """
         values = self.get_selected_values()
         # Only one should be selected
@@ -727,7 +726,7 @@ class SearchView(pluginmgr.View):
             return None
         return [model[row][0] for row in rows]
 
-    def on_cursor_changed(self, tree_view):
+    def on_cursor_changed(self, _tree_view):
         """
         Update the infobox and switch the accelerators depending on the
         type of the row that the cursor points to.
@@ -737,14 +736,14 @@ class SearchView(pluginmgr.View):
         # update all backward-looking info boxes
         self.update_bottom_notebook()
 
-        for accel, cb in self.installed_accels:
+        for accel, call_back in self.installed_accels:
             # disconnect previously installed accelerators by the key
             # and modifier, accel_group.disconnect_by_func won't work
             # here since we install a closure as the actual callback
-            # in instead of the original action.callback
-            r = self.accel_group.disconnect_key(accel[0], accel[1])
-            if not r:
-                logger.warning('callback not removed: %s' % cb)
+            # instead of the original action.callback
+            disconnected = self.accel_group.disconnect_key(accel[0], accel[1])
+            if not disconnected:
+                logger.warning('callback not removed: %s', call_back)
         self.installed_accels = []
 
         selected = self.get_selected_values()
@@ -761,8 +760,8 @@ class SearchView(pluginmgr.View):
             # if enabled then connect the accelerator
             keyval, mod = Gtk.accelerator_parse(action.accelerator)
             if (keyval, mod) != (0, 0):
-                def cb(func):
-                    def _impl(*args):
+                def make_call_back(func):
+                    def _impl(*_args):
                         # getting the selected here allows the
                         # callback to be called on all the selected
                         # values and not just the value where the
@@ -773,7 +772,7 @@ class SearchView(pluginmgr.View):
                     return _impl
                 self.accel_group.connect(keyval, mod,
                                          Gtk.AccelFlags.VISIBLE,
-                                         cb(action.callback))
+                                         make_call_back(action.callback))
                 self.installed_accels.append(((keyval, mod), action.callback))
             else:
                 logger.warning(
@@ -1131,7 +1130,7 @@ class SearchView(pluginmgr.View):
                 logger.debug('path: %s' % action.get_accel_path())
                 item = action.create_menu_item()
 
-                def on_activate(item, cb):
+                def on_activate(item, call_back):
                     result = False
                     try:
                         # have to get the selected values again here
@@ -1140,7 +1139,7 @@ class SearchView(pluginmgr.View):
                         # will give us the objects but they won't be
                         # in an session...maybe it's a thread thing
                         values = self.get_selected_values()
-                        result = cb(values)
+                        result = call_back(values)
                     except Exception as e:
                         msg = utils.xml_safe(str(e))
                         tb = utils.xml_safe(traceback.format_exc())
@@ -1269,27 +1268,9 @@ class SearchView(pluginmgr.View):
         self.widgets.remove_parent(vbox)
         self.pack_start(vbox, True, True, 0)
 
-    def on_notes_size_allocation(self, treeview, allocation, column, cell):
-        """
-        Set the wrap width according to the widgth of the treeview
-        """
-        # This code came from the PyChess project
-        otherColumns = (c for c in treeview.get_columns() if c != column)
-        newWidth = allocation.width - sum(c.get_width() for c in otherColumns)
-        newWidth -= treeview.style_get_property("horizontal-separator") * 2
-        if cell.props.wrap_width == newWidth or newWidth <= 0:
-            return
-        cell.props.wrap_width = newWidth
-        store = treeview.get_model()
-        treeiter = store.get_iter_first()
-        while treeiter and store.iter_is_valid(treeiter):
-            store.row_changed(store.get_path(treeiter), treeiter)
-            treeiter = store.iter_next(treeiter)
-            treeview.set_size_request(0, -1)
-
 
 class Note:
-    """temporary patch before we implement Notes as a plugin
+    """temporary patch before we implement Notes as a plugin.
     """
 
     @classmethod
@@ -1297,10 +1278,9 @@ class Note:
         """return the list of notes connected to obj
         """
 
-        try:
+        if hasattr(obj, 'notes') and obj.notes:
             return obj.notes
-        except:
-            return []
+        return []
 
 
 class AppendThousandRows(threading.Thread):
@@ -1324,13 +1304,13 @@ class AppendThousandRows(threading.Thread):
 
     def run(self):
         session = db.Session()
-        q = session.query(db.History).order_by(db.History.timestamp.desc())
+        query = session.query(db.History).order_by(db.History.timestamp.desc())
         # add rows in small batches
         offset = 0
         step = 200
-        count = q.count()
+        count = query.count()
         while offset < count and not self.__stopped.isSet():
-            rows = q.offset(offset).limit(step).all()
+            rows = query.offset(offset).limit(step).all()
             GLib.idle_add(self.callback, rows)
             offset += step
         session.close()
@@ -1391,7 +1371,7 @@ class HistoryView(pluginmgr.View):
             item.table_name, friendly, item.values
         ])
 
-    def on_row_activated(self, tree, path, column):
+    def on_row_activated(self, _tree, path, _column):
         row = self.liststore[path]
         dic = literal_eval(row[self.TVC_DICT])
         table = row[self.TVC_TABLE]
@@ -1407,7 +1387,7 @@ class HistoryView(pluginmgr.View):
                 ('vernacular_name', 'species', 'species_id'),
                 ('default_vernacular_name', 'species', 'species_id'),
                 ('plant_change', 'plant', 'plant_id'),
-                ]:
+        ]:
             if table == table_name:
                 table = equivalent
                 obj_id = int(dic[key])
@@ -1429,9 +1409,6 @@ class HistoryCommandHandler(pluginmgr.CommandHandler):
 
     command = 'history'
     view = None
-
-    def __init__(self):
-        super().__init__()
 
     def get_view(self):
         if not self.view:
@@ -1459,8 +1436,8 @@ def select_in_search_results(obj):
     view = bauble.gui.get_view()
     if not isinstance(view, SearchView):
         return None
-    logger.debug("select_in_search_results %s is in session %s" %
-                 (obj, obj in view.session))
+    logger.debug("select_in_search_results %s is in session %s", obj,
+                 obj in view.session)
     model = view.results_view.get_model()
     found = utils.search_tree_model(model, obj)
     row_iter = None

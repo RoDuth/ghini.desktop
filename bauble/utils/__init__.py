@@ -27,7 +27,6 @@ A common set of utility functions used throughout Ghini.
 import datetime
 import os
 import re
-import textwrap
 import inspect
 import threading
 from collections import UserDict
@@ -874,16 +873,12 @@ def today_str(fmat=None):
 
 
 def setup_date_button(view, entry, button, date_func=None):
-    """
-    Associate a button with entry so that when the button is clicked a
-    date is inserted into the entry.
+    """Associate a button with entry so that when the button is clicked a date
+    is inserted into the entry.
 
     :param view: a bauble.editor.GenericEditorView
-
     :param entry: the entry that the data goes into
-
     :param button: the button that enters the data in entry
-
     :param date_func: the function that returns a string represention
       of the date
     """
@@ -958,7 +953,7 @@ def xml_safe_name(obj):
     """
     # make sure we have a unicode string with no spaces or surrounding
     # parentheses
-    uni = to_unicode(obj).replace(' ', '_').strip('<{[()]}>')
+    uni = utf8(obj).replace(' ', '_').strip('<{[()]}>')
     # if nothing is left return '_'
     if not uni:
         return '_'

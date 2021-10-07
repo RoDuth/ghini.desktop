@@ -42,6 +42,8 @@ from bauble.plugins.plants.species_editor import (
 from bauble.plugins.plants.species_model import (
     Species, SpeciesNote, VernacularName, SpeciesSynonym,
     DefaultVernacularName)
+from bauble.view import (InfoBox, InfoBoxPage, InfoExpander,
+                         select_in_search_results)
 from bauble import search
 from bauble.view import PropertiesExpander, Action
 from bauble import view
@@ -130,8 +132,6 @@ species_context_menu = [edit_action, remove_action]
 vernname_context_menu = [edit_action]
 
 
-from bauble.view import InfoBox, InfoBoxPage, InfoExpander, \
-    select_in_search_results
 return_accepted_pref = 'bauble.search.return_accepted'
 """
 The preferences key for also returning accepted names for results that are
@@ -151,37 +151,37 @@ class SynonymSearch(search.SearchStrategy):
             prefs[return_accepted_pref] = True
             prefs.save()
 
-    def search(self, text, session):
+    def search(self, text, session=None):
         from .genus import Genus, GenusSynonym
         from .family import Family, FamilySynonym
         super().search(text, session)
         if not prefs.get(return_accepted_pref):
             return []
         mapper_search = search.get_strategy('MapperSearch')
-        r1 = mapper_search.search(text, session)
-        if not r1:
+        mapper_results = mapper_search.search(text, session)
+        if not mapper_results:
             return []
         results = []
-        for result in r1:
+        for result in mapper_results:
             # iterate through the results and for all objects considered
             # synonym of something else, include that something else. that
             # is, the accepted name.
             if isinstance(result, Species):
-                q = session.query(SpeciesSynonym).\
-                    filter_by(synonym_id=result.id)
-                results.extend([syn.species for syn in q])
+                query = session.query(SpeciesSynonym).filter_by(
+                    synonym_id=result.id)
+                results.extend([syn.species for syn in query])
             elif isinstance(result, Genus):
-                q = session.query(GenusSynonym).\
-                    filter_by(synonym_id=result.id)
-                results.extend([syn.genus for syn in q])
+                query = session.query(GenusSynonym).filter_by(
+                    synonym_id=result.id)
+                results.extend([syn.genus for syn in query])
             elif isinstance(result, Family):
                 query = session.query(FamilySynonym).filter_by(
                     synonym_id=result.id)
                 results.extend([syn.family for syn in query])
             elif isinstance(results, VernacularName):
-                q = session.query(SpeciesSynonym).\
-                    filter_by(synonym_id=result.species.id)
-                results.extend([syn.species for syn in q])
+                query = session.query(SpeciesSynonym).filter_by(
+                    synonym_id=result.species.id)
+                results.extend([syn.species for syn in query])
         return results
 
 
@@ -189,11 +189,11 @@ class SynonymSearch(search.SearchStrategy):
 # Species infobox for SearchView
 #
 class VernacularExpander(InfoExpander):
-    '''
+    """
     VernacularExpander
 
     :param widgets:
-    '''
+    """
     def __init__(self, widgets):
         super().__init__(_("Vernacular names"), widgets)
         vernacular_box = self.widgets.sp_vernacular_box
@@ -201,24 +201,24 @@ class VernacularExpander(InfoExpander):
         self.vbox.pack_start(vernacular_box, True, True, 0)
 
     def update(self, row):
-        '''
+        """
         update the expander
 
         :param row: the row to get thevalues from
-        '''
+        """
         if len(row.vernacular_names) == 0:
             self.set_sensitive(False)
             self.set_expanded(False)
         else:
             names = []
-            for vn in row.vernacular_names:
+            for vernacular in row.vernacular_names:
                 if row.default_vernacular_name is not None \
-                        and vn == row.default_vernacular_name:
+                        and vernacular == row.default_vernacular_name:
                     names.insert(0, '%s - %s (default)' %
-                                 (vn.name, vn.language))
+                                 (vernacular.name, vernacular.language))
                 else:
                     names.append('%s - %s' %
-                                 (vn.name, vn.language))
+                                 (vernacular.name, vernacular.language))
             self.widget_set_value('sp_vernacular_data', '\n'.join(names))
             self.set_sensitive(True)
             # TODO: get expanded state from prefs
@@ -247,8 +247,8 @@ class SynonymsExpander(InfoExpander):
         syn = session.query(SpeciesSynonym).filter(
             SpeciesSynonym.synonym_id == row.id).first()
         accepted = syn and syn.species
-        logger.debug("species %s is synonym of %s and has synonyms %s" %
-                     (row, accepted, row.synonyms))
+        logger.debug("species %s is synonym of %s and has synonyms %s",
+                     row, accepted, row.synonyms)
         self.set_label(_("Synonyms"))  # reset default value
         on_label_clicked = utils.generate_on_clicked(select_in_search_results)
         if accepted is not None:
@@ -290,14 +290,14 @@ class SynonymsExpander(InfoExpander):
 
 
 class GeneralSpeciesExpander(InfoExpander):
-    '''
+    """
     expander to present general information about a species
-    '''
+    """
 
     def __init__(self, widgets):
-        '''
+        """
         the constructor
-        '''
+        """
         super().__init__(_("General"), widgets)
         general_box = self.widgets.sp_general_box
         self.widgets.remove_parent(general_box)
@@ -321,11 +321,11 @@ class GeneralSpeciesExpander(InfoExpander):
                                    on_nplants_clicked)
 
     def update(self, row):
-        '''
+        """
         update the expander
 
         :param row: the row to get the values from
-        '''
+        """
         self.current_obj = row
         session = object_session(row)
 
@@ -352,7 +352,7 @@ class GeneralSpeciesExpander(InfoExpander):
             awards = utils.utf8(row.awards)
         self.widget_set_value('sp_awards_data', awards)
 
-        logger.debug('setting cites data from row %s' % row)
+        logger.debug('setting cites data from row %s', row)
         cites = ''
         if row.cites:
             cites = utils.utf8(row.cites)
@@ -400,8 +400,10 @@ class GeneralSpeciesExpander(InfoExpander):
             self.widget_set_value('sp_nplants_data', '%s in %s accessions'
                                   % (nplants, nacc_in_plants))
 
-        living_plants = sum(i.quantity for i in session.query(Plant).join('accession', 'species').\
-                            filter_by(id=row.id).all())
+        living_plants = sum(i.quantity for i in
+                            session.query(Plant)
+                            .join('accession', 'species')
+                            .filter_by(id=row.id).all())
         self.widget_set_value('living_plants_count', living_plants)
 
 
@@ -417,18 +419,18 @@ class SpeciesInfoBox(InfoBox):
 
 
 class SpeciesInfoPage(InfoBoxPage):
-    '''
+    """
     general info, fullname, common name, num of accessions and clones,
     distribution
-    '''
+    """
     species_web_button_defs_prefs = 'web_button_defs.species'
 
     # others to consider: reference, images, redlist status
 
     def __init__(self):
-        '''
+        """
         the constructor
-        '''
+        """
         button_defaults = [
             {
                 '_base_uri': 'http://www.google.com/search?q=%s',
@@ -598,11 +600,11 @@ class SpeciesInfoPage(InfoBoxPage):
             self.widgets.remove_parent('sp_nplants_data')
 
     def update(self, row):
-        '''
+        """
         update the expanders in this infobox
 
         :param row: the row to get the values from
-        '''
+        """
         self.general.update(row)
         self.vernacular.update(row)
         self.synonyms.update(row)

@@ -175,6 +175,9 @@ class PrefsViewTests(BaubleTestCase):
     def test_on_button_press_event_adds_menu_can_active(self, mock_dialog):
         # NOTE causes a deprecation warning re Gtk.Menu.popup_for_device,
         # Gtk.Action.create_menu_item
+        # also:
+        # Gdk-CRITICAL **: ... gdk_window_get_device_position_double:
+        # assertion 'GDK_IS_WINDOW (window)' failed
         from datetime import datetime
         prefs_view = prefs.PrefsView()
         prefs_view.update()

@@ -790,6 +790,7 @@ class TagInfoBox(InfoBox):
     def update(self, row):
         self.general.update(row)
 
+
 class TagPlugin(pluginmgr.Plugin):
     provides = {'Tag': Tag}
 

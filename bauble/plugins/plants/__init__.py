@@ -20,17 +20,6 @@
 # plant plugin
 #
 
-# TODO: there is going to be problem with the accessions MultipleJoin
-# in Species, plants should really have to depend on garden unless
-# plants is contained within garden, but what about herbaria, they would
-# also need to depend on plants, what we could do is have another class
-# with the same name as the other table that defines new columns/joins
-# for that class or probably not add new columns but add new joins
-# dynamically
-
-# TODO: should create the table the first time this plugin is loaded, if a new
-# database is created there should be a way to recreate everything from scratch
-
 import os
 from threading import Thread
 from functools import partial
@@ -42,10 +31,11 @@ from gi.repository import Gtk  # noqa
 from gi.repository import GLib
 
 import bauble
-from bauble import db
-from bauble import paths
 from bauble import prefs
+
+from bauble.paths import lib_dir
 from bauble import pluginmgr
+from bauble import utils
 from bauble.plugins.plants.family import (
     Familia, Family, FamilyInfoBox, FamilyEditor, FamilyNote,
     family_context_menu)
@@ -62,10 +52,8 @@ from bauble.plugins.plants.species import (
 )
 from bauble.plugins.plants.geography import (
     Geography, get_species_in_geography, GeographyInfoBox)
-from bauble import search
 from bauble.view import SearchView
 from bauble.ui import DefaultView
-from bauble import utils
 from .taxonomy_check import TaxonomyCheckTool
 from .stored_queries import StoredQueryEditorTool
 
@@ -80,32 +68,30 @@ class LabelUpdater(Thread):
         self.widget = widget
 
     def run(self):
-        ssn = db.Session()
+        session = bauble.db.Session()
         # can on occassion raise:
         # Error in thread...
         # SystemError: Objects/tupleobject.c:159: bad argument to internal
         # function
         # possibly related to?: https://bugs.python.org/issue15108
-        value, = ssn.execute(self.query).first()
+        value, = session.execute(self.query).first()
         GLib.idle_add(self.widget.set_text, str(value))
-        ssn.close()
+        session.close()
 
 
 class SplashInfoBox(pluginmgr.View):
-    '''info box shown in the initial splash screen.
-
-    '''
+    """info box shown in the initial splash screen.
+    """
 
     def __init__(self):
-        '''
-        '''
         logger.debug('SplashInfoBox::__init__')
         super().__init__()
-        filename = os.path.join(paths.lib_dir(), 'plugins', 'plants',
+        filename = os.path.join(lib_dir(), 'plugins', 'plants',
                                 'infoboxes.glade')
         self.widgets = utils.load_widgets(filename)
         self.widgets.remove_parent(self.widgets.splash_vbox)
         self.pack_start(self.widgets.splash_vbox, False, False, 8)
+        self.name_tooltip_query = None
 
         utils.make_label_clickable(
             self.widgets.splash_nfamuse,
@@ -192,18 +178,18 @@ class SplashInfoBox(pluginmgr.View):
         statusbar.pop(sbcontext_id)
         bauble.gui.widgets.main_comboentry.get_child().set_text('')
 
-        ssn = db.Session()
-        q = ssn.query(bauble.meta.BaubleMeta)
-        q = q.filter(bauble.meta.BaubleMeta.name.startswith('stqr'))
+        session = bauble.db.Session()
+        query = session.query(bauble.meta.BaubleMeta)
+        query = query.filter(bauble.meta.BaubleMeta.name.startswith('stqr'))
         name_tooltip_query = dict(
             (int(i.name[5:]), (i.value.split(':', 2)))
-            for i in q.all())
-        ssn.close()
+            for i in query.all())
+        session.close()
 
         for i in range(1, 11):
             wname = "stqr_%02d_button" % i
             widget = getattr(self.widgets, wname)
-            name, tooltip, query = name_tooltip_query.get(
+            name, tooltip, _query = name_tooltip_query.get(
                 i, (_('<empty>'), '', ''))
             widget.set_label(name)
             widget.set_tooltip_text(tooltip)
@@ -300,15 +286,13 @@ class SplashInfoBox(pluginmgr.View):
                          "join species on species.genus_id=genus.id "
                          "join accession on accession.species_id=species.id)"))
 
-    def on_sqb_clicked(self, btn_no, *args):
-        try:
-            query = self.name_tooltip_query[btn_no][2]
-            bauble.gui.widgets.main_comboentry.get_child().set_text(query)
-            bauble.gui.widgets.go_button.emit("clicked")
-        except:
-            pass
+    def on_sqb_clicked(self, btn_no, _widget):
+        query = self.name_tooltip_query[btn_no][2]
+        bauble.gui.widgets.main_comboentry.get_child().set_text(query)
+        bauble.gui.widgets.go_button.emit("clicked")
 
-    def on_splash_stqr_button_clicked(self, *args):
+    @staticmethod
+    def on_splash_stqr_button_clicked(_widget):
         from .stored_queries import edit_callback
         edit_callback()
 
@@ -374,7 +358,7 @@ class PlantsPlugin(pluginmgr.Plugin):
             species_context_menu.insert(1, add_accession_action)
             vernname_context_menu.insert(1, add_accession_action)
 
-        mapper_search = search.get_strategy('MapperSearch')
+        mapper_search = bauble.search.get_strategy('MapperSearch')
 
         mapper_search.add_meta(('family', 'fam'), Family, ['family'])
         SearchView.row_meta[Family].set(children="genera",
@@ -386,20 +370,19 @@ class PlantsPlugin(pluginmgr.Plugin):
                                        infobox=GenusInfoBox,
                                        context_menu=genus_context_menu)
 
-        from functools import partial
-        search.add_strategy(SynonymSearch)
+        bauble.search.add_strategy(SynonymSearch)
         mapper_search.add_meta(('species', 'sp'), Species,
                                ['sp', 'sp2', 'infrasp1', 'infrasp2',
                                 'infrasp3', 'infrasp4'])
         SearchView.row_meta[Species].set(
-            children=partial(db.natsort, 'accessions'),
+            children=partial(bauble.db.natsort, 'accessions'),
             infobox=SpeciesInfoBox,
             context_menu=species_context_menu)
 
         mapper_search.add_meta(('vernacular', 'vern', 'common'),
                                VernacularName, ['name'])
         SearchView.row_meta[VernacularName].set(
-            children=partial(db.natsort, 'species.accessions'),
+            children=partial(bauble.db.natsort, 'species.accessions'),
             infobox=VernacularNameInfoBox,
             context_menu=vernname_context_menu)
 
@@ -408,7 +391,7 @@ class PlantsPlugin(pluginmgr.Plugin):
             children=get_species_in_geography,
             infobox=GeographyInfoBox)
 
-        ## now it's the turn of the DefaultView
+        # now it's the turn of the DefaultView
         logger.debug('PlantsPlugin::init, registering splash info box')
         DefaultView.infoboxclass = SplashInfoBox
 
@@ -431,7 +414,7 @@ class PlantsPlugin(pluginmgr.Plugin):
         """
         if not import_defaults:
             return
-        path = os.path.join(paths.lib_dir(), "plugins", "plants", "default")
+        path = os.path.join(lib_dir(), "plugins", "plants", "default")
         filenames = [os.path.join(path, f) for f in ('family.txt',
                                                      'family_synonym.txt',
                                                      'genus.txt',
@@ -440,7 +423,7 @@ class PlantsPlugin(pluginmgr.Plugin):
 
         # this should only occur first time around, not wipe out existing
         # data.  Or at least ask the user.
-        with db.engine.connect() as con:
+        with bauble.db.engine.connect() as con:
             try:
                 fams = con.execute('SELECT COUNT(*) FROM family')
                 fams = next(fams)[0]
@@ -470,16 +453,16 @@ class PlantsPlugin(pluginmgr.Plugin):
 
         try:
             logger.debug('dropping tables: %s', [i.name for i in depends])
-            db.metadata.drop_all(tables=depends)
+            bauble.db.metadata.drop_all(tables=depends)
             logger.debug('dropping tables: %s', geo_table.name)
-            geo_table.drop(db.engine)
+            geo_table.drop(bauble.db.engine)
         except Exception as e:  # pylint: disable=broad-except
-            logger.debug("%s(%s)" % (type(e).__name__, e))
+            logger.debug("%s(%s)", type(e).__name__, e)
 
         logger.debug('creating tables: %s', [i.name for i in depends])
-        geo_table.create(db.engine)
+        geo_table.create(bauble.db.engine)
 
-        db.metadata.create_all(tables=depends)
+        bauble.db.metadata.create_all(tables=depends)
         logger.debug('creating tables: %s', geo_table.name)
 
         from .geography import geography_importer
@@ -489,7 +472,7 @@ class PlantsPlugin(pluginmgr.Plugin):
         bauble.task.queue(geography_importer())
         from bauble.plugins.imex.csv_ import CSVImporter
         csv = CSVImporter()
-        csv.start(filenames, metadata=db.metadata, force=True)
+        csv.start(filenames, metadata=bauble.db.metadata, force=True)
 
 
 plugin = PlantsPlugin

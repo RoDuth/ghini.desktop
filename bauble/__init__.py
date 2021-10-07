@@ -168,7 +168,7 @@ def command_handler(cmd, arg):
     :param arg: The arg to pass to the command handler
     :type arg: list
     """
-    logger.debug('entering ui.command_handler %s %s' % (cmd, arg))
+    logger.debug('entering ui.command_handler %s %s', cmd, arg)
     from gi.repository import Gtk
     from bauble import utils
     from bauble import pluginmgr
@@ -176,7 +176,7 @@ def command_handler(cmd, arg):
     handler_cls = None
     try:
         handler_cls = pluginmgr.commands[cmd]
-    except KeyError as e:
+    except KeyError:
         if cmd is None:
             utils.message_dialog(_('No default handler registered'))
         else:

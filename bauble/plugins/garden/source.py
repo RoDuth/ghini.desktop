@@ -417,7 +417,7 @@ class CollectionPresenter(editor.ChildPresenter):
             self.view.widgets.geoacc_entry.set_sensitive(False)
             self.view.widgets.datum_entry.set_sensitive(False)
 
-    def on_date_entry_changed(self, entry, _data):
+    def on_date_entry_changed(self, entry):
         from bauble.editor import ValidatorError
         value = None
         try:
@@ -449,7 +449,7 @@ class CollectionPresenter(editor.ChildPresenter):
         elif direction == 'E' and lon_text[0] == '-':
             entry.set_text(lon_text[1:])
 
-    def on_north_south_radio_toggled(self, _widget, _data):
+    def on_north_south_radio_toggled(self, _widget):
         direction = self._get_lat_direction()
         entry = self.view.widgets.lat_entry
         lat_text = entry.get_text()
@@ -512,7 +512,7 @@ class CollectionPresenter(editor.ChildPresenter):
             return 'W'
         raise ValueError(_('East/West radio buttons in a confused state'))
 
-    def on_lat_entry_changed(self, entry, _data):
+    def on_lat_entry_changed(self, entry):
         """set the latitude value from text
         """
         from bauble.plugins.garden.accession import latitude_to_dms
@@ -545,7 +545,7 @@ class CollectionPresenter(editor.ChildPresenter):
         else:
             self.set_model_attr('latitude', utils.utf8(latitude))
 
-    def on_lon_entry_changed(self, entry, _data):
+    def on_lon_entry_changed(self, entry):
         from bauble.plugins.garden.accession import longitude_to_dms
         text = entry.get_text()
         longitude = None

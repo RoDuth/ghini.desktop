@@ -62,18 +62,14 @@ class ValidatorError(Exception):
 
 
 class Validator(object):
-    """
-    The interface that other validators should implement.
-    """
+    """The interface that other validators should implement."""
 
     def to_python(self, value):
         raise NotImplementedError
 
 
 class DateValidator(Validator):
-    """
-    Validate that string is parseable with dateutil
-    """
+    """Validate that string is parseable with dateutil"""
     def to_python(self, value):
         if not value:
             return None
@@ -91,27 +87,21 @@ class DateValidator(Validator):
         return value
 
 
-# class DateTimeValidator(object):
-#     pass
-
-
 class StringOrNoneValidator(Validator):
-    """
-    If the value is an empty string then return None, else return the
+    """If the value is an empty string then return None, else return the
     str() of the value.
     """
 
     def to_python(self, value):
-        if value in ('', '', None):
+        if value in ('', None):
             return None
         return str(value)
 
 
+# TODO <RD> deprecated use StringOrNoneValidator
 class UnicodeOrNoneValidator(Validator):
-    """
-    If the value is an empty unicode string then return None, else
-    return the unicode() of the value. The default encoding is
-    'utf-8'.
+    """If the value is an empty unicode string then return None, else return
+    the unicode() of the value. The default encoding is 'utf-8'.
     """
     def __init__(self, encoding='utf-8'):
         self.encoding = encoding
@@ -119,15 +109,13 @@ class UnicodeOrNoneValidator(Validator):
     def to_python(self, value):
         if value in ('', None):
             return None
-        # return utils.to_unicode(value, self.encoding)
         return str(value)
 
 
+# TODO <RD> deprecated
 class UnicodeOrEmptyValidator(Validator):
-    """
-    If the value is an empty unicode string then return '', else
-    return the unicode() of the value. The default encoding is
-    'utf-8'.
+    """If the value is an empty unicode string then return '', else return the
+    unicode() of the value. The default encoding is 'utf-8'.
     """
     def __init__(self, encoding='utf-8'):
         self.encoding = encoding
@@ -135,12 +123,11 @@ class UnicodeOrEmptyValidator(Validator):
     def to_python(self, value):
         if not value.strip():
             return ''
-        return utils.to_unicode(value, self.encoding)
+        return utils.utf8(value, self.encoding)
 
 
 class IntOrNoneStringValidator(Validator):
-    """
-    If the value is an int, long or can be cast to int then return the
+    """If the value is an int, long or can be cast to int then return the
     number, else return None
     """
 
@@ -157,9 +144,8 @@ class IntOrNoneStringValidator(Validator):
 
 
 class FloatOrNoneStringValidator(Validator):
-    """
-    If the value is an int, long, float or can be cast to float then
-    return the number, else return None
+    """If the value is an int, long, float or can be cast to float then return
+    the number, else return None
     """
 
     def to_python(self, value):
@@ -176,39 +162,38 @@ class FloatOrNoneStringValidator(Validator):
 
 def default_completion_cell_data_func(column, renderer, model, treeiter,
                                       data=None):
-    '''
-    the default completion cell data function for
+    """ the default completion cell data function for
     GenericEditorView.attach_completions
-    '''
+    """
     v = model[treeiter][0]
-    renderer.set_property('markup', utils.to_unicode(v))
+    renderer.set_property('markup', utils.utf8(v))
 
 
 def default_completion_match_func(completion, key_string, treeiter):
-    '''
-    the default completion match function for
-    GenericEditorView.attach_completions, does a case-insensitive string
-    comparison of the the completions model[iter][0]
-    '''
+    """the default completion match function for
+    GenericEditorView.attach_completions,
+
+    does a case-insensitive string comparison of the the completions
+    model[iter][0]
+    """
     value = completion.get_model()[treeiter][0]
     return str(value).lower().startswith(key_string.lower())
 
 
 class GenericEditorView(object):
-    """
-    A generic class meant (not) to be subclassed, to provide the view
-    for the Ghini Model-View-Presenter pattern. The idea is that you
-    subclass the Presenter alone, and that the View remains as 'stupid'
-    as it is conceivable.
+    """A generic class meant (not) to be subclassed, to provide the view for
+    the Ghini Model-View-Presenter pattern.
 
-    The presenter should interact with the view by the sole interface,
-    please consider all members of the view as private, this is
-    particularly true for the ones having anything to do with GTK.
+    The idea is that you subclass the Presenter alone, and that the View
+    remains as 'stupid' as it is conceivable.
+
+    The presenter should interact with the view by the sole interface, please
+    consider all members of the view as private, this is particularly true for
+    the ones having anything to do with GTK.
 
     :param filename: a Gtk.Builder UI definition
-
-    :param parent: a Gtk.Window or subclass to use as the parent
-     window, if parent=None then bauble.gui.window is used
+    :param parent: a Gtk.Window or subclass to use as the parent window, if
+        parent=None then bauble.gui.window is used
     """
     _tooltips = {}
 
@@ -307,7 +292,7 @@ class GenericEditorView(object):
         return utils.yes_no_dialog(msg, parent, yes_delay)
 
     def get_selection(self):
-        '''return the selection in the graphic interface'''
+        """return the selection in the graphic interface"""
         class EmptySelectionException(Exception):
             pass
         from bauble.view import SearchView
@@ -389,25 +374,20 @@ class GenericEditorView(object):
             self.__attached_signals.append((signaller, handler_id))
 
     def set_accept_buttons_sensitive(self, sensitive):
-        '''set the sensitivity of all the accept/ok buttons
-
-        '''
+        """set the sensitivity of all the accept/ok buttons"""
         for wname in self.accept_buttons:
             getattr(self.widgets, wname).set_sensitive(sensitive)
 
     def connect(self, obj, signal, callback, *args):
-        """
-        Attach a signal handler for signal on obj.  For more
-        information see :meth:`GObject.connect`
+        """Attach a signal handler for signal on obj.
+
+        For more information see :meth:`GObject.connect`
 
         :param obj: An instance of a subclass of gobject that will
           receive the signal
-
         :param signal: the name of the signal the object will receive
-
         :param callback: the function or method to call the object
           receives the signal
-
         :param args: extra args to pass the the callback
         """
         if isinstance(obj, str):
@@ -417,18 +397,15 @@ class GenericEditorView(object):
         return sid
 
     def connect_after(self, obj, signal, callback, *args):  # data=None):
-        """
-        Attach a signal handler for signal on obj.  For more
-        information see :meth:`GObject.connect_after`
+        """Attach a signal handler for signal on obj.
+
+        For more information see :meth:`GObject.connect_after`
 
         :param obj: An instance of a subclass of gobject that will
           receive the signal
-
         :param signal: the name of the signal the object will receive
-
         :param callback: the function or method to call the object
           receives the signal
-
         :param args: extra args to pass the the callback
         """
         if isinstance(obj, str):
@@ -442,8 +419,7 @@ class GenericEditorView(object):
         return sid
 
     def disconnect_all(self):
-        """
-        Disconnects all the signal handlers attached with
+        """Disconnects all the signal handlers attached with
         :meth:`GenericEditorView.connect` or
         :meth:`GenericEditorView.connect_after`
         """
@@ -465,9 +441,7 @@ class GenericEditorView(object):
             self.__attached_signals.remove(item)
 
     def get_window(self):
-        """
-        Return the top level window for view
-        """
+        """Return the top level window for view."""
         if self.root_widget_name is not None:
             return getattr(self.widgets, self.root_widget_name)
         else:
@@ -616,14 +590,13 @@ class GenericEditorView(object):
 
     def widget_set_value(self, widget, value, markup=False, default=None,
                          index=0):
-        """
+        """This method calls bauble.utils.set_widget_value()
+
         :param widget: a widget or name of a widget in self.widgets
         :param value: the value to put in the widgets
         :param markup: whether the data in value uses pango markup
         :param default: the default value to put in the widget if value is None
         :param index: the row index to use for those widgets who use a model
-
-        This method calls bauble.utils.set_widget_value()
         """
         if isinstance(widget, Gtk.Widget):
             utils.set_widget_value(widget, value, markup, default, index)
@@ -632,28 +605,25 @@ class GenericEditorView(object):
                                    default, index)
 
     def on_dialog_response(self, dialog, response, *args):
-        '''
-        Called if self.get_window() is a Gtk.Dialog and it receives
-        the response signal.
-        '''
+        """Called if self.get_window() is a Gtk.Dialog and it receives the
+        response signal.
+        """
         logger.debug('on_dialog_response')
         dialog.hide()
         self.response = response
         return response
 
     def on_dialog_close(self, dialog, event=None):
-        """
-        Called if self.get_window() is a Gtk.Dialog and it receives
-        the close signal.
+        """Called if self.get_window() is a Gtk.Dialog and it receives the
+        close signal.
         """
         logger.debug('on_dialog_close')
         dialog.hide()
         return False
 
     def on_window_delete(self, window, event=None):
-        """
-        Called when the window return by get_window() receives the
-        delete event.
+        """Called when the window return by get_window() receives the delete
+        event.
         """
         logger.debug('on_window_delete')
         window.hide()
@@ -664,11 +634,11 @@ class GenericEditorView(object):
                           match_func=default_completion_match_func,
                           minimum_key_length=2,
                           text_column=-1):
-        """
-        Attach an entry completion to a Gtk.Entry.  The defaults
-        values for this attach_completion assumes the completion popup
-        only shows text and that the text is in the first column of
-        the model.
+        """Attach an entry completion to a Gtk.Entry.
+
+        The defaults values for this attach_completion assumes the completion
+        popup only shows text and that the text is in the first column of the
+        model.
 
         Return the completion attached to the entry.
 
@@ -679,15 +649,11 @@ class GenericEditorView(object):
         even though you call entry.set_text().
 
         :param entry: the name of the entry to attach the completion
-
         :param cell_data_func: the function to use to display the rows in
           the completion popup
-
         :param match_func: a function that returns True/False if the
           value from the model should be shown in the completions
-
         :param minimum_key_length: default=2
-
         :param text_column: the value of the text-column property on the entry,
           default is -1
         """
@@ -716,11 +682,9 @@ class GenericEditorView(object):
 
     def init_translatable_combo(self, combo, translations, default=None,
                                 key=None):
-        """
-        Initialize a Gtk.ComboBox with translations values where
-        model[row][0] is the value that will be stored in the database
-        and model[row][1] is the value that will be visible in the
-        Gtk.ComboBox.
+        """Initialize a Gtk.ComboBox with translations values where
+        model[row][0] is the value that will be stored in the database and
+        model[row][1] is the value that will be visible in the Gtk.ComboBox.
 
         A Gtk.ComboBox initialized with this method should work with
         self.assign_simple_handler()
@@ -769,18 +733,17 @@ class GenericEditorView(object):
             combo.set_active_iter(treeiter)
 
     def save_state(self):
-        '''
-        Save the state of the view by setting a value in the preferences
+        """Save the state of the view by setting a value in the preferences
         that will be called restored in restore_state
+
         e.g. prefs[pref_string] = pref_value
-        '''
+        """
         pass
 
     def restore_state(self):
-        '''
-        Restore the state of the view, this is usually done by getting a value
-        by the preferences and setting the equivalent in the interface
-        '''
+        """Restore the state of the view, this is usually done by getting a
+        value by the preferences and setting the equivalent in the interface
+        """
         pass
 
     def start(self):
@@ -789,8 +752,7 @@ class GenericEditorView(object):
         return self.get_window().run()
 
     def cleanup(self):
-        """
-        Should be called when after self.start() returns.
+        """Should be called when after self.start() returns.
 
         By default all it does is call self.disconnect_all()
         """
@@ -843,8 +805,7 @@ class MockDialog:
 
 
 class MockView:
-    """mocking the view, but so generic that we share it among clients
-    """
+    """mocking the view, but so generic that we share it among clients"""
     def __init__(self, **kwargs):
         from unittest import mock
         self.widgets = mock.Mock()
@@ -1097,8 +1058,7 @@ class MockView:
 
 
 class DontCommitException(Exception):
-    """
-    This is used for GenericModelViewPresenterEditor.commit_changes() to
+    """This is used for GenericModelViewPresenterEditor.commit_changes() to
     signal that for some reason the editor doesn't want to commit the current
     values and would like to redisplay
     """
@@ -1106,8 +1066,12 @@ class DontCommitException(Exception):
 
 
 class GenericEditorPresenter(object):
-    """
-    The presenter of the Model View Presenter Pattern
+    """The presenter of the Model View Presenter Pattern
+
+    The presenter should usually be initialized in the following order:
+    1. initialize the widgets
+    2. refresh the view, put values from the model into the widgets
+    3. connect the signal handlers
 
     :param model: an object instance mapped to an SQLAlchemy table
     :param view: should be an instance of GenericEditorView
@@ -1117,11 +1081,6 @@ class GenericEditorPresenter(object):
         if False then a session is not needed for this editor.
     :param committing_results: list of ResponseTypes that if returned from the
         view should trigger a session.commit.
-
-    The presenter should usually be initialized in the following order:
-    1. initialize the widgets
-    2. refresh the view, put values from the model into the widgets
-    3. connect the signal handlers
     """
     widget_to_field_map = {}
     view_accept_buttons = []
@@ -1258,12 +1217,11 @@ class GenericEditorPresenter(object):
         logger.debug('you should implement this in your subclass')
 
     def refresh_view(self):
-        '''fill the values in the widgets as the field values in the model
+        """fill the values in the widgets as the field values in the model
 
         for radio button groups, we have several widgets all referring
         to the same model attribute.
-
-         '''
+        """
         for widget, attr in list(self.widget_to_field_map.items()):
             value = getattr(self.model, attr)
             value = (value is not None) and value or ''
@@ -1285,9 +1243,7 @@ class GenericEditorPresenter(object):
         return thread
 
     def commit_changes(self):
-        '''
-        Commit the changes to self.session()
-        '''
+        """Commit the changes to self.session()"""
         objs = list(self.session)
         try:
             self.session.commit()
@@ -1311,10 +1267,10 @@ class GenericEditorPresenter(object):
             self.view._dirty = True
             self.view.set_accept_buttons_sensitive(not self.has_problems())
 
-    def __get_widget_name(self, widget):
-        return (isinstance(widget, str)
-                and widget
-                or Gtk.Buildable.get_name(widget))
+    @staticmethod
+    def __get_widget_name(widget):
+        return (isinstance(widget, str) and widget or
+                Gtk.Buildable.get_name(widget))
 
     widget_get_name = __get_widget_name
 
@@ -1455,7 +1411,8 @@ class GenericEditorPresenter(object):
     def on_combo_changed(self, widget, value=None, *args):
         """handle changed signal on combo box
 
-        value is only specified while testing"""
+        value is only specified while testing
+        """
         attr = self.__get_widget_attr(widget)
         if value is None:
             index = self.view.combobox_get_active(widget)
@@ -1476,16 +1433,15 @@ class GenericEditorPresenter(object):
 
         the presenter is dirty depending on whether it has changed anything
         that needs to be committed.  This doesn't necessarily imply that the
-        session is not dirty nor is it required to change back to True if
-        the changes are committed.
+        session is not dirty nor is it required to change back to True if the
+        changes are committed.
         """
         return self._dirty
 
     def has_problems(self, widget=None):
-        """
-        Return True/False depending on if widget has any problems
-        attached to it. if no widget is specified, result is True if
-        there is any problem at all.
+        """Return True/False depending on if widget has any problems attached
+        to it. if no widget is specified, result is True if there is any
+        problem at all.
         """
         if widget is None:
             return self.problems and True or False
@@ -1495,25 +1451,25 @@ class GenericEditorPresenter(object):
         return False
 
     def clear_problems(self):
-        """
-        Clear all the problems from all widgets associated with the presenter
+        """Clear all the problems from all widgets associated with the
+        presenter
         """
         for prob in self.problems.copy():
             self.remove_problem(prob[0], prob[1])
         self.problems.clear()
 
     def remove_problem(self, problem_id, widget=None):
-        """
-        Remove problem_id from self.problems and reset the background
-        color of the widget(s) in problem_widgets.  If problem_id is
-        None and problem_widgets is None then method won't do anything.
+        """Remove problem_id from self.problems and reset the background
+        color of the widget(s) in problem_widgets.
+
+        If problem_id is None and problem_widgets is None then method won't do
+        anything.
 
         :param problem_id: the problem to remove, if None then remove
-         any problem from the problem_widget(s)
-
+             any problem from the problem_widget(s)
         :param problem_widgets: a Gtk.Widget instance to remove the problem
-         from, if None then remove all occurrences of problem_id regardless
-         of the widget
+             from, if None then remove all occurrences of problem_id regardless
+             of the widget
         """
         logger.debug('remove_problem(%s, %s, %s)' %
                      (self, problem_id, widget))
@@ -1539,15 +1495,13 @@ class GenericEditorPresenter(object):
         logger.debug('problems now: %s' % self.problems)
 
     def add_problem(self, problem_id, problem_widgets=None):
-        """
-        Add problem_id to self.problems and change the background of widget(s)
-        in problem_widgets.
+        """Add problem_id to self.problems and change the background of
+        widget(s) in problem_widgets.
 
         :param problem_id: A unique id for the problem.
-
         :param problem_widgets: either a widget or list of widgets
-          whose background color should change to indicate a problem
-          (default=None)
+              whose background color should change to indicate a problem
+              (default=None)
         """
         # list of widgets.
         logger.debug('add_problem(%s, %s, %s)' %
@@ -1572,12 +1526,10 @@ class GenericEditorPresenter(object):
         logger.debug('problems now: %s' % self.problems)
 
     def init_enum_combo(self, widget_name, field):
-        """
-        Initialize a Gtk.ComboBox widget with name widget_name from
-        enum values in self.model.field
+        """Initialize a Gtk.ComboBox widget with name widget_name from enum
+        values in self.model.field
 
         :param widget_name:
-
         :param field:
         """
         combo = self.view.widgets[widget_name]
@@ -1593,10 +1545,9 @@ class GenericEditorPresenter(object):
         utils.setup_text_combobox(combo, values)
 
     def set_model_attr(self, attr, value, validator=None):
-        """
-        It is best to use this method to set values on the model
-        rather than setting them directly.  Derived classes can
-        override this method to take action when the model changes.
+        """It is best to use this method to set values on the model rather than
+        setting them directly.  Derived classes can override this method to
+        take action when the model changes.
 
         :param attr: the attribute on self.model to set
         :param value: the value the attribute will be set to
@@ -1616,18 +1567,15 @@ class GenericEditorPresenter(object):
             setattr(self.model, attr, value)
 
     def assign_simple_handler(self, widget_name, model_attr, validator=None):
-        '''
-        Assign handlers to widgets to change fields in the model.
-
-        :param widget_name:
-
-        :param model_attr:
-
-        :param validator:
+        """Assign handlers to widgets to change fields in the model.
 
         Note: Where widget is a Gtk.ComboBox or Gtk.ComboBoxEntry then
         the value is assumed to be stored in model[row][0]
-        '''
+
+        :param widget_name:
+        :param model_attr:
+        :param validator:
+        """
         widget = self.view.widgets[widget_name]
         check(widget is not None, _('no widget with name %s') % widget_name)
 
@@ -1701,14 +1649,11 @@ class GenericEditorPresenter(object):
         """Dynamically handle completions on a Gtk.Entry.
 
         :param widget: a Gtk.Entry instance or widget name
-
         :param get_completions: the callable to invoke when a list of
           completions is requested, accepts the string typed, returns an
           iterable of completions
-
         :param on_select: callback for when a value is selected from
           the list of completions
-
         """
 
         logger.debug('assign_completions_handler %s' % widget)
@@ -1816,9 +1761,7 @@ class GenericEditorPresenter(object):
         self.view.connect(completion, 'match-selected', on_match_select)
 
     def start(self):
-        """run the dialog associated to the view
-
-        """
+        """run the dialog associated to the view"""
         result = self.view.get_window().run()
         if (self.is_committing_presenter
             and result in self.committing_results
@@ -1828,10 +1771,8 @@ class GenericEditorPresenter(object):
         return result
 
     def cleanup(self):
-        """
-        Revert any changes the presenter might have done to the
-        widgets so that next time the same widgets are open everything
-        will be normal.
+        """Revert any changes the presenter might have done to the widgets so
+        that next time the same widgets are open everything will be normal.
 
         By default it only calls self.view.cleanup()
         """
@@ -1841,15 +1782,13 @@ class GenericEditorPresenter(object):
 
 
 class ChildPresenter(GenericEditorPresenter):
-    """
-    This Presenter acts as a proxy to another presenter that shares
-    the same view. This avoids circular references by not having a
-    presenter within a presenter that both hold references to the
-    view.
+    """This Presenter acts as a proxy to another presenter that shares the same
+    view. This avoids circular references by not having a presenter within a
+    presenter that both hold references to the view.
 
-    This Presenter keeps a weakref to the parent presenter and
-    provides a pass through to the parent presenter for calling
-    methods that reference the view.
+    This Presenter keeps a weakref to the parent presenter and provides a pass
+    through to the parent presenter for calling methods that reference the
+    view.
     """
 
     def __init__(self, model, view):
@@ -1869,8 +1808,7 @@ class ChildPresenter(GenericEditorPresenter):
 
 
 class GenericModelViewPresenterEditor(object):
-    '''
-    GenericModelViewPresenterEditor assume that model is an instance
+    """GenericModelViewPresenterEditor assume that model is an instance
     of object mapped to a SQLAlchemy table
 
     The editor creates its own session and merges the model into
@@ -1880,12 +1818,11 @@ class GenericModelViewPresenterEditor(object):
     When creating a subclass of this editor then you should explicitly
     close the session when you are finished with it.
 
-    :param model: an instance of an object mapped to a SQLAlchemy
-      Table, the model will be copied and merged into self.session so
-      that the original model will not be changed
-
+    :param model: an instance of an object mapped to a SQLAlchemy Table, the
+        model will be copied and merged into self.session so that the original
+        model will not be changed
     :param parent: the parent windows for the view or None
-    '''
+    """
     ok_responses = ()
 
     def __init__(self, model, parent=None):
@@ -1893,9 +1830,7 @@ class GenericModelViewPresenterEditor(object):
         self.model = self.session.merge(model)
 
     def commit_changes(self):
-        '''
-        Commit the changes to self.session()
-        '''
+        """Commit the changes to self.session()"""
         objs = list(self.session)
         try:
             self.session.commit()
@@ -2013,8 +1948,6 @@ class NoteBox(Gtk.Box):
         self.widgets.notes_expander.props.expanded = expand
 
     def on_notes_remove_button(self, button, *args):
-        """
-        """
         if self.model in self.presenter.notes:
             self.presenter.notes.remove(self.model)
         self.widgets.remove_parent(self.widgets.notes_box)
@@ -2040,9 +1973,9 @@ class NoteBox(Gtk.Box):
         self.set_model_attr('user', value)
 
     def on_category_combo_changed(self, combo, *args):
-        """
-        Sets the text on the entry.  The model value is set in the
-        entry "changed" handler.
+        """Sets the text on the entry.
+
+        The model value is set in the entry "changed" handler.
         """
         text = ''
         treeiter = combo.get_active_iter()
@@ -2054,8 +1987,6 @@ class NoteBox(Gtk.Box):
             utils.utf8(text)
 
     def on_category_entry_changed(self, entry, *args):
-        """
-        """
         value = utils.utf8(entry.props.text)
         if not value:  # if value == ''
             value = None
@@ -2218,10 +2149,11 @@ class PictureBox(NoteBox):
 # True then show the add/remove buttons
 
 class NotesPresenter(GenericEditorPresenter):
-    """
-    The NotesPresenter provides a generic presenter for editor notes
-    on an item in the database.  This presenter requires that the
-    notes property provide a specific interface.
+    """The NotesPresenter provides a generic presenter for editor notes
+    on an item in the database.
+
+    This presenter requires that the notes property provide a specific
+    interface.
 
     :param presenter: the parent presenter of this presenter
     :param notes_property: the string name of the notes property of
@@ -2274,9 +2206,7 @@ class NotesPresenter(GenericEditorPresenter):
         box.set_expanded(True)
 
     def add_note(self, note=None):
-        """
-        Add a new note to the model.
-        """
+        """Add a new note to the model."""
         expander = self.ContentBox(self, note)
         self.box.pack_start(expander, False, False, 0)  # padding=10
         self.box.reorder_child(expander, 0)

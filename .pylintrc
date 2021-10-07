@@ -559,6 +559,8 @@ exclude-protected=_asdict,
 		  _created,
 		  _last_updated,
 		  _sep,
+		  _dirty,
+		  _synonyms,
 
 # List of valid names for the first argument in a class method.
 valid-classmethod-first-arg=cls

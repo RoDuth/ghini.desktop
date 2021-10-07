@@ -66,8 +66,8 @@ def start_taxonomy_check():
 def species_to_fix(ssn, binomial, author, create=False):
     if binomial.find(' ') == -1:
         return None
-    binomial = utils.to_unicode(binomial)
-    author = utils.to_unicode(author)
+    binomial = utils.utf8(binomial)
+    author = utils.utf8(author)
     parts = binomial.split(' ')
     if len(parts) == 4:
         gen_epithet, sp_epithet, rank, epithet = parts
@@ -212,7 +212,7 @@ class BatchTaxonomicCheckPresenter(GenericEditorPresenter):
                                     "update taxon %s" % row[OLD_BINOMIAL],
                                     tag_bold)
 
-                gen_epithet, sp_epithet = utils.to_unicode(
+                gen_epithet, sp_epithet = utils.utf8(
                     row[NEW_BINOMIAL]).split(' ', 1)
                 obj.genus.genus = gen_epithet
                 obj.sp = sp_epithet

@@ -1327,7 +1327,7 @@ class VerificationPresenter(editor.GenericEditorPresenter):
 
             self.update_label()
 
-        def on_date_entry_changed(self, entry, data=None):
+        def on_date_entry_changed(self, entry):
             from bauble.editor import ValidatorError
             value = None
             PROBLEM = 'INVALID_DATE'
@@ -2223,7 +2223,7 @@ class AccessionEditorPresenter(editor.GenericEditorPresenter):
         try:
             value = editor.DateValidator().to_python(entry.props.text)
         except ValidatorError as e:
-            logger.debug("%s(%s)" % (type(e).__name, e))
+            logger.debug("%s(%s)", type(e).__name__, e)
             self.add_problem(PROBLEM, entry)
         else:
             self.remove_problem(PROBLEM, entry)
@@ -2866,8 +2866,6 @@ class AccessionInfoBox(InfoBox):
 
         self.props = PropertiesExpander()
         self.add_expander(self.props)
-
-        #self.show_all()
 
     def update(self, row):
         if isinstance(row, Collection):

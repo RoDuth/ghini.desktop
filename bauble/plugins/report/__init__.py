@@ -752,7 +752,7 @@ else:
         return [ReportToolPlugin, XSLFormatterPlugin,
                 MakoFormatterPlugin]
 
-## compatibility aliases:
+# compatibility aliases:
 get_all_plants = get_plants_pertinent_to
 get_all_accessions = get_accessions_pertinent_to
 get_all_species = get_species_pertinent_to
