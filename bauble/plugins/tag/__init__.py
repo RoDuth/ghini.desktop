@@ -803,17 +803,19 @@ class TagPlugin(pluginmgr.Plugin):
             children=partial(db.natsort, 'objects'),
             infobox=TagInfoBox,
             context_menu=tag_context_menu)
-        SearchView.bottom_info[Tag] = {
+        tag_meta = {
             'page_widget': 'taginfo_scrolledwindow',
             'fields_used': ['tag', 'description'],
             'glade_name': os.path.join(paths.lib_dir(),
                                        'plugins/tag/tag.glade'),
             'name': _('Tags'),
-            }
+        }
+        # Only want to add this once (incase of opening another connection).
+        # If no 'label' key in the dict add_page_to_bottom_notebook will be
+        # called again.
+        SearchView.bottom_info.data.setdefault(Tag, tag_meta)
         if bauble.gui is not None:
             tags_menu_manager.reset()
-        else:
-            pass
 
 
 plugin = TagPlugin

@@ -26,6 +26,7 @@ import traceback
 import html
 from ast import literal_eval
 import threading
+from collections import UserDict
 
 import logging
 logger = logging.getLogger(__name__)
@@ -462,7 +463,7 @@ class SearchView(pluginmgr.View):
     the main text entry.
     """
 
-    class ViewMeta(dict):
+    class ViewMeta(UserDict):
         """
         This class shouldn't need to be instantiated directly.  Access
         the meta for the SearchView with the
@@ -517,7 +518,7 @@ class SearchView(pluginmgr.View):
         def __getitem__(self, item):
             if item not in self:  # create on demand
                 self[item] = self.Meta()
-            return self.get(item)
+            return super().__getitem__(item)
 
     row_meta = ViewMeta()
     bottom_info = ViewMeta()
@@ -552,6 +553,7 @@ class SearchView(pluginmgr.View):
         self.session = db.Session()
         self.add_notes_page_to_bottom_notebook()
         self.running_threads = []
+        self.installed_accels = []
 
     def add_notes_page_to_bottom_notebook(self):
         """add notebook page for notes

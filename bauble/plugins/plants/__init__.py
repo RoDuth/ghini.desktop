@@ -44,6 +44,7 @@ from gi.repository import GLib
 import bauble
 from bauble import db
 from bauble import paths
+from bauble import prefs
 from bauble import pluginmgr
 from bauble.plugins.plants.family import (
     Familia, Family, FamilyInfoBox, FamilyEditor, FamilyNote,
@@ -57,7 +58,7 @@ from bauble.plugins.plants.species import (
     species_context_menu, add_accession_action,
     SynonymSearch, SpeciesDistribution,
     VernacularName, VernacularNameInfoBox,
-    vernname_context_menu,
+    vernname_context_menu, return_accepted_pref
 )
 from bauble.plugins.plants.geography import (
     Geography, get_species_in_geography, GeographyInfoBox)
@@ -322,9 +323,52 @@ class PlantsPlugin(pluginmgr.Plugin):
                 'SpeciesNote': SpeciesNote,
                 'VernacularName': VernacularName,
                 'Geography': Geography, }
+    prefs_change_handler = None
 
     @classmethod
     def init(cls):
+
+        if bauble.gui:
+            return_syns_chkbx = Gtk.CheckButton(label=_('Return accepted'))
+            # set a name so its easy to find and remove
+            return_syns_chkbx.set_name('return_syns_chkbx')
+
+            # if reloading (opening a new connection etc.) remove any previous
+            # return_syns_chkbx
+            for widget in bauble.gui.widgets.head_box.get_children():
+                if widget.get_name() == 'return_syns_chkbx':
+                    bauble.gui.widgets.head_box.remove(widget)
+
+            bauble.gui.widgets.head_box.pack_start(
+                return_syns_chkbx, False, True, 0)
+
+            return_syns_chkbx.set_active(
+                prefs.prefs.get(return_accepted_pref, True))
+
+            tooltip = _('Return the accepted name for synonyms in subsequent '
+                        'searches.\n\nCAUTION!: can be slow, avoid when '
+                        'expecting large results.')
+            return_syns_chkbx.connect('toggled',
+                                      cls.on_return_syns_chkbx_toggled)
+            return_syns_chkbx.set_tooltip_text(tooltip)
+            return_syns_chkbx.show()
+
+            def prefs_ls_changed(model, path, _itr):
+                key, _repr_str, _type_str = model[path]
+                if key == return_accepted_pref:
+                    return_syns_chkbx.set_active(
+                        prefs.prefs.get(return_accepted_pref))
+
+            def on_view_box_added(_container, obj):
+                if isinstance(obj, prefs.PrefsView):
+                    if cls.prefs_change_handler:
+                        obj.prefs_ls.disconnect(cls.prefs_change_handler)
+                    cls.prefs_change_handler = obj.prefs_ls.connect(
+                        'row-changed', prefs_ls_changed)
+
+            bauble.gui.widgets.view_box.connect('set-focus-child',
+                                                on_view_box_added)
+
         pluginmgr.provided.update(cls.provides)
         if 'GardenPlugin' in pluginmgr.plugins:
             species_context_menu.insert(1, add_accession_action)
@@ -372,6 +416,12 @@ class PlantsPlugin(pluginmgr.Plugin):
             bauble.gui.add_to_insert_menu(FamilyEditor, _('Family'))
             bauble.gui.add_to_insert_menu(GenusEditor, _('Genus'))
             bauble.gui.add_to_insert_menu(SpeciesEditorMenuItem, _('Species'))
+
+    @staticmethod
+    def on_return_syns_chkbx_toggled(widget):
+        prefs.prefs[return_accepted_pref] = widget.get_active()
+        if isinstance(view := bauble.gui.get_view(), prefs.PrefsView):
+            view.update()
 
     @classmethod
     def install(cls, import_defaults=True):

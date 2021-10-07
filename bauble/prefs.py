@@ -466,14 +466,6 @@ class PrefsView(pluginmgr.View):
         dialog.destroy()
         return new_iter
 
-    def on_prefs_prefs_tv_row_activated(self, _tv, path, _column):
-        key, _repr_str, type_str = self.prefs_ls[path]
-        if type_str == 'bool':
-            logger.debug('activated: %s', path)
-            prefs[key] = not prefs[key]
-            self.prefs_ls[path][1] = str(prefs[key])
-            prefs.save()
-
     def on_prefs_edit_toggled(self, widget):
         state = widget.get_active()
         logger.debug('edit state %s', state)

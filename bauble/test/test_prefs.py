@@ -201,17 +201,6 @@ class PrefsViewTests(BaubleTestCase):
             [i for i in self.handler.messages['bauble.prefs']['debug'] if
              i.startswith(log_str)])
 
-    def test_on_prefs_prefs_tv_row_activated(self):
-        key = 'bauble.keys'
-        prefs.prefs[key] = True
-        prefs_view = prefs.PrefsView()
-        prefs_view.update()
-        orig_val = prefs.prefs[key]
-        path = [i.path for i in prefs_view.prefs_ls if i[0] == key][0]
-        prefs_view.on_prefs_prefs_tv_row_activated(None, path, None)
-        new_val = prefs.prefs[key]
-        self.assertNotEqual(orig_val, new_val)
-
     def test_on_prefs_edit_toggled(self):
         from bauble import utils
         orig_yes_no_dialog = utils.yes_no_dialog

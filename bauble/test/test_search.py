@@ -738,7 +738,7 @@ class SearchTests(BaubleTestCase):
         g4.accepted = g3
         self.session.commit()
 
-        prefs.prefs['bauble.search.return_synonyms'] = True
+        prefs.prefs['bauble.search.return_accepted'] = True
         mapper_search = search.get_strategy('SynonymSearch')
 
         s = 'Schetti'
@@ -758,7 +758,7 @@ class SearchTests(BaubleTestCase):
         g4.accepted = g3
         self.session.commit()
 
-        prefs.prefs['bauble.search.return_synonyms'] = False
+        prefs.prefs['bauble.search.return_accepted'] = False
         mapper_search = search.get_strategy('SynonymSearch')
 
         s = 'Schetti'

@@ -129,7 +129,7 @@
               </packing>
             </child>
             <child>
-              <object class="GtkBox" id="hbox1">
+              <object class="GtkBox" id="head_box">
                 <property name="visible">True</property>
                 <property name="can-focus">True</property>
                 <child>
@@ -452,21 +452,6 @@
                   </packing>
                 </child>
                 <child>
-                  <object class="GtkLabel" id="label13">
-                    <property name="visible">True</property>
-                    <property name="can-focus">False</property>
-                    <property name="label" translatable="yes">(Note: can toggle True/False by double clicking whithout enabling editing.)</property>
-                    <attributes>
-                      <attribute name="weight" value="bold"/>
-                    </attributes>
-                  </object>
-                  <packing>
-                    <property name="expand">False</property>
-                    <property name="fill">True</property>
-                    <property name="position">1</property>
-                  </packing>
-                </child>
-                <child>
                   <object class="GtkButton" id="prefs_backup_btn">
                     <property name="label" translatable="yes">Backup</property>
                     <property name="visible">True</property>
@@ -519,7 +504,6 @@
                     <property name="model">prefs_prefs_ls</property>
                     <property name="headers-clickable">False</property>
                     <property name="search-column">0</property>
-                    <signal name="row-activated" handler="on_prefs_prefs_tv_row_activated" swapped="no"/>
                     <child internal-child="selection">
                       <object class="GtkTreeSelection"/>
                     </child>

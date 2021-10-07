@@ -132,26 +132,30 @@ vernname_context_menu = [edit_action]
 
 from bauble.view import InfoBox, InfoBoxPage, InfoExpander, \
     select_in_search_results
+return_accepted_pref = 'bauble.search.return_accepted'
+"""
+The preferences key for also returning accepted names for results that are
+considered synonyms.
+"""
 
 
 class SynonymSearch(search.SearchStrategy):
-    """
-    Return any synonyms for matching species.
+    """Return any synonyms for matching species.
 
-    bauble.search.return_synonyms in the prefs toggles this.
+    'bauble.search.return_accepted' pref toggles this.
     """
-    return_synonyms_pref = 'bauble.search.return_synonyms'
 
     def __init__(self):
         super().__init__()
-        if self.return_synonyms_pref not in prefs:
-            prefs[self.return_synonyms_pref] = True
+        if return_accepted_pref not in prefs:
+            prefs[return_accepted_pref] = True
             prefs.save()
 
     def search(self, text, session):
         from .genus import Genus, GenusSynonym
+        from .family import Family, FamilySynonym
         super().search(text, session)
-        if not prefs[self.return_synonyms_pref]:
+        if not prefs.get(return_accepted_pref):
             return []
         mapper_search = search.get_strategy('MapperSearch')
         r1 = mapper_search.search(text, session)
@@ -170,6 +174,10 @@ class SynonymSearch(search.SearchStrategy):
                 q = session.query(GenusSynonym).\
                     filter_by(synonym_id=result.id)
                 results.extend([syn.genus for syn in q])
+            elif isinstance(result, Family):
+                query = session.query(FamilySynonym).filter_by(
+                    synonym_id=result.id)
+                results.extend([syn.family for syn in query])
             elif isinstance(results, VernacularName):
                 q = session.query(SpeciesSynonym).\
                     filter_by(synonym_id=result.species.id)
