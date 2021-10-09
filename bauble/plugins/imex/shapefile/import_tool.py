@@ -723,11 +723,11 @@ def add_rec_to_db(session, item, rec):
         # root = 'accession.species'
         # atr = 'default_vernacular_name'
         # value = VernacularName(...)
-        # This will generally work but is not full proof.  It is preferable to
+        # This will generally work but is not fool proof.  It is preferable to
         # use the hybrid_property default_vernacular_name
         if (root and root.endswith('._default_vernacular_name') and
                 atr == 'vernacular_name'):
-            root = root[:-len('._default_vernacular_name')]
+            root = root.removesuffix('._default_vernacular_name')
             atr = 'default_vernacular_name'
         if remainder.get(root):
             remainder[root][atr] = value

@@ -18,6 +18,10 @@
 # You should have received a copy of the GNU General Public License
 # along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
 
+import logging
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+
 from unittest import mock
 from pathlib import Path
 from zipfile import ZipFile
@@ -39,8 +43,6 @@ from bauble.plugins.plants import Family, Genus
 from bauble.plugins.plants.species import (Species, VernacularName,
                                            DefaultVernacularName)
 from bauble.utils.geo import transform
-from bauble.plugins.imex.shapefile import (ShapefileImportTool,
-                                           ShapefileExportTool)
 from bauble.plugins.imex.shapefile.import_tool import (ShapefileImporter,
                                                        ShapefileReader,
                                                        add_rec_to_db)
@@ -49,6 +51,38 @@ from bauble.plugins.imex.shapefile.export_tool import (ShapefileExporter,
 
 from .import_tool import ShapefileImportSettingsBox as ImpSetBox
 from .export_tool import ShapefileExportSettingsBox as ExpSetBox
+
+
+def get_prj_string_and_num_files_from_zip(zip_file):
+    with ZipFile(zip_file, 'r') as _zip:
+        namelist = _zip.namelist()
+        with _zip.open([i for i in namelist if i.endswith('.prj')][0]) as prj:
+            prj_string = prj.read().decode('utf-8')
+    return (prj_string, len(namelist))
+
+
+class ZippedShapefile:
+    def __init__(self, zip_file, method):
+        # pylint: disable=consider-using-with
+        self.zip_file = ZipFile(zip_file, method)
+        namelist = self.zip_file.namelist()
+        self.shp = self.zip_file.open(
+            [i for i in namelist if i.endswith('.shp')][0])
+        self.dbf = self.zip_file.open(
+            [i for i in namelist if i.endswith('.dbf')][0])
+        self.shpf = Reader(shp=self.shp, dbf=self.dbf)
+
+    def __enter__(self):
+        return self.shpf
+
+    def __exit__(self, typ, val, trace):
+        if typ:
+            logger.warning('ZipShapefile error: %s:%s:%s', typ, val, trace)
+        self.shpf.close()
+        self.shp.close()
+        self.dbf.close()
+        self.zip_file.close()
+
 
 # test data - avoiding tuples as they end up lists in the database anyway
 epsg3857_point = {'type': 'Point',
@@ -383,7 +417,7 @@ def create_shapefile(name, prj_string, fields, records, out_dir):  \
                 record = rec.get('record')
                 geo_type = rec.get('type')
                 # ensure all the fields are included even if they are blank
-                record = {**blank, **record}
+                record = blank | record
                 shpf.record(**record)
                 coords = rec.get('coordinates')
                 if geo_type == 'Point':
@@ -833,6 +867,7 @@ class ShapefileExportTestsEmptyDB(BaubleTestCase):
     def setUp(self):  # pylint: disable=too-many-locals
         super().setUp()
         get_default('system_proj_string', DEFAULT_SYS_PROJ)
+        # pylint: disable=consider-using-with
         # temp_dir
         self.temp_dir = TemporaryDirectory()
         self.exporter = ShapefileExporter(
@@ -890,6 +925,7 @@ class ShapefileExportTests(BaubleTestCase):
                 obj = klass(**dic)
                 self.session.add(obj)
         self.session.commit()
+        # pylint: disable=consider-using-with
         # create temp_dir
         self.temp_dir = TemporaryDirectory()
         # something to compare for plants
@@ -923,45 +959,41 @@ class ShapefileExportTests(BaubleTestCase):
         exporter.run()
         out = [str(i) for i in Path(self.temp_dir.name).glob('*.zip')]
         self.assertEqual(len(out), 1)
-        with ZipFile(out[0], 'r') as z:
-            namelist = z.namelist()
-            self.assertEqual(len(namelist), 4)
-            with z.open([i for i in namelist if i.endswith('.prj')][0]) as prj:
-                self.assertEqual(prj.read().decode('utf-8'), prj_str_4326)
-            with z.open([i for i in namelist if i.endswith('.shp')][0]) as shp:
-                with z.open([i for i in namelist if i.endswith('.dbf')][0]) as dbf:
-                    with Reader(shp=shp, dbf=dbf) as shpf:
-                        # field_names = [i[0] for i in shpf.fields]
-                        self.assertEqual(len(shpf.shapes()), 2)
-                        self.assertEqual(shpf.record(0)['loc_id'],
-                                         location_data[0].get('id'))
-                        self.assertEqual(shpf.record(0)['loc_code'],
-                                         location_data[0].get('code'))
-                        self.assertEqual(shpf.record(0)['descript'],
-                                         location_data[0].get('description', ''))
-                        self.assertEqual(shpf.record(0)['field_note'],
-                                         loc_note_data[1].get('note', ''))
-                        self.assertEqual(shpf.record(1)['loc_id'],
-                                         location_data[1].get('id'))
-                        self.assertEqual(shpf.record(1)['loc_code'],
-                                         location_data[1].get('code'))
-                        self.assertEqual(shpf.record(1)['descript'],
-                                         location_data[1].get('description', ''))
-                        self.assertEqual(shpf.record(1)['field_note'],
-                                         loc_note_data[0].get('note', ''))
+        prj_string, file_count = get_prj_string_and_num_files_from_zip(out[0])
+        self.assertEqual(prj_string, prj_str_4326)
+        self.assertEqual(file_count, 4)
+        with ZippedShapefile(out[0], 'r') as shpf:
+            # field_names = [i[0] for i in shpf.fields]
+            self.assertEqual(len(shpf.shapes()), 2)
+            self.assertEqual(shpf.record(0)['loc_id'],
+                             location_data[0].get('id'))
+            self.assertEqual(shpf.record(0)['loc_code'],
+                             location_data[0].get('code'))
+            self.assertEqual(shpf.record(0)['descript'],
+                             location_data[0].get('description', ''))
+            self.assertEqual(shpf.record(0)['field_note'],
+                             loc_note_data[1].get('note', ''))
+            self.assertEqual(shpf.record(1)['loc_id'],
+                             location_data[1].get('id'))
+            self.assertEqual(shpf.record(1)['loc_code'],
+                             location_data[1].get('code'))
+            self.assertEqual(shpf.record(1)['descript'],
+                             location_data[1].get('description', ''))
+            self.assertEqual(shpf.record(1)['field_note'],
+                             loc_note_data[0].get('note', ''))
 
-                        # use transform to make sure the format is the same
-                        # (lists vs tuples for coordinates)
-                        self.assertEqual(
-                            transform(shpf.shapes()[0].__geo_interface__,
-                                      in_crs='epsg:4326',
-                                      out_crs='epsg:4326'),
-                            epsg4326_poly_xy)
-                        self.assertEqual(
-                            transform(shpf.shapes()[1].__geo_interface__,
-                                      in_crs='epsg:4326',
-                                      out_crs='epsg:4326'),
-                            epsg4326_poly_xy2)
+            # use transform to make sure the format is the same
+            # (lists vs tuples for coordinates)
+            self.assertEqual(
+                transform(shpf.shapes()[0].__geo_interface__,
+                          in_crs='epsg:4326',
+                          out_crs='epsg:4326'),
+                epsg4326_poly_xy)
+            self.assertEqual(
+                transform(shpf.shapes()[1].__geo_interface__,
+                          in_crs='epsg:4326',
+                          out_crs='epsg:4326'),
+                epsg4326_poly_xy2)
 
     def test_exports_all_plants(self):
         exporter = self.exporter
@@ -974,103 +1006,97 @@ class ShapefileExportTests(BaubleTestCase):
         out = Path(self.temp_dir.name).glob('*.zip')
         out = [str(i) for i in Path(self.temp_dir.name).glob('*.zip')]
         self.assertEqual(len(out), 3)
-        with ZipFile([i for i in out if 'point.zip' in i][0], 'r') as z:
-            namelist = z.namelist()
-            self.assertEqual(len(namelist), 4)
-            with z.open([i for i in namelist if i.endswith('.prj')][0]) as prj:
-                self.assertEqual(prj.read().decode('utf-8'), prj_str_4326)
-            with z.open([i for i in namelist if i.endswith('.shp')][0]) as shp:
-                with z.open([i for i in namelist if i.endswith('.dbf')][0]) as dbf:
-                    with Reader(shp=shp, dbf=dbf) as shpf:
-                        # field_names = [i[0] for i in shpf.fields]
-                        self.assertEqual(len(shpf.shapes()), 1)
-                        self.assertEqual(shpf.record(0)['plt_id'],
-                                         plant_data[0].get('id'))
-                        self.assertEqual(shpf.record(0)['plt_code'],
-                                         plant_data[0].get('code'))
-                        self.assertEqual(shpf.record(0)['quantity'],
-                                         plant_data[0].get('quantity'))
-                        acc = [i.get('code') for i in accession_data if
-                               i.get('id') == plant_data[0].get('accession_id')][0]
-                        self.assertEqual(shpf.record(0)['accession'], acc)
-                        loc = [i.get('code') for i in location_data if
-                               i.get('id') == plant_data[0].get('location_id')][0]
-                        self.assertEqual(shpf.record(0)['bed'], loc)
-                        self.assertEqual(shpf.record(0)['family'],
-                                         self.taxa_to_acc.get(
-                                             plant_data[0].get('accession_id'))[0]
-                                         )
-                        self.assertEqual(
-                            shpf.record(0)['genus'],
-                            self.taxa_to_acc.get(
-                                plant_data[0].get('accession_id'))[1]
-                        )
-                        self.assertEqual(
-                            shpf.record(0)['species'],
-                            self.taxa_to_acc.get(
-                                plant_data[0].get('accession_id'))[2]
-                        )
-                        self.assertEqual(
-                            transform(shpf.shapes()[0].__geo_interface__,
-                                      in_crs='epsg:4326',
-                                      out_crs='epsg:4326'),
-                            epsg4326_point_xy)
-        with ZipFile([i for i in out if 'line.zip' in i][0], 'r') as z:
-            namelist = z.namelist()
-            self.assertEqual(len(namelist), 4)
-            with z.open([i for i in namelist if i.endswith('.prj')][0]) as prj:
-                self.assertEqual(prj.read().decode('utf-8'), prj_str_4326)
-            with z.open([i for i in namelist if i.endswith('.shp')][0]) as shp:
-                with z.open([i for i in namelist if i.endswith('.dbf')][0]) as dbf:
-                    with Reader(shp=shp, dbf=dbf) as shpf:
-                        # field_names = [i[0] for i in shpf.fields]
-                        self.assertEqual(len(shpf.shapes()), 1)
-                        self.assertEqual(shpf.record(0)['plt_id'],
-                                         plant_data[1].get('id'))
-                        self.assertEqual(shpf.record(0)['plt_code'],
-                                         plant_data[1].get('code'))
-                        self.assertEqual(shpf.record(0)['quantity'],
-                                         plant_data[1].get('quantity'))
-                        acc = [i.get('code') for i in accession_data if
-                               i.get('id') == plant_data[1].get('accession_id')][0]
-                        self.assertEqual(shpf.record(0)['accession'], acc)
-                        loc = [i.get('code') for i in location_data if
-                               i.get('id') == plant_data[1].get('location_id')][0]
-                        self.assertEqual(shpf.record(0)['bed'], loc)
-                        self.assertEqual(shpf.record(0)['family'],
-                                         self.taxa_to_acc.get(
-                                             plant_data[1].get('accession_id'))[0]
-                                         )
-                        self.assertEqual(
-                            shpf.record(0)['genus'],
-                            self.taxa_to_acc.get(
-                                plant_data[1].get('accession_id'))[1]
-                        )
-                        self.assertEqual(
-                            shpf.record(0)['species'],
-                            self.taxa_to_acc.get(
-                                plant_data[1].get('accession_id'))[2]
-                        )
-                        self.assertEqual(
-                            transform(shpf.shapes()[0].__geo_interface__,
-                                      in_crs='epsg:4326',
-                                      out_crs='epsg:4326'),
-                            epsg4326_line_xy)
-        with ZipFile([i for i in out if 'poly.zip' in i][0], 'r') as z:
-            namelist = z.namelist()
-            self.assertEqual(len(namelist), 4)
-            with z.open([i for i in namelist if i.endswith('.prj')][0]) as prj:
-                self.assertEqual(prj.read().decode('utf-8'), prj_str_4326)
-            with z.open([i for i in namelist if i.endswith('.shp')][0]) as shp:
-                with z.open([i for i in namelist if i.endswith('.dbf')][0]) as dbf:
-                    with Reader(shp=shp, dbf=dbf) as shpf:
-                        # field_names = [i[0] for i in shpf.fields]
-                        self.assertEqual(len(shpf.shapes()), 1)
-                        self.assertEqual(
-                            transform(shpf.shapes()[0].__geo_interface__,
-                                      in_crs='epsg:4326',
-                                      out_crs='epsg:4326'),
-                            epsg4326_poly_xy)
+        zip_file = [i for i in out if 'point.zip' in i][0]
+        prj_string, file_count = get_prj_string_and_num_files_from_zip(
+            zip_file)
+        self.assertEqual(prj_string, prj_str_4326)
+        self.assertEqual(file_count, 4)
+        with ZippedShapefile(zip_file, 'r') as shpf:
+            # field_names = [i[0] for i in shpf.fields]
+            self.assertEqual(len(shpf.shapes()), 1)
+            self.assertEqual(shpf.record(0)['plt_id'],
+                             plant_data[0].get('id'))
+            self.assertEqual(shpf.record(0)['plt_code'],
+                             plant_data[0].get('code'))
+            self.assertEqual(shpf.record(0)['quantity'],
+                             plant_data[0].get('quantity'))
+            acc = [i.get('code') for i in accession_data if
+                   i.get('id') == plant_data[0].get('accession_id')][0]
+            self.assertEqual(shpf.record(0)['accession'], acc)
+            loc = [i.get('code') for i in location_data if
+                   i.get('id') == plant_data[0].get('location_id')][0]
+            self.assertEqual(shpf.record(0)['bed'], loc)
+            self.assertEqual(shpf.record(0)['family'],
+                             self.taxa_to_acc.get(
+                                 plant_data[0].get('accession_id'))[0]
+                             )
+            self.assertEqual(
+                shpf.record(0)['genus'],
+                self.taxa_to_acc.get(
+                    plant_data[0].get('accession_id'))[1]
+            )
+            self.assertEqual(
+                shpf.record(0)['species'],
+                self.taxa_to_acc.get(
+                    plant_data[0].get('accession_id'))[2]
+            )
+            self.assertEqual(
+                transform(shpf.shapes()[0].__geo_interface__,
+                          in_crs='epsg:4326',
+                          out_crs='epsg:4326'),
+                epsg4326_point_xy)
+        zip_file = [i for i in out if 'line.zip' in i][0]
+        prj_string, file_count = get_prj_string_and_num_files_from_zip(
+            zip_file)
+        self.assertEqual(prj_string, prj_str_4326)
+        self.assertEqual(file_count, 4)
+        with ZippedShapefile(zip_file, 'r') as shpf:
+            # field_names = [i[0] for i in shpf.fields]
+            self.assertEqual(len(shpf.shapes()), 1)
+            self.assertEqual(shpf.record(0)['plt_id'],
+                             plant_data[1].get('id'))
+            self.assertEqual(shpf.record(0)['plt_code'],
+                             plant_data[1].get('code'))
+            self.assertEqual(shpf.record(0)['quantity'],
+                             plant_data[1].get('quantity'))
+            acc = [i.get('code') for i in accession_data if
+                   i.get('id') == plant_data[1].get('accession_id')][0]
+            self.assertEqual(shpf.record(0)['accession'], acc)
+            loc = [i.get('code') for i in location_data if
+                   i.get('id') == plant_data[1].get('location_id')][0]
+            self.assertEqual(shpf.record(0)['bed'], loc)
+            self.assertEqual(shpf.record(0)['family'],
+                             self.taxa_to_acc.get(
+                                 plant_data[1].get('accession_id'))[0]
+                             )
+            self.assertEqual(
+                shpf.record(0)['genus'],
+                self.taxa_to_acc.get(
+                    plant_data[1].get('accession_id'))[1]
+            )
+            self.assertEqual(
+                shpf.record(0)['species'],
+                self.taxa_to_acc.get(
+                    plant_data[1].get('accession_id'))[2]
+            )
+            self.assertEqual(
+                transform(shpf.shapes()[0].__geo_interface__,
+                          in_crs='epsg:4326',
+                          out_crs='epsg:4326'),
+                epsg4326_line_xy)
+        zip_file = [i for i in out if 'poly.zip' in i][0]
+        prj_string, file_count = get_prj_string_and_num_files_from_zip(
+            zip_file)
+        self.assertEqual(prj_string, prj_str_4326)
+        self.assertEqual(file_count, 4)
+        with ZippedShapefile(zip_file, 'r') as shpf:
+            # field_names = [i[0] for i in shpf.fields]
+            self.assertEqual(len(shpf.shapes()), 1)
+            self.assertEqual(
+                transform(shpf.shapes()[0].__geo_interface__,
+                          in_crs='epsg:4326',
+                          out_crs='epsg:4326'),
+                epsg4326_poly_xy)
 
     def test_exports_all_plants_with_advanced_settings(self):
         fields = {
@@ -1098,44 +1124,42 @@ class ShapefileExportTests(BaubleTestCase):
         out = [str(i) for i in Path(self.temp_dir.name).glob('*.zip')]
         self.assertEqual(len(out), 3)
         # Just test some of the easier data to test.
-        with ZipFile([i for i in out if 'point.zip' in i][0], 'r') as z:
-            namelist = z.namelist()
-            self.assertEqual(len(namelist), 4)
-            with z.open([i for i in namelist if i.endswith('.prj')][0]) as prj:
-                self.assertEqual(prj.read().decode('utf-8'), prj_str_4326)
-            with z.open([i for i in namelist if i.endswith('.shp')][0]) as shp:
-                with z.open([i for i in namelist if i.endswith('.dbf')][0]) as dbf:
-                    with Reader(shp=shp, dbf=dbf) as shpf:
-                        # field_names = [i[0] for i in shpf.fields]
-                        self.assertEqual(len(shpf.shapes()), 1)
-                        acc = [i.get('code') for i in accession_data if
-                               i.get('id') == plant_data[0].get('accession_id')][0]
-                        self.assertEqual(shpf.record(0)['plant'],
-                                         acc + '.' + plant_data[0].get('code'))
-                        self.assertEqual(shpf.record(0)['quantity'],
-                                         plant_data[0].get('quantity'))
-                        loc_code = [i.get('code') for i in location_data if
-                                    i.get('id') ==
-                                    plant_data[0].get('location_id')][0]
-                        loc_name = [i.get('name') for i in location_data if
-                                    i.get('id') ==
-                                    plant_data[0].get('location_id')][0]
-                        self.assertEqual(shpf.record(0)['bed'],
-                                         f'({loc_code}) {loc_name}')
-                        self.assertEqual(shpf.record(0)['family'],
-                                         self.taxa_to_acc.get(
-                                             plant_data[0].get('accession_id'))[0]
-                                         )
-                        self.assertEqual(shpf.record(0)['source'], '')
-                        self.assertEqual(shpf.record(0)['plc_holder'], '')
-                        self.assertIsNone(shpf.record(0)['coll_accy'], '')
-                        self.assertEqual([i for i in shpf.fields if i[0] ==
-                                          'coll_accy'][0][3], 10)
-                        self.assertEqual(
-                            transform(shpf.shapes()[0].__geo_interface__,
-                                      in_crs='epsg:4326',
-                                      out_crs='epsg:4326'),
-                            epsg4326_point_xy)
+        zip_file = [i for i in out if 'point.zip' in i][0]
+        prj_string, file_count = get_prj_string_and_num_files_from_zip(
+            zip_file)
+        self.assertEqual(prj_string, prj_str_4326)
+        self.assertEqual(file_count, 4)
+        with ZippedShapefile(zip_file, 'r') as shpf:
+            # field_names = [i[0] for i in shpf.fields]
+            self.assertEqual(len(shpf.shapes()), 1)
+            acc = [i.get('code') for i in accession_data if
+                   i.get('id') == plant_data[0].get('accession_id')][0]
+            self.assertEqual(shpf.record(0)['plant'],
+                             acc + '.' + plant_data[0].get('code'))
+            self.assertEqual(shpf.record(0)['quantity'],
+                             plant_data[0].get('quantity'))
+            loc_code = [i.get('code') for i in location_data if
+                        i.get('id') ==
+                        plant_data[0].get('location_id')][0]
+            loc_name = [i.get('name') for i in location_data if
+                        i.get('id') ==
+                        plant_data[0].get('location_id')][0]
+            self.assertEqual(shpf.record(0)['bed'],
+                             f'({loc_code}) {loc_name}')
+            self.assertEqual(shpf.record(0)['family'],
+                             self.taxa_to_acc.get(
+                                 plant_data[0].get('accession_id'))[0]
+                             )
+            self.assertEqual(shpf.record(0)['source'], '')
+            self.assertEqual(shpf.record(0)['plc_holder'], '')
+            self.assertIsNone(shpf.record(0)['coll_accy'], '')
+            self.assertEqual([i for i in shpf.fields if i[0] ==
+                              'coll_accy'][0][3], 10)
+            self.assertEqual(
+                transform(shpf.shapes()[0].__geo_interface__,
+                          in_crs='epsg:4326',
+                          out_crs='epsg:4326'),
+                epsg4326_point_xy)
 
     def test_exports_all_plants_not_private(self):
         exporter = self.exporter
@@ -1151,47 +1175,45 @@ class ShapefileExportTests(BaubleTestCase):
         self.assertEqual(len(out), 1)
         # Only one plant should come through as the other 2 are from the
         # private accession
-        with ZipFile([i for i in out if 'point.zip' in i][0], 'r') as z:
-            namelist = z.namelist()
-            self.assertEqual(len(namelist), 4)
-            with z.open([i for i in namelist if i.endswith('.prj')][0]) as prj:
-                self.assertEqual(prj.read().decode('utf-8'), prj_str_4326)
-            with z.open([i for i in namelist if i.endswith('.shp')][0]) as shp:
-                with z.open([i for i in namelist if i.endswith('.dbf')][0]) as dbf:
-                    with Reader(shp=shp, dbf=dbf) as shpf:
-                        # field_names = [i[0] for i in shpf.fields]
-                        self.assertEqual(len(shpf.shapes()), 1)
-                        self.assertEqual(shpf.record(0)['plt_id'],
-                                         plant_data[0].get('id'))
-                        self.assertEqual(shpf.record(0)['plt_code'],
-                                         plant_data[0].get('code'))
-                        self.assertEqual(shpf.record(0)['quantity'],
-                                         plant_data[0].get('quantity'))
-                        acc = [i.get('code') for i in accession_data if
-                               i.get('id') == plant_data[0].get('accession_id')][0]
-                        self.assertEqual(shpf.record(0)['accession'], acc)
-                        loc = [i.get('code') for i in location_data if
-                               i.get('id') == plant_data[0].get('location_id')][0]
-                        self.assertEqual(shpf.record(0)['bed'], loc)
-                        self.assertEqual(shpf.record(0)['family'],
-                                         self.taxa_to_acc.get(
-                                             plant_data[0].get('accession_id'))[0]
-                                         )
-                        self.assertEqual(
-                            shpf.record(0)['genus'],
-                            self.taxa_to_acc.get(
-                                plant_data[0].get('accession_id'))[1]
-                        )
-                        self.assertEqual(
-                            shpf.record(0)['species'],
-                            self.taxa_to_acc.get(
-                                plant_data[0].get('accession_id'))[2]
-                        )
-                        self.assertEqual(
-                            transform(shpf.shapes()[0].__geo_interface__,
-                                      in_crs='epsg:4326',
-                                      out_crs='epsg:4326'),
-                            epsg4326_point_xy)
+        zip_file = [i for i in out if 'point.zip' in i][0]
+        prj_string, file_count = get_prj_string_and_num_files_from_zip(
+            zip_file)
+        self.assertEqual(prj_string, prj_str_4326)
+        self.assertEqual(file_count, 4)
+        with ZippedShapefile(zip_file, 'r') as shpf:
+            # field_names = [i[0] for i in shpf.fields]
+            self.assertEqual(len(shpf.shapes()), 1)
+            self.assertEqual(shpf.record(0)['plt_id'],
+                             plant_data[0].get('id'))
+            self.assertEqual(shpf.record(0)['plt_code'],
+                             plant_data[0].get('code'))
+            self.assertEqual(shpf.record(0)['quantity'],
+                             plant_data[0].get('quantity'))
+            acc = [i.get('code') for i in accession_data if
+                   i.get('id') == plant_data[0].get('accession_id')][0]
+            self.assertEqual(shpf.record(0)['accession'], acc)
+            loc = [i.get('code') for i in location_data if
+                   i.get('id') == plant_data[0].get('location_id')][0]
+            self.assertEqual(shpf.record(0)['bed'], loc)
+            self.assertEqual(shpf.record(0)['family'],
+                             self.taxa_to_acc.get(
+                                 plant_data[0].get('accession_id'))[0]
+                             )
+            self.assertEqual(
+                shpf.record(0)['genus'],
+                self.taxa_to_acc.get(
+                    plant_data[0].get('accession_id'))[1]
+            )
+            self.assertEqual(
+                shpf.record(0)['species'],
+                self.taxa_to_acc.get(
+                    plant_data[0].get('accession_id'))[2]
+            )
+            self.assertEqual(
+                transform(shpf.shapes()[0].__geo_interface__,
+                          in_crs='epsg:4326',
+                          out_crs='epsg:4326'),
+                epsg4326_point_xy)
 
     def test_exports_all(self):
         exporter = self.exporter
@@ -1207,60 +1229,52 @@ class ShapefileExportTests(BaubleTestCase):
         out = [str(i) for i in Path(self.temp_dir.name).glob('*.zip')]
         self.assertEqual(len(out), 4)
 
-        with ZipFile([i for i in out if 'plants_point.zip' in i][0]) as z:
-            namelist = z.namelist()
-            self.assertEqual(len(namelist), 4)
-            with z.open([i for i in namelist if i.endswith('.prj')][0]) as prj:
-                self.assertEqual(prj.read().decode('utf-8'), prj_str_4326)
-            with z.open([i for i in namelist if i.endswith('.shp')][0]) as shp:
-                with z.open([i for i in namelist if i.endswith('.dbf')][0]) as dbf:
-                    with Reader(shp=shp, dbf=dbf) as shpf:
-                        # field_names = [i[0] for i in shpf.fields]
-                        self.assertEqual(len(shpf.shapes()), 1)
-                        self.assertEqual(shpf.record(0)['plt_id'],
-                                         plant_data[0].get('id'))
+        zip_file = [i for i in out if 'plants_point.zip' in i][0]
+        prj_string, file_count = get_prj_string_and_num_files_from_zip(
+            zip_file)
+        self.assertEqual(prj_string, prj_str_4326)
+        self.assertEqual(file_count, 4)
+        with ZippedShapefile(zip_file, 'r') as shpf:
+            # field_names = [i[0] for i in shpf.fields]
+            self.assertEqual(len(shpf.shapes()), 1)
+            self.assertEqual(shpf.record(0)['plt_id'],
+                             plant_data[0].get('id'))
 
-        with ZipFile([i for i in out if 'plants_line.zip' in i][0]) as z:
-            namelist = z.namelist()
-            self.assertEqual(len(namelist), 4)
-            with z.open([i for i in namelist if i.endswith('.prj')][0]) as prj:
-                self.assertEqual(prj.read().decode('utf-8'), prj_str_4326)
-            with z.open([i for i in namelist if i.endswith('.shp')][0]) as shp:
-                with z.open([i for i in namelist if i.endswith('.dbf')][0]) as dbf:
-                    with Reader(shp=shp, dbf=dbf) as shpf:
-                        # field_names = [i[0] for i in shpf.fields]
-                        self.assertEqual(len(shpf.shapes()), 1)
-                        self.assertEqual(shpf.record(0)['plt_code'],
-                                         plant_data[1].get('code'))
+        zip_file = [i for i in out if 'plants_line.zip' in i][0]
+        prj_string, file_count = get_prj_string_and_num_files_from_zip(
+            zip_file)
+        self.assertEqual(prj_string, prj_str_4326)
+        self.assertEqual(file_count, 4)
+        with ZippedShapefile(zip_file, 'r') as shpf:
+            # field_names = [i[0] for i in shpf.fields]
+            self.assertEqual(len(shpf.shapes()), 1)
+            self.assertEqual(shpf.record(0)['plt_code'],
+                             plant_data[1].get('code'))
 
-        with ZipFile([i for i in out if 'plants_poly.zip' in i][0]) as z:
-            namelist = z.namelist()
-            self.assertEqual(len(namelist), 4)
-            with z.open([i for i in namelist if i.endswith('.prj')][0]) as prj:
-                self.assertEqual(prj.read().decode('utf-8'), prj_str_4326)
-            with z.open([i for i in namelist if i.endswith('.shp')][0]) as shp:
-                with z.open([i for i in namelist if i.endswith('.dbf')][0]) as dbf:
-                    with Reader(shp=shp, dbf=dbf) as shpf:
-                        # field_names = [i[0] for i in shpf.fields]
-                        self.assertEqual(len(shpf.shapes()), 1)
-                        self.assertEqual(
-                            transform(shpf.shapes()[0].__geo_interface__,
-                                      in_crs='epsg:4326',
-                                      out_crs='epsg:4326'),
-                            epsg4326_poly_xy)
+        zip_file = [i for i in out if 'plants_poly.zip' in i][0]
+        prj_string, file_count = get_prj_string_and_num_files_from_zip(
+            zip_file)
+        self.assertEqual(prj_string, prj_str_4326)
+        self.assertEqual(file_count, 4)
+        with ZippedShapefile(zip_file, 'r') as shpf:
+            # field_names = [i[0] for i in shpf.fields]
+            self.assertEqual(len(shpf.shapes()), 1)
+            self.assertEqual(
+                transform(shpf.shapes()[0].__geo_interface__,
+                          in_crs='epsg:4326',
+                          out_crs='epsg:4326'),
+                epsg4326_poly_xy)
 
-        with ZipFile([i for i in out if 'locations_poly.zip' in i][0]) as z:
-            namelist = z.namelist()
-            self.assertEqual(len(namelist), 4)
-            with z.open([i for i in namelist if i.endswith('.prj')][0]) as prj:
-                self.assertEqual(prj.read().decode('utf-8'), prj_str_4326)
-            with z.open([i for i in namelist if i.endswith('.shp')][0]) as shp:
-                with z.open([i for i in namelist if i.endswith('.dbf')][0]) as dbf:
-                    with Reader(shp=shp, dbf=dbf) as shpf:
-                        # field_names = [i[0] for i in shpf.fields]
-                        self.assertEqual(len(shpf.shapes()), 2)
-                        self.assertEqual(shpf.record(0)['loc_id'],
-                                         location_data[0].get('id'))
+        zip_file = [i for i in out if 'locations_poly.zip' in i][0]
+        prj_string, file_count = get_prj_string_and_num_files_from_zip(
+            zip_file)
+        self.assertEqual(prj_string, prj_str_4326)
+        self.assertEqual(file_count, 4)
+        with ZippedShapefile(zip_file, 'r') as shpf:
+            # field_names = [i[0] for i in shpf.fields]
+            self.assertEqual(len(shpf.shapes()), 2)
+            self.assertEqual(shpf.record(0)['loc_id'],
+                             location_data[0].get('id'))
 
     def test_exports_all_w_generated_plant_points(self):
         exporter = self.exporter
@@ -1280,60 +1294,52 @@ class ShapefileExportTests(BaubleTestCase):
         out = [str(i) for i in Path(self.temp_dir.name).glob('*.zip')]
         self.assertEqual(len(out), 4)
 
-        with ZipFile([i for i in out if 'plants_point.zip' in i][0]) as z:
-            namelist = z.namelist()
-            self.assertEqual(len(namelist), 4)
-            with z.open([i for i in namelist if i.endswith('.prj')][0]) as prj:
-                self.assertEqual(prj.read().decode('utf-8'), prj_str_4326)
-            with z.open([i for i in namelist if i.endswith('.shp')][0]) as shp:
-                with z.open([i for i in namelist if i.endswith('.dbf')][0]) as dbf:
-                    with Reader(shp=shp, dbf=dbf) as shpf:
-                        # field_names = [i[0] for i in shpf.fields]
-                        self.assertEqual(len(shpf.shapes()), 1)
-                        self.assertEqual(shpf.record(0)['plt_id'],
-                                         plant_data[0].get('id'))
+        zip_file = [i for i in out if 'plants_point.zip' in i][0]
+        prj_string, file_count = get_prj_string_and_num_files_from_zip(
+            zip_file)
+        self.assertEqual(prj_string, prj_str_4326)
+        self.assertEqual(file_count, 4)
+        with ZippedShapefile(zip_file, 'r') as shpf:
+            # field_names = [i[0] for i in shpf.fields]
+            self.assertEqual(len(shpf.shapes()), 1)
+            self.assertEqual(shpf.record(0)['plt_id'],
+                             plant_data[0].get('id'))
 
-        with ZipFile([i for i in out if 'plants_line.zip' in i][0]) as z:
-            namelist = z.namelist()
-            self.assertEqual(len(namelist), 4)
-            with z.open([i for i in namelist if i.endswith('.prj')][0]) as prj:
-                self.assertEqual(prj.read().decode('utf-8'), prj_str_4326)
-            with z.open([i for i in namelist if i.endswith('.shp')][0]) as shp:
-                with z.open([i for i in namelist if i.endswith('.dbf')][0]) as dbf:
-                    with Reader(shp=shp, dbf=dbf) as shpf:
-                        # field_names = [i[0] for i in shpf.fields]
-                        self.assertEqual(len(shpf.shapes()), 1)
-                        self.assertEqual(shpf.record(0)['plt_code'],
-                                         plant_data[1].get('code'))
+        zip_file = [i for i in out if 'plants_line.zip' in i][0]
+        prj_string, file_count = get_prj_string_and_num_files_from_zip(
+            zip_file)
+        self.assertEqual(prj_string, prj_str_4326)
+        self.assertEqual(file_count, 4)
+        with ZippedShapefile(zip_file, 'r') as shpf:
+            # field_names = [i[0] for i in shpf.fields]
+            self.assertEqual(len(shpf.shapes()), 1)
+            self.assertEqual(shpf.record(0)['plt_code'],
+                             plant_data[1].get('code'))
 
-        with ZipFile([i for i in out if 'plants_poly.zip' in i][0]) as z:
-            namelist = z.namelist()
-            self.assertEqual(len(namelist), 4)
-            with z.open([i for i in namelist if i.endswith('.prj')][0]) as prj:
-                self.assertEqual(prj.read().decode('utf-8'), prj_str_4326)
-            with z.open([i for i in namelist if i.endswith('.shp')][0]) as shp:
-                with z.open([i for i in namelist if i.endswith('.dbf')][0]) as dbf:
-                    with Reader(shp=shp, dbf=dbf) as shpf:
-                        # field_names = [i[0] for i in shpf.fields]
-                        self.assertEqual(len(shpf.shapes()), 1)
-                        self.assertEqual(
-                            transform(shpf.shapes()[0].__geo_interface__,
-                                      in_crs='epsg:4326',
-                                      out_crs='epsg:4326'),
-                            epsg4326_poly_xy)
+        zip_file = [i for i in out if 'plants_poly.zip' in i][0]
+        prj_string, file_count = get_prj_string_and_num_files_from_zip(
+            zip_file)
+        self.assertEqual(prj_string, prj_str_4326)
+        self.assertEqual(file_count, 4)
+        with ZippedShapefile(zip_file, 'r') as shpf:
+            # field_names = [i[0] for i in shpf.fields]
+            self.assertEqual(len(shpf.shapes()), 1)
+            self.assertEqual(
+                transform(shpf.shapes()[0].__geo_interface__,
+                          in_crs='epsg:4326',
+                          out_crs='epsg:4326'),
+                epsg4326_poly_xy)
 
-        with ZipFile([i for i in out if 'locations_poly.zip' in i][0]) as z:
-            namelist = z.namelist()
-            self.assertEqual(len(namelist), 4)
-            with z.open([i for i in namelist if i.endswith('.prj')][0]) as prj:
-                self.assertEqual(prj.read().decode('utf-8'), prj_str_4326)
-            with z.open([i for i in namelist if i.endswith('.shp')][0]) as shp:
-                with z.open([i for i in namelist if i.endswith('.dbf')][0]) as dbf:
-                    with Reader(shp=shp, dbf=dbf) as shpf:
-                        # field_names = [i[0] for i in shpf.fields]
-                        self.assertEqual(len(shpf.shapes()), 2)
-                        self.assertEqual(shpf.record(0)['loc_id'],
-                                         location_data[0].get('id'))
+        zip_file = [i for i in out if 'locations_poly.zip' in i][0]
+        prj_string, file_count = get_prj_string_and_num_files_from_zip(
+            zip_file)
+        self.assertEqual(prj_string, prj_str_4326)
+        self.assertEqual(file_count, 4)
+        with ZippedShapefile(zip_file, 'r') as shpf:
+            # field_names = [i[0] for i in shpf.fields]
+            self.assertEqual(len(shpf.shapes()), 2)
+            self.assertEqual(shpf.record(0)['loc_id'],
+                             location_data[0].get('id'))
 
     def test_exports_search_all_w_generated_plants(self):
         objs = self.session.query(Genus).filter_by(genus='Eucalyptus').all()
@@ -1352,57 +1358,54 @@ class ShapefileExportTests(BaubleTestCase):
         exporter.run()
         out = [str(i) for i in Path(self.temp_dir.name).glob('*.zip')]
         self.assertEqual(len(out), 4)
-        with ZipFile([i for i in out if 'plants_point.zip' in i][0]) as z:
-            namelist = z.namelist()
-            self.assertEqual(len(namelist), 4)
-            with z.open([i for i in namelist if i.endswith('.prj')][0]) as prj:
-                self.assertEqual(prj.read().decode('utf-8'), prj_str_4326)
-            with z.open([i for i in namelist if i.endswith('.shp')][0]) as shp:
-                with z.open([i for i in namelist if i.endswith('.dbf')][0]) as dbf:
-                    with Reader(shp=shp, dbf=dbf) as shpf:
-                        self.assertEqual(len(shpf.shapes()), 1)
-                        self.assertEqual(shpf.record(0)['plt_id'],
-                                         self.full_plant_data[3].get('id'))
-                        self.assertEqual(shpf.record(0)['plt_code'],
-                                         self.full_plant_data[3].get('code'))
-                        self.assertEqual(shpf.record(0)['quantity'],
-                                         self.full_plant_data[3].get('quantity'))
-                        acc = [i.get('code') for i in accession_data if
-                               i.get('id') ==
-                               self.full_plant_data[3].get('accession_id')][0]
-                        self.assertEqual(shpf.record(0)['accession'], acc)
-                        loc = [i.get('code') for i in location_data if
-                               i.get('id') ==
-                               self.full_plant_data[3].get('location_id')][0]
-                        self.assertEqual(shpf.record(0)['bed'], loc)
-                        self.assertEqual(
-                            shpf.record(0)['family'],
-                            self.taxa_to_acc.get(
-                                self.full_plant_data[3].get('accession_id'))[0]
-                        )
-                        self.assertEqual(
-                            shpf.record(0)['genus'],
-                            self.taxa_to_acc.get(
-                                self.full_plant_data[3].get('accession_id'))[1]
-                        )
-                        self.assertEqual(
-                            shpf.record(0)['species'],
-                            self.taxa_to_acc.get(
-                                self.full_plant_data[3].get('accession_id'))[2]
-                        )
-                        self.assertEqual(
-                            shpf.shapes()[0].__geo_interface__,
-                            {'type': 'Point', 'coordinates': (0.2956, 51.4787)}
-                        )
-        with ZipFile([i for i in out if 'locations_poly.zip' in i][0]) as z:
-            namelist = z.namelist()
-            self.assertEqual(len(namelist), 4)
-            with z.open([i for i in namelist if i.endswith('.prj')][0]) as prj:
-                self.assertEqual(prj.read().decode('utf-8'), prj_str_4326)
-            with z.open([i for i in namelist if i.endswith('.shp')][0]) as shp:
-                with z.open([i for i in namelist if i.endswith('.dbf')][0]) as dbf:
-                    with Reader(shp=shp, dbf=dbf) as shpf:
-                        self.assertEqual(len(shpf.shapes()), 2)
+        zip_file = [i for i in out if 'plants_point.zip' in i][0]
+        prj_string, file_count = get_prj_string_and_num_files_from_zip(
+            zip_file)
+        self.assertEqual(prj_string, prj_str_4326)
+        self.assertEqual(file_count, 4)
+        with ZippedShapefile(zip_file, 'r') as shpf:
+            self.assertEqual(len(shpf.shapes()), 1)
+            self.assertEqual(shpf.record(0)['plt_id'],
+                             self.full_plant_data[3].get('id'))
+            self.assertEqual(shpf.record(0)['plt_code'],
+                             self.full_plant_data[3].get('code'))
+            self.assertEqual(shpf.record(0)['quantity'],
+                             self.full_plant_data[3].get('quantity'))
+            acc = [i.get('code') for i in accession_data if
+                   i.get('id') ==
+                   self.full_plant_data[3].get('accession_id')][0]
+            self.assertEqual(shpf.record(0)['accession'], acc)
+            loc = [i.get('code') for i in location_data if
+                   i.get('id') ==
+                   self.full_plant_data[3].get('location_id')][0]
+            self.assertEqual(shpf.record(0)['bed'], loc)
+            self.assertEqual(
+                shpf.record(0)['family'],
+                self.taxa_to_acc.get(
+                    self.full_plant_data[3].get('accession_id'))[0]
+            )
+            self.assertEqual(
+                shpf.record(0)['genus'],
+                self.taxa_to_acc.get(
+                    self.full_plant_data[3].get('accession_id'))[1]
+            )
+            self.assertEqual(
+                shpf.record(0)['species'],
+                self.taxa_to_acc.get(
+                    self.full_plant_data[3].get('accession_id'))[2]
+            )
+            self.assertEqual(
+                shpf.shapes()[0].__geo_interface__,
+                {'type': 'Point', 'coordinates': (0.2956, 51.4787)}
+            )
+
+        zip_file = [i for i in out if 'locations_poly.zip' in i][0]
+        prj_string, file_count = get_prj_string_and_num_files_from_zip(
+            zip_file)
+        self.assertEqual(prj_string, prj_str_4326)
+        self.assertEqual(file_count, 4)
+        with ZippedShapefile(zip_file, 'r') as shpf:
+            self.assertEqual(len(shpf.shapes()), 2)
 
     def test_exports_search_all_w_generated_plants_under_100(self):
         accs = self.session.query(Accession).all()
@@ -1431,30 +1434,25 @@ class ShapefileExportTests(BaubleTestCase):
         exporter.run()
         out = [str(i) for i in Path(self.temp_dir.name).glob('*.zip')]
         self.assertEqual(len(out), 3)
-        with ZipFile([i for i in out if 'plants_point.zip' in i][0]) as z:
-            namelist = z.namelist()
-            self.assertEqual(len(namelist), 4)
-            with z.open([i for i in namelist if i.endswith('.prj')][0]) as prj:
-                self.assertEqual(prj.read().decode('utf-8'), prj_str_4326)
-            with z.open([i for i in namelist if i.endswith('.shp')][0]) as shp:
-                with z.open([i for i in namelist if i.endswith('.dbf')][0]) as dbf:
-                    with Reader(shp=shp, dbf=dbf) as shpf:
-                        self.assertEqual(len(shpf.shapes()), 32)
-                        self.assertEqual(
-                            shpf.shapes()[1].__geo_interface__,
-                            {'type': 'Point', 'coordinates': (0.2956, 51.4787)}
-                        )
-                        self.assertEqual(
-                            shpf.shapes()[31].__geo_interface__,
-                            {'type': 'Point',
-                             'coordinates': (0.2956 + (0.0001 * 30), 51.4787)}
-                        )
+        zip_file = [i for i in out if 'plants_point.zip' in i][0]
+        prj_string, file_count = get_prj_string_and_num_files_from_zip(
+            zip_file)
+        self.assertEqual(prj_string, prj_str_4326)
+        self.assertEqual(file_count, 4)
+        with ZippedShapefile(zip_file, 'r') as shpf:
+            self.assertEqual(len(shpf.shapes()), 32)
+            self.assertEqual(
+                shpf.shapes()[1].__geo_interface__,
+                {'type': 'Point', 'coordinates': (0.2956, 51.4787)}
+            )
+            self.assertEqual(
+                shpf.shapes()[31].__geo_interface__,
+                {'type': 'Point',
+                 'coordinates': (0.2956 + (0.0001 * 30), 51.4787)}
+            )
 
-    def test_exports_search_all_w_generated_plants_over_100(self):
-        import bauble
-        orig_message_dialog = bauble.utils.message_dialog
-        mock_dialog = lambda msg: setattr(self, 'msg', msg)  # noqa
-        bauble.utils.message_dialog = mock_dialog
+    @mock.patch('bauble.utils.message_dialog')
+    def test_exports_search_all_w_generated_plants_over_100(self, mock_dialog):
         accs = self.session.query(Accession).all()
         bulk_plants = [
             Plant(code=str(i // len(accs) + 4),
@@ -1466,6 +1464,7 @@ class ShapefileExportTests(BaubleTestCase):
         self.session.add_all(bulk_plants)
         self.session.commit()
         objs = self.session.query(Plant).all()
+        # pylint: disable=singleton-comparison
         objs = self.session.query(Plant).filter(Plant.geojson == None).all()  # noqa
         exporter = self.exporter
         exporter.view.selection = objs
@@ -1483,8 +1482,8 @@ class ShapefileExportTests(BaubleTestCase):
         out = [str(i) for i in Path(self.temp_dir.name).glob('*.zip')]
         self.assertEqual(len(out), 0)
         self.assertEqual(exporter._generate_points, 0)
-        self.assertGreater(len(self.msg), 10)   # pylint: disable=no-member
-        bauble.utils.message_dialog = orig_message_dialog
+        mock_dialog.assert_called()
+        self.assertGreater(len(mock_dialog.call_args.args[0]), 10)
 
     def test_exports_search_plants(self):
         objs = self.session.query(Genus).filter_by(genus='Grevillea').all()
@@ -1498,46 +1497,44 @@ class ShapefileExportTests(BaubleTestCase):
         exporter.run()
         out = [str(i) for i in Path(self.temp_dir.name).glob('*.zip')]
         self.assertEqual(len(out), 1)
-        with ZipFile(out[0], 'r') as z:
-            namelist = z.namelist()
-            self.assertEqual(len(namelist), 4)
-            with z.open([i for i in namelist if i.endswith('.prj')][0]) as prj:
-                self.assertEqual(prj.read().decode('utf-8'), prj_str_4326)
-            with z.open([i for i in namelist if i.endswith('.shp')][0]) as shp:
-                with z.open([i for i in namelist if i.endswith('.dbf')][0]) as dbf:
-                    with Reader(shp=shp, dbf=dbf) as shpf:
-                        self.assertEqual(len(shpf.shapes()), 1)
-                        self.assertEqual(shpf.record(0)['plt_id'],
-                                         plant_data[0].get('id'))
-                        self.assertEqual(shpf.record(0)['plt_code'],
-                                         plant_data[0].get('code'))
-                        self.assertEqual(shpf.record(0)['quantity'],
-                                         plant_data[0].get('quantity'))
-                        acc = [i.get('code') for i in accession_data if
-                               i.get('id') == plant_data[0].get('accession_id')][0]
-                        self.assertEqual(shpf.record(0)['accession'], acc)
-                        loc = [i.get('code') for i in location_data if
-                               i.get('id') == plant_data[0].get('location_id')][0]
-                        self.assertEqual(shpf.record(0)['bed'], loc)
-                        self.assertEqual(shpf.record(0)['family'],
-                                         self.taxa_to_acc.get(
-                                             plant_data[0].get('accession_id'))[0]
-                                         )
-                        self.assertEqual(
-                            shpf.record(0)['genus'],
-                            self.taxa_to_acc.get(
-                                plant_data[0].get('accession_id'))[1]
-                        )
-                        self.assertEqual(
-                            shpf.record(0)['species'],
-                            self.taxa_to_acc.get(
-                                plant_data[0].get('accession_id'))[2]
-                        )
-                        self.assertEqual(
-                            transform(shpf.shapes()[0].__geo_interface__,
-                                      in_crs='epsg:4326',
-                                      out_crs='epsg:4326'),
-                            epsg4326_point_xy)
+        zip_file = out[0]
+        prj_string, file_count = get_prj_string_and_num_files_from_zip(
+            zip_file)
+        self.assertEqual(prj_string, prj_str_4326)
+        self.assertEqual(file_count, 4)
+        with ZippedShapefile(zip_file, 'r') as shpf:
+            self.assertEqual(len(shpf.shapes()), 1)
+            self.assertEqual(shpf.record(0)['plt_id'],
+                             plant_data[0].get('id'))
+            self.assertEqual(shpf.record(0)['plt_code'],
+                             plant_data[0].get('code'))
+            self.assertEqual(shpf.record(0)['quantity'],
+                             plant_data[0].get('quantity'))
+            acc = [i.get('code') for i in accession_data if
+                   i.get('id') == plant_data[0].get('accession_id')][0]
+            self.assertEqual(shpf.record(0)['accession'], acc)
+            loc = [i.get('code') for i in location_data if
+                   i.get('id') == plant_data[0].get('location_id')][0]
+            self.assertEqual(shpf.record(0)['bed'], loc)
+            self.assertEqual(shpf.record(0)['family'],
+                             self.taxa_to_acc.get(
+                                 plant_data[0].get('accession_id'))[0]
+                             )
+            self.assertEqual(
+                shpf.record(0)['genus'],
+                self.taxa_to_acc.get(
+                    plant_data[0].get('accession_id'))[1]
+            )
+            self.assertEqual(
+                shpf.record(0)['species'],
+                self.taxa_to_acc.get(
+                    plant_data[0].get('accession_id'))[2]
+            )
+            self.assertEqual(
+                transform(shpf.shapes()[0].__geo_interface__,
+                          in_crs='epsg:4326',
+                          out_crs='epsg:4326'),
+                epsg4326_point_xy)
 
     def test_exports_search_plants_with_no_geojson(self):
         rec1 = self.session.query(Plant).get(1)
@@ -1569,15 +1566,13 @@ class ShapefileExportTests(BaubleTestCase):
         exporter.run()
         out = [str(i) for i in Path(self.temp_dir.name).glob('*.zip')]
         self.assertEqual(len(out), 1)
-        with ZipFile(out[0], 'r') as z:
-            namelist = z.namelist()
-            self.assertEqual(len(namelist), 4)
-            with z.open([i for i in namelist if i.endswith('.prj')][0]) as prj:
-                self.assertEqual(prj.read().decode('utf-8'), prj_str_4326)
-            with z.open([i for i in namelist if i.endswith('.shp')][0]) as shp:
-                with z.open([i for i in namelist if i.endswith('.dbf')][0]) as dbf:
-                    with Reader(shp=shp, dbf=dbf) as shpf:
-                        self.assertEqual(len(shpf.shapes()), 2)
+        zip_file = out[0]
+        prj_string, file_count = get_prj_string_and_num_files_from_zip(
+            zip_file)
+        self.assertEqual(prj_string, prj_str_4326)
+        self.assertEqual(file_count, 4)
+        with ZippedShapefile(zip_file, 'r') as shpf:
+            self.assertEqual(len(shpf.shapes()), 2)
 
     def test_on_btnbrowse_clicked(self):
         exporter = self.exporter
@@ -2830,6 +2825,7 @@ class ShapefileImportTests(BaubleTestCase):
         importer.presenter.on_settings_activate('imp_settings_expander')
         importer.presenter.on_filename_entry_changed('input_filename')
         self.assertEqual(window.get_size(), (1, 1))
+
 
 class ShapefileReaderTests(BaubleTestCase):
     def setUp(self):
