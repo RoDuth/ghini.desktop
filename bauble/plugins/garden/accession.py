@@ -1205,8 +1205,8 @@ class VerificationPresenter(editor.GenericEditorPresenter):
             self.date_entry = self.widgets.ver_date_entry
             if self.model.date:
                 utils.set_widget_value(self.date_entry, self.model.date)
-            else:
-                self.date_entry.props.text = utils.today_str()
+            utils.setup_date_button(self.presenter().view, self.date_entry,
+                                    self.widgets.ver_date_button)
             self.presenter().view.connect(
                 self.date_entry, 'changed', self.on_date_entry_changed)
 
@@ -1279,7 +1279,7 @@ class VerificationPresenter(editor.GenericEditorPresenter):
             for level, descr in ver_level_descriptions.items():
                 model.append([level, descr])
             combo.set_model(model)
-            if self.model.level:
+            if self.model.level is not None:
                 utils.set_widget_value(combo, self.model.level)
             self.presenter().view.connect(combo, 'changed',
                                           self.on_level_combo_changed)
