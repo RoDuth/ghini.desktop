@@ -590,86 +590,24 @@ class PropagationChooserPresenter(editor.ChildPresenter):
         self.session = session
         self._dirty = False
 
+        # first item in the list store is the object that is used when toggled
+        # The rest are strings for their respective fields, this allows
+        # sorting by row without the need to tree_model.set_sort_func() etc.
+        self.tree_model = Gtk.ListStore(object, str, str, str, str, str)
+        self.view.widgets.source_prop_treeview.set_model(self.tree_model)
         self.refresh_view()
 
         cell = self.view.widgets.prop_toggle_cell
         self.view.widgets.prop_toggle_column.set_cell_data_func(
             cell, self.toggle_cell_data_func)
 
-        def on_toggled(cell, path):
-            if cell.get_sensitive() is False:
-                return
-            prop = None
-            if not cell.get_active():  # it's not active so we make it active
-                treeview = self.view.widgets.source_prop_treeview
-                prop = treeview.get_model()[path][0]
-                acc_view = self.parent_ref().view
-                acc_view.widget_set_value(
-                    'acc_species_entry',
-                    utils.utf8(prop.plant.accession.species))
-                acc_view.widget_set_value(
-                    'acc_id_qual_combo',
-                    utils.utf8(prop.plant.accession.id_qual))
-                # need to set the model value for id_qual_rank
-                self.parent_ref().model.id_qual_rank = utils.utf8(
-                    prop.plant.accession.id_qual_rank)
-                self.parent_ref().refresh_id_qual_rank_combo()
-                acc_view.widget_set_value(
-                    'acc_quantity_recvd_entry',
-                    utils.utf8(prop.accessible_quantity))
-                from bauble.plugins.garden.accession import recvd_type_values
-                from bauble.plugins.garden.propagation import prop_type_results
-                acc_view.widget_set_value(
-                    'acc_recvd_type_comboentry',
-                    recvd_type_values[prop_type_results[prop.prop_type]],
-                    index=1)
-            self.model.plant_propagation = prop
-            self._dirty = True
-            self.parent_ref().refresh_sensitivity()
-
-        self.view.connect_after(cell, 'toggled', on_toggled)
-
-        self.view.widgets.prop_plant_code_column.set_cell_data_func(
-            self.view.widgets.prop_plant_code_cell,
-            utils.default_cell_data_func,
-            func_data=lambda obj: str(obj.plant or '')
-        )
-
-        def sp_cell_data_func(column, cell, model, treeiter, _data):
-            obj = model[treeiter][0]
-            cell.props.markup = (
-                obj.plant.accession.species_str(markup=True) or '')
-
-        self.view.widgets.prop_plant_sp_column.set_cell_data_func(
-            self.view.widgets.prop_plant_sp_cell,
-            sp_cell_data_func
-        )
-
-        self.view.widgets.prop_plant_loc_column.set_cell_data_func(
-            self.view.widgets.prop_plant_loc_cell,
-            utils.default_cell_data_func,
-            func_data=lambda obj: str(obj.plant.location.code or '')
-        )
-
-        frmt = prefs.prefs[prefs.date_format_pref]
-        self.view.widgets.prop_date_column.set_cell_data_func(
-            self.view.widgets.prop_date_cell,
-            utils.default_cell_data_func,
-            func_data=lambda obj: obj.date.strftime(frmt)
-        )
-
-        self.view.widgets.prop_summary_column.set_cell_data_func(
-            self.view.widgets.prop_summary_cell,
-            utils.default_cell_data_func,
-            func_data=lambda obj: str(obj.get_summary() or '')
-        )
+        self.view.connect_after(cell, 'toggled', self.on_toggled)
 
         # assign_completions_handler
-        def plant_cell_data_func(column, renderer, model, itr, data=None):
-            v = model[itr][0]
+        def plant_cell_data_func(_column, renderer, tree_model, itr):
+            val = tree_model[itr][0]
             renderer.set_property('text', '%s (%s)' %
-                                  (str(v), str(v.accession.species)))
-
+                                  (str(val), str(val.accession.species)))
         def prop_match_func(completion, key, treeiter):
             value = completion.get_model()[treeiter][0]
             # match the plant code
@@ -704,32 +642,66 @@ class PropagationChooserPresenter(editor.ChildPresenter):
                     result.append(plant)
             return result
 
-        def on_select(value):
-            logger.debug('on select: %s', value)
-            if isinstance(value, str):
-                return
-            # populate the propagation browser
-            treeview = self.view.widgets.source_prop_treeview
-            if not value:
-                # if there is nothing in the entry show all again
-                if not self.view.widgets.source_prop_plant_entry.get_text():
-                    treeview.props.sensitive = True
-                    self.populate_with_all()
-                    return
-                treeview.props.sensitive = False
-                return
-            utils.clear_model(treeview)
-            model = Gtk.ListStore(object)
-            for propagation in value.propagations:
-                if propagation.accessible_quantity == 0:
-                    continue
-                model.append([propagation])
-            treeview.set_model(model)
-            treeview.props.sensitive = True
 
         self.assign_completions_handler('source_prop_plant_entry',
                                         plant_get_completions,
                                         on_select=on_select)
+    def on_select(self, value):
+        logger.debug('on select: %s', value)
+        if isinstance(value, str):
+            return
+        if not value:
+            # if there is nothing in the entry show all again
+            if not self.view.widgets.source_prop_plant_entry.get_text():
+                self.view.widgets.source_prop_treeview.set_sensitive(True)
+                self.populate_with_all()
+                return
+            self.view.widgets.source_prop_treeview.set_sensitive(False)
+            return
+        self.tree_model.clear()
+        frmt = prefs.prefs.get(prefs.date_format_pref)
+        for prop in value.propagations:
+            if prop.accessible_quantity == 0:
+                continue
+            self.tree_model.append(
+                [prop,
+                 str(prop.plant),
+                 prop.plant.accession.species_str(markup=True),
+                 prop.plant.location.code,
+                 prop.date.strftime(frmt),
+                 prop.get_summary()]
+            )
+        self.view.widgets.source_prop_treeview.set_sensitive(True)
+
+    def on_toggled(self, cell, path):
+        if cell.get_sensitive() is False:
+            return
+        prop = None
+        if not cell.get_active():  # it's not active make it active
+            prop = self.view.widgets.source_prop_treeview.get_model()[path][0]
+            acc_view = self.parent_ref().view
+            acc_view.widget_set_value(
+                'acc_species_entry',
+                utils.utf8(prop.plant.accession.species))
+            acc_view.widget_set_value(
+                'acc_id_qual_combo',
+                utils.utf8(prop.plant.accession.id_qual))
+            # need to set the model value for id_qual_rank
+            self.parent_ref().model.id_qual_rank = utils.utf8(
+                prop.plant.accession.id_qual_rank)
+            self.parent_ref().refresh_id_qual_rank_combo()
+            acc_view.widget_set_value(
+                'acc_quantity_recvd_entry',
+                utils.utf8(prop.accessible_quantity))
+            from .accession import recvd_type_values
+            from .propagation import prop_type_results
+            acc_view.widget_set_value(
+                'acc_recvd_type_comboentry',
+                recvd_type_values[prop_type_results[prop.prop_type]],
+                index=1)
+        self.model.plant_propagation = prop
+        self._dirty = True
+        self.parent_ref().refresh_sensitivity()
 
     def populate_with_all(self):
         from bauble.plugins.garden.accession import Accession
@@ -747,25 +719,29 @@ class PropagationChooserPresenter(editor.ChildPresenter):
                     has_accessible = True
             if has_accessible:
                 results.append(plant)
-        treeview = self.view.widgets.source_prop_treeview
         if not results:
-            treeview.props.sensitive = False
+            self.view.widgets.source_prop_treeview.set_sensitive(False)
             return
-        utils.clear_model(treeview)
-        model = Gtk.ListStore(object)
+        self.tree_model.clear()
+        frmt = prefs.prefs.get(prefs.date_format_pref)
         for plant in results:
-            for propagation in plant.propagations:
-                if propagation.accessible_quantity == 0:
+            for prop in plant.propagations:
+                if prop.accessible_quantity == 0:
                     continue
-                model.append([propagation])
-        treeview.set_model(model)
-        treeview.props.sensitive = True
+                self.tree_model.append(
+                    [prop,
+                     str(prop.plant),
+                     prop.plant.accession.species_str(markup=True),
+                     prop.plant.location.code,
+                     prop.date.strftime(frmt),
+                     prop.get_summary()]
+                )
+        self.view.widgets.source_prop_treeview.set_sensitive(True)
 
     def refresh_view(self):
-        treeview = self.view.widgets.source_prop_treeview
         if not self.model.plant_propagation:
             self.view.widgets.source_prop_plant_entry.set_text('')
-            utils.clear_model(treeview)
+            self.tree_model.clear()
             self.populate_with_all()
             return
 
@@ -774,16 +750,22 @@ class PropagationChooserPresenter(editor.ChildPresenter):
         self.view.widgets.source_prop_plant_entry.set_text(str(parent_plant))
 
         if not parent_plant.propagations:
-            treeview.props.sensitive = False
+            self.view.widgets.source_prop_treeview.set_sensitive(False)
             return
-        utils.clear_model(treeview)
-        model = Gtk.ListStore(object)
-        for propagation in parent_plant.propagations:
-            model.append([propagation])
-        treeview.set_model(model)
-        treeview.props.sensitive = True
+        self.tree_model.clear()
+        frmt = prefs.prefs.get(prefs.date_format_pref)
+        for prop in parent_plant.propagations:
+            self.tree_model.append(
+                [prop,
+                 str(prop.plant),
+                 prop.plant.accession.species_str(markup=True),
+                 prop.plant.location.code,
+                 prop.date.strftime(frmt),
+                 prop.get_summary()]
+            )
+        self.view.widgets.source_prop_treeview.set_sensitive(True)
 
-    def toggle_cell_data_func(self, column, cell, model, treeiter, _data):
+    def toggle_cell_data_func(self, _column, cell, model, treeiter, _data):
         propagation = model[treeiter][0]
         active = self.model.plant_propagation == propagation
         cell.set_active(active)

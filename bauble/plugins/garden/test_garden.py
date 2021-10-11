@@ -1550,7 +1550,12 @@ class AccessionTests(GardenTestCase):
                             location=Location(name='site', code='STE'),
                             code='1')
         # create a propagation without a related seed/cutting
-        prop = self.create(Propagation, prop_type='Seed')
+        prop = self.create(Propagation,
+                           prop_type='Seed',
+                           date=datetime.datetime.utcnow())
+        seed = PropSeed(nseeds=10, date_sown='11-01-2021', nseedlings=9,
+                        germ_date='21-02-2021')
+        prop._seed = seed
         plant.propagations.append(prop)
         # commit all the above to the database
         self.session.commit()
