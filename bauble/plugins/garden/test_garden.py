@@ -42,8 +42,11 @@ from bauble.plugins.garden.source import Source, Collection, Contact, \
 from bauble.plugins.garden.plant import Plant, PlantNote, \
     PlantChange, PlantEditor, is_code_unique, branch_callback
 from bauble.plugins.garden.location import Location, LocationEditor
-from bauble.plugins.garden.propagation import Propagation, PropCuttingRooted, \
-    PropCutting, PropSeed, PropagationEditor
+from bauble.plugins.garden.propagation import (Propagation,
+                                               PropCuttingRooted,
+                                               PropCutting,
+                                               PropSeed,
+                                               PropagationEditor)
 from bauble.plugins.plants.geography import Geography
 from bauble.plugins.plants.family import Family
 from bauble.plugins.plants.genus import Genus
@@ -1566,7 +1569,7 @@ class AccessionTests(GardenTestCase):
 
         # set the source type as "Garden Propagation"
         widgets.acc_source_comboentry.get_child().props.text = \
-            SourcePresenter.garden_prop_str
+            SourcePresenter.GARDEN_PROP_STR
         self.assertTrue(not self.editor.presenter.problems)
 
         # set the source plant
@@ -1600,8 +1603,8 @@ class AccessionTests(GardenTestCase):
         parent = session.query(Accession).filter_by(code='parent')[0]
         self.assertTrue(parent is not None)
         logger.debug(parent.id)
-        logger.debug("acc plants : %s" % [str(i) for i in acc.plants])
-        logger.debug("parent plants : %s" % [str(i) for i in parent.plants])
+        logger.debug("acc plants : %s", [str(i) for i in acc.plants])
+        logger.debug("parent plants : %s", [str(i) for i in parent.plants])
         logger.debug(acc.source.__dict__)
         self.assertEqual(acc.source.plant_propagation_id, plant_prop_id)
 

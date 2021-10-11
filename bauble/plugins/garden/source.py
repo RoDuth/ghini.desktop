@@ -226,8 +226,7 @@ class Collection(db.Base):
     source_id = Column(Integer, ForeignKey('source.id'), unique=True)
 
     def search_view_markup_pair(self):
-        """provide the two lines describing object for SearchView row.
-        """
+        """provide the two lines describing object for SearchView row."""
         acc = self.source.accession
         safe = utils.xml_safe
         return (
@@ -240,8 +239,7 @@ class Collection(db.Base):
 
 class CollectionPresenter(editor.ChildPresenter):
 
-    """
-    CollectionPresenter
+    """CollectionPresenter
 
     :param parent: an AccessionEditorPresenter
     :param model: a Collection instance
@@ -348,8 +346,7 @@ class CollectionPresenter(editor.ChildPresenter):
         self.view.widgets.add_region_button.props.label = str(geography)
 
     def set_model_attr(self, attr, value, validator=None):
-        """Validates the fields when a attr changes.
-        """
+        """Validates the fields when a attr changes."""
         super().set_model_attr(attr, value, validator)
         self._dirty = True
         if self.model.locale is None or self.model.locale in ('', ''):
@@ -495,8 +492,7 @@ class CollectionPresenter(editor.ChildPresenter):
         return dec
 
     def _get_lat_direction(self):
-        """return N or S from the radio
-        """
+        """return N or S from the radio"""
         if self.view.widgets.north_radio.get_active():
             return 'N'
         if self.view.widgets.south_radio.get_active():
@@ -504,8 +500,7 @@ class CollectionPresenter(editor.ChildPresenter):
         raise ValueError(_('North/South radio buttons in a confused state'))
 
     def _get_lon_direction(self):
-        """return E or W from the radio
-        """
+        """return E or W from the radio"""
         if self.view.widgets.east_radio.get_active():
             return 'E'
         if self.view.widgets.west_radio.get_active():
@@ -513,8 +508,7 @@ class CollectionPresenter(editor.ChildPresenter):
         raise ValueError(_('East/West radio buttons in a confused state'))
 
     def on_lat_entry_changed(self, entry):
-        """set the latitude value from text
-        """
+        """set the latitude value from text"""
         from bauble.plugins.garden.accession import latitude_to_dms
         text = entry.get_text()
         latitude = None
@@ -579,8 +573,7 @@ class CollectionPresenter(editor.ChildPresenter):
 
 
 class PropagationChooserPresenter(editor.ChildPresenter):
-    """
-    Chooser for selecting an existing propagation for the source.
+    """Chooser for selecting an existing propagation for the source.
 
     :param parent: the parent AccessionEditorPresenter
     :param model: a Source instance
@@ -874,8 +867,7 @@ class Contact(db.Base, db.Serializable):
         return str(self.name)
 
     def search_view_markup_pair(self):
-        """provide the two lines describing object for SearchView row.
-        """
+        """provide the two lines describing object for SearchView row."""
         safe = utils.xml_safe
         return (
             safe(self.name),

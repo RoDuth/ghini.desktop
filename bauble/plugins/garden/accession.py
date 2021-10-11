@@ -57,10 +57,12 @@ from bauble.view import (InfoBox, InfoExpander, LinksExpander,
                          PropertiesExpander, select_in_search_results, Action)
 from bauble.utils import safe_int
 from .propagation import SourcePropagationPresenter, Propagation
-from .source import (Contact, ContactPresenter, create_contact, Source,
-                     Collection, CollectionPresenter,
+from .source import (Contact,
+                     ContactPresenter,
+                     Source,
+                     Collection,
+                     CollectionPresenter,
                      PropagationChooserPresenter)
-
 # TODO: underneath the species entry create a label that shows information
 # about the family of the genus of the species selected as well as more
 # info about the genus so we know exactly what plant is being selected
@@ -76,13 +78,13 @@ def latitude_to_dms(decimal):
 
 
 def decimal_to_dms(decimal, long_or_lat):
-    '''
+    """
     :param decimal: the value to convert
     :param long_or_lat: should be either "long" or "lat"
 
     @returns dir, degrees, minutes seconds, seconds rounded to two
     decimal places
-    '''
+    """
     if long_or_lat == 'long':
         check(abs(decimal) <= 180)
     else:
@@ -103,10 +105,7 @@ def decimal_to_dms(decimal, long_or_lat):
 
 
 def dms_to_decimal(dir, deg, min, sec, precision=6):
-    '''
-    convert degrees, minutes, seconds to decimal
-    return a decimal.Decimal
-    '''
+    """convert degrees, minutes, seconds to decimal return a decimal.Decimal"""
     nplaces = Decimal(10) ** -precision
     if dir in ('E', 'W'):  # longitude
         check(abs(deg) <= 180)
@@ -270,7 +269,6 @@ class Verification(db.Base):
       prev_species_id: :class:`~sqlalchemy.types.Integer`
         Foreign key to the :class:`~bauble.plugins.plants.Species`
         table. What it was verified from.
-
     """
     __tablename__ = 'verification'
 
@@ -337,8 +335,6 @@ class Voucher(db.Base):
         Is this voucher relative to the parent material of the accession.
       accession_id: :class:`sqlalchemy.types.Integer`
         Foreign key to the :class:`Accession` .
-
-
     """
     __tablename__ = 'voucher'
     herbarium = Column(Unicode(5), nullable=False)
@@ -572,7 +568,6 @@ class Accession(db.Base, db.Serializable, db.WithNotes):
             a list of verifications on the identification of this accession
 
     :Constraints:
-
     """
     __tablename__ = 'accession'
 
@@ -582,7 +577,7 @@ class Accession(db.Base, db.Serializable, db.WithNotes):
     code_format = '%Y%PD####'
 
     @validates('code')
-    def validate_stripping(self, key, value):
+    def validate_stripping(self, _key, value):
         if value is None:
             return None
         return value.strip()
@@ -604,8 +599,8 @@ class Accession(db.Base, db.Serializable, db.WithNotes):
                         default=None)
 
     # ITF2 - C24 - Rank Qualified Flag - Transfer code: rkql
-    ## B: Below Family; F: Family; G: Genus; S: Species; I: first
-    ## Infraspecific Epithet; J: second Infraspecific Epithet; C: Cultivar;
+    # B: Below Family; F: Family; G: Genus; S: Species; I: first
+    # Infraspecific Epithet; J: second Infraspecific Epithet; C: Cultivar;
     id_qual_rank = Column(Unicode(10))
 
     # ITF2 - C25 - Identification Qualifier - Transfer code: idql
@@ -621,7 +616,8 @@ class Accession(db.Base, db.Serializable, db.WithNotes):
     intended2_location_id = Column(Integer, ForeignKey('location.id'))
 
     # the source of the accession
-    source = relationship('Source', uselist=False, cascade='all, delete-orphan',
+    source = relationship('Source', uselist=False,
+                          cascade='all, delete-orphan',
                           backref=backref('accession', uselist=False))
 
     # relations
@@ -645,8 +641,7 @@ class Accession(db.Base, db.Serializable, db.WithNotes):
 
     @classmethod
     def get_next_code(cls, code_format=None):
-        """
-        Return the next available accession code.
+        """Return the next available accession code.
 
         the format is stored in the `bauble` table.
         the format may contain a %PD, replaced by the plant delimiter.
@@ -686,9 +681,7 @@ class Accession(db.Base, db.Serializable, db.WithNotes):
         return str(next)
 
     def search_view_markup_pair(self):
-        """provide the two lines describing object for SearchView row.
-
-        """
+        """provide the two lines describing object for SearchView row."""
         first, second = (utils.xml_safe(str(self)),
                          self.species_str(markup=True))
         suffix = _("%(1)s plant groups in %(2)s location(s)") % {
@@ -719,8 +712,7 @@ class Accession(db.Base, db.Serializable, db.WithNotes):
         return str(self.code)
 
     def species_str(self, authors=False, markup=False):
-        """
-        Return the string of the species with the id qualifier(id_qual)
+        """Return the string of the species with the id qualifier(id_qual)
         injected into the proper place.
         """
         if not self.species:
@@ -848,10 +840,9 @@ from bauble.plugins.garden.plant import Plant, PlantEditor
 
 
 class AccessionEditorView(editor.GenericEditorView):
-    """
-    AccessionEditorView provide the view part of the
-    model/view/presenter paradigm.  It also acts as the view for any
-    child presenter contained within the AccessionEditorPresenter.
+    """AccessionEditorView provides the view part of the model/view/presenter
+    paradigm.  It also acts as the view for any child presenter contained
+    within the AccessionEditorPresenter.
 
     The primary function of the view is setup an parts of the
     interface that don't chage due to user interaction.  Although it
@@ -907,7 +898,7 @@ class AccessionEditorView(editor.GenericEditorView):
                              'accession.'),
 
         'sources_code_entry': _("ITF2 - E7 - Donor's Accession Identifier - "
-                               "donacc"),
+                                "donacc"),
         'acc_code_format_comboentry': _('Set the format for the Accession ID '
                                         'code generally you will not need to '
                                         'set this unless you do not want to '
@@ -920,9 +911,6 @@ class AccessionEditorView(editor.GenericEditorView):
     }
 
     def __init__(self, parent=None):
-        """
-
-        """
         glade_file = os.path.join(paths.lib_dir(),
                                   'plugins',
                                   'garden',
@@ -965,24 +953,20 @@ class AccessionEditorView(editor.GenericEditorView):
         return self.widgets.accession_dialog
 
     def set_accept_buttons_sensitive(self, sensitive):
-        '''
-        set the sensitivity of all the accept/ok buttons for the editor dialog
-        '''
+        """set the sensitivity of all the accept/ok buttons for the editor
+        dialog
+        """
         self.widgets.acc_ok_button.set_sensitive(sensitive)
         self.widgets.acc_ok_and_add_button.set_sensitive(sensitive)
         self.widgets.acc_next_button.set_sensitive(sensitive)
 
     def save_state(self):
-        '''
-        save the current state of the gui to the preferences
-        '''
+        """save the current state of the gui to the preferences"""
         for expander, pref in self.expanders_pref_map.items():
             prefs.prefs[pref] = self.widgets[expander].get_expanded()
 
     def restore_state(self):
-        '''
-        restore the state of the gui from the preferences
-        '''
+        """restore the state of the gui from the preferences"""
         for expander, pref in self.expanders_pref_map.items():
             expanded = prefs.prefs.get(pref, True)
             self.widgets[expander].set_expanded(expanded)
@@ -1108,8 +1092,6 @@ class VoucherPresenter(editor.GenericEditorPresenter):
         self.parent_ref().refresh_sensitivity()
 
     def on_add_clicked(self, button, parent=False):
-        """
-        """
         if parent:
             treeview = self.view.widgets.parent_voucher_treeview
         else:
@@ -1126,8 +1108,7 @@ class VoucherPresenter(editor.GenericEditorPresenter):
 
 class VerificationPresenter(editor.GenericEditorPresenter):
 
-    """
-    VerificationPresenter
+    """VerificationPresenter
 
     :param parent:
     :param model:
@@ -1349,8 +1330,9 @@ class VerificationPresenter(editor.GenericEditorPresenter):
                 return
             # copy verification species to general tab
             if self.model.accession:
-                self.presenter().parent_ref().view.widgets.acc_species_entry.\
-                    set_text(self.model.species.str())
+                (self.presenter().parent_ref()
+                 .view.widgets.acc_species_entry
+                 .set_text(self.model.species.str()))
                 self.presenter()._dirty = True
                 self.presenter().parent_ref().refresh_sensitivity()
 
@@ -1379,8 +1361,8 @@ class VerificationPresenter(editor.GenericEditorPresenter):
                 self.set_model_attr(attr, utils.utf8(text))
 
         def on_level_combo_changed(self, combo, *args):
-            i = combo.get_active_iter()
-            level = combo.get_model()[i][0]
+            itr = combo.get_active_iter()
+            level = combo.get_model()[itr][0]
             self.set_model_attr('level', level)
 
         def set_model_attr(self, attr, value):
@@ -1423,9 +1405,8 @@ class VerificationPresenter(editor.GenericEditorPresenter):
             self.widgets.ver_expander.props.expanded = expanded
 
         def on_taxon_add_button_clicked(self, button, taxon_entry):
-            ## we come here when we are adding a Verification, and the
-            ## Verification wants to refer to a new taxon.
-
+            # we come here when adding a Verification, and the
+            # Verification wants to refer to a new taxon.
             generic_taxon_add_action(
                 self.model, self.presenter().view, self.presenter(),
                 self.presenter().parent_ref(),
@@ -1433,15 +1414,15 @@ class VerificationPresenter(editor.GenericEditorPresenter):
 
 
 class SourcePresenter(editor.GenericEditorPresenter):
-    """
-    SourcePresenter
+    """SourcePresenter
+
     :param parent:
     :param model:
     :param view:
     :param session:
     """
 
-    garden_prop_str = _('Garden Propagation')
+    GARDEN_PROP_STR = _('Garden Propagation')
 
     def __init__(self, parent, model, view, session):
         super().__init__(model, view)
@@ -1466,7 +1447,7 @@ class SourcePresenter(editor.GenericEditorPresenter):
             elif isinstance(source, Contact):
                 self.model.source = self.source
                 self.model.source.source_detail = source
-            elif source == self.garden_prop_str:
+            elif source == self.GARDEN_PROP_STR:
                 self.model.source = self.source
                 self.model.source.source_detail = None
             else:
@@ -1540,6 +1521,7 @@ class SourcePresenter(editor.GenericEditorPresenter):
                 self.source.sources_code = None
             self._dirty = True
             self.refresh_sensitivity()
+
         self.view.connect('sources_code_entry', 'changed', on_changed)
 
         self.view.connect('source_coll_add_button', 'clicked',
@@ -1552,9 +1534,8 @@ class SourcePresenter(editor.GenericEditorPresenter):
                           self.on_prop_remove_button_clicked)
 
     def all_problems(self):
-        """
-        Return a union of all the problems from this presenter and
-        child presenters
+        """Return a union of all the problems from this presenter and child
+        presenters
         """
         return (self.problems | self.collection_presenter.problems |
                 self.prop_chooser_presenter.problems |
@@ -1572,7 +1553,7 @@ class SourcePresenter(editor.GenericEditorPresenter):
             if self.model.source.source_detail:
                 active = self.model.source.source_detail
             elif self.model.source.plant_propagation:
-                active = self.garden_prop_str
+                active = self.GARDEN_PROP_STR
         self.populate_source_combo(active)
 
     def is_dirty(self):
@@ -1621,9 +1602,8 @@ class SourcePresenter(editor.GenericEditorPresenter):
         self.refresh_sensitivity()
 
     def on_new_source_button_clicked(self, *args):
-        """
-        Opens a new ContactEditor when clicked and repopulates the
-        source combo if a new Contact is created.
+        """Opens a new ContactEditor when clicked and repopulates the source
+        combo if a new Contact is created.
         """
         view = editor.GenericEditorView(
             str(Path(paths.lib_dir(), "plugins", "garden", "contact.glade")),
@@ -1637,8 +1617,7 @@ class SourcePresenter(editor.GenericEditorPresenter):
             self.populate_source_combo(source)
 
     def populate_source_combo(self, active=None):
-        """
-        If active=None then set whatever was previously active before
+        """If active=None then set whatever was previously active before
         repopulating the combo.
         """
         combo = self.view.widgets.acc_source_comboentry
@@ -1649,7 +1628,7 @@ class SourcePresenter(editor.GenericEditorPresenter):
         combo.set_model(None)
         model = Gtk.ListStore(object)
         none_iter = model.append([''])
-        model.append([self.garden_prop_str])
+        model.append([self.GARDEN_PROP_STR])
         for i in self.session.query(Contact).order_by(
                 func.lower(Contact.name)):
             model.append([i])
@@ -1666,13 +1645,13 @@ class SourcePresenter(editor.GenericEditorPresenter):
         combo._populate = False
 
     def init_source_comboentry(self, on_select):
-        """
-        A comboentry that allows the location to be entered requires
-        more custom setup than view.attach_completion and
-        self.assign_simple_handler can provides.  This method allows us to
-        have completions on the location entry based on the location code,
-        location name and location string as well as selecting a location
-        from a combo drop down.
+        """A comboentry that allows the location to be entered requires more
+        custom setup than view.attach_completion and self.assign_simple_handler
+        can provides.
+
+        This method allows us to have completions on the location entry based
+        on the location code, location name and location string as well as
+        selecting a location from a combo drop down.
 
         :param on_select: called when an item is selected
         """
@@ -1710,12 +1689,12 @@ class SourcePresenter(editor.GenericEditorPresenter):
             widget_visibility = dict(source_sw=False,
                                      source_garden_prop_box=False,
                                      source_none_label=False)
-            if entry.props.text == self.garden_prop_str:
+            if entry.props.text == self.GARDEN_PROP_STR:
                 widget_visibility['source_garden_prop_box'] = True
             elif not self.model.source or not self.model.source.source_detail:
                 widget_visibility['source_none_label'] = True
             else:
-                #self.model.source.source_detail = value
+                # self.model.source.source_detail = value
                 widget_visibility['source_sw'] = True
             for widget, value in widget_visibility.items():
                 self.view.widgets[widget].props.visible = value
@@ -1808,10 +1787,10 @@ class AccessionEditorPresenter(editor.GenericEditorPresenter):
     PROBLEM_ID_QUAL_RANK_REQUIRED = random()
 
     def __init__(self, model, view):
-        '''
+        """
         :param model: an instance of class Accession
         ;param view: an instance of AccessionEditorView
-        '''
+        """
         super().__init__(model, view)
         self.create_toolbar()
         self._dirty = False
@@ -1839,8 +1818,8 @@ class AccessionEditorPresenter(editor.GenericEditorPresenter):
 
         notes_parent = self.view.widgets.notes_parent_box
         notes_parent.foreach(notes_parent.remove)
-        self.notes_presenter = \
-            editor.NotesPresenter(self, 'notes', notes_parent)
+        self.notes_presenter = editor.NotesPresenter(self, 'notes',
+                                                     notes_parent)
 
         self.init_enum_combo('acc_id_qual_combo', 'id_qual')
 
@@ -1849,11 +1828,11 @@ class AccessionEditorPresenter(editor.GenericEditorPresenter):
         self.refresh_id_qual_rank_combo()
 
         def on_changed(combo, *args):
-            it = combo.get_active_iter()
-            if not it:
+            itr = combo.get_active_iter()
+            if not itr:
                 self.model.id_qual_rank = None
                 return
-            text, col = combo.get_model()[it]
+            _text, col = combo.get_model()[itr]
             self.set_model_attr('id_qual_rank', utils.utf8(col))
 
         self.view.connect('acc_id_qual_rank_combo', 'changed', on_changed)
@@ -1868,7 +1847,7 @@ class AccessionEditorPresenter(editor.GenericEditorPresenter):
             if self.initializing:
                 return
             self.set_model_attr(field_name, value)
-            refresh_create_plant_checkbutton_sensitivity()
+            self.refresh_create_plant_checkbutton_sensitivity()
 
         from functools import partial
         init_location_comboentry(
@@ -1994,101 +1973,105 @@ class AccessionEditorPresenter(editor.GenericEditorPresenter):
             self.view.widgets.acc_species_entry)
 
         self.has_plants = len(model.plants) > 0
-        view.widget_set_sensitive('intended_loc_create_plant_checkbutton', not self.has_plants)
-
-        def refresh_create_plant_checkbutton_sensitivity(*args):
-            if self.has_plants:
-                view.widget_set_sensitive('intended_loc_create_plant_checkbutton', False)
-                return
-            location_chosen = bool(self.model.intended_location)
-            has_quantity = self.model.quantity_recvd and bool(int(self.model.quantity_recvd)) or False
-            view.widget_set_sensitive('intended_loc_create_plant_checkbutton', has_quantity and location_chosen)
+        view.widget_set_sensitive('intended_loc_create_plant_checkbutton',
+                                  not self.has_plants)
 
         self.assign_simple_handler(
             'acc_quantity_recvd_entry', 'quantity_recvd')
-        self.view.connect_after('acc_quantity_recvd_entry', 'changed',
-                                refresh_create_plant_checkbutton_sensitivity)
+        self.view.connect_after(
+            'acc_quantity_recvd_entry', 'changed',
+            self.refresh_create_plant_checkbutton_sensitivity)
         self.assign_simple_handler('acc_id_qual_combo', 'id_qual',
                                    editor.UnicodeOrNoneValidator())
         self.assign_simple_handler('acc_private_check', 'private')
 
         self.refresh_sensitivity()
-        refresh_create_plant_checkbutton_sensitivity()
+        self.refresh_create_plant_checkbutton_sensitivity()
 
         if self.model not in self.session.new:
             self.view.widgets.acc_ok_and_add_button.set_sensitive(True)
 
+    def refresh_create_plant_checkbutton_sensitivity(self, *_args):
+        if self.has_plants:
+            self.view.widget_set_sensitive(
+                'intended_loc_create_plant_checkbutton', False)
+            return
+        location_chosen = bool(self.model.intended_location)
+        has_quantity = (bool(int(self.model.quantity_recvd)) if
+                        self.model.quantity_recvd else False)
+        self.view.widget_set_sensitive(
+            'intended_loc_create_plant_checkbutton',
+            has_quantity and location_chosen)
+
     def populate_code_formats(self, entry_one=None, values=None):
         logger.debug('populate_code_formats %s %s', entry_one, values)
-        ls = self.view.widgets.acc_code_format_liststore
+        list_store = self.view.widgets.acc_code_format_liststore
         if entry_one is None:
-            entry_one = ls.get_value(ls.get_iter_first(), 0)
-        ls.clear()
-        ls.append([entry_one])
+            entry_one = list_store.get_value(list_store.get_iter_first(), 0)
+        list_store.clear()
+        list_store.append([entry_one])
         if values is None:
-            query = self.session.\
-                query(meta.BaubleMeta).\
-                filter(meta.BaubleMeta.name.like('acidf_%')).\
-                order_by(meta.BaubleMeta.name)
-            if query.count():
+            query = (self.session
+                     .query(meta.BaubleMeta)
+                     .filter(meta.BaubleMeta.name.like('acidf_%'))
+                     .order_by(meta.BaubleMeta.name))
+            if query.first():
                 Accession.code_format = query.first().value
             values = [r.value for r in query]
         for v in values:
-            ls.append([v])
+            list_store.append([v])
 
     def on_acc_code_format_comboentry_changed(self, widget, *args):
         code_format = self.view.widget_get_value(widget)
         code = Accession.get_next_code(code_format)
         self.view.widget_set_value('acc_code_entry', code)
 
-    def on_acc_code_format_edit_btn_clicked(self, widget, *args):
+    def on_acc_code_format_edit_btn_clicked(self, _widget, *args):
         view = editor.GenericEditorView(
             os.path.join(paths.lib_dir(), 'plugins', 'garden',
                          'acc_editor.glade'),
             root_widget_name='acc_codes_dialog')
-        ls = view.widgets.acc_codes_liststore
-        ls.clear()
-        query = self.session.\
-            query(meta.BaubleMeta).\
-            filter(meta.BaubleMeta.name.like('acidf_%')).\
-            order_by(meta.BaubleMeta.name)
+        list_store = view.widgets.acc_codes_liststore
+        list_store.clear()
+        query = (self.session
+                 .query(meta.BaubleMeta)
+                 .filter(meta.BaubleMeta.name.like('acidf_%'))
+                 .order_by(meta.BaubleMeta.name))
         for i, row in enumerate(query):
-            ls.append([i+1, row.value])
-        ls.append([len(ls)+1, ''])
+            list_store.append([i + 1, row.value])
+        list_store.append([len(list_store) + 1, ''])
 
         class Presenter(editor.GenericEditorPresenter):
             def __init__(self, *args, **kwargs):
-                '''
-                '''
                 super().__init__(*args, **kwargs)
                 self.view.connect('acc_cf_renderer', 'edited',
                                   self.on_acc_cf_renderer_edited)
 
 
-            def on_acc_cf_renderer_edited(self, widget, iter, value):
-                i = ls.get_iter_from_string(str(iter))
-                ls.set_value(i, 1, value)
-                if ls.iter_next(i) is None:
+            def on_acc_cf_renderer_edited(self, _widget, itr, value):
+                i = list_store.get_iter_from_string(str(itr))
+                list_store.set_value(i, 1, value)
+                if list_store.iter_next(i) is None:
                     if value:
-                        ls.append([len(ls)+1, ''])
+                        list_store.append([len(list_store) + 1, ''])
                 elif value == '':
-                    ls.remove(i)
+                    list_store.remove(i)
                     while i:
-                        ls.set_value(i, 0, ls.get_value(i, 0)-1)
-                        i = ls.iter_next(i)
+                        list_store.set_value(i, 0,
+                                             list_store.get_value(i, 0) - 1)
+                        i = list_store.iter_next(i)
 
-        presenter = Presenter(ls, view, session=db.Session())
+        presenter = Presenter(list_store, view, session=db.Session())
         if presenter.start() > 0:
-            presenter.session.\
-                query(meta.BaubleMeta).\
-                filter(meta.BaubleMeta.name.like('acidf_%')).\
-                delete(synchronize_session=False)
+            (presenter.session.query(meta.BaubleMeta)
+             .filter(meta.BaubleMeta.name.like('acidf_%'))
+             .delete(synchronize_session=False))
             i = 1
-            iter = ls.get_iter_first()
+            itr = list_store.get_iter_first()
             values = []
-            while iter:
-                value = ls.get_value(iter, 1)
-                iter = ls.iter_next(iter)
+            while itr:
+                value = list_store.get_value(itr, 1)
+                itr = list_store.iter_next(itr)
                 i += 1
                 if not value:
                     continue
@@ -2101,8 +2084,7 @@ class AccessionEditorPresenter(editor.GenericEditorPresenter):
         presenter.session.close()
 
     def refresh_id_qual_rank_combo(self):
-        """
-        Populate the id_qual_rank_combo with the parts of the species string
+        """Populate the id_qual_rank_combo with the parts of the species string
         """
         combo = self.view.widgets.acc_id_qual_rank_combo
         utils.clear_model(combo)
@@ -2158,8 +2140,6 @@ class AccessionEditorPresenter(editor.GenericEditorPresenter):
         return self._dirty or True in dirty_kids
 
     def on_recvd_type_comboentry_changed(self, combo, *args):
-        """
-        """
         value = None
         treeiter = combo.get_active_iter()
         if treeiter:
@@ -2172,8 +2152,6 @@ class AccessionEditorPresenter(editor.GenericEditorPresenter):
         combo.get_child().props.text = recvd_type_values[value]
 
     def on_recvd_type_entry_changed(self, entry, *args):
-        """
-        """
         problem = 'BAD_RECVD_TYPE'
         text = entry.props.text
         if not text.strip():
@@ -2230,10 +2208,7 @@ class AccessionEditorPresenter(editor.GenericEditorPresenter):
         self.set_model_attr(prop, value)
 
     def set_model_attr(self, field, value, validator=None):
-        """
-        Set attributes on the model and update the GUI as expected.
-        """
-        #debug('set_model_attr(%s, %s)' % (field, value))
+        """Set attributes on the model and update the GUI as expected. """
         super().set_model_attr(field, value, validator)
         self._dirty = True
         # TODO: add a test to make sure that the change notifiers are
@@ -2260,9 +2235,7 @@ class AccessionEditorPresenter(editor.GenericEditorPresenter):
         self.refresh_sensitivity()
 
     def validate(self, add_problems=False):
-        """
-        Validate the self.model
-        """
+        """ Validate the self.model """
         # TODO: if add_problems=True then we should add problems to
         # all the required widgets that don't have values
 
@@ -2308,8 +2281,7 @@ class AccessionEditorPresenter(editor.GenericEditorPresenter):
         return True
 
     def refresh_sensitivity(self):
-        """
-        Refresh the sensitivity of the fields and accept buttons according
+        """Refresh the sensitivity of the fields and accept buttons according
         to the current values in the model.
         """
         if self.model.species and self.model.id_qual:
@@ -2328,9 +2300,7 @@ class AccessionEditorPresenter(editor.GenericEditorPresenter):
         self.view.set_accept_buttons_sensitive(sensitive)
 
     def refresh_view(self, initializing=False):
-        '''get the values from the model and put them in the view
-
-        '''
+        """get the values from the model and put them in the view"""
         self.initializing = initializing
         for widget, field in self.widget_to_field_map.items():
             if field == 'species_id':
@@ -2381,10 +2351,10 @@ class AccessionEditor(editor.GenericModelViewPresenterEditor):
     ok_responses = (RESPONSE_OK_AND_ADD, RESPONSE_NEXT)
 
     def __init__(self, model=None, parent=None):
-        '''
+        """
         :param model: Accession instance or None
         :param parent: the parent widget
-        '''
+        """
         if model is None:
             model = Accession()
 
@@ -2402,16 +2372,11 @@ class AccessionEditor(editor.GenericModelViewPresenterEditor):
         else:
             view.widgets.acc_code_entry.grab_focus()
             # check if the current species is a synonym (and hence open a
-            # message window saying so) without dirtying the presenter, this
-            # little hack with _dirty_pass should only happen once on opening
-            # an accession editor for an existing accession.
-            view.widgets.acc_species_entry.emit('changed')
-            self.presenter._dirty_pass = True
+            # message window saying so) without dirtying the presenter
+            self.presenter.on_select(self.model.species, do_set=False)
 
     def handle_response(self, response):
-        '''
-        handle the response from self.presenter.start() in self.start()
-        '''
+        """handle the response from self.presenter.start() in self.start()"""
         not_ok_msg = _('Are you sure you want to lose your changes?')
         if response == Gtk.ResponseType.OK or response in self.ok_responses:
             try:
@@ -2429,7 +2394,8 @@ class AccessionEditor(editor.GenericModelViewPresenterEditor):
             except DBAPIError as e:
                 msg = _('Error committing changes.\n\n%s') % \
                     utils.xml_safe(str(e.orig))
-                utils.message_details_dialog(msg, str(e), Gtk.MessageType.ERROR)
+                utils.message_details_dialog(msg, str(e),
+                                             Gtk.MessageType.ERROR)
                 return False
             except Exception as e:
                 msg = _('Unknown error when committing changes. See the '
@@ -2464,14 +2430,13 @@ class AccessionEditor(editor.GenericModelViewPresenterEditor):
         return True
 
     def start(self):
-        from bauble.plugins.plants.species_model import Species
         if self.session.query(Species).count() == 0:
             msg = _('You must first add or import at least one species into '
                     'the database before you can add accessions.')
             utils.message_dialog(msg)
             # close session here or __del__ will commit the blank accession
             self.session.close()
-            return
+            return None
 
         while True:
             response = self.presenter.start()
@@ -2485,8 +2450,6 @@ class AccessionEditor(editor.GenericModelViewPresenterEditor):
 
     @staticmethod
     def _cleanup_collection(model):
-        '''
-        '''
         if not model:
             return
         # TODO: we should raise something besides commit ValueError
@@ -2556,14 +2519,11 @@ from bauble.plugins.plants.species_model import Species, SpeciesSynonym
 # TODO: i don't think this shows all field of an accession, like the
 # accuracy values
 class GeneralAccessionExpander(InfoExpander):
-    """
-    generic information about an accession like
-    number of clones, provenance type, wild provenance type, speciess
+    """generic information about an accession like number of clones, provenance
+    type, wild provenance type, speciess
     """
 
     def __init__(self, widgets):
-        '''
-        '''
         super().__init__(_("General"), widgets)
         general_box = self.widgets.general_box
         self.widgets.general_window.remove(general_box)
@@ -2590,8 +2550,6 @@ class GeneralAccessionExpander(InfoExpander):
                                    on_nplants_clicked)
 
     def update(self, row):
-        '''
-        '''
         self.current_obj = row
         self.widget_set_value('acc_code_data', '<big>%s</big>' %
                               utils.xml_safe(str(row.code)),
@@ -2786,9 +2744,7 @@ class SourceExpander(InfoExpander):
 
 
 class VerificationsExpander(InfoExpander):
-    """
-    the accession's notes
-    """
+    """the accession's notes"""
 
     def __init__(self, widgets):
         super().__init__(_("Verifications"), widgets)
@@ -2802,9 +2758,7 @@ class VerificationsExpander(InfoExpander):
 
 
 class VouchersExpander(InfoExpander):
-    """
-    the accession's notes
-    """
+    """the accession's notes"""
 
     def __init__(self, widgets):
         super().__init__(_("Vouchers"), widgets)
@@ -2842,7 +2796,7 @@ class VouchersExpander(InfoExpander):
 
 
 class AccessionInfoBox(InfoBox):
-    """
+    """Accession InfoBox
     - general info
     - source
     """

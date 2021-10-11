@@ -32,7 +32,8 @@ import os.path
 
 from dateutil.parser import parse
 from bauble import db
-from bauble.plugins.garden import Location, Plant, PlantNote, Accession, Verification
+from bauble.plugins.garden import Location, Plant, PlantNote, Accession
+from bauble.plugins.garden.accession import Verification
 from bauble.plugins.plants import Species, Genus, Family
 
 

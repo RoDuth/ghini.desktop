@@ -19,6 +19,7 @@
 # along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
 #
 
+import re
 import logging
 logger = logging.getLogger(__name__)
 
@@ -31,27 +32,38 @@ import bauble
 from bauble import utils
 from bauble import pluginmgr
 from bauble.view import SearchView
-from bauble.plugins.garden.accession import AccessionEditor, \
-    Accession, AccessionInfoBox, AccessionNote, \
-    acc_context_menu, Verification
-from bauble.plugins.garden.location import (LocationEditor,
-                                            Location,
-                                            LocationNote,
-                                            LocationInfoBox,
-                                            loc_context_menu)
-from bauble.plugins.garden.plant import PlantEditor, PlantNote, \
-    Plant, PlantSearch, PlantInfoBox, plant_context_menu, \
-    plant_delimiter_key, default_plant_delimiter
-from bauble.plugins.garden.source import (
-    Source, create_contact, Contact, ContactPresenter,
-    ContactInfoBox, source_detail_context_menu,
-    Collection, collection_context_menu)
-from bauble.plugins.garden.institution import (
-    Institution, InstitutionCommand, InstitutionTool, start_institution_editor)
-from bauble.plugins.garden.pocket_server import PocketServerTool
-from bauble.plugins.garden.picture_importer import PictureImporterTool
 from bauble import search
-import re
+from .accession import (AccessionEditor,
+                        Accession,
+                        AccessionInfoBox,
+                        AccessionNote,
+                        acc_context_menu)
+from .location import (LocationEditor,
+                       Location,
+                       LocationNote,
+                       LocationInfoBox,
+                       loc_context_menu)
+from .plant import (PlantEditor,
+                    PlantNote,
+                    Plant,
+                    PlantSearch,
+                    PlantInfoBox,
+                    plant_context_menu,
+                    plant_delimiter_key,
+                    default_plant_delimiter)
+from .source import (Source,
+                     create_contact,
+                     Contact,
+                     ContactInfoBox,
+                     source_detail_context_menu,
+                     Collection,
+                     collection_context_menu)
+from .institution import (Institution,
+                          InstitutionCommand,
+                          InstitutionTool,
+                          start_institution_editor)
+from .pocket_server import PocketServerTool
+from .picture_importer import PictureImporterTool
 
 # other ideas:
 # - cultivation table
@@ -108,10 +120,14 @@ class GardenPlugin(pluginmgr.Plugin):
 
         def sd_kids(detail):
             session = object_session(detail)
-            results = session.query(Accession).join(Source).\
-                join(Contact).options(eagerload('species')).\
-                filter(Contact.id == detail.id).all()
+            results = (session.query(Accession)
+                       .join(Source)
+                       .join(Contact)
+                       .options(eagerload('species'))
+                       .filter(Contact.id == detail.id)
+                       .all())
             return results
+
         SearchView.row_meta[Contact].set(
             children=sd_kids,
             infobox=ContactInfoBox,
@@ -119,8 +135,10 @@ class GardenPlugin(pluginmgr.Plugin):
 
         mapper_search.add_meta(('collection', 'col', 'coll'),
                                Collection, ['locale'])
-        coll_kids = lambda coll: sorted(coll.source.accession.plants,
-                                        key=utils.natsort_key)
+
+        def coll_kids(coll):
+            return sorted(coll.source.accession.plants, key=utils.natsort_key)
+
         SearchView.row_meta[Collection].set(
             children=coll_kids,
             infobox=AccessionInfoBox,
@@ -145,22 +163,24 @@ class GardenPlugin(pluginmgr.Plugin):
 
 
 def init_location_comboentry(presenter, combo, on_select, required=True):
-    """
-    A comboentry that allows the location to be entered requires
-    more custom setup than view.attach_completion and
-    self.assign_simple_handler can provides.  This method allows us to
-    have completions on the location entry based on the location code,
-    location name and location string as well as selecting a location
-    from a combo drop down.
+    """A comboentry that allows the location to be entered.
+
+    Requires more custom setup than view.attach_completion and
+    self.assign_simple_handler can provides.
+
+    This method allows us to have completions on the location entry based on
+    the location code, location name and location string as well as selecting a
+    location from a combo drop down.
 
     :param presenter:
     :param combo:
     :param on_select: a one-parameter function
     """
     PROBLEM = 'UNKNOWN_LOCATION'
+
     re_code_name_splitter = re.compile(r'\(([^)]+)\) ?(.*)')
 
-    def cell_data_func(col, cell, model, treeiter, data=None):
+    def cell_data_func(_col, cell, model, treeiter, data=None):
         val = model[treeiter][0]
         from sqlalchemy import inspect as sa_inspect
         if isinstance(val, str) or sa_inspect(val).persistent:
@@ -199,7 +219,7 @@ def init_location_comboentry(presenter, combo, on_select, required=True):
 
     completion.set_match_func(match_func)
 
-    def on_match_select(completion, model, treeiter):
+    def on_match_select(_completion, model, treeiter):
         logger.debug('on_match_select')
         value = model[treeiter][0]
         on_select(value)
@@ -217,7 +237,7 @@ def init_location_comboentry(presenter, combo, on_select, required=True):
         if not text and not required:
             presenter.remove_problem(PROBLEM, entry)
             on_select(None)
-            return
+            return None
         # see if the text matches a completion string
         comp = entry.get_completion()
         compl_model = comp.get_model()
@@ -236,10 +256,10 @@ def init_location_comboentry(presenter, combo, on_select, required=True):
             code, name = match.groups()
         else:
             code = name = text
-        codes = presenter.session.query(Location).\
-            filter(utils.ilike(Location.code, '%s' % utils.utf8(code)))
-        names = presenter.session.query(Location).\
-            filter(utils.ilike(Location.name, '%s' % utils.utf8(name)))
+        codes = presenter.session.query(Location).filter(
+            utils.ilike(Location.code, '%s' % utils.utf8(code)))
+        names = presenter.session.query(Location).filter(
+            utils.ilike(Location.name, '%s' % utils.utf8(name)))
         if codes.count() == 1:
             logger.debug('location matches code')
             location = codes.first()
@@ -251,7 +271,7 @@ def init_location_comboentry(presenter, combo, on_select, required=True):
             presenter.remove_problem(PROBLEM, entry)
             on_select(location)
         else:
-            logger.debug('location %s does not match anything' % text)
+            logger.debug('location %s does not match anything', text)
             presenter.add_problem(PROBLEM, entry)
         return True
 

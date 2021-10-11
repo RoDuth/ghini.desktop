@@ -50,8 +50,7 @@ prop_type_results = {
 
 
 class PlantPropagation(db.Base):
-    """
-    PlantPropagation provides an intermediate relation from
+    """PlantPropagation provides an intermediate relation from
     Plant->Propagation
     """
     __tablename__ = 'plant_prop'
@@ -64,9 +63,7 @@ class PlantPropagation(db.Base):
 
 
 class Propagation(db.Base):
-    """
-    Propagation
-    """
+    """Propagation"""
     __tablename__ = 'propagation'
     prop_type = Column(types.Enum(values=list(prop_type_values.keys()),
                                   translations=prop_type_values),
@@ -101,7 +98,6 @@ class Propagation(db.Base):
         """the resulting product minus the already accessed material
 
         return 1 if the propagation is not completely specified.
-
         """
         quantity = None
         incomplete = True
@@ -131,7 +127,6 @@ class Propagation(db.Base):
         accessions.
 
         partial==2 means we do not want the list of resulting accessions.
-
         """
         date_format = prefs.prefs[prefs.date_format_pref]
 
@@ -144,7 +139,8 @@ class Propagation(db.Base):
         accession_codes = []
 
         if self.used_source and partial != 2:
-            values = [_('used in') + ': %s' % acc.code for acc in self.accessions]
+            values = [_('used in') + f': {acc.code}' for acc in
+                      self.accessions]
             accession_codes = [acc.code for acc in self.accessions]
 
         if partial == 1:
@@ -163,7 +159,7 @@ class Propagation(db.Base):
             if c.tip:
                 values.append(_('Tip') + ': %s' % tip_values[c.tip])
             if c.leaves:
-                s = _('Leaves') + ': %s' % leaves_values[c.leaves]
+                s = _('Leaves') + f': {leaves_values[c.leaves]}'
                 if c.leaves == 'Removed' and c.leaves_reduced_pct:
                     s += '(%s%%)' % c.leaves_reduced_pct
                 values.append(s)
@@ -249,9 +245,7 @@ class Propagation(db.Base):
 
 
 class PropCuttingRooted(db.Base):
-    """
-    Rooting dates for cutting
-    """
+    """Rooting dates for cutting"""
     __tablename__ = 'prop_cutting_rooted'
 
     date = Column(types.Date)
@@ -298,9 +292,7 @@ length_unit_values = {'mm': _('mm'),
 
 
 class PropCutting(db.Base):
-    """
-    A cutting
-    """
+    """A cutting"""
     __tablename__ = 'prop_cutting'
     cutting_type = Column(types.Enum(values=list(cutting_type_values.keys()),
                                      translations=cutting_type_values),
@@ -353,8 +345,6 @@ class PropCutting(db.Base):
 
 
 class PropSeed(db.Base):
-    """
-    """
     __tablename__ = 'prop_seed'
     pretreatment = Column(UnicodeText)
     nseeds = Column(Integer, nullable=False, autoincrement=False)
@@ -390,7 +380,6 @@ class PropSeed(db.Base):
 
 
 class PropagationTabPresenter(editor.GenericEditorPresenter):
-
     """PropagationTabPresenter
 
     :param parent: an instance of PlantEditorPresenter
@@ -418,9 +407,8 @@ class PropagationTabPresenter(editor.GenericEditorPresenter):
         return self._dirty
 
     def add_propagation(self):
-        """
-        Open the PropagationEditor and append the resulting
-        propagation to self.model.propagations
+        """Open the PropagationEditor and append the resulting propagation to
+        self.model.propagations
         """
         propagation = Propagation()
         propagation.plant = self.model
@@ -437,8 +425,6 @@ class PropagationTabPresenter(editor.GenericEditorPresenter):
             propagation.plant = None
 
     def create_propagation_box(self, propagation):
-        """
-        """
         hbox = Gtk.Box()
         expander = Gtk.Expander()
         hbox.pack_start(expander, True, True, 0)
@@ -516,28 +502,20 @@ class PropagationTabPresenter(editor.GenericEditorPresenter):
         return hbox
 
     def on_add_button_clicked(self, *args):
-        """
-        """
         self.add_propagation()
         self.parent_ref().refresh_sensitivity()
 
 
 class PropagationEditorView(editor.GenericEditorView):
-    """
-    """
 
     _tooltips = {}
 
     def __init__(self, parent=None):
-        """
-        """
         super().__init__(os.path.join(paths.lib_dir(), 'plugins', 'garden',
                                       'prop_editor.glade'), parent=parent)
         self.init_translatable_combo('prop_type_combo', prop_type_values)
 
     def get_window(self):
-        """
-        """
         return self.widgets.prop_dialog
 
     def start(self):
@@ -575,10 +553,10 @@ class CuttingPresenter(editor.GenericEditorPresenter):
                            }
 
     def __init__(self, parent, model, view, session):
-        '''
+        """
         :param model: an instance of class Propagation
         :param view: an instance of PropagationEditorView
-        '''
+        """
         super().__init__(model, view)
         self.parent_ref = weakref.ref(parent)
         self.session = session
@@ -718,8 +696,6 @@ class CuttingPresenter(editor.GenericEditorPresenter):
         self.parent_ref().refresh_sensitivity()
 
     def on_rooted_add_clicked(self, button, *args):
-        """
-        """
         tree = self.view.widgets.rooted_treeview
         rooted = PropCuttingRooted()
         rooted.cutting = self.model
@@ -731,8 +707,6 @@ class CuttingPresenter(editor.GenericEditorPresenter):
         tree.set_cursor(path, column, start_editing=True)
 
     def on_rooted_remove_clicked(self, button, *args):
-        """
-        """
         tree = self.view.widgets.rooted_treeview
         model, treeiter = tree.get_selection().get_selected()
         if not treeiter:
@@ -770,10 +744,10 @@ class SeedPresenter(editor.GenericEditorPresenter):
                            'seed_date_planted_entry': 'date_planted'}
 
     def __init__(self, parent, model, view, session):
-        '''
+        """
         :param model: an instance of class Propagation
         :param view: an instance of PropagationEditorView
-        '''
+        """
         super().__init__(model, view)
         self._dirty = False
         self.parent_ref = weakref.ref(parent)
@@ -860,10 +834,10 @@ class PropagationPresenter(editor.ChildPresenter):
                            'notes_textview': 'notes'}
 
     def __init__(self, model, view):
-        '''
+        """
         :param model: an instance of class Propagation
         :param view: an instance of PropagationEditorView
-        '''
+        """
         super().__init__(model, view)
         self.session = object_session(model)
 
@@ -939,9 +913,7 @@ class PropagationPresenter(editor.ChildPresenter):
             return self._dirty
 
     def set_model_attr(self, field, value, validator=None):
-        """
-        Set attributes on the model and update the GUI as expected.
-        """
+        """Set attributes on the model and update the GUI as expected."""
         logging.debug('%s = %s' % (field, value))
         super().set_model_attr(field, value, validator)
         self._dirty = True
@@ -959,10 +931,10 @@ class PropagationPresenter(editor.ChildPresenter):
 
 
 class SourcePropagationPresenter(PropagationPresenter):
-    """
-    Presenter for creating a new Propagation for the
-    Source.propagation property.  This type of propagation is not
-    associated with a Plant.
+    """Presenter for creating a new Propagation for the Source.propagation
+    property.
+
+    This type of propagation is not associated with a Plant.
 
     :param parent: AccessionEditorPresenter
     :param model:  Propagation instance
@@ -998,9 +970,8 @@ class SourcePropagationPresenter(PropagationPresenter):
         super().__init__(model, view)
 
     def on_prop_type_changed(self, combo, *args):
-        """
-        Override PropagationPresenter.on_type_changed() to handle the
-        None value in the prop_type_combo which is specific the
+        """Override PropagationPresenter.on_type_changed() to handle the None
+        value in the prop_type_combo which is specific the
         SourcePropagationPresenter
         """
         logger.debug('SourcePropagationPresenter.on_prop_type_changed()')
@@ -1029,10 +1000,10 @@ class SourcePropagationPresenter(PropagationPresenter):
 class PropagationEditorPresenter(PropagationPresenter):
 
     def __init__(self, model, view):
-        '''
+        """
         :param model: an instance of class Propagation
         :param view: an instance of PropagationEditorView
-        '''
+        """
         super().__init__(model, view)
         # don't allow changing the propagation type if we are editing
         # an existing propagation
@@ -1083,11 +1054,11 @@ class PropagationEditor(editor.GenericModelViewPresenterEditor):
     ok_responses = (RESPONSE_OK_AND_ADD, RESPONSE_NEXT)
 
     def __init__(self, model, parent=None):
-        '''
+        """
         :param prop_parent: an instance with a propagation relation
         :param model: Propagation instance
         :param parent: the parent widget
-        '''
+        """
         # the view and presenter are created in self.start()
         self.view = None
         self.presenter = None
@@ -1111,9 +1082,7 @@ class PropagationEditor(editor.GenericModelViewPresenterEditor):
         self.presenter = PropagationEditorPresenter(self.model, view)
 
     def handle_response(self, response, commit=True):
-        '''
-        handle the response from self.presenter.start() in self.start()
-        '''
+        """handle the response from self.presenter.start() in self.start()"""
         not_ok_msg = 'Are you sure you want to lose your changes?'
         self._return = None
         self.model.clean()
@@ -1125,7 +1094,8 @@ class PropagationEditor(editor.GenericModelViewPresenterEditor):
             except DBAPIError as e:
                 msg = _('Error committing changes.\n\n%s') % \
                     utils.xml_safe(str(e.orig))
-                utils.message_details_dialog(msg, str(e), Gtk.MessageType.ERROR)
+                utils.message_details_dialog(msg, str(e),
+                                             Gtk.MessageType.ERROR)
                 self.session.rollback()
                 return False
             except Exception as e:

@@ -142,8 +142,7 @@ plant_context_menu = [
 
 
 def get_next_code(acc):
-    """
-    Return the next available plant code for an accession.
+    """Return the next available plant code for an accession.
 
     This function should be specific to the institution.
 
@@ -165,8 +164,7 @@ def get_next_code(acc):
 
 
 def is_code_unique(plant, code):
-    """
-    Return True/False if the code is a unique Plant code for accession.
+    """Return True/False if the code is a unique Plant code for accession.
 
     This method will also take range values for code that can be passed
     to utils.range_builder()
@@ -608,8 +606,7 @@ class Plant(db.Base, db.Serializable, db.DefiningPictures, db.WithNotes):
     _delimiter = None
 
     def search_view_markup_pair(self):
-        """provide the two lines describing object for SearchView row.
-        """
+        """provide the two lines describing object for SearchView row."""
         import inspect
         logger.debug('entering search_view_markup_pair %s, %s', self,
                      str(inspect.stack()[1]))
@@ -627,12 +624,10 @@ class Plant(db.Base, db.Serializable, db.DefiningPictures, db.WithNotes):
 
     @classmethod
     def get_delimiter(cls, refresh=False):
-        """
-        Get the plant delimiter from the BaubleMeta table.
+        """Get the plant delimiter from the BaubleMeta table.
 
         The delimiter is cached the first time it is retrieved.  To refresh
         the delimiter from the database call with refresh=True.
-
         """
         if cls._delimiter is None or refresh:
             cls._delimiter = meta.get_default(
@@ -1229,8 +1224,7 @@ class PlantEditorPresenter(GenericEditorPresenter):
         self.refresh_view()
 
     def on_plant_code_entry_changed(self, entry):
-        """
-        Validates the accession number and the plant code from the editors.
+        """Validates the accession number and the plant code from the editors.
         """
         text = utils.utf8(entry.get_text())
         if text == '':
@@ -1636,9 +1630,7 @@ class PlantEditor(GenericModelViewPresenterEditor):
 
 
 class GeneralPlantExpander(InfoExpander):
-    """
-    general expander for the PlantInfoBox
-    """
+    """general expander for the PlantInfoBox"""
 
     def __init__(self, widgets):
         super().__init__(_("General"), widgets)
@@ -1691,9 +1683,7 @@ class GeneralPlantExpander(InfoExpander):
 
 
 class ChangesExpander(InfoExpander):
-    """
-    ChangesExpander
-    """
+    """ChangesExpander"""
 
     def __init__(self, widgets):
         super().__init__(_('Changes'), widgets)
@@ -1791,9 +1781,7 @@ class ChangesExpander(InfoExpander):
 
 
 class PropagationExpander(InfoExpander):
-    """
-    Propagation Expander
-    """
+    """Propagation Expander"""
 
     def __init__(self, widgets):
         super().__init__(_('Propagations'), widgets)
@@ -1857,9 +1845,7 @@ class PropagationExpander(InfoExpander):
 
 
 class PlantInfoBox(InfoBox):
-    """
-    an InfoBox for a Plants table row
-    """
+    """an InfoBox for a Plants table row"""
 
     def __init__(self):
         super().__init__()

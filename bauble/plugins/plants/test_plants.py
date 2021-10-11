@@ -20,32 +20,29 @@
 #
 # Description: test for the Plant plugin
 #
-
-import os
-import sys
-from unittest import TestCase
-
-from sqlalchemy.orm.exc import NoResultFound
-from sqlalchemy.exc import IntegrityError
-import unittest
-
-import bauble.utils as utils
-import bauble.db as db
-from bauble.plugins.plants.species import (
-    Species, VernacularName, SpeciesSynonym, edit_species,
-    DefaultVernacularName, SpeciesDistribution, SpeciesNote)
-from bauble.plugins.plants.family import (
-    Family, FamilySynonym, FamilyEditor, FamilyNote)
-from bauble.plugins.plants.genus import \
-    Genus, GenusSynonym, GenusEditor, GenusNote
-from bauble.plugins.plants.geography import Geography, get_species_in_geography
-from bauble.test import BaubleTestCase, check_dupids, mockfunc
-
-from functools import partial
-
 import logging
 logging.basicConfig()
 # logging.getLogger('sqlalchemy.engine').setLevel(logging.INFO)
+
+import os
+from unittest import TestCase, skip
+from functools import partial
+
+from sqlalchemy.orm.exc import NoResultFound
+from sqlalchemy.exc import IntegrityError
+
+from bauble import utils, search, db
+from .species import (Species,
+                      VernacularName,
+                      SpeciesSynonym,
+                      edit_species,
+                      DefaultVernacularName,
+                      SpeciesDistribution,
+                      SpeciesNote)
+from .family import Family, FamilySynonym, FamilyEditor, FamilyNote
+from .genus import Genus, GenusSynonym, GenusEditor, GenusNote
+from .geography import Geography, get_species_in_geography
+from bauble.test import BaubleTestCase, check_dupids, mockfunc
 
 #
 # TODO: things to create tests for
@@ -270,11 +267,6 @@ class DuplicateIdsGlade(TestCase):
 
 class PlantTestCase(BaubleTestCase):
 
-    def __init__(self, *args):
-        super().__init__(*args)
-        from bauble import prefs
-        prefs.testing = True
-
     def setUp(self):
         super().setUp()
         setUp_data()
@@ -389,7 +381,7 @@ class FamilyTests(PlantTestCase):
         f.qualifier = 's. lat.'
         self.assertTrue(str(f) == 'fam s. lat.')
 
-    @unittest.skip('requires interaction')
+    @skip('requires interaction')
     def test_editor(self):
         """
         Interactively test the FamilyEditor
@@ -580,7 +572,7 @@ class GenusTests(PlantTestCase):
         """
         pass
 
-    @unittest.skip('requires interaction')
+    @skip('requires interaction')
     def test_editor(self):
         """
         Interactively test the GenusEditor
@@ -773,7 +765,7 @@ class GenusSynonymyTests(PlantTestCase):
         # Altamiranoa Rose used to refer to Villadia Rose for its accepted
         # name, it is now updated to Sedum L.
 
-        ## T_0
+        # T_0
         claceae = Family(family='Crassulaceae')  # J. St.-Hil.
         villa = Genus(family=claceae, genus='Villadia', author='Rose')
         alta = Genus(family=claceae, genus='Altamiranoa', author='Rose')
@@ -794,7 +786,7 @@ class SpeciesTests(PlantTestCase):
     def tearDown(self):
         super().tearDown()
 
-    @unittest.skip('not implimented')
+    @skip('not implimented')
     def test_editor(self):
         # import default geography data
         import bauble.paths as paths
@@ -831,11 +823,11 @@ class SpeciesTests(PlantTestCase):
             return self.session.query(Species).get(id).str(**kwargs)
 
         for sid, expect in species_str_map.items():
-                sp = self.session.query(Species).get(sid)
-                printable_name = remove_zws("%s" % sp)
-                self.assertEqual(species_str_map[sid], printable_name)
-                spstr = get_sp_str(sid)
-                self.assertEqual(remove_zws(spstr), expect)
+            sp = self.session.query(Species).get(sid)
+            printable_name = remove_zws("%s" % sp)
+            self.assertEqual(species_str_map[sid], printable_name)
+            spstr = get_sp_str(sid)
+            self.assertEqual(remove_zws(spstr), expect)
 
         for sid, expect in species_str_authors_map.items():
             spstr = get_sp_str(sid, authors=True)
@@ -1315,14 +1307,14 @@ class FromAndToDictTest(PlantTestCase):
         fab = Family.retrieve_or_create(
             self.session, {'rank': 'family',
                            'epithet': 'Fabaceae'})
-        ## it's in the session, it wasn't there before.
+        # it's in the session, it wasn't there before.
         self.assertTrue(fab in self.session)
         self.assertFalse(fab in all_families)
-        ## according to the session, it is in the database
+        # according to the session, it is in the database
         ses_families = self.session.query(Family).all()
         self.assertTrue(fab in ses_families)
 
-    @unittest.skip('not implimented')
+    @skip('not implimented')
     def test_where_can_object_be_found_before_commit(self):  # disabled
         fab = Family.retrieve_or_create(
             self.session, {'rank': 'family',
@@ -1339,7 +1331,7 @@ class FromAndToDictTest(PlantTestCase):
         fab = Family.retrieve_or_create(
             self.session, {'rank': 'family',
                            'epithet': 'Fabaceae'})
-        ## after commit it's in database.
+        # after commit it's in database.
         self.session.commit()
         other_session = db.Session()
         all_families = other_session.query(Family).all()
@@ -1390,7 +1382,7 @@ class FromAndToDict_create_update_test(PlantTestCase):
         self.assertEqual(obj, None)
 
     def test_family_nocreate_noupdateeq_existing(self):
-        ## retrieve same object, we only give the keys
+        # retrieve same object, we only give the keys
         obj = Family.retrieve_or_create(
             self.session, {'object': 'taxon',
                            'rank': 'familia',
@@ -1400,7 +1392,7 @@ class FromAndToDict_create_update_test(PlantTestCase):
         self.assertEqual(obj.qualifier, 's. str.')
 
     def test_family_nocreate_noupdatediff_existing(self):
-        ## do not update object with new data
+        # do not update object with new data
         obj = Family.retrieve_or_create(
             self.session, {'object': 'taxon',
                            'rank': 'familia',
@@ -1410,7 +1402,7 @@ class FromAndToDict_create_update_test(PlantTestCase):
         self.assertEqual(obj.qualifier, 's. str.')
 
     def test_family_nocreate_updatediff_existing(self):
-        ## update object in self.session
+        # update object in self.session
         obj = Family.retrieve_or_create(
             self.session, {'object': 'taxon',
                            'rank': 'familia',
@@ -1449,7 +1441,7 @@ class FromAndToDict_create_update_test(PlantTestCase):
         self.assertEqual(obj, None)
 
     def test_genus_nocreate_noupdateeq_existing(self):
-        ## retrieve same object, we only give the keys
+        # retrieve same object, we only give the keys
         obj = Genus.retrieve_or_create(
             self.session, {'object': 'taxon',
                            'rank': 'genus',
@@ -1459,7 +1451,7 @@ class FromAndToDict_create_update_test(PlantTestCase):
         self.assertEqual(obj.author, '')
 
     def test_genus_nocreate_noupdatediff_existing(self):
-        ## do not update object with new data
+        # do not update object with new data
         obj = Genus.retrieve_or_create(
             self.session, {'object': 'taxon',
                            'rank': 'genus',
@@ -1470,7 +1462,7 @@ class FromAndToDict_create_update_test(PlantTestCase):
         self.assertEqual(obj.author, '')
 
     def test_genus_nocreate_updatediff_existing(self):
-        ## update object in self.session
+        # update object in self.session
         obj = Genus.retrieve_or_create(
             self.session, {'object': 'taxon',
                            'rank': 'genus',
@@ -1509,7 +1501,7 @@ class FromAndToDict_create_update_test(PlantTestCase):
         self.assertEqual(obj, None)
 
     def test_vernacular_name_nocreate_noupdateeq_existing(self):
-        ## retrieve same object, we only give the keys
+        # retrieve same object, we only give the keys
         obj = VernacularName.retrieve_or_create(
             self.session, {'object': 'vernacular_name',
                            'language': 'agr',
@@ -1519,7 +1511,7 @@ class FromAndToDict_create_update_test(PlantTestCase):
         self.assertEqual(obj.name, 'Toé')
 
     def test_vernacular_name_nocreate_noupdatediff_existing(self):
-        ## do not update object with new data
+        # do not update object with new data
         obj = VernacularName.retrieve_or_create(
             self.session, {'object': 'vernacular_name',
                            'language': 'agr',
@@ -1529,7 +1521,7 @@ class FromAndToDict_create_update_test(PlantTestCase):
         self.assertEqual(obj.name, 'Toé')
 
     def test_vernacular_name_nocreate_updatediff_existing(self):
-        ## update object in self.session
+        # update object in self.session
         obj = VernacularName.retrieve_or_create(
             self.session, {'object': 'vernacular_name',
                            'language': 'agr',
@@ -1920,7 +1912,7 @@ class SpeciesProperties_test(PlantTestCase):
         self.assertEqual(obj, None)
 
     def test_species_note_nocreate_noupdateeq_existing(self):
-        ## retrieve same object, we only give the keys
+        # retrieve same object, we only give the keys
         obj = SpeciesNote.retrieve_or_create(
             self.session, {'object': 'species_note',
                            'category': 'IUCN',
@@ -1930,7 +1922,7 @@ class SpeciesProperties_test(PlantTestCase):
         self.assertEqual(obj.note, 'LC')
 
     def test_species_note_nocreate_noupdatediff_existing(self):
-        ## do not update object with new data
+        # do not update object with new data
         obj = SpeciesNote.retrieve_or_create(
             self.session, {'object': 'species_note',
                            'category': 'IUCN',
@@ -1940,7 +1932,7 @@ class SpeciesProperties_test(PlantTestCase):
         self.assertEqual(obj.note, 'LC')
 
     def test_species_note_nocreate_updatediff_existing(self):
-        ## update object in self.session
+        # update object in self.session
         obj = SpeciesNote.retrieve_or_create(
             self.session, {'object': 'species_note',
                            'category': 'IUCN',
@@ -2063,7 +2055,7 @@ class PresenterTest(PlantTestCase):
         species.author = 'Asher'
         presenter.commit_changes()
 
-    @unittest.skip('not implimented')
+    @skip('not implimented')
     def test_cantinsertsametwice(self):
         'while binomial name in view matches database item, warn user'
 
@@ -2078,7 +2070,7 @@ class PresenterTest(PlantTestCase):
         presenter = SpeciesEditorPresenter(model, MockView())
         presenter.on_text_entry_changed('sp_species_entry', 'grandiflora')
 
-    @unittest.skip('not implimented')
+    @skip('not implimented')
     def test_cantinsertsametwice_warnonce(self):
         'while binomial name in view matches database item, warn user'
 
@@ -2129,19 +2121,17 @@ class GlobalFunctionsTest(PlantTestCase):
         self.assertEqual(partial(db.natsort, 'species.accessions')(vName), [])
 
 
-import bauble.search
-
 
 class BaubleSearchSearchTest(BaubleTestCase):
-    def test_search_search_uses_Synonym_Search(self):
-        bauble.search.search("genus like %", self.session)
+    def test_search_search_uses_synonym_search(self):
+        search.search("genus like %", self.session)
         self.assertTrue('SearchStrategy "genus like %" (SynonymSearch)' in
-                   self.handler.messages['bauble.search']['debug'])
+                        self.handler.messages['bauble.search']['debug'])
         self.handler.reset()
-        bauble.search.search("12.11.13", self.session)
+        search.search("12.11.13", self.session)
         self.assertTrue('SearchStrategy "12.11.13" (SynonymSearch)' in
-                   self.handler.messages['bauble.search']['debug'])
+                        self.handler.messages['bauble.search']['debug'])
         self.handler.reset()
-        bauble.search.search("So ha", self.session)
+        search.search("So ha", self.session)
         self.assertTrue('SearchStrategy "So ha" (SynonymSearch)' in
-                   self.handler.messages['bauble.search']['debug'])
+                        self.handler.messages['bauble.search']['debug'])

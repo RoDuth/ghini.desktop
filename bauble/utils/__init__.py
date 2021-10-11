@@ -379,10 +379,11 @@ def search_tree_model(parent, data, cmp=lambda row, data: row[0] == data):
         return search_tree_model(parent[parent.get_iter_first()], data, cmp)
     results = set()
 
-    def func(model, _path, itr, dummy=None):
+    def func(model, _path, itr):
         if cmp(model[itr], data):
             results.add(itr)
         return False
+
     parent.model.foreach(func)
     return tuple(results)
 

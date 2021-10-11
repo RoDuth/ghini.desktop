@@ -157,6 +157,7 @@ class XMLImexPlugin(pluginmgr.Plugin):
     tools = [XMLExportTool]
     commands = [XMLExportCommandHandler]
 
+
 try:
     import lxml.etree as etree
 except ImportError:

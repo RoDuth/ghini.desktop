@@ -580,22 +580,20 @@ class Species(db.Base, db.Serializable, db.DefiningPictures, db.WithNotes):
         """
         return self.str(authors, markup=True, genus=genus)
 
-    # in PlantPlugins.init() we set this to 'x' for win32
     hybrid_char = '×'
 
     def str(self, authors=False, markup=False, remove_zws=True, genus=True,
             qualification=None):
-        """
-        returns a string for species
+        """Returns a string for species.
 
         :param authors: flag to toggle whether authorship should be included
         :param markup: flag to toggle whether the returned text is marked up
-        to show italics on the epithets
+            to show italics on the epithets
         :param remove_zws: flag to toggle zero width spaces, helping
-        semantically correct lexicographic order.
+            semantically correct lexicographic order.
         :param genus: flag to toggle leading genus name.
         :param qualification: pair or None. if specified, first is the
-        qualified rank, second is the qualification.
+            qualified rank, second is the qualification.
         """
         session = False
         from sqlalchemy import inspect

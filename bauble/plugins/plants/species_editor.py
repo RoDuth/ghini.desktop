@@ -23,6 +23,7 @@
 import os
 import traceback
 import weakref
+from random import random
 
 import logging
 logger = logging.getLogger(__name__)
@@ -48,7 +49,7 @@ from bauble.plugins.plants.species_model import (
 
 class SpeciesEditorPresenter(editor.GenericEditorPresenter):
 
-    PROBLEM_INVALID_GENUS = 1
+    PROBLEM_INVALID_GENUS = random()
 
     widget_to_field_map = {'sp_genus_entry': 'genus',
                            'sp_species_entry': 'sp',
@@ -317,12 +318,6 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
         self.assign_simple_handler('sp_awards_entry', 'awards',
                                    editor.UnicodeOrNoneValidator())
 
-        try:
-            bauble.plugins.garden  # fake its usage
-            if self.model not in self.model.new:
-                self.view.widgets.sp_ok_and_add_button.set_sensitive(True)
-        except Exception:
-            pass
         self.refresh_sensitivity()
         if self.model not in self.session.new:
             self.view.widgets.sp_ok_and_add_button.set_sensitive(True)
@@ -1141,12 +1136,7 @@ class SpeciesEditorView(editor.GenericEditorView):
         dialog
         """
         self.widgets.sp_ok_button.set_sensitive(sensitive)
-        try:
-            import bauble.plugins.garden
-            bauble.plugins.garden  # fake usage
-            self.widgets.sp_ok_and_add_button.set_sensitive(sensitive)
-        except Exception:
-            pass
+        self.widgets.sp_ok_and_add_button.set_sensitive(sensitive)
         self.widgets.sp_next_button.set_sensitive(sensitive)
 
     @staticmethod

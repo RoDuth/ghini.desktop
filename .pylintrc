@@ -243,6 +243,7 @@ contextmanager-decorators=contextlib.contextmanager
 # <RD> __table__ need to check this occassionally as pylint (astroid) may get
 # this right one day.
 generated-members=__table__,
+		  id,
 		  bauble.view.LinksExpander._sep
 
 # Tells whether missing members accessed in mixin class should be ignored. A
