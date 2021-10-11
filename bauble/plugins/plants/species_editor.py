@@ -23,6 +23,7 @@
 import os
 import traceback
 import weakref
+from functools import partial
 from random import random
 
 import logging
@@ -31,8 +32,11 @@ logger = logging.getLogger(__name__)
 from gi.repository import Gtk  # noqa
 from gi.repository import GLib
 
-from sqlalchemy.orm.session import object_session
+from sqlalchemy.orm.session import object_session, Session
+from sqlalchemy.orm.query import Query
 from sqlalchemy.exc import DBAPIError
+from sqlalchemy import and_, or_
+from sqlalchemy import inspect as sa_inspect
 
 import bauble
 from bauble.prefs import prefs
@@ -45,6 +49,88 @@ from bauble.plugins.plants.genus import Genus, GenusSynonym
 from bauble.plugins.plants.species_model import (
     Species, SpeciesDistribution, VernacularName, SpeciesSynonym, Habit,
     infrasp_rank_values, compare_rank)
+
+
+def generic_sp_get_completions(session: Session,
+                               text: str) -> Query:
+    """A generic species get_completion.
+
+    intended used is by supplying the local session via `functools.partial`
+
+    e.g.:
+    `sp_completions = partial(generic_sp_get_completions, self.session)`
+
+    :param session: a local session to use for the query.
+    :param text: a string to search for
+    """
+    query = session.query(Species)
+    genus = ''
+    try:
+        genus = text.split(' ')[0]
+    except AttributeError:
+        pass
+    from bauble.utils import ilike
+    query = query.filter(
+        and_(Species.genus_id == Genus.id,
+             or_(ilike(Genus.genus, '%s%%' % text),
+                 ilike(Genus.genus, '%s%%' % genus)))
+    ).order_by(Species.sp)
+    return query
+
+
+def species_to_string_matcher(species: Species,
+                              key: str,
+                              sp_path: str = '') -> bool:
+    """Helper function to match string or partial string of the pattern
+    'Genus species' with a Species
+
+    Allows partial matches (e.g. 'Den d' and 'Dendr' will match
+    'Dendrobium discolor').  Searches are case insensitive.
+
+    :param species: a Species table entry
+    :param key: the string to search with
+    :param sp_path: optional path for model obects to get to the species
+
+    :return: bool, True if the Species matches the key
+    """
+    key = key.lower()
+    key_gen, key_sp = (key + ' ').split(' ', 1)
+    if sp_path:
+        from operator import attrgetter
+        species = attrgetter(sp_path)(species)
+    comp_gen = str(species.genus.epithet).lower()
+    comp_sp = str(species.str(genus=False)).lower()
+    if (comp_gen.startswith(key_gen) and comp_sp.startswith(key_sp.strip())):
+        return True
+    return False
+
+
+def species_match_func(completion: Gtk.EntryCompletion,
+                       key: str,
+                       treeiter: int,
+                       sp_path: str = '') -> bool:
+    """match_func that allows partial matches on both Genus and species.
+
+    :param completion: the completion to match
+    :param key: lowercase string of the entry text
+    :param treeiter: the row number for the item to match
+    :param sp_path: optional path for model obects to get to the species
+
+    :return: bool, True if the item at the treeiter matches the key
+    """
+    species = completion.get_model()[treeiter][0]
+    if not sa_inspect(species).persistent:
+        return False
+    return species_to_string_matcher(species, key, sp_path)
+
+
+def species_cell_data_func(_column, renderer, model, treeiter):
+    v = model[treeiter][0]
+    # occassionally the session gets lost and can result in
+    # DetachedInstanceErrors. So check first
+    if sa_inspect(v).persistent:
+        renderer.set_property(
+            'text', '%s (%s)' % (v.str(authors=True), v.genus.family))
 
 
 class SpeciesEditorPresenter(editor.GenericEditorPresenter):
@@ -935,21 +1021,18 @@ class SynonymsPresenter(editor.GenericEditorPresenter):
         self.view.widgets.sp_syn_entry.props.text = ''
         self.init_treeview()
 
-        def sp_get_completions(text):
-            query = self.session.query(Species).join('genus').\
-                filter(utils.ilike(Genus.genus, '%s%%' % text)).\
-                filter(Species.id != self.model.id).\
-                order_by(Genus.genus, Species.sp)
-            return query
-
         def on_select(value):
             sensitive = True
             if value is None:
                 sensitive = False
             self.view.widgets.sp_syn_add_button.set_sensitive(sensitive)
             self._selected = value
-        self.assign_completions_handler('sp_syn_entry', sp_get_completions,
-                                        on_select=on_select)
+
+        sp_get_completions = partial(generic_sp_get_completions,
+                                     self.session)
+        self.assign_completions_handler(
+            'sp_syn_entry', sp_get_completions, on_select=on_select,
+            comparer=lambda l, s: species_to_string_matcher(l[0], s))
         on_select(None)  # set to default state
 
         self._selected = None
@@ -1106,7 +1189,9 @@ class SpeciesEditorView(editor.GenericEditorView):
         self.attach_completion('sp_genus_entry',
                                self.genus_completion_cell_data_func,
                                match_func=self.genus_match_func)
-        self.attach_completion('sp_syn_entry', self.syn_cell_data_func)
+        self.attach_completion('sp_syn_entry',
+                               cell_data_func=species_cell_data_func,
+                               match_func=species_match_func)
         self.set_accept_buttons_sensitive(False)
         self.widgets.notebook.set_current_page(0)
         self.restore_state()
@@ -1144,11 +1229,6 @@ class SpeciesEditorView(editor.GenericEditorView):
         v = model[treeiter][0]
         renderer.set_property('text', '%s (%s)' % (Genus.str(v),
                                                    Family.str(v.family)))
-
-    @staticmethod
-    def syn_cell_data_func(_column, renderer, model, treeiter):
-        v = model[treeiter][0]
-        renderer.set_property('text', str(v))
 
     def save_state(self):
         """save the current state of the gui to the preferences."""

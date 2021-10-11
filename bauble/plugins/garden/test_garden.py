@@ -42,11 +42,11 @@ from bauble.plugins.garden.source import Source, Collection, Contact, \
 from bauble.plugins.garden.plant import Plant, PlantNote, \
     PlantChange, PlantEditor, is_code_unique, branch_callback
 from bauble.plugins.garden.location import Location, LocationEditor
-from bauble.plugins.garden.propagation import (Propagation,
-                                               PropCuttingRooted,
-                                               PropCutting,
-                                               PropSeed,
-                                               PropagationEditor)
+from .propagation import (Propagation,
+                          PropCuttingRooted,
+                          PropCutting,
+                          PropSeed,
+                          PropagationEditor)
 from bauble.plugins.plants.geography import Geography
 from bauble.plugins.plants.family import Family
 from bauble.plugins.plants.genus import Genus
@@ -1146,53 +1146,6 @@ class PropagationTests(GardenTestCase):
         propagation = editor.start()
         logger.debug(propagation)
         self.assertTrue(propagation.accession)
-
-
-class AccessionEditorSpeciesMatchTests(GardenTestCase):
-
-    def setUp(self):
-        super().setUp()
-        self.sp3 = Species(genus=self.genus, sp='inexistente')
-        self.session.add_all([self.sp3])
-        self.session.commit()
-
-        class MockCompletion:
-            def __init__(self, values):
-                self.model = [[i] for i in values]
-
-            def get_model(self):
-                return self.model
-
-        self.MockCompletion = MockCompletion
-        self.completion = MockCompletion([self.species, self.sp2, self.sp3])
-
-    def test_full_name(self):
-        key = 'Echinocactus grusonii'
-        species_match_func = AccessionEditorView.species_match_func
-        self.assertTrue(species_match_func(self.completion, key, 0))
-        self.assertFalse(species_match_func(self.completion, key, 1))
-        self.assertFalse(species_match_func(self.completion, key, 2))
-
-    def test_only_full_genus(self):
-        key = 'Echinocactus'
-        species_match_func = AccessionEditorView.species_match_func
-        self.assertTrue(species_match_func(self.completion, key, 0))
-        self.assertTrue(species_match_func(self.completion, key, 1))
-        self.assertTrue(species_match_func(self.completion, key, 2))
-
-    def test_only_partial_genus(self):
-        key = 'Echinoc'
-        species_match_func = AccessionEditorView.species_match_func
-        self.assertTrue(species_match_func(self.completion, key, 0))
-        self.assertTrue(species_match_func(self.completion, key, 1))
-        self.assertTrue(species_match_func(self.completion, key, 2))
-
-    def test_only_partial_binomial(self):
-        key = 'Echi t'
-        species_match_func = AccessionEditorView.species_match_func
-        self.assertFalse(species_match_func(self.completion, key, 0))
-        self.assertTrue(species_match_func(self.completion, key, 1))
-        self.assertFalse(species_match_func(self.completion, key, 2))
 
 
 class VoucherTests(GardenTestCase):

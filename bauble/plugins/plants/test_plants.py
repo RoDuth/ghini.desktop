@@ -39,6 +39,9 @@ from .species import (Species,
                       DefaultVernacularName,
                       SpeciesDistribution,
                       SpeciesNote)
+from .species_editor import (species_to_string_matcher,
+                             species_match_func,
+                             generic_sp_get_completions)
 from .family import Family, FamilySynonym, FamilyEditor, FamilyNote
 from .genus import Genus, GenusSynonym, GenusEditor, GenusNote
 from .geography import Geography, get_species_in_geography
@@ -2120,6 +2123,45 @@ class GlobalFunctionsTest(PlantTestCase):
         vName = self.session.query(VernacularName).filter_by(id=1).one()
         self.assertEqual(partial(db.natsort, 'species.accessions')(vName), [])
 
+    def test_species_to_string_matcher(self):
+        family = Family(family='Myrtaceae')
+        gen1 = Genus(family=family, genus='Syzygium')
+        gen2 = Genus(family=family, genus='Melaleuca')
+        sp1 = Species(genus=gen1, sp='australe')
+        sp2 = Species(genus=gen2, sp='viminalis')
+        sp3 = Species(genus=gen2, sp='viminalis',
+                      cultivar_epithet='Captain Cook')
+        sp4 = Species(genus=gen2, sp='viminalis',
+                      infrasp1_rank='cv.')
+        sp5 = Species(genus=gen2, sp='sp. Carnarvon NP (M.B.Thomas 115)')
+        sp6 = Species(genus=gen1, sp='wilsonii',
+                      infraspecific_parts='subsp. cryptophlebium')
+        self.assertTrue(species_to_string_matcher(sp1, 'S a'))
+        self.assertTrue(species_to_string_matcher(sp1, 'Syzyg'))
+        self.assertTrue(species_to_string_matcher(sp1, 'Syzygium australe'))
+        self.assertFalse(species_to_string_matcher(sp1, 'unknown'))
+        self.assertFalse(species_to_string_matcher(sp1, 'Mel vim'))
+        self.assertTrue(species_to_string_matcher(sp2, 'Mel vim'))
+        self.assertTrue(species_to_string_matcher(sp2, 'M'))
+        self.assertTrue(species_to_string_matcher(sp2, ''))
+        self.assertFalse(species_to_string_matcher(sp2, 'unknown'))
+        self.assertFalse(species_to_string_matcher(
+            sp2, 'a long string with little meaning'))
+        self.assertTrue(species_to_string_matcher(sp3, 'M'))
+        self.assertTrue(species_to_string_matcher(sp3, 'M v'))
+        self.assertTrue(species_to_string_matcher(
+            sp3, "M viminalis 'Captain Cook'"))
+        self.assertTrue(species_to_string_matcher(sp4, 'Mel viminalis cv.'))
+        self.assertTrue(species_to_string_matcher(sp4, 'Mel'))
+        self.assertFalse(species_to_string_matcher(sp4, 'Cal vim'))
+        self.assertTrue(species_to_string_matcher(sp5, 'Mel sp.'))
+        self.assertTrue(species_to_string_matcher(sp5, 'Mel sp. Carn'))
+        self.assertTrue(species_to_string_matcher(sp5, 'Mel'))
+        self.assertTrue(species_to_string_matcher(sp6, 'Syz wil'))
+        self.assertTrue(species_to_string_matcher(
+            sp6, 'Syz wilsonii subsp. cry'))
+        self.assertFalse(species_to_string_matcher(
+            sp6, 'Syz wilsonii subsp. wil'))
 
 
 class BaubleSearchSearchTest(BaubleTestCase):
@@ -2135,3 +2177,81 @@ class BaubleSearchSearchTest(BaubleTestCase):
         search.search("So ha", self.session)
         self.assertTrue('SearchStrategy "So ha" (SynonymSearch)' in
                         self.handler.messages['bauble.search']['debug'])
+
+
+class SpeciesCompletionMatchTests(PlantTestCase):
+
+    def setUp(self):
+        super().setUp()
+        self.family = Family(family='Myrtaceae')
+        self.genus = Genus(family=self.family, genus='Syzygium')
+        self.sp1 = Species(genus=self.genus, sp='australe')
+        self.sp2 = Species(genus=self.genus, sp='luehmannii')
+        self.session.add_all([self.family, self.genus, self.sp1, self.sp2])
+        self.session.commit()
+        self.sp3 = Species(genus=self.genus, sp='aqueum')
+        self.session.add_all([self.sp3])
+        self.session.commit()
+
+        from gi.repository import Gtk
+        self.completion = Gtk.EntryCompletion()
+        completion_model = Gtk.ListStore(object)
+        for val in [self.sp1, self.sp2, self.sp3]:
+            completion_model.append([val])
+        self.completion.set_model(completion_model)
+
+        # another approach (keeping for reference but this approach does not
+        # take into account some of the internals of how a GtkEntryCompletion
+        # works, e.g.: key is normalised and case-folded - hence need to
+        # lower() case the keys here)
+        #
+        # self.mock_completion = SpeciesEditorView.attach_completion(
+        #     None, entry, cell_data_func=species_cell_data_func,
+        #     match_func=species_match_func)
+
+        # self.mock_completion = mock.Mock(
+        #     **{'get_model.return_value':
+        #        [[self.sp1], [self.sp2], [self.sp3]]}
+        # )
+
+    def test_full_name(self):
+        key = 'Syzygium australe'.lower()
+        self.assertTrue(species_match_func(self.completion, key, 0))
+        self.assertFalse(species_match_func(self.completion, key, 1))
+        self.assertFalse(species_match_func(self.completion, key, 2))
+
+    def test_only_full_genus(self):
+        key = 'Syzygium'.lower()
+        self.assertTrue(species_match_func(self.completion, key, 0))
+        self.assertTrue(species_match_func(self.completion, key, 1))
+        self.assertTrue(species_match_func(self.completion, key, 2))
+
+    def test_only_partial_genus(self):
+        key = 'Syzyg'.lower()
+        self.assertTrue(species_match_func(self.completion, key, 0))
+        self.assertTrue(species_match_func(self.completion, key, 1))
+        self.assertTrue(species_match_func(self.completion, key, 2))
+
+    def test_only_partial_binomial(self):
+        key = 'Syz lu'.lower()
+        self.assertFalse(species_match_func(self.completion, key, 0))
+        self.assertTrue(species_match_func(self.completion, key, 1))
+        self.assertFalse(species_match_func(self.completion, key, 2))
+
+    def test_generic_sp_get_completions(self):
+        completion = partial(generic_sp_get_completions, self.session)
+        key = 'Syz lu'
+        self.assertCountEqual(completion(key).all(),
+                              [self.sp1, self.sp2, self.sp3])
+        key = 'Syzyg'
+        # [self.sp1, self.sp2, self.sp3]
+        self.assertCountEqual(completion(key).all(),
+                              [self.sp1, self.sp2, self.sp3])
+        key = 'Syzygium australe'
+        self.assertCountEqual(completion(key).all(),
+                              [self.sp1, self.sp2, self.sp3])
+        key = 'Unknown'
+        self.assertEqual(completion(key).all(), [])
+        key = ''
+        self.assertEqual(len(completion(key).all()),
+                         len(self.session.query(Species).all()))

@@ -27,7 +27,7 @@ import os
 from random import random
 import traceback
 import weakref
-from functools import reduce
+from functools import reduce, partial
 from pathlib import Path
 
 import logging
@@ -37,12 +37,11 @@ from gi.repository import Gtk  # noqa
 
 # from lxml import etree
 from gi.repository import Pango
-from sqlalchemy import and_, or_, func
+from sqlalchemy import func
 from sqlalchemy import ForeignKey, Column, Unicode, Integer, UnicodeText
 from sqlalchemy.orm import backref, relationship, validates
 from sqlalchemy.orm.session import object_session
 from sqlalchemy.exc import DBAPIError
-from sqlalchemy import inspect as sa_inspect
 
 import bauble
 from bauble import db
@@ -56,6 +55,10 @@ from bauble import utils
 from bauble.view import (InfoBox, InfoExpander, LinksExpander,
                          PropertiesExpander, select_in_search_results, Action)
 from bauble.utils import safe_int
+from ..plants.species_editor import (species_cell_data_func,
+                                     species_match_func,
+                                     generic_sp_get_completions,
+                                     species_to_string_matcher)
 from .propagation import SourcePropagationPresenter, Propagation
 from .source import (Contact,
                      ContactPresenter,
@@ -917,8 +920,8 @@ class AccessionEditorView(editor.GenericEditorView):
                                   'acc_editor.glade')
         super().__init__(glade_file, parent=parent)
         self.attach_completion('acc_species_entry',
-                               cell_data_func=self.species_cell_data_func,
-                               match_func=self.species_match_func)
+                               cell_data_func=species_cell_data_func,
+                               match_func=species_match_func)
         self.set_accept_buttons_sensitive(False)
         self.restore_state()
 
@@ -983,31 +986,6 @@ class AccessionEditorView(editor.GenericEditorView):
             if w.lower().startswith(key.lower()):
                 return True
         return False
-
-    # staticmethod ensures the AccessionEditorView gets garbage collected.
-    @staticmethod
-    def species_match_func(completion, key, treeiter, data=None):
-        species = completion.get_model()[treeiter][0]
-        if not sa_inspect(species).persistent:
-            return False
-        epg, eps = (
-            species.str(remove_zws=True).lower() + ' ').split(' ')[:2]
-        key_epg, key_eps = (key.lower() + ' ').split(' ')[:2]
-        if not epg:
-            epg = str(species.genus.epithet).lower()
-        if (epg.startswith(key_epg) and eps.startswith(key_eps)):
-            return True
-        return False
-
-    # staticmethod ensures the AccessionEditorView gets garbage collected.
-    @staticmethod
-    def species_cell_data_func(column, renderer, model, treeiter, data=None):
-        v = model[treeiter][0]
-        # occassionally the session gets lost and can result in
-        # DetachedInstanceErrors. So check first
-        if sa_inspect(v).persistent:
-            renderer.set_property(
-                'text', '%s (%s)' % (v.str(authors=True), v.genus.family))
 
 
 class VoucherPresenter(editor.GenericEditorPresenter):
@@ -1217,14 +1195,6 @@ class VerificationPresenter(editor.GenericEditorPresenter):
             self.presenter().view.connect(
                 ref_entry, 'changed', self.on_entry_changed, 'reference')
 
-            # species entries
-            def sp_get_completions(text):
-                query = self.presenter().session.query(Species).join('genus').\
-                    filter(utils.ilike(Genus.genus, '%s%%' % text)).\
-                    filter(Species.id != self.model.id).\
-                    order_by(Species.sp)
-                return query
-
             def sp_cell_data_func(col, cell, model, treeiter, data=None):
                 v = model[treeiter][0]
                 cell.set_property('text', '%s (%s)' %
@@ -1234,26 +1204,40 @@ class VerificationPresenter(editor.GenericEditorPresenter):
             ver_prev_taxon_entry = self.widgets.ver_prev_taxon_entry
 
             def on_prevsp_select(value):
-                self.set_model_attr('prev_species', value)
+                # only set attr if is a species
+                if isinstance(value, Species):
+                    self.set_model_attr('prev_species', value)
 
             self.presenter().view.attach_completion(
-                ver_prev_taxon_entry, sp_cell_data_func)
+                ver_prev_taxon_entry,
+                cell_data_func=species_cell_data_func,
+                match_func=species_match_func
+            )
             if self.model.prev_species:
                 ver_prev_taxon_entry.props.text = str(self.model.prev_species)
+            sp_get_completions = partial(generic_sp_get_completions,
+                                         self.presenter().session)
             self.presenter().assign_completions_handler(
-                ver_prev_taxon_entry, sp_get_completions, on_prevsp_select)
+                ver_prev_taxon_entry, sp_get_completions, on_prevsp_select,
+                comparer=lambda l, s: species_to_string_matcher(l[0], s))
 
             ver_new_taxon_entry = self.widgets.ver_new_taxon_entry
 
             def on_sp_select(value):
-                self.set_model_attr('species', value)
+                # only set attr if is a species
+                if isinstance(value, Species):
+                    self.set_model_attr('species', value)
 
             self.presenter().view.attach_completion(
-                ver_new_taxon_entry, sp_cell_data_func)
+                ver_new_taxon_entry,
+                cell_data_func=species_cell_data_func,
+                match_func=species_match_func
+            )
             if self.model.species:
                 ver_new_taxon_entry.props.text = self.model.species.str()
             self.presenter().assign_completions_handler(
-                ver_new_taxon_entry, sp_get_completions, on_sp_select)
+                ver_new_taxon_entry, sp_get_completions, on_sp_select,
+                comparer=lambda l, s: species_to_string_matcher(l[0], s))
 
             # add a taxon implies setting the ver_new_taxon_entry
             self.presenter().view.connect(
@@ -1849,7 +1833,6 @@ class AccessionEditorPresenter(editor.GenericEditorPresenter):
             self.set_model_attr(field_name, value)
             self.refresh_create_plant_checkbutton_sensitivity()
 
-        from functools import partial
         init_location_comboentry(
             self, self.view.widgets.intended_loc_comboentry,
             partial(on_loc_select, 'intended_location'), required=False)
@@ -1861,70 +1844,10 @@ class AccessionEditorPresenter(editor.GenericEditorPresenter):
         self.refresh_view(initializing=True)
 
         # connect signals
-        def sp_get_completions(text):
-            query = self.session.query(Species)
-            genus = ''
-            self._dirty_pass = False
-            try:
-                genus = text.split(' ')[0]
-            except Exception:
-                pass
-            from utils import ilike
-            return query.filter(
-                and_(Species.genus_id == Genus.id,
-                     or_(ilike(Genus.genus, '%s%%' % text),
-                         ilike(Genus.genus, '%s%%' % genus)))).\
-                order_by(Species.sp)
-
-        def on_select(value):
-            logger.debug('on select: %s' % value)
-            if isinstance(value, str):
-                value = Species.retrieve(
-                    self.session, {'species': value})
-
-            def set_model(v):
-                self.set_model_attr('species', v)
-                self.refresh_id_qual_rank_combo()
-
-            for kid in self.view.widgets.message_box_parent.get_children():
-                self.view.widgets.remove_parent(kid)
-            if not self._dirty_pass:
-                set_model(value)
-            self._dirty_pass = False
-            if not value:
-                return
-            syn = self.session.query(SpeciesSynonym).\
-                filter(SpeciesSynonym.synonym_id == value.id).first()
-            if not syn:
-                return
-            msg = _('The species <b>%(synonym)s</b> is a synonym of '
-                    '<b>%(species)s</b>.\n\nWould you like to choose '
-                    '<b>%(species)s</b> instead?') % \
-                {'synonym': syn.synonym, 'species': syn.species}
-            box = None
-
-            def on_response(button, response):
-                self.view.widgets.remove_parent(box)
-                box.destroy()
-                if response:
-                    completion = self.view.widgets.acc_species_entry.\
-                        get_completion()
-                    utils.clear_model(completion)
-                    model = Gtk.ListStore(object)
-                    model.append([syn.species])
-                    completion.set_model(model)
-                    self.view.widgets.acc_species_entry.\
-                        set_text(str(syn.species))
-                    set_model(syn.species)
-            box = self.view.add_message_box(utils.MESSAGE_BOX_YESNO)
-            box.message = msg
-            box.on_response = on_response
-            box.show()
-
-
-        self.assign_completions_handler('acc_species_entry',
-                                        sp_get_completions,
-                                        on_select=on_select)
+        sp_get_completions = partial(generic_sp_get_completions, self.session)
+        self.assign_completions_handler(
+            'acc_species_entry', sp_get_completions, on_select=self.on_select,
+            comparer=lambda l, s: species_to_string_matcher(l[0], s))
         self.assign_simple_handler('acc_prov_combo', 'prov_type')
         self.assign_simple_handler('acc_wild_prov_combo', 'wild_prov_status')
 
@@ -2002,6 +1925,50 @@ class AccessionEditorPresenter(editor.GenericEditorPresenter):
         self.view.widget_set_sensitive(
             'intended_loc_create_plant_checkbutton',
             has_quantity and location_chosen)
+
+    def on_select(self, value, do_set=True):
+        logger.debug('on select: %s', value)
+        if isinstance(value, str):
+            value = Species.retrieve(
+                self.session, {'species': value})
+
+        def set_model(v):
+            self.set_model_attr('species', v)
+            self.refresh_id_qual_rank_combo()
+
+        for kid in self.view.widgets.message_box_parent.get_children():
+            self.view.widgets.remove_parent(kid)
+        if do_set:
+            set_model(value)
+        if not value:
+            return
+        syn = (self.session.query(SpeciesSynonym)
+               .filter(SpeciesSynonym.synonym_id == value.id)
+               .first())
+        if not syn:
+            return
+        msg = _('The species <b>%(synonym)s</b> is a synonym of '
+                '<b>%(species)s</b>.\n\nWould you like to choose '
+                '<b>%(species)s</b> instead?') % \
+            {'synonym': syn.synonym, 'species': syn.species}
+        box = None
+
+        def on_response(_button, response):
+            self.view.widgets.remove_parent(box)
+            box.destroy()
+            if response:
+                completion = (self.view.widgets.acc_species_entry
+                              .get_completion())
+                utils.clear_model(completion)
+                model = Gtk.ListStore(object)
+                model.append([syn.species])
+                completion.set_model(model)
+                self.view.widgets.acc_species_entry.set_text(str(syn.species))
+                set_model(syn.species)
+        box = self.view.add_message_box(utils.MESSAGE_BOX_YESNO)
+        box.message = msg
+        box.on_response = on_response
+        box.show()
 
     def populate_code_formats(self, entry_one=None, values=None):
         logger.debug('populate_code_formats %s %s', entry_one, values)

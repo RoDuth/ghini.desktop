@@ -32,8 +32,13 @@ logger = logging.getLogger(__name__)
 from gi.repository import Gtk  # noqa
 from gi.repository import GLib
 
-from sqlalchemy import Column, Unicode, Integer, ForeignKey,\
-    Float, UnicodeText, select
+from sqlalchemy import (Column,
+                        Unicode,
+                        Integer,
+                        ForeignKey,
+                        Float,
+                        UnicodeText,
+                        select)
 from sqlalchemy.orm import relationship, backref
 
 from bauble import db
@@ -608,44 +613,40 @@ class PropagationChooserPresenter(editor.ChildPresenter):
             val = tree_model[itr][0]
             renderer.set_property('text', '%s (%s)' %
                                   (str(val), str(val.accession.species)))
-        def prop_match_func(completion, key, treeiter):
-            value = completion.get_model()[treeiter][0]
-            # match the plant code
-            if str(value).lower().startswith(key):
-                return True
-            # or the species
-            if str(value.accession.species).lower().startswith(key):
-                return True
-            return False
 
+        from .plant import plant_match_func
         self.view.attach_completion('source_prop_plant_entry',
                                     cell_data_func=plant_cell_data_func,
-                                    match_func=prop_match_func,
+                                    match_func=plant_match_func,
                                     minimum_key_length=1)
 
-        def plant_get_completions(text):
-            logger.debug('PropagationChooserPresenter::plant_get_completions')
-            from bauble.plugins.garden.accession import Accession
-            from bauble.plugins.garden.plant import Plant
-            query = (self.session.query(Plant)
-                     .filter(Plant.propagations.any())
-                     .join('accession')
-                     .filter(Accession.id != self.model.accession.id)
-                     .order_by(Accession.code, Plant.code))
-            result = []
-            for plant in query:
-                has_accessible = False
-                for propagation in plant.propagations:
-                    if propagation.accessible_quantity > 0:
-                        has_accessible = True
-                if has_accessible:
-                    result.append(plant)
-            return result
+        from .plant import plant_to_string_matcher
+        self.assign_completions_handler(
+            'source_prop_plant_entry',
+            self.plant_get_completions,
+            on_select=self.on_select,
+            comparer=lambda row, txt: plant_to_string_matcher(row[0], txt)
+        )
 
+    def plant_get_completions(self, _text):
+        logger.debug('PropagationChooserPresenter::plant_get_completions')
+        from .accession import Accession
+        from .plant import Plant
+        query = (self.session.query(Plant)
+                 .filter(Plant.propagations.any())
+                 .join('accession')
+                 .filter(Accession.id != self.model.accession.id)
+                 .order_by(Accession.code, Plant.code))
+        result = []
+        for plant in query:
+            has_accessible = False
+            for propagation in plant.propagations:
+                if propagation.accessible_quantity > 0:
+                    has_accessible = True
+            if has_accessible:
+                result.append(plant)
+        return result
 
-        self.assign_completions_handler('source_prop_plant_entry',
-                                        plant_get_completions,
-                                        on_select=on_select)
     def on_select(self, value):
         logger.debug('on select: %s', value)
         if isinstance(value, str):

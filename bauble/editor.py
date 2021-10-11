@@ -25,6 +25,8 @@ import datetime
 import os
 import weakref
 from random import random
+from typing import Optional
+from collections.abc import Callable
 
 import logging
 logger = logging.getLogger(__name__)
@@ -1615,16 +1617,26 @@ class GenericEditorPresenter:
             raise ValueError('assign_simple_handler() -- '
                              'widget type not supported: %s' % type(widget))
 
-    def assign_completions_handler(self, widget, get_completions,
-                                   on_select=lambda v: v):
+    def assign_completions_handler(self,
+                                   widget: Gtk.Entry,
+                                   get_completions: Callable,
+                                   on_select: Callable = lambda v: v,
+                                   comparer: Optional[Callable] = None
+                                   ) -> None:
         """Dynamically handle completions on a Gtk.Entry.
+
+        Attach a handler to widgets 'changed' signal that reconstructs the
+        widgets model if appropriate and adds/removes PROBLEM.
 
         :param widget: a Gtk.Entry instance or widget name
         :param get_completions: the callable to invoke when a list of
-          completions is requested, accepts the string typed, returns an
-          iterable of completions
+            completions is requested, accepts the string typed, returns an
+            iterable of completions
         :param on_select: callback for when a value is selected from
-          the list of completions
+            the list of completions
+        :param comparer: a function that returns a bool, to be used with
+            :func:`utils.search_tree_model` to check whether each item is a
+            match or not
         """
 
         logger.debug('assign_completions_handler %s', widget)
@@ -1651,67 +1663,89 @@ class GenericEditorPresenter:
                     completion_model.append([v])
                 completion.set_model(completion_model)
 
-            key_length = widget.get_completion().props.minimum_key_length
-            values = get_completions(text[:key_length])
-            logger.debug('completions to add: %s' % str([i for i in values]))
+            key_length = widget.get_completion().get_minimum_key_length()
+            values = get_completions(text)
+            logger.debug('completions to add: %s', str([i for i in values]))
             GLib.idle_add(idle_callback, values)
 
         def on_changed(entry, *args):
-            logger.debug('assign_completions_handler::on_changed %s %s'
-                         % (entry, args))
+            """If entry's text is greater than widget's minimum_key_length call
+            :func:`add_completions` to reconstruct the widgets model.  Also
+            calls :func:`idle_callback` with the entry's
+            text to add remove PROBLEM or select an item if appropriate.
+
+            :param entry: a Gtk.Entry widget
+            """
+            logger.debug('assign_completions_handler::on_changed %s %s', entry,
+                         args)
             text = entry.get_text()
 
-            key_length = widget.get_completion().props.minimum_key_length
+            key_length = widget.get_completion().get_minimum_key_length()
             if len(text) > key_length:
-                logger.debug('recomputing completions matching %s' % text)
+                logger.debug('recomputing completions matching %s', text)
                 add_completions(text)
 
-            def idle_callback(text):
+            def idle_callback(data):
+                text, comparer = data
                 logger.debug('on_changed - part two')
                 comp = entry.get_completion()
                 comp_model = comp.get_model()
                 found = []
                 if comp_model:
-                    comp_model.foreach(lambda m, p, i, ud: logger.debug("item(%s) of comp_model: %s" % (p, m[p][0])), None)
+                    comp_model.foreach(
+                        lambda m, p, i, ud: logger.debug(
+                            "item(%s) of comp_model: %s", p, m[p][0]), None)
                     # search the tree model to see if the text in the
                     # entry matches one of the completions, if so then
                     # emit the match-selected signal, this allows us to
                     # type a match in the entry without having to select
                     # it from the popup
+
                     def _cmp(row, data):
                         return str(row[0])[:len(text)].lower() == data.lower()
-                    found = utils.search_tree_model(comp_model, text, _cmp)
-                    logger.debug("matches found in ListStore: %s" % str(found))
+
+                    if comparer is None:
+                        comparer = _cmp
+
+                    found = utils.search_tree_model(comp_model, text, comparer)
+                    logger.debug("matches found in ListStore: %s", str(found))
                     if not found:
                         logger.debug('nothing found, nothing to select from')
                     elif len(found) == 1:
-                        logger.debug('one match, decide whether to select it - %s' % found[0])
+                        logger.debug(
+                            'one match, decide whether to select it - %s',
+                            found[0])
                         v = comp.get_model()[found[0]][0]
                         # only auto select if the full string has been entered
                         if text.lower() == utils.utf8(v).lower():
-                            comp.emit('match-selected', comp.get_model(), found[0])
-                        else:
-                            found = None
+                            comp.emit('match-selected', comp.get_model(),
+                                      found[0])
                     else:
-                        logger.debug('multiple matches, we cannot select any - %s' % str(found))
+                        logger.debug(
+                            'multiple matches, we cannot select any - %s',
+                            str(found))
 
-                if text != '' and not found and PROBLEM not in self.problems:
+                if (text != '' and not found and
+                        (PROBLEM, widget) not in self.problems):
                     self.add_problem(PROBLEM, widget)
                     on_select(None)
+                elif found and (PROBLEM, widget) in self.problems:
+                    self.remove_problem(PROBLEM, widget)
 
                 # if entry is empty select nothing and remove all problem
                 if text == '':
                     on_select(None)
                     self.remove_problem(PROBLEM, widget)
                 elif not comp_model:
-                    ## completion model is not in place when object is forced
-                    ## programmatically.
-                    on_select(text)  # `on_select` will know how to convert the
-                                     # text into a properly typed value.
+                    # completion model is not in place when object is forced
+                    # programmatically.
+                    # `on_select` will know how to convert the text into a
+                    # properly typed value.
+                    on_select(text)
                     self.remove_problem(PROBLEM, widget)
                 logger.debug('on_changed - part two - returning')
 
-            GLib.idle_add(idle_callback, text)
+            GLib.idle_add(idle_callback, (text, comparer))
             logger.debug('on_changed - part one - returning')
             return True
 

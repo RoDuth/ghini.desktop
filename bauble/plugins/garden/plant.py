@@ -893,7 +893,9 @@ class PlantEditorView(GenericEditorView):
                     'text', '%s (%s)' % (str(v), str(v.species))
                 )
 
-        self.attach_completion('plant_acc_entry', acc_cell_data_func,
+        self.attach_completion('plant_acc_entry',
+                               cell_data_func=acc_cell_data_func,
+                               match_func=acc_match_func,
                                minimum_key_length=2)
         self.init_translatable_combo('plant_acc_type_combo', acc_type_values)
         utils.setup_date_button(self, 'plant_date_entry', 'plant_date_button')
@@ -907,6 +909,67 @@ class PlantEditorView(GenericEditorView):
 
     def restore_state(self):
         pass
+
+
+# could live in accession but is only used here so for now leave here...
+def acc_to_string_matcher(accession: Accession,
+                          key: str,
+                          sp_path: str = '') -> bool:
+    """Helper function to match string or partial string of the pattern
+    'ACCESSIONCODE Genus species' with a Accession
+
+    Allows partial matches (e.g. 'Den d', 'Dendr', 'XX D d' will all match
+    'XXX.0001 (Dendrobium discolor)').  Searches are case insensitive.
+
+    :param species: a Accession table entry
+    :param key: the string to search with
+    :param sp_path: optional path for model obects to get to the species
+
+    :return: bool, True if the Species matches the key
+    """
+    key = key.lower()
+    species = accession.species
+    parts = key.split(' ', 1)
+    acc_match = sp_match = False
+    _accept_one = False
+    if len(parts) == 1:
+        acc_code = sp_str = key
+        _accept_one = True
+    else:
+        acc_code = parts[0]
+        sp_str = parts[1]
+
+    # match the plant code
+    if str(accession).lower().startswith(acc_code):
+        acc_match = True
+
+    # or the species
+    from ..plants.species_editor import species_to_string_matcher
+    if acc_match:
+        sp_match = species_to_string_matcher(species, sp_str)
+    elif species_to_string_matcher(species, key):
+        sp_match = True
+        _accept_one = True
+
+    if _accept_one:
+        return any((acc_match, sp_match))
+    return all((acc_match, sp_match))
+
+
+def acc_match_func(completion: Gtk.EntryCompletion,
+                   key: str,
+                   treeiter: int) -> bool:
+    """match_func that allows partial matches on both accession code,
+    Genus and species.
+
+    :param completion: the completion to match
+    :param key: lowercase string of the entry text
+    :param treeiter: the row number for the item to match
+
+    :return: bool, True if the item at the treeiter matches the key
+    """
+    accession = completion.get_model()[treeiter][0]
+    return acc_to_string_matcher(accession, key)
 
 
 class PlantEditorPresenter(GenericEditorPresenter):
@@ -1009,31 +1072,13 @@ class PlantEditorPresenter(GenericEditorPresenter):
 
         # assign signal handlers to monitor changes now that the view has
         # been filled in
-        def acc_get_completions(text):
-            query = self.session.query(Accession)
-            return query.filter(Accession.code.like(str('%s%%' % text))).\
-                order_by(Accession.code)
+        self.assign_completions_handler(
+            'plant_acc_entry',
+            self.acc_get_completions,
+            on_select=self.on_select,
+            comparer=lambda row, txt: acc_to_string_matcher(row[0], txt)
+        )
 
-        def on_select(value):
-            # We need value to be an Accession object before we can do anything
-            # with it. (Avoids the first 2 letters prior to the completions
-            # handler kicking in - i.e. when called programatically.)
-            if not isinstance(value, Accession):
-                return
-            self.set_model_attr('accession', value)
-            # reset the plant code to check that this is a valid code for the
-            # new accession, fixes bug #103946
-            self.view.widgets.acc_species_label.set_markup('')
-            if value is not None:
-                sp_str = self.model.accession.species_str(markup=True)
-                self.view.widgets.acc_species_label.set_markup(sp_str)
-                # set the plant code to the next available
-                code = get_next_code(self.model.accession)
-                if code:
-                    # if get_next_code() returns None there was an error
-                    self.view.widgets.plant_code_entry.set_text(code)
-        self.assign_completions_handler('plant_acc_entry', acc_get_completions,
-                                        on_select=on_select)
         if self.model.accession:
             sp_str = self.model.accession.species_str(markup=True)
         else:
@@ -1073,6 +1118,68 @@ class PlantEditorPresenter(GenericEditorPresenter):
         self.history_expanded = False
 
         self.init_changes_history_view()
+
+    def acc_get_completions(self, text):
+        text = text.lower()
+        parts = text.split(' ', 1)
+        from ..plants.species_model import Species
+        from ..plants.genus import Genus
+        from bauble.utils import ilike
+        if len(parts) == 1:
+            # try straight accession code search first
+            query = (self.session.query(Accession)
+                     .filter(ilike(Accession.code, '%s%%' % text))
+                     .order_by(Accession.code))
+            if not query.first():
+                # if that fails try the genus
+                query = (self.session.query(Accession)
+                         .join(Species)
+                         .join(Genus)
+                         .filter(ilike(Genus.epithet, '%s%%' % text))
+                         .order_by(Accession.code))
+        else:
+            accession = parts[0]
+            genus = parts[1].split(' ')[0]
+            # try the combination of accession code and genus
+            query = (self.session.query(Accession)
+                     .join(Species)
+                     .join(Genus)
+                     .filter(and_(
+                         ilike(Accession.code, '%s%%' % accession),
+                         ilike(Genus.epithet, '%s%%' % genus)))
+                     .order_by(Accession.code))
+            if not query.first():
+                # if fails try genus species
+                genus = parts[0]
+                species = parts[1].split(' ')[0]
+                query = (self.session.query(Accession)
+                         .join(Species)
+                         .join(Genus)
+                         .filter(and_(
+                             ilike(Genus.epithet, '%s%%' % genus),
+                             ilike(Species.epithet, '%s%%' % species)))
+                         .order_by(Accession.code))
+        # limit results, can have a lot, avoid slow down.
+        return query.limit(80)
+
+    def on_select(self, value):
+        # We need value to be an Accession object before we can do anything
+        # with it. (Avoids the first 2 letters prior to the completions
+        # handler kicking in - i.e. when called programatically.)
+        if not isinstance(value, Accession):
+            return
+        self.set_model_attr('accession', value)
+        # reset the plant code to check that this is a valid code for the
+        # new accession, fixes bug #103946
+        self.view.widgets.acc_species_label.set_markup('')
+        if value is not None:
+            sp_str = self.model.accession.species_str(markup=True)
+            self.view.widgets.acc_species_label.set_markup(sp_str)
+            # set the plant code to the next available
+            code = get_next_code(self.model.accession)
+            if code:
+                # if get_next_code() returns None there was an error
+                self.view.widgets.plant_code_entry.set_text(code)
 
     def init_changes_history_view(self):
         default_cell_data_func = utils.default_cell_data_func
@@ -1887,3 +1994,60 @@ class PlantInfoBox(InfoBox):
             self.links.update(row)
 
         self.props.update(row)
+
+
+def plant_to_string_matcher(plant: Plant, text: str) -> bool:
+    """Helper function to match string or partial string of the pattern
+    'PLANTCODE Genus species' with a Plant.
+
+    Allows partial matches (e.g. 'Den d', 'Dendr', 'XXX D d', 'XX' will all
+    match 'XXXX.0001.1 (Dendrobium discolor)').  Searches are case insensitive.
+
+    :param plant: a Plant table entry
+    :param text: the string to search with
+
+    :return: bool, True if the Plant matches the key
+    """
+    text = text.lower()
+    species = plant.accession.species
+    parts = text.split(' ', 1)
+    plt_match = sp_match = False
+    _accept_one = False
+    if len(parts) == 1:
+        plt_code = sp_str = text
+        _accept_one = True
+    else:
+        plt_code = parts[0]
+        sp_str = parts[1]
+
+    # match the plant code
+    if str(plant).lower().startswith(plt_code):
+        plt_match = True
+
+    # or the species
+    from ..plants.species_editor import species_to_string_matcher
+    if plt_match:
+        sp_match = species_to_string_matcher(species, sp_str)
+    elif species_to_string_matcher(species, text):
+        sp_match = True
+        _accept_one = True
+
+    if _accept_one:
+        return any((plt_match, sp_match))
+    return all((plt_match, sp_match))
+
+
+def plant_match_func(completion: Gtk.EntryCompletion,
+                     key: str,
+                     treeiter: int) -> bool:
+    """match_func that allows partial matches on both plant code, Genus and
+    species.
+
+    :param completion: the completion to match
+    :param key: lowercase string of the entry text
+    :param treeiter: the row number for the item to match
+
+    :return: bool, True if the item at the treeiter matches the key
+    """
+    plant = completion.get_model()[treeiter][0]
+    return plant_to_string_matcher(plant, key)
