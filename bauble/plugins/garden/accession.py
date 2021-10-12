@@ -298,6 +298,27 @@ class Verification(db.Base):
     notes = Column(UnicodeText)
 
 
+# TODO <RD> consider adding tables for germplasm (seedbank etc.) and
+# herbaria (vouchers and other parts stored for identification or display
+# purposes, not living. Maybe a more generic name).  Need to consider how these
+# would link with living plants.
+# NOTE <RD> I believe this comment is just a misunderstanding.  A voucher is
+# used to verify the identity of the accession AND its plants.  By nature all
+# plants are from the same source material and hence the same taxon. As such it
+# means little which specific plant voucher material was gather from for the
+# purpose.  A 'parent _material_' voucher is a voucher of the _source_ material
+# for the accession, generally this is either a plant in the wild that the
+# accession's source material was collected from or it could possibly be a
+# record of a voucher the source BG houses for an accession they grow and we
+# have havested from.  It is not likely to be of a source plant from within
+# _our_ collection.  Any voucher for a source plant within our collection would
+# be recorded with that plants accession data.  It should also be understood
+# that some vouchers would mean the death of a plant (i.e. ferns and other taxa
+# that require the whole plant with roots to make a valid voucher) and it would
+# not be uncomon to keep a propagule back from site planting for this use. It
+# is also feasable that 2 clonal propagules would be needed to gather enough
+# parts for a valid voucher and these propagules could then become 2 seperate
+# plant entries in 2 seperate locations on site.
 # TODO: I have no internet, so I write this here. please remove this note
 # and add the text as new issues as soon as possible.
 #
