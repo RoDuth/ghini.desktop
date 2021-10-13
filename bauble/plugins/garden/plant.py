@@ -1742,10 +1742,8 @@ class GeneralPlantExpander(InfoExpander):
         general_box = self.widgets.general_box
         self.widgets.remove_parent(general_box)
         self.vbox.pack_start(general_box, True, True, 0)
-        self.current_obj = None
 
     def update(self, row):
-        self.current_obj = row
         acc_code = str(row.accession)
         plant_code = str(row)
         head, tail = plant_code[:len(acc_code)], plant_code[len(acc_code):]
@@ -1779,12 +1777,12 @@ class GeneralPlantExpander(InfoExpander):
 
         on_clicked = utils.generate_on_clicked(select_in_search_results)
         utils.make_label_clickable(self.widgets.acc_code_data,
-                                   on_clicked, self.current_obj.accession)
+                                   on_clicked, row.accession)
         utils.make_label_clickable(self.widgets.name_data,
                                    on_clicked,
-                                   self.current_obj.accession.species)
+                                   row.accession.species)
         utils.make_label_clickable(self.widgets.location_data,
-                                   on_clicked, self.current_obj.location)
+                                   on_clicked, row.location)
 
 
 class ChangesExpander(InfoExpander):

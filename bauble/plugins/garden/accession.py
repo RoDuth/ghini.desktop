@@ -2520,29 +2520,8 @@ class GeneralAccessionExpander(InfoExpander):
         general_box = self.widgets.general_box
         self.widgets.general_window.remove(general_box)
         self.vbox.pack_start(general_box, True, True, 0)
-        self.current_obj = None
-
-        def on_species_clicked(*args):
-            select_in_search_results(self.current_obj.species)
-
-        utils.make_label_clickable(self.widgets.name_data, on_species_clicked)
-
-        def on_parent_plant_clicked(*args):
-            select_in_search_results(
-                self.current_obj.source.plant_propagation.plant)
-
-        utils.make_label_clickable(self.widgets.parent_plant_data,
-                                   on_parent_plant_clicked)
-
-        def on_nplants_clicked(*args):
-            cmd = 'plant where accession.code="%s"' % self.current_obj.code
-            bauble.gui.send_command(cmd)
-
-        utils.make_label_clickable(self.widgets.nplants_data,
-                                   on_nplants_clicked)
 
     def update(self, row):
-        self.current_obj = row
         self.widget_set_value('acc_code_data', '<big>%s</big>' %
                               utils.xml_safe(str(row.code)),
                               markup=True)
@@ -2608,6 +2587,20 @@ class GeneralAccessionExpander(InfoExpander):
                 elif not location.name and location.code:
                     location_str = '(%s)' % location.code
             self.widget_set_value(label, location_str)
+
+        on_clicked = utils.generate_on_clicked(select_in_search_results)
+        utils.make_label_clickable(self.widgets.name_data, on_clicked,
+                                   row.species)
+
+        if row.source.plant_propagation:
+            utils.make_label_clickable(self.widgets.parent_plant_data,
+                                       on_clicked,
+                                       row.source.plant_propagation.plant)
+
+        cmd = f'plant where accession.code="{row.code}"'
+        on_clicked_search = utils.generate_on_clicked(bauble.gui.send_command)
+        utils.make_label_clickable(self.widgets.nplants_data,
+                                   on_clicked_search, cmd)
 
 
 class SourceExpander(InfoExpander):
