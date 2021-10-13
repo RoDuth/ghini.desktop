@@ -290,14 +290,10 @@ class SynonymsExpander(InfoExpander):
 
 
 class GeneralSpeciesExpander(InfoExpander):
-    """
-    expander to present general information about a species
+    """expander to present general information about a species
     """
 
     def __init__(self, widgets):
-        """
-        the constructor
-        """
         super().__init__(_("General"), widgets)
         general_box = self.widgets.sp_general_box
         self.widgets.remove_parent(general_box)
@@ -317,12 +313,12 @@ class GeneralSpeciesExpander(InfoExpander):
         def on_nplants_clicked(*args):
             cmd = 'plant where accession.species.id=%s' % self.current_obj.id
             bauble.gui.send_command(cmd)
+
         utils.make_label_clickable(self.widgets.sp_nplants_data,
                                    on_nplants_clicked)
 
     def update(self, row):
-        """
-        update the expander
+        """update the expander
 
         :param row: the row to get the values from
         """
@@ -368,10 +364,19 @@ class GeneralSpeciesExpander(InfoExpander):
             habit = utils.utf8(row.habit)
         self.widget_set_value('sp_habit_data', habit)
 
-        dist = ''
+        if self.widgets.sp_dist_box.get_children():
+            for child in self.widgets.sp_dist_box.get_children():
+                self.widgets.sp_dist_box.remove(child)
         if row.distribution:
-            dist = utils.utf8(row.distribution_str())
-        self.widget_set_value('sp_dist_data', dist)
+            for place in row.distribution:
+                event_box = Gtk.EventBox()
+                label = Gtk.Label(label=utils.utf8(place))
+                label.set_halign(Gtk.Align.START)
+                event_box.add(label)
+                self.widgets.sp_dist_box.pack_start(event_box, False, False, 0)
+                utils.make_label_clickable(label, on_label_clicked,
+                                           place.geography)
+            self.widgets.sp_dist_box.show_all()
 
         dist = ''
         if row.label_distribution:
