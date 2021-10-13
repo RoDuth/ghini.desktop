@@ -1327,7 +1327,21 @@ class VerificationPresenter(editor.GenericEditorPresenter):
 
             self.update_label()
 
-        def on_copy_to_taxon_general_clicked(self, button):
+        def on_copy_to_taxon_general_clicked(self, _button):
+            """Copy the selected verification's 'new taxon' into the parent
+            species editor.
+
+            Sets the accession editor into the same state it would be in if the
+            species entry's EntryCompletion had emitted 'matched' without the
+            complexity required to do so.
+
+            .. note:
+                avoids the issue of the 'match-selected' signal not being
+                emitted by :func:`editor.assign_completions_handler.on_changed`
+                due to more than one potential matches (i.e. the species name
+                and a cultivar or other infraspecific level of the species both
+                exist and the desire is to match the species.)
+            """
             if self.model.species is None:
                 return
             msg = _("Are you sure you want to copy this verification to the "
@@ -1336,9 +1350,16 @@ class VerificationPresenter(editor.GenericEditorPresenter):
                 return
             # copy verification species to general tab
             if self.model.accession:
-                (self.presenter().parent_ref()
-                 .view.widgets.acc_species_entry
+                parent = self.presenter().parent_ref()
+                # set the entry text.
+                (parent.view.widgets
+                 .acc_species_entry
                  .set_text(self.model.species.str()))
+
+                # set the model value
+                parent.model.species = self.model.species
+
+                # make the presenter ready to commit the change
                 self.presenter()._dirty = True
                 self.presenter().parent_ref().refresh_sensitivity()
 
