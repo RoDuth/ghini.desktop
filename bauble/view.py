@@ -346,7 +346,9 @@ class LinksExpander(InfoExpander):
         super().__init__(_("Links"))
         links = links or []
         self.dynamic_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-        self.vbox.pack_start(self.dynamic_box, True, True, 0)
+        self.vbox.pack_start(self.dynamic_box, False, False, 0)
+        self.link_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        self.vbox.pack_start(self.link_box, False, False, 0)
         self.notes = notes
         self.buttons = []
         from bauble.utils.web import BaubleLinkButton
@@ -360,27 +362,40 @@ class LinksExpander(InfoExpander):
                              type(e).__name__, e)
         for btn in self.buttons:
             btn.set_halign(Gtk.Align.START)
-            self.vbox.pack_start(btn, False, False, 0)
+            self.link_box.pack_start(btn, False, False, 0)
 
     def update(self, row):
-        for child in self.dynamic_box.get_children():
-            self.dynamic_box.remove(child)
         for btn in self.buttons:
             btn.set_string(row)
+        for child in self.dynamic_box.get_children():
+            self.dynamic_box.remove(child)
         if self.notes:
+            separator = False
             notes = getattr(row, self.notes)
             for note in notes:
                 for label, url in utils.get_urls(note.note):
                     if not label:
                         label = url
-                    label = Gtk.Label(label=label)
-                    label.set_ellipsize(Pango.EllipsizeMode.END)
-                    button = Gtk.LinkButton(uri=url)
-                    button.add(label)
-                    button.set_halign(Gtk.Align.START)
-                    self.dynamic_box.pack_start(
-                        button, expand=False, fill=False, padding=0)
-            self.dynamic_box.show_all()
+                    from bauble.utils.web import BaubleLinkButton
+                    try:
+                        link = {
+                            'title': label,
+                            'tooltip': f'from note of category {note.category}'
+                        }
+                        klass = type(label, (BaubleLinkButton, ), link)
+                        button = klass()
+                        button.set_uri(url)
+                        button.set_halign(Gtk.Align.START)
+                        self.dynamic_box.pack_start(button, False, False, 0)
+                        separator = True
+                    except Exception as e:
+                        logger.debug('wrong link definition %s, %s(%s)', link,
+                                     type(e).__name__, e)
+            if separator and self.buttons:
+                sep = Gtk.Separator(margin_start=15, margin_end=15)
+                self.dynamic_box.pack_start(sep, False, False, 0)
+        self.dynamic_box.show_all()
+        self.link_box.show_all()
 
 
 class AddOneDot(threading.Thread):
