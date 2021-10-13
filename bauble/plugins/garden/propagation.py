@@ -856,9 +856,8 @@ class PropagationPresenter(editor.ChildPresenter):
             view.widgets.prop_details_box.props.visible = False
 
         if self.model.date:
-            format = prefs.prefs[prefs.date_format_pref]
-            date = self.model.date.strftime(format)
-            self.view.widget_set_value(self.view.widgets.prop_date_entry, date)
+            self.view.widget_set_value(self.view.widgets.prop_date_entry,
+                                       self.model.date)
         else:
             self.view.widget_set_value(self.view.widgets.prop_date_entry,
                                        utils.today_str())

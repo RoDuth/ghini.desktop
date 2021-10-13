@@ -1,6 +1,6 @@
 # Copyright 2008-2010 Brett Adams
 # Copyright 2012-2015 Mario Frasca <mario@anche.no>.
-# Copyright 2016-2018 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright 2016-2021 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -181,7 +181,7 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
             model.append((str(habit), habit))
         utils.setup_text_combobox(combo, model)
 
-        def on_focus_out(entry, _event):
+        def on_changed(entry):
             # check if the combo has a problem then check if the value
             # in the entry matches one of the habit codes and if so
             # then change the value to the habit
@@ -189,10 +189,11 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
             try:
                 utils.set_combo_from_value(
                     combo, code.lower(),
-                    cmp=lambda r, v: str(r[1].code).lower() == v)
-            except ValueError:
-                pass
-        combo.get_child().connect('focus-out-event', on_focus_out)
+                    cmp=lambda r, v: str(r[1]).lower() == v.lower())
+            except ValueError as e:
+                logger.debug('%s (%s)', type(e).__name__, e)
+
+        combo.get_child().connect('changed', on_changed)
 
         # set the model values in the widgets
         self.refresh_view()
@@ -434,7 +435,7 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
         value = combo.get_model()[treeiter][1]
         self.set_model_attr('habit', value)
         # the entry change handler does the validation of the model
-        combo.get_child().props.text = utils.utf8(value)
+        combo.get_child().set_text(utils.utf8(value))
         combo.get_child().set_position(-1)
 
     def __del__(self):
