@@ -898,7 +898,6 @@ class PlantEditorView(GenericEditorView):
                                match_func=acc_match_func,
                                minimum_key_length=2)
         self.init_translatable_combo('plant_acc_type_combo', acc_type_values)
-        utils.setup_date_button(self, 'plant_date_entry', 'plant_date_button')
         self.widgets.notebook.set_current_page(0)
 
     def get_window(self):
@@ -1066,9 +1065,11 @@ class PlantEditorPresenter(GenericEditorPresenter):
         self.view.init_translatable_combo('reason_combo', self.reasons)
 
         date_str = utils.today_str()
+        utils.setup_date_button(self.view, 'plant_date_entry',
+                                'plant_date_button')
         utils.set_widget_value(self.view.widgets.plant_date_entry, date_str)
         self.view.connect('plant_date_entry', 'changed',
-                          self.on_date_entry_changed)
+                          self.on_date_entry_changed, (self.change, 'date'))
 
         # assign signal handlers to monitor changes now that the view has
         # been filled in
@@ -1299,8 +1300,6 @@ class PlantEditorPresenter(GenericEditorPresenter):
                 self.prop_presenter.is_dirty() or
                 self._dirty)
 
-    def on_date_entry_changed(self, entry):
-        self.change.date = entry.props.text
 
     def on_quantity_changed(self, entry):
         value = entry.props.text

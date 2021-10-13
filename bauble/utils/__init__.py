@@ -873,15 +873,13 @@ def today_str(fmat=None):
     return today.strftime(fmat)
 
 
-def setup_date_button(view, entry, button, date_func=None):
+def setup_date_button(view, entry, button):
     """Associate a button with entry so that when the button is clicked a date
     is inserted into the entry.
 
     :param view: a bauble.editor.GenericEditorView
     :param entry: the entry that the data goes into
     :param button: the button that enters the data in entry
-    :param date_func: the function that returns a string represention
-      of the date
     """
     if isinstance(entry, str):
         entry = view.widgets[entry]
@@ -894,12 +892,8 @@ def setup_date_button(view, entry, button, date_func=None):
     button.set_image(image)
 
     def on_clicked(_widget):
-        txt = ''
-        if date_func:
-            txt = date_func()
-        else:
-            txt = today_str()
-        entry.set_text(txt)
+        entry.set_text(today_str())
+
     if view and hasattr(view, 'connect'):
         view.connect(button, 'clicked', on_clicked)
     else:

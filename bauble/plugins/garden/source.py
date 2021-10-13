@@ -313,7 +313,7 @@ class CollectionPresenter(editor.ChildPresenter):
         self.view.connect('lon_entry', 'changed', self.on_lon_entry_changed)
 
         self.view.connect('coll_date_entry', 'changed',
-                          self.on_date_entry_changed)
+                          self.on_date_entry_changed, (self.model, 'date'))
 
         utils.setup_date_button(view, 'coll_date_entry',
                                 'coll_date_button')
@@ -378,14 +378,10 @@ class CollectionPresenter(editor.ChildPresenter):
         return self._dirty
 
     def refresh_view(self):
-        from bauble.plugins.garden.accession import latitude_to_dms, \
-            longitude_to_dms
+        from .accession import latitude_to_dms, longitude_to_dms
         for widget, field in self.widget_to_field_map.items():
             value = getattr(self.model, field)
             logger.debug('%s, %s, %s', widget, field, value)
-            if value is not None and field == 'date':
-                value = '%s/%s/%s' % (value.day, value.month,
-                                      '%04d' % value.year)
             self.view.widget_set_value(widget, value)
 
         latitude = self.model.latitude
@@ -418,18 +414,6 @@ class CollectionPresenter(editor.ChildPresenter):
         if self.model.latitude is None or self.model.longitude is None:
             self.view.widgets.geoacc_entry.set_sensitive(False)
             self.view.widgets.datum_entry.set_sensitive(False)
-
-    def on_date_entry_changed(self, entry):
-        from bauble.editor import ValidatorError
-        value = None
-        try:
-            value = editor.DateValidator().to_python(entry.props.text)
-        except ValidatorError as e:
-            logger.debug("%s(%s)", type(e).__name__, e)
-            self.parent_ref().add_problem(self.PROBLEM_INVALID_DATE, entry)
-        else:
-            self.parent_ref().remove_problem(self.PROBLEM_INVALID_DATE, entry)
-        self.set_model_attr('date', value)
 
     def on_east_west_radio_toggled(self, _widget, _data):
         direction = self._get_lon_direction()
@@ -586,8 +570,6 @@ class PropagationChooserPresenter(editor.ChildPresenter):
     :param session: an sqlalchemy.orm.session
     """
     widget_to_field_map = {}
-
-    PROBLEM_INVALID_DATE = random()
 
     def __init__(self, parent, model, view, session):
         super().__init__(model, view)

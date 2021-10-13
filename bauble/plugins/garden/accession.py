@@ -1217,7 +1217,11 @@ class VerificationPresenter(editor.GenericEditorPresenter):
             utils.setup_date_button(self.presenter().view, self.date_entry,
                                     self.widgets.ver_date_button)
             self.presenter().view.connect(
-                self.date_entry, 'changed', self.on_date_entry_changed)
+                self.date_entry,
+                'changed',
+                self.presenter().on_date_entry_changed,
+                (self.model, 'date')
+            )
 
             # reference entry
             ref_entry = self.widgets.ver_ref_entry
@@ -1322,19 +1326,6 @@ class VerificationPresenter(editor.GenericEditorPresenter):
                 button, 'clicked', self.on_copy_to_taxon_general_clicked)
 
             self.update_label()
-
-        def on_date_entry_changed(self, entry):
-            from bauble.editor import ValidatorError
-            value = None
-            PROBLEM = 'INVALID_DATE'
-            try:
-                value = editor.DateValidator().to_python(entry.props.text)
-            except ValidatorError as e:
-                logger.debug("%s(%s)" % (type(e).__name__, e))
-                self.presenter().add_problem(PROBLEM, entry)
-            else:
-                self.presenter().remove_problem(PROBLEM, entry)
-            self.set_model_attr('date', value)
 
         def on_copy_to_taxon_general_clicked(self, button):
             if self.model.species is None:
@@ -1895,13 +1886,15 @@ class AccessionEditorPresenter(editor.GenericEditorPresenter):
 
         # date received
         self.view.connect('acc_date_recvd_entry', 'changed',
-                          self.on_date_entry_changed, 'date_recvd')
+                          self.on_date_entry_changed,
+                          (self.model, 'date_recvd'))
         utils.setup_date_button(self.view, 'acc_date_recvd_entry',
                                 'acc_date_recvd_button')
 
         # date accessioned
         self.view.connect('acc_date_accd_entry', 'changed',
-                          self.on_date_entry_changed, 'date_accd')
+                          self.on_date_entry_changed,
+                          (self.model, 'date_accd'))
         utils.setup_date_button(self.view, 'acc_date_accd_entry',
                                 'acc_date_accd_button')
 
@@ -2184,26 +2177,6 @@ class AccessionEditorPresenter(editor.GenericEditorPresenter):
             self.set_model_attr('code', None)
         else:
             self.set_model_attr('code', utils.utf8(text))
-
-    def on_date_entry_changed(self, entry, prop):
-        """handle changed signal.
-
-        used by acc_date_recvd_entry and acc_date_accd_entry
-
-        :param prop: the model property to change, should be
-          date_recvd or date_accd
-        """
-        from bauble.editor import ValidatorError
-        value = None
-        PROBLEM = 'INVALID_DATE'
-        try:
-            value = editor.DateValidator().to_python(entry.props.text)
-        except ValidatorError as e:
-            logger.debug("%s(%s)", type(e).__name__, e)
-            self.add_problem(PROBLEM, entry)
-        else:
-            self.remove_problem(PROBLEM, entry)
-        self.set_model_attr(prop, value)
 
     def set_model_attr(self, field, value, validator=None):
         """Set attributes on the model and update the GUI as expected. """

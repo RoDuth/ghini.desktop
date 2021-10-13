@@ -1256,6 +1256,25 @@ class GenericEditorPresenter:
     def __get_widget_attr(self, widget):
         return self.widget_to_field_map.get(self.__get_widget_name(widget))
 
+    def on_date_entry_changed(self, entry, prop):
+        """Handler for 'changed' signal on a date widget.
+
+        :prop entry: the date widget
+        :param prop: a tuple of the form (model, property as a string) that
+            will be set.
+        """
+        logger.debug("on_date_entry_changed(%s, %s)", entry, prop)
+        value = None
+        PROBLEM = 'INVALID_DATE'
+        try:
+            value = DateValidator().to_python(entry.props.text)
+        except ValidatorError as e:
+            logger.debug("%s(%s)", type(e).__name__, e)
+            self.add_problem(PROBLEM, entry)
+        else:
+            self.remove_problem(PROBLEM, entry)
+        setattr(*prop, value)
+
     def on_textbuffer_changed(self, widget, value=None, attr=None):
         """handle 'changed' signal on textbuffer widgets.
 
@@ -1346,16 +1365,6 @@ class GenericEditorPresenter:
         else:
             self.remove_problem(self.PROBLEM_DUPLICATE, widget)
         # ok
-        self.__set_model_attr(attr, value)
-
-    def on_datetime_entry_changed(self, widget, value=None):
-        "handle 'changed' signal on datetime entry widgets."
-
-        attr = self.__get_widget_attr(widget)
-        logger.debug("on_datetime_entry_changed(%s, %s)" % (widget, attr))
-        if value is None:
-            value = widget.props.text
-            value = value and utils.utf8(value) or None
         self.__set_model_attr(attr, value)
 
     def on_check_toggled(self, widget, value=None):
@@ -1663,7 +1672,6 @@ class GenericEditorPresenter:
                     completion_model.append([v])
                 completion.set_model(completion_model)
 
-            key_length = widget.get_completion().get_minimum_key_length()
             values = get_completions(text)
             logger.debug('completions to add: %s', str([i for i in values]))
             GLib.idle_add(idle_callback, values)
@@ -1671,8 +1679,8 @@ class GenericEditorPresenter:
         def on_changed(entry, *args):
             """If entry's text is greater than widget's minimum_key_length call
             :func:`add_completions` to reconstruct the widgets model.  Also
-            calls :func:`idle_callback` with the entry's
-            text to add remove PROBLEM or select an item if appropriate.
+            calls :func:`idle_callback` with the entry's text to add remove
+            PROBLEM or select an item if appropriate.
 
             :param entry: a Gtk.Entry widget
             """
@@ -1718,8 +1726,7 @@ class GenericEditorPresenter:
                         v = comp.get_model()[found[0]][0]
                         # only auto select if the full string has been entered
                         if text.lower() == utils.utf8(v).lower():
-                            comp.emit('match-selected', comp.get_model(),
-                                      found[0])
+                            comp.emit('match-selected', comp_model, found[0])
                     else:
                         logger.debug(
                             'multiple matches, we cannot select any - %s',
