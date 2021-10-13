@@ -1300,7 +1300,6 @@ class PlantEditorPresenter(GenericEditorPresenter):
                 self.prop_presenter.is_dirty() or
                 self._dirty)
 
-
     def on_quantity_changed(self, entry):
         value = entry.props.text
         try:

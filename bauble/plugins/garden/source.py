@@ -266,12 +266,9 @@ class CollectionPresenter(editor.ChildPresenter):
                            'add_region_button': 'region',
                            }
 
-    # TODO: could make the problems be tuples of an id and description to
-    # be displayed in a dialog or on a label ala eclipse
-    PROBLEM_BAD_LATITUDE = str(random())
-    PROBLEM_BAD_LONGITUDE = str(random())
-    PROBLEM_INVALID_DATE = str(random())
-    PROBLEM_INVALID_LOCALE = str(random())
+    PROBLEM_BAD_LATITUDE = random()
+    PROBLEM_BAD_LONGITUDE = random()
+    PROBLEM_INVALID_LOCALE = random()
 
     def __init__(self, parent, model, view, session):
         super().__init__(model, view)
@@ -360,8 +357,8 @@ class CollectionPresenter(editor.ChildPresenter):
             self.remove_problem(self.PROBLEM_INVALID_LOCALE, 'locale_entry')
 
         if attr in ('longitude', 'latitude'):
-            sensitive = self.model.latitude is not None \
-                and self.model.longitude is not None
+            sensitive = (self.model.latitude is not None and
+                         self.model.longitude is not None)
             self.view.widgets.geoacc_entry.set_sensitive(sensitive)
             self.view.widgets.datum_entry.set_sensitive(sensitive)
 

@@ -21,6 +21,7 @@
 import os
 import datetime
 import unittest
+from functools import partial
 
 import logging
 logger = logging.getLogger(__name__)
@@ -34,32 +35,42 @@ from sqlalchemy.orm import object_session
 from bauble import db
 from bauble.test import BaubleTestCase, update_gui, check_dupids, mockfunc
 from bauble import utils
-from bauble.plugins.garden.accession import Accession, AccessionEditor, \
-    AccessionNote, Voucher, SourcePresenter, Verification, dms_to_decimal, \
-    latitude_to_dms, longitude_to_dms, AccessionEditorView
-from bauble.plugins.garden.source import Source, Collection, Contact, \
-    create_contact, CollectionPresenter, ContactPresenter
-from bauble.plugins.garden.plant import Plant, PlantNote, \
-    PlantChange, PlantEditor, is_code_unique, branch_callback
-from bauble.plugins.garden.location import Location, LocationEditor
+from bauble import prefs
+from bauble.meta import BaubleMeta
+from .accession import (Accession,
+                        AccessionEditor,
+                        AccessionNote,
+                        Voucher,
+                        SourcePresenter,
+                        Verification,
+                        dms_to_decimal,
+                        latitude_to_dms,
+                        longitude_to_dms)
+from .source import (Source,
+                     Collection,
+                     Contact,
+                     CollectionPresenter,
+                     ContactPresenter)
+from .plant import (Plant,
+                    PlantNote,
+                    PlantChange,
+                    PlantEditor,
+                    is_code_unique,
+                    branch_callback)
+from .location import Location, LocationEditor
+from .institution import Institution, InstitutionPresenter
 from .propagation import (Propagation,
                           PropCuttingRooted,
                           PropCutting,
                           PropSeed,
                           PropagationEditor)
-from bauble.plugins.plants.geography import Geography
-from bauble.plugins.plants.family import Family
-from bauble.plugins.plants.genus import Genus
-from bauble.plugins.plants.species_model import Species
-import bauble.plugins.plants.test_plants as plants_test
-from bauble.plugins.garden.institution import Institution, InstitutionPresenter
-from bauble import prefs
+from ..plants import test_plants as plants_test
+from ..plants.geography import Geography
+from ..plants.family import Family
+from ..plants.genus import Genus
+from ..plants.species_model import Species
+from ..plants.species_model import _remove_zws as remove_zws
 
-from functools import partial
-
-from bauble.meta import BaubleMeta
-
-from bauble.plugins.plants.species_model import _remove_zws as remove_zws
 prefs.testing = True
 
 

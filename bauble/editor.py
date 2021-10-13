@@ -1327,7 +1327,7 @@ class GenericEditorPresenter:
         return value
 
     def on_non_empty_text_entry_changed(self, widget, value=None):
-        "handle 'changed' signal on compulsory text entry widgets."
+        """handle 'changed' signal on compulsory text entry widgets."""
 
         value = self.on_text_entry_changed(widget, value)
         if not value:
@@ -1368,7 +1368,7 @@ class GenericEditorPresenter:
         self.__set_model_attr(attr, value)
 
     def on_check_toggled(self, widget, value=None):
-        "handle toggled signal on check buttons"
+        """handle toggled signal on check buttons"""
         attr = self.__get_widget_attr(widget)
         if value is None:
             value = self.view.widget_get_active(widget)
@@ -1806,16 +1806,16 @@ class ChildPresenter(GenericEditorPresenter):
     def __init__(self, model, view):
         super().__init__(model, view)
 
-    def _get_view(self):
+    @property
+    def view(self):
         return self._view_ref()
 
-    def _set_view(self, view):
+    @view.setter
+    def view(self, view):
         if isinstance(view, GenericEditorView):
             self._view_ref = weakref.ref(view)
         else:
             raise ValueError('view must be an instance of GenericEditorView')
-
-    view = property(_get_view, _set_view)
 
 
 class GenericModelViewPresenterEditor:
