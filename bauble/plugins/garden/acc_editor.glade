@@ -1188,7 +1188,7 @@
                           <object class="GtkLabel" id="label43">
                             <property name="visible">True</property>
                             <property name="can-focus">False</property>
-                            <property name="label" translatable="yes">Contact</property>
+                            <property name="label" translatable="yes">Source</property>
                             <property name="use-markup">True</property>
                           </object>
                           <packing>
