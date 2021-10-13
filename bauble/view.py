@@ -742,8 +742,7 @@ class SearchView(pluginmgr.View):
         return [model[row][0] for row in rows]
 
     def on_cursor_changed(self, _tree_view):
-        """
-        Update the infobox and switch the accelerators depending on the
+        """Update the infobox and switch the accelerators depending on the
         type of the row that the cursor points to.
         """
         # update all forward-looking info boxes
@@ -768,8 +767,8 @@ class SearchView(pluginmgr.View):
         selected_type = type(selected[0])
 
         for action in self.row_meta[selected_type].actions:
-            enabled = (len(selected) > 1 and action.multiselect) or \
-                (len(selected) <= 1 and action.singleselect)
+            enabled = ((len(selected) > 1 and action.multiselect) or
+                       (len(selected) <= 1 and action.singleselect))
             if not enabled:
                 continue
             # if enabled then connect the accelerator

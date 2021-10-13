@@ -58,5 +58,5 @@ class BaubleLinkButton(Gtk.LinkButton):
                 value = row
                 for step in key.split('.'):
                     value = getattr(value, step, '-')
-                values[key] = (value == str(value)) and value or ''
+                values[key] = value if (value == str(value)) else ''
             self.set_uri(self._base_uri % values)

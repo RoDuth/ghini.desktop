@@ -234,8 +234,7 @@ class SynonymsExpander(InfoExpander):
         self.vbox.pack_start(synonyms_box, True, True, 0)
 
     def update(self, row):
-        """
-        update the expander
+        """Update the expander
 
         :param row: the row to get the values from
         """

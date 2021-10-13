@@ -58,7 +58,7 @@ def read_in_chunks(file_object, chunk_size=1024):
 
 
 class Cache:
-    '''a simple class for caching images
+    """a simple class for caching images
 
     you instantiate a size 10 cache like this:
     >>> cache = Cache(10)
@@ -70,7 +70,7 @@ class Cache:
     internally, the cache is stored in a dictionary, the key is the name of
     the image, the value is a pair with first the timestamp of the last usage
     of that key and second the value.
-    '''
+    """
 
     def __init__(self, size):
         self.size = size
@@ -234,18 +234,17 @@ class ImageLoader(threading.Thread):
 
 
 def find_dependent_tables(table, metadata=None):
-    '''
-    Return an iterator with all tables that depend on table.  The
-    tables are returned in the order that they depend on each
-    other. For example you know that table[0] does not depend on
-    tables[1].
+    """Return an iterator with all tables that depend on table.
+
+    The tables are returned in the order that they depend on each other. For
+    example you know that table[0] does not depend on tables[1].
 
     :param table: The tables who dependencies we want to find
 
     :param metadata: The :class:`sqlalchemy.engine.MetaData` object
       that holds the tables to search through.  If None then use
       bauble.db.metadata
-    '''
+    """
     # NOTE: we can't use bauble.metadata.sorted_tables here because it
     # returns all the tables in the metadata even if they aren't
     # dependent on table at all
@@ -273,8 +272,7 @@ def load_widgets(filename):
 
 
 class BuilderLoader():
-    """
-    This class caches the Gtk.Builder objects so that loading the same
+    """This class caches the Gtk.Builder objects so that loading the same
     file with the same name returns the same Gtk.Builder.
 
     It might seem crazy to keep them around instead of deleting them
@@ -303,9 +301,8 @@ class BuilderLoader():
 
 
 class BuilderWidgets(UserDict):
-    """
-    Provides dictionary and attribute access for a
-    :class:`Gtk.Builder` object.
+    """Provides dictionary and attribute access for a :class:`Gtk.Builder`
+    object.
     """
 
     def __init__(self, ui):
@@ -344,9 +341,7 @@ class BuilderWidgets(UserDict):
         return widget
 
     def remove_parent(self, widget):
-        """
-        Remove widgets from its parent.
-        """
+        """Remove widgets from its parent."""
         # if parent is the last reference to widget then widget may be
         # automatically destroyed
         if isinstance(widget, str):
@@ -357,15 +352,12 @@ class BuilderWidgets(UserDict):
 
 
 def tree_model_has(tree, value):
-    """
-    Return True or False if value is in the tree.
-    """
+    """Return True or False if value is in the tree."""
     return len(search_tree_model(tree, value)) > 0
 
 
 def search_tree_model(parent, data, cmp=lambda row, data: row[0] == data):
-    """
-    Return an iterable of Gtk.TreeIter instances to all occurences
+    """Return an iterable of Gtk.TreeIter instances to all occurences
     of data in model
 
     :param parent: a Gtk.TreeModel or a Gtk.TreeModelRow instance
@@ -420,21 +412,19 @@ def clear_model(obj_with_model):
 
 
 def combo_set_active_text(combo, value):
-    '''
-    does the same thing as set_combo_from_value but this looks more like a
+    """does the same thing as set_combo_from_value but this looks more like a
     GTK+ method
-    '''
+    """
     set_combo_from_value(combo, value)
 
 
 def set_combo_from_value(combo, value, cmp=lambda row, value: row[0] == value):
-    '''
-    Find value in combo model and set it as active, else raise ValueError
+    """Find value in combo model and set it as active, else raise ValueError
     cmp(row, value) is the a function to use for comparison
 
     .. note:: if more than one value is found in the combo then the
       first one in the list is set
-    '''
+    """
     model = combo.get_model()
     matches = search_tree_model(model, value, cmp)
     if len(matches) == 0:
@@ -445,8 +435,7 @@ def set_combo_from_value(combo, value, cmp=lambda row, value: row[0] == value):
 
 
 def combo_get_value_iter(combo, value, cmp=lambda row, value: row[0] == value):
-    '''
-    Returns a Gtk.TreeIter that points to first matching value in the
+    """Returns a Gtk.TreeIter that points to first matching value in the
     combo's model.
 
     :param combo: the combo where we should search
@@ -456,7 +445,7 @@ def combo_get_value_iter(combo, value, cmp=lambda row, value: row[0] == value):
 
     .. note:: if more than one value is found in the combo then the first one
       in the list is returned
-    '''
+    """
     model = combo.get_model()
     matches = search_tree_model(model, value, cmp)
     if len(matches) == 0:
@@ -465,13 +454,13 @@ def combo_get_value_iter(combo, value, cmp=lambda row, value: row[0] == value):
 
 
 def get_widget_value(widget):
-    '''
+    """
     :param widget: an instance of Gtk.Widget
     :param index: the row index to use for those widgets who use a model
 
     .. note:: any values passed in for widgets that expect a string will call
       the values __str__ method
-    '''
+    """
 
     if isinstance(widget, Gtk.Label):
         return utf8(widget.get_text())
@@ -590,8 +579,7 @@ def set_widget_value(widget, value, markup=False, default=None, index=0):
 def create_message_dialog(msg, typ=Gtk.MessageType.INFO,
                           buttons=Gtk.ButtonsType.OK,
                           parent=None):
-    '''
-    Create a message dialog.
+    """Create a message dialog.
 
     :param msg: The markup to use for the message. The value should be
       escaped in case it contains any HTML entities.
@@ -602,7 +590,7 @@ def create_message_dialog(msg, typ=Gtk.MessageType.INFO,
     :param parent:  The parent window for the dialog
 
     Returns a :class:`Gtk.MessageDialog`
-    '''
+    """
     if parent is None:
         try:  # this might get called before bauble has started
             parent = bauble.gui.window
@@ -640,12 +628,11 @@ def create_message_dialog(msg, typ=Gtk.MessageType.INFO,
 
 def message_dialog(msg, type=Gtk.MessageType.INFO, buttons=Gtk.ButtonsType.OK,
                    parent=None):
-    '''
-    Create a message dialog with :func:`bauble.utils.create_message_dialog`
+    """Create a message dialog with :func:`bauble.utils.create_message_dialog`
     and run and destroy it.
 
     Returns the dialog's response.
-    '''
+    """
     dialog = create_message_dialog(msg, type, buttons, parent)
     response = dialog.run()
     dialog.destroy()
@@ -653,9 +640,7 @@ def message_dialog(msg, type=Gtk.MessageType.INFO, buttons=Gtk.ButtonsType.OK,
 
 
 def create_yes_no_dialog(msg, parent=None):
-    """
-    Create a dialog with yes/no buttons.
-    """
+    """Create a dialog with yes/no buttons."""
     if parent is None:
         try:  # this might get called before bauble has started
             parent = bauble.gui.window
@@ -680,8 +665,7 @@ def create_yes_no_dialog(msg, parent=None):
 
 
 def yes_no_dialog(msg, parent=None, yes_delay=-1):
-    """
-    Create and run a yes/no dialog.
+    """Create and run a yes/no dialog.
 
     Return True if the dialog response equals Gtk.ResponseType.YES
 
@@ -708,9 +692,7 @@ def yes_no_dialog(msg, parent=None, yes_delay=-1):
 
 def create_message_details_dialog(msg, details='', typ=Gtk.MessageType.INFO,
                                   buttons=Gtk.ButtonsType.OK, parent=None):
-    '''
-    Create a message dialog with a details expander.
-    '''
+    """Create a message dialog with a details expander."""
     if parent is None:
         try:  # this might get called before bauble has started
             parent = bauble.gui.window
@@ -770,9 +752,7 @@ def create_message_details_dialog(msg, details='', typ=Gtk.MessageType.INFO,
 
 def message_details_dialog(msg, details, type=Gtk.MessageType.INFO,
                            buttons=Gtk.ButtonsType.OK, parent=None):
-    '''
-    Create and run a message dialog with a details expander.
-    '''
+    """Create and run a message dialog with a details expander."""
     dialog = create_message_details_dialog(msg, details, type, buttons, parent)
     response = dialog.run()
     dialog.destroy()
@@ -808,8 +788,7 @@ def default_cell_data_func(_column, cell, model, treeiter, data=None):
 
 
 def setup_text_combobox(combo, values=None, cell_data_func=None):
-    """
-    Configure a Gtk.ComboBox as a text combobox
+    """Configure a Gtk.ComboBox as a text combobox
 
     NOTE: If you pass a cell_data_func that is a method of an object that
     holds a reference to combo then the object will not be properly
@@ -856,14 +835,13 @@ def setup_text_combobox(combo, values=None, cell_data_func=None):
         completion.set_popup_completion(True)
         completion.set_inline_completion(True)
         completion.set_inline_selection(True)
-        # completion.set_minimum_key_length(2)
+        completion.set_minimum_key_length(2)
 
         combo.connect('format-entry-text', format_combo_entry_text)
 
 
 def today_str(fmat=None):
-    """
-    Return a string for of today's date according to format.
+    """Return a string for of today's date according to format.
 
     If fmat=None then the format uses the prefs.date_format_pref
     """
@@ -901,11 +879,7 @@ def setup_date_button(view, entry, button):
 
 
 def to_unicode(obj):
-    """
-    Return obj converted to unicode.  If obj is already a unicode
-    object it will not try to decode it to converted it to <encoding>
-    but will just return the original obj
-    """
+    """Return obj converted to unicode."""
     # Deprecated?  Maybe not this deals with None
     # logger.debug('to_unicode called by > %s', inspect.stack()[1])
     if isinstance(obj, str) or obj is None:
@@ -914,37 +888,31 @@ def to_unicode(obj):
 
 
 def utf8(obj):
-    """
-    This function is an alias for to_unicode(obj, 'utf-8')
-    """
+    """This function is an alias for to_unicode(obj, 'utf-8')"""
     # Deprecated?
     # logger.debug('utf8 called by %s', inspect.stack()[1])
     return to_unicode(obj)
 
 
 def xml_safe(obj):
-    '''
-    Return a string with character entities escaped safe for xml, if the
-    str parameter is a string a string is returned, if str is a unicode object
-    then a unicode object is returned
-    '''
+    """Return a string with character entities escaped safe for xml"""
     return saxutils.escape(str(obj))
 
 
 def xml_safe_utf8(obj):
-    """
-    This method is deprecated and just returns xml_safe(obj)
-    """
+    """This method is deprecated and just returns xml_safe(obj)"""
+    # Deprecated?
     logger.warning('invoking deprecated function')
 
     return xml_safe(obj)
 
 
 def xml_safe_name(obj):
-    """
-    Return a string that conforms to W3C XML 1.0 (fifth edition) recommendation
-    for XML names.  Space is replaced with _ and <{[()]}> are stripped.    If
-    string does not provide any chars that conform return _
+    """Return a string that conforms to W3C XML 1.0 (fifth edition)
+    recommendation for XML names.
+
+    Space is replaced with _ and <{[()]}> are stripped. If string does not
+    provide any chars that conform return _
     """
     # make sure we have a unicode string with no spaces or surrounding
     # parentheses
@@ -987,8 +955,7 @@ def xml_safe_name(obj):
 
 
 def complex_hyb(tax):
-    """
-    a helper function that splits a complex hybrid formula into its parts.
+    """a helper function that splits a complex hybrid formula into its parts.
 
     :param tax: string containing brackets surounding 2 phrases seperated by
         a cross/multipy symbol
@@ -1034,8 +1001,7 @@ def complex_hyb(tax):
 
 
 def markup_italics(tax):
-    """
-    Add italics markup to the appropriate parts of a species string.
+    """Add italics markup to the appropriate parts of a species string.
 
     :param tax: the taxon name as a unicode string
     """
@@ -1131,8 +1097,7 @@ __natsort_rx = re.compile(r'(\d+(?:\.\d+)?)')
 
 
 def natsort_key(obj):
-    """
-    a key getter for sort and sorted function
+    """a key getter for sort and sorted function
 
     the sorting is done on return value of obj.__str__() so we can sort
     generic objects as well.
@@ -1156,8 +1121,7 @@ def natsort_key(obj):
 
 
 def delete_or_expunge(obj):
-    """
-    If the object is in object_session(obj).new then expunge it from the
+    """If the object is in object_session(obj).new then expunge it from the
     session.  If not then session.delete it.
     """
     from sqlalchemy.orm import object_session
@@ -1174,8 +1138,7 @@ def delete_or_expunge(obj):
 
 
 def reset_sequence(column):
-    """
-    If column.sequence is not None or the column is an Integer and
+    """If column.sequence is not None or the column is an Integer and
     column.autoincrement is true then reset the sequence for the next
     available value for the column...if the column doesn't have a
     sequence then do nothing and return
@@ -1302,9 +1265,7 @@ def enum_values_str(col):
 
 
 def which(filename, path=None):
-    """
-    Return first occurence of file on the path.
-    """
+    """Return first occurence of file on the path."""
     if not path:
         path = os.environ['PATH'].split(os.pathsep)
     for dirname in path:
@@ -1315,9 +1276,7 @@ def which(filename, path=None):
 
 
 def ilike(col, val, engine=None):
-    """
-    Return a cross platform ilike function.
-    """
+    """Return a cross platform ilike function."""
     from sqlalchemy import func
     if not engine:
         engine = bauble.db.engine
@@ -1328,8 +1287,7 @@ def ilike(col, val, engine=None):
 
 
 def range_builder(text):
-    """Return a list of numbers from a string range of the form 1-3,4,5
-    """
+    """Return a list of numbers from a string range of the form 1-3,4,5"""
     from pyparsing import Word, Group, Suppress, delimitedList, nums, \
         ParseException, ParseResults
     rng = Group(Word(nums) + Suppress('-') + Word(nums))
@@ -1355,9 +1313,7 @@ def range_builder(text):
 
 
 def gc_objects_by_type(tipe):
-    """
-    Return a list of objects from the garbage collector by type.
-    """
+    """Return a list of objects from the garbage collector by type."""
     import gc
     if isinstance(tipe, str):
         return [o for o in gc.get_objects() if type(o).__name__ == tipe]
@@ -1400,8 +1356,7 @@ def topological_sort(items, partial_order):
             graph[node] = [0]  # 0 = number of arcs coming into this node.
 
     def add_arc(graph, fromnode, tonode):
-        """
-        Add an arc to a graph. Can create multiple arcs. The end nodes must
+        """Add an arc to a graph. Can create multiple arcs. The end nodes must
         already exist.
         """
         graph.setdefault(fromnode, [0]).append(tonode)
@@ -1474,9 +1429,7 @@ def topological_sort(items, partial_order):
 
 
 class GenericMessageBox(Gtk.EventBox):
-    """
-    Abstract class for showing a message box at the top of an editor.
-    """
+    """Abstract class for showing a message box at the top of an editor."""
     def __init__(self):
         super().__init__()
         self.box = Gtk.Box()
@@ -1493,8 +1446,7 @@ class GenericMessageBox(Gtk.EventBox):
 
 
 class MessageBox(GenericMessageBox):
-    """
-    A MessageBox that can display a message label at the top of an editor.
+    """A MessageBox that can display a message label at the top of an editor.
     """
 
     def __init__(self, msg=None, details=None):
@@ -1576,16 +1528,15 @@ class MessageBox(GenericMessageBox):
 
 
 class YesNoMessageBox(GenericMessageBox):
-    """
-    A message box that can present a Yes or No question to the user
-    """
+    """A message box that can present a Yes or No question to the user"""
 
     def __init__(self, msg=None, on_response=None):
-        """
-        on_response: callback method when the yes or no buttons are
-        clicked.  The signature of the function should be
-        func(button, response) where response is True/False
-        depending on whether the user selected Yes or No, respectively.
+        """on_response: callback method when the yes or no buttons are
+        clicked.
+
+        The signature of the function should be func(button, response) where
+        response is True/False depending on whether the user selected Yes or
+        No, respectively.
         """
         super().__init__()
         self.label = Gtk.Label()
@@ -1638,7 +1589,6 @@ def add_message_box(parent, type=MESSAGE_BOX_INFO):
       message box to
     :param type: one of MESSAGE_BOX_INFO, MESSAGE_BOX_ERROR or
       MESSAGE_BOX_YESNO
-
     """
     msg_box = None
     if type == MESSAGE_BOX_INFO:
@@ -1654,17 +1604,14 @@ def add_message_box(parent, type=MESSAGE_BOX_INFO):
 
 
 def get_distinct_values(column, session):
-    """
-    Return a list of all the distinct values in a table column
-    """
+    """Return a list of all the distinct values in a table column"""
     qry = session.query(column).distinct()
     return [v[0] for v in qry if v != (None,)]
 
 
 def get_invalid_columns(obj, ignore_columns=None):
-    """
-    Return column names on a mapped object that have values
-    which aren't valid for the model.
+    """Return column names on a mapped object that have values which aren't
+    valid for the model.
 
     Invalid columns meet the following criteria:
     - nullable columns with null values
@@ -1687,9 +1634,9 @@ def get_invalid_columns(obj, ignore_columns=None):
 
 
 def get_urls(text):
-    """
-    Return tuples of http/https links and labels for the links.  To
-    label a link prefix it with [label text],
+    """Return tuples of http/https links and labels for the links.  To label a
+    link prefix it with [label text],
+
     e.g. [BBG]http://belizebotanic.org
     """
     rgx = re.compile(r'(?:\[(.+?)\])?((?:(?:http)|(?:https))://\S+)', re.I)
@@ -1700,8 +1647,7 @@ def get_urls(text):
 
 
 def get_net_sess():
-    """
-    return a requests or pypac session for making api calls, depending on
+    """return a requests or pypac session for making api calls, depending on
     prefrences.
     """
     from bauble.prefs import prefs, web_proxy_prefs, testing

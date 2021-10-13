@@ -1561,10 +1561,10 @@ class PlantEditor(GenericModelViewPresenterEditor):
             change = self.presenter.change
             if self.branched_plant:
                 self.compute_plant_split_changes()
-            elif change.quantity is None \
-                    or (change.quantity == self.model.quantity and
-                        change.from_location == self.model.location and
-                        change.quantity == self.presenter._original_quantity):
+            elif (change.quantity is None or
+                  (change.quantity == self.model.quantity and
+                   change.from_location == self.model.location and
+                   change.quantity == self.presenter._original_quantity)):
                 # if quantity and location haven't changed, nothing changed.
                 self.model.changes.remove(change)
                 # is this needed?

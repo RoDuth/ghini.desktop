@@ -422,8 +422,7 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
             self.view.widgets.remove_parent(kid)
 
     def on_habit_comboentry_changed(self, combo):
-        """
-        Changed handler for sp_habit_comboentry.
+        """Changed handler for sp_habit_comboentry.
 
         We don't need specific handlers for either comboentry because
         the validation is done in the specific Gtk.Entry handlers for
