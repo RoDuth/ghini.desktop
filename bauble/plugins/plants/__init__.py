@@ -355,8 +355,10 @@ class PlantsPlugin(pluginmgr.Plugin):
 
         pluginmgr.provided.update(cls.provides)
         if 'GardenPlugin' in pluginmgr.plugins:
-            species_context_menu.insert(1, add_accession_action)
-            vernname_context_menu.insert(1, add_accession_action)
+            if add_accession_action not in species_context_menu:
+                species_context_menu.insert(1, add_accession_action)
+            if add_accession_action not in vernname_context_menu:
+                vernname_context_menu.insert(1, add_accession_action)
 
         mapper_search = bauble.search.get_strategy('MapperSearch')
 
