@@ -37,7 +37,8 @@ from .accession import (AccessionEditor,
                         Accession,
                         AccessionInfoBox,
                         AccessionNote,
-                        acc_context_menu)
+                        acc_context_menu,
+                        BAUBLE_ACC_CODE_FORMAT)
 from .location import (LocationEditor,
                        Location,
                        LocationNote,
@@ -156,6 +157,15 @@ class GardenPlugin(pluginmgr.Plugin):
         # if the plant delimiter isn't in the bauble meta then add the default
         from bauble import meta
         meta.get_default(plant_delimiter_key, default_plant_delimiter)
+
+        def get_default_acc_code_format():
+            query = (db.Session().query(meta.BaubleMeta)
+                     .filter(meta.BaubleMeta.name.like('acidf_%'))
+                     .order_by(meta.BaubleMeta.name))
+            return query.first()
+
+        Accession.code_format = (get_default_acc_code_format() or
+                                 BAUBLE_ACC_CODE_FORMAT)
 
         institution = Institution()
         if bauble.gui is not None and not institution.name:

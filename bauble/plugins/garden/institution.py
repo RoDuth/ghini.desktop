@@ -38,13 +38,12 @@ from bauble.editor import GenericEditorView
 
 
 class Institution(object):
-    '''
-    Institution is a "live" object. When properties are changed the changes
+    """Institution is a "live" object. When properties are changed the changes
     are immediately reflected in the database.
 
     Institution values are stored in the Ghini meta database and not in
     its own table
-    '''
+    """
     __properties = ('name', 'abbreviation', 'code',
                     'contact', 'technical_contact', 'email',
                     'tel', 'fax', 'address',

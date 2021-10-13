@@ -71,6 +71,12 @@ from .source import (Contact,
 # info about the genus so we know exactly what plant is being selected
 # e.g. Malvaceae (sensu lato), Hibiscus (senso stricto)
 
+BAUBLE_ACC_CODE_FORMAT = '%Y%PD####'
+"""The system default value for accession.code_format, a constant, do not
+change this value.  Used as a fall back when no other code format is described
+in the `bauble` table.
+"""
+
 
 def longitude_to_dms(decimal):
     return decimal_to_dms(Decimal(decimal), 'long')
@@ -598,7 +604,11 @@ class Accession(db.Base, db.Serializable, db.WithNotes):
     # columns
     #: the accession code
     code = Column(Unicode(20), nullable=False, unique=True)
-    code_format = '%Y%PD####'
+
+    code_format = BAUBLE_ACC_CODE_FORMAT
+    """The default format for Accession.code field, change to use another
+    format.
+    """
 
     @validates('code')
     def validate_stripping(self, _key, value):

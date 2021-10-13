@@ -245,7 +245,19 @@ contextmanager-decorators=contextlib.contextmanager
 generated-members=__table__,
 		  id,
 		  bauble.view.LinksExpander._sep
-
+		  bauble.plugins.garden.institution.Institution.name
+		  bauble.plugins.garden.institution.Institution.abbreviation
+		  bauble.plugins.garden.institution.Institution.code
+		  bauble.plugins.garden.institution.Institution.contact
+		  bauble.plugins.garden.institution.Institution.technical_contact
+		  bauble.plugins.garden.institution.Institution.email
+		  bauble.plugins.garden.institution.Institution.tel
+		  bauble.plugins.garden.institution.Institution.fax
+		  bauble.plugins.garden.institution.Institution.address
+		  bauble.plugins.garden.institution.Institution.geo_latitude
+		  bauble.plugins.garden.institution.Institution.geo_longitude
+		  bauble.plugins.garden.institution.Institution.geo_diameter
+		  bauble.plugins.garden.institution.Institution.uuid
 # Tells whether missing members accessed in mixin class should be ignored. A
 # mixin class is detected if its name ends with "mixin" (case insensitive).
 ignore-mixin-members=yes
