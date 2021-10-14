@@ -1566,16 +1566,17 @@ class PlantEditor(GenericModelViewPresenterEditor):
                    change.from_location == self.model.location and
                    change.quantity == self.presenter._original_quantity)):
                 # if quantity and location haven't changed, nothing changed.
-                self.model.changes.remove(change)
+                if change in self.model.changes:
+                    self.model.changes.remove(change)
                 # is this needed?
                 utils.delete_or_expunge(change)
             else:
                 if self.model.location != change.from_location:
                     # transfer
                     change.to_location = self.model.location
-                elif (int(self.model.quantity or 0) >    # noqa
-                      int(self.presenter._original_quantity or 0)
-                      and not change.to_location):  # noqa
+                elif (int(self.model.quantity or 0) >
+                      int(self.presenter._original_quantity or 0) and not
+                      change.to_location):
                     # additions should use to_location
                     change.to_location = self.model.location
                     change.from_location = None
@@ -1778,8 +1779,11 @@ class GeneralPlantExpander(InfoExpander):
         on_clicked = utils.generate_on_clicked(select_in_search_results)
         utils.make_label_clickable(self.widgets.acc_code_data,
                                    on_clicked, row.accession)
+
+        from ..plants.species import on_taxa_clicked
+
         utils.make_label_clickable(self.widgets.name_data,
-                                   on_clicked,
+                                   on_taxa_clicked,
                                    row.accession.species)
         utils.make_label_clickable(self.widgets.location_data,
                                    on_clicked, row.location)

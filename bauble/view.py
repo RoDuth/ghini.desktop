@@ -1437,14 +1437,12 @@ pluginmgr.register_command(HistoryCommandHandler)
 
 
 def select_in_search_results(obj):
-    """
-    :param obj: the object the select
-    @returns: a Gtk.TreeIter to the selected row
-
-    Search the tree model for obj if it exists then select it if not
+    """Search the tree model for obj if it exists then select it if not
     then add it and select it.
 
-    The the obj is not in the model then we add it.
+    :param obj: the object the select
+    :returns: a Gtk.TreeIter to the selected row
+
     """
     check(obj is not None, 'select_in_search_results: arg is None')
     view = bauble.gui.get_view()

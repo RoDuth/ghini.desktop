@@ -923,11 +923,12 @@ class GeneralGenusExpander(InfoExpander):
             self.widget_set_value('gen_nplants_data', '%s in %s accessions'
                                   % (nplants, nacc_in_plants))
 
-        on_clicked_select = utils.generate_on_clicked(select_in_search_results)
         on_clicked_search = utils.generate_on_clicked(bauble.gui.send_command)
 
+        from .species import on_taxa_clicked
+
         utils.make_label_clickable(self.widgets.gen_fam_data,
-                                   on_clicked_select,
+                                   on_taxa_clicked,
                                    row.family)
 
         utils.make_label_clickable(

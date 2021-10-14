@@ -139,6 +139,17 @@ considered synonyms.
 """
 
 
+def on_taxa_clicked(_label, _event, taxon):
+    """Function intended for use with :func:`utils.make_label_clickable`
+
+    if the return_accepted_pref is set True then select both the name synonym
+    clicked on and its accepted name.
+    """
+    if prefs.get(return_accepted_pref) and taxon.accepted:
+        select_in_search_results(taxon.accepted)
+    select_in_search_results(taxon)
+
+
 class SynonymSearch(search.SearchStrategy):
     """Return any synonyms for matching species.
 
@@ -324,19 +335,16 @@ class GeneralSpeciesExpander(InfoExpander):
         self.current_obj = row
         session = object_session(row)
 
-        # link function
-        on_label_clicked = utils.generate_on_clicked(select_in_search_results)
-
         # Link to family
         self.widget_set_value('sp_fam_data', '<small>(%s)</small>' %
                               row.genus.family.family, markup=True)
         utils.make_label_clickable(
-            self.widgets.sp_fam_data, on_label_clicked, row.genus.family)
+            self.widgets.sp_fam_data, on_taxa_clicked, row.genus.family)
         genus = row.genus.markup()
         self.widget_set_value('sp_gen_data', '<big>%s</big>' %
                               genus, markup=True)
         utils.make_label_clickable(
-            self.widgets.sp_gen_data, on_label_clicked, row.genus)
+            self.widgets.sp_gen_data, on_taxa_clicked, row.genus)
         # epithet (full binomial but missing genus)
         self.widget_set_value('sp_epithet_data', ' <big>%s</big>' %
                               row.markup(authors=True, genus=False),
@@ -366,6 +374,7 @@ class GeneralSpeciesExpander(InfoExpander):
         if self.widgets.sp_dist_box.get_children():
             for child in self.widgets.sp_dist_box.get_children():
                 self.widgets.sp_dist_box.remove(child)
+        on_clicked = utils.generate_on_clicked(select_in_search_results)
         if row.distribution:
             for place in row.distribution:
                 event_box = Gtk.EventBox()
@@ -373,7 +382,8 @@ class GeneralSpeciesExpander(InfoExpander):
                 label.set_halign(Gtk.Align.START)
                 event_box.add(label)
                 self.widgets.sp_dist_box.pack_start(event_box, False, False, 0)
-                utils.make_label_clickable(label, on_label_clicked,
+
+                utils.make_label_clickable(label, on_clicked,
                                            place.geography)
             self.widgets.sp_dist_box.show_all()
 
