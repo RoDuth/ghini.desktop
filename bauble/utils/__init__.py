@@ -24,6 +24,7 @@
 """
 A common set of utility functions used throughout Ghini.
 """
+from typing import Any, Union
 import datetime
 import os
 import re
@@ -403,6 +404,9 @@ def clear_model(obj_with_model):
 
     Remove the model from the object and set the model on the object to None
     """
+    import warnings
+    warnings.warn('clear_model soon to be deprecated, use model.clear() ',
+                  DeprecationWarning)
     model = obj_with_model.get_model()
     if model is None:
         return
@@ -882,15 +886,30 @@ def to_unicode(obj):
     """Return obj converted to unicode."""
     # Deprecated?  Maybe not this deals with None
     # logger.debug('to_unicode called by > %s', inspect.stack()[1])
+    import warnings
+    warnings.warn('to_unicode is deprecated', DeprecationWarning)
     if isinstance(obj, str) or obj is None:
         return obj
     return str(obj)
+
+
+def nstr(obj: Any) -> Union[str, None]:
+    """If obj is None return None else return str(obj).
+
+    :param obj: the object that a string is needed for, should have a __str__
+        method.
+    """
+    return None if obj is None else str(obj)
 
 
 def utf8(obj):
     """This function is an alias for to_unicode(obj, 'utf-8')"""
     # Deprecated?
     # logger.debug('utf8 called by %s', inspect.stack()[1])
+    # could rename str_or_none
+    import warnings
+    warnings.warn('utf8 is deprecated or may recieve a name change',
+                  DeprecationWarning)
     return to_unicode(obj)
 
 
