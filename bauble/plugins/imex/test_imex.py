@@ -34,9 +34,11 @@ from bauble.plugins.plants import (
 from bauble.plugins.garden import Accession, Location, Plant, Contact, Source
 import bauble.plugins.garden.test_garden as garden_test
 import bauble.plugins.plants.test_plants as plants_test
-from bauble.plugins.imex.csv_ import CSVImporter, CSVExporter, QUOTE_CHAR, \
-    QUOTE_STYLE
-from bauble.plugins.imex.iojson import JSONImporter, JSONExporter
+from .csv_ import (CSVImporter,
+                   CSVExporter,
+                   QUOTE_CHAR,
+                   QUOTE_STYLE)
+from .iojson import JSONImporter, JSONExporter
 from bauble.test import BaubleTestCase
 import json
 from bauble.editor import MockView

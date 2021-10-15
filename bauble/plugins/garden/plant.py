@@ -1556,8 +1556,8 @@ class PlantEditor(GenericModelViewPresenterEditor):
 
     def commit_changes(self):
         codes = utils.range_builder(self.model.code)
-        if len(codes) <= 1 or self.model not in self.session.new \
-                and not self.branched_plant:
+        if (len(codes) <= 1 or self.model not in self.session.new and not
+                self.branched_plant):
             change = self.presenter.change
             if self.branched_plant:
                 self.compute_plant_split_changes()

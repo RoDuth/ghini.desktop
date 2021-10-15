@@ -1174,14 +1174,13 @@ def reset_sequence(column):
         return
 
     sequence_name = None
-    if hasattr(column, 'default') and \
-            isinstance(column.default, schema.Sequence):
+    if (hasattr(column, 'default') and
+            isinstance(column.default, schema.Sequence)):
         sequence_name = column.default.name
-    elif (isinstance(column.type, Integer) and column.autoincrement) and \
-            (column.default is None or
-             (isinstance(column.default, schema.Sequence) and
-              column.default.optional)) and \
-            len(column.foreign_keys) == 0:
+    elif ((isinstance(column.type, Integer) and column.autoincrement) and
+          (column.default is None or
+           (isinstance(column.default, schema.Sequence) and
+            column.default.optional)) and len(column.foreign_keys) == 0):
         sequence_name = '%s_%s_seq' % (column.table.name, column.name)
     else:
         return

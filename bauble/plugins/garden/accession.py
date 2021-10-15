@@ -1702,9 +1702,9 @@ class SourcePresenter(editor.GenericEditorPresenter):
             model = completion.get_model()
             value = model[treeiter][0]
             # allows completions of source details by their ID
-            if str(value).lower().startswith(key.lower()) or \
+            if (str(value).lower().startswith(key.lower()) or
                     (isinstance(value, Contact) and
-                     str(value.id).startswith(key)):
+                     str(value.id).startswith(key))):
                 return True
             return False
         completion.set_match_func(match_func)

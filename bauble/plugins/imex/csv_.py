@@ -27,6 +27,7 @@
 import os
 import csv
 import traceback
+import tempfile
 from pathlib import Path
 
 import logging
@@ -38,7 +39,6 @@ from sqlalchemy import ColumnDefault, func, select
 
 import bauble
 from bauble import db
-from bauble.error import BaubleError
 from bauble import utils
 from bauble import pluginmgr
 import bauble.task
@@ -67,14 +67,14 @@ class UnicodeReader:
 
     def __next__(self):
         row = next(self.reader)
-        t = {}
+        line = {}
         for k, v in row.items():
             if v == '':
-                t[k] = None
+                line[k] = None
             else:
-                t[k] = utils.utf8(v)
+                line[k] = utils.nstr(v)
 
-        return t
+        return line
 
     def __iter__(self):
         return self
@@ -97,35 +97,20 @@ class UnicodeWriter:
         """
         if isinstance(row, dict):
             row = list(row.values())
-        t = []
-        for s in row:
-            if s is None:
-                t.append(None)
+        line = []
+        for v in row:
+            if v is None:
+                line.append(None)
             else:
-                t.append(str(s))
-        self.writer.writerow(t)
+                line.append(str(v))
+        self.writer.writerow(line)
 
     def writerows(self, rows):
         for row in rows:
             self.writerow(row)
 
 
-class Importer:
-
-    def start(self, **kwargs):
-        """start the import process, this is a non blocking method, queue the
-        process as a bauble task
-        """
-        return bauble.task.queue(self.run, **kwargs)
-
-    def run(self, **kwargs):
-        """where all the action happens
-        """
-        raise NotImplementedError
-
-
-class CSVImporter(Importer):
-
+class CSVImporter:
     """imports comma separated value files into a Ghini database.
 
     It imports multiple files, each of them equally named as the bauble
@@ -147,7 +132,6 @@ class CSVImporter(Importer):
         self.__error = False   # flag to indicate error on import
         self.__cancel = False  # flag to cancel importing
         self.__pause = False   # flag to pause importing
-        self.__error_exc = False
 
     def start(self, filenames=None, metadata=None, force=False):
         """start the import process.
@@ -195,15 +179,14 @@ class CSVImporter(Importer):
                                       i.endswith('collection.txt')]
                         filenames.remove(geography[0])
                         bauble.task.queue(
-                            self.get_geo_translator(geography[0]))
+                            self.set_geo_translator(geography[0]))
                         bauble.task.queue(
-                            self.upgrader(change_lst, geography[0]))
+                            self.upgrader(change_lst))
 
         bauble.task.queue(self.run(filenames, metadata, force))
 
-    def upgrader(self, change_lst, geography):
-        """ Upgrade changes from v1.0 to v1.3 prior to importing
-        """
+    def upgrader(self, change_lst: list[str]) -> None:
+        """Upgrade changes from v1.0 to v1.3 prior to importing"""
         for file in change_lst:
             original = file + '_ORIG_'
 
@@ -215,8 +198,8 @@ class CSVImporter(Importer):
                 num_lines = len(f.readlines())
 
             if num_lines <= 1:
-                logger.debug('%s contains no table data skip translation',
-                             file)
+                logger.debug(
+                    '%s contains no table data skip translation', file)
                 continue
 
             os.rename(file, original)
@@ -233,12 +216,11 @@ class CSVImporter(Importer):
                         continue
                     line['geography_id'] = new_geo_id
                     out_file.writerow(line)
-                    fraction = float(count) / float(num_lines)
-                    pb_set_fraction(fraction)
+                    pb_set_fraction(float(count) / float(num_lines))
                     if count % 10 == 0:
                         yield
 
-    def get_geo_translator(self, geography):
+    def set_geo_translator(self, geography: str) -> None:
         """return a dictionary of old IDs to new IDs for the geography table.
         """
         from bauble.plugins.plants import Geography
@@ -250,14 +232,13 @@ class CSVImporter(Importer):
         with open(geography, 'r') as f:
             num_lines = len(f.readlines())
 
-        old_geos = dict()
+        old_geos = {}
         with open(geography, 'r') as f:
             geo = csv.DictReader(f)
             for count, line in enumerate(geo):
                 id_ = line.get('id')
                 code = line.get('tdwg_code').split(',')[0]
                 parent = line.get('parent_id')
-                # code = line.get('tdwg_code').split(',')[0]
                 old_geos[id_] = {'code': code, 'parent': parent}
                 # update the gui
                 fraction = float(count) / float(num_lines)
@@ -265,68 +246,68 @@ class CSVImporter(Importer):
                 if count % 10 == 0:
                     yield
 
-        session = db.Session()
-        translator = dict()
-        num_lines = len(old_geos)
-        count = 0
-        for id_, codes in old_geos.items():
-            new = (session.query(Geography)
-                   .filter_by(tdwg_code=codes.get('code'))
-                   .all())
-            if not new:
-                parent = old_geos.get(codes.get('parent'))
-                if not parent:
-                    logger.debug('no parent for %s', codes)
-                    continue
+        with db.Session() as session:
+            translator = dict()
+            num_lines = len(old_geos)
+            count = 0
+            for id_, codes in old_geos.items():
                 new = (session.query(Geography)
-                       .filter_by(tdwg_code=parent.get('code'))
+                       .filter_by(tdwg_code=codes.get('code'))
                        .all())
-            if not new:
-                parent2 = old_geos.get(parent.get('parent'))
-                if not parent2:
-                    logger.debug('no parent for %s', codes)
-                    continue
-                new = (session.query(Geography)
-                       .filter_by(tdwg_code=parent2.get('code'))
-                       .all())
-            if new:
-                if len(new) == 1:
-                    translator[id_] = new[0].id
+                if not new:
+                    parent = old_geos.get(codes.get('parent'))
+                    if not parent:
+                        logger.debug('no parent for %s', codes)
+                        continue
+                    new = (session.query(Geography)
+                           .filter_by(tdwg_code=parent.get('code'))
+                           .all())
+                if not new:
+                    parent2 = old_geos.get(parent.get('parent'))
+                    if not parent2:
+                        logger.debug('no parent for %s', codes)
+                        continue
+                    new = (session.query(Geography)
+                           .filter_by(tdwg_code=parent2.get('code'))
+                           .all())
+                if new:
+                    if len(new) == 1:
+                        translator[id_] = new[0].id
+                    else:
+                        logger.debug('multiples records for %s', codes)
                 else:
-                    logger.debug('multiples records for %s', codes)
-            else:
-                logger.debug('unfound area %s', codes)
-            count += 1
-            fraction = float(count) / float(num_lines)
-            pb_set_fraction(fraction)
-            if count % 10 == 0:
-                yield
-        session.close()
+                    logger.debug('unfound area %s', codes)
+                count += 1
+                fraction = float(count) / float(num_lines)
+                pb_set_fraction(fraction)
+                if count % 10 == 0:
+                    yield
         self.translator = translator
 
     @staticmethod
     def _toposort_file(filename, key_pairs):
-        """
-        filename: the csv file to sort
+        """Topologically sort a file that contains self referential
+        relationship so that the lines come before the lines that refer to
+        them.
 
-        key_pairs: tuples of the form (parent, child) where for each
+        :param filename: the csv file to sort
+
+        :param key_pairs: tuples of the form (parent, child) where for each
         line in the file the line[parent] needs to be sorted before
         any of the line[child].  parent is usually the name of the
         foreign_key column and child is usually the column that the
         foreign key points to, e.g ('parent_id', 'id')
         """
-        f = open(filename, 'r', encoding='utf-8', newline='')
-        reader = UnicodeReader(f, quotechar=QUOTE_CHAR,
-                               quoting=QUOTE_STYLE)
+        with open(filename, 'r', encoding='utf-8', newline='') as f:
+            reader = UnicodeReader(f, quotechar=QUOTE_CHAR,
+                                   quoting=QUOTE_STYLE)
 
-        # create a dictionary of the lines mapped to the child field
-        bychild = {}
-        for line in reader:
-            for parent, child in key_pairs:
-                bychild[line[child]] = line
-        f.close()
-        fields = reader.reader.fieldnames
-        del reader
+            # create a dictionary of the lines mapped to the child field
+            bychild = {}
+            for line in reader:
+                for parent, child in key_pairs:
+                    bychild[line[child]] = line
+            fields = reader.reader.fieldnames
 
         # create pairs from the values in the lines where pair[0]
         # should come before pair[1] when the lines are sorted
@@ -343,20 +324,17 @@ class CSVImporter(Importer):
             sorted_lines.append(bychild[key])
 
         # write a temporary file of the sorted lines
-        import tempfile
         tmppath = tempfile.mkdtemp()
-        head, tail = os.path.split(filename)
-        filename = os.path.join(tmppath, tail)
-        tmpfile = open(filename, 'w', encoding='utf-8', newline='')
-        tmpfile.write('%s\n' % ','.join(fields))
-        # writer = UnicodeWriter(tmpfile, fields, quotechar=QUOTE_CHAR,
-        writer = csv.DictWriter(tmpfile, fields, quotechar=QUOTE_CHAR,
-                                quoting=QUOTE_STYLE)
-        writer.writerows(sorted_lines)
-        tmpfile.flush()
-        tmpfile.close()
-        del writer
-        return filename
+        # _head, name = os.path.split(filename)
+        name = Path(filename).name
+        filename = Path(tmppath, name)
+        with open(filename, 'w', encoding='utf-8', newline='') as tmpfile:
+            tmpfile.write('%s\n' % ','.join(fields))
+            # writer = UnicodeWriter(tmpfile, fields, quotechar=QUOTE_CHAR,
+            writer = csv.DictWriter(tmpfile, fields, quotechar=QUOTE_CHAR,
+                                    quoting=QUOTE_STYLE)
+            writer.writerows(sorted_lines)
+        return str(filename)
 
     def run(self, filenames, metadata, force=False):
         """A generator method for importing filenames into the database.
@@ -370,7 +348,6 @@ class CSVImporter(Importer):
         """
         transaction = None
         connection = None
-        self.__error_exc = BaubleError(_('Unknown Error.'))
 
         try:
             # use a contextual connect in case whoever called this
@@ -379,24 +356,21 @@ class CSVImporter(Importer):
             connection = metadata.bind.connect()
             transaction = connection.begin()
         except Exception as e:
-            msg = _('Error connecting to database.\n\n%s') % \
-                utils.xml_safe(e)
+            msg = _(f'Error connecting to database.\n\n{utils.xml_safe(e)}')
             utils.message_dialog(msg, Gtk.MessageType.ERROR)
             return
 
         # create a mapping of table names to filenames
         filename_dict = {}
         for f in filenames:
-            path, base = os.path.split(f)
-            table_name, ext = os.path.splitext(base)
+            # _path, base = os.path.split(f)
+            table_name = Path(f).stem
+            # table_name, ext = os.path.splitext(base)
             if table_name in filename_dict:
                 safe = utils.xml_safe
-                values = dict(table_name=safe(table_name),
-                              file_name=safe(filename_dict[table_name]),
-                              file_name2=safe(f))
                 msg = _('More than one file given to import into table '
-                        '<b>%(table_name)s</b>: %(file_name)s, '
-                        '(file_name2)s') % values
+                        f'<b>{safe(table_name)}</b>: '
+                        f'{safe(filename_dict.get(table_name))}, {safe(f)}')
                 utils.message_dialog(msg, Gtk.MessageType.ERROR)
                 return
             filename_dict[table_name] = f
@@ -406,13 +380,12 @@ class CSVImporter(Importer):
         for table in metadata.sorted_tables:
             try:
                 sorted_tables.insert(0, (table, filename_dict.pop(table.name)))
-            except KeyError as e:
-                # table.name not in list of filenames
-                pass
+            except KeyError:
+                logger.debug('%s not in list of filenames', table.name)
 
         if len(filename_dict) > 0:
-            msg = _('Could not match all filenames to table names.\n\n%s') \
-                % filename_dict
+            msg = _('Could not match all filenames to table names.\n\n'
+                    f'{filename_dict}')
             utils.message_dialog(msg, Gtk.MessageType.ERROR)
             return
 
@@ -420,7 +393,9 @@ class CSVImporter(Importer):
         filesizes = {}
         for filename in filenames:
             # get the total number of lines for all the files
-            nlines = len(open(filename, encoding='utf-8', newline='').readlines())
+            with open(filename, 'r') as f:
+                nlines = len(f.readlines())
+
             filesizes[filename] = nlines
             total_lines += nlines
 
@@ -440,10 +415,11 @@ class CSVImporter(Importer):
             for table, filename in sorted_tables:
                 logger.debug('get table dependendencies for table %s',
                              table.name)
-                d = utils.find_dependent_tables(table)
-                depends.update(list(d))
-                del d
+                deps = utils.find_dependent_tables(table)
+                depends.update(list(deps))
+                del deps
 
+            deps_names = ', '.join(sorted([deps.name for deps in depends]))
             # drop all of the dependencies together
             # have added one table since v1.0 and a user may choose to drop
             # one or 2 tables (e.g plugin, history)
@@ -462,16 +438,14 @@ class CSVImporter(Importer):
                 if not force:
                     msg = _('In order to import the files the following '
                             'tables will need to be dropped:'
-                            '\n\n<b>%s</b>\n\n'
-                            'Would you like to continue?') % \
-                        ', '.join(sorted([d.name for d in depends]))
+                            f'\n\n<b>{deps_names}</b>\n\n'
+                            'Would you like to continue?')
                     response = utils.yes_no_dialog(msg)
                 else:
                     response = True
 
                 if response and len(depends) > 0:
-                    logger.debug('dropping: %s'
-                                 % ', '.join([d.name for d in depends]))
+                    logger.debug('dropping: %s', deps_names)
                     metadata.drop_all(bind=connection, tables=depends)
                 else:
                     # user doesn't want to drop dependencies so we just quit
@@ -491,8 +465,7 @@ class CSVImporter(Importer):
             for table, filename in reversed(sorted_tables):
                 if self.__cancel or self.__error:
                     break
-                msg = _('importing %(table)s table from %(filename)s') \
-                    % {'table': table.name, 'filename': filename}
+                msg = _(f'importing {table.name} table from {filename}')
                 logger.info(msg)
                 bauble.task.set_message(msg)
                 yield  # allow progress bar update
@@ -539,15 +512,14 @@ class CSVImporter(Importer):
 
                 # open a temporary reader to get the column keys so we
                 # can later precompile our insert statement
-                f = open(filename, 'r', encoding='utf-8', newline='')
-                logger.debug('%s open', filename)
-                tmp = UnicodeReader(f, quotechar=QUOTE_CHAR,
-                                    quoting=QUOTE_STYLE)
-                next(tmp)
-                csv_columns = set(tmp.reader.fieldnames)
-                logger.debug('%s columns = %s', filename, csv_columns)
-                del tmp
-                f.close()
+                with open(filename, 'r', encoding='utf-8', newline='') as f:
+                    logger.debug('%s open', filename)
+                    tmp = UnicodeReader(f, quotechar=QUOTE_CHAR,
+                                        quoting=QUOTE_STYLE)
+                    next(tmp)
+                    csv_columns = set(tmp.reader.fieldnames)
+                    logger.debug('%s columns = %s', filename, csv_columns)
+                    del tmp
                 logger.debug('%s closed', filename)
 
                 # precompute the defaults...this assumes that the
@@ -580,61 +552,61 @@ class CSVImporter(Importer):
                 insert = table.insert(bind=connection).compile(
                     column_keys=column_keys)
 
-                values = []
-
-                def do_insert():
+                def do_insert(values):
                     logger.debug('do_insert')
                     if values:
                         logger.debug('executing inserting')
                         connection.execute(insert, *values)
-                    del values[:]
                     percent = float(steps_so_far) / float(total_lines)
                     if 0 < percent < 1.0:
                         pb_set_fraction(percent)
 
-                f = open(filename, 'r', encoding='utf-8', newline='')
-                reader = UnicodeReader(f, quotechar=QUOTE_CHAR,
-                                       quoting=QUOTE_STYLE)
-                logger.debug('%s open', filename)
-                # NOTE: we shouldn't get this far if the file doesn't
-                # have any rows to import but if so there is a chance
-                # that this loop could cause problems
-                for line in reader:
-                    while self.__pause:
-                        logger.debug('__pause')
-                        yield
-                    if self.__cancel or self.__error:
-                        logger.debug('breaking: __cancel=%s, __error=%s', self.__cancel,
-                                     self.__error)
-                        break
+                with open(filename, 'r', encoding='utf-8', newline='') as f:
+                    values = []
 
-                    # fill in default values and None for "empty"
-                    # columns in line
-                    for column in list(table.c.keys()):
-                        if (column in defaults and
-                                (column not in line or
-                                 line[column] in ('', None))):
-                            line[column] = defaults[column]
-                        elif column in line and line[column] in ('', None):
-                            line[column] = None
-                        elif column not in line:
-                            line[column] = None
-                        elif column == 'geojson':
-                            # eval json data
-                            from ast import literal_eval
-                            line[column] = literal_eval(
-                                line.get(column, 'None'))
-                        elif (filename.endswith('bauble.txt') and
-                              line.get(column) == 'version'):
-                            # as this is recreating the database it's more
-                            # accurate to say the current version created the
-                            # data.
-                            line['value'] = bauble.version
-                    values.append(line)
-                    steps_so_far += 1
-                    if steps_so_far % update_every == 0:
-                        do_insert()
-                        yield
+                    reader = UnicodeReader(f, quotechar=QUOTE_CHAR,
+                                           quoting=QUOTE_STYLE)
+                    logger.debug('%s open', filename)
+                    # NOTE: we shouldn't get this far if the file doesn't
+                    # have any rows to import but if so there is a chance
+                    # that this loop could cause problems
+                    for line in reader:
+                        while self.__pause:
+                            logger.debug('__pause')
+                            yield
+                        if self.__cancel or self.__error:
+                            logger.debug('breaking: __cancel=%s, __error=%s',
+                                         self.__cancel, self.__error)
+                            break
+
+                        # fill in default values and None for "empty"
+                        # columns in line
+                        for column in list(table.c.keys()):
+                            if (column in defaults and
+                                    (column not in line or
+                                     line[column] in ('', None))):
+                                line[column] = defaults[column]
+                            elif column in line and line[column] in ('', None):
+                                line[column] = None
+                            elif column not in line:
+                                line[column] = None
+                            elif column == 'geojson':
+                                # eval json data
+                                from ast import literal_eval
+                                line[column] = literal_eval(
+                                    line.get(column, 'None'))
+                            elif (filename.endswith('bauble.txt') and
+                                  line.get(column) == 'version'):
+                                # as this is recreating the database it's more
+                                # accurate to say the current version created
+                                # the data.
+                                line['value'] = bauble.version
+                        values.append(line)
+                        steps_so_far += 1
+                        if steps_so_far % update_every == 0:
+                            do_insert(values)
+                            values.clear()
+                            yield
 
                 if self.__error or self.__cancel:
                     logger.debug('breaking: __cancel=%s, __error=%s',
@@ -642,7 +614,7 @@ class CSVImporter(Importer):
                     break
 
                 # insert the remainder that were less than update every
-                do_insert()
+                do_insert(values)
 
                 # we have commit after create after each table is imported
                 # or Postgres will complain if two tables that are
@@ -652,20 +624,18 @@ class CSVImporter(Importer):
                              select([func.count()]).select_from(
                                  table).execute().fetchone()[0])
                 transaction = connection.begin()
-
-            logger.debug('creating: %s' % ', '.join([d.name for d in depends]))
+            logger.debug('creating: %s', deps_names)
             # TODO: need to get those tables from depends that need to
             # be created but weren't created already
             metadata.create_all(connection, depends, checkfirst=True)
-        except GeneratorExit as e:
+        except GeneratorExit:
             transaction.rollback()
             raise
         except Exception as e:
-            logger.error("%s(%s)" % (type(e).__name__, e))
+            logger.error("%s(%s)", type(e).__name__, e)
             logger.error(traceback.format_exc())
             transaction.rollback()
             self.__error = True
-            self.__error_exc = e
             raise
         else:
             transaction.commit()
@@ -684,49 +654,38 @@ class CSVImporter(Importer):
                 col_name = col.name
             except Exception:
                 pass
-            msg = _('Error: Could not set the sequence for column: %s') \
-                % col_name
+            msg = _('Error: Could not set the sequence for column: '
+                    f'{col_name}')
             utils.message_details_dialog(utils.xml_safe(msg),
                                          traceback.format_exc(),
                                          type=Gtk.MessageType.ERROR)
 
-    def _get_filenames(self):
-        def on_selection_changed(filechooser, data=None):
-            """
-            only make the ok button sensitive if the selection is a file
-            """
-            f = filechooser.get_preview_filename()
-            if f is None:
-                return
-            ok = filechooser.action_area.get_children()[1]
-            ok.set_sensitive(os.path.isfile(f))
-        fc = Gtk.FileChooserNative.new(_("Choose file(s) to import…"), None,
-                                       Gtk.FileChooserAction.OPEN)
-        fc.set_select_multiple(True)
-        fc.set_current_folder(str(Path.home()))
-        fc.connect("selection-changed", on_selection_changed)
+    @staticmethod
+    def _get_filenames():
+        filechooser = Gtk.FileChooserNative.new(
+            _("Choose file(s) to import…"), None, Gtk.FileChooserAction.OPEN)
+        filechooser.set_select_multiple(True)
+        filechooser.set_current_folder(str(Path.home()))
         filenames = None
-        if fc.run() == Gtk.ResponseType.ACCEPT:
-            filenames = fc.get_filenames()
-        fc.destroy()
+        if filechooser.run() == Gtk.ResponseType.ACCEPT:
+            filenames = filechooser.get_filenames()
+        filechooser.destroy()
         return filenames
-
-    def on_response(self, widget, response, data=None):
-        logger.debug('on_response')
-        logger.debug(response)
 
 
 # TODO: add support for exporting only specific tables
+
 
 class CSVExporter:
 
     def start(self, path=None):
         if path is None:
-            d = Gtk.FileChooserNative.new(_("Select a directory"), None,
-                                          Gtk.FileChooserAction.CREATE_FOLDER)
-            d.set_current_folder(str(Path.home()))
-            response = d.run()
-            path = d.get_filename()
+            filechooser = Gtk.FileChooserNative.new(
+                _("Select a directory"), None,
+                Gtk.FileChooserAction.CREATE_FOLDER)
+            filechooser.set_current_folder(str(Path.home()))
+            response = filechooser.run()
+            path = filechooser.get_filename()
             d.destroy()
             if response != Gtk.ResponseType.ACCEPT:
                 return
