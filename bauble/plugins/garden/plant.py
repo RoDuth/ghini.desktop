@@ -1331,11 +1331,11 @@ class PlantEditorPresenter(GenericEditorPresenter):
     def on_plant_code_entry_changed(self, entry):
         """Validates the accession number and the plant code from the editors.
         """
-        text = utils.utf8(entry.get_text())
+        text = utils.nstr(entry.get_text())
         if text == '':
             self.set_model_attr('code', None)
         else:
-            self.set_model_attr('code', utils.utf8(text))
+            self.set_model_attr('code', utils.nstr(text))
 
         if not self.model.accession:
             self.remove_problem(self.PROBLEM_DUPLICATE_PLANT_CODE, entry)
@@ -1709,7 +1709,7 @@ class PlantEditor(GenericModelViewPresenterEditor):
         if self.branched_plant:
             # set title if in branch mode
             self.presenter.view.get_window().props.title += \
-                utils.utf8(' - %s' % _('Split Mode'))
+                utils.nstr(' - %s' % _('Split Mode'))
             message_box_parent = self.presenter.view.widgets.message_box_parent
             for child in message_box_parent.get_children():
                 message_box_parent.remove(child)

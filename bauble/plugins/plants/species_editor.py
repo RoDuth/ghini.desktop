@@ -220,13 +220,13 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
 
             self.view.close_boxes()
             if found:
-                found = dict((k, utils.utf8(v)) for k, v in found.items())
-                found_s = dict((k, utils.xml_safe(utils.utf8(v))) for k, v in
+                found = dict((k, utils.nstr(v)) for k, v in found.items())
+                found_s = dict((k, utils.xml_safe(utils.nstr(v))) for k, v in
                                found.items())
             if accepted:
-                accepted = dict((k, utils.utf8(v)) for k, v in
+                accepted = dict((k, utils.nstr(v)) for k, v in
                                 accepted.items())
-                accepted_s = dict((k, utils.xml_safe(utils.utf8(v))) for
+                accepted_s = dict((k, utils.xml_safe(utils.nstr(v))) for
                                   k, v in accepted.items())
 
             msg_box_msg = _('No match found on ThePlantList.org')
@@ -435,7 +435,7 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
         value = combo.get_model()[treeiter][1]
         self.set_model_attr('habit', value)
         # the entry change handler does the validation of the model
-        combo.get_child().set_text(utils.utf8(value))
+        combo.get_child().set_text(utils.nstr(value))
         combo.get_child().set_position(-1)
 
     def __del__(self):
@@ -737,13 +737,13 @@ class InfraspPresenter(editor.GenericEditorPresenter):
             itr = combo.get_active_iter()
             value = model[itr][0]
             if value is not None:
-                self.set_model_attr('rank', utils.utf8(model[itr][0]))
+                self.set_model_attr('rank', utils.nstr(model[itr][0]))
             else:
                 self.set_model_attr('rank', None)
 
         def on_epithet_entry_changed(self, entry):
             logger.info("on_epithet_entry_changed")
-            value = utils.utf8(entry.props.text)
+            value = utils.nstr(entry.props.text)
             if not value:  # if None or ''
                 value = None
             self.set_model_attr('epithet', value)
@@ -751,7 +751,7 @@ class InfraspPresenter(editor.GenericEditorPresenter):
 
         def on_author_entry_changed(self, entry):
             logger.info("on_author_entry_changed")
-            value = utils.utf8(entry.props.text)
+            value = utils.nstr(entry.props.text)
             if not value:  # if None or ''
                 value = None
             self.set_model_attr('author', value)
@@ -920,7 +920,7 @@ class VernacularNamePresenter(editor.GenericEditorPresenter):
         vernacular = treemodel[path][0]
         if getattr(vernacular, prop) == new_text:
             return  # didn't change
-        setattr(vernacular, prop, utils.utf8(new_text))
+        setattr(vernacular, prop, utils.nstr(new_text))
         self._dirty = True
         self.parent_ref().refresh_sensitivity()
 

@@ -552,7 +552,7 @@ class GenusEditorPresenter(editor.GenericEditorPresenter):
                     model.append([syn.family])
                     completion.set_model(model)
                     self.view.widgets.gen_family_entry.\
-                        set_text(utils.utf8(syn.family))
+                        set_text(utils.nstr(syn.family))
                     # the family value should be set properly when the
                     # text is set on the entry but it doesn't hurt to
                     # duplicate it here

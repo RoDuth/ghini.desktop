@@ -352,23 +352,23 @@ class GeneralSpeciesExpander(InfoExpander):
 
         awards = ''
         if row.awards:
-            awards = utils.utf8(row.awards)
+            awards = utils.nstr(row.awards)
         self.widget_set_value('sp_awards_data', awards)
 
         logger.debug('setting cites data from row %s', row)
         cites = ''
         if row.cites:
-            cites = utils.utf8(row.cites)
+            cites = utils.nstr(row.cites)
         self.widget_set_value('sp_cites_data', cites)
 
         # zone = ''
         # if row.hardiness_zone:
-        #     awards = utils.utf8(row.hardiness_zone)
+        #     awards = utils.nstr(row.hardiness_zone)
         # self.widget_set_value('sp_hardiness_data', zone)
 
         habit = ''
         if row.habit:
-            habit = utils.utf8(row.habit)
+            habit = utils.nstr(row.habit)
         self.widget_set_value('sp_habit_data', habit)
 
         if self.widgets.sp_dist_box.get_children():
@@ -378,7 +378,7 @@ class GeneralSpeciesExpander(InfoExpander):
         if row.distribution:
             for place in row.distribution:
                 event_box = Gtk.EventBox()
-                label = Gtk.Label(label=utils.utf8(place))
+                label = Gtk.Label(label=utils.nstr(place))
                 label.set_halign(Gtk.Align.START)
                 event_box.add(label)
                 self.widgets.sp_dist_box.pack_start(event_box, False, False, 0)

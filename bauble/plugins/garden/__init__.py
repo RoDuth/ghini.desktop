@@ -267,9 +267,9 @@ def init_location_comboentry(presenter, combo, on_select, required=True):
         else:
             code = name = text
         codes = presenter.session.query(Location).filter(
-            utils.ilike(Location.code, '%s' % utils.utf8(code)))
+            utils.ilike(Location.code, '%s' % utils.nstr(code)))
         names = presenter.session.query(Location).filter(
-            utils.ilike(Location.name, '%s' % utils.utf8(name)))
+            utils.ilike(Location.name, '%s' % utils.nstr(name)))
         if codes.count() == 1:
             logger.debug('location matches code')
             location = codes.first()

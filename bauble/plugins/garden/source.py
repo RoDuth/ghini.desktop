@@ -523,7 +523,7 @@ class CollectionPresenter(editor.ChildPresenter):
         if text is None or text.strip() == '':
             self.set_model_attr('latitude', None)
         else:
-            self.set_model_attr('latitude', utils.utf8(latitude))
+            self.set_model_attr('latitude', utils.nstr(latitude))
 
     def on_lon_entry_changed(self, entry):
         from bauble.plugins.garden.accession import longitude_to_dms
@@ -555,7 +555,7 @@ class CollectionPresenter(editor.ChildPresenter):
         if text is None or text.strip() == '':
             self.set_model_attr('longitude', None)
         else:
-            self.set_model_attr('longitude', utils.utf8(longitude))
+            self.set_model_attr('longitude', utils.nstr(longitude))
 
 
 class PropagationChooserPresenter(editor.ChildPresenter):
@@ -662,17 +662,17 @@ class PropagationChooserPresenter(editor.ChildPresenter):
             acc_view = self.parent_ref().view
             acc_view.widget_set_value(
                 'acc_species_entry',
-                utils.utf8(prop.plant.accession.species))
+                utils.nstr(prop.plant.accession.species))
             acc_view.widget_set_value(
                 'acc_id_qual_combo',
-                utils.utf8(prop.plant.accession.id_qual))
+                utils.nstr(prop.plant.accession.id_qual))
             # need to set the model value for id_qual_rank
-            self.parent_ref().model.id_qual_rank = utils.utf8(
+            self.parent_ref().model.id_qual_rank = utils.nstr(
                 prop.plant.accession.id_qual_rank)
             self.parent_ref().refresh_id_qual_rank_combo()
             acc_view.widget_set_value(
                 'acc_quantity_recvd_entry',
-                utils.utf8(prop.accessible_quantity))
+                utils.nstr(prop.accessible_quantity))
             from .accession import recvd_type_values
             from .propagation import prop_type_results
             acc_view.widget_set_value(

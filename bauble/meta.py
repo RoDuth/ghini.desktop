@@ -53,7 +53,7 @@ def get_default(name, default=None, session=None):
     query = session.query(BaubleMeta)
     meta = query.filter_by(name=name).first()
     if not meta and default is not None:
-        meta = BaubleMeta(name=utils.utf8(name), value=default)
+        meta = BaubleMeta(name=utils.nstr(name), value=default)
         session.add(meta)
         if commit:
             session.commit()

@@ -100,7 +100,7 @@ from bauble import utils
 #     try:
 #         conn.execute('set role %s' % name)
 #     except Exception, e:
-#         warning(utils.utf8(e))
+#         warning(utils.nstr(e))
 #         trans.rollback()
 #         conn.close()
 #         return None
@@ -138,7 +138,7 @@ def _create_role(name, password=None, login=False, admin=False):
             stmt += ' PASSWORD \'%s\'' % password
         conn.execute(stmt)
     except Exception as e:
-        logger.error('users._create_role(): %s %s' % (type(e), utils.utf8(e)))
+        logger.error('users._create_role(): %s %s' % (type(e), utils.nstr(e)))
         trans.rollback()
         raise
     else:
@@ -167,7 +167,7 @@ def create_user(name, password=None, admin=False, groups=None):
         logger.debug(stmt)
         conn.execute(stmt)
     except Exception as e:
-        logger.error('users.create_user(): %s %s' % (type(e), utils.utf8(e)))
+        logger.error('users.create_user(): %s %s' % (type(e), utils.nstr(e)))
         trans.rollback()
         raise
     else:
@@ -266,7 +266,7 @@ def drop(role, revoke=False):
         stmt = 'drop role %s;' % role
         conn.execute(stmt)
     except Exception as e:
-        logger.error("users.drop(): %s %s" % (type(e), utils.utf8(e)))
+        logger.error("users.drop(): %s %s" % (type(e), utils.nstr(e)))
         trans.rollback()
         raise
     else:
@@ -450,7 +450,7 @@ def set_privilege(role, privilege):
                             stmt += ' with grant option'
                         conn.execute(stmt)
     except Exception as e:
-        logger.error('users.set_privilege(): %s %s' % (type(e), utils.utf8(e)))
+        logger.error('users.set_privilege(): %s %s' % (type(e), utils.nstr(e)))
         trans.rollback()
         raise
     else:
@@ -479,7 +479,7 @@ def set_password(password, user=None):
         stmt = "alter role %s with encrypted password '%s'" % (user, password)
         conn.execute(stmt)
     except Exception as e:
-        logger.error('users.set_password(): %s %s' % (type(e), utils.utf8(e)))
+        logger.error('users.set_password(): %s %s' % (type(e), utils.nstr(e)))
         trans.rollback()
     else:
         trans.commit()
@@ -500,7 +500,7 @@ class UsersEditor(editor.GenericEditorView):
 
         if db.engine.name not in ('postgres', 'postgresql'):
             msg = _('The Users editor is only valid on a PostgreSQL database')
-            utils.message_dialog(utils.utf8(msg))
+            utils.message_dialog(utils.nstr(msg))
             return
 
         # TODO: should allow anyone to view the priveleges but only
@@ -509,7 +509,7 @@ class UsersEditor(editor.GenericEditorView):
         if not has_privileges(current_user(), 'admin'):
             msg = _('You do not have privileges to change other '\
                         'user privileges')
-            utils.message_dialog(utils.utf8(msg))
+            utils.message_dialog(utils.nstr(msg))
             return
         # setup the users tree
         tree = self.widgets.users_tree
@@ -541,7 +541,7 @@ class UsersEditor(editor.GenericEditorView):
                 try:
                     set_privilege(role, priv)
                 except Exception as e:
-                    utils.message_dialog(utils.utf8(e), Gtk.MessageType.ERROR,
+                    utils.message_dialog(utils.nstr(e), Gtk.MessageType.ERROR,
                                          parent=self.get_window())
             return True
 
@@ -593,7 +593,7 @@ class UsersEditor(editor.GenericEditorView):
         try:
             drop(user, revoke=True)
         except Exception as e:
-            utils.message_dialog(utils.utf8(e), Gtk.MessageType.ERROR,
+            utils.message_dialog(utils.nstr(e), Gtk.MessageType.ERROR,
                                  parent=self.get_window())
         else:
             active = self.widgets.filter_check.get_active()
@@ -660,7 +660,7 @@ class UsersEditor(editor.GenericEditorView):
                 try:
                     set_password(pwd1, user)
                 except Exception as e:
-                    utils.message_dialog(utils.utf8(e), Gtk.MessageType.ERROR,
+                    utils.message_dialog(utils.nstr(e), Gtk.MessageType.ERROR,
                                          parent=self.get_window())
 
         # TODO: show a dialog that says the pwd has been changed or
@@ -723,7 +723,7 @@ class UsersEditor(editor.GenericEditorView):
             create_user(user)
             set_privilege(user, 'read')
         except Exception as e:
-            utils.message_dialog(utils.utf8(e), Gtk.MessageType.ERROR,
+            utils.message_dialog(utils.nstr(e), Gtk.MessageType.ERROR,
                                  parent=self.get_window())
             model.remove(model.get_iter(path))
         else:

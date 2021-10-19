@@ -284,7 +284,7 @@ def open(url, desktop=None, wait=0, dialog_on_error=False):
                 % dict(url=url, desktop=desktop_in_use))
     except Exception as e:
         if dialog_on_error:
-            utils.message_dialog(utils.utf8(e))
+            utils.message_dialog(utils.nstr(e))
         else:
             raise
 

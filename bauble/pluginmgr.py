@@ -198,7 +198,7 @@ def init(force=False):
             except KeyError as e:
                 logger.debug("Could not find '%s' plugin. Removing from "
                              "database", e)
-                not_registered.append(utils.utf8(name))
+                not_registered.append(utils.nstr(name))
                 PluginRegistry.remove(name=name)
 
         if not_registered:
@@ -321,7 +321,7 @@ def install(plugins_to_install, import_defaults=True, force=False):
                 logger.debug('%s - adding to registry', p)
                 PluginRegistry.add(p)
     except Exception as e:
-        logger.warning('bauble.pluginmgr.install(): %s', utils.utf8(e))
+        logger.warning('bauble.pluginmgr.install(): %s', utils.nstr(e))
         raise
 
 
@@ -401,7 +401,7 @@ class PluginRegistry(db.Base):
         try:
             logger.debug("not using value of version (%s).", version)
             session.query(PluginRegistry).filter_by(
-                name=utils.utf8(name)).one()
+                name=utils.nstr(name)).one()
             return True
         except NoResultFound as e:
             logger.debug("%s(%s)", type(e).__name__, e)

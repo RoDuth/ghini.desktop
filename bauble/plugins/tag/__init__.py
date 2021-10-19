@@ -616,7 +616,7 @@ def untag_objects(name, objs):
     :param objs: The list of objects to untag.
     :type objs: list
     """
-    name = utils.utf8(name)
+    name = utils.nstr(name)
     if not objs:
         create_named_empty_tag(name)
         return
@@ -651,7 +651,7 @@ def tag_objects(name, objects):
     :param obj: A list of mapped objects to tag.
     :type objects: list
     """
-    name = utils.utf8(name)
+    name = utils.nstr(name)
     if not objects:
         create_named_empty_tag(name)
         return

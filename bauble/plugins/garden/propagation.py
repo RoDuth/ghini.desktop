@@ -218,7 +218,7 @@ class Propagation(db.Base):
                 values.append(_('Date planted') + ': %s' % date_planted)
         elif self.notes:
             values.append(_('Other'))
-            values.append(utils.utf8(self.notes))
+            values.append(utils.nstr(self.notes))
         else:
             values.append(str(self))
 
@@ -636,7 +636,7 @@ class CuttingPresenter(editor.GenericEditorPresenter):
             rooted = rooted_liststore[path][0]
             if getattr(rooted, attr_name) == new_text:
                 return  # didn't change
-            setattr(rooted, attr_name, utils.utf8(new_text))
+            setattr(rooted, attr_name, utils.nstr(new_text))
             self._dirty = True
             self.parent_ref().refresh_sensitivity()
 

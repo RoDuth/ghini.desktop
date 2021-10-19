@@ -1084,7 +1084,7 @@ class VoucherPresenter(editor.GenericEditorPresenter):
         voucher = treemodel[path][0]
         if getattr(voucher, prop) == new_text:
             return  # didn't change
-        setattr(voucher, prop, utils.utf8(new_text))
+        setattr(voucher, prop, utils.nstr(new_text))
         self._dirty = True
         self.parent_ref().refresh_sensitivity()
 
@@ -1385,7 +1385,7 @@ class VerificationPresenter(editor.GenericEditorPresenter):
             if not text:
                 self.set_model_attr(attr, None)
             else:
-                self.set_model_attr(attr, utils.utf8(text))
+                self.set_model_attr(attr, utils.nstr(text))
 
         def on_level_combo_changed(self, combo, *args):
             itr = combo.get_active_iter()
@@ -1748,7 +1748,7 @@ class SourcePresenter(editor.GenericEditorPresenter):
         self.view.connect(completion, 'match-selected', on_match_select)
 
         def on_entry_changed(entry, data=None):
-            text = utils.utf8(entry.props.text)
+            text = utils.nstr(entry.props.text)
             # see if the text matches a completion string
             comp = entry.get_completion()
 
@@ -1860,7 +1860,7 @@ class AccessionEditorPresenter(editor.GenericEditorPresenter):
                 self.model.id_qual_rank = None
                 return
             _text, col = combo.get_model()[itr]
-            self.set_model_attr('id_qual_rank', utils.utf8(col))
+            self.set_model_attr('id_qual_rank', utils.nstr(col))
 
         self.view.connect('acc_id_qual_rank_combo', 'changed', on_changed)
 
@@ -2197,7 +2197,7 @@ class AccessionEditorPresenter(editor.GenericEditorPresenter):
         if text == '':
             self.set_model_attr('code', None)
         else:
-            self.set_model_attr('code', utils.utf8(text))
+            self.set_model_attr('code', utils.nstr(text))
 
     def set_model_attr(self, field, value, validator=None):
         """Set attributes on the model and update the GUI as expected. """
@@ -2660,7 +2660,7 @@ class SourceExpander(InfoExpander):
             self.widgets.source_name_data.set_visible(True)
             self.widgets.source_name_data.set_no_show_all(False)
             self.widget_set_value('source_name_data',
-                                  utils.utf8(row.source.source_detail))
+                                  utils.nstr(row.source.source_detail))
 
             def on_source_clicked(w, e, x):
                 select_in_search_results(x)

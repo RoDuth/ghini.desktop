@@ -467,21 +467,21 @@ def get_widget_value(widget):
     """
 
     if isinstance(widget, Gtk.Label):
-        return utf8(widget.get_text())
+        return nstr(widget.get_text())
     if isinstance(widget, Gtk.TextView):
         textbuffer = widget.get_buffer()
-        return utf8(textbuffer.get_text(textbuffer.get_start_iter(),
+        return nstr(textbuffer.get_text(textbuffer.get_start_iter(),
                                         textbuffer.get_end_iter(), False))
     if isinstance(widget, Gtk.Entry):
-        return utf8(widget.get_text())
+        return nstr(widget.get_text())
     if isinstance(widget, Gtk.ComboBox):
         if widget.get_has_entry():
-            return utf8(widget.get_child().props.text)
+            return nstr(widget.get_child().props.text)
     if isinstance(widget,
                   (Gtk.ToggleButton, Gtk.CheckButton, Gtk.RadioButton)):
         return widget.get_active()
     if isinstance(widget, Gtk.Button):
-        return utf8(widget.props.label)
+        return nstr(widget.props.label)
 
     raise TypeError('utils.set_widget_value(): Don\'t know how to handle '
                     'the widget type %s with name %s' %
@@ -517,9 +517,9 @@ def set_widget_value(widget, value, markup=False, default=None, index=0):
 
     if isinstance(widget, Gtk.Label):
         if markup:
-            widget.set_markup(utf8(value))
+            widget.set_markup(str(value))
         else:
-            widget.set_text(utf8(value))
+            widget.set_text(str(value))
     elif isinstance(widget, Gtk.TextView):
         widget.get_buffer().set_text(str(value))
     elif isinstance(widget, Gtk.TextBuffer):
@@ -530,7 +530,7 @@ def set_widget_value(widget, value, markup=False, default=None, index=0):
     elif isinstance(widget, Gtk.Entry):
         # This can create a "Warning: g_value_get_int: assertion
         # 'G_VALUE_HOLDS_INT (value)' failed
-        #   widget.set_text(utf8(value))", seems safe to ignore it.
+        #   widget.set_text(nstr(value))", seems safe to ignore it.
         #   see: https://stackoverflow.com/a/40163816
         widget.set_text(str(value))
     elif isinstance(widget, Gtk.ComboBox):
@@ -572,7 +572,7 @@ def set_widget_value(widget, value, markup=False, default=None, index=0):
         if value is None:
             widget.props.label = ''
         else:
-            widget.props.label = utf8(value)
+            widget.props.label = nstr(value)
 
     else:
         raise TypeError('utils.set_widget_value(): Don\'t know how to handle '
@@ -882,15 +882,6 @@ def setup_date_button(view, entry, button):
         button.connect('clicked', on_clicked)
 
 
-def to_unicode(obj):
-    """Return obj converted to unicode."""
-    # Deprecated?  Maybe not this deals with None
-    # logger.debug('to_unicode called by > %s', inspect.stack()[1])
-    import warnings
-    warnings.warn('to_unicode is deprecated', DeprecationWarning)
-    if isinstance(obj, str) or obj is None:
-        return obj
-    return str(obj)
 
 
 def nstr(obj: Any) -> Union[str, None]:
@@ -902,28 +893,9 @@ def nstr(obj: Any) -> Union[str, None]:
     return None if obj is None else str(obj)
 
 
-def utf8(obj):
-    """This function is an alias for to_unicode(obj, 'utf-8')"""
-    # Deprecated?
-    # logger.debug('utf8 called by %s', inspect.stack()[1])
-    # could rename str_or_none
-    import warnings
-    warnings.warn('utf8 is deprecated or may recieve a name change',
-                  DeprecationWarning)
-    return to_unicode(obj)
-
-
 def xml_safe(obj):
     """Return a string with character entities escaped safe for xml"""
     return saxutils.escape(str(obj))
-
-
-def xml_safe_utf8(obj):
-    """This method is deprecated and just returns xml_safe(obj)"""
-    # Deprecated?
-    logger.warning('invoking deprecated function')
-
-    return xml_safe(obj)
 
 
 def xml_safe_name(obj):
@@ -935,7 +907,7 @@ def xml_safe_name(obj):
     """
     # make sure we have a unicode string with no spaces or surrounding
     # parentheses
-    uni = utf8(obj).replace(' ', '_').strip('<{[()]}>')
+    uni = str(obj).replace(' ', '_').strip('<{[()]}>')
     # if nothing is left return '_'
     if not uni:
         return '_'
@@ -1204,7 +1176,7 @@ def reset_sequence(column):
                 % (sequence_name, column.name, column.table.name)
         conn.execute(stmt)
     except Exception as e:
-        logger.warning('bauble.utils.reset_sequence(): %s' % utf8(e))
+        logger.warning('bauble.utils.reset_sequence(): %s', nstr(e))
         trans.rollback()
     else:
         trans.commit()

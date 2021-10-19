@@ -300,7 +300,7 @@ class PlantTests(GardenTestCase):
         for code in utils.range_builder(rng):
             q = self.session.query(Plant).join('accession').\
                 filter(and_(Accession.id == self.plant.accession.id,
-                            Plant.code == utils.utf8(code)))
+                            Plant.code == utils.nstr(code)))
             self.assertTrue(not q.first(), 'code already exists')
 
         widgets = self.editor.presenter.view.widgets
@@ -322,7 +322,7 @@ class PlantTests(GardenTestCase):
         for code in utils.range_builder(rng):
             q = self.session.query(Plant).join('accession').\
                 filter(and_(Accession.id == self.plant.accession.id,
-                            Plant.code == utils.utf8(code)))
+                            Plant.code == utils.nstr(code)))
             self.assertTrue(q.first(), 'plant %s.%s not created' %
                          (self.accession, code))
             self.assertIsNotNone(q.first().location_id)

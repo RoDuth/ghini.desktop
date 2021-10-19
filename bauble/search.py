@@ -561,7 +561,7 @@ class DomainExpressionAction(object):
                 return lambda val: utils.ilike(mapper.c[col], '%%%s%%' % val)
         elif self.cond == '=':
             def condition(col):
-                return lambda val: mapper.c[col] == utils.utf8(val)
+                return lambda val: mapper.c[col] == utils.nstr(val)
         else:
             def condition(col):
                 return mapper.c[col].op(self.cond)

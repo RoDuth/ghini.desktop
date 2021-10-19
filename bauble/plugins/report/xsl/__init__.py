@@ -275,12 +275,11 @@ class AccessionABCDAdapter(SpeciesABCDAdapter):
 
         if self.accession.source and self.accession.source.collection:
             collection = self.accession.source.collection
-            utf8 = utils.xml_safe
             gathering = ABCDElement(unit, 'Gathering')
 
             if collection.collectors_code:
                 ABCDElement(gathering, 'Code',
-                            text=utf8(collection.collectors_code))
+                            text=utils.xml_safe(collection.collectors_code))
 
             # TODO: get date pref for DayNumberBegin
             if collection.date:
@@ -292,36 +291,36 @@ class AccessionABCDAdapter(SpeciesABCDAdapter):
                 agents = ABCDElement(gathering, 'Agents')
                 agent = ABCDElement(agents, 'GatheringAgent')
                 ABCDElement(agent, 'AgentText',
-                            text=utf8(collection.collector))
+                            text=utils.xml_safe(collection.collector))
 
             if collection.locale:
                 ABCDElement(gathering, 'LocalityText',
-                            text=utf8(collection.locale))
+                            text=utils.xml_safe(collection.locale))
 
             if collection.region:
                 named_areas = ABCDElement(gathering, 'NamedAreas')
                 named_area = ABCDElement(named_areas, 'NamedArea')
                 ABCDElement(named_area, 'AreaName',
-                            text=utf8(collection.region))
+                            text=utils.xml_safe(collection.region))
 
             if collection.habitat:
                 ABCDElement(gathering, 'AreaDetail',
-                            text=utf8(collection.habitat))
+                            text=utils.xml_safe(collection.habitat))
 
             if collection.longitude or collection.latitude:
                 site_coords = ABCDElement(gathering, 'SiteCoordinateSets')
                 coord = ABCDElement(site_coords, 'SiteCoordinates')
                 lat_long = ABCDElement(coord, 'CoordinatesLatLong')
                 ABCDElement(lat_long, 'LongitudeDecimal',
-                            text=utf8(collection.longitude))
+                            text=utils.xml_safe(collection.longitude))
                 ABCDElement(lat_long, 'LatitudeDecimal',
-                            text=utf8(collection.latitude))
+                            text=utils.xml_safe(collection.latitude))
                 if collection.gps_datum:
                     ABCDElement(lat_long, 'SpatialDatum',
-                                text=utf8(collection.gps_datum))
+                                text=utils.xml_safe(collection.gps_datum))
                 if collection.geo_accy:
                     ABCDElement(coord, 'CoordinateErrorDistanceInMeters',
-                                text=utf8(collection.geo_accy))
+                                text=utils.xml_safe(collection.geo_accy))
 
             if collection.elevation:
                 altitude = ABCDElement(gathering, 'Altitude')
@@ -333,7 +332,8 @@ class AccessionABCDAdapter(SpeciesABCDAdapter):
                 ABCDElement(altitude, 'MeasurementOrFactText', text=text)
 
             if collection.notes:
-                ABCDElement(gathering, 'Notes', utf8(collection.notes))
+                ABCDElement(gathering, 'Notes',
+                            utils.xml_safe(collection.notes))
 
 
 class PlantABCDAdapter(AccessionABCDAdapter):

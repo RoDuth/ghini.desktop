@@ -1057,8 +1057,8 @@ class SearchView(pluginmgr.View):
                     substr = '(%s)' % type(value).__name__
                 cell.set_property(
                     'markup', '%s\n%s' %
-                    (_mainstr_tmpl % utils.utf8(main),
-                     _substr_tmpl % utils.utf8(substr)))
+                    (_mainstr_tmpl % utils.nstr(main),
+                     _substr_tmpl % utils.nstr(substr)))
 
             except ObjectDeletedError as e:
                 # incase object has been deleted but for some reason not

@@ -67,9 +67,9 @@ class Institution(object):
     def write(self):
         for prop in self.__properties:
             value = getattr(self, prop)
-            db_prop = utils.utf8('inst_' + prop)
+            db_prop = utils.nstr('inst_' + prop)
             if value is not None:
-                value = utils.utf8(value)
+                value = utils.nstr(value)
             result = self.table.select(self.table.c.name == db_prop).execute()
             row = result.fetchone()
             result.close()

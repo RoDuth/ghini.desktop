@@ -114,7 +114,7 @@ class UnicodeOrEmptyValidator(Validator):
     def to_python(self, value):
         if not value.strip():
             return ''
-        return utils.utf8(value)
+        return utils.nstr(value)
 
 
 class IntOrNoneStringValidator(Validator):
@@ -156,7 +156,7 @@ def default_completion_cell_data_func(_column, renderer, model, treeiter):
     GenericEditorView.attach_completions
     """
     v = model[treeiter][0]
-    renderer.set_property('markup', utils.utf8(v))
+    renderer.set_property('markup', utils.nstr(v))
 
 
 def default_completion_match_func(completion, key_string, treeiter):
@@ -1289,7 +1289,7 @@ class GenericEditorPresenter:
             return
         if value is None:
             value = widget.props.text
-            value = value and utils.utf8(value) or None
+            value = utils.nstr(value)
         logger.debug("on_text_entry_changed(%s, %s) - %s -> %s", widget, attr,
                      getattr(self.model, attr), value)
         self.__set_model_attr(attr, value)
@@ -1344,7 +1344,7 @@ class GenericEditorPresenter:
             return
         if value is None:
             value = widget.props.text
-            value = value and utils.utf8(value) or None
+            value = utils.nstr(value)
         if not value:
             self.add_problem(self.PROBLEM_EMPTY, widget)
         else:
@@ -1604,7 +1604,7 @@ class GenericEditorPresenter:
                     return
                 value = combo.get_model()[combo.get_active_iter()][0]
                 if widget.get_has_entry():
-                    widget.get_child().set_text(utils.utf8(value))
+                    widget.get_child().set_text(utils.nstr(value))
                 self.set_model_attr(model_attr, value, validator)
 
             def entry_changed(entry, data=None):
@@ -1724,7 +1724,7 @@ class GenericEditorPresenter:
                             found[0])
                         v = comp.get_model()[found[0]][0]
                         # only auto select if the full string has been entered
-                        if text.lower() == utils.utf8(v).lower():
+                        if text.lower() == utils.nstr(v).lower():
                             comp.emit('match-selected', comp_model, found[0])
                     else:
                         logger.debug(
@@ -1992,20 +1992,20 @@ class NoteBox(Gtk.Box):
         text = ''
         treeiter = combo.get_active_iter()
         if treeiter:
-            text = utils.utf8(combo.get_model()[treeiter][0])
+            text = utils.nstr(combo.get_model()[treeiter][0])
         else:
             return
         self.widgets.category_comboentry.get_child().props.text = \
-            utils.utf8(text)
+            utils.nstr(text)
 
     def on_category_entry_changed(self, entry, *args):
-        value = utils.utf8(entry.props.text)
+        value = utils.nstr(entry.props.text)
         if not value:  # if value == ''
             value = None
         self.set_model_attr('category', value)
 
     def on_note_buffer_changed(self, buff, widget, *args):
-        value = utils.utf8(buff.props.text)
+        value = utils.nstr(buff.props.text)
         if not value:  # if value == ''
             value = None
             self.presenter.add_problem(self.presenter.PROBLEM_EMPTY, widget)
