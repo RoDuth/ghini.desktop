@@ -662,7 +662,9 @@ class Accession(db.Base, db.Serializable, db.WithNotes):
     # use Plant.code for the order_by to avoid ambiguous column names
     plants = relationship('Plant', cascade='all, delete-orphan',
                           # order_by='plant.code',
-                          backref=backref('accession', uselist=False))
+                          backref=backref('accession',
+                                          lazy='subquery',
+                                          uselist=False))
     verifications = relationship('Verification',  # order_by='date',
                                  cascade='all, delete-orphan',
                                  backref=backref('accession', uselist=False))

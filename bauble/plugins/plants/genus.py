@@ -163,6 +163,12 @@ class Genus(db.Base, db.Serializable, db.WithNotes):
     rank = 'genus'
     link_keys = ['accepted']
 
+    species = relationship('Species', cascade='all, delete-orphan',
+                           order_by='Species.sp',
+                           backref=backref('genus',
+                                           lazy='subquery',
+                                           uselist=False))
+
     def search_view_markup_pair(self):
         """provide the two lines describing object for SearchView row.
         """
@@ -411,12 +417,6 @@ class GenusSynonym(db.Base):
 from bauble.plugins.plants.family import Family, FamilySynonym
 from bauble.plugins.plants.species_model import Species
 from bauble.plugins.plants.species_editor import edit_species
-
-# only now that we have `Species` can we define the sorted `species` in
-# the `Genus` class.
-Genus.species = relationship('Species', cascade='all, delete-orphan',
-                             order_by=[Species.sp],
-                             backref=backref('genus', uselist=False))
 
 
 class GenusEditorView(editor.GenericEditorView):

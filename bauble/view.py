@@ -421,9 +421,40 @@ class AddOneDot(threading.Thread):
             GLib.idle_add(self.callback, self.dotno)
 
 
+def multiproc_counter(url, klass, ids):
+    """multiproccessing worker to get top level count for a group of items.
+
+    :param url: database url as a string.
+    :param klass: sqlalchemy table class.
+    :param ids: a list of id numbers to query.
+    """
+    db.open(url)
+    # get tables across plugins (e.g. plants - Genus, garden - Accession )
+    pluginmgr.load()
+    session = db.Session()
+    results = {}
+    for id_ in ids:
+        item = session.query(klass).get(id_)
+        for k, v in item.top_level_count().items():
+            if isinstance(v, set):
+                # need strings to pickle results
+                new_v = set(str(i) for i in v)
+                results[k] = new_v.union(results.get(k, set()))
+            else:
+                results[k] = v + results.get(k, 0)
+    session.close()
+    db.engine.dispose()
+    return results
+
+
 class CountResultsTask(threading.Thread):
-    def __init__(self, klass, ids, dots_thread,
-                 group=None, verbose=None, **kwargs):
+    """Threading task to calculate top level count and place it on the status
+    bar
+
+    if search is large will deligate the counting task to multiprocessing
+    workers.
+    """
+    def __init__(self, klass, ids, dots_thread, group=None):
         super().__init__(group=group, target=None, name=None)
         self.klass = klass
         self.ids = ids
@@ -433,21 +464,22 @@ class CountResultsTask(threading.Thread):
     def cancel(self):
         self.__cancel = True
 
-    def run(self):
-        session = db.Session()
-        klass = self.klass
-        dct = {}
-        for ndx in self.ids:
-            item = session.query(klass).filter(klass.id == ndx).one()
-            if self.__cancel:  # check whether caller asks to cancel
-                break
-            for k, v in list(item.top_level_count().items()):
-                if isinstance(v, set):
-                    dct[k] = v.union(dct.get(k, set()))
-                else:
-                    dct[k] = v + dct.get(k, 0)
+    def callback(self, items):
+        """Collate the results into a string.
+
+        when using multiprocessing this is used as callback for the worker"""
+        items_dct = {}
+        if isinstance(items, list):
+            for itm in items:
+                for k, v in itm.items():
+                    if isinstance(v, set):
+                        items_dct[k] = v.union(items_dct.get(k, set()))
+                    else:
+                        items_dct[k] = v + items_dct.get(k, 0)
+        else:
+            items_dct = items
         result = []
-        for k, v in sorted(dct.items()):
+        for k, v in sorted(items_dct.items()):
             if isinstance(k, tuple):
                 k = k[1]
             if isinstance(v, set):
@@ -456,19 +488,76 @@ class CountResultsTask(threading.Thread):
             if self.__cancel:  # check whether caller asks to cancel
                 break
         value = _("top level count: %s") % (", ".join(result))
+        self.set_statusbar(value)
+
+    def error(self, e):
+        """error_callback for multirpocessing worker.
+
+        Cancels dots_thread and logs error
+        """
+        self.dots_thread.cancel()
+        logger.debug('%s (%s)', type(e).__name__, e)
+        self.set_statusbar(f'{type(e).__name__} error counting results')
+
+    def set_statusbar(self, value):
+        """Put the results on the statusbar."""
         if bauble.gui:
-            def callback(text):
+            def sb_call(text):
                 statusbar = bauble.gui.widgets.statusbar
                 sbcontext_id = statusbar.get_context_id('searchview.nresults')
                 statusbar.pop(sbcontext_id)
                 statusbar.push(sbcontext_id, text)
             if not self.__cancel:  # check whether caller asks to cancel
                 self.dots_thread.cancel()
-                GLib.idle_add(callback, value)
+                GLib.idle_add(sb_call, value)
         else:
             logger.debug("showing text %s", value)
-        # we should not leave the session around
-        session.close()
+        logger.debug('counting results class:%s complete', self.klass.__name__)
+
+    def run(self):
+        """Runs thread, decide whether to use multiprocessing or not.
+
+        Results are handed to self.callback either by the multiprocessing
+        worker or directly
+        """
+        # NOTE these figures were arrived at by trial and error on a particular
+        # dataset. No guarantee they are ideal in all situations.
+        if self.klass.__name__ in ['Family', 'Location']:
+            max_ids = 30
+            chunk_size = 10
+        else:
+            max_ids = 300
+            chunk_size = 100
+        if len(self.ids) > max_ids:
+            from multiprocessing import Pool
+            from functools import partial
+            proc = partial(multiproc_counter, str(db.engine.url), self.klass)
+            with Pool() as pool:
+                amap = pool.map_async(proc, utils.chunks(self.ids, chunk_size),
+                                      callback=self.callback,
+                                      error_callback=self.error)
+                if self.__cancel:  # check whether caller asks to cancel
+                    pool.terminate()
+                # keeps the thread alive and allow cancel
+                while not amap.ready():
+                    if self.__cancel:  # check whether caller asks to cancel
+                        pool.terminate()
+                        break
+                    amap.wait(0.5)
+        else:
+            session = db.Session()
+            results = {}
+            for id_ in self.ids:
+                item = session.query(self.klass).get(id_)
+                if self.__cancel:  # check whether caller asks to cancel
+                    break
+                for k, v in item.top_level_count().items():
+                    if isinstance(v, set):
+                        results[k] = v.union(results.get(k, set()))
+                    else:
+                        results[k] = v + results.get(k, 0)
+            session.close()
+            self.callback(results)
 
 
 class SearchView(pluginmgr.View):

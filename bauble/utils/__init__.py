@@ -58,6 +58,14 @@ def read_in_chunks(file_object, chunk_size=1024):
         yield data
 
 
+def chunks(subscriptable, size):
+    """Generator to divide a subscriptable (list, tuple, string, etc.) into
+    parts of :param size:.
+    """
+    for i in range(0, len(subscriptable), size):
+        yield subscriptable[i:i + size]
+
+
 class Cache:
     """a simple class for caching images
 
