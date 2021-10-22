@@ -639,7 +639,7 @@ class Plant(db.Base, db.Serializable, db.DefiningPictures, db.WithNotes):
         return Plant.get_delimiter()
 
     def __str__(self):
-        return "%s%s%s" % (self.accession, self.delimiter, self.code)
+        return f'{self.accession}{self.delimiter}{self.code}'
 
     def duplicate(self, code=None, session=None):
         """Return a Plant that is a flat (not deep) duplicate of self. For

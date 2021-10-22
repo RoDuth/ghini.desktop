@@ -233,8 +233,7 @@ class History(HistoryBase):
 
 
 def open(uri, verify=True, show_error_dialogs=False):
-    """
-    Open a database connection.  This function sets bauble.db.engine to
+    """Open a database connection.  This function sets bauble.db.engine to
     the opened engined.
 
     Return bauble.db.engine if successful else returns None and

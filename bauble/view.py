@@ -884,9 +884,7 @@ class SearchView(pluginmgr.View):
     nresults_statusbar_context = 'searchview.nresults'
 
     def search(self, text):
-        """
-        search the database using text
-        """
+        """search the database using text"""
         # set the text in the entry even though in most cases the entry already
         # has the same text in it, this is in case this method was called from
         # outside the class so the entry and search results match
@@ -1045,7 +1043,7 @@ class SearchView(pluginmgr.View):
         # sort by type so that groupby works properly
         results = sorted(results, key=lambda x: str(type(x)))
 
-        for key, group in itertools.groupby(results, key=lambda x: type(x)):
+        for _key, group in itertools.groupby(results, key=type):
             # return groups by type and natural sort each of the
             # groups by their strings
             groups.append(sorted(group, key=utils.natsort_key, reverse=True))
@@ -1076,10 +1074,10 @@ class SearchView(pluginmgr.View):
                     model.prepend(parent, ['-'])
             elif self.row_meta[obj_type].children is not None:
                 model.prepend(parent, ['-'])
-            #steps_so_far += chunk_size
+            # steps_so_far += chunk_size
             steps_so_far += 1
             if steps_so_far % update_every == 0:
-                percent = float(steps_so_far)/float(nresults)
+                percent = float(steps_so_far) / float(nresults)
                 if 0 < percent < 1.0:
                     bauble.gui.progressbar.set_fraction(percent)
                 yield
@@ -1373,13 +1371,11 @@ class SearchView(pluginmgr.View):
 
 
 class Note:
-    """temporary patch before we implement Notes as a plugin.
-    """
+    """temporary patch before we implement Notes as a plugin."""
 
     @classmethod
     def attached_to(cls, obj):
-        """return the list of notes connected to obj
-        """
+        """return the list of notes connected to obj"""
 
         if hasattr(obj, 'notes') and obj.notes:
             return obj.notes

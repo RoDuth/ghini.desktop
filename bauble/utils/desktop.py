@@ -56,10 +56,10 @@ as shown in some of the following examples:
 DESKTOP_LAUNCH="kdialog --msgbox"       Should present any opened URLs in
                                         their entirety in a KDE message box.
                                         (Command "kdialog" plus parameter.)
-DESKTOP_LAUNCH="my\ opener"             Should run the "my opener" program to
+DESKTOP_LAUNCH="myopener"               Should run the "myopener" program to
                                         open URLs.
                                         (Command "my opener", no parameters.)
-DESKTOP_LAUNCH="my\ opener --url"       Should run the "my opener" program to
+DESKTOP_LAUNCH="myopener --url"         Should run the "myopener" program to
                                         open URLs.
                                         (Command "my opener" plus parameter.)
 

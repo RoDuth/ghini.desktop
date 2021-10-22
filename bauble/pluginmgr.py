@@ -100,8 +100,7 @@ def _create_dependency_pairs(plugs):
 
 
 def load(path=None):
-    """
-    Search the plugin path for modules that provide a plugin. If path
+    """Search the plugin path for modules that provide a plugin. If path
     is a directory then search the directory for plugins. If path is
     None then use the default plugins path, bauble.plugins.
 
@@ -148,17 +147,15 @@ def load(path=None):
 
 
 def init(force=False):
-    """
-    Initialize the plugin manager.
+    """Initialize the plugin manager.
 
     1. Check for and install any plugins in the plugins dict that
     aren't in the registry.
     2. Call each init() for each plugin the registry in order of dependency
     3. Register the command handlers in the plugin's commands[]
 
-    NOTE: This is called after after Ghini has created the GUI and
-    established a connection to a database with db.open()
-
+    NOTE: This is called after the GUI has been created and a connection has
+    been established to a database with db.open()
     """
     logger.debug('bauble.pluginmgr.init()')
     # ******
@@ -439,8 +436,7 @@ class Plugin(object):
 
     @classmethod
     def init(cls):
-        """init() is run when Ghini is first started
-        """
+        """run when first started"""
         pass
 
     @classmethod
@@ -472,8 +468,7 @@ class Tool:
 class View(Gtk.Box):
 
     def __init__(self, *args, **kwargs):
-        """
-        If a class extends this View and provides its own __init__ it *must*
+        """If a class extends this View and provides its own __init__ it *must*
         call its parent (this) __init__
         """
         filename = kwargs.get('filename')
@@ -538,9 +533,7 @@ def _find_module_names(path):
 
 
 def _find_plugins(path):
-    """
-    Return the plugins at path.
-    """
+    """Return the plugins at path."""
     import bauble.plugins
     plugins_list = []
     errors = {}

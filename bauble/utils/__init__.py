@@ -412,13 +412,11 @@ def clear_model(obj_with_model):
 
     Remove the model from the object and set the model on the object to None
     """
-    import warnings
-    warnings.warn('clear_model soon to be deprecated, use model.clear() ',
-                  DeprecationWarning)
     model = obj_with_model.get_model()
     if model is None:
         return
-
+    # model.clear()  # can lead to detached instance errors, instead del and
+    # set None
     del model
     obj_with_model.set_model(None)
 

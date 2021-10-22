@@ -712,8 +712,8 @@ class Species(db.Base, db.Serializable, db.DefiningPictures, db.WithNotes):
 
     @accepted.setter
     def accepted(self, value):
-        'Name that should be used if name of self should be rejected'
-        logger.debug("Accepted taxon: %s %s" % (type(value), value))
+        """Name that should be used if name of self should be rejected"""
+        logger.debug("Accepted taxon: %s %s", type(value), value)
         assert isinstance(value, self.__class__)
         if self in value.synonyms:
             return
@@ -733,11 +733,6 @@ class Species(db.Base, db.Serializable, db.DefiningPictures, db.WithNotes):
         if value != self:
             value.synonyms.append(self)
         session.flush()
-
-    def has_accessions(self):
-        """true if species is linked to at least one accession
-        """
-        return bool(self.accessions)
 
     infrasp_attr = {1: {'rank': 'infrasp1_rank',
                         'epithet': 'infrasp1',

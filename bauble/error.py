@@ -43,8 +43,7 @@ class CommitException(Exception):
 
 
 class NoResultException(BaubleError):
-    ## use this exception if the caller should return None
-    pass
+    """use this exception if the caller should return None"""
 
 
 class DatabaseError(BaubleError):

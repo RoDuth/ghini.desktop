@@ -166,12 +166,6 @@ class Location(db.Base, db.Serializable, db.WithNotes):
         else:
             return str(self.code)
 
-    def has_accessions(self):
-        '''true if location is linked to at least one accession
-        '''
-
-        return False
-
     @classmethod
     def retrieve(cls, session, keys):
         try:
