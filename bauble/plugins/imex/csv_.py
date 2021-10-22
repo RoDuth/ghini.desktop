@@ -246,42 +246,43 @@ class CSVImporter:
                 if count % 10 == 0:
                     yield
 
-        with db.Session() as session:
-            translator = dict()
-            num_lines = len(old_geos)
-            count = 0
-            for id_, codes in old_geos.items():
+        session = db.Session()
+        translator = {}
+        num_lines = len(old_geos)
+        count = 0
+        for id_, codes in old_geos.items():
+            new = (session.query(Geography)
+                   .filter_by(tdwg_code=codes.get('code'))
+                   .all())
+            if not new:
+                parent = old_geos.get(codes.get('parent'))
+                if not parent:
+                    logger.debug('no parent for %s', codes)
+                    continue
                 new = (session.query(Geography)
-                       .filter_by(tdwg_code=codes.get('code'))
+                       .filter_by(tdwg_code=parent.get('code'))
                        .all())
-                if not new:
-                    parent = old_geos.get(codes.get('parent'))
-                    if not parent:
-                        logger.debug('no parent for %s', codes)
-                        continue
-                    new = (session.query(Geography)
-                           .filter_by(tdwg_code=parent.get('code'))
-                           .all())
-                if not new:
-                    parent2 = old_geos.get(parent.get('parent'))
-                    if not parent2:
-                        logger.debug('no parent for %s', codes)
-                        continue
-                    new = (session.query(Geography)
-                           .filter_by(tdwg_code=parent2.get('code'))
-                           .all())
-                if new:
-                    if len(new) == 1:
-                        translator[id_] = new[0].id
-                    else:
-                        logger.debug('multiples records for %s', codes)
+            if not new:
+                parent2 = old_geos.get(parent.get('parent'))
+                if not parent2:
+                    logger.debug('no parent for %s', codes)
+                    continue
+                new = (session.query(Geography)
+                       .filter_by(tdwg_code=parent2.get('code'))
+                       .all())
+            if new:
+                if len(new) == 1:
+                    translator[id_] = new[0].id
                 else:
-                    logger.debug('unfound area %s', codes)
-                count += 1
-                fraction = float(count) / float(num_lines)
-                pb_set_fraction(fraction)
-                if count % 10 == 0:
-                    yield
+                    logger.debug('multiples records for %s', codes)
+            else:
+                logger.debug('unfound area %s', codes)
+            count += 1
+            fraction = float(count) / float(num_lines)
+            pb_set_fraction(fraction)
+            if count % 10 == 0:
+                yield
+        session.close()
         self.translator = translator
 
     @staticmethod
@@ -356,7 +357,8 @@ class CSVImporter:
             connection = metadata.bind.connect()
             transaction = connection.begin()
         except Exception as e:
-            msg = _(f'Error connecting to database.\n\n{utils.xml_safe(e)}')
+            msg = _('Error connecting to database.\n\n{}').format(
+                utils.xml_safe(e))
             utils.message_dialog(msg, Gtk.MessageType.ERROR)
             return
 
@@ -465,7 +467,8 @@ class CSVImporter:
             for table, filename in reversed(sorted_tables):
                 if self.__cancel or self.__error:
                     break
-                msg = _(f'importing {table.name} table from {filename}')
+                msg = (_('importing %(table)s table from %(filename)s') %
+                       {'table': table.name, 'filename': filename})
                 logger.info(msg)
                 bauble.task.set_message(msg)
                 yield  # allow progress bar update
