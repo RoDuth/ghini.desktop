@@ -739,14 +739,13 @@ class SearchTests(BaubleTestCase):
         self.session.commit()
 
         prefs.prefs['bauble.search.return_accepted'] = True
-        mapper_search = search.get_strategy('SynonymSearch')
 
         s = 'Schetti'
-        results = mapper_search.search(s, self.session)
+        search.search(s, self.session)
+        results = search.result_cache.get('SynonymSearch')
         self.assertEqual(results, [g3])
 
     def test_search_by_query_synonyms_disabled(self):
-        """SynonymSearch strategy gives all synonyms of given taxon."""
         Family = self.Family
         Genus = self.Genus
         family2 = Family(family='family2')
@@ -759,11 +758,12 @@ class SearchTests(BaubleTestCase):
         self.session.commit()
 
         prefs.prefs['bauble.search.return_accepted'] = False
-        mapper_search = search.get_strategy('SynonymSearch')
 
         s = 'Schetti'
-        results = mapper_search.search(s, self.session)
-        self.assertEqual(results, [])
+        search.search(s, self.session)
+        # SynonymsSearch should not run, nothing in results_cache
+        results = search.result_cache.get('SynonymSearch')
+        self.assertIsNone(results)
 
     def test_search_by_query_vernacural(self):
         """can find species by vernacular name"""

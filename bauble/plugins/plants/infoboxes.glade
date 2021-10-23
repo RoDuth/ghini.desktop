@@ -1044,7 +1044,6 @@
                     <child>
                       <object class="GtkLabel" id="splash_nfamtot">
                         <property name="visible">True</property>
-                        <property name="sensitive">False</property>
                         <property name="can-focus">False</property>
                         <property name="margin-top">8</property>
                         <property name="margin-bottom">8</property>
@@ -1136,7 +1135,6 @@
                     <child>
                       <object class="GtkLabel" id="splash_ngentot">
                         <property name="visible">True</property>
-                        <property name="sensitive">False</property>
                         <property name="can-focus">False</property>
                         <property name="margin-top">8</property>
                         <property name="margin-bottom">8</property>
@@ -1514,7 +1512,6 @@
                     <child>
                       <object class="GtkLabel" id="splash_ngennot">
                         <property name="visible">True</property>
-                        <property name="sensitive">False</property>
                         <property name="can-focus">False</property>
                         <property name="margin-top">8</property>
                         <property name="margin-bottom">8</property>
@@ -1545,7 +1542,6 @@
                     <child>
                       <object class="GtkLabel" id="splash_nfamnot">
                         <property name="visible">True</property>
-                        <property name="sensitive">False</property>
                         <property name="can-focus">False</property>
                         <property name="margin-top">8</property>
                         <property name="margin-bottom">8</property>

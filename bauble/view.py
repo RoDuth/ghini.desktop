@@ -834,6 +834,8 @@ class SearchView(pluginmgr.View):
         """Update the infobox and switch the accelerators depending on the
         type of the row that the cursor points to.
         """
+        # import inspect
+        # print('cursor change', inspect.stack()[1])
         # update all forward-looking info boxes
         self.update_infobox()
         # update all backward-looking info boxes
@@ -934,9 +936,9 @@ class SearchView(pluginmgr.View):
                 self.cursor_change_blocked = False
             statusbar.push(sbcontext_id, _("Retrieving %s search "
                                            "results…") % len(results))
-            if len(results) > 4000:
+            if len(results) > 30000:
                 msg = _('This query returned %s results.  It may take a '
-                        'long time to get all the data. Are you sure you '
+                        'while to display all the data. Are you sure you '
                         'want to continue?') % len(results)
                 if not utils.yes_no_dialog(msg):
                     return
@@ -944,9 +946,7 @@ class SearchView(pluginmgr.View):
                 # don't bother with a task if the results are small,
                 # this keeps the screen from flickering when the main
                 # window is set to a busy state
-                import time
-                start = time.time()
-                if len(results) > 1000:
+                if len(results) > 3000:
                     self.populate_results(results)
                 else:
                     task = self._populate_worker(results)
@@ -955,7 +955,6 @@ class SearchView(pluginmgr.View):
                             next(task)
                         except StopIteration:
                             break
-                logger.debug(time.time() - start)
             except StopIteration:
                 return
             else:

@@ -32,6 +32,7 @@ from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.exc import IntegrityError
 
 from bauble import utils, search, db
+from bauble import prefs
 from .species import (Species,
                       VernacularName,
                       SpeciesSynonym,
@@ -2166,6 +2167,7 @@ class GlobalFunctionsTest(PlantTestCase):
 
 class BaubleSearchSearchTest(BaubleTestCase):
     def test_search_search_uses_synonym_search(self):
+        prefs.prefs['bauble.search.return_accepted'] = True
         search.search("genus like %", self.session)
         self.assertTrue('SearchStrategy "genus like %" (SynonymSearch)' in
                         self.handler.messages['bauble.search']['debug'])
@@ -2177,6 +2179,20 @@ class BaubleSearchSearchTest(BaubleTestCase):
         search.search("So ha", self.session)
         self.assertTrue('SearchStrategy "So ha" (SynonymSearch)' in
                         self.handler.messages['bauble.search']['debug'])
+
+    def test_search_search_doesnt_use_synonym_search(self):
+        prefs.prefs['bauble.search.return_accepted'] = False
+        search.search("genus like %", self.session)
+        self.assertFalse('SearchStrategy "genus like %" (SynonymSearch)' in
+                         self.handler.messages['bauble.search']['debug'])
+        self.handler.reset()
+        search.search("12.11.13", self.session)
+        self.assertFalse('SearchStrategy "12.11.13" (SynonymSearch)' in
+                         self.handler.messages['bauble.search']['debug'])
+        self.handler.reset()
+        search.search("So ha", self.session)
+        self.assertFalse('SearchStrategy "So ha" (SynonymSearch)' in
+                         self.handler.messages['bauble.search']['debug'])
 
 
 class SpeciesCompletionMatchTests(PlantTestCase):

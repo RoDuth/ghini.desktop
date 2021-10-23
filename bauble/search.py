@@ -1,6 +1,7 @@
 # Copyright 2008, 2009, 2010 Brett Adams
 # Copyright 2014-2015 Mario Frasca <mario@anche.no>.
 # Copyright 2017 Jardín Botánico de Quito
+# Copyright 2021 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -45,19 +46,15 @@ from .querybuilderparser import BuiltQuery
 
 def search(text, session=None):
     results = set()
-    strategies = list(_search_strategies.values())
-    # let PlantSearch take care of plant value searches
-    # (NOTE MapperSearch>DomainExpressionAction may work but not always due to
-    # the need to combine Accession.code, delimiter and Plant.code)
-    if text.startswith('plant') and text.split()[1] != 'where':
-        logger.debug("plant value search reducing strategies to PlantSearch")
-        strategies = [i for i in _search_strategies.values() if
-                      type(i).__name__ == 'PlantSearch']
-
+    strategies = get_strategies(text)
     for strategy in strategies:
-        logger.debug("applying search strategy %s from module %s" %
-                     (type(strategy).__name__, type(strategy).__module__))
-        results.update(strategy.search(text, session))
+        strategy_name = type(strategy).__name__
+        logger.debug("applying search strategy %s from module %s",
+                     strategy_name, type(strategy).__module__)
+        result = strategy.search(text, session)
+        # add results to cache
+        result_cache[strategy_name] = result
+        results.update(result)
     return list(results)
 
 
@@ -790,7 +787,39 @@ class SearchStrategy(object):
         """
         # NOTE this logger is used in various tests
         logger.debug('SearchStrategy "%s" (%s)', text, self.__class__.__name__)
-        pass
+
+
+result_cache = {}
+"""Cache of search strategy results, can use instead of running the search
+repeatedly. MapperSearch results should be available first."""
+
+
+def get_strategies(text: str) -> list[SearchStrategy]:
+    """Provided the search text return appropriate strategies.
+
+    Each strategy should have a `use` method that, given the search text will
+    return one of:
+        'only' - use only the strategy
+        'include' - include the strategy
+        'exclude' - exclude the strategy
+
+    :param text: the search string
+    """
+    all_strategies = _search_strategies.values()
+    # clear the cache
+    result_cache.clear()
+    selected_strategies = []
+    for strategy in all_strategies:
+        if strategy.use(text) == 'only':
+            logger.debug('filtered strategies %s', strategy)
+            return [strategy]
+        if strategy.use(text) == 'include':
+            selected_strategies.append(strategy)
+        elif strategy.use(text) == 'exclude':
+            if strategy in selected_strategies:
+                selected_strategies.remove(strategy)
+    logger.debug('filtered strategies %s', selected_strategies)
+    return selected_strategies
 
 
 class MapperSearch(SearchStrategy):
@@ -813,6 +842,10 @@ class MapperSearch(SearchStrategy):
         super().__init__()
         self._results = set()
         self.parser = SearchParser()
+
+    @staticmethod
+    def use(_text):
+        return 'include'
 
     def add_meta(self, domain, cls, properties):
         """Add a domain to the search space

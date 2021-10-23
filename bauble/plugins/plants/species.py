@@ -48,6 +48,8 @@ from bauble import search
 from bauble.view import PropertiesExpander, Action
 from bauble import view
 from bauble.prefs import prefs
+from .genus import Genus, GenusSynonym
+from .family import Family, FamilySynonym
 
 # imported by clients of this modules
 __all__ = [
@@ -162,37 +164,69 @@ class SynonymSearch(search.SearchStrategy):
             prefs[return_accepted_pref] = True
             prefs.save()
 
+    @staticmethod
+    def use(_text):
+        if prefs.get(return_accepted_pref):
+            return 'include'
+        return 'exclude'
+
+    @staticmethod
+    def get_ids(mapper_results):
+        """Colate IDs and models to search for each result type."""
+        ids = {}
+        for result in mapper_results:
+            models = None
+            if isinstance(result, Species):
+                models = (Species, SpeciesSynonym)
+                id_ = result.id
+            elif isinstance(result, Genus):
+                models = (Genus, GenusSynonym)
+                id_ = result.id
+            elif isinstance(result, Family):
+                models = (Family, FamilySynonym)
+                id_ = result.id
+            elif isinstance(result, VernacularName):
+                models = (VernacularName, SpeciesSynonym)
+                id_ = result.species.id
+            if models:
+                id_set = ids.get(models, set())
+                id_set.add(id_)
+                ids[models] = id_set
+        return ids
+
     def search(self, text, session=None):
-        from .genus import Genus, GenusSynonym
-        from .family import Family, FamilySynonym
+        """Search for a synonym for each item in the results and add to the
+        results
+        """
         super().search(text, session)
         if not prefs.get(return_accepted_pref):
+            # filter should prevent us getting here.
             return []
-        mapper_search = search.get_strategy('MapperSearch')
-        mapper_results = mapper_search.search(text, session)
+        mapper_results = search.result_cache.get('MapperSearch')
         if not mapper_results:
             return []
+        ids = self.get_ids(mapper_results)
+        if not ids:
+            return []
         results = []
-        for result in mapper_results:
-            # iterate through the results and for all objects considered
-            # synonym of something else, include that something else. that
-            # is, the accepted name.
-            if isinstance(result, Species):
-                query = session.query(SpeciesSynonym).filter_by(
-                    synonym_id=result.id)
-                results.extend([syn.species for syn in query])
-            elif isinstance(result, Genus):
-                query = session.query(GenusSynonym).filter_by(
-                    synonym_id=result.id)
-                results.extend([syn.genus for syn in query])
-            elif isinstance(result, Family):
-                query = session.query(FamilySynonym).filter_by(
-                    synonym_id=result.id)
-                results.extend([syn.family for syn in query])
-            elif isinstance(results, VernacularName):
-                query = session.query(SpeciesSynonym).filter_by(
-                    synonym_id=result.species.id)
-                results.extend([syn.species for syn in query])
+        for models, id_set in ids.items():
+            # vernacular names are a special case.
+            if models[0] == VernacularName:
+                syn_model_id = getattr(models[1], 'species_id')
+                syn_id = getattr(models[1], 'synonym_id')
+                query = (session.query(models[0])
+                         .join(Species)
+                         .join(SpeciesSynonym, syn_model_id == Species.id)
+                         .filter(syn_id.in_(id_set)))
+            else:
+                id_ = getattr(models[0], 'id')
+                syn_model_id = getattr(models[1],
+                                       models[0].__tablename__ + '_id')
+                syn_id = getattr(models[1], 'synonym_id')
+                query = (session.query(models[0])
+                         .join(models[1], syn_model_id == id_)
+                         .filter(syn_id.in_(id_set)))
+            results.extend(query.all())
         return results
 
 

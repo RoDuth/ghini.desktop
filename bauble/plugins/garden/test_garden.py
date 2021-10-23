@@ -2666,21 +2666,40 @@ import bauble.search
 
 
 class BaubleSearchSearchTest(BaubleTestCase):
-    def test_search_search_uses_Plant_Search(self):
+    def test_search_search_dosnt_uses_plant_search(self):
         bauble.search.search("genus like %", self.session)
-        self.assertTrue('SearchStrategy "genus like %" (PlantSearch)' in
-                        self.handler.messages['bauble.search']['debug'])
+        self.assertFalse('SearchStrategy "genus like %" (PlantSearch)' in
+                         self.handler.messages['bauble.search']['debug'])
         self.handler.reset()
         bauble.search.search("12.11.13", self.session)
-        self.assertTrue('SearchStrategy "12.11.13" (PlantSearch)' in
-                        self.handler.messages['bauble.search']['debug'])
+        self.assertFalse('SearchStrategy "12.11.13" (PlantSearch)' in
+                         self.handler.messages['bauble.search']['debug'])
         self.handler.reset()
         bauble.search.search("So ha", self.session)
-        self.assertTrue('SearchStrategy "So ha" (PlantSearch)' in
-                        self.handler.messages['bauble.search']['debug'])
+        self.assertFalse('SearchStrategy "So ha" (PlantSearch)' in
+                         self.handler.messages['bauble.search']['debug'])
+        self.handler.reset()
+        bauble.search.search("plant where id > 1", self.session)
+        self.assertFalse('SearchStrategy "So ha" (PlantSearch)' in
+                         self.handler.messages['bauble.search']['debug'])
+
+    def test_search_search_does_use_plant_search(self):
+        bauble.search.search("plant like 2021.000%.%", self.session)
+        self.assertFalse('SearchStrategy "genus like %" (PlantSearch)' in
+                         self.handler.messages['bauble.search']['debug'])
+        self.handler.reset()
+        bauble.search.search("plant = 2000001.1", self.session)
+        self.assertFalse('SearchStrategy "12.11.13" (PlantSearch)' in
+                         self.handler.messages['bauble.search']['debug'])
+        self.handler.reset()
+        bauble.search.search("plant != 20000001.1", self.session)
+        self.assertFalse('SearchStrategy "So ha" (PlantSearch)' in
+                         self.handler.messages['bauble.search']['debug'])
+
 
 
 from bauble.plugins.garden.exporttopocket import create_pocket, ExportToPocketThread
+
 
 class TestExportToPocket(GardenTestCase):
 

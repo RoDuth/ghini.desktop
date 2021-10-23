@@ -93,75 +93,115 @@ class SplashInfoBox(pluginmgr.View):
         self.pack_start(self.widgets.splash_vbox, False, False, 8)
         self.name_tooltip_query = None
 
+        on_clicked_search = utils.generate_on_clicked(bauble.gui.send_command)
+
+        utils.make_label_clickable(
+            self.widgets.splash_nfamtot,
+            on_clicked_search,
+            'family like %'
+        )
+
         utils.make_label_clickable(
             self.widgets.splash_nfamuse,
-            lambda *a: bauble.gui.send_command(
-                'family where genera.species.id != 0'))
+            on_clicked_search,
+            'family where genera.species.accessions.id != 0'
+        )
+
+        utils.make_label_clickable(
+            self.widgets.splash_nfamnot,
+            on_clicked_search,
+            'family where not genera.species.accessions.id != 0'
+        )
+
+        utils.make_label_clickable(
+            self.widgets.splash_ngentot,
+            on_clicked_search,
+            'genus like %'
+        )
 
         utils.make_label_clickable(
             self.widgets.splash_ngenuse,
-            lambda *a: bauble.gui.send_command(
-                'genus where species.accessions.id!=0'))
+            on_clicked_search,
+            'genus where species.accessions.id!=0'
+        )
+
+        utils.make_label_clickable(
+            self.widgets.splash_ngennot,
+            on_clicked_search,
+            'genus where not species.accessions.id!=0'
+        )
 
         utils.make_label_clickable(
             self.widgets.splash_nspctot,
-            lambda *a: bauble.gui.send_command(
-                'species like %'))
+            on_clicked_search,
+            'species like %'
+        )
 
         utils.make_label_clickable(
             self.widgets.splash_nspcuse,
-            lambda *a: bauble.gui.send_command(
-                'species where not accessions = Empty'))
+            on_clicked_search,
+            'species where not accessions = Empty'
+        )
 
         utils.make_label_clickable(
             self.widgets.splash_nspcnot,
-            lambda *a: bauble.gui.send_command(
-                'species where accessions = Empty'))
+            on_clicked_search,
+            'species where accessions = Empty'
+        )
 
         utils.make_label_clickable(
             self.widgets.splash_nacctot,
-            lambda *a: bauble.gui.send_command(
-                'accession like %'))
+            on_clicked_search,
+            'accession like %'
+        )
 
         utils.make_label_clickable(
             self.widgets.splash_naccuse,
-            lambda *a: bauble.gui.send_command(
-                'accession where sum(plants.quantity)>0'))
+            on_clicked_search,
+            'accession where sum(plants.quantity)>0'
+        )
 
         utils.make_label_clickable(
             self.widgets.splash_naccnot,
-            lambda *a: bauble.gui.send_command(
-                'accession where plants = Empty or sum(plants.quantity)=0'))
+            on_clicked_search,
+            'accession where plants = Empty or sum(plants.quantity)=0'
+        )
 
         utils.make_label_clickable(
             self.widgets.splash_nplttot,
-            lambda *a: bauble.gui.send_command(
-                'plant like %'))
+            on_clicked_search,
+            'plant like %'
+        )
 
         utils.make_label_clickable(
             self.widgets.splash_npltuse,
-            lambda *a: bauble.gui.send_command(
-                'plant where sum(quantity)>0'))
+            on_clicked_search,
+            'plant where sum(quantity)>0'
+        )
 
         utils.make_label_clickable(
             self.widgets.splash_npltnot,
-            lambda *a: bauble.gui.send_command(
-                'plant where sum(quantity)=0'))
+            on_clicked_search,
+            'plant where sum(quantity)=0'
+        )
 
         utils.make_label_clickable(
             self.widgets.splash_nloctot,
-            lambda *a: bauble.gui.send_command(
-                'location like %'))
+            on_clicked_search,
+            'location like %'
+        )
 
         utils.make_label_clickable(
             self.widgets.splash_nlocuse,
-            lambda *a: bauble.gui.send_command(
-                'location where sum(plants.quantity)>0'))
+            on_clicked_search,
+            'location where sum(plants.quantity)>0'
+        )
 
         utils.make_label_clickable(
             self.widgets.splash_nlocnot,
-            lambda *a: bauble.gui.send_command(
-                'location where plants is Empty or sum(plants.quantity)=0'))
+            on_clicked_search,
+            'location where plants is Empty or sum(plants.quantity)=0'
+        )
 
         for i in range(1, 11):
             wname = "stqr_%02d_button" % i
@@ -313,34 +353,33 @@ class PlantsPlugin(pluginmgr.Plugin):
     def init(cls):
 
         if bauble.gui:
-            return_syns_chkbx = Gtk.CheckButton(label=_('Return accepted'))
+            return_accpt_chkbx = Gtk.CheckButton(label=_('Return accepted'))
             # set a name so its easy to find and remove
-            return_syns_chkbx.set_name('return_syns_chkbx')
+            return_accpt_chkbx.set_name('return_accpt_chkbx')
 
             # if reloading (opening a new connection etc.) remove any previous
-            # return_syns_chkbx
+            # return_accpt_chkbx
             for widget in bauble.gui.widgets.head_box.get_children():
-                if widget.get_name() == 'return_syns_chkbx':
+                if widget.get_name() == 'return_accpt_chkbx':
                     bauble.gui.widgets.head_box.remove(widget)
 
             bauble.gui.widgets.head_box.pack_start(
-                return_syns_chkbx, False, True, 0)
+                return_accpt_chkbx, False, True, 0)
 
-            return_syns_chkbx.set_active(
+            return_accpt_chkbx.set_active(
                 prefs.prefs.get(return_accepted_pref, True))
 
             tooltip = _('Return the accepted name for synonyms in subsequent '
-                        'searches.\n\nCAUTION!: can be slow, avoid when '
-                        'expecting large results.')
-            return_syns_chkbx.connect('toggled',
-                                      cls.on_return_syns_chkbx_toggled)
-            return_syns_chkbx.set_tooltip_text(tooltip)
-            return_syns_chkbx.show()
+                        'searches.')
+            return_accpt_chkbx.connect('toggled',
+                                       cls.on_return_syns_chkbx_toggled)
+            return_accpt_chkbx.set_tooltip_text(tooltip)
+            return_accpt_chkbx.show()
 
             def prefs_ls_changed(model, path, _itr):
                 key, _repr_str, _type_str = model[path]
                 if key == return_accepted_pref:
-                    return_syns_chkbx.set_active(
+                    return_accpt_chkbx.set_active(
                         prefs.prefs.get(return_accepted_pref))
 
             def on_view_box_added(_container, obj):

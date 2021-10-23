@@ -187,7 +187,14 @@ def is_code_unique(plant, code):
     return count == 0
 
 
-class PlantSearch(SearchStrategy):  # pylint: disable=too-few-public-methods
+class PlantSearch(SearchStrategy):
+
+    @staticmethod
+    def use(text):
+        if text.startswith('plant') and text.split()[1] != 'where':
+            logger.debug("reducing strategies to PlantSearch")
+            return 'only'
+        return 'exclude'
 
     def search(self, text, session=None): \
             # pylint: disable=too-many-branches,too-many-locals
@@ -210,6 +217,7 @@ class PlantSearch(SearchStrategy):  # pylint: disable=too-few-public-methods
                      (domain + in_op + value_list + stringEnd))
 
         if not text.startswith('plant'):
+            # Shouldn't really get here as the filter should take care of it.
             return []
         delimiter = Plant.get_delimiter()
         try:
