@@ -36,18 +36,22 @@ from bauble import db
 
 from bauble import pluginmgr
 from bauble import utils
-from bauble.plugins.plants.species_editor import (
-    SpeciesDistribution, SpeciesEditorPresenter, SpeciesEditorView,
-    SpeciesEditorMenuItem, edit_species)
-from bauble.plugins.plants.species_model import (
-    Species, SpeciesNote, VernacularName, SpeciesSynonym,
-    DefaultVernacularName)
 from bauble.view import (InfoBox, InfoBoxPage, InfoExpander,
                          select_in_search_results)
 from bauble import search
 from bauble.view import PropertiesExpander, Action
 from bauble import view
 from bauble import prefs
+from .species_editor import (SpeciesDistribution,
+                             SpeciesEditorPresenter,
+                             SpeciesEditorView,
+                             SpeciesEditorMenuItem,
+                             edit_species)
+from .species_model import (Species,
+                            SpeciesNote,
+                            VernacularName,
+                            SpeciesSynonym,
+                            DefaultVernacularName)
 from .genus import Genus, GenusSynonym
 from .family import Family, FamilySynonym
 

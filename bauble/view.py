@@ -890,7 +890,7 @@ class SearchView(pluginmgr.View):
         # set the text in the entry even though in most cases the entry already
         # has the same text in it, this is in case this method was called from
         # outside the class so the entry and search results match
-        logger.debug('SearchView.search(%s)' % text)
+        logger.debug('SearchView.search(%s)', text)
         error_msg = None
         error_details_msg = None
         # stop whatever it might still be doing

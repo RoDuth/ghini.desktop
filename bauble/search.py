@@ -58,7 +58,7 @@ def search(text, session=None):
     return list(results)
 
 
-class NoneToken(object):
+class NoneToken:
     def __init__(self, t=None):
         pass
 
@@ -69,7 +69,7 @@ class NoneToken(object):
         return None
 
 
-class EmptyToken(object):
+class EmptyToken:
     def __init__(self, t=None):
         pass
 
@@ -87,14 +87,14 @@ class EmptyToken(object):
         return NotImplemented
 
 
-class ValueABC(object):
+class ValueABC:
     # abstract base class.
 
     def express(self):
         return self.value
 
 
-class ValueToken(object):
+class ValueToken:
 
     def __init__(self, t):
         self.value = t[0]
@@ -171,7 +171,7 @@ class TypedValueToken(ValueABC):
         return "%s" % (self.value)
 
 
-class IdentifierAction(object):
+class IdentifierAction:
     def __init__(self, t):
         logger.debug('IdentifierAction::__init__(%s)' % t)
         self.steps = t[0][:-2:2]
@@ -204,7 +204,7 @@ class IdentifierAction(object):
         return self.steps
 
 
-class FilteredIdentifierAction(object):
+class FilteredIdentifierAction:
     def __init__(self, t):
         logger.debug('FilteredIdentifierAction::__init__(%s)' % t)
         self.steps = t[0][:-7:2]
@@ -257,7 +257,7 @@ class FilteredIdentifierAction(object):
         return self.steps
 
 
-class IdentExpression(object):
+class IdentExpression:
     def __init__(self, t):
         logger.debug('IdentExpression::__init__(%s)' % t)
         self.op = t[0][1]
@@ -312,12 +312,12 @@ class ElementSetExpression(IdentExpression):
 
 
 class AggregatedExpression(IdentExpression):
-    '''select on value of aggregated function
+    """Select on value of aggregated function.
 
     this one looks like ident.binop.value, but the ident is an
     aggregating function, so that the query has to be altered
     differently: not filter, but group_by and having.
-    '''
+    """
 
     def __init__(self, t):
         super().__init__(t)
@@ -340,7 +340,7 @@ class AggregatedExpression(IdentExpression):
         return result
 
 
-class BetweenExpressionAction(object):
+class BetweenExpressionAction:
     def __init__(self, t):
         self.operands = t[0][0::2]  # every second object is an operand
 
@@ -358,7 +358,7 @@ class BetweenExpressionAction(object):
         return [self.operands[0].needs_join(env)]
 
 
-class UnaryLogical(object):
+class UnaryLogical:
     ## abstract base class. `name` is defined in derived classes
     def __init__(self, t):
         self.op, self.operand = t[0]
@@ -370,7 +370,7 @@ class UnaryLogical(object):
         return self.operand.needs_join(env)
 
 
-class BinaryLogical(object):
+class BinaryLogical:
     ## abstract base class. `name` is defined in derived classes
     def __init__(self, t):
         self.op = t[0][1]
@@ -414,7 +414,7 @@ class SearchNotAction(UnaryLogical):
         return q.except_(self.operand.evaluate(env))
 
 
-class ParenthesisedQuery(object):
+class ParenthesisedQuery:
     def __init__(self, t):
         self.content = t[1]
 
@@ -428,7 +428,7 @@ class ParenthesisedQuery(object):
         return self.content.needs_join(env)
 
 
-class QueryAction(object):
+class QueryAction:
     def __init__(self, t):
         self.domain = t[0]
         self.filter = t[1][0]
@@ -437,8 +437,7 @@ class QueryAction(object):
         return "SELECT * FROM %s WHERE %s" % (self.domain, self.filter)
 
     def invoke(self, search_strategy):
-        """
-        update search_strategy object with statement results
+        """update search_strategy object with statement results
 
         Queries can use more database specific features.  This also
         means that the same query might not work the same on different
@@ -446,9 +445,8 @@ class QueryAction(object):
         use ilike but this would raise an error on SQLite.
         """
 
-        logger.debug('QueryAction:invoke - %s(%s) %s(%s)' %
-                     (type(self.domain), self.domain,
-                      type(self.filter), self.filter))
+        logger.debug('QueryAction:invoke - %s(%s) %s(%s)', type(self.domain),
+                     self.domain, type(self.filter), self.filter)
         domain = self.domain
         check(domain in search_strategy._domains or
               domain in search_strategy._shorthand,
@@ -470,16 +468,16 @@ class QueryAction(object):
         return result
 
 
-class StatementAction(object):
+class StatementAction:
     def __init__(self, t):
         self.content = t[0]
-        self.invoke = lambda x: self.content.invoke(x)
+        self.invoke = self.content.invoke
 
     def __repr__(self):
         return repr(self.content)
 
 
-class BinomialNameAction(object):
+class BinomialNameAction:
     """created when the parser hits a binomial_name token.
 
     Searching using binomial names returns one or more species objects.
@@ -508,7 +506,7 @@ class BinomialNameAction(object):
         return result
 
 
-class DomainExpressionAction(object):
+class DomainExpressionAction:
     """created when the parser hits a domain_expression token.
 
     Searching using domain expressions is a little more magical than an
@@ -573,7 +571,7 @@ class DomainExpressionAction(object):
         return result
 
 
-class AggregatingAction(object):
+class AggregatingAction:
 
     def __init__(self, t):
         logger.debug("AggregatingAction::__init__(%s)" % t)
@@ -599,7 +597,7 @@ class AggregatingAction(object):
         return self.identifier.evaluate(env)
 
 
-class ValueListAction(object):
+class ValueListAction:
 
     def __init__(self, t):
         logger.debug("ValueListAction::__init__(%s)" % t)
@@ -612,8 +610,7 @@ class ValueListAction(object):
         return [i.express() for i in self.values]
 
     def invoke(self, search_strategy):
-        """
-        Called when the whole search string is a value list.
+        """Called when the whole search string is a value list.
 
         Search with a list of values is the broadest search and
         searches all the mapper and the properties configured with
@@ -621,10 +618,9 @@ class ValueListAction(object):
         """
 
         logger.debug('ValueListAction:invoke')
-        # make searches case-insensitive, in postgres use ilike,
-        # in other use upper()
-        like = lambda table, col, val: \
-            utils.ilike(table.c[col], ('%%%s%%' % val))
+
+        def like(table, col, val):
+            return utils.ilike(table.c[col], ('%%%s%%' % val))
 
         result = set()
         for cls, columns in search_strategy._properties.items():
@@ -666,9 +662,8 @@ class ValueListAction(object):
 wordStart, wordEnd = WordStart(), WordEnd()
 
 
-class SearchParser(object):
-    """The parser for bauble.search.MapperSearch
-    """
+class SearchParser:
+    """The parser for bauble.search.MapperSearch"""
 
     numeric_value = Regex(
         r'[-]?\d+(\.\d*)?([eE]\d+)?'
@@ -762,20 +757,18 @@ class SearchParser(object):
                  ).setParseAction(StatementAction)('statement')
 
     def parse_string(self, text):
-        '''request pyparsing object to parse text
+        """request pyparsing object to parse text
 
         `text` can be either a query, or a domain expression, or a list of
         values. the `self.statement` pyparsing object parses the input text
         and return a pyparsing.ParseResults object that represents the input
-        '''
+        """
 
         return self.statement.parseString(text)
 
 
-class SearchStrategy(object):
-    """
-    Interface for adding search strategies to a view.
-    """
+class SearchStrategy:
+    """interface for adding search strategies to a view."""
 
     def search(self, text, session=None):
         """
@@ -863,8 +856,7 @@ class MapperSearch(SearchStrategy):
                            search by default
         """
 
-        logger.debug('%s.add_meta(%s, %s, %s)' %
-                     (self, domain, cls, properties))
+        logger.debug('%s.add_meta(%s, %s, %s)', self, domain, cls, properties)
 
         check(isinstance(properties, list),
               _('MapperSearch.add_meta(): '
@@ -874,22 +866,21 @@ class MapperSearch(SearchStrategy):
                 'default_columns argument cannot be empty'))
         if isinstance(domain, (list, tuple)):
             self._domains[domain[0]] = cls, properties
-            for d in domain[1:]:
-                self._shorthand[d] = domain[0]
+            for dom in domain[1:]:
+                self._shorthand[dom] = domain[0]
         else:
             self._domains[domain] = cls, properties
         self._properties[cls] = properties
 
     @classmethod
     def get_domain_classes(cls):
-        d = {}
+        domains = {}
         for domain, item in cls._domains.items():
-            d.setdefault(domain, item[0])
-        return d
+            domains.setdefault(domain, item[0])
+        return domains
 
     def search(self, text, session=None):
-        """
-        Returns a set() of database hits for the text search string.
+        """Returns a set() of database hits for the text search string.
 
         If session=None then the session should be closed after the results
         have been processed or it is possible that some database backends
@@ -900,10 +891,10 @@ class MapperSearch(SearchStrategy):
 
         self._results.clear()
         statement = self.parser.parse_string(text).statement
-        logger.debug("statement : %s(%s)" % (type(statement), statement))
+        logger.debug("statement : %s(%s)", type(statement), statement)
         self._results.update(statement.invoke(self))
-        logger.debug('search returns %s(%s)'
-                     % (type(self._results).__name__, self._results))
+        logger.debug('search returns %s(%s)', type(self._results).__name__,
+                     self._results)
 
         # these _results get filled in when the parse actions are called
         return self._results
@@ -914,6 +905,7 @@ _search_strategies = {'MapperSearch': MapperSearch()}
 
 
 def add_strategy(strategy):
+    logger.debug('adding strategy: %s', strategy.__name__)
     obj = strategy()
     _search_strategies[obj.__class__.__name__] = obj
 

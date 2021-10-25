@@ -885,7 +885,8 @@ def retrieve(cls, session, keys):
         return None
 
 
-SpeciesNote = db.make_note_class('Species', compute_serializable_fields, as_dict, retrieve)
+SpeciesNote = db.make_note_class('Species', compute_serializable_fields,
+                                 as_dict, retrieve)
 
 
 class SpeciesSynonym(db.Base):

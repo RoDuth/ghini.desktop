@@ -780,7 +780,6 @@ class GeneralFamilyExpander(InfoExpander):
         )
 
 
-
 class SynonymsExpander(InfoExpander):
 
     expanded_pref = 'infobox.family.synonyms.expanded'

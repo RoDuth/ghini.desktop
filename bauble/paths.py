@@ -132,14 +132,13 @@ def appdata_dir():
 
 
 def is_portable_installation():
-    '''tell whether ghini is running on a USB stick
+    """tell whether ghini is running on a USB stick
 
     only relevant on Windows
 
     if the installation_dir contains a writable appdata.dir, then we are
     running on a USB stick, and we are keeping appdata there.
-
-    '''
+    """
 
     if sys.platform != "win32":
         return False

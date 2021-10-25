@@ -112,6 +112,7 @@ class GardenPlugin(pluginmgr.Plugin):
         mapper_search.add_meta(('plant', 'planting'), Plant, ['code'])
         # special search value strategy
         search.add_strategy(PlantSearch)
+
         SearchView.row_meta[Plant].set(
             infobox=PlantInfoBox,
             context_menu=plant_context_menu)

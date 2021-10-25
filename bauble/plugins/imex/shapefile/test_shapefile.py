@@ -874,7 +874,8 @@ class ShapefileExportTestsEmptyDB(BaubleTestCase):
         # temp_dir
         self.temp_dir = TemporaryDirectory()
         self.exporter = ShapefileExporter(
-            view=MockView(), proj_db=ProjDB(db_path=':memory:'), open_=False)
+            view=MockView(), proj_db=ProjDB(db_path=':memory:'), open_=False
+        )
         self.exporter.proj_db.add(prj=prj_str_4326, crs='epsg:4326')
 
     def tearDown(self):
@@ -1466,7 +1467,6 @@ class ShapefileExportTests(BaubleTestCase):
         ]
         self.session.add_all(bulk_plants)
         self.session.commit()
-        objs = self.session.query(Plant).all()
         # pylint: disable=singleton-comparison
         objs = self.session.query(Plant).filter(Plant.geojson == None).all()  # noqa
         exporter = self.exporter

@@ -33,6 +33,7 @@ from sqlalchemy.exc import IntegrityError
 
 from bauble import utils, search, db
 from bauble import prefs
+from bauble.test import BaubleTestCase, check_dupids, mockfunc
 from .species import (Species,
                       VernacularName,
                       SpeciesSynonym,
@@ -46,7 +47,6 @@ from .species_editor import (species_to_string_matcher,
 from .family import Family, FamilySynonym, FamilyEditor, FamilyNote
 from .genus import Genus, GenusSynonym, GenusEditor, GenusNote
 from .geography import Geography, get_species_in_geography
-from bauble.test import BaubleTestCase, check_dupids, mockfunc
 
 #
 # TODO: things to create tests for

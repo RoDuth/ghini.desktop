@@ -32,28 +32,40 @@ from gi.repository import GLib
 
 import bauble
 from bauble import prefs
+from bauble import db
+from bauble import search
 
 from bauble.paths import lib_dir
 from bauble import pluginmgr
 from bauble import utils
-from bauble.plugins.plants.family import (
-    Familia, Family, FamilyInfoBox, FamilyEditor, FamilyNote,
-    family_context_menu)
-from bauble.plugins.plants.genus import (
-    Genus, GenusEditor, GenusInfoBox, GenusNote,
-    genus_context_menu,
-)
-from bauble.plugins.plants.species import (
-    Species, SpeciesEditorMenuItem, SpeciesInfoBox, SpeciesNote,
-    species_context_menu, add_accession_action,
-    SynonymSearch, SpeciesDistribution,
-    VernacularName, VernacularNameInfoBox,
-    vernname_context_menu, return_accepted_pref
-)
-from bauble.plugins.plants.geography import (
-    Geography, get_species_in_geography, GeographyInfoBox)
 from bauble.view import SearchView
 from bauble.ui import DefaultView
+from .family import (Familia,
+                     Family,
+                     FamilyInfoBox,
+                     FamilyEditor,
+                     FamilyNote,
+                     family_context_menu)
+from .genus import (Genus,
+                    GenusEditor,
+                    GenusInfoBox,
+                    GenusNote,
+                    genus_context_menu)
+from .species import (Species,
+                      SpeciesEditorMenuItem,
+                      SpeciesInfoBox,
+                      SpeciesNote,
+                      species_context_menu,
+                      add_accession_action,
+                      SynonymSearch,
+                      SpeciesDistribution,
+                      VernacularName,
+                      VernacularNameInfoBox,
+                      vernname_context_menu,
+                      return_accepted_pref)
+from .geography import (Geography,
+                        get_species_in_geography,
+                        GeographyInfoBox)
 from .taxonomy_check import TaxonomyCheckTool
 from .stored_queries import StoredQueryEditorTool
 
@@ -68,7 +80,7 @@ class LabelUpdater(Thread):
         self.widget = widget
 
     def run(self):
-        session = bauble.db.Session()
+        session = db.Session()
         # can on occassion raise:
         # Error in thread...
         # SystemError: Objects/tupleobject.c:159: bad argument to internal
@@ -80,8 +92,7 @@ class LabelUpdater(Thread):
 
 
 class SplashInfoBox(pluginmgr.View):
-    """info box shown in the initial splash screen.
-    """
+    """info box shown in the initial splash screen."""
 
     def __init__(self):
         logger.debug('SplashInfoBox::__init__')
@@ -218,7 +229,7 @@ class SplashInfoBox(pluginmgr.View):
         statusbar.pop(sbcontext_id)
         bauble.gui.widgets.main_comboentry.get_child().set_text('')
 
-        session = bauble.db.Session()
+        session = db.Session()
         query = session.query(bauble.meta.BaubleMeta)
         query = query.filter(bauble.meta.BaubleMeta.name.startswith('stqr'))
         name_tooltip_query = dict(
@@ -399,7 +410,7 @@ class PlantsPlugin(pluginmgr.Plugin):
             if add_accession_action not in vernname_context_menu:
                 vernname_context_menu.insert(1, add_accession_action)
 
-        mapper_search = bauble.search.get_strategy('MapperSearch')
+        mapper_search = search.get_strategy('MapperSearch')
 
         mapper_search.add_meta(('family', 'fam'), Family, ['family'])
         SearchView.row_meta[Family].set(children="genera",
@@ -411,19 +422,19 @@ class PlantsPlugin(pluginmgr.Plugin):
                                        infobox=GenusInfoBox,
                                        context_menu=genus_context_menu)
 
-        bauble.search.add_strategy(SynonymSearch)
+        search.add_strategy(SynonymSearch)
         mapper_search.add_meta(('species', 'sp'), Species,
                                ['sp', 'sp2', 'infrasp1', 'infrasp2',
                                 'infrasp3', 'infrasp4'])
         SearchView.row_meta[Species].set(
-            children=partial(bauble.db.natsort, 'accessions'),
+            children=partial(db.natsort, 'accessions'),
             infobox=SpeciesInfoBox,
             context_menu=species_context_menu)
 
         mapper_search.add_meta(('vernacular', 'vern', 'common'),
                                VernacularName, ['name'])
         SearchView.row_meta[VernacularName].set(
-            children=partial(bauble.db.natsort, 'species.accessions'),
+            children=partial(db.natsort, 'species.accessions'),
             infobox=VernacularNameInfoBox,
             context_menu=vernname_context_menu)
 
@@ -464,7 +475,7 @@ class PlantsPlugin(pluginmgr.Plugin):
 
         # this should only occur first time around, not wipe out existing
         # data.  Or at least ask the user.
-        with bauble.db.engine.connect() as con:
+        with db.engine.connect() as con:
             try:
                 fams = con.execute('SELECT COUNT(*) FROM family')
                 fams = next(fams)[0]
@@ -494,16 +505,16 @@ class PlantsPlugin(pluginmgr.Plugin):
 
         try:
             logger.debug('dropping tables: %s', [i.name for i in depends])
-            bauble.db.metadata.drop_all(tables=depends)
+            db.metadata.drop_all(tables=depends)
             logger.debug('dropping tables: %s', geo_table.name)
-            geo_table.drop(bauble.db.engine)
+            geo_table.drop(db.engine)
         except Exception as e:  # pylint: disable=broad-except
             logger.debug("%s(%s)", type(e).__name__, e)
 
         logger.debug('creating tables: %s', [i.name for i in depends])
-        geo_table.create(bauble.db.engine)
+        geo_table.create(db.engine)
 
-        bauble.db.metadata.create_all(tables=depends)
+        db.metadata.create_all(tables=depends)
         logger.debug('creating tables: %s', geo_table.name)
 
         from .geography import geography_importer
@@ -513,7 +524,7 @@ class PlantsPlugin(pluginmgr.Plugin):
         bauble.task.queue(geography_importer())
         from bauble.plugins.imex.csv_ import CSVImporter
         csv = CSVImporter()
-        csv.start(filenames, metadata=bauble.db.metadata, force=True)
+        csv.start(filenames, metadata=db.metadata, force=True)
 
 
 plugin = PlantsPlugin
