@@ -470,15 +470,12 @@ class PrefsView(pluginmgr.View):
         state = widget.get_active()
         logger.debug('edit state %s', state)
         msg = _(
-            '<b>CAUTION! Making incorrect changes to your preferences could '
-            'cause harm to you setup</b>\n\nOnly make changes if you know '
-            'what you are doing and consider creating a backup of '
-            'first.\n\nValues must remain the same type and format. To delete '
-            'an option clear its value.  To delete a whole section remove all '
-            'its options. Deleting a section or basic option will likely lead '
-            'to a reset to its default value next time you restart Ghini. Due '
-            'to caching some settings will not take effect until you restart '
-            'Ghini\n\n<b>Do you want to enable editing?</b>'
+            '<b>CAUTION! this functionality is at BETA level and may change '
+            'in future releases:</b>\n\n(NOTE: backup/restore buttons for '
+            'your current state is provided - use them first.)\n\nSome '
+            'changes will not take effect until restarted.\n\n<b>Making '
+            'incorrect changes to your preferences could be detrimental.'
+            '\n\nDO YOU WISH TO PROCEED?</b>'
         )
         if state and utils.yes_no_dialog(msg, parent=self.view.get_window()):
             logger.debug('enable editing prefs')
