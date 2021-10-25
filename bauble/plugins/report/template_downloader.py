@@ -35,7 +35,8 @@ from requests import exceptions
 
 from bauble.utils import get_net_sess, yes_no_dialog
 from bauble import pluginmgr  # , task
-from bauble.prefs import prefs, templates_root_pref
+from bauble.prefs import templates_root_pref
+from bauble import prefs
 from bauble.task import set_message
 
 CONFIG_LIST_PREF = 'report.configs'
@@ -61,8 +62,8 @@ def set_templates_root_pref(path=None):
     if not path.exists():
         raise ValueError(_("directory does not exist.\n%s") % path)
 
-    prefs[templates_root_pref] = str(path)
-    prefs.save()
+    prefs.prefs[templates_root_pref] = str(path)
+    prefs.prefs.save()
     return True
 
 
@@ -77,7 +78,7 @@ def update_report_template_prefs(root, conf_file):
             # noqa # pylint: disable=protected-access
         default_formatters = temp_prefs.get(CONFIG_LIST_PREF, None)
         if default_formatters:
-            formatters = prefs.get(CONFIG_LIST_PREF, {})
+            formatters = prefs.prefs.get(CONFIG_LIST_PREF, {})
             for k, v in default_formatters.items():
                 template_path = v[1].get('template')
                 if template_path:
@@ -86,8 +87,8 @@ def update_report_template_prefs(root, conf_file):
                 if stylesheet_path:
                     v[1]['stylesheet'] = str(Path(root, stylesheet_path))
                 formatters[k] = v
-            prefs[CONFIG_LIST_PREF] = formatters
-            prefs.save()
+            prefs.prefs[CONFIG_LIST_PREF] = formatters
+            prefs.prefs.save()
 
 
 def download_templates(root):
@@ -144,10 +145,10 @@ class TemplateDownloadTool(pluginmgr.Tool):
     @classmethod
     def start(cls):
         # get the directory to save to first
-        if templates_root_pref not in prefs:
+        if templates_root_pref not in prefs.prefs:
             if not set_templates_root_pref():
                 return
-        root = prefs.get(templates_root_pref, None)
+        root = prefs.prefs.get(templates_root_pref, None)
 
         msg = f'Download online report templates?\n\nSource: {TEMPLATES_URI}?'
         if yes_no_dialog(msg):

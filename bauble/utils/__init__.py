@@ -1646,12 +1646,12 @@ def get_net_sess():
     """return a requests or pypac session for making api calls, depending on
     prefrences.
     """
-    from bauble.prefs import prefs, web_proxy_prefs, testing
+    from bauble import prefs
 
     logger.debug('getting a network session')
 
-    if not testing:
-        prefs_proxies = prefs.get(web_proxy_prefs, None)
+    if not prefs.testing:
+        prefs_proxies = prefs.prefs.get(prefs.web_proxy_prefs, None)
     else:
         prefs_proxies = "Use vanilla requests without proxies"
 

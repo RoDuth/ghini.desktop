@@ -33,8 +33,8 @@ from gi.repository import Gtk
 from bauble.utils.geo import ProjDB, transform
 # NOTE importing shapefile Reader Writer above wipes out gettext _
 from bauble.i18n import _
-from bauble.prefs import (prefs, location_shapefile_prefs,
-                          plant_shapefile_prefs)
+from bauble import prefs
+from bauble.prefs import location_shapefile_prefs, plant_shapefile_prefs
 
 import bauble
 from bauble import db, task, pb_set_fraction
@@ -74,11 +74,11 @@ class ShapefileReader():
         for fields that match the default field maps.
         """
         plt = len([i for i in self.get_fields() if
-                   prefs.get(f'{plant_shapefile_prefs}.fields',
-                             {}).get(i[0])])
+                   prefs.prefs.get(f'{plant_shapefile_prefs}.fields',
+                                   {}).get(i[0])])
         loc = len([i for i in self.get_fields() if
-                   prefs.get(f'{location_shapefile_prefs}.fields',
-                             {}).get(i[0])])
+                   prefs.prefs.get(f'{location_shapefile_prefs}.fields',
+                                   {}).get(i[0])])
         if plt > loc:
             logger.debug('type guess plt - plant:%s location:%s', plt, loc)
             return 'plant'
@@ -124,11 +124,13 @@ class ShapefileReader():
         the defaults for the type."""
         if not self._search_by:
             if self.type == 'plant':
-                default_search_by = prefs.get(
-                    f'{plant_shapefile_prefs}.search_by', {})
+                default_search_by = prefs.prefs.get(
+                    f'{plant_shapefile_prefs}.search_by', {}
+                )
             elif self.type == 'location':
-                default_search_by = prefs.get(
-                    f'{location_shapefile_prefs}.search_by', {})
+                default_search_by = prefs.prefs.get(
+                    f'{location_shapefile_prefs}.search_by', {}
+                )
             else:
                 default_search_by = []
             for field in self.get_fields():
@@ -146,11 +148,13 @@ class ShapefileReader():
         """
         if not self._field_map:
             if self.type == 'plant':
-                default_map = prefs.get(f'{plant_shapefile_prefs}.fields',
-                                        {})
+                default_map = prefs.prefs.get(
+                    f'{plant_shapefile_prefs}.fields', {}
+                )
             elif self.type == 'location':
-                default_map = prefs.get(f'{location_shapefile_prefs}.fields',
-                                        {})
+                default_map = prefs.prefs.get(
+                    f'{location_shapefile_prefs}.fields', {}
+                )
             else:
                 default_map = {}
             # rebuild the field map

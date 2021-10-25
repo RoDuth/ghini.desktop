@@ -37,8 +37,8 @@ from bauble.utils.geo import ProjDB
 from bauble.meta import get_default
 # NOTE importing shapefile Writer above wipes out gettext _
 from bauble.i18n import _
-from bauble.prefs import (prefs, location_shapefile_prefs,
-                          plant_shapefile_prefs)
+from bauble import prefs
+from bauble.prefs import location_shapefile_prefs, plant_shapefile_prefs
 
 import bauble
 from bauble import db, task, pb_set_fraction
@@ -639,9 +639,12 @@ class ShapefileExporter:
         self.export_plants = False
         self.private = True
         self.dirname = None
-        self.plant_fields = prefs.get(f'{plant_shapefile_prefs}.fields', {})
-        self.location_fields = prefs.get(f'{location_shapefile_prefs}.fields',
-                                         {})
+        self.plant_fields = prefs.prefs.get(
+            f'{plant_shapefile_prefs}.fields', {}
+        )
+        self.location_fields = prefs.prefs.get(
+            f'{location_shapefile_prefs}.fields', {}
+        )
         # transform prefs into something to work with
         self.plant_fields = [[k, *get_field_properties(Plant, v), v] for
                              k, v in self.plant_fields.items()]

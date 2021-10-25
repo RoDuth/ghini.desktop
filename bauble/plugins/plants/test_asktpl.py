@@ -20,11 +20,7 @@
 #
 
 from bauble.test import BaubleTestCase
-from bauble.prefs import prefs
 import requests
-
-if not prefs.config:
-    prefs.init()
 
 
 def requests_get(x, timeout=None):

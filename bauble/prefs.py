@@ -231,6 +231,7 @@ class _prefs(UserDict):
     def __init__(self, filename=default_prefs_file):
         super().__init__()
         self._filename = filename
+        logger.debug('init prefs with filename: %s', filename)
         self.config = None
 
     def init(self):
@@ -575,4 +576,14 @@ class PrefsCommandHandler(pluginmgr.CommandHandler):
 
 pluginmgr.register_command(PrefsCommandHandler)
 
+# NOTE mainly for the sake of testing and using a temp pref file its best to
+# avoid importing prefs directly
+
 prefs = _prefs()
+"""The prefs instance.  Should only be instantiated once.
+
+Do not import this directly. Instead use:
+
+    from bauble import prefs
+    pref.pref.get('key')
+"""

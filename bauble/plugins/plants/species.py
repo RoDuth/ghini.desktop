@@ -47,7 +47,7 @@ from bauble.view import (InfoBox, InfoBoxPage, InfoExpander,
 from bauble import search
 from bauble.view import PropertiesExpander, Action
 from bauble import view
-from bauble.prefs import prefs
+from bauble import prefs
 from .genus import Genus, GenusSynonym
 from .family import Family, FamilySynonym
 
@@ -147,7 +147,7 @@ def on_taxa_clicked(_label, _event, taxon):
     if the return_accepted_pref is set True then select both the name synonym
     clicked on and its accepted name.
     """
-    if prefs.get(return_accepted_pref) and taxon.accepted:
+    if prefs.prefs.get(return_accepted_pref) and taxon.accepted:
         select_in_search_results(taxon.accepted)
     select_in_search_results(taxon)
 
@@ -160,13 +160,13 @@ class SynonymSearch(search.SearchStrategy):
 
     def __init__(self):
         super().__init__()
-        if return_accepted_pref not in prefs:
-            prefs[return_accepted_pref] = True
-            prefs.save()
+        if return_accepted_pref not in prefs.prefs:
+            prefs.prefs[return_accepted_pref] = True
+            prefs.prefs.save()
 
     @staticmethod
     def use(_text):
-        if prefs.get(return_accepted_pref):
+        if prefs.prefs.get(return_accepted_pref):
             return 'include'
         return 'exclude'
 
@@ -199,7 +199,7 @@ class SynonymSearch(search.SearchStrategy):
         results
         """
         super().search(text, session)
-        if not prefs.get(return_accepted_pref):
+        if not prefs.prefs.get(return_accepted_pref):
             # filter should prevent us getting here.
             return []
         mapper_results = search.result_cache.get('MapperSearch')
@@ -607,16 +607,21 @@ class SpeciesInfoPage(InfoBoxPage):
                 'tooltip': 'Search Tropicos (MissouriBG) online database'
             }
         ]
-        if not prefs.config.has_section(self.species_web_button_defs_prefs):
+        if not prefs.prefs.config.has_section(
+            self.species_web_button_defs_prefs
+        ):
             for i in button_defaults:
-                prefs[f'{self.species_web_button_defs_prefs}.{i.get("name")}'
-                      ] = {k: v for k, v in list(i.items()) if k != 'name'}
-            prefs.save()
+                prefs.prefs[
+                    f'{self.species_web_button_defs_prefs}.{i.get("name")}'
+                ] = {k: v for k, v in list(i.items()) if k != 'name'}
+            prefs.prefs.save()
 
-        butns = prefs.config.items(self.species_web_button_defs_prefs)
+        butns = prefs.prefs.config.items(self.species_web_button_defs_prefs)
         button_defs = []
         for i in butns:
-            button_def = prefs[f'{self.species_web_button_defs_prefs}.{i[0]}']
+            button_def = prefs.prefs[
+                f'{self.species_web_button_defs_prefs}.{i[0]}'
+            ]
             button_def['name'] = i[0]
             button_defs.append(button_def)
 

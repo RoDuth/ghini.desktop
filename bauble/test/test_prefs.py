@@ -16,6 +16,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
+import os
 
 from unittest import mock
 from tempfile import mkstemp
@@ -149,20 +150,6 @@ class PreferencesTests(BaubleTestCase):
 
 
 class PrefsViewTests(BaubleTestCase):
-
-    def setUp(self):
-        super().setUp()
-        _handle, self.temp = mkstemp()
-        self.orig_pref_file = prefs.default_prefs_file
-        self.orig_prefs = prefs.prefs
-        prefs.default_prefs_file = self.temp
-        prefs.prefs = prefs._prefs(filename=self.temp)
-        prefs.prefs.init()
-
-    def tearDown(self):
-        super().tearDown()
-        prefs.default_prefs_file = self.orig_pref_file
-        prefs.prefs = self.orig_prefs
 
     def test_prefs_view_starts_updates(self):
         prefs_view = prefs.PrefsView()

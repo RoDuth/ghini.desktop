@@ -35,7 +35,8 @@ import bauble
 from bauble import db
 from bauble import paths
 from bauble import pluginmgr
-from bauble.prefs import prefs, datetime_format_pref
+from bauble.prefs import datetime_format_pref
+from bauble import prefs
 from bauble import search
 from bauble import utils
 from bauble.utils import desktop
@@ -140,7 +141,7 @@ class GUI():
         self.previous_view = None
 
         # restore the window size
-        geometry = prefs.get(self.window_geometry_pref)
+        geometry = prefs.prefs.get(self.window_geometry_pref)
         if geometry is not None:
             self.window.set_default_size(*geometry)
             self.window.set_position(Gtk.WindowPosition.CENTER)
@@ -273,17 +274,17 @@ class GUI():
 
     @property
     def history_size(self):
-        history = prefs[self.history_size_pref]
+        history = prefs.prefs[self.history_size_pref]
         if history is None:
-            prefs[self.history_size_pref] = self._default_history_size
-        return int(prefs[self.history_size_pref])
+            prefs.prefs[self.history_size_pref] = self._default_history_size
+        return int(prefs.prefs[self.history_size_pref])
 
     @property
     def history_pins_size(self):
-        pins = prefs[self.history_pins_size_pref]
+        pins = prefs.prefs[self.history_pins_size_pref]
         if pins is None:
-            prefs[self.history_pins_size_pref] = self._default_history_pin_size
-        return int(prefs[self.history_pins_size_pref])
+            prefs.prefs[self.history_pins_size_pref] = self._default_history_pin_size
+        return int(prefs.prefs[self.history_pins_size_pref])
 
     def send_command(self, command):
         self.widgets.main_comboentry.get_child().set_text(command)
@@ -291,7 +292,7 @@ class GUI():
 
     def on_main_combo_changed(self, widget):
         entry = widget.get_child()
-        history_pins = prefs.get(self.entry_history_pins_pref, [])
+        history_pins = prefs.prefs.get(self.entry_history_pins_pref, [])
         text = entry.get_text()
         if text in history_pins:
             entry.set_icon_from_icon_name(Gtk.EntryIconPosition.SECONDARY,
@@ -367,26 +368,26 @@ class GUI():
         if not text:
             return
 
-        history_pins = prefs.get(self.entry_history_pins_pref, [])
-        history = prefs.get(self.entry_history_pref, [])
+        history_pins = prefs.prefs.get(self.entry_history_pins_pref, [])
+        history = prefs.prefs.get(self.entry_history_pref, [])
         # already pinned entry - remove the pin and add it back history
         if text in history_pins:
             history_pins.remove(text)
-            prefs[self.entry_history_pins_pref] = history_pins
+            prefs.prefs[self.entry_history_pins_pref] = history_pins
             self.add_to_history(text)
             self.populate_main_entry()
             return
 
         if text in history:
             history.remove(text)
-            prefs[self.entry_history_pref] = history
+            prefs.prefs[self.entry_history_pref] = history
 
         # trim the history_pins if the size is larger than the pref
         while len(history_pins) >= self.history_pins_size - 1:
             history_pins.pop()
 
         history_pins.insert(0, text)
-        prefs[self.entry_history_pins_pref] = history_pins
+        prefs.prefs[self.entry_history_pins_pref] = history_pins
         self.populate_main_entry()
 
     def add_to_history(self, text, index=0):
@@ -396,11 +397,11 @@ class GUI():
         if index < 0 or index > self.history_size:
             raise ValueError(_('history size must be greater than zero and '
                                'less than the history size'))
-        history = prefs.get(self.entry_history_pref, [])
+        history = prefs.prefs.get(self.entry_history_pref, [])
         if text in history:
             history.remove(text)
         # if its a pinned history entry bail
-        history_pins = prefs.get(self.entry_history_pins_pref, [])
+        history_pins = prefs.prefs.get(self.entry_history_pins_pref, [])
         if text in history_pins:
             return
 
@@ -409,12 +410,12 @@ class GUI():
             history.pop()
 
         history.insert(index, text)
-        prefs[self.entry_history_pref] = history
+        prefs.prefs[self.entry_history_pref] = history
         self.populate_main_entry()
 
     def populate_main_entry(self):
-        history_pins = prefs.get(self.entry_history_pins_pref, [])
-        history = prefs.get(self.entry_history_pref, [])
+        history_pins = prefs.prefs.get(self.entry_history_pins_pref, [])
+        history = prefs.prefs.get(self.entry_history_pref, [])
         main_combo = self.widgets.main_comboentry
 
         def separate(model, tree_iter):
@@ -782,7 +783,7 @@ class GUI():
     def on_file_menu_open(self, _widget):
         """Open the connection manager."""
         from .connmgr import start_connection_manager
-        default_conn = prefs[bauble.conn_default_pref]
+        default_conn = prefs.prefs[bauble.conn_default_pref]
         name, uri = start_connection_manager(default_conn)
         if name is None:
             return
@@ -888,10 +889,10 @@ class GUI():
                              'Latest published version: %s\n'
                              'Publication date: %s') % (
                                  bauble.installation_date.strftime(
-                                     prefs.get(datetime_format_pref)),
+                                     prefs.prefs.get(datetime_format_pref)),
                                  bauble.release_version,
                                  bauble.release_date.strftime(
-                                     prefs.get(datetime_format_pref))))
+                                     prefs.prefs.get(datetime_format_pref))))
         about.run()
         about.destroy()
 
@@ -908,7 +909,7 @@ class GUI():
 
     def on_resize(self, _widget, _data):
         rect = self.window.get_size()
-        prefs[self.window_geometry_pref] = rect.width, rect.height
+        prefs.prefs[self.window_geometry_pref] = rect.width, rect.height
 
     @staticmethod
     def on_quit(_widget):

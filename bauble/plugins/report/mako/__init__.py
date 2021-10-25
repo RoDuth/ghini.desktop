@@ -35,7 +35,8 @@ from mako.template import Template
 
 from bauble import db
 from bauble import paths
-from bauble.prefs import prefs, templates_root_pref
+from bauble.prefs import templates_root_pref
+from bauble import prefs
 from bauble.plugins.report import FormatterPlugin, SettingsBox
 from bauble import utils
 from bauble.utils import desktop
@@ -305,7 +306,8 @@ class MakoFormatterSettingsBox(SettingsBox):
             # open at the template root for new reports.
             examples_root = os.path.join(paths.appdata_dir(), 'templates',
                                          'mako')
-            templates_root = prefs.get(templates_root_pref, examples_root)
+            templates_root = prefs.prefs.get(templates_root_pref,
+                                             examples_root)
             self.widgets.template_chooser.unselect_all()
             self.clear_options_box()
             self.widgets.template_chooser.set_current_folder(
@@ -433,7 +435,7 @@ class MakoFormatterPlugin(FormatterPlugin):
 
         # If user has selected a directory to store templates add the examples
         # to it otherwise use appdata
-        templates_root = prefs.get(templates_root_pref, None)
+        templates_root = prefs.prefs.get(templates_root_pref, None)
         if templates_root:
             templates_root = os.path.join(templates_root, "ghini_examples",
                                           "mako")

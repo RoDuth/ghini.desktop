@@ -524,11 +524,14 @@ class ExportSettingsBoxTests(BaubleTestCase):
         super().setUp()
         get_default('system_proj_string', DEFAULT_SYS_PROJ)
         self.temp_dir = TemporaryDirectory()
-        from bauble.prefs import (prefs, plant_shapefile_prefs,
+        from bauble.prefs import (plant_shapefile_prefs,
                                   location_shapefile_prefs)
-        self.plant_fields = prefs.get(f'{plant_shapefile_prefs}.fields', {})
-        self.location_fields = prefs.get(f'{location_shapefile_prefs}.fields',
-                                         {})
+        from bauble import prefs
+        self.plant_fields = prefs.prefs.get(f'{plant_shapefile_prefs}.fields',
+                                            {})
+        self.location_fields = prefs.prefs.get(
+            f'{location_shapefile_prefs}.fields', {}
+        )
         # transform prefs into something to work with
         self.plant_fields = [[k, *get_field_properties(Plant, v), v] for
                              k, v in self.plant_fields.items()]

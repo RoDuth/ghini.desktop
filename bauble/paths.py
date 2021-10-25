@@ -160,5 +160,5 @@ def templates_dir():
 
     :return: the template root directory if one is set else None
     """
-    from bauble.prefs import prefs, templates_root_pref
-    return prefs.get(templates_root_pref, None)
+    from bauble import prefs
+    return prefs.prefs.get(prefs.templates_root_pref, None)

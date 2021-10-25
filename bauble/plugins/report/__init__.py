@@ -36,7 +36,7 @@ from sqlalchemy import union
 
 import bauble
 from bauble.error import BaubleError
-from bauble.prefs import prefs
+from bauble import prefs
 from bauble import utils
 from bauble import paths
 from bauble import pluginmgr
@@ -426,8 +426,7 @@ class ReportToolDialogPresenter(object):
 
         # set the names combo to the default, on_names_combo_changes should
         # do the rest of the work
-        combo = self.view.widgets.names_combo
-        default = prefs[default_config_pref]
+        default = prefs.prefs[default_config_pref]
         try:
             self.set_names_combo(default)
         except Exception as e:
@@ -474,11 +473,11 @@ class ReportToolDialogPresenter(object):
         '''
         This will overwrite any other report settings with name
         '''
-        formatters = prefs[config_list_pref]
+        formatters = prefs.prefs[config_list_pref]
         if formatters is None:
             formatters = {}
         formatters[name] = formatter_title, settings
-        prefs[config_list_pref] = formatters
+        prefs.prefs[config_list_pref] = formatters
 
     def on_new_button_clicked(self, *args):
         # TODO: don't set the OK button as sensitive in the name dialog
@@ -520,11 +519,11 @@ class ReportToolDialogPresenter(object):
         d.destroy()
 
     def on_remove_button_clicked(self, *args):
-        formatters = prefs[config_list_pref]
+        formatters = prefs.prefs[config_list_pref]
         names_combo = self.view.widgets.names_combo
         name = names_combo.get_active_text()
         formatters.pop(name)
-        prefs[config_list_pref] = formatters
+        prefs.prefs[config_list_pref] = formatters
         self.populate_names_combo()
         names_combo.set_active(0)
 
@@ -534,9 +533,10 @@ class ReportToolDialogPresenter(object):
             return
 
         name = combo.get_active_text()
-        formatters = prefs[config_list_pref]
+        formatters = prefs.prefs[config_list_pref]
         self.view.set_sensitive('details_box', name is not None)
-        prefs[default_config_pref] = name  # set the default to the new name
+        # set the default to the new name
+        prefs.prefs[default_config_pref] = name
         try:
             title, settings = formatters[name]
         except (KeyError, TypeError) as e:
@@ -566,7 +566,7 @@ class ReportToolDialogPresenter(object):
         name = self.view.widgets.names_combo.get_active_text()
         settings = {}
         try:
-            _name, settings = prefs[config_list_pref][name]
+            _name, settings = prefs.prefs[config_list_pref][name]
         except KeyError as e:
             logger.debug("%s(%s)" % (type(e).__name__, e))
             return
@@ -624,7 +624,7 @@ class ReportToolDialogPresenter(object):
         populates the combo with the list of configuration names
         from the prefs
         '''
-        configs = prefs[config_list_pref]
+        configs = prefs.prefs[config_list_pref]
         combo = self.view.widgets.names_combo
         if configs is None:
             self.view.set_sensitive('details_box', False)
@@ -641,7 +641,7 @@ class ReportToolDialogPresenter(object):
             pass
 
     def init_names_combo(self):
-        formatters = prefs[config_list_pref]
+        formatters = prefs.prefs[config_list_pref]
         if formatters is None or len(formatters) == 0:
             msg = _('No formatters found. To create a new formatter click '
                     'the "New" button.')
@@ -651,11 +651,11 @@ class ReportToolDialogPresenter(object):
 
     def save_formatter_settings(self):
         name = self.view.widgets.names_combo.get_active_text()
-        title, dummy = prefs[config_list_pref][name]
+        title, dummy = prefs.prefs[config_list_pref][name]
         box = self.view.widgets.settings_expander.get_child()
-        formatters = prefs[config_list_pref]
+        formatters = prefs.prefs[config_list_pref]
         formatters[name] = title, box.get_settings()
-        prefs[config_list_pref] = formatters
+        prefs.prefs[config_list_pref] = formatters
 
     def start(self):
         formatter = None
@@ -665,11 +665,11 @@ class ReportToolDialogPresenter(object):
             if response == Gtk.ResponseType.OK:
                 # get format method
                 # save default
-                prefs[default_config_pref] = \
+                prefs.prefs[default_config_pref] = \
                     self.view.widgets.names_combo.get_active_text()
                 self.save_formatter_settings()
                 name = self.view.widgets.names_combo.get_active_text()
-                title, settings = prefs[config_list_pref][name]
+                title, settings = prefs.prefs[config_list_pref][name]
                 formatter = self.formatter_class_map[title]
                 break
             else:

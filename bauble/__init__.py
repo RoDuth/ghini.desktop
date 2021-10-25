@@ -125,8 +125,8 @@ def save_state():
     """
     Save the gui state and preferences.
     """
-    from bauble.prefs import prefs
-    prefs.save()
+    from bauble import prefs
+    prefs.prefs.save()
 
 
 def quit():  # pylint: disable=redefined-builtin
@@ -254,12 +254,14 @@ def main(uri=None):
     consoleHandler.setLevel(consoleLevel)
 
     # intialize the user preferences
-    from bauble.prefs import (prefs, use_sentry_client_pref,
-                              debug_logging_prefs, datetime_format_pref)
-    prefs.init()
+    from bauble.prefs import (use_sentry_client_pref,
+                              debug_logging_prefs,
+                              datetime_format_pref)
+    from bauble import prefs
+    prefs.prefs.init()
 
     # set the logging level to debug per module
-    for handler in prefs.get(debug_logging_prefs, []):
+    for handler in prefs.prefs.get(debug_logging_prefs, []):
         logging.getLogger(handler).setLevel(logging.DEBUG)
 
     try:
@@ -268,7 +270,7 @@ def main(uri=None):
         from raven.handlers.logging import SentryHandler
 
         # only register the sentry client if the user agrees on it
-        if prefs[use_sentry_client_pref]:
+        if prefs.prefs[use_sentry_client_pref]:
             logger.debug('registering sentry client')
             sentry_client = Client('https://59105d22a4ad49158796088c26bf8e4c:'
                                    '00268114ed47460b94ce2b1b0b2a4a20@'
@@ -318,7 +320,7 @@ def main(uri=None):
                 # testing, database initialized at current version.  or we
                 # get two different exceptions.
                 if db.open(uri, True, True):
-                    prefs[conn_default_pref] = conn_name
+                    prefs.prefs[conn_default_pref] = conn_name
                     break
                 else:
                     uri = conn_name = None
@@ -350,7 +352,7 @@ def main(uri=None):
 
     # save any changes made in the conn manager before anything else has
     # chance to crash
-    prefs.save()
+    prefs.prefs.save()
 
     # set the default command handler
     from bauble.view import DefaultCommandHandler
@@ -377,7 +379,7 @@ def main(uri=None):
                         # inadvertantly create tables from the plugins
                         pluginmgr.init()
                         # set the default connection
-                        prefs[conn_default_pref] = conn_name
+                        prefs.prefs[conn_default_pref] = conn_name
                     except Exception as e:
                         utils.message_details_dialog(utils.xml_safe(e),
                                                      traceback.format_exc(),
@@ -398,11 +400,11 @@ def main(uri=None):
                 'Latest published version: %s; '
                 'Publication date: %s',
                 bauble.installation_date.strftime(
-                    prefs.get(datetime_format_pref)),
+                    prefs.prefs.get(datetime_format_pref)),
                 __file__,
                 bauble.release_version,
                 bauble.release_date.strftime(
-                    prefs.get(datetime_format_pref)))
+                    prefs.prefs.get(datetime_format_pref)))
 
     gui.show()
     Gtk.main()

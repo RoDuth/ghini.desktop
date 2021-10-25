@@ -39,7 +39,7 @@ from sqlalchemy import and_, or_
 from sqlalchemy import inspect as sa_inspect
 
 import bauble
-from bauble.prefs import prefs
+from bauble import prefs
 from bauble import utils
 from bauble import paths
 from bauble import editor
@@ -1233,12 +1233,12 @@ class SpeciesEditorView(editor.GenericEditorView):
     def save_state(self):
         """save the current state of the gui to the preferences."""
         for expander, pref in self.expanders_pref_map.items():
-            prefs[pref] = self.widgets[expander].get_expanded()
+            prefs.prefs[pref] = self.widgets[expander].get_expanded()
 
     def restore_state(self):
         """restore the state of the gui from the preferences."""
         for expander, pref in self.expanders_pref_map.items():
-            expanded = prefs.get(pref, True)
+            expanded = prefs.prefs.get(pref, True)
             self.widgets[expander].set_expanded(expanded)
 
     def start(self):

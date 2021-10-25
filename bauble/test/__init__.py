@@ -18,7 +18,9 @@
 # along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
 
 import sys
+import os
 import unittest
+from tempfile import mkstemp
 
 import logging
 logger = logging.getLogger(__name__)
@@ -28,7 +30,7 @@ import bauble
 from bauble import db
 from bauble.error import BaubleError
 from bauble import pluginmgr
-from bauble.prefs import prefs
+from bauble import prefs
 
 # for sake of testing, just use sqlite3.
 uri = 'sqlite:///:memory:'
@@ -94,10 +96,13 @@ class BaubleTestCase(unittest.TestCase):
             print(e, file=sys.stderr)
         if not bauble.db.engine:
             raise BaubleError('not connected to a database')
+        self.handle, self.temp = mkstemp(suffix='txt2', text=True)
+        prefs.default_prefs_file = self.temp
+        prefs.prefs = prefs._prefs(filename=self.temp)
+        prefs.prefs.init()
+        prefs.prefs.testing = True
         bauble.pluginmgr.plugins = {}
         pluginmgr.load()
-        prefs.init()
-        prefs.testing = True
         db.create(import_defaults=False)
         pluginmgr.install('all', False, force=True)
         pluginmgr.init()
@@ -105,6 +110,7 @@ class BaubleTestCase(unittest.TestCase):
         self.handler = MockLoggingHandler()
         logging.getLogger().addHandler(self.handler)
         logging.getLogger().setLevel(logging.DEBUG)
+        logger.debug(prefs.prefs._filename)
 
     def tearDown(self):
         logging.getLogger().removeHandler(self.handler)
@@ -112,6 +118,8 @@ class BaubleTestCase(unittest.TestCase):
         db.metadata.drop_all(bind=db.engine)
         bauble.pluginmgr.commands.clear()
         pluginmgr.plugins.clear()
+        os.close(self.handle)
+        os.remove(self.temp)
 
 
 def mockfunc(msg=None, name=None, caller=None, result=False, *args, **kwargs):

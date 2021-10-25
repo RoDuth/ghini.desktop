@@ -42,7 +42,7 @@ from bauble import pluginmgr
 from bauble import editor
 from bauble import utils
 from bauble import btypes as types
-from bauble.prefs import prefs
+from bauble import prefs
 from bauble import view
 
 
@@ -801,7 +801,7 @@ class SynonymsExpander(InfoExpander):
         # remove old labels
         syn_box.foreach(syn_box.remove)
         # use True comparison in case the preference isn't set
-        self.set_expanded(prefs[self.expanded_pref] is True)
+        self.set_expanded(prefs.prefs[self.expanded_pref] is True)
         logger.debug("family %s is synonym of %s and has synonyms %s", row,
                      row.accepted, row.synonyms)
         self.set_label(_("Synonyms"))  # reset default value
@@ -928,18 +928,17 @@ class FamilyInfoBox(InfoBox):
                 'tooltip': 'Search National Plant Germplasm System'
             }
         ]
-        if not prefs.config.has_section(self.family_web_button_defs_prefs):
+        if not prefs.prefs.config.has_section(self.family_web_button_defs_prefs):
             for i in button_defaults:
-                prefs[self.family_web_button_defs_prefs + '.'
-                      + i.get('name')] = {
-                          k: v for k, v in list(i.items()) if k != 'name'
-                      }
-            prefs.save()
+                prefs.prefs[
+                    f'{self.family_web_button_defs_prefs}.{i.get("name")}'
+                ] = {k: v for k, v in list(i.items()) if k != 'name'}
+            prefs.prefs.save()
 
-        butns = prefs.config.items(self.family_web_button_defs_prefs)
+        butns = prefs.prefs.config.items(self.family_web_button_defs_prefs)
         button_defs = []
         for i in butns:
-            button_def = prefs[self.family_web_button_defs_prefs + '.'
+            button_def = prefs.prefs[self.family_web_button_defs_prefs + '.'
                                + i[0]]
             button_def['name'] = i[0]
             button_defs.append(button_def)
