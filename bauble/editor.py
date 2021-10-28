@@ -1654,20 +1654,17 @@ class GenericEditorPresenter:
                 # completions model already has a static list of
                 # completions
                 return
-            # get the completions using [0:key_length] as the start of
-            # the string
-
-            def idle_callback(values):
-                completion = widget.get_completion()
-                utils.clear_model(completion)
-                completion_model = Gtk.ListStore(object)
-                for v in values:
-                    completion_model.append([v])
-                completion.set_model(completion_model)
 
             values = get_completions(text)
-            logger.debug('completions to add: %s', str([i for i in values]))
-            GLib.idle_add(idle_callback, values)
+
+            completion = widget.get_completion()
+            utils.clear_model(completion)
+            completion_model = Gtk.ListStore(object)
+            for v in values:
+                completion_model.append([v])
+            completion.set_model(completion_model)
+
+            logger.debug('completions to add: %s', values)
 
         def on_changed(entry, *args):
             """If entry's text is greater than widget's minimum_key_length call
@@ -1686,8 +1683,7 @@ class GenericEditorPresenter:
                 logger.debug('recomputing completions matching %s', text)
                 add_completions(text)
 
-            def idle_callback(data):
-                text, comparer = data
+            def _callback(text, comparer):
                 logger.debug('on_changed - part two')
                 comp = entry.get_completion()
                 comp_model = comp.get_model()
@@ -1712,6 +1708,7 @@ class GenericEditorPresenter:
                     logger.debug("matches found in ListStore: %s", str(found))
                     if not found:
                         logger.debug('nothing found, nothing to select from')
+                        on_select(None)
                     elif len(found) == 1:
                         logger.debug(
                             'one match, decide whether to select it - %s',
@@ -1720,10 +1717,13 @@ class GenericEditorPresenter:
                         # only auto select if the full string has been entered
                         if text.lower() == utils.nstr(v).lower():
                             comp.emit('match-selected', comp_model, found[0])
+                        else:
+                            on_select(None)
                     else:
                         logger.debug(
                             'multiple matches, we cannot select any - %s',
                             str(found))
+                        on_select(None)
 
                 if (text != '' and not found and
                         (PROBLEM, widget) not in self.problems):
@@ -1745,7 +1745,8 @@ class GenericEditorPresenter:
                     self.remove_problem(PROBLEM, widget)
                 logger.debug('on_changed - part two - returning')
 
-            GLib.idle_add(idle_callback, (text, comparer))
+            # callback keeps comparer in scope
+            _callback(text, comparer)
             logger.debug('on_changed - part one - returning')
             return True
 
