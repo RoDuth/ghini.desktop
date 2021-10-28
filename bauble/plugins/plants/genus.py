@@ -580,9 +580,9 @@ class GenusEditorPresenter(editor.GenericEditorPresenter):
         self._dirty = True
         self.refresh_sensitivity()
 
-    def dirty(self):
-        return (self._dirty or self.synonyms_presenter.dirty() or
-                self.notes_presenter.dirty())
+    def is_dirty(self):
+        return (self._dirty or self.synonyms_presenter.is_dirty() or
+                self.notes_presenter.is_dirty())
 
     def refresh_view(self):
         for widget, field in self.widget_to_field_map.items():
@@ -639,7 +639,7 @@ class SynonymsPresenter(editor.GenericEditorPresenter):
     def start(self):
         raise Exception('genus.SynonymsPresenter cannot be started')
 
-    def dirty(self):
+    def is_dirty(self):
         return self._dirty
 
     def init_treeview(self):
@@ -767,7 +767,7 @@ class GenusEditor(editor.GenericModelViewPresenterEditor):
         not_ok_msg = _('Are you sure you want to lose your changes?')
         if response == Gtk.ResponseType.OK or response in self.ok_responses:
             try:
-                if self.presenter.dirty():
+                if self.presenter.is_dirty():
                     self.commit_changes()
                     self._committed.append(self.model)
             except DBAPIError as e:
@@ -783,8 +783,9 @@ class GenusEditor(editor.GenericModelViewPresenterEditor):
                 utils.message_details_dialog(msg, traceback.format_exc(),
                                              Gtk.MessageType.ERROR)
                 return False
-        elif ((self.presenter.dirty() and
-               utils.yes_no_dialog(not_ok_msg)) or not self.presenter.dirty()):
+        elif ((self.presenter.is_dirty() and
+               utils.yes_no_dialog(not_ok_msg)) or not
+              self.presenter.is_dirty()):
             self.session.rollback()
             return True
         else:

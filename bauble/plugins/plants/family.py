@@ -433,7 +433,7 @@ class FamilyEditorPresenter(editor.GenericEditorPresenter):
     def refresh_sensitivity(self):
         # TODO: check widgets for problems
         sensitive = False
-        if self.dirty() and self.model.family:
+        if self.is_dirty() and self.model.family:
             sensitive = True
         self.view.set_accept_buttons_sensitive(sensitive)
 
@@ -443,9 +443,9 @@ class FamilyEditorPresenter(editor.GenericEditorPresenter):
         self._dirty = True
         self.refresh_sensitivity()
 
-    def dirty(self):
-        return self._dirty or self.synonyms_presenter.dirty() \
-            or self.notes_presenter.dirty()
+    def is_dirty(self):
+        return (self._dirty or self.synonyms_presenter.is_dirty() or
+                self.notes_presenter.is_dirty())
 
     def refresh_view(self):
         for widget, field in self.widget_to_field_map.items():
@@ -499,7 +499,7 @@ class SynonymsPresenter(editor.GenericEditorPresenter):
                           self.on_remove_button_clicked)
         self._dirty = False
 
-    def dirty(self):
+    def is_dirty(self):
         return self._dirty
 
     def init_treeview(self):
@@ -618,7 +618,7 @@ class FamilyEditor(editor.GenericModelViewPresenterEditor):
         not_ok_msg = 'Are you sure you want to lose your changes?'
         if response == Gtk.ResponseType.OK or response in self.ok_responses:
             try:
-                if self.presenter.dirty():
+                if self.presenter.is_dirty():
                     self.commit_changes()
                     self._committed.append(self.model)
             except DBAPIError as e:
@@ -633,8 +633,9 @@ class FamilyEditor(editor.GenericModelViewPresenterEditor):
                 utils.message_details_dialog(msg, traceback.format_exc(),
                                              Gtk.MessageType.ERROR)
                 return False
-        elif (self.presenter.dirty() and utils.yes_no_dialog(not_ok_msg)) or \
-                not self.presenter.dirty():
+        elif ((self.presenter.is_dirty() and
+               utils.yes_no_dialog(not_ok_msg)) or not
+              self.presenter.is_dirty()):
             self.session.rollback()
             return True
         else:

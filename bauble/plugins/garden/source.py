@@ -371,7 +371,7 @@ class CollectionPresenter(editor.ChildPresenter):
     def start(self):
         raise Exception('CollectionPresenter cannot be started')
 
-    def dirty(self):
+    def is_dirty(self):
         return self._dirty
 
     def refresh_view(self):
@@ -751,7 +751,7 @@ class PropagationChooserPresenter(editor.ChildPresenter):
         cell.set_active(active)
         cell.set_sensitive(True)
 
-    def dirty(self):
+    def is_dirty(self):
         return self._dirty
 
 

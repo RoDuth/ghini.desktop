@@ -1408,12 +1408,6 @@ class GenericEditorPresenter:
         self.__set_model_attr(attr, value)
         self.refresh_view()
 
-    def dirty(self):
-        import inspect
-        logger.debug('calling deprecated "dirty" instead of "is_dirty" by %s',
-                     inspect.stack()[1])
-        return self.is_dirty()
-
     # whether the presenter should be commited or not
     def is_dirty(self):
         """is the presenter dirty?
