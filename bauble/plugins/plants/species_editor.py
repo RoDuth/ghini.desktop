@@ -43,12 +43,16 @@ from bauble import prefs
 from bauble import utils
 from bauble import paths
 from bauble import editor
-from bauble.plugins.plants.geography import GeographyMenu
-from bauble.plugins.plants.family import Family
-from bauble.plugins.plants.genus import Genus, GenusSynonym
-from bauble.plugins.plants.species_model import (
-    Species, SpeciesDistribution, VernacularName, SpeciesSynonym, Habit,
-    infrasp_rank_values, compare_rank)
+from .geography import GeographyMenu
+from .family import Family
+from .genus import Genus, GenusSynonym
+from .species_model import (Species,
+                            SpeciesDistribution,
+                            VernacularName,
+                            SpeciesSynonym,
+                            Habit,
+                            infrasp_rank_values,
+                            compare_rank)
 
 
 def generic_sp_get_completions(session: Session,
@@ -204,9 +208,11 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
 
         # connect signals
         def gen_get_completions(text):
-            clause = utils.ilike(Genus.genus, '%s%%' % str(text))
-            return self.session.query(Genus).filter(clause).\
-                order_by(Genus.genus)
+            query = (self.session.query(Genus)
+                     .filter(utils.ilike(Genus.genus, '%s%%' % str(text)))
+                     .order_by(Genus.genus)
+                     .limit(80))    # unlikely likely to be reached.
+            return query
 
         def sp_species_tpl_callback(found, accepted):
             # both found and accepted are dictionaries, their keys here
@@ -496,8 +502,7 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
         self.view.connect_after('sp_hybrid_check', 'toggled', refresh)
 
     def on_sp_species_entry_insert_text(self, entry, text, _length, position):
-        """validate species epithet
-        """
+        """validate species epithet"""
 
         while self.species_check_messages:
             kid = self.species_check_messages.pop()
@@ -550,8 +555,7 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
         entry.stop_emission_by_name("insert_text")
 
     def refresh_fullname_label(self, widget=None):
-        """
-        set the value of sp_fullname_label to either '--' if there
+        """set the value of sp_fullname_label to either '--' if there
         is a problem or to the name of the string returned by Species.str
         """
         logger.debug("SpeciesEditorPresenter:refresh_fullname_label %s",
@@ -1164,7 +1168,9 @@ class SpeciesEditorView(editor.GenericEditorView):
         'sp_spqual_combo': _('Species qualifier'),
         'sp_dist_frame': _('Species distribution'),
         'sp_vern_frame': _('Vernacular names'),
-        'sp_syn_frame': _('Species synonyms'),
+        'sp_syn_frame': _('Species synonyms\n(if blue they have not been '
+                          'committed to the database yet.  Clicking OK will '
+                          'commit them)'),
         'sp_label_dist_entry': _('The distribution string that will be used '
                                  'on the label.  If this entry is blank then '
                                  'the species distribution will be used'),
@@ -1205,8 +1211,7 @@ class SpeciesEditorView(editor.GenericEditorView):
 
     @staticmethod
     def genus_match_func(completion, key, itr):
-        """
-        match against both str(genus) and str(genus.genus) so that we
+        """match against both str(genus) and str(genus.genus) so that we
         catch the genera with hybrid flags in their name when only
         entering the genus name
         """
@@ -1226,9 +1231,8 @@ class SpeciesEditorView(editor.GenericEditorView):
 
     @staticmethod
     def genus_completion_cell_data_func(_column, renderer, model, treeiter):
-        v = model[treeiter][0]
-        renderer.set_property('text', '%s (%s)' % (Genus.str(v),
-                                                   Family.str(v.family)))
+        gen = model[treeiter][0]
+        renderer.set_property('text', f'{gen} ({gen.family})')
 
     def save_state(self):
         """save the current state of the gui to the preferences."""

@@ -555,8 +555,8 @@ class GenusEditorPresenter(editor.GenericEditorPresenter):
 
         notes_parent = self.view.widgets.notes_parent_box
         notes_parent.foreach(notes_parent.remove)
-        self.notes_presenter = \
-            editor.NotesPresenter(self, 'notes', notes_parent)
+        self.notes_presenter = editor.NotesPresenter(self, 'notes',
+                                                     notes_parent)
 
         if self.model not in self.session.new:
             self.view.widgets.gen_ok_and_add_button.set_sensitive(True)

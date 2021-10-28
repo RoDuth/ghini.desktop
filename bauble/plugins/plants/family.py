@@ -624,7 +624,8 @@ class FamilyEditor(editor.GenericModelViewPresenterEditor):
             except DBAPIError as e:
                 msg = _('Error committing changes.\n\n%s') % \
                     utils.xml_safe(e.orig)
-                utils.message_details_dialog(msg, str(e), Gtk.MessageType.ERROR)
+                utils.message_details_dialog(msg, str(e),
+                                             Gtk.MessageType.ERROR)
                 return False
             except Exception as e:
                 msg = _('Unknown error when committing changes. See the '

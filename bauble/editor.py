@@ -1578,7 +1578,7 @@ class GenericEditorPresenter:
 
         if isinstance(widget, Gtk.Entry):       # also catches SpinButtons
             def on_changed(entry):
-                self.set_model_attr(model_attr, entry.props.text, validator)
+                self.set_model_attr(model_attr, entry.get_text(), validator)
             self.view.connect(widget, 'changed', on_changed)
         elif isinstance(widget, Gtk.TextView):
             def on_changed(textbuff):
@@ -2181,8 +2181,9 @@ class NotesPresenter(GenericEditorPresenter):
         self.widgets = utils.BuilderWidgets(filename)
 
         self.parent_ref = weakref.ref(presenter)
-        self.note_cls = object_mapper(presenter.model).\
-            get_property(notes_property).mapper.class_
+        self.note_cls = (object_mapper(presenter.model)
+                         .get_property(notes_property)
+                         .mapper.class_)
         self.notes = getattr(presenter.model, notes_property)
         self.parent_container = parent_container
         editor_box = self.widgets.notes_editor_box

@@ -343,13 +343,13 @@ class ConnMgrPresenter(GenericEditorPresenter):
             self.prev_connection_name = None
         self.use_defaults = True
         self.passwd = False
-        ## following two look like overkill, since they will be initialized
-        ## in the parent class constructor. but we need these attributes in
-        ## place before we can invoke get_params
+        # following two look like overkill, since they will be initialized
+        # in the parent class constructor. but we need these attributes in
+        # place before we can invoke get_params
         self.model = self
         self.view = view
 
-        ## initialize comboboxes, so we can fill them in
+        # initialize comboboxes, so we can fill them in
         view.combobox_init('name_combo')
         view.combobox_init('type_combo', dbtypes, type_combo_cell_data_func)
         self.connection_names = []
@@ -436,7 +436,7 @@ class ConnMgrPresenter(GenericEditorPresenter):
         return str(Path(path).parent)
 
     def refresh_view(self):
-        GenericEditorPresenter.refresh_view(self)
+        super().refresh_view()
         conn_dict = self.connections
         if conn_dict is None or len(list(conn_dict.keys())) == 0:
             self.view.widget_set_visible('noconnectionlabel', True)

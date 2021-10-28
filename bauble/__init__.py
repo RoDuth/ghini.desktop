@@ -384,13 +384,13 @@ def main(uri=None):
                         utils.message_details_dialog(utils.xml_safe(e),
                                                      traceback.format_exc(),
                                                      Gtk.MessageType.ERROR)
-                        logger.error("%s(%s)" % (type(e).__name__, e))
+                        logger.error("%s(%s)", (type(e).__name__, e))
             else:
                 pluginmgr.init()
         except Exception as e:
-            logger.warning("%s\n%s(%s)"
-                           % (traceback.format_exc(), type(e).__name__, e))
-            msg = utils.xml_safe("%s(%s)" % (type(e).__name__, e))
+            logger.warning("%s\n%s(%s)", traceback.format_exc(),
+                           type(e).__name__, e)
+            msg = utils.xml_safe("%s(%s)", (type(e).__name__, e))
             utils.message_dialog(msg, Gtk.MessageType.WARNING)
         gui.get_view().update()
 

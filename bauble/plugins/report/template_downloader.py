@@ -49,7 +49,7 @@ def set_templates_root_pref(path=None):
     if path is None:
         dlog = Gtk.FileChooserNative.new(_('Select a templates directory...'),
                                          None,
-                                         Gtk.FileChooserAction.SELECT_FOLDER,
+                                         Gtk.FileChooserAction.CREATE_FOLDER,
                                          None, None)
         home_folder = str(Path.home())
         dlog.set_current_folder(home_folder)

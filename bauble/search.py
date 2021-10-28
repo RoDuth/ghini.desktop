@@ -712,6 +712,7 @@ class SearchParser:
         empty_token |
         string_value
     ).setParseAction(ValueToken)('value')
+
     value_list << Group(
         OneOrMore(value) ^ delimitedList(value)
     ).setParseAction(ValueListAction)('value_list')
@@ -1094,8 +1095,6 @@ def parse_typed_value(value, proptype):
 
 
 class ExpressionRow:
-    """
-    """
 
     conditions = ['=', '!=', '<', '<=', '>', '>=', 'like', 'contains']
 
@@ -1114,15 +1113,12 @@ class ExpressionRow:
             self.grid.attach(self.and_or_combo, 0, row_number, 1, 1)
 
         self.prop_button = Gtk.Button(label=_('Choose a property…'))
-        self.prop_button.props.use_underline = False
-
-        def on_prop_button_clicked(button, event, menu):
-            menu.popup(None, None, None, None, event.button, event.time)
 
         self.schema_menu = SchemaMenu(self.presenter.mapper,
                                       self.on_schema_menu_activated,
                                       self.column_filter)
-        self.prop_button.connect('button-press-event', on_prop_button_clicked,
+        self.prop_button.connect('button-press-event',
+                                 self.on_prop_button_clicked,
                                  self.schema_menu)
         self.grid.attach(self.prop_button, 1, row_number, 1, 1)
 
@@ -1146,28 +1142,28 @@ class ExpressionRow:
                                        lambda b: remove_callback(self))
             self.grid.attach(self.remove_button, 4, row_number, 1, 1)
 
-    def on_value_changed(self, widget, *args):
-        """
-        Call the QueryBuilder.validate() for this row.
-        Set the sensitivity of the Gtk.ResponseType.OK button on the
+    @staticmethod
+    def on_prop_button_clicked(_button, event, menu):
+        menu.popup(None, None, None, None, event.button, event.time)
+
+    def on_value_changed(self, widget):
+        """Call the QueryBuilder.validate() for this row.
+
+        Sets the sensitivity of the Gtk.ResponseType.OK button on the
         QueryBuilder.
         """
         self.presenter.validate()
 
     def on_date_value_changed(self, widget, *args):
-        """
-        Loosely constrain text to numbers and date separators or commas
-        """
+        """Loosely constrain text to numbers and date separators or commas"""
         val = widget.get_text()
         val = ''.join([i for i in val if i in ',/-0123456789'])
         widget.set_text(val)
         self.on_value_changed(widget)
 
-    def on_schema_menu_activated(self, menuitem, path, prop):
-        """
-        Called when an item in the schema menu is activated
-        """
-        self.prop_button.props.label = path
+    def on_schema_menu_activated(self, _menuitem, path, prop):
+        """Called when an item in the schema menu is activated"""
+        self.prop_button.set_label(path)
         self.menu_item_activated = True
         top = self.grid.child_get_property(self.value_widget, 'top-attach')
         left = self.grid.child_get_property(self.value_widget, 'left-attach')
@@ -1197,6 +1193,7 @@ class ExpressionRow:
                 model.append([value, translation])
             self.value_widget.props.model = model
             self.value_widget.connect('changed', self.on_value_changed)
+
         elif isinstance(self.proptype, Integer):
             val_widgt_adjustment = Gtk.Adjustment(upper=1000000000000,
                                                   step_increment=1,
@@ -1204,6 +1201,7 @@ class ExpressionRow:
             self.value_widget = Gtk.SpinButton(adjustment=val_widgt_adjustment,
                                                numeric=True)
             self.value_widget.connect('changed', self.on_value_changed)
+
         elif isinstance(self.proptype, Float):
             val_widgt_adjustment = Gtk.Adjustment(upper=10000000,
                                                   lower=0.00000000001,
@@ -1233,15 +1231,14 @@ class ExpressionRow:
         self.grid.show_all()
         self.presenter.validate()
 
-    def column_filter(self, prop):
+    def column_filter(self, _prop):
         return True
 
-    def relation_filter(self, prop):
+    def relation_filter(self, _prop):
         return True
 
     def get_widgets(self):
-        """
-        Returns a tuple of the and_or_combo, prop_button, cond_combo,
+        """Returns a tuple of the and_or_combo, prop_button, cond_combo,
         value_widget, and remove_button widgets.
         """
         return (
@@ -1249,11 +1246,9 @@ class ExpressionRow:
                         self.value_widget, self.remove_button) if i)
 
     def get_expression(self):
-        """
-        Return the expression represented by this ExpressionRow.  If
-        the expression is not valid then return None.
+        """Return the expression represented by this ExpressionRow.
 
-        :param self:
+        If the expression is not valid then return None.
         """
 
         if not self.menu_item_activated:
@@ -1263,18 +1258,18 @@ class ExpressionRow:
         if isinstance(self.value_widget, Gtk.ComboBoxText):
             value = self.value_widget.get_active_text()
         elif isinstance(self.value_widget, Gtk.ComboBox):
-            model = self.value_widget.props.model
+            model = self.value_widget.get_model()
             active_iter = self.value_widget.get_active_iter()
             if active_iter:
                 value = model[active_iter][0]
         else:
             # assume it's a Gtk.Entry or other widget with a text property
-            value = self.value_widget.props.text.strip()
+            value = self.value_widget.get_text().strip()
         value = parse_typed_value(value, self.proptype)
         and_or = ''
         if self.and_or_combo:
             and_or = self.and_or_combo.get_active_text()
-        field_name = self.prop_button.props.label
+        field_name = self.prop_button.get_label()
         if value == EmptyToken():
             field_name = field_name.rsplit('.', 1)[0]
             value = repr(value)
@@ -1309,7 +1304,8 @@ class QueryBuilder(GenericEditorPresenter):
         self.view.widgets.domain_liststore.clear()
         for key in sorted(self.domain_map.keys()):
             self.view.widgets.domain_liststore.append([key])
-        self.view.widgets.add_clause_button.props.sensitive = False
+        self.view.widgets.add_clause_button.set_sensitive(False)
+        self.view.widgets.confirm_button.set_sensitive(False)
         self.refresh_view()
 
     def on_domain_combo_changed(self, *args):
@@ -1340,9 +1336,7 @@ class QueryBuilder(GenericEditorPresenter):
         self.view.widgets.add_clause_button.props.sensitive = True
 
     def validate(self):
-        """
-        Validate the search expression is a valid expression.
-        """
+        """Validate the search expression is a valid expression."""
         valid = False
         for row in self.expression_rows:
             value = None
@@ -1361,18 +1355,14 @@ class QueryBuilder(GenericEditorPresenter):
         return valid
 
     def remove_expression_row(self, row):
-        """
-        Remove a row from the expressions table.
-        """
+        """Remove a row from the expressions table."""
         [i.destroy() for i in row.get_widgets()]
         self.table_row_count -= 1
         self.expression_rows.remove(row)
         self.view.get_window().resize(1, 1)
 
     def on_add_clause(self, *args):
-        """
-        Add a row to the expressions table.
-        """
+        """Add a row to the expressions table."""
         domain = self.domain_map[self.domain]
         self.mapper = class_mapper(domain)
         self.table_row_count += 1
@@ -1391,14 +1381,11 @@ class QueryBuilder(GenericEditorPresenter):
 
     @property
     def valid_clauses(self):
-        return [i.get_expression()
-                for i in self.expression_rows
-                if i.get_expression()]
+        return [i.get_expression() for i in self.expression_rows if
+                i.get_expression()]
 
     def get_query(self):
-        """
-        Return query expression string.
-        """
+        """Return query expression string."""
 
         query = [self.domain, 'where'] + self.valid_clauses
         return ' '.join(query)
