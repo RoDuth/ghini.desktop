@@ -870,6 +870,9 @@ class BinomialSearchTests(BaubleTestCase):
         sp = Species(sp="coccinea", genus=g3)
         sp2 = Species(sp="peruviana", genus=g3)
         sp3 = Species(sp="chinensis", genus=g3)
+        self.cv1 = Species(cultivar_epithet="Magnifica", genus=g3)
+        self.cv2 = Species(sp="chinensis", cultivar_epithet="Prince Of Orange",
+                           genus=g3)
         g4 = Genus(family=f3, genus='Pachystachys')
         sp4 = Species(sp='coccinea', genus=g4)
         self.session.add_all([f1, f2, g1, g2, f3, g3, sp, sp2, sp3, g4, sp4])
@@ -911,7 +914,7 @@ class BinomialSearchTests(BaubleTestCase):
         results = mapper_search.search(s, self.session)
         self.assertEqual(results, set([self.ixora, self.ic, self.pc]))
 
-    def test_cultivar_also_matched(self):
+    def test_sp_cultivar_also_matches(self):
         mapper_search = search.get_strategy('MapperSearch')
         self.assertTrue(isinstance(mapper_search, search.MapperSearch))
 
@@ -926,6 +929,29 @@ class BinomialSearchTests(BaubleTestCase):
         results = mapper_search.search(s, self.session)
         self.assertEqual(results, set([self.ic, sp5]))
 
+    def test_cultivar_no_sp_search(self):
+        mapper_search = search.get_strategy('MapperSearch')
+        self.assertTrue(isinstance(mapper_search, search.MapperSearch))
+
+        s = "Ixora 'Mag"
+        results = mapper_search.search(s, self.session)
+        self.assertEqual(results, set([self.cv1]))
+
+    def test_cultivar_w_sp_search(self):
+        mapper_search = search.get_strategy('MapperSearch')
+        self.assertTrue(isinstance(mapper_search, search.MapperSearch))
+
+        s = "Ixo 'Pri"
+        results = mapper_search.search(s, self.session)
+        self.assertEqual(results, set([self.cv2]))
+
+    def test_full_cultivar_search(self):
+        mapper_search = search.get_strategy('MapperSearch')
+        self.assertTrue(isinstance(mapper_search, search.MapperSearch))
+
+        s = "Ixora 'Prince Of Orange'"
+        results = mapper_search.search(s, self.session)
+        self.assertEqual(results, set([self.cv2]))
 
 from sqlalchemy.orm import class_mapper
 from bauble.search import SchemaMenu

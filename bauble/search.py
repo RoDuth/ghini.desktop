@@ -480,26 +480,49 @@ class StatementAction:
 class BinomialNameAction:
     """created when the parser hits a binomial_name token.
 
+    Partial or complete cultivar names are also matched if started with a '
+
     Searching using binomial names returns one or more species objects.
     """
 
-    def __init__(self, t):
-        self.genus_epithet = t[0]
-        self.species_epithet = t[1]
+    def __init__(self, tokens):
+        self.genus_epithet = tokens[0]
+        if tokens[1].startswith("'"):
+            self.cultivar_epithet = tokens[1].strip("'")
+            self.species_epithet = None
+        else:
+            self.cultivar_epithet = None
+            self.species_epithet = tokens[1]
 
     def __repr__(self):
-        return "%s %s" % (self.genus_epithet, self.species_epithet)
+        if self.species_epithet:
+            return f'{self.genus_epithet} {self.species_epithet}'
+        return f'{self.genus_epithet} {self.cultivar_epithet}'
 
     def invoke(self, search_strategy):
         logger.debug('BinomialNameAction:invoke')
         from bauble.plugins.plants.genus import Genus
         from bauble.plugins.plants.species import Species
-        result = search_strategy._session.query(Species).filter(
-            or_(Species.sp.startswith(self.species_epithet),
-                and_(self.species_epithet == 'sp', Species.infrasp1 == 'sp')
-                )).join(Genus).filter(
-            Genus.genus.startswith(self.genus_epithet)).all()
-        result = set(result)
+        result = None
+        if self.species_epithet:
+            logger.debug('binomial search sp: %s, gen: %s',
+                         self.species_epithet, self.genus_epithet)
+            result = (search_strategy._session.query(Species)
+                      .filter(Species.sp.startswith(self.species_epithet))
+                      .join(Genus)
+                      .filter(Genus.genus.startswith(self.genus_epithet))
+                      .all())
+            result = set(result)
+        else:
+            logger.debug('cultivar search cv: %s, gen: %s',
+                         self.cultivar_epithet, self.genus_epithet)
+            result = (search_strategy._session.query(Species)
+                      .filter(Species.cultivar_epithet
+                              .startswith(self.cultivar_epithet))
+                      .join(Genus)
+                      .filter(Genus.genus.startswith(self.genus_epithet))
+                      .all())
+            result = set(result)
         if None in result:
             logger.warning('removing None from result set')
             result = set(i for i in result if i is not None)
@@ -599,9 +622,9 @@ class AggregatingAction:
 
 class ValueListAction:
 
-    def __init__(self, t):
-        logger.debug("ValueListAction::__init__(%s)" % t)
-        self.values = t[0]
+    def __init__(self, tokens):
+        logger.debug("ValueListAction::__init__(%s)", tokens)
+        self.values = tokens[0]
 
     def __repr__(self):
         return str(self.values)
@@ -618,6 +641,16 @@ class ValueListAction:
         """
 
         logger.debug('ValueListAction:invoke')
+        if any(len(str(i)) < 4 for i in self.values):
+            logger.debug('contains single letter')
+            msg = _('The search string provided contains no specific query '
+                    'and will search against all fields in all tables.  It '
+                    'also contains a single letter.\n\n<b>Is this what you '
+                    'intended?</b>\n\n(Returning results from a query like '
+                    'this could take a very long time.)')
+            if not utils.yes_no_dialog(msg, yes_delay=1):
+                logger.debug('user aborted')
+                return []
 
         def like(table, col, val):
             return utils.ilike(table.c[col], ('%%%s%%' % val))
@@ -626,33 +659,23 @@ class ValueListAction:
         for cls, columns in search_strategy._properties.items():
             column_cross_value = [(c, v) for c in columns
                                   for v in self.express()]
-            # as of SQLAlchemy>=0.4.2 we convert the value to a unicode
-            # object if the col is a Unicode or UnicodeText column in order
-            # to avoid the "Unicode type received non-unicode bind param"
-
-            def unicol(col, v):
-                table = class_mapper(cls)
-                if isinstance(table.c[col].type, (Unicode, UnicodeText)):
-                    return str(v)
-                else:
-                    return v
 
             table = class_mapper(cls)
-            q = search_strategy._session.query(cls)  # prepares SELECT
-            q = q.filter(or_(*[like(table, c, unicol(c, v))
-                               for c, v in column_cross_value]))
-            result.update(q.all())
+            query = (search_strategy._session.query(cls)
+                     .filter(or_(*[like(table, c, v) for c, v in
+                                   column_cross_value])))
+            result.update(query.all())
 
         def replace(i):
             try:
                 replacement = i.replacement()
-                logger.debug('replacing %s by %s in result set' %
-                             (i, replacement))
+                logger.debug('replacing %s by %s in result set', i,
+                             replacement)
                 return replacement
-            except:
+            except AttributeError:
                 return i
-        result = set([replace(i) for i in result])
-        logger.debug("result is now %s" % result)
+        result = set(replace(i) for i in result)
+        logger.debug("result is now %s", result)
         if None in result:
             logger.warning('removing None from result set')
             result = set(i for i in result if i is not None)
@@ -708,7 +731,9 @@ class SearchParser:
     caps = srange("[A-Z]")
     lowers = caps.lower()
     binomial_name = (
-        Word(caps, lowers) + Word(lowers)
+        Word(caps, lowers) + (
+            Word(lowers) | Word("'", caps + lowers + " ") + Literal("'") |
+            Word("'", caps + lowers))
     ).setParseAction(BinomialNameAction)('binomial_name')
 
     AND_ = wordStart + (CaselessLiteral("AND") | Literal("&&")) + wordEnd
@@ -1063,7 +1088,7 @@ def parse_typed_value(value, proptype):
     elif isinstance(proptype, Float):
         value = ''.join([i for i in value if i in '-0123456789.'])
         value = str(float(value))
-    else:
+    elif value not in ['%', '_']:
         value = repr(str(value).strip())
     return value
 
@@ -1321,8 +1346,8 @@ class QueryBuilder(GenericEditorPresenter):
         valid = False
         for row in self.expression_rows:
             value = None
-            if isinstance(row.value_widget, Gtk.Entry):
-                value = row.value_widget.props.text
+            if isinstance(row.value_widget, Gtk.Entry):  # also spinbutton
+                value = row.value_widget.get_text()
             elif isinstance(row.value_widget, Gtk.ComboBox):
                 value = row.value_widget.get_active() >= 0
 
@@ -1423,9 +1448,7 @@ class QueryBuilder(GenericEditorPresenter):
                              type(e).__name__, e)
                 return
             row.on_schema_menu_activated(None, clause.field, prop)
-            if isinstance(row.value_widget, Gtk.SpinButton):
-                row.value_widget.set_value(float(clause.value))
-            if isinstance(row.value_widget, Gtk.Entry):
+            if isinstance(row.value_widget, Gtk.Entry):  # also spinbutton
                 row.value_widget.set_text(clause.value)
             elif isinstance(row.value_widget, Gtk.ComboBox):
                 for item in row.value_widget.props.model:
