@@ -422,6 +422,7 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
     def on_sp_species_entry_changed(self, widget, *args):
         self.on_text_entry_changed(widget, *args)
         self.on_entry_changed_clear_boxes(widget, *args)
+        self.refresh_sensitivity()
 
     def on_entry_changed_clear_boxes(self, _widget):
         while self.species_check_messages:
@@ -463,31 +464,29 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
                 self.notes_presenter.is_dirty())
 
     def set_model_attr(self, attr, value, validator=None):
-        """
-        Resets the sensitivity on the ok buttons and the name widgets
-        when values change in the model
+        """Resets the sensitivity on the ok buttons and the name widgets when
+        values change in the model
         """
         super().set_model_attr(attr, value, validator)
-        self._dirty = True
-        sensitive = True
-        if (self.problems or
-                self.vern_presenter.problems or
-                self.synonyms_presenter.problems or
-                self.dist_presenter.problems):
-            sensitive = False
-        elif not self.model.genus:
-            sensitive = False
-        # elif not (self.model.sp or self.model.cv_group or \
-        #         (self.model.infrasp_rank == 'cv.' and self.model.infrasp)):
-        #     sensitive = False
-        self.view.set_accept_buttons_sensitive(sensitive)
+        self.refresh_sensitivity()
 
     def refresh_sensitivity(self):
-        self.view.set_accept_buttons_sensitive(self.is_dirty())
+        has_parts = any([self.model.sp,
+                         self.model.infrasp1,
+                         self.model.infrasp2,
+                         self.model.infrasp3,
+                         self.model.infrasp4])
+        has_problems = any([self.problems,
+                            self.vern_presenter.problems,
+                            self.synonyms_presenter.problems,
+                            self.dist_presenter.problems])
+        if self.model.genus and has_parts and not has_problems:
+            self.view.set_accept_buttons_sensitive(self.is_dirty())
+        else:
+            self.view.set_accept_buttons_sensitive(False)
 
     def init_fullname_widgets(self):
-        """
-        initialized the signal handlers on the widgets that are relative to
+        """initialized the signal handlers on the widgets that are relative to
         building the fullname string in the sp_fullname_label widget
         """
         self.refresh_fullname_label()
@@ -566,38 +565,48 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
         sp_str = self.model.str(markup=True, authors=True)
         self.view.set_label('sp_fullname_label', sp_str)
         if self.model.genus is not None:
-            genus = self.model.genus
-            epithet = self.view.widget_get_value('sp_species_entry')
-            omonym = self.session.query(Species).filter(
-                Species.genus == genus,
-                Species.sp == epithet
-            ).first()
-            logger.debug("looking for %s %s, found %s", genus, epithet, omonym)
-            if omonym in [None, self.model]:
-                # should not warn, so check warning and remove
-                if self.omonym_box is not None:
-                    self.view.remove_box(self.omonym_box)
-                    self.omonym_box = None
-            elif self.omonym_box is None:  # should warn, but not twice
-                msg = _("This binomial name is already in your collection"
-                        ", as %s.\n\n"
-                        "Are you sure you want to insert it again?") % \
-                    omonym.str(authors=True, markup=True)
+            def _warn_double_ups():
+                genus = self.model.genus
+                epithet = (self.view.widget_get_value('sp_species_entry') or
+                           None)
+                infrasp = self.model.infraspecific_epithet or None
+                cultivar = self.model.cultivar_epithet or None
+                omonym = self.session.query(Species).filter(
+                    Species.genus == genus,
+                    Species.sp == epithet,
+                    Species.infraspecific_epithet == infrasp,
+                    Species.cultivar_epithet == cultivar
+                ).first()
+                logger.debug("looking for %s %s, found %s", genus, epithet,
+                             omonym)
+                if omonym in [None, self.model]:
+                    # should not warn, so check warning and remove
+                    if self.omonym_box is not None:
+                        self.view.remove_box(self.omonym_box)
+                        self.omonym_box = None
+                elif self.omonym_box is None:  # should warn, but not twice
+                    msg = (_("This taxon name is already in your collection"
+                             ", as %s.\n\n"
+                             "Are you sure you want to insert it again?") %
+                           omonym.str(authors=True, markup=True))
 
-                def on_response(_button, response):
-                    self.view.remove_box(self.omonym_box)
-                    self.omonym_box = None
-                    if response:
-                        logger.warning('yes')
-                    else:
-                        self.view.widget_set_value('sp_species_entry', '')
+                    def on_response(_button, response):
+                        self.view.remove_box(self.omonym_box)
+                        self.omonym_box = None
+                        if response:
+                            logger.warning('yes')
+                        else:
+                            # set all infrasp_parts to None
+                            self.infrasp_presenter.clear_rows()
+                            self.view.widget_set_value('sp_species_entry', '')
 
-                box = self.omonym_box = (
-                    self.view.add_message_box(utils.MESSAGE_BOX_YESNO))
-                box.message = msg
-                box.on_response = on_response
-                box.show()
-                self.view.add_box(box)
+                    box = self.omonym_box = (
+                        self.view.add_message_box(utils.MESSAGE_BOX_YESNO))
+                    box.message = msg
+                    box.on_response = on_response
+                    box.show()
+                    self.view.add_box(box)
+            GLib.idle_add(_warn_double_ups)
 
     def cleanup(self):
         super().cleanup()
@@ -657,6 +666,12 @@ class InfraspPresenter(editor.GenericEditorPresenter):
         if level >= 4:
             self.view.widgets.add_infrasp_button.props.sensitive = False
         return row
+
+    def clear_rows(self):
+        """Clear all the infraspecific rows if any exist"""
+        if self.table_rows:
+            for row in self.table_rows:
+                row.on_remove_button_clicked(None)
 
     class Row:
 
