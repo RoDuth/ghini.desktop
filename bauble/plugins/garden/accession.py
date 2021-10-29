@@ -917,13 +917,9 @@ class AccessionEditorView(editor.GenericEditorView):
             'material.'
         ),
 
-        'acc_prov_combo': (_('The origin or source of this accession.\n\n'
-                             'Possible values: %s') %
-                           ', '.join(i[1] for i in prov_type_values)),
-        'acc_wild_prov_combo': (_('The wild status is used to clarify the '
-                                  'provenance.\n\nPossible values: %s') %
-                                ', '.join(i[1]
-                                          for i in wild_prov_status_values)),
+        'acc_prov_combo': _('The origin or source of this accession.'),
+        'acc_wild_prov_combo': _('The wild status is used to clarify the '
+                                 'provenance of wild source only.'),
         'acc_private_check': _('Indicates whether this accession record '
                                'should be considered private.'),
         'acc_cancel_button': _('Cancel your changes.'),
