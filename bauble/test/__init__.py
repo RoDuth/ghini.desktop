@@ -21,6 +21,7 @@ import sys
 import os
 import unittest
 from tempfile import mkstemp
+from pathlib import Path
 
 import logging
 logger = logging.getLogger(__name__)
@@ -31,6 +32,7 @@ from bauble import db
 from bauble.error import BaubleError
 from bauble import pluginmgr
 from bauble import prefs
+from bauble import paths
 
 # for sake of testing, just use sqlite3.
 uri = 'sqlite:///:memory:'
@@ -96,6 +98,7 @@ class BaubleTestCase(unittest.TestCase):
             print(e, file=sys.stderr)
         if not bauble.db.engine:
             raise BaubleError('not connected to a database')
+        Path(paths.appdata_dir()).mkdir(parents=True, exist_ok=True)
         self.handle, self.temp = mkstemp(suffix='txt2', text=True)
         prefs.default_prefs_file = self.temp
         prefs.prefs = prefs._prefs(filename=self.temp)
