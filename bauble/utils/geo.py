@@ -19,14 +19,14 @@ Common helpers useful for spatial data.
 """
 from pathlib import Path
 import sqlite3
+import os
 import logging
 logger = logging.getLogger(__name__)
 from pyproj import Transformer, ProjError
 
-from bauble.paths import main_is_frozen, main_dir
+from bauble.paths import main_is_frozen, main_dir, appdata_dir
 
 if main_is_frozen():
-    import os
     import pyproj
     pyproj.datadir.set_data_dir(os.path.join(main_dir(), 'share', 'proj'))
 
@@ -42,6 +42,11 @@ DEFAULT_SYS_PROJ = 'epsg:4326'
 """
 This is the default CRS used database wide internally.  This is used only once
 when setting the 'system_proj_string' in the meta table on the first call.
+"""
+
+PRJ_CRS_PATH = os.path.join(appdata_dir(), 'prj_crs.db')
+"""
+The default directory for the database file.
 """
 
 
@@ -74,7 +79,7 @@ def transform(geometry, in_crs=DEFAULT_IN_PROJ, out_crs=None, always_xy=False):
         msg = _('Set a system wide Coordinate Reference System string, this '
                 'can only be set once.\n\n"epsg:4326" is a safe default but '
                 'you may have a different preference.\n\nIf using a novel '
-                'CRS you may also need to to populate the internal database '
+                'CRS you may also need to populate the internal database '
                 'with a .prj file string or importing/exporting shapefile '
                 'data with that CRS may fail.\n\nThis is most easily done by '
                 'using the shapefile import tool and providing a shapefile in '
@@ -130,15 +135,27 @@ class ProjDB:
     acceptable pyproj.crs.CRS string parameters.
     """
 
-    PATH = Path(__file__).resolve().parent / 'prj_crs.db'
-    """
-    The default directory for the database file.
-    """
+    def __init__(self, db_path=None):
+        """
+        :param db_path: path to the sqlite database.  If not supplied will be
+            set to PRJ_CRS_PATH
+        """
+        if db_path is None:
+            if ':memory:' in PRJ_CRS_PATH:
+                db_path = PRJ_CRS_PATH
+            else:
+                db_path = Path(PRJ_CRS_PATH)
 
-    def __init__(self, db_path=PATH):
-        """
-        :param db_path: path to the sqlite database.
-        """
+        # Copy the default to appdata on first load.
+        try:
+            default_prj_crs = Path(__file__).resolve().parent / 'prj_crs.db'
+            if not db_path.exists():
+                from shutil import copy2
+                copy2(default_prj_crs, db_path)
+                logger.debug('copying prj_crs.db to %s', db_path)
+        except AttributeError:
+            logger.debug('copy %s failed likely :memory:?', db_path)
+
         # NOTE pylint won't load C extensions like connect
         self.con = sqlite3.connect(db_path)   # pylint: disable=no-member
         cur = self.con.cursor()

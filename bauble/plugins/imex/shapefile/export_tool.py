@@ -735,11 +735,11 @@ class ShapefileExporter:
                     shapefilename = (
                         f'{_temp_dir}/{model.__tablename__.lower()}s_{shape}'
                     )
+                    self.create_prj_file(shapefilename)
                     to_zip.append(shapefilename)
                     shapefiles[shape] = stack.enter_context(
                         Writer(shapefilename)
                     )
-                    self.create_prj_file(shapefilename)
                     # create the columns and their types and size.
                     self.add_fields(shape, shapefiles, fields)
 
