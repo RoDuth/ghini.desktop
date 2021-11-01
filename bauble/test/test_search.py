@@ -1205,6 +1205,16 @@ class QueryBuilderTests(BaubleTestCase):
         qb.set_query(query)
         self.assertTrue(qb.validate())
         self.assertEqual(qb.get_query(), query)
+        # with timestamp
+        query = "plant where _created = 01-02-2020 10:20"
+        qb.set_query(query)
+        self.assertTrue(qb.validate())
+        self.assertEqual(qb.get_query(), query)
+        # with timestamp with seconds and 12hr clock
+        query = "plant where _created = 01-02-2020 10:20:12.456 am"
+        qb.set_query(query)
+        self.assertTrue(qb.validate())
+        self.assertEqual(qb.get_query(), query)
 
     def test_int_query(self):
         import os
@@ -1475,6 +1485,7 @@ class ParseTypedValue(BaubleTestCase):
         self.assertEqual(result, '|bool|true|')
         result = search.parse_typed_value('false', Boolean())
         self.assertEqual(result, '|bool|false|')
+        # these should remain as strings
         result = search.parse_typed_value('True', Boolean())
         self.assertEqual(result, 'True')
         result = search.parse_typed_value('False', Boolean())
@@ -1490,14 +1501,20 @@ class ParseTypedValue(BaubleTestCase):
         self.assertEqual(result, '|datetime|2020,01,1|')
         result = search.parse_typed_value('-30', Date())
         self.assertEqual(result, '|datetime|-30|')
+        # these should remain as strings
         result = search.parse_typed_value('1-1-20', Date())
         self.assertEqual(result, '1-1-20')
         result = search.parse_typed_value('1/1/20', Date())
-        self.assertEqual(result, '1-1-20')
+        self.assertEqual(result, '1/1/20')
         result = search.parse_typed_value('2020/1/1', Date())
-        self.assertEqual(result, '2020-1-1')
+        self.assertEqual(result, '2020/1/1')
         result = search.parse_typed_value('2020-1-1', Date())
         self.assertEqual(result, '2020-1-1')
+        # should also allow timestamps as strings
+        result = search.parse_typed_value('2020-1-1 10:30 PM', DateTime())
+        self.assertEqual(result, '2020-1-1 10:30 PM')
+        result = search.parse_typed_value('2020/1/1 10:30:12.1 am', DateTime())
+        self.assertEqual(result, '2020/1/1 10:30:12.1 am')
 
     def test_parse_typed_value_none(self):
         result = search.parse_typed_value('None', None)

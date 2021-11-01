@@ -23,19 +23,33 @@ logger = logging.getLogger(__name__)
 
 from gi.repository import Gtk  # noqa
 
-from sqlalchemy import or_, and_
-from sqlalchemy import Unicode
-from sqlalchemy import UnicodeText, Integer, Float
+from sqlalchemy import or_, and_, Integer, Float
 from sqlalchemy.orm import class_mapper, RelationshipProperty
 from sqlalchemy.orm.properties import ColumnProperty
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm.attributes import InstrumentedAttribute
-from pyparsing import (
-    Word, alphas8bit, removeQuotes, delimitedList, Regex,
-    ZeroOrMore, OneOrMore, oneOf, alphas, alphanums, Group, Literal,
-    CaselessLiteral, WordStart, WordEnd, srange,
-    stringEnd, Keyword, quotedString,
-    infixNotation, opAssoc, Forward)
+from pyparsing import (Word,
+                       alphas8bit,
+                       removeQuotes,
+                       delimitedList,
+                       Regex,
+                       ZeroOrMore,
+                       OneOrMore,
+                       oneOf,
+                       alphas,
+                       alphanums,
+                       Group,
+                       Literal,
+                       CaselessLiteral,
+                       WordStart,
+                       WordEnd,
+                       srange,
+                       stringEnd,
+                       Keyword,
+                       quotedString,
+                       infixNotation,
+                       opAssoc,
+                       Forward)
 
 import bauble
 from bauble.error import check
@@ -107,11 +121,20 @@ class ValueToken:
 
 
 class StringToken(ValueABC):
+
     def __init__(self, t):
         self.value = t[0]  # no need to parse the string
 
     def __repr__(self):
-        return "'%s'" % (self.value)
+        return f"'{self.value}'"
+
+
+class DatetimeToken(ValueABC):
+    def __init__(self, t):
+        self.value = t[0]  # no need to parse treated as a string
+
+    def __repr__(self):
+        return f"{self.value}"
 
 
 class NumericToken(ValueABC):
@@ -119,7 +142,7 @@ class NumericToken(ValueABC):
         self.value = float(t[0])  # store the float value
 
     def __repr__(self):
-        return "%s" % (self.value)
+        return f"{self.value}"
 
 
 def smartdatetime(year_or_offset, *args):
@@ -134,8 +157,7 @@ def smartdatetime(year_or_offset, *args):
         return (datetime.today()
                 .replace(hour=0, minute=0, second=0, microsecond=0) +
                 timedelta(year_or_offset))
-    else:
-        return datetime(year_or_offset, *args)
+    return datetime(year_or_offset, *args)
 
 
 def smartboolean(*args):
@@ -143,12 +165,11 @@ def smartboolean(*args):
 
     Result is True whenever first argument is not numerically zero nor
     literally 'false'.  No arguments cause error.
-
     """
     if len(args) == 1:
         try:
             return float(args[0]) != 0.0
-        except:
+        except (ValueError, TypeError):
             return args[0].lower() != 'false'
     return True
 
@@ -159,7 +180,7 @@ class TypedValueToken(ValueABC):
                    'bool': (smartboolean, str)}
 
     def __init__(self, t):
-        logger.debug('constructing typedvaluetoken %s' % str(t))
+        logger.debug('constructing typedvaluetoken %s', str(t))
         try:
             constructor, converter = self.constructor[t[1]]
         except KeyError:
@@ -173,7 +194,7 @@ class TypedValueToken(ValueABC):
 
 class IdentifierAction:
     def __init__(self, t):
-        logger.debug('IdentifierAction::__init__(%s)' % t)
+        logger.debug('IdentifierAction::__init__(%s)', t)
         self.steps = t[0][:-2:2]
         self.leaf = t[0][-1]
 
@@ -196,8 +217,8 @@ class IdentifierAction:
             query = query.join(*self.steps, aliased=True)
             cls = query._joinpoint['_joinpoint_entity']
         attr = getattr(cls, self.leaf)
-        logger.debug('IdentifierToken for %s, %s evaluates to %s'
-                     % (cls, self.leaf, attr))
+        logger.debug('IdentifierToken for %s, %s evaluates to %s', cls,
+                     self.leaf, attr)
         return (query, attr)
 
     def needs_join(self, env):
@@ -281,7 +302,7 @@ class IdentExpression:
             'ilike': lambda x, y: utils.ilike(x, '%s' % y),
             'icontains': lambda x, y: utils.ilike(x, '%%%s%%' % y),
             'ihas': lambda x, y: utils.ilike(x, '%%%s%%' % y),
-            }.get(self.op)
+        }.get(self.op)
         self.operands = t[0][0::2]  # every second object is an operand
 
     def __repr__(self):
@@ -688,6 +709,9 @@ wordStart, wordEnd = WordStart(), WordEnd()
 class SearchParser:
     """The parser for bauble.search.MapperSearch"""
 
+    datetime_value = Regex(
+        r'\d{1,4}[/.-]{1}\d{1,2}[/.-]{1}\d{1,4}[ ]?[0-9: .apmAPM]*'
+    ).setParseAction(DatetimeToken)('datetime')
     numeric_value = Regex(
         r'[-]?\d+(\.\d*)?([eE]\d+)?'
     ).setParseAction(NumericToken)('number')
@@ -707,6 +731,7 @@ class SearchParser:
 
     value = (
         typed_value |
+        datetime_value |
         WordStart('0123456789.-e') + numeric_value + WordEnd('0123456789.-e') |
         none_token |
         empty_token |
@@ -1076,8 +1101,7 @@ def parse_typed_value(value, proptype):
         value = EmptyToken()
     elif isinstance(proptype, (bauble.btypes.DateTime, bauble.btypes.Date)):
         # btypes.DateTime/Date accepts string dates
-        value = value.replace('/', '-')
-        if not value.count('-') == 2:
+        if not value.count('-') == 2 and not value.count('/') == 2:
             value = f'|datetime|{value}|'
     elif isinstance(proptype, bauble.btypes.Boolean):
         # btypes.Boolean accepts strings and 0, 1
@@ -1155,9 +1179,9 @@ class ExpressionRow:
         self.presenter.validate()
 
     def on_date_value_changed(self, widget, *args):
-        """Loosely constrain text to numbers and date separators or commas"""
+        """Loosely constrain text to numbers and datetime parts only"""
         val = widget.get_text()
-        val = ''.join([i for i in val if i in ',/-0123456789'])
+        val = ''.join([i for i in val if i in ',/-0123456789 apmAPM:.'])
         widget.set_text(val)
         self.on_value_changed(widget)
 

@@ -41,19 +41,20 @@ class BuiltQuery:
     BETWEEN_ = wordStart + CaselessLiteral('between') + wordEnd
 
     numeric_value = Regex(r'[-]?\d+(\.\d*)?([eE]\d+)?')
-    date_str = Regex(r'(\d{1,4})-(\d{1,2})-(\d{1,4})')
-    date = (date_str |
-            Regex(r'(\d{4}),[ ]?(\d{1,2}),[ ]?(\d{1,2})'))
+    datetime_str = Regex(
+        r'\d{1,4}[/.-]{1}\d{1,2}[/.-]{1}\d{1,4}[ ]?[0-9: .apmAPM]*'
+    )
+    date_type = Regex(r'(\d{4}),[ ]?(\d{1,2}),[ ]?(\d{1,2})')
     true_false = (Literal('True') | Literal('False'))
     unquoted_string = Word(alphanums + alphas8bit + '%.-_*;:')
     string_value = (quotedString | unquoted_string)
-    value_part = (date | numeric_value | true_false)
+    value_part = (date_type | numeric_value | true_false)
     typed_value = (Literal("|") + Word(alphas) + Literal("|") +
                    value_part + Literal("|")).setParseAction(
                        lambda s, l, t: t[3])
     none_token = Literal('None').setParseAction(lambda s, l, t: '<None>')
     fieldname = Group(delimitedList(Word(alphas + '_', alphanums + '_'), '.'))
-    value = (none_token | date_str | numeric_value | string_value |
+    value = (none_token | datetime_str | numeric_value | string_value |
              typed_value)
     binop = oneOf('= == != <> < <= > >= has like contains', caseless=True)
     clause = fieldname + binop + value
@@ -64,13 +65,13 @@ class BuiltQuery:
         .suppress()))
     query = Word(alphas) + CaselessLiteral("where") + expression
 
-    def __init__(self, s):
+    def __init__(self, search_string):
         self.parsed = None
         self.__clauses = None
         try:
-            self.parsed = self.query.parseString(s)
+            self.parsed = self.query.parseString(search_string)
             self.is_valid = True
-        except ParseException as e:
+        except ParseException:
             self.is_valid = False
 
     @property
