@@ -23,6 +23,5 @@ if 'PYTHONPATH' in os.environ:
 
 if __name__ == "__main__":
     freeze_support()
-    set_start_method('spawn')
     import bauble
     bauble.main()

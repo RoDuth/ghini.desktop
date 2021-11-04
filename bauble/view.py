@@ -428,6 +428,14 @@ def multiproc_counter(url, klass, ids):
     :param klass: sqlalchemy table class.
     :param ids: a list of id numbers to query.
     """
+    if sys.platform == 'darwin':
+        # only on macos
+        # TODO need to investigate this further.  Dock icons pop up for every
+        # process produced.  The below suppresses the icon AFTER it has already
+        # popped up meaning you get a bunch of icons appearing for a
+        # around a second and then disappearing.
+        import AppKit
+        AppKit.NSApp.setActivationPolicy_(1)   # 2 also works
     db.open(url)
     # get tables across plugins (e.g. plants - Genus, garden - Accession )
     pluginmgr.load()
@@ -529,10 +537,11 @@ class CountResultsTask(threading.Thread):
             max_ids = 300
             chunk_size = 100
         if len(self.ids) > max_ids:
-            from multiprocessing import Pool
+            from multiprocessing import get_context
             from functools import partial
             proc = partial(multiproc_counter, str(db.engine.url), self.klass)
-            with Pool() as pool:
+            logger.debug('counting results using multiprocesing')
+            with get_context('spawn').Pool() as pool:
                 amap = pool.map_async(proc, utils.chunks(self.ids, chunk_size),
                                       callback=self.callback,
                                       error_callback=self.error)
