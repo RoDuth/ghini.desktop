@@ -1205,16 +1205,6 @@ class QueryBuilderTests(BaubleTestCase):
         qb.set_query(query)
         self.assertTrue(qb.validate())
         self.assertEqual(qb.get_query(), query)
-        # with timestamp
-        query = "plant where _created = 01-02-2020 10:20"
-        qb.set_query(query)
-        self.assertTrue(qb.validate())
-        self.assertEqual(qb.get_query(), query)
-        # with timestamp with seconds and 12hr clock
-        query = "plant where _created = 01-02-2020 10:20:12.456 am"
-        qb.set_query(query)
-        self.assertTrue(qb.validate())
-        self.assertEqual(qb.get_query(), query)
 
     def test_int_query(self):
         import os

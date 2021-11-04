@@ -41,8 +41,8 @@ class BuiltQuery:
     BETWEEN_ = wordStart + CaselessLiteral('between') + wordEnd
 
     numeric_value = Regex(r'[-]?\d+(\.\d*)?([eE]\d+)?')
-    datetime_str = Regex(
-        r'\d{1,4}[/.-]{1}\d{1,2}[/.-]{1}\d{1,4}[ ]?[0-9: .apmAPM]*'
+    date_str = Regex(
+        r'\d{1,4}[/.-]{1}\d{1,2}[/.-]{1}\d{1,4}'
     )
     date_type = Regex(r'(\d{4}),[ ]?(\d{1,2}),[ ]?(\d{1,2})')
     true_false = (Literal('True') | Literal('False'))
@@ -54,9 +54,9 @@ class BuiltQuery:
                        lambda s, l, t: t[3])
     none_token = Literal('None').setParseAction(lambda s, l, t: '<None>')
     fieldname = Group(delimitedList(Word(alphas + '_', alphanums + '_'), '.'))
-    value = (none_token | datetime_str | numeric_value | string_value |
+    value = (none_token | date_str | numeric_value | string_value |
              typed_value)
-    binop = oneOf('= == != <> < <= > >= has like contains', caseless=True)
+    binop = oneOf('= == != <> < <= > >= has like contains on', caseless=True)
     clause = fieldname + binop + value
     unparseable_clause = (fieldname + BETWEEN_ + value + AND_ + value) | (
         Word(alphanums) + '(' + fieldname + ')' + binop + value)

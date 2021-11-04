@@ -129,7 +129,7 @@ class StringToken(ValueABC):
         return f"'{self.value}'"
 
 
-class DatetimeToken(ValueABC):
+class DateToken(ValueABC):
     def __init__(self, t):
         self.value = t[0]  # no need to parse treated as a string
 
@@ -330,6 +330,34 @@ class ElementSetExpression(IdentExpression):
     def evaluate(self, env):
         q, a = self.operands[0].evaluate(env)
         return q.filter(a.in_(self.operands[1].express()))
+
+
+def get_datetime(value):
+    from dateutil import parser
+    from datetime import timezone
+    try:
+        # try parsing as iso8601 first
+        result = parser.isoparse(value)
+    except ValueError:
+        from bauble import prefs
+        result = parser.parse(
+            value,
+            dayfirst=prefs.prefs[prefs.parse_dayfirst_pref],
+            yearfirst=prefs.prefs[prefs.parse_yearfirst_pref]
+        )
+    return result.astimezone(tz=timezone.utc)
+
+
+class DateOnExpression(IdentExpression):
+    # implements `on` for date matching
+
+    def evaluate(self, env):
+        query, attr = self.operands[0].evaluate(env)
+        date_val = get_datetime(self.operands[1].express())
+        from sqlalchemy import extract
+        return query.filter(extract('day', attr) == date_val.day,
+                            extract('month', attr) == date_val.month,
+                            extract('year', attr) == date_val.year)
 
 
 class AggregatedExpression(IdentExpression):
@@ -709,9 +737,9 @@ wordStart, wordEnd = WordStart(), WordEnd()
 class SearchParser:
     """The parser for bauble.search.MapperSearch"""
 
-    datetime_value = Regex(
-        r'\d{1,4}[/.-]{1}\d{1,2}[/.-]{1}\d{1,4}[ ]?[0-9: .apmAPM]*'
-    ).setParseAction(DatetimeToken)('datetime')
+    date_value = Regex(
+        r'\d{1,4}[/.-]{1}\d{1,2}[/.-]{1}\d{1,4}'
+    ).setParseAction(DateToken)('date')
     numeric_value = Regex(
         r'[-]?\d+(\.\d*)?([eE]\d+)?'
     ).setParseAction(NumericToken)('number')
@@ -731,7 +759,7 @@ class SearchParser:
 
     value = (
         typed_value |
-        datetime_value |
+        date_value |
         WordStart('0123456789.-e') + numeric_value + WordEnd('0123456789.-e') |
         none_token |
         empty_token |
@@ -746,6 +774,7 @@ class SearchParser:
     binop = oneOf('= == != <> < <= > >= not like contains has ilike '
                   'icontains ihas is')
     binop_set = oneOf('in')
+    binop_date = oneOf('on')
     equals = Literal('=')
     star_value = Literal('*')
     domain_values = (value_list.copy())('domain_values')
@@ -786,6 +815,8 @@ class SearchParser:
                               ).setParseAction(IdentExpression) |
                         Group(identifier + binop_set + value_list
                               ).setParseAction(ElementSetExpression) |
+                        Group(identifier + binop_date + date_value
+                              ).setParseAction(DateOnExpression) |
                         Group(aggregated + binop + value
                               ).setParseAction(AggregatedExpression) |
                         (Literal('(') + query_expression + Literal(')')
@@ -1181,7 +1212,7 @@ class ExpressionRow:
     def on_date_value_changed(self, widget, *args):
         """Loosely constrain text to numbers and datetime parts only"""
         val = widget.get_text()
-        val = ''.join([i for i in val if i in ',/-0123456789 apmAPM:.'])
+        val = ''.join([i for i in val if i in ',/-.0123456789'])
         widget.set_text(val)
         self.on_value_changed(widget)
 
@@ -1245,6 +1276,7 @@ class ExpressionRow:
         elif isinstance(self.proptype, (bauble.btypes.Date,
                                         bauble.btypes.DateTime)):
             self.value_widget = Gtk.Entry()
+            self.cond_combo.append_text('on')
             self.value_widget.connect('changed', self.on_date_value_changed)
         elif (not isinstance(self.value_widget, Gtk.Entry) or
               isinstance(self.value_widget, Gtk.SpinButton)):
@@ -1458,6 +1490,13 @@ class QueryBuilder(GenericEditorPresenter):
                 logger.debug('cannot restore query details, %s(%s)',
                              type(e).__name__, e)
                 return
+            conditions = row.conditions.copy()
+            if hasattr(prop, 'columns') and isinstance(
+                prop.columns[0].type,
+                    (bauble.btypes.Date, bauble.btypes.DateTime)
+            ):
+                row.cond_combo.append_text('on')
+                conditions.append('on')
             row.on_schema_menu_activated(None, clause.field, prop)
             if isinstance(row.value_widget, Gtk.Entry):  # also spinbutton
                 row.value_widget.set_text(clause.value)
@@ -1467,4 +1506,4 @@ class QueryBuilder(GenericEditorPresenter):
                     if item[0] == val:
                         row.value_widget.set_active_iter(item.iter)
                         break
-            row.cond_combo.set_active(row.conditions.index(clause.operator))
+            row.cond_combo.set_active(conditions.index(clause.operator))
