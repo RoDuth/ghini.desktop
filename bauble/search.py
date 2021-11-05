@@ -353,7 +353,9 @@ class DateOnExpression(IdentExpression):
 
     def evaluate(self, env):
         query, attr = self.operands[0].evaluate(env)
-        date_val = get_datetime(self.operands[1].express())
+        date_val = self.operands[1].express()
+        if isinstance(date_val, str):
+            date_val = get_datetime(date_val)
         from sqlalchemy import extract
         return query.filter(extract('day', attr) == date_val.day,
                             extract('month', attr) == date_val.month,
@@ -737,7 +739,7 @@ wordStart, wordEnd = WordStart(), WordEnd()
 class SearchParser:
     """The parser for bauble.search.MapperSearch"""
 
-    date_value = Regex(
+    date_str = Regex(
         r'\d{1,4}[/.-]{1}\d{1,2}[/.-]{1}\d{1,4}'
     ).setParseAction(DateToken)('date')
     numeric_value = Regex(
@@ -756,10 +758,15 @@ class SearchParser:
         Literal("|") + unquoted_string + Literal("|") +
         value_list + Literal("|")
     ).setParseAction(TypedValueToken)
+    date_typed = (
+        Literal("|") + Literal("datetime") + Literal("|") +
+        value_list + Literal("|")
+    ).setParseAction(TypedValueToken)
+    date_value = (date_str | date_typed)
 
     value = (
         typed_value |
-        date_value |
+        date_str |
         WordStart('0123456789.-e') + numeric_value + WordEnd('0123456789.-e') |
         none_token |
         empty_token |
@@ -1132,7 +1139,7 @@ def parse_typed_value(value, proptype):
         value = EmptyToken()
     elif isinstance(proptype, (bauble.btypes.DateTime, bauble.btypes.Date)):
         # btypes.DateTime/Date accepts string dates
-        if not value.count('-') == 2 and not value.count('/') == 2:
+        if not any(value.count(i) == 2 for i in ['/', '.', '-']):
             value = f'|datetime|{value}|'
     elif isinstance(proptype, bauble.btypes.Boolean):
         # btypes.Boolean accepts strings and 0, 1
@@ -1140,10 +1147,12 @@ def parse_typed_value(value, proptype):
             value = f'|bool|{value}|'
     elif isinstance(proptype, Integer):
         value = ''.join([i for i in value if i in '-0123456789.'])
-        value = str(int(value))
+        if value:
+            value = str(int(value))
     elif isinstance(proptype, Float):
         value = ''.join([i for i in value if i in '-0123456789.'])
-        value = str(float(value))
+        if value:
+            value = str(float(value))
     elif value not in ['%', '_']:
         value = repr(str(value).strip())
     return value
@@ -1175,19 +1184,25 @@ class ExpressionRow:
         self.prop_button.connect('button-press-event',
                                  self.on_prop_button_clicked,
                                  self.schema_menu)
+        self.prop_button.set_tooltip_text('The property to query')
         self.grid.attach(self.prop_button, 1, row_number, 1, 1)
 
+        # start with a default combobox and entry but value_widget and
+        # cond_combo can change depending on the type of the property chosen in
+        # the schema menu, see self.on_schema_menu_activated
         self.cond_combo = Gtk.ComboBoxText()
         for condition in self.conditions:
             self.cond_combo.append_text(condition)
         self.cond_combo.set_active(0)
         self.grid.attach(self.cond_combo, 2, row_number, 1, 1)
+        self.cond_handler = self.cond_combo.connect(
+            'changed', lambda w: self.presenter.validate()
+        )
+        self.cond_combo.set_tooltip_text('How to search')
 
-        # by default we start with an entry but value_widget can
-        # change depending on the type of the property chosen in the
-        # schema menu, see self.on_schema_menu_activated
         self.value_widget = Gtk.Entry()
         self.value_widget.connect('changed', self.on_value_changed)
+        self.value_widget.set_tooltip_text('The value to search for')
         self.grid.attach(self.value_widget, 3, row_number, 1, 1)
 
         if row_number != 1:
@@ -1207,13 +1222,49 @@ class ExpressionRow:
         Sets the sensitivity of the Gtk.ResponseType.OK button on the
         QueryBuilder.
         """
+        # change to a standard entry if the user tries to enter none numbers
+        if isinstance(widget, Gtk.SpinButton):
+            if not widget.get_text().isdigit():
+                text = widget.get_text()
+                focus = widget.has_focus()
+                top = self.grid.child_get_property(self.value_widget,
+                                                   'top-attach')
+                left = self.grid.child_get_property(self.value_widget,
+                                                    'left-attach')
+                self.grid.remove(self.value_widget)
+                self.value_widget = Gtk.Entry()
+                self.value_widget.connect('changed',
+                                          self.on_number_value_changed)
+                self.value_widget.set_text(text)
+                self.value_widget.set_tooltip_text(
+                    'Number or "None" for no value has been set'
+                )
+                self.grid.attach(self.value_widget, left, top, 1, 1)
+                self.grid.show_all()
+                if focus:
+                    self.value_widget.grab_focus()
+        if isinstance(widget, Gtk.Entry):
+            if any(i in widget.get_text() for i in ['%', '_']):
+                self.cond_combo.set_active(self.conditions.index('like'))
+            elif self.cond_combo.get_active_text() == 'like':
+                self.cond_combo.set_active(0)
+
         self.presenter.validate()
 
     def on_date_value_changed(self, widget, *args):
-        """Loosely constrain text to numbers and datetime parts only"""
+        """Loosely constrain text to None or numbers and datetime parts only"""
         val = widget.get_text()
-        val = ''.join([i for i in val if i in ',/-.0123456789'])
-        widget.set_text(val)
+        if not val == 'None'[:len(val)]:
+            val = ''.join([i for i in val if i in ',/-.0123456789'])
+            widget.set_text(val)
+        self.on_value_changed(widget)
+
+    def on_number_value_changed(self, widget, *args):
+        """Loosely constrain text to None or numbers and datetime parts only"""
+        val = widget.get_text()
+        if not val == 'None'[:len(val)]:
+            val = ''.join([i for i in val if i in '-.0123456789'])
+            widget.set_text(val)
         self.on_value_changed(widget)
 
     def on_schema_menu_activated(self, _menuitem, path, prop):
@@ -1229,6 +1280,17 @@ class ExpressionRow:
             self.proptype = prop.columns[0].type
         except AttributeError:
             self.proptype = None
+        # reset the cond_combo incase it was last a date/datetime
+        if not isinstance(self.proptype, (bauble.btypes.Date,
+                                          bauble.btypes.DateTime)):
+            self.cond_combo.handler_block(self.cond_handler)
+            self.cond_combo.remove_all()
+            for condition in self.conditions:
+                self.cond_combo.append_text(condition)
+            self.cond_combo.set_active(0)
+            self.cond_combo.handler_unblock(self.cond_handler)
+            self.cond_combo.set_tooltip_text('How to search')
+
         if isinstance(self.proptype, bauble.btypes.Enum):
             self.value_widget = Gtk.ComboBox()
             cell = Gtk.CellRendererText()
@@ -1240,13 +1302,16 @@ class ExpressionRow:
                 sorted_keys = [
                     i for i in trans.keys() if i is None
                 ] + sorted(i for i in trans.keys() if i is not None)
-                prop_values = [(k, trans[k]) for k in sorted_keys]
+                prop_values = [(k, trans[k] or 'None') for k in sorted_keys]
             else:
                 values = prop.columns[0].type.values
-                prop_values = [(v, v) for v in sorted(values)]
+                prop_values = [(v, v or 'None') for v in sorted(values)]
             for value, translation in prop_values:
                 model.append([value, translation])
             self.value_widget.props.model = model
+            self.value_widget.set_tooltip_text(
+                'select a value "None" means no value has been set'
+            )
             self.value_widget.connect('changed', self.on_value_changed)
 
         elif isinstance(self.proptype, Integer):
@@ -1254,7 +1319,10 @@ class ExpressionRow:
                                                   step_increment=1,
                                                   page_increment=10)
             self.value_widget = Gtk.SpinButton(adjustment=val_widgt_adjustment,
-                                               numeric=True)
+                                               numeric=False)
+            self.value_widget.set_tooltip_text(
+                'Number (non decimal) or "None" for no value has been set'
+            )
             self.value_widget.connect('changed', self.on_value_changed)
 
         elif isinstance(self.proptype, Float):
@@ -1264,23 +1332,45 @@ class ExpressionRow:
                                                   page_increment=1)
             self.value_widget = Gtk.SpinButton(adjustment=val_widgt_adjustment,
                                                digits=10,
-                                               numeric=True)
+                                               numeric=False)
+            self.value_widget.set_tooltip_text(
+                'Number, decimal number or "None" for no value has been set'
+            )
             self.value_widget.connect('changed', self.on_value_changed)
 
         elif isinstance(self.proptype, bauble.btypes.Boolean):
             self.value_widget = Gtk.ComboBoxText()
             self.value_widget.append_text('False')
             self.value_widget.append_text('True')
+            self.value_widget.set_tooltip_text('Select a value')
             self.value_widget.connect('changed', self.on_value_changed)
 
         elif isinstance(self.proptype, (bauble.btypes.Date,
                                         bauble.btypes.DateTime)):
             self.value_widget = Gtk.Entry()
-            self.cond_combo.append_text('on')
+            self.value_widget.set_tooltip_text(
+                'Date (e.g. 1/1/2021), 0 for today, a negative number for '
+                'number of days before today or "None" for no date has been '
+                'set'
+            )
             self.value_widget.connect('changed', self.on_date_value_changed)
+            conditions = self.conditions.copy()
+            conditions.append('on')
+            self.cond_combo.handler_block(self.cond_handler)
+            self.cond_combo.remove_all()
+            for condition in conditions:
+                self.cond_combo.append_text(condition)
+            # set 'on' as default
+            self.cond_combo.set_active(len(conditions) - 1)
+            self.cond_combo.handler_unblock(self.cond_handler)
+            self.cond_combo.set_tooltip_text('How to search')
         elif (not isinstance(self.value_widget, Gtk.Entry) or
               isinstance(self.value_widget, Gtk.SpinButton)):
             self.value_widget = Gtk.Entry()
+            self.value_widget.set_tooltip_text(
+                'The text value to search for or "None" for no value has been '
+                'set'
+            )
             self.value_widget.connect('changed', self.on_value_changed)
 
         self.grid.attach(self.value_widget, left, top, 1, 1)
@@ -1352,6 +1442,9 @@ class QueryBuilder(GenericEditorPresenter):
         self.domain_map = MapperSearch.get_domain_classes().copy()
 
         self.view.widgets.domain_combo.set_active(-1)
+        self.view.widgets.domain_combo.set_tooltip_text(
+            'The type of items returned'
+        )
 
         table = self.view.widgets.expressions_table
         for child in table.get_children():
@@ -1363,11 +1456,69 @@ class QueryBuilder(GenericEditorPresenter):
         self.view.widgets.add_clause_button.set_sensitive(False)
         self.view.widgets.confirm_button.set_sensitive(False)
         self.refresh_view()
+        utils.make_label_clickable(self.view.widgets.help_label,
+                                   self.on_help_clicked)
+
+    def on_help_clicked(self, _label, _event):
+        msg = _("<b>Search Domain</b> - the type of items you want "
+                "returned.\n\n"
+                "<b>Clauses</b> - consists of a <b>property</b> a "
+                "<b>condition</b> and a <b>value</b>.\n"
+                "Can be chained together with <b>and</b> or <b>or</b>.\n\n"
+                "<b>property</b> - the field or related field to query\n"
+                "<b>condition</b> - how to query. Note that the choice of "
+                "condition may depend on the value you provide. e.g. "
+                "wildcards require the <tt>like</tt> condition.  Only string "
+                "dates can use the <tt>on</tt> condition. (<tt>!=</tt> is NOT "
+                "equal)\n"
+                "<b>value</b> - the value to query, may contain special "
+                "tokens.\n"
+                "\nSpecial Tokens with some example usage:\n\n"
+                "<b>%</b> - wildcard for any value, use with <b>like</b> "
+                "condition\n"
+                "        <tt>genus where epithet like Mel%</tt>\n"
+                "Return the genera Melaleuca, Melastoma, etc..\n\n"
+                "<b>_</b> - wildcard for a single character, use with "
+                "<b>like</b> condition\n"
+                "        <tt>plant where code like _</tt>\n"
+                "Return plants where the code is a single character.  Most "
+                "commonly 1-9.\n\n"
+                "<b>None</b> - has no value\n"
+                "        <tt>location where description != None</tt>\n"
+                "Note <b>!=</b> meaning does NOT equal None. Return locations "
+                "where there is a description.\n\n"
+                "<b>dates (e.g. 10-1-1997)</b> - text date entries are "
+                "flexible and can be either iternational format (i.e. "
+                "year-month-day) or in the format as specified in your "
+                "preferences <tt>default_date_format</tt> setting (e.g. "
+                "day-month-year or month-day-year).  (date separaters can "
+                "any of <tt>/ - .</tt>) <b>on</b> is a special condition for "
+                "dates only\n"
+                "        <tt>plant where planted.date on 11/05/2021</tt>\n"
+                "Return plants that where planted on the 11/05/2021.\n\n"
+                "<b>days from today (e.g. -10)</b> - best used with the "
+                "<b>&gt;</b> or <b>&lt;</b> condition (note: these will "
+                "become typed in the search entry - e.g. |datetime|-10|)\n"
+                "        <tt>plant where planted.date > -10</tt>\n"
+                "Return plants that where planted in the last 10 days.\n"
+                )
+        dialog = Gtk.MessageDialog(modal=False,
+                                   destroy_with_parent=True,
+                                   transient_for=self.view.get_window(),
+                                   message_type=Gtk.MessageType.INFO)
+        dialog.set_markup(msg)
+        dialog.set_title(_('Basic Intro to Queries'))
+        dialog.add_button('OK', Gtk.ResponseType.OK)
+        dialog.set_position(Gtk.WindowPosition.CENTER)
+        dialog.show_all()
+        dialog.run()
+        dialog.destroy()
 
     def on_domain_combo_changed(self, *args):
-        """
-        Change the search domain.  Resets the expression table and
-        deletes all the expression rows.
+        """Change the search domain.
+
+        Resets the expression table, clear the query label and deletes all the
+        expression rows.
         """
         try:
             index = self.view.widgets.domain_combo.get_active()
@@ -1378,6 +1529,7 @@ class QueryBuilder(GenericEditorPresenter):
 
         self.domain = self.view.widgets.domain_liststore[index][0]
 
+        self.view.widgets.query_lbl.set_text('')
         # remove all clauses, they became useless in new domain
         table = self.view.widgets.expressions_table
         for child in table.get_children():
@@ -1394,12 +1546,16 @@ class QueryBuilder(GenericEditorPresenter):
     def validate(self):
         """Validate the search expression is a valid expression."""
         valid = False
+        query_string = f'{self.domain} where'
         for row in self.expression_rows:
             value = None
             if isinstance(row.value_widget, Gtk.Entry):  # also spinbutton
                 value = row.value_widget.get_text()
             elif isinstance(row.value_widget, Gtk.ComboBox):
                 value = row.value_widget.get_active() >= 0
+
+            query_string = f'{query_string} {row.get_expression()}'
+            self.view.widgets.query_lbl.set_text(query_string)
 
             if value and row.menu_item_activated:
                 valid = True

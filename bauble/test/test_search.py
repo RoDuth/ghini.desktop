@@ -391,8 +391,8 @@ class SearchTests(BaubleTestCase):
         results = mapper_search.search('family contains FAM', self.session)
         self.assertEqual(len(results), 4)  # they case insensitively do
 
-    def test_search_by_query11(self):
-        "query with MapperSearch, single table, single test"
+    def test_search_by_query_singular(self):
+        """query with MapperSearch, single table, single test"""
 
         # test does not depend on plugin functionality
         Family = self.Family
@@ -413,8 +413,8 @@ class SearchTests(BaubleTestCase):
         self.assertTrue(isinstance(f, Genus))
         self.assertEqual(f.id, self.family.id)
 
-    def test_search_by_query12(self):
-        "query with MapperSearch, single table, p1 OR p2"
+    def test_search_by_or_query_w_homonym(self):
+        """query with MapperSearch, single table, p1 OR p2"""
 
         # test does not depend on plugin functionality
         Family = self.Family
@@ -437,8 +437,8 @@ class SearchTests(BaubleTestCase):
         self.assertEqual(sorted([r.id for r in results]),
                           [g.id for g in (self.genus, g2, g3)])
 
-    def test_search_by_query13(self):
-        "query with MapperSearch, single table, p1 AND p2"
+    def test_search_by_gt_and_lt_query(self):
+        """query with MapperSearch, single table, > AND <"""
 
         # test does not depend on plugin functionality
         Family = self.Family
@@ -465,8 +465,8 @@ class SearchTests(BaubleTestCase):
         self.assertEqual(len(results), 2)
         self.assertEqual(set(i.id for i in results), set([1, 2]))
 
-    def test_search_by_query21(self):
-        "query with MapperSearch, joined tables, one predicate"
+    def test_search_by_query_joined_tables(self):
+        """query with MapperSearch, joined tables, one predicate"""
 
         # test does not depend on plugin functionality
         Family = self.Family
@@ -496,8 +496,8 @@ class SearchTests(BaubleTestCase):
         self.assertTrue(isinstance(f, Family))
         self.assertEqual(f.id, self.family.id)
 
-    def test_search_by_query22(self):
-        "query with MapperSearch, joined tables, multiple predicates"
+    def test_search_by_and_query_joined_tables(self):
+        """query with MapperSearch, joined tables, multiple predicates"""
 
         # test does not depend on plugin functionality
         Family = self.Family
@@ -540,13 +540,13 @@ class SearchTests(BaubleTestCase):
         # test where the column is ambiguous so make sure we choose
         # the right one, in this case we want to make sure we get the
         # qualifier on the family and not the genus
-        s = 'plant where accession.species.genus.family.family="Orchidaceae" '\
-            'AND accession.species.genus.family.qualifier=""'
+        s = ('plant where accession.species.genus.family.family="Orchidaceae" '
+             'AND accession.species.genus.family.qualifier=""')
         results = mapper_search.search(s, self.session)
         self.assertEqual(results, set([]))
 
-    def test_search_by_query22Symbolic(self):
-        "query with &&, ||, !"
+    def test_search_by_symbol_query(self):
+        """query with &&, ||, !"""
 
         # test does not depend on plugin functionality
         Family = self.Family
@@ -573,12 +573,11 @@ class SearchTests(BaubleTestCase):
         results = mapper_search.search(s, self.session)
         self.assertEqual(len(results), 2)
 
-    def test_search_by_query22None(self):
+    def test_search_by_query_none(self):
         """query with MapperSearch, joined tables, predicates using None
 
         results are irrelevant, because sqlite3 uses the empty string to
         represent None
-
         """
 
         # test does not depend on plugin functionality
@@ -616,8 +615,10 @@ class SearchTests(BaubleTestCase):
         resultsEmptyString = mapper_search.search(s, self.session)
         self.assertEqual(resultsNone, resultsEmptyString)
 
-    def test_search_by_query22id(self):
-        "query with MapperSearch, joined tables, test on id of dependent table"
+    def test_search_by_query_id_joined_tables(self):
+        """query with MapperSearch, joined tables, test on id of dependent
+        table
+        """
 
         # test does not depend on plugin functionality
         Family = self.Family
@@ -639,8 +640,8 @@ class SearchTests(BaubleTestCase):
         results = mapper_search.search(s, self.session)
         list(results)
 
-    def test_search_by_query22like(self):
-        "query with MapperSearch, joined tables, LIKE"
+    def test_search_by_like_percent_query_joined_table(self):
+        """query with MapperSearch, joined tables, LIKE %"""
 
         # test does not depend on plugin functionality
         Family = self.Family
@@ -665,8 +666,41 @@ class SearchTests(BaubleTestCase):
         results = mapper_search.search(s, self.session)
         self.assertEqual(set(results), set([self.genus, genus21]))
 
-    def test_search_by_query22_underscore(self):
-        """can use fields starting with an underscore"""
+    def test_search_by_like_underscore_query_joined_table(self):
+        """query with MapperSearch, joined tables, LIKE _"""
+
+        # test does not depend on plugin functionality
+        Family = self.Family
+        Genus = self.Genus
+        family2 = Family(family='family2')
+        family3 = Family(family='afamily3')
+        genus21 = Genus(family=family2, genus='genus21')
+        genus31 = Genus(family=family3, genus='genus31')
+        genus32 = Genus(family=family3, genus='genus32')
+        genus33 = Genus(family=family3, genus='genus33')
+        f3 = Family(family='fam3')
+        g3 = Genus(family=f3, genus='genus31')
+        self.session.add_all([family3, family2, genus21, genus31, genus32,
+                              genus33, f3, g3])
+        self.session.commit()
+
+        mapper_search = search.get_strategy('MapperSearch')
+        self.assertTrue(isinstance(mapper_search, search.MapperSearch))
+
+        # test _ at end of string query
+        s = 'genus where family.family like family_'
+        results = mapper_search.search(s, self.session)
+        self.assertEqual(set(results), set([self.genus, genus21]))
+        # test _ at start of string query
+        s = 'genus where family.family like _family3'
+        results = mapper_search.search(s, self.session)
+        self.assertEqual(set(results), set([genus31, genus32, genus33]))
+        # test _ in middle of string query
+        s = 'genus where family.family like fa_ily2'
+        results = mapper_search.search(s, self.session)
+        self.assertEqual(set(results), set([genus21]))
+
+    def test_search_by_datetype_query(self):
 
         import datetime
         Family = self.Family
@@ -683,7 +717,15 @@ class SearchTests(BaubleTestCase):
         ac = Accession(species=sp, code='1979.0001')
         lc = Location(name='loc1', code='loc1')
         pp = Plant(accession=ac, code='01', location=lc, quantity=1)
-        pp._last_updated = datetime.datetime(2009, 2, 13)
+        pp2 = Plant(accession=ac, code='02', location=lc, quantity=1)
+        pp3 = Plant(accession=ac, code='03', location=lc, quantity=1)
+        from datetime import timezone
+        pp._last_updated = (datetime.datetime(2009, 2, 13)
+                            .astimezone(tz=timezone.utc))
+        pp2._last_updated = datetime.datetime.now().astimezone(tz=timezone.utc)
+        pp3._last_updated = ((datetime.datetime.now() -
+                              datetime.timedelta(days=2))
+                             .astimezone(tz=timezone.utc))
         self.session.add_all([family2, g2, f3, g3, sp, ac, lc, pp])
         self.session.commit()
 
@@ -695,6 +737,67 @@ class SearchTests(BaubleTestCase):
         self.assertEqual(results, set())
 
         s = 'plant where _last_updated > |datetime|2000,1,1|'
+        results = mapper_search.search(s, self.session)
+        self.assertEqual(results, set([pp, pp2, pp3]))
+
+        s = 'plant where _last_updated on |datetime|0|'
+        results = mapper_search.search(s, self.session)
+        self.assertEqual(results, set([pp2]))
+
+        # test "on" operator
+        s = 'plant where _last_updated on |datetime|-2|'
+        results = mapper_search.search(s, self.session)
+        self.assertEqual(results, set([pp3]))
+
+
+    def test_search_by_datestring_query(self):
+
+        import datetime
+        Family = self.Family
+        Genus = self.Genus
+        from bauble.plugins.plants.species_model import Species
+        from bauble.plugins.garden.accession import Accession
+        from bauble.plugins.garden.location import Location
+        from bauble.plugins.garden.plant import Plant
+        family2 = Family(family='family2')
+        g2 = Genus(family=family2, genus='genus2')
+        f3 = Family(family='fam3', qualifier='s. lat.')
+        g3 = Genus(family=f3, genus='Ixora')
+        sp = Species(sp="coccinea", genus=g3)
+        ac = Accession(species=sp, code='1979.0001')
+        lc = Location(name='loc1', code='loc1')
+        pp = Plant(accession=ac, code='01', location=lc, quantity=1)
+        from datetime import timezone
+        pp._last_updated = (datetime.datetime(2009, 2, 13)
+                            .astimezone(tz=timezone.utc))
+        self.session.add_all([family2, g2, f3, g3, sp, ac, lc, pp])
+        self.session.commit()
+
+        mapper_search = search.get_strategy('MapperSearch')
+        self.assertTrue(isinstance(mapper_search, search.MapperSearch))
+
+        s = 'plant where _last_updated < 1.1.2000'
+        results = mapper_search.search(s, self.session)
+        self.assertEqual(results, set())
+
+        s = 'plant where _last_updated > 1-1-2000'
+        results = mapper_search.search(s, self.session)
+        self.assertEqual(results, set([pp]))
+
+        s = 'plant where _last_updated on 13/2/2009'
+        results = mapper_search.search(s, self.session)
+        self.assertEqual(results, set([pp]))
+
+        # iso dates
+        s = 'plant where _last_updated < 2000.1.1'
+        results = mapper_search.search(s, self.session)
+        self.assertEqual(results, set())
+
+        s = 'plant where _last_updated > 2000-1-1'
+        results = mapper_search.search(s, self.session)
+        self.assertEqual(results, set([pp]))
+
+        s = 'plant where _last_updated on 2009/2/13'
         results = mapper_search.search(s, self.session)
         self.assertEqual(results, set([pp]))
 
@@ -1245,6 +1348,43 @@ class QueryBuilderTests(BaubleTestCase):
         self.assertTrue(qb.validate())
         self.assertEqual(qb.get_query(), query)
 
+    def test_adding_wildcard_sets_cond_to_like(self):
+        import os
+        gladefilepath = os.path.join(paths.lib_dir(), "querybuilder.glade")
+        view = GenericEditorView(
+            gladefilepath,
+            parent=None,
+            root_widget_name='main_dialog')
+        qb = search.QueryBuilder(view)
+        query = "family where epithet = Myrt"
+        qb.set_query(query)
+        self.assertTrue(qb.validate())
+        qb.expression_rows[0].value_widget.set_text('Myrt%')
+        self.assertEqual(qb.expression_rows[0].cond_combo.get_active_text(),
+                         'like')
+
+    def test_date_searches_add_on_condition(self):
+        import os
+        gladefilepath = os.path.join(paths.lib_dir(), "querybuilder.glade")
+        view = GenericEditorView(
+            gladefilepath,
+            parent=None,
+            root_widget_name='main_dialog')
+        qb = search.QueryBuilder(view)
+        query = "family where _created on 1/1/2021"
+        qb.set_query(query)
+        self.assertTrue(qb.validate())
+        from utils import tree_model_has
+        self.assertTrue(
+            tree_model_has(qb.expression_rows[0].cond_combo.get_model(), 'on')
+        )
+        # it is removed when changed to a none date search
+        from bauble.plugins.plants.family import Family
+        qb.expression_rows[0].on_schema_menu_activated(None, 'id', Family.id)
+        self.assertFalse(
+            tree_model_has(qb.expression_rows[0].cond_combo.get_model(), 'on')
+        )
+
 
 class BuildingSQLStatements(BaubleTestCase):
     import bauble.search
@@ -1500,11 +1640,6 @@ class ParseTypedValue(BaubleTestCase):
         self.assertEqual(result, '2020/1/1')
         result = search.parse_typed_value('2020-1-1', Date())
         self.assertEqual(result, '2020-1-1')
-        # should also allow timestamps as strings
-        result = search.parse_typed_value('2020-1-1 10:30 PM', DateTime())
-        self.assertEqual(result, '2020-1-1 10:30 PM')
-        result = search.parse_typed_value('2020/1/1 10:30:12.1 am', DateTime())
-        self.assertEqual(result, '2020/1/1 10:30:12.1 am')
 
     def test_parse_typed_value_none(self):
         result = search.parse_typed_value('None', None)
