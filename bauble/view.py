@@ -33,8 +33,8 @@ logger = logging.getLogger(__name__)
 
 from pyparsing import ParseException
 
-from gi.repository import Gtk  # noqa
-from gi.repository import Gdk  # noqa
+from gi.repository import Gtk
+from gi.repository import Gdk
 from gi.repository import GLib
 from gi.repository import Pango
 

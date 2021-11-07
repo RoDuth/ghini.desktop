@@ -261,9 +261,8 @@ def open(uri, verify=True, show_error_dialogs=False):
     # avoid sqlite thread errors
     connect_args = {}
     if uri.find('sqlite') != -1:
+        # NOTE If this is causing errors consider removing it
         connect_args = {"check_same_thread": False}
-        logger.debug('using sqlite DB with check_same_thread set False. If '
-                     'this is causing errors consider removing it')
 
     # NOTE sqla, by default, for sqlite uses SingletonThreadPool for
     # :memory: databases and NullPool for files.  For other DBs QueuePool

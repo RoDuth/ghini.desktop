@@ -93,8 +93,7 @@ def installation_dir():
 
 
 def appdata_dir():
-    """Returns the path to where Ghini application data and settings are saved.
-    """
+    """Returns the path to where application data and settings are saved."""
     if sys.platform == "win32":
         if is_portable_installation():
             appd = os.path.join(main_dir(), 'Appdata')

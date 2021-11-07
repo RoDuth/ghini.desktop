@@ -636,14 +636,14 @@ def create_message_dialog(msg, typ=Gtk.MessageType.INFO,
     return dialog
 
 
-def message_dialog(msg, type=Gtk.MessageType.INFO, buttons=Gtk.ButtonsType.OK,
+def message_dialog(msg, typ=Gtk.MessageType.INFO, buttons=Gtk.ButtonsType.OK,
                    parent=None):
     """Create a message dialog with :func:`bauble.utils.create_message_dialog`
     and run and destroy it.
 
     Returns the dialog's response.
     """
-    dialog = create_message_dialog(msg, type, buttons, parent)
+    dialog = create_message_dialog(msg, typ, buttons, parent)
     response = dialog.run()
     dialog.destroy()
     return response

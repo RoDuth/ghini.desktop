@@ -104,8 +104,8 @@ from datetime import timezone
 
 
 class DateTime(types.TypeDecorator):
-    """
-    A DateTime type that allows strings and tries to always return local time.
+    """A DateTime type that allows strings and tries to always return local
+    time.
     """
     impl = types.DateTime
 
@@ -142,9 +142,7 @@ class DateTime(types.TypeDecorator):
 
 
 class Date(types.TypeDecorator):
-    """
-    A Date type that allows Date strings
-    """
+    """A Date type that allows Date strings."""
     impl = types.Date
 
     def process_bind_param(self, value, dialect):
@@ -173,7 +171,7 @@ class Date(types.TypeDecorator):
 
 
 class JSON(types.TypeDecorator):
-    """ Platform-independent JSON type
+    """Platform-independent JSON type
 
     Use JSONB for postgresql JSON for all others
     """
@@ -196,9 +194,7 @@ class JSON(types.TypeDecorator):
 
 
 class Boolean(types.TypeDecorator):
-    """
-    A Boolean type that allows True/False as strings
-    """
+    """A Boolean type that allows True/False as strings."""
     impl = types.Boolean
 
     cache_ok = True

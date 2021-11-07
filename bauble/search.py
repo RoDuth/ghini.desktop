@@ -372,7 +372,7 @@ class AggregatedExpression(IdentExpression):
 
     def __init__(self, t):
         super().__init__(t)
-        logger.debug('AggregatedExpression::__init__(%s)' % t)
+        logger.debug('AggregatedExpression::__init__(%s)', t)
 
     def evaluate(self, env):
         # operands[0] is the function/identifier pair
@@ -1033,9 +1033,7 @@ class SchemaMenu(Gtk.Menu):
         self.show_all()
 
     def on_activate(self, menuitem, prop):
-        """
-        Call when menu items that hold column properties are activated.
-        """
+        """Call when menu items that hold column properties are activated."""
         path = []
         path = [menuitem.get_child().props.label]
         menu = menuitem.get_parent()
@@ -1048,17 +1046,11 @@ class SchemaMenu(Gtk.Menu):
             menu = menuitem.get_parent()
         full_path = '.'.join(reversed(path))
         if self.selectable_relations and hasattr(prop, '__table__'):
-            # python 3.9 only  - not currently available in mingw packages
-            # full_path = full_path.removesuffix(f'.{prop.__table__.key}')
-            suffix = f'.{prop.__table__.key}'
-            if full_path.endswith(suffix):
-                full_path = full_path[:-len(suffix)]
+            full_path = full_path.removesuffix(f'.{prop.__table__.key}')
         self.activate_cb(menuitem, full_path, prop)
 
     def on_select(self, menuitem, prop):
-        """
-        Called when menu items that have submenus are selected
-        """
+        """Called when menu items that have submenus are selected."""
         submenu = menuitem.get_submenu()
         if len(submenu.get_children()) == 0:
             for item in self._get_prop_menuitems(prop.mapper):
@@ -1260,7 +1252,7 @@ class ExpressionRow:
         self.on_value_changed(widget)
 
     def on_number_value_changed(self, widget, *args):
-        """Loosely constrain text to None or numbers and datetime parts only"""
+        """Loosely constrain text to None or numbers parts only"""
         val = widget.get_text()
         if not val == 'None'[:len(val)]:
             val = ''.join([i for i in val if i in '-.0123456789'])
@@ -1310,7 +1302,7 @@ class ExpressionRow:
                 model.append([value, translation])
             self.value_widget.props.model = model
             self.value_widget.set_tooltip_text(
-                'select a value "None" means no value has been set'
+                'select a value, "None" means no value has been set'
             )
             self.value_widget.connect('changed', self.on_value_changed)
 

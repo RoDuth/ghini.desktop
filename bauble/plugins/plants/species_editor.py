@@ -740,8 +740,8 @@ class InfraspPresenter(editor.GenericEditorPresenter):
             self.presenter._dirty = False
             self.presenter.parent_ref().refresh_fullname_label()
             self.presenter.parent_ref().refresh_sensitivity()
-            self.presenter.view.widgets.add_infrasp_button.props.\
-                sensitive = True
+            (self.presenter.view.widgets
+             .add_infrasp_button.props.sensitive) = True
 
         def set_model_attr(self, attr, value):
             infrasp_attr = Species.infrasp_attr[self.level][attr]

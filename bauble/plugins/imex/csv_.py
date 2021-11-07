@@ -689,7 +689,7 @@ class CSVExporter:
             filechooser.set_current_folder(str(Path.home()))
             response = filechooser.run()
             path = filechooser.get_filename()
-            d.destroy()
+            filechooser.destroy()
             if response != Gtk.ResponseType.ACCEPT:
                 return
 

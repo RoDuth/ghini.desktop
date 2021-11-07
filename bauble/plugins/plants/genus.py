@@ -212,8 +212,7 @@ class Genus(db.Base, db.Serializable, db.WithNotes):
 
     @property
     def cites(self):
-        """the cites status of this taxon, or None
-        """
+        """the cites status of this taxon, or None"""
 
         cites_notes = [i.note for i in self.notes
                        if i.category and i.category.upper() == 'CITES']

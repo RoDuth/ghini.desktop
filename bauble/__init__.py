@@ -29,11 +29,12 @@ import sys
 import traceback
 from datetime import datetime
 import warnings
-import gi
-from bauble import paths
 
+import gi
 gi.require_version("Gtk", "3.0")
 
+from bauble import paths
+from bauble import error as err
 from bauble.version import version
 version_tuple = tuple(version.split('.'))
 release_date = datetime.utcfromtimestamp(0)
@@ -96,29 +97,17 @@ def pb_release():
 # make sure we look in the lib path for modules
 sys.path.append(paths.lib_dir())
 
-# if False:
-#    sys.stderr.write('sys.path: %s\n' % sys.path)
-#    sys.stderr.write('PATH: %s\n' % os.environ['PATH'])
-
-
 # set SQLAlchemy logging level
 logging.getLogger('sqlalchemy').setLevel(logging.WARNING)
 
 gui = None
-"""bauble.gui is the instance :class:`bauble.ui.GUI`
-"""
+"""bauble.gui is the instance :class:`bauble.ui.GUI`"""
 
 default_icon = None
-"""The default icon.
-"""
+"""The default icon."""
 
 conn_name = None
-"""The name of the current connection.
-"""
-
-# pylint: disable=wrong-import-order,import-outside-toplevel
-import traceback
-from bauble import error as err
+"""The name of the current connection."""
 
 
 def save_state():
@@ -209,22 +198,14 @@ conn_default_pref = "conn.default"
 conn_list_pref = "conn.list"
 
 
+
 def main(uri=None):
-    """
-    Run the main Ghini application.
+    """Run the main application.
 
-    :param uri:  the URI of the database to connect to.  For more information
-                 about database URIs see `<http://www.sqlalchemy.org/docs/05/\
-    dbengine.html#create-engine-url-arguments>`
-
+    :param uri:  the URI of the database to connect to.
     :type uri: str
     """
-    # TODO: it would be nice to show a Tk dialog here saying we can't
-    # import Gtk...but then we would have to include all of the Tk libs in
-    # with the win32 batteries-included installer
     try:
-        import gi
-        gi.require_version("Gtk", "3.0")
         from gi.repository import Gtk
         from gi.repository import GLib
     except ImportError as e:

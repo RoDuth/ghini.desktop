@@ -460,8 +460,7 @@ class ShapefileExportSettingsBox(Gtk.ScrolledWindow):
 
 
 class ShapefileExportDialogView(GenericEditorView):
-    """
-    This view is mostly just inherited from GenericEditorView and kept as
+    """This view is mostly just inherited from GenericEditorView and kept as
     simple as possible.
     """
 
@@ -489,8 +488,8 @@ class ShapefileExportDialogView(GenericEditorView):
 
 
 class ShapefileExportDialogPresenter(GenericEditorPresenter):
-    """
-    The presenter for the Dialog.
+    """The presenter for the Dialog.
+
     Manages the tasks between the model(interface) and view
     """
 
@@ -616,10 +615,11 @@ class ShapefileExportDialogPresenter(GenericEditorPresenter):
 
 
 class ShapefileExporter:
-    """
-    The interface for exporting data in a shapefile.  The intent for one of
-    these exports is to provide a way to gather information for importing, i.e.
-    we don't export field_notes but we do provide a column for them.
+    """The interface for exporting data in a shapefile.
+
+    The intent for one of these exports is to provide a way to gather
+    information for importing, i.e.  we don't export field_notes but we do
+    provide a column for them.
     """
     # pylint: disable=too-many-instance-attributes
 
@@ -863,9 +863,7 @@ class ShapefileExporter:
             shapefile.field(field_name, field_type)
 
     def add_fields(self, shape, shapefiles, fields):
-        """Adds the field definitions to the shapefile.
-
-        """
+        """Adds the field definitions to the shapefile."""
         for name, typ, size, __ in fields:
             self.add_field(shapefiles.get(shape), name, typ, size)
 

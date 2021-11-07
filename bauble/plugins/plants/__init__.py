@@ -380,8 +380,9 @@ class PlantsPlugin(pluginmgr.Plugin):
             return_accpt_chkbx.set_active(
                 prefs.prefs.get(return_accepted_pref, True))
 
-            tooltip = _('Return the accepted name for synonyms in subsequent '
-                        'searches.')
+            tooltip = _('For any taxonomic results: if a synonym also return '
+                        'the accepted taxon (does not affect current results '
+                        'only subsequent searches.)')
             return_accpt_chkbx.connect('toggled',
                                        cls.on_return_syns_chkbx_toggled)
             return_accpt_chkbx.set_tooltip_text(tooltip)
