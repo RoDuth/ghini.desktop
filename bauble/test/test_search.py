@@ -722,10 +722,13 @@ class SearchTests(BaubleTestCase):
         from datetime import timezone
         pp._last_updated = (datetime.datetime(2009, 2, 13)
                             .astimezone(tz=timezone.utc))
-        pp2._last_updated = datetime.datetime.now().astimezone(tz=timezone.utc)
-        pp3._last_updated = ((datetime.datetime.now() -
-                              datetime.timedelta(days=2))
-                             .astimezone(tz=timezone.utc))
+        now = datetime.datetime.now().astimezone(tz=timezone.utc)
+        pp2._last_updated = now
+        logger.debug('now: %s', now)
+        two_days_ago = ((datetime.datetime.now() - datetime.timedelta(days=2))
+                        .astimezone(tz=timezone.utc))
+        pp3._last_updated = two_days_ago
+        logger.debug('two days ago: %s', two_days_ago)
         self.session.add_all([family2, g2, f3, g3, sp, ac, lc, pp])
         self.session.commit()
 
