@@ -905,6 +905,10 @@ class GUI():
                 # stop other handlers for being invoked for this event
                 return True
             task.kill()
+            msg = _('Close Ghini?')
+            if not utils.yes_no_dialog(msg):
+                # don't close
+                return True
         return False
 
     def on_resize(self, _widget, _data):
