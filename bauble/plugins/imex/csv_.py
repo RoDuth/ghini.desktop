@@ -56,6 +56,9 @@ from bauble import pb_set_fraction
 # TODO: don't ask if we want to drop empty tables
 # https://bugs.launchpad.net/bauble/+bug/103923
 
+# required for geojson fields in geography (NORTHERN AMERICA)
+csv.field_size_limit(1000000)
+
 QUOTE_STYLE = csv.QUOTE_MINIMAL
 QUOTE_CHAR = '"'
 
@@ -72,7 +75,7 @@ class UnicodeReader:
             if v == '':
                 line[k] = None
             else:
-                line[k] = utils.nstr(v)
+                line[k] = str(v)
 
         return line
 
@@ -598,7 +601,7 @@ class CSVImporter:
                                 from ast import literal_eval
                                 line[column] = literal_eval(
                                     line.get(column, 'None'))
-                            elif (filename.endswith('bauble.txt') and
+                            elif (filename.endswith('bauble.csv') and
                                   line.get(column) == 'version'):
                                 # as this is recreating the database it's more
                                 # accurate to say the current version created
@@ -702,7 +705,7 @@ class CSVExporter:
             logger.debug("%s(%s)" % (type(e).__name__, e))
 
     def __export_task(self, path):
-        filename_template = os.path.join(path, "%s.txt")
+        filename_template = os.path.join(path, "%s.csv")
         steps_so_far = 0
         ntables = 0
         for table in db.metadata.sorted_tables:

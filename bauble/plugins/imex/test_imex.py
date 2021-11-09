@@ -96,7 +96,7 @@ class CSVTests(ImexTestCase):
         data = (('family', family_data), ('genus', genus_data),
                 ('species', species_data))
         for table_name, data in data:
-            filename = os.path.join(self.path, '%s.txt' % table_name)
+            filename = os.path.join(self.path, '%s.csv' % table_name)
             f = open(filename, 'w', encoding='utf-8', newline='')
             format = {'delimiter': ',', 'quoting': QUOTE_STYLE,
                       'quotechar': QUOTE_CHAR}
@@ -122,7 +122,7 @@ class CSVTests(ImexTestCase):
                     {'id': 1, 'name': '1', 'parent_id': None},
                     {'id': 2, 'name': '2', 'parent_id': 1},
                     ]
-        filename = os.path.join(self.path, 'geography.txt')
+        filename = os.path.join(self.path, 'geography.csv')
         f = open(filename, 'w', encoding='utf-8', newline='')
         format = {'delimiter': ',', 'quoting': QUOTE_STYLE,
                   'quotechar': QUOTE_CHAR}
@@ -149,7 +149,7 @@ class CSVTests(ImexTestCase):
                 {'id': 2, 'col1': 'False'},
                 {'id': 3, 'col1': ''},
                 ]
-        filename = os.path.join(self.path, 'bool_test.txt')
+        filename = os.path.join(self.path, 'bool_test.csv')
         f = open(filename, 'w', encoding='utf-8', newline='')
         format = {'delimiter': ',', 'quoting': QUOTE_STYLE,
                   'quotechar': QUOTE_CHAR}
@@ -179,7 +179,7 @@ class CSVTests(ImexTestCase):
         open to Family while importing to the family table
         """
         list(self.session.query(Family))
-        filename = os.path.join(self.path, 'family.txt')
+        filename = os.path.join(self.path, 'family.csv')
         f = open(filename, 'w', encoding='utf-8', newline='')
         format = {'delimiter': ',', 'quoting': QUOTE_STYLE,
                   'quotechar': QUOTE_CHAR}
@@ -297,7 +297,7 @@ class CSVTests(ImexTestCase):
         temp_path = mkdtemp()
         exporter = CSVExporter()
         exporter.start(temp_path)
-        f = open(os.path.join(temp_path, 'species.txt'), encoding='utf-8',
+        f = open(os.path.join(temp_path, 'species.csv'), encoding='utf-8',
                  newline='')
         reader = csv.DictReader(f, dialect=csv.excel)
         row = next(reader)
@@ -319,7 +319,7 @@ class CSVTests2(ImexTestCase):
         logging.getLogger('bauble.info').setLevel(logging.ERROR)
         # import the family data
         filename = os.path.join('bauble', 'plugins', 'plants', 'default',
-                                'family.txt')
+                                'family.csv')
         importer = CSVImporter()
         importer.start([filename], force=True)
         # the highest id number in the family file is assumed to be

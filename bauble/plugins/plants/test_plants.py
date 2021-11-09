@@ -798,8 +798,8 @@ class SpeciesTests(PlantTestCase):
             paths.lib_dir(), "plugins", "plants", "default")
         # TODO if this test is ever reinstated. Switch to geography_importer()
         # method.
-        filenames = [os.path.join(default_path, f) for f in ('geography.txt',
-                     'habit.txt')]
+        filenames = [os.path.join(default_path, f) for f in ('geography.csv',
+                     'habit.csv')]
         from bauble.plugins.imex.csv_ import CSVImporter
         importer = CSVImporter()
         importer.start(filenames, force=True)
@@ -1221,7 +1221,7 @@ class GeographyTests(PlantTestCase):
         # import default geography data
         import bauble.paths as paths
         filename = os.path.join(paths.lib_dir(), "plugins", "plants",
-                                "default", 'geography.txt')
+                                "default", 'geography.csv')
         from bauble.plugins.imex.csv_ import CSVImporter
         importer = CSVImporter()
         importer.start([filename], force=True)

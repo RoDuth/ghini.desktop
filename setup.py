@@ -67,7 +67,7 @@ package_data = {'': ['README.rst', 'CHANGES', 'LICENSE'],
                            'images/*.bmp']}
 
 # ceate a list of the data patterns to look for in the packages
-data_patterns = ['default/*.txt', '*.ui', '*.glade', '*.xsl', '*.xsd',
+data_patterns = ['default/*.csv', '*.ui', '*.glade', '*.xsl', '*.xsd',
                  '*.html', '*.csv', '*.svg', '*.ps']
 for pkg in plugins_pkgs:
     package_data[pkg] = data_patterns

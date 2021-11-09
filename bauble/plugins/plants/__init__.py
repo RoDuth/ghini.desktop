@@ -468,11 +468,11 @@ class PlantsPlugin(pluginmgr.Plugin):
         if not import_defaults:
             return
         path = os.path.join(lib_dir(), "plugins", "plants", "default")
-        filenames = [os.path.join(path, f) for f in ('family.txt',
-                                                     'family_synonym.txt',
-                                                     'genus.txt',
-                                                     'genus_synonym.txt',
-                                                     'habit.txt')]
+        filenames = [os.path.join(path, f) for f in ('family.csv',
+                                                     'family_synonym.csv',
+                                                     'genus.csv',
+                                                     'genus_synonym.csv',
+                                                     'habit.csv')]
 
         # this should only occur first time around, not wipe out existing
         # data.  Or at least ask the user.

@@ -140,7 +140,7 @@ class PluginMgrTests(BaubleTestCase):
         Test importing default data from plugin
         """
         # this emulates the PlantsPlugin install() method but only
-        # imports the family.txt file...if PlantsPlugin.install()
+        # imports the family.csv file...if PlantsPlugin.install()
         # changes we should change this method as well
         class Dummy(pluginmgr.Plugin):
             @classmethod
@@ -154,7 +154,7 @@ class PluginMgrTests(BaubleTestCase):
                     return
                 path = os.path.join(paths.lib_dir(), "plugins", "plants",
                                     "default")
-                filenames = os.path.join(path, 'family.txt')
+                filenames = os.path.join(path, 'family.csv')
                 from bauble.plugins.imex.csv_ import CSVImporter
                 csv = CSVImporter()
                 try:

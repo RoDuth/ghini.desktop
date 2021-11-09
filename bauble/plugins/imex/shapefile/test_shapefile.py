@@ -2741,7 +2741,7 @@ class ShapefileImportTests(BaubleTestCase):
         self.assertEqual(importer.presenter.last_folder,
                          str(Path(bad_file).parent))
         with TemporaryDirectory() as tmp:
-            bad_file = Path(f'{tmp}/bad.txt')
+            bad_file = Path(f'{tmp}/bad.csv')
             bad_file.touch()
             importer.view.reply_file_chooser_dialog = [bad_file]
             importer.presenter.on_btnbrowse_clicked('button')
