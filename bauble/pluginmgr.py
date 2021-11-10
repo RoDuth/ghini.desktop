@@ -128,7 +128,7 @@ def load(path=None):
         utils.message_details_dialog('Could not load plugin: '
                                      '\n\n<i>%s</i>\n\n%s'
                                      % (name, exc_str),
-                                     tb_str, type=Gtk.MessageType.ERROR)
+                                     tb_str, typ=Gtk.MessageType.ERROR)
 
     if len(found) == 0:
         logger.debug('No plugins found at path: %s', path)
@@ -203,7 +203,7 @@ def init(force=False):
             msg = _('The following plugins are in the registry but could not '
                     f'be loaded:\n\n{not_loaded_str}')
             utils.message_dialog(utils.xml_safe(msg),
-                                 type=Gtk.MessageType.WARNING)
+                                 typ=Gtk.MessageType.WARNING)
 
     except Exception as e:
         logger.warning('unhandled exception %s', e)

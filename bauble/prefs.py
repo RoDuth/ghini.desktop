@@ -390,7 +390,7 @@ class _prefs(UserDict):
                      "check the file permissions of your config file:\n %s")
                    % self._filename)
             if bauble.gui is not None and bauble.gui.window is not None:
-                utils.message_dialog(msg, type=Gtk.MessageType.ERROR,
+                utils.message_dialog(msg, typ=Gtk.MessageType.ERROR,
                                      parent=bauble.gui.window)
             else:
                 logger.error(msg)

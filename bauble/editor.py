@@ -844,10 +844,10 @@ class MockView:
         except Exception:
             return ''
 
-    def run_message_dialog(self, msg, type=Gtk.MessageType.INFO,
+    def run_message_dialog(self, msg, typ=Gtk.MessageType.INFO,
                            buttons=Gtk.ButtonsType.OK, parent=None):
         self.invoked.append('run_message_dialog')
-        args = [msg, type, buttons, parent]
+        args = [msg, typ, buttons, parent]
         self.invoked_detailed.append((self.invoked[-1], args))
 
     def run_yes_no_dialog(self, msg, parent=None, yes_delay=-1):

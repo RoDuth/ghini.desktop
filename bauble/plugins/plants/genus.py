@@ -92,7 +92,7 @@ def remove_callback(genera):
             msg = (_('The genus <i>%(1)s</i> has %(2)s species.'
                      '\n\n') % {'1': safe_str, '2': nsp} +
                    _('You cannot remove a genus with species.'))
-            utils.message_dialog(msg, type=Gtk.MessageType.WARNING)
+            utils.message_dialog(msg, typ=Gtk.MessageType.WARNING)
             return False
         msg = _("Are you sure you want to remove the following genera "
                 "<i>%s</i>?") % ', '.join(i for i in g_lst)
@@ -106,7 +106,7 @@ def remove_callback(genera):
     except Exception as e:  # pylint: disable=broad-except
         msg = _('Could not delete.\n\n%s') % utils.xml_safe(e)
         utils.message_details_dialog(msg, traceback.format_exc(),
-                                     type=Gtk.MessageType.ERROR)
+                                     typ=Gtk.MessageType.ERROR)
         session.rollback()
     return True
 

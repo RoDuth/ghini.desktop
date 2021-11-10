@@ -466,14 +466,15 @@ class PropagationTabPresenter(editor.GenericEditorPresenter):
                     return False
             else:
                 if count == 1:
-                    msg = _("This propagation is referred to\n"
-                            "by accession %s.\n\n"
-                            "You cannot remove it.") % propagation.accessions[0]
+                    msg = (_("This propagation is referred to\n"
+                             "by accession %s.\n\n"
+                             "You cannot remove it.") %
+                           propagation.accessions[0])
                 elif count > 1:
                     msg = _("This propagation is referred to\n"
                             "by %s accessions.\n\n"
                             "You cannot remove it.") % count
-                utils.message_dialog(msg, type=Gtk.MessageType.WARNING)
+                utils.message_dialog(msg, typ=Gtk.MessageType.WARNING)
                 return False
             self.model.propagations.remove(propagation)
             self.view.widgets.prop_tab_box.remove(box)

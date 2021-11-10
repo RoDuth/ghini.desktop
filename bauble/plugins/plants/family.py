@@ -79,7 +79,7 @@ def remove_callback(families):
             msg = (_('The family <i>%(1)s</i> has %(2)s genera.'
                      '\n\n') % {'1': safe_str, '2': ngen} +
                    _('You cannot remove a family with genera.'))
-            utils.message_dialog(msg, type=Gtk.MessageType.WARNING)
+            utils.message_dialog(msg, typ=Gtk.MessageType.WARNING)
             return
     fams = ', '.join([utils.xml_safe(i) for i in families])
     msg = _("Are you sure you want to remove the following families "

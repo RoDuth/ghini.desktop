@@ -185,7 +185,7 @@ def remove_callback(accessions):
             msg = (_('%(num_plants)s plants depend on this accession: '
                      '<b>%(plant_codes)s</b>\n\n') % values +
                    _('You cannot remove an accession with plants.'))
-            utils.message_dialog(msg, type=Gtk.MessageType.WARNING)
+            utils.message_dialog(msg, typ=Gtk.MessageType.WARNING)
             return False
     msg = _("Are you sure you want to remove the following accessions "
             "<b>%s</b>?") % ', '.join(i for i in a_lst)
@@ -201,7 +201,7 @@ def remove_callback(accessions):
     except Exception as e:  # pylint: disable=broad-except
         msg = _('Could not delete.\n\n%s') % utils.xml_safe(str(e))
         utils.message_details_dialog(msg, traceback.format_exc(),
-                                     type=Gtk.MessageType.ERROR)
+                                     typ=Gtk.MessageType.ERROR)
         session.rollback()
     return True
 
