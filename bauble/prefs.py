@@ -186,6 +186,8 @@ PLT_DEFAULTS = {
     'search_by': ['plt_code', 'accession'],
     'fields': {
         'plt_id': 'id',
+        'plt_label': 'plant',
+        'sp_label': 'accession.species',
         'accession': 'accession.code',
         'plt_code': 'code',
         'quantity': 'quantity',
