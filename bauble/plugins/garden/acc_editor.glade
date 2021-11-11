@@ -661,6 +661,7 @@
                                       <object class="GtkComboBoxText" id="acc_code_format_comboentry">
                                         <property name="visible">True</property>
                                         <property name="can-focus">True</property>
+                                        <property name="model">acc_code_format_liststore</property>
                                         <property name="has-entry">True</property>
                                         <signal name="changed" handler="on_acc_code_format_comboentry_changed" swapped="no"/>
                                         <child internal-child="entry">
