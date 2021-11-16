@@ -601,8 +601,10 @@ class CSVImporter:
                                 from ast import literal_eval
                                 line[column] = literal_eval(
                                     line.get(column, 'None'))
-                            elif (filename.endswith('bauble.csv') and
+                            elif ((filename.endswith('bauble.csv') or
+                                   filename.endswith('bauble.txt')) and
                                   line.get(column) == 'version'):
+                                logger.debug('setting version in bauble table')
                                 # as this is recreating the database it's more
                                 # accurate to say the current version created
                                 # the data.
