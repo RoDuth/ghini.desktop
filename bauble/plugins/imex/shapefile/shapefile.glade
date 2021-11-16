@@ -239,6 +239,7 @@
                   <object class="GtkBox" id="hbox2">
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
+                    <property name="valign">start</property>
                     <property name="margin-start">12</property>
                     <child>
                       <object class="GtkEntry" id="input_dirname">
@@ -257,12 +258,18 @@
                     </child>
                     <child>
                       <object class="GtkButton" id="btnbrowse">
-                        <property name="label">…</property>
                         <property name="use-action-appearance">False</property>
                         <property name="visible">True</property>
                         <property name="can-focus">True</property>
                         <property name="receives-default">True</property>
                         <signal name="clicked" handler="on_btnbrowse_clicked" swapped="no"/>
+                        <child>
+                          <object class="GtkImage">
+                            <property name="visible">True</property>
+                            <property name="can-focus">False</property>
+                            <property name="icon-name">document-open-symbolic</property>
+                          </object>
+                        </child>
                       </object>
                       <packing>
                         <property name="expand">False</property>
@@ -457,6 +464,7 @@
                   <object class="GtkEntry" id="input_filename">
                     <property name="visible">True</property>
                     <property name="can-focus">True</property>
+                    <property name="valign">start</property>
                     <property name="invisible-char">•</property>
                     <property name="primary-icon-activatable">False</property>
                     <property name="secondary-icon-activatable">False</property>
@@ -470,12 +478,18 @@
                 </child>
                 <child>
                   <object class="GtkButton" id="btn_file_chooser">
-                    <property name="label">…</property>
                     <property name="use-action-appearance">False</property>
                     <property name="visible">True</property>
                     <property name="can-focus">True</property>
                     <property name="receives-default">True</property>
                     <signal name="clicked" handler="on_btnbrowse_clicked" swapped="no"/>
+                    <child>
+                      <object class="GtkImage">
+                        <property name="visible">True</property>
+                        <property name="can-focus">False</property>
+                        <property name="icon-name">document-open-symbolic</property>
+                      </object>
+                    </child>
                   </object>
                   <packing>
                     <property name="expand">False</property>
@@ -518,6 +532,7 @@
                   <object class="GtkEntry" id="input_projection">
                     <property name="visible">True</property>
                     <property name="can-focus">True</property>
+                    <property name="valign">start</property>
                     <property name="invisible-char">•</property>
                     <property name="primary-icon-activatable">False</property>
                     <property name="secondary-icon-activatable">False</property>

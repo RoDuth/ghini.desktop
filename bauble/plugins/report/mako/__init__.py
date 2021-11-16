@@ -25,6 +25,7 @@ import os
 import shutil
 import tempfile
 import math
+from pathlib import Path
 
 import logging
 logger = logging.getLogger(__name__)
@@ -285,33 +286,52 @@ class MakoFormatterSettingsBox(SettingsBox):
         self.settings_box = self.widgets.settings_box
         self.widgets.remove_parent(self.widgets.settings_box)
         self.pack_start(self.settings_box, True, True, 0)
-        self.widgets.template_chooser.connect('file-set', self.on_file_set)
+        self.widgets.file_btnbrowse.connect('clicked',
+                                            self.on_btnbrowse_clicked)
+        self.widgets.file_entry.connect('changed',
+                                        self.on_file_entry_changed)
         self.defaults = []
 
+    def on_btnbrowse_clicked(self, _widget):
+        previously = self.widgets.file_entry.get_text()
+        if previously:
+            last_folder = str(Path(previously).parent)
+        else:
+            examples_root = os.path.join(paths.appdata_dir(), 'templates',
+                                         'mako')
+            last_folder = prefs.prefs.get(prefs.templates_root_pref,
+                                          examples_root)
+        chooser = Gtk.FileChooserNative.new(_("Choose a file…"),
+                                            None,
+                                            Gtk.FileChooserAction.OPEN)
+
+        try:
+            if last_folder:
+                chooser.set_current_folder(last_folder)
+            if chooser.run() == Gtk.ResponseType.ACCEPT:
+                filename = chooser.get_filename()
+                if filename:
+                    self.widgets.file_entry.set_text(filename)
+        except Exception as e:
+            logger.warning("%s : %s", type(e).__name__, e)
+        chooser.destroy()
+
+    def on_file_entry_changed(self, widget):
+        text = widget.get_text()
+        if Path(text).exists:
+            self.on_file_set(widget)
+
     def get_settings(self):
-        return {'template': self.widgets.template_chooser.get_filename(),
+        return {'template': self.widgets.file_entry.get_text(),
                 'private': self.widgets.private_check.get_active()}
 
     def update(self, settings):
         if settings.get('template'):
-            # TODO in windows, set_filename writes the label on the button but
-            # the FileChooserNative wont open at that location, instead
-            # opening at the last place you had any open filechooser.
-            # set_current_folder makes no difference, nor does setting filename
-            # to None prior to opening, or any combination of the 2.
-            self.widgets.template_chooser.set_filename(settings['template'])
+            self.widgets.file_entry.set_text(settings['template'])
             logger.debug('template = %s', settings['template'])
-            self.widgets.template_chooser.emit('file-set')
         else:
-            # open at the template root for new reports.
-            examples_root = os.path.join(paths.appdata_dir(), 'templates',
-                                         'mako')
-            templates_root = prefs.prefs.get(templates_root_pref,
-                                             examples_root)
-            self.widgets.template_chooser.unselect_all()
+            self.widgets.file_entry.set_text('')
             self.clear_options_box()
-            self.widgets.template_chooser.set_current_folder(
-                templates_root)
         if 'private' in settings:
             self.widgets.private_check.set_active(settings['private'])
 
@@ -321,7 +341,7 @@ class MakoFormatterSettingsBox(SettingsBox):
         # which options does the template accept? (can be None)
         options_box = self.widgets.mako_options_box
         try:
-            with open(widget.get_filename()) as f:
+            with open(widget.get_text()) as f:
                 # scan the header filtering lines starting with # OPTION
                 option_lines = [_f for _f in [self.pattern.match(i.strip())
                                               for i in f.readlines()] if _f]

@@ -373,7 +373,6 @@ class SettingsBoxPresenter(object):
             self.widgets.renderer_combo.append_text(name)
 
 
-
 class XSLFormatterSettingsBox(SettingsBox):
 
     def __init__(self, report_dialog=None, *args):
@@ -394,17 +393,37 @@ class XSLFormatterSettingsBox(SettingsBox):
         self.widgets.remove_parent(self.widgets.settings_box)
         self.pack_start(self.settings_box, True, True, 0)
         self.presenter = SettingsBoxPresenter(self.widgets)
+        self.widgets.file_btnbrowse.connect('clicked',
+                                            self.on_btnbrowse_clicked)
 
-        self.stylesheet_chooser = Gtk.FileChooserButton.new(
-            _('Choose a stylesheet...'), Gtk.FileChooserAction.OPEN)
-        self.widgets.stylesheet_box.pack_start(self.stylesheet_chooser, True,
-                                               True, 1)
+    def on_btnbrowse_clicked(self, _widget):
+        from pathlib import Path
+        previously = self.widgets.file_entry.get_text()
+        if previously:
+            last_folder = str(Path(previously).parent)
+        else:
+            examples_root = os.path.join(paths.appdata_dir(), 'templates',
+                                         'xsl')
+            last_folder = prefs.prefs.get(prefs.templates_root_pref,
+                                          examples_root)
+        chooser = Gtk.FileChooserNative.new(_("Choose a file…"),
+                                            None,
+                                            Gtk.FileChooserAction.OPEN)
+
+        try:
+            if last_folder:
+                chooser.set_current_folder(last_folder)
+            if chooser.run() == Gtk.ResponseType.ACCEPT:
+                filename = chooser.get_filename()
+                if filename:
+                    self.widgets.file_entry.set_text(filename)
+        except Exception as e:
+            logger.warning("%s : %s", type(e).__name__, e)
+        chooser.destroy()
 
     def get_settings(self):
-        '''
-        return a dict of settings from the settings box gui
-        '''
-        stylesheet = self.stylesheet_chooser.get_filename()
+        """return a dict of settings from the settings box gui."""
+        stylesheet = self.widgets.file_entry.get_text()
         additional = os.path.splitext(stylesheet)[0]
         try:
             os.listdir(additional)
@@ -421,25 +440,21 @@ class XSLFormatterSettingsBox(SettingsBox):
             'renderer': self.widgets.renderer_combo.get_active_text(),
             'source_type': source_entry,
             'authors': self.widgets.author_check.get_active(),
-            'private': self.widgets.private_check.get_active()}
+            'private': self.widgets.private_check.get_active()
+        }
 
     def update(self, settings):
         stylesheet = settings.get('stylesheet')
         renderer = source_type = authors = private = None
 
         if stylesheet:
-            self.stylesheet_chooser.set_filename(stylesheet)
+            self.widgets.file_entry.set_text(stylesheet)
             renderer = settings.get('renderer')
             source_type = settings.get('source_type')
             authors = settings.get('authprs')
             private = settings.get('private')
         else:
-            examples_root = os.path.join(paths.appdata_dir(), 'templates',
-                                         'xsl')
-            templates_root = prefs.prefs.get(prefs.templates_root_pref,
-                                             examples_root)
-            self.stylesheet_chooser.unselect_all()
-            self.stylesheet_chooser.set_current_folder(templates_root)
+            self.widgets.file_entry.set_text('')
 
         if renderer:
             utils.combo_set_active_text(self.widgets.renderer_combo, renderer)
