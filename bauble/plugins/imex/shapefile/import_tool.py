@@ -379,6 +379,15 @@ class ShapefileImportSettingsBox(Gtk.ScrolledWindow):
 
         schema_menu.show_all()
 
+        try:
+            # If a db_field is a table then don't try importing it (is is used
+            # as a label only)
+            if db_field == model.__tablename__:
+                db_field = ''
+            elif db.get_related_class(model, db_field):
+                db_field = ''
+        except AttributeError:
+            pass
         menu_activated(None, db_field, None)
         tooltip = (
             'NOTE: Not all fields can be imported and some may '
