@@ -1957,6 +1957,11 @@ class AccessionEditorPresenter(editor.GenericEditorPresenter):
         if self.model not in self.session.new:
             self.view.widgets.acc_ok_and_add_button.set_sensitive(True)
 
+    def on_date_entry_changed(self, entry, prop):
+        # ensure we refresh_sensitivity
+        super().on_date_entry_changed(entry, prop)
+        self.refresh_sensitivity()
+
     def refresh_create_plant_checkbutton_sensitivity(self, *_args):
         if self.has_plants:
             self.view.widget_set_sensitive(

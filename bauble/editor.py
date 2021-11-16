@@ -1272,6 +1272,8 @@ class GenericEditorPresenter:
             self.add_problem(PROBLEM, entry)
         else:
             self.remove_problem(PROBLEM, entry)
+            self._dirty = True
+            self.view._dirty = True
         setattr(*prop, value)
 
     def on_textbuffer_changed(self, widget, value=None, attr=None):
