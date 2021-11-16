@@ -18,6 +18,7 @@
 # You should have received a copy of the GNU General Public License
 # along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
 
+from datetime import datetime, timedelta, timezone
 import logging
 logger = logging.getLogger(__name__)
 
@@ -54,6 +55,7 @@ from pyparsing import (Word,
 import bauble
 from bauble.error import check
 from bauble import utils
+from bauble import prefs
 from bauble.editor import GenericEditorPresenter
 from .querybuilderparser import BuiltQuery
 
@@ -152,7 +154,6 @@ def smartdatetime(year_or_offset, *args):
     timedelta, and it is added to datetime.today().  If given more
     arguments, it just behaves as datetime.datetime.
     """
-    from datetime import datetime, timedelta
     if not args:
         return (datetime.today()
                 .replace(hour=0, minute=0, second=0, microsecond=0) +
@@ -334,12 +335,10 @@ class ElementSetExpression(IdentExpression):
 
 def get_datetime(value):
     from dateutil import parser
-    from datetime import timezone
     try:
         # try parsing as iso8601 first
         result = parser.isoparse(value)
     except ValueError:
-        from bauble import prefs
         result = parser.parse(
             value,
             dayfirst=prefs.prefs[prefs.parse_dayfirst_pref],
@@ -356,6 +355,8 @@ class DateOnExpression(IdentExpression):
         date_val = self.operands[1].express()
         if isinstance(date_val, str):
             date_val = get_datetime(date_val)
+        if not date_val.tzinfo:
+            date_val = date_val.astimezone(tz=None).astimezone(tz=timezone.utc)
         from sqlalchemy import extract
         return query.filter(extract('day', attr) == date_val.day,
                             extract('month', attr) == date_val.month,

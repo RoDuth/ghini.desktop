@@ -722,14 +722,12 @@ class SearchTests(BaubleTestCase):
         from datetime import timezone
         pp._last_updated = (datetime.datetime(2009, 2, 13)
                             .astimezone(tz=timezone.utc))
-        now = datetime.datetime.now().astimezone(tz=timezone.utc)
-        pp2._last_updated = now
-        logger.debug('now: %s', now)
+
         two_days_ago = ((datetime.datetime.now() - datetime.timedelta(days=2))
                         .astimezone(tz=timezone.utc))
         pp3._last_updated = two_days_ago
         logger.debug('two days ago: %s', two_days_ago)
-        self.session.add_all([family2, g2, f3, g3, sp, ac, lc, pp])
+        self.session.add_all([family2, g2, f3, g3, sp, ac, lc, pp, pp2, pp3])
         self.session.commit()
 
         mapper_search = search.get_strategy('MapperSearch')
@@ -745,13 +743,13 @@ class SearchTests(BaubleTestCase):
 
         s = 'plant where _last_updated on |datetime|0|'
         results = mapper_search.search(s, self.session)
+        logger.debug('pp2 last updated: %s', pp2._last_updated)
         self.assertEqual(results, set([pp2]))
 
         # test "on" operator
         s = 'plant where _last_updated on |datetime|-2|'
         results = mapper_search.search(s, self.session)
         self.assertEqual(results, set([pp3]))
-
 
     def test_search_by_datestring_query(self):
 
