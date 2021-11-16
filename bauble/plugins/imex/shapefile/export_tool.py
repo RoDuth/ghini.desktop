@@ -148,7 +148,6 @@ class ShapefileExportSettingsBox(Gtk.ScrolledWindow):
             self.grid.attach(label, column, 0, 1, 1)
 
         logger.debug('export settings box shapefile fields: %s', self.fields)
-        row = 0
         for row, (name, typ, size, path) in enumerate(self.fields):
             attach_row = row + 1
             name_entry = Gtk.Entry(max_length=10)
@@ -716,6 +715,9 @@ class ShapefileExporter:
         shapetypes, export_items = self.get_shapes_and_items(
             session, model, allowable_shapetypes)
 
+        num_items = len(list(export_items))
+        five_percent = int(num_items / 20) or 1
+
         if self._generate_points:
             if 'point' not in shapetypes:
                 self._generate_points = 1
@@ -745,9 +747,10 @@ class ShapefileExporter:
 
                 # add records
                 for records_done, item in enumerate(export_items):
-                    pb_set_fraction(records_done / len(list(export_items)))
-                    yield
                     self.add_shapefile_record(item, fields, shapefiles)
+                    if records_done % five_percent == 0:
+                        pb_set_fraction(records_done / num_items)
+                        yield
 
                 if self._generate_points == -1:
                     self._generate_points = 0

@@ -206,6 +206,7 @@ class CSVImporter:
                 continue
 
             os.rename(file, original)
+            five_percent = int(num_lines / 20) or 1
             with open(original, 'r') as old, open(file, 'w') as new:
                 in_file = csv.DictReader(old)
                 fieldnames = in_file.fieldnames
@@ -219,8 +220,8 @@ class CSVImporter:
                         continue
                     line['geography_id'] = new_geo_id
                     out_file.writerow(line)
-                    pb_set_fraction(float(count) / float(num_lines))
-                    if count % 10 == 0:
+                    if count % five_percent == 0:
+                        pb_set_fraction(count / num_lines)
                         yield
 
     def set_geo_translator(self, geography: str) -> None:
@@ -235,6 +236,7 @@ class CSVImporter:
         with open(geography, 'r') as f:
             num_lines = len(f.readlines())
 
+        five_percent = int(num_lines / 20) or 1
         old_geos = {}
         with open(geography, 'r') as f:
             geo = csv.DictReader(f)
@@ -244,16 +246,16 @@ class CSVImporter:
                 parent = line.get('parent_id')
                 old_geos[id_] = {'code': code, 'parent': parent}
                 # update the gui
-                fraction = float(count) / float(num_lines)
-                pb_set_fraction(fraction)
-                if count % 10 == 0:
+                if count % five_percent == 0:
+                    fraction = count / num_lines
+                    pb_set_fraction(fraction)
                     yield
 
         session = db.Session()
         translator = {}
+        # make sure to get the right count
         num_lines = len(old_geos)
-        count = 0
-        for id_, codes in old_geos.items():
+        for count, (id_, codes) in enumerate(old_geos.items()):
             new = (session.query(Geography)
                    .filter_by(tdwg_code=codes.get('code'))
                    .all())
@@ -280,10 +282,9 @@ class CSVImporter:
                     logger.debug('multiples records for %s', codes)
             else:
                 logger.debug('unfound area %s', codes)
-            count += 1
-            fraction = float(count) / float(num_lines)
-            pb_set_fraction(fraction)
-            if count % 10 == 0:
+            if count % five_percent == 0:
+                fraction = count / num_lines
+                pb_set_fraction(fraction)
                 yield
         session.close()
         self.translator = translator
@@ -404,6 +405,7 @@ class CSVImporter:
             filesizes[filename] = nlines
             total_lines += nlines
 
+        five_percent = int(total_lines / 20) or 1
         created_tables = []
 
         def create_table(table):
@@ -461,8 +463,7 @@ class CSVImporter:
             transaction.commit()
             transaction = connection.begin()
 
-            # update_every determines how many rows we will insert at
-            # a time and consequently how often we update the gui
+            # update_every determines how many rows we will insert at a time
             update_every = 127
 
             # import the tables one at a time, breaking every so often
@@ -563,9 +564,6 @@ class CSVImporter:
                     if values:
                         logger.debug('executing inserting')
                         connection.execute(insert, *values)
-                    percent = float(steps_so_far) / float(total_lines)
-                    if 0 < percent < 1.0:
-                        pb_set_fraction(percent)
 
                 with open(filename, 'r', encoding='utf-8', newline='') as f:
                     values = []
@@ -614,6 +612,10 @@ class CSVImporter:
                         if steps_so_far % update_every == 0:
                             do_insert(values)
                             values.clear()
+
+                        if steps_so_far % five_percent == 0:
+                            fraction = steps_so_far / total_lines
+                            pb_set_fraction(fraction)
                             yield
 
                 if self.__error or self.__cancel:
@@ -733,19 +735,16 @@ class CSVExporter:
             writer.writerows(rows)
             f.close()
 
-        update_every = 30
-        spinner = '⣄⡆⠇⠋⠙⠸⢰⣠'
+        five_percent = int(ntables / 20) or 1
         for table in db.metadata.sorted_tables:
             filename = filename_template % table.name
             steps_so_far += 1
-            spinner_index = 0
-            fraction = float(steps_so_far)/float(ntables)
+            fraction = steps_so_far / ntables
             pb_set_fraction(fraction)
             msg = _('exporting %(table)s table to %(filename)s')\
                 % {'table': table.name, 'filename': filename}
-            msg = msg + '  ' + spinner[spinner_index]
             bauble.task.set_message(msg)
-            logger.info("exporting %s" % table.name)
+            logger.info("exporting %s", table.name)
 
             # get the data
             results = table.select().execute().fetchall()
@@ -758,21 +757,15 @@ class CSVExporter:
 
             rows = []
             rows.append(list(table.c.keys()))  # append col names
-            ctr = 0
             for row in results:
                 try:
                     rows.append([replace(i) for i in row.values()])
                 except Exception:
                     import traceback
                     logger.error(traceback.format_exc())
-                if ctr == update_every:
-                    spinner_index = (spinner_index + 1) % len(spinner)
-                    msg = msg[:-1] + spinner[spinner_index]
-                    bauble.task.set_message(msg)
-                    yield
-                    ctr = 0
-                ctr += 1
             write_csv(filename, rows)
+            if ntables % five_percent == 0:
+                yield
 
 
 class CSVImportCommandHandler(pluginmgr.CommandHandler):
