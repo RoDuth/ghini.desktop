@@ -30,6 +30,7 @@ from .csv_ import (CSVRestoreTool,
                    CSVBackupTool,
                    CSVBackupCommandHandler,
                    CSVRestoreCommandHandler)
+from .csv_io import CSVExportTool
 from .iojson import JSONImportTool, JSONExportTool
 from .xml import XMLExportTool, XMLExportCommandHandler
 from .shapefile import (ShapefileImportTool,
@@ -50,6 +51,7 @@ from .shapefile import (ShapefileImportTool,
 class ImexPlugin(pluginmgr.Plugin):
     tools = [CSVRestoreTool,
              CSVBackupTool,
+             CSVExportTool,
              JSONImportTool,
              JSONExportTool,
              XMLExportTool,
