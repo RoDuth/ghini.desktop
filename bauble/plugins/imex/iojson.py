@@ -56,9 +56,10 @@ def serializedatetime(obj):
 
 
 class JSONExporter(editor.GenericEditorPresenter):
-    '''Export taxonomy and plants in JSON format.
+    """Export taxonomy and plants in JSON format.
 
-    the Presenter ((M)VP)'''
+    the Presenter ((M)VP)
+    """
 
     last_folder = str(Path.home())
     widget_to_field_map = {
@@ -82,13 +83,13 @@ class JSONExporter(editor.GenericEditorPresenter):
         super().__init__(model=self, view=view, refresh_view=True)
 
     def get_objects(self):
-        '''return the list of objects to be exported
+        """return the list of objects to be exported
 
         if "based_on" is "selection", return the top level selection only.
 
         if "based_on" is something else, return all that is needed to create
         a complete export.
-        '''
+        """
         if self.selection_based_on == 'sbo_selection':
             if self.include_private:
                 logger.info('exporting selection overrides `include_private`')
@@ -207,7 +208,7 @@ class JSONExporter(editor.GenericEditorPresenter):
 
         filename = self.filename
         if os.path.exists(filename) and not os.path.isfile(filename):
-            raise ValueError("%s exists and is not a a regular file"
+            raise ValueError("%s exists and is not a regular file"
                              % filename)
 
         objects = self.get_objects()

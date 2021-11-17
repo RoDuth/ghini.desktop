@@ -139,8 +139,7 @@ class ShapefileExportSettingsBox(Gtk.ScrolledWindow):
         GLib.idle_add(self.resize_func)
 
     def _construct_grid(self):   # pylint: disable=too-many-locals
-        """Create the field grid layout.
-        """
+        """Create the field grid layout."""
         labels = ['name', 'type', 'length/places', 'database field']
         for column, txt in enumerate(labels):
             label = Gtk.Label()
@@ -215,9 +214,7 @@ class ShapefileExportSettingsBox(Gtk.ScrolledWindow):
             self.grid.attach(gen_hbox, 0, attach_row + 2, 5, 1)
 
     def generated_points_settings_dialog(self):
-        """
-        Settings for generated points.
-        """
+        """Settings for generated points."""
         from bauble.utils import create_message_dialog
         msg = _("Auto generated points for plants that don't currently "
                 "have geojson entries. (only avialable when using search "
@@ -550,9 +547,7 @@ class ShapefileExportDialogPresenter(GenericEditorPresenter):
         self.refresh_sensitivity()
 
     def _settings_expander(self):
-        """
-        Start the settings box
-        """
+        """Start the settings box."""
         expander = self.view.widgets.exp_settings_expander
         child = expander.get_child()
         if child:

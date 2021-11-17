@@ -760,10 +760,10 @@ def create_message_details_dialog(msg, details='', typ=Gtk.MessageType.INFO,
     return dialog
 
 
-def message_details_dialog(msg, details, type=Gtk.MessageType.INFO,
+def message_details_dialog(msg, details, typ=Gtk.MessageType.INFO,
                            buttons=Gtk.ButtonsType.OK, parent=None):
     """Create and run a message dialog with a details expander."""
-    dialog = create_message_details_dialog(msg, details, type, buttons, parent)
+    dialog = create_message_details_dialog(msg, details, typ, buttons, parent)
     response = dialog.run()
     dialog.destroy()
     return response

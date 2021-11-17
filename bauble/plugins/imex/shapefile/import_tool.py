@@ -346,12 +346,10 @@ class ShapefileImportSettingsBox(Gtk.ScrolledWindow):
             model = Location
         db_field = self.shape_reader.field_map.get(field[0], '')
         prop_button = Gtk.Button()
-        prop_button.props.use_underline = False
+        prop_button.set_use_underline(False)
 
         def menu_activated(_widget, path, _prop):
-            """
-            Closure used to set the field_map and button label.
-            """
+            """Closure used to set the field_map and button label."""
             prop_button.get_style_context().remove_class('err-btn')
             if path:
                 prop_button.set_label(path)
