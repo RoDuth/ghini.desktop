@@ -26,12 +26,14 @@
 # transform from any format to another
 
 from bauble import pluginmgr
-from bauble.plugins.imex.csv_ import CSVImportTool, CSVExportTool, \
-    CSVExportCommandHandler, CSVImportCommandHandler
-from bauble.plugins.imex.iojson import JSONImportTool, JSONExportTool
-from bauble.plugins.imex.xml import XMLExportTool, XMLExportCommandHandler
-from bauble.plugins.imex.shapefile import (ShapefileImportTool,
-                                           ShapefileExportTool)
+from .csv_ import (CSVRestoreTool,
+                   CSVBackupTool,
+                   CSVBackupCommandHandler,
+                   CSVRestoreCommandHandler)
+from .iojson import JSONImportTool, JSONExportTool
+from .xml import XMLExportTool, XMLExportCommandHandler
+from .shapefile import (ShapefileImportTool,
+                        ShapefileExportTool)
 
 # TODO: it might be best to do something like the reporter plugin so
 # that this plugin provides a generic interface for importing and exporting
@@ -46,9 +48,15 @@ from bauble.plugins.imex.shapefile import (ShapefileImportTool,
 
 
 class ImexPlugin(pluginmgr.Plugin):
-    tools = [CSVImportTool, CSVExportTool, JSONImportTool, JSONExportTool,
-             XMLExportTool, ShapefileImportTool, ShapefileExportTool]
-    commands = [CSVExportCommandHandler, CSVImportCommandHandler,
+    tools = [CSVRestoreTool,
+             CSVBackupTool,
+             JSONImportTool,
+             JSONExportTool,
+             XMLExportTool,
+             ShapefileImportTool,
+             ShapefileExportTool]
+    commands = [CSVBackupCommandHandler,
+                CSVRestoreCommandHandler,
                 XMLExportCommandHandler]
 
 

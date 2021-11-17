@@ -155,8 +155,8 @@ class PluginMgrTests(BaubleTestCase):
                 path = os.path.join(paths.lib_dir(), "plugins", "plants",
                                     "default")
                 filenames = os.path.join(path, 'family.csv')
-                from bauble.plugins.imex.csv_ import CSVImporter
-                csv = CSVImporter()
+                from bauble.plugins.imex.csv_ import CSVRestore
+                csv = CSVRestore()
                 try:
                     csv.start([filenames], metadata=db.metadata,
                               force=True)

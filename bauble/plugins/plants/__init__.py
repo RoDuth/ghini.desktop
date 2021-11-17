@@ -523,8 +523,8 @@ class PlantsPlugin(pluginmgr.Plugin):
         msg = _("importing WGSRPD (TDWG) geography table data")
         bauble.task.set_message(msg)
         bauble.task.queue(geography_importer())
-        from bauble.plugins.imex.csv_ import CSVImporter
-        csv = CSVImporter()
+        from bauble.plugins.imex.csv_ import CSVRestore
+        csv = CSVRestore()
         csv.start(filenames, metadata=db.metadata, force=True)
 
 

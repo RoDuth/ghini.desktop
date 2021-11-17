@@ -23,6 +23,7 @@ logger = logging.getLogger(__name__)
 import os
 import shutil
 import tempfile
+import json
 
 from sqlalchemy import Column, Integer
 
@@ -34,15 +35,14 @@ from bauble.plugins.plants import (
 from bauble.plugins.garden import Accession, Location, Plant, Contact, Source
 import bauble.plugins.garden.test_garden as garden_test
 import bauble.plugins.plants.test_plants as plants_test
-from .csv_ import (CSVImporter,
-                   CSVExporter,
+from bauble.test import BaubleTestCase
+from bauble.editor import MockView
+from bauble.utils import get_user_display_name
+from .csv_ import (CSVRestore,
+                   CSVBackup,
                    QUOTE_CHAR,
                    QUOTE_STYLE)
 from .iojson import JSONImporter, JSONExporter
-from bauble.test import BaubleTestCase
-import json
-from bauble.editor import MockView
-from bauble.utils import get_user_display_name
 
 
 family_data = [{'id': 1, 'family': 'Orchidaceae', 'qualifier': None},
@@ -80,7 +80,7 @@ class ImexTestCase(BaubleTestCase):
         garden_test.setUp_data()
 
 
-class CSVTestImporter(CSVImporter):
+class CSVTestImporter(CSVRestore):
 
     def on_error(self, exc):
         logger.debug(exc)
@@ -295,7 +295,7 @@ class CSVTests(ImexTestCase):
         self.assertTrue(species is not None)
         from tempfile import mkdtemp
         temp_path = mkdtemp()
-        exporter = CSVExporter()
+        exporter = CSVBackup()
         exporter.start(temp_path)
         f = open(os.path.join(temp_path, 'species.csv'), encoding='utf-8',
                  newline='')
@@ -320,7 +320,7 @@ class CSVTests2(ImexTestCase):
         # import the family data
         filename = os.path.join('bauble', 'plugins', 'plants', 'default',
                                 'family.csv')
-        importer = CSVImporter()
+        importer = CSVRestore()
         importer.start([filename], force=True)
         # the highest id number in the family file is assumed to be
         # num(lines)-1 since the id numbers are sequential and
@@ -367,12 +367,12 @@ class CSVTests2(ImexTestCase):
         tempdir = tempfile.mkdtemp()
 
         # export all the testdata
-        exporter = CSVExporter()
+        exporter = CSVBackup()
         exporter.start(tempdir)
 
         # import all the files in the temp directory
         filenames = os.listdir(tempdir)
-        importer = CSVImporter()
+        importer = CSVRestore()
         # import twice to check for regression Launchpad #???
         importer.start([os.path.join(tempdir, name) for name in filenames],
                        force=True)

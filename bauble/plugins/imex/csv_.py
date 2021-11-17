@@ -83,9 +83,6 @@ class UnicodeReader:
         return self
 
 
-# TODO: UnicodeWriter needs to be more thoroughly  tested, i came across a
-# small problem once when creating a temporary geography table from
-# _toposort_file and it exported the numbers in some strange format
 class UnicodeWriter:
 
     def __init__(self, f, dialect=csv.excel, encoding="utf-8", **kwargs):
@@ -113,7 +110,7 @@ class UnicodeWriter:
             self.writerow(row)
 
 
-class CSVImporter:
+class CSVRestore:
     """imports comma separated value files into a Ghini database.
 
     It imports multiple files, each of them equally named as the bauble
@@ -121,7 +118,7 @@ class CSVImporter:
     import order, each file being imported will completely replace any
     existing data in the corresponding table.
 
-    The CSVImporter imports the rows of the CSV file in chunks rather than
+    The CSVRestore imports the rows of the CSV file in chunks rather than
     one row at a time.  The non-server side column defaults are determined
     before the INSERT statement is generated instead of getting new defaults
     for each row.  This shouldn't be a problem but it also means that your
@@ -686,7 +683,7 @@ class CSVImporter:
 # TODO: add support for exporting only specific tables
 
 
-class CSVExporter:
+class CSVBackup:
 
     def start(self, path=None):
         if path is None:
@@ -701,7 +698,7 @@ class CSVExporter:
                 return
 
         if not os.path.exists(path):
-            raise ValueError(_("CSVExporter: path does not exist.\n%s") % path)
+            raise ValueError(_("CSVBackup: path does not exist.\n%s") % path)
 
         try:
             bauble.task.queue(self.__export_task(path))
@@ -716,7 +713,7 @@ class CSVExporter:
             ntables += 1
             filename = filename_template % table.name
             if os.path.exists(filename):
-                msg = _('Export file <b>%(filename)s</b> for '
+                msg = _('Backup file <b>%(filename)s</b> for '
                         '<b>%(table)s</b> table already exists.\n\n<i>Would '
                         'you like to continue?</i>')\
                     % {'filename': filename, 'table': table.name}
@@ -760,34 +757,33 @@ class CSVExporter:
             for row in results:
                 try:
                     rows.append([replace(i) for i in row.values()])
-                except Exception:
-                    import traceback
+                except Exception:  # pylint: disable=broad-except
                     logger.error(traceback.format_exc())
             write_csv(filename, rows)
             if ntables % five_percent == 0:
                 yield
 
 
-class CSVImportCommandHandler(pluginmgr.CommandHandler):
+class CSVRestoreCommandHandler(pluginmgr.CommandHandler):
 
-    command = 'imcsv'
+    command = 'restore'
 
     def __call__(self, cmd, arg):
-        importer = CSVImporter()
+        importer = CSVRestore()
         importer.start(arg)
 
 
-class CSVExportCommandHandler(pluginmgr.CommandHandler):
+class CSVBackupCommandHandler(pluginmgr.CommandHandler):
 
-    command = 'excsv'
+    command = 'backup'
 
     def __call__(self, cmd, arg):
-        exporter = CSVExporter()
+        exporter = CSVBackup()
         exporter.start(arg)
 
 
 # pylint: disable=too-few-public-methods
-class CSVImportTool(pluginmgr.Tool):
+class CSVRestoreTool(pluginmgr.Tool):
     category = _('Backup')
     label = _('Restore')
 
@@ -797,19 +793,19 @@ class CSVImportTool(pluginmgr.Tool):
         Start the CSV importer.  This tool will also reinitialize the
         plugins after importing.
         """
-        msg = _('Importing data into this database will destroy or corrupt '
+        msg = _('Restoreing data into this database will destroy or corrupt '
                 'any existing data.\n\n<i>Would you like to continue?</i>')
         if utils.yes_no_dialog(msg, yes_delay=2):
-            csv_im = CSVImporter()
+            csv_im = CSVRestore()
             csv_im.start()
             bauble.command_handler('home', None)
 
 
-class CSVExportTool(pluginmgr.Tool):
+class CSVBackupTool(pluginmgr.Tool):
     category = _('Backup')
     label = _('Create')
 
     @classmethod
     def start(cls):
-        csv_ex = CSVExporter()
+        csv_ex = CSVBackup()
         csv_ex.start()

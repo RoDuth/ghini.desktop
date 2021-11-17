@@ -800,8 +800,8 @@ class SpeciesTests(PlantTestCase):
         # method.
         filenames = [os.path.join(default_path, f) for f in ('geography.csv',
                      'habit.csv')]
-        from bauble.plugins.imex.csv_ import CSVImporter
-        importer = CSVImporter()
+        from bauble.plugins.imex.csv_ import CSVRestore
+        importer = CSVRestore()
         importer.start(filenames, force=True)
 
         f = Family(family='family')
@@ -1222,8 +1222,8 @@ class GeographyTests(PlantTestCase):
         import bauble.paths as paths
         filename = os.path.join(paths.lib_dir(), "plugins", "plants",
                                 "default", 'geography.csv')
-        from bauble.plugins.imex.csv_ import CSVImporter
-        importer = CSVImporter()
+        from bauble.plugins.imex.csv_ import CSVRestore
+        importer = CSVRestore()
         importer.start([filename], force=True)
         self.session.commit()
 
