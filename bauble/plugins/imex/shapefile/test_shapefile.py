@@ -1701,18 +1701,19 @@ class ImportSettingsBoxTests(BaubleTestCase):
                              plt_rec_3857_new_data_lines,
                              self.temp_dir.name))
         settings_box = ImpSetBox(shape_reader, grid=MockGrid())
-        from bauble.prefs import PLT_DEFAULTS
         self.assertEqual(settings_box.grid.item_count,
-                         len(PLT_DEFAULTS.get('fields')) * 6 + 6)
+                         len(plant_fields) * 6 + 6)
         self.assertEqual(settings_box.grid.max_size, 2)
         self.assertEqual(settings_box.grid.max_y, 5)
         self.assertEqual(settings_box.grid.max_x,
-                         len(PLT_DEFAULTS.get('fields')))
+                         len(plant_fields))
         for i in plant_fields:
             for j in i:
                 self.assertIn(str(j), settings_box.grid.labels.keys())
-        for i in PLT_DEFAULTS.get('fields').values():
-            self.assertIn(i, settings_box.grid.props.keys())
+        from bauble.prefs import PLT_DEFAULTS
+        for k, v in PLT_DEFAULTS.get('fields').items():
+            if k in [i[0] for i in plant_fields]:
+                self.assertIn(v, settings_box.grid.props.keys())
 
     def test_on_prop_change_field_map_changes(self):
         import bauble
@@ -3117,7 +3118,11 @@ class ShapefileReaderTests(BaubleTestCase):
         self.assertNotEqual(new_field_map, shape_reader.field_map)
         self.assertNotEqual(new_type, shape_reader.type)
         from bauble.prefs import PLT_DEFAULTS
-        self.assertEqual(shape_reader.field_map, PLT_DEFAULTS.get('fields'))
+        keys = [i[0] for i in plant_fields]
+        fields = {
+            k: v for k, v in PLT_DEFAULTS.get('fields').items() if k in keys
+        }
+        self.assertEqual(shape_reader.field_map, fields)
 
     def test_get_records_count(self):
         # Working example
