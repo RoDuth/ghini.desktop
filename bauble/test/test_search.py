@@ -766,16 +766,19 @@ class SearchTests(BaubleTestCase):
         g3 = Genus(family=f3, genus='Ixora')
         sp = Species(sp="coccinea", genus=g3)
         ac = Accession(species=sp, code='1979.0001')
+        ac.date_recvd = datetime.date(2021, 11, 21)
         lc = Location(name='loc1', code='loc1')
         pp = Plant(accession=ac, code='01', location=lc, quantity=1)
         from datetime import timezone
-        pp._last_updated = datetime.datetime(2009, 2, 13)
+        pp._last_updated = (datetime.datetime(2009, 2, 13)
+                            .astimezone(tz=timezone.utc))
         self.session.add_all([family2, g2, f3, g3, sp, ac, lc, pp])
         self.session.commit()
 
         mapper_search = search.get_strategy('MapperSearch')
         self.assertTrue(isinstance(mapper_search, search.MapperSearch))
 
+        # DateTime type:
         s = 'plant where _last_updated < 1.1.2000'
         results = mapper_search.search(s, self.session)
         self.assertEqual(results, set())
@@ -784,22 +787,91 @@ class SearchTests(BaubleTestCase):
         results = mapper_search.search(s, self.session)
         self.assertEqual(results, set([pp]))
 
+        # isoparse
+        s = 'plant where _last_updated < 2000-01-01'
+        results = mapper_search.search(s, self.session)
+        self.assertEqual(results, set())
+
+        s = ('plant where _last_updated >= 13/2/2009 '
+             'and _last_updated < 14/2/2009')
+        results = mapper_search.search(s, self.session)
+        self.assertEqual(results, set([pp]))
+
         s = 'plant where _last_updated on 13/2/2009'
         results = mapper_search.search(s, self.session)
         self.assertEqual(results, set([pp]))
 
-        # iso dates
-        s = 'plant where _last_updated < 2000.1.1'
-        results = mapper_search.search(s, self.session)
-        self.assertEqual(results, set())
-
-        s = 'plant where _last_updated > 2000-1-1'
+        # isoparse
+        s = 'plant where _last_updated on 2009-02-13'
         results = mapper_search.search(s, self.session)
         self.assertEqual(results, set([pp]))
 
-        s = 'plant where _last_updated on 2009/2/13'
+        # Date type:
+        s = 'accession where date_recvd on 21/11/2021'
         results = mapper_search.search(s, self.session)
-        self.assertEqual(results, set([pp]))
+        self.assertEqual(results, set([ac]))
+
+        s = 'accession where date_recvd = 21/11/2021'
+        results = mapper_search.search(s, self.session)
+        self.assertEqual(results, set([ac]))
+
+        s = 'accession where date_recvd on 22/11/2021'
+        results = mapper_search.search(s, self.session)
+        self.assertEqual(results, set([]))
+
+        s = 'accession where date_recvd on 20/11/2021'
+        results = mapper_search.search(s, self.session)
+        self.assertEqual(results, set([]))
+
+        s = ('accession where date_recvd < 20/11/2021 and '
+             'date_recvd > 22/11/2021')
+        results = mapper_search.search(s, self.session)
+        self.assertEqual(results, set([]))
+
+
+    def test_search_by_datestring_query_tz_limits(self):
+
+        import datetime
+        Family = self.Family
+        Genus = self.Genus
+        from bauble.plugins.plants.species_model import Species
+        from bauble.plugins.garden.accession import Accession
+        from bauble.plugins.garden.location import Location
+        from bauble.plugins.garden.plant import Plant
+        family2 = Family(family='family2')
+        g2 = Genus(family=family2, genus='genus2')
+        f3 = Family(family='fam3', qualifier='s. lat.')
+        g3 = Genus(family=f3, genus='Ixora')
+        sp = Species(sp="coccinea", genus=g3)
+        ac = Accession(species=sp, code='1979.0001')
+        lc = Location(name='loc1', code='loc1')
+        pp = Plant(accession=ac, code='01', location=lc, quantity=1)
+        pp2 = Plant(accession=ac, code='02', location=lc, quantity=1)
+        from datetime import timezone
+        # these will store UTC datetimes relative to local time.  Both should
+        # be on the same date locally but will be across 2 dates if the local
+        # timezone is anything but +00:00
+        pp._last_updated = (datetime.datetime(2009, 2, 12, 0, 0, 0, 0)
+                            .astimezone(tz=timezone.utc))
+        pp2._last_updated = (datetime.datetime(2009, 2, 12, 23, 59, 0, 0)
+                             .astimezone(tz=timezone.utc))
+        self.session.add_all([family2, g2, f3, g3, sp, ac, lc, pp, pp2])
+        self.session.commit()
+
+        mapper_search = search.get_strategy('MapperSearch')
+        self.assertTrue(isinstance(mapper_search, search.MapperSearch))
+        logger.debug('pp last updated: %s', pp._last_updated)
+        logger.debug('pp2 last updated: %s', pp2._last_updated)
+
+        # isoparse
+        s = 'plant where _last_updated on 2009-02-12'
+        results = mapper_search.search(s, self.session)
+        self.assertEqual(results, set([pp, pp2]))
+
+        s = 'plant where _last_updated on 12/2/2009'
+        results = mapper_search.search(s, self.session)
+        self.assertEqual(results, set([pp, pp2]))
+
 
     def test_between_evaluate(self):
         'use BETWEEN value and value'

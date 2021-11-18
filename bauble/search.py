@@ -155,7 +155,7 @@ def smartdatetime(year_or_offset, *args):
     arguments, it just behaves as datetime.datetime.
     """
     if not args:
-        return (datetime.today()
+        return (datetime.now()
                 .replace(hour=0, minute=0, second=0, microsecond=0) +
                 timedelta(year_or_offset))
     return datetime(year_or_offset, *args)
@@ -344,7 +344,7 @@ def get_datetime(value):
             dayfirst=prefs.prefs[prefs.parse_dayfirst_pref],
             yearfirst=prefs.prefs[prefs.parse_yearfirst_pref]
         )
-    return result
+    return result.replace(hour=0, minute=0, second=0, microsecond=0)
 
 
 class DateOnExpression(IdentExpression):
@@ -355,13 +355,15 @@ class DateOnExpression(IdentExpression):
         date_val = self.operands[1].express()
         if isinstance(date_val, str):
             date_val = get_datetime(date_val)
-        date_val = date_val.replace(tzinfo=timezone.utc).astimezone(tz=None)
-        logger.debug('tzinfo: %s', date_val.tzinfo)
-        logger.debug('date_val: %s', date_val)
-        from sqlalchemy import extract
-        return query.filter(extract('day', attr) == date_val.day,
-                            extract('month', attr) == date_val.month,
-                            extract('year', attr) == date_val.year)
+        if isinstance(attr.type, bauble.btypes.DateTime):
+            logger.debug('is DateTime')
+            today = date_val.astimezone(tz=timezone.utc)
+            tomorrow = today + timedelta(1)
+            logger.debug('today: %s', today)
+            logger.debug('tomorrow: %s', tomorrow)
+            return query.filter(and_(attr >= today, attr < tomorrow))
+        # btype.Date - only need the date
+        return query.filter(attr == date_val.date())
 
 
 class AggregatedExpression(IdentExpression):

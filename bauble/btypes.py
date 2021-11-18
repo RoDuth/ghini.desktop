@@ -142,7 +142,9 @@ class DateTime(types.TypeDecorator):
 
 
 class Date(types.TypeDecorator):
-    """A Date type that allows Date strings."""
+    """A Date type that allows Date strings.
+
+    NOTE: timezone agnostic."""
     impl = types.Date
 
     def process_bind_param(self, value, dialect):
