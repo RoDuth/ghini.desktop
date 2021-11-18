@@ -769,8 +769,7 @@ class SearchTests(BaubleTestCase):
         lc = Location(name='loc1', code='loc1')
         pp = Plant(accession=ac, code='01', location=lc, quantity=1)
         from datetime import timezone
-        pp._last_updated = (datetime.datetime(2009, 2, 13)
-                            .astimezone(tz=timezone.utc))
+        pp._last_updated = datetime.datetime(2009, 2, 13)
         self.session.add_all([family2, g2, f3, g3, sp, ac, lc, pp])
         self.session.commit()
 

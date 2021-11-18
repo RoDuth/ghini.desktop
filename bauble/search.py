@@ -344,7 +344,7 @@ def get_datetime(value):
             dayfirst=prefs.prefs[prefs.parse_dayfirst_pref],
             yearfirst=prefs.prefs[prefs.parse_yearfirst_pref]
         )
-    return result.astimezone(tz=timezone.utc)
+    return result
 
 
 class DateOnExpression(IdentExpression):
@@ -355,8 +355,7 @@ class DateOnExpression(IdentExpression):
         date_val = self.operands[1].express()
         if isinstance(date_val, str):
             date_val = get_datetime(date_val)
-        if not date_val.tzinfo:
-            date_val = date_val.astimezone(tz=None).astimezone(tz=timezone.utc)
+        date_val = date_val.replace(tzinfo=timezone.utc).astimezone(tz=None)
         logger.debug('tzinfo: %s', date_val.tzinfo)
         logger.debug('date_val: %s', date_val)
         from sqlalchemy import extract
