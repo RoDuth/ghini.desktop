@@ -357,6 +357,8 @@ class DateOnExpression(IdentExpression):
             date_val = get_datetime(date_val)
         if not date_val.tzinfo:
             date_val = date_val.astimezone(tz=None).astimezone(tz=timezone.utc)
+        logger.debug('tzinfo: %s', date_val.tzinfo)
+        logger.debug('date_val: %s', date_val)
         from sqlalchemy import extract
         return query.filter(extract('day', attr) == date_val.day,
                             extract('month', attr) == date_val.month,

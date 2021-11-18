@@ -2596,7 +2596,7 @@ class GeneralAccessionExpander(InfoExpander):
         utils.make_label_clickable(self.widgets.name_data, on_taxa_clicked,
                                    row.species)
         on_clicked = utils.generate_on_clicked(select_in_search_results)
-        if row.source.plant_propagation:
+        if row.source and row.source.plant_propagation:
             utils.make_label_clickable(self.widgets.parent_plant_data,
                                        on_clicked,
                                        row.source.plant_propagation.plant)
