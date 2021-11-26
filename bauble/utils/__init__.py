@@ -693,8 +693,7 @@ def yes_no_dialog(msg, parent=None, yes_delay=-1):
                     # conditional avoids GTK+ warning
                 dialog.set_response_sensitive(Gtk.ResponseType.YES, True)
             return False
-        from gi.repository import GObject
-        GObject.timeout_add(yes_delay * 1000, on_timeout)
+        GLib.timeout_add(yes_delay * 1000, on_timeout)
     response = dialog.run()
     dialog.destroy()
     return response == Gtk.ResponseType.YES
