@@ -520,11 +520,12 @@ class SpeciesInfoPage(InfoBoxPage):
                 'tooltip': 'Search Queensland DES WildNet database'
             },
             {
-                '_base_uri': 'http://www.google.com/search?q=site:http://www.canbr.gov.au/cpbr/cd-keys/RFK7/key/RFK7/Media/Html/entities+%s',
+                '_base_uri':
+                'http://www.google.com/search?q=site:https://apps.lucidcentral.org/rainforest/text/entities/+%s',
                 '_space': '+',
                 'name': 'TropRForestButton',
                 'title': 'Search AustTropRForest',
-                'tooltip': 'Search Australian Tropical Rainforest Plants ed7 via Google'
+                'tooltip': 'Search Australian Tropical Rainforest Plants ed8 via Google'
             },
             {
                 '_base_uri': 'http://bie.ala.org.au/search?q=%s',
