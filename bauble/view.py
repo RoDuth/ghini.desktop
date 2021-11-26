@@ -828,9 +828,7 @@ class SearchView(pluginmgr.View):
             set_infobox_from_row(None)
 
     def get_selected_values(self):
-        """
-        Return the values in all the selected rows.
-        """
+        """Return the values in all the selected rows."""
         model, rows = self.results_view.get_selection().get_selected_rows()
         if model is None or rows is None:
             return None
@@ -981,9 +979,9 @@ class SearchView(pluginmgr.View):
         self.update_bottom_notebook()
 
     def remove_children(self, model, parent):
-        """
-        Remove all children of some parent in the model, reverse
-        iterate through them so you don't invalidate the iter
+        """Remove all children of some parent in the model.
+
+        Reverse iterate through them so you don't invalidate the iter.
         """
         while model.iter_has_child(parent):
             nkids = model.iter_n_children(parent)
@@ -1019,8 +1017,7 @@ class SearchView(pluginmgr.View):
             return False
 
     def populate_results(self, results, check_for_kids=False):
-        """
-        Adds results to the search view in a task.
+        """Adds results to the search view in a task.
 
         :param results: a list or list-like object
         :param check_for_kids: only used for testing
@@ -1028,9 +1025,10 @@ class SearchView(pluginmgr.View):
         bauble.task.queue(self._populate_worker(results, check_for_kids))
 
     def _populate_worker(self, results, check_for_kids=False):
-        """
-        Generator function for adding the search results to the
-        model. This method is usually called by self.populate_results()
+        """Generator function for adding the search results to the
+        model.
+
+        This method is usually called by self.populate_results()
         """
         nresults = len(results)
         model = Gtk.TreeStore(object)
@@ -1281,7 +1279,7 @@ class SearchView(pluginmgr.View):
             # object has been deleted then we won't try to reselect it later
             ref = Gtk.TreeRowReference(model, paths[0])
         except IndexError as e:
-            logger.debug('unable to get ref to selected object: %s %s',
+            logger.debug('unable to get ref to selected object: %s(%s)',
                          type(e).__name__, e)
 
         self.session.expire_all()

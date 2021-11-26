@@ -228,7 +228,7 @@ class IdentifierAction:
 
 class FilteredIdentifierAction:
     def __init__(self, t):
-        logger.debug('FilteredIdentifierAction::__init__(%s)' % t)
+        logger.debug('FilteredIdentifierAction::__init__(%s)', t)
         self.steps = t[0][:-7:2]
         self.filter_attr = t[0][-6]
         self.filter_op = t[0][-5]
@@ -652,7 +652,7 @@ class DomainExpressionAction:
 class AggregatingAction:
 
     def __init__(self, t):
-        logger.debug("AggregatingAction::__init__(%s)" % t)
+        logger.debug("AggregatingAction::__init__(%s)", t)
         self.function = t[0]
         self.identifier = t[2]
 
@@ -1608,7 +1608,7 @@ class QueryBuilder(GenericEditorPresenter):
         try:
             index = sorted(self.domain_map.keys()).index(parsed.domain)
         except ValueError as e:
-            logger.debug('cannot restore query, %s(%s)' % (type(e), e))
+            logger.debug('cannot restore query, %s(%s)', type(e).__name__, e)
             return
         # and set the domain_combo correspondently
         self.view.widgets.domain_combo.set_active(index)

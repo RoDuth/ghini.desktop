@@ -236,7 +236,7 @@ def init(force=False):
                    % plugin.__class__.__name__)
             logger.warning(msg)
         except Exception as e:
-            logger.error("%s: %s", type(e).__name__, e)
+            logger.error("%s(%s)", type(e).__name__, e)
             ordered.remove(plugin)
             logger.info(traceback.format_exc())
             safe = utils.xml_safe

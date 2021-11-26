@@ -111,23 +111,18 @@ conn_name = None
 
 
 def save_state():
-    """
-    Save the gui state and preferences.
-    """
+    """Save the gui state and preferences."""
     from bauble import prefs
     prefs.prefs.save()
 
 
 def quit():  # pylint: disable=redefined-builtin
-    """
-    Stop all tasks and quit Ghini.
-    """
+    """Stop all tasks and threads then quit."""
     from gi.repository import Gtk
-    from bauble import utils
     try:
         from bauble import task
     except Exception as e:
-        logger.error('bauble.quit(): %s' % e)
+        logger.error('bauble.quit(): %s', e)
     else:
         task.kill()
     try:
@@ -148,8 +143,7 @@ last_handler = None
 
 
 def command_handler(cmd, arg):
-    """
-    Call a command handler.
+    """Call a command handler.
 
     :param cmd: The name of the command to call
     :type cmd: str

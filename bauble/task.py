@@ -51,15 +51,12 @@ __message_ids = None
 
 
 def running():
-    """
-    Return True/False if a task is running.
-    """
+    """Return True/False if a task is running."""
     return __running
 
 
 def kill():
-    """
-    Kill the current task.
+    """Kill the current task.
 
     This will kill the task when it goes idle and not while it's
     running.  A task is idle after it yields.
@@ -69,9 +66,7 @@ def kill():
 
 
 def _idle():
-    """
-    Called when a task is idle.
-    """
+    """Called when a task is idle."""
     while Gtk.events_pending():
         Gtk.main_iteration_do(blocking=False)
 
@@ -143,8 +138,7 @@ def set_message(msg):
 
 
 def clear_messages():
-    """
-    Clear all the messages from the statusbar that were set with
+    """Clear all the messages from the statusbar that were set with
     :func:`bauble.task.set_message`
     """
     if bauble.gui is None or bauble.gui.widgets is None \

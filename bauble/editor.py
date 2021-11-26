@@ -1088,8 +1088,7 @@ class GenericEditorPresenter:
             try:
                 self.session = object_session(model)
             except Exception as e:
-                logger.debug("GenericEditorPresenter::__init__ - %s, %s",
-                             type(e).__name__, e)
+                logger.debug("%s(%s)", type(e).__name__, e)
 
             if self.session is None:  # object_session gave None without error
                 if db.Session is not None:
@@ -1227,11 +1226,11 @@ class GenericEditorPresenter:
             try:
                 bauble.gui.get_view().update()
             except Exception as e:
-                logger.debug('%s : %s', type(e).__name__, e)
+                logger.debug('%s(%s)', type(e).__name__, e)
         except Exception as e:
             self.session.rollback()
             self.session.add_all(objs)
-            logger.debug('%s : %s', type(e).__name__, e)
+            logger.debug('%s(%s)', type(e).__name__, e)
             raise
         finally:
             if self.owns_session:

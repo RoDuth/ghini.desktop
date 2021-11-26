@@ -135,7 +135,7 @@ def copy_picture_with_thumbnail(path, basename=None):
         logger.warning("can't make thumbnail %s", e)
     except Exception as e:  # pylint: disable=broad-except
         logger.warning("unexpected exception making thumbnail: "
-                       "(%s)%s", type(e).__name__, e)
+                       "%s(%s)", type(e).__name__, e)
     return result
 
 
