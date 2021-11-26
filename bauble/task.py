@@ -25,25 +25,11 @@ running tasks still block but allows the GUI to update.
 import logging
 logger = logging.getLogger(__name__)
 
-import fibra
-
 from gi.repository import Gtk  # noqa
 
 import bauble
 
-# TODO: after some specified time the status bar should be cleared but not
-# too soon, maybe 30 seconds or so but only once the queue is empty, anytime
-# something is added to the queue we should set a 30 second timeout to
-# check again if the queue is empty and set the status bar message if it's
-# empty
-
 # TODO: provide a way to create background tasks that don't call set_busy()
-
-# TODO: check the fibra version here....has to be >0.17 or maybe
-# ==0.17 since fibra doesn't seem to ensure any sort of API
-# compatibility
-
-schedule = fibra.schedule()
 
 __running = False
 __kill = False
@@ -76,22 +62,13 @@ def _idle():
         raise StopIteration()
 
 
-schedule.register_idle_func(_idle)
-
-
 def queue(task):
-    """Run a task.
+    """Run a blocking task that must occasionally update the UI.
 
-    task should be a generator with side effects. it does not matter what it
-    yields, it is important that it does stop from time to time yielding
-    whatever it wants to, and causing the side effect it has to cause.
-
+    Task should be a generator with UI side effects. It does not matter what it
+    yields only that it does yield from time to time to allow updating the UI.
     """
 
-    # TODO: we might have to add a quit handler similar to what the
-    # pre-fibra task manager had but raising StopIteration in the task
-    # idle function might be enough...just needs more testing
-    schedule.install(task)
     if bauble.gui is not None:
         bauble.gui.set_busy(True)
         bauble.gui.progressbar.show()
@@ -100,9 +77,15 @@ def queue(task):
     global __running
     __running = True
     try:
-        schedule.run()
+        while True:
+            try:
+                _idle()
+                next(task)
+            except StopIteration:
+                break
         __running = False
-    except:
+    except Exception as e:
+        logger.debug('%s(%s)', type(e).__name__, e)
         raise
     finally:
         __running = False
@@ -116,20 +99,18 @@ def queue(task):
 
 __message_ids = []
 
+_context_id = None
+
 
 def set_message(msg):
-    """
-    A convenience function for setting a message on the
-    statusbar. Returns the message id
+    """A convenience function for setting a message on the statusbar.
+
+    Returns the message id
     """
     if bauble.gui is None or bauble.gui.widgets is None:
         return
     global _context_id
-    try:
-        _context_id
-    except NameError as e:
-        # this is expected to happen, it's normal behaviour.
-        logger.info(e)  # global name '_context_id' is not defined
+    if not _context_id:
         _context_id = bauble.gui.widgets.statusbar.get_context_id('__task')
         logger.info("new context id: %s" % _context_id)
     msg_id = bauble.gui.widgets.statusbar.push(_context_id, msg)
