@@ -1456,14 +1456,14 @@ class ShapefileExportTests(BaubleTestCase):
             )
 
     @mock.patch('bauble.utils.message_dialog')
-    def test_exports_search_all_w_generated_plants_over_100(self, mock_dialog):
+    def test_exports_search_all_w_generated_plants_over_400(self, mock_dialog):
         accs = self.session.query(Accession).all()
         bulk_plants = [
             Plant(code=str(i // len(accs) + 4),
                   accession=accs[i % len(accs)],
                   location_id=i // 2 + 1,
                   quantity=i)
-            for i in range(100)
+            for i in range(400)
         ]
         self.session.add_all(bulk_plants)
         self.session.commit()

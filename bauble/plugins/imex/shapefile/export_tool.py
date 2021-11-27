@@ -758,10 +758,12 @@ class ShapefileExporter:
                         self.generated_items,
                         key=lambda i: i.accession.species_str()
                     )
+                    five_percent = int(len(self.generated_items) / 20) or 1
                     for records_done, item in enumerate(self.generated_items):
-                        pb_set_fraction(records_done /
-                                        len(self.generated_items))
-                        yield
+                        if records_done % five_percent == 0:
+                            pb_set_fraction(records_done /
+                                            len(self.generated_items))
+                            yield
                         self.add_generated_points(item, records_done, fields,
                                                   shapefiles)
 
@@ -873,9 +875,9 @@ class ShapefileExporter:
             logger.debug('shape_type wasn\'t found: %s', e)
             self.error += 1
             if self._generate_points > 0:
-                if self.error > 100:
+                if self.error > 400:
                     logger.debug('too many generated_items')
-                    msg = ('<b>Over 100 records have no geojson.\n\n This is '
+                    msg = ('<b>Over 400 records have no geojson.\n\n This is '
                            'too many points to generate, please select a '
                            'smaller search.</b>')
                     from bauble.utils import message_dialog
