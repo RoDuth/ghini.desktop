@@ -1717,8 +1717,8 @@ class ImportSettingsBoxTests(BaubleTestCase):
 
     def test_on_prop_change_field_map_changes(self):
         import bauble
-        _orig_schema_menu = bauble.search.SchemaMenu
-        bauble.search.SchemaMenu = MochSchemaMenu
+        _orig_schema_menu = bauble.query_builder.SchemaMenu
+        bauble.query_builder.SchemaMenu = MochSchemaMenu
         shape_reader = ShapefileReader(
             create_shapefile('test',
                              prj_str_3857,
@@ -1746,12 +1746,12 @@ class ImportSettingsBoxTests(BaubleTestCase):
                                                 schema_menu)
         self.assertEqual(shape_reader.field_map.get('bed_description'),
                          'location.desciption')
-        bauble.search.SchemaMenu = _orig_schema_menu
+        bauble.query_builder.SchemaMenu = _orig_schema_menu
 
     def test_on_prop_none_field_map_value_deleted(self):
         import bauble
-        _orig_schema_menu = bauble.search.SchemaMenu
-        bauble.search.SchemaMenu = MochSchemaMenu
+        _orig_schema_menu = bauble.query_builder.SchemaMenu
+        bauble.query_builder.SchemaMenu = MochSchemaMenu
         shape_reader = ShapefileReader(
             create_shapefile('test',
                              prj_str_3857,
@@ -1769,7 +1769,7 @@ class ImportSettingsBoxTests(BaubleTestCase):
         settings_box.on_prop_button_press_event(prop_button, mock_event,
                                                 schema_menu)
         self.assertIsNone(shape_reader.field_map.get('bed'))
-        bauble.search.SchemaMenu = _orig_schema_menu
+        bauble.query_builder.SchemaMenu = _orig_schema_menu
 
     def test_on_chk_button_change_search_by_changes(self):
         shape_reader = ShapefileReader(create_shapefile('test',

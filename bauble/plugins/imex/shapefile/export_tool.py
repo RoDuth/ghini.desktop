@@ -422,7 +422,7 @@ class ShapefileExportSettingsBox(Gtk.ScrolledWindow):
                 self.grid.get_child_at(SIZE, attached_row).set_text(
                     str(size or ''))
 
-        from bauble.search import SchemaMenu
+        from bauble.query_builder import SchemaMenu
         schema_menu = SchemaMenu(
             class_mapper(self.model),
             menu_activated,

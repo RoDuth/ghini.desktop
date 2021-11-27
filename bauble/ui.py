@@ -37,7 +37,7 @@ from bauble import paths
 from bauble import pluginmgr
 from bauble.prefs import datetime_format_pref
 from bauble import prefs
-from bauble import search
+from bauble.query_builder import QueryBuilder
 from bauble import utils
 from bauble.utils import desktop
 from bauble.view import SearchView
@@ -352,7 +352,7 @@ class GUI():
             gladefilepath,
             parent=None,
             root_widget_name='main_dialog')
-        query_builder = search.QueryBuilder(view)
+        query_builder = QueryBuilder(view)
         query_builder.set_query(
             self.widgets.main_comboentry.get_child().get_text())
         response = query_builder.start()

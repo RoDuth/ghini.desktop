@@ -360,7 +360,7 @@ class ShapefileImportSettingsBox(Gtk.ScrolledWindow):
                     chk_button.set_active(False)
                 prop_button.set_label(_('Choose a property…'))
 
-        from bauble.search import SchemaMenu
+        from bauble.query_builder import SchemaMenu
         schema_menu = SchemaMenu(
             class_mapper(model),
             menu_activated,

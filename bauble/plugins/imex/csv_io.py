@@ -208,7 +208,7 @@ class CSVExportDialogPresenter(GenericEditorPresenter):
                 self.fields[row][PATH] = path
             self.refresh_sensitivity()
 
-        from bauble.search import SchemaMenu
+        from bauble.query_builder import SchemaMenu
         schema_menu = SchemaMenu(
             class_mapper(self.model.model),
             menu_activated,

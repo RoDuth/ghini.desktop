@@ -1,6 +1,5 @@
 # Copyright 2008, 2009, 2010 Brett Adams
 # Copyright 2014-2015 Mario Frasca <mario@anche.no>.
-# Copyright 2017 Jardín Botánico de Quito
 # Copyright 2021 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
@@ -17,18 +16,18 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
+"""
+Search functionailty.
+"""
 
+from abc import ABC, abstractmethod
 from datetime import datetime, timedelta, timezone
 import logging
 logger = logging.getLogger(__name__)
 
-from gi.repository import Gtk  # noqa
 
-from sqlalchemy import or_, and_, Integer, Float
-from sqlalchemy.orm import class_mapper, RelationshipProperty
-from sqlalchemy.orm.properties import ColumnProperty
-from sqlalchemy.ext.hybrid import hybrid_property
-from sqlalchemy.orm.attributes import InstrumentedAttribute
+from sqlalchemy import or_, and_
+from sqlalchemy.orm import class_mapper
 from pyparsing import (Word,
                        alphas8bit,
                        removeQuotes,
@@ -56,8 +55,6 @@ import bauble
 from bauble.error import check
 from bauble import utils
 from bauble import prefs
-from bauble.editor import GenericEditorPresenter
-from .querybuilderparser import BuiltQuery
 
 
 def search(text, session=None):
@@ -74,25 +71,77 @@ def search(text, session=None):
     return list(results)
 
 
+def equal(attr, val):
+    return attr == val
+
+
+def not_equal(attr, val):
+    return attr != val
+
+
+def less_than(attr, val):
+    return attr < val
+
+
+def less_than_or_equal(attr, val):
+    return attr <= val
+
+
+def greater_than(attr, val):
+    return attr > val
+
+
+def greater_than_or_equal(attr, val):
+    return attr >= val
+
+
+def like(attr, val):
+    return utils.ilike(attr, f'{val}')
+
+
+def contains(attr, val):
+    return utils.ilike(attr, f'%%{val}%%')
+
+
+OPERATIONS = {
+    '=': equal,
+    '==': equal,
+    'is': equal,
+    '!=': not_equal,
+    '<>': not_equal,
+    'not': not_equal,
+    '<': less_than,
+    '<=': less_than_or_equal,
+    '>': greater_than,
+    '>=': greater_than_or_equal,
+    'like': like,
+    'contains': contains,
+    'has': contains,
+    'ilike': like,
+    'icontains': contains,
+    'ihas': contains,
+}
+
+
 class NoneToken:
-    def __init__(self, t=None):
+    def __init__(self, token=None):
         pass
 
     def __repr__(self):
         return '(None<NoneType>)'
 
-    def express(self):
+    def express(self):  # pylint: disable=no-self-use
         return None
 
 
 class EmptyToken:
-    def __init__(self, t=None):
+    def __init__(self, token=None):
         pass
 
     def __repr__(self):
         return 'Empty'
 
-    def express(self):
+    def express(self):  # pylint: disable=no-self-use
         return set()
 
     def __eq__(self, other):
@@ -103,17 +152,21 @@ class EmptyToken:
         return NotImplemented
 
 
-class ValueABC:
+class ValueABC(ABC):
     # abstract base class.
+
+    def __init__(self, token):
+        self.value = token[0]
+
+    @abstractmethod
+    def __repr__(self):
+        ...
 
     def express(self):
         return self.value
 
 
-class ValueToken:
-
-    def __init__(self, t):
-        self.value = t[0]
+class ValueToken(ValueABC):
 
     def __repr__(self):
         return repr(self.value)
@@ -124,24 +177,19 @@ class ValueToken:
 
 class StringToken(ValueABC):
 
-    def __init__(self, t):
-        self.value = t[0]  # no need to parse the string
-
     def __repr__(self):
         return f"'{self.value}'"
 
 
 class DateToken(ValueABC):
-    def __init__(self, t):
-        self.value = t[0]  # no need to parse treated as a string
 
     def __repr__(self):
         return f"{self.value}"
 
 
 class NumericToken(ValueABC):
-    def __init__(self, t):
-        self.value = float(t[0])  # store the float value
+    def __init__(self, token):  # pylint: disable=super-init-not-called
+        self.value = float(token[0])  # store the float value
 
     def __repr__(self):
         return f"{self.value}"
@@ -180,24 +228,24 @@ class TypedValueToken(ValueABC):
     constructor = {'datetime': (smartdatetime, int),
                    'bool': (smartboolean, str)}
 
-    def __init__(self, t):
-        logger.debug('constructing typedvaluetoken %s', str(t))
+    def __init__(self, token):  # pylint: disable=super-init-not-called
+        logger.debug('constructing typedvaluetoken %s', str(token))
         try:
-            constructor, converter = self.constructor[t[1]]
+            constructor, converter = self.constructor[token[1]]
         except KeyError:
             return
-        params = tuple(converter(i) for i in t[3].express())
+        params = tuple(converter(i) for i in token[3].express())
         self.value = constructor(*params)
 
     def __repr__(self):
-        return "%s" % (self.value)
+        return f'{self.value}'
 
 
 class IdentifierAction:
-    def __init__(self, t):
-        logger.debug('IdentifierAction::__init__(%s)', t)
-        self.steps = t[0][:-2:2]
-        self.leaf = t[0][-1]
+    def __init__(self, tokens):
+        logger.debug('IdentifierAction::__init__(%s)', tokens)
+        self.steps = tokens[0][:-2:2]
+        self.leaf = tokens[0][-1]
 
     def __repr__(self):
         return '.'.join(self.steps + [self.leaf])
@@ -222,39 +270,22 @@ class IdentifierAction:
                      self.leaf, attr)
         return (query, attr)
 
-    def needs_join(self, env):
+    def needs_join(self, _env):
         return self.steps
 
 
 class FilteredIdentifierAction:
-    def __init__(self, t):
-        logger.debug('FilteredIdentifierAction::__init__(%s)', t)
-        self.steps = t[0][:-7:2]
-        self.filter_attr = t[0][-6]
-        self.filter_op = t[0][-5]
-        self.filter_value = t[0][-4]
-        self.leaf = t[0][-1]
+    def __init__(self, tokens):
+        logger.debug('FilteredIdentifierAction::__init__(%s)', tokens)
+        self.steps = tokens[0][:-7:2]
+        self.filter_attr = tokens[0][-6]
+        self.filter_op = tokens[0][-5]
+        self.filter_value = tokens[0][-4]
+        self.leaf = tokens[0][-1]
 
         # cfr: SearchParser.binop
         # = == != <> < <= > >= not like contains has ilike icontains ihas is
-        self.operation = {
-            '=': lambda x, y: x == y,
-            '==': lambda x, y: x == y,
-            'is': lambda x, y: x == y,
-            '!=': lambda x, y: x != y,
-            '<>': lambda x, y: x != y,
-            'not': lambda x, y: x != y,
-            '<': lambda x, y: x < y,
-            '<=': lambda x, y: x <= y,
-            '>': lambda x, y: x > y,
-            '>=': lambda x, y: x >= y,
-            'like': lambda x, y: utils.ilike(x, '%s' % y),
-            'contains': lambda x, y: utils.ilike(x, '%%%s%%' % y),
-            'has': lambda x, y: utils.ilike(x, '%%%s%%' % y),
-            'ilike': lambda x, y: utils.ilike(x, '%s' % y),
-            'icontains': lambda x, y: utils.ilike(x, '%%%s%%' % y),
-            'ihas': lambda x, y: utils.ilike(x, '%%%s%%' % y),
-        }.get(self.filter_op)
+        self.operation = OPERATIONS.get(self.filter_op)
 
     def __repr__(self):
         return "%s[%s%s%s].%s" % ('.'.join(self.steps), self.filter_attr,
@@ -267,59 +298,48 @@ class FilteredIdentifierAction:
         query = query.join(*self.steps, aliased=True)
         cls = query._joinpoint['_joinpoint_entity']
         attr = getattr(cls, self.filter_attr)
-        clause = lambda x: self.operation(attr, x)
-        logger.debug('filtering on %s(%s)' % (type(attr), attr))
+
+        def clause(val):
+            return self.operation(attr, val)
+
+        logger.debug('filtering on %s(%s)', type(attr), attr)
         query = query.filter(clause(self.filter_value.express()))
         attr = getattr(cls, self.leaf)
-        logger.debug('IdentifierToken for %s, %s evaluates to %s'
-                     % (cls, self.leaf, attr))
+        logger.debug('IdentifierToken for %s, %s evaluates to %s', cls,
+                     self.leaf, attr)
         return (query, attr)
 
-    def needs_join(self, env):
+    def needs_join(self, _env):
         return self.steps
 
 
 class IdentExpression:
-    def __init__(self, t):
-        logger.debug('IdentExpression::__init__(%s)' % t)
-        self.op = t[0][1]
+    def __init__(self, tokens):
+        logger.debug('IdentExpression::__init__(%s)', tokens)
+        self.oper = tokens[0][1]
 
         # cfr: SearchParser.binop
         # = == != <> < <= > >= not like contains has ilike icontains ihas is
-        self.operation = {
-            '=': lambda x, y: x == y,
-            '==': lambda x, y: x == y,
-            'is': lambda x, y: x == y,
-            '!=': lambda x, y: x != y,
-            '<>': lambda x, y: x != y,
-            'not': lambda x, y: x != y,
-            '<': lambda x, y: x < y,
-            '<=': lambda x, y: x <= y,
-            '>': lambda x, y: x > y,
-            '>=': lambda x, y: x >= y,
-            'like': lambda x, y: utils.ilike(x, '%s' % y),
-            'contains': lambda x, y: utils.ilike(x, '%%%s%%' % y),
-            'has': lambda x, y: utils.ilike(x, '%%%s%%' % y),
-            'ilike': lambda x, y: utils.ilike(x, '%s' % y),
-            'icontains': lambda x, y: utils.ilike(x, '%%%s%%' % y),
-            'ihas': lambda x, y: utils.ilike(x, '%%%s%%' % y),
-        }.get(self.op)
-        self.operands = t[0][0::2]  # every second object is an operand
+        self.operation = OPERATIONS.get(self.oper)
+        self.operands = tokens[0][0::2]  # every second object is an operand
 
     def __repr__(self):
-        return "(%s %s %s)" % (self.operands[0], self.op, self.operands[1])
+        return "(%s %s %s)" % (self.operands[0], self.oper, self.operands[1])
 
     def evaluate(self, env):
-        q, a = self.operands[0].evaluate(env)
+        query, attr = self.operands[0].evaluate(env)
         if self.operands[1].express() == set():
             # check against the empty set
-            if self.op in ('is', '=', '=='):
-                return q.filter(~a.any())
-            elif self.op in ('not', '<>', '!='):
-                return q.filter(a.any())
-        clause = lambda x: self.operation(a, x)
-        logger.debug('filtering on %s(%s)' % (type(a), a))
-        return q.filter(clause(self.operands[1].express()))
+            if self.oper in ('is', '=', '=='):
+                return query.filter(~attr.any())
+            if self.oper in ('not', '<>', '!='):
+                return query.filter(attr.any())
+
+        def clause(val):
+            return self.operation(attr, val)
+
+        logger.debug('filtering on %s(%s)', type(attr), attr)
+        return query.filter(clause(self.operands[1].express()))
 
     def needs_join(self, env):
         return [self.operands[0].needs_join(env)]
@@ -329,8 +349,8 @@ class ElementSetExpression(IdentExpression):
     # currently only implements `in`
 
     def evaluate(self, env):
-        q, a = self.operands[0].evaluate(env)
-        return q.filter(a.in_(self.operands[1].express()))
+        query, attr = self.operands[0].evaluate(env)
+        return query.filter(attr.in_(self.operands[1].express()))
 
 
 def get_datetime(value):
@@ -374,49 +394,57 @@ class AggregatedExpression(IdentExpression):
     differently: not filter, but group_by and having.
     """
 
-    def __init__(self, t):
-        super().__init__(t)
-        logger.debug('AggregatedExpression::__init__(%s)', t)
+    def __init__(self, tokens):
+        super().__init__(tokens)
+        logger.debug('AggregatedExpression::__init__(%s)', tokens)
 
     def evaluate(self, env):
         # operands[0] is the function/identifier pair
         # operands[1] is the value against which to test
         # operation implements the clause
-        q, a = self.operands[0].identifier.evaluate(env)
+        query, attr = self.operands[0].identifier.evaluate(env)
         from sqlalchemy.sql import func
-        f = getattr(func, self.operands[0].function)
-        clause = lambda x: self.operation(f(a), x)
+        function = getattr(func, self.operands[0].function)
+
+        def clause(val):
+            return self.operation(function(attr), val)
+
         # group by main ID
         # apply having
-        main_table = q.column_descriptions[0]['type']
+        main_table = query.column_descriptions[0]['type']
         mta = getattr(main_table, 'id')
-        logger.debug('filtering on %s(%s)' % (type(mta), mta))
-        result = q.group_by(mta).having(clause(self.operands[1].express()))
+        logger.debug('filtering on %s(%s)', type(mta), mta)
+        result = query.group_by(mta).having(clause(self.operands[1].express()))
         return result
 
 
 class BetweenExpressionAction:
-    def __init__(self, t):
-        self.operands = t[0][0::2]  # every second object is an operand
+    def __init__(self, tokens):
+        self.operands = tokens[0][0::2]  # every second object is an operand
 
     def __repr__(self):
         return "(BETWEEN %s %s %s)" % tuple(self.operands)
 
     def evaluate(self, env):
-        q, a = self.operands[0].evaluate(env)
-        clause_low = lambda low: low <= a
-        clause_high = lambda high: a <= high
-        return q.filter(and_(clause_low(self.operands[1].express()),
-                             clause_high(self.operands[2].express())))
+        query, attr = self.operands[0].evaluate(env)
+
+        def clause_low(low):
+            return low <= attr
+
+        def clause_high(high):
+            return attr <= high
+
+        return query.filter(and_(clause_low(self.operands[1].express()),
+                                 clause_high(self.operands[2].express())))
 
     def needs_join(self, env):
         return [self.operands[0].needs_join(env)]
 
 
-class UnaryLogical:
-    ## abstract base class. `name` is defined in derived classes
-    def __init__(self, t):
-        self.op, self.operand = t[0]
+class UnaryLogical(ABC):
+    # abstract base class. `name` is defined in derived classes
+    def __init__(self, tokens):
+        self.oper, self.operand = tokens[0]
 
     def __repr__(self):
         return "%s %s" % (self.name, str(self.operand))
@@ -424,19 +452,37 @@ class UnaryLogical:
     def needs_join(self, env):
         return self.operand.needs_join(env)
 
+    @property
+    @abstractmethod
+    def name(self):
+        ...
 
-class BinaryLogical:
-    ## abstract base class. `name` is defined in derived classes
-    def __init__(self, t):
-        self.op = t[0][1]
-        self.operands = t[0][0::2]  # every second object is an operand
+    @abstractmethod
+    def evaluate(self, env):
+        ...
+
+
+class BinaryLogical(ABC):
+    # abstract base class. `name` is defined in derived classes
+    def __init__(self, tokens):
+        self.oper = tokens[0][1]
+        self.operands = tokens[0][0::2]  # every second object is an operand
 
     def __repr__(self):
         return "(%s %s %s)" % (self.operands[0], self.name, self.operands[1])
 
     def needs_join(self, env):
-        return self.operands[0].needs_join(env) + \
-            self.operands[1].needs_join(env)
+        return (self.operands[0].needs_join(env) +
+                self.operands[1].needs_join(env))
+
+    @property
+    @abstractmethod
+    def name(self):
+        ...
+
+    @abstractmethod
+    def evaluate(self, env):
+        ...
 
 
 class SearchAndAction(BinaryLogical):
@@ -463,15 +509,15 @@ class SearchNotAction(UnaryLogical):
     name = 'NOT'
 
     def evaluate(self, env):
-        q = env.session.query(env.domain)
+        query = env.session.query(env.domain)
         for i in env.domains:
-            q.join(*i)
-        return q.except_(self.operand.evaluate(env))
+            query.join(*i)
+        return query.except_(self.operand.evaluate(env))
 
 
 class ParenthesisedQuery:
-    def __init__(self, t):
-        self.content = t[1]
+    def __init__(self, tokens):
+        self.content = tokens[1]
 
     def __repr__(self):
         return "(%s)" % self.content.__repr__()
@@ -484,9 +530,12 @@ class ParenthesisedQuery:
 
 
 class QueryAction:
-    def __init__(self, t):
-        self.domain = t[0]
-        self.filter = t[1][0]
+    def __init__(self, tokens):
+        self.domain = tokens[0]
+        self.filter = tokens[1][0]
+        self.search_strategy = None
+        self.domains = None
+        self.session = None
 
     def __repr__(self):
         return "SELECT * FROM %s WHERE %s" % (self.domain, self.filter)
@@ -503,17 +552,17 @@ class QueryAction:
         logger.debug('QueryAction:invoke - %s(%s) %s(%s)', type(self.domain),
                      self.domain, type(self.filter), self.filter)
         domain = self.domain
-        check(domain in search_strategy._domains or
-              domain in search_strategy._shorthand,
+        check(domain in search_strategy.domains or
+              domain in search_strategy.shorthand,
               'Unknown search domain: %s' % domain)
-        self.domain = search_strategy._shorthand.get(domain, domain)
-        self.domain = search_strategy._domains[domain][0]
+        self.domain = search_strategy.shorthand.get(domain, domain)
+        self.domain = search_strategy.domains[domain][0]
         self.search_strategy = search_strategy
 
         result = set()
-        if search_strategy._session is not None:
+        if search_strategy.session is not None:
             self.domains = self.filter.needs_join(self)
-            self.session = search_strategy._session
+            self.session = search_strategy.session
             records = self.filter.evaluate(self).all()
             result.update(records)
 
@@ -524,8 +573,8 @@ class QueryAction:
 
 
 class StatementAction:
-    def __init__(self, t):
-        self.content = t[0]
+    def __init__(self, tokens):
+        self.content = tokens[0]
         self.invoke = self.content.invoke
 
     def __repr__(self):
@@ -562,7 +611,7 @@ class BinomialNameAction:
         if self.species_epithet:
             logger.debug('binomial search sp: %s, gen: %s',
                          self.species_epithet, self.genus_epithet)
-            result = (search_strategy._session.query(Species)
+            result = (search_strategy.session.query(Species)
                       .filter(Species.sp.startswith(self.species_epithet))
                       .join(Genus)
                       .filter(Genus.genus.startswith(self.genus_epithet))
@@ -571,7 +620,8 @@ class BinomialNameAction:
         else:
             logger.debug('cultivar search cv: %s, gen: %s',
                          self.cultivar_epithet, self.genus_epithet)
-            result = (search_strategy._session.query(Species)
+            # pylint: disable=no-member  # re: cultivar_epithet.startswith
+            result = (search_strategy.session.query(Species)
                       .filter(Species.cultivar_epithet
                               .startswith(self.cultivar_epithet))
                       .join(Genus)
@@ -594,10 +644,10 @@ class DomainExpressionAction:
     the value.
     """
 
-    def __init__(self, t):
-        self.domain = t[0]
-        self.cond = t[1]
-        self.values = t[2]
+    def __init__(self, tokens):
+        self.domain = tokens[0]
+        self.cond = tokens[1]
+        self.values = tokens[2]
 
     def __repr__(self):
         return "%s %s %s" % (self.domain, self.cond, self.values)
@@ -605,13 +655,13 @@ class DomainExpressionAction:
     def invoke(self, search_strategy):
         logger.debug('DomainExpressionAction:invoke')
         try:
-            if self.domain in search_strategy._shorthand:
-                self.domain = search_strategy._shorthand[self.domain]
-            cls, properties = search_strategy._domains[self.domain]
-        except KeyError:
-            raise KeyError(_('Unknown search domain: %s') % self.domain)
+            if self.domain in search_strategy.shorthand:
+                self.domain = search_strategy.shorthand[self.domain]
+            cls, properties = search_strategy.domains[self.domain]
+        except KeyError as e:
+            raise KeyError(_('Unknown search domain: %s') % self.domain) from e
 
-        query = search_strategy._session.query(cls)
+        query = search_strategy.session.query(cls)
 
         # here is the place where to optionally filter out unrepresented
         # domain values. each domain class should define its own 'I have
@@ -637,7 +687,7 @@ class DomainExpressionAction:
                 return lambda val: mapper.c[col] == utils.nstr(val)
         else:
             def condition(col):
-                return mapper.c[col].op(self.cond)
+                return mapper.c[col].oper(self.cond)
 
         for col in properties:
             ors = or_(*[condition(col)(i) for i in self.values.express()])
@@ -651,10 +701,10 @@ class DomainExpressionAction:
 
 class AggregatingAction:
 
-    def __init__(self, t):
-        logger.debug("AggregatingAction::__init__(%s)", t)
-        self.function = t[0]
-        self.identifier = t[2]
+    def __init__(self, tokens):
+        logger.debug("AggregatingAction::__init__(%s)", tokens)
+        self.function = tokens[0]
+        self.identifier = tokens[2]
 
     def __repr__(self):
         return "(%s %s)" % (self.function, self.identifier)
@@ -696,28 +746,25 @@ class ValueListAction:
         """
 
         logger.debug('ValueListAction:invoke')
-        if any(len(str(i)) < 4 for i in self.values):
+        if any(len(str(i)) < 4 for i in self.values) or len(self.values) > 3:
             logger.debug('contains single letter')
             msg = _('The search string provided contains no specific query '
-                    'and will search against all fields in all tables.  It '
-                    'also contains a single letter.\n\n<b>Is this what you '
-                    'intended?</b>\n\n(Returning results from a query like '
-                    'this could take a very long time.)')
+                    'and will search against all fields in all tables. It '
+                    'also contains content that could take a long time to '
+                    'return results.\n\n'
+                    '<b>Is this what you intended?</b>\n\n')
             if not utils.yes_no_dialog(msg, yes_delay=1):
                 logger.debug('user aborted')
                 return []
 
-        def like(table, col, val):
-            return utils.ilike(table.c[col], ('%%%s%%' % val))
-
         result = set()
-        for cls, columns in search_strategy._properties.items():
+        for cls, columns in search_strategy.properties.items():
             column_cross_value = [(c, v) for c in columns
                                   for v in self.express()]
 
             table = class_mapper(cls)
-            query = (search_strategy._session.query(cls)
-                     .filter(or_(*[like(table, c, v) for c, v in
+            query = (search_strategy.session.query(cls)
+                     .filter(or_(*[contains(table.c[c], v) for c, v in
                                    column_cross_value])))
             result.update(query.all())
 
@@ -860,8 +907,16 @@ class SearchParser:
         return self.statement.parseString(text)
 
 
-class SearchStrategy:
+class SearchStrategy(ABC):
     """interface for adding search strategies to a view."""
+
+    def __init__(self):
+        self.session = None
+
+    @staticmethod
+    @abstractmethod
+    def use(text):
+        ...
 
     def search(self, text, session=None):
         """
@@ -871,6 +926,8 @@ class SearchStrategy:
         Return an iterator that iterates over mapped classes retrieved
         from the search.
         """
+        if not session:
+            logger.warning('session is None')
         # NOTE this logger is used in various tests
         logger.debug('SearchStrategy "%s" (%s)', text, self.__class__.__name__)
 
@@ -920,9 +977,9 @@ class MapperSearch(SearchStrategy):
     resolve the domain and identifiers and search for value
     """
 
-    _domains = {}
-    _shorthand = {}
-    _properties = {}
+    domains = {}
+    shorthand = {}
+    properties = {}
 
     def __init__(self):
         super().__init__()
@@ -958,17 +1015,17 @@ class MapperSearch(SearchStrategy):
               _('MapperSearch.add_meta(): '
                 'default_columns argument cannot be empty'))
         if isinstance(domain, (list, tuple)):
-            self._domains[domain[0]] = cls, properties
+            self.domains[domain[0]] = cls, properties
             for dom in domain[1:]:
-                self._shorthand[dom] = domain[0]
+                self.shorthand[dom] = domain[0]
         else:
-            self._domains[domain] = cls, properties
-        self._properties[cls] = properties
+            self.domains[domain] = cls, properties
+        self.properties[cls] = properties
 
     @classmethod
     def get_domain_classes(cls):
         domains = {}
-        for domain, item in cls._domains.items():
+        for domain, item in cls.domains.items():
             domains.setdefault(domain, item[0])
         return domains
 
@@ -980,7 +1037,7 @@ class MapperSearch(SearchStrategy):
         could cause deadlocks.
         """
         super().search(text, session)
-        self._session = session
+        self.session = session
 
         self._results.clear()
         statement = self.parser.parse_string(text).statement
@@ -1005,657 +1062,3 @@ def add_strategy(strategy):
 
 def get_strategy(name):
     return _search_strategies.get(name, None)
-
-
-class SchemaMenu(Gtk.Menu):
-    """
-    SchemaMenu
-
-    :param mapper:
-    :param activate_cb:
-    :param column_filter:
-    :param relation_filter:
-    :param private: if True include private fields (starting with underscore)
-    :param selectable_relations: if True include relations as selectable items
-    """
-
-    def __init__(self,
-                 mapper,
-                 activate_cb=None,
-                 column_filter=lambda p: True,
-                 relation_filter=lambda p: True,
-                 private=False,
-                 selectable_relations=False):
-        super().__init__()
-        self.activate_cb = activate_cb
-        self.private = private
-        self.relation_filter = relation_filter
-        self.column_filter = column_filter
-        self.selectable_relations = selectable_relations
-        for item in self._get_prop_menuitems(mapper):
-            self.append(item)
-        self.show_all()
-
-    def on_activate(self, menuitem, prop):
-        """Call when menu items that hold column properties are activated."""
-        path = []
-        path = [menuitem.get_child().props.label]
-        menu = menuitem.get_parent()
-        while menu is not None:
-            menuitem = menu.props.attach_widget
-            if not menuitem:
-                break
-            label = menuitem.get_child().props.label
-            path.append(label)
-            menu = menuitem.get_parent()
-        full_path = '.'.join(reversed(path))
-        if self.selectable_relations and hasattr(prop, '__table__'):
-            full_path = full_path.removesuffix(f'.{prop.__table__.key}')
-        self.activate_cb(menuitem, full_path, prop)
-
-    def on_select(self, menuitem, prop):
-        """Called when menu items that have submenus are selected."""
-        submenu = menuitem.get_submenu()
-        if len(submenu.get_children()) == 0:
-            for item in self._get_prop_menuitems(prop.mapper):
-                submenu.append(item)
-        submenu.show_all()
-
-    def _get_prop_menuitems(self, mapper):
-        # Separate properties in column_properties and relation_properties
-
-        column_properties = []
-        relation_properties = []
-        for prop in mapper.all_orm_descriptors:
-            if isinstance(prop, hybrid_property):
-                column_properties.append(prop)
-            elif (isinstance(prop, InstrumentedAttribute) or
-                  prop.key in [i.key for i in mapper.synonyms]):
-                i = prop.property
-                if isinstance(i, RelationshipProperty):
-                    relation_properties.append(prop)
-                elif isinstance(i, ColumnProperty):
-                    column_properties.append(prop)
-
-        def key(prop):
-            key = prop.key if hasattr(prop, 'key') else prop.__name__
-            return key
-
-        column_properties = sorted(
-            column_properties,
-            key=lambda p: (key(p) != 'id', not key(p).endswith('_id'), key(p))
-        )
-        relation_properties = sorted(relation_properties, key=key)
-
-        items = []
-
-        # add the table name to the top of the submenu and allow it to be
-        # selected (intended for export selection where you wish to include the
-        # string representation of the table)
-        if self.selectable_relations:
-            item = Gtk.MenuItem(label=mapper.entity.__table__.key,
-                                use_underline=False)
-            item.connect('activate', self.on_activate, mapper.entity)
-            items.append(item)
-            items.append(Gtk.SeparatorMenuItem())
-
-        for prop in column_properties:
-            if not self.column_filter(prop):
-                continue
-            item = Gtk.MenuItem(label=key(prop), use_underline=False)
-            if hasattr(prop, 'prop'):
-                prop = prop.prop
-            item.connect('activate', self.on_activate, prop)
-            items.append(item)
-
-        for prop in relation_properties:
-            if not self.relation_filter(prop):
-                continue
-            item = Gtk.MenuItem(label=prop.key, use_underline=False)
-            submenu = Gtk.Menu()
-            item.set_submenu(submenu)
-            item.connect('select', self.on_select, prop)
-            items.append(item)
-
-        return items
-
-
-def parse_typed_value(value, proptype):
-    """parse the input string and return the corresponding typed value
-
-    handles boolean, integers, floats, datetime, None, Empty, and falls back to
-    string.
-    """
-    if value in ['None', None]:
-        value = NoneToken()
-    elif value in ["'None'", '"None"']:
-        # in case user really does want to use "None" as a string.
-        value = repr(str(value[1:-1]))
-    elif value == 'Empty':
-        value = EmptyToken()
-    elif isinstance(proptype, (bauble.btypes.DateTime, bauble.btypes.Date)):
-        # btypes.DateTime/Date accepts string dates
-        if not any(value.count(i) == 2 for i in ['/', '.', '-']):
-            value = f'|datetime|{value}|'
-    elif isinstance(proptype, bauble.btypes.Boolean):
-        # btypes.Boolean accepts strings and 0, 1
-        if value not in ['True', 'False', 1, 0]:
-            value = f'|bool|{value}|'
-    elif isinstance(proptype, Integer):
-        value = ''.join([i for i in value if i in '-0123456789.'])
-        if value:
-            value = str(int(value))
-    elif isinstance(proptype, Float):
-        value = ''.join([i for i in value if i in '-0123456789.'])
-        if value:
-            value = str(float(value))
-    elif value not in ['%', '_']:
-        value = repr(str(value).strip())
-    return value
-
-
-class ExpressionRow:
-
-    conditions = ['=', '!=', '<', '<=', '>', '>=', 'like', 'contains']
-
-    def __init__(self, query_builder, remove_callback, row_number):
-        self.proptype = None
-        self.grid = query_builder.view.widgets.expressions_table
-        self.presenter = query_builder
-        self.menu_item_activated = False
-
-        self.and_or_combo = None
-        if row_number != 1:
-            self.and_or_combo = Gtk.ComboBoxText()
-            self.and_or_combo.append_text("and")
-            self.and_or_combo.append_text("or")
-            self.and_or_combo.set_active(0)
-            self.grid.attach(self.and_or_combo, 0, row_number, 1, 1)
-
-        self.prop_button = Gtk.Button(label=_('Choose a property…'))
-
-        self.schema_menu = SchemaMenu(self.presenter.mapper,
-                                      self.on_schema_menu_activated,
-                                      self.column_filter)
-        self.prop_button.connect('button-press-event',
-                                 self.on_prop_button_clicked,
-                                 self.schema_menu)
-        self.prop_button.set_tooltip_text('The property to query')
-        self.grid.attach(self.prop_button, 1, row_number, 1, 1)
-
-        # start with a default combobox and entry but value_widget and
-        # cond_combo can change depending on the type of the property chosen in
-        # the schema menu, see self.on_schema_menu_activated
-        self.cond_combo = Gtk.ComboBoxText()
-        for condition in self.conditions:
-            self.cond_combo.append_text(condition)
-        self.cond_combo.set_active(0)
-        self.grid.attach(self.cond_combo, 2, row_number, 1, 1)
-        self.cond_handler = self.cond_combo.connect(
-            'changed', lambda w: self.presenter.validate()
-        )
-        self.cond_combo.set_tooltip_text('How to search')
-
-        self.value_widget = Gtk.Entry()
-        self.value_widget.connect('changed', self.on_value_changed)
-        self.value_widget.set_tooltip_text('The value to search for')
-        self.grid.attach(self.value_widget, 3, row_number, 1, 1)
-
-        if row_number != 1:
-            self.remove_button = Gtk.Button.new_from_icon_name(
-                'list-remove', Gtk.IconSize.BUTTON)
-            self.remove_button.connect('clicked',
-                                       lambda b: remove_callback(self))
-            self.grid.attach(self.remove_button, 4, row_number, 1, 1)
-
-    @staticmethod
-    def on_prop_button_clicked(_button, event, menu):
-        menu.popup(None, None, None, None, event.button, event.time)
-
-    def on_value_changed(self, widget):
-        """Call the QueryBuilder.validate() for this row.
-
-        Sets the sensitivity of the Gtk.ResponseType.OK button on the
-        QueryBuilder.
-        """
-        # change to a standard entry if the user tries to enter none numbers
-        if isinstance(widget, Gtk.SpinButton):
-            if not widget.get_text().isdigit():
-                text = widget.get_text()
-                focus = widget.has_focus()
-                top = self.grid.child_get_property(self.value_widget,
-                                                   'top-attach')
-                left = self.grid.child_get_property(self.value_widget,
-                                                    'left-attach')
-                self.grid.remove(self.value_widget)
-                self.value_widget = Gtk.Entry()
-                self.value_widget.connect('changed',
-                                          self.on_number_value_changed)
-                self.value_widget.set_text(text)
-                self.value_widget.set_tooltip_text(
-                    'Number or "None" for no value has been set'
-                )
-                self.grid.attach(self.value_widget, left, top, 1, 1)
-                self.grid.show_all()
-                if focus:
-                    self.value_widget.grab_focus()
-        if isinstance(widget, Gtk.Entry):
-            if any(i in widget.get_text() for i in ['%', '_']):
-                self.cond_combo.set_active(self.conditions.index('like'))
-            elif self.cond_combo.get_active_text() == 'like':
-                self.cond_combo.set_active(0)
-
-        self.presenter.validate()
-
-    def on_date_value_changed(self, widget, *args):
-        """Loosely constrain text to None or numbers and datetime parts only"""
-        val = widget.get_text()
-        if not val == 'None'[:len(val)]:
-            val = ''.join([i for i in val if i in ',/-.0123456789'])
-            widget.set_text(val)
-        self.on_value_changed(widget)
-
-    def on_number_value_changed(self, widget, *args):
-        """Loosely constrain text to None or numbers parts only"""
-        val = widget.get_text()
-        if not val == 'None'[:len(val)]:
-            val = ''.join([i for i in val if i in '-.0123456789'])
-            widget.set_text(val)
-        self.on_value_changed(widget)
-
-    def on_schema_menu_activated(self, _menuitem, path, prop):
-        """Called when an item in the schema menu is activated"""
-        self.prop_button.set_label(path)
-        self.menu_item_activated = True
-        top = self.grid.child_get_property(self.value_widget, 'top-attach')
-        left = self.grid.child_get_property(self.value_widget, 'left-attach')
-        self.grid.remove(self.value_widget)
-
-        # change the widget depending on the type of the selected property
-        try:
-            self.proptype = prop.columns[0].type
-        except AttributeError:
-            self.proptype = None
-        # reset the cond_combo incase it was last a date/datetime
-        if not isinstance(self.proptype, (bauble.btypes.Date,
-                                          bauble.btypes.DateTime)):
-            self.cond_combo.handler_block(self.cond_handler)
-            self.cond_combo.remove_all()
-            for condition in self.conditions:
-                self.cond_combo.append_text(condition)
-            self.cond_combo.set_active(0)
-            self.cond_combo.handler_unblock(self.cond_handler)
-            self.cond_combo.set_tooltip_text('How to search')
-
-        if isinstance(self.proptype, bauble.btypes.Enum):
-            self.value_widget = Gtk.ComboBox()
-            cell = Gtk.CellRendererText()
-            self.value_widget.pack_start(cell, True)
-            self.value_widget.add_attribute(cell, 'text', 1)
-            model = Gtk.ListStore(str, str)
-            if prop.columns[0].type.translations:
-                trans = prop.columns[0].type.translations
-                sorted_keys = [
-                    i for i in trans.keys() if i is None
-                ] + sorted(i for i in trans.keys() if i is not None)
-                prop_values = [(k, trans[k] or 'None') for k in sorted_keys]
-            else:
-                values = prop.columns[0].type.values
-                prop_values = [(v, v or 'None') for v in sorted(values)]
-            for value, translation in prop_values:
-                model.append([value, translation])
-            self.value_widget.props.model = model
-            self.value_widget.set_tooltip_text(
-                'select a value, "None" means no value has been set'
-            )
-            self.value_widget.connect('changed', self.on_value_changed)
-
-        elif isinstance(self.proptype, Integer):
-            val_widgt_adjustment = Gtk.Adjustment(upper=1000000000000,
-                                                  step_increment=1,
-                                                  page_increment=10)
-            self.value_widget = Gtk.SpinButton(adjustment=val_widgt_adjustment,
-                                               numeric=False)
-            self.value_widget.set_tooltip_text(
-                'Number (non decimal) or "None" for no value has been set'
-            )
-            self.value_widget.connect('changed', self.on_value_changed)
-
-        elif isinstance(self.proptype, Float):
-            val_widgt_adjustment = Gtk.Adjustment(upper=10000000,
-                                                  lower=0.00000000001,
-                                                  step_increment=0.1,
-                                                  page_increment=1)
-            self.value_widget = Gtk.SpinButton(adjustment=val_widgt_adjustment,
-                                               digits=10,
-                                               numeric=False)
-            self.value_widget.set_tooltip_text(
-                'Number, decimal number or "None" for no value has been set'
-            )
-            self.value_widget.connect('changed', self.on_value_changed)
-
-        elif isinstance(self.proptype, bauble.btypes.Boolean):
-            self.value_widget = Gtk.ComboBoxText()
-            self.value_widget.append_text('False')
-            self.value_widget.append_text('True')
-            self.value_widget.set_tooltip_text('Select a value')
-            self.value_widget.connect('changed', self.on_value_changed)
-
-        elif isinstance(self.proptype, (bauble.btypes.Date,
-                                        bauble.btypes.DateTime)):
-            self.value_widget = Gtk.Entry()
-            self.value_widget.set_tooltip_text(
-                'Date (e.g. 1/1/2021), 0 for today, a negative number for '
-                'number of days before today or "None" for no date has been '
-                'set'
-            )
-            self.value_widget.connect('changed', self.on_date_value_changed)
-            conditions = self.conditions.copy()
-            conditions.append('on')
-            self.cond_combo.handler_block(self.cond_handler)
-            self.cond_combo.remove_all()
-            for condition in conditions:
-                self.cond_combo.append_text(condition)
-            # set 'on' as default
-            self.cond_combo.set_active(len(conditions) - 1)
-            self.cond_combo.handler_unblock(self.cond_handler)
-            self.cond_combo.set_tooltip_text('How to search')
-        elif (not isinstance(self.value_widget, Gtk.Entry) or
-              isinstance(self.value_widget, Gtk.SpinButton)):
-            self.value_widget = Gtk.Entry()
-            self.value_widget.set_tooltip_text(
-                'The text value to search for or "None" for no value has been '
-                'set'
-            )
-            self.value_widget.connect('changed', self.on_value_changed)
-
-        self.grid.attach(self.value_widget, left, top, 1, 1)
-        self.grid.show_all()
-        self.presenter.validate()
-
-    def column_filter(self, _prop):
-        return True
-
-    def relation_filter(self, _prop):
-        return True
-
-    def get_widgets(self):
-        """Returns a tuple of the and_or_combo, prop_button, cond_combo,
-        value_widget, and remove_button widgets.
-        """
-        return (
-            i for i in (self.and_or_combo, self.prop_button, self.cond_combo,
-                        self.value_widget, self.remove_button) if i)
-
-    def get_expression(self):
-        """Return the expression represented by this ExpressionRow.
-
-        If the expression is not valid then return None.
-        """
-
-        if not self.menu_item_activated:
-            return None
-
-        value = ''
-        if isinstance(self.value_widget, Gtk.ComboBoxText):
-            value = self.value_widget.get_active_text()
-        elif isinstance(self.value_widget, Gtk.ComboBox):
-            model = self.value_widget.get_model()
-            active_iter = self.value_widget.get_active_iter()
-            if active_iter:
-                value = model[active_iter][0]
-        else:
-            # assume it's a Gtk.Entry or other widget with a text property
-            value = self.value_widget.get_text().strip()
-        value = parse_typed_value(value, self.proptype)
-        and_or = ''
-        if self.and_or_combo:
-            and_or = self.and_or_combo.get_active_text()
-        field_name = self.prop_button.get_label()
-        if value == EmptyToken():
-            field_name = field_name.rsplit('.', 1)[0]
-            value = repr(value)
-        if isinstance(value, NoneToken):
-            value = 'None'
-        result = ' '.join([and_or, field_name,
-                           self.cond_combo.get_active_text(),
-                           value]).strip()
-        return result
-
-
-class QueryBuilder(GenericEditorPresenter):
-
-    view_accept_buttons = ['cancel_button', 'confirm_button']
-    default_size = None
-
-    def __init__(self, view=None):
-        super().__init__(self, view=view, refresh_view=False)
-
-        self.expression_rows = []
-        self.mapper = None
-        self.domain = None
-        self.table_row_count = 0
-        self.domain_map = MapperSearch.get_domain_classes().copy()
-
-        self.view.widgets.domain_combo.set_active(-1)
-        self.view.widgets.domain_combo.set_tooltip_text(
-            'The type of items returned'
-        )
-
-        table = self.view.widgets.expressions_table
-        for child in table.get_children():
-            table.remove(child)
-
-        self.view.widgets.domain_liststore.clear()
-        for key in sorted(self.domain_map.keys()):
-            self.view.widgets.domain_liststore.append([key])
-        self.view.widgets.add_clause_button.set_sensitive(False)
-        self.view.widgets.confirm_button.set_sensitive(False)
-        self.refresh_view()
-        utils.make_label_clickable(self.view.widgets.help_label,
-                                   self.on_help_clicked)
-
-    def on_help_clicked(self, _label, _event):
-        msg = _("<b>Search Domain</b> - the type of items you want "
-                "returned.\n\n"
-                "<b>Clauses</b> - consists of a <b>property</b> a "
-                "<b>condition</b> and a <b>value</b>.\n"
-                "Can be chained together with <b>and</b> or <b>or</b>.\n\n"
-                "<b>property</b> - the field or related field to query\n"
-                "<b>condition</b> - how to query. Note that the choice of "
-                "condition may depend on the value you provide. e.g. "
-                "wildcards require the <tt>like</tt> condition.  Only string "
-                "dates can use the <tt>on</tt> condition. (<tt>!=</tt> is NOT "
-                "equal)\n"
-                "<b>value</b> - the value to query, may contain special "
-                "tokens.\n"
-                "\nSpecial Tokens with some example usage:\n\n"
-                "<b>%</b> - wildcard for any value, use with <b>like</b> "
-                "condition\n"
-                "        <tt>genus where epithet like Mel%</tt>\n"
-                "Return the genera Melaleuca, Melastoma, etc..\n\n"
-                "<b>_</b> - wildcard for a single character, use with "
-                "<b>like</b> condition\n"
-                "        <tt>plant where code like _</tt>\n"
-                "Return plants where the code is a single character.  Most "
-                "commonly 1-9.\n\n"
-                "<b>None</b> - has no value\n"
-                "        <tt>location where description != None</tt>\n"
-                "Note <b>!=</b> meaning does NOT equal None. Return locations "
-                "where there is a description.\n\n"
-                "<b>dates (e.g. 10-1-1997)</b> - text date entries are "
-                "flexible and can be either iternational format (i.e. "
-                "year-month-day) or in the format as specified in your "
-                "preferences <tt>default_date_format</tt> setting (e.g. "
-                "day-month-year or month-day-year).  (date separaters can "
-                "any of <tt>/ - .</tt>) <b>on</b> is a special condition for "
-                "dates only\n"
-                "        <tt>plant where planted.date on 11/05/2021</tt>\n"
-                "Return plants that where planted on the 11/05/2021.\n\n"
-                "<b>days from today (e.g. -10)</b> - best used with the "
-                "<b>&gt;</b> or <b>&lt;</b> condition (note: these will "
-                "become typed in the search entry - e.g. |datetime|-10|)\n"
-                "        <tt>plant where planted.date > -10</tt>\n"
-                "Return plants that where planted in the last 10 days.\n"
-                )
-        dialog = Gtk.MessageDialog(modal=False,
-                                   destroy_with_parent=True,
-                                   transient_for=self.view.get_window(),
-                                   message_type=Gtk.MessageType.INFO)
-        dialog.set_markup(msg)
-        dialog.set_title(_('Basic Intro to Queries'))
-        dialog.add_button('OK', Gtk.ResponseType.OK)
-        dialog.set_position(Gtk.WindowPosition.CENTER)
-        dialog.show_all()
-        dialog.run()
-        dialog.destroy()
-
-    def on_domain_combo_changed(self, *args):
-        """Change the search domain.
-
-        Resets the expression table, clear the query label and deletes all the
-        expression rows.
-        """
-        try:
-            index = self.view.widgets.domain_combo.get_active()
-        except AttributeError:
-            return
-        if index == -1:
-            return
-
-        self.domain = self.view.widgets.domain_liststore[index][0]
-
-        self.view.widgets.query_lbl.set_text('')
-        # remove all clauses, they became useless in new domain
-        table = self.view.widgets.expressions_table
-        for child in table.get_children():
-            table.remove(child)
-        del self.expression_rows[:]
-        # initialize view at 1 clause, however invalid
-        self.table_row_count = 0
-        self.on_add_clause()
-        self.view.get_window().resize(1, 1)
-        self.view.widgets.expressions_table.show_all()
-        # let user add more clauses
-        self.view.widgets.add_clause_button.props.sensitive = True
-
-    def validate(self):
-        """Validate the search expression is a valid expression."""
-        valid = False
-        query_string = f'{self.domain} where'
-        for row in self.expression_rows:
-            value = None
-            if isinstance(row.value_widget, Gtk.Entry):  # also spinbutton
-                value = row.value_widget.get_text()
-            elif isinstance(row.value_widget, Gtk.ComboBox):
-                value = row.value_widget.get_active() >= 0
-
-            query_string = f'{query_string} {row.get_expression()}'
-            self.view.widgets.query_lbl.set_text(query_string)
-
-            if value and row.menu_item_activated:
-                valid = True
-            else:
-                valid = False
-                break
-
-        self.view.widgets.confirm_button.props.sensitive = valid
-        return valid
-
-    def remove_expression_row(self, row):
-        """Remove a row from the expressions table."""
-        [i.destroy() for i in row.get_widgets()]
-        self.table_row_count -= 1
-        self.expression_rows.remove(row)
-        self.view.get_window().resize(1, 1)
-
-    def on_add_clause(self, *args):
-        """Add a row to the expressions table."""
-        domain = self.domain_map[self.domain]
-        self.mapper = class_mapper(domain)
-        self.table_row_count += 1
-        row = ExpressionRow(self, self.remove_expression_row,
-                            self.table_row_count)
-        self.expression_rows.append(row)
-        self.view.widgets.expressions_table.show_all()
-
-    def start(self):
-        if self.default_size is None:
-            self.__class__.default_size = (self.view.widgets.main_dialog
-                                           .get_size())
-        else:
-            self.view.widgets.main_dialog.resize(*self.default_size)
-        return self.view.start()
-
-    @property
-    def valid_clauses(self):
-        return [i.get_expression() for i in self.expression_rows if
-                i.get_expression()]
-
-    def get_query(self):
-        """Return query expression string."""
-
-        query = [self.domain, 'where'] + self.valid_clauses
-        return ' '.join(query)
-
-    def set_query(self, q):
-        parsed = BuiltQuery(q)
-        if not parsed.is_valid:
-            logger.debug('cannot restore query, invalid')
-            return
-
-        # locate domain in list of valid domains
-        try:
-            index = sorted(self.domain_map.keys()).index(parsed.domain)
-        except ValueError as e:
-            logger.debug('cannot restore query, %s(%s)', type(e).__name__, e)
-            return
-        # and set the domain_combo correspondently
-        self.view.widgets.domain_combo.set_active(index)
-
-        # now scan all clauses, one ExpressionRow per clause
-        for clause in parsed.clauses:
-            if clause.value == 'None':
-                clause.value = "'None'"
-            elif clause.value == '<None>':
-                clause.value = 'None'
-            if clause.connector:
-                self.on_add_clause()
-            row = self.expression_rows[-1]
-            if clause.connector:
-                row.and_or_combo.set_active(
-                    {'and': 0, 'or': 1}[clause.connector])
-
-            # the part about the value is a bit more complex: where the
-            # clause.field leads to an enumerated property, on_add_clause
-            # associates a gkt.ComboBox to it, otherwise a Gtk.Entry.
-            # To set the value of a gkt.ComboBox we match one of its
-            # items. To set the value of a gkt.Entry we need set_text.
-            steps = clause.field.split('.')
-            cls = self.domain_map[parsed.domain]
-            mapper = class_mapper(cls)
-            try:
-                for target in steps[:-1]:
-                    mapper = mapper.get_property(target).mapper
-                prop = mapper.get_property(steps[-1])
-            except Exception as e:
-                logger.debug('cannot restore query details, %s(%s)',
-                             type(e).__name__, e)
-                return
-            conditions = row.conditions.copy()
-            if hasattr(prop, 'columns') and isinstance(
-                prop.columns[0].type,
-                    (bauble.btypes.Date, bauble.btypes.DateTime)
-            ):
-                row.cond_combo.append_text('on')
-                conditions.append('on')
-            row.on_schema_menu_activated(None, clause.field, prop)
-            if isinstance(row.value_widget, Gtk.Entry):  # also spinbutton
-                row.value_widget.set_text(clause.value)
-            elif isinstance(row.value_widget, Gtk.ComboBox):
-                for item in row.value_widget.props.model:
-                    val = clause.value if clause.value != 'None' else None
-                    if item[0] == val:
-                        row.value_widget.set_active_iter(item.iter)
-                        break
-            row.cond_combo.set_active(conditions.index(clause.operator))

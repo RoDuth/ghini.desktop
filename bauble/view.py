@@ -1494,7 +1494,7 @@ class HistoryView(pluginmgr.View):
                 table = equivalent
                 obj_id = int(dic[key])
         mapper_search = search.get_strategy('MapperSearch')
-        if table in mapper_search._domains:
+        if table in mapper_search.domains:
             query = '%s where id=%s' % (table, obj_id)
             bauble.gui.widgets.main_comboentry.get_child().set_text(query)
             bauble.gui.widgets.go_button.emit("clicked")
