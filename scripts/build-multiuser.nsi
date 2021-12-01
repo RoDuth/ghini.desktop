@@ -1,4 +1,4 @@
-; Copyright (c) 2016-2020 Ross Demuth <rossdemuth123@gmail.com>
+; Copyright (c) 2016-2021 Ross Demuth <rossdemuth123@gmail.com>
 ;
 ; This file is part of ghini.desktop.
 ;
@@ -37,6 +37,8 @@
 ; ghini.desktop-1.0.??-setup.exe /S /AllUsers /C=gF
 ; A component has failed to install (e.g. FOP mirror is down) so you rerun for that component only
 
+; TODO use LogicLib ${if} ${else} etc.
+
 ;---
 ; Generate a unicode installer, best set first
 Unicode true
@@ -53,6 +55,7 @@ Unicode true
 ; nsisunz (http://nsis.sourceforge.net/Nsisunz_plug-in)
 ; Inetc (http://nsis.sourceforge.net/Inetc_plug-in)
 ; MD5 (http://nsis.sourceforge.net/MD5_plugin)
+; nsisfilecheck (https://github.com/past-due/nsisfilecheck)
 ;---
 !addplugindir /x86-unicode "..\nsis\Plugins\x86-unicode\"
 !addincludedir "..\nsis\Include\"
@@ -67,25 +70,25 @@ Name "ghini.desktop"
 !define PRODUCT_NAME "ghini.desktop"
 Outfile "..\dist\${PRODUCT_NAME}-${VERSION}-setup.exe"
 !define PROGEXE "ghini.exe"
-!define COMPANY_NAME ""
+; !define COMPANY_NAME ""  ; no longer required
 !define LICENSE_FILE "LICENSE"
 !define README "README.rst"
 !define START_MENU "$SMPROGRAMS\${PRODUCT_NAME}"
-!define UNINSTALL_FILENAME "uninstall.exe"
+; !define UNINSTALL_FILENAME "uninstall.exe"  ; is default value
 
 ; FOP
 !define FOP_MIRROR "http://www.apache.org/dyn/closer.cgi?filename=/xmlgraphics/fop/binaries"
-!define FOP_VERSION "2.2"
+!define FOP_VERSION "2.6"
 !define FOP_BINZIP "fop-${FOP_VERSION}-bin.zip"
-!define FOP_MD5 "http://www-eu.apache.org/dist/xmlgraphics/fop/binaries/${FOP_BINZIP}.md5"
-!define FOP_JRE "1.7"
+!define FOP_SHA "https://www.apache.org/dist/xmlgraphics/fop/binaries/${FOP_BINZIP}.sha512"
+!define FOP_JRE "17.0"
 
 ; JRE (Currently Amazon Corretto OpenJDK)
-!define JRE_DISP_NAME "Amazon Corretto 8"
-!define JRE_VERSION "8.275.01.1"
-!define JRE_FILE "amazon-corretto-${JRE_VERSION}-windows-x86.msi"
-!define JRE_URL "https://corretto.aws/downloads/resources/${JRE_VERSION}/"
-!define JRE_CHECKSUM_MD5 "2015065ec94312c56fae1d53f75a7d5f"
+!define JRE_DISP_NAME "Amazon Corretto 17"
+!define JRE_VERSION "17"
+!define JRE_FILE "amazon-corretto-${JRE_VERSION}-x64-windows-jdk.msi"
+!define JRE_URL "https://corretto.aws/downloads/latest/"
+!define JRE_MD5_URL "https://corretto.aws/downloads/latest_checksum/"
 
 
 ;------------------------------
@@ -106,15 +109,16 @@ CRCCheck on
 ;  SETTINGS
 
 ; Multi User Settings (must come before the NsisMultiUser script)
-!define MULTIUSER_INSTALLMODE_INSTDIR "${PRODUCT_NAME}"
+; below should all work with default values now
+; !define MULTIUSER_INSTALLMODE_INSTDIR "${PRODUCT_NAME}"
 ; registry keys address:
 ; [HKLM|HKCU]\[Software|SOFTWARE\WOW6432Node]\Microsoft\Windows\CurrentVersion\Uninstall\${PRODUCT_NAME}
-!define MULTIUSER_INSTALLMODE_INSTALL_REGISTRY_KEY "${PRODUCT_NAME}"
-!define MULTIUSER_INSTALLMODE_UNINSTALL_REGISTRY_KEY "${PRODUCT_NAME}"
-!define MULTIUSER_INSTALLMODE_DEFAULT_REGISTRY_VALUENAME "UninstallString"
-!define MULTIUSER_INSTALLMODE_INSTDIR_REGISTRY_VALUENAME "InstallLocation"
-!define MULTIUSER_INSTALLMODE_ALLOW_ELEVATION
-!define MULTIUSER_INSTALLMODE_DEFAULT_ALLUSERS
+; !define MULTIUSER_INSTALLMODE_INSTALL_REGISTRY_KEY "${PRODUCT_NAME}"
+; !define MULTIUSER_INSTALLMODE_UNINSTALL_REGISTRY_KEY "${PRODUCT_NAME}"
+; !define MULTIUSER_INSTALLMODE_DEFAULT_REGISTRY_VALUENAME "UninstallString"  ; no longer available
+; !define MULTIUSER_INSTALLMODE_INSTDIR_REGISTRY_VALUENAME "InstallLocation"
+; !define MULTIUSER_INSTALLMODE_ALLOW_ELEVATION
+!define MULTIUSER_INSTALLMODE_DEFAULT_ALLUSERS 1
 
 ; Modern User Interface v2 Settings
 !define MUI_ABORTWARNING
@@ -150,6 +154,7 @@ CRCCheck on
 !include MUI2.nsh
 !include WordFunc.nsh
 !include FileFunc.nsh
+!include LogicLib.nsh
 
 
 ;------------------------------
@@ -166,6 +171,7 @@ CRCCheck on
 !insertmacro MUI_PAGE_FINISH
 
 ; Uninstaller
+!insertmacro MULTIUSER_UNPAGE_INSTALLMODE
 !insertmacro MUI_UNPAGE_CONFIRM
 !insertmacro MUI_UNPAGE_INSTFILES
 
@@ -176,7 +182,8 @@ CRCCheck on
 ;  LANGUAGES
 
 ; MUIv2 macros (must be after scripts and pages)
-!insertmacro MUI_LANGUAGE English
+!insertmacro MUI_LANGUAGE "English"
+!insertmacro MULTIUSER_LANGUAGE_INIT
 
 
 
@@ -231,12 +238,12 @@ SectionGroup /e "Extra Components" SecOPs
 ;----------------
 ; --Amazon Corretto x86 (JRE)
 
-Section /o "JRE - Amazon Corretto (111MB Download)" SecJRE
+Section /o "JRE - Amazon Corretto (160+MB Download)" SecJRE
 
     SectionIN 2 3
     ClearErrors
-    ; as its a download we need to inform of section size (Approximate only).
-    AddSize 302000
+    ; as its a download we need to inform of section size (Approximate only). Kb
+    AddSize 400000
 
     ; Download JDK
     InitPluginsDir
@@ -246,10 +253,17 @@ Section /o "JRE - Amazon Corretto (111MB Download)" SecJRE
         Pop $0
         DetailPrint "${JRE_FILE} Download Status: $0"
         StrCmp $0 "OK" 0 JREFail
+    inetc::get /silent "${JRE_MD5_URL}${JRE_FILE}" "$PLUGINSDIR\jre.md5" /END
+        Pop $0
+        DetailPrint "JRE MD5 Download Status: $0"
+        StrCmp $0 "OK" 0 JREFail
     md5dll::GetMD5File "$PLUGINSDIR\${JRE_FILE}"
         Pop $1
         ClearErrors
-        StrCmp $1 "${JRE_CHECKSUM_MD5}" InstalJRE
+        FileOpen $0 "$PLUGINSDIR\jre.md5" r
+        IfErrors JREFail
+        FileRead $0 $2 32
+        StrCmp $2 $1 InstalJRE
             DetailPrint "${JRE_DISP_NAME} MD5 check failed"
             Goto JREFail
 
@@ -277,12 +291,12 @@ SectionEnd
 ;----------------
 ; --Apache FOP
 
-Section /o "Apache FOP v${FOP_VERSION} (24MB Download)" SecFOP
+Section /o "Apache FOP v${FOP_VERSION} (25+MB Download)" SecFOP
 
     SectionIN 2 3
     ClearErrors
     ; as its a download we need to inform of section size (how much disk space will this consume once installed)
-    AddSize 103424
+    AddSize 102000
 
     ; Check for FOP
     nsExec::ExecToStack /TIMEOUT=9000 '"where" fop.bat'
@@ -306,24 +320,24 @@ Section /o "Apache FOP v${FOP_VERSION} (24MB Download)" SecFOP
             "${FOP_MIRROR}/${FOP_BINZIP}&action=download" "$PLUGINSDIR\${FOP_BINZIP}" /END
             Pop $0
             DetailPrint "Apache FOP Download Status: $0"
-            StrCmp $0 "OK" MD5checkFOP FOPFail
+            StrCmp $0 "OK" SHAcheckFOP FOPFail
 
 
-    ; MD5 hash check
-    MD5checkFOP:
+    ; SHA512 check
+    SHAcheckFOP:
         ClearErrors
-        inetc::get /silent "${FOP_MD5}" "$PLUGINSDIR\fop.md5" /END
+        inetc::get /silent "${FOP_SHA}" "$PLUGINSDIR\fop.sha" /END
             Pop $0
-            DetailPrint "Apache FOP MD5 Download Status: $0"
+            DetailPrint "Apache FOP SHA512 Download Status: $0"
             StrCmp $0 "OK" 0 FOPFail
-        md5dll::GetMD5File "$PLUGINSDIR\${FOP_BINZIP}"
+        filecheck::calcFileHash "$PLUGINSDIR\${FOP_BINZIP}" sha512
             Pop $1
             ClearErrors
-            FileOpen $0 "$PLUGINSDIR\fop.md5" r
+            FileOpen $0 "$PLUGINSDIR\fop.sha" r
             IfErrors FOPFail
-            FileRead $0 $2 32
+            FileRead $0 $2 128
             StrCmp $2 $1 InstalFOP
-                DetailPrint "Apache FOP MD5 check failed"
+                DetailPrint "Apache FOP SHA512 check failed"
                 Goto FOPFail
 
 
@@ -487,8 +501,7 @@ Function CheckForJRE
         SetRegView 64
 
     JREMainCheck:
-        Push "SOFTWARE\Wow6432Node\JavaSoft\Java Runtime Environment"
-        Push "SOFTWARE\JavaSoft\Java Runtime Environment"
+        Push "SOFTWARE\JavaSoft\JDK"
 
     JRECheckNext:
         IntOp $2 $2 + 1
