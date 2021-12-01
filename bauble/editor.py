@@ -251,6 +251,7 @@ class GenericEditorView(object):
                 filename = chooser.get_filename()
                 if filename:
                     self.widget_set_value(target, filename)
+                    self.__get_widget(target).set_position(len(filename))
         except Exception as e:
             logger.warning("unhandled %s exception in editor.py: %s",
                            type(e).__name__, e)

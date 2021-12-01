@@ -411,6 +411,7 @@ class XSLFormatterSettingsBox(SettingsBox):
                 filename = chooser.get_filename()
                 if filename:
                     self.widgets.file_entry.set_text(filename)
+                    self.widgets.file_entry.set_position(len(filename))
         except Exception as e:
             logger.warning("%s : %s", type(e).__name__, e)
         chooser.destroy()
@@ -443,6 +444,7 @@ class XSLFormatterSettingsBox(SettingsBox):
 
         if stylesheet:
             self.widgets.file_entry.set_text(stylesheet)
+            self.widgets.file_entry.set_position(len(stylesheet))
             renderer = settings.get('renderer')
             source_type = settings.get('source_type')
             authors = settings.get('authprs')

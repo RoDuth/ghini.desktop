@@ -312,6 +312,7 @@ class MakoFormatterSettingsBox(SettingsBox):
                 filename = chooser.get_filename()
                 if filename:
                     self.widgets.file_entry.set_text(filename)
+                    self.widgets.file_entry.set_position(len(filename))
         except Exception as e:
             logger.warning("%s : %s", type(e).__name__, e)
         chooser.destroy()
@@ -326,8 +327,9 @@ class MakoFormatterSettingsBox(SettingsBox):
                 'private': self.widgets.private_check.get_active()}
 
     def update(self, settings):
-        if settings.get('template'):
-            self.widgets.file_entry.set_text(settings['template'])
+        if template := settings.get('template'):
+            self.widgets.file_entry.set_text(template)
+            self.widgets.file_entry.set_position(len(template))
             logger.debug('template = %s', settings['template'])
         else:
             self.widgets.file_entry.set_text('')
