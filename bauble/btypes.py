@@ -16,16 +16,17 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
-#
-# types.py
-#
+"""
+Custom database types.
+"""
+# pylint: disable=abstract-method # re TypeDecorator
+
+from datetime import timezone
 
 import dateutil.parser as date_parser
 from sqlalchemy import types
 
 from bauble import error
-
-# TODO: store all times as UTC or support timezones
 
 
 class EnumError(error.BaubleError):
@@ -39,34 +40,38 @@ class Enum(types.TypeDecorator):
     impl = types.Unicode
 
     def __init__(self, values, empty_to_none=False, strict=True,
-                 translations={}, **kwargs):
+                 translations=None, **kwargs):
         """
-        : param values: A list of valid values for column.
+        :param values: A list of valid values for column.
         :param empty_to_none: Treat the empty string '' as None.  None
-        must be in the values list in order to set empty_to_none=True.
+            must be in the values list in order to set empty_to_none=True.
         :param strict:
         :param translations: A dictionary of values->translation
         """
+        if translations is None:
+            translations = {}
         # create the translations from the values and set those from
         # the translations argument, this way if some translations are
         # missing then the translation will be the same as value
         if values is None or len(values) == 0:
             raise EnumError(_('Enum requires a list of values'))
-        try:
-            [len(x) for x in values if x is not None]
-        except TypeError:
-            raise EnumError(_('Enum requires string values (or None)'))
-        if set(type(x) for x in values if x is not None) - \
-                set([type(''), type('')]) != set():
-            raise EnumError(_('Enum requires string values (or None)'))
+
+        for val in values:
+            if val is not None and not isinstance(val, str):
+                raise EnumError(_('Enum requires string values (or None)'))
+
         if len(values) != len(set(values)):
             raise EnumError(_('Enum requires the values to be different'))
+
         self.translations = dict((v, v) for v in values)
+
         for key, value in translations.items():
             self.translations[key] = value
+
         if empty_to_none and None not in values:
             raise EnumError(_('You have configured empty_to_none=True but '
                               'None is not in the values lists'))
+
         self.values = values[:]
         self.strict = strict
         self.empty_to_none = empty_to_none
@@ -76,9 +81,7 @@ class Enum(types.TypeDecorator):
         super().__init__(size, **kwargs)
 
     def process_bind_param(self, value, dialect):
-        """
-        Process the value going into the database.
-        """
+        """Process the value going into the database."""
         if self.empty_to_none and value == '':
             value = None
         if value is None and None not in self.values and '' in self.values:
@@ -89,18 +92,13 @@ class Enum(types.TypeDecorator):
         return value
 
     def process_result_value(self, value, dialect):
-        """
-        Process the value returned from the database.
-        """
+        """Process the value returned from the database."""
         # if self.strict and value not in self.values:
         #     raise ValueError(_('"%s" not in Enum.values') % value)
         return value
 
-    def copy(self):
+    def copy(self, **_kwargs):
         return Enum(self.values, self.empty_to_none, self.strict)
-
-
-from datetime import timezone
 
 
 class DateTime(types.TypeDecorator):
@@ -108,17 +106,19 @@ class DateTime(types.TypeDecorator):
     time.
     """
     impl = types.DateTime
+    _dayfirst = None
+    _yearfirst = None
 
     def process_bind_param(self, value, dialect):
         if not isinstance(value, str):
             return value
-        try:
-            DateTime._dayfirst
-            DateTime._yearfirst
-        except AttributeError:
-            from bauble import prefs
-            DateTime._dayfirst = prefs.prefs[prefs.parse_dayfirst_pref]
-            DateTime._yearfirst = prefs.prefs[prefs.parse_yearfirst_pref]
+
+        if not self._dayfirst or not self._yearfirst:
+            from bauble import prefs  # avoid circular imports
+            # pylint: disable=protected-access
+            self.__class__._dayfirst = prefs.prefs[prefs.parse_dayfirst_pref]
+            self.__class__._yearfirst = prefs.prefs[prefs.parse_yearfirst_pref]
+
         try:
             # try parsing as iso8601 first
             result = date_parser.isoparse(value)
@@ -137,26 +137,25 @@ class DateTime(types.TypeDecorator):
         # all stored utc
         return value.astimezone(tz=None)
 
-    def copy(self):
-        return DateTime()
-
 
 class Date(types.TypeDecorator):
     """A Date type that allows Date strings.
 
     NOTE: timezone agnostic."""
     impl = types.Date
+    _dayfirst = None
+    _yearfirst = None
 
     def process_bind_param(self, value, dialect):
         if not isinstance(value, str):
             return value
-        try:
-            Date._dayfirst
-            Date._yearfirst
-        except AttributeError:
+
+        if not self._dayfirst or not self._yearfirst:
             from bauble import prefs
-            Date._dayfirst = prefs.prefs[prefs.parse_dayfirst_pref]
-            Date._yearfirst = prefs.prefs[prefs.parse_yearfirst_pref]
+            # pylint: disable=protected-access
+            self.__class__._dayfirst = prefs.prefs[prefs.parse_dayfirst_pref]
+            self.__class__._yearfirst = prefs.prefs[prefs.parse_yearfirst_pref]
+
         try:
             # try parsing as iso8601 first
             result = date_parser.isoparse(value)
@@ -167,9 +166,6 @@ class Date(types.TypeDecorator):
 
     def process_result_value(self, value, dialect):
         return value
-
-    def copy(self):
-        return Date()
 
 
 class JSON(types.TypeDecorator):
@@ -208,6 +204,4 @@ class Boolean(types.TypeDecorator):
             return True
         if value == 'False':
             return False
-
-    def copy(self):
-        return Boolean()
+        return None

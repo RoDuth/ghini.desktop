@@ -320,10 +320,10 @@ def get_geographies_pertinent_to(objs, session=None):
 
 
 class SettingsBox(Gtk.Box):
-    """
-    the interface to use for the settings box, formatters should
-    implement this interface and return it from the formatters's get_settings
-    method
+    """The interface to use for the settings box.
+
+    Formatters should implement this interface and return it from the
+    formatters's get_settings method
     """
     def __init__(self):
         super().__init__(orientation=Gtk.Orientation.VERTICAL)
@@ -336,28 +336,24 @@ class SettingsBox(Gtk.Box):
 
 
 class FormatterPlugin(pluginmgr.Plugin):
-    '''
-    an interface class that a plugin should implement if it wants to generate
-    reports with the ReportToolPlugin
+    """An interface class that a plugin should implement if it wants to
+    generate reports with the ReportToolPlugin
 
     NOTE: the title class attribute must be a unique string
-    '''
+    """
 
     title = ''
 
     @staticmethod
     def get_settings_box():
-        '''
-        return a class the implement Gtk.Box that should hold the gui for
+        """return a class the implement Gtk.Box that should hold the gui for
         the formatter
-        '''
+        """
         raise NotImplementedError
 
     @staticmethod
     def format(selfobjs, **kwargs):
-        '''
-        called when the use clicks on OK, this is the worker
-        '''
+        """Called when the use clicks on OK, this is the worker"""
         raise NotImplementedError
 
 
@@ -389,9 +385,8 @@ class ReportToolDialogView(object):
         return response
 
     def on_dialog_close_or_delete(self, dialog, event=None):
-        """
-        Called if self.get_window() is a Gtk.Dialog and it receives
-        the close signal.
+        """Called if self.get_window() is a Gtk.Dialog and it receives the
+        close signal.
         """
         dialog.hide()
         return False
@@ -434,8 +429,8 @@ class ReportToolDialogPresenter(object):
             self.set_names_combo(0)
 
     def set_names_combo(self, val):
-        """
-        Set the names combo to val and emit the 'changed' signal,
+        """Set the names combo to val and emit the 'changed' signal,
+
         :param val: either an integer index or a string value in the combo
 
         If the model on the combo is None then this method will return
@@ -470,9 +465,7 @@ class ReportToolDialogPresenter(object):
             utils.combo_set_active_text(combo, val)
 
     def set_prefs_for(self, name, formatter_title, settings):
-        '''
-        This will overwrite any other report settings with name
-        '''
+        """This will overwrite any other report settings with name"""
         formatters = prefs.prefs[config_list_pref]
         if formatters is None:
             formatters = {}

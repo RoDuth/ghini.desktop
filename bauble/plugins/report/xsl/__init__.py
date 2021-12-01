@@ -143,8 +143,7 @@ class SpeciesABCDAdapter(ABCDAdapter):
         author = self.species.sp_author
         if author is None:
             return None
-        else:
-            return utils.xml_safe(author)
+        return utils.xml_safe(author)
 
     def get_InfraspecificAuthor(self):
         return utils.xml_safe(str(self.species.infraspecific_author))
@@ -178,15 +177,13 @@ class SpeciesABCDAdapter(ABCDAdapter):
     def get_HybridFlag(self):
         if self.species.hybrid is True:
             return utils.xml_safe(str(self.species.hybrid_char))
-        else:
-            return None
+        return None
 
     def get_InformalNameString(self):
         vernacular_name = self.species.default_vernacular_name
         if vernacular_name is None:
             return None
-        else:
-            return utils.xml_safe(vernacular_name)
+        return utils.xml_safe(vernacular_name)
 
     @staticmethod
     def notes_in_list(notes, unit, for_labels):
@@ -235,9 +232,7 @@ class SpeciesABCDAdapter(ABCDAdapter):
 
 
 class AccessionABCDAdapter(SpeciesABCDAdapter):
-    """
-    An adapter to convert a Plant to an ABCD Unit
-    """
+    """An adapter to convert a Plant to an ABCD Unit"""
     def __init__(self, accession, for_labels=False):
         super().__init__(accession.species, for_labels)
         self.accession = accession
@@ -246,23 +241,22 @@ class AccessionABCDAdapter(SpeciesABCDAdapter):
         return utils.xml_safe(str(self.accession))
 
     def get_FullScientificNameString(self, authors=True):
-        s = self.accession.species_str(authors=authors, markup=False)
-        return utils.xml_safe(s)
+        sp_str = self.accession.species_str(authors=authors, markup=False)
+        return utils.xml_safe(sp_str)
 
     def get_IdentificationQualifier(self):
-        idqual=self.accession.id_qual
+        idqual = self.accession.id_qual
         if idqual is None:
             return None
-        if idqual in('forsan', 'near', 'incorrect'):
+        if idqual in ('forsan', 'near', 'incorrect'):
             idqual = '(%s)' % idqual
         return utils.xml_safe(idqual)
 
     def get_IdentificationQualifierRank(self):
-        idqrank=self.accession.id_qual_rank
+        idqrank = self.accession.id_qual_rank
         if idqrank is None:
             return None
-        else:
-            return utils.xml_safe(idqrank)
+        return utils.xml_safe(idqrank)
 
     def get_DateLastEdited(self):
         return utils.xml_safe(self.accession._last_updated.isoformat())
@@ -375,7 +369,7 @@ class SettingsBoxPresenter(object):
 
 class XSLFormatterSettingsBox(SettingsBox):
 
-    def __init__(self, report_dialog=None, *args):
+    def __init__(self, *args):
         super().__init__(*args)
         filename = os.path.join(paths.lib_dir(), "plugins", "report", 'xsl',
                                 'gui.glade')
@@ -580,11 +574,11 @@ class XSLFormatterPlugin(FormatterPlugin):
                 utils.message_dialog(_('There are no plants in the search '
                                        'results.  Please try another search.'))
                 return False
-            for p in plants:
+            for plt in plants:
                 if use_private:
-                    adapted.append(PlantABCDAdapter(p, for_labels=True))
-                elif not p.accession.private:
-                    adapted.append(PlantABCDAdapter(p, for_labels=True))
+                    adapted.append(PlantABCDAdapter(plt, for_labels=True))
+                elif not plt.accession.private:
+                    adapted.append(PlantABCDAdapter(plt, for_labels=True))
         elif source_type == species_source_type:
             species = sorted(get_species_pertinent_to(objs, session=session),
                              key=utils.natsort_key)
@@ -592,8 +586,8 @@ class XSLFormatterPlugin(FormatterPlugin):
                 utils.message_dialog(_('There are no species in the search '
                                        'results.  Please try another search.'))
                 return False
-            for s in species:
-                adapted.append(SpeciesABCDAdapter(s, for_labels=True))
+            for sp in species:
+                adapted.append(SpeciesABCDAdapter(sp, for_labels=True))
         elif source_type == accession_source_type:
             accessions = sorted(get_accessions_pertinent_to(objs,
                                                             session=session),
@@ -602,11 +596,11 @@ class XSLFormatterPlugin(FormatterPlugin):
                 utils.message_dialog(_('There are no accessions in the search '
                                        'results.  Please try another search.'))
                 return False
-            for a in accessions:
+            for acc in accessions:
                 if use_private:
-                    adapted.append(AccessionABCDAdapter(a, for_labels=True))
-                elif not a.private:
-                    adapted.append(AccessionABCDAdapter(a, for_labels=True))
+                    adapted.append(AccessionABCDAdapter(acc, for_labels=True))
+                elif not acc.private:
+                    adapted.append(AccessionABCDAdapter(acc, for_labels=True))
         else:
             raise NotImplementedError('unknown source type')
 
@@ -652,15 +646,15 @@ class XSLFormatterPlugin(FormatterPlugin):
         if not os.path.exists(filename):
             utils.message_dialog(_('Error creating the PDF file. Please '
                                    'ensure that your PDF formatter is '
-                                   'properly installed.'), Gtk.MessageType.ERROR)
+                                   'properly installed.'),
+                                 Gtk.MessageType.ERROR)
             return False
-        else:
-            try:
-                desktop.open(filename)
-            except OSError:
-                utils.message_dialog(_('Could not open the report with the '
-                                       'default program. You can open the '
-                                       'file manually at %s') % filename)
+        try:
+            desktop.open(filename)
+        except OSError:
+            utils.message_dialog(_('Could not open the report with the '
+                                   'default program. You can open the '
+                                   'file manually at %s') % filename)
 
         return True
 

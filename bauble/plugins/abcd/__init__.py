@@ -104,10 +104,10 @@ def ABCDElement(parent, name, text=None, attrib=None):
     """
     if attrib is None:
         attrib = {}
-    el = SubElement(parent, '{%s}%s' % (namespaces['abcd'], name),
-                    nsmap=namespaces, attrib=attrib)
-    el.text = text
-    return el
+    elem = SubElement(parent, '{%s}%s' % (namespaces['abcd'], name),
+                      nsmap=namespaces, attrib=attrib)
+    elem.text = text
+    return elem
 
 
 def DataSets():
@@ -116,58 +116,42 @@ def DataSets():
     return Element('{%s}DataSets' % namespaces['abcd'], nsmap=namespaces)
 
 
-class ABCDAdapter(object):
-    """
-    An abstract base class for creating ABCD adapters.
-    """
+class ABCDAdapter:
+    """An abstract base class for creating ABCD adapters."""
     # TODO: create a HigherTaxonRank/HigherTaxonName iteratorator for a list
     # of all the higher taxon
 
     # TODO: need to mark those fields that are required and those that
     # are optional
     def extra_elements(self, unit):
-        """
-        Add extra non required elements
-        """
+        """Add extra non required elements."""
         pass
 
     def __init__(self, obj):
         self._object = obj
 
     def get_UnitID(self):
-        """
-        Get a value for the UnitID
-        """
+        """Get a value for the UnitID."""
         pass
 
     def get_family(self):
-        """
-        Get a value for the family.
-        """
+        """Get a value for the family."""
         pass
 
     def get_FullScientificNameString(self, authors=True):
-        """
-        Get the full scientific name string.
-        """
+        """Get the full scientific name string."""
         pass
 
     def get_GenusOrMonomial(self):
-        """
-        Get the Genus string.
-        """
+        """Get the Genus string."""
         pass
 
     def get_FirstEpithet(self):
-        """
-        Get the first epithet.
-        """
+        """Get the first epithet."""
         pass
 
     def get_AuthorTeam(self):
-        """
-        Get the Author string.
-        """
+        """Get the Author string."""
         pass
 
     def get_InfraspecificAuthor(self):
@@ -178,23 +162,21 @@ class ABCDAdapter(object):
 
     def get_InfraspecificEpithet(self):
         pass
-    
+
     def get_CultivarName(self):
         pass
 
-    def get_HybridFlag (self):
-        pass    
+    def get_HybridFlag(self):
+        pass
 
     def get_IdentificationQualifier(self):
         pass
-    
+
     def get_IdentificationQualifierRank(self):
         pass
 
     def get_InformalNameString(self):
-        """
-        Get the common name string.
-        """
+        """Get the common name string."""
         pass
 
 
@@ -307,7 +289,8 @@ def create_abcd(decorated_objects, authors=True, validate=True):
         if obj.get_IdentificationQualifier():
             ABCDElement(scientific_name, 'IdentificationQualifier',
                         text=obj.get_IdentificationQualifier(),
-                        attrib={'insertionpoint': obj.get_IdentificationQualifierRank()})
+                        attrib={'insertionpoint':
+                                obj.get_IdentificationQualifierRank()})
         # add all the extra non standard elements
         obj.extra_elements(unit)
         # TODO: handle verifiers/identifiers
@@ -331,17 +314,14 @@ def create_abcd(decorated_objects, authors=True, validate=True):
                 )
             ABCDElement(unit, 'Notes', text=utils.xml_safe(str(notes_str)))
 
-
     if validate:
         check(validate_xml(datasets), 'ABCD data not valid')
 
     return ElementTree(datasets)
 
 
-class ABCDExporter(object):
-    """
-    Export Plants to an ABCD file.
-    """
+class ABCDExporter:
+    """Export Plants to an ABCD file."""
 
     def start(self, filename=None, plants=None):
         if filename is None:  # no filename, ask the user
@@ -415,7 +395,7 @@ class ABCDImexPlugin(pluginmgr.Plugin):
 
 
 try:
-    import lxml.etree as etree
+    from lxml import etree
     import lxml._elementpath  # put this here so py2exe picks it up
     from lxml.etree import Element, SubElement, ElementTree
 except ImportError:

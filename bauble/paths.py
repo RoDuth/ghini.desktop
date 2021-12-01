@@ -29,16 +29,12 @@ logger = logging.getLogger(__name__)
 
 
 def main_is_frozen():
-    """tell whether Ghini is being run from a py2exe executable.
-
-    """
+    """tell whether Ghini is being run from a py2exe executable."""
     return (hasattr(sys, "frozen"))  # new py2exe and pyinstaller
 
 
 def main_dir():
-    """
-    Returns the path of the bauble executable.
-    """
+    """Returns the path of the bauble executable."""
     if main_is_frozen():
         d = os.path.dirname(sys.executable)
     else:
@@ -49,9 +45,7 @@ def main_dir():
 
 
 def lib_dir():
-    """
-    Returns the path of the bauble module.
-    """
+    """Returns the path of the bauble module."""
     if main_is_frozen():
         d = os.path.join(main_dir(), 'bauble')
     else:
@@ -60,9 +54,7 @@ def lib_dir():
 
 
 def locale_dir():
-    """
-    Returns the root path of the locale files
-    """
+    """Returns the root path of the locale files"""
 
     the_installation_directory = installation_dir()
     d = os.path.join(the_installation_directory, 'share', 'locale')
@@ -70,9 +62,7 @@ def locale_dir():
 
 
 def installation_dir():
-    """
-    Returns the root path of the installation target
-    """
+    """Returns the root path of the installation target"""
 
     if sys.platform in ('linux', 'darwin'):
         # installation_dir, relative to this file, is 7 levels up.
