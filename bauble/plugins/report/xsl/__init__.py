@@ -16,9 +16,6 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
-#
-# xsl report formatter package
-#
 """
 The PDF report generator module.
 
@@ -30,53 +27,32 @@ convert the stylesheet to PDF.
 import shutil
 import sys
 import os
+import subprocess
 import tempfile
 
 import logging
 logger = logging.getLogger(__name__)
 
-from gi.repository import Gtk  # noqa
+from gi.repository import Gtk
 
 from sqlalchemy.orm import object_session
 
 from bauble import db
 from bauble import paths
 from bauble.plugins.abcd import create_abcd, ABCDAdapter, ABCDElement
-from bauble.plugins.report import (
-    get_plants_pertinent_to, get_species_pertinent_to,
-    get_accessions_pertinent_to, FormatterPlugin, SettingsBox)
+from bauble.plugins.report import (get_plants_pertinent_to,
+                                   get_species_pertinent_to,
+                                   get_accessions_pertinent_to,
+                                   FormatterPlugin,
+                                   SettingsBox)
 from bauble import prefs
 from bauble import utils
 from bauble.utils import desktop
 
 
-if sys.platform == "win32":
-    fop_cmd = 'fop.bat'
-else:
-    fop_cmd = 'fop'
-
-# Bugs:
-# https://bugs.launchpad.net/bauble/+bug/104963 (check for PDF renderers on PATH)
-#
 
 # TODO: need to make sure we can't select the OK button if we haven't selected
 # a value for everything
-
-# TODO: use which() to search the path for a known renderer, could do this in
-# task so that it's non blocking, should cache the values in the prefs and
-# check that they are still valid when we open the report UI up again
-#def which(e):
-#    return ([os.path.join(p, e) for p in os.environ['PATH'].split(os.pathsep) if os.path.exists(os.path.join(p, e))] + [None])[0]
-
-# TODO: support FOray, see http://www.foray.org/
-renderers_map = {'Apache FOP': (fop_cmd + ' -fo %(fo_filename)s '
-                                '-pdf %(out_filename)s'),
-                 'XEP': 'xep -fo %(fo_filename)s -pdf %(out_filename)s',
-                 # 'xmlroff': 'xmlroff -o %(out_filename)s %(fo_filename)s',
-                 # 'Ibex for Java': 'java -cp /home/brett/bin/ibex-3.9.7.jar
-                 # ibex.Run -xml %(fo_filename)s -pdf %(out_filename)s'
-                }
-default_renderer = 'Apache FOP'
 
 plant_source_type = _('Plant/Clone')
 accession_source_type = _('Accession')
@@ -84,19 +60,19 @@ species_source_type = _('Species')
 default_source_type = plant_source_type
 
 
-def on_path(exe):
-    # TODO: is the PATH variable used on non-english systems
-    PATH = os.environ['PATH']
-    if not PATH:
-        return False
-    for p in PATH.split(os.pathsep):
+def get_fop():
+    fop_cmd = 'fop.bat' if sys.platform == "win32" else 'fop'
+    path = os.environ['PATH']
+    if not path:
+        return None
+    for pth in path.split(os.pathsep):
         try:
             # handle exceptions in case the path doesn't exist
-            if exe in os.listdir(p):
-                return True
-        except:
-            pass
-    return False
+            if fop_cmd in os.listdir(pth):
+                return os.path.join(pth, fop_cmd)
+        except FileNotFoundError as e:
+            logger.debug('path search: %s(%s)', type(e).__name__, e)
+    return None
 
 
 class SpeciesABCDAdapter(ABCDAdapter):
@@ -127,8 +103,8 @@ class SpeciesABCDAdapter(ABCDAdapter):
         return utils.xml_safe(self.species.genus.family)
 
     def get_FullScientificNameString(self, authors=True):
-        s = self.species.str(authors=authors, markup=False)
-        return utils.xml_safe(s)
+        sp_str = self.species.str(authors=authors, markup=False)
+        return utils.xml_safe(sp_str)
 
     def get_GenusOrMonomial(self):
         return utils.xml_safe(str(self.species.genus))
@@ -359,14 +335,6 @@ class PlantABCDAdapter(AccessionABCDAdapter):
         super().extra_elements(unit)
 
 
-class SettingsBoxPresenter(object):
-
-    def __init__(self, widgets):
-        self.widgets = widgets
-        for name in renderers_map:
-            self.widgets.renderer_combo.append_text(name)
-
-
 class XSLFormatterSettingsBox(SettingsBox):
 
     def __init__(self, *args):
@@ -374,8 +342,6 @@ class XSLFormatterSettingsBox(SettingsBox):
         filename = os.path.join(paths.lib_dir(), "plugins", "report", 'xsl',
                                 'gui.glade')
         self.widgets = utils.load_widgets(filename)
-
-        utils.setup_text_combobox(self.widgets.renderer_combo)
 
         combo = self.widgets.source_type_combo
         values = [_('Accession'), _('Plant/Clone'), _('Species')]
@@ -386,7 +352,6 @@ class XSLFormatterSettingsBox(SettingsBox):
         self.settings_box = self.widgets.settings_box
         self.widgets.remove_parent(self.widgets.settings_box)
         self.pack_start(self.settings_box, True, True, 0)
-        self.presenter = SettingsBoxPresenter(self.widgets)
         self.widgets.file_btnbrowse.connect('clicked',
                                             self.on_btnbrowse_clicked)
 
@@ -432,7 +397,6 @@ class XSLFormatterSettingsBox(SettingsBox):
         return {
             'stylesheet': stylesheet,
             'additional': additional,
-            'renderer': self.widgets.renderer_combo.get_active_text(),
             'source_type': source_entry,
             'authors': self.widgets.author_check.get_active(),
             'private': self.widgets.private_check.get_active()
@@ -440,23 +404,16 @@ class XSLFormatterSettingsBox(SettingsBox):
 
     def update(self, settings):
         stylesheet = settings.get('stylesheet')
-        renderer = source_type = authors = private = None
+        source_type = authors = private = None
 
         if stylesheet:
             self.widgets.file_entry.set_text(stylesheet)
             self.widgets.file_entry.set_position(len(stylesheet))
-            renderer = settings.get('renderer')
             source_type = settings.get('source_type')
             authors = settings.get('authprs')
             private = settings.get('private')
         else:
             self.widgets.file_entry.set_text('')
-
-        if renderer:
-            utils.combo_set_active_text(self.widgets.renderer_combo, renderer)
-        else:
-            utils.combo_set_active_text(self.widgets.renderer_combo,
-                                        default_renderer)
 
         if source_type:
             utils.combo_set_active_text(self.widgets.source_type_combo,
@@ -539,29 +496,35 @@ class XSLFormatterPlugin(FormatterPlugin):
 
     @staticmethod
     def format(objs, **kwargs):
-        stylesheet = kwargs['stylesheet']
-        additional = kwargs['additional']
-        authors = kwargs['authors']
-        renderer = kwargs['renderer']
-        source_type = kwargs['source_type']
-        use_private = kwargs['private']
+        # kwargs is inherited
+        stylesheet = kwargs.get('stylesheet')
+        additional = kwargs.get('additional')
+        authors = kwargs.get('authors')
+        source_type = kwargs.get('source_type')
+        use_private = kwargs.get('private')
         error_msg = None
         if not stylesheet:
             error_msg = _('Please select a stylesheet.')
-        elif not renderer:
-            error_msg = _('Please select a a renderer')
         if error_msg is not None:
             utils.message_dialog(error_msg, Gtk.MessageType.WARNING)
             return False
 
-        fo_cmd = renderers_map[renderer]
-        exe = fo_cmd.split(' ')[0]
-        if not on_path(exe):
-            utils.message_dialog(_('Could not find the command "%(exe)s" to '
-                                   'start the %(renderer_name)s '
-                                   'renderer.') %
-                                  ({'exe': exe, 'renderer_name': renderer}),
-                                 Gtk.MessageType.ERROR)
+        fop_cmd = get_fop()
+        logger.debug('fop command: %s', fop_cmd)
+        if not fop_cmd:
+            if sys.platform == 'win32' and paths.main_is_frozen:
+                utils.message_dialog(
+                    _('Could not find Apache FOP renderer.  You may need to '
+                      'install it. The installer you used may contain FOP and '
+                      'Java as extra components.'),
+                    Gtk.MessageType.ERROR
+                )
+            else:
+                utils.message_dialog(
+                    _('Could not find Apache FOP renderer.  You may need to '
+                      'install it.'),
+                    Gtk.MessageType.ERROR
+                )
             return False
 
         session = db.Session()
@@ -616,7 +579,8 @@ class XSLFormatterPlugin(FormatterPlugin):
 
         session.close()
 
-        logger.debug(etree.dump(abcd_data.getroot()))
+        # for debugging only:
+        # etree.dump(abcd_data.getroot())
 
         # create xsl fo file
         dummy, fo_filename = tempfile.mkstemp()
@@ -629,21 +593,29 @@ class XSLFormatterPlugin(FormatterPlugin):
         dummy, filename = tempfile.mkstemp()
         filename = '%s.pdf' % filename
 
-        # TODO: checkout pyexpect for spawning processes
-
+        # TODO <RD> is there a better method?
         if additional:
             from distutils.dir_util import copy_tree
             fo_dir = os.path.dirname(fo_filename)
             copy_tree(additional, fo_dir)
 
-        # run the report to produce the pdf file, the command has to be
-        # on the path for this to work
-        fo_cmd = fo_cmd % ({'fo_filename': fo_filename,
-                            'out_filename': filename})
-        logger.debug(fo_cmd)
-        # TODO: use popen to get output
-        os.system(fo_cmd)
+        # supress command prompt in windows
+        creationflags = 0
+        if sys.platform == 'win32':
+            creationflags = subprocess.CREATE_NO_WINDOW
 
+        # run the report to produce the pdf file
+        fop_out = subprocess.run(
+            [fop_cmd, '-fo', fo_filename, '-pdf', filename],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            check=True,
+            creationflags=creationflags
+        )
+        logger.debug('FOP return code: %s', fop_out.returncode)
+        logger.debug('FOP stderr: %s', fop_out.stderr)
+        logger.debug('FOP stdout: %s', fop_out.stdout)
         logger.debug(filename)
         if not os.path.exists(filename):
             utils.message_dialog(_('Error creating the PDF file. Please '
