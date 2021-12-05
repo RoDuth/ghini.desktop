@@ -850,10 +850,12 @@ class SearchTests(BaubleTestCase):
         # these will store UTC datetimes relative to local time.  Both should
         # be on the same date locally but will be across 2 dates if the local
         # timezone is anything but +00:00
-        pp._last_updated = (datetime.datetime(2009, 2, 12, 0, 0, 0, 0)
-                            .astimezone(tz=timezone.utc))
-        pp2._last_updated = (datetime.datetime(2009, 2, 12, 23, 59, 0, 0)
-                             .astimezone(tz=timezone.utc))
+        start_of_day = (datetime.datetime(2009, 2, 12, 0, 0, 0, 0)
+                        .astimezone(tz=timezone.utc))
+        pp._last_updated = start_of_day
+        end_of_day = (datetime.datetime(2009, 2, 12, 23, 59, 0, 0)
+                      .astimezone(tz=timezone.utc))
+        pp2._last_updated = end_of_day
         self.session.add_all([family2, g2, f3, g3, sp, ac, lc, pp, pp2])
         self.session.commit()
 
@@ -863,12 +865,21 @@ class SearchTests(BaubleTestCase):
         logger.debug('pp2 last updated: %s', pp2._last_updated)
 
         # isoparse
-        s = 'plant where _last_updated on 2009-02-12'
-        results = mapper_search.search(s, self.session)
+        search_str = 'plant where _last_updated on 2009-02-12'
+        results = mapper_search.search(search_str, self.session)
         self.assertEqual(results, set([pp, pp2]))
 
-        s = 'plant where _last_updated on 12/2/2009'
-        results = mapper_search.search(s, self.session)
+        search_str = 'plant where _last_updated on 12/2/2009'
+        results = mapper_search.search(search_str, self.session)
+        self.assertEqual(results, set([pp, pp2]))
+
+        # hybrid property
+        pp.planted.date = start_of_day
+        pp2.planted.date = end_of_day
+        self.session.add_all([pp, pp2])
+        self.session.commit()
+        search_str = 'plant where planted.date on 12/2/2009'
+        results = mapper_search.search(search_str, self.session)
         self.assertEqual(results, set([pp, pp2]))
 
 
@@ -1126,11 +1137,6 @@ class BinomialSearchTests(BaubleTestCase):
         s = "Ixora 'Prince Of Orange'"
         results = mapper_search.search(s, self.session)
         self.assertEqual(results, set([self.cv2]))
-
-from bauble.plugins.garden.plant import Plant
-from bauble.plugins.plants.species import Species
-from sqlalchemy.ext.hybrid import hybrid_property
-from sqlalchemy.orm.attributes import InstrumentedAttribute
 
 
 class BuildingSQLStatements(BaubleTestCase):
