@@ -1691,3 +1691,33 @@ def get_user_display_name():
         fname = str(pwd.getpwuid(os.getuid())[4])
 
     return fname or db.current_user()
+
+
+def run_file_chooser_dialog(text, parent, action, last_folder, target):
+    """Create and run a FileChooserNative, then write result in target entry
+    widget.
+
+    this is just a bit more than a wrapper. it adds 'last_folder', a
+    string indicationg the location where to put the FileChooserNative,
+    and 'target', an Entry widget.
+
+    :param text: window label text.
+    :param parent: the parent window or None.
+    :param action: a Gtk.FileChooserAction value.
+    :param last_folder: the folder to open the window at.
+    :param target: widget that has it value set to the selected filename.
+    """
+    chooser = Gtk.FileChooserNative.new(text, parent, action)
+
+    try:
+        if last_folder:
+            chooser.set_current_folder(last_folder)
+        if chooser.run() == Gtk.ResponseType.ACCEPT:
+            filename = chooser.get_filename()
+            if filename:
+                target.set_text(filename)
+                target.set_position(len(filename))
+    except Exception as e:  # pylint: disable=broad-except
+        logger.warning("unhandled %s exception in editor.py: %s",
+                       type(e).__name__, e)
+    chooser.destroy()

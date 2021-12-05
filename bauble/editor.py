@@ -231,31 +231,20 @@ class GenericEditorView(object):
                                 target):
         """create and run FileChooser, then write result in target
 
-        this is just a bit more than a wrapper. it adds 'last_folder', a
-        string indicationg the location where to put the FileChooserNative,
-        and 'target', an Entry widget or its name.
+        This is just a bit more than a wrapper for
+        `utils.run_file_chooser_dialog` allowing the Entry widget or its name
+        as a string.
 
         :param text: window label text.
         :param parent: the parent window or None.
         :param action: a Gtk.FileChooserAction value.
         :param last_folder: the folder to open the window at.
-        :param target: the name of the widget that has it value set to the
-            selected filename.
+        :param target: the Entry widget or its name as a string that has it
+            value set to the selected filename.
         """
-        chooser = Gtk.FileChooserNative.new(text, parent, action)
-
-        try:
-            if last_folder:
-                chooser.set_current_folder(last_folder)
-            if chooser.run() == Gtk.ResponseType.ACCEPT:
-                filename = chooser.get_filename()
-                if filename:
-                    self.widget_set_value(target, filename)
-                    self.__get_widget(target).set_position(len(filename))
-        except Exception as e:
-            logger.warning("unhandled %s exception in editor.py: %s",
-                           type(e).__name__, e)
-        chooser.destroy()
+        target = self.__get_widget(target)
+        utils.run_file_chooser_dialog(text, parent, action, last_folder,
+                                      target)
 
     @staticmethod
     def run_entry_dialog(title, parent, flags, buttons, visible=True):
