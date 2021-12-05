@@ -52,6 +52,7 @@ from pyparsing import (Word,
                        Forward)
 
 import bauble
+from bauble.db import get_related_class
 from bauble.error import check
 from bauble import utils
 from bauble import prefs
@@ -264,7 +265,7 @@ class IdentifierAction:
         else:
             # identifier is an attribute of a joined table
             query = query.join(*self.steps, aliased=True)
-            cls = query._joinpoint['_joinpoint_entity']
+            cls = get_related_class(env.domain, '.'.join(self.steps))
         attr = getattr(cls, self.leaf)
         logger.debug('IdentifierToken for %s, %s evaluates to %s', cls,
                      self.leaf, attr)
@@ -296,7 +297,7 @@ class FilteredIdentifierAction:
         query = env.session.query(env.domain)
         # identifier is an attribute of a joined table
         query = query.join(*self.steps, aliased=True)
-        cls = query._joinpoint['_joinpoint_entity']
+        cls = get_related_class(env.domain, '.'.join(self.steps))
         attr = getattr(cls, self.filter_attr)
 
         def clause(val):
@@ -824,6 +825,7 @@ class SearchParser:
         string_value
     ).setParseAction(ValueToken)('value')
 
+    # pylint: disable=expression-not-assigned
     value_list << Group(
         OneOrMore(value) ^ delimitedList(value)
     ).setParseAction(ValueListAction)('value_list')
