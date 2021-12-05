@@ -1,6 +1,6 @@
 # Copyright (c) 2005,2006,2007,2008,2009 Brett Adams <brett@belizebotanic.org>
 # Copyright (c) 2012-2016 Mario Frasca <mario@anche.no>
-# Copyright (c) 2016-2018 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright (c) 2016-2021 Ross Demuth <rossdemuth123@gmail.com>
 # Copyright 2017 Jardín Botánico de Quito
 #
 # This file is part of ghini.desktop.
@@ -19,9 +19,9 @@
 # along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
 # -*- coding: utf-8 -*-
 #
-#
-# ABCD import/exporter
-#
+"""
+ABCD import/exporter
+"""
 
 import os
 from pathlib import Path
@@ -29,32 +29,20 @@ from pathlib import Path
 import logging
 logger = logging.getLogger(__name__)
 
-from gi.repository import Gtk  # noqa
+from gi.repository import Gtk
+
+from sqlalchemy.orm import object_session
 
 from bauble import db
 from bauble.error import check
 from bauble import paths
 from bauble import utils
 from bauble import pluginmgr
+from bauble import prefs
 from bauble.plugins.garden.plant import Plant
 
 # NOTE: see biocase provider software for reading and writing ABCD data
 # files, already downloaded software to desktop
-
-# TODO: should have a command line argument to create labels without starting
-# the full bauble interface, after creating the labels it should automatically
-# open the whatever ever view is associated with pdf files
-# e.g bauble -labels "select string"
-# bauble -labels "block=4"
-# bauble -label "acc=1997"
-#
-# TODO: create label make in the tools that show a dialog with an entry
-# the entry is for a search string that then returns a list of all the labels
-# that'll be made with checkboxess next to them to de/select the ones you
-# don't want to print, could also have a check box to select species or
-# accessions so we can print labels for plants that don't have accessions,
-# though this could be a problem b/c abcd data expects 'unitid' fields but
-# we could have a special case just for generating labels
 
 
 def validate_xml(root):
@@ -71,12 +59,6 @@ def validate_xml(root):
     return abcd_schema.validate(root)
 
 
-# TODO: this function needs to be renamed since we now check an object in
-# the list is an Accession them we use the accession data as the UnitID, else
-# we treat it as a Plant...using plants is necessary for things like making
-# labels but most likely accessions are wanted if we're exchanging data, the
-# only problem is that accessions don't keep status, like dead, etc.
-
 def verify_institution(institution):
 
     def verify(item):
@@ -91,7 +73,7 @@ def verify_institution(institution):
 namespaces = {'abcd': 'http://www.tdwg.org/schemas/abcd/2.06'}
 
 
-def ABCDElement(parent, name, text=None, attrib=None):
+def abcd_element(parent, name, text=None, attrib=None):
     """
     append a named element to parent, with text and attributes.
 
@@ -110,10 +92,8 @@ def ABCDElement(parent, name, text=None, attrib=None):
     return elem
 
 
-def DataSets():
-    """
-    """
-    return Element('{%s}DataSets' % namespaces['abcd'], nsmap=namespaces)
+def data_sets():
+    return Element('{%s}DataSets' % namespaces.get('abcd'), nsmap=namespaces)
 
 
 class ABCDAdapter:
@@ -130,7 +110,7 @@ class ABCDAdapter:
     def __init__(self, obj):
         self._object = obj
 
-    def get_UnitID(self):
+    def get_unitid(self):
         """Get a value for the UnitID."""
         pass
 
@@ -138,46 +118,325 @@ class ABCDAdapter:
         """Get a value for the family."""
         pass
 
-    def get_FullScientificNameString(self, authors=True):
+    def get_fullscientificnamestring(self, authors=True):
         """Get the full scientific name string."""
         pass
 
-    def get_GenusOrMonomial(self):
+    def get_genusormonomial(self):
         """Get the Genus string."""
         pass
 
-    def get_FirstEpithet(self):
+    def get_firstepithet(self):
         """Get the first epithet."""
         pass
 
-    def get_AuthorTeam(self):
+    def get_authorteam(self):
         """Get the Author string."""
         pass
 
-    def get_InfraspecificAuthor(self):
+    def get_infraspecificauthor(self):
         pass
 
-    def get_InfraspecificRank(self):
+    def get_infraspecificrank(self):
         pass
 
-    def get_InfraspecificEpithet(self):
+    def get_infraspecificepithet(self):
         pass
 
-    def get_CultivarName(self):
+    def get_cultivarname(self):
         pass
 
-    def get_HybridFlag(self):
+    def get_hybridflag(self):
         pass
 
-    def get_IdentificationQualifier(self):
+    def get_identificationqualifier(self):
         pass
 
-    def get_IdentificationQualifierRank(self):
+    def get_identificationqualifierrank(self):
         pass
 
-    def get_InformalNameString(self):
+    def get_informalnamestring(self):
         """Get the common name string."""
         pass
+
+
+class SpeciesABCDAdapter(ABCDAdapter):
+    """An adapter to convert a Species to an ABCD Unit.
+
+    the SpeciesABCDAdapter does not create a valid ABCDUnit since we can't
+    provide the required UnitID
+    """
+    def __init__(self, species, for_labels=False):
+        super().__init__(species)
+
+        # hold on to the accession so it doesn't get cleaned up and closed
+        self.session = object_session(species)
+        self.for_labels = for_labels
+        self.species = species
+        self._date_format = prefs.prefs[prefs.date_format_pref]
+
+    def get_unitid(self):
+        # **** Returning the empty string for the UnitID makes the
+        # ABCD data NOT valid ABCD but it does make it work for
+        # creating reports without including the accession or plant
+        # code
+        return utils.xml_safe(self.species.id)
+
+    def get_datelastedited(self):
+        return utils.xml_safe(self.species._last_updated.isoformat())
+
+    def get_family(self):
+        return utils.xml_safe(self.species.genus.family)
+
+    def get_fullscientificnamestring(self, authors=True):
+        sp_str = self.species.str(authors=authors, markup=False)
+        return utils.xml_safe(sp_str)
+
+    def get_genusormonomial(self):
+        return utils.xml_safe(str(self.species.genus))
+
+    def get_firstepithet(self):
+        species = self.species.sp
+        if species is None:
+            return None
+        return utils.xml_safe(str(species))
+
+    def get_authorteam(self):
+        author = self.species.sp_author
+        if author is None:
+            return None
+        return utils.xml_safe(author)
+
+    def get_infraspecificauthor(self):
+        return utils.xml_safe(str(self.species.infraspecific_author))
+
+    def get_infraspecificrank(self):
+        return utils.xml_safe(str(self.species.infraspecific_rank))
+
+    def get_infraspecificepithet(self):
+        infrasp = ''
+        infrasp1 = self.species.infrasp1
+        cultivar = self.species.cultivar_epithet
+        rank = self.species.infraspecific_rank
+        # if not a cultivar or normal infrspecific part return the unranked
+        # part.  A better solution would be to have a seperate field for
+        # additional (informal, descriptive...) parts
+        if all(part in (None, '') for part in (cultivar, rank)) and infrasp1:
+            infrasp = infrasp1
+        else:
+            infrasp = self.species.infraspecific_epithet
+
+        return utils.xml_safe(str(infrasp))
+
+    def get_cultivarname(self):
+        cultivar = self.species.cultivar_epithet
+        if cultivar is None:
+            return 'cv.'
+        if cultivar:
+            return utils.xml_safe("'%s'" % cultivar)
+        return ''
+
+    def get_hybridflag(self):
+        if self.species.hybrid is True:
+            return utils.xml_safe(str(self.species.hybrid_char))
+        return None
+
+    def get_informalnamestring(self):
+        vernacular_name = self.species.default_vernacular_name
+        if vernacular_name is None:
+            return None
+        return utils.xml_safe(vernacular_name)
+
+    @staticmethod
+    def notes_in_list(notes, unit, for_labels):
+        if not notes:
+            return None
+        notes_list = []
+        for note in notes:
+            date = utils.xml_safe(note.date.isoformat())
+            user = utils.xml_safe(note.user) if note.user else ''
+            # category being a tag name we prefer 'None' or '_' over ''
+            category = utils.xml_safe(note.category)
+            category_name = utils.xml_safe_name(note.category)
+            text = note.note
+            notes_list.append(dict(date=date,
+                                   user=user,
+                                   category=category,
+                                   category_name=category_name,
+                                   text=text))
+
+        # not abcd so not in the namespace and only create when making labels
+        if for_labels:
+            note_unit = etree.SubElement(unit, 'Notes')
+            for note in notes_list:
+                etree.SubElement(
+                    note_unit,
+                    note['category_name'],
+                    attrib={'User': note['user'],
+                            'Date': note['date']}
+                ).text = note['text']
+
+        return notes_list
+
+    def get_notes(self, unit):
+        return self.notes_in_list(self.species.notes, unit, self.for_labels)
+
+    def extra_elements(self, unit):
+        # distribution isn't in the ABCD namespace so it should create an
+        # invalid XML file
+        if self.for_labels:
+            if self.species.label_distribution:
+                etree.SubElement(
+                    unit, 'LabelDistribution'
+                ).text = self.species.label_distribution
+            if self.species.distribution:
+                etree.SubElement(
+                    unit, 'Distribution'
+                ).text = self.species.distribution_str()
+            etree.SubElement(
+                unit, 'FullSpeciesName'
+            ).text = self.species.str()
+            # full_sp_markup = etree.HTML(self.species.str(markup=True))
+            unit.append(
+                etree.fromstring(
+                    '<FullSpeciesNameMarkup>'
+                    f'{self.species.str(markup=True)}'
+                    '</FullSpeciesNameMarkup>'
+                )
+            )
+            unit.append(
+                etree.fromstring(
+                    '<FullSpeciesNameMarkupAuthors>'
+                    f'{self.species.str(authors=True, markup=True)}'
+                    '</FullSpeciesNameMarkupAuthors>'
+                )
+            )
+
+
+class AccessionABCDAdapter(SpeciesABCDAdapter):
+    """An adapter to convert a Plant to an ABCD Unit"""
+    def __init__(self, accession, for_labels=False):
+        super().__init__(accession.species, for_labels)
+        self.accession = accession
+
+    def get_unitid(self):
+        return utils.xml_safe(str(self.accession))
+
+    def get_fullscientificnamestring(self, authors=True):
+        sp_str = self.accession.species_str(authors=authors, markup=False)
+        return utils.xml_safe(sp_str)
+
+    def get_identificationqualifier(self):
+        idqual = self.accession.id_qual
+        if idqual is None:
+            return None
+        if idqual in ('forsan', 'near', 'incorrect'):
+            idqual = '(%s)' % idqual
+        return utils.xml_safe(idqual)
+
+    def get_identificationqualifierrank(self):
+        idqrank = self.accession.id_qual_rank
+        if idqrank is None:
+            return None
+        return utils.xml_safe(idqrank)
+
+    def get_datelastedited(self):
+        return utils.xml_safe(self.accession._last_updated.isoformat())
+
+    def get_notes(self, unit):
+        return self.notes_in_list(self.accession.notes, unit, self.for_labels)
+
+    def extra_elements(self, unit):
+        super().extra_elements(unit)
+
+        if self.accession.source and self.accession.source.collection:
+            collection = self.accession.source.collection
+            gathering = abcd_element(unit, 'Gathering')
+
+            if collection.collectors_code:
+                abcd_element(gathering, 'Code',
+                             text=utils.xml_safe(collection.collectors_code))
+
+            # TODO: get date pref for DayNumberBegin
+            if collection.date:
+                date_time = abcd_element(gathering, 'DateTime')
+                abcd_element(date_time, 'DateText',
+                             utils.xml_safe(collection.date.isoformat()))
+
+            if collection.collector:
+                agents = abcd_element(gathering, 'Agents')
+                agent = abcd_element(agents, 'GatheringAgent')
+                abcd_element(agent, 'AgentText',
+                             text=utils.xml_safe(collection.collector))
+
+            if collection.locale:
+                abcd_element(gathering, 'LocalityText',
+                             text=utils.xml_safe(collection.locale))
+
+            if collection.region:
+                named_areas = abcd_element(gathering, 'NamedAreas')
+                named_area = abcd_element(named_areas, 'NamedArea')
+                abcd_element(named_area, 'AreaName',
+                             text=utils.xml_safe(collection.region))
+
+            if collection.habitat:
+                abcd_element(gathering, 'AreaDetail',
+                             text=utils.xml_safe(collection.habitat))
+
+            if collection.longitude or collection.latitude:
+                site_coords = abcd_element(gathering, 'SiteCoordinateSets')
+                coord = abcd_element(site_coords, 'SiteCoordinates')
+                lat_long = abcd_element(coord, 'CoordinatesLatLong')
+                abcd_element(lat_long, 'LongitudeDecimal',
+                             text=utils.xml_safe(collection.longitude))
+                abcd_element(lat_long, 'LatitudeDecimal',
+                             text=utils.xml_safe(collection.latitude))
+                if collection.gps_datum:
+                    abcd_element(lat_long, 'SpatialDatum',
+                                 text=utils.xml_safe(collection.gps_datum))
+                if collection.geo_accy:
+                    abcd_element(coord, 'CoordinateErrorDistanceInMeters',
+                                 text=utils.xml_safe(collection.geo_accy))
+
+            if collection.elevation:
+                altitude = abcd_element(gathering, 'Altitude')
+                if collection.elevation_accy:
+                    text = '%sm (+/- %sm)' % (collection.elevation,
+                                              collection.elevation_accy)
+                else:
+                    text = '%sm' % collection.elevation
+                abcd_element(altitude, 'MeasurementOrFactText', text=text)
+
+            if collection.notes:
+                abcd_element(gathering, 'Notes',
+                             utils.xml_safe(collection.notes))
+
+
+class PlantABCDAdapter(AccessionABCDAdapter):
+    """An adapter to convert a Plant to an ABCD Unit."""
+    def __init__(self, plant, for_labels=False):
+        super().__init__(plant.accession, for_labels)
+        self.plant = plant
+
+    def get_unitid(self):
+        return utils.xml_safe(str(self.plant))
+
+    def get_datelastedited(self):
+        return utils.xml_safe(self.plant._last_updated.isoformat())
+
+    def get_notes(self, unit):
+        return self.notes_in_list(self.plant.notes, unit, self.for_labels)
+
+    def extra_elements(self, unit):
+        bg_unit = abcd_element(unit, 'BotanicalGardenUnit')
+        abcd_element(bg_unit, 'AccessionSpecimenNumbers',
+                     text=utils.xml_safe(self.plant.quantity))
+        abcd_element(bg_unit, 'LocationInGarden',
+                     text=utils.xml_safe(str(self.plant.location)))
+        # TODO: AccessionStatus, AccessionMaterialtype,
+        # ProvenanceCategory, AccessionLineage, DonorCategory,
+        # PlantingDate, Propagation
+        super().extra_elements(unit)
 
 
 def create_abcd(decorated_objects, authors=True, validate=True):
@@ -200,97 +459,95 @@ def create_abcd(decorated_objects, authors=True, validate=True):
         institution.InstitutionTool().start()
         return create_abcd(decorated_objects, authors, validate)
 
-    datasets = DataSets()
-    ds = ABCDElement(datasets, 'DataSet')
-    tech_contacts = ABCDElement(ds, 'TechnicalContacts')
-    tech_contact = ABCDElement(tech_contacts, 'TechnicalContact')
+    datasets = data_sets()
+    dataset = abcd_element(datasets, 'DataSet')
+    tech_contacts = abcd_element(dataset, 'TechnicalContacts')
+    tech_contact = abcd_element(tech_contacts, 'TechnicalContact')
 
     # TODO: need to include contact information in bauble meta when
     # creating a new database
-    ABCDElement(tech_contact, 'Name', text=inst.technical_contact)
-    ABCDElement(tech_contact, 'Email', text=inst.email)
-    cont_contacts = ABCDElement(ds, 'ContentContacts')
-    cont_contact = ABCDElement(cont_contacts, 'ContentContact')
-    ABCDElement(cont_contact, 'Name', text=inst.contact)
-    ABCDElement(cont_contact, 'Email', text=inst.email)
-    metadata = ABCDElement(ds, 'Metadata', )
-    description = ABCDElement(metadata, 'Description')
+    abcd_element(tech_contact, 'Name', text=inst.technical_contact)
+    abcd_element(tech_contact, 'Email', text=inst.email)
+    cont_contacts = abcd_element(dataset, 'ContentContacts')
+    cont_contact = abcd_element(cont_contacts, 'ContentContact')
+    abcd_element(cont_contact, 'Name', text=inst.contact)
+    abcd_element(cont_contact, 'Email', text=inst.email)
+    metadata = abcd_element(dataset, 'Metadata', )
+    description = abcd_element(metadata, 'Description')
 
     # TODO: need to get the localized language
-    representation = ABCDElement(description, 'Representation',
-                                 attrib={'language': 'en'})
-    revision = ABCDElement(metadata, 'RevisionData')
-    ABCDElement(revision, 'DateModified', text='2001-03-01T00:00:00')
-    title = ABCDElement(representation, 'Title', text='TheTitle')
-    units = ABCDElement(ds, 'Units')
+    representation = abcd_element(description, 'Representation',
+                                  attrib={'language': 'en'})
+    revision = abcd_element(metadata, 'RevisionData')
+    abcd_element(revision, 'DateModified', text='2001-03-01T00:00:00')
+    abcd_element(representation, 'Title', text='TheTitle')
+    units = abcd_element(dataset, 'Units')
 
     # build the ABCD unit
     for obj in decorated_objects:
-        unit = ABCDElement(units, 'Unit')
-        ABCDElement(unit, 'SourceInstitutionID', text=inst.code)
+        unit = abcd_element(units, 'Unit')
+        abcd_element(unit, 'SourceInstitutionID', text=inst.code)
 
         # TODO: don't really understand the SourceID element
-        ABCDElement(unit, 'SourceID', text='Ghini')
+        abcd_element(unit, 'SourceID', text='Ghini')
 
-        unit_id = ABCDElement(unit, 'UnitID', text=obj.get_UnitID())
-        ABCDElement(unit, 'DateLastEdited', text=obj.get_DateLastEdited())
+        abcd_element(unit, 'UnitID', text=obj.get_unitid())
+        abcd_element(unit, 'DateLastEdited', text=obj.get_datelastedited())
 
         # TODO: add list of verifications to Identifications
 
         # scientific name identification
-        identifications = ABCDElement(unit, 'Identifications')
-        identification = ABCDElement(identifications, 'Identification')
-        result = ABCDElement(identification, 'Result')
-        taxon_identified = ABCDElement(result, 'TaxonIdentified')
-        higher_taxa = ABCDElement(taxon_identified, 'HigherTaxa')
-        higher_taxon = ABCDElement(higher_taxa, 'HigherTaxon')
+        identifications = abcd_element(unit, 'Identifications')
+        identification = abcd_element(identifications, 'Identification')
+        result = abcd_element(identification, 'Result')
+        taxon_identified = abcd_element(result, 'TaxonIdentified')
+        higher_taxa = abcd_element(taxon_identified, 'HigherTaxa')
+        higher_taxon = abcd_element(higher_taxa, 'HigherTaxon')
 
         # TODO: ABCDDecorator should provide an iterator so that we can
         # have multiple HigherTaxonName's
-        higher_taxon_name = ABCDElement(higher_taxon, 'HigherTaxonName',
-                                        text=obj.get_family())
-        higher_taxon_rank = ABCDElement(higher_taxon, 'HigherTaxonRank',
-                                        text='familia')
+        abcd_element(higher_taxon, 'HigherTaxonName', text=obj.get_family())
+        abcd_element(higher_taxon, 'HigherTaxonRank', text='familia')
 
-        scientific_name = ABCDElement(taxon_identified, 'ScientificName')
-        ABCDElement(scientific_name, 'FullScientificNameString',
-                    text=obj.get_FullScientificNameString(authors))
+        scientific_name = abcd_element(taxon_identified, 'ScientificName')
+        abcd_element(scientific_name, 'FullScientificNameString',
+                     text=obj.get_fullscientificnamestring(authors))
 
-        name_atomised = ABCDElement(scientific_name, 'NameAtomised')
-        botanical = ABCDElement(name_atomised, 'Botanical')
-        ABCDElement(botanical, 'GenusOrMonomial',
-                    text=obj.get_GenusOrMonomial())
-        ABCDElement(botanical, 'FirstEpithet', text=obj.get_FirstEpithet())
-        if obj.get_InfraspecificEpithet():
-            ABCDElement(botanical, 'InfraspecificEpithet',
-                        text=obj.get_InfraspecificEpithet())
-            ABCDElement(botanical, 'Rank',
-                        text=obj.get_InfraspecificRank())
-        if obj.get_HybridFlag():
-            ABCDElement(botanical, 'HybridFlag', text=obj.get_HybridFlag())
-        if obj.get_CultivarName():
-            ABCDElement(botanical, 'CultivarName',
-                        text=obj.get_CultivarName())
-        author_team = obj.get_AuthorTeam()
+        name_atomised = abcd_element(scientific_name, 'NameAtomised')
+        botanical = abcd_element(name_atomised, 'Botanical')
+        abcd_element(botanical, 'GenusOrMonomial',
+                     text=obj.get_genusormonomial())
+        abcd_element(botanical, 'FirstEpithet', text=obj.get_firstepithet())
+        if obj.get_infraspecificepithet():
+            abcd_element(botanical, 'InfraspecificEpithet',
+                         text=obj.get_infraspecificepithet())
+            abcd_element(botanical, 'Rank',
+                         text=obj.get_infraspecificrank())
+        if obj.get_hybridflag():
+            abcd_element(botanical, 'HybridFlag', text=obj.get_hybridflag())
+        if obj.get_cultivarname():
+            abcd_element(botanical, 'CultivarName',
+                         text=obj.get_cultivarname())
+        author_team = obj.get_authorteam()
         if author_team is not None:
-            ABCDElement(botanical, 'AuthorTeam', text=author_team)
-        ABCDElement(identification, 'PreferredFlag', text='true')
+            abcd_element(botanical, 'AuthorTeam', text=author_team)
+        abcd_element(identification, 'PreferredFlag', text='true')
 
         # vernacular name identification
         # TODO: should we include all the vernacular names or only the default
         # one
-        vernacular_name = obj.get_InformalNameString()
+        vernacular_name = obj.get_informalnamestring()
         if vernacular_name is not None:
-            identification = ABCDElement(identifications, 'Identification')
-            result = ABCDElement(identification, 'Result')
-            taxon_identified = ABCDElement(result, 'TaxonIdentified')
-            ABCDElement(taxon_identified, 'InformalNameString',
-                        text=vernacular_name)
-        if obj.get_IdentificationQualifier():
-            ABCDElement(scientific_name, 'IdentificationQualifier',
-                        text=obj.get_IdentificationQualifier(),
-                        attrib={'insertionpoint':
-                                obj.get_IdentificationQualifierRank()})
+            identification = abcd_element(identifications, 'Identification')
+            result = abcd_element(identification, 'Result')
+            taxon_identified = abcd_element(result, 'TaxonIdentified')
+            abcd_element(taxon_identified, 'InformalNameString',
+                         text=vernacular_name)
+        if obj.get_identificationqualifier():
+            abcd_element(scientific_name, 'IdentificationQualifier',
+                         text=obj.get_identificationqualifier(),
+                         attrib={'insertionpoint':
+                                 obj.get_identificationqualifierrank()})
         # add all the extra non standard elements
         obj.extra_elements(unit)
         # TODO: handle verifiers/identifiers
@@ -299,7 +556,7 @@ def create_abcd(decorated_objects, authors=True, validate=True):
         # notes are last in the schema and extra_elements() shouldn't
         # add anything that comes past Notes, e.g. RecordURI,
         # EAnnotations, UnitExtension
-        notes_list = obj.get_Notes(unit)
+        notes_list = obj.get_notes(unit)
         notes_str = ''
         if notes_list:
             for note in notes_list:
@@ -312,7 +569,7 @@ def create_abcd(decorated_objects, authors=True, validate=True):
                     note['user'],
                     note['date'],
                 )
-            ABCDElement(unit, 'Notes', text=utils.xml_safe(str(notes_str)))
+            abcd_element(unit, 'Notes', text=utils.xml_safe(str(notes_str)))
 
     if validate:
         check(validate_xml(datasets), 'ABCD data not valid')
@@ -325,13 +582,16 @@ class ABCDExporter:
 
     def start(self, filename=None, plants=None):
         if filename is None:  # no filename, ask the user
-            d = Gtk.FileChooserNative.new(_("Choose a file to export to..."),
-                                          None, Gtk.FileChooserAction.SAVE)
-            d.set_current_folder(str(Path.home()))
+            dialog = Gtk.FileChooserNative.new(
+                _("Choose a file to export to..."),
+                None,
+                Gtk.FileChooserAction.SAVE
+            )
+            dialog.set_current_folder(str(Path.home()))
             filename = None
-            if d.run() == Gtk.ResponseType.ACCEPT:
-                filename = d.get_filename()
-            d.destroy()
+            if dialog.run() == Gtk.ResponseType.ACCEPT:
+                filename = dialog.get_filename()
+            dialog.destroy()
             if not filename:
                 return
 
@@ -340,7 +600,7 @@ class ABCDExporter:
         else:
             nplants = db.Session().query(Plant).count()
 
-        logger.debug('ABCDExporter exporting %s plant records' % nplants)
+        logger.debug('ABCDExporter exporting %s plant records', nplants)
         if nplants > 3000:
             msg = _('You are exporting %(nplants)s plants to ABCD format.  '
                     'Exporting this many plants may take several minutes.  '
@@ -350,7 +610,8 @@ class ABCDExporter:
                 return
         self.run(filename, plants)
 
-    def run(self, filename, plants=None):
+    @staticmethod
+    def run(filename, plants=None):
         if filename is None:
             raise ValueError("filename can not be None")
 
@@ -364,9 +625,6 @@ class ABCDExporter:
         if plants is None:
             plants = db.Session().query(Plant).all()
 
-        # TODO: move PlantABCDAdapter, AccessionABCDAdapter and
-        # PlantABCDAdapter into the ABCD plugin
-        from bauble.plugins.report.xsl import PlantABCDAdapter
         data = create_abcd([PlantABCDAdapter(p) for p in plants],
                            validate=False)
 
@@ -396,7 +654,6 @@ class ABCDImexPlugin(pluginmgr.Plugin):
 
 try:
     from lxml import etree
-    import lxml._elementpath  # put this here so py2exe picks it up
     from lxml.etree import Element, SubElement, ElementTree
 except ImportError:
     utils.message_dialog(_('The <i>lxml</i> package is required for the '

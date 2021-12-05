@@ -280,7 +280,7 @@ def load_widgets(filename):
     # return BuilderWidgets(filename)
 
 
-class BuilderLoader():
+class BuilderLoader:
     """This class caches the Gtk.Builder objects so that loading the same
     file with the same name returns the same Gtk.Builder.
 
@@ -1718,6 +1718,33 @@ def run_file_chooser_dialog(text, parent, action, last_folder, target):
                 target.set_text(filename)
                 target.set_position(len(filename))
     except Exception as e:  # pylint: disable=broad-except
-        logger.warning("unhandled %s exception in editor.py: %s",
+        logger.warning("unhandled %s exception: %s",
                        type(e).__name__, e)
     chooser.destroy()
+
+
+def copy_tree(src_dir, dest_dir, suffixes=None, over_write=False):
+    """Copy a directory tree from source to destination.
+
+    :param src_dir: Path or fully qualiified path as a string to the source
+        directory
+    :param dest_dir: Path or fully qualiified path as a string to the
+        destination directory
+    :param suffixes: list of suffixes (including '.') of file names to copy or
+        None if all files should be copied
+    :param over_write: wether to overwrite existing files or not.
+    """
+    from pathlib import Path
+    from shutil import copy
+    if isinstance(src_dir, str):
+        src_dir = Path(src_dir)
+    if isinstance(dest_dir, str):
+        dest_dir = Path(dest_dir)
+    for path in src_dir.glob('**/*.*'):
+        if not suffixes or path.suffix in suffixes:
+            destination = dest_dir / path.relative_to(src_dir)
+            if not destination.parent.exists():
+                logger.debug('creating dir: %s', destination.parent)
+                destination.parent.mkdir(parents=True)
+            if not destination.exists() or over_write:
+                copy(path, destination)

@@ -40,7 +40,6 @@ from bauble.prefs import templates_root_pref
 from bauble import prefs
 from bauble.plugins.report import FormatterPlugin, SettingsBox
 from bauble import utils
-from bauble.utils import desktop
 
 
 font = {
@@ -297,32 +296,19 @@ class MakoFormatterSettingsBox(SettingsBox):
         if previously:
             last_folder = str(Path(previously).parent)
         else:
-            examples_root = os.path.join(paths.appdata_dir(), 'templates',
-                                         'mako')
-            last_folder = prefs.prefs.get(prefs.templates_root_pref,
-                                          examples_root)
-        chooser = Gtk.FileChooserNative.new(_("Choose a file…"),
-                                            None,
-                                            Gtk.FileChooserAction.OPEN)
-
-        try:
-            if last_folder:
-                chooser.set_current_folder(last_folder)
-            if chooser.run() == Gtk.ResponseType.ACCEPT:
-                filename = chooser.get_filename()
-                if filename:
-                    self.widgets.file_entry.set_text(filename)
-                    self.widgets.file_entry.set_position(len(filename))
-        except Exception as e:
-            logger.warning("%s : %s", type(e).__name__, e)
-        chooser.destroy()
+            last_folder = paths.templates_dir()
+        utils.run_file_chooser_dialog(_('Select a stylesheet'),
+                                      None,
+                                      Gtk.FileChooserAction.OPEN,
+                                      last_folder,
+                                      self.widgets.file_entry)
 
     def on_file_entry_changed(self, widget):
         text = widget.get_text()
-        if Path(text).exists:
+        if Path(text).exists():
             self.on_file_set(widget)
 
-    def get_settings(self):
+    def get_report_settings(self):
         return {'template': self.widgets.file_entry.get_text(),
                 'private': self.widgets.private_check.get_active()}
 
@@ -424,23 +410,7 @@ class MakoFormatterPlugin(FormatterPlugin):
 
     @classmethod
     def install(cls, import_defaults=True):
-        "create templates dir on plugin installation"
         logger.debug("installing mako plugin")
-        container_dir = os.path.join(paths.appdata_dir(), "templates")
-        if not os.path.exists(container_dir):
-            os.mkdir(container_dir)
-        cls.plugin_dir = os.path.join(paths.appdata_dir(), "templates", "mako")
-        if not os.path.exists(cls.plugin_dir):
-            os.mkdir(cls.plugin_dir)
-        cls.templates = []
-        src_dir = os.path.join(paths.lib_dir(), "plugins", "report", 'mako',
-                               'templates')
-        for template in list(os.walk(src_dir))[0][2]:
-            if template.endswith('~'):
-                continue
-            if template.startswith('__'):
-                continue
-            cls.templates.append(template)
 
     @classmethod
     def init(cls):
@@ -448,7 +418,6 @@ class MakoFormatterPlugin(FormatterPlugin):
 
         we do this in the initialization instead of installation
         because new version of plugin might provide new templates.
-
         """
         cls.install()  # plugins still not versioned...
 
@@ -457,20 +426,10 @@ class MakoFormatterPlugin(FormatterPlugin):
 
         # If user has selected a directory to store templates add the examples
         # to it otherwise use appdata
-        templates_root = prefs.prefs.get(templates_root_pref, None)
-        if templates_root:
-            templates_root = os.path.join(templates_root, "ghini_examples",
-                                          "mako")
-            if not os.path.exists(templates_root):
-                os.makedirs(templates_root)
-        else:
-            templates_root = cls.plugin_dir
+        templates_root = Path(paths.templates_dir(), "ghini_examples", "mako")
 
-        for template in cls.templates:
-            src = os.path.join(src_dir, template)
-            dst = os.path.join(templates_root, template)
-            if not os.path.exists(dst) and os.path.exists(src):
-                shutil.copy(src, dst)
+        utils.copy_tree(src_dir, templates_root,
+                        ('.csv', '.html', '.svg', '.ps'))
 
     @staticmethod
     def get_settings_box():
@@ -508,7 +467,7 @@ class MakoFormatterPlugin(FormatterPlugin):
         os.write(file_handle, report)
         os.close(file_handle)
         try:
-            desktop.open(filename)
+            utils.desktop.open(filename)
         except OSError:
             utils.message_dialog(_('Could not open the report with the '
                                    'default program. You can open the '

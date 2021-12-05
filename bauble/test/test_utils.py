@@ -1,6 +1,6 @@
 # Copyright (c) 2005,2006,2007,2008,2009 Brett Adams <brett@belizebotanic.org>
 # Copyright (c) 2012-2016 Mario Frasca <mario@anche.no>
-# Copyright (c) 2018 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright (c) 2018-2021 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -175,6 +175,90 @@ class UtilsTest(TestCase):
         urls = utils.get_urls(text)
         self.assertEqual(urls, [('BBG', 'http://bauble.belizebotanic.org')],
                          urls)
+
+    def test_copy_tree_w_path(self):
+        from bauble import paths
+        from pathlib import Path
+        from tempfile import TemporaryDirectory
+        src_dir = Path(paths.lib_dir(), "plugins", "report", 'xsl',
+                       'stylesheets')
+        dest = TemporaryDirectory()
+        dest_dir = Path(dest.name)
+        utils.copy_tree(src_dir, dest_dir)
+        self.assertEqual(
+            [i.relative_to(src_dir) for i in src_dir.glob('**/*.*')],
+            [i.relative_to(dest_dir) for i in dest_dir.glob('**/*.*')]
+        )
+        dest.cleanup()
+
+    def test_copy_tree_w_str(self):
+        from bauble import paths
+        from pathlib import Path
+        from tempfile import TemporaryDirectory
+        src_dir = Path(paths.lib_dir(), "plugins", "report", 'xsl',
+                       'stylesheets')
+        dest = TemporaryDirectory()
+        dest_dir = Path(dest.name)
+        utils.copy_tree(str(src_dir), str(dest_dir))
+        self.assertEqual(
+            [i.relative_to(src_dir) for i in src_dir.glob('**/*.*')],
+            [i.relative_to(dest_dir) for i in dest_dir.glob('**/*.*')]
+        )
+        dest.cleanup()
+
+    def test_copy_tree_w_suffixes(self):
+        from bauble import paths
+        from pathlib import Path
+        from tempfile import TemporaryDirectory
+        src_dir = Path(paths.lib_dir(), "plugins", "report", 'xsl',
+                       'stylesheets')
+        dest = TemporaryDirectory()
+        dest_dir = Path(dest.name)
+        utils.copy_tree(str(src_dir), str(dest_dir), ['.xsl'])
+        self.assertEqual(
+            [i.relative_to(src_dir) for i in src_dir.glob('**/*.xsl')],
+            [i.relative_to(dest_dir) for i in dest_dir.glob('**/*.*')]
+        )
+        dest.cleanup()
+
+    def test_copy_tree_w_over_write(self):
+        from bauble import paths
+        from pathlib import Path
+        from tempfile import TemporaryDirectory
+        import os
+        import filecmp
+        src_dir = Path(paths.lib_dir(), "plugins", "report", 'xsl',
+                       'stylesheets')
+        dest = TemporaryDirectory()
+        dest_dir = Path(dest.name)
+        utils.copy_tree(str(src_dir), str(dest_dir), ['.xsl'])
+        # make a couple of differences and rerun
+        dest_glob = dest_dir.glob('**/*.xsl')
+        with open(next(dest_glob), 'w') as f:
+            f.write('test')
+        os.remove(next(dest_glob))
+        os.remove(next(dest_glob))
+        utils.copy_tree(str(src_dir), str(dest_dir), ['.xsl'], True)
+        self.assertEqual(
+            [i.relative_to(src_dir) for i in src_dir.glob('**/*.xsl')],
+            [i.relative_to(dest_dir) for i in dest_dir.glob('**/*.*')]
+        )
+        self.assertTrue(filecmp.cmp(next(src_dir.glob('**/*.xsl')),
+                                    next(dest_dir.glob('**/*.xsl'))))
+        # make a couple of changes and rerun without overwrite
+        dest_glob = dest_dir.glob('**/*.xsl')
+        with open(next(dest_glob), 'w') as f:
+            f.write('test')
+        os.remove(next(dest_glob))
+        os.remove(next(dest_glob))
+        utils.copy_tree(str(src_dir), str(dest_dir), ['.xsl'])
+        self.assertEqual(
+            [i.relative_to(src_dir) for i in src_dir.glob('**/*.xsl')],
+            [i.relative_to(dest_dir) for i in dest_dir.glob('**/*.*')]
+        )
+        self.assertFalse(filecmp.cmp(next(src_dir.glob('**/*.xsl')),
+                                     next(dest_dir.glob('**/*.xsl'))))
+        dest.cleanup()
 
 
 class UtilsDBTests(BaubleTestCase):
@@ -386,7 +470,7 @@ class ResetSequenceTests(BaubleTestCase):
         self.assertTrue(currval > rangemax, currval)
 
 
-class GlobalFuncs(TestCase):
+class GlobalFuncsTests(TestCase):
     def test_safe_int_valid(self):
         self.assertEqual(utils.safe_int('123'), 123)
 

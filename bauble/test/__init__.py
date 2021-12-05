@@ -99,11 +99,12 @@ class BaubleTestCase(unittest.TestCase):
         if not bauble.db.engine:
             raise BaubleError('not connected to a database')
         Path(paths.appdata_dir()).mkdir(parents=True, exist_ok=True)
+        bauble.utils.BuilderLoader.builders = {}
         self.handle, self.temp = mkstemp(suffix='txt2', text=True)
         prefs.default_prefs_file = self.temp
         prefs.prefs = prefs._prefs(filename=self.temp)
         prefs.prefs.init()
-        prefs.prefs.testing = True
+        prefs.testing = True
         bauble.pluginmgr.plugins = {}
         pluginmgr.load()
         db.create(import_defaults=False)
@@ -113,7 +114,7 @@ class BaubleTestCase(unittest.TestCase):
         self.handler = MockLoggingHandler()
         logging.getLogger().addHandler(self.handler)
         logging.getLogger().setLevel(logging.DEBUG)
-        logger.debug(prefs.prefs._filename)
+        logger.debug('prefs filename: %s', prefs.prefs._filename)
 
     def tearDown(self):
         logging.getLogger().removeHandler(self.handler)

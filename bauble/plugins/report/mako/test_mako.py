@@ -40,6 +40,7 @@ from bauble.plugins.report.mako import MakoFormatterPlugin
 
 from bauble.plugins.report.mako import add_text, Code39, add_code39  # add_qr
 
+
 class MakoFormatterTests(BaubleTestCase):
 
     def setUp(self, *args):
@@ -82,12 +83,14 @@ class MakoFormatterTests(BaubleTestCase):
     def tearDown(self, *args):
         super().tearDown(*args)
 
+    @skip("causes CoverageWarning: Couldn't parse")
     def test_format_all_templates(self):
         """
         MakoFormatterPlugin.format() runs without raising an error for all templates.
         """
         plants = self.session.query(Plant).all()
         td = os.path.join(os.path.dirname(__file__), 'templates')
+        # TODO can't rely on MakoFormatterPlugin.templates any longer.
         for tn in MakoFormatterPlugin.templates:
             if tn.startswith('.'):
                 # skip hidden files such as .DS_Store

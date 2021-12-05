@@ -323,15 +323,17 @@ class SettingsBox(Gtk.Box):
     """The interface to use for the settings box.
 
     Formatters should implement this interface and return it from the
-    formatters's get_settings method
+    formatters's get_report_settings method
     """
     def __init__(self):
         super().__init__(orientation=Gtk.Orientation.VERTICAL)
 
-    def get_settings(self):
+    def get_report_settings(self):
+        """return a dict of settings from the settings box gui."""
         raise NotImplementedError
 
     def update(self, settings):
+        """Update the settings box widgets to the values in settings"""
         raise NotImplementedError
 
 
@@ -357,7 +359,7 @@ class FormatterPlugin(pluginmgr.Plugin):
         raise NotImplementedError
 
 
-class ReportToolDialogView(object):
+class ReportToolDialogView:
 
     def __init__(self):
         self.widgets = utils.load_widgets(
@@ -376,10 +378,10 @@ class ReportToolDialogView(object):
             'response', self.on_dialog_response)
 
     def on_dialog_response(self, dialog, response, *args):
-        '''
+        """
         Called if self.get_window() is a Gtk.Dialog and it receives
         the response signal.
-        '''
+        """
         dialog.hide()
         self.response = response
         return response
@@ -406,7 +408,7 @@ class ReportToolDialogView(object):
             logger.debug("can't set sensitivity of %s" % name)
 
 
-class ReportToolDialogPresenter(object):
+class ReportToolDialogPresenter:
 
     formatter_class_map = {}  # title->class map
 
@@ -548,9 +550,7 @@ class ReportToolDialogPresenter(object):
         self.view.set_sensitive('details_box', True)
 
     def on_formatter_combo_changed(self, combo, *args):
-        '''
-        formatter_combo changed signal handler
-        '''
+        """formatter_combo changed signal handler."""
         self.view.set_sensitive('ok_button', False)
         GLib.idle_add(self._formatter_combo_changed_idle, combo)
 
@@ -586,7 +586,6 @@ class ReportToolDialogPresenter(object):
         # TODO: should probably remember expanded state,
         # see formatter_settings_expander_pref
         expander.set_expanded(box is not None)
-        # formatter = combo.get_active_text()
         self.set_prefs_for(name, formatter, settings)
         self.view.set_sensitive('ok_button', True)
 
@@ -613,10 +612,9 @@ class ReportToolDialogPresenter(object):
         self.view.widgets.formatter_combo.set_model(model)
 
     def populate_names_combo(self):
-        '''
-        populates the combo with the list of configuration names
+        """Populates the combo with the list of configuration names
         from the prefs
-        '''
+        """
         configs = prefs.prefs[config_list_pref]
         combo = self.view.widgets.names_combo
         if configs is None:
@@ -647,7 +645,7 @@ class ReportToolDialogPresenter(object):
         title, dummy = prefs.prefs[config_list_pref][name]
         box = self.view.widgets.settings_expander.get_child()
         formatters = prefs.prefs[config_list_pref]
-        formatters[name] = title, box.get_settings()
+        formatters[name] = title, box.get_report_settings()
         prefs.prefs[config_list_pref] = formatters
 
     def start(self):
@@ -671,7 +669,7 @@ class ReportToolDialogPresenter(object):
         return formatter, settings
 
 
-class ReportToolDialog(object):
+class ReportToolDialog:
 
     def __init__(self):
         self.view = ReportToolDialogView()

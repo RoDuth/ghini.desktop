@@ -1,0 +1,482 @@
+# Copyright (c) 2021 Ross Demuth <rossdemuth123@gmail.com>
+#
+# This file is part of ghini.desktop.
+#
+# ghini.desktop is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# ghini.desktop is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
+
+import os
+import sys
+from pathlib import Path
+from tempfile import TemporaryDirectory
+from unittest import mock
+
+from lxml import etree
+from gi.repository import Gtk
+
+from bauble import paths
+from bauble.error import BaubleError
+from bauble.test import BaubleTestCase
+# from bauble.editor import MockView, MockDialog
+from bauble.plugins.garden import test_garden as garden_test
+from bauble.plugins.plants import test_plants as plants_test
+from bauble.plugins.plants.species import Species
+from bauble.plugins.garden.accession import Accession
+from . import (get_fop_path,
+               create_abcd_xml,
+               PLANT_SOURCE_TYPE,
+               ACCESSION_SOURCE_TYPE,
+               SPECIES_SOURCE_TYPE,
+               DEFAULT_SOURCE_TYPE,
+               SOURCE_TYPES,
+               FORMATS,
+               XSLFormatterSettingsBox,
+               XSLFormatterPlugin)
+
+from . import SettingsBox
+
+
+class XSLTestCase(BaubleTestCase):
+
+    def setUp(self):
+        self.temp_dir = TemporaryDirectory()
+        super().setUp()
+        plants_test.setUp_data()
+        garden_test.setUp_data()
+        # create data with 4 species (1 has no accessions), 3 accessions (1
+        # private), 3 plants
+
+    def tearDown(self):
+        self.temp_dir.cleanup()
+        super().tearDown()
+
+    def test_settings_box(self):
+        pass
+
+
+class XSLFormatterSettingsBoxTests(XSLTestCase):
+
+    def setUp(self):
+        super().setUp()
+        self.settings_box = XSLFormatterSettingsBox()
+
+    @mock.patch('bauble.utils.Gtk.FileChooserNative')
+    def test_on_btnbrowse_clicked_no_previous_entry(self, mock_fcn):
+        # only need to reset the widget if caching in BuilderLoader
+        # self.settings_box.widgets.file_entry.set_text('')
+        mock_fcn.new.return_value = mock_fcn
+        mock_fcn.run.return_value = Gtk.ResponseType.ACCEPT
+        selected_file = paths.templates_dir() + '/xsl/test.xsl'
+        mock_fcn.get_filename.return_value = selected_file
+
+        self.settings_box.on_btnbrowse_clicked(None)
+
+        mock_fcn.new.assert_called_with(_('Select a stylesheet'),
+                                        None,
+                                        Gtk.FileChooserAction.OPEN)
+        # if this fails then selected_file is also wrong
+        mock_fcn.set_current_folder.assert_called_with(paths.templates_dir())
+
+        self.assertEqual(self.settings_box.widgets.file_entry.get_text(),
+                         selected_file)
+
+    @mock.patch('bauble.utils.Gtk.FileChooserNative')
+    def test_on_btnbrowse_clicked_w_previous_entry(self, mock_fcn):
+        dummy_dir = '/some/stylesheet/dir'
+        dummy_stylesheet = dummy_dir + '/file.xsl'
+        self.settings_box.widgets.file_entry.set_text(dummy_stylesheet)
+        mock_fcn.new.return_value = mock_fcn
+        mock_fcn.run.return_value = Gtk.ResponseType.ACCEPT
+        mock_fcn.get_filename.return_value = dummy_stylesheet
+
+        self.settings_box.on_btnbrowse_clicked(None)
+
+        mock_fcn.new.assert_called_with(_('Select a stylesheet'),
+                                        None,
+                                        Gtk.FileChooserAction.OPEN)
+
+        mock_fcn.set_current_folder.assert_called_with(dummy_dir)
+
+        self.assertEqual(self.settings_box.widgets.file_entry.get_text(),
+                         dummy_stylesheet)
+
+    @mock.patch('bauble.utils.Gtk.FileChooserNative')
+    def test_on_out_btnbrowse_clicked_no_previous_entry(self, mock_fcn):
+        mock_fcn.new.return_value = mock_fcn
+        mock_fcn.run.return_value = Gtk.ResponseType.ACCEPT
+        selected_file = paths.templates_dir() + '/test.pdf'
+        mock_fcn.get_filename.return_value = selected_file
+
+        self.settings_box.on_out_btnbrowse_clicked(None)
+
+        mock_fcn.new.assert_called_with(_('Save to file'),
+                                        None,
+                                        Gtk.FileChooserAction.SAVE)
+        # if this fails then selected_file is also wrong
+        mock_fcn.set_current_folder.assert_called_with(str(Path.home()))
+
+        self.assertEqual(self.settings_box.widgets.outfile_entry.get_text(),
+                         selected_file)
+
+    @mock.patch('bauble.utils.Gtk.FileChooserNative')
+    def test_on_out_btnbrowse_clicked_w_previous_entry(self, mock_fcn):
+        dummy_dir = '/some/reports/dir'
+        dummy_report = dummy_dir + '/file.pdf'
+        self.settings_box.widgets.outfile_entry.set_text(dummy_report)
+        mock_fcn.new.return_value = mock_fcn
+        mock_fcn.run.return_value = Gtk.ResponseType.ACCEPT
+        mock_fcn.get_filename.return_value = dummy_report
+
+        self.settings_box.on_out_btnbrowse_clicked(None)
+
+        mock_fcn.new.assert_called_with(_('Save to file'),
+                                        None,
+                                        Gtk.FileChooserAction.SAVE)
+
+        mock_fcn.set_current_folder.assert_called_with(dummy_dir)
+
+        self.assertEqual(self.settings_box.widgets.outfile_entry.get_text(),
+                         dummy_report)
+
+    def test_get_report_settings_defaults(self):
+        # a template should be set
+        dummy_dir = '/some/stylesheet/dir'
+        dummy_stylesheet = dummy_dir + '/file.xsl'
+        self.settings_box.widgets.file_entry.set_text(dummy_stylesheet)
+        settings = self.settings_box.get_report_settings()
+        self.assertEqual(settings,
+                         {'authors': False,
+                          'out_file': '',
+                          'out_format': 'PDF',
+                          'private': False,
+                          'source_type': PLANT_SOURCE_TYPE,
+                          'stylesheet': dummy_stylesheet})
+
+    def test_get_report_settings_w_values(self):
+        # a template should be set
+        dummy_dir = '/some/stylesheet/dir'
+        dummy_stylesheet = dummy_dir + '/file.xsl'
+        self.settings_box.widgets.file_entry.set_text(dummy_stylesheet)
+
+        source_type = SOURCE_TYPES.index(ACCESSION_SOURCE_TYPE)
+        self.settings_box.widgets.source_type_combo.set_active(source_type)
+        self.settings_box.widgets.author_check.set_active(True)
+        self.settings_box.widgets.private_check.set_active(True)
+        out_format = list(FORMATS).index('XSL-FO')
+        self.settings_box.widgets.format_combo.set_active(out_format)
+        dummy_dir = '/some/reports/dir'
+        dummy_report = dummy_dir + '/file.pdf'
+        self.settings_box.widgets.outfile_entry.set_text(dummy_report)
+        settings = self.settings_box.get_report_settings()
+        self.assertEqual(settings,
+                         {'authors': True,
+                          'out_file': dummy_report,
+                          'out_format': 'XSL-FO',
+                          'private': True,
+                          'source_type': ACCESSION_SOURCE_TYPE,
+                          'stylesheet': dummy_stylesheet})
+
+    def test_update_w_full_settings(self):
+        # a template should be set
+        dummy_dir = '/some/stylesheet/dir'
+        dummy_stylesheet = dummy_dir + '/file.xsl'
+        dummy_dir = '/some/reports/dir'
+        dummy_report = dummy_dir + '/file.pdf'
+        settings = {'authors': True,
+                    'out_file': dummy_report,
+                    'out_format': 'XSL-FO',
+                    'private': True,
+                    'source_type': ACCESSION_SOURCE_TYPE,
+                    'stylesheet': dummy_stylesheet}
+        self.settings_box.update(settings)
+
+        self.assertEqual(self.settings_box.widgets.author_check.get_active(),
+                         settings.get('authors'))
+        self.assertEqual(self.settings_box.widgets.outfile_entry.get_text(),
+                         settings.get('out_file'))
+        self.assertEqual(
+            self.settings_box.widgets.format_combo.get_active_text(),
+            settings.get('out_format')
+        )
+        self.assertEqual(self.settings_box.widgets.private_check.get_active(),
+                         settings.get('private'))
+        self.assertEqual(
+            self.settings_box.widgets.source_type_combo.get_active_text(),
+            settings.get('source_type')
+        )
+        self.assertEqual(self.settings_box.widgets.file_entry.get_text(),
+                         settings.get('stylesheet'))
+        self.assertTrue(
+            self.settings_box.widgets.options_expander.get_expanded()
+        )
+
+    def test_update_wo_settings(self):
+        self.settings_box.update({})
+
+        self.assertEqual(self.settings_box.widgets.author_check.get_active(),
+                         False)
+        self.assertEqual(self.settings_box.widgets.outfile_entry.get_text(),
+                         '')
+        self.assertEqual(
+            self.settings_box.widgets.format_combo.get_active_text(),
+            'PDF'
+        )
+        self.assertEqual(self.settings_box.widgets.private_check.get_active(),
+                         False)
+        self.assertEqual(
+            self.settings_box.widgets.source_type_combo.get_active_text(),
+            DEFAULT_SOURCE_TYPE
+        )
+        self.assertEqual(self.settings_box.widgets.file_entry.get_text(),
+                         '')
+        self.assertFalse(
+            self.settings_box.widgets.options_expander.get_expanded()
+        )
+
+
+class XSLFormatterPluginTests(XSLTestCase):
+    FOP_PATH = 'test/fop'
+    if sys.platform == 'win32':
+        FOP_PATH = 'test/fop.bat'
+
+    def setUp(self):
+        super().setUp()
+        self.formatter = XSLFormatterPlugin()
+
+    def test_get_settings_box_returns_settings_box(self):
+        # redundant?
+        self.assertIsInstance(self.formatter.get_settings_box(),
+                              SettingsBox)
+        self.assertIsInstance(self.formatter.get_settings_box(),
+                              XSLFormatterSettingsBox)
+
+    @mock.patch('bauble.utils.message_dialog')
+    def test_format_no_stylesheet_notifies(self, mock_dialog):
+        # NOTE this will not get to open the file step becuase fop is not run
+        # and hence no file is created
+        objs = self.session.query(Species).all()
+        # create the file so format finishes
+        settings = {'authors': False,
+                    'out_file': '',
+                    'out_format': 'PDF',
+                    'private': False,
+                    'source_type': DEFAULT_SOURCE_TYPE,
+                    'stylesheet': ''}
+        self.formatter.format(objs, **settings)
+        self.assertEqual(mock_dialog.call_args.args[0],
+                         'Please select a stylesheet.')
+
+    @mock.patch.dict(os.environ, {"PATH": "test"})
+    @mock.patch('os.listdir', return_value=['foo', 'bar'])
+    @mock.patch('bauble.utils.message_dialog')
+    def test_format_min_settings_no_fop_notifies(self, mock_dialog,
+                                                 mock_listdir):
+        # NOTE this will not get to open the file step becuase fop is not run
+        # and hence no file is created
+        objs = self.session.query(Species).all()
+        dummy_stylesheet = self.temp_dir.name + '/file.xsl'
+        # create the file so format finishes
+        settings = {'authors': False,
+                    'out_file': '',
+                    'out_format': 'PDF',
+                    'private': False,
+                    'source_type': DEFAULT_SOURCE_TYPE,
+                    'stylesheet': dummy_stylesheet}
+        self.formatter.format(objs, **settings)
+        mock_listdir.assert_called()
+        self.assertIn('Could not find Apache FOP',
+                      mock_dialog.call_args.args[0])
+
+    @mock.patch.dict(os.environ, {"PATH": "test"})
+    @mock.patch('os.listdir', return_value=['fop', 'fop.bat'])
+    @mock.patch('bauble.plugins.report.xsl.subprocess.run')
+    @mock.patch('bauble.utils.message_dialog')
+    def test_format_min_settings_no_fop_output_notifies(
+            self, mock_dialog, mock_run, mock_listdir):
+        # NOTE this will not get to open the file step becuase fop is not run
+        # and hence no file is created
+        objs = self.session.query(Species).all()
+        dummy_stylesheet = self.temp_dir.name + '/file.xsl'
+        # create the file so format finishes
+        settings = {'authors': False,
+                    'out_file': '',
+                    'out_format': 'PDF',
+                    'private': False,
+                    'source_type': DEFAULT_SOURCE_TYPE,
+                    'stylesheet': dummy_stylesheet}
+        self.formatter.format(objs, **settings)
+        mock_listdir.assert_called()
+        run_args = mock_run.call_args
+        self.assertEqual(run_args.args[0][0], self.FOP_PATH)
+        self.assertEqual(run_args.args[0][1], '-xml')
+        self.assertEqual(run_args.args[0][3], '-xsl')
+        self.assertEqual(run_args.args[0][4], dummy_stylesheet)
+        self.assertEqual(run_args.args[0][5], '-pdf')
+        self.assertIsNotNone(run_args.args[0][6])
+        self.assertIn('Error creating the file',
+                      mock_dialog.call_args.args[0])
+
+    @mock.patch.dict(os.environ, {"PATH": "test"})
+    @mock.patch('os.listdir', return_value=['fop', 'fop.bat'])
+    @mock.patch('bauble.plugins.report.xsl.subprocess.run')
+    @mock.patch('bauble.utils.desktop.open')
+    def test_format_full_settings_fake_fop_runs(self, mock_open, mock_run,
+                                                mock_listdir):
+        objs = self.session.query(Species).all()
+        dummy_stylesheet = self.temp_dir.name + '/file.xsl'
+        dummy_report = self.temp_dir.name + '/file.fo'
+        # create the file so format finishes (fake fop succeeds)
+        Path(dummy_report).touch()
+        settings = {'authors': True,
+                    'out_file': dummy_report,
+                    'out_format': 'XSL-FO',
+                    'private': True,
+                    'source_type': ACCESSION_SOURCE_TYPE,
+                    'stylesheet': dummy_stylesheet}
+        self.formatter.format(objs, **settings)
+        mock_listdir.assert_called()
+        run_args = mock_run.call_args
+        self.assertEqual(str(mock_open.call_args.args[0]), self.temp_dir.name)
+        self.assertEqual(run_args.args[0][0], self.FOP_PATH)
+        self.assertEqual(run_args.args[0][1], '-xml')
+        self.assertEqual(run_args.args[0][3], '-xsl')
+        self.assertEqual(run_args.args[0][4], dummy_stylesheet)
+        self.assertEqual(run_args.args[0][5], '-foout')
+        self.assertEqual(run_args.args[0][6], dummy_report)
+
+
+class GlobalFunctionsTests(XSLTestCase):
+    FOP_PATH = 'test/fop'
+    if sys.platform == 'win32':
+        FOP_PATH = 'test/fop.bat'
+
+    @mock.patch.dict(os.environ, {"PATH": "test"})
+    @mock.patch('os.listdir')
+    def test_get_fop_path_fop_exists(self, mock_listdir):
+        mock_listdir.return_value = ['fop', 'fop.bat']
+        self.assertEqual(get_fop_path(), self.FOP_PATH)
+
+    @mock.patch.dict(os.environ, {"PATH": "test"})
+    @mock.patch('os.listdir')
+    def test_get_fop_path_fop_doesnt_exist(self, mock_listdir):
+        mock_listdir.return_value = ['foo', 'bar']
+        self.assertEqual(get_fop_path(), None)
+
+    @mock.patch.dict(os.environ, {"PATH": "test"})
+    @mock.patch('os.listdir')
+    def test_get_fop_path_a_path_doesnt_exist(self, mock_listdir):
+        mock_listdir.side_effect = FileNotFoundError('some/path')
+        self.assertEqual(get_fop_path(), None)
+
+    @mock.patch.dict(os.environ, {"PATH": ""})
+    @mock.patch('os.listdir')
+    def test_get_fop_path_empty_path_envar(self, mock_listdir):
+        mock_listdir.return_value = ['foo', 'bar']
+        self.assertEqual(get_fop_path(), None)
+
+    def test_create_abcd_xml_all_plants(self):
+        objs = self.session.query(Species).all()
+        test_xml = create_abcd_xml(self.temp_dir.name, PLANT_SOURCE_TYPE, True,
+                                   False, objs)
+        # test well formed xml
+        self.assertTrue(etree.parse(test_xml))
+        os.remove(test_xml)
+
+    def test_create_abcd_xml_all_plants_exclude_private(self):
+        objs = self.session.query(Species).all()
+        test_xml = create_abcd_xml(self.temp_dir.name, PLANT_SOURCE_TYPE,
+                                   False, False, objs)
+        # test well formed xml
+        self.assertTrue(etree.parse(test_xml))
+        os.remove(test_xml)
+
+    def test_create_abcd_xml_all_accession(self):
+        objs = self.session.query(Species).all()
+        test_xml = create_abcd_xml(self.temp_dir.name, ACCESSION_SOURCE_TYPE,
+                                   True, True, objs)
+        # test well formed xml
+        self.assertTrue(etree.parse(test_xml))
+        os.remove(test_xml)
+
+    def test_create_abcd_xml_all_accession_exlude_private(self):
+        objs = self.session.query(Species).all()
+        test_xml = create_abcd_xml(self.temp_dir.name, ACCESSION_SOURCE_TYPE,
+                                   False, True, objs)
+        # test well formed xml
+        self.assertTrue(etree.parse(test_xml))
+        os.remove(test_xml)
+
+    def test_create_abcd_xml_all_species(self):
+        objs = self.session.query(Species).all()
+        test_xml = create_abcd_xml(self.temp_dir.name, SPECIES_SOURCE_TYPE,
+                                   True, False, objs)
+        # test well formed xml
+        self.assertTrue(etree.parse(test_xml))
+        os.remove(test_xml)
+
+    def test_create_abcd_xml_plants_private_only_exlude_raises(self):
+        objs = [self.session.query(Accession).get(1)]
+        # plants
+        with self.assertRaises(BaubleError):
+            create_abcd_xml(self.temp_dir.name, PLANT_SOURCE_TYPE, False,
+                            False, objs)
+
+    def test_create_abcd_xml_accessions_private_only_exclude_raises(self):
+        objs = [self.session.query(Accession).get(1)]
+        # test does not create xml
+        with self.assertRaises(BaubleError):
+            create_abcd_xml(self.temp_dir.name, ACCESSION_SOURCE_TYPE, False,
+                            False, objs)
+
+    def test_create_abcd_xml_accessions_private_only_include_succeeds(self):
+        objs = [self.session.query(Accession).get(1)]
+        test_xml = create_abcd_xml(self.temp_dir.name, ACCESSION_SOURCE_TYPE,
+                                   True, True, objs)
+        # test well formed xml
+        self.assertTrue(etree.parse(test_xml))
+        os.remove(test_xml)
+
+    @mock.patch('bauble.utils.message_dialog')
+    def test_create_abcd_xml_species_without_accessions_notifies_user(
+            self, mock_dialog):
+        objs = (self.session.query(Species)
+                .filter(~Species.accessions.any())
+                .all())
+        # accessions
+        test_xml = create_abcd_xml(self.temp_dir.name, ACCESSION_SOURCE_TYPE,
+                                   True, True, objs)
+        mock_dialog.assert_called()
+        self.assertFalse(test_xml)
+
+    @mock.patch('bauble.utils.message_dialog')
+    def test_create_abcd_xml_species_without_plants_notifies_user(self,
+                                                                  mock_dialog):
+        objs = (self.session.query(Species)
+                .filter(~Species.accessions.any())
+                .all())
+        # plants
+        test_xml = create_abcd_xml(self.temp_dir.name, PLANT_SOURCE_TYPE,
+                                   True, True, objs)
+        mock_dialog.assert_called()
+        self.assertFalse(test_xml)
+
+    def test_create_abcd_xml_species_without_accession_species_succeeds(self):
+        objs = (self.session.query(Species)
+                .filter(~Species.accessions.any())
+                .all())
+        # species
+        test_xml = create_abcd_xml(self.temp_dir.name, SPECIES_SOURCE_TYPE,
+                                   True, False, objs)
+        # test well formed xml
+        self.assertTrue(etree.parse(test_xml))
+        os.remove(test_xml)

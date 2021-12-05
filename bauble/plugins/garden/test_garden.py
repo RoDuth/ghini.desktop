@@ -156,12 +156,13 @@ def setUp_data():
             table.insert().execute(row).close()
         for col in table.c:
             utils.reset_sequence(col)
-    i = Institution()
-    i.name = 'TestInstitution'
-    i.technical_contact = 'TestTechnicalContact Name'
-    i.email = 'contact@test.com'
-    i.contact = 'TestContact Name'
-    i.code = 'TestCode'
+    inst = Institution()
+    inst.name = 'TestInstitution'
+    inst.technical_contact = 'TestTechnicalContact Name'
+    inst.email = 'contact@test.com'
+    inst.contact = 'TestContact Name'
+    inst.code = 'TestCode'
+    inst.write()
 
 
 # TODO: if we ever get a GUI tester then do the following

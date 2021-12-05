@@ -100,15 +100,9 @@ class ABCDTestCase(BaubleTestCase):
                                 elevation=1, elevation_accy=1,
                                 notes='some notes')
         source.collection = collection
-        from bauble.plugins.garden import Institution
-        inst = Institution()
-        inst.name = inst.code = inst.contact = \
-            inst.technical_contact = inst.email = 'test'
-        inst.write()
         self.session.commit()
-        dummy, filename = tempfile.mkstemp()
-        xml = abcd.ABCDExporter().start(filename)
-        logger.debug(xml)
+        _handle, filename = tempfile.mkstemp()
+        abcd.ABCDExporter().start(filename)
 
     def test_plants_to_abcd(self):
         plants = self.session.query(Plant)
