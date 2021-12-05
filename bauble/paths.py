@@ -144,9 +144,12 @@ def is_portable_installation():
 
 
 def templates_dir():
-    """This is just a wrapper for prefs templates_root_pref for convenience.
+    """This is mostly just a wrapper for prefs templates_root_pref for
+    convenience.
 
-    :return: the template root directory if one is set else None
+    :return: the template root directory if one is set else the example
+        templates directory in appdata.
     """
     from bauble import prefs
-    return prefs.prefs.get(prefs.templates_root_pref, None)
+    return prefs.prefs.get(prefs.templates_root_pref,
+                           os.path.join(appdata_dir(), 'templates'))
