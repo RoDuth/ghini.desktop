@@ -19,7 +19,7 @@ Export data to csv in format as specified by user (NOT a full backup) using
 search results only.
 """
 
-import time
+import datetime
 import csv
 from pathlib import Path
 from random import random
@@ -354,7 +354,6 @@ class CSVExporter:
 
         Yields occasionally to allow the UI to update.
         """
-        start = time.time()
         column_names = [i[0] for i in self.presenter.fields]
         len_of_items = len(self.items)
         five_percent = int(len_of_items / 20) or 1
@@ -377,7 +376,6 @@ class CSVExporter:
                     pb_set_fraction(records_done / len_of_items)
                     yield
             self.presenter.__class__.last_file = self.filename
-        print(time.time() - start)
         desktop.open(self.filename)
 
     @staticmethod
@@ -418,6 +416,9 @@ class CSVExporter:
                     if value and isinstance(column_type, btypes.Date):
                         record[name] = value.strftime(date_fmat)
                     elif value and isinstance(column_type, btypes.DateTime):
+                        record[name] = value.strftime(datetime_fmat)
+                    # planted.date death.date etc.
+                    elif value and isinstance(value, datetime.datetime):
                         record[name] = value.strftime(datetime_fmat)
                     else:
                         record[name] = str(value or '')
