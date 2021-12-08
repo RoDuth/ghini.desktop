@@ -126,7 +126,7 @@ def create_abcd_xml(directory, source_type, include_private, authors, objs):
         return False
 
     for obj in objs:
-        if include_private:
+        if include_private or not private_path:
             adapted.append(Adapter(obj, for_labels=True))
         elif private_path and not attrgetter(private_path)(obj):
             adapted.append(Adapter(obj, for_labels=True))
@@ -179,6 +179,10 @@ class XSLFormatterSettingsBox(SettingsBox):
             _('Select a file to save to. If not set report will be created '
               'in a temporary directory and opened in the default viewer, if '
               'set the directory containing the report will be opened.')
+        )
+        self.widgets.private_check.set_tooltip_text(
+            _('Accession and plant source reports only, Does not affect '
+              'species reports')
         )
         self.widgets.outfile_btnbrowse.connect('clicked',
                                                self.on_out_btnbrowse_clicked)

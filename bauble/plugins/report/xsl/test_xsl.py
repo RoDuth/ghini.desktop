@@ -424,6 +424,14 @@ class GlobalFunctionsTests(XSLTestCase):
         self.assertTrue(etree.parse(test_xml))
         os.remove(test_xml)
 
+    def test_create_abcd_xml_all_species_exclude_private_succeeds(self):
+        objs = self.session.query(Species).all()
+        test_xml = create_abcd_xml(self.temp_dir.name, SPECIES_SOURCE_TYPE,
+                                   False, False, objs)
+        # test well formed xml
+        self.assertTrue(etree.parse(test_xml))
+        os.remove(test_xml)
+
     def test_create_abcd_xml_plants_private_only_exlude_raises(self):
         objs = [self.session.query(Accession).get(1)]
         # plants
