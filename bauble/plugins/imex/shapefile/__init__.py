@@ -35,15 +35,14 @@ class ShapefileImportTool(pluginmgr.Tool):
 
     @classmethod
     def start(cls):
-        """
-        Start the shapefile importer.  This tool will also reinitialize the
-        plugins after importing.
+        """Start the shapefile importer.
+
+        This tool will also reinitialize the plugins after importing.
         """
 
         importer = ShapefileImporter()
         importer.start()
         logger.debug('ShapefileImportTool finished')
-        # bauble.command_handler('home', None)
         return importer
 
 
@@ -54,9 +53,9 @@ class ShapefileExportTool(pluginmgr.Tool):
 
     @classmethod
     def start(cls):
-        """
-        Start the shapefile importer.  This tool will also reinitialize the
-        plugins after importing.
+        """Start the shapefile importer.
+
+        This tool will also reinitialize the plugins after importing.
         """
 
         exporter = ShapefileExporter()

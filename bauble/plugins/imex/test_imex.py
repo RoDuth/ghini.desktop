@@ -30,8 +30,12 @@ from sqlalchemy import Column, Integer
 from bauble.btypes import Boolean
 
 from bauble import db
-from bauble.plugins.plants import (
-    Familia, Family, Genus, Species, VernacularName, SpeciesNote)
+from bauble.plugins.plants import (Familia,
+                                   Family,
+                                   Genus,
+                                   Species,
+                                   VernacularName,
+                                   SpeciesNote)
 from bauble.plugins.garden import Accession, Location, Plant, Contact, Source
 import bauble.plugins.garden.test_garden as garden_test
 import bauble.plugins.plants.test_plants as plants_test

@@ -732,7 +732,6 @@ class ReportToolPlugin(pluginmgr.Plugin):
 
 try:
     import lxml.etree as etree
-    import lxml._elementpath  # put this here so py2exe picks it up
 except ImportError:
     utils.message_dialog('The <i>lxml</i> package is required for the '
                          'Report plugin')

@@ -110,10 +110,10 @@ def appdata_dir():
         try:
             appd = os.path.join(os.path.expanduser('~%s' % os.environ['USER']),
                                 '.bauble')
-        except Exception:
+        except Exception as e:
             raise Exception('Could not get path for user settings: '
                             'could not expand $HOME for user %(username)s' %
-                            dict(username=os.environ['USER']))
+                            {'username': os.environ['USER']}) from e
     else:
         raise Exception('Could not get path for user settings: '
                         'unsupported platform')

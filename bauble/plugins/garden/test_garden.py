@@ -74,51 +74,47 @@ from ..plants.species_model import _remove_zws as remove_zws
 prefs.testing = True
 
 
-accession_test_data = ({'id': 1, 'code': '2001.1', 'species_id': 1},
-                       {'id': 2, 'code': '2001.2', 'species_id': 2,
-                        'source_type': 'Collection'},
-                       )
+accession_test_data = (
+    {'id': 1, 'code': '2001.1', 'species_id': 1, 'private': True},
+    {'id': 2, 'code': '2001.2', 'species_id': 2, 'source_type': 'Collection'},
+)
 
-plant_test_data = ({'id': 1, 'code': '1', 'accession_id': 1,
-                    'location_id': 1, 'quantity': 1},
-                   {'id': 2, 'code': '1', 'accession_id': 2,
-                    'location_id': 1, 'quantity': 1},
-                   {'id': 3, 'code': '2', 'accession_id': 2,
-                    'location_id': 1, 'quantity': 1},
-                   )
+plant_test_data = (
+    {'id': 1, 'code': '1', 'accession_id': 1, 'location_id': 1, 'quantity': 1},
+    {'id': 2, 'code': '1', 'accession_id': 2, 'location_id': 1, 'quantity': 1},
+    {'id': 3, 'code': '2', 'accession_id': 2, 'location_id': 1, 'quantity': 1},
+)
 
-location_test_data = ({'id': 1, 'name': 'Somewhere Over The Rainbow',
-                       'code': 'RBW'},
-                      )
+location_test_data = (
+    {'id': 1, 'name': 'Somewhere Over The Rainbow', 'code': 'RBW'},
+)
 
 geography_test_data = [{'id': 1, 'name': 'Somewhere'}]
 
-collection_test_data = ({'id': 1, 'accession_id': 2, 'locale': 'Somewhere',
-                         'geography_id': 1},
-                        )
+collection_test_data = (
+    {'id': 1, 'accession_id': 2, 'locale': 'Somewhere', 'geography_id': 1},
+)
 
-default_propagation_values = \
-    {'notes': 'test notes',
-     'date': datetime.date(2011, 11, 25)}
+default_propagation_values = {'notes': 'test notes',
+                              'date': datetime.date(2011, 11, 25)}
 
-default_cutting_values = \
-    {'cutting_type': 'Nodal',
-     'length': 2,
-     'length_unit': 'mm',
-     'tip': 'Intact',
-     'leaves': 'Intact',
-     'leaves_reduced_pct': 25,
-     'flower_buds': 'None',
-     'wound': 'Single',
-     'fungicide': 'Physan',
-     'media': 'standard mix',
-     'container': '4" pot',
-     'hormone': 'Auxin powder',
-     'cover': 'Poly cover',
-     'location': 'Mist frame',
-     'bottom_heat_temp': 65,
-     'bottom_heat_unit': 'F',
-     'rooted_pct': 90}
+default_cutting_values = {'cutting_type': 'Nodal',
+                          'length': 2,
+                          'length_unit': 'mm',
+                          'tip': 'Intact',
+                          'leaves': 'Intact',
+                          'leaves_reduced_pct': 25,
+                          'flower_buds': 'None',
+                          'wound': 'Single',
+                          'fungicide': 'Physan',
+                          'media': 'standard mix',
+                          'container': '4" pot',
+                          'hormone': 'Auxin powder',
+                          'cover': 'Poly cover',
+                          'location': 'Mist frame',
+                          'bottom_heat_temp': 65,
+                          'bottom_heat_unit': 'F',
+                          'rooted_pct': 90}
 
 default_seed_values = {
     'pretreatment': 'Soaked in peroxide solution',
@@ -275,14 +271,14 @@ class PlantTests(GardenTestCase):
         self.assertEqual(p.search_view_markup_pair(),
                          ('1.2 <span foreground="#555555" size="small" '
                           'weight="light">- 52 alive in (STE) site</span>',
-                           '<i>Echinocactus</i> <i>grusonii</i>'))
+                          '<i>Echinocactus</i> <i>grusonii</i>'))
         # dead plant
         p = Plant(accession=self.accession, location=self.location, code='2',
                   quantity=0)
         self.session.add(p)
         self.assertEqual(p.search_view_markup_pair(),
-                          ('<span foreground="#9900ff">1.2</span>',
-                           '<i>Echinocactus</i> <i>grusonii</i>'))
+                         ('<span foreground="#9900ff">1.2</span>',
+                          '<i>Echinocactus</i> <i>grusonii</i>'))
 
     def test_bulk_plant_editor(self):
         """
@@ -294,7 +290,7 @@ class PlantTests(GardenTestCase):
         p = Plant(accession=self.accession, location=self.location, code='2',
                   quantity=52)
         self.editor = PlantEditor(model=p)
-        #editor.start()
+        # editor.start()
         update_gui()
         rng = '2,3,4-6'
 
@@ -313,7 +309,7 @@ class PlantTests(GardenTestCase):
         problem = (self.editor.presenter.PROBLEM_DUPLICATE_PLANT_CODE,
                    self.editor.presenter.view.widgets.plant_code_entry)
         self.assertTrue(problem in self.editor.presenter.problems,
-                     'no problem added for duplicate plant code')
+                        'no problem added for duplicate plant code')
 
         # create multiple plant codes
         widgets.plant_code_entry.set_text(rng)
@@ -325,7 +321,7 @@ class PlantTests(GardenTestCase):
                 filter(and_(Accession.id == self.plant.accession.id,
                             Plant.code == utils.nstr(code)))
             self.assertTrue(q.first(), 'plant %s.%s not created' %
-                         (self.accession, code))
+                            (self.accession, code))
             self.assertIsNotNone(q.first().location_id)
             # test a planted change was created
             plt = q.first()
@@ -344,7 +340,7 @@ class PlantTests(GardenTestCase):
             self.session.delete(location)
         self.session.commit()
 
-        #editor = PlantEditor(model=self.plant)
+        # editor = PlantEditor(model=self.plant)
         loc = Location(name='site1', code='1')
         loc2 = Location(name='site2', code='2')
         loc2a = Location(name='site2a', code='2a')
@@ -511,7 +507,7 @@ class PlantTests(GardenTestCase):
         #               code=u'33', quantity=5)
         # self.assertRaises(CheckConditionError, PlantEditor, model=plant,
         #                   branch_mode=True)
-        #self.accession.plants.remove(plant) # remove from session
+        # self.accession.plants.remove(plant) # remove from session
         # TODO: test check where quantity < 2
 
         quantity = 5
@@ -556,7 +552,7 @@ class PlantTests(GardenTestCase):
             self.session.delete(location)
         self.session.commit()
 
-        #editor = PlantEditor(model=self.plant)
+        # editor = PlantEditor(model=self.plant)
         loc = Location(name='site1', code='1')
         loc2 = Location(name='site2', code='2')
         quantity = 5
@@ -890,7 +886,7 @@ class PropagationTests(GardenTestCase):
         self.add_propagations(['Seed'])
         prop = self.plants[0].propagations[0]
         self.assertEqual(prop.get_summary(partial=2),
-                          prop.get_summary())
+                         prop.get_summary())
 
     def test_get_summary_seed_partial_1_used_once(self):
         self.add_plants(['1'])
@@ -913,7 +909,7 @@ class PropagationTests(GardenTestCase):
         self.session.commit()
         prop = self.plants[0].propagations[0]
         self.assertEqual(prop.get_summary(partial=1),
-                          ';'.join("%s" % a for a in prop.accessions))
+                         ';'.join("%s" % a for a in prop.accessions))
 
     def test_propagation_accessions_used_once(self):
         self.add_plants(['1'])

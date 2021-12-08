@@ -873,13 +873,13 @@ def get_create_or_update(session, model, **kwargs):
         # of the UniqueConstraint so "accession_id" would also include
         # "accession")
         uniq_joins = [i[:-3] for i in uniq_cols if i.endswith('_id')]
-        uniq_cols += uniq_joins
+        uniq_cols.extend(uniq_joins)
         # - add columns with the unique attribute set
         uniq_table_cols = [i.key for i in model.__table__.columns if
                            i.unique and i.key not in uniq_cols]
-        uniq_cols += uniq_table_cols
+        uniq_cols.extend(uniq_table_cols)
         # include epithet - synonym used on all taxonomic levels
-        uniq_cols += ['epithet']
+        uniq_cols.append('epithet')
         logger.debug('unique columns: %s', uniq_cols)
         # get the kwargs that have keys in uniq_cols and try finding a match
         for col in uniq_cols:

@@ -17,8 +17,8 @@
 
 import os
 
-## just keeping it here because I am forgetful and I never recall how to
-## import SkipTest otherwise! and commented out because of FlyCheck.
+# just keeping it here because I am forgetful and I never recall how to
+# import SkipTest otherwise! and commented out because of FlyCheck.
 from unittest import SkipTest
 
 from bauble.test import BaubleTestCase, check_dupids

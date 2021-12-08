@@ -71,11 +71,11 @@ family_test_data = (
     {'id': 2, 'family': 'Leguminosae', 'qualifier': 's. str.'},
     {'id': 3, 'family': 'Polypodiaceae'},
     {'id': 4, 'family': 'Solanaceae'},
-    )
+)
 
 family_note_test_data = (
     {'id': 1, 'family_id': 1, 'category': 'CITES', 'note': 'II'},
-    )
+)
 
 genus_test_data = (
     {'id': 1, 'genus': 'Maxillaria', 'family_id': 1},
@@ -85,11 +85,11 @@ genus_test_data = (
     {'id': 5, 'genus': 'Paphiopedilum', 'family_id': 1},
     {'id': 6, 'genus': 'Laelia', 'family_id': 1},
     {'id': 7, 'genus': 'Brugmansia', 'family_id': 4},
-    )
+)
 
 genus_note_test_data = (
     {'id': 1, 'genus_id': 5, 'category': 'CITES', 'note': 'I'},
-    )
+)
 
 species_test_data = (
     {'id': 1, 'sp': 'variabilis', 'genus_id': 1,
@@ -160,7 +160,7 @@ species_note_test_data = (
     {'id': 7, 'species_id': 18, 'category': '{dict_var:k}', 'note': 'abc'},
     {'id': 8, 'species_id': 18, 'category': '{dict_var:l}', 'note': 'def'},
     {'id': 9, 'species_id': 18, 'category': '{dict_var:m}', 'note': 'xyz'},
-    )
+)
 
 species_str_map = {
     1: 'Maxillaria variabilis',
@@ -180,7 +180,7 @@ species_str_map = {
     14: "Maxillaria 'Red & Blue'",
     15: "Encyclia cochleata subsp. cochleata var. cochleata 'Black'",
     16: "Maxillaria test subsp. test SomeGroup Group"
-    }
+}
 
 species_markup_map = {
     1: '<i>Maxillaria</i> <i>variabilis</i>',
@@ -193,7 +193,7 @@ species_markup_map = {
     14: "<i>Maxillaria</i> 'Red &amp; Blue'",
     15: ("<i>Encyclia</i> <i>cochleata</i> subsp. <i>"
          "cochleata</i> var. <i>cochleata</i> 'Black'"),
-    }
+}
 
 species_str_authors_map = {
     1: 'Maxillaria variabilis Bateman ex Lindl.',
@@ -224,7 +224,7 @@ vn_test_data = (
     {'id': 2, 'name': 'SomeName 2', 'language': 'English', 'species_id': 1},
     {'id': 3, 'name': 'Floripondio', 'language': 'es', 'species_id': 21},
     {'id': 4, 'name': 'Toé', 'language': 'agr', 'species_id': 21},
-    )
+)
 
 test_data_table_control = (
     (Family, family_test_data),
@@ -235,7 +235,7 @@ test_data_table_control = (
     (FamilyNote, family_note_test_data),
     (GenusNote, genus_note_test_data),
     (SpeciesNote, species_note_test_data),
-    )
+)
 
 
 def setUp_data():

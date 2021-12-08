@@ -815,8 +815,8 @@ class MockView:
         self.invoked.append('image_set_from_file')
         self.invoked_detailed.append((self.invoked[-1], args))
 
-    def run_file_chooser_dialog(
-            self, text, parent, action, last_folder, target):
+    def run_file_chooser_dialog(self, text, parent, action, last_folder,
+                                target):
         args = [text, parent, action, last_folder, target]
         self.invoked.append('run_file_chooser_dialog')
         self.invoked_detailed.append((self.invoked[-1], args))
