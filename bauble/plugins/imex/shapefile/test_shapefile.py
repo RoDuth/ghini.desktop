@@ -518,29 +518,38 @@ class MochSchemaMenu:
         return
 
 
-class ExportSettingsBoxTests(BaubleTestCase):
+class ShapefileTestCase(BaubleTestCase):
 
     def setUp(self):
         super().setUp()
         get_default('system_proj_string', DEFAULT_SYS_PROJ)
         self.temp_dir = TemporaryDirectory()
-        from bauble.prefs import (plant_shapefile_prefs,
-                                  location_shapefile_prefs)
+        from . import PLANT_SHAPEFILE_PREFS, LOCATION_SHAPEFILE_PREFS
         from bauble import prefs
-        self.plant_fields = prefs.prefs.get(f'{plant_shapefile_prefs}.fields',
-                                            {})
-        self.location_fields = prefs.prefs.get(
-            f'{location_shapefile_prefs}.fields', {}
+        self.plt_fields_prefs = prefs.prefs.get(
+            f'{PLANT_SHAPEFILE_PREFS}.fields', {}
+        )
+        self.plt_search_by_pref = prefs.prefs.get(
+            f'{PLANT_SHAPEFILE_PREFS}.searchy_by', {}
+        )
+        self.loc_fields_prefs = prefs.prefs.get(
+            f'{LOCATION_SHAPEFILE_PREFS}.fields', {}
+        )
+        self.loc_search_by_pref = prefs.prefs.get(
+            f'{LOCATION_SHAPEFILE_PREFS}.search_by', {}
         )
         # transform prefs into something to work with
         self.plant_fields = [[k, *get_field_properties(Plant, v), v] for
-                             k, v in self.plant_fields.items()]
+                             k, v in self.plt_fields_prefs.items()]
         self.location_fields = [[k, *get_field_properties(Location, v), v] for
-                                k, v in self.location_fields.items()]
+                                k, v in self.loc_fields_prefs.items()]
 
     def tearDown(self):
         self.temp_dir.cleanup()
         super().tearDown()
+
+
+class ExportSettingsBoxTests(ShapefileTestCase):
 
     def test_settings_box_grid_populates1(self):
         settings_box = ExpSetBox(Location,
@@ -557,8 +566,7 @@ class ExportSettingsBoxTests(BaubleTestCase):
         self.assertEqual(settings_box.grid.max_size, 2)
         self.assertEqual(settings_box.grid.max_y, 4)
         self.assertEqual(settings_box.grid.max_x, 6)
-        from bauble.prefs import LOC_DEFAULTS
-        for i in LOC_DEFAULTS.get('fields').keys():
+        for i in self.loc_fields_prefs.keys():
             self.assertIn(i, settings_box.grid.props.keys())
 
     def test_settings_box_grid_populates2(self):
@@ -865,22 +873,16 @@ class ExportSettingsBoxTests(BaubleTestCase):
                          .list_classes()))
 
 
-class ShapefileExportTestsEmptyDB(BaubleTestCase):
+class ShapefileExportTestsEmptyDB(ShapefileTestCase):
 
     def setUp(self):  # pylint: disable=too-many-locals
         super().setUp()
         get_default('system_proj_string', DEFAULT_SYS_PROJ)
-        # pylint: disable=consider-using-with
         # temp_dir
-        self.temp_dir = TemporaryDirectory()
         self.exporter = ShapefileExporter(
             view=MockView(), proj_db=ProjDB(db_path=':memory:'), open_=False
         )
         self.exporter.proj_db.add(prj=prj_str_4326, crs='epsg:4326')
-
-    def tearDown(self):
-        self.temp_dir.cleanup()
-        super().tearDown()
 
     def test_export_all_fails(self):
         exporter = self.exporter
@@ -896,7 +898,7 @@ class ShapefileExportTestsEmptyDB(BaubleTestCase):
         self.assertEqual(len(out), 0)
 
 
-class ShapefileExportTests(BaubleTestCase):
+class ShapefileExportTests(ShapefileTestCase):
 
     def setUp(self):  # pylint: disable=too-many-locals
         from copy import deepcopy
@@ -929,9 +931,6 @@ class ShapefileExportTests(BaubleTestCase):
                 obj = klass(**dic)
                 self.session.add(obj)
         self.session.commit()
-        # pylint: disable=consider-using-with
-        # create temp_dir
-        self.temp_dir = TemporaryDirectory()
         # something to compare for plants
         self.taxa_to_acc = {}
         for acc in accession_data:   # pylint: disable=too-many-nested-blocks
@@ -948,10 +947,6 @@ class ShapefileExportTests(BaubleTestCase):
             self.taxa_to_acc[acc.get('id')] = (family, genus, species)
         self.exporter = ShapefileExporter(
             view=MockView(), proj_db=ProjDB(db_path=':memory:'), open_=False)
-
-    def tearDown(self):
-        self.temp_dir.cleanup()
-        super().tearDown()
 
     def test_exports_all_locations(self):
         exporter = self.exporter
@@ -1664,15 +1659,7 @@ class ShapefileExportTests(BaubleTestCase):
             exporter.create_prj_file(shapefile_name)
 
 
-class ImportSettingsBoxTests(BaubleTestCase):
-
-    def setUp(self):
-        super().setUp()
-        self.temp_dir = TemporaryDirectory()
-
-    def tearDown(self):
-        self.temp_dir.cleanup()
-        super().tearDown()
+class ImportSettingsBoxTests(ShapefileTestCase):
 
     def test_settings_box_grid_populates1(self):
         shape_reader = ShapefileReader(create_shapefile('test',
@@ -1681,16 +1668,15 @@ class ImportSettingsBoxTests(BaubleTestCase):
                                                         loc_recs_4326,
                                                         self.temp_dir.name))
         settings_box = ImpSetBox(shape_reader, grid=MockGrid())
-        from bauble.prefs import LOC_DEFAULTS
         self.assertEqual(settings_box.grid.item_count,
-                         len(LOC_DEFAULTS.get('fields')) * 6 + 6)
+                         len(self.loc_fields_prefs) * 6 + 6)
         self.assertEqual(settings_box.grid.max_size, 2)
         self.assertEqual(settings_box.grid.max_y, 5)
         self.assertEqual(settings_box.grid.max_x, 5)
         for i in location_fields:
             for j in i:
                 self.assertIn(str(j), settings_box.grid.labels.keys())
-        for i in LOC_DEFAULTS.get('fields').values():
+        for i in self.loc_fields_prefs.values():
             self.assertIn(i, settings_box.grid.props.keys())
 
     def test_settings_box_grid_populates2(self):
@@ -1710,8 +1696,7 @@ class ImportSettingsBoxTests(BaubleTestCase):
         for i in plant_fields:
             for j in i:
                 self.assertIn(str(j), settings_box.grid.labels.keys())
-        from bauble.prefs import PLT_DEFAULTS
-        for k, v in PLT_DEFAULTS.get('fields').items():
+        for k, v in self.plt_fields_prefs.items():
             if k in [i[0] for i in plant_fields]:
                 self.assertIn(v, settings_box.grid.props.keys())
 
@@ -1810,27 +1795,21 @@ class ImportSettingsBoxTests(BaubleTestCase):
         for i in location_fields:
             for j in i:
                 self.assertIn(str(j), settings_box.grid.labels.keys())
-        from bauble.prefs import LOC_DEFAULTS
-        for i in LOC_DEFAULTS.get('fields').values():
+        for i in self.loc_fields_prefs.values():
             self.assertIn(i, settings_box.grid.props.keys())
         # assert the shape reader only contains the one matching field
         self.assertEqual('Note', shape_reader.field_map.get('field_note'))
         self.assertEqual(len(shape_reader.field_map), 1)
 
 
-class ShapefileImportEmptyDBTests(BaubleTestCase):
+class ShapefileImportEmptyDBTests(ShapefileTestCase):
 
     def setUp(self):
         super().setUp()
         get_default('system_proj_string', DEFAULT_SYS_PROJ)
         # somewhere to create test shapefiles
-        self.temp_dir = TemporaryDirectory()
         self.importer = ShapefileImporter(view=MockView(),
                                           proj_db=ProjDB(db_path=':memory:'))
-
-    def tearDown(self):
-        self.temp_dir.cleanup()
-        super().tearDown()
 
     def test_add_or_update_all_location_records_succeeds(self):
         importer = self.importer
@@ -1939,7 +1918,7 @@ class ShapefileImportEmptyDBTests(BaubleTestCase):
         self.assertEqual(len(result), len(plt_rec_3857_points_wrong_types))
 
 
-class ShapefileImportTests(BaubleTestCase):
+class ShapefileImportTests(ShapefileTestCase):
 
     def setUp(self):
         super().setUp()
@@ -1960,17 +1939,11 @@ class ShapefileImportTests(BaubleTestCase):
                 obj = klass(**dic)
                 self.session.add(obj)
         self.session.commit()
-        # somewhere to create test shapefiles
-        self.temp_dir = TemporaryDirectory()
         # importer
         self.importer = ShapefileImporter(view=MockView(),
                                           proj_db=ProjDB(db_path=':memory:'))
         # note widgets is a mock.Mock
         self.importer.view.widgets.input_filename = 'input_filename'
-
-    def tearDown(self):
-        self.temp_dir.cleanup()
-        super().tearDown()
 
     def test_add_missing_geo_data_only(self):
         importer = self.importer
@@ -2831,15 +2804,7 @@ class ShapefileImportTests(BaubleTestCase):
         self.assertEqual(window.get_size(), (1, 1))
 
 
-class ShapefileReaderTests(BaubleTestCase):
-    def setUp(self):
-        super().setUp()
-        self.temp_dir = TemporaryDirectory()
-
-    def tearDown(self):
-        self.temp_dir.cleanup()
-        super().tearDown()
-
+class ShapefileReaderTests(ShapefileTestCase):
     def test_get_prj_string_from_file(self):
         prj_str = 'PROJCS["test1"]'
 
@@ -3051,9 +3016,7 @@ class ShapefileReaderTests(BaubleTestCase):
                              loc_recs_4326,
                              self.temp_dir.name)
         )
-        from bauble.prefs import LOC_DEFAULTS
-        self.assertEqual(shape_reader.search_by,
-                         set(LOC_DEFAULTS.get('search_by')))
+        self.assertEqual(shape_reader.search_by, set(self.loc_search_by_pref))
 
     def test_get_field_map_from_file(self):
         shape_reader = ShapefileReader(
@@ -3063,8 +3026,7 @@ class ShapefileReaderTests(BaubleTestCase):
                              loc_recs_4326,
                              self.temp_dir.name)
         )
-        from bauble.prefs import LOC_DEFAULTS
-        self.assertEqual(shape_reader.field_map, LOC_DEFAULTS.get('fields'))
+        self.assertEqual(shape_reader.field_map, self.loc_fields_prefs)
 
     def test_change_object_type(self):
         shape_reader = ShapefileReader(
@@ -3117,10 +3079,9 @@ class ShapefileReaderTests(BaubleTestCase):
         self.assertNotEqual(new_search_by, shape_reader.search_by)
         self.assertNotEqual(new_field_map, shape_reader.field_map)
         self.assertNotEqual(new_type, shape_reader.type)
-        from bauble.prefs import PLT_DEFAULTS
         keys = [i[0] for i in plant_fields]
         fields = {
-            k: v for k, v in PLT_DEFAULTS.get('fields').items() if k in keys
+            k: v for k, v in self.plt_fields_prefs.items() if k in keys
         }
         self.assertEqual(shape_reader.field_map, fields)
 
@@ -3150,7 +3111,7 @@ class ShapefileReaderTests(BaubleTestCase):
                               [epsg4326_poly_xy, epsg4326_poly_xy2])
 
 
-class GlobalFunctionsTests(BaubleTestCase):
+class GlobalFunctionsTests(ShapefileTestCase):
     def test_add_rec_to_db_plants(self):
         data1 = {
             'accession.species._default_vernacular_name.vernacular_name':
@@ -3199,7 +3160,7 @@ class GlobalFunctionsTests(BaubleTestCase):
             'accession.species.genus.family': {'epithet': 'Taccaceae'},
             'accession.species.genus': {'epithet': 'Tacca'},
             'accession.source.source_detail': {'name':
-                                               'MRBG Friends of the Gradens'},
+                                               'MRBG Friends of the Gardens'},
             'accession.species': {'epithet': 'leontopetaloides',
                                   'default_vernacular_name': 'Arrowroot'},
             'location': {'name': 'Whitsunday Islands', 'code': '12.01'},

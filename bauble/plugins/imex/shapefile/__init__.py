@@ -24,8 +24,18 @@ logger = logging.getLogger(__name__)
 from gi.repository import Gtk, Gdk  # noqa
 
 from bauble import pluginmgr
-from .import_tool import ShapefileImporter
-from .export_tool import ShapefileExporter
+
+PLANT_SHAPEFILE_PREFS = 'shapefile.plant'
+"""Shapefile default prefs section for Plants.
+
+Options: search_by, fields.
+"""
+
+LOCATION_SHAPEFILE_PREFS = 'shapefile.location'
+"""Shapefile default prefs section for Locations.
+
+Options: search_by, fields.
+"""
 
 
 class ShapefileImportTool(pluginmgr.Tool):
@@ -62,3 +72,8 @@ class ShapefileExportTool(pluginmgr.Tool):
         exporter.start()
         logger.debug('ShapefileExportTool finished')
         return exporter
+
+
+# Avoid circular imports (LOCATION_SHAPEFILE_PREFS, PLANT_SHAPEFILE_PREFS)
+from .import_tool import ShapefileImporter
+from .export_tool import ShapefileExporter

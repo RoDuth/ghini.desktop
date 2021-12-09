@@ -38,7 +38,6 @@ from bauble.meta import get_default
 # NOTE importing shapefile Writer above wipes out gettext _
 from bauble.i18n import _
 from bauble import prefs
-from bauble.prefs import location_shapefile_prefs, plant_shapefile_prefs
 
 import bauble
 from bauble import db, task, pb_set_fraction
@@ -48,6 +47,8 @@ from bauble.plugins.garden.plant import Plant, PlantNote  \
 from bauble.plugins.garden.location import Location, LocationNote  \
     # noqa pylint: disable=unused-import
 from bauble.editor import GenericEditorView, GenericEditorPresenter
+
+from . import LOCATION_SHAPEFILE_PREFS, PLANT_SHAPEFILE_PREFS
 
 NAME = 0
 TYPE = 1
@@ -147,6 +148,7 @@ class ShapefileExportSettingsBox(Gtk.ScrolledWindow):
             self.grid.attach(label, column, 0, 1, 1)
 
         logger.debug('export settings box shapefile fields: %s', self.fields)
+        attach_row = 0
         for row, (name, typ, size, path) in enumerate(self.fields):
             attach_row = row + 1
             name_entry = Gtk.Entry(max_length=10)
@@ -634,10 +636,10 @@ class ShapefileExporter:
         self.private = True
         self.dirname = None
         self.plant_fields = prefs.prefs.get(
-            f'{plant_shapefile_prefs}.fields', {}
+            f'{PLANT_SHAPEFILE_PREFS}.fields', {}
         )
         self.location_fields = prefs.prefs.get(
-            f'{location_shapefile_prefs}.fields', {}
+            f'{LOCATION_SHAPEFILE_PREFS}.fields', {}
         )
         # transform prefs into something to work with
         self.plant_fields = [[k, *get_field_properties(Plant, v), v] for

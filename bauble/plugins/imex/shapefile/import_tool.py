@@ -34,7 +34,6 @@ from bauble.utils.geo import ProjDB, transform
 # NOTE importing shapefile Reader Writer above wipes out gettext _
 from bauble.i18n import _
 from bauble import prefs
-from bauble.prefs import location_shapefile_prefs, plant_shapefile_prefs
 
 import bauble
 from bauble import db, task, pb_set_fraction
@@ -46,6 +45,8 @@ from bauble.plugins.garden.location import Location, LocationNote  \
 from bauble.editor import GenericEditorView, GenericEditorPresenter
 
 from bauble.utils.geo import DEFAULT_IN_PROJ
+
+from . import LOCATION_SHAPEFILE_PREFS, PLANT_SHAPEFILE_PREFS
 
 
 class ShapefileReader():
@@ -74,10 +75,10 @@ class ShapefileReader():
         for fields that match the default field maps.
         """
         plt = len([i for i in self.get_fields() if
-                   prefs.prefs.get(f'{plant_shapefile_prefs}.fields',
+                   prefs.prefs.get(f'{PLANT_SHAPEFILE_PREFS}.fields',
                                    {}).get(i[0])])
         loc = len([i for i in self.get_fields() if
-                   prefs.prefs.get(f'{location_shapefile_prefs}.fields',
+                   prefs.prefs.get(f'{LOCATION_SHAPEFILE_PREFS}.fields',
                                    {}).get(i[0])])
         if plt > loc:
             logger.debug('type guess plt - plant:%s location:%s', plt, loc)
@@ -125,11 +126,11 @@ class ShapefileReader():
         if not self._search_by:
             if self.type == 'plant':
                 default_search_by = prefs.prefs.get(
-                    f'{plant_shapefile_prefs}.search_by', {}
+                    f'{PLANT_SHAPEFILE_PREFS}.search_by', {}
                 )
             elif self.type == 'location':
                 default_search_by = prefs.prefs.get(
-                    f'{location_shapefile_prefs}.search_by', {}
+                    f'{LOCATION_SHAPEFILE_PREFS}.search_by', {}
                 )
             else:
                 default_search_by = []
@@ -149,11 +150,11 @@ class ShapefileReader():
         if not self._field_map:
             if self.type == 'plant':
                 default_map = prefs.prefs.get(
-                    f'{plant_shapefile_prefs}.fields', {}
+                    f'{PLANT_SHAPEFILE_PREFS}.fields', {}
                 )
             elif self.type == 'location':
                 default_map = prefs.prefs.get(
-                    f'{location_shapefile_prefs}.fields', {}
+                    f'{LOCATION_SHAPEFILE_PREFS}.fields', {}
                 )
             else:
                 default_map = {}

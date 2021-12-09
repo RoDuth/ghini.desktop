@@ -35,13 +35,17 @@ from requests import exceptions
 
 from bauble.utils import get_net_sess, yes_no_dialog
 from bauble import pluginmgr  # , task
-from bauble.prefs import templates_root_pref
+
 from bauble import prefs
 from bauble.task import set_message
 
 CONFIG_LIST_PREF = 'report.configs'
 TEMPLATES_URI = ('https://github.com/RoDuth/ghini_report_templates/archive'
                  '/master.zip')
+TEMPLATES_ROOT_PREF = 'template_downloader.root_dir'
+"""
+Directory to store downloaded templates and their config etc..
+"""
 
 
 def set_templates_root_pref(path=None):
@@ -62,7 +66,7 @@ def set_templates_root_pref(path=None):
     if not path.exists():
         raise ValueError(_("directory does not exist.\n%s") % path)
 
-    prefs.prefs[templates_root_pref] = str(path)
+    prefs.prefs[TEMPLATES_ROOT_PREF] = str(path)
     prefs.prefs.save()
     return True
 
@@ -71,12 +75,12 @@ def update_report_template_prefs(root, conf_file):
     # Add config to prefs and save it
     if Path(conf_file).exists():
         from bauble.prefs import _prefs
-        from configparser import RawConfigParser
+        from configparser import ConfigParser
         temp_prefs = _prefs(filename=conf_file)
-        temp_prefs.config = RawConfigParser()
+        temp_prefs.config = ConfigParser(interpolation=None)
         temp_prefs.config.read(temp_prefs._filename) \
             # noqa # pylint: disable=protected-access
-        default_formatters = temp_prefs.get(CONFIG_LIST_PREF, None)
+        default_formatters = temp_prefs.get(CONFIG_LIST_PREF, {})
         if default_formatters:
             formatters = prefs.prefs.get(CONFIG_LIST_PREF, {})
             for k, v in default_formatters.items():
@@ -145,16 +149,17 @@ class TemplateDownloadTool(pluginmgr.Tool):
     @classmethod
     def start(cls):
         # get the directory to save to first
-        if templates_root_pref not in prefs.prefs:
+        if TEMPLATES_ROOT_PREF not in prefs.prefs:
             if not set_templates_root_pref():
                 return
-        root = prefs.prefs.get(templates_root_pref, None)
+        root = prefs.prefs.get(TEMPLATES_ROOT_PREF, None)
 
-        msg = f'Download online report templates?\n\nSource: {TEMPLATES_URI}?'
-        if yes_no_dialog(msg):
+        if yes_no_dialog(_('Download online report templates?\n\nSource: %s?'
+                           % TEMPLATES_URI)):
             dload_root = download_templates(root)
+            msg = _('Templates update complete')
             # look for config files to update prefs with.
-            if dload_root.exists():
+            if dload_root and dload_root.exists():
                 for cfg in dload_root.glob('**/config.cfg'):
                     update_report_template_prefs(root, cfg)
                     # delete the config file...
@@ -162,4 +167,7 @@ class TemplateDownloadTool(pluginmgr.Tool):
                 # delete all the README files to avoid clutter
                 for readme in dload_root.glob('**/README.md'):
                     readme.unlink()
-            set_message(_('Templates update complete'))
+            else:
+                msg = _('there was an error downloading templates, try again '
+                        'later')
+            set_message(msg)

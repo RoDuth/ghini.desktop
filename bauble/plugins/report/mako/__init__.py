@@ -22,7 +22,6 @@
 #
 
 import os
-import shutil
 import tempfile
 import math
 from pathlib import Path
@@ -36,8 +35,6 @@ from mako.template import Template
 
 from bauble import db
 from bauble import paths
-from bauble.prefs import templates_root_pref
-from bauble import prefs
 from bauble.plugins.report import FormatterPlugin, SettingsBox
 from bauble import utils
 

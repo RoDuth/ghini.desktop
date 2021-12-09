@@ -13,6 +13,9 @@ glade_files = [(f'{i}/*.glade', f'{i.relative_to(root)}') for i in
                set(i.parent for i in root.glob('**/*.glade'))]
 glade_files += [(f'{i}/*.ui', f'{i.relative_to(root)}') for i in
                 set(i.parent for i in root.glob('**/*.ui'))]
+# prefs config files
+configs = [(f'{i}/*.cfg', f'{i.relative_to(root)}') for i in
+           set(i.parent for i in root.glob('**/*.cfg'))]
 
 # effective_tld_names.dat.txt from tld
 tld_names = [(str(Path(NAMES_LOCAL_PATH_PARENT, 'res', '*.txt')),
@@ -38,7 +41,7 @@ a = Analysis(['ghini'],
                  ('../bauble/plugins/report/xsl/stylesheets',
                   'bauble/plugins/report/xsl/stylesheets'),
                  (pyproj.datadir.get_data_dir(), 'share/proj')
-             ] + glade_files + tld_names,  # noqa
+             ] + glade_files + tld_names + configs,  # noqa
              hiddenimports=['sqlalchemy.dialects.sqlite',
                             'sqlalchemy.dialects.postgresql',
                             'bauble.plugins.abcd',

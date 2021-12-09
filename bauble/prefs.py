@@ -177,56 +177,6 @@ than a dict for the value of proxies e.g.:
 proxies = "no"
 """   # noqa
 
-templates_root_pref = 'template_downloader.root_dir'
-"""
-Directory to store downloaded templates and their config etc..
-"""
-
-PLT_DEFAULTS = {
-    'search_by': ['plt_code', 'accession'],
-    'fields': {
-        'plt_id': 'id',
-        'plt_label': 'plant',
-        'sp_label': 'accession.species',
-        'accession': 'accession.code',
-        'plt_code': 'code',
-        'quantity': 'quantity',
-        'bed': 'location.code',
-        'family': 'accession.species.genus.family.epithet',
-        'genus': 'accession.species.genus.epithet',
-        'species': 'accession.species.epithet',
-        'infrasp': 'accession.species.infraspecific_parts',
-        'cultivar': 'accession.species.cultivar_epithet',
-        'vernacular': 'accession.species.default_vernacular_name',
-        'field_note': 'Note',
-    }
-}
-
-plant_shapefile_prefs = 'shapefile.plant'
-"""
-The default search_by, field map and read only field definitions that are safe
-to use for records based on Plant objects.  PLT_DEFAULTS contains the base
-defaults.
-"""
-
-LOC_DEFAULTS = {
-    'search_by': ['loc_code'],
-    'fields': {
-        'loc_id': 'id',
-        'loc_code': 'code',
-        'name': 'name',
-        'descript': 'description',
-        'field_note': 'Note'
-    }
-}
-
-location_shapefile_prefs = 'shapefile.location'
-"""
-The default search_by, field map and read only field definitions that are safe
-to use for records based on Location objects.  LOC_DEFAULTS contains the base
-defaults.
-"""
-
 
 class _prefs(UserDict):
 
@@ -259,7 +209,8 @@ class _prefs(UserDict):
                            config_version[0], config_version[1])
             self[config_version_pref] = config_version
 
-        # set some defaults if they don't exist
+        # set some defaults if they don't exist (not added using update_prefs
+        # because they are added even if the section already exists)
         defaults = [(picture_root_pref, ''),
                     (date_format_pref, '%d-%m-%Y'),
                     (time_format_pref, '%I:%M:%S %p'),
@@ -268,13 +219,6 @@ class _prefs(UserDict):
 
         for key, value in defaults:
             self.add_default(key, value)
-
-        for k, v in LOC_DEFAULTS.items():
-            section = f'{location_shapefile_prefs}.{k}'
-            self.add_default(section, v)
-        for k, v in PLT_DEFAULTS.items():
-            section = f'{plant_shapefile_prefs}.{k}'
-            self.add_default(section, v)
 
     @property
     def dayfirst(self):
@@ -368,6 +312,10 @@ class _prefs(UserDict):
                 for section in sorted(self.config.sections())
                 for name, value in self.config.items(section)]
 
+    def itersection(self, section):
+        for option in self.config[section]:
+            yield option, self.get(f'{section}.{option}')
+
     def __setitem__(self, key, value):
         section, option = _prefs._parse_key(key)
         if not self.config.has_section(section):
@@ -380,6 +328,9 @@ class _prefs(UserDict):
            self.config.has_option(section, option):
             return True
         return False
+
+    def has_section(self, section):
+        return self.config.has_section(section)
 
     def save(self, force=False):
         if testing and not force:
@@ -396,6 +347,24 @@ class _prefs(UserDict):
                                      parent=bauble.gui.window)
             else:
                 logger.error(msg)
+
+
+def update_prefs(conf_file):
+    """Given a config file with sections add the sections to the current users
+    config (prefs) if the section does not already exist.
+    """
+    config = ConfigParser(interpolation=None)
+
+    config.read(conf_file)
+    # return config
+    # defaults = config.sections()
+    logger.debug('looking for prefs sections in %s', conf_file)
+    for section in config.sections():
+        if not prefs.has_section(section):
+            logger.debug('adding section: %s', section)
+            for option in config[section]:
+                prefs[f'{section}.{option}'] = config.get(section, option)
+    prefs.save()
 
 
 class PrefsView(pluginmgr.View):

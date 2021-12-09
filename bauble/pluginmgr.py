@@ -1,6 +1,7 @@
 # Copyright 2008-2010 Brett Adams
 # Copyright 2012-2015 Mario Frasca <mario@anche.no>.
 # Copyright 2017 Jardín Botánico de Quito
+# Copyright 2021 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -39,6 +40,7 @@ logger = logging.getLogger(__name__)
 import os
 import sys
 import traceback
+from pathlib import Path
 
 from gi.repository import Gtk  # noqa
 
@@ -262,6 +264,16 @@ def init(force=False):
                        utils.xml_safe(str(e)))
                 utils.message_dialog(msg, Gtk.MessageType.ERROR)
 
+    # add any default configuration entries
+    for plugin in ordered:
+        from inspect import getfile
+        directory = Path(getfile(plugin.__class__)).parent
+        logger.debug('plugin directory: %s', directory)
+        conf_file = (Path(directory) / 'default/config.cfg')
+        if conf_file.exists():
+            logger.debug('plugin conf file found at: %s', conf_file)
+            from bauble import prefs
+            prefs.update_prefs(conf_file)
     # don't build the tools menu if we're running from the tests and
     # we don't have a gui
     from bauble import gui

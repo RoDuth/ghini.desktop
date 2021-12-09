@@ -30,6 +30,7 @@ from sqlalchemy import Column, Integer
 from bauble.btypes import Boolean
 
 from bauble import db
+from bauble import prefs
 from bauble.plugins.plants import (Familia,
                                    Family,
                                    Genus,
@@ -88,7 +89,20 @@ class CSVTestImporter(CSVRestore):
 
     def on_error(self, exc):
         logger.debug(exc)
-        raise
+
+
+class PrefsUpdatedTest(BaubleTestCase):
+
+    def test_prefs_update(self):
+        # NOTE plugin.init() is called in BaubleTestCase.setUp if this plugin
+        # exists the prefs in default/config.cfg should have been copied in.
+        # tests pluginmgr.update_prefs
+        self.assertTrue(
+            prefs.prefs.get('shapefile.location.fields')
+        )
+        self.assertTrue(
+            prefs.prefs.get('shapefile.plant.search_by')
+        )
 
 
 class CSVTests(ImexTestCase):

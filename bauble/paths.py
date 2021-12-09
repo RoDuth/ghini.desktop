@@ -150,6 +150,11 @@ def templates_dir():
     :return: the template root directory if one is set else the example
         templates directory in appdata.
     """
-    from bauble import prefs
-    return prefs.prefs.get(prefs.templates_root_pref,
-                           os.path.join(appdata_dir(), 'templates'))
+    from . import pluginmgr
+    if 'ReportToolPlugin' in pluginmgr.plugins:
+        from .plugins.report.template_downloader import TEMPLATES_ROOT_PREF
+        from . import prefs
+        return prefs.prefs.get(TEMPLATES_ROOT_PREF,
+                               os.path.join(appdata_dir(), 'templates'))
+    # no report plugin no templates.
+    return None

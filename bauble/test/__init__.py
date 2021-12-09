@@ -100,7 +100,7 @@ class BaubleTestCase(unittest.TestCase):
             raise BaubleError('not connected to a database')
         Path(paths.appdata_dir()).mkdir(parents=True, exist_ok=True)
         bauble.utils.BuilderLoader.builders = {}
-        self.handle, self.temp = mkstemp(suffix='txt2', text=True)
+        self.handle, self.temp = mkstemp(suffix='.cfg', text=True)
         prefs.default_prefs_file = self.temp
         prefs.prefs = prefs._prefs(filename=self.temp)
         prefs.prefs.init()

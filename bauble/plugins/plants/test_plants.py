@@ -275,8 +275,22 @@ class PlantTestCase(BaubleTestCase):
         super().setUp()
         setUp_data()
 
-    def tearDown(self):
-        super().tearDown()
+
+class PrefsUpdatedTest(BaubleTestCase):
+
+    def test_prefs_update(self):
+        # NOTE plugin.init() is called in BaubleTestCase.setUp if this plugin
+        # exists the prefs in default/config.cfg should have been copied in.
+        # tests pluginmgr.update_prefs
+        self.assertTrue(
+            prefs.prefs.get('web_button_defs.species.googlebutton')
+        )
+        self.assertTrue(
+            prefs.prefs.get('web_button_defs.genus.googlebutton')
+        )
+        self.assertTrue(
+            prefs.prefs.get('web_button_defs.family.googlebutton')
+        )
 
 
 class FamilyTests(PlantTestCase):
