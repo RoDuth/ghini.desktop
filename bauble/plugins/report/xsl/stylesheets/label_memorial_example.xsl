@@ -190,7 +190,7 @@
                   >
                   <fo:block>
                     <fo:external-graphic
-                      src="logo.png"
+                      src="./pics/logo.png"
                       content-height="scale-to-fit"
                       height="14mm"
                       >
@@ -209,7 +209,7 @@
                   <fo:block
                     text-align="right">
                     <fo:external-graphic
-                      src="memorial_logo.svg"
+                      src="./pics/memorial_logo.svg"
                       content-height="scale-to-fit"
                       height="24mm"
                       >
@@ -341,7 +341,7 @@
                     font-size="13pt"
                     text-align="right"
                     >
-                    <xsl:value-of select="distribution" />
+                    <xsl:value-of select="LabelDistribution" />
                   </fo:block>
                 </fo:block-container>
               </fo:block-container>

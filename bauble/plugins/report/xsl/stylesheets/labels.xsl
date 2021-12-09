@@ -37,7 +37,7 @@
 		<fo:block-container absolute-position="absolute"
 				    top="4mm" bottom="29mm">
 		  <!-- border="solid yellow 1px" -->
-		  <fo:block font-family="sans"			    
+		  <fo:block font-family="sans"
 			    font-weight="bold"
 			    margin-left="5mm"
 			    margin-right="5mm"
@@ -70,7 +70,7 @@
 		<!-- ** Vernacular name ** -->
 		<!-- border="solid green 1px" -->
 		<fo:block-container absolute-position="absolute"
-				    top="33mm"	    
+				    top="33mm"
 				    bottom="8mm">
 		  <fo:block font-family="sans"
 			    font-weight="bold"
@@ -103,12 +103,12 @@
 				    top="52mm"
 				    bottom="0mm"
 				    right="2mm"
-				    left="55mm"				    
+				    left="55mm"
 				    display-align="after">
 		  <fo:block font-family="serif"
 			    font-size="15pt"
 			    text-align="right">
-		    <xsl:value-of select="distribution" />
+		    <xsl:value-of select="LabelDistribution" />
 		  </fo:block>
 		</fo:block-container>
 	      </fo:block-container>

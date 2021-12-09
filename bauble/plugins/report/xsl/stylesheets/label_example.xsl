@@ -188,7 +188,7 @@
                   >
                   <fo:block>
                     <fo:external-graphic
-                      src="logo.png"
+                      src="./pics/logo.png"
                       content-height="scale-to-fit"
                       height="14mm"
                       >
@@ -286,7 +286,7 @@
                     font-size="13pt"
                     text-align="right"
                     >
-                    <xsl:value-of select="distribution" />
+                    <xsl:value-of select="LabelDistribution" />
                   </fo:block>
                 </fo:block-container>
               </fo:block-container>

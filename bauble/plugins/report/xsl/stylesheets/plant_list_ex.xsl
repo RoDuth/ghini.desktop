@@ -25,7 +25,7 @@
 	           work for our needs -->
 	      <fo:table-column column-width="proportional-column-width(.8)"/>
 	      <fo:table-column column-width="proportional-column-width(1.2)"/>
-	      <fo:table-column column-width="proportional-column-width(3)"/> 
+	      <fo:table-column column-width="proportional-column-width(3)"/>
 	      <fo:table-header border="1pt solor #B7B7B7"
 			       background-color="#B7B7B7">
 		<fo:table-row>
@@ -57,14 +57,14 @@
 		      </fo:block>
 		    </fo:table-cell>
 		    <!-- display-align="center" -->
-		    <fo:table-cell 
+		    <fo:table-cell
 				   border=".75pt solid black">
 		      <fo:block>
-			<xsl:value-of 
+			<xsl:value-of
 			    select=".//abcd:FullScientificNameString" />
 		      </fo:block>
 		    </fo:table-cell>
-		    
+
 		    <fo:table-cell border=".75pt solid black">
 		      <fo:block>
 			<xsl:value-of select="abcd:Notes" />

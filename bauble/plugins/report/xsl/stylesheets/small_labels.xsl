@@ -49,16 +49,15 @@
 		  <fo:block font-style="italic"
 			    font-size="14pt"
 			    text-align="center">
-		    <xsl:value-of
-			select=".//abcd:FullScientificNameString" />
+		    <xsl:value-of select=".//abcd:FullScientificNameString" />
 		  </fo:block>
 		</fo:block-container>
 
 		<!-- ** Vernacular name ** -->
 		<!-- border="solid green 1px" -->
-                <!-- display-align="after" -->
+		<!-- display-align="after" -->
 		<fo:block-container absolute-position="absolute"
-				    
+
 				    top="20mm" bottom="8mm">
 		  <fo:block font-weight="bold"
 			    font-size="16pt"

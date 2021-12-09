@@ -75,8 +75,7 @@
 
                     <fo:table-cell border=".75pt solid black">
                       <fo:block>
-                        <xsl:for-each select="Notes">
-                          <xsl:for-each select="*">
+                        <xsl:for-each select="Notes/*">
                             <fo:block>
                               <fo:inline font-weight="bold">
                                 <xsl:value-of select="local-name()" />
@@ -94,7 +93,6 @@
                                 <xsl:text>)</xsl:text>
                               </fo:inline>
                             </fo:block>
-                          </xsl:for-each>
                         </xsl:for-each>
                       </fo:block>
                     </fo:table-cell>

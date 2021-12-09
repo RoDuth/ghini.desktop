@@ -84,7 +84,7 @@
 
                     <fo:table-cell border=".75pt solid black">
                       <fo:block>
-                        <xsl:value-of select=".//abcd:UnitID" />
+                        <xsl:value-of select="abcd:UnitID" />
                       </fo:block>
                     </fo:table-cell>
                     <!-- display-align="center" -->
@@ -97,7 +97,7 @@
                     <fo:table-cell border=".75pt solid black">
                       <fo:block>
                         <xsl:call-template name="spliter">
-                          <xsl:with-param name="text" select=".//abcd:Notes"/>
+                          <xsl:with-param name="text" select="abcd:Notes"/>
                         </xsl:call-template>
                       </fo:block>
                     </fo:table-cell>
