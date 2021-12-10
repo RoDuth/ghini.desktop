@@ -64,7 +64,6 @@ from .institution import (Institution,
                           InstitutionTool,
                           start_institution_editor)
 from .pocket_server import PocketServerTool
-from .picture_importer import PictureImporterTool
 
 # other ideas:
 # - cultivation table
@@ -74,7 +73,7 @@ from .picture_importer import PictureImporterTool
 class GardenPlugin(pluginmgr.Plugin):
 
     depends = ["PlantsPlugin"]
-    tools = [InstitutionTool, PocketServerTool, PictureImporterTool]
+    tools = [InstitutionTool, PocketServerTool]
     commands = [InstitutionCommand]
     provides = {'Accession': Accession,
                 'AccessionNote': AccessionNote,
