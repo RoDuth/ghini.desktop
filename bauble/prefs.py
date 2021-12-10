@@ -313,8 +313,9 @@ class _prefs(UserDict):
                 for name, value in self.config.items(section)]
 
     def itersection(self, section):
-        for option in self.config[section]:
-            yield option, self.get(f'{section}.{option}')
+        if self.has_section(section):
+            for option in self.config[section]:
+                yield option, self.get(f'{section}.{option}')
 
     def __setitem__(self, key, value):
         section, option = _prefs._parse_key(key)
@@ -471,6 +472,7 @@ class PrefsView(pluginmgr.View):
             if utils.yes_no_dialog(msg, parent=self.view.get_window()):
                 del prefs[key]
                 prefs.save()
+                self.refresh_view()
                 logger.debug('deleting: %s', key)
                 self.prefs_ls.remove(self.prefs_ls.get_iter_from_string(
                     str(path)))
@@ -495,6 +497,7 @@ class PrefsView(pluginmgr.View):
         self.prefs_ls[path][1] = str(new_val)
         self.prefs_ls[path][2] = new_val_type
         prefs.save()
+        self.refresh_view()
 
     @staticmethod
     def on_prefs_backup_clicked(_widget):
@@ -525,6 +528,13 @@ class PrefsView(pluginmgr.View):
         for item in plugins:
             self.plugins_ls.append(item)
         session.close()
+        self.refresh_view()
+
+    @staticmethod
+    def refresh_view():
+        if bauble.gui is not None:
+            # may be more to do here yet...
+            bauble.gui.populate_main_entry()
 
 
 class PrefsCommandHandler(pluginmgr.CommandHandler):
