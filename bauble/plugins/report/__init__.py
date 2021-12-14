@@ -18,18 +18,17 @@
 # You should have received a copy of the GNU General Public License
 # along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
 
-#
-# __init__.py
-#
-# Description : report plugin
-#
+"""
+report plugin.
+"""
+
 import os
 import traceback
 
 import logging
 logger = logging.getLogger(__name__)
 
-from gi.repository import Gtk  # noqa
+from gi.repository import Gtk
 from gi.repository import GLib
 
 from sqlalchemy import union
@@ -40,25 +39,29 @@ from bauble import prefs
 from bauble import utils
 from bauble import paths
 from bauble import pluginmgr
-from bauble.plugins.plants import (Family, Genus, Species, VernacularName,
+from bauble.plugins.plants import (Family,
+                                   Genus,
+                                   Species,
+                                   VernacularName,
                                    Geography)
 from bauble.plugins.garden import Accession, Plant, Location, Contact
 from bauble.plugins.tag import Tag
 from .template_downloader import TemplateDownloadTool
 
-# TODO: this module should depend on PlantPlugin, GardenPlugin,
-# TagPlugin and should also allow other plugins to register between
-# two type of objects
-
-# TODO: should be able to drop a new formatter plugin and have it
-# automatically detected, right now we to return it in this modules
-# plugin() function
 
 # name: formatter_class, formatter_kwargs
-config_list_pref = 'report.configs'
+CONFIG_LIST_PREF = 'report.configs'
+"""
+the preferences key for report configurations.
+
+Value: a dict of names to settings.
+"""
 
 # the default report generator to select on start
-default_config_pref = 'report.xsl'
+DEFAULT_CONFIG_PREF = 'report.current'
+"""
+the preferences key the currently selected report.
+"""
 formatter_settings_expanded_pref = 'report.settings.expanded'
 
 
@@ -78,48 +81,51 @@ def _get_pertinent_objects(cls, get_query_func, objs, session):
         session = db.Session()
     if not isinstance(objs, (tuple, list)):
         objs = [objs]
-    queries = [get_query_func(o, session) for o in objs]
-    # TODO: what is the problem with the following form?
-    # results = session.query(cls).order_by(None).union(*queries)
-    unions = union(*[q.statement for q in queries])
+    # query once for each type
+    grouped = {}
+    for obj in objs:
+        grouped.setdefault(type(obj), []).append(obj)
+    queries = [
+        get_query_func(cls, objs, session) for cls, objs in grouped.items()
+    ]
+    unions = union(*[query.statement for query in queries])
     results = session.query(cls).from_statement(unions)
     return results
 
 
-def get_plant_query(obj, session):
-    """
-    """
-    # as of sqlalchemy 0.5.0 we have to have the order_by(None) here
-    # so that if we want to union() the statements together later it
-    # will work properly
-    q = session.query(Plant).order_by(None)
-    if isinstance(obj, Family):
-        return q.join('accession', 'species', 'genus', 'family').\
-            filter_by(id=obj.id)
-    elif isinstance(obj, Genus):
-        return q.join('accession', 'species', 'genus').filter_by(id=obj.id)
-    elif isinstance(obj, Species):
-        return q.join('accession', 'species').filter_by(id=obj.id)
-    elif isinstance(obj, VernacularName):
-        return q.join('accession', 'species', 'vernacular_names').\
-            filter_by(id=obj.id)
-    elif isinstance(obj, Geography):
-        return q.join('accession', 'species', 'distribution', 'geography'
-                      ).filter_by(id=obj.id)
-    elif isinstance(obj, Plant):
-        return q.filter_by(id=obj.id)
-    elif isinstance(obj, Accession):
-        return q.join('accession').filter_by(id=obj.id)
-    elif isinstance(obj, Location):
-        return q.filter_by(location_id=obj.id)
-    elif isinstance(obj, Contact):
-        return q.join('accession', 'source', 'source_detail').\
-            filter_by(id=obj.id)
-    elif isinstance(obj, Tag):
-        plants = get_plants_pertinent_to(obj.objects, session)
-        return q.filter(Plant.id.in_([p.id for p in plants]))
-    else:
-        raise BaubleError(_("Can't get plants from a %s") % type(obj).__name__)
+# pylint: disable=too-many-return-statements
+def get_plant_query(cls, objs, session) -> list[Plant]:
+    query = session.query(Plant)
+    ids = {obj.id for obj in objs}
+    if cls is Family:
+        return (query.join('accession', 'species', 'genus', 'family')
+                .filter(Family.id.in_(ids)))
+    if cls is Genus:
+        return (query.join('accession', 'species', 'genus')
+                .filter(Genus.id.in_(ids)))
+    if cls is Species:
+        return query.join('accession', 'species').filter(Species.id.in_(ids))
+    if cls is VernacularName:
+        return (query.join('accession', 'species', 'vernacular_names')
+                .filter(VernacularName.id.in_(ids)))
+    if cls is Geography:
+        return (query.join('accession', 'species', 'distribution', 'geography')
+                .filter(Geography.id.in_(ids)))
+    if cls is Plant:
+        return query.filter(Plant.id.in_(ids))
+    if cls is Accession:
+        return query.join('accession').filter(Accession.id.in_(ids))
+    if cls is Location:
+        return query.filter(Plant.location_id.in_(ids))
+    if cls is Contact:
+        return (query.join('accession', 'source', 'source_detail')
+                .filter(Contact.id.in_(ids)))
+    if cls is Tag:
+        plants = get_plants_pertinent_to(
+            [i for obj in objs for i in obj.objects], session
+        )
+        return query.filter(Plant.id.in_([plt.id for plt in plants]))
+    raise BaubleError(_("Can't get plants from a %s") % cls.__name__)
 
 
 def get_plants_pertinent_to(objs, session=None):
@@ -132,37 +138,37 @@ def get_plants_pertinent_to(objs, session=None):
     return _get_pertinent_objects(Plant, get_plant_query, objs, session)
 
 
-def get_accession_query(obj, session):
-    """
-    """
-    q = session.query(Accession).order_by(None)
-    if isinstance(obj, Family):
-        return q.join('species', 'genus', 'family').\
-            filter_by(id=obj.id)
-    elif isinstance(obj, Genus):
-        return q.join('species', 'genus').filter_by(id=obj.id)
-    elif isinstance(obj, Species):
-        return q.join('species').filter_by(id=obj.id)
-    elif isinstance(obj, VernacularName):
-        return q.join('species', 'vernacular_names').\
-            filter_by(id=obj.id)
-    elif isinstance(obj, Plant):
-        return q.join('plants').filter_by(id=obj.id)
-    elif isinstance(obj, Geography):
-        return q.join('species', 'distribution', 'geography'
-                      ).filter_by(id=obj.id)
-    elif isinstance(obj, Accession):
-        return q.filter_by(id=obj.id)
-    elif isinstance(obj, Location):
-        return q.join('plants').filter_by(location_id=obj.id)
-    elif isinstance(obj, Contact):
-        return q.join('source', 'source_detail').filter_by(id=obj.id)
-    elif isinstance(obj, Tag):
-        acc = get_accessions_pertinent_to(obj.objects, session)
-        return q.filter(Accession.id.in_([a.id for a in acc]))
-    else:
-        raise BaubleError(_("Can't get accessions from a %s") %
-                          type(obj).__name__)
+def get_accession_query(cls, objs, session) -> list[Accession]:
+    query = session.query(Accession)
+    ids = {obj.id for obj in objs}
+    if cls is Family:
+        return (query.join('species', 'genus', 'family')
+                .filter(Family.id.in_(ids)))
+    if cls is Genus:
+        return query.join('species', 'genus').filter(Genus.id.in_(ids))
+    if cls is Species:
+        return query.join('species').filter(Species.id.in_(ids))
+    if cls is VernacularName:
+        return (query.join('species', 'vernacular_names')
+                .filter(VernacularName.id.in_(ids)))
+    if cls is Geography:
+        return (query.join('species', 'distribution', 'geography')
+                .filter(Geography.id.in_(ids)))
+    if cls is Plant:
+        return query.join('plants').filter(Plant.id.in_(ids))
+    if cls is Accession:
+        return query.filter(Accession.id.in_(ids))
+    if cls is Location:
+        return query.join('plants').filter(Plant.location_id.in_(ids))
+    if cls is Contact:
+        return (query.join('source', 'source_detail')
+                .filter(Contact.id.in_(ids)))
+    if cls is Tag:
+        accessions = get_accessions_pertinent_to(
+            [i for obj in objs for i in obj.objects], session
+        )
+        return query.filter(Accession.id.in_([acc.id for acc in accessions]))
+    raise BaubleError(_("Can't get accessions from a %s") % cls.__name__)
 
 
 def get_accessions_pertinent_to(objs, session=None):
@@ -176,38 +182,38 @@ def get_accessions_pertinent_to(objs, session=None):
         Accession, get_accession_query, objs, session)
 
 
-def get_species_query(obj, session):
-    """
-    """
-    q = session.query(Species).order_by(None)
-    if isinstance(obj, Family):
-        return q.join('genus', 'family').\
-            filter_by(id=obj.id)
-    elif isinstance(obj, Genus):
-        return q.join('genus').filter_by(id=obj.id)
-    elif isinstance(obj, Species):
-        return q.filter_by(id=obj.id)
-    elif isinstance(obj, Geography):
-        return q.join('distribution', 'geography').filter_by(id=obj.id)
-    elif isinstance(obj, VernacularName):
-        return q.join('vernacular_names').\
-            filter_by(id=obj.id)
-    elif isinstance(obj, Plant):
-        return q.join('accessions', 'plants').filter_by(id=obj.id)
-    elif isinstance(obj, Accession):
-        return q.join('accessions').filter_by(id=obj.id)
-    elif isinstance(obj, Location):
-        return q.join('accessions', 'plants', 'location').\
-            filter_by(id=obj.id)
-    elif isinstance(obj, Contact):
-        return q.join('accessions', 'source', 'source_detail').\
-                filter_by(id=obj.id)
-    elif isinstance(obj, Tag):
-        acc = get_species_pertinent_to(obj.objects, session)
-        return q.filter(Species.id.in_([a.id for a in acc]))
-    else:
-        raise BaubleError(_("Can't get species from a %s") %
-                          type(obj).__name__)
+def get_species_query(cls, objs, session) -> list[Species]:
+    query = session.query(Species)
+    ids = {obj.id for obj in objs}
+    if cls is Family:
+        return (query.join('genus', 'family')
+                .filter(cls.id.in_(ids)))
+    if cls is Genus:
+        return query.join('genus').filter(Genus.id.in_(ids))
+    if cls is Species:
+        return query.filter(cls.id.in_(ids))
+    if cls is VernacularName:
+        return (query.join('vernacular_names')
+                .filter(cls.id.in_(ids)))
+    if cls is Geography:
+        return query.join('distribution', 'geography').filter(cls.id.in_(ids))
+    if cls is Plant:
+        return query.join('accessions', 'plants').filter(cls.id.in_(ids))
+    if cls is Accession:
+        return query.join('accessions').filter(cls.id.in_(ids))
+    if cls is Location:
+        return (query.join('accessions', 'plants', 'location')
+                .filter(cls.id.in_(ids))
+                )
+    if cls is Contact:
+        return (query.join('accessions', 'source', 'source_detail')
+                .filter(cls.id.in_(ids)))
+    if cls is Tag:
+        species = get_species_pertinent_to(
+            [i for obj in objs for i in obj.objects], session
+        )
+        return query.filter(Species.id.in_([sp.id for sp in species]))
+    raise BaubleError(_("Can't get species from a %s") % cls.__name__)
 
 
 def get_species_pertinent_to(objs, session=None):
@@ -222,40 +228,41 @@ def get_species_pertinent_to(objs, session=None):
         key=str)
 
 
-def get_location_query(obj, session):
-    """
-    """
-    q = session.query(Location).order_by(None)
-    if isinstance(obj, Location):
-        return q.filter_by(id=obj.id)
-    elif isinstance(obj, Plant):
-        return q.join('plants').filter_by(id=obj.id)
-    elif isinstance(obj, Accession):
-        return q.join('plants', 'accession').filter_by(id=obj.id)
-    elif isinstance(obj, Family):
-        return q.join('plants', 'accession', 'species', 'genus', 'family').\
-            filter_by(id=obj.id)
-    elif isinstance(obj, Genus):
-        return q.join('plants', 'accession', 'species', 'genus').\
-            filter_by(id=obj.id)
-    elif isinstance(obj, Species):
-        return q.join('plants', 'accession', 'species').\
-            filter_by(id=obj.id)
-    elif isinstance(obj, VernacularName):
-        return q.join('plants', 'accession', 'species', 'vernacular_names').\
-            filter_by(id=obj.id)
-    elif isinstance(obj, Geography):
-        return q.join('plants', 'accession', 'species', 'distribution',
-                      'geography').filter_by(id=obj.id)
-    elif isinstance(obj, Contact):
-        return q.join('plants', 'accession', 'source', 'source_detail').\
-                filter_by(id=obj.id)
-    elif isinstance(obj, Tag):
-        locs = get_locations_pertinent_to(obj.objects, session)
-        return q.filter(Location.id.in_([l.id for l in locs]))
-    else:
-        raise BaubleError(_("Can't get Location from a %s") %
-                          type(obj).__name__)
+def get_location_query(cls, objs, session) -> list[Location]:
+    query = session.query(Location)
+    ids = {obj.id for obj in objs}
+    if cls is Location:
+        return query.filter(cls.id.in_(ids))
+    if cls is Plant:
+        return query.join('plants').filter(cls.id.in_(ids))
+    if cls is Accession:
+        return query.join('plants', 'accession').filter(cls.id.in_(ids))
+    if cls is Family:
+        return (query.join('plants', 'accession', 'species', 'genus', 'family')
+                .filter(cls.id.in_(ids)))
+    if cls is Genus:
+        return (query.join('plants', 'accession', 'species', 'genus')
+                .filter(cls.id.in_(ids)))
+    if cls is Species:
+        return (query.join('plants', 'accession', 'species')
+                .filter(cls.id.in_(ids)))
+    if cls is VernacularName:
+        return (query.join('plants', 'accession', 'species',
+                           'vernacular_names')
+                .filter(cls.id.in_(ids)))
+    if cls is Geography:
+        return (query.join('plants', 'accession', 'species', 'distribution',
+                           'geography')
+                .filter(cls.id.in_(ids)))
+    if cls is Contact:
+        return (query.join('plants', 'accession', 'source', 'source_detail')
+                .filter(cls.id.in_(ids)))
+    if cls is Tag:
+        locs = get_locations_pertinent_to(
+            [i for obj in objs for i in obj.objects], session
+        )
+        return query.filter(Location.id.in_([loc.id for loc in locs]))
+    raise BaubleError(_("Can't get Location from a %s") % cls.__name__)
 
 
 def get_locations_pertinent_to(objs, session=None):
@@ -270,41 +277,44 @@ def get_locations_pertinent_to(objs, session=None):
         key=str)
 
 
-def get_geography_query(obj, session):
-    """
-    """
-    q = session.query(Geography).order_by(None)
-    if isinstance(obj, Geography):
-        return q.filter_by(id=obj.id)
-    elif isinstance(obj, Plant):
-        return q.join('distribution', 'species', 'accessions', 'plants'
-                      ).filter_by(id=obj.id)
+def get_geography_query(cls, objs, session) -> list[Geography]:
+    query = session.query(Geography)
+    ids = {obj.id for obj in objs}
+    if cls is Geography:
+        return query.filter(cls.id.in_(ids))
+    if cls is Plant:
+        return (query.join('distribution', 'species', 'accessions', 'plants')
+                .filter(cls.id.in_(ids)))
     # This is the exception, it uses the collection geography entry.
-    elif isinstance(obj, Accession):
-        return q.join('collection', 'source', 'accession'
-                      ).filter_by(id=obj.id)
-    elif isinstance(obj, Family):
-        return q.join('distribution', 'species', 'genus', 'family'
-                      ).filter_by(id=obj.id)
-    elif isinstance(obj, Genus):
-        return q.join('distribution', 'species', 'genus').filter_by(id=obj.id)
-    elif isinstance(obj, Species):
-        return q.join('distribution', 'species').filter_by(id=obj.id)
-    elif isinstance(obj, Location):
-        return q.join('distribution', 'species', 'accessions', 'plants',
-                      'location').filter_by(id=obj.id)
-    elif isinstance(obj, VernacularName):
-        return q.join('distribution', 'species', 'vernacular_names'
-                      ).filter_by(id=obj.id)
-    elif isinstance(obj, Contact):
-        return q.join('distribution', 'species', 'accessions', 'source',
-                      'source_detail').filter_by(id=obj.id)
-    elif isinstance(obj, Tag):
-        geos = get_geographies_pertinent_to(obj.objects, session)
-        return q.filter(Geography.id.in_([g.id for g in geos]))
-    else:
-        raise BaubleError(_("Can't get Geography from a %s") %
-                          type(obj).__name__)
+    if cls is Accession:
+        return (query.join('collection', 'source', 'accession')
+                .filter(cls.id.in_(ids)))
+    if cls is Family:
+        return (query.join('distribution', 'species', 'genus', 'family')
+                .filter(cls.id.in_(ids)))
+    if cls is Genus:
+        return (query.join('distribution', 'species', 'genus')
+                .filter(cls.id.in_(ids)))
+    if cls is Species:
+        return query.join('distribution', 'species').filter(cls.id.in_(ids))
+    if cls is Location:
+        return (query.join('distribution', 'species', 'accessions', 'plants',
+                           'location')
+                .filter(cls.id.in_(ids)))
+    if cls is VernacularName:
+        return (query.join('distribution', 'species', 'vernacular_names')
+                .filter(cls.id.in_(ids)))
+    if cls is Contact:
+        return (query.join('distribution', 'species', 'accessions', 'source',
+                           'source_detail')
+                .filter(cls.id.in_(ids)))
+    if cls is Tag:
+        geographies = get_geographies_pertinent_to(
+            [i for obj in objs for i in obj.objects], session
+        )
+        return query.filter(Geography.id.in_([geo.id for geo in geographies]))
+    raise BaubleError(_("Can't get Geography from a %s") % cls.__name__)
+# pylint: enable=too-many-return-statements
 
 
 def get_geographies_pertinent_to(objs, session=None):
@@ -377,16 +387,16 @@ class ReportToolDialogView:
         self._response_sid = self.dialog.connect(
             'response', self.on_dialog_response)
 
-    def on_dialog_response(self, dialog, response, *args):
-        """
-        Called if self.get_window() is a Gtk.Dialog and it receives
-        the response signal.
+    @staticmethod
+    def on_dialog_response(dialog, response):
+        """Called if self.get_window() is a Gtk.Dialog and it receives the
+        response signal.
         """
         dialog.hide()
-        self.response = response
         return response
 
-    def on_dialog_close_or_delete(self, dialog, event=None):
+    @staticmethod
+    def on_dialog_close_or_delete(dialog, _event):
         """Called if self.get_window() is a Gtk.Dialog and it receives the
         close signal.
         """
@@ -402,10 +412,14 @@ class ReportToolDialogView:
         return self.dialog.run()
 
     def set_sensitive(self, name, sensitivity):
-        try:
-            self.builder.get_object(name).set_sensitive(sensitivity)
-        except:
-            logger.debug("can't set sensitivity of %s" % name)
+        widget = self.builder.get_object(name)
+        if widget:
+            widget.set_sensitive(sensitivity)
+        else:
+            logger.debug("can't set sensitivity of %s", name)
+
+    def resize(self):
+        self.dialog.resize(1, 1)
 
 
 class ReportToolDialogPresenter:
@@ -423,15 +437,15 @@ class ReportToolDialogPresenter:
 
         # set the names combo to the default, on_names_combo_changes should
         # do the rest of the work
-        default = prefs.prefs[default_config_pref]
+        default = prefs.prefs.get(DEFAULT_CONFIG_PREF)
         try:
             self.set_names_combo(default)
-        except Exception as e:
-            logger.debug("%s(%s)" % (type(e).__name__, e))
+        except ValueError as e:
+            logger.debug("%s(%s)", type(e).__name__, e)
             self.set_names_combo(0)
 
     def set_names_combo(self, val):
-        """Set the names combo to val and emit the 'changed' signal,
+        """Set the names combo to val and emit the 'changed' signal.
 
         :param val: either an integer index or a string value in the combo
 
@@ -450,11 +464,9 @@ class ReportToolDialogPresenter:
             utils.combo_set_active_text(combo, val)
 
     def set_formatter_combo(self, val):
-        """
-        Set the formatter combo to val and emit the 'changed' signal.
+        """Set the formatter combo to val and emit the 'changed' signal.
 
-        :param val: either an integer index or a string value in the
-          combo combo = self.view.widgets.formatter_combo
+        :param val: either an integer index or a string value in the combo
         """
         combo = self.view.widgets.formatter_combo
         if val is None:
@@ -466,90 +478,96 @@ class ReportToolDialogPresenter:
         else:
             utils.combo_set_active_text(combo, val)
 
-    def set_prefs_for(self, name, formatter_title, settings):
+    @staticmethod
+    def set_prefs_for(name, formatter_title, settings):
         """This will overwrite any other report settings with name"""
-        formatters = prefs.prefs[config_list_pref]
+        formatters = prefs.prefs.get(CONFIG_LIST_PREF)
         if formatters is None:
             formatters = {}
         formatters[name] = formatter_title, settings
-        prefs.prefs[config_list_pref] = formatters
+        prefs.prefs[CONFIG_LIST_PREF] = formatters
 
-    def on_new_button_clicked(self, *args):
-        # TODO: don't set the OK button as sensitive in the name dialog
-        # if the name already exists
-        # TODO: make "Enter" in the entry fire the default response
-        d = Gtk.Dialog(_("Formatter Name"), self.view.dialog,
-                       Gtk.DialogFlags.MODAL | Gtk.DialogFlags.DESTROY_WITH_PARENT,
-                       buttons=('Cancel', Gtk.ResponseType.REJECT,
-                                'OK', Gtk.ResponseType.ACCEPT))
-        d.vbox.set_spacing(10)
-        d.set_default_response(Gtk.ResponseType.ACCEPT)
+    def on_new_button_clicked(self, _button):
         text = '<b>%s</b>' % _('Enter a name for the new formatter')
-        label = Gtk.Label()
-        label.set_markup(text)
-        label.set_padding(10, 10)
-        d.vbox.pack_start(label, True, True, 0)
+        dialog = utils.create_message_dialog(
+            text,
+            buttons=Gtk.ButtonsType.OK_CANCEL,
+            parent=self.view.dialog,
+            resizable=False
+        )
+        content_area_box = dialog.get_content_area()
+        content_area_box.set_spacing(10)
+        entry_box = Gtk.Box()
         entry = Gtk.Entry()
-        entry.set_activates_default(True)
-        d.vbox.pack_start(entry, True, True, 0)
-        d.show_all()
+        dialog.set_response_sensitive(Gtk.ResponseType.OK, False)
+        entry.get_style_context().add_class('problem')
         names_model = self.view.widgets.names_combo.get_model()
-        while True:
-            if d.run() == Gtk.ResponseType.ACCEPT:
-                name = entry.get_text()
-                if name == '':
-                    continue
-                elif names_model is not None \
-                        and utils.tree_model_has(names_model, name):
-                    utils.message_dialog(_('%s already exists') % name)
-                    continue
-                else:
-                    self.set_prefs_for(entry.get_text(), None, {})
-                    self.populate_names_combo()
-                    utils.combo_set_active_text(self.view.widgets.names_combo,
-                                                name)
-                    break
-            else:
-                break
-        d.destroy()
 
-    def on_remove_button_clicked(self, *args):
-        formatters = prefs.prefs[config_list_pref]
+        def on_entry_changed(_entry):
+            _name = entry.get_text()
+            if _name == '' or (names_model is not None and
+                               utils.tree_model_has(names_model, _name)):
+                entry.get_style_context().add_class('problem')
+                dialog.set_response_sensitive(Gtk.ResponseType.OK, False)
+            else:
+                entry.get_style_context().remove_class('problem')
+                dialog.set_response_sensitive(Gtk.ResponseType.OK, True)
+
+        entry.connect('changed', on_entry_changed)
+        dialog.set_default_response(Gtk.ResponseType.OK)
+        entry.set_activates_default(True)
+        entry_box.pack_start(entry, True, True, 15)
+        content_area_box.pack_start(entry_box, True, True, 5)
+        dialog.show_all()
+        entry.grab_focus()
+        response = dialog.run()
+        if response == Gtk.ResponseType.OK:
+            name = entry.get_text()
+            self.set_prefs_for(name, None, {})
+            self.populate_names_combo()
+            utils.combo_set_active_text(self.view.widgets.names_combo, name)
+        dialog.destroy()
+
+    def on_remove_button_clicked(self, _button):
+        formatters = prefs.prefs.get(CONFIG_LIST_PREF, {})
         names_combo = self.view.widgets.names_combo
         name = names_combo.get_active_text()
         formatters.pop(name)
-        prefs.prefs[config_list_pref] = formatters
+        prefs.prefs[CONFIG_LIST_PREF] = formatters
         self.populate_names_combo()
         names_combo.set_active(0)
 
-    def on_names_combo_changed(self, combo, *args):
-        if combo.get_model() is None:
+    def on_names_combo_changed(self, combo):
+        if combo.get_model() is None or combo.get_active() == -1:
             self.view.set_sensitive('details_box', False)
             return
 
         name = combo.get_active_text()
-        formatters = prefs.prefs[config_list_pref]
+        formatters = prefs.prefs.get(CONFIG_LIST_PREF, {})
         self.view.set_sensitive('details_box', name is not None)
         # set the default to the new name
-        prefs.prefs[default_config_pref] = name
+        prefs.prefs[DEFAULT_CONFIG_PREF] = name
         try:
-            title, settings = formatters[name]
+            formatter_title, _settings = formatters.get(name)
         except (KeyError, TypeError) as e:
-            # TODO: show a dialog saying that you can't find whatever
-            # you're looking for in the settings
-            logger.debug("%s(%s)" % (type(e).__name__, e))
+            logger.debug("%s(%s)", type(e).__name__, e)
+            utils.message_dialog(
+                _('%s does not exists in your preferences') % name
+            )
             return
 
         try:
-            self.set_formatter_combo(title)
-        except Exception as e:
-            # TODO: show a dialog saying that you can't find whatever
-            # you're looking for in the settings
-            logger.debug("%s(%s)" % (type(e).__name__, e))
+            self.set_formatter_combo(formatter_title)
+        except ValueError as e:
+            utils.message_dialog(
+                _('%s does not exist, have you edited your preferences?') %
+                name
+            )
+            logger.debug("%s(%s)", type(e).__name__, e)
             self.set_formatter_combo(-1)
         self.view.set_sensitive('details_box', True)
 
-    def on_formatter_combo_changed(self, combo, *args):
+    def on_formatter_combo_changed(self, combo):
         """formatter_combo changed signal handler."""
         self.view.set_sensitive('ok_button', False)
         GLib.idle_add(self._formatter_combo_changed_idle, combo)
@@ -557,27 +575,24 @@ class ReportToolDialogPresenter:
     def _formatter_combo_changed_idle(self, combo):
         formatter = combo.get_active_text()
         name = self.view.widgets.names_combo.get_active_text()
-        settings = {}
-        try:
-            _name, settings = prefs.prefs[config_list_pref][name]
-        except KeyError as e:
-            logger.debug("%s(%s)" % (type(e).__name__, e))
+        _formatter_title, settings = (prefs.prefs
+                                      .get(CONFIG_LIST_PREF, {})
+                                      .get(name, (None, None)))
+        if settings is None:
             return
 
         expander = self.view.widgets.settings_expander
-        child = expander.get_child()
-        if child:
+
+        for child in expander.get_children():
             expander.remove(child)
 
-        # self.widgets.ok_button.set_sensitive(title is not None)
         self.view.set_sensitive('ok_button', formatter is not None)
         if not formatter:
+            self.view.resize()
             return
-        try:
-            cls = self.formatter_class_map[formatter]
-        except KeyError:
-            return
-        box = cls.get_settings_box()
+
+        cls = self.formatter_class_map.get(formatter)
+        box = cls.get_settings_box() if cls else None
         if box:
             box.update(settings)
             expander.add(box)
@@ -588,18 +603,18 @@ class ReportToolDialogPresenter:
         expander.set_expanded(box is not None)
         self.set_prefs_for(name, formatter, settings)
         self.view.set_sensitive('ok_button', True)
+        self.view.resize()
 
     def init_formatter_combo(self):
         plugins = []
-        for p in list(pluginmgr.plugins.values()):
-            if isinstance(p, FormatterPlugin):
-                logger.debug('recognized %s as a FormatterPlugin', p)
-                plugins.append(p)
+        for plug in pluginmgr.plugins.values():
+            if isinstance(plug, FormatterPlugin):
+                logger.debug('recognized %s as a FormatterPlugin', plug)
+                plugins.append(plug)
             else:
-                logger.debug('discarded %s: not a FormatterPlugin', p)
+                logger.debug('discarded %s: not a FormatterPlugin', plug)
 
-        # we should always have at least the default formatter
-        model = Gtk.ListStore(str)
+        # should always have at least the default formatter
         if len(plugins) == 0:
             utils.message_dialog(_('No formatter plugins defined'),
                                  Gtk.MessageType.WARNING)
@@ -608,68 +623,58 @@ class ReportToolDialogPresenter:
         for item in plugins:
             title = item.title
             self.formatter_class_map[title] = item
-            model.append([item.title])
-        self.view.widgets.formatter_combo.set_model(model)
+            self.view.widgets.formatter_combo.append_text(title)
 
     def populate_names_combo(self):
-        """Populates the combo with the list of configuration names
-        from the prefs
-        """
-        configs = prefs.prefs[config_list_pref]
+        """Populate combo with the list of configuration names from prefs."""
+        formatter = prefs.prefs.get(CONFIG_LIST_PREF)
         combo = self.view.widgets.names_combo
-        if configs is None:
+        if formatter is None:
             self.view.set_sensitive('details_box', False)
-            utils.clear_model(combo)
+            combo.remove_all()
             return
         try:
-            model = Gtk.ListStore(str)
-            for cfg in list(configs.keys()):
-                model.append([cfg])
-            combo.set_model(model)
+            combo.remove_all()
+            for cfg in formatter.keys():
+                combo.append_text(cfg)
         except AttributeError as e:
             # no formatters
-            logger.debug("%s(%s)" % (type(e).__name__, e))
-            pass
+            logger.debug("%s(%s)", type(e).__name__, e)
 
     def init_names_combo(self):
-        formatters = prefs.prefs[config_list_pref]
-        if formatters is None or len(formatters) == 0:
+        formatters = prefs.prefs.get(CONFIG_LIST_PREF)
+        if not formatters:
             msg = _('No formatters found. To create a new formatter click '
                     'the "New" button.')
             utils.message_dialog(msg, parent=self.view.dialog)
-            self.view.widgets.names_combo.set_model(None)
+            self.view.widgets.names_combo.remove_all()
         self.populate_names_combo()
 
     def save_formatter_settings(self):
         name = self.view.widgets.names_combo.get_active_text()
-        title, dummy = prefs.prefs[config_list_pref][name]
+        formatters = prefs.prefs.get(CONFIG_LIST_PREF, {})
+        formatter_title, _dummy_settings = formatters.get(name)
         box = self.view.widgets.settings_expander.get_child()
-        formatters = prefs.prefs[config_list_pref]
-        formatters[name] = title, box.get_report_settings()
-        prefs.prefs[config_list_pref] = formatters
+        formatters[name] = formatter_title, box.get_report_settings()
+        prefs.prefs[CONFIG_LIST_PREF] = formatters
 
     def start(self):
         formatter = None
         settings = None
-        while True:
-            response = self.view.start()
-            if response == Gtk.ResponseType.OK:
-                # get format method
-                # save default
-                prefs.prefs[default_config_pref] = \
-                    self.view.widgets.names_combo.get_active_text()
-                self.save_formatter_settings()
-                name = self.view.widgets.names_combo.get_active_text()
-                title, settings = prefs.prefs[config_list_pref][name]
-                formatter = self.formatter_class_map[title]
-                break
-            else:
-                break
+        response = self.view.start()
+        if response == Gtk.ResponseType.OK:
+            current = self.view.widgets.names_combo.get_active_text()
+            prefs.prefs[DEFAULT_CONFIG_PREF] = current
+            self.save_formatter_settings()
+            name = self.view.widgets.names_combo.get_active_text()
+            formatter_title, settings = prefs.prefs.get(CONFIG_LIST_PREF,
+                                                        {}).get(name)
+            formatter = self.formatter_class_map.get(formatter_title)
         self.view.disconnect_all()
         return formatter, settings
 
 
-class ReportToolDialog:
+class ReportToolDialog:  # pylint: disable=too-few-public-methods
 
     def __init__(self):
         self.view = ReportToolDialogView()
@@ -679,7 +684,7 @@ class ReportToolDialog:
         return self.presenter.start()
 
 
-class ReportTool(pluginmgr.Tool):
+class ReportTool(pluginmgr.Tool):  # pylint: disable=too-few-public-methods
 
     category = _("Report")
     label = _("Generate Report")
@@ -699,15 +704,15 @@ class ReportTool(pluginmgr.Tool):
             return
 
         bauble.gui.set_busy(True)
-        ok = False
+        okay = False
         try:
             while True:
                 dialog = ReportToolDialog()
                 formatter, settings = dialog.start()
                 if formatter is None:
                     break
-                ok = formatter.format([row[0] for row in model], **settings)
-                if ok:
+                okay = formatter.format([row[0] for row in model], **settings)
+                if okay:
                     break
         except AssertionError as e:
             logger.debug("%s(%s)", type(e).__name__, e)
@@ -727,22 +732,18 @@ class ReportTool(pluginmgr.Tool):
 
 
 class ReportToolPlugin(pluginmgr.Plugin):
+    depends = ['PlantsPlugin', 'GardenPlugin', 'TagPlugin']
     tools = [ReportTool, TemplateDownloadTool]
 
 
-try:
-    import lxml.etree as etree
-except ImportError:
-    utils.message_dialog('The <i>lxml</i> package is required for the '
-                         'Report plugin')
-else:
-    def plugin():
-        from bauble.plugins.report.xsl import XSLFormatterPlugin
-        from bauble.plugins.report.mako import MakoFormatterPlugin
-        return [ReportToolPlugin, XSLFormatterPlugin,
-                MakoFormatterPlugin]
+# TODO: should be able to drop in a new formatter plugin and have it
+# automatically detected, right now they are just returned in the plugin()
+# function
 
-# compatibility aliases:
-get_all_plants = get_plants_pertinent_to
-get_all_accessions = get_accessions_pertinent_to
-get_all_species = get_species_pertinent_to
+def plugin():
+    from .xsl import XSLFormatterPlugin, get_fop_path
+    from .mako import MakoFormatterPlugin
+    plugins = [ReportToolPlugin, MakoFormatterPlugin]
+    if get_fop_path():
+        plugins.append(XSLFormatterPlugin)
+    return plugins

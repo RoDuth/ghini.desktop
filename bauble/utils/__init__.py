@@ -588,16 +588,19 @@ def set_widget_value(widget, value, markup=False, default=None, index=0):
 
 def create_message_dialog(msg, typ=Gtk.MessageType.INFO,
                           buttons=Gtk.ButtonsType.OK,
-                          parent=None):
+                          parent=None,
+                          resizable=True):
     """Create a message dialog.
 
-    :param msg: The markup to use for the message. The value should be
-      escaped in case it contains any HTML entities.
+    :param msg: The markup to use for the message. The value should be escaped
+        in case it contains any HTML entities.
     :param typ: A GTK message type constant.  The default is
         Gtk.MessageType.INFO.
     :param buttons: A GTK buttons type constant.  The default is
-      Gtk.ButtonsType.OK.
-    :param parent:  The parent window for the dialog
+        Gtk.ButtonsType.OK.
+    :param parent: The parent window for the dialog
+    :param resizable: should the dialog be resizale (can cause the window to be
+        excessively large when msg is large)
 
     Returns a :class:`Gtk.MessageDialog`
     """
@@ -612,7 +615,8 @@ def create_message_dialog(msg, typ=Gtk.MessageType.INFO,
     dialog.set_position(Gtk.WindowPosition.CENTER)
     dialog.set_title('Ghini')
     dialog.set_markup(msg)
-    dialog.set_property('resizable', True)
+    if resizable:
+        dialog.set_property('resizable', True)
 
     # get the width of a character
     context = dialog.get_pango_context()
