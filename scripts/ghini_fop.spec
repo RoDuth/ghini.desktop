@@ -23,6 +23,8 @@ tld_names = [(str(Path(NAMES_LOCAL_PATH_PARENT, 'res', '*.txt')),
 configs = [(f'{i}/*.cfg', f'{i.relative_to(root)}') for i in
            set(j.parent for j in bauble_root.glob('**/*.cfg'))]
 
+included_fop = [(f'{i}', f'{i.relative_to(root)}') for i in root.glob('fop*')]
+
 block_cipher = None
 
 a = Analysis(['ghini'],
@@ -42,8 +44,9 @@ a = Analysis(['ghini'],
                   'bauble/plugins/report/mako/templates'),
                  ('../bauble/plugins/report/xsl/stylesheets',
                   'bauble/plugins/report/xsl/stylesheets'),
+                 ('../jre', 'jre'),
                  (pyproj.datadir.get_data_dir(), 'share/proj')
-             ] + glade_files + tld_names + configs,  # noqa
+             ] + glade_files + tld_names + configs + included_fop,  # noqa
              hiddenimports=[
                  'sqlalchemy.dialects.sqlite',
                  'sqlalchemy.dialects.postgresql',

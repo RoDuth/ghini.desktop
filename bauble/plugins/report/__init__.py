@@ -741,9 +741,9 @@ class ReportToolPlugin(pluginmgr.Plugin):
 # function
 
 def plugin():
-    from .xsl import XSLFormatterPlugin, get_fop_path
+    from .xsl import XSLFormatterPlugin, _fop
     from .mako import MakoFormatterPlugin
     plugins = [ReportToolPlugin, MakoFormatterPlugin]
-    if get_fop_path():
+    if _fop.set_fop_command():
         plugins.append(XSLFormatterPlugin)
     return plugins

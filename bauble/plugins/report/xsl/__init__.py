@@ -36,6 +36,7 @@ logger = logging.getLogger(__name__)
 from gi.repository import Gtk
 
 from bauble import paths
+from bauble import prefs
 from bauble.plugins.abcd import (create_abcd,
                                  SpeciesABCDAdapter,
                                  AccessionABCDAdapter,
@@ -65,22 +66,96 @@ FORMATS = {'PDF': ('-pdf', 'pdf'),
            'AFP': ('-afp', 'afp'),
            'TIFF': ('-tiff', 'tiff'),
            'PNG': ('-png', 'png'),
-           'XSL-FO': ('-foout', 'fo')}
+           'XSL-FO': ('-foout', 'fo'),
+           'SVG': ('-svg', 'svg')}
+
+USE_EXTERNAL_FOP_PREF = 'report.xsl_external_fop'
+"""
+the preferences key for using the internal fop or not.
+"""
 
 
-def get_fop_path():
-    fop_cmd = 'fop.bat' if sys.platform == "win32" else 'fop'
-    path = os.environ['PATH']
-    if not path:
-        return None
-    for pth in path.split(os.pathsep):
-        try:
-            # handle exceptions in case the path doesn't exist
-            if fop_cmd in os.listdir(pth):
-                return os.path.join(pth, fop_cmd)
-        except FileNotFoundError as e:
-            logger.debug('path search: %s(%s)', type(e).__name__, e)
-    return None
+class FOP:
+    def __init__(self):
+        self.java = None
+        self.fop = None
+        self.class_path = ''
+        self.external_fop_pref = None
+
+    def init(self):
+        # if pref doesn't exist assume False
+        self.external_fop_pref = prefs.prefs.get(USE_EXTERNAL_FOP_PREF, False)
+        if self.set_fop_command():
+            self.set_fop_classpath()
+
+    def update(self):
+        """Check if the preference has changed and re-init if it has"""
+        # if pref doesn't exist assume False
+        external_fop = prefs.prefs.get(USE_EXTERNAL_FOP_PREF, False)
+        if self.external_fop_pref != external_fop:
+            self.init()
+
+    def set_fop_classpath(self):
+        if not self.fop:
+            return
+        fop_root = Path(self.fop).parent
+        class_path = ''
+        for jar in fop_root.glob('**/*.jar'):
+            class_path += str(jar) + os.pathsep
+        self.class_path = class_path.strip(os.pathsep)
+
+    def set_fop_command(self):
+        """Search for fop (and possibly java).
+
+        If USE_EXTERNAL_FOP_PREF is True search PATH only.  Otherwise look for
+        a version of fop (and jre) in in the root path first.
+        """
+        self.java = None
+        self.fop = None
+        logger.debug('looking for fop')
+        fop_cmd = 'fop.bat' if sys.platform == "win32" else 'fop'
+        java_cmd = 'java.exe' if sys.platform == "win32" else 'java'
+        logger.debug('commands fop: %s, jre: %s', fop_cmd, java_cmd)
+        if not self.external_fop_pref:
+            root = paths.root_dir()
+            logging.debug('searching local dir: %s', str(root))
+            included_fop = None
+            for cmd in root.glob(f'fop*/fop/{fop_cmd}'):
+                # should only be one or None
+                included_fop = cmd
+            if included_fop and included_fop.exists():
+                logger.debug('found FOP : %s', included_fop)
+                self.fop = str(included_fop)
+                included_java = root / f'jre/bin/{java_cmd}'
+                if included_java.exists():
+                    logger.debug('found JRE : %s', included_java)
+                    self.java = str(included_java)
+                    return True
+                return True
+
+        # could use utils.which or shutil.which except the path is not always
+        # as complete as it should be
+        path = os.environ.get('PATH')
+
+        if (not prefs.testing and sys.platform == 'darwin' and
+                paths.main_is_frozen()):
+            # add homebrew and macports paths to base Finder launched PATH.
+            path += f'{os.pathsep}/usr/local/bin{os.pathsep}/opt/local/bin'
+
+        logger.debug('PATH = %s', path)
+        if not path:
+            return True
+        for pth in path.split(os.pathsep):
+            candidate = Path(pth, fop_cmd)
+            if candidate.is_file():
+                logger.debug('found FOP on PATH %s', str(candidate))
+                self.fop = str(candidate)
+                return True
+        logger.debug('FOP not found')
+        return False
+
+
+_fop = FOP()
 
 
 def create_abcd_xml(directory, source_type, include_private, authors, objs):
@@ -173,7 +248,7 @@ class XSLFormatterSettingsBox(SettingsBox):
 
         self.widgets.format_combo.set_tooltip_text(
             _('Select an output format, NOTE: not all formats will work with '
-              'every template.')
+              'every template. SVG is experimental.')
         )
         self.widgets.outfile_box.set_tooltip_text(
             _('Select a file to save to. If not set report will be created '
@@ -186,6 +261,10 @@ class XSLFormatterSettingsBox(SettingsBox):
         )
         self.widgets.outfile_btnbrowse.connect('clicked',
                                                self.on_out_btnbrowse_clicked)
+        self.widgets.outfile_entry.connect('changed',
+                                           self.on_out_entry_changed)
+        self.widgets.format_combo.connect('changed',
+                                          self.on_format_combo_changed)
 
         # keep a refefence to settings box so it doesn't get destroyed in
         # remove_parent()
@@ -217,6 +296,20 @@ class XSLFormatterSettingsBox(SettingsBox):
                                       last_folder,
                                       self.widgets.outfile_entry)
 
+    def on_out_entry_changed(self, entry):
+        out_format = self.widgets.format_combo.get_active_text()
+        _flag, file_ext = FORMATS.get(out_format or 'PDF')
+        filename = entry.get_text()
+        if filename:
+            filepath = Path(filename)
+            if filepath.suffix != file_ext:
+                filename = str(filepath.with_suffix(f'.{file_ext}'))
+                entry.set_text(filename)
+                entry.set_position(len(filename))
+
+    def on_format_combo_changed(self, _combo):
+        self.on_out_entry_changed(self.widgets.outfile_entry)
+
     def get_report_settings(self):
         return {
             'stylesheet': self.widgets.file_entry.get_text(),
@@ -231,7 +324,7 @@ class XSLFormatterSettingsBox(SettingsBox):
         stylesheet = settings.get('stylesheet')
         source_type = authors = private = out_format = out_file = None
 
-        if stylesheet:
+        if stylesheet and Path(stylesheet).exists():
             self.widgets.file_entry.set_text(stylesheet)
             self.widgets.file_entry.set_position(len(stylesheet))
             source_type = settings.get('source_type')
@@ -292,31 +385,23 @@ class XSLFormatterPlugin(FormatterPlugin):
         # kwargs is inherited
         stylesheet = kwargs.get('stylesheet')
         source_type = kwargs.get('source_type')
-        filename = kwargs.get('out_file') or tempfile.mkstemp()[1]
         if not stylesheet:
             msg = _('Please select a stylesheet.')
             utils.message_dialog(msg, Gtk.MessageType.WARNING)
             logger.debug(msg)
             return False
 
-        fop_cmd = get_fop_path()
-        logger.debug('fop command: %s', fop_cmd)
-        if not fop_cmd:
-            if sys.platform == 'win32' and paths.main_is_frozen:
-                msg = _('Could not find Apache FOP renderer.  You may need to '
-                        'install it. The installer you used may contain FOP '
-                        'and Java as extra components.')
-            else:
-                msg = _('Could not find Apache FOP renderer.  You may need to '
-                        'install it.')
+        _fop.update()
+
+        logger.debug('fop command: %s', _fop.fop)
+        if not _fop.fop:
+            msg = _('Could not find Apache FOP renderer.  Have you changed '
+                    'your preferences?  You may need to install FOP and java.')
             utils.message_dialog(msg, Gtk.MessageType.ERROR)
             logger.debug(msg)
             return False
 
         fop_flag, file_ext = FORMATS.get(kwargs.get('out_format'))
-
-        if not filename.endswith(file_ext):
-            filename = f'{filename}.{file_ext}'
 
         xml_filename = create_abcd_xml(str(Path(stylesheet).parent),
                                        source_type,
@@ -324,20 +409,35 @@ class XSLFormatterPlugin(FormatterPlugin):
                                        kwargs.get('authors'),
                                        selfobjs)
 
+        if not xml_filename:
+            return False
+
         # suppress command prompt in windows
         creationflags = 0
         if sys.platform == 'win32':
             creationflags = subprocess.CREATE_NO_WINDOW
 
+        if _fop.external_fop_pref:
+            fop_cmd = [_fop.fop]
+        else:
+            fop_cmd = [_fop.java,
+                       '-classpath',
+                       f'"{_fop.class_path}"',
+                       'org.apache.fop.cli.Main']
+        logger.debug('fop_cmd: %s', fop_cmd)
+
         # Don't use check so we can log output etc.  Errors will be picked up
         # by the lack of file
         # pylint: disable=subprocess-run-check
+        temp = str(Path(tempfile.mkstemp()[1]).with_suffix(f'.{file_ext}'))
+        filename = kwargs.get('out_file') or temp
         fop_out = subprocess.run(
-            [fop_cmd, '-xml', xml_filename, '-xsl', stylesheet, fop_flag,
+            [*fop_cmd, '-xml', xml_filename, '-xsl', stylesheet, fop_flag,
              filename],
             capture_output=True,
-            creationflags=creationflags
+            creationflags=creationflags,
         )
+
         logger.debug('FOP return code: %s', fop_out.returncode)
         logger.debug('FOP stderr: %s', fop_out.stderr)
         logger.debug('FOP stdout: %s', fop_out.stdout)

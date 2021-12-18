@@ -24,13 +24,14 @@ Access to standard paths used by Ghini.
 """
 import os
 import sys
+from pathlib import Path
 import logging
 logger = logging.getLogger(__name__)
 
 
 def main_is_frozen():
-    """tell whether Ghini is being run from a py2exe executable."""
-    return (hasattr(sys, "frozen"))  # new py2exe and pyinstaller
+    """tell if running a frozen (pyinstaller) executable."""
+    return (hasattr(sys, "frozen"))
 
 
 def main_dir():
@@ -42,6 +43,15 @@ def main_dir():
     if d == "":
         d = os.curdir
     return os.path.abspath(d)
+
+
+def root_dir():
+    """return the root directory we are running from."""
+    if main_is_frozen():
+        root = Path(sys.executable).parent
+    else:
+        root = Path(__file__).parent.parent
+    return root
 
 
 def lib_dir():

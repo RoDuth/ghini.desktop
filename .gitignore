@@ -9,7 +9,7 @@ __pycache__/
 # Distribution / packaging
 .Python
 env/
-build/
+/build/
 develop-eggs/
 dist/
 ghini-runtime/
@@ -113,3 +113,5 @@ imex-it.rst
 ghini.py
 ghini.desktop*setup.exe
 glade-tester.*
+/fop*/
+/jre/

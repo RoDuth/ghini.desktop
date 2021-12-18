@@ -476,7 +476,7 @@ class ReportTests(BaubleTestCase):
 
 class ReportToolDialogTests(BaubleTestCase):
     def setUp(self):
-        with mock.patch('bauble.plugins.report.xsl.get_fop_path',
+        with mock.patch('bauble.plugins.report.xsl._fop.set_fop_command',
                         return_value=True):
             super().setUp()
         prefs.prefs[CONFIG_LIST_PREF] = {

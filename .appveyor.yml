@@ -1,6 +1,6 @@
 image:
-  - macos
   - Visual Studio 2019
+  - macos
 
 platform:
   - x64
@@ -16,15 +16,18 @@ for:
       - image: macos
 
   install:
-    - brew install pygobject3 gtk+3 adwaita-icon-theme
+    - brew install pygobject3 gtk+3 adwaita-icon-theme openjdk
 
   build_script:
     - . ~/venv3.9/bin/activate
     - cp -rf "$(find /usr/local/Cellar/pygobject3 -type d -name site-packages)"/* "$(find $VIRTUAL_ENV -type d -name site-packages)"
+    - /usr/local/opt/openjdk/bin/jlink --output jre --add-modules java.base,java.logging,java.desktop,java.xml
+    - scripts/get_fop.sh
+    - pip install --upgrade pip
     - pip install psycopg2-binary
     - pip install .
     - pip install pyinstaller
-    - pyinstaller --clean -w --noconfirm scripts/ghini.spec
+    - pyinstaller --clean -w --noconfirm scripts/ghini_fop.spec
     - pip install dmgbuild
     - dmgbuild -s scripts/dmgbuild_settings.py "Ghini" Ghini.dmg   # Note: 2 last args are required but overidden in dmgbuild_settings.py
 
@@ -42,31 +45,39 @@ for:
   environment:
     MSYSTEM: MINGW64
     CHERE_INVOKING: 1
-    PATH: C:\msys64\usr\bin;C:\Program Files (x86)\NSIS\Bin;C:\WINDOWS\system32;C:\WINDOWS;C:\WINDOWS\System32\Wbem
+    PATH: C:\msys64\usr\bin;C:\Program Files (x86)\NSIS\Bin;C:\Program Files\OpenJDK\jdk-17.0.1\bin;%PATH%
 
   install:
+    - choco install openjdk -y
+    - java --version
+    - jlink --version
     - bash -lc "pacman --noconfirm -Syuu"
     - bash -lc "pacman --noconfirm -Syuu"
     - bash -lc "pacman --noconfirm --needed -S - < ./scripts/mingw64_pkglist.txt"
+    - bash -lc "pip install --upgrade pip"
 
   build_script:
     - bash -lc "pip install ."
     - bash -lc "pip install pyinstaller"
     - bash -lc "python -m PyInstaller --clean -w --noconfirm scripts/ghini.spec"
     - makensis scripts\build-multiuser.nsi
+    - jlink --output jre --add-modules java.base,java.logging,java.desktop,java.xml
+    - bash -lc "scripts/get_fop.sh"
+    - bash -lc "python -m PyInstaller --clean -w --noconfirm scripts/ghini_fop.spec"
+    - makensis scripts\build-multiuser-fop.nsi
 
   artifacts:
-    - path: dist/ghini.desktop-*-setup.exe
+    - path: dist/*-setup.exe
 
   test_script:
     - bash -lc "pytest -sv"
 
 deploy:
   release: 'v1.3.0-b (BBG Branch)' # :bump
-  description: 'Beta release, backup your data first. - From a v1.0 install: create a csv backup before upgrading, upgrade to this version, then restore the backup.'
+  description: 'Rolling beta release, backup your data first. - From a v1.0 install: create a csv backup before upgrading, upgrade to this version, then restore the backup.'
   provider: GitHub
   auth_token:
     secure: OyO6yWwEa7RpZdY1m+zj5ZBtTYxDSb8Q/7+5dkX8nakRUrEgHeRHIwnTNLlwv9Fk
   draft: false
   prerelease: true
-  force_update: true
+  force_update: false

@@ -58,10 +58,10 @@ def set_templates_root_pref(path=None):
         home_folder = str(Path.home())
         dlog.set_current_folder(home_folder)
         response = dlog.run()
-        path = Path(dlog.get_filename())
-        dlog.destroy()
         if response != Gtk.ResponseType.ACCEPT:
             return False
+        path = Path(dlog.get_filename())
+        dlog.destroy()
 
     if not path.exists():
         raise ValueError(_("directory does not exist.\n%s") % path)

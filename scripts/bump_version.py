@@ -32,6 +32,7 @@ usage = """Usage: %s [<version> | + | ++]
 """ % os.path.basename(sys.argv[0])
 
 
+# TODO use paths.root?
 def root_of_clone():
     this_script = os.path.realpath(__file__)
     parts = this_script.split(os.path.sep)
@@ -140,6 +141,10 @@ bump_file(os.path.join(root_of_clone(), '.appveyor.yml'), rgx)
 rgx = r'(^!define VERSION ").*?\..*?\..*?(-BBG".*?%s.*?$)' % bump_tag
 bump_file(os.path.join(root_of_clone(), 'scripts/build-multiuser.nsi'), rgx)
 
+rgx = r'(^!define VERSION ").*?\..*?\..*?(\".*?%s.*?$)' % bump_tag
+bump_file(os.path.join(root_of_clone(), 'scripts/build-multiuser-embeded.nsi'),
+          rgx)
+
 print()
 print(('git commit -m "bumping_to_%s" '
       'bauble/version.py '
@@ -147,6 +152,7 @@ print(('git commit -m "bumping_to_%s" '
        'data/ghini.desktop '
        'packages/builddeb.sh '
        'scripts/build-multiuser.nsi '
+       'scripts/build-multiuser-embeded.nsi '
        '.appveyor.yml'
        % version))
 print()

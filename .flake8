@@ -3,3 +3,4 @@ builtins = _
 ignore = E402, W504
 per-file-ignores =
     ghini.spec:F821
+    ghini_fop.spec:F821

@@ -25,6 +25,7 @@ from lxml import etree
 from gi.repository import Gtk
 
 from bauble import paths
+from bauble import prefs
 from bauble.error import BaubleError
 from bauble.test import BaubleTestCase
 # from bauble.editor import MockView, MockDialog
@@ -32,7 +33,7 @@ from bauble.plugins.garden import test_garden as garden_test
 from bauble.plugins.plants import test_plants as plants_test
 from bauble.plugins.plants.species import Species
 from bauble.plugins.garden.accession import Accession
-from . import (get_fop_path,
+from . import (_fop,
                create_abcd_xml,
                PLANT_SOURCE_TYPE,
                ACCESSION_SOURCE_TYPE,
@@ -40,6 +41,7 @@ from . import (get_fop_path,
                DEFAULT_SOURCE_TYPE,
                SOURCE_TYPES,
                FORMATS,
+               USE_EXTERNAL_FOP_PREF,
                XSLFormatterSettingsBox,
                XSLFormatterPlugin)
 
@@ -175,7 +177,7 @@ class XSLFormatterSettingsBoxTests(XSLTestCase):
         out_format = list(FORMATS).index('XSL-FO')
         self.settings_box.widgets.format_combo.set_active(out_format)
         dummy_dir = '/some/reports/dir'
-        dummy_report = dummy_dir + '/file.pdf'
+        dummy_report = dummy_dir + '/file.fo'
         self.settings_box.widgets.outfile_entry.set_text(dummy_report)
         settings = self.settings_box.get_report_settings()
         self.assertEqual(settings,
@@ -186,12 +188,13 @@ class XSLFormatterSettingsBoxTests(XSLTestCase):
                           'source_type': ACCESSION_SOURCE_TYPE,
                           'stylesheet': dummy_stylesheet})
 
-    def test_update_w_full_settings(self):
+    @mock.patch('bauble.plugins.report.xsl.Path.exists', return_value=True)
+    def test_update_w_full_settings(self, _mock_exists):
         # a template should be set
         dummy_dir = '/some/stylesheet/dir'
         dummy_stylesheet = dummy_dir + '/file.xsl'
         dummy_dir = '/some/reports/dir'
-        dummy_report = dummy_dir + '/file.pdf'
+        dummy_report = dummy_dir + '/file.fo'
         settings = {'authors': True,
                     'out_file': dummy_report,
                     'out_format': 'XSL-FO',
@@ -220,7 +223,9 @@ class XSLFormatterSettingsBoxTests(XSLTestCase):
             self.settings_box.widgets.options_expander.get_expanded()
         )
 
-    def test_update_wo_settings(self):
+    # this mock should have no affect but is included incase.
+    @mock.patch('bauble.plugins.report.xsl.Path.exists', return_value=True)
+    def test_update_wo_settings(self, _mock_exists):
         self.settings_box.update({})
 
         self.assertEqual(self.settings_box.widgets.author_check.get_active(),
@@ -251,6 +256,8 @@ class XSLFormatterPluginTests(XSLTestCase):
 
     def setUp(self):
         super().setUp()
+        from bauble import prefs
+        prefs.prefs[USE_EXTERNAL_FOP_PREF] = True
         self.formatter = XSLFormatterPlugin()
 
     def test_get_settings_box_returns_settings_box(self):
@@ -276,13 +283,14 @@ class XSLFormatterPluginTests(XSLTestCase):
         self.assertEqual(mock_dialog.call_args.args[0],
                          'Please select a stylesheet.')
 
-    @mock.patch.dict(os.environ, {"PATH": "test"})
-    @mock.patch('os.listdir', return_value=['foo', 'bar'])
+    @mock.patch('bauble.plugins.report.xsl._fop.set_fop_command')
     @mock.patch('bauble.utils.message_dialog')
     def test_format_min_settings_no_fop_notifies(self, mock_dialog,
-                                                 mock_listdir):
+                                                 mock_set_fop):
         # NOTE this will not get to open the file step becuase fop is not run
         # and hence no file is created
+        mock_set_fop.return_value = False
+        _fop.fop = None
         objs = self.session.query(Species).all()
         dummy_stylesheet = self.temp_dir.name + '/file.xsl'
         # create the file so format finishes
@@ -293,16 +301,16 @@ class XSLFormatterPluginTests(XSLTestCase):
                     'source_type': DEFAULT_SOURCE_TYPE,
                     'stylesheet': dummy_stylesheet}
         self.formatter.format(objs, **settings)
-        mock_listdir.assert_called()
         self.assertIn('Could not find Apache FOP',
                       mock_dialog.call_args.args[0])
 
-    @mock.patch.dict(os.environ, {"PATH": "test"})
-    @mock.patch('os.listdir', return_value=['fop', 'fop.bat'])
+    @mock.patch('bauble.plugins.report.xsl._fop.set_fop_command')
     @mock.patch('bauble.plugins.report.xsl.subprocess.run')
     @mock.patch('bauble.utils.message_dialog')
     def test_format_min_settings_no_fop_output_notifies(
-            self, mock_dialog, mock_run, mock_listdir):
+            self, mock_dialog, mock_run, mock_set_fop):
+        mock_set_fop.return_value = True
+        _fop.fop = self.FOP_PATH
         # NOTE this will not get to open the file step becuase fop is not run
         # and hence no file is created
         objs = self.session.query(Species).all()
@@ -315,7 +323,6 @@ class XSLFormatterPluginTests(XSLTestCase):
                     'source_type': DEFAULT_SOURCE_TYPE,
                     'stylesheet': dummy_stylesheet}
         self.formatter.format(objs, **settings)
-        mock_listdir.assert_called()
         run_args = mock_run.call_args
         self.assertEqual(run_args.args[0][0], self.FOP_PATH)
         self.assertEqual(run_args.args[0][1], '-xml')
@@ -326,12 +333,13 @@ class XSLFormatterPluginTests(XSLTestCase):
         self.assertIn('Error creating the file',
                       mock_dialog.call_args.args[0])
 
-    @mock.patch.dict(os.environ, {"PATH": "test"})
-    @mock.patch('os.listdir', return_value=['fop', 'fop.bat'])
+    @mock.patch('bauble.plugins.report.xsl._fop.set_fop_command')
     @mock.patch('bauble.plugins.report.xsl.subprocess.run')
     @mock.patch('bauble.utils.desktop.open')
     def test_format_full_settings_fake_fop_runs(self, mock_open, mock_run,
-                                                mock_listdir):
+                                                mock_set_fop):
+        mock_set_fop.return_value = True
+        _fop.fop = self.FOP_PATH
         objs = self.session.query(Species).all()
         dummy_stylesheet = self.temp_dir.name + '/file.xsl'
         dummy_report = self.temp_dir.name + '/file.fo'
@@ -344,7 +352,6 @@ class XSLFormatterPluginTests(XSLTestCase):
                     'source_type': ACCESSION_SOURCE_TYPE,
                     'stylesheet': dummy_stylesheet}
         self.formatter.format(objs, **settings)
-        mock_listdir.assert_called()
         run_args = mock_run.call_args
         self.assertEqual(str(mock_open.call_args.args[0]), self.temp_dir.name)
         self.assertEqual(run_args.args[0][0], self.FOP_PATH)
@@ -355,34 +362,73 @@ class XSLFormatterPluginTests(XSLTestCase):
         self.assertEqual(run_args.args[0][6], dummy_report)
 
 
+class FOPTests(XSLTestCase):
+    FOP_PATH = 'test/fop'
+    if sys.platform == 'win32':
+        FOP_PATH = 'test/fop.bat'
+
+    def setUp(self):
+        super().setUp()
+        prefs.prefs[USE_EXTERNAL_FOP_PREF] = True
+
+    def test_update_calls_init_w_pref_changed(self):
+        _fop.update()
+        self.assertTrue(_fop.external_fop_pref)
+        with mock.patch('bauble.plugins.report.xsl._fop.init') as mock_init:
+            prefs.prefs[USE_EXTERNAL_FOP_PREF] = False
+            _fop.update()
+            mock_init.assert_called()
+
+    def test_update_not_call_init_w_pref_unchanged(self):
+        _fop.update()
+        self.assertTrue(_fop.external_fop_pref)
+        with mock.patch('bauble.plugins.report.xsl._fop.init') as mock_init:
+            prefs.prefs[USE_EXTERNAL_FOP_PREF] = True
+            _fop.update()
+            mock_init.assert_not_called()
+
+    @mock.patch('bauble.plugins.report.xsl.Path.glob')
+    @mock.patch('bauble.plugins.report.xsl.Path.__truediv__')
+    @mock.patch('bauble.plugins.report.xsl.Path.exists', return_value=True)
+    def test_set_fop_command_internal_fop_and_jre(self, _mock_exists, mock_div,
+                                                  mock_glob):
+        mock_path = Path('test')
+        mock_glob.return_value = [mock_path]
+        mock_div.return_value = mock_path
+        prefs.prefs[USE_EXTERNAL_FOP_PREF] = False
+        _fop.update()
+        self.assertFalse(_fop.external_fop_pref)
+        self.assertEqual(_fop.fop, 'test')
+        self.assertEqual(_fop.java, 'test')
+
+    @mock.patch.dict(os.environ, {"PATH": "test"})
+    @mock.patch('bauble.plugins.report.xsl.Path.is_file', return_value=True)
+    def test_get_fop_path_fop_exists(self, _mock_is_file):
+        _fop.set_fop_command()
+        self.assertEqual(_fop.fop, self.FOP_PATH)
+
+    @mock.patch.dict(os.environ, {"PATH": "test"})
+    @mock.patch('bauble.plugins.report.xsl.Path.is_file', return_value=False)
+    def test_get_fop_path_fop_doesnt_exist(self, _mock_is_file):
+        _fop.set_fop_command()
+        self.assertIsNone(_fop.fop)
+
+    @mock.patch('bauble.plugins.report.xsl.Path.glob',
+                return_value=['test.jar', 'test2.jar'])
+    def test_set_fop_classpath(self, _mock_glob):
+        _fop.fop = '/test_root/{self.FOP_PATH}'
+        _fop.set_fop_classpath()
+        self.assertEqual(_fop.class_path, f'test.jar{os.pathsep}test2.jar')
+
+
 class GlobalFunctionsTests(XSLTestCase):
     FOP_PATH = 'test/fop'
     if sys.platform == 'win32':
         FOP_PATH = 'test/fop.bat'
 
-    @mock.patch.dict(os.environ, {"PATH": "test"})
-    @mock.patch('os.listdir')
-    def test_get_fop_path_fop_exists(self, mock_listdir):
-        mock_listdir.return_value = ['fop', 'fop.bat']
-        self.assertEqual(get_fop_path(), self.FOP_PATH)
-
-    @mock.patch.dict(os.environ, {"PATH": "test"})
-    @mock.patch('os.listdir')
-    def test_get_fop_path_fop_doesnt_exist(self, mock_listdir):
-        mock_listdir.return_value = ['foo', 'bar']
-        self.assertEqual(get_fop_path(), None)
-
-    @mock.patch.dict(os.environ, {"PATH": "test"})
-    @mock.patch('os.listdir')
-    def test_get_fop_path_a_path_doesnt_exist(self, mock_listdir):
-        mock_listdir.side_effect = FileNotFoundError('some/path')
-        self.assertEqual(get_fop_path(), None)
-
-    @mock.patch.dict(os.environ, {"PATH": ""})
-    @mock.patch('os.listdir')
-    def test_get_fop_path_empty_path_envar(self, mock_listdir):
-        mock_listdir.return_value = ['foo', 'bar']
-        self.assertEqual(get_fop_path(), None)
+    def setUp(self):
+        super().setUp()
+        prefs.prefs[USE_EXTERNAL_FOP_PREF] = True
 
     def test_create_abcd_xml_all_plants(self):
         objs = self.session.query(Species).all()
