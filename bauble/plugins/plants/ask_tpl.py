@@ -1,5 +1,5 @@
 # Copyright 2015 Mario Frasca <mario@anche.no>.
-# Copyright 2019 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright 2019-2021 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -25,11 +25,6 @@ logger = logging.getLogger(__name__)
 
 from bauble.utils import get_net_sess
 
-net_sess = get_net_sess()
-
-logger.debug("net session type = %s", type(net_sess))
-logger.debug("net session proxies = %s", net_sess.proxies)
-
 
 class AskTPL(threading.Thread):
     running = None
@@ -41,11 +36,17 @@ class AskTPL(threading.Thread):
                      self.name, self.running and self.running.name)
         if self.running is not None:
             if self.running.binomial == binomial:
-                logger.debug('already requesting %s, ignoring repeated request', binomial)
+                # NOTE this log entry used in test
+                logger.debug(
+                    'already requesting %s, ignoring repeated request',
+                    binomial
+                )
                 binomial = None
             else:
-                logger.debug("running different request (%s), stopping it, starting %s",
-                             self.running.binomial, binomial)
+                logger.debug(
+                    "running different request (%s), stopping it, starting %s",
+                    self.running.binomial, binomial
+                )
                 self.running.stop()
         if binomial:
             self.__class__.running = self
@@ -66,6 +67,11 @@ class AskTPL(threading.Thread):
         def ask_tpl(binomial):
             logger.debug('tpl request for %s, with timeout %s', binomial,
                          self.timeout)
+            net_sess = get_net_sess()
+
+            logger.debug("net session type = %s", type(net_sess))
+            logger.debug("net session proxies = %s", net_sess.proxies)
+
             result = net_sess.get(
                 'http://www.theplantlist.org/tpl1.1/search?q=' + binomial +
                 '&csv=true',
@@ -104,8 +110,10 @@ class AskTPL(threading.Thread):
                 order = {'Accepted': 3, 'Synonym': 2, 'Unresolved': 1}
                 found = sorted(
                     candidates,
-                    key=lambda x: (x['_score_'],
-                                   order.get(x['Taxonomic status in TPL'], 0)),
+                    key=lambda x: (
+                        x['_score_'],
+                        order.get(x['Taxonomic status in TPL'], 0)
+                    ),
                 )[-1]
                 logger.debug('best match has score %s', found['_score_'])
                 if found['_score_'] < self.threshold:

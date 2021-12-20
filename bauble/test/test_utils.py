@@ -17,14 +17,16 @@
 # You should have received a copy of the GNU General Public License
 # along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
 
-from unittest import TestCase
+from unittest import TestCase, mock
 from sqlalchemy import Table, Column, Integer, ForeignKey, MetaData, Sequence
+import requests
 
 import gi
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk
 
 from bauble import utils
+from bauble import prefs
 from bauble.error import CheckConditionError
 from bauble.test import BaubleTestCase
 from bauble import db
@@ -663,3 +665,65 @@ class MarkupItalicsTests(TestCase):
             "(<i>carolinae</i> \xd7 'Purple Star')) \xd7 (lilliputiana \xd7 "
             "<i>compacta</i> \xd7 sp.)"
         )
+
+
+class GetNetSessionTest(BaubleTestCase):
+    def test_w_pref_not_dict_returns_requests_session_wo_proxies_(self):
+        prefs.prefs[prefs.web_proxy_prefs] = 'use_requests_without_proxies'
+        sess = utils.NetSessionFunctor.get_net_sess()
+        self.assertIsInstance(sess, requests.Session)
+        self.assertFalse(sess.proxies)
+
+    def test_w_pref_dict_returns_requests_session_w_proxies_(self):
+        proxies = {
+            "https": "http://10.10.10.10/8000",
+            "http": "http://10.10.10.10:8000"
+        }
+        prefs.prefs[prefs.web_proxy_prefs] = proxies
+        sess = utils.NetSessionFunctor.get_net_sess()
+        self.assertIsInstance(sess, requests.Session)
+        self.assertEqual(sess.proxies, proxies)
+
+    @mock.patch('pypac.PACSession')
+    def test_wo_pref_return_pypac_pacsession_if_pac_file(self,
+                                                         mock_pacsession):
+        del prefs.prefs[prefs.web_proxy_prefs]
+        pac_inst = mock_pacsession.return_value
+        pac_inst.get_pac.return_value = 'test'
+        utils.NetSessionFunctor.get_net_sess()
+        mock_pacsession.get_pac.called_once()
+        self.assertIsNone(prefs.prefs.get(prefs.web_proxy_prefs))
+
+    @mock.patch('pypac.PACSession')
+    def test_wo_pref_return_requests_session_if_no_pac_file(self,
+                                                            mock_pacsession):
+        del prefs.prefs[prefs.web_proxy_prefs]
+        pac_inst = mock_pacsession.return_value
+        pac_inst.get_pac.return_value = None
+        utils.NetSessionFunctor.get_net_sess()
+        mock_pacsession.get_pac.called_once()
+        self.assertEqual(prefs.prefs.get(prefs.web_proxy_prefs), 'no_pac_file')
+
+    @mock.patch('pypac.PACSession')
+    def test_get_net_sess_not_called_twice_wo_pac_file(self, mock_pacsession):
+        del prefs.prefs[prefs.web_proxy_prefs]
+        utils.get_net_sess.net_sess = None
+        pac_inst = mock_pacsession.return_value
+        pac_inst.get_pac.return_value = None
+        sess = utils.get_net_sess()
+        self.assertEqual(prefs.prefs.get(prefs.web_proxy_prefs), 'no_pac_file')
+        sess2 = utils.get_net_sess()
+        mock_pacsession.get_pac.called_once()
+        self.assertIs(sess, sess2)
+
+    @mock.patch('pypac.PACSession')
+    def test_get_net_sess_not_called_twice_w_pac_file(self, mock_pacsession):
+        del prefs.prefs[prefs.web_proxy_prefs]
+        utils.get_net_sess.net_sess = None
+        pac_inst = mock_pacsession.return_value
+        pac_inst.get_pac.return_value = 'test'
+        sess = utils.get_net_sess()
+        self.assertIsNone(prefs.prefs.get(prefs.web_proxy_prefs))
+        sess2 = utils.get_net_sess()
+        mock_pacsession.get_pac.called_once()
+        self.assertIs(sess, sess2)

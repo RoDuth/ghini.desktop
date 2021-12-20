@@ -1645,34 +1645,56 @@ def get_urls(text):
     return matches
 
 
-def get_net_sess():
-    """return a requests or pypac session for making api calls, depending on
-    prefrences.
-    """
-    from bauble import prefs
+class NetSessionFunctor:
+    """A functor to cache the network session to use globally.
 
-    logger.debug('getting a network session')
+    If proxy settings are set returns requests.Session with proxies set.  If no
+    settings are set tries pypac.PACSession, if no pac file is found sets pref
+    to not try PACSession ever again and allways return requests.Session.  The
+    same Session is returned for all future calls in the current app
+    instance."""
+    def __init__(self):
+        self.net_sess = None
 
-    if not prefs.testing:
-        prefs_proxies = prefs.prefs.get(prefs.web_proxy_prefs, None)
-    else:
-        prefs_proxies = "Use vanilla requests without proxies"
+    def __call__(self):
+        if not self.net_sess:
+            self.net_sess = self.get_net_sess()
+        return self.net_sess
 
-    if prefs_proxies:
-        from requests import Session
-        net_sess = Session()
-        logger.debug('using requests directly')
-        if isinstance(prefs_proxies, dict):
-            net_sess.proxies = prefs_proxies
-            logger.debug('net_sess proxies manually set to %s',
-                         net_sess.proxies)
-    else:
-        from pypac import PACSession
-        net_sess = PACSession()
-        pac = net_sess.get_pac()
-        logger.debug('pac file = %s', pac)
+    @staticmethod
+    def get_net_sess():
+        """return a requests or pypac session for making api calls, depending on
+        prefrences.
+        """
+        logger.debug('getting a network session')
 
-    return net_sess
+        from bauble import prefs
+
+        prefs_proxies = prefs.prefs.get(prefs.web_proxy_prefs)
+
+        if prefs_proxies:
+            from requests import Session
+            net_sess = Session()
+            logger.debug('using requests directly')
+            if isinstance(prefs_proxies, dict):
+                net_sess.proxies = prefs_proxies
+                logger.debug('net_sess proxies manually set to %s',
+                             net_sess.proxies)
+        else:
+            from pypac import PACSession
+            net_sess = PACSession()
+            pac = net_sess.get_pac()
+            logger.debug('pac file = %s', pac)
+            if pac is None:
+                # avoid every trying again...
+                val = 'no_pac_file'
+                logger.debug('pref: %s set to %s', prefs.web_proxy_prefs, val)
+                prefs.prefs[prefs.web_proxy_prefs] = val
+
+        return net_sess
+
+
+get_net_sess = NetSessionFunctor()
 
 
 def get_user_display_name():
