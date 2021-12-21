@@ -370,6 +370,8 @@ class LinksExpander(InfoExpander):
             separator = False
             notes = getattr(row, self.notes)
             for note in notes:
+                if note.category == '<picture>':
+                    continue
                 for label, url in utils.get_urls(note.note):
                     if not label:
                         label = url
@@ -379,7 +381,7 @@ class LinksExpander(InfoExpander):
                             'title': label,
                             'tooltip': f'from note of category {note.category}'
                         }
-                        klass = type(label, (BaubleLinkButton, ), link)
+                        klass = type('LinkButton', (BaubleLinkButton, ), link)
                         button = klass()
                         button.set_uri(url)
                         button.set_halign(Gtk.Align.START)
@@ -579,7 +581,7 @@ class SearchView(pluginmgr.View):
         the meta for the SearchView with the
         :class:`bauble.view.SearchView`'s row_meta property.
         """
-        class Meta(object):
+        class Meta:
             def __init__(self):
                 self.children = None
                 self.infobox = None
@@ -671,7 +673,6 @@ class SearchView(pluginmgr.View):
         this is a temporary function, will be removed when notes are
         implemented as a plugin. then notes will be added with the
         generic add_page_to_bottom_notebook.
-
         """
         page = self.widgets.notes_scrolledwindow
         # detach it from parent (its container)
@@ -707,8 +708,7 @@ class SearchView(pluginmgr.View):
             logger.debug('on_note_row_actived %s, %s', type(e), e)
 
     def add_page_to_bottom_notebook(self, bottom_info):
-        """add notebook page for a plugin class
-        """
+        """add notebook page for a plugin class."""
         glade_name = bottom_info['glade_name']
         bwid = utils.BuilderWidgets(glade_name)
         page = bwid[bottom_info['page_widget']]

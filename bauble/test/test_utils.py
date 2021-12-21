@@ -17,7 +17,10 @@
 # You should have received a copy of the GNU General Public License
 # along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
 
+import os
 from unittest import TestCase, mock
+from pathlib import Path
+from tempfile import TemporaryDirectory
 from sqlalchemy import Table, Column, Integer, ForeignKey, MetaData, Sequence
 import requests
 
@@ -25,6 +28,7 @@ import gi
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk
 
+from bauble import paths
 from bauble import utils
 from bauble import prefs
 from bauble.error import CheckConditionError
@@ -179,9 +183,6 @@ class UtilsTest(TestCase):
                          urls)
 
     def test_copy_tree_w_path(self):
-        from bauble import paths
-        from pathlib import Path
-        from tempfile import TemporaryDirectory
         src_dir = Path(paths.lib_dir(), "plugins", "report", 'xsl',
                        'stylesheets')
         dest = TemporaryDirectory()
@@ -194,9 +195,6 @@ class UtilsTest(TestCase):
         dest.cleanup()
 
     def test_copy_tree_w_str(self):
-        from bauble import paths
-        from pathlib import Path
-        from tempfile import TemporaryDirectory
         src_dir = Path(paths.lib_dir(), "plugins", "report", 'xsl',
                        'stylesheets')
         dest = TemporaryDirectory()
@@ -209,9 +207,6 @@ class UtilsTest(TestCase):
         dest.cleanup()
 
     def test_copy_tree_w_suffixes(self):
-        from bauble import paths
-        from pathlib import Path
-        from tempfile import TemporaryDirectory
         src_dir = Path(paths.lib_dir(), "plugins", "report", 'xsl',
                        'stylesheets')
         dest = TemporaryDirectory()
@@ -224,10 +219,6 @@ class UtilsTest(TestCase):
         dest.cleanup()
 
     def test_copy_tree_w_over_write(self):
-        from bauble import paths
-        from pathlib import Path
-        from tempfile import TemporaryDirectory
-        import os
         import filecmp
         src_dir = Path(paths.lib_dir(), "plugins", "report", 'xsl',
                        'stylesheets')
@@ -472,7 +463,7 @@ class ResetSequenceTests(BaubleTestCase):
         self.assertTrue(currval > rangemax, currval)
 
 
-class GlobalFuncsTests(TestCase):
+class GlobalFuncsTests(BaubleTestCase):
     def test_safe_int_valid(self):
         self.assertEqual(utils.safe_int('123'), 123)
 
@@ -498,6 +489,38 @@ class GlobalFuncsTests(TestCase):
         self.assertEqual(utils.xml_safe_name('123'), '_123')
         self.assertEqual(utils.xml_safe_name('<:>'), '_')
         self.assertEqual(utils.xml_safe_name('<picture>'), 'picture')
+
+    def test_chunks(self):
+        val = 'abcdefghijklmnop'
+        for i, out in enumerate(utils.chunks(val, 3)):
+            self.assertEqual(val[i * 3: (i + 1) * 3], out)
+        val = ['abd', 'def', 'ghi', 'jkl']
+        for i, out in enumerate(utils.chunks(val, 2)):
+            self.assertEqual(val[i * 2: (i + 1) * 2], out)
+
+    def test_read_in_chunks(self):
+        from io import StringIO
+        data = 'abcdefghijklmnopqrstuvwxyz'
+        mock_file = StringIO(data)
+        for i, out in enumerate(utils.read_in_chunks(mock_file, 3)):
+            self.assertEqual(data[i * 3: (i + 1) * 3], out)
+
+    def test_copy_picture_with_thumbnail(self):
+        import filecmp
+        from PIL import Image
+        img = Image.new('CMYK', size=(2000, 2000), color=(155, 0, 0))
+        temp_source = TemporaryDirectory()
+        temp_img_path = str(Path(temp_source.name, 'test.jpg'))
+        img.save(temp_img_path, format='JPEG')
+        with TemporaryDirectory() as temp_dir:
+            thumbs_dir = Path(temp_dir, 'thumbs')
+            os.mkdir(thumbs_dir)
+            prefs.prefs[prefs.picture_root_pref] = temp_dir
+            out = utils.copy_picture_with_thumbnail(temp_img_path)
+            filecmp.cmp(temp_img_path, str(Path(temp_dir, 'test.jpg')))
+            self.assertIsNotNone(thumbs_dir / 'test.jpg')
+        temp_source.cleanup()
+        self.assertEqual(len(out), 10464)
 
 
 class MarkupItalicsTests(TestCase):
