@@ -136,9 +136,7 @@ class DependsOnFailingInstallPlugin(pluginmgr.Plugin):
 class PluginMgrTests(BaubleTestCase):
 
     def test_install(self):
-        """
-        Test importing default data from plugin
-        """
+        """Test importing default data from plugin."""
         # this emulates the PlantsPlugin install() method but only
         # imports the family.csv file...if PlantsPlugin.install()
         # changes we should change this method as well

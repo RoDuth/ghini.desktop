@@ -147,7 +147,7 @@ bump_file(os.path.join(root_of_clone(), 'scripts/build-multiuser-embeded.nsi'),
 
 print()
 print(('git commit -m "bumping_to_%s" '
-      'bauble/version.py '
+       'bauble/version.py '
        'doc/conf.py '
        'data/ghini.desktop '
        'packages/builddeb.sh '

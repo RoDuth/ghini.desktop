@@ -228,17 +228,18 @@ acc_context_menu = [edit_action, add_plant_action, remove_action]
     #ver_id = IntCol(default=None) # ?? # verifier's ID??
 
 
-ver_level_descriptions = \
-    {0: _('The name of the record has not been checked by any authority.'),
-     1: _('The name of the record determined by comparison with other '
-          'named plants.'),
-     2: _('The name of the record determined by a taxonomist or by other '
-          'competent persons using herbarium and/or library and/or '
-          'documented living material.'),
-     3: _('The name of the plant determined by taxonomist engaged in '
-          'systematic revision of the group.'),
-     4: _('The record is part of type gathering or propagated from type '
-          'material by asexual methods.')}
+ver_level_descriptions = {
+    0: _('The name of the record has not been checked by any authority.'),
+    1: _('The name of the record determined by comparison with other '
+         'named plants.'),
+    2: _('The name of the record determined by a taxonomist or by other '
+         'competent persons using herbarium and/or library and/or '
+         'documented living material.'),
+    3: _('The name of the plant determined by taxonomist engaged in '
+         'systematic revision of the group.'),
+    4: _('The record is part of type gathering or propagated from type '
+         'material by asexual methods.')
+}
 
 
 class Verification(db.Base):
@@ -411,23 +412,6 @@ wild_prov_status_values = [
     (None, '')]
 
 # not ITF2
-# - further specifies the Z prov type flag value
-cultivated_prov_status_values = [
-    ('InVitro', _("In vitro")),
-    ('Division', _("Division")),
-    ('Seed', _("Seed")),
-    ('Unknown', _("Unknown")),
-    (None, '')]
-
-# not ITF2
-# - further specifies the G prov type flag value
-purchase_prov_status_values = [
-    ('National', _("National")),
-    ('Imported', _("Imported")),
-    ('Unknown', _("Unknown")),
-    (None, '')]
-
-# not ITF2
 recvd_type_values = {
     'ALAY': _('Air layer'),
     'BBPL': _('Balled & burlapped plant'),
@@ -469,12 +453,6 @@ recvd_type_values = {
     None: ''
     }
 
-# Imy interpretation of "plant material"
-# u'Plant': _('Planting'),              a plant in the ground or nursery
-# u'Seed': _('Seed/Spore'),             seed in a seed bank
-# u'Vegetative': _('Vegetative Part'),  generally items in a bulb store
-# u'Tissue': _('Tissue Culture'),       flasks in some kind of germplasm store
-# u'Other': _('Other'),
 # no matter how they are recieved they are all are likely to become plants at
 # some point
 accession_type_to_plant_material = {
@@ -556,8 +534,6 @@ class Accession(db.Base, db.Serializable, db.WithNotes):
 
             Possible values:
                 * union of first columns of wild_prov_status_values,
-                * purchase_prov_status_values,
-                * cultivated_prov_status_values
 
         *date_accd*: :class:`bauble.types.Date`
             the date this accession was accessioned

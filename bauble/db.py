@@ -562,10 +562,10 @@ class WithNotes:
     key_pattern = re.compile(r'{[^:]+:(.*)}')
 
     def __getattr__(self, name):
-        '''retrieve value from corresponding note(s)
+        """retrieve value from corresponding note(s)
 
         the result can be an atomic value, a list, or a dictionary.
-        '''
+        """
 
         if name.startswith('_sa'):  # _sa are internal sqlalchemy fields
             raise AttributeError(name)
@@ -611,8 +611,7 @@ class DefiningPictures:
 
     @property
     def pictures(self):
-        """a list of Gtk.Image objects
-        """
+        """a list of Gtk.Image objects."""
 
         result = []
         for note in self.notes:
@@ -941,8 +940,7 @@ class current_user_functor:
         self.override_value = value
 
     def __call__(self):
-        '''return current user name: from database, or system
-        '''
+        """return current user name: from database, or system """
         if self.override_value:
             return self.override_value
         try:

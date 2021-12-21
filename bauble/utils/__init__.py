@@ -156,7 +156,7 @@ class ImageLoader(threading.Thread):
         else:
             self.reader_function = self.read_local_url
             from bauble import prefs
-            pfolder = prefs.prefs[prefs.picture_root_pref]
+            pfolder = prefs.prefs.get(prefs.picture_root_pref)
             self.url = os.path.join(pfolder, url)
 
     def callback(self):
@@ -184,8 +184,9 @@ class ImageLoader(threading.Thread):
 
     def run(self):
         try:
-            self.cache.get(
-                self.url, self.reader_function, on_hit=self.loader.write)
+            self.cache.get(self.url,
+                           self.reader_function,
+                           on_hit=self.loader.write)
             self.loader.connect("closed", self.loader_notified)
         except Exception as e:  # pylint: disable=broad-except
             logger.debug("%s(%s) while loading image", type(e).__name__, e)

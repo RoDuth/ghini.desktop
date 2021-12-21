@@ -1,6 +1,3 @@
-# pylint: disable=missing-module-docstring,invalid-name,too-many-lines
-# pylint: disable=too-many-public-methods,too-many-statements,protected-access
-# pylint: disable=unused-argument,no-self-use,protected-access
 # Copyright (c) 2021 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
@@ -17,6 +14,9 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
+"""
+Test shapefile import/export
+"""
 
 import logging
 logger = logging.getLogger(__name__)
@@ -63,7 +63,6 @@ def get_prj_string_and_num_files_from_zip(zip_file):
 
 class ZippedShapefile:
     def __init__(self, zip_file, method):
-        # pylint: disable=consider-using-with
         self.zip_file = ZipFile(zip_file, method)
         namelist = self.zip_file.namelist()
         self.shp = self.zip_file.open(
@@ -429,10 +428,10 @@ def create_shapefile(name, prj_string, fields, records, out_dir):  \
                 else:
                     # have not implemented type, not sure I ever will
                     pass
-        with ZipFile(out_path.with_suffix('.zip'), 'w') as zf:
+        with ZipFile(out_path.with_suffix('.zip'), 'w') as zfile:
             in_files = Path(_temp_dir).glob(f'{name}.*')
             for f in in_files:
-                zf.write(f, arcname=f.name)
+                zfile.write(f, arcname=f.name)
     return out_path
 
 
@@ -790,7 +789,7 @@ class ExportSettingsBoxTests(ShapefileTestCase):
 
     @mock.patch('bauble.prefs.Gtk.MessageDialog.run',
                 return_value=Gtk.ResponseType.OK)
-    def test_generated_points_settings_dialog(self, mock_dialog):
+    def test_generated_points_settings_dialog(self, _mock_dialog):
         from bauble.meta import BaubleMeta
         self.session.add(BaubleMeta(name='inst_geo_latitude',
                                     value='10.001'))
@@ -1462,8 +1461,7 @@ class ShapefileExportTests(ShapefileTestCase):
         ]
         self.session.add_all(bulk_plants)
         self.session.commit()
-        # pylint: disable=singleton-comparison
-        objs = self.session.query(Plant).filter(Plant.geojson == None).all()  # noqa
+        objs = self.session.query(Plant).filter(Plant.geojson.is_(None)).all()
         exporter = self.exporter
         exporter.view.selection = objs
         exporter.proj_db.add(prj=prj_str_4326, crs='epsg:4326')

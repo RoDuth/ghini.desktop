@@ -174,7 +174,7 @@ def init(force=False):
         # try to access the plugin registry, if the table does not exist
         # then it might mean that we are opening a pre 0.9 database, in this
         # case we just assume all the plugins have been installed and
-        # registered, this might be the right thing to do but at least it
+        # registered, this might not be the right thing to do but at least it
         # allows you to connect to a pre bauble 0.9 database and use it to
         # upgrade to a >=0.9 database
         registered_names = PluginRegistry.names()
@@ -335,11 +335,11 @@ def install(plugins_to_install, import_defaults=True, force=False):
 
 
 class PluginRegistry(db.Base):
-    """
-    The PluginRegistry contains a list of plugins that have been installed
-    in a particular instance of a Ghini database.  At the moment it only
-    includes the name and version of the plugin but this is likely to change
-    in future versions.
+    """The PluginRegistry contains a list of plugins that have been installed
+    in a particular instance.
+
+    At the moment it only includes the name and version of the plugin but this
+    is likely to change in future versions.
     """
     __tablename__ = 'plugin'
     name = Column(Unicode(64), unique=True)
@@ -347,8 +347,7 @@ class PluginRegistry(db.Base):
 
     @staticmethod
     def add(plugin):
-        """
-        Add a plugin to the registry.
+        """Add a plugin to the registry.
 
         Warning: Adding a plugin to the registry does not install it.  It
         should be installed before adding.
@@ -363,15 +362,12 @@ class PluginRegistry(db.Base):
 
     @staticmethod
     def remove(plugin=None, name=None):
-        """
-        Remove a plugin from the registry by name.
-        """
+        """Remove a plugin from the registry by name."""
         if name is None:
             name = plugin.__class__.__name__
         session = db.Session()
-        p = session.query(PluginRegistry).\
-            filter_by(name=str(name)).one()
-        session.delete(p)
+        plug = session.query(PluginRegistry).filter_by(name=str(name)).one()
+        session.delete(plug)
         session.commit()
         session.close()
 
@@ -381,25 +377,23 @@ class PluginRegistry(db.Base):
         if not session:
             close_session = True
             session = db.Session()
-        q = session.query(PluginRegistry)
-        results = list(q)
+        qry = session.query(PluginRegistry)
+        results = list(qry)
         if close_session:
             session.close()
         return results
 
     @staticmethod
     def names(bind=None):
-        t = PluginRegistry.__table__
-        results = select([t.c.name], bind=bind).execute(bind=bind)
+        table = PluginRegistry.__table__
+        results = select([table.c.name], bind=bind).execute(bind=bind)
         names = [n[0] for n in results]
         results.close()
         return names
 
     @staticmethod
     def exists(plugin):
-        """
-        Check if plugin exists in the plugin registry.
-        """
+        """Check if plugin exists in the plugin registry."""
         if isinstance(plugin, str):
             name = plugin
             version = None
@@ -419,7 +413,7 @@ class PluginRegistry(db.Base):
             session.close()
 
 
-class Plugin(object):
+class Plugin:
     """
     commands:
       a map of commands this plugin handled with callbacks,
@@ -568,9 +562,8 @@ def _find_plugins(path):
             try:
                 mod = import_module(name, bauble.plugins)
             except Exception as e:
-                msg = _('Could not import the %(module)s module.\n\n'
-                        '%(error)s') % {'module': name, 'error': e}
-                logger.debug(msg)
+                logger.debug('Could not import the %s module. %s(%s)', name,
+                             type(e).__name__, e)
                 errors[name] = sys.exc_info()
         if not hasattr(mod, "plugin"):
             continue
