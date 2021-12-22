@@ -413,12 +413,18 @@ class FOPTests(XSLTestCase):
         _fop.set_fop_command()
         self.assertIsNone(_fop.fop)
 
-    @mock.patch('bauble.plugins.report.xsl.Path.glob',
-                return_value=['test.jar', 'test2.jar'])
-    def test_set_fop_classpath(self, _mock_glob):
+    @mock.patch('bauble.plugins.report.xsl.Path.glob')
+    def test_set_fop_classpath(self, mock_glob):
+        mock_jars = ['build/fop.sandbox.jar',
+                     'lib/test.jar',
+                     'lib/test2.jar',
+                     'build/fop.jar']
+        mock_glob.return_value = [Path(i) for i in mock_jars]
         _fop.fop = '/test_root/{self.FOP_PATH}'
         _fop.set_fop_classpath()
-        self.assertEqual(_fop.class_path, f'test.jar{os.pathsep}test2.jar')
+        result = ''.join(i + os.pathsep for i in mock_jars)
+        result += ''.join(i + os.pathsep for i in mock_jars if 'build' in i)
+        self.assertEqual(_fop.class_path, result.strip(os.pathsep))
 
 
 class GlobalFunctionsTests(XSLTestCase):

@@ -100,8 +100,12 @@ class FOP:
             return
         fop_root = Path(self.fop).parent
         class_path = ''
+        last_jars = ''
         for jar in fop_root.glob('**/*.jar'):
+            if jar.parent.name == 'build':
+                last_jars += str(jar) + os.pathsep
             class_path += str(jar) + os.pathsep
+        class_path += str(last_jars)
         self.class_path = class_path.strip(os.pathsep)
 
     def set_fop_command(self):
