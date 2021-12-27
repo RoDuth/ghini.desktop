@@ -779,8 +779,7 @@ def construct_from_dict(session, obj, create=True, update=True):
 
 
 def class_of_object(obj):
-    """what class implements object obj
-    """
+    """Which class implements obj."""
 
     name = ''.join(p.capitalize() for p in obj.split('_'))
     cls = globals().get(name)

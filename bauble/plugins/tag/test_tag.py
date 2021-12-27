@@ -345,13 +345,16 @@ class GetTagIdsTests(BaubleTestCase):
         self.assertEqual(s_some, set([1, 2]))
 
     def test_get_tag_ids7(self):
-        self.session.query(Tag).delete()
+        self.assertEqual(self.session.query(Tag).delete(), 3)
         self.session.commit()
         tag_plugin.tag_objects('test1', [self.fam1, self.fam4])
         tag_plugin.tag_objects('test2', [self.fam1])
         tag_plugin.tag_objects('test3', [self.fam2, self.fam4])
         self.session.commit()
-        s_all, s_some, s_none = tag_plugin.get_tag_ids([self.fam1, self.fam2, self.fam3, self.fam4])
+        s_all, s_some, s_none = tag_plugin.get_tag_ids([self.fam1,
+                                                        self.fam2,
+                                                        self.fam3,
+                                                        self.fam4])
         self.assertEqual(s_all, set([]))
         self.assertEqual(s_some, set([1, 2, 3]))
 

@@ -67,12 +67,11 @@ class ShapefileReader():
         self.filename = filename
         self._type = None
         self._search_by = set()
-        self._field_map = dict()
+        self._field_map = {}
 
     def __guess_type(self):
-        """
-        try guess what type (Plant or Location) the record is by checking the
-        for fields that match the default field maps.
+        """try guess what type (Plant or Location) the record is by checking
+        the for fields that match the default field maps.
         """
         plt = len([i for i in self.get_fields() if
                    prefs.prefs.get(f'{PLANT_SHAPEFILE_PREFS}.fields',
@@ -91,8 +90,9 @@ class ShapefileReader():
 
     @property
     def type(self):
-        """the type of record as a string ('plant' or 'location') if this is
-        not set manually an attempt to guess it will be made
+        """The type of record as a string ('plant' or 'location')
+
+        if this is not set manually an attempt to guess it will be made
         """
         if self._type is None:
             self._type = self.__guess_type()
@@ -107,7 +107,9 @@ class ShapefileReader():
     @property
     def filename(self):
         """Absolute path to a zip file containting shapefile components,
-        changing the value resets all other values."""
+
+        changing the value resets all other values.
+        """
         return self._filename
 
     @filename.setter
@@ -121,8 +123,10 @@ class ShapefileReader():
     @property
     def search_by(self):
         """When trying to match a record from the shapefile which fields are
-        used to match the database entry.  Unless manually set this will match
-        the defaults for the type."""
+        used to match the database entry.
+
+        Unless manually set this will match the defaults for the type.
+        """
         if not self._search_by:
             if self.type == 'plant':
                 default_search_by = prefs.prefs.get(
@@ -145,8 +149,7 @@ class ShapefileReader():
 
     @property
     def field_map(self):
-        """A dict for mapping shapefile fields to database fields.
-        """
+        """A dict for mapping shapefile fields to database fields."""
         if not self._field_map:
             if self.type == 'plant':
                 default_map = prefs.prefs.get(
@@ -242,8 +245,7 @@ class ShapefileReader():
 
 
 class ShapefileImportSettingsBox(Gtk.ScrolledWindow):
-    """
-    Advanced settings used to change the behaviour of the ShapefileReader.
+    """Advanced settings used to change the behaviour of the ShapefileReader.
     """
     def __init__(self, shape_reader=None, grid=None):
         super().__init__(propagate_natural_height=True)
@@ -280,8 +282,7 @@ class ShapefileImportSettingsBox(Gtk.ScrolledWindow):
         self._construct_grid()
 
     def _construct_grid(self):
-        """Create the field grid layout.
-        """
+        """Create the field grid layout."""
         labels = ['name', 'type', 'length', 'dec places', 'database field',
                   'match database']
         for column, txt in enumerate(labels):
@@ -422,7 +423,7 @@ class ShapefileImportSettingsBox(Gtk.ScrolledWindow):
             self.shape_reader.search_by.remove(field)
 
 
-class ShapefileImporter():
+class ShapefileImporter:
     """
     Import shapefile data into the database.
     """
@@ -562,7 +563,7 @@ class ShapefileImporter():
             return session.query(self.model).get(id_val)
 
         # more complex
-        in_dict_mapped = dict()
+        in_dict_mapped = {}
         for field in self.shape_reader.search_by:
             logger.debug('searching by %s = %s', field,
                          self.shape_reader.field_map.get(field))
@@ -615,7 +616,7 @@ class ShapefileImporter():
         :param item: database instance
         :param record: a shapefile.Record().shapefileRecord() value
         """
-        out_dict = dict()
+        out_dict = {}
         in_dict = record.record.as_dict()
         logger.debug('field_map = %s', self.shape_reader.field_map)
         for sf_col, db_path in self.shape_reader.field_map.items():
@@ -670,7 +671,7 @@ class ShapefileImporter():
         for k in sorted(rec, key=lambda i: i.count('.'), reverse=True):
             # get rid of empty strings
             record[k] = None if rec[k] == '' else rec[k]
-        compressed = dict()
+        compressed = {}
         for k, v in record.items():
             if '.' in k:
                 path, atr = k.rsplit('.', 1)

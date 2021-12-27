@@ -94,7 +94,7 @@ def remove_callback(values):
             msg = (_('The species <i>%(1)s</i> has %(2)s accessions.'
                      '\n\n') % {'1': safe_str, '2': nacc} +
                    _('You cannot remove a species with accessions.'))
-            utils.message_dialog(msg, type=Gtk.MessageType.WARNING)
+            utils.message_dialog(msg, typ=Gtk.MessageType.WARNING)
             return False
     msg = _("Are you sure you want to remove the following species "
             "<i>%s</i>?") % ', '.join(i for i in s_lst)
@@ -108,7 +108,7 @@ def remove_callback(values):
     except Exception as e:  # pylint: disable=broad-except
         msg = _('Could not delete.\n\n%s') % utils.xml_safe(e)
         utils.message_details_dialog(msg, traceback.format_exc(),
-                                     type=Gtk.MessageType.ERROR)
+                                     Gtk.MessageType.ERROR)
         session.rollback()
     return True
 

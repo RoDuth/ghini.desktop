@@ -35,8 +35,10 @@ from sqlalchemy.exc import DBAPIError
 import bauble
 from bauble import db
 from bauble import btypes as types
-from bauble.editor import GenericModelViewPresenterEditor, GenericEditorView, \
-    GenericEditorPresenter, UnicodeOrNoneValidator
+from bauble.editor import (GenericModelViewPresenterEditor,
+                           GenericEditorView,
+                           GenericEditorPresenter,
+                           UnicodeOrNoneValidator)
 from bauble import utils
 from bauble import paths
 from bauble import editor
@@ -67,7 +69,7 @@ def remove_callback(locations):
         if len(loc.plants) > 0:
             msg = _('Please remove the plants from <b>%s</b> '
                     'before deleting it.') % utils.xml_safe(loc)
-            utils.message_dialog(msg, Gtk.MessageType.WARNING)
+            utils.message_dialog(msg, typ=Gtk.MessageType.WARNING)
             return False
     msg = _("Are you sure you want to remove the following locations "
             "<b>%s</b>?") % ', '.join(i for i in loc_lst)
@@ -82,10 +84,11 @@ def remove_callback(locations):
     except Exception as e:  # pylint: disable=broad-except
         msg = _('Could not delete.\n\n%s') % utils.xml_safe(e)
         utils.message_details_dialog(msg, traceback.format_exc(),
-                                     type=Gtk.MessageType.ERROR)
+                                     Gtk.MessageType.ERROR)
     finally:
         session.rollback()
     return True
+
 
 edit_action = Action('loc_edit', _('_Edit'),
                      callback=edit_callback,
@@ -128,7 +131,7 @@ class Location(db.Base, db.Serializable, db.WithNotes):
         *geojson*:
             spatial data
 
-    :Relation:
+    :Relationships:
         *plants*:
 
     """
@@ -146,8 +149,7 @@ class Location(db.Base, db.Serializable, db.WithNotes):
     plants = relationship('Plant', backref=backref('location', uselist=False))
 
     def search_view_markup_pair(self):
-        '''provide the two lines describing object for SearchView row.
-        '''
+        """provide the two lines describing object for SearchView row."""
         if self.description is not None:
             return (utils.xml_safe(str(self)),
                     utils.xml_safe(str(self.description)))
@@ -163,8 +165,7 @@ class Location(db.Base, db.Serializable, db.WithNotes):
     def __str__(self):
         if self.name:
             return '(%s) %s' % (self.code, self.name)
-        else:
-            return str(self.code)
+        return str(self.code)
 
     @classmethod
     def retrieve(cls, session, keys):
@@ -455,8 +456,7 @@ class LocationEditor(GenericModelViewPresenterEditor):
         return True
 
     def start(self):
-        """
-        Started the LocationEditor and return the committed Location objects.
+        """Start the LocationEditor and return the committed Location objects.
         """
         while True:
             response = self.presenter.start()
@@ -472,13 +472,9 @@ from bauble.view import InfoBox, InfoExpander, PropertiesExpander
 
 
 class GeneralLocationExpander(InfoExpander):
-    """
-    general expander for the PlantInfoBox
-    """
+    """general expander for the PlantInfoBox"""
 
     def __init__(self, widgets):
-        '''
-        '''
         InfoExpander.__init__(self, _("General"), widgets)
         general_box = self.widgets.loc_gen_box
         self.widgets.remove_parent(general_box)
@@ -492,8 +488,6 @@ class GeneralLocationExpander(InfoExpander):
                                    on_nplants_clicked)
 
     def update(self, row):
-        '''
-        '''
         self.current_obj = row
         from bauble.plugins.garden.plant import Plant
         self.widget_set_value('loc_name_data',
@@ -507,9 +501,7 @@ class GeneralLocationExpander(InfoExpander):
 
 
 class DescriptionExpander(InfoExpander):
-    """
-    The location description
-    """
+    """The location description"""
 
     def __init__(self, widgets):
         InfoExpander.__init__(self, _("Description"), widgets)
@@ -518,8 +510,6 @@ class DescriptionExpander(InfoExpander):
         self.vbox.pack_start(descr_box, True, True, 0)
 
     def update(self, row):
-        '''
-        '''
         if row.description is None:
             self.set_expanded(False)
             self.set_sensitive(False)
@@ -535,8 +525,6 @@ class LocationInfoBox(InfoBox):
     """
 
     def __init__(self):
-        '''
-        '''
         InfoBox.__init__(self)
         filename = os.path.join(paths.lib_dir(), "plugins", "garden",
                                 "loc_infobox.glade")
@@ -549,8 +537,6 @@ class LocationInfoBox(InfoBox):
         self.add_expander(self.props)
 
     def update(self, row):
-        '''
-        '''
         self.general.update(row)
         self.description.update(row)
         self.props.update(row)

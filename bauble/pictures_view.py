@@ -37,7 +37,6 @@ class PicturesView(Gtk.Box):
     if an object in the selection does not know of pictures (like it
     raises an exception because it does not define the 'pictures'
     property), the PicturesView object will silently accept the failure.
-
     """
 
     def __init__(self, parent=None, fake=False):
@@ -74,11 +73,11 @@ class PicturesView(Gtk.Box):
                 pics = []
             for p in pics:
                 logger.debug('object %s has picture %s' % (o, p))
-                expander = Gtk.Box()
-                expander.add(p)
-                self.box.pack_end(expander, False, False, 5)
-                self.box.reorder_child(expander, 0)
-                expander.show_all()
+                box = Gtk.Box()
+                box.add(p)
+                self.box.pack_end(box, False, False, 5)
+                self.box.reorder_child(box, 0)
+                box.show_all()
                 p.show()
 
         self.box.show_all()
@@ -91,6 +90,7 @@ class PicturesView(Gtk.Box):
         self.box.pack_start(expander, False, False, 0)
         expander.show_all()
         return expander
+
 
 floating_window = None
 

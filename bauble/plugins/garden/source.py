@@ -46,7 +46,7 @@ from bauble import editor
 from bauble.plugins.plants.geography import Geography, GeographyMenu
 from bauble import utils
 from bauble import btypes as types
-from bauble.view import Action, InfoExpander, InfoBox
+from bauble.view import Action, InfoExpander, InfoBox, PropertiesExpander
 from bauble import paths
 from bauble import prefs
 
@@ -795,7 +795,7 @@ def source_detail_remove_callback(details):
     except Exception as e:   # pylint: disable=broad-except
         msg = _('Could not delete.\n\n%s') % utils.xml_safe(e)
         utils.message_details_dialog(msg, traceback.format_exc(),
-                                     type=Gtk.MessageType.ERROR)
+                                     typ=Gtk.MessageType.ERROR)
         session.rollback()
     return True
 
@@ -901,6 +901,9 @@ class ContactInfoBox(InfoBox):
         self.widgets = utils.load_widgets(filename)
         self.general = GeneralSourceDetailExpander(self.widgets)
         self.add_expander(self.general)
+        self.props = PropertiesExpander()
+        self.add_expander(self.props)
 
     def update(self, row):
         self.general.update(row)
+        self.props.update(row)

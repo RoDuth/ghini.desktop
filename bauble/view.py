@@ -666,6 +666,7 @@ class SearchView(pluginmgr.View):
         self.add_notes_page_to_bottom_notebook()
         self.running_threads = []
         self.installed_accels = []
+        self.cursor_change_blocked = None
 
     def add_notes_page_to_bottom_notebook(self):
         """add notebook page for notes
@@ -908,7 +909,7 @@ class SearchView(pluginmgr.View):
             results = search.search(text, self.session)
         except ParseException as err:
             error_msg = _('Error in search string at column %s') % err.column
-        except (BaubleError, AttributeError, Exception, SyntaxError) as e:
+        except Exception as e:  # pylint: disable=broad-except
             logger.debug(traceback.format_exc())
             error_msg = _('** Error: %s') % utils.xml_safe(e)
             error_details_msg = utils.xml_safe(traceback.format_exc())
@@ -926,7 +927,7 @@ class SearchView(pluginmgr.View):
         if len(results) == 0:
             model = Gtk.ListStore(str)
             msg = bold % html.escape(
-                _('Couldn\'t find anything for search: "%s"') % text)
+                _('Could not find anything for search: "%s"') % text)
             model.append([msg])
             self.results_view.set_model(model)
             # disconnect cursor change signal handler avoids errors with

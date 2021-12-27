@@ -40,8 +40,8 @@ from bauble import prefs
 from bauble.task import set_message
 
 CONFIG_LIST_PREF = 'report.configs'
-TEMPLATES_URI = ('https://github.com/RoDuth/ghini_report_templates/archive'
-                 '/master.zip')
+TEMPLATES_DEFAULT_URI = ('https://github.com/RoDuth/ghini_report_templates'
+                         '/archive/master.zip')
 TEMPLATES_ROOT_PREF = 'template_downloader.root_dir'
 """
 Directory to store downloaded templates and their config etc..
@@ -99,7 +99,7 @@ def download_templates(root):
     # grab the templates zip file
     try:
         net_sess = get_net_sess()
-        result = net_sess.get(TEMPLATES_URI, timeout=5)
+        result = net_sess.get(TEMPLATES_DEFAULT_URI, timeout=5)
 
     except exceptions.Timeout:
         msg = 'connection timed out while getting templates'
@@ -155,7 +155,7 @@ class TemplateDownloadTool(pluginmgr.Tool):
         root = prefs.prefs.get(TEMPLATES_ROOT_PREF, None)
 
         if yes_no_dialog(_('Download online report templates?\n\nSource: %s?'
-                           % TEMPLATES_URI)):
+                           % TEMPLATES_DEFAULT_URI)):
             dload_root = download_templates(root)
             msg = _('Templates update complete')
             # look for config files to update prefs with.

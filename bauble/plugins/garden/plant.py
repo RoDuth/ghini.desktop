@@ -120,7 +120,7 @@ def remove_callback(plants):
         msg = _('Could not delete.\n\n%s') % utils.xml_safe(e)
         logger.debug(msg)
         utils.message_details_dialog(msg, traceback.format_exc(),
-                                     type=Gtk.MessageType.ERROR)
+                                     Gtk.MessageType.ERROR)
         session.rollback()
     return True
 
@@ -393,7 +393,7 @@ class PlantChange(db.Base):
     parent_plant_id = Column(Integer, ForeignKey('plant.id'))
     child_plant_id = Column(Integer, ForeignKey('plant.id'))
 
-    # - if to_location_id is None changeis a removal
+    # - if to_location_id is None change is a removal
     # - if from_location_id is None then this change is a creation
     # - if to_location_id != from_location_id change is a transfer
     from_location_id = Column(Integer, ForeignKey('location.id'))
@@ -557,12 +557,6 @@ class Plant(db.Base, db.Serializable, db.DefiningPictures, db.WithNotes):
     # columns
     code = Column(Unicode(6), nullable=False)
 
-    @validates('code')
-    def validate_stripping(self, _key, value):  # pylint: disable=no-self-use
-        if value is None:
-            return None
-        return value.strip()
-
     acc_type = Column(types.Enum(values=list(acc_type_values.keys()),
                                  translations=acc_type_values),
                       default=None)
@@ -612,6 +606,12 @@ class Plant(db.Base, db.Serializable, db.DefiningPictures, db.WithNotes):
                            uselist=False)
 
     _delimiter = None
+
+    @validates('code')
+    def validate_stripping(self, _key, value):  # pylint: disable=no-self-use
+        if value is None:
+            return None
+        return value.strip()
 
     def search_view_markup_pair(self):
         """provide the two lines describing object for SearchView row."""

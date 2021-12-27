@@ -16,10 +16,9 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
-#
-# __init__.py -- tag plugin
-#
-# Description:
+"""
+tag plugin
+"""
 
 import os
 import traceback
@@ -28,11 +27,15 @@ from importlib import import_module
 import logging
 logger = logging.getLogger(__name__)
 
-from gi.repository import Gtk  # noqa
-from gi.repository import Gdk  # noqa
+from gi.repository import Gtk
+from gi.repository import Gdk
 
-from sqlalchemy import (
-    Column, Unicode, UnicodeText, Integer, String, ForeignKey)
+from sqlalchemy import (Column,
+                        Unicode,
+                        UnicodeText,
+                        Integer,
+                        String,
+                        ForeignKey)
 from sqlalchemy.orm import relationship
 from sqlalchemy.orm.exc import DetachedInstanceError
 from sqlalchemy import and_
@@ -41,10 +44,13 @@ from sqlalchemy.orm.session import object_session
 
 import bauble
 from bauble import db, editor, pluginmgr, paths, search, utils
-from bauble.view import InfoBox, InfoExpander, SearchView, Action
+from bauble.view import (InfoBox,
+                         InfoExpander,
+                         SearchView,
+                         Action,
+                         PropertiesExpander)
 
-from bauble.editor import (
-    GenericEditorView, GenericEditorPresenter)
+from bauble.editor import GenericEditorView, GenericEditorPresenter
 
 
 class TagsMenuManager:
@@ -71,8 +77,8 @@ class TagsMenuManager:
         self.show_active_tag()
 
     def show_active_tag(self):
-        for c in list(self.item_list.values()):
-            c.set_image(None)
+        for item in self.item_list.values():
+            item.set_image(None)
         widget = self.item_list.get(self.active_tag_name)
         if widget:
             image = Gtk.Image.new_from_icon_name('emblem-default',
@@ -93,31 +99,45 @@ class TagsMenuManager:
             view.results_view.expand_to_path(Gtk.TreePath.new_first())
 
     def build_menu(self):
-        """build tags Gtk.Menu based on current data
-        """
+        """build tags Gtk.Menu based on current data."""
         tags_menu = Gtk.Menu()
         add_tag_menu_item = Gtk.MenuItem(label=_('Tag Selection'))
         add_tag_menu_item.connect('activate', _on_add_tag_activated)
         self.apply_active_tag_menu_item = Gtk.MenuItem(
             label=_('Apply active tag'))
         self.apply_active_tag_menu_item.connect(
-            'activate', self.on_apply_active_tag_activated)
+            'activate', self.on_apply_active_tag_activated
+        )
         self.remove_active_tag_menu_item = Gtk.MenuItem(
-            label=_('Remove active tag'))
+            label=_('Remove active tag')
+        )
         self.remove_active_tag_menu_item.connect(
             'activate', self.on_remove_active_tag_activated)
         if bauble.gui:
             accel_group = Gtk.AccelGroup()
             bauble.gui.window.add_accel_group(accel_group)
             add_tag_menu_item.add_accelerator(
-                'activate', accel_group, ord('T'),
-                Gdk.ModifierType.CONTROL_MASK, Gtk.AccelFlags.VISIBLE)
+                'activate',
+                accel_group,
+                ord('T'),
+                Gdk.ModifierType.CONTROL_MASK,
+                Gtk.AccelFlags.VISIBLE
+            )
             self.apply_active_tag_menu_item.add_accelerator(
-                'activate', accel_group, ord('Y'),
-                Gdk.ModifierType.CONTROL_MASK, Gtk.AccelFlags.VISIBLE)
+                'activate',
+                accel_group,
+                ord('Y'),
+                Gdk.ModifierType.CONTROL_MASK,
+                Gtk.AccelFlags.VISIBLE
+            )
             key, mask = Gtk.accelerator_parse('<Control><Shift>y')
             self.remove_active_tag_menu_item.add_accelerator(
-                'activate', accel_group, key, mask, Gtk.AccelFlags.VISIBLE)
+                'activate',
+                accel_group,
+                key,
+                mask,
+                Gtk.AccelFlags.VISIBLE
+            )
         tags_menu.append(add_tag_menu_item)
 
         session = db.Session()
@@ -246,7 +266,7 @@ def remove_callback(tags):
     except Exception as e:   # pylint: disable=broad-except
         msg = _('Could not delete.\n\n%s') % utils.xml_safe(e)
         utils.message_details_dialog(msg, traceback.format_exc(),
-                                     type=Gtk.MessageType.ERROR)
+                                     Gtk.MessageType.ERROR)
         session.rollback()
 
     # reinitialize the tag menu
@@ -257,6 +277,7 @@ def remove_callback(tags):
 edit_action = Action('acc_edit', _('_Edit'),
                      callback=edit_callback,
                      accelerator='<ctrl>e')
+
 remove_action = Action('tag_remove', _('_Delete'),
                        callback=remove_callback,
                        accelerator='<ctrl>Delete', multiselect=True)
@@ -278,9 +299,9 @@ class TagEditorPresenter(GenericEditorPresenter):
 
 
 class TagItemGUI(editor.GenericEditorView):
-    '''
+    """
     Interface for tagging individual items in the results of the SearchView
-    '''
+    """
     def __init__(self, values):
         filename = os.path.join(paths.lib_dir(), 'plugins', 'tag',
                                 'tag.glade')
@@ -295,9 +316,9 @@ class TagItemGUI(editor.GenericEditorView):
         return self.widgets.tag_item_dialog
 
     def on_new_button_clicked(self, *args):
-        '''
+        """
         create a new tag
-        '''
+        """
         session = db.Session()
         tag = Tag(description='')
         session.add(tag)
@@ -309,9 +330,9 @@ class TagItemGUI(editor.GenericEditorView):
         session.close()
 
     def on_toggled(self, renderer, path, data=None):
-        '''
+        """
         tag or untag the objs in self.values
-        '''
+        """
         active = not renderer.get_active()
         model = self.tag_tree.get_model()
         itr = model.get_iter(path)
@@ -340,10 +361,10 @@ class TagItemGUI(editor.GenericEditorView):
         return [toggle_column, tag_column]
 
     def on_key_released(self, widget, event):
-        '''
+        """
         if the user hits the delete key on a selected tag in the tag editor
         then delete the tag
-        '''
+        """
         keyname = Gdk.keyval_name(event.keyval)
         if keyname != "Delete":
             return
@@ -526,8 +547,8 @@ class Tag(db.Base):
         return [i.tag for i in qto.all()]
 
     def search_view_markup_pair(self):
-        '''provide the two lines describing object for SearchView row.
-        '''
+        """provide the two lines describing object for SearchView row.
+        """
         import inspect
         logging.debug('entering search_view_markup_pair %s, %s' % (
             self, str(inspect.stack()[1])))
@@ -540,9 +561,9 @@ class Tag(db.Base):
         elif len(classes) == 0:
             fine_prints = _("tagging nothing")
         else:
-            fine_prints = _("tagging %(1)s objects of %(2)s different types") % {
-                '1': len(objects),
-                '2': len(classes)}
+            fine_prints = (_("tagging %(objs)s objects of %(clss)s different "
+                             "types") % {'objs': len(objects),
+                                         'clss': len(classes)})
             if len(classes) < 4:
                 fine_prints += ': ' + (', '.join(
                     sorted(t.__name__ for t in classes)))
@@ -624,15 +645,15 @@ def untag_objects(name, objs):
     try:
         tag = session.query(Tag).filter_by(tag=name).one()
     except Exception as e:
-        logger.info("Can't remove non existing tag from non-empty list of objects"
-                    "%s - %s" % (type(e), e))
+        logger.info("Can't remove non existing tag from non-empty list of "
+                    "objects %s - %s", type(e).__name__, e)
         return
     objs = set((_classname(y), y.id) for y in objs)
     for item in tag._objects:
         if (item.obj_class, item.obj_id) not in objs:
             continue
-        o = session.query(TaggedObj).filter_by(id=item.id).one()
-        session.delete(o)
+        obj = session.query(TaggedObj).filter_by(id=item.id).one()
+        session.delete(obj)
     session.commit()
 
 
@@ -648,7 +669,7 @@ def tag_objects(name, objects):
       converted to unicode() using the default encoding. If a tag with
       this name doesn't exist it will be created
     :type name: str
-    :param obj: A list of mapped objects to tag.
+    :param objects: A list of mapped objects to tag.
     :type objects: list
     """
     name = utils.nstr(name)
@@ -725,8 +746,6 @@ class GeneralTagExpander(InfoExpander):
     """
 
     def __init__(self, widgets):
-        '''
-        '''
         super().__init__(_("General"), widgets)
         general_box = self.widgets.general_box
         self.widgets.general_window.remove(general_box)
@@ -734,7 +753,6 @@ class GeneralTagExpander(InfoExpander):
         self.table_cells = []
 
     def update(self, row):
-        self.current_obj = row
         self.widget_set_value('ib_name_label', row.tag)
         self.widget_set_value('ib_description_label', row.description)
         objects = row.objects
@@ -786,9 +804,12 @@ class TagInfoBox(InfoBox):
         self.widgets = utils.load_widgets(filename)
         self.general = GeneralTagExpander(self.widgets)
         self.add_expander(self.general)
+        self.props = PropertiesExpander()
+        self.add_expander(self.props)
 
     def update(self, row):
         self.general.update(row)
+        self.props.update(row)
 
 
 class TagPlugin(pluginmgr.Plugin):

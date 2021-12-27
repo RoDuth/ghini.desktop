@@ -778,7 +778,7 @@ class Accession(db.Base, db.Serializable, db.WithNotes):
             keys['taxon'] = keys['species']
             keys['rank'] = 'species'
         if 'rank' in keys and 'taxon' in keys:
-            ## now we must connect the accession to the species it refers to
+            # now we must connect the accession to the species it refers to
             if keys['rank'] == 'species':
                 # this can only handle a binomial it would seem
                 genus_name, epithet = keys['taxon'].split(' ', 1)
@@ -825,7 +825,7 @@ class Accession(db.Base, db.Serializable, db.WithNotes):
                 result['species'] = Species.retrieve_or_create(
                     session, {'ht-epithet': unknown_genus,
                               'epithet': 'sp'})
-            logger.debug('compute_serializable_fields results = %s' % result)
+            logger.debug('compute_serializable_fields results = %s', result)
         return result
 
     @classmethod
@@ -863,7 +863,7 @@ class AccessionEditorView(editor.GenericEditorView):
     expanders_pref_map = {
         # 'acc_notes_expander': 'editor.accession.notes.expanded',
         # 'acc_source_expander': 'editor.accession.source.expanded'
-        }
+    }
 
     _tooltips = {
         'acc_species_entry': _(

@@ -148,6 +148,7 @@ class ShapefileExportSettingsBox(Gtk.ScrolledWindow):
             self.grid.attach(label, column, 0, 1, 1)
 
         logger.debug('export settings box shapefile fields: %s', self.fields)
+        # make attach_row available outside for loop scope.
         attach_row = 0
         for row, (name, typ, size, path) in enumerate(self.fields):
             attach_row = row + 1

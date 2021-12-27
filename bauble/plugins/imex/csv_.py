@@ -665,7 +665,7 @@ class CSVRestore:
                     f'{col_name}')
             utils.message_details_dialog(utils.xml_safe(msg),
                                          traceback.format_exc(),
-                                         type=Gtk.MessageType.ERROR)
+                                         Gtk.MessageType.ERROR)
 
     @staticmethod
     def _get_filenames():
