@@ -800,6 +800,16 @@ def source_detail_remove_callback(details):
     return True
 
 
+def source_detail_add_acc_callback(values):
+    from bauble.plugins.garden.accession import Accession, AccessionEditor
+    session = db.Session()
+    source_detail = session.merge(values[0])
+    source = Source(source_detail=source_detail)
+    edtr = AccessionEditor(model=Accession(source=source))
+    session.close()
+    return edtr.start() is not None
+
+
 source_detail_edit_action = Action('source_detail_edit', _('_Edit'),
                                    callback=source_detail_edit_callback,
                                    accelerator='<ctrl>e')
@@ -809,7 +819,13 @@ source_detail_remove_action = Action('source_detail_remove', _('_Delete'),
                                      accelerator='<ctrl>Delete',
                                      multiselect=True)
 
+source_detail_add_acc_action = Action('source_detail_add_acc',
+                                      _('_Add accession'),
+                                      callback=source_detail_add_acc_callback,
+                                      accelerator='<ctrl>k')
+
 source_detail_context_menu = [source_detail_edit_action,
+                              source_detail_add_acc_action,
                               source_detail_remove_action]
 
 
