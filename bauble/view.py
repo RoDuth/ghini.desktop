@@ -737,10 +737,11 @@ class SearchView(pluginmgr.View):
         values = self.get_selected_values()
         # Only one should be selected
         if len(values or []) != 1:
-            self.view.widget_set_visible('bottom_notebook', False)
+            self.widgets.bottom_notebook.hide()
+            self.picpane.get_child2().hide()
             return
 
-        self.view.widget_set_visible('bottom_notebook', True)
+        self.widgets.bottom_notebook.show()
         row = values[0]  # the selected row
 
         # loop over bottom_info plugin classes (eg: Tag)
@@ -839,8 +840,6 @@ class SearchView(pluginmgr.View):
         """Update the infobox and switch the accelerators depending on the
         type of the row that the cursor points to.
         """
-        # import inspect
-        # print('cursor change', inspect.stack()[1])
         # update all forward-looking info boxes
         self.update_infobox()
         # update all backward-looking info boxes
