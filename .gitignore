@@ -1,4 +1,5 @@
 bauble/share/ghini/LICENSE
+scripts/LICENSE
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -115,3 +116,4 @@ ghini.desktop*setup.exe
 glade-tester.*
 /fop*/
 /jre/
+Thumbs.db
