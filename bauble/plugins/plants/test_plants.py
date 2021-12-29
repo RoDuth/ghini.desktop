@@ -46,7 +46,7 @@ from .species_editor import (species_to_string_matcher,
                              generic_sp_get_completions)
 from .family import Family, FamilySynonym, FamilyEditor, FamilyNote
 from .genus import Genus, GenusSynonym, GenusEditor, GenusNote
-from .geography import Geography, get_species_in_geography
+from .geography import Geography, get_species_in_geography, geography_importer
 
 #
 # TODO: things to create tests for
@@ -1232,13 +1232,8 @@ class GeographyTests(PlantTestCase):
         self.genus = Genus(genus='genus', family=self.family)
         self.session.add_all([self.family, self.genus])
         self.session.flush()
-        # import default geography data
-        import bauble.paths as paths
-        filename = os.path.join(paths.lib_dir(), "plugins", "plants",
-                                "default", 'geography.csv')
-        from bauble.plugins.imex.csv_ import CSVRestore
-        importer = CSVRestore()
-        importer.start([filename], force=True)
+        from bauble.task import queue
+        queue(geography_importer())
         self.session.commit()
 
     def tearDown(self):
