@@ -289,6 +289,39 @@ class TagTests(BaubleTestCase):
         self.session.commit()
         self.assertEqual(len(t1.objects), 1)
 
+    def test_retreive_tag(self):
+        tag1 = Tag(tag='test1')
+        tag2 = Tag(tag='test2')
+        self.session.add_all([tag1, tag2])
+        self.session.flush()
+        keys = {
+            'tag': 'test1',
+        }
+        tag = Tag.retrieve(self.session, keys)
+        self.assertEqual(tag, tag1)
+
+    def test_retreive_tag_id_only(self):
+        tag1 = Tag(tag='test1')
+        tag2 = Tag(tag='test2')
+        self.session.add_all([tag1, tag2])
+        self.session.flush()
+        keys = {
+            'id': tag2.id
+        }
+        tag = Tag.retrieve(self.session, keys)
+        self.assertEqual(tag, tag2)
+
+    def test_retrieve_tag_doesnt_retreive_none_existent(self):
+        tag1 = Tag(tag='test1')
+        tag2 = Tag(tag='test2')
+        self.session.add_all([tag1, tag2])
+        self.session.flush()
+        keys = {
+            'tag': 'Noneexistent'
+        }
+        tag = Tag.retrieve(self.session, keys)
+        self.assertIsNone(tag)
+
 
 class GetTagIdsTests(BaubleTestCase):
 
@@ -572,7 +605,7 @@ class TagCallbackTest(BaubleTestCase):
         tag_plugin._on_add_tag_activated()
         importlib.reload(bauble)
         self.assertEqual(localgui.invoked[0],
-                          (('In order to tag an item you must first search for something and select one of the results.', ), {}))
+                         (('In order to tag an item you must first search for something and select one of the results.', ), {}))
 
     def test_on_add_tag_activated_search_view_empty_selection(self):
         class FakeGui:
@@ -592,5 +625,5 @@ class TagCallbackTest(BaubleTestCase):
         importlib.reload(bauble)
         importlib.reload(utils)
         self.assertEqual(localgui.invoked[0],
-                          (('Nothing selected', ), {}))
+                         (('Nothing selected', ), {}))
 

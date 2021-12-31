@@ -606,6 +606,28 @@ class Plant(db.Base, db.Serializable, db.DefiningPictures, db.WithNotes):
                            uselist=False)
 
     _delimiter = None
+    # see retrieve classmethod.
+    retrieve_cols = ['id', 'code', 'accession', 'accession.code']
+
+    @classmethod
+    def retrieve(cls, session, keys):
+        parts = ['id', 'code']
+        plt_parts = {k: v for k, v in keys.items() if k in parts}
+
+        if not plt_parts:
+            return None
+
+        query = session.query(cls).filter_by(**plt_parts)
+        acc = keys.get('accession') or keys.get('accession.code')
+
+        if acc:
+            query = query.join(Accession).filter(Accession.code == acc)
+
+        from sqlalchemy.orm.exc import MultipleResultsFound
+        try:
+            return query.one_or_none()
+        except MultipleResultsFound:
+            return None
 
     @validates('code')
     def validate_stripping(self, _key, value):  # pylint: disable=no-self-use
@@ -711,16 +733,6 @@ class Plant(db.Base, db.Serializable, db.DefiningPictures, db.WithNotes):
         result['location'] = location
 
         return result
-
-    @classmethod
-    def retrieve(cls, session, keys):
-        try:
-            return session.query(cls).filter(
-                cls.code == keys['code']).join(Accession).filter(
-                Accession.code == keys['accession']).one()
-        except Exception as e:
-            logger.debug('cant retrieve plant: %s:%s', type(e).__name__, e)
-            return None
 
     def top_level_count(self):
         source = self.accession.source and self.accession.source.source_detail

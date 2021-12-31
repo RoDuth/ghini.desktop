@@ -449,6 +449,15 @@ class Tag(db.Base):
     __my_own_timestamp = None
     __last_objects = None
 
+    retrieve_cols = ['id', 'tag']
+
+    @classmethod
+    def retrieve(cls, session, keys):
+        parts = {k: v for k, v in keys.items() if k in cls.retrieve_cols}
+        if parts:
+            return session.query(cls).filter_by(**parts).one_or_none()
+        return None
+
     def __str__(self):
         try:
             return str(self.tag)
@@ -677,10 +686,8 @@ def tag_objects(name, objects):
         create_named_empty_tag(name)
         return
     session = object_session(objects[0])
-    try:
-        tag = session.query(Tag).filter_by(tag=name).one()
-    except InvalidRequestError as e:
-        logger.debug("tag_objects: %s - %s" % (type(e), e))
+    tag = session.query(Tag).filter_by(tag=name).one_or_none()
+    if not tag:
         tag = Tag(tag=name)
         session.add(tag)
     tag.tag_objects(objects)

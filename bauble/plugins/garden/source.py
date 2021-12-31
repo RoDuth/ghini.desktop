@@ -230,6 +230,36 @@ class Collection(db.Base):
 
     source_id = Column(Integer, ForeignKey('source.id'), unique=True)
 
+    retrieve_cols = ['id', 'source', 'collectors_code', 'collector', 'date',
+                     'source.accession.code', 'source.accession']
+
+    @classmethod
+    def retrieve(cls, session, keys):
+        parts = ['id', 'source_id', 'collectors_code', 'collector', 'date']
+        col_parts = {k: v for k, v in keys.items() if k in parts}
+        acc = keys.get('source.accession.code') or keys.get('source.accession')
+        acc_key = {}
+        if acc:
+            acc_key['code'] = acc
+        retrieved_acc = None
+        query = session.query(cls)
+        if col_parts:
+            query = query.filter_by(**col_parts)
+        if acc_key:
+            from .accession import Accession
+            retrieved_acc = Accession.retrieve(session, acc_key)
+            if not retrieved_acc:
+                return None
+            query = (query.join(Source, Accession)
+                     .filter(Accession.id == retrieved_acc.id))
+        if col_parts or acc_key:
+            from sqlalchemy.orm.exc import MultipleResultsFound
+            try:
+                return query.one_or_none()
+            except MultipleResultsFound:
+                return None
+        return None
+
     def search_view_markup_pair(self):
         """provide the two lines describing object for SearchView row."""
         acc = self.source.accession
@@ -841,6 +871,16 @@ class Contact(db.Base, db.Serializable):
                                     translations=dict(source_type_values)),
                          default=None)
 
+    retrieve_cols = ['id', 'name']
+
+    @classmethod
+    def retrieve(cls, session, keys):
+        parts = {k: v for k, v in keys.items() if k in cls.retrieve_cols}
+
+        if parts:
+            return session.query(cls).filter_by(**parts).one_or_none()
+        return None
+
     def __str__(self):
         return str(self.name)
 
@@ -850,14 +890,6 @@ class Contact(db.Base, db.Serializable):
         return (
             safe(self.name),
             safe(self.source_type or ''))
-
-    @classmethod
-    def retrieve(cls, session, keys):
-        try:
-            return session.query(cls).filter(
-                cls.name == keys['name']).one()
-        except:
-            return None
 
 
 class ContactPresenter(editor.GenericEditorPresenter):

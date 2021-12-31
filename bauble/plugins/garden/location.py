@@ -148,6 +148,16 @@ class Location(db.Base, db.Serializable, db.WithNotes):
     # relations
     plants = relationship('Plant', backref=backref('location', uselist=False))
 
+    retrieve_cols = ['id', 'code']
+
+    @classmethod
+    def retrieve(cls, session, keys):
+        parts = {k: v for k, v in keys.items() if k in cls.retrieve_cols}
+
+        if parts:
+            return session.query(cls).filter_by(**parts).one_or_none()
+        return None
+
     def search_view_markup_pair(self):
         """provide the two lines describing object for SearchView row."""
         if self.description is not None:
@@ -166,14 +176,6 @@ class Location(db.Base, db.Serializable, db.WithNotes):
         if self.name:
             return '(%s) %s' % (self.code, self.name)
         return str(self.code)
-
-    @classmethod
-    def retrieve(cls, session, keys):
-        try:
-            return session.query(cls).filter(
-                cls.code == keys['code']).one()
-        except:
-            return None
 
     def top_level_count(self):
         accessions = set(p.accession for p in self.plants)

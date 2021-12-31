@@ -77,6 +77,7 @@ prefs.testing = True
 accession_test_data = (
     {'id': 1, 'code': '2001.1', 'species_id': 1, 'private': True},
     {'id': 2, 'code': '2001.2', 'species_id': 2, 'source_type': 'Collection'},
+    {'id': 3, 'code': '2020.1', 'species_id': 1, 'source_type': 'Collection'},
 )
 
 plant_test_data = (
@@ -87,12 +88,22 @@ plant_test_data = (
 
 location_test_data = (
     {'id': 1, 'name': 'Somewhere Over The Rainbow', 'code': 'RBW'},
+    {'id': 2, 'name': 'Somewhere Under The Rainbow', 'code': 'URBW'},
+    {'id': 3, 'name': 'Somewhere Else', 'code': 'SE'},
 )
 
 geography_test_data = [{'id': 1, 'name': 'Somewhere'}]
 
+source_test_data = (
+    {'id': 1, 'accession_id': 2},
+    {'id': 2, 'accession_id': 3},
+)
+
 collection_test_data = (
-    {'id': 1, 'accession_id': 2, 'locale': 'Somewhere', 'geography_id': 1},
+    {'id': 1, 'source_id': 1, 'locale': 'Somewhere',
+     'collector': 'Someone', 'collectors_code': '1111', 'geography_id': 1},
+    {'id': 2, 'source_id': 2, 'locale': 'Somewhere Else',
+     'collector': 'Someone Else', 'collectors_code': '2222', 'geography_id': 1}
 )
 
 default_propagation_values = {'notes': 'test notes',
@@ -135,6 +146,7 @@ test_data_table_control = ((Accession, accession_test_data),
                            (Location, location_test_data),
                            (Plant, plant_test_data),
                            (Geography, geography_test_data),
+                           (Source, source_test_data),
                            (Collection, collection_test_data))
 testing_today = datetime.date(2017, 1, 1)
 
@@ -187,6 +199,7 @@ class GardenTestCase(BaubleTestCase):
 
     def setUp(self):
         super().setUp()
+        setUp_data()
         plants_test.setUp_data()
         self.family = Family(family='Cactaceae')
         self.genus = Genus(family=self.family, genus='Echinocactus')
@@ -509,6 +522,9 @@ class PlantTests(GardenTestCase):
         #                   branch_mode=True)
         # self.accession.plants.remove(plant) # remove from session
         # TODO: test check where quantity < 2
+        # get existing plants
+        plants = self.session.query(Plant).all()
+        ids = [i.id for i in plants]
 
         quantity = 5
         self.plant.quantity = quantity
@@ -522,24 +538,22 @@ class PlantTests(GardenTestCase):
         update_gui()
         self.editor.handle_response(Gtk.ResponseType.OK)
 
-        # there should only be three plants,
-        new_plant = self.session.query(Plant).\
-            filter(Plant.code != self.plant.code).first()
+        # there should only be one new plant,
+        new_plant = (self.session.query(Plant)
+                     .filter(Plant.id.notin_(ids))
+                     .one())
         # test the quantity was set properly on the new plant
-        assert new_plant.quantity == int(new_quantity), new_plant.quantity
+        self.assertEqual(new_plant.quantity, int(new_quantity))
+
         self.session.refresh(self.plant)
         # test the quantity is updated on the original plant
-        assert self.plant.quantity == quantity - new_plant.quantity, \
-            "%s == %s - %s" % (self.plant.quantity, quantity,
-                               new_plant.quantity)
+        self.assertEqual(self.plant.quantity, quantity - new_plant.quantity)
         # test the quantity for the change is the same as the quantity
         # for the plant
-        assert new_plant.changes[0].quantity == new_plant.quantity, \
-            "%s == %s" % (new_plant.changes[0].quantity, new_plant.quantity)
+        self.assertEqual(new_plant.changes[0].quantity, new_plant.quantity)
         # test the parent_plant for the change is the same as the
         # original plant
-        assert new_plant.changes[0].parent_plant == self.plant, \
-            'change.parent_plant != original plant'
+        self.assertEqual(new_plant.changes[0].parent_plant, self.plant)
 
     @unittest.skip('not implimented')
     def test_branch_callback(self):
@@ -1858,19 +1872,8 @@ class LocationTests(GardenTestCase):
 
 class CollectionTests(GardenTestCase):
 
-    def __init__(self, *args):
-        super().__init__(*args)
-
-    def setUp(self):
-        super().setUp()
-
-    def tearDown(self):
-        super().tearDown()
-
     def test_collection_search_view_markup_pair(self):
-        """Test Collection.accession property
-
-        """
+        """Test Collection.accession property"""
         acc = Accession(code='2001.0002', species=self.species)
         acc.source = Source()
         collection = Collection(locale='some location')
@@ -1919,12 +1922,17 @@ class InstitutionTests(GardenTestCase):
             self.assertTrue(hasattr(o, a))
 
     def test_write__None_stays_None(self):
+        # clear the entries first as they are filled in setUp_data
+        (self.session.query(BaubleMeta)
+         .filter(utils.ilike(BaubleMeta.name, 'inst_%'))
+         .delete(synchronize_session=False))
         o = Institution()
         o.name = 'Ghini'
         o.email = 'bauble@anche.no'
         o.write()
-        fieldObjects = self.session.query(BaubleMeta).filter(
-            utils.ilike(BaubleMeta.name, 'inst_%')).all()
+        fieldObjects = (self.session.query(BaubleMeta)
+                        .filter(utils.ilike(BaubleMeta.name, 'inst_%'))
+                        .all())
         fields = dict((i.name[5:], i.value)
                       for i in fieldObjects
                       if i.value is not None)
@@ -2698,10 +2706,27 @@ class BaubleSearchSearchTest(BaubleTestCase):
 from bauble.plugins.garden.exporttopocket import create_pocket, ExportToPocketThread
 
 
-class TestExportToPocket(GardenTestCase):
+class TestExportToPocket(BaubleTestCase):
+
+    def setUp(self):
+        super().setUp()
+        plants_test.setUp_data()
+        self.family = Family(family='Cactaceae')
+        self.genus = Genus(family=self.family, genus='Echinocactus')
+        self.species = Species(genus=self.genus, sp='grusonii')
+        self.sp2 = Species(genus=self.genus, sp='texelensis')
+        self.session.add_all([self.family, self.genus, self.species, self.sp2])
+        self.session.commit()
+
+    def tearDown(self):
+        super().tearDown()
+
+    def create(self, class_, **kwargs):
+        obj = class_(**kwargs)
+        self.session.add(obj)
+        return obj
 
     def test_export_empty_database(self):
-        GardenTestCase.setUp(self)
         import tempfile
         fd, filename = tempfile.mkstemp()
         os.close(fd)
@@ -2724,7 +2749,6 @@ class TestExportToPocket(GardenTestCase):
         self.assertEqual(len(content), 0)
 
     def test_export_two_plants(self):
-        GardenTestCase.setUp(self)
         acc = Accession(species=self.species, code='010203')
         loc = Location(code='123')
         loc2 = Location(code='213')
@@ -2752,3 +2776,205 @@ class TestExportToPocket(GardenTestCase):
         cr.execute('select * from "plant"')
         content = cr.fetchall()
         self.assertEqual(len(content), 2)
+
+
+class RetrieveTests(GardenTestCase):
+    def test_accession_retreives(self):
+        keys = {
+            'code': '2001.1',
+        }
+        acc = Accession.retrieve(self.session, keys)
+        self.assertEqual(acc.species_id, 1)
+
+    def test_accession_retreives_id_only(self):
+        keys = {
+            'id': 2
+        }
+        acc = Accession.retrieve(self.session, keys)
+        self.assertEqual(acc.code, '2001.2')
+
+    def test_accession_doesnt_retreive_non_existent(self):
+        keys = {
+            'code': '2020.0001'
+        }
+        acc = Accession.retrieve(self.session, keys)
+        self.assertIsNone(acc)
+
+    def test_accession_doesnt_retreive_wrong_keys(self):
+        keys = {
+            'epithet': 'Maxillaria'
+        }
+        acc = Accession.retrieve(self.session, keys)
+        self.assertIsNone(acc)
+
+    def test_location_retreives(self):
+        keys = {
+            'code': 'RBW',
+        }
+        loc = Location.retrieve(self.session, keys)
+        self.assertEqual(loc.id, 1)
+
+    def test_location_retreives_id_only(self):
+        keys = {
+            'id': 3
+        }
+        loc = Location.retrieve(self.session, keys)
+        self.assertEqual(loc.code, 'SE')
+
+    def test_location_doesnt_retreive_non_existent(self):
+        keys = {
+            'code': 'UKNWN'
+        }
+        loc = Location.retrieve(self.session, keys)
+        self.assertIsNone(loc)
+
+    def test_location_doesnt_retreive_wrong_keys(self):
+        keys = {
+            'epithet': 'Maxillaria'
+        }
+        loc = Location.retrieve(self.session, keys)
+        self.assertIsNone(loc)
+
+    def test_plant_retreives(self):
+        keys = {
+            'accession.code': '2001.2',
+            'code': '1',
+        }
+        plt = Plant.retrieve(self.session, keys)
+        self.assertEqual(plt.id, 2)
+
+    def test_plant_retreives_id_only(self):
+        keys = {
+            'id': 1
+        }
+        plt = Plant.retrieve(self.session, keys)
+        self.assertEqual(str(plt), '2001.1.1')
+
+    def test_plant_doesnt_retreive_non_existent(self):
+        keys = {
+            'accession.code': '2020.2',
+            'code': '4'
+        }
+        plt = Plant.retrieve(self.session, keys)
+        self.assertIsNone(plt)
+
+    def test_plant_doesnt_retreive_wrong_keys(self):
+        keys = {
+            'name': 'Somewhere Else',
+            'epithet': 'Maxillaria'
+        }
+        plt = Plant.retrieve(self.session, keys)
+        self.assertIsNone(plt)
+
+    def test_plant_doesnt_retreive_accession_only(self):
+        keys = {
+            'accession.code': '2001.2',
+        }
+        plt = Plant.retrieve(self.session, keys)
+        self.assertIsNone(plt)
+        # even with only one plant
+        keys = {
+            'accession.code': '2001.1',
+        }
+        plt = Plant.retrieve(self.session, keys)
+        self.assertIsNone(plt)
+
+    def test_contact_retreives(self):
+        contact1 = Contact(name='name1', id=1)
+        contact2 = Contact(name='name2', id=2)
+        self.session.add_all([contact1, contact2])
+        self.session.commit()
+        keys = {
+            'name': 'name1',
+        }
+        contact = Contact.retrieve(self.session, keys)
+        self.assertEqual(contact.id, 1)
+
+    def test_contact_retreives_id_only(self):
+        contact1 = Contact(name='name1', id=1)
+        contact2 = Contact(name='name2', id=2)
+        self.session.add_all([contact1, contact2])
+        self.session.commit()
+        keys = {
+            'id': 2
+        }
+        contact = Contact.retrieve(self.session, keys)
+        self.assertEqual(contact.name, 'name2')
+
+    def test_contact_doesnt_retreive_non_existent(self):
+        contact1 = Contact(name='name1', id=1)
+        contact2 = Contact(name='name2', id=2)
+        self.session.add_all([contact1, contact2])
+        self.session.commit()
+        keys = {
+            'name': 'Nonexistent'
+        }
+        contact = Contact.retrieve(self.session, keys)
+        self.assertIsNone(contact)
+
+    def test_contact_doesnt_retreive_wrong_keys(self):
+        contact1 = Contact(name='name1', id=1)
+        contact2 = Contact(name='name2', id=2)
+        self.session.add_all([contact1, contact2])
+        self.session.commit()
+        keys = {
+            'accession.code': '2001.1',
+        }
+        contact = Contact.retrieve(self.session, keys)
+        self.assertIsNone(contact)
+
+    def test_collection_retreives_collection_data(self):
+        keys = {
+            'collector': 'Someone',
+            'collectors_code': '1111',
+        }
+        col = Collection.retrieve(self.session, keys)
+        self.assertEqual(col.id, 1)
+
+    def test_collection_retreives_accession_data(self):
+        keys = {
+            'source.accession.code': '2020.1',
+        }
+        col = Collection.retrieve(self.session, keys)
+        self.assertEqual(col.id, 2)
+
+    def test_collection_retreives_parts(self):
+        keys = {
+            'source.accession.code': '2001.2',
+            'collector': 'Someone',
+            'collectors_code': '1111',
+        }
+        col = Collection.retrieve(self.session, keys)
+        self.assertEqual(col.id, 1)
+
+    def test_collection_retreives_id_only(self):
+        keys = {
+            'id': 2
+        }
+        col = Collection.retrieve(self.session, keys)
+        self.assertEqual(col.id, 2)
+
+    def test_collection_doesnt_retreive_non_existent(self):
+        keys = {
+            'source.accession.code': '2020.3',
+            'collector': 'Me',
+            'collectors_code': '3333',
+        }
+        col = Collection.retrieve(self.session, keys)
+        self.assertIsNone(col)
+
+        # mismatch
+        keys = {
+            'source.accession.code': '2001.2',
+            'collector': 'Someone Else',
+            'collectors_code': '2222',
+        }
+        col = Collection.retrieve(self.session, keys)
+        self.assertIsNone(col)
+
+    def test_collection_doesnt_retreive_wrong_keys(self):
+        keys = {
+            'epithet': 'Maxillaria'
+        }
+        col = Collection.retrieve(self.session, keys)
+        self.assertIsNone(col)

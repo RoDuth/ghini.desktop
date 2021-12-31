@@ -198,9 +198,121 @@ class Species(db.Base, db.Serializable, db.DefiningPictures, db.WithNotes):
     rank = 'species'
     link_keys = ['accepted']
 
+    # columns
+    sp = Column(Unicode(128), index=True)
+    epithet = synonym('sp')
+    sp2 = Column(Unicode(64), index=True)  # in case hybrid=True
+    sp_author = Column(Unicode(128))
+    hybrid = Column(types.Boolean, default=False)
+    sp_qual = Column(types.Enum(values=['agg.', 's. lat.', 's. str.', None]),
+                     default=None)
+    cv_group = Column(Unicode(50))
+    trade_name = Column(Unicode(64))
+
+    infrasp1 = Column(Unicode(64))
+    infrasp1_rank = Column(types.Enum(values=list(infrasp_rank_values.keys()),
+                                      translations=infrasp_rank_values))
+    infrasp1_author = Column(Unicode(64))
+
+    infrasp2 = Column(Unicode(64))
+    infrasp2_rank = Column(types.Enum(values=list(infrasp_rank_values.keys()),
+                                      translations=infrasp_rank_values))
+    infrasp2_author = Column(Unicode(64))
+
+    infrasp3 = Column(Unicode(64))
+    infrasp3_rank = Column(types.Enum(values=list(infrasp_rank_values.keys()),
+                                      translations=infrasp_rank_values))
+    infrasp3_author = Column(Unicode(64))
+
+    infrasp4 = Column(Unicode(64))
+    infrasp4_rank = Column(types.Enum(values=list(infrasp_rank_values.keys()),
+                                      translations=infrasp_rank_values))
+    infrasp4_author = Column(Unicode(64))
+
+    genus_id = Column(Integer, ForeignKey('genus.id'), nullable=False)
+    # the Species.genus property is defined as backref in Genus.species
+
+    label_distribution = Column(UnicodeText)
+    bc_distribution = Column(UnicodeText)
+
+    # relations
+    synonyms = association_proxy('_synonyms', 'synonym')
+    _synonyms = relationship(
+        'SpeciesSynonym',
+        primaryjoin='Species.id==SpeciesSynonym.species_id',
+        cascade='all, delete-orphan', uselist=True,
+        backref='species')
+
+    # this is a dummy relation, it is only here to make cascading work
+    # correctly and to ensure that all synonyms related to this genus
+    # get deleted if this genus gets deleted
+    _syn = relationship('SpeciesSynonym',
+                        primaryjoin='Species.id==SpeciesSynonym.synonym_id',
+                        cascade='all, delete-orphan', uselist=True)
+
+    # VernacularName.species gets defined here too.
+    vernacular_names = relationship('VernacularName',
+                                    cascade='all, delete-orphan',
+                                    collection_class=VNList,
+                                    backref=backref('species', uselist=False))
+    _default_vernacular_name = relationship('DefaultVernacularName',
+                                            uselist=False,
+                                            cascade='all, delete-orphan',
+                                            backref=backref('species',
+                                                            uselist=False))
+    distribution = relationship('SpeciesDistribution',
+                                cascade='all, delete-orphan',
+                                backref=backref('species', uselist=False))
+
+    habit_id = Column(Integer, ForeignKey('habit.id'), default=None)
+    habit = relationship('Habit', uselist=False, backref='species')
+
+    flower_color_id = Column(Integer, ForeignKey('color.id'), default=None)
+    flower_color = relationship('Color', uselist=False, backref='species')
+
+    # hardiness_zone = Column(Unicode(4))
+
+    awards = Column(UnicodeText)
+
+    # see retrieve classmethod.
+    retrieve_cols = uniq_props + ['id', 'genus.genus', 'genus.epithet']
+
+    @classmethod
+    def retrieve(cls, session, keys):
+        logger.debug('retrieve species with keys %s', keys)
+        from .genus import Genus
+        parts = cls.uniq_props[:]
+        parts.remove('genus')
+
+        # NOTE don't include id in json taxon imports (can break tests)
+        if not keys.get('ht-epithet'):
+            parts.append('id')
+
+        sp_parts = {k: v for k, v in keys.items() if k in parts}
+
+        if not sp_parts:
+            return None
+
+        logger.debug('sp_parts in keys %s', sp_parts)
+        gen = (keys.get('genus') or keys.get('ht-epithet') or
+               keys.get('genus.genus') or keys.get('genus.epithet'))
+        logger.debug('retrieve species with sp_parts %s and genus %s',
+                     sp_parts, gen)
+
+        query = session.query(cls).filter_by(**sp_parts)
+
+        if gen:
+            # most likely only skipped if id is in sp_parts
+            query = query.join(Genus).filter(Genus.genus == gen)
+
+        from sqlalchemy.orm.exc import MultipleResultsFound
+        try:
+            return query.one_or_none()
+        except MultipleResultsFound:
+            return None
+
     def search_view_markup_pair(self):
-        """provide the two lines describing object for SearchView row.
-        """
+        """provide the two lines describing object for SearchView row."""
         try:
             if len(self.vernacular_names) > 0:
                 substring = (
@@ -431,82 +543,6 @@ class Species(db.Base, db.Serializable, db.DefiningPictures, db.WithNotes):
                 self.set_infrasp(i + 1, None, None)
         if cul:
             self.cultivar_epithet = cul
-
-    # columns
-    sp = Column(Unicode(128), index=True)
-    epithet = synonym('sp')
-    sp2 = Column(Unicode(64), index=True)  # in case hybrid=True
-    sp_author = Column(Unicode(128))
-    hybrid = Column(types.Boolean, default=False)
-    sp_qual = Column(types.Enum(values=['agg.', 's. lat.', 's. str.', None]),
-                     default=None)
-    cv_group = Column(Unicode(50))
-    trade_name = Column(Unicode(64))
-
-    infrasp1 = Column(Unicode(64))
-    infrasp1_rank = Column(types.Enum(values=list(infrasp_rank_values.keys()),
-                                      translations=infrasp_rank_values))
-    infrasp1_author = Column(Unicode(64))
-
-    infrasp2 = Column(Unicode(64))
-    infrasp2_rank = Column(types.Enum(values=list(infrasp_rank_values.keys()),
-                                      translations=infrasp_rank_values))
-    infrasp2_author = Column(Unicode(64))
-
-    infrasp3 = Column(Unicode(64))
-    infrasp3_rank = Column(types.Enum(values=list(infrasp_rank_values.keys()),
-                                      translations=infrasp_rank_values))
-    infrasp3_author = Column(Unicode(64))
-
-    infrasp4 = Column(Unicode(64))
-    infrasp4_rank = Column(types.Enum(values=list(infrasp_rank_values.keys()),
-                                      translations=infrasp_rank_values))
-    infrasp4_author = Column(Unicode(64))
-
-    genus_id = Column(Integer, ForeignKey('genus.id'), nullable=False)
-    # the Species.genus property is defined as backref in Genus.species
-
-    label_distribution = Column(UnicodeText)
-    bc_distribution = Column(UnicodeText)
-
-    # relations
-    synonyms = association_proxy('_synonyms', 'synonym')
-    _synonyms = relationship(
-        'SpeciesSynonym',
-        primaryjoin='Species.id==SpeciesSynonym.species_id',
-        cascade='all, delete-orphan', uselist=True,
-        backref='species')
-
-    # this is a dummy relation, it is only here to make cascading work
-    # correctly and to ensure that all synonyms related to this genus
-    # get deleted if this genus gets deleted
-    _syn = relationship('SpeciesSynonym',
-                        primaryjoin='Species.id==SpeciesSynonym.synonym_id',
-                        cascade='all, delete-orphan', uselist=True)
-
-    # VernacularName.species gets defined here too.
-    vernacular_names = relationship('VernacularName',
-                                    cascade='all, delete-orphan',
-                                    collection_class=VNList,
-                                    backref=backref('species', uselist=False))
-    _default_vernacular_name = relationship('DefaultVernacularName',
-                                            uselist=False,
-                                            cascade='all, delete-orphan',
-                                            backref=backref('species',
-                                                            uselist=False))
-    distribution = relationship('SpeciesDistribution',
-                                cascade='all, delete-orphan',
-                                backref=backref('species', uselist=False))
-
-    habit_id = Column(Integer, ForeignKey('habit.id'), default=None)
-    habit = relationship('Habit', uselist=False, backref='species')
-
-    flower_color_id = Column(Integer, ForeignKey('color.id'), default=None)
-    flower_color = relationship('Color', uselist=False, backref='species')
-
-    # hardiness_zone = Column(Unicode(4))
-
-    awards = Column(UnicodeText)
 
     def __str__(self):
         'return the default string representation for self.'
@@ -788,47 +824,6 @@ class Species(db.Base, db.Serializable, db.DefiningPictures, db.WithNotes):
                 del keys[exchange]
 
     @classmethod
-    def retrieve(cls, session, keys):
-        logger.debug('retrieve species with keys %s', keys)
-        from .genus import Genus
-        # NOTE need to include infrasp parts if they are included in keys...
-        # Issue is they have to match exactly or won't get the right item back
-        # make sure to include only parts we know we can search
-        _parts = {
-            'sp',
-            'hybrid',
-            'infrasp1',
-            'infrasp1_rank',
-            'infrasp2',
-            'infrasp2_rank',
-            'infrasp3',
-            'infrasp3_rank',
-            'infrasp4',
-            'infrasp4_rank'
-        }
-        sp_parts = {key: keys[key] for key in
-                    _parts.intersection(list(keys.keys()))}
-        logger.debug('sp_parts in keys %s', sp_parts)
-        # only add the sp part in if there is a value to give it. (e.g.
-        # cultivars may not have a sp value)
-        # Had this because of an issue I have long forgotten but it causes
-        # issues for some imports, leaving here for short term.
-        # if not any(part in sp_parts for part in _parts):
-        if keys.get('epithet') and sp_parts.get('sp') is None:
-            sp_parts['sp'] = keys.get('epithet')
-        gen = keys.get('genus') or keys.get('ht-epithet')
-        logger.debug(
-            'retrieve species with sp_parts %s and genus %s', sp_parts, gen)
-        try:
-            return (
-                session.query(cls)
-                .filter_by(**sp_parts)
-                .join(Genus)
-                .filter(Genus.genus == gen).one())
-        except Exception:
-            return None
-
-    @classmethod
     def compute_serializable_fields(cls, session, keys):
         from .genus import Genus
         result = {'genus': None}
@@ -941,9 +936,58 @@ class VernacularName(db.Base, db.Serializable):
     __table_args__ = (UniqueConstraint('name', 'language',
                                        'species_id', name='vn_index'), {})
 
+    # NOTE 'id' is included in Species.retrieve_cols
+    sp_retrieve_cols = [f'species.{i}' for i in Species.retrieve_cols]
+    retrieve_cols = ['id', 'name', 'language'] + sp_retrieve_cols
+
+    @classmethod
+    def retrieve(cls, session, keys):
+        # for json imports
+        from .genus import Genus
+        if sp_val := keys.get('species'):
+            g_epithet, s_epithet = sp_val.split(' ', 1)
+            sp = (session.query(Species)
+                  .filter(Species.sp == s_epithet)
+                  .join(Genus)
+                  .filter(Genus.genus == g_epithet)
+                  .first())
+            if sp:
+                from sqlalchemy.exc import SQLAlchemyError
+                try:
+                    return (session.query(cls)
+                            .filter(cls.species == sp,
+                                    cls.language == keys.get('language'))
+                            .one())
+                except SQLAlchemyError:
+                    return None
+
+        # for other imports
+        s_parts = cls.sp_retrieve_cols
+        sp_keys = {k.removeprefix('species.'): v for k, v in keys.items() if
+                   k in s_parts}
+        logger.debug(sp_keys)
+        retrieved_sp = Species.retrieve(session, sp_keys)
+        if sp_keys and not retrieved_sp:
+            return None
+        v_parts = ['id', 'name', 'language']
+        vn_parts = {k: v for k, v in keys.items() if k in v_parts}
+        query = session.query(cls)
+        if vn_parts:
+            query = query.filter_by(**vn_parts)
+        if retrieved_sp:
+            # NOTE log entry used in test
+            logger.debug('retrieved species %s', retrieved_sp)
+            query = query.join(Species).filter(Species.id == retrieved_sp.id)
+        if vn_parts or retrieved_sp:
+            from sqlalchemy.orm.exc import MultipleResultsFound
+            try:
+                return query.one_or_none()
+            except MultipleResultsFound:
+                return None
+        return None
+
     def search_view_markup_pair(self):
-        """provide the two lines describing object for SearchView row.
-        """
+        """provide the two lines describing object for SearchView row."""
         return str(self), self.species.markup(authors=False)
 
     def __str__(self):
@@ -970,20 +1014,6 @@ class VernacularName(db.Base, db.Serializable):
             result['species'] = Species.retrieve_or_create(
                 session, sp_dict, create=False)
         return result
-
-    @classmethod
-    def retrieve(cls, session, keys):
-        from .genus import Genus
-        g_epithet, s_epithet = keys['species'].split(' ', 1)
-        sp = session.query(Species).filter(
-            Species.sp == s_epithet).join(Genus).filter(
-            Genus.genus == g_epithet).first()
-        try:
-            return session.query(cls).filter(
-                cls.species == sp,
-                cls.language == keys['language']).one()
-        except:
-            return None
 
     @property
     def pictures(self):

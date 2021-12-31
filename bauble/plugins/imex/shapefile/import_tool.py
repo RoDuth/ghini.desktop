@@ -47,6 +47,7 @@ from bauble.editor import GenericEditorView, GenericEditorPresenter
 from bauble.utils.geo import DEFAULT_IN_PROJ
 
 from . import LOCATION_SHAPEFILE_PREFS, PLANT_SHAPEFILE_PREFS
+from .. import add_rec_to_db
 
 
 class ShapefileReader():
@@ -495,6 +496,7 @@ class ShapefileImporter:
         session = db.Session()
         logger.debug('importing %s with option %s', self.filename, self.option)
         record_count = self.shape_reader.get_records_count()
+        five_percent = int(record_count / 20) or 1
         records_added = records_done = 0
         if self.shape_reader.type == 'plant':
             self.model = Plant
@@ -510,11 +512,12 @@ class ShapefileImporter:
                 item = self.get_db_item(session, record,
                                         options.get('add_new'))
 
-                pb_set_fraction(records_done / record_count)
-                msg = (f'{self._committed} committed, '
-                       f'{self._errors} errors')
-                task.set_message(msg)
-                yield
+                if records_done % five_percent == 0:
+                    pb_set_fraction(records_done / record_count)
+                    msg = (f'{self._committed} committed, '
+                           f'{self._errors} errors')
+                    task.set_message(msg)
+                    yield
                 records_done += 1
                 if item is None:
                     continue
@@ -553,22 +556,15 @@ class ShapefileImporter:
         :param record: a shapefile.Record().shapefileRecord() value
         :param add: bool(), whether or not to add new records to the database
         """
-        if any(self.shape_reader.field_map.get(i) == 'id' for i in
-               self.shape_reader.search_by):
-            # id search by
-            id_field = [i for i in self.shape_reader.search_by if
-                        self.shape_reader.field_map.get(i) == 'id'][0]
-            id_val = record.record.as_dict().get(id_field)
-            logger.debug('searching id')
-            return session.query(self.model).get(id_val)
+        field_map = self.shape_reader.field_map
+        record = record.record.as_dict()
 
         # more complex
         in_dict_mapped = {}
         for field in self.shape_reader.search_by:
             logger.debug('searching by %s = %s', field,
                          self.shape_reader.field_map.get(field))
-            in_dict_mapped[self.shape_reader.field_map.get(field).split('.')[0]
-                           ] = record.record.as_dict().get(field)
+            in_dict_mapped[field_map.get(field)] = record.get(field)
 
         if in_dict_mapped:
             item = self.model.retrieve(session, in_dict_mapped)
@@ -680,103 +676,6 @@ class ShapefileImporter:
             else:
                 compressed[k] = v
         return compressed
-
-
-def add_rec_to_db(session, item, rec):
-    """Add or update the item record in the database including any related
-    records.
-
-    :param session: instance of db.Session()
-    :param item: an instance of a sqlalchemy table
-    :param rec: dict of the records to add, ordered so that related records
-             are first so that they are found, created, or updated first.
-             Keys are paths from the item class to either fields of that class
-             or to related tables.  Values are item columns values or the
-             related table columns and values as a nested dict.
-             e.g.:
-             {'accession.species.genus.family': {'epithet': 'Alliaceae'},
-             'accession.species.genus': {'epithet': 'Agapanthus'}, ...}
-    """
-    # peel of the first record to work on
-    first, *remainder = rec.items()
-    remainder = dict(remainder)
-    key, value = first
-    logger.debug('adding key: %s with value: %s', key, value)
-    # related records
-    if isinstance(value, dict):
-        # after this "value" will be in the session
-        # Try convert values to the correct type
-        model = db.get_related_class(type(item), key)
-        for k, v in value.items():
-            if v is not None and not hasattr(v, '__table__'):
-                try:
-                    path_type = getattr(model, k).type
-                    v = path_type.python_type(v)
-                except Exception as e:   # pylint: disable=broad-except
-                    logger.debug('convert type %s (%s)', type(e).__name__, e)
-                    # for anything that doesn't have an obvious python_type a
-                    # string SHOULD generally work
-                    v = str(v)
-                value[k] = v
-
-        value = db.get_create_or_update(session, model, **value)
-        root, atr = key.rsplit('.', 1) if '.' in key else (None, key)
-        # _default_vernacular_name is blocked in relation_filter
-        # NOTE default vernacular names need to be added directly as they use
-        # their own methods,
-        # Below accepts
-        # 'accession.species._default_vernacular_name.vernacular_name.name'
-        # which at this point would be:
-        # root = 'accession.species._default_vernacular_name'
-        # atr = 'vernacular_name'
-        #  - depending on what we get back from
-        #  get_create_or_update(session, VernacularName, name=... )
-        # value = VernacularName(...)
-        # and changes it to
-        # root = 'accession.species'
-        # atr = 'default_vernacular_name'
-        # value = VernacularName(...)
-        # This will generally work but is not fool proof.  It is preferable to
-        # use the hybrid_property default_vernacular_name
-        if (root and root.endswith('._default_vernacular_name') and
-                atr == 'vernacular_name'):
-            root = root.removesuffix('._default_vernacular_name')
-            atr = 'default_vernacular_name'
-        if remainder.get(root):
-            remainder[root][atr] = value
-        # source, contact etc. with a linking 1-1 table
-        elif root and '.' in root and remainder.get(root.rsplit('.', 1)[0]):
-            link, atr2 = root.rsplit('.', 1)
-            from operator import attrgetter
-            try:
-                link_item = attrgetter(root)(item)    # existing entries
-            except AttributeError:
-                link_item = db.get_related_class(type(item), root)()
-                session.add(link_item)
-            if link_item:
-                setattr(link_item, atr, value)
-                logger.debug('adding: %s to %s', atr2, link)
-                remainder[link][atr2] = link_item
-    elif value is not None and not hasattr(value, '__table__'):
-        try:
-            model = type(item)
-            path_type = getattr(model, key).type
-            value = path_type.python_type(value)
-        except Exception as e:
-            logger.debug('convert type for value %s (%s)', type(e).__name__, e)
-            # for anything that doesn't have an obvious python_type a
-            # string SHOULD generally work
-            value = str(value)
-
-    # if there are more records continue to add them
-    if len(remainder) > 0:
-        add_rec_to_db(session, item, remainder)
-
-    # once all records are accounted for add them to item in reverse
-    logger.debug('setattr on object: %s with name: %s and value: %s',
-                 item, key, value)
-    setattr(item, key, value)
-    return item
 
 
 class ShapefileImportDialogView(GenericEditorView):

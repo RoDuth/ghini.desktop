@@ -819,6 +819,36 @@ def get_or_create(session, model, **kwargs):
     return instance
 
 
+def get_unique_columns(model):
+    """Given a model get the unique columns.
+
+    Agregates any `UniqueConstraint` columns set in `__table_args__`, columns
+    with `unique` value set and `epithet` columns in taxanomic tables.
+
+    Used by `get_create_or_update`.
+    """
+    uniq_cols = []
+    if hasattr(model, '__table_args__'):
+        from sqlalchemy import UniqueConstraint
+        uniq_const = [i for i in model.__table_args__ if
+                      isinstance(i, UniqueConstraint)][0]
+        uniq_cols = uniq_const.columns.keys()
+    # - add any joining columns (i.e. in plant we have accession_id as part
+    # of the UniqueConstraint so "accession_id" would also include
+    # "accession")
+    uniq_joins = [i[:-3] for i in uniq_cols if i.endswith('_id')]
+    uniq_cols.extend(uniq_joins)
+    # - add columns with the unique attribute set
+    uniq_table_cols = [i.key for i in model.__table__.columns if
+                       i.unique and i.key not in uniq_cols]
+    uniq_cols.extend(uniq_table_cols)
+    # include epithet - synonym for family and genus
+    if model.__tablename__ in ['family', 'genus']:
+        uniq_cols.append('epithet')
+    logger.debug('unique columns: %s', uniq_cols)
+    return uniq_cols
+
+
 def get_create_or_update(session, model, **kwargs):
     """get, create or update and add to the session an appropriate database
     entry given its model and some data.
@@ -851,34 +881,17 @@ def get_create_or_update(session, model, **kwargs):
         inst = None
 
     logger.debug("couldn't find matching object just using kwargs")
-    # try using a primary key if one is provided
+    # second try using a primary key if one is provided
     if not inst:
         for col in model.__table__.columns:
             if col.primary_key and (pkey := kwargs.get(col.key)):
                 logger.debug('trying using primary key: %s', col.key)
                 inst = session.query(model).get(pkey)
 
-    # try using unique fields
+    # third try using unique fields
     if not inst:
-        unique = dict()
-        uniq_cols = []
-        if hasattr(model, '__table_args__'):
-            from sqlalchemy import UniqueConstraint
-            uniq_const = [i for i in model.__table_args__ if
-                          isinstance(i, UniqueConstraint)][0]
-            uniq_cols = uniq_const.columns.keys()
-        # - add any joining columns (i.e. in plant we have accession_id as part
-        # of the UniqueConstraint so "accession_id" would also include
-        # "accession")
-        uniq_joins = [i[:-3] for i in uniq_cols if i.endswith('_id')]
-        uniq_cols.extend(uniq_joins)
-        # - add columns with the unique attribute set
-        uniq_table_cols = [i.key for i in model.__table__.columns if
-                           i.unique and i.key not in uniq_cols]
-        uniq_cols.extend(uniq_table_cols)
-        # include epithet - synonym used on all taxonomic levels
-        uniq_cols.append('epithet')
-        logger.debug('unique columns: %s', uniq_cols)
+        unique = {}
+        uniq_cols = get_unique_columns(model)
         # get the kwargs that have keys in uniq_cols and try finding a match
         for col in uniq_cols:
             if (uniq_val := kwargs.get(col)):
@@ -896,7 +909,7 @@ def get_create_or_update(session, model, **kwargs):
 
     # last try, when available use uniq_props
     if not inst and hasattr(model, 'uniq_props'):
-        unique = dict()
+        unique = {}
         for k in kwargs:
             if k in model.uniq_props:
                 unique[k] = kwargs.get(k)

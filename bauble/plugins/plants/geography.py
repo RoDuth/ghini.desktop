@@ -189,6 +189,16 @@ class Geography(db.Base):
     parent_id = Column(Integer, ForeignKey('geography.id'))
     geojson = deferred(Column(types.JSON()))
 
+    retrieve_cols = ['id', 'tdwg_code']
+
+    @classmethod
+    def retrieve(cls, session, keys):
+        parts = {k: v for k, v in keys.items() if k in cls.retrieve_cols}
+
+        if parts:
+            return session.query(cls).filter_by(**parts).one_or_none()
+        return None
+
     def __str__(self):
         return str(self.name)
 

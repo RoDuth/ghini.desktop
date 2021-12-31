@@ -147,23 +147,6 @@ class Family(db.Base, db.Serializable, db.WithNotes):
     rank = 'familia'
     link_keys = ['accepted']
 
-    @validates('genus')
-    def validate_stripping(self, key, value):
-        if value is None:
-            return None
-        return value.strip()
-
-    @property
-    def cites(self):
-        """the cites status of this taxon, or None
-        """
-
-        cites_notes = [i.note for i in self.notes
-                       if i.category and i.category.upper() == 'CITES']
-        if not cites_notes:
-            return None
-        return cites_notes[0]
-
     # columns
     family = Column(String(45), nullable=False, index=True)
     epithet = synonym('family')
@@ -187,6 +170,32 @@ class Family(db.Base, db.Serializable, db.WithNotes):
     __syn = relationship('FamilySynonym',
                          primaryjoin='Family.id==FamilySynonym.synonym_id',
                          cascade='all, delete-orphan', uselist=True)
+
+    retrieve_cols = ['id', 'epithet', 'family']
+
+    @classmethod
+    def retrieve(cls, session, keys):
+        fam_parts = {k: v for k, v in keys.items() if k in cls.retrieve_cols}
+
+        if fam_parts:
+            return session.query(cls).filter_by(**fam_parts).one_or_none()
+        return None
+
+    @validates('genus')
+    def validate_stripping(self, key, value):
+        if value is None:
+            return None
+        return value.strip()
+
+    @property
+    def cites(self):
+        """the cites status of this taxon, or None"""
+
+        cites_notes = [i.note for i in self.notes
+                       if i.category and i.category.upper() == 'CITES']
+        if not cites_notes:
+            return None
+        return cites_notes[0]
 
     def __repr__(self):
         return Family.str(self)
@@ -244,14 +253,6 @@ class Family(db.Base, db.Serializable, db.WithNotes):
         if recurse and self.accepted is not None:
             result['accepted'] = self.accepted.as_dict(recurse=False)
         return result
-
-    @classmethod
-    def retrieve(cls, session, keys):
-        try:
-            return session.query(cls).filter(
-                cls.family == keys['epithet']).one()
-        except:
-            return None
 
     @classmethod
     def correct_field_names(cls, keys):

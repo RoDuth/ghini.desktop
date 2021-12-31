@@ -511,6 +511,7 @@ def compute_serializable_fields(cls, session, keys):
 
     return result
 
+
 AccessionNote = db.make_note_class('Accession', compute_serializable_fields)
 
 
@@ -586,12 +587,6 @@ class Accession(db.Base, db.Serializable, db.WithNotes):
     format.
     """
 
-    @validates('code')
-    def validate_stripping(self, _key, value):
-        if value is None:
-            return None
-        return value.strip()
-
     prov_type = Column(types.Enum(values=[i[0] for i in prov_type_values],
                                   translations=dict(prov_type_values)),
                        default=None)
@@ -650,6 +645,22 @@ class Accession(db.Base, db.Serializable, db.WithNotes):
         'Location', primaryjoin='Accession.intended_location_id==Location.id')
     intended2_location = relationship(
         'Location', primaryjoin='Accession.intended2_location_id==Location.id')
+
+    retrieve_cols = ['id', 'code']
+
+    @classmethod
+    def retrieve(cls, session, keys):
+        parts = {k: v for k, v in keys.items() if k in cls.retrieve_cols}
+
+        if parts:
+            return session.query(cls).filter_by(**parts).one_or_none()
+        return None
+
+    @validates('code')
+    def validate_stripping(self, _key, value):
+        if value is None:
+            return None
+        return value.strip()
 
     @classmethod
     def get_next_code(cls, code_format=None):
@@ -827,14 +838,6 @@ class Accession(db.Base, db.Serializable, db.WithNotes):
                               'epithet': 'sp'})
             logger.debug('compute_serializable_fields results = %s', result)
         return result
-
-    @classmethod
-    def retrieve(cls, session, keys):
-        try:
-            return session.query(cls).filter(
-                cls.code == keys['code']).one()
-        except:
-            return None
 
     def top_level_count(self):
         sd = self.source and self.source.source_detail

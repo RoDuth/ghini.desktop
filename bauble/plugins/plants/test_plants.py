@@ -148,7 +148,7 @@ species_test_data = (
      'infrasp1_rank': 'cv.', 'infrasp1': 'Buonanotte'},
     {'id': 24, 'sp': '', 'genus_id': 1, 'sp_author': '',
      'infrasp1_rank': None, 'infrasp1': 'sp'},
-    )
+)
 
 species_note_test_data = (
     {'id': 1, 'species_id': 18, 'category': 'CITES', 'note': 'I'},
@@ -224,6 +224,14 @@ vn_test_data = (
     {'id': 2, 'name': 'SomeName 2', 'language': 'English', 'species_id': 1},
     {'id': 3, 'name': 'Floripondio', 'language': 'es', 'species_id': 21},
     {'id': 4, 'name': 'Toé', 'language': 'agr', 'species_id': 21},
+    {'id': 5, 'name': 'Clamshell orchid', 'language': 'English',
+     'species_id': 15},
+    {'id': 6, 'name': 'Clamshell orchid', 'language': 'English',
+     'species_id': 6},
+    {'id': 7, 'name': 'Clamshell orchid', 'language': 'English',
+     'species_id': 5},
+    {'id': 8, 'name': 'Clamshell orchid', 'language': 'English',
+     'species_id': 2},
 )
 
 test_data_table_control = (
@@ -494,7 +502,9 @@ class FamilyTests(PlantTestCase):
         print(self.invoked)
         self.assertFalse('message_details_dialog' in
                          [f for (f, m) in self.invoked])
-        self.assertTrue(('message_dialog', 'The family <i>Arecaceae</i> has 1 genera.\n\nYou cannot remove a family with genera.')
+        self.assertTrue(('message_dialog',
+                         'The family <i>Arecaceae</i> has 1 genera.\n\nYou '
+                         'cannot remove a family with genera.')
                         in self.invoked)
         q = self.session.query(Family).filter_by(family="Arecaceae")
         matching = q.all()
@@ -706,7 +716,9 @@ class GenusTests(PlantTestCase):
         print(self.invoked)
         self.assertFalse('message_details_dialog' in
                          [f for (f, m) in self.invoked])
-        self.assertTrue(('message_dialog', 'The genus <i>Carica</i> has 1 species.\n\nYou cannot remove a genus with species.')
+        self.assertTrue(('message_dialog',
+                         'The genus <i>Carica</i> has 1 species.\n\nYou '
+                         'cannot remove a genus with species.')
                         in self.invoked)
         q = self.session.query(Genus).filter_by(genus="Carica")
         matching = q.all()
@@ -1211,7 +1223,9 @@ class SpeciesTests(PlantTestCase):
         print(self.invoked)
         self.assertFalse('message_details_dialog' in
                          [f for (f, m) in self.invoked])
-        self.assertTrue(('message_dialog', 'The species <i>Carica papaya</i> has 1 accessions.\n\nYou cannot remove a species with accessions.')
+        self.assertTrue(('message_dialog',
+                         'The species <i>Carica papaya</i> has 1 accessions.'
+                         '\n\nYou cannot remove a species with accessions.')
                         in self.invoked)
         q = self.session.query(Species).filter_by(genus=f5, sp="papaya")
         matching = q.all()
@@ -1283,7 +1297,8 @@ class GeographyTests(PlantTestCase):
         dist = SpeciesDistribution(geography_id=45)
         sp1.distribution.append(dist)
         self.session.flush()
-        self.assertEqual(sp1.distribution_str(), 'Mexico Central, Western Canada')
+        self.assertEqual(sp1.distribution_str(), ('Mexico Central, '
+                                                  'Western Canada'))
 
 
 class FromAndToDictTest(PlantTestCase):
@@ -1622,7 +1637,8 @@ class GenusHybridMarker_test(PlantTestCase):
                            'rank': 'genus',
                            'epithet': 'Miltonia × Odontoglossum × Cochlioda'})
         self.assertEqual(gen.hybrid_marker, 'H')
-        self.assertEqual(gen.hybrid_epithet, 'Miltonia × Odontoglossum × Cochlioda')
+        self.assertEqual(gen.hybrid_epithet,
+                         'Miltonia × Odontoglossum × Cochlioda')
 
     def test_intergeneric_graft_hybrid_plus(self):
         gen = Genus.retrieve_or_create(
@@ -1990,7 +2006,8 @@ class AttributesStoredInNotes(PlantTestCase):
                            'ht-epithet': 'Laelia',
                            'epithet': 'lobata'},
             create=False, update=False)
-        note = SpeciesNote(category='<coords>', note='lat:8.3;lon:-80.1;alt:1400.0')
+        note = SpeciesNote(category='<coords>',
+                           note='lat:8.3;lon:-80.1;alt:1400.0')
         note.species = obj
         self.session.commit()
         self.assertEqual(obj.coords, {'lat': 8.3, 'lon': -80.1, 'alt': 1400.0})
@@ -2122,7 +2139,8 @@ class GlobalFunctionsTest(PlantTestCase):
     def test_vername_markup_func(self):
         vName = self.session.query(VernacularName).filter_by(id=1).one()
         first, second = vName.search_view_markup_pair()
-        self.assertEqual(remove_zws(second), '<i>Maxillaria</i> <i>variabilis</i>')
+        self.assertEqual(remove_zws(second),
+                         '<i>Maxillaria</i> <i>variabilis</i>')
         self.assertEqual(first, 'SomeName')
 
     def test_species_get_kids(self):
@@ -2280,3 +2298,318 @@ class SpeciesCompletionMatchTests(PlantTestCase):
         key = ''
         self.assertEqual(len(completion(key).all()),
                          len(self.session.query(Species).all()))
+
+
+class RetrieveTests(PlantTestCase):
+    def test_vernacular_name_retreives_full_sp_data(self):
+        keys = {
+            'species.sp': 'cochleata',
+            'species.genus.genus': 'Encyclia',
+            'species.infrasp1_rank': 'subsp.',
+            'species.infrasp1': 'cochleata',
+            'species.infrasp2_rank': 'var.',
+            'species.infrasp2': 'cochleata',
+            'species.infrasp3_rank': 'cv.',
+            'species.infrasp3': 'Black',
+        }
+        vname = VernacularName.retrieve(self.session, keys)
+        self.assertEqual(vname.id, 5)
+        # using hybrid properties
+        keys = {
+            'species.epithet': 'cochleata',
+            'species.genus.epithet': 'Encyclia',
+            'species.infrasp_parts': 'subsp. cochleata var. cochleata',
+            'species.cultivar_epithet': 'Black',
+        }
+        vname = VernacularName.retrieve(self.session, keys)
+        self.assertEqual(vname.id, 5)
+
+    def test_vernacular_name_retreives_incomplete_sp_data_one_sp(self):
+        keys = {
+            'species.epithet': 'cochleata',
+            'species.genus.epithet': 'Encyclia',
+            'species.cultivar_epithet': 'Black',
+        }
+        vname = VernacularName.retrieve(self.session, keys)
+        self.assertEqual(vname.id, 5)
+
+    def test_vernacular_name_doesnt_retreive_incomplete_sp_data_multiple(self):
+        keys = {
+            'species.genus.epithet': 'Encyclia',
+            'species.epithet': 'cochleata',
+        }
+        vname = VernacularName.retrieve(self.session, keys)
+        self.assertIsNone(vname)
+
+    def test_vernacular_name_doesnt_retreive_sp_data_multiple_vnames(self):
+        keys = {
+            'species.genus.epithet': 'Maxillaria',
+            'species.epithet': 'variabilis',
+        }
+        vname = VernacularName.retrieve(self.session, keys)
+        self.assertIsNone(vname)
+
+    def test_vernacular_name_retreives_vn_parts_only_one_sp(self):
+        keys = {
+            'name': 'SomeName',
+            'language': 'English',
+        }
+        vname = VernacularName.retrieve(self.session, keys)
+        self.assertEqual(vname.id, 1)
+
+    def test_vernacular_name_doesnt_retreive_vn_parts_only_multiple_sp(self):
+        keys = {
+            'name': 'Clamshell Orchid',
+            'language': 'English',
+        }
+        vname = VernacularName.retrieve(self.session, keys)
+        self.assertIsNone(vname)
+
+    def test_vernacular_name_retreives_full_data(self):
+        keys = {
+            'name': 'SomeName',
+            'language': 'English',
+            'species.epithet': 'variabilis',
+            'species.genus.epithet': 'Maxillaria',
+        }
+        vname = VernacularName.retrieve(self.session, keys)
+        self.assertEqual(vname.id, 1)
+
+    def test_vernacular_name_retreives_id_only(self):
+        keys = {
+            'id': 5
+        }
+        vname = VernacularName.retrieve(self.session, keys)
+        self.assertEqual(vname.species.id, 15)
+
+    def test_vernacular_name_retreives_sp_id_only(self):
+        keys = {
+            'species.id': 15
+        }
+        vname = VernacularName.retrieve(self.session, keys)
+        self.assertEqual(vname.id, 5)
+
+    def test_vernacular_name_retreives_name_only_exists_once(self):
+        keys = {
+            'name': 'Toé'
+        }
+        vname = VernacularName.retrieve(self.session, keys)
+        self.assertEqual(vname.id, 4)
+
+    def test_vernacular_name_doesnt_retreive_non_existent_name(self):
+        keys = {
+            'name': 'NonExistent'
+        }
+        vname = VernacularName.retrieve(self.session, keys)
+        self.assertIsNone(vname)
+        # mismatch
+        keys = {
+            'name': 'Clamshell orchid',
+            'language': 'English',
+            'species.epithet': 'variabilis',
+            'species.genus.epithet': 'Maxillaria'
+        }
+        vname = VernacularName.retrieve(self.session, keys)
+        self.assertIsNone(vname)
+
+    def test_vernacular_name_doesnt_retreive_wrong_keys(self):
+        keys = {
+            'name': 'Somewhere Else',
+            'code': 'SE'
+        }
+        vname = VernacularName.retrieve(self.session, keys)
+        self.assertIsNone(vname)
+
+    def test_vernacular_name_doesnt_retreive_for_sp_non_existent_vname(self):
+        keys = {
+            'species.genus': 'Campyloneurum',
+            'species.sp': 'alapense',
+            'species.hybrid': True,
+        }
+        vname = VernacularName.retrieve(self.session, keys)
+        logs = self.handler.messages['bauble.plugins.plants.species_model']
+        self.assertIn(f'retrieved species {species_str_map[4]}', logs['debug'])
+        self.assertIsNone(vname)
+
+    def test_species_retreives_full_sp_data(self):
+        keys = {
+            'sp': 'cochleata',
+            'genus.genus': 'Encyclia',
+            'infrasp1_rank': 'subsp.',
+            'infrasp1': 'cochleata',
+            'infrasp2_rank': 'var.',
+            'infrasp2': 'cochleata',
+            'infrasp3_rank': 'cv.',
+            'infrasp3': 'Black',
+        }
+        sp = Species.retrieve(self.session, keys)
+        self.assertEqual(sp.id, 15)
+        # using hybrid properties
+        keys = {
+            'epithet': 'cochleata',
+            'genus.epithet': 'Encyclia',
+            'infrasp_parts': 'subsp. cochleata var. cochleata',
+            'cultivar_epithet': 'Black',
+        }
+        sp = Species.retrieve(self.session, keys)
+        self.assertEqual(sp.id, 15)
+
+    def test_species_retreives_id_only(self):
+        keys = {
+            'id': 15
+        }
+        sp = Species.retrieve(self.session, keys)
+        self.assertEqual(str(sp), species_str_map[15])
+
+    def test_species_doesnt_retreive_incomplete_sp_data_multiple(self):
+        keys = {
+            'genus.epithet': 'Encyclia',
+            'epithet': 'cochleata',
+        }
+        sp = Species.retrieve(self.session, keys)
+        self.assertIsNone(sp)
+
+    def test_species_doesnt_retreive_non_existent(self):
+        keys = {
+            'genus.epithet': 'Encyclia',
+            'epithet': 'nonexistennt',
+        }
+        sp = Species.retrieve(self.session, keys)
+        self.assertIsNone(sp)
+
+    def test_species_doesnt_retreive_wrong_keys(self):
+        keys = {
+            'name': 'Somewhere Else',
+            'code': 'SE'
+        }
+        sp = Species.retrieve(self.session, keys)
+        self.assertIsNone(sp)
+
+    def test_genus_retreives_full_data(self):
+        keys = {
+            'epithet': 'Encyclia',
+            'family.epithet': 'Orchidaceae',
+        }
+        gen = Genus.retrieve(self.session, keys)
+        self.assertEqual(gen.id, 2)
+
+        keys = {
+            'genus': 'Encyclia',
+            'family.family': 'Orchidaceae',
+        }
+        gen = Genus.retrieve(self.session, keys)
+        self.assertEqual(gen.id, 2)
+
+    def test_genus_retreives_genus_only_unique_genus(self):
+        keys = {
+            'epithet': 'Encyclia',
+        }
+        gen = Genus.retrieve(self.session, keys)
+        self.assertEqual(gen.id, 2)
+
+        keys = {
+            'genus': 'Encyclia',
+        }
+        gen = Genus.retrieve(self.session, keys)
+        self.assertEqual(gen.id, 2)
+
+    def test_genus_retreives_id_only(self):
+        keys = {
+            'id': 5
+        }
+        genus = Genus.retrieve(self.session, keys)
+        self.assertEqual(genus.genus, 'Paphiopedilum')
+
+    def test_genus_doesnt_retreive_family_only(self):
+        keys = {
+            'family.family': 'Orchidaceae',
+        }
+        genus = Genus.retrieve(self.session, keys)
+        self.assertIsNone(genus)
+        # single genus family
+        keys = {
+            'family.family': 'Solanaceae',
+        }
+        genus = Genus.retrieve(self.session, keys)
+        self.assertIsNone(genus)
+
+    def test_genus_doesnt_retreive_non_existent(self):
+        keys = {
+            'family.family': 'Orchidaceae',
+            'genus': 'Nonexistent'
+        }
+        genus = Genus.retrieve(self.session, keys)
+        self.assertIsNone(genus)
+
+    def test_genus_doesnt_retreive_wrong_keys(self):
+        keys = {
+            'name': 'Somewhere Else',
+            'code': 'SE',
+        }
+        genus = Genus.retrieve(self.session, keys)
+        self.assertIsNone(genus)
+
+    def test_family_retreives(self):
+        keys = {
+            'epithet': 'Orchidaceae',
+        }
+        fam = Family.retrieve(self.session, keys)
+        self.assertEqual(fam.id, 1)
+        keys = {
+            'family': 'Orchidaceae',
+        }
+        fam = Family.retrieve(self.session, keys)
+        self.assertEqual(fam.id, 1)
+
+    def test_family_retreives_id_only(self):
+        keys = {
+            'id': 4
+        }
+        fam = Family.retrieve(self.session, keys)
+        self.assertEqual(fam.family, 'Solanaceae')
+
+    def test_family_doesnt_retreive_non_existent(self):
+        keys = {
+            'epithet': 'Nonexistent'
+        }
+        fam = Family.retrieve(self.session, keys)
+        self.assertIsNone(fam)
+
+    def test_family_doesnt_retreive_wrong_keys(self):
+        keys = {
+            'name': 'Somewhere Else',
+            'accession': '2001.1'
+        }
+        fam = Family.retrieve(self.session, keys)
+        self.assertIsNone(fam)
+
+    def test_geography_retreives(self):
+        # NOTE grouped to avoid unnecessarily reloading geography table
+        from bauble.task import queue
+        queue(geography_importer())
+        keys = {
+            'tdwg_code': '50',
+        }
+        geo = Geography.retrieve(self.session, keys)
+        self.assertEqual(geo.name, 'Australia')
+
+        # test id only
+        keys = {
+            'id': 4
+        }
+        geo = Geography.retrieve(self.session, keys)
+        self.assertEqual(geo.id, 4)
+
+        # test non-existent
+        keys = {
+            'epithet': 'Nonexistent'
+        }
+        geo = Geography.retrieve(self.session, keys)
+        self.assertIsNone(geo)
+
+        # test wrong keys
+        keys = {
+            'accession.code': '2001.1',
+        }
+        geo = Geography.retrieve(self.session, keys)
+        self.assertIsNone(geo)

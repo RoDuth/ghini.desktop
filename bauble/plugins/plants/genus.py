@@ -34,7 +34,7 @@ from sqlalchemy import (Column, Unicode, Integer, ForeignKey, String,
                         UniqueConstraint, and_)
 from sqlalchemy.orm import relationship, backref, synonym
 from sqlalchemy.orm.session import object_session
-from sqlalchemy.exc import DBAPIError, SQLAlchemyError
+from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.associationproxy import association_proxy
 
 import bauble
@@ -199,6 +199,50 @@ class Genus(db.Base, db.Serializable, db.WithNotes):
                            backref=backref('genus',
                                            lazy='subquery',
                                            uselist=False))
+    retrieve_cols = ['id',
+                     'epithet',
+                     'genus',
+                     'author',
+                     'family',
+                     'family.epithet',
+                     'family.family']
+
+    @classmethod
+    def retrieve(cls, session, keys):
+        # NOTE in json imports the use of the author needs to be delayed.
+        # Allowing for the import to add an author to one without.
+        # TODO why is choosing to include author or not here and not in iojson?
+        parts = ['id', 'epithet', 'genus']
+
+        gen_parts = {k: v for k, v in keys.items() if k in parts}
+
+        if not gen_parts:
+            return None
+
+        def get_query(gen_parts):
+            query = session.query(cls).filter_by(**gen_parts)
+            fam = (keys.get('family.epithet') or keys.get('family.family') or
+                   keys.get('family'))
+
+            if fam:
+                query.join(Family).filter(Family.family == fam)
+
+            return query
+
+        from sqlalchemy.orm.exc import MultipleResultsFound
+        query = get_query(gen_parts)
+        try:
+            return query.one_or_none()
+        except MultipleResultsFound:
+            if not keys.get('author'):
+                return None
+
+        author = keys.get('author')
+        if author:
+            gen_parts['author'] = author
+            query = get_query(gen_parts)
+            return query.one_or_none()
+        return None
 
     def search_view_markup_pair(self):
         """provide the two lines describing object for SearchView row."""
@@ -309,21 +353,6 @@ class Genus(db.Base, db.Serializable, db.WithNotes):
         if recurse and self.accepted is not None:
             result['accepted'] = self.accepted.as_dict(recurse=False)
         return result
-
-    @classmethod
-    def retrieve(cls, session, keys):
-        try:
-            return session.query(cls).filter(
-                cls.genus == keys['epithet']).one()
-        except SQLAlchemyError:
-            if 'author' not in keys:
-                return None
-        try:
-            return session.query(cls).filter(
-                cls.genus == keys['epithet'],
-                cls.author == keys['author']).one()
-        except SQLAlchemyError:
-            return None
 
     @classmethod
     def correct_field_names(cls, keys):
