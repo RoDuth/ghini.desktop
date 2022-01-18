@@ -1,4 +1,4 @@
-# Copyright (c) 2021 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright (c) 2021-2022 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -27,6 +27,7 @@ from pathlib import Path
 from zipfile import ZipFile
 from tempfile import TemporaryDirectory
 from shapefile import Writer, Reader
+
 from gi.repository import Gtk
 
 from bauble.test import BaubleTestCase
@@ -43,10 +44,8 @@ from bauble.plugins.plants import Family, Genus
 from bauble.plugins.plants.species import (Species, VernacularName,
                                            DefaultVernacularName)
 from bauble.utils.geo import transform
-from bauble.plugins.imex.shapefile.import_tool import (ShapefileImporter,
-                                                       ShapefileReader)
-from bauble.plugins.imex.shapefile.export_tool import (ShapefileExporter,
-                                                       get_field_properties)
+from .import_tool import ShapefileImporter, ShapefileReader, MATCH, OPTION
+from .export_tool import ShapefileExporter, get_field_properties
 
 from .import_tool import ShapefileImportSettingsBox as ImpSetBox
 from .export_tool import ShapefileExportSettingsBox as ExpSetBox
@@ -1341,7 +1340,7 @@ class ShapefileExportTests(ShapefileTestCase):
     def test_exports_search_all_w_generated_plants(self):
         objs = self.session.query(Genus).filter_by(genus='Eucalyptus').all()
         exporter = self.exporter
-        exporter.view.selection = objs
+        exporter.presenter.view.selection = objs
         exporter.proj_db.add(prj=prj_str_4326, crs='epsg:4326')
         exporter.search_or_all = 'rb_search_results'
         exporter.export_locations = True
@@ -1417,7 +1416,7 @@ class ShapefileExportTests(ShapefileTestCase):
         self.session.commit()
         objs = self.session.query(Plant).all()
         exporter = self.exporter
-        exporter.view.selection = objs
+        exporter.presenter.view.selection = objs
         exporter.proj_db.add(prj=prj_str_4326, crs='epsg:4326')
         exporter.search_or_all = 'rb_search_results'
         exporter.export_locations = False
@@ -1462,7 +1461,7 @@ class ShapefileExportTests(ShapefileTestCase):
         self.session.commit()
         objs = self.session.query(Plant).filter(Plant.geojson.is_(None)).all()
         exporter = self.exporter
-        exporter.view.selection = objs
+        exporter.presenter.view.selection = objs
         exporter.proj_db.add(prj=prj_str_4326, crs='epsg:4326')
         exporter.search_or_all = 'rb_search_results'
         exporter.export_locations = False
@@ -1483,7 +1482,7 @@ class ShapefileExportTests(ShapefileTestCase):
     def test_exports_search_plants(self):
         objs = self.session.query(Genus).filter_by(genus='Grevillea').all()
         exporter = self.exporter
-        exporter.view.selection = objs
+        exporter.presenter.view.selection = objs
         exporter.proj_db.add(prj=prj_str_4326, crs='epsg:4326')
         exporter.search_or_all = 'rb_search_results'
         exporter.export_locations = False
@@ -1538,7 +1537,7 @@ class ShapefileExportTests(ShapefileTestCase):
         self.session.commit()
         objs = self.session.query(Plant).all()
         exporter = self.exporter
-        exporter.view.selection = objs
+        exporter.presenter.view.selection = objs
         exporter.proj_db.add(prj=prj_str_4326, crs='epsg:4326')
         exporter.search_or_all = 'rb_search_results'
         exporter.export_locations = False
@@ -1552,7 +1551,7 @@ class ShapefileExportTests(ShapefileTestCase):
     def test_exports_search_locations(self):
         objs = self.session.query(Family).filter_by(family='Myrtaceae').all()
         exporter = self.exporter
-        exporter.view.selection = objs
+        exporter.presenter.view.selection = objs
         exporter.proj_db.add(prj=prj_str_4326, crs='epsg:4326')
         exporter.search_or_all = 'rb_search_results'
         exporter.export_locations = True
@@ -1571,7 +1570,8 @@ class ShapefileExportTests(ShapefileTestCase):
 
     def test_on_btnbrowse_clicked(self):
         exporter = self.exporter
-        exporter.view.reply_file_chooser_dialog = [self.temp_dir.name]
+        exporter.presenter.view.reply_file_chooser_dialog = [
+            self.temp_dir.name]
         exporter.presenter.on_btnbrowse_clicked('button')
         exporter.presenter.on_dirname_entry_changed('input_dirname')
         self.assertEqual(exporter.dirname, self.temp_dir.name)
@@ -1583,12 +1583,13 @@ class ShapefileExportTests(ShapefileTestCase):
         exporter.export_plants = True
         exporter.presenter._settings_expander()
         # set last_folder
-        exporter.view.reply_file_chooser_dialog = [self.temp_dir.name]
+        exporter.presenter.view.reply_file_chooser_dialog = [
+            self.temp_dir.name]
         exporter.presenter.on_btnbrowse_clicked('button')
         exporter.presenter.on_dirname_entry_changed('input_dirname')
         # try setting to a bad path
         bad_path = '/bad/path/'
-        exporter.view.reply_file_chooser_dialog = [bad_path]
+        exporter.presenter.view.reply_file_chooser_dialog = [bad_path]
         exporter.presenter.on_btnbrowse_clicked('button')
         exporter.presenter.on_dirname_entry_changed('input_dirname')
         # assert that it did set dirname, was unsucessful at changing
@@ -1612,20 +1613,21 @@ class ShapefileExportTests(ShapefileTestCase):
                 open_=False)
 
         self.assertTrue(
-            exporter.view.widget_get_sensitive('rb_search_results'))
+            exporter.presenter.view.widget_get_sensitive('rb_search_results'))
 
     def test_on_settings_activate(self):
         # somewhat superfluous
         exporter = self.exporter
-        window = exporter.view.get_window()
+        window = exporter.presenter.view.get_window()
         exporter.presenter.on_settings_activate('exp_settings_expander')
         self.assertEqual(window.get_size(), (1, 1))
 
     def test_reset_win_size(self):
         exporter = self.exporter
-        start = exporter.view.get_window().get_size()
+        start = exporter.presenter.view.get_window().get_size()
         exporter.presenter.reset_win_size()
-        self.assertNotEqual(start, exporter.view.get_window().get_size())
+        self.assertNotEqual(start,
+                            exporter.presenter.view.get_window().get_size())
         exporter.presenter._settings_expander()
         self.assertEqual(len(exporter.presenter.settings_boxes), 1)
         locs_only = exporter.presenter.settings_boxes[
@@ -1658,44 +1660,61 @@ class ShapefileExportTests(ShapefileTestCase):
 
 class ImportSettingsBoxTests(ShapefileTestCase):
 
-    def test_settings_box_grid_populates1(self):
+    def test_settings_box_grid_populates_locations(self):
         shape_reader = ShapefileReader(create_shapefile('test',
                                                         prj_str_4326,
                                                         location_fields,
                                                         loc_recs_4326,
                                                         self.temp_dir.name))
-        settings_box = ImpSetBox(shape_reader, grid=MockGrid())
-        self.assertEqual(settings_box.grid.item_count,
-                         len(self.loc_fields_prefs) * 6 + 6)
-        self.assertEqual(settings_box.grid.max_size, 2)
-        self.assertEqual(settings_box.grid.max_y, 5)
-        self.assertEqual(settings_box.grid.max_x, 5)
-        for i in location_fields:
-            for j in i:
-                self.assertIn(str(j), settings_box.grid.labels.keys())
-        for i in self.loc_fields_prefs.values():
-            self.assertIn(i, settings_box.grid.props.keys())
+        settings_box = ImpSetBox(shape_reader)
+        first_widget = settings_box.grid.get_child_at(0, 0)
+        self.assertEqual(first_widget.get_label(), '<b>name</b>')
+        last_widget = settings_box.grid.get_child_at(OPTION,
+                                                     len(location_fields))
+        self.assertEqual(last_widget.get_label(), 'replace')
+        for i, field in enumerate(location_fields):
+            if field[0] == 'loc_id':
+                option_chkbtn = settings_box.grid.get_child_at(OPTION, i + 1)
+                self.assertEqual(option_chkbtn.get_label(), 'import')
+            if field[0] == 'descript':
+                self.assertIsNone(
+                    settings_box.grid.get_child_at(OPTION, i + 1)
+                )
+                self.assertIsNone(
+                    settings_box.grid.get_child_at(MATCH, i + 1)
+                )
+            name_label = settings_box.grid.get_child_at(0, i + 1)
+            self.assertEqual(name_label.get_label(), field[0])
 
-    def test_settings_box_grid_populates2(self):
+    def test_settings_box_grid_populates_plants(self):
         shape_reader = ShapefileReader(
             create_shapefile('test',
                              prj_str_3857,
                              plant_fields,
                              plt_rec_3857_new_data_lines,
                              self.temp_dir.name))
-        settings_box = ImpSetBox(shape_reader, grid=MockGrid())
-        self.assertEqual(settings_box.grid.item_count,
-                         len(plant_fields) * 6 + 6)
-        self.assertEqual(settings_box.grid.max_size, 2)
-        self.assertEqual(settings_box.grid.max_y, 5)
-        self.assertEqual(settings_box.grid.max_x,
-                         len(plant_fields))
-        for i in plant_fields:
-            for j in i:
-                self.assertIn(str(j), settings_box.grid.labels.keys())
-        for k, v in self.plt_fields_prefs.items():
-            if k in [i[0] for i in plant_fields]:
-                self.assertIn(v, settings_box.grid.props.keys())
+        settings_box = ImpSetBox(shape_reader)
+        first_widget = settings_box.grid.get_child_at(0, 0)
+        self.assertEqual(first_widget.get_label(), '<b>name</b>')
+        last_name_widget = settings_box.grid.get_child_at(0,
+                                                          len(plant_fields))
+        self.assertEqual(last_name_widget.get_label(), 'vernacular')
+        for i, field in enumerate(plant_fields):
+            if field[0] == 'plt_id':
+                option_chkbtn = settings_box.grid.get_child_at(OPTION, i + 1)
+                self.assertEqual(option_chkbtn.get_label(), 'import')
+            if field[0] == 'field_note':
+                option_chkbtn = settings_box.grid.get_child_at(OPTION, i + 1)
+                self.assertEqual(option_chkbtn.get_label(), 'replace')
+            if field[0] == 'vernacular':
+                self.assertIsNone(
+                    settings_box.grid.get_child_at(OPTION, i + 1)
+                )
+                self.assertIsNone(
+                    settings_box.grid.get_child_at(MATCH, i + 1)
+                )
+            name_label = settings_box.grid.get_child_at(0, i + 1)
+            self.assertEqual(name_label.get_label(), field[0])
 
     def test_on_prop_change_field_map_changes(self):
         import bauble
@@ -1707,22 +1726,21 @@ class ImportSettingsBoxTests(ShapefileTestCase):
                              plant_fields,
                              plt_rec_3857_new_data_lines,
                              self.temp_dir.name))
-        settings_box = ImpSetBox(shape_reader, grid=MockGrid())
+        settings_box = ImpSetBox(shape_reader)
         # prop_button = settings_box.grid.props.get('location.code')
         from datetime import datetime
         mock_event = mock.Mock(button=1, time=datetime.now().timestamp())
-        # prop_button.clicked()
-        # prop_button.do_button_press_event(prop_button, event)
-        chk_button = mock.Mock()
         prop_button, schema_menu = settings_box._get_prop_button(
-            ['bed', 'C', 126, 0], chk_button)
+            Plant, 'bed', 3
+        )
         MochSchemaMenu.full_path = 'bed_name'
         settings_box.on_prop_button_press_event(prop_button, mock_event,
                                                 schema_menu)
         self.assertEqual(shape_reader.field_map.get('bed'), 'bed_name')
         # can add a new field
         prop_button2, schema_menu = settings_box._get_prop_button(
-            ['bed_description', 'C', 126, 0], chk_button)
+            Plant, 'bed_description', 4
+        )
         MochSchemaMenu.full_path = 'location.desciption'
         settings_box.on_prop_button_press_event(prop_button2, mock_event,
                                                 schema_menu)
@@ -1740,42 +1758,70 @@ class ImportSettingsBoxTests(ShapefileTestCase):
                              plant_fields,
                              plt_rec_3857_new_data_lines,
                              self.temp_dir.name))
-        settings_box = ImpSetBox(shape_reader, grid=MockGrid())
+        settings_box = ImpSetBox(shape_reader)
 
         from datetime import datetime
         mock_event = mock.Mock(button=1, time=datetime.now().timestamp())
-        chk_button = mock.Mock()
         prop_button, schema_menu = settings_box._get_prop_button(
-            ['bed', 'C', 126, 0], chk_button)
+            Plant, 'bed', 1
+        )
         MochSchemaMenu.full_path = None
         settings_box.on_prop_button_press_event(prop_button, mock_event,
                                                 schema_menu)
         self.assertIsNone(shape_reader.field_map.get('bed'))
         bauble.query_builder.SchemaMenu = _orig_schema_menu
 
-    def test_on_chk_button_change_search_by_changes(self):
+    def test_on_match_chk_button_change_search_by_changes(self):
         shape_reader = ShapefileReader(create_shapefile('test',
                                                         prj_str_4326,
                                                         location_fields,
                                                         loc_recs_4326,
                                                         self.temp_dir.name))
-        settings_box = ImpSetBox(shape_reader, grid=MockGrid())
+        settings_box = ImpSetBox(shape_reader)
         # add loc_id
-        chk_btn = settings_box.grid.check_buttons[0]
+        chk_btn = settings_box.grid.get_child_at(MATCH, 1)
         chk_btn.set_active(True)
         self.assertIn('loc_id', shape_reader.search_by)
         # remove loc_id
         chk_btn.set_active(False)
         self.assertNotIn('loc_id', shape_reader.search_by)
         # have to add loc_id back in to allow removing loc_code
-        chk_btn = settings_box.grid.check_buttons[0]
-        chk_btn.set_active(True)
-        # remove loc_code
-        chk_btn = settings_box.grid.check_buttons[1]
-        chk_btn.set_active(False)
-        self.assertNotIn('loc_code', shape_reader.search_by)
         # NOTE: can't make search_by empty as it will just self populate with
         # the defaults if any of default fields exist in the dataset.
+        chk_btn.set_active(True)
+        self.assertIn('loc_id', shape_reader.search_by)
+        # remove loc_code
+        chk_btn = settings_box.grid.get_child_at(MATCH, 2)
+        chk_btn.set_active(False)
+        self.assertNotIn('loc_code', shape_reader.search_by)
+
+    def test_on_import_chk_button_change_use_id_changes(self):
+        shape_reader = ShapefileReader(create_shapefile('test',
+                                                        prj_str_4326,
+                                                        location_fields,
+                                                        loc_recs_4326,
+                                                        self.temp_dir.name))
+        settings_box = ImpSetBox(shape_reader)
+        chk_btn = settings_box.grid.get_child_at(OPTION, 1)
+        self.assertEqual(chk_btn.get_label(), 'import')
+        chk_btn.set_active(True)
+        self.assertTrue(shape_reader.use_id)
+        chk_btn.set_active(False)
+        self.assertFalse(shape_reader.use_id)
+
+    def test_on_replace_chk_button_change_replace_notes_changes(self):
+        shape_reader = ShapefileReader(create_shapefile('test',
+                                                        prj_str_4326,
+                                                        location_fields,
+                                                        loc_recs_4326,
+                                                        self.temp_dir.name))
+        settings_box = ImpSetBox(shape_reader)
+        chk_btn = settings_box.grid.get_child_at(OPTION, 5)
+        self.assertEqual(chk_btn.get_label(), 'replace')
+        chk_btn.set_active(True)
+        self.assertIn('field_note', shape_reader.replace_notes)
+        chk_btn.set_active(False)
+        self.assertNotIn('field_note', shape_reader.replace_notes)
 
     def test_on_type_changed(self):
         shape_reader = ShapefileReader(create_shapefile('test',
@@ -1783,17 +1829,13 @@ class ImportSettingsBoxTests(ShapefileTestCase):
                                                         location_fields,
                                                         loc_recs_4326,
                                                         self.temp_dir.name))
-        settings_box = ImpSetBox(shape_reader, grid=MockGrid())
+        settings_box = ImpSetBox(shape_reader)
         type_combo = mock.Mock(**{'get_active_text.return_value': 'plant'})
         settings_box.on_type_changed(type_combo)
         # assert the grid rebuilt with the same fields
-        self.assertEqual(settings_box.grid.max_y, 5)
-        self.assertEqual(settings_box.grid.max_x, 5)
-        for i in location_fields:
-            for j in i:
-                self.assertIn(str(j), settings_box.grid.labels.keys())
-        for i in self.loc_fields_prefs.values():
-            self.assertIn(i, settings_box.grid.props.keys())
+        for i, field in enumerate(location_fields):
+            name_label = settings_box.grid.get_child_at(0, i + 1)
+            self.assertEqual(name_label.get_label(), field[0])
         # assert the shape reader only contains the one matching field
         self.assertEqual('Note', shape_reader.field_map.get('field_note'))
         self.assertEqual(len(shape_reader.field_map), 1)
@@ -1940,7 +1982,7 @@ class ShapefileImportTests(ShapefileTestCase):
         self.importer = ShapefileImporter(view=MockView(),
                                           proj_db=ProjDB(db_path=':memory:'))
         # note widgets is a mock.Mock
-        self.importer.view.widgets.input_filename = 'input_filename'
+        self.importer.presenter.view.widgets.input_filename = 'input_filename'
 
     def test_add_missing_geo_data_only(self):
         importer = self.importer
@@ -2087,7 +2129,7 @@ class ShapefileImportTests(ShapefileTestCase):
                                      location_fields,
                                      loc_recs_3857,
                                      self.temp_dir.name)
-        importer.view.reply_file_chooser_dialog = [shpf_name]
+        importer.presenter.view.reply_file_chooser_dialog = [shpf_name]
         importer.presenter.on_btnbrowse_clicked('button')
         importer.presenter.on_filename_entry_changed('input_filename')
         # import existing records with some changes
@@ -2562,8 +2604,8 @@ class ShapefileImportTests(ShapefileTestCase):
                                              plt_rec_3857_new_data_lines,
                                              self.temp_dir.name)
         importer.shape_reader.filename = importer.filename
+        importer.shape_reader.use_id = True
         importer.option = '4'
-        importer.use_id = True
         importer.projection = 'epsg:3857'
         importer.run()
         result = self.session.query(Plant).all()
@@ -2616,7 +2658,7 @@ class ShapefileImportTests(ShapefileTestCase):
         shpf_name = create_shapefile('test_altered', prj_str_4326,
                                      location_fields, loc_altered,
                                      self.temp_dir.name)
-        importer.view.reply_file_chooser_dialog = [shpf_name]
+        importer.presenter.view.reply_file_chooser_dialog = [shpf_name]
         importer.presenter.on_btnbrowse_clicked('button')
         importer.option = '4'
         importer.presenter.on_filename_entry_changed('input_filename')
@@ -2661,13 +2703,12 @@ class ShapefileImportTests(ShapefileTestCase):
         # added one note when creating the database, check the import didn't
         # bring in the other.
         self.assertEqual(len(result[0].notes), 1)
-        # importer.use_id = False
 
     def test_on_btnbrowse_clicked(self):
         importer = self.importer
         shpf_name = create_shapefile('test', prj_str_4326, location_fields,
                                      loc_recs_4326, self.temp_dir.name)
-        importer.view.reply_file_chooser_dialog = [shpf_name]
+        importer.presenter.view.reply_file_chooser_dialog = [shpf_name]
         importer.presenter.on_btnbrowse_clicked('button')
         importer.presenter.on_filename_entry_changed('input_filename')
         self.assertEqual(importer.filename, shpf_name)
@@ -2677,22 +2718,23 @@ class ShapefileImportTests(ShapefileTestCase):
                          importer.presenter.proj_db.get_crs(prj_str_4326))
         # this just test that remove was called.
         self.assertTrue(
-            importer.view.widgets.imp_settings_expander.remove.called)
+            importer.presenter.view.widgets.imp_settings_expander.remove.called
+        )
 
     def test_on_btnbrowse_clicked_matched_crs(self):
         importer = self.importer
         importer.presenter.proj_db.add(prj=prj_str_4326, crs='epsg:4326')
         shpf_name = create_shapefile('test', prj_str_4326, location_fields,
                                      loc_recs_4326, self.temp_dir.name)
-        importer.view.reply_file_chooser_dialog = [shpf_name]
+        importer.presenter.view.reply_file_chooser_dialog = [shpf_name]
         importer.presenter.on_btnbrowse_clicked('button')
         importer.presenter.on_filename_entry_changed('input_filename')
-        self.assertIn('widget_set_text', importer.view.invoked)
+        self.assertIn('widget_set_text', importer.presenter.view.invoked)
         self.assertIn(('widget_set_text', ('input_projection', 'epsg:4326')),
-                      importer.view.invoked_detailed)
-        self.assertIn('widget_set_active', importer.view.invoked)
+                      importer.presenter.view.invoked_detailed)
+        self.assertIn('widget_set_active', importer.presenter.view.invoked)
         self.assertIn(('widget_set_active', ('cb_always_xy', True)),
-                      importer.view.invoked_detailed)
+                      importer.presenter.view.invoked_detailed)
         self.assertEqual(importer.filename, shpf_name)
         self.assertEqual(importer.presenter.last_folder,
                          str(Path(shpf_name).parent))
@@ -2704,7 +2746,7 @@ class ShapefileImportTests(ShapefileTestCase):
         importer.presenter.proj_db.add(prj=prj_str_4326, crs='epsg:4326')
         bad_file = Path(f'{self.temp_dir.name}/bad.zip')
         bad_file.touch()
-        importer.view.reply_file_chooser_dialog = [bad_file]
+        importer.presenter.view.reply_file_chooser_dialog = [bad_file]
         importer.presenter.on_btnbrowse_clicked('button')
         importer.presenter.on_filename_entry_changed('input_filename')
 
@@ -2714,7 +2756,7 @@ class ShapefileImportTests(ShapefileTestCase):
         with TemporaryDirectory() as tmp:
             bad_file = Path(f'{tmp}/bad.csv')
             bad_file.touch()
-            importer.view.reply_file_chooser_dialog = [bad_file]
+            importer.presenter.view.reply_file_chooser_dialog = [bad_file]
             importer.presenter.on_btnbrowse_clicked('button')
             importer.presenter.on_filename_entry_changed('input_filename')
             # Should not store the last folder as not a zip file
@@ -2747,19 +2789,19 @@ class ShapefileImportTests(ShapefileTestCase):
         importer.presenter.on_projection_changed('input_projection',
                                                  value='epsg:3857')
         self.assertEqual(importer.presenter.proj_text, 'epsg:3857')
-        self.assertIn('set_button_label', importer.view.invoked)
+        self.assertIn('set_button_label', importer.presenter.view.invoked)
         self.assertIn(('set_button_label', ('projection_button', 'Add?')),
-                      importer.view.invoked_detailed)
+                      importer.presenter.view.invoked_detailed)
         importer.presenter.proj_db_match = 'epsg:3857'
         importer.presenter.on_projection_changed('input_projection',
                                                  value='epsg:3857')
         self.assertIn(('set_button_label', ('projection_button', 'CORRECT')),
-                      importer.view.invoked_detailed)
+                      importer.presenter.view.invoked_detailed)
         importer.presenter.proj_db_match = 'epsg:4326'
         importer.presenter.on_projection_changed('input_projection',
                                                  value='epsg:3857')
         self.assertIn(('set_button_label', ('projection_button', 'Change?')),
-                      importer.view.invoked_detailed)
+                      importer.presenter.view.invoked_detailed)
 
     def test_on_projection_btn_clicked(self):
         importer = self.importer
@@ -2771,12 +2813,12 @@ class ShapefileImportTests(ShapefileTestCase):
         importer.presenter.proj_text = 'epsg:test'
         importer.presenter.proj_db_match = 'epsg:4326'
         importer.presenter.prj_string = prj_str_4326
-        importer.view.widgets.input_projection = 'input_projection'
+        importer.presenter.view.widgets.input_projection = 'input_projection'
         importer.presenter.on_projection_btn_clicked('projection_button')
         self.assertEqual(importer.presenter.proj_db.get_crs(prj_str_4326),
                          'epsg:test')
         self.assertIn(('set_button_label', ('projection_button', 'Change?')),
-                      importer.view.invoked_detailed)
+                      importer.presenter.view.invoked_detailed)
         # Test adding a new entry
         prj_str = 'PROJCS["test2"]'
         importer.presenter.prj_string = prj_str
@@ -2785,17 +2827,17 @@ class ShapefileImportTests(ShapefileTestCase):
         importer.presenter.on_projection_changed('input_projection',
                                                  value='epsg:test2')
         importer.projection = 'epsg:test2'
-        importer.view.widgets.input_projection = 'input_projection'
+        importer.presenter.view.widgets.input_projection = 'input_projection'
         importer.presenter.on_projection_btn_clicked('projection_button')
         self.assertEqual(importer.presenter.proj_db.get_crs(prj_str),
                          'epsg:test2')
         self.assertIn(('set_button_label', ('projection_button', 'Add?')),
-                      importer.view.invoked_detailed)
+                      importer.presenter.view.invoked_detailed)
 
     def test_on_settings_activate(self):
         # somewhat superfluous
         importer = self.importer
-        window = importer.view.get_window()
+        window = importer.presenter.view.get_window()
         importer.presenter.on_settings_activate('imp_settings_expander')
         importer.presenter.on_filename_entry_changed('input_filename')
         self.assertEqual(window.get_size(), (1, 1))

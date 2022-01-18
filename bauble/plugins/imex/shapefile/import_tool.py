@@ -1,4 +1,4 @@
-# Copyright (c) 2021 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright (c) 2021-2022 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -47,7 +47,14 @@ from bauble.editor import GenericEditorView, GenericEditorPresenter
 from bauble.utils.geo import DEFAULT_IN_PROJ
 
 from . import LOCATION_SHAPEFILE_PREFS, PLANT_SHAPEFILE_PREFS
-from .. import add_rec_to_db
+from .. import GenericImporter
+
+PATH = 4
+"""Column position for the path widget and attribte"""
+MATCH = 5
+"""Column position for the match widget."""
+OPTION = 6
+"""Column position for the option widget."""
 
 
 class ShapefileReader():
@@ -66,11 +73,13 @@ class ShapefileReader():
         """
         self._filename = None
         self.filename = filename
+        self.use_id = False
+        self.replace_notes = set()
         self._type = None
         self._search_by = set()
         self._field_map = {}
 
-    def __guess_type(self):
+    def _guess_type(self):
         """try guess what type (Plant or Location) the record is by checking
         the for fields that match the default field maps.
         """
@@ -96,7 +105,7 @@ class ShapefileReader():
         if this is not set manually an attempt to guess it will be made
         """
         if self._type is None:
-            self._type = self.__guess_type()
+            self._type = self._guess_type()
         return self._type
 
     @type.setter
@@ -209,7 +218,7 @@ class ShapefileReader():
 
     def get_fields(self):
         """
-        :return: list of fields in the shapefile or None.
+        :return: list of fields in the shapefile
         """
         try:
             with self._reader() as reader:
@@ -285,12 +294,15 @@ class ShapefileImportSettingsBox(Gtk.ScrolledWindow):
     def _construct_grid(self):
         """Create the field grid layout."""
         labels = ['name', 'type', 'length', 'dec places', 'database field',
-                  'match database']
+                  'match database', 'option']
         for column, txt in enumerate(labels):
             label = Gtk.Label()
             label.set_markup(f'<b>{txt}</b>')
             self.grid.attach(label, column, 0, 1, 1)
 
+        model = Plant
+        if self.shape_reader.type == 'location':
+            model = Location
         # NOTE can not use enumerate for row here
         row = 0
         for field in self.shape_reader.get_fields():
@@ -302,28 +314,15 @@ class ShapefileImportSettingsBox(Gtk.ScrolledWindow):
                     label.set_text(str(value))
                     self.grid.attach(label, column, row, 1, 1)
 
-                chk_button = Gtk.CheckButton.new_with_label('match')
-                prop_button, schema_menu = self._get_prop_button(field,
-                                                                 chk_button)
+                name = field[0]
+                # chk_button = Gtk.CheckButton.new_with_label('match')
+                prop_button, schema_menu = self._get_prop_button(model,
+                                                                 name,
+                                                                 row)
                 prop_button.connect('button-press-event',
                                     self.on_prop_button_press_event,
                                     schema_menu)
-                self.grid.attach(prop_button, column + 1, row, 1, 1)
-
-                chk_button.connect('toggled', self.on_chk_button_change,
-                                   (field[0], prop_button))
-                tooltip = (
-                    "Select to ensure this field matches the current data. If "
-                    "a match can not be found the record will be skipped.\n\n"
-                    "There must be at least one match field and a match must "
-                    "return a single database entry.  (Best to use unique "
-                    "or ID fields, if using ID fields it is almost always "
-                    "best to also set Use ID to True)"
-                )
-                chk_button.set_tooltip_text(tooltip)
-                if field[0] in self.shape_reader.search_by:
-                    chk_button.set_active(True)
-                self.grid.attach(chk_button, column + 2, row, 1, 1)
+                self.grid.attach(prop_button, PATH, row, 1, 1)
 
     @staticmethod
     def relation_filter(prop):
@@ -342,25 +341,71 @@ class ShapefileImportSettingsBox(Gtk.ScrolledWindow):
     def on_prop_button_press_event(_widget, event, menu):
         menu.popup(None, None, None, None, event.button, event.time)
 
-    def _get_prop_button(self, field, chk_button):
+    def _get_prop_button(self, model, name, row): \
+            # pylint: disable=too-many-statements
         # default model is plant
-        model = Plant
-        if self.shape_reader.type == 'location':
-            model = Location
-        db_field = self.shape_reader.field_map.get(field[0], '')
+        db_field = self.shape_reader.field_map.get(name, '')
         prop_button = Gtk.Button()
         prop_button.set_use_underline(False)
 
         def menu_activated(_widget, path, _prop):
             """Closure used to set the field_map and button label."""
             prop_button.get_style_context().remove_class('err-btn')
+            if chk_btn := self.grid.get_child_at(MATCH, row):
+                self.grid.remove(chk_btn)
+            if chk_btn := self.grid.get_child_at(OPTION, row):
+                self.grid.remove(chk_btn)
             if path:
                 prop_button.set_label(path)
-                self.shape_reader.field_map[field[0]] = path
+                self.shape_reader.field_map[name] = path
+                if path in model.retrieve_cols:
+                    chk_button = Gtk.CheckButton.new_with_label('match')
+
+                    chk_button.connect('toggled',
+                                       self.on_match_chk_button_change,
+                                       (name, prop_button))
+                    tooltip = (
+                        "Select to ensure this field matches the current "
+                        "data. If a match can not be found the record will be "
+                        "skipped.\n\nThere must be at least one match field "
+                        "and a match must return a single database entry."
+                    )
+                    chk_button.set_tooltip_text(tooltip)
+                    if name in self.shape_reader.search_by:
+                        chk_button.set_active(True)
+                    else:
+                        chk_button.set_active(False)
+                    self.grid.attach(chk_button, MATCH, row, 1, 1)
+                    chk_button.show()
+                if path == 'id':
+                    chk_button = Gtk.CheckButton.new_with_label('import')
+                    tooltip = (
+                        "Select to import this field into the database.  You "
+                        "generally won't want to do this as any conflicts "
+                        "with existing records could fail anyway."
+                    )
+                    chk_button.set_tooltip_text(tooltip)
+                    chk_button.connect('toggled',
+                                       self.on_import_id_chk_button_change)
+                    self.grid.attach(chk_button, OPTION, row, 1, 1)
+                    chk_button.show()
+                elif path and path.startswith('Note'):
+                    chk_button = Gtk.CheckButton.new_with_label('replace')
+                    tooltip = (
+                        "Select to replace all existing notes of this "
+                        "category.  If not selected or no notes of this "
+                        "category exist a new note will be added.\n\nCAUTION! "
+                        "will delete all notes of category."
+                    )
+                    chk_button.set_tooltip_text(tooltip)
+                    chk_button.connect('toggled',
+                                       self.on_replace_chk_button_change,
+                                       name)
+                    self.grid.attach(chk_button, OPTION, row, 1, 1)
+                    chk_button.show()
             else:
-                if self.shape_reader.field_map.get(field[0]):
-                    del self.shape_reader.field_map[field[0]]
-                    chk_button.set_active(False)
+                if self.shape_reader.field_map.get(name):
+                    del self.shape_reader.field_map[name]
                 prop_button.set_label(_('Choose a property…'))
 
         from bauble.query_builder import SchemaMenu
@@ -402,18 +447,18 @@ class ShapefileImportSettingsBox(Gtk.ScrolledWindow):
         prop_button.set_tooltip_text(tooltip)
         return prop_button, schema_menu
 
-    def on_type_changed(self, widget):
-        if self.shape_reader.type != widget.get_active_text():
-            self.shape_reader.type = widget.get_active_text()
+    def on_type_changed(self, combo):
+        if self.shape_reader.type != combo.get_active_text():
+            self.shape_reader.type = combo.get_active_text()
             while self.grid.get_child_at(0, 0) is not None:
                 self.grid.remove_row(0)
             self._construct_grid()
             self.grid.show_all()
 
-    def on_chk_button_change(self, widget, data):
+    def on_match_chk_button_change(self, chk_btn, data):
         field, prop_button = data
         prop_button.get_style_context().remove_class('err-btn')
-        if widget.get_active() is True:
+        if chk_btn.get_active() is True:
             self.shape_reader.search_by.add(field)
             if prop_button.get_label() not in [
                     v for k, v in self.shape_reader.field_map.items() if k in
@@ -423,11 +468,21 @@ class ShapefileImportSettingsBox(Gtk.ScrolledWindow):
             logging.debug('deleting %s from search_by', field)
             self.shape_reader.search_by.remove(field)
 
+    def on_import_id_chk_button_change(self, chk_btn):
+        if chk_btn.get_active() is True:
+            self.shape_reader.use_id = True
+        else:
+            self.shape_reader.use_id = False
 
-class ShapefileImporter:
-    """
-    Import shapefile data into the database.
-    """
+    def on_replace_chk_button_change(self, chk_btn, name):
+        if chk_btn.get_active() is True:
+            self.shape_reader.replace_notes.add(name)
+        else:
+            self.shape_reader.replace_notes.remove(name)
+
+
+class ShapefileImporter(GenericImporter):
+    """Import shapefile data into the database."""
     # pylint: disable=too-many-instance-attributes
 
     OPTIONS_MAP = [
@@ -440,76 +495,54 @@ class ShapefileImporter:
     ]
 
     def __init__(self, view=None, proj_db=None):
+        super().__init__()
         # widget fields
         # NOTE use string NOT int for option
-        self.option = '0'
-        self.filename = None
         self.projection = DEFAULT_IN_PROJ
         self.always_xy = True
-        self.use_id = False
         # view and presenter
         if view is None:
             view = ShapefileImportDialogView()
         if proj_db is None:
             proj_db = ProjDB()
-        self.view = view
         self.presenter = ShapefileImportDialogPresenter(self, view, proj_db)
         # reader
         self.shape_reader = ShapefileReader(None)
-        # record class
-        self.model = None
-        # keepng track
-        self._committed = 0
-        self._errors = 0
-        self._is_new = False
 
-    def start(self):
-        """Start the shapefile importer UI.  On response run the import task.
-        :return: Gtk.ResponseType"""
-        response = self.presenter.start()
-        if response == Gtk.ResponseType.OK:
-            if bauble.gui is not None:
-                bauble.gui.set_busy(True)
-            self.run()
-            if bauble.gui is not None:
-                bauble.gui.set_busy(False)
-            self.presenter.cleanup()
-        logger.debug('responded %s', response)
-        return response
-
-    def run(self):
-        """Queues the import task"""
-        task.clear_messages()
-        task.queue(self._import_task(self.OPTIONS_MAP[int(self.option)]))
-        msg = (f'import {self.shape_reader.type}s complete: '
-               f'{self._committed} records committed, '
-               f'{self._errors} errors encounted')
-        task.set_message(msg)
-
-    def _import_task(self, options):
+    def _import_task(self, options): \
+            # pylint: disable=too-many-statements,too-many-branches
         """The import task.
 
         Yields occasionally to allow the UI to update.
 
         :param options: dict of settings used to decide when/what to add.
         """
+        self.fields = self.shape_reader.field_map
+        self.search_by = self.shape_reader.search_by
+        self.use_id = self.shape_reader.use_id
+        self.replace_notes = self.shape_reader.replace_notes
         session = db.Session()
         logger.debug('importing %s with option %s', self.filename, self.option)
         record_count = self.shape_reader.get_records_count()
         five_percent = int(record_count / 20) or 1
         records_added = records_done = 0
         if self.shape_reader.type == 'plant':
-            self.model = Plant
+            self.domain = Plant
         elif self.shape_reader.type == 'location':
-            self.model = Location
+            self.domain = Location
         else:
             from bauble.error import BaubleError
+            logger.debug('error - no type set')
             raise BaubleError('No "type" set for the records.')
 
         with self.shape_reader.get_records() as records:
             for record in records:
+                record_dict = record.record.as_dict()
+                record_dict = {k: v for k, v in record_dict.items() if
+                               self.fields.get(k)}
                 self._is_new = False
-                item = self.get_db_item(session, record,
+                item = self.get_db_item(session,
+                                        record_dict,
                                         options.get('add_new'))
 
                 if records_done % five_percent == 0:
@@ -529,7 +562,9 @@ class ShapefileImporter:
                         records_added += 1
                         if options.get('all_data'):
                             logger.debug('adding all data')
-                            self.add_db_data(session, item, record)
+                            self.add_db_data(session,
+                                             item,
+                                             record_dict)
                 else:
                     if self._is_new or options.get('add_geo'):
                         if not self.add_db_geo(session, item, record):
@@ -538,46 +573,16 @@ class ShapefileImporter:
                         records_added += 1
                         if options.get('all_data'):
                             logger.debug('adding all data')
-                            self.add_db_data(session, item, record)
+                            self.add_db_data(session,
+                                             item,
+                                             record_dict)
 
                 # commit every record catches errors and avoids losing records.
                 self.commit_db(session)
 
         session.close()
-        try:
-            bauble.gui.get_view().update()
-        except Exception:   # pylint: disable=broad-except
-            pass
-
-    def get_db_item(self, session, record, add):
-        """Get an appropriate database instance to add the record to.
-
-        :param session: instance of db.Session()
-        :param record: a shapefile.Record().shapefileRecord() value
-        :param add: bool(), whether or not to add new records to the database
-        """
-        field_map = self.shape_reader.field_map
-        record = record.record.as_dict()
-
-        # more complex
-        in_dict_mapped = {}
-        for field in self.shape_reader.search_by:
-            logger.debug('searching by %s = %s', field,
-                         self.shape_reader.field_map.get(field))
-            in_dict_mapped[field_map.get(field)] = record.get(field)
-
-        if in_dict_mapped:
-            item = self.model.retrieve(session, in_dict_mapped)
-
-            if item:
-                return item
-
-        if add and self.model:
-            logger.debug('new item')
-            self._is_new = True
-            return self.model()
-
-        return None
+        if bauble.gui and (view := bauble.gui.get_view()):
+            view.update()
 
     def add_db_geo(self, session, item, record):
         """Add the __geo_interface__ data from the shapefile record to the
@@ -600,82 +605,6 @@ class ShapefileImporter:
 
         session.add(item)
         return True
-
-    def add_db_data(self, session, item, record):
-        """Add the column data from the shapefile record to the database item.
-
-        Uses the field_map to map the shapefile columns to the correct
-        database column.  Where a path is provided attempt to create a
-        corresponding entry for it.
-
-        :param session: instance of db.Session()
-        :param item: database instance
-        :param record: a shapefile.Record().shapefileRecord() value
-        """
-        out_dict = {}
-        in_dict = record.record.as_dict()
-        logger.debug('field_map = %s', self.shape_reader.field_map)
-        for sf_col, db_path in self.shape_reader.field_map.items():
-            if db_path.startswith('Note'):
-                # If the note has supplied a category use it.
-                if db_path.endswith(']') and db_path.find('[category='):
-                    note_category = db_path.split('[category=')[1]
-                    note_category = note_category[:-1].strip('"').strip("'")
-                else:
-                    # use the field name
-                    note_category = sf_col
-                note_text = str(in_dict.get(sf_col))
-                if not note_text:
-                    continue
-                note_model = self.model.__mapper__.relationships.get(
-                    'notes').mapper.class_
-                note_dict = {
-                    self.model.__name__.lower(): item,
-                    'category': note_category,
-                    'note': note_text
-                }
-                new_note = note_model(**note_dict)
-                logger.debug('adding_note: %s', note_dict)
-                session.add(new_note)
-            elif (db_path == 'id' and
-                  (not in_dict.get(sf_col) or not self.use_id)):
-                # for new entries skip the id when id has no value or we have
-                # not selected to use it
-                continue
-            else:
-                out_dict[db_path] = in_dict.get(sf_col)
-
-        organised = self.organise_record(out_dict)
-        item = add_rec_to_db(session, item, organised)
-        logger.debug('adding item : %s', item)
-        session.add(item)
-
-    def commit_db(self, session):
-        from sqlalchemy.exc import IntegrityError
-        try:
-            session.commit()
-            self._committed += 1
-            logger.debug('committing')
-        except IntegrityError as e:
-            self._errors += 1
-            logger.debug('Commit failed with %s', e)
-            session.rollback()
-
-    @staticmethod
-    def organise_record(rec):
-        record = {}
-        for k in sorted(rec, key=lambda i: i.count('.'), reverse=True):
-            # get rid of empty strings
-            record[k] = None if rec[k] == '' else rec[k]
-        compressed = {}
-        for k, v in record.items():
-            if '.' in k:
-                path, atr = k.rsplit('.', 1)
-                compressed[path] = compressed.get(path, {})
-                compressed[path][atr] = v
-            else:
-                compressed[k] = v
-        return compressed
 
 
 class ShapefileImportDialogView(GenericEditorView):
@@ -721,13 +650,6 @@ class ShapefileImportDialogView(GenericEditorView):
                           "for each data source. (if all items turn up in the "
                           "wrong place this could be the cause.) The state is "
                           "saved on clicking OK."),
-        'cb_use_id': _("CAUTION: use this only if you are sure the shapefile "
-                       "data will match the database, e.g. was exported from "
-                       "it with the ID value.  Consider backing up your data "
-                       "first. Collisions could corrupt records.  This option "
-                       "is only intended for situation where there has been a "
-                       "change in one of the other identifying fields of the "
-                       "records. (e.g. code)")
     }
 
     def __init__(self):
@@ -747,9 +669,8 @@ class ShapefileImportDialogPresenter(GenericEditorPresenter):
         'input_filename': 'filename',
         'input_projection': 'projection',
         'cb_always_xy': 'always_xy',
-        'cb_use_id': 'use_id',
     }
-    view_accept_buttons = ['imp_button_cancel', 'imp_button_ok']
+    view_accept_buttons = ['imp_button_ok']
 
     PROBLEM_NOT_SHAPEFILE = random()
     PROBLEM_NO_PROJ = random()
@@ -784,7 +705,7 @@ class ShapefileImportDialogPresenter(GenericEditorPresenter):
             _("Select a shapefile"),
             None,
             Gtk.FileChooserAction.OPEN,
-            self.__class__.last_folder,
+            self.last_folder,
             'input_filename'
         )
         self.refresh_sensitivity()

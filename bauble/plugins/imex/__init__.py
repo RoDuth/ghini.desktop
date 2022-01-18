@@ -1,6 +1,6 @@
 # Copyright 2007 Brett Adams
 # Copyright 2015 Mario Frasca <mario@anche.no>.
-# Copyright 2021 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright 2021-2022 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -17,18 +17,24 @@
 # You should have received a copy of the GNU General Public License
 # along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
 #
-# imex plugin
-#
-# Description: plugin to provide importing and exporting
-#
+"""
+imex plugin
 
-# TODO: would be best to provide some intermediate format so that we could
-# transform from any format to another
+Description: plugin to provide importing and exporting
+"""
+
+import datetime
+from operator import attrgetter
+from abc import ABC, abstractmethod
 
 import logging
 logger = logging.getLogger(__name__)
 
-from bauble import db, pluginmgr
+from bauble import db
+from bauble import pluginmgr
+from bauble import prefs
+from bauble import btypes
+from bauble import task
 
 # TODO: it might be best to do something like the reporter plugin so
 # that this plugin provides a generic interface for importing and exporting
@@ -42,103 +48,451 @@ from bauble import db, pluginmgr
 # missing columns so that all columns will have some value
 
 
-def add_rec_to_db(session, item, rec):
-    """Add or update the item record in the database including any related
-    records.
+class GenericImporter(ABC):   # pylint: disable=too-many-instance-attributes
+    """Generic importer base class.
 
-    A convenience function for imex plugins.
-
-    :param session: instance of db.Session()
-    :param item: an instance of a sqlalchemy table
-    :param rec: dict of the records to add, ordered so that related records
-        are first so that they are found, created, or updated first.  Keys are
-        paths from the item class to either fields of that class or to related
-        tables.  Values are item columns values or the related table columns
-        and values as a nested dict.
-        e.g.:
-        {'accession.species.genus.family': {'epithet': 'Alliaceae'},
-         'accession.species.genus': {'epithet': 'Agapanthus'}, ...}
+    Impliment `_import_task`
     """
-    # peel of the first record to work on
-    first, *remainder = rec.items()
-    remainder = dict(remainder)
-    key, value = first
-    logger.debug('adding key: %s with value: %s', key, value)
-    # related records
-    if isinstance(value, dict):
-        # after this "value" will be in the session
-        # Try convert values to the correct type
-        model = db.get_related_class(type(item), key)
-        for k, v in value.items():
-            if v is not None and not hasattr(v, '__table__'):
-                try:
-                    path_type = getattr(model, k).type
-                    v = path_type.python_type(v)
-                except Exception as e:   # pylint: disable=broad-except
-                    logger.debug('convert type %s (%s)', type(e).__name__, e)
-                    # for anything that doesn't have an obvious python_type a
-                    # string SHOULD generally work
-                    v = str(v)
-                value[k] = v
 
-        value = db.get_create_or_update(session, model, **value)
-        root, atr = key.rsplit('.', 1) if '.' in key else (None, key)
-        # _default_vernacular_name is blocked in relation_filter
-        # NOTE default vernacular names need to be added directly as they use
-        # their own methods,
-        # Below accepts
-        # 'accession.species._default_vernacular_name.vernacular_name.name'
-        # which at this point would be:
-        # root = 'accession.species._default_vernacular_name'
-        # atr = 'vernacular_name'
-        #  - depending on what we get back from
-        #  get_create_or_update(session, VernacularName, name=... )
-        # value = VernacularName(...)
-        # and changes it to
-        # root = 'accession.species'
-        # atr = 'default_vernacular_name'
-        # value = VernacularName(...)
-        # This will generally work but is not fool proof.  It is preferable to
-        # use the hybrid_property default_vernacular_name
-        if (root and root.endswith('._default_vernacular_name') and
-                atr == 'vernacular_name'):
-            root = root.removesuffix('._default_vernacular_name')
-            atr = 'default_vernacular_name'
-        if remainder.get(root):
-            remainder[root][atr] = value
-        # source, contact etc. with a linking 1-1 table
-        elif root and '.' in root and remainder.get(root.rsplit('.', 1)[0]):
-            link, atr2 = root.rsplit('.', 1)
-            from operator import attrgetter
-            try:
-                link_item = attrgetter(root)(item)    # existing entries
-            except AttributeError:
-                link_item = db.get_related_class(type(item), root)()
-                session.add(link_item)
-            if link_item:
-                setattr(link_item, atr, value)
-                logger.debug('adding: %s to %s', atr2, link)
-                remainder[link][atr2] = link_item
-    elif value is not None and not hasattr(value, '__table__'):
+    OPTIONS_MAP = []
+
+    def __init__(self):
+        self.option = '0'
+        self.filename = None
+        self.use_id = False
+        self.search_by = set()
+        self.replace_notes = set()
+        self.fields = None
+        self.domain = None
+        # keepng track
+        self._committed = 0
+        self._errors = 0
+        self._is_new = False
+        # view and presenter
+        self.presenter = None
+
+    def start(self):
+        """Start the importer UI.  On response run the import task.
+
+        :return: Gtk.ResponseType"""
+        response = self.presenter.start()
+        if response == -5:  # Gtk.ResponseType.OK - avoid importing Gtk here
+            self.run()
+            self.presenter.cleanup()
+        logger.debug('responded %s', response)
+        return response
+
+    def run(self):
+        """Queues the import task"""
+        task.clear_messages()
+        task.queue(self._import_task(self.OPTIONS_MAP[int(self.option)]))
+        msg = (f'import {self.filename} complete: '
+               f'{self._committed} records committed, '
+               f'{self._errors} errors encounted')
+        task.set_message(msg)
+
+    @abstractmethod
+    def _import_task(self, options):
+        """Import task, to be implemented in subclasses"""
+
+    def get_db_item(self, session, record, add):
+        """Get an appropriate database instance to add the record to.
+
+        :param session: instance of db.Session()
+        :param record: dict of paths to their values
+        :param add: bool, whether or not to add new records to the database
+        """
+        in_dict_mapped = {}
+        for field in self.search_by:
+            logger.debug('searching by %s = %s', field, record.get(field))
+            in_dict_mapped[self.fields.get(field)] = record.get(field)
+
+        if in_dict_mapped:
+            if item := self.domain.retrieve(session, in_dict_mapped):
+                return item
+
+        if add and self.domain:
+            logger.debug('new item')
+            self._is_new = True
+            return self.domain()  # pylint: disable=not-callable
+
+        return None
+
+    def add_db_data(self, session, item, record):
+        """Add column data from the record to the database item.
+
+        Uses `self.fields` to map to the correct database field.  Where a path
+        is provided attempt to create a corresponding entry for it.
+
+        :param session: instance of db.Session()
+        :param item: database table instance
+        :param record: record as a dict of column names to values
+        """
+        out_dict = {}
+        logger.debug('fields = %s', self.fields)
+        for col, value in record.items():
+            if self.fields.get(col) is None:
+                continue
+            if self.fields.get(col).startswith('Note'):
+                note_field = self.fields.get(col)
+                # If the note has supplied a category use it.
+                if note_field.endswith(']') and '[category=' in note_field:
+                    note_category = note_field.split('[category=')[1]
+                    note_category = note_category[:-1].strip('"').strip("'")
+                else:
+                    note_category = col
+                note_text = str(record.get(col))
+                if not note_text:
+                    continue
+                if note_category in self.replace_notes:
+                    for note in item.notes:
+                        logger.debug('deleting note of category: %s',
+                                     note_category)
+                        if note.category == note_category:
+                            session.delete(note)
+                            # safest to commit each delete, should only occur
+                            # on existing records, not new ones.
+                            session.commit()
+                note_model = (self.domain.__mapper__
+                              .relationships.get('notes').mapper.class_)
+                note_dict = {
+                    self.domain.__name__.lower(): item,
+                    'category': note_category,
+                    'note': note_text
+                }
+                new_note = note_model(**note_dict)
+                logger.debug('adding_note: %s', note_dict)
+                session.add(new_note)
+            elif self.fields.get(col) == 'id' and not self.use_id:
+                # for new entries skip the id when id has no value or we have
+                # not selected to use it
+                continue
+            else:
+                out_dict[self.fields.get(col)] = value
+
+        item = self.add_rec_to_db(session,
+                                  item,
+                                  self.organise_record(out_dict))
+        logger.debug('adding to the session item : %s', item)
+        session.add(item)
+
+    def commit_db(self, session):
+        from sqlalchemy.exc import IntegrityError
         try:
-            model = type(item)
-            path_type = getattr(model, key).type
+            session.commit()
+            self._committed += 1
+            logger.debug('committing')
+        except IntegrityError as e:
+            self._errors += 1
+            logger.debug('Commit failed with %s', e)
+            session.rollback()
+
+    @staticmethod
+    def organise_record(rec: dict) -> dict:
+        """Organize record appropriate for use in `add_rec_to_db`.
+
+        :param rec: dict of paths to values.
+        :return: dict organised appropriately for `add_rec_to_db`.
+        e.g.:
+            {'accession.code': '1999025004',
+            'code': '1',
+            'quantity': '10',
+            'location.code': 'Ad02a',
+            'accession.species.genus.family.epithet': 'Asparagaceae',
+            'accession.species.genus.epithet': 'Agave',
+            'accession.species.epithet': 'ocahui',
+            'accession.species.infraspecific_parts': 'var. longifolia'}
+        becomes:
+            {'accession.species.genus.family': {'epithet': 'Asparagaceae'},
+            'accession.species.genus': {'epithet': 'Agave'},
+            'accession.species': {'epithet': 'ocahui',
+                                  'infraspecific_parts': 'var. longifolia'},
+            'accession': {'code': '1999025004'},
+            'location': {'code': 'Ad02a'},
+            'code': '1',
+            'quantity': '10'}
+        """
+        record = {}
+        for k in sorted(rec, key=lambda i: i.count('.'), reverse=True):
+            # get rid of empty strings
+            record[k] = None if rec[k] == '' else rec[k]
+        organised = {}
+        for k, v in record.items():
+            if '.' in k:
+                path, atr = k.rsplit('.', 1)
+                organised[path] = organised.get(path, {})
+                organised[path][atr] = v
+            else:
+                organised[k] = v
+        return organised
+
+    @staticmethod
+    def get_value_as_python_type(model, attr, value):
+        """Given a model and attribute convert the value to an appropriate
+        python type.
+
+        Requires the supplied value to be resonable. i.e. int('Ten') will fail.
+        """
+        try:
+            path_type = getattr(model, attr).type
             value = path_type.python_type(value)
-        except Exception as e:
-            logger.debug('convert type for value %s (%s)', type(e).__name__, e)
-            # for anything that doesn't have an obvious python_type a
-            # string SHOULD generally work
+        except Exception as e:   # pylint: disable=broad-except
+            logger.debug('convert models: %s type k: %s, v: %s raised %s (%s)',
+                         model, attr, value, type(e).__name__, e)
+            # for anything that doesn't have an obvious python_type a string
+            # should work, this includes DateTime, Date and Boolean
             value = str(value)
+        return value
 
-    # if there are more records continue to add them
-    if len(remainder) > 0:
-        add_rec_to_db(session, item, remainder)
+    @staticmethod
+    def handle_plant_changes(key, value, item):
+        """Handle plant changes, especially `planted` and `death`"""
+        from bauble.plugins.garden.plant import PlantChange
+        if key == 'planted':
+            if hasattr(item, 'planted') and item.planted:
+                value['id'] = item.planted.id
+            else:
+                # should be a new entry. (i.e. item.id is None)
+                # create the change and let the event.listen_for deal
+                # with correcting the values later.
+                # provides a way to add a planted change to data that
+                # has no changes and is not being changed.
+                if not item.changes and not value.get('quantity'):
+                    value['quantity'] = item.quantity
+                new_change = PlantChange(**value)
+                item.changes.append(new_change)
+                value = None
+        elif key == 'death':
+            if hasattr(item, 'death') and item.death:
+                value['id'] = item.death.id
+            else:
+                # should be a new death entry.
+                # NOTE No guarantee this will become a death change or
+                # just a regular change.
+                new_change = PlantChange(**value)
+                item.changes.append(new_change)
+                value = None
+        return value
 
-    # once all records are accounted for add them to item in reverse
-    logger.debug('setattr on object: %s with name: %s and value: %s',
-                 item, key, value)
-    setattr(item, key, value)
-    return item
+    @classmethod
+    def add_rec_to_db(cls, session, item, rec): \
+            # pylint: disable=too-many-locals
+        """Add or update the item record in the database including any related
+        records.
+
+        :param session: instance of db.Session()
+        :param item: an instance of a sqlalchemy table
+        :param rec: dict of the records to add, ordered so that related records
+            are first so that they are found, created, or updated first.  Keys
+            are paths from the item class to either fields of that class or to
+            related tables.  Values are item columns values or the related
+            table columns and values as a nested dict.
+            e.g.:
+            {'accession.species.genus.family': {'epithet': 'Alliaceae'},
+             'accession.species.genus': {'epithet': 'Agapanthus'}, ...}
+        """
+        # peel off the first record to work on
+        first, *remainder = rec.items()
+        remainder = dict(remainder)
+        key, value = first
+        logger.debug('adding key: %s with value: %s', key, value)
+        # related records
+        if isinstance(value, dict):
+            # after this "value" will be in the session
+            # Try convert values to the correct type
+            model = db.get_related_class(type(item), key)
+            for k, v in value.items():
+                if v is not None and not hasattr(v, '__table__'):
+                    v = cls.get_value_as_python_type(model, k, v)
+                    value[k] = v
+
+            logger.debug('values: %s', value)
+            logger.debug('model tablename: %s', model.__tablename__)
+
+            if model.__tablename__ == 'plant_change':
+                value = cls.handle_plant_changes(key, value, item)
+
+            if value:
+                value = db.get_create_or_update(session, model, **value)
+            root, atr = key.rsplit('.', 1) if '.' in key else (None, key)
+            # should block _default_vernacular_name in relation_filter
+            # NOTE default vernacular names need to be added directly as they
+            # use their own methods,
+            # Below accepts
+            # 'accession.species._default_vernacular_name.vernacular_name.name'
+            # which at this point would be:
+            # root = 'accession.species._default_vernacular_name'
+            # atr = 'vernacular_name'
+            #  - depending on what we get back from
+            #  get_create_or_update(session, VernacularName, name=... )
+            # value = VernacularName(...)
+            # and changes it to
+            # root = 'accession.species'
+            # atr = 'default_vernacular_name'
+            # value = VernacularName(...)
+            # This will generally work but is not fool proof.  It is preferable
+            # to use the hybrid_property default_vernacular_name
+            if (root and root.endswith('._default_vernacular_name') and
+                    atr == 'vernacular_name'):
+                root = root.removesuffix('._default_vernacular_name')
+                atr = 'default_vernacular_name'
+            if remainder.get(root):
+                remainder[root][atr] = value
+            # linking 1-1 table
+            elif (root and '.' in root and
+                  remainder.get(root.rsplit('.', 1)[0])):
+                link, atr2 = root.rsplit('.', 1)
+                try:
+                    link_item = attrgetter(root)(item)    # existing entries
+                except AttributeError:
+                    link_item = db.get_related_class(type(item), root)()
+                    session.add(link_item)
+                if link_item:
+                    setattr(link_item, atr, value)
+                    logger.debug('adding: %s to %s', atr2, link)
+                    remainder[link][atr2] = link_item
+        elif value is not None and not hasattr(value, '__table__'):
+            model = type(item)
+            value = cls.get_value_as_python_type(model, key, value)
+
+        # if there are more records continue to add them
+        if len(remainder) > 0:
+            cls.add_rec_to_db(session, item, remainder)
+
+        # once all records are accounted for add them to item in reverse
+        logger.debug(
+            'setattr on object: %s with name: %s and value: %s (type %s)',
+            item, key, value, type(value)
+        )
+        setattr(item, key, value)
+        return item
+
+
+class GenericExporter(ABC):
+    """Generic exporter base class.
+
+    Impliment _export_task
+    """
+
+    def __init__(self, open_=True):
+        self.items = None
+        self.open = open_
+        self.domain = None
+        self.filename = None
+        self.error = 0
+        self.presenter = None
+
+    def start(self):
+        """Start the CSV exporter UI.  On response run the export task.
+
+        :return: Gtk.ResponseType"""
+        response = self.presenter.start()
+        if response == -5:  # Gtk.ResponseType.OK - avoid importing Gtk here
+            self.run()
+            self.presenter.cleanup()
+        logger.debug('responded %s', response)
+        return response
+
+    def run(self):
+        """Queues the export task(s)"""
+        task.clear_messages()
+        task.set_message(
+            f'exporting {self.domain.__tablename__} records'
+        )
+        task.queue(self._export_task())
+        task.set_message('export completed')
+
+    def _export_task(self):
+        """Export task, to be implemented in subclasses"""
+        raise NotImplementedError
+
+    @staticmethod
+    def get_item_value(path, item):
+        """Get the items value as a string.
+
+        Intended mostly for use with `get_item_record`
+
+        :param path: path as a string from the item to the attribute
+        :param item: an instance of a sqlalchemy table
+        :return: string value of the attribute
+        """
+        datetime_fmat = prefs.prefs.get(prefs.datetime_format_pref)
+        date_fmat = prefs.prefs.get(prefs.date_format_pref)
+        try:
+            value = attrgetter(path)(item)
+            try:
+                if '.' in path:
+                    table = db.get_related_class(
+                        item.__table__, path.rsplit('.', 1)[0]
+                    ).__table__
+                else:
+                    table = item.__table__
+                column_type = getattr(table.c,
+                                      path.split('.')[-1]).type
+            except AttributeError:
+                # path is to a table and not a column
+                column_type = None
+            if value and isinstance(column_type, btypes.Date):
+                return value.strftime(date_fmat)
+            if value and isinstance(column_type, btypes.DateTime):
+                return value.strftime(datetime_fmat)
+            # planted.date death.date etc.
+            if value and isinstance(value, datetime.datetime):
+                return value.strftime(datetime_fmat)
+            return str(value if value is not None else '')
+        except AttributeError:
+            return ''
+
+    @staticmethod
+    def get_attr_notes(item):
+        """Get a list of names of any attribute notes for an item."""
+        attr_notes = []
+        for note in item.notes:
+            category = note.category
+            if not category:
+                continue
+            import re
+            if match := re.match(r'\{([^\{:]+):(.*)}', category):
+                attr_notes.append(match.group(1))
+            elif category.startswith('[') and category.endswith(']'):
+                attr_notes.append(category[1:-1])
+            elif category.startswith('<') and category.endswith('>'):
+                attr_notes.append(category[1:-1])
+        return attr_notes
+
+    @classmethod
+    def get_item_record(cls, item, fields):
+        """Given a database entry and a dict of names to the paths to
+        attributes return a dict of names to their values.
+
+        :param item: an instance of a sqlalchemy table
+        :param fields: dict of names to paths as strings.
+            NOTE: if `domain` key is included, return it as it was recieved.
+            Intended as a method to state which type is being exported.
+        :return: dict of names to values
+        """
+        record = {}
+        # handle generated attribute notes
+        attr_notes = cls.get_attr_notes(item)
+        for name, path in fields.items():
+            if name == 'domain':
+                record[name] = path
+            elif path == 'Note':
+                value = ''
+                # handle generated attribute notes
+                if hasattr(item, name) and name in attr_notes:
+                    value = getattr(item, name)
+                else:
+                    value = [n.note for n in item.notes if n.category == name]
+                    value = str(value[-1]) if value else ''
+                record[name] = str(value)
+            elif path == 'Empty':
+                record[name] = ''
+            elif path == item.__table__.key:
+                record[name] = str(item)
+            else:
+                record[name] = cls.get_item_value(path, item)
+        return record
 
 
 class ImexPlugin(pluginmgr.Plugin):
@@ -147,7 +501,7 @@ class ImexPlugin(pluginmgr.Plugin):
                        CSVBackupTool,
                        CSVBackupCommandHandler,
                        CSVRestoreCommandHandler)
-    from .csv_io import CSVExportTool
+    from .csv_io import CSVExportTool, CSVImportTool
     from .iojson import JSONImportTool, JSONExportTool
     from .xml import XMLExportTool, XMLExportCommandHandler
     from .shapefile import (ShapefileImportTool,
@@ -155,6 +509,7 @@ class ImexPlugin(pluginmgr.Plugin):
     tools = [CSVRestoreTool,
              CSVBackupTool,
              CSVExportTool,
+             CSVImportTool,
              JSONImportTool,
              JSONExportTool,
              XMLExportTool,

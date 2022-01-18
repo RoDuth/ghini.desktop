@@ -2,7 +2,7 @@
 # Copyright 2015-2017 Mario Frasca <mario@anche.no>.
 # Copyright 2017 Jardín Botánico de Quito
 # Copyright 2018 Ilja Everilä
-# Copyright 2021 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright 2021-2022 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -657,8 +657,7 @@ class Serializable:
 
     @classmethod
     def retrieve_or_create(cls, session, keys, create=True, update=True):
-        """return database object corresponding to keys
-        """
+        """return database object corresponding to keys"""
 
         logger.debug('initial value of keys: %s', keys)
         # first try retrieving
@@ -933,7 +932,8 @@ def get_create_or_update(session, model, **kwargs):
 
     # update the columns values.
     for k, v in kwargs.items():
-        setattr(inst, k, v)
+        if getattr(inst, k) != v:
+            setattr(inst, k, v)
 
     return inst
 

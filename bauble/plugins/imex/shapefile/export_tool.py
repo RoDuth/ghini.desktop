@@ -1,4 +1,4 @@
-# Copyright (c) 2021 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright (c) 2021-2022 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -49,6 +49,7 @@ from bauble.plugins.garden.location import Location, LocationNote  \
 from bauble.editor import GenericEditorView, GenericEditorPresenter
 
 from . import LOCATION_SHAPEFILE_PREFS, PLANT_SHAPEFILE_PREFS
+from .. import GenericExporter
 
 NAME = 0
 TYPE = 1
@@ -139,7 +140,8 @@ class ShapefileExportSettingsBox(Gtk.ScrolledWindow):
         self.grid.show_all()
         GLib.idle_add(self.resize_func)
 
-    def _construct_grid(self):   # pylint: disable=too-many-locals
+    def _construct_grid(self): \
+            # pylint: disable=too-many-locals,too-many-statements
         """Create the field grid layout."""
         labels = ['name', 'type', 'length/places', 'database field']
         for column, txt in enumerate(labels):
@@ -501,7 +503,7 @@ class ShapefileExportDialogPresenter(GenericEditorPresenter):
         'input_dirname': 'dirname',
     }
 
-    view_accept_buttons = ['exp_button_cancel', 'exp_button_ok']
+    view_accept_buttons = ['exp_button_ok']
 
     PROBLEM_NO_DIR = random()
 
@@ -524,13 +526,14 @@ class ShapefileExportDialogPresenter(GenericEditorPresenter):
                          self.view.widgets.input_dirname)
         self.settings_boxes = []
         self.refresh_view()
+        self.refresh_sensitivity()
 
     def on_btnbrowse_clicked(self, _widget):
         self.view.run_file_chooser_dialog(
             _("Select a shapefile"),
             None,
             Gtk.FileChooserAction.CREATE_FOLDER,
-            self.__class__.last_folder,
+            self.last_folder,
             'input_dirname'
         )
 
@@ -611,7 +614,7 @@ class ShapefileExportDialogPresenter(GenericEditorPresenter):
         self.view.set_accept_buttons_sensitive(sensitive)
 
 
-class ShapefileExporter:
+class ShapefileExporter(GenericExporter):
     """The interface for exporting data in a shapefile.
 
     The intent for one of these exports is to provide a way to gather
@@ -625,12 +628,12 @@ class ShapefileExporter:
                  'Point': 'point'}
 
     def __init__(self, view=None, proj_db=None, open_=True):
+        super().__init__(open_=open_)
         # widget fields
         if view is None:
             view = ShapefileExportDialogView()
         if proj_db is None:
             proj_db = ProjDB()
-        self.open = open_
         self.search_or_all = 'rb_search_results'
         self.export_locations = True
         self.export_plants = False
@@ -648,28 +651,11 @@ class ShapefileExporter:
         self.location_fields = [[k, *get_field_properties(Location, v), v] for
                                 k, v in self.location_fields.items()]
         self.gen_settings = {'start': [0, 0], 'increment': 0, 'axis': ''}
-        self.view = view
         self.proj_db = proj_db
 
-        self.presenter = ShapefileExportDialogPresenter(self, self.view)
+        self.presenter = ShapefileExportDialogPresenter(self, view)
         self.generated_items = []
         self._generate_points = 0
-
-        self.error = 0
-
-    def start(self):
-        """Start the shapefile exporter UI.  On response run the export task.
-        :return: Gtk.ResponseType"""
-        response = self.presenter.start()
-        if response == Gtk.ResponseType.OK:
-            if bauble.gui is not None:
-                bauble.gui.set_busy(True)
-            self.run()
-            if bauble.gui is not None:
-                bauble.gui.set_busy(False)
-            self.presenter.cleanup()
-        logger.debug('responded %s', response)
-        return response
 
     def run(self):
         """Queues the export task(s)
@@ -682,27 +668,20 @@ class ShapefileExporter:
         if all((bool(v[0]) and bool(v[1]) if isinstance(v, list) else
                 bool(v) for k, v in self.gen_settings.items())):
             self._generate_points = 2
-        task.clear_messages()
         if self.export_plants:
-            task.set_message('shapefile exporting plants')
-            task.queue(self._export_task(Plant, self.plant_fields,
-                                         {'poly', 'line', 'point'}))
+            self.domain = Plant
+            super().run()
         self.generated_items = []
         self._generate_points = 0
         if self.export_locations:
-            task.set_message('shapefile exporting locations')
-            task.queue(self._export_task(Location, self.location_fields,
-                                         {'poly'}))
+            self.domain = Location
+            super().run()
 
-        task.set_message('shapefile export(s) completed')
-
-    def _export_task(self, model, fields, allowable_shapetypes):\
-            # pylint: disable=too-many-locals
+    def _export_task(self):  # pylint: disable=too-many-locals
         """The export task.
 
         Yields occasionally to allow the UI to update.
 
-        :param model: the class of the records to export (Plant/Location).
         :param fields: a list of list of field name, type and size to add
             to the shapefile
         :param allowable_shapetypes: list of shapefile shapetypes to produce
@@ -710,8 +689,15 @@ class ShapefileExporter:
         """
         session = db.Session()
 
+        allowable_shapetypes = {'poly'}
+        fields = self.location_fields
+        if self.domain is Plant:
+            allowable_shapetypes = {'poly', 'line', 'point'}
+            fields = self.plant_fields
+
         shapetypes, export_items = self.get_shapes_and_items(
-            session, model, allowable_shapetypes)
+            session, self.domain, allowable_shapetypes
+        )
 
         num_items = len(list(export_items))
         five_percent = int(num_items / 20) or 1
@@ -733,7 +719,8 @@ class ShapefileExporter:
             with ExitStack() as stack:
                 for shape in shapetypes:
                     shapefilename = (
-                        f'{_temp_dir}/{model.__tablename__.lower()}s_{shape}'
+                        f'{_temp_dir}/{self.domain.__tablename__.lower()}s'
+                        f'_{shape}'
                     )
                     self.create_prj_file(shapefilename)
                     to_zip.append(shapefilename)
@@ -797,15 +784,13 @@ class ShapefileExporter:
     def get_shapes_and_items(self, session, model, allowable_shapetypes):
 
         if self.search_or_all == 'rb_search_results':
+            selection = self.presenter.view.get_selection()
             if model is Plant:
                 from bauble.plugins.report import get_plants_pertinent_to
-                selection = self.view.get_selection()
-                export_items = get_plants_pertinent_to(
-                    selection, session)
+                export_items = get_plants_pertinent_to(selection, session)
             elif model is Location:
                 from bauble.plugins.report import get_locations_pertinent_to
-                export_items = get_locations_pertinent_to(
-                    self.view.get_selection(), session)
+                export_items = get_locations_pertinent_to(selection, session)
         else:
             export_items = session.query(model).filter(
                 model.geojson.isnot(None)).all()
@@ -871,7 +856,6 @@ class ShapefileExporter:
             self.add_field(shapefiles.get(shape), name, typ, size)
 
     def add_shapefile_record(self, item, fields, shapefiles):
-        from operator import attrgetter
         try:
             shape_type = item.geojson.get('type')
         except AttributeError as e:
@@ -894,27 +878,7 @@ class ShapefileExporter:
         shape = self.SHAPE_MAP.get(shape_type)
         record = {}
 
-        # for field, path in fields:
-        for name, __, __, path in fields:
-            if path == 'Note':
-                value = ''
-                if hasattr(item, name) and name in [n.category[1:-1] for n in
-                                                    item.notes]:
-                    value = getattr(item, name)
-                else:
-                    value = [n.note for n in item.notes if n.category == name]
-                    value = str(value[-1]) if value else ''
-                record[name] = str(value)
-            elif path == 'Empty':
-                record[name] = ''
-            elif path == item.__table__.key:
-                record[name] = str(item)
-            else:
-                # can't always garantee that the item will have the attribute
-                try:
-                    record[name] = attrgetter(path)(item)
-                except AttributeError:
-                    record[name] = ''
+        record = self.get_item_record(item, {k: v for k, __, __, v in fields})
 
         shapefiles.get(shape).record(**record)
         shapefiles.get(shape).shape(item.geojson)

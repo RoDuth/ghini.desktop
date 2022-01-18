@@ -87,8 +87,6 @@ class XMLExporter:
     def on_dialog_response(self, dialog, response, filename, one_file):
         logger.debug('on_dialog_response(%s, %s)', filename(), one_file())
         if response == Gtk.ResponseType.ACCEPT:
-            print(filename())
-            print(one_file())
             self.__export_task(filename(), one_file())
         dialog.destroy()
 

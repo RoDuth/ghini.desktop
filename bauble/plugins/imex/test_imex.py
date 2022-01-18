@@ -1,5 +1,6 @@
 # Copyright 2004-2010 Brett Adams
 # Copyright 2015 Mario Frasca <mario@anche.no>.
+# Copyright 2021-2022 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -24,6 +25,7 @@ import os
 import shutil
 import tempfile
 import json
+from datetime import datetime
 
 from sqlalchemy import Column, Integer
 
@@ -48,7 +50,7 @@ from .csv_ import (CSVRestore,
                    QUOTE_CHAR,
                    QUOTE_STYLE)
 from .iojson import JSONImporter, JSONExporter
-from . import add_rec_to_db
+from . import GenericExporter, GenericImporter
 
 
 family_data = [{'id': 1, 'family': 'Orchidaceae', 'qualifier': None},
@@ -58,9 +60,11 @@ genus_data = [
     {'id': 2, 'genus': 'Panisea', 'family_id': 1}, ]
 species_data = [
     {'id': 1, 'sp': 'tuberosus', 'genus_id': 1, 'sp_author': None},
-    {'id': 2, 'sp': 'albiflora', 'genus_id': 2, 'sp_author': '(Ridl.) Seidenf.'},
+    {'id': 2, 'sp': 'albiflora', 'genus_id': 2,
+     'sp_author': '(Ridl.) Seidenf.'},
     {'id': 3, 'sp': 'distelidia', 'genus_id': 2, 'sp_author': 'I.D.Lund'},
-    {'id': 4, 'sp': 'zeylanica', 'genus_id': 2, 'sp_author': '(Hook.f.) Aver.'}, ]
+    {'id': 4, 'sp': 'zeylanica', 'genus_id': 2, 'sp_author': '(Hook.f.) Aver.'}
+]
 species_note_test_data = [
     {'id': 1, 'species_id': 18, 'category': 'CITES', 'note': 'I'},
     {'id': 2, 'species_id': 20, 'category': 'IUCN', 'note': 'LC'},
@@ -156,8 +160,6 @@ class CSVTests(ImexTestCase):
         importer.start([filename], force=True)
 
     def test_import_bool_column(self):
-        """
-        """
         class BoolTest(db.Base):
             __tablename__ = 'bool_test'
             id = Column(Integer, primary_key=True)
@@ -492,18 +494,33 @@ class JSONExportTests(BaubleTestCase):
         target = [
             {"epithet": "Orchidaceae", "object": "taxon", "rank": "familia"},
             {"epithet": "Myrtaceae", "object": "taxon", "rank": "familia"},
-            {"author": "R. Br.", "epithet": "Calopogon", "ht-epithet": "Orchidaceae", "ht-rank": "familia", "object": "taxon", "rank": "genus"},
-            {"author": "", "epithet": "Panisea", "ht-epithet": "Orchidaceae", "ht-rank": "familia", "object": "taxon", "rank": "genus"},
-            {'ht-epithet': 'Calopogon', 'hybrid': False, 'object': 'taxon', 'ht-rank': 'genus', 'rank': 'species', 'epithet': 'tuberosus'},
-            {'ht-epithet': 'Panisea', 'hybrid': False, 'object': 'taxon', 'ht-rank': 'genus', 'rank': 'species', 'sp_author': '(L.) Britton', 'epithet': 'albiflora', 'sp_author': '(Ridl.) Seidenf.'},
-            {'ht-epithet': 'Panisea', 'hybrid': False, 'object': 'taxon', 'ht-rank': 'genus', 'rank': 'species', 'sp_author': '(L.) Britton', 'epithet': 'distelidia', 'sp_author': 'I.D.Lund'},
-            {'ht-epithet': 'Panisea', 'hybrid': False, 'object': 'taxon', 'ht-rank': 'genus', 'rank': 'species', 'sp_author': '(L.) Britton', 'epithet': 'zeylanica', 'sp_author': '(Hook.f.) Aver.'},
-            {"code": "2015.0001", "object": "accession", "private": False, "species": "Calopogon tuberosus"},
-            {"code": "2015.0002", "object": "accession", "private": False, "species": "Calopogon tuberosus"},
-            {"code": "2015.0003", "object": "accession", "private": True, "species": "Calopogon tuberosus"},
+            {"author": "R. Br.", "epithet": "Calopogon",
+             "ht-epithet": "Orchidaceae", "ht-rank": "familia",
+             "object": "taxon", "rank": "genus"},
+            {"author": "", "epithet": "Panisea", "ht-epithet": "Orchidaceae",
+             "ht-rank": "familia", "object": "taxon", "rank": "genus"},
+            {'ht-epithet': 'Calopogon', 'hybrid': False, 'object': 'taxon',
+             'ht-rank': 'genus', 'rank': 'species', 'epithet': 'tuberosus'},
+            {'ht-epithet': 'Panisea', 'hybrid': False, 'object': 'taxon',
+             'ht-rank': 'genus', 'rank': 'species', 'epithet': 'albiflora',
+             'sp_author': '(Ridl.) Seidenf.'},
+            {'ht-epithet': 'Panisea', 'hybrid': False, 'object': 'taxon',
+             'ht-rank': 'genus', 'rank': 'species', 'epithet': 'distelidia',
+             'sp_author': 'I.D.Lund'},
+            {'ht-epithet': 'Panisea', 'hybrid': False, 'object': 'taxon',
+             'ht-rank': 'genus', 'rank': 'species', 'epithet': 'zeylanica',
+             'sp_author': '(Hook.f.) Aver.'},
+            {"code": "2015.0001", "object": "accession", "private": False,
+             "species": "Calopogon tuberosus"},
+            {"code": "2015.0002", "object": "accession", "private": False,
+             "species": "Calopogon tuberosus"},
+            {"code": "2015.0003", "object": "accession", "private": True,
+             "species": "Calopogon tuberosus"},
             {"code": "1", "object": "location"},
-            {"accession": "2015.0001", "code": "1", "location": "1", "memorial": False, "object": "plant", "quantity": 1},
-            {"accession": "2015.0003", "code": "1", "location": "1", "memorial": False, "object": "plant", "quantity": 1}]
+            {"accession": "2015.0001", "code": "1", "location": "1",
+             "memorial": False, "object": "plant", "quantity": 1},
+            {"accession": "2015.0003", "code": "1", "location": "1",
+             "memorial": False, "object": "plant", "quantity": 1}]
         for o1 in result:
             self.assertTrue(o1 in target, o1)
         for o2 in target:
@@ -594,7 +611,10 @@ class JSONExportTests(BaubleTestCase):
         with open(self.temp_path) as f:
             result = json.load(f)
         self.assertEqual(len(result), 2)
-        self.assertEqual(result[0], {'ht-epithet': 'Calopogon', 'hybrid': False, 'object': 'taxon', 'ht-rank': 'genus', 'rank': 'species', 'epithet': 'tuberosus'})
+        self.assertEqual(result[0],
+                         {'ht-epithet': 'Calopogon', 'hybrid': False,
+                          'object': 'taxon', 'ht-rank': 'genus',
+                          'rank': 'species', 'epithet': 'tuberosus'})
         date_dict = result[1]['date']
         del result[1]['date']
         self.assertEqual(result[1], {
@@ -621,8 +641,14 @@ class JSONExportTests(BaubleTestCase):
         with open(self.temp_path) as f:
             result = json.load(f)
         self.assertEqual(len(result), 2)
-        self.assertEqual(result[0], {'ht-epithet': 'Calopogon', 'hybrid': False, 'object': 'taxon', 'ht-rank': 'genus', 'rank': 'species', 'epithet': 'tuberosus'})
-        self.assertEqual(result[1], {'language': 'it', 'name': 'orchidea', 'object': 'vernacular_name', 'species': 'Calopogon tuberosus'})
+        self.assertEqual(result[0],
+                         {'ht-epithet': 'Calopogon', 'hybrid': False,
+                          'object': 'taxon', 'ht-rank': 'genus',
+                          'rank': 'species', 'epithet': 'tuberosus'})
+        self.assertEqual(result[1],
+                         {'language': 'it', 'name': 'orchidea',
+                          'object': 'vernacular_name',
+                          'species': 'Calopogon tuberosus'})
 
     def test_partial_taxonomic_with_synonymy(self):
         "exporting one genus which is not an accepted name."
@@ -757,7 +783,8 @@ class JSONExportTests(BaubleTestCase):
     def test_includes_sources(self):
 
         ## precondition
-        # Create an Accession a, then create a Source s, then assign a.source = s
+        # Create an Accession a, then create a Source s, then assign
+        # a.source = s
         a = self.session.query(Accession).first()
         a.source = s = Source()
         s.source_detail = c = Contact(name='Summit')
@@ -783,8 +810,9 @@ class JSONExportTests(BaubleTestCase):
         accessions_from_json = [i for i in result
                                 if i['object'] == 'accession']
         self.assertEqual(len(accessions_from_json), 3)
-        accessions_with_contact = [i for i in result
-                                   if i['object'] == 'accession' and i.get('contact') is not None]
+        accessions_with_contact = [i for i in result if
+                                   i['object'] == 'accession' and
+                                   i.get('contact') is not None]
         self.assertEqual(len(accessions_with_contact), 1)
         self.assertEqual(accessions_with_contact[0]['contact'], 'Summit')
 
@@ -843,9 +871,12 @@ class JSONImportTests(BaubleTestCase):
 
     def test_import_new_with_non_timestamped_note(self):
         json_string = (
-            '[{"ht-epithet": "Calopogon", "epithet": "pallidus", "author": "Chapm.", '\
-            ' "rank": "Species", "ht-rank": "Genus", "hybrid": false}, '\
-            ' {"object": "species_note", "species": "Calopogon pallidus", "category": "<coords>", "note": "{lat: 8.5, lon: -80}"}]')
+            '[{"ht-epithet": "Calopogon", "epithet": "pallidus", "author": '
+            '"Chapm.", "rank": "Species", "ht-rank": "Genus", "hybrid": '
+            'false},  {"object": "species_note", "species": "Calopogon '
+            'pallidus", "category": "<coords>", "note": "{lat: 8.5, lon: -80}"'
+            '}]'
+        )
         with open(self.temp_path, "w") as f:
             f.write(json_string)
         importer = JSONImporter(MockView())
@@ -860,11 +891,14 @@ class JSONImportTests(BaubleTestCase):
 
     def test_import_new_with_three_array_notes(self):
         json_string = (
-            '[{"ht-epithet": "Calopogon", "epithet": "pallidus", "author": "Chapm.", '\
-            ' "rank": "Species", "ht-rank": "Genus", "hybrid": false}, '\
-            ' {"object": "species_note", "species": "Calopogon pallidus", "category": "[x]", "note": "1"}, '\
-            ' {"object": "species_note", "species": "Calopogon pallidus", "category": "[x]", "note": "1"}, '\
-            ' {"object": "species_note", "species": "Calopogon pallidus", "category": "[x]", "note": "1"}]')
+            '[{"ht-epithet": "Calopogon", "epithet": "pallidus", "author": '
+            '"Chapm.", "rank": "Species", "ht-rank": "Genus", "hybrid": '
+            'false}, {"object": "species_note", "species": "Calopogon '
+            'pallidus", "category": "[x]", "note": "1"}, {"object": '
+            '"species_note", "species": "Calopogon pallidus", "category": '
+            '"[x]", "note": "1"}, {"object": "species_note", "species": '
+            '"Calopogon pallidus", "category": "[x]", "note": "1"}]'
+        )
         with open(self.temp_path, "w") as f:
             f.write(json_string)
         importer = JSONImporter(MockView())
@@ -885,10 +919,13 @@ class JSONImportTests(BaubleTestCase):
         self.session.commit()
 
         json_string = (
-            '[{"ht-epithet": "Calopogon", "epithet": "pallidus", "author": "Chapm.", '\
-            ' "rank": "Species", "ht-rank": "Genus", "hybrid": false}, '\
-            ' {"object": "species_note", "species": "Calopogon pallidus", "category": "<picture>", "note": "a"}, '\
-            ' {"object": "species_note", "species": "Calopogon pallidus", "category": "<picture>", "note": "b"}]')
+            '[{"ht-epithet": "Calopogon", "epithet": "pallidus", "author": '
+            '"Chapm.", "rank": "Species", "ht-rank": "Genus", "hybrid": '
+            'false}, {"object": "species_note", "species": "Calopogon '
+            'pallidus", "category": "<picture>", "note": "a"}, {"object": '
+            '"species_note", "species": "Calopogon pallidus", "category": '
+            '"<picture>", "note": "b"}]'
+        )
         with open(self.temp_path, "w") as f:
             f.write(json_string)
         importer = JSONImporter(MockView())
@@ -903,10 +940,12 @@ class JSONImportTests(BaubleTestCase):
 
     def test_import_new_with_repeated_note(self):
         json_string = (
-            '[{"ht-epithet": "Calopogon", "epithet": "pallidus", "author": "Chapm.", '\
-            ' "rank": "Species", "ht-rank": "Genus", "hybrid": false}, '\
-            ' {"object": "species_note", "species": "Calopogon pallidus", "category": "<price>", "note": "8"}, '\
-            ' {"object": "species_note", "species": "Calopogon pallidus", "category": "<price>", "note": "10"}]')
+            '[{"ht-epithet": "Calopogon", "epithet": "pallidus", "author": '
+            '"Chapm.", "rank": "Species", "ht-rank": "Genus", "hybrid": '
+            'false}, {"object": "species_note", "species": "Calopogon '
+            'pallidus", "category": "<price>", "note": "8"}, {"object": '
+            '"species_note", "species": "Calopogon pallidus", "category": '
+            '"<price>", "note": "10"}]')
         with open(self.temp_path, "w") as f:
             f.write(json_string)
         importer = JSONImporter(MockView())
@@ -922,9 +961,12 @@ class JSONImportTests(BaubleTestCase):
 
     def test_import_new_with_timestamped_note(self):
         json_string = (
-            '[{"ht-epithet": "Calopogon", "epithet": "pallidus", "author": "Chapm.", '\
-            ' "rank": "Species", "ht-rank": "Genus", "hybrid": false}, '\
-            ' {"object": "species_note", "species": "Calopogon pallidus", "category": "<coords>", "note": "{lat: 8.5, lon: -80}", "date": {"__class__": "datetime", "millis": 1234567890}}]')
+            '[{"ht-epithet": "Calopogon", "epithet": "pallidus", "author": '
+            '"Chapm.", "rank": "Species", "ht-rank": "Genus", "hybrid": '
+            'false}, {"object": "species_note", "species": "Calopogon '
+            'pallidus", "category": "<coords>", "note": "{lat: 8.5, lon: '
+            '-80}", "date": {"__class__": "datetime", "millis": 1234567890}}]'
+        )
         with open(self.temp_path, "w") as f:
             f.write(json_string)
         importer = JSONImporter(MockView())
@@ -941,9 +983,11 @@ class JSONImportTests(BaubleTestCase):
 
     def test_import_existing_updates(self):
         "importing existing taxon updates it"
-        json_string = '[{"rank": "Species", "epithet": "tuberosus", "ht-rank"'\
-            ': "Genus", "ht-epithet": "Calopogon", "hybrid": false, "author"'\
+        json_string = (
+            '[{"rank": "Species", "epithet": "tuberosus", "ht-rank"'
+            ': "Genus", "ht-epithet": "Calopogon", "hybrid": false, "author"'
             ': "Britton et al."}]'
+        )
         with open(self.temp_path, "w") as f:
             f.write(json_string)
         previously = Species.retrieve_or_create(
@@ -1239,14 +1283,15 @@ class JSONImportTests(BaubleTestCase):
 
 
 class GlobalFunctionsTests(BaubleTestCase):
-    'Presenter manages view and model, implements view callbacks.'
     def test_json_serializer_datetime(self):
         import datetime
         from .iojson import serializedatetime
         stamp = datetime.datetime(2011, 11, 11, 12, 13)
         self.assertEqual(serializedatetime(stamp),
-                          {'millis': 1321013580000, '__class__': 'datetime'})
+                         {'millis': 1321013580000, '__class__': 'datetime'})
 
+
+class GenericImporterTests(BaubleTestCase):
     def test_add_rec_to_db_plants(self):
         data1 = {
             'accession.species._default_vernacular_name.vernacular_name':
@@ -1268,7 +1313,7 @@ class GlobalFunctionsTests(BaubleTestCase):
 
         obj = Plant()
         self.session.add(obj)
-        out = add_rec_to_db(self.session, obj, data1)
+        out = GenericImporter.add_rec_to_db(self.session, obj, data1)
         self.assertEqual(obj, out)
         # Committing will reveal issues that only show up at commit
         self.session.commit()
@@ -1305,7 +1350,7 @@ class GlobalFunctionsTests(BaubleTestCase):
         }
         obj = Plant()
         self.session.add(obj)
-        out = add_rec_to_db(self.session, obj, data2)
+        out = GenericImporter.add_rec_to_db(self.session, obj, data2)
         self.assertEqual(obj, out)
         self.session.commit()
         result = self.session.query(Plant).all()
@@ -1332,7 +1377,7 @@ class GlobalFunctionsTests(BaubleTestCase):
         # the previous record (from the last data set)
         obj = result[1]
         self.session.add(obj)
-        out = add_rec_to_db(self.session, obj, data3)
+        out = GenericImporter.add_rec_to_db(self.session, obj, data3)
         self.assertEqual(obj, out)
         self.session.commit()
         result = self.session.query(Plant).all()
@@ -1369,7 +1414,7 @@ class GlobalFunctionsTests(BaubleTestCase):
         }
         obj = Plant()
         self.session.add(obj)
-        out = add_rec_to_db(self.session, obj, data4)
+        out = GenericImporter.add_rec_to_db(self.session, obj, data4)
         self.assertEqual(obj, out)
         # Committing will reveal issues that only show up at commit
         self.session.commit()
@@ -1388,6 +1433,119 @@ class GlobalFunctionsTests(BaubleTestCase):
             result[2].accession.species.infraspecific_parts,
             data4.get('accession.species').get('infraspecific_parts'))
 
+    def test_add_rec_to_db_plants_w_planted(self):
+        data1 = {
+            'accession.species.genus.family': {'family': 'Bromeliaceae'},
+            'accession.species.genus': {'genus': 'Tillandsia', 'author': 'L.'},
+            'accession.source.source_detail': {'name':
+                                               'Tropical Garden Foliage'},
+            'accession.species': {'infrasp1_rank': 'f.',
+                                  'infrasp1': 'fastigiate',
+                                  'infrasp1_author': 'Koide',
+                                  'sp': 'ionantha',
+                                  'sp_author': 'Planchon'},
+            'location': {'name': 'Epiphites of the Americas', 'code': '10.10'},
+            'accession': {'code': 'XXXX000001'},
+            'planted': {'date': '01/01/2001 12:00:00 pm'},
+            'code': '1',
+            'quantity': 1
+        }
+
+        obj = Plant()
+        self.session.add(obj)
+        out = GenericImporter.add_rec_to_db(self.session, obj, data1)
+        self.assertEqual(obj, out)
+        # Committing will reveal issues that only show up at commit
+        self.session.commit()
+        result = self.session.query(Plant).get(1)
+        self.assertEqual(result.quantity, data1.get('quantity'))
+        self.assertEqual(result.code, data1.get('code'))
+        self.assertEqual(result.accession.code,
+                         data1.get('accession').get('code'))
+        self.assertEqual(result.location.name,
+                         data1.get('location').get('name'))
+        self.assertEqual(
+            result.accession.species.sp_author,
+            data1.get('accession.species').get('sp_author'))
+        self.assertEqual(
+            result.accession.species.infrasp1,
+            data1.get('accession.species').get('infrasp1'))
+        self.assertEqual(
+            result.planted.date.strftime('%d/%m/%Y %I:%M:%S %p').lower(),
+            data1.get('planted').get('date').lower())
+        # change date on existing planted
+        data2 = {
+            'accession': {'code': 'XXXX000001'},
+            'planted': {'date': '02/01/2001 12:00:00 pm'},
+            'code': '1',
+            'quantity': 1
+        }
+        out = GenericImporter.add_rec_to_db(self.session, obj, data2)
+        self.assertEqual(obj, out)
+        self.session.commit()
+        result = self.session.query(Plant).get(1)
+        self.assertEqual(
+            result.planted.date.strftime('%d/%m/%Y %I:%M:%S %p').lower(),
+            data2.get('planted').get('date').lower())
+        self.assertEqual(len(result.changes), 1)
+
+    def test_add_rec_to_db_plants_w_death(self):
+        # first add a plant to work with
+        data1 = {
+            'accession.species.genus.family': {'family': 'Bromeliaceae'},
+            'accession.species.genus': {'genus': 'Tillandsia', 'author': 'L.'},
+            'accession.source.source_detail': {'name':
+                                               'Tropical Garden Foliage'},
+            'accession.species': {'infrasp1_rank': 'f.',
+                                  'infrasp1': 'fastigiate',
+                                  'infrasp1_author': 'Koide',
+                                  'sp': 'ionantha',
+                                  'sp_author': 'Planchon'},
+            'location': {'name': 'Epiphites of the Americas', 'code': '10.10'},
+            'accession': {'code': 'XXXX000001'},
+            'planted': {'date': '01/01/2001 12:00:00 pm'},
+            'code': '1',
+            'quantity': 1
+        }
+
+        obj = Plant()
+        self.session.add(obj)
+        out = GenericImporter.add_rec_to_db(self.session, obj, data1)
+        self.assertEqual(obj, out)
+        # Committing will reveal issues that only show up at commit
+        self.session.commit()
+        result = self.session.query(Plant).get(1)
+        # then kill it
+        data2 = {
+            'accession': {'code': 'XXXX000001'},
+            'death': {'date': '02/01/2011 12:00:00 pm'},
+            'code': '1',
+            'quantity': 0
+        }
+        out = GenericImporter.add_rec_to_db(self.session, obj, data2)
+        self.assertEqual(obj, out)
+        self.session.commit()
+        result = self.session.query(Plant).get(1)
+        self.assertEqual(
+            result.death.date.strftime('%d/%m/%Y %I:%M:%S %p').lower(),
+            data2.get('death').get('date').lower())
+        self.assertEqual(len(result.changes), 2)
+        # change the date of the existing death.
+        data3 = {
+            'accession': {'code': 'XXXX000001'},
+            'death': {'date': '02/01/2012 12:00:00 pm'},
+            'code': '1',
+            'quantity': 0
+        }
+        out = GenericImporter.add_rec_to_db(self.session, obj, data3)
+        self.assertEqual(obj, out)
+        self.session.commit()
+        result = self.session.query(Plant).get(1)
+        self.assertEqual(
+            result.death.date.strftime('%d/%m/%Y %I:%M:%S %p').lower(),
+            data3.get('death').get('date').lower())
+        self.assertEqual(len(result.changes), 2)
+
     def test_add_rec_to_db_location(self):
         data1 = {
             'code': '10.10',
@@ -1398,7 +1556,7 @@ class GlobalFunctionsTests(BaubleTestCase):
 
         obj = Location()
         self.session.add(obj)
-        out = add_rec_to_db(self.session, obj, data1)
+        out = GenericImporter.add_rec_to_db(self.session, obj, data1)
         self.assertEqual(obj, out)
         # Committing will reveal issues that only show up at commit
         self.session.commit()
@@ -1415,7 +1573,7 @@ class GlobalFunctionsTests(BaubleTestCase):
             'description': 'Rare, threatend and vulnerable species endemic to '
             'the Whitsunday Islands off the Central Queensland Coast.'
         }
-        out = add_rec_to_db(self.session, obj, data2)
+        out = GenericImporter.add_rec_to_db(self.session, obj, data2)
         self.assertEqual(obj, out)
         # Committing will reveal issues that only show up at commit
         self.session.commit()
@@ -1425,3 +1583,52 @@ class GlobalFunctionsTests(BaubleTestCase):
         self.assertEqual(result[0].name, data1.get('name'))
         self.assertEqual(result[0].description, data2.get('description'))
 
+
+class GenericExporterTests(BaubleTestCase):
+    def test_get_item_value_gets_datetime_datetime_type(self):
+        datetime_fmat = prefs.prefs.get(prefs.datetime_format_pref)
+        item = Plant(code='3', accession_id=1, location_id=1, quantity=10)
+        self.session.add(item)
+        self.session.commit()
+        now = datetime.now().strftime(datetime_fmat)
+        val = GenericExporter.get_item_value('planted.date', item)
+        # accuracy is seconds, chance of a mismatch should be uncommon
+        self.assertEqual(val, now)
+
+    def test_get_item_value_gets_date_type(self):
+        date_fmat = prefs.prefs.get(prefs.date_format_pref)
+        item = Accession(code='2020.4',
+                         species_id=1,
+                         date_accd=datetime.now())
+        self.session.add(item)
+        self.session.commit()
+        now = datetime.now().strftime(date_fmat)
+        val = GenericExporter.get_item_value('date_accd', item)
+        # accuracy is seconds, chance of a mismatch should be very uncommon
+        self.assertEqual(val, now)
+
+    def test_get_item_value_gets_datetime_type(self):
+        datetime_fmat = prefs.prefs.get(prefs.datetime_format_pref)
+        item = Plant(code='3', accession_id=1, location_id=1, quantity=10)
+        self.session.add(item)
+        self.session.commit()
+        now = datetime.now().strftime(datetime_fmat)
+        val = GenericExporter.get_item_value('_created', item)
+        # accuracy is seconds, chance of a mismatch should be uncommon
+        self.assertEqual(val, now)
+
+    def test_get_item_value_gets_path(self):
+        plants_test.setUp_data()
+        garden_test.setUp_data()
+        item = self.session.query(Plant).get(1)
+        val = GenericExporter.get_item_value(
+            'accession.species.genus.family.epithet', item
+        )
+        self.assertEqual(val, 'Orchidaceae')
+
+    def test_get_item_value_gets_boolean(self):
+        plants_test.setUp_data()
+        garden_test.setUp_data()
+        item = self.session.query(Species).get(1)
+        val = GenericExporter.get_item_value('hybrid', item)
+        self.assertEqual(val, 'False')

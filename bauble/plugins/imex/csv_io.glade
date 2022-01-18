@@ -189,13 +189,45 @@
                 <property name="label-xalign">0</property>
                 <property name="shadow-type">none</property>
                 <child>
+                  <object class="GtkComboBox" id="option_combo">
+                    <property name="visible">True</property>
+                    <property name="can-focus">False</property>
+                    <signal name="changed" handler="on_combo_changed" swapped="no"/>
+                  </object>
+                </child>
+                <child type="label">
+                  <object class="GtkLabel" id="label2">
+                    <property name="visible">True</property>
+                    <property name="can-focus">False</property>
+                    <property name="label" translatable="yes">options</property>
+                    <property name="use-markup">True</property>
+                    <attributes>
+                      <attribute name="weight" value="bold"/>
+                    </attributes>
+                  </object>
+                </child>
+              </object>
+              <packing>
+                <property name="expand">False</property>
+                <property name="fill">False</property>
+                <property name="position">0</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkFrame">
+                <property name="visible">True</property>
+                <property name="can-focus">False</property>
+                <property name="label-xalign">0</property>
+                <property name="shadow-type">none</property>
+                <child>
                   <object class="GtkBox">
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
                     <child>
-                      <object class="GtkEntry">
+                      <object class="GtkEntry" id="in_filename_entry">
                         <property name="visible">True</property>
                         <property name="can-focus">True</property>
+                        <signal name="changed" handler="on_filename_entry_changed" swapped="no"/>
                       </object>
                       <packing>
                         <property name="expand">True</property>
@@ -239,7 +271,7 @@
               <packing>
                 <property name="expand">False</property>
                 <property name="fill">True</property>
-                <property name="position">0</property>
+                <property name="position">1</property>
               </packing>
             </child>
             <child>
