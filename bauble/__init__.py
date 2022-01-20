@@ -128,15 +128,14 @@ def quit():  # pylint: disable=redefined-builtin
     try:
         save_state()
         # cancel threads on quit avoids a delay (this is not Gtk.threads)
-        active_view = gui.get_view()
-        if active_view:
+        if gui and (active_view := gui.get_view()):
             active_view.cancel_threads()
-        Gtk.main_quit()
+        if Gtk.main_level():
+            Gtk.main_quit()
+        sys.exit(0)
     except Exception as e:
         logger.debug('quiting produced %s error', e)
-    # in case main_quit is called before main, e.g. before
-    # bauble.main() is called
-    sys.exit(1)
+        sys.exit(1)
 
 
 last_handler = None
