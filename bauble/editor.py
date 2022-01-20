@@ -170,7 +170,7 @@ def default_completion_match_func(completion, key_string, treeiter):
     return str(value).lower().startswith(key_string.lower())
 
 
-class GenericEditorView(object):
+class GenericEditorView:
     """A generic class meant (not) to be subclassed, to provide the view for
     the Ghini Model-View-Presenter pattern.
 
@@ -274,8 +274,6 @@ class GenericEditorView(object):
 
     def get_selection(self):
         """return the selection in the graphic interface"""
-        class EmptySelectionException(Exception):
-            pass
         from bauble.view import SearchView
         view = bauble.gui.get_view()
         try:
@@ -1835,7 +1833,7 @@ class GenericModelViewPresenterEditor:
             except Exception as e:
                 pass
         except Exception as e:
-            logger.warning("can't commit changes: (%s) %s" % (type(e), e))
+            logger.warning("can't commit changes: (%s)%s", type(e).__name__, e)
             self.session.rollback()
             self.session.add_all(objs)
             raise

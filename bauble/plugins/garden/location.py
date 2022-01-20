@@ -477,7 +477,7 @@ class GeneralLocationExpander(InfoExpander):
     """general expander for the PlantInfoBox"""
 
     def __init__(self, widgets):
-        InfoExpander.__init__(self, _("General"), widgets)
+        super().__init__(_("General"), widgets)
         general_box = self.widgets.loc_gen_box
         self.widgets.remove_parent(general_box)
         self.vbox.pack_start(general_box, True, True, 0)
@@ -506,7 +506,7 @@ class DescriptionExpander(InfoExpander):
     """The location description"""
 
     def __init__(self, widgets):
-        InfoExpander.__init__(self, _("Description"), widgets)
+        super().__init__(_("Description"), widgets)
         descr_box = self.widgets.loc_descr_box
         self.widgets.remove_parent(descr_box)
         self.vbox.pack_start(descr_box, True, True, 0)
@@ -527,7 +527,7 @@ class LocationInfoBox(InfoBox):
     """
 
     def __init__(self):
-        InfoBox.__init__(self)
+        super().__init__()
         filename = os.path.join(paths.lib_dir(), "plugins", "garden",
                                 "loc_infobox.glade")
         self.widgets = utils.load_widgets(filename)

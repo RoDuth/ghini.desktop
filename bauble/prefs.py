@@ -187,9 +187,7 @@ class _prefs(UserDict):
         self.config = None
 
     def init(self):
-        """
-        initialize the preferences, should only be called from app.main
-        """
+        """initialize the preferences, should only be called from app.main"""
         # create directory tree of filename if it doesn't yet exist
         head, _tail = os.path.split(self._filename)
         if not os.path.exists(head):
@@ -247,8 +245,7 @@ class _prefs(UserDict):
             self[key] = value
 
     def reload(self):
-        """
-        Update the current preferences to any external changes in the file,
+        """Update the current preferences to any external changes in the file,
         """
         # make a new instance and reread the file into it.
         self.config = ConfigParser(interpolation=None)
@@ -260,9 +257,7 @@ class _prefs(UserDict):
         return name[:index], name[index + 1:]
 
     def get(self, key, default=None):
-        """
-        get value for key else return default
-        """
+        """get value for key else return default"""
         value = self[key]
         if value is None:
             return default
@@ -340,7 +335,7 @@ class _prefs(UserDict):
             with open(self._filename, "w+") as f:
                 self.config.write(f)
         except Exception:  # pylint: disable=broad-except
-            msg = (_("Ghini can't save your user preferences. \n\nPlease "
+            msg = (_("Can't save your user preferences. \n\nPlease "
                      "check the file permissions of your config file:\n %s")
                    % self._filename)
             if bauble.gui is not None and bauble.gui.window is not None:

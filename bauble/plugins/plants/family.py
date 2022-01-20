@@ -27,7 +27,7 @@ import weakref
 import logging
 logger = logging.getLogger(__name__)
 
-from gi.repository import Gtk  # noqa
+from gi.repository import Gtk
 
 from sqlalchemy import (Column, Integer, ForeignKey, and_, UniqueConstraint,
                         String)
@@ -94,7 +94,7 @@ def remove_callback(families):
     except Exception as e:
         msg = _('Could not delete.\n\n%s') % utils.xml_safe(e)
         utils.message_details_dialog(msg, traceback.format_exc(),
-                                     type=Gtk.MessageType.ERROR)
+                                     typ=Gtk.MessageType.ERROR)
         session.rollback()
     return True
 
@@ -693,7 +693,7 @@ class GeneralFamilyExpander(InfoExpander):
         Arguments:
         - `widgets`:
         """
-        InfoExpander.__init__(self, _("General"), widgets)
+        super().__init__(_("General"), widgets)
         general_box = self.widgets.fam_general_box
         self.widgets.remove_parent(general_box)
         self.vbox.pack_start(general_box, True, True, 0)
@@ -788,7 +788,7 @@ class SynonymsExpander(InfoExpander):
     expanded_pref = 'infobox.family.synonyms.expanded'
 
     def __init__(self, widgets):
-        InfoExpander.__init__(self, _("Synonyms"), widgets)
+        super().__init__(_("Synonyms"), widgets)
         synonyms_box = self.widgets.fam_synonyms_box
         self.widgets.remove_parent(synonyms_box)
         self.vbox.pack_start(synonyms_box, True, True, 0)

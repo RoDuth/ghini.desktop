@@ -44,7 +44,6 @@ from bauble import utils
 from bauble import paths
 from bauble import editor
 from .geography import GeographyMenu
-from .family import Family
 from .genus import Genus, GenusSynonym
 from .species_model import (Species,
                             SpeciesDistribution,
@@ -828,7 +827,7 @@ class DistributionPresenter(editor.GenericEditorPresenter):
     def on_activate_add_menu_item(self, widget, geoid=None):
         logger.debug('on_activate_add_menu_item %s %s', widget, geoid)
         from bauble.plugins.plants.geography import Geography
-        geo = self.session.query(Geography).filter_by(id=geoid).one()
+        geo = self.session.query(Geography).get(geoid)
         # check that this geography isn't already in the distributions
         if geo in [d.geography for d in self.model.distribution]:
             logger.debug('%s already in %s', geo, self.model)

@@ -1,6 +1,6 @@
 # Copyright (c) 2005,2006,2007,2008,2009 Brett Adams <brett@belizebotanic.org>
 # Copyright (c) 2012-2015 Mario Frasca <mario@anche.no>
-# Copyright 2017 Jardín Botánico de Quito
+# Copyright (c) 2020-2022 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -18,9 +18,8 @@
 # along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
 
 import sys
-import os
 import unittest
-from tempfile import mkstemp
+from tempfile import NamedTemporaryFile
 from pathlib import Path
 
 import logging
@@ -100,7 +99,9 @@ class BaubleTestCase(unittest.TestCase):
             raise BaubleError('not connected to a database')
         Path(paths.appdata_dir()).mkdir(parents=True, exist_ok=True)
         bauble.utils.BuilderLoader.builders = {}
-        self.handle, self.temp = mkstemp(suffix='.cfg', text=True)
+        self.temp_prefs_file = NamedTemporaryFile(suffix='.cfg')
+        self.temp = self.temp_prefs_file.name
+        # reason not to use `from bauble.prefs import prefs`
         prefs.default_prefs_file = self.temp
         prefs.prefs = prefs._prefs(filename=self.temp)
         prefs.prefs.init()
@@ -123,8 +124,7 @@ class BaubleTestCase(unittest.TestCase):
         db.metadata.drop_all(bind=db.engine)
         bauble.pluginmgr.commands.clear()
         pluginmgr.plugins.clear()
-        os.close(self.handle)
-        os.remove(self.temp)
+        self.temp_prefs_file.close()
 
 
 def mockfunc(msg=None, name=None, caller=None, result=False, *args, **kwargs):

@@ -91,7 +91,6 @@ class Source(db.Base):
     to go through its `.source` member.
 
     Create an Accession a, then create a Source s, then assign a.source = s
-
     """
     __tablename__ = 'source'
     # ITF2 - E7 - Donor's Accession Identifier - donacc

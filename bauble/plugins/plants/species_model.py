@@ -954,6 +954,7 @@ class VernacularName(db.Base, db.Serializable):
             if sp:
                 from sqlalchemy.exc import SQLAlchemyError
                 try:
+                    # pylint: disable=no-member
                     return (session.query(cls)
                             .filter(cls.species == sp,
                                     cls.language == keys.get('language'))
@@ -988,6 +989,7 @@ class VernacularName(db.Base, db.Serializable):
 
     def search_view_markup_pair(self):
         """provide the two lines describing object for SearchView row."""
+        # pylint: disable=no-member
         return str(self), self.species.markup(authors=False)
 
     def __str__(self):
@@ -995,19 +997,20 @@ class VernacularName(db.Base, db.Serializable):
 
     def replacement(self):
         'user wants the species, not just the name'
-        return self.species
+        return self.species   # pylint: disable=no-member
 
     def as_dict(self):
         result = db.Serializable.as_dict(self)
+        # pylint: disable=no-member
         result['species'] = self.species.str(self.species, remove_zws=True)
         return result
 
     @classmethod
     def compute_serializable_fields(cls, session, keys):
-        logger.debug('compute_serializable_fields(session, %s)' % keys)
+        logger.debug('compute_serializable_fields(session, %s)', keys)
         result = {'species': None}
         if 'species' in keys:
-            ## now we must connect the name to the species it refers to
+            # now we must connect the name to the species it refers to
             genus_name, epithet = keys['species'].split(' ', 1)
             sp_dict = {'ht-epithet': genus_name,
                        'epithet': epithet}
@@ -1017,7 +1020,7 @@ class VernacularName(db.Base, db.Serializable):
 
     @property
     def pictures(self):
-        return self.species.pictures
+        return self.species.pictures  # pylint: disable=no-member
 
 
 class DefaultVernacularName(db.Base):

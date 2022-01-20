@@ -743,15 +743,14 @@ class Plant(db.Base, db.Serializable, db.DefiningPictures, db.WithNotes):
                 (5, 'Families'): set([self.accession.species.genus.family.id]),
                 (6, 'Living plants'): self.quantity,
                 (7, 'Locations'): set([self.location.id]),
-                (8, 'Sources'): set(source and [source.id] or []),
-                }
+                (8, 'Sources'): set(source and [source.id] or [])}
 
 
 # ensure an appropriate change has been capture for all changes or insertions.
 # In the editor this will create 2 changes if both the location and the
 # quantity are changed (using the supplied reason). The current change will be
 # corrected and a new one adding.  In imports etc. this should trigger the
-# creation of an approariate change without a reason.
+# creation of an appropriate change without a reason.
 @event.listens_for(Plant, 'after_update')
 def plant_after_update(_mapper, connection, target):  \
         # pylint: disable=too-many-locals

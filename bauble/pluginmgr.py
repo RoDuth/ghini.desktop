@@ -460,8 +460,7 @@ class EditorPlugin(Plugin):
     editors = []
 
 
-# pylint: disable=too-few-public-methods
-class Tool:
+class Tool:   # pylint: disable=too-few-public-methods
     category = None
     label = None
     enabled = True

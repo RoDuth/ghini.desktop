@@ -112,7 +112,7 @@ class FOP:
         """Search for fop (and possibly java).
 
         If USE_EXTERNAL_FOP_PREF is True search PATH only.  Otherwise look for
-        a version of fop (and jre) in in the root path first.
+        a version of fop (and jre) in the root path first.
         """
         self.java = None
         self.fop = None

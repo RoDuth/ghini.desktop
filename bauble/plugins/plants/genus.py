@@ -189,7 +189,6 @@ class Genus(db.Base, db.Serializable, db.WithNotes):
     # this is a dummy relation, it is only here to make cascading work
     # correctly and to ensure that all synonyms related to this genus
     # get deleted if this genus gets deleted
-    # pylint: disable=unused-private-member
     __syn = relationship('GenusSynonym',
                          primaryjoin='Genus.id==GenusSynonym.synonym_id',
                          cascade='all, delete-orphan', uselist=True)

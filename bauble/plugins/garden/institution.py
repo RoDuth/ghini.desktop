@@ -37,7 +37,7 @@ from bauble import utils
 from bauble.editor import GenericEditorView
 
 
-class Institution(object):
+class Institution:
     """Institution is a "live" object. When properties are changed the changes
     are immediately reflected in the database.
 
