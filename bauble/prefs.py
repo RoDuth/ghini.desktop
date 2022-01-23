@@ -1,6 +1,6 @@
 # Copyright 2008-2010 Brett Adams
 # Copyright 2015 Mario Frasca <mario@anche.no>.
-# Copyright 2019-2021 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright 2019-2022 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -16,6 +16,21 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
+"""
+The prefs module exposes an API for getting and setting user preferences in the
+config file.
+
+To use the preferences import bauble.prefs and access the prefs object
+using a dictionary like interface. e.g. ::
+
+    from bauble import prefs
+    prefs.prefs[key] = value
+
+Can also access the preference keys e.g. ::
+
+    prefs.date_format_pref
+"""
+
 
 import os
 from collections import UserDict
@@ -35,27 +50,6 @@ from bauble import pluginmgr
 from bauble import utils
 
 testing = os.environ.get('BAUBLE_TEST')  # set this to True when testing
-# can be set using the BAUBLE_TEST environment variable. (Handy for python
-# (IPython, etc.) REPL use)
-# i.e. in bash or similar shells use:
-# BAUBLE_TEST=True python
-# in windows you would use something like this?:
-# cmd /V /C "set BAUBLE_TEST=True&& ipython"
-
-"""
-The prefs module exposes an API for getting and setting user
-preferences in the Ghini config file.
-
-To use the preferences import bauble.prefs and access the prefs object
-using a dictionary like interface. e.g. ::
-
-    from bauble import prefs
-    prefs.prefs[key] = value
-
-Can also access the preference keys e.g. ::
-
-    prefs.date_format_pref
-"""
 
 # TODO: maybe we should have a create method that creates the preferences
 # to do a one time thing if the files doesn't exist
@@ -253,8 +247,8 @@ class _prefs(UserDict):
 
     @staticmethod
     def _parse_key(name):
-        index = name.rfind(".")
-        return name[:index], name[index + 1:]
+        section, _, item = name.rpartition('.')
+        return section, item
 
     def get(self, key, default=None):
         """get value for key else return default"""
@@ -271,7 +265,7 @@ class _prefs(UserDict):
         if key == datetime_format_pref:
             return self.datetime_format
 
-        section, option = _prefs._parse_key(key)
+        section, option = self._parse_key(key)
         # this doesn't allow None values for preferences
         if (not self.config.has_section(section) or
                 not self.config.has_option(section, option)):
@@ -289,7 +283,7 @@ class _prefs(UserDict):
         return i
 
     def __delitem__(self, key):
-        section, option = _prefs._parse_key(key)
+        section, option = self._parse_key(key)
         if (not self.config.has_section(section) or
                 not self.config.has_option(section, option)):
             return
@@ -303,9 +297,9 @@ class _prefs(UserDict):
             self.config.remove_option(section, option)
 
     def iteritems(self):
-        return [('%s.%s' % (section, name), value)
-                for section in sorted(self.config.sections())
-                for name, value in self.config.items(section)]
+        for section in sorted(self.config.sections()):
+            for name, value in self.config.items(section):
+                yield (f'{section}.{name}', value)
 
     def itersection(self, section):
         if self.has_section(section):
@@ -313,15 +307,15 @@ class _prefs(UserDict):
                 yield option, self.get(f'{section}.{option}')
 
     def __setitem__(self, key, value):
-        section, option = _prefs._parse_key(key)
+        section, option = self._parse_key(key)
         if not self.config.has_section(section):
             self.config.add_section(section)
         self.config.set(section, option, str(value))
 
     def __contains__(self, key):
-        section, option = _prefs._parse_key(key)
-        if self.config.has_section(section) and \
-           self.config.has_option(section, option):
+        section, option = self._parse_key(key)
+        if (self.config.has_section(section) and
+                self.config.has_option(section, option)):
             return True
         return False
 

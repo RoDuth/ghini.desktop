@@ -138,6 +138,45 @@ class PreferencesTests(BaubleTestCase):
             self.assertTrue(content.index('not_there_yet-1 = 1') > 0)
             self.assertTrue(content.index('[test]') > 0)
 
+    def test_generated_dayfirst_yearfirst(self):
+        prefs.prefs[prefs.date_format_pref] = '%Y-%m-%d'
+        self.assertTrue(prefs.prefs.get(prefs.parse_yearfirst_pref))
+        self.assertFalse(prefs.prefs.get(prefs.parse_dayfirst_pref))
+        prefs.prefs[prefs.date_format_pref] = '%d-%m-%Y'
+        self.assertFalse(prefs.prefs.get(prefs.parse_yearfirst_pref))
+        self.assertTrue(prefs.prefs.get(prefs.parse_dayfirst_pref))
+
+    def test_generated_datetime_format(self):
+        prefs.prefs[prefs.date_format_pref] = 'date'
+        prefs.prefs[prefs.time_format_pref] = 'time'
+        self.assertEqual(prefs.prefs.get(prefs.datetime_format_pref),
+                         'date time')
+
+    def test_itersection(self):
+        for i in range(5):
+            prefs.prefs[f'testsection.option{i}'] = f'value{i}'
+        for i, (option, value) in enumerate(
+                prefs.prefs.itersection('testsection')):
+            self.assertEqual(option, f'option{i}')
+            self.assertEqual(value, f'value{i}')
+
+    def test__delitem__(self):
+        prefs.prefs['testsection.option1'] = 'value1'
+        prefs.prefs['testsection.option2'] = 'value2'
+        self.assertTrue(prefs.prefs.config.has_option('testsection',
+                                                      'option1'))
+        self.assertTrue(prefs.prefs.config.has_option('testsection',
+                                                      'option2'))
+        del prefs.prefs['testsection.option2']
+        self.assertFalse(prefs.prefs.config.has_option('testsection',
+                                                       'option3'))
+        self.assertTrue(prefs.prefs.has_section('testsection'))
+        del prefs.prefs['testsection.option1']
+        self.assertFalse(prefs.prefs.has_section('testsection'))
+        self.assertFalse(prefs.prefs.has_section('nonexistent_section'))
+        del prefs.prefs['nonexistent_section.option']
+        self.assertFalse(prefs.prefs.has_section('nonexistent_section'))
+
 
 class PrefsViewTests(BaubleTestCase):
 
