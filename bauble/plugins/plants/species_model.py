@@ -1074,19 +1074,13 @@ class SpeciesDistribution(db.Base):
     __tablename__ = 'species_distribution'
 
     # columns
-    geography_id = Column(Integer, ForeignKey('geography.id'), nullable=False)
     species_id = Column(Integer, ForeignKey('species.id'), nullable=False)
+    geography_id = Column(Integer, ForeignKey('geography.id'), nullable=False)
+    geography = relationship('Geography',
+                             back_populates='distribution')
 
     def __str__(self):
         return str(self.geography)
-
-
-# late bindings
-SpeciesDistribution.geography = relationship(
-    'Geography',
-    primaryjoin='SpeciesDistribution.geography_id==Geography.id',
-    backref='distribution',
-    uselist=False)
 
 
 class Habit(db.Base):

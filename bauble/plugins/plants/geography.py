@@ -1,6 +1,6 @@
 # Copyright 2008-2010 Brett Adams
 # Copyright 2012-2015 Mario Frasca <mario@anche.no>.
-# Copyright 2021 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright 2021-2022 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -16,9 +16,11 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
-#
-# geography.py
-#
+"""
+The geography module,
+
+World Geographical Scheme for Recording Plant Distributions (WGSRPD)
+"""
 from operator import itemgetter
 from pathlib import Path
 
@@ -38,16 +40,13 @@ from bauble.view import (InfoBox, InfoExpander, select_in_search_results,
 
 
 def get_species_in_geography(geo):
-    """
-    Return all the Species that have distribution in geo
-    """
+    """Return all the Species that have distribution in geo"""
     session = object_session(geo)
     if not session:
-        ValueError('get_species_in_geography(): geography is not in a session')
+        ValueError('geography is not in a session')
 
     # get all the geography children under geo
-    from bauble.plugins.plants.species_model import SpeciesDistribution, \
-        Species
+    from .species_model import SpeciesDistribution, Species
     # get the children of geo
     geo_table = geo.__table__
     master_ids = set([geo.id])
@@ -61,98 +60,91 @@ def get_species_in_geography(geo):
             grand_kids = get_geography_children(kid)
             master_ids.update(grand_kids)
         return kids
+
     geokids = get_geography_children(geo.id)
     master_ids.update(geokids)
-    q = session.query(Species).join(SpeciesDistribution).\
-        filter(SpeciesDistribution.geography_id.in_(master_ids))
-    return list(q)
+    query = (session.query(Species).join(SpeciesDistribution)
+             .filter(SpeciesDistribution.geography_id.in_(master_ids)))
+    return query.all()
 
 
 class GeographyMenu(Gtk.Menu):
 
     def __init__(self, callback):
         super().__init__()
+        self.callback = callback
         geography_table = Geography.__table__
-        geos = select([geography_table.c.id, geography_table.c.name,
-                       geography_table.c.parent_id]).execute().fetchall()
-        geos_hash = {}
-        # TODO: i think the geo_hash should be calculated in an idle
-        # function so that starting the editor isn't delayed while the
-        # hash is being built
-        for geo_id, name, parent_id in geos:
-            try:
-                geos_hash[parent_id].append((geo_id, name))
-            except KeyError:
-                geos_hash[parent_id] = [(geo_id, name)]
-
-        for kids in list(geos_hash.values()):
-            kids.sort(key=itemgetter(1))  # sort by name
-
-        def get_kids(pid):
-            try:
-                return geos_hash[pid]
-            except KeyError:
-                return []
-
-        def has_kids(pid):
-            try:
-                return len(geos_hash[pid]) > 0
-            except KeyError:
-                return False
-
-        def build_menu(geo_id, name):
-            item = Gtk.MenuItem(label=name)
-            if not has_kids(geo_id):
-                if item.get_submenu() is None:
-                    item.connect('activate', callback, geo_id)
-                    # self.view.connect(item, 'activate',
-                    #                   self.on_activate_add_menu_item, geo_id)
-                return item
-
-            kids_added = False
-            submenu = Gtk.Menu()
-            # removes two levels of kids with the same name, there must be a
-            # better way to do this but i got tired of thinking about it
-            kids = get_kids(geo_id)
-            if len(kids) > 0:
-                kids_added = True
-            for kid_id, kid_name in kids:  # get_kids(geo_id):
-                submenu.append(build_menu(kid_id, kid_name))
-
-            if kids_added:
-                sel_item = Gtk.MenuItem(label=name)
-                submenu.insert(sel_item, 0)
-                submenu.insert(Gtk.SeparatorMenuItem(), 1)
-                item.set_submenu(submenu)
-                # self.view.connect(sel_item, 'activate',callback, geo_id)
-                sel_item.connect('activate', callback, geo_id)
-            else:
-                item.connect('activate', callback, geo_id)
-            return item
-
-        def populate():
-            """
-            add geography value to the menu, any top level items that don't
-            have any kids are appended to the bottom of the menu
-            """
-            if not geos_hash:
-                # we would get here if the Geography menu is populate,
-                # usually during a unit test
-                return
-            no_kids = []
-            for geo_id, geo_name in geos_hash[None]:
-                if geo_id not in list(geos_hash.keys()):
-                    no_kids.append((geo_id, geo_name))
-                else:
-                    self.append(build_menu(geo_id, geo_name))
-
-            for geo_id, geo_name in sorted(no_kids):
-                self.append(build_menu(geo_id, geo_name))
-
-            self.show_all()
+        self.geos = select([geography_table.c.id,
+                            geography_table.c.name,
+                            geography_table.c.parent_id]).execute().fetchall()
+        self.geos_hash = {}
 
         from gi.repository import GLib
-        GLib.idle_add(populate)
+        GLib.idle_add(self.populate)
+
+    def get_geos_hash(self):
+        geos_hash = {}
+        for geo_id, name, parent_id in self.geos:
+            geos_hash.setdefault(parent_id, []).append((geo_id, name))
+
+        for kids in geos_hash.values():
+            kids.sort(key=itemgetter(1))  # sort by name
+
+        return geos_hash
+
+    def get_kids(self, pid):
+        return self.geos_hash.get(pid, [])
+
+    def has_kids(self, pid):
+        return len(self.get_kids(pid)) > 0
+
+    def build_menu(self, geo_id, name):
+        item = Gtk.MenuItem(label=name)
+        if not self.has_kids(geo_id):
+            if item.get_submenu() is None:
+                item.connect('activate', self.callback, geo_id)
+            return item
+
+        kids_added = False
+        submenu = Gtk.Menu()
+        # removes two levels of kids with the same name, there must be a
+        # better way to do this but i got tired of thinking about it
+        kids = self.get_kids(geo_id)
+        if len(kids) > 0:
+            kids_added = True
+        for kid_id, kid_name in kids:  # get_kids(geo_id):
+            submenu.append(self.build_menu(kid_id, kid_name))
+
+        if kids_added:
+            sel_item = Gtk.MenuItem(label=name)
+            submenu.insert(sel_item, 0)
+            submenu.insert(Gtk.SeparatorMenuItem(), 1)
+            item.set_submenu(submenu)
+            sel_item.connect('activate', self.callback, geo_id)
+        else:
+            item.connect('activate', self.callback, geo_id)
+        return item
+
+    def populate(self):
+        """add geography value to the menu, any top level items that don't
+        have any kids are appended to the bottom of the menu
+        """
+        self.geos_hash = self.get_geos_hash()
+        if not self.geos_hash:
+            # we would get here if the Geography menu is populate, usually
+            # during a unit test
+            return
+        no_kids = []
+        for geo_id, geo_name in self.geos_hash[None]:
+            if geo_id not in list(self.geos_hash.keys()):
+                no_kids.append((geo_id, geo_name))
+            else:
+                self.append(self.build_menu(geo_id, geo_name))
+
+        for geo_id, geo_name in sorted(no_kids):
+            self.append(self.build_menu(geo_id, geo_name))
+
+        self.show_all()
 
 
 class Geography(db.Base):
@@ -188,8 +180,16 @@ class Geography(db.Base):
     iso_code = Column(String(7))
     parent_id = Column(Integer, ForeignKey('geography.id'))
     geojson = deferred(Column(types.JSON()))
+    collection = relationship('Collection', back_populates='region')
+    distribution = relationship('SpeciesDistribution',
+                                back_populates='geography')
 
     retrieve_cols = ['id', 'tdwg_code']
+    children = relationship('Geography',
+                            cascade='all',
+                            backref=backref('parent',
+                                            remote_side='Geography.id'),
+                            order_by=[name])
 
     @classmethod
     def retrieve(cls, session, keys):
@@ -203,19 +203,8 @@ class Geography(db.Base):
         return str(self.name)
 
 
-# late bindings
-Geography.children = relationship(
-    Geography,
-    primaryjoin=Geography.parent_id == Geography.id,
-    cascade='all',
-    backref=backref("parent",
-                    remote_side=[Geography.__table__.c.id]),
-    order_by=[Geography.name])
-
-
 class GeneralGeographyExpander(InfoExpander):
-    """Generic minimalist info about a geography
-    """
+    """Generic minimalist info about a geography."""
 
     def __init__(self, widgets):
         super().__init__(_("General"), widgets)
@@ -271,30 +260,27 @@ class GeographyInfoBox(InfoBox):
 def geography_importer():
 
     import json
-    from bauble import paths
     from bauble import pb_set_fraction
 
-    lvl1_file = Path(paths.lib_dir(), "plugins", "plants", "default", "wgsrpd",
-                     "level1.geojson")
-    lvl2_file = Path(paths.lib_dir(), "plugins", "plants", "default", "wgsrpd",
-                     "level2.geojson")
-    lvl3_file = Path(paths.lib_dir(), "plugins", "plants", "default", "wgsrpd",
-                     "level3.geojson")
-    lvl4_file = Path(paths.lib_dir(), "plugins", "plants", "default", "wgsrpd",
-                     "level4.geojson")
+    root = Path(__file__).resolve().parent
+
+    lvl1_file = root / "default/wgsrpd/level1.geojson"
+    lvl2_file = root / "default/wgsrpd/level2.geojson"
+    lvl3_file = root / "default/wgsrpd/level3.geojson"
+    lvl4_file = root / "default/wgsrpd/level4.geojson"
 
     session = db.Session()
 
-    with open(lvl1_file, 'r', encoding='utf-8', newline='') as f:
+    with lvl1_file.open('r', encoding='utf-8', newline='') as f:
         geojson_lvl1 = json.load(f)
 
-    with open(lvl2_file, 'r', encoding='utf-8', newline='') as f:
+    with lvl2_file.open('r', encoding='utf-8', newline='') as f:
         geojson_lvl2 = json.load(f)
 
-    with open(lvl3_file, 'r', encoding='utf-8', newline='') as f:
+    with lvl3_file.open('r', encoding='utf-8', newline='') as f:
         geojson_lvl3 = json.load(f)
 
-    with open(lvl4_file, 'r', encoding='utf-8', newline='') as f:
+    with lvl4_file.open('r', encoding='utf-8', newline='') as f:
         geojson_lvl4 = json.load(f)
 
     total_items = (len(geojson_lvl1.get('features')) +
@@ -303,7 +289,7 @@ def geography_importer():
                    len(geojson_lvl4.get('features')))
 
     steps_so_far = 0
-    update_every = 20
+    five_percent = int(total_items / 20) or 1
 
     def update_progressbar(steps_so_far):
         percent = float(steps_so_far) / float(total_items)
@@ -320,10 +306,11 @@ def geography_importer():
         session.add(row)
         session.commit()
         steps_so_far += 1
-        update_progressbar(steps_so_far)
-        if steps_so_far % update_every == 0:
+        if steps_so_far % five_percent == 0:
+            update_progressbar(steps_so_far)
             yield
 
+    # pylint: disable=attribute-defined-outside-init  # Geography.parent
     for feature in geojson_lvl2.get('features'):
         row = Geography()
         props = feature.get('properties')
@@ -338,8 +325,8 @@ def geography_importer():
         session.add(row)
         session.commit()
         steps_so_far += 1
-        update_progressbar(steps_so_far)
-        if steps_so_far % update_every == 0:
+        if steps_so_far % five_percent == 0:
+            update_progressbar(steps_so_far)
             yield
 
     for feature in geojson_lvl3.get('features'):
@@ -356,8 +343,8 @@ def geography_importer():
         session.add(row)
         session.commit()
         steps_so_far += 1
-        update_progressbar(steps_so_far)
-        if steps_so_far % update_every == 0:
+        if steps_so_far % five_percent == 0:
+            update_progressbar(steps_so_far)
             yield
 
     for feature in geojson_lvl4.get('features'):
@@ -366,8 +353,8 @@ def geography_importer():
             # these are really only place holders and are the same as the 3rd
             # level elements, which should be used instead.
             steps_so_far += 1
-            update_progressbar(steps_so_far)
-            if steps_so_far % update_every == 0:
+            if steps_so_far % five_percent == 0:
+                update_progressbar(steps_so_far)
                 yield
             continue
         parent = (session.query(Geography)
@@ -403,7 +390,7 @@ def geography_importer():
         session.add(row)
         session.commit()
         steps_so_far += 1
-        update_progressbar(steps_so_far)
-        if steps_so_far % update_every == 0:
+        if steps_so_far % five_percent == 0:
+            update_progressbar(steps_so_far)
             yield
     session.close()

@@ -1,7 +1,7 @@
 # Copyright 2008-2010 Brett Adams
 # Copyright 2015-2016 Mario Frasca <mario@anche.no>.
 # Copyright 2017 Jardín Botánico de Quito
-# Copyright 2021 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright 2020-2022 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -103,9 +103,10 @@ class Source(db.Base):
                                  backref=backref('sources',
                                                  cascade='all, delete-orphan'))
 
-    collection = relationship('Collection', uselist=False,
+    collection = relationship('Collection',
+                              uselist=False,
                               cascade='all, delete-orphan',
-                              backref=backref('source', uselist=False))
+                              back_populates='source')
 
     # relation to a propagation that is specific to this Source and
     # not attached to a Plant
@@ -224,17 +225,19 @@ class Collection(db.Base):
     notes = Column(UnicodeText)
 
     geography_id = Column(Integer, ForeignKey('geography.id'))
-    region = relationship(Geography, uselist=False,
-                          backref=backref('collection', uselist=True))
+    region = relationship('Geography', uselist=False,
+                          back_populates='collection')
 
     source_id = Column(Integer, ForeignKey('source.id'), unique=True)
+    source = relationship('Source',
+                          back_populates='collection')
 
     retrieve_cols = ['id', 'source', 'collectors_code', 'collector', 'date',
                      'source.accession.code', 'source.accession']
 
     @classmethod
     def retrieve(cls, session, keys):
-        parts = ['id', 'source_id', 'collectors_code', 'collector', 'date']
+        parts = ['id', 'source', 'collectors_code', 'collector', 'date']
         col_parts = {k: v for k, v in keys.items() if k in parts}
         acc = keys.get('source.accession.code') or keys.get('source.accession')
         acc_key = {}
@@ -261,7 +264,7 @@ class Collection(db.Base):
 
     def search_view_markup_pair(self):
         """provide the two lines describing object for SearchView row."""
-        acc = self.source.accession
+        acc = self.source.accession  # pylint: disable=no-member
         safe = utils.xml_safe
         return (
             '%s - <small>%s</small>' % (safe(acc), safe(acc.species_str())),
@@ -373,7 +376,6 @@ class CollectionPresenter(editor.ChildPresenter):
     def set_region(self, _menu_item, geo_id):
         geography = self.session.query(Geography).get(geo_id)
         self.set_model_attr('region', geography)
-        self.set_model_attr('geography_id', geo_id)
         self.view.widgets.add_region_button.props.label = str(geography)
 
     def set_model_attr(self, attr, value, validator=None):
