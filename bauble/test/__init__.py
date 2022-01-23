@@ -19,7 +19,9 @@
 
 import sys
 import unittest
-from tempfile import NamedTemporaryFile
+import os
+from tempfile import mkstemp
+# from tempfile import NamedTemporaryFile
 from pathlib import Path
 
 import logging
@@ -99,8 +101,10 @@ class BaubleTestCase(unittest.TestCase):
             raise BaubleError('not connected to a database')
         Path(paths.appdata_dir()).mkdir(parents=True, exist_ok=True)
         bauble.utils.BuilderLoader.builders = {}
-        self.temp_prefs_file = NamedTemporaryFile(suffix='.cfg')
-        self.temp = self.temp_prefs_file.name
+        # FAILS test_on_prefs_backup_restore in windows.
+        # self.temp_prefs_file = NamedTemporaryFile(suffix='.cfg')
+        # self.temp = self.temp_prefs_file.name
+        self.handle, self.temp = mkstemp(suffix='.cfg', text=True)
         # reason not to use `from bauble.prefs import prefs`
         prefs.default_prefs_file = self.temp
         prefs.prefs = prefs._prefs(filename=self.temp)
@@ -124,7 +128,9 @@ class BaubleTestCase(unittest.TestCase):
         db.metadata.drop_all(bind=db.engine)
         bauble.pluginmgr.commands.clear()
         pluginmgr.plugins.clear()
-        self.temp_prefs_file.close()
+        os.close(self.handle)
+        os.remove(self.temp)
+        # self.temp_prefs_file.close()
 
 
 def mockfunc(msg=None, name=None, caller=None, result=False, *args, **kwargs):
