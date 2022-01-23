@@ -460,34 +460,6 @@ class ShapefileExportSettingsBox(Gtk.ScrolledWindow):
         # return prop_button, schema_menu
 
 
-class ShapefileExportDialogView(GenericEditorView):
-    """This view is mostly just inherited from GenericEditorView and kept as
-    simple as possible.
-    """
-
-    # tooltips are the reason to subclass GenericEditorView
-    _tooltips = {
-        'plants_locations': _("What is it that you want to export.  Plants "
-                              "may produce multiple files."),
-        'search_or_all': _("Base the export of the results on a search or all "
-                           "records.  NOTE: all records will use all records "
-                           "WITH spatial data.  Only when using search "
-                           "results can the user select to auto generate "
-                           "spatial data in advanced settings (and therefore "
-                           "enable the user to edit and reimport corrected "
-                           "spatial data where there currently is none)."),
-        'input_dirname': _("The full path to a folder to export files to.")
-    }
-
-    def __init__(self):
-        filename = str(Path(__file__).resolve().parent / 'shapefile.glade')
-        parent = None
-        if bauble.gui:
-            parent = bauble.gui.window
-        root_widget_name = 'shapefile_export_dialog'
-        super().__init__(filename, parent, root_widget_name)
-
-
 class ShapefileExportDialogPresenter(GenericEditorPresenter):
     """The presenter for the Dialog.
 
@@ -627,11 +599,28 @@ class ShapefileExporter(GenericExporter):
                  'LineString': 'line',
                  'Point': 'point'}
 
+    _tooltips = {
+        'plants_locations': _("What is it that you want to export.  Plants "
+                              "may produce multiple files."),
+        'search_or_all': _("Base the export of the results on a search or all "
+                           "records.  NOTE: all records will use all records "
+                           "WITH spatial data.  Only when using search "
+                           "results can the user select to auto generate "
+                           "spatial data in advanced settings (and therefore "
+                           "enable the user to edit and reimport corrected "
+                           "spatial data where there currently is none)."),
+        'input_dirname': _("The full path to a folder to export files to.")
+    }
+
     def __init__(self, view=None, proj_db=None, open_=True):
         super().__init__(open_=open_)
         # widget fields
         if view is None:
-            view = ShapefileExportDialogView()
+            view = GenericEditorView(
+                str(Path(__file__).resolve().parent / 'shapefile.glade'),
+                root_widget_name='shapefile_export_dialog',
+                tooltips=self._tooltips
+            )
         if proj_db is None:
             proj_db = ProjDB()
         self.search_or_all = 'rb_search_results'

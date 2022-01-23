@@ -494,6 +494,36 @@ class ShapefileImporter(GenericImporter):
         {'add_geo': True, 'update': True, 'add_new': True, 'all_data': True},
     ]
 
+    _tooltips = {
+        'option_combo': _("Ordered roughly least destructive to most "
+                          "destructive. The primary purpose of this plugin is "
+                          "to add spatial data to existing records and hence "
+                          "adding new records is limited to plants, locations "
+                          "and associated notes. When adding plants the "
+                          "accession and location must already exist. Some "
+                          "fields are read only, e.g. species and family "
+                          "epithets are ignored during imports."),
+        'input_filename': _("The full path to the zip file containing "
+                            "the shapefile."),
+        'btn_file_chooser': _("Browse to the zipfile that contains "
+                              "the shapefile and other required files."),
+        'input_projection': _("The shapefile's projection control parameter, "
+                              "can contain any string parameters accepted by "
+                              "pyproj.crs.CRS().  An EPSG code is most likely "
+                              "the simplest to use.   see: https://pyproj4."
+                              "github.io/pyproj/stable/api/crs/crs.html"),
+        'projection_button': _("If no projection control parameters for the "
+                               ".prj file included with the selected "
+                               "shapefile, adding it to the list.  If you "
+                               "believe it is currently wrong changing it."),
+        'cb_always_xy': _("Use the traditional GIS order long, lat.  Some GIS "
+                          "systems do this some don't.  You may need to use "
+                          "trial and error to decide if you need to use this "
+                          "for each data source. (if all items turn up in the "
+                          "wrong place this could be the cause.) The state is "
+                          "saved on clicking OK."),
+    }
+
     def __init__(self, view=None, proj_db=None):
         super().__init__()
         # widget fields
@@ -502,7 +532,19 @@ class ShapefileImporter(GenericImporter):
         self.always_xy = True
         # view and presenter
         if view is None:
-            view = ShapefileImportDialogView()
+            view = GenericEditorView(
+                str(Path(__file__).resolve().parent / 'shapefile.glade'),
+                root_widget_name='shapefile_import_dialog',
+                tooltips=self._tooltips
+            )
+            view.init_translatable_combo(
+                view.widgets.option_combo,
+                [('0', 'add missing spatial data for existing records'),
+                 ('1', 'add or update spatial data for existing records'),
+                 ('2', 'add or update all data for existing records'),
+                 ('3', 'add new records only'),
+                 ('4', 'add or update all records')]
+            )
         if proj_db is None:
             proj_db = ProjDB()
         self.presenter = ShapefileImportDialogPresenter(self, view, proj_db)
@@ -605,59 +647,6 @@ class ShapefileImporter(GenericImporter):
 
         session.add(item)
         return True
-
-
-class ShapefileImportDialogView(GenericEditorView):
-    """
-    This view is mostly just inherited from GenericEditorView and kept as
-    simple as possible.
-    """
-
-    OPTIONS = [
-        ('0', 'add missing spatial data for existing records'),
-        ('1', 'add or update spatial data for existing records'),
-        ('2', 'add or update all data for existing records'),
-        ('3', 'add new records only'),
-        ('4', 'add or update all records'),
-    ]
-
-    # tooltips are the reason to subclass GenericEditorView
-    _tooltips = {
-        'option_combo': _("Ordered roughly least destructive to most "
-                          "destructive. The primary purpose of this plugin is "
-                          "to add spatial data to existing records and hence "
-                          "adding new records is limited to plants, locations "
-                          "and associated notes. When adding plants the "
-                          "accession and location must already exist. Some "
-                          "fields are read only, e.g. species and family "
-                          "epithets are ignored during imports."),
-        'input_filename': _("The full path to the zip file containing "
-                            "the shapefile."),
-        'btn_file_chooser': _("Browse to the zipfile that contains "
-                              "the shapefile and other required files."),
-        'input_projection': _("The shapefile's projection control parameter, "
-                              "can contain any string parameters accepted by "
-                              "pyproj.crs.CRS().  An EPSG code is most likely "
-                              "the simplest to use.   see: https://pyproj4."
-                              "github.io/pyproj/stable/api/crs/crs.html"),
-        'projection_button': _("If no projection control parameters for the "
-                               ".prj file included with the selected "
-                               "shapefile, adding it to the list.  If you "
-                               "believe it is currently wrong changing it."),
-        'cb_always_xy': _("Use the traditional GIS order long, lat.  Some GIS "
-                          "systems do this some don't.  You may need to use "
-                          "trial and error to decide if you need to use this "
-                          "for each data source. (if all items turn up in the "
-                          "wrong place this could be the cause.) The state is "
-                          "saved on clicking OK."),
-    }
-
-    def __init__(self):
-        filename = str(Path(__file__).resolve().parent / 'shapefile.glade')
-        parent = bauble.gui.window
-        root_widget_name = 'shapefile_import_dialog'
-        super().__init__(filename, parent, root_widget_name)
-        self.init_translatable_combo(self.widgets.option_combo, self.OPTIONS)
 
 
 class ShapefileImportDialogPresenter(GenericEditorPresenter):

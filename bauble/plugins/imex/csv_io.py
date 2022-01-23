@@ -59,25 +59,6 @@ CSV_IMPORT_DIR_PREF = f"{CSV_IO_PREFS}.im_last_folder"
 """csv_io default prefs key for storing last folder used for imports."""
 
 
-class CSVExportDialogView(GenericEditorView):
-    """This view is mostly just inherited from GenericEditorView and kept as
-    simple as possible.
-    """
-
-    _tooltips = {
-        'out_filename_entry': _("The full path to a file to export to."),
-        'out_btnbrowse': _("click to choose a file.")
-    }
-
-    def __init__(self):
-        filename = str(Path(__file__).resolve().parent / 'csv_io.glade')
-        parent = None
-        if bauble.gui:
-            parent = bauble.gui.window
-        root_widget_name = 'csv_export_dialog'
-        super().__init__(filename, parent, root_widget_name)
-
-
 class CSVExportDialogPresenter(GenericEditorPresenter):
     """The presenter for the Dialog.
 
@@ -314,10 +295,20 @@ class CSVExporter(GenericExporter):
     information for importing, i.e.  we don't export field_notes but we do
     provide a column for them.
     """
+    _tooltips = {
+        'out_filename_entry': _("The full path to a file to export to."),
+        'out_btnbrowse': _("click to choose a file.")
+    }
+
     def __init__(self, view=None, open_=True):
         super().__init__(open_)
         if view is None:
-            view = CSVExportDialogView()
+            # view = CSVExportDialogView()
+            view = GenericEditorView(
+                str(Path(__file__).resolve().parent / 'csv_io.glade'),
+                root_widget_name='csv_export_dialog',
+                tooltips=self._tooltips
+            )
         self.items = self.get_items(view)
         if not self.items:
             logger.debug('no items bailing')
@@ -375,34 +366,6 @@ class CSVExporter(GenericExporter):
             self.presenter.__class__.last_file = self.filename
         if self.open:
             desktop.open(self.filename)
-
-
-class CSVImportDialogView(GenericEditorView):
-    """This view is mostly just inherited from GenericEditorView and kept as
-    simple as possible.
-    """
-
-    OPTIONS = [
-        ('0', 'update existing records'),
-        ('1', 'add new records only'),
-        ('2', 'add or update all records'),
-    ]
-
-    _tooltips = {
-        'option_combo': _("Ordered roughly least destructive to most "
-                          "destructive."),
-        'in_filename_entry': _("The full path to a file to import."),
-        'in_btnbrowse': _("click to choose a file.")
-    }
-
-    def __init__(self):
-        filename = str(Path(__file__).resolve().parent / 'csv_io.glade')
-        parent = None
-        if bauble.gui:
-            parent = bauble.gui.window
-        root_widget_name = 'csv_import_dialog'
-        super().__init__(filename, parent, root_widget_name)
-        self.init_translatable_combo(self.widgets.option_combo, self.OPTIONS)
 
 
 class CSVImportDialogPresenter(GenericEditorPresenter):
@@ -612,11 +575,26 @@ class CSVImporter(GenericImporter):
                    {'update': False, 'add_new': True},
                    {'update': True, 'add_new': True}]
 
+    _tooltips = {
+        'option_combo': _("Ordered roughly least destructive to most "
+                          "destructive."),
+        'in_filename_entry': _("The full path to a file to import."),
+        'in_btnbrowse': _("click to choose a file.")
+    }
+
     def __init__(self, view=None):
         super().__init__()
         # view and presenter
         if view is None:
-            view = CSVImportDialogView()
+            view = GenericEditorView(
+                str(Path(__file__).resolve().parent / 'csv_io.glade'),
+                root_widget_name='csv_import_dialog',
+                tooltips=self._tooltips
+            )
+            view.init_translatable_combo(view.widgets.option_combo,
+                                         [('0', 'update existing records'),
+                                          ('1', 'add new records only'),
+                                          ('2', 'add or update all records')])
         self.presenter = CSVImportDialogPresenter(self, view)
 
     def _import_task(self, options):

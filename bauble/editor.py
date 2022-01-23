@@ -1,6 +1,6 @@
 # Copyright 2008-2010 Brett Adams
 # Copyright 2015-2017 Mario Frasca <mario@anche.no>.
-# Copyright 2017 Jardín Botánico de Quito
+# Copyright 2020-2022 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -187,7 +187,10 @@ class GenericEditorView:
     """
     _tooltips = {}
 
-    def __init__(self, filename, parent=None, root_widget_name=None):
+    def __init__(self, filename, parent=None, root_widget_name=None,
+                 tooltips=None):
+        if tooltips is not None:
+            self._tooltips = tooltips
         self.root_widget_name = root_widget_name
         builder = self.builder = Gtk.Builder()
         builder.add_from_file(filename)
