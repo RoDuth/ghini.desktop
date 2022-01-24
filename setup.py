@@ -64,7 +64,6 @@ setup(
                       "lxml",
                       "tld==0.12.6",
                       "mako==1.1.4",
-                      "gdata==2.0.18",
                       "requests",
                       "pyparsing==2.4.7",
                       "pypac==0.15.0",
