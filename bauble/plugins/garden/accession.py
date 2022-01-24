@@ -60,12 +60,13 @@ from ..plants.species_editor import (species_cell_data_func,
                                      generic_sp_get_completions,
                                      species_to_string_matcher)
 from .propagation import SourcePropagationPresenter, Propagation
-from .source import (Contact,
-                     ContactPresenter,
+from .source import (SourceDetail,
+                     SourceDetailPresenter,
                      Source,
                      Collection,
                      CollectionPresenter,
-                     PropagationChooserPresenter)
+                     PropagationChooserPresenter,
+                     source_type_values)
 # TODO: underneath the species entry create a label that shows information
 # about the family of the genus of the species selected as well as more
 # info about the genus so we know exactly what plant is being selected
@@ -140,7 +141,8 @@ def generic_taxon_add_action(model, view, presenter, top_presenter,
     """
 
     from bauble.plugins.plants.species import edit_species
-    committed = edit_species(parent_view=view.get_window(), is_dependent_window=True)
+    committed = edit_species(parent_view=view.get_window(),
+                             is_dependent_window=True)
     if committed:
         if isinstance(committed, list):
             committed = committed[0]
@@ -918,7 +920,11 @@ class AccessionEditorView(editor.GenericEditorView):
         'acc_code_format_edit_btn': _("Click here to edit or add to the "
                                       "avialable ID formats."),
         'source_prop_plant_entry': _('Type a plant code or species name here '
-                                     'to narrow the selections below.')
+                                     'to narrow the selections below.'),
+        'source_type_combo': _('Select a type to filter by or leave blank to '
+                               'select by name only.\n"Contacts (General)" '
+                               'filters out Expedtions and Garden '
+                               'Propagation.')
     }
 
     def __init__(self, parent=None):
@@ -1448,7 +1454,7 @@ class SourcePresenter(editor.GenericEditorPresenter):
         def on_select(source):
             if not source:
                 self.model.source = None
-            elif isinstance(source, Contact):
+            elif isinstance(source, SourceDetail):
                 self.model.source = self.source
                 self.model.source.source_detail = source
             elif source == self.GARDEN_PROP_STR:
@@ -1537,6 +1543,19 @@ class SourcePresenter(editor.GenericEditorPresenter):
         self.view.connect('source_prop_remove_button', 'clicked',
                           self.on_prop_remove_button_clicked)
 
+        _source_types = [('garden_prop', self.GARDEN_PROP_STR),
+                         ('contact', 'Contacts (General)')]
+        _source_types.extend(source_type_values)
+        self.view.init_translatable_combo('source_type_combo',
+                                          _source_types)
+        self.view.connect('source_type_combo',
+                          'changed',
+                          self.on_type_filter_changed)
+
+    def on_type_filter_changed(self, combo):
+        """Resets source_combo"""
+        self.populate_source_combo()
+
     def all_problems(self):
         """Return a union of all the problems from this presenter and child
         presenters
@@ -1606,15 +1625,16 @@ class SourcePresenter(editor.GenericEditorPresenter):
         self.refresh_sensitivity()
 
     def on_new_source_button_clicked(self, *args):
-        """Opens a new ContactEditor when clicked and repopulates the source
-        combo if a new Contact is created.
+        """Opens a new SourceDetailEditor when clicked and repopulates the
+        source combo if a new SourceDetail is created.
         """
         view = editor.GenericEditorView(
-            str(Path(paths.lib_dir(), "plugins", "garden", "contact.glade")),
+            str(Path(paths.lib_dir()) /
+                "plugins/garden/source_detail_editor.glade"),
             parent=self.view.get_window(),
             root_widget_name='source_details_dialog')
-        source = Contact()
-        presenter = ContactPresenter(source, view)
+        source = SourceDetail()
+        presenter = SourceDetailPresenter(source, view)
         if presenter.start() == Gtk.ResponseType.OK:
             source = presenter.model
             self.session.add(source)
@@ -1632,9 +1652,29 @@ class SourcePresenter(editor.GenericEditorPresenter):
         combo.set_model(None)
         model = Gtk.ListStore(object)
         none_iter = model.append([''])
-        model.append([self.GARDEN_PROP_STR])
-        for i in self.session.query(Contact).order_by(
-                func.lower(Contact.name)):
+        value = self.view.widget_get_value('source_type_combo')
+
+        if value == 'garden_prop':
+            model.append([self.GARDEN_PROP_STR])
+            active = self.GARDEN_PROP_STR
+            query = []
+        elif value == 'contact':
+            query = (self.session.query(SourceDetail)
+                     .filter(SourceDetail.source_type != 'Expedition')
+                     .order_by(func.lower(SourceDetail.name)))
+            active = None
+        elif value:
+            query = (self.session.query(SourceDetail)
+                     .filter_by(source_type=value)
+                     .order_by(func.lower(SourceDetail.name)))
+            active = None
+        else:
+            model.append([self.GARDEN_PROP_STR])
+            query = (self.session.query(SourceDetail)
+                     .order_by(func.lower(SourceDetail.name)))
+            active = None
+
+        for i in query:
             model.append([i])
         combo.set_model(model)
         combo.get_child().get_completion().set_model(model)
@@ -1680,7 +1720,7 @@ class SourcePresenter(editor.GenericEditorPresenter):
             value = model[treeiter][0]
             # allows completions of source details by their ID
             if (str(value).lower().startswith(key.lower()) or
-                    (isinstance(value, Contact) and
+                    (isinstance(value, SourceDetail) and
                      str(value.id).startswith(key))):
                 return True
             return False
@@ -1732,7 +1772,7 @@ class SourcePresenter(editor.GenericEditorPresenter):
             def _cmp(row, data):
                 val = row[0]
                 if (str(val) == data or
-                        (isinstance(val, Contact) and val.id == data)):
+                        (isinstance(val, SourceDetail) and val.id == data)):
                     return True
                 else:
                     return False

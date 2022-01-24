@@ -39,7 +39,7 @@ from bauble.plugins.plants import (Familia,
                                    Species,
                                    VernacularName,
                                    SpeciesNote)
-from bauble.plugins.garden import Accession, Location, Plant, Contact, Source
+from bauble.plugins.garden import Accession, Location, Plant, SourceDetail, Source
 import bauble.plugins.garden.test_garden as garden_test
 import bauble.plugins.plants.test_plants as plants_test
 from bauble.test import BaubleTestCase
@@ -787,13 +787,12 @@ class JSONExportTests(BaubleTestCase):
         # a.source = s
         a = self.session.query(Accession).first()
         a.source = s = Source()
-        s.source_detail = c = Contact(name='Summit')
+        s.source_detail = c = SourceDetail(name='Summit')
         self.session.add_all([s, c])
         self.session.commit()
 
         ## action
         exporter = JSONExporter(MockView())
-        selection = [a]
         exporter.view.selection = None
         exporter.selection_based_on = 'sbo_accessions'
         exporter.include_private = True
@@ -804,7 +803,7 @@ class JSONExportTests(BaubleTestCase):
         with open(self.temp_path) as f:
             result = json.load(f)
         contacts_from_json = [i for i in result
-                              if i['object'] == 'contact']
+                              if i['object'] == 'source_detail']
         self.assertEqual(len(contacts_from_json), 1)
         self.assertEqual(contacts_from_json[0]['name'], 'Summit')
         accessions_from_json = [i for i in result
@@ -1268,7 +1267,7 @@ class JSONImportTests(BaubleTestCase):
 
         ## offer two objects for import
         importer = JSONImporter(MockView())
-        json_string = '[{"name": "Summit", "object": "contact"}]'
+        json_string = '[{"name": "Summit", "object": "source_detail"}]'
         with open(self.temp_path, "w") as f:
             f.write(json_string)
         importer.filename = self.temp_path
@@ -1278,7 +1277,7 @@ class JSONImportTests(BaubleTestCase):
         self.session.commit()
 
         ## T_1
-        summit = self.session.query(Contact).first()
+        summit = self.session.query(SourceDetail).first()
         self.assertNotEqual(summit, None)
 
 

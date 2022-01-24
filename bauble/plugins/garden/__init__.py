@@ -53,9 +53,9 @@ from .plant import (PlantEditor,
                     plant_delimiter_key,
                     default_plant_delimiter)
 from .source import (Source,
-                     create_contact,
-                     Contact,
-                     ContactInfoBox,
+                     create_source_detail,
+                     SourceDetail,
+                     SourceDetailInfoBox,
                      source_detail_context_menu,
                      Collection,
                      collection_context_menu)
@@ -82,7 +82,7 @@ class GardenPlugin(pluginmgr.Plugin):
                 'Plant': Plant,
                 'PlantNote': PlantNote,
                 'Source': Source,
-                'Contact': Contact,
+                'SourceDetail': SourceDetail,
                 'Collection': Collection}
 
     @classmethod
@@ -116,22 +116,22 @@ class GardenPlugin(pluginmgr.Plugin):
             infobox=PlantInfoBox,
             context_menu=plant_context_menu)
 
-        mapper_search.add_meta(('contact', 'contacts', 'person', 'org',
-                                'source'), Contact, ['name'])
+        mapper_search.add_meta(('source_detail', 'source', 'contact'),
+                               SourceDetail, ['name'])
 
         def sd_kids(detail):
             session = object_session(detail)
             results = (session.query(Accession)
                        .join(Source)
-                       .join(Contact)
+                       .join(SourceDetail)
                        .options(eagerload('species'))
-                       .filter(Contact.id == detail.id)
+                       .filter(SourceDetail.id == detail.id)
                        .all())
             return results
 
-        SearchView.row_meta[Contact].set(
+        SearchView.row_meta[SourceDetail].set(
             children=sd_kids,
-            infobox=ContactInfoBox,
+            infobox=SourceDetailInfoBox,
             context_menu=source_detail_context_menu)
 
         mapper_search.add_meta(('collection', 'col', 'coll'),
@@ -152,7 +152,7 @@ class GardenPlugin(pluginmgr.Plugin):
             bauble.gui.add_to_insert_menu(AccessionEditor, _('Accession'))
             bauble.gui.add_to_insert_menu(PlantEditor, _('Planting'))
             bauble.gui.add_to_insert_menu(LocationEditor, _('Location'))
-            bauble.gui.add_to_insert_menu(create_contact, _('Contact'))
+            bauble.gui.add_to_insert_menu(create_source_detail, _('Source'))
 
         # if the plant delimiter isn't in the bauble meta then add the default
         from bauble import meta

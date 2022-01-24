@@ -27,7 +27,7 @@ from bauble import prefs
 from bauble.test import BaubleTestCase, check_dupids, update_gui
 from bauble.plugins.plants import (Family, Genus, Species, VernacularName,
                                    Geography)
-from bauble.plugins.garden import Accession, Plant, Location, Source, Contact
+from bauble.plugins.garden import Accession, Plant, Location, Source, SourceDetail
 from bauble.plugins.tag import tag_objects, Tag
 from . import (get_species_pertinent_to,
                get_accessions_pertinent_to,
@@ -81,7 +81,7 @@ class ReportTests(BaubleTestCase):
                     for a in range(2):
                         actr += 1
                         acc = Accession(id=actr, species=sp, code='%s' % actr)
-                        contact = Contact(id=actr, name='contact%s' % actr)
+                        contact = SourceDetail(id=actr, name='contact%s' % actr)
                         source = Source(id=actr, source_detail=contact,
                                 accession=acc)
                         self.session.add_all([acc, source, contact])
@@ -155,7 +155,7 @@ class ReportTests(BaubleTestCase):
         ids = get_ids(get_species_pertinent_to([accession], self.session))
         self.assertCountEqual(ids, [1])
 
-        contact = self.session.query(Contact).get(1)
+        contact = self.session.query(SourceDetail).get(1)
         ids = get_ids(get_species_pertinent_to(contact, self.session))
         self.assertCountEqual(ids, [1])
 
@@ -208,7 +208,7 @@ class ReportTests(BaubleTestCase):
         ids = get_ids(get_accessions_pertinent_to([accession], self.session))
         self.assertCountEqual(ids, [1])
 
-        contact = self.session.query(Contact).get(1)
+        contact = self.session.query(SourceDetail).get(1)
         ids = get_ids(get_accessions_pertinent_to(contact, self.session))
         self.assertTrue(ids == [1], ids)
 
@@ -262,7 +262,7 @@ class ReportTests(BaubleTestCase):
         ids = get_ids(get_plants_pertinent_to(accession, self.session))
         self.assertCountEqual(ids, list(range(1, 3)))
 
-        contact = self.session.query(Contact).get(1)
+        contact = self.session.query(SourceDetail).get(1)
         ids = get_ids(get_plants_pertinent_to(contact, self.session))
         self.assertTrue(ids == list(range(1, 3)), ids)
 
@@ -326,7 +326,7 @@ class ReportTests(BaubleTestCase):
         ids = get_ids(get_locations_pertinent_to(accession, self.session))
         self.assertCountEqual(ids, list(range(1, 3)))
 
-        contact = self.session.query(Contact).get(1)
+        contact = self.session.query(SourceDetail).get(1)
         ids = get_ids(get_locations_pertinent_to(contact, self.session))
         self.assertTrue(ids == list(range(1, 3)))
 
@@ -410,7 +410,7 @@ class ReportTests(BaubleTestCase):
         ids = get_ids(get_geographies_pertinent_to(accession, self.session))
         self.assertCountEqual(ids, [330])
 
-        contact = self.session.query(Contact).get(1)
+        contact = self.session.query(SourceDetail).get(1)
         ids = get_ids(get_geographies_pertinent_to(contact, self.session))
         self.assertCountEqual(ids, [694])
 

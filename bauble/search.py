@@ -830,7 +830,7 @@ class SearchParser:
         OneOrMore(value) ^ delimitedList(value)
     ).setParseAction(ValueListAction)('value_list')
 
-    domain = Word(alphas, alphanums)
+    domain = Word(alphas, alphas + '_')
     binop = oneOf('= == != <> < <= > >= not like contains has ilike '
                   'icontains ihas is')
     binop_set = oneOf('in')

@@ -484,6 +484,13 @@ def get_widget_value(widget):
     if isinstance(widget, Gtk.ComboBox):
         if widget.get_has_entry():
             return nstr(widget.get_child().props.text)
+        # handle combobox without entry, assumes first item is value to return.
+        model = widget.get_model()
+        itr = widget.get_active_iter()
+        if model is None or itr is None:
+            return None
+        value = model[itr][0]
+        return value
     if isinstance(widget,
                   (Gtk.ToggleButton, Gtk.CheckButton, Gtk.RadioButton)):
         return widget.get_active()

@@ -44,7 +44,7 @@ from bauble.plugins.plants import (Family,
                                    Species,
                                    VernacularName,
                                    Geography)
-from bauble.plugins.garden import Accession, Plant, Location, Contact
+from bauble.plugins.garden import Accession, Plant, Location, SourceDetail
 from bauble.plugins.tag import Tag
 from .template_downloader import TemplateDownloadTool
 
@@ -117,9 +117,9 @@ def get_plant_query(cls, objs, session) -> list[Plant]:
         return query.join('accession').filter(Accession.id.in_(ids))
     if cls is Location:
         return query.filter(Plant.location_id.in_(ids))
-    if cls is Contact:
+    if cls is SourceDetail:
         return (query.join('accession', 'source', 'source_detail')
-                .filter(Contact.id.in_(ids)))
+                .filter(SourceDetail.id.in_(ids)))
     if cls is Tag:
         plants = get_plants_pertinent_to(
             [i for obj in objs for i in obj.objects], session
@@ -160,9 +160,9 @@ def get_accession_query(cls, objs, session) -> list[Accession]:
         return query.filter(Accession.id.in_(ids))
     if cls is Location:
         return query.join('plants').filter(Plant.location_id.in_(ids))
-    if cls is Contact:
+    if cls is SourceDetail:
         return (query.join('source', 'source_detail')
-                .filter(Contact.id.in_(ids)))
+                .filter(SourceDetail.id.in_(ids)))
     if cls is Tag:
         accessions = get_accessions_pertinent_to(
             [i for obj in objs for i in obj.objects], session
@@ -205,7 +205,7 @@ def get_species_query(cls, objs, session) -> list[Species]:
         return (query.join('accessions', 'plants', 'location')
                 .filter(cls.id.in_(ids))
                 )
-    if cls is Contact:
+    if cls is SourceDetail:
         return (query.join('accessions', 'source', 'source_detail')
                 .filter(cls.id.in_(ids)))
     if cls is Tag:
@@ -254,7 +254,7 @@ def get_location_query(cls, objs, session) -> list[Location]:
         return (query.join('plants', 'accession', 'species', 'distribution',
                            'geography')
                 .filter(cls.id.in_(ids)))
-    if cls is Contact:
+    if cls is SourceDetail:
         return (query.join('plants', 'accession', 'source', 'source_detail')
                 .filter(cls.id.in_(ids)))
     if cls is Tag:
@@ -304,7 +304,7 @@ def get_geography_query(cls, objs, session) -> list[Geography]:
     if cls is VernacularName:
         return (query.join('distribution', 'species', 'vernacular_names')
                 .filter(cls.id.in_(ids)))
-    if cls is Contact:
+    if cls is SourceDetail:
         return (query.join('distribution', 'species', 'accessions', 'source',
                            'source_detail')
                 .filter(cls.id.in_(ids)))

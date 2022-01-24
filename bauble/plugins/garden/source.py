@@ -99,7 +99,7 @@ class Source(db.Base):
     accession_id = Column(Integer, ForeignKey('accession.id'), unique=True)
 
     source_detail_id = Column(Integer, ForeignKey('source_detail.id'))
-    source_detail = relationship('Contact', uselist=False,
+    source_detail = relationship('SourceDetail', uselist=False,
                                  backref=backref('sources',
                                                  cascade='all, delete-orphan'))
 
@@ -786,23 +786,24 @@ class PropagationChooserPresenter(editor.ChildPresenter):
         return self._dirty
 
 
-# Contact / SourceDetails / Donor
+# SourceDetail (ITF2 donor)
 
-def create_contact(parent=None):
-    model = Contact()
+
+def create_source_detail(parent=None):
+    model = SourceDetail()
     source_detail_edit_callback([model], parent)
     return [model]
 
 
 def source_detail_edit_callback(details, parent=None):
     glade_path = os.path.join(paths.lib_dir(), "plugins", "garden",
-                              "contact.glade")
+                              "source_detail_editor.glade")
     view = editor.GenericEditorView(
         glade_path,
         parent=parent,
         root_widget_name='source_details_dialog')
     model = details[0]
-    presenter = ContactPresenter(model, view)
+    presenter = SourceDetailPresenter(model, view)
     result = presenter.start()
     return result is not None
 
@@ -812,7 +813,7 @@ def source_detail_remove_callback(details):
     s_lst = []
     for detail in details:
         s_lst.append(utils.xml_safe(detail))
-    msg = _("Are you sure you want to remove the following contacts: \n"
+    msg = _("Are you sure you want to remove the following sources: \n"
             "%s?") % ', '.join(i for i in s_lst)
     if not utils.yes_no_dialog(msg):
         return False
@@ -860,7 +861,7 @@ source_detail_context_menu = [source_detail_edit_action,
                               source_detail_remove_action]
 
 
-class Contact(db.Base, db.Serializable):
+class SourceDetail(db.Base, db.Serializable):
     __tablename__ = 'source_detail'
 
     # ITF2 - E6 - Donor
@@ -868,8 +869,9 @@ class Contact(db.Base, db.Serializable):
     # extra description, not included in E6
     description = Column(UnicodeText)
     # ITF2 - E5 - Donor Type Flag
-    source_type = Column(types.Enum(values=[i[0] for i in source_type_values],
-                                    translations=dict(source_type_values)),
+    _source_types = dict(source_type_values)
+    source_type = Column(types.Enum(values=list(_source_types.keys()),
+                                    translations=_source_types),
                          default=None)
 
     retrieve_cols = ['id', 'name']
@@ -883,22 +885,22 @@ class Contact(db.Base, db.Serializable):
         return None
 
     def __str__(self):
-        return str(self.name)
+        if self.source_type:
+            return f'{self.name} ({self._source_types.get(self.source_type)})'
+        return f'{self.name}'
 
     def search_view_markup_pair(self):
         """provide the two lines describing object for SearchView row."""
         safe = utils.xml_safe
-        return (
-            safe(self.name),
-            safe(self.source_type or ''))
+        return (safe(self.name),
+                safe(self._source_types.get(self.source_type)))
 
 
-class ContactPresenter(editor.GenericEditorPresenter):
+class SourceDetailPresenter(editor.GenericEditorPresenter):
 
     widget_to_field_map = {'source_name_entry': 'name',
                            'source_type_combo': 'source_type',
-                           'source_desc_textview': 'description',
-                           }
+                           'source_desc_textview': 'description'}
     view_accept_buttons = ['sd_ok_button']
 
     def __init__(self, model, view):
@@ -912,8 +914,8 @@ class ContactPresenter(editor.GenericEditorPresenter):
 
 
 class GeneralSourceDetailExpander(InfoExpander):
-    """Displays name, number of donations, address, email, fax, tel, type of
-    contact
+    """Displays name, number of accessions, address, email, fax, tel, type of
+    source.
     """
     def __init__(self, widgets):
         super().__init__(_('General'), widgets)
@@ -941,7 +943,7 @@ class GeneralSourceDetailExpander(InfoExpander):
         self.widget_set_value('sd_nacc_data', nacc)
 
 
-class ContactInfoBox(InfoBox):
+class SourceDetailInfoBox(InfoBox):
 
     def __init__(self):
         super().__init__()

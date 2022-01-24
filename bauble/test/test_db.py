@@ -20,7 +20,7 @@
 from bauble.test import BaubleTestCase
 from bauble.plugins.plants.genus import Family, Genus, Species
 from bauble.plugins.garden.accession import (AccessionNote, Accession, Plant,
-                                             Contact)
+                                             SourceDetail)
 from bauble.plugins.garden.location import Location
 from bauble.plugins.plants.species_model import VernacularName
 
@@ -45,7 +45,7 @@ class GlobalFunctionsTests(BaubleTestCase):
         )
         self.assertEqual(
             db.get_related_class(Plant, 'accession.source.source_detail'),
-            Contact
+            SourceDetail
         )
         self.assertEqual(
             db.get_related_class(Plant, 'location'),
@@ -58,7 +58,7 @@ class GlobalFunctionsTests(BaubleTestCase):
         self.assertEqual(
             db.get_related_class(Location,
                                  'plants.accession.source.source_detail'),
-            Contact
+            SourceDetail
         )
         self.assertEqual(
             db.get_related_class(Species, 'vernacular_names'),

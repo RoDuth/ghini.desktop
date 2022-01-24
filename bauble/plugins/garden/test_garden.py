@@ -48,9 +48,9 @@ from .accession import (Accession,
                         longitude_to_dms)
 from .source import (Source,
                      Collection,
-                     Contact,
+                     SourceDetail,
                      CollectionPresenter,
-                     ContactPresenter)
+                     SourceDetailPresenter)
 from .plant import (Plant,
                     PlantNote,
                     PlantChange,
@@ -1264,7 +1264,7 @@ class SourceTests(GardenTestCase):
         # create a source object with a collection and propagation (this could
         # be a expedition or a purchase of seed etc.)
         source = Source()
-        source.source_detail = Contact(name='name2')
+        source.source_detail = SourceDetail(name='name2')
         source.sources_code = '1'
         source.collection = Collection(locale='locale')
         source.propagation = Propagation(prop_type='Seed')
@@ -1285,8 +1285,8 @@ class SourceTests(GardenTestCase):
         self.assertFalse(self.session.query(Collection).get(coll_id))
         self.assertFalse(self.session.query(Propagation).get(prop_id))
 
-        # the Contact shouldn't be deleted as it is independent of the source
-        self.assertTrue(self.session.query(Contact).get(source_detail_id))
+        # the SourceDetail shouldn't be deleted as it is independent of the source
+        self.assertTrue(self.session.query(SourceDetail).get(source_detail_id))
 
     def test_plant_propagation_as_source_cascades(self):
         # create a source object
@@ -1657,7 +1657,7 @@ class AccessionTests(GardenTestCase):
         seed.propagation = prop
         plant.propagations.append(prop)
 
-        source_detail = Contact(name='Test Source', source_type='Expedition')
+        source_detail = SourceDetail(name='Test Source', source_type='Expedition')
         source = Source(sources_code='22')
         source.source_detail = source_detail
         acc.source = source
@@ -2598,7 +2598,7 @@ class GlobalFunctionsTests(GardenTestCase):
         self.assertEqual(mergevalues(None, None, '%s|%s'), '')
 
 
-class ContactTests(GardenTestCase):
+class SourceDetailTests(GardenTestCase):
 
     def __init__(self, *args):
         super().__init__(*args)
@@ -2610,7 +2610,7 @@ class ContactTests(GardenTestCase):
         # just works.  As long as the trouble is theoretic we accept it.
 
         acc = self.create(Accession, species=self.species, code='2001.0001')
-        contact = Contact(name='name')
+        contact = SourceDetail(name='name')
         source = Source()
         source.source_detail = contact
         acc.source = source
@@ -2619,7 +2619,7 @@ class ContactTests(GardenTestCase):
 
         # we can delete a contact even if used as source
         session = db.Session()
-        contact = session.query(Contact).filter_by(name='name').one()
+        contact = session.query(SourceDetail).filter_by(name='name').one()
         session.delete(contact)
         session.commit()
 
@@ -2629,18 +2629,22 @@ class ContactTests(GardenTestCase):
         self.assertEqual(acc.source, None)
 
     def test_representation_of_contact(self):
-        contact = Contact(name='name')
+        contact = SourceDetail(name='name')
         self.assertEqual("%s" % contact, 'name')
         self.assertEqual(contact.search_view_markup_pair(), ('name', ''))
+        contact = SourceDetail(name='ANBG', source_type='BG')
+        self.assertEqual("%s" % contact, 'ANBG (Botanic Garden or Arboretum)')
+        self.assertEqual(contact.search_view_markup_pair(),
+                         ('ANBG', 'Botanic Garden or Arboretum'))
 
 
-class ContactPresenterTests(BaubleTestCase):
+class SourceDetailPresenterTests(BaubleTestCase):
 
     def test_create_presenter_automatic_session(self):
         from bauble.editor import MockView
         view = MockView()
-        m = Contact()
-        presenter = ContactPresenter(m, view)
+        m = SourceDetail()
+        presenter = SourceDetailPresenter(m, view)
         self.assertEqual(presenter.view, view)
         self.assertTrue(presenter.session is not None)
         # model might have been re-instantiated to fit presenter.session
@@ -2648,10 +2652,10 @@ class ContactPresenterTests(BaubleTestCase):
     def test_create_presenter(self):
         from bauble.editor import MockView
         view = MockView()
-        m = Contact()
+        m = SourceDetail()
         s = db.Session()
         s.add(m)
-        presenter = ContactPresenter(m, view)
+        presenter = SourceDetailPresenter(m, view)
         self.assertEqual(presenter.view, view)
         self.assertTrue(presenter.session is not None)
         # m belongs to s; presenter.model is the same object
@@ -2660,8 +2664,8 @@ class ContactPresenterTests(BaubleTestCase):
     def test_liststore_is_initialized(self):
         from bauble.editor import MockView
         view = MockView(combos={'source_type_combo': []})
-        m = Contact(name='name', source_type='Expedition', description='desc')
-        presenter = ContactPresenter(m, view)
+        m = SourceDetail(name='name', source_type='Expedition', description='desc')
+        presenter = SourceDetailPresenter(m, view)
         self.assertEqual(presenter.view.widget_get_text('source_name_entry'), 'name')
         self.assertEqual(presenter.view.widget_get_text('source_type_combo'), 'Expedition')
         self.assertEqual(presenter.view.widget_get_text('source_desc_textview'), 'desc')
@@ -2880,47 +2884,47 @@ class RetrieveTests(GardenTestCase):
         self.assertIsNone(plt)
 
     def test_contact_retreives(self):
-        contact1 = Contact(name='name1', id=1)
-        contact2 = Contact(name='name2', id=2)
+        contact1 = SourceDetail(name='name1', id=1)
+        contact2 = SourceDetail(name='name2', id=2)
         self.session.add_all([contact1, contact2])
         self.session.commit()
         keys = {
             'name': 'name1',
         }
-        contact = Contact.retrieve(self.session, keys)
+        contact = SourceDetail.retrieve(self.session, keys)
         self.assertEqual(contact.id, 1)
 
     def test_contact_retreives_id_only(self):
-        contact1 = Contact(name='name1', id=1)
-        contact2 = Contact(name='name2', id=2)
+        contact1 = SourceDetail(name='name1', id=1)
+        contact2 = SourceDetail(name='name2', id=2)
         self.session.add_all([contact1, contact2])
         self.session.commit()
         keys = {
             'id': 2
         }
-        contact = Contact.retrieve(self.session, keys)
+        contact = SourceDetail.retrieve(self.session, keys)
         self.assertEqual(contact.name, 'name2')
 
     def test_contact_doesnt_retreive_non_existent(self):
-        contact1 = Contact(name='name1', id=1)
-        contact2 = Contact(name='name2', id=2)
+        contact1 = SourceDetail(name='name1', id=1)
+        contact2 = SourceDetail(name='name2', id=2)
         self.session.add_all([contact1, contact2])
         self.session.commit()
         keys = {
             'name': 'Nonexistent'
         }
-        contact = Contact.retrieve(self.session, keys)
+        contact = SourceDetail.retrieve(self.session, keys)
         self.assertIsNone(contact)
 
     def test_contact_doesnt_retreive_wrong_keys(self):
-        contact1 = Contact(name='name1', id=1)
-        contact2 = Contact(name='name2', id=2)
+        contact1 = SourceDetail(name='name1', id=1)
+        contact2 = SourceDetail(name='name2', id=2)
         self.session.add_all([contact1, contact2])
         self.session.commit()
         keys = {
             'accession.code': '2001.1',
         }
-        contact = Contact.retrieve(self.session, keys)
+        contact = SourceDetail.retrieve(self.session, keys)
         self.assertIsNone(contact)
 
     def test_collection_retreives_collection_data(self):
