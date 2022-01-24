@@ -198,6 +198,7 @@ class Genus(db.Base, db.Serializable, db.WithNotes):
                            backref=backref('genus',
                                            lazy='subquery',
                                            uselist=False))
+    family = relationship('Family', back_populates='genera')
     retrieve_cols = ['id',
                      'epithet',
                      'genus',
@@ -429,9 +430,9 @@ class GenusSynonym(db.Base):
 
 
 # late bindings
-from bauble.plugins.plants.family import Family, FamilySynonym
-from bauble.plugins.plants.species_model import Species
-from bauble.plugins.plants.species_editor import edit_species
+from .family import Family, FamilySynonym
+from .species_model import Species
+from .species_editor import edit_species
 
 
 class GenusEditorView(editor.GenericEditorView):

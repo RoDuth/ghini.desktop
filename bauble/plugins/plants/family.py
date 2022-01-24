@@ -172,6 +172,10 @@ class Family(db.Base, db.Serializable, db.WithNotes):
                          cascade='all, delete-orphan', uselist=True)
 
     retrieve_cols = ['id', 'epithet', 'family']
+    genera = relationship('Genus',
+                          order_by='Genus.genus',
+                          back_populates='family',
+                          cascade='all, delete-orphan')
 
     @classmethod
     def retrieve(cls, session, keys):
@@ -278,7 +282,7 @@ class Family(db.Base, db.Serializable, db.WithNotes):
                                      if a.source and a.source.source_detail])}
 
 
-## defining the latin alias to the class.
+# defining the latin alias to the class.
 Familia = Family
 
 
@@ -290,6 +294,7 @@ def compute_serializable_fields(cls, session, keys):
         session, family_keys, create=False)
 
     return result
+
 
 FamilyNote = db.make_note_class('Family', compute_serializable_fields)
 
@@ -329,16 +334,7 @@ class FamilySynonym(db.Base):
         return Family.str(self.synonym)
 
 
-#
-# late bindings
-#
 from bauble.plugins.plants.genus import Genus, GenusEditor
-
-# only now that we have `Genus` can we define the sorted `genera` in the
-# `Family` class.
-Family.genera = relationship('Genus',
-                             order_by=[Genus.genus],
-                             backref='family', cascade='all, delete-orphan')
 
 
 class FamilyEditorView(editor.GenericEditorView):
