@@ -1,6 +1,6 @@
 # Copyright 2008-2010 Brett Adams
 # Copyright 2015 Mario Frasca <mario@anche.no>.
-# Copyright 2021 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright 2021-2022 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -585,8 +585,12 @@ class SearchView(pluginmgr.View):
     class ViewMeta(UserDict):
         """
         This class shouldn't need to be instantiated directly.  Access
-        the meta for the SearchView with the
-        :class:`bauble.view.SearchView`'s row_meta property.
+        the meta for the SearchView with the :class:`bauble.view.SearchView`'s
+        `row_meta` or `bottom_info` attributes.
+
+        ...note: can access the actual dictionary used to store the contents
+        directly via the UserDict `data` attribute. e.g. to use setdefault in
+        such a way that doesn't call __getitem__
         """
         class Meta:
             def __init__(self):
@@ -710,8 +714,7 @@ class SearchView(pluginmgr.View):
             # construct the query
             query = f"{domain} where notes[category={cat}].note={note}"
             # fire it
-            bauble.gui.widgets.main_comboentry.get_child().set_text(query)
-            bauble.gui.widgets.go_button.emit("clicked")
+            bauble.gui.send_command(query)
         except Exception as e:
             logger.debug('on_note_row_actived %s, %s', type(e), e)
 
@@ -728,6 +731,9 @@ class SearchView(pluginmgr.View):
         self.widgets.bottom_notebook.append_page(page, label)
         # 5: store the values for later use
         bottom_info['tree'] = page.get_children()[0]
+        if row_activated := bottom_info.get('row_activated'):
+            bottom_info['tree'].connect("row-activated",
+                                        row_activated)
         bottom_info['label'] = label
 
     def update_bottom_notebook(self):
@@ -752,7 +758,7 @@ class SearchView(pluginmgr.View):
         row = values[0]  # the selected row
 
         # loop over bottom_info plugin classes (eg: Tag)
-        for klass, bottom_info in list(self.bottom_info.items()):
+        for klass, bottom_info in self.bottom_info.items():
             if 'label' not in bottom_info:  # late initialization
                 self.add_page_to_bottom_notebook(bottom_info)
             label = bottom_info['label']

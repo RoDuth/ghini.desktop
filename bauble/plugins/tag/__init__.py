@@ -1,6 +1,6 @@
 # Copyright (c) 2005,2006,2007,2008,2009 Brett Adams <brett@belizebotanic.org>
 # Copyright (c) 2012-2017 Mario Frasca <mario@anche.no>
-# Copyright (c) 2021 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright (c) 2021-2022 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -838,13 +838,19 @@ class TagPlugin(pluginmgr.Plugin):
             'glade_name': os.path.join(paths.lib_dir(),
                                        'plugins/tag/tag.glade'),
             'name': _('Tags'),
+            'row_activated': cls.on_tag_bottom_info_activated,
         }
         # Only want to add this once (incase of opening another connection).
-        # If no 'label' key in the dict add_page_to_bottom_notebook will be
-        # called again.
+        # If no 'label' key in the Meta object add_page_to_bottom_notebook will
+        # be called again adding another page.
         SearchView.bottom_info.data.setdefault(Tag, tag_meta)
         if bauble.gui is not None:
             tags_menu_manager.reset()
+
+    @staticmethod
+    def on_tag_bottom_info_activated(tree, path, _column):
+        tag = repr(tree.get_model()[path][0])
+        bauble.gui.send_command(f"tag={tag}")
 
 
 plugin = TagPlugin
