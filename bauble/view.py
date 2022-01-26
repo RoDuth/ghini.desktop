@@ -61,6 +61,9 @@ if sys.platform == 'win32':
 else:
     _substr_tmpl = '<small>%s</small>'
 
+INFOBOXPAGE_WIDTH_PREF = 'bauble.infoboxpage_width'
+"""The preferences key for storing the InfoBoxPage width."""
+
 
 class Action(Gtk.Action):
 
@@ -224,7 +227,7 @@ class InfoBoxPage(Gtk.ScrolledWindow):
 
     def __init__(self):
         super().__init__()
-        self.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+        self.set_policy(Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.AUTOMATIC)
         self.vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         self.vbox.set_spacing(10)
         viewport = Gtk.Viewport()
@@ -232,6 +235,10 @@ class InfoBoxPage(Gtk.ScrolledWindow):
         self.add(viewport)
         self.expanders = {}
         self.label = None
+        self.connect('size-allocate', self.on_resize)
+
+    def on_resize(self, window, allocation):
+        prefs.prefs[INFOBOXPAGE_WIDTH_PREF] = allocation.width
 
     def add_expander(self, expander):
         """
@@ -767,52 +774,15 @@ class SearchView(pluginmgr.View):
                                   for k in bottom_info['fields_used']])
 
     def update_infobox(self):
-        """
-        Sets the infobox according to the currently selected row.
+        """Sets the infobox according to the currently selected row.
+
         no infobox is shown if nothing is selected
         """
-
-        def set_infobox_from_row(row):
-            """implement the logic for update_infobox"""
-
-            logger.debug('set_infobox_from_row: %s --  %s', row, repr(row))
-            # remove the current infobox if there is one and it is not needed
-            if row is None:
-                if (self.infobox is not None and
-                        self.infobox.get_parent() == self.pane):
-                    self.pane.remove(self.infobox)
-                return
-
-            selected_type = type(row)
-            # if we have already created an infobox of this type:
-            new_infobox = self.infobox_cache.get(selected_type)
-
-            # otherwise create one and put in the infobox_cache
-            if not new_infobox:
-                logger.debug('not found infobox, we make a new one')
-                new_infobox = self.row_meta[selected_type].infobox()
-                self.infobox_cache[selected_type] = new_infobox
-            logger.debug('created or retrieved infobox %s %s',
-                         type(new_infobox), new_infobox)
-
-            # remove any old infoboxes connected to the pane
-            if (self.infobox is not None and type(self.infobox) is not
-                    type(new_infobox)):
-                if self.infobox.get_parent() == self.pane:
-                    self.pane.remove(self.infobox)
-
-            # update the infobox and put it in the pane
-            self.infobox = new_infobox
-            if self.infobox is not None:
-                self.infobox.update(row)
-                self.pane.pack2(self.infobox, resize=False, shrink=True)
-                self.pane.show_all()
-
         # start of update_infobox
         logger.debug('update_infobox')
         values = self.get_selected_values()
         if not values or not values[0]:
-            set_infobox_from_row(None)
+            self.set_infobox_from_row(None)
             return
 
         if object_session(values[0]) is None:
@@ -821,13 +791,57 @@ class SearchView(pluginmgr.View):
 
         try:
             # send an object (e.g. a Plant instance)
-            set_infobox_from_row(values[0])
+            self.set_infobox_from_row(values[0])
         except Exception as e:
             # if an error occurrs, log it and empty infobox.
             logger.debug('SearchView.update_infobox: %s', e)
             logger.debug(traceback.format_exc())
             logger.debug(values)
-            set_infobox_from_row(None)
+            self.set_infobox_from_row(None)
+
+    def set_infobox_from_row(self, row):
+        """implement the logic for update_infobox"""
+
+        logger.debug('set_infobox_from_row: %s --  %s', row, repr(row))
+        # remove the current infobox if there is one and it is not needed
+        if row is None:
+            if (self.infobox is not None and
+                    self.infobox.get_parent() == self.pane):
+                self.pane.remove(self.infobox)
+            return
+
+        # set width from pref once per session.
+        if self.infobox is None:
+            rect = bauble.gui.window.get_size()
+            info_width = prefs.prefs.get(INFOBOXPAGE_WIDTH_PREF, 300)
+            pane_pos = rect.width - info_width - 1
+            logger.debug('setting pane position to %s', pane_pos)
+            self.pane.set_position(pane_pos)
+
+        selected_type = type(row)
+        # if we have already created an infobox of this type:
+        new_infobox = self.infobox_cache.get(selected_type)
+
+        # otherwise create one and put in the infobox_cache
+        if not new_infobox:
+            logger.debug('not found infobox, make a new one')
+            new_infobox = self.row_meta[selected_type].infobox()
+            self.infobox_cache[selected_type] = new_infobox
+        logger.debug('created or retrieved infobox %s %s',
+                     type(new_infobox), new_infobox)
+
+        # remove any old infoboxes connected to the pane
+        if (self.infobox is not None and type(self.infobox) is not
+                type(new_infobox)):
+            if self.infobox.get_parent() == self.pane:
+                self.pane.remove(self.infobox)
+
+        # update the infobox and put it in the pane
+        self.infobox = new_infobox
+        if self.infobox is not None:
+            self.infobox.update(row)
+            self.pane.pack2(self.infobox, resize=False, shrink=True)
+            self.pane.show_all()
 
     def get_selected_values(self):
         """Return the values in all the selected rows."""
