@@ -299,7 +299,8 @@ def open(uri, verify=True, show_error_dialogs=False):
     if new_engine is not None and not verify:
         _bind()
         return engine
-    elif new_engine is None:
+
+    if new_engine is None:
         return None
 
     verify_connection(new_engine, show_error_dialogs)

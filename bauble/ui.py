@@ -283,7 +283,9 @@ class GUI():
     def history_pins_size(self):
         pins = prefs.prefs[self.history_pins_size_pref]
         if pins is None:
-            prefs.prefs[self.history_pins_size_pref] = self._default_history_pin_size
+            prefs.prefs[
+                self.history_pins_size_pref
+            ] = self._default_history_pin_size
         return int(prefs.prefs[self.history_pins_size_pref])
 
     def send_command(self, command):
@@ -792,32 +794,31 @@ class GUI():
         try:
             engine = db.open(uri, True, True)
         except Exception as e:  # pylint: disable=broad-except
-            # we don't do anything to handle the exception since db.open()
-            # should have shown an error dialog if there was a problem
-            # opening the database as long as the show_error_dialogs
-            # parameter is True
+            msg = (_("Could not open connection.\n\n%s") % e)
+            utils.message_details_dialog(msg, traceback.format_exc(),
+                                         Gtk.MessageType.ERROR)
             logger.warning(e)
+            self.on_file_menu_open(None)
 
         if engine is None:
-            # the database wasn't open
+            # the database wasn't opened
             return
 
         # everything seems to have passed ok so setup the rest of bauble
-        if engine is not None:
-            bauble.conn_name = name
-            self.window.set_title(self.title)
-            # TODO: come up with a better way to reset the handler than have
-            # to bauble.last_handler = None
-            #
-            # we have to set last_handler to None since although the
-            # view is changing the handler isn't so we might end up
-            # using the same instance of a view that could have old
-            # settings from the previous handler...
-            bauble.last_handler = None
-            self.clear_menu('/ui/MenuBar/insert_menu')
-            self.statusbar_clear()
-            pluginmgr.init()
-            bauble.command_handler('home', None)
+        bauble.conn_name = name
+        self.window.set_title(self.title)
+        # TODO: come up with a better way to reset the handler than have
+        # to bauble.last_handler = None
+        #
+        # we have to set last_handler to None since although the
+        # view is changing the handler isn't so we might end up
+        # using the same instance of a view that could have old
+        # settings from the previous handler...
+        bauble.last_handler = None
+        self.clear_menu('/ui/MenuBar/insert_menu')
+        self.statusbar_clear()
+        pluginmgr.init()
+        bauble.command_handler('home', None)
 
     def statusbar_clear(self):
         """Call Gtk.Statusbar.pop() for each context_id that had previously
