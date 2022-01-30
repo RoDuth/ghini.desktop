@@ -709,7 +709,8 @@ class InfraspPresenter(editor.GenericEditorPresenter):
 
             # remove button
             self.remove_button = Gtk.Button.new_from_icon_name(
-                'list-remove', Gtk.IconSize.BUTTON)
+                'list-remove-symbolic', Gtk.IconSize.BUTTON
+            )
             presenter.view.connect(self.remove_button, 'clicked',
                                    self.on_remove_button_clicked)
             grid.attach(self.remove_button, 3, level, 1, 1)

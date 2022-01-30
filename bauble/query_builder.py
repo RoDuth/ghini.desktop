@@ -261,7 +261,8 @@ class ExpressionRow:
 
         if row_number != 1:
             self.remove_button = Gtk.Button.new_from_icon_name(
-                'list-remove', Gtk.IconSize.BUTTON)
+                'list-remove-symbolic', Gtk.IconSize.BUTTON
+            )
             self.remove_button.connect('clicked',
                                        lambda b: remove_callback(self))
             self.grid.attach(self.remove_button, 4, row_number, 1, 1)

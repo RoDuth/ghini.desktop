@@ -298,7 +298,7 @@ class GUI():
         text = entry.get_text()
         if text in history_pins:
             entry.set_icon_from_icon_name(Gtk.EntryIconPosition.SECONDARY,
-                                          'emblem-favorite')
+                                          'starred-symbolic')
             tooltip = _('Query string is a favourite: click to return it the '
                         'standard search history.')
             entry.set_icon_tooltip_text(
@@ -309,7 +309,7 @@ class GUI():
                                           None)
         else:
             entry.set_icon_from_icon_name(Gtk.EntryIconPosition.SECONDARY,
-                                          'mail-attachment')
+                                          'non-starred-symbolic')
             tooltip = _('Clip this query string to the top of your search '
                         'history as a favourite')
             entry.set_icon_tooltip_text(

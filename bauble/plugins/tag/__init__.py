@@ -81,7 +81,7 @@ class TagsMenuManager:
             item.set_image(None)
         widget = self.item_list.get(self.active_tag_name)
         if widget:
-            image = Gtk.Image.new_from_icon_name('emblem-default',
+            image = Gtk.Image.new_from_icon_name('emblem-ok-symbolic',
                                                  Gtk.IconSize.MENU)
             widget.set_image(image)
             self.apply_active_tag_menu_item.set_sensitive(True)

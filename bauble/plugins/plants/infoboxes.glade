@@ -1795,7 +1795,7 @@
                   <object class="GtkImage" id="image1">
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
-                    <property name="icon-name">accessories-text-editor</property>
+                    <property name="icon-name">document-properties-symbolic</property>
                   </object>
                 </child>
               </object>

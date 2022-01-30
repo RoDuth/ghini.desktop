@@ -481,7 +481,7 @@ class PropagationTabPresenter(editor.GenericEditorPresenter):
             self._dirty = True
             self.parent_ref().refresh_sensitivity()
 
-        remove_button = Gtk.Button.new_from_icon_name('list-remove',
+        remove_button = Gtk.Button.new_from_icon_name('list-remove-symbolic',
                                                       Gtk.IconSize.BUTTON)
         self.view.connect(remove_button, 'clicked', on_remove_clicked,
                           propagation, hbox)

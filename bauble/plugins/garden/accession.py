@@ -2589,9 +2589,9 @@ class GeneralAccessionExpander(InfoExpander):
         self.widget_set_value('prov_data', prov_str, False)
 
         image_size = Gtk.IconSize.MENU
-        icon = 'media-playback-stop'
+        icon = None
         if row.private:
-            icon = 'media-record'
+            icon = 'dialog-password-symbolic'
         self.widgets.private_image.set_from_icon_name(icon, image_size)
 
         loc_map = (('intended_loc_data', 'intended_location'),

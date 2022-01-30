@@ -1790,9 +1790,9 @@ class GeneralPlantExpander(InfoExpander):
                               False)
 
         image_size = Gtk.IconSize.MENU
-        icon = 'media-playback-stop'
+        icon = None
         if row.memorial:
-            icon = 'media-record'
+            icon = 'emblem-ok-symbolic'
         self.widgets.memorial_image.set_from_icon_name(icon, image_size)
 
         on_clicked = utils.generate_on_clicked(select_in_search_results)

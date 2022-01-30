@@ -220,7 +220,7 @@
                       <object class="GtkImage" id="image2">
                         <property name="visible">True</property>
                         <property name="can-focus">False</property>
-                        <property name="icon-name">go-next</property>
+                        <property name="icon-name">go-next-symbolic</property>
                       </object>
                       <packing>
                         <property name="expand">False</property>
@@ -374,7 +374,7 @@
                                           <object class="GtkImage" id="image14">
                                             <property name="visible">True</property>
                                             <property name="can-focus">False</property>
-                                            <property name="icon-name">list-add</property>
+                                            <property name="icon-name">list-add-symbolic</property>
                                           </object>
                                           <packing>
                                             <property name="expand">False</property>
@@ -689,7 +689,7 @@
                                           <object class="GtkImage" id="image15">
                                             <property name="visible">True</property>
                                             <property name="can-focus">False</property>
-                                            <property name="icon-name">document-properties</property>
+                                            <property name="icon-name">document-properties-symbolic</property>
                                           </object>
                                         </child>
                                       </object>
@@ -889,7 +889,7 @@
                                       <object class="GtkImage" id="image13">
                                         <property name="visible">True</property>
                                         <property name="can-focus">False</property>
-                                        <property name="icon-name">list-add</property>
+                                        <property name="icon-name">list-add-symbolic</property>
                                       </object>
                                       <packing>
                                         <property name="expand">False</property>
@@ -976,7 +976,7 @@
                                       <object class="GtkImage" id="image12">
                                         <property name="visible">True</property>
                                         <property name="can-focus">False</property>
-                                        <property name="icon-name">list-add</property>
+                                        <property name="icon-name">list-add-symbolic</property>
                                       </object>
                                       <packing>
                                         <property name="expand">False</property>
@@ -1351,7 +1351,7 @@
                                                   <object class="GtkImage" id="image7">
                                                     <property name="visible">True</property>
                                                     <property name="can-focus">False</property>
-                                                    <property name="icon-name">list-add</property>
+                                                    <property name="icon-name">list-add-symbolic</property>
                                                   </object>
                                                 </child>
                                               </object>
@@ -1370,7 +1370,7 @@
                                                   <object class="GtkImage" id="image8">
                                                     <property name="visible">True</property>
                                                     <property name="can-focus">False</property>
-                                                    <property name="icon-name">list-remove</property>
+                                                    <property name="icon-name">list-remove-symbolic</property>
                                                   </object>
                                                 </child>
                                               </object>
@@ -2134,7 +2134,7 @@
                                                   <object class="GtkImage" id="image9">
                                                     <property name="visible">True</property>
                                                     <property name="can-focus">False</property>
-                                                    <property name="icon-name">list-add</property>
+                                                    <property name="icon-name">list-add-symbolic</property>
                                                   </object>
                                                 </child>
                                               </object>
@@ -2153,7 +2153,7 @@
                                                   <object class="GtkImage" id="image10">
                                                     <property name="visible">True</property>
                                                     <property name="can-focus">False</property>
-                                                    <property name="icon-name">list-remove</property>
+                                                    <property name="icon-name">list-remove-symbolic</property>
                                                   </object>
                                                 </child>
                                               </object>
@@ -2546,7 +2546,7 @@
                                   <object class="GtkImage" id="image1">
                                     <property name="visible">True</property>
                                     <property name="can-focus">False</property>
-                                    <property name="icon-name">list-add</property>
+                                    <property name="icon-name">list-add-symbolic</property>
                                   </object>
                                 </child>
                               </object>
@@ -2565,7 +2565,7 @@
                                   <object class="GtkImage" id="image3">
                                     <property name="visible">True</property>
                                     <property name="can-focus">False</property>
-                                    <property name="icon-name">list-remove</property>
+                                    <property name="icon-name">list-remove-symbolic</property>
                                   </object>
                                 </child>
                               </object>
@@ -2665,7 +2665,7 @@
                                   <object class="GtkImage" id="image4">
                                     <property name="visible">True</property>
                                     <property name="can-focus">False</property>
-                                    <property name="icon-name">list-add</property>
+                                    <property name="icon-name">list-add-symbolic</property>
                                   </object>
                                 </child>
                               </object>
@@ -2684,7 +2684,7 @@
                                   <object class="GtkImage" id="image5">
                                     <property name="visible">True</property>
                                     <property name="can-focus">False</property>
-                                    <property name="icon-name">list-remove</property>
+                                    <property name="icon-name">list-remove-symbolic</property>
                                   </object>
                                 </child>
                               </object>
@@ -2958,7 +2958,7 @@
                                   <object class="GtkImage" id="image11">
                                     <property name="visible">True</property>
                                     <property name="can-focus">False</property>
-                                    <property name="icon-name">list-add</property>
+                                    <property name="icon-name">list-add-symbolic</property>
                                   </object>
                                   <packing>
                                     <property name="expand">False</property>
@@ -3198,7 +3198,7 @@
                         <property name="can-focus">False</property>
                         <property name="halign">center</property>
                         <property name="valign">center</property>
-                        <property name="icon-name">list-remove</property>
+                        <property name="icon-name">list-remove-symbolic</property>
                       </object>
                     </child>
                   </object>
@@ -3219,7 +3219,7 @@
                       <object class="GtkImage" id="image16">
                         <property name="visible">True</property>
                         <property name="can-focus">False</property>
-                        <property name="icon-name">go-jump</property>
+                        <property name="icon-name">go-jump-symbolic</property>
                       </object>
                     </child>
                   </object>

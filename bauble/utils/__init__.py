@@ -884,9 +884,8 @@ def setup_date_button(view, entry, button):
         entry = view.widgets[entry]
     if isinstance(button, str):
         button = view.widgets[button]
-    icon = os.path.join(paths.lib_dir(), 'images', 'calendar.png')
-    image = Gtk.Image()
-    image.set_from_file(icon)
+    image = Gtk.Image.new_from_icon_name('x-office-calendar-symbolic',
+                                         Gtk.IconSize.BUTTON)
     button.set_tooltip_text(_("Today's date"))
     button.set_image(image)
 
@@ -1472,7 +1471,7 @@ class MessageBox(GenericMessageBox):
 
         button_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         self.box.pack_start(button_box, False, False, 0)
-        button = Gtk.Button.new_from_icon_name('window-close',
+        button = Gtk.Button.new_from_icon_name('window-close-symbolic',
                                                Gtk.IconSize.BUTTON)
         button.set_relief(Gtk.ReliefStyle.NONE)
         button_box.pack_start(button, False, False, 0)

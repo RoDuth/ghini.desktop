@@ -138,11 +138,12 @@
                     <property name="can-focus">False</property>
                     <property name="receives-default">True</property>
                     <property name="tooltip-text" translatable="yes">back to startup screen</property>
+                    <property name="relief">none</property>
                     <child>
                       <object class="GtkImage" id="image3">
                         <property name="visible">True</property>
                         <property name="can-focus">False</property>
-                        <property name="icon-name">go-home</property>
+                        <property name="icon-name">go-home-symbolic</property>
                       </object>
                     </child>
                   </object>
@@ -158,11 +159,12 @@
                     <property name="can-focus">False</property>
                     <property name="receives-default">True</property>
                     <property name="tooltip-text" translatable="yes">previous view</property>
+                    <property name="relief">none</property>
                     <child>
                       <object class="GtkImage" id="image4">
                         <property name="visible">True</property>
                         <property name="can-focus">False</property>
-                        <property name="icon-name">go-previous</property>
+                        <property name="icon-name">go-previous-symbolic</property>
                       </object>
                     </child>
                   </object>
@@ -178,11 +180,12 @@
                     <property name="can-focus">False</property>
                     <property name="receives-default">True</property>
                     <property name="tooltip-text" translatable="yes">activate query builder</property>
+                    <property name="relief">none</property>
                     <child>
                       <object class="GtkImage" id="image2">
                         <property name="visible">True</property>
                         <property name="can-focus">True</property>
-                        <property name="icon-name">applications-system</property>
+                        <property name="icon-name">edit-find-replace-symbolic</property>
                       </object>
                     </child>
                   </object>
@@ -207,7 +210,7 @@
                       <object class="GtkEntry" id="main_comboentry_entry">
                         <property name="can-focus">True</property>
                         <property name="tooltip-text" translatable="yes">enter query or command</property>
-                        <property name="primary-icon-name">edit-find</property>
+                        <property name="primary-icon-name">edit-find-symbolic</property>
                         <property name="primary-icon-activatable">False</property>
                         <property name="primary-icon-sensitive">False</property>
                       </object>
@@ -225,11 +228,12 @@
                     <property name="can-focus">False</property>
                     <property name="receives-default">True</property>
                     <property name="tooltip-text" translatable="yes">execute the query</property>
+                    <property name="relief">none</property>
                     <child>
                       <object class="GtkImage" id="image1">
                         <property name="visible">True</property>
                         <property name="can-focus">True</property>
-                        <property name="icon-name">edit-find</property>
+                        <property name="icon-name">edit-find-symbolic</property>
                       </object>
                     </child>
                   </object>
