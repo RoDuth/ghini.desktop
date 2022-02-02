@@ -139,6 +139,9 @@ class GUI():
         self.window = self.widgets.main_window
         self.window.hide()
         self.previous_view = None
+        # default location of LICENSE for about window, if not available will
+        # be changed when about is first opened
+        self.lic_path = Path(paths.main_dir(), 'share', 'ghini', 'LICENSE')
 
         # restore the window size
         geometry = prefs.prefs.get(self.window_geometry_pref)
@@ -864,9 +867,8 @@ class GUI():
         desktop.open('https://groups.google.com/forum/#!forum/bauble',
                      dialog_on_error=True)
 
-    @staticmethod
-    def on_help_menu_about(_widget):
-        about = Gtk.AboutDialog()
+    def on_help_menu_about(self, _widget):
+        about = Gtk.AboutDialog(transient_for=self.window)
         about.set_program_name('Ghini (BBG)')
         about.set_version(bauble.version)
         about.set_website(_('http://ghini.github.io'))
@@ -876,10 +878,9 @@ class GUI():
         about.set_logo(pixbuf)
         about.set_copyright(_('Copyright © by its contributors.'))
 
-        lic_path = Path(paths.main_dir(), 'share', 'ghini', 'LICENSE')
-
-        if not lic_path.exists():
-            lic_path = Path(paths.main_dir(), 'LICENSE')
+        if not self.lic_path.exists():
+            # most likely only when run from source
+            lic_path = list(paths.root_dir().glob('**/LICENSE'))[0]
 
         logger.debug('about using license at %s', lic_path)
 
