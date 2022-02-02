@@ -69,7 +69,7 @@ def get_default(name, default=None, session=None):
     return meta
 
 
-def confirm_default(name, default, msg):
+def confirm_default(name, default, msg, parent=None):
     """
     Allow the user to confirm the value of a BaubleMeta object the first time
     it is needed.
@@ -77,7 +77,12 @@ def confirm_default(name, default, msg):
     current_default = get_default(name)
     if not current_default:
         from gi.repository import Gtk  # noqa
-        dialog = utils.create_message_dialog(msg=msg)
+        import bauble
+        if bauble.gui:
+            parent = bauble.gui.window
+        dialog = utils.create_message_dialog(msg=msg,
+                                             parent=parent,
+                                             resizable=False)
         box = dialog.get_message_area()
         frame = Gtk.Frame(shadow_type=Gtk.ShadowType.NONE)
         label = Gtk.Label(justify=Gtk.Justification.LEFT)

@@ -626,7 +626,7 @@ class QueryBuilder(GenericEditorPresenter):
                 "flexible and can be either iternational format (i.e. "
                 "year-month-day) or in the format as specified in your "
                 "preferences <tt>default_date_format</tt> setting (e.g. "
-                "day-month-year or month-day-year).  (date separaters can "
+                "day-month-year or month-day-year).  (date separaters can be "
                 "any of <tt>/ - .</tt>) <b>on</b> is a special condition for "
                 "dates only\n"
                 "        <tt>plant where planted.date on 11/05/2021</tt>\n"
@@ -637,15 +637,10 @@ class QueryBuilder(GenericEditorPresenter):
                 "        <tt>plant where planted.date > -10</tt>\n"
                 "Return plants that where planted in the last 10 days.\n"
                 )
-        dialog = Gtk.MessageDialog(modal=False,
-                                   destroy_with_parent=True,
-                                   transient_for=self.view.get_window(),
-                                   message_type=Gtk.MessageType.INFO)
-        dialog.set_markup(msg)
+        dialog = utils.create_message_dialog(msg,
+                                             parent=self.view.get_window(),
+                                             resizable=False)
         dialog.set_title(_('Basic Intro to Queries'))
-        dialog.add_button('OK', Gtk.ResponseType.OK)
-        dialog.set_position(Gtk.WindowPosition.CENTER)
-        dialog.show_all()
         dialog.run()
         dialog.destroy()
 
