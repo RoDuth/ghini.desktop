@@ -327,7 +327,7 @@ class CollectionPresenter(editor.ChildPresenter):
                                    editor.UnicodeOrNoneValidator())
         # the list of completions are added in AccessionEditorView.__init__
 
-        def on_match(completion, model, itr, _data):
+        def on_match(completion, model, itr):
             value = model[itr][0]
             validator = editor.UnicodeOrNoneValidator()
             self.set_model_attr('gps_data', value, validator)
@@ -472,8 +472,8 @@ class CollectionPresenter(editor.ChildPresenter):
 
         try:
             # make sure that the first part of the string is an
-            # integer before toggling
-            int(lat_text.split(' ')[0])
+            # number before toggling
+            float(lat_text.split(' ')[0])
         except Exception as e:
             logger.debug("%s(%s)", type(e).__name__, e)
             return
@@ -903,10 +903,35 @@ class SourceDetailPresenter(editor.GenericEditorPresenter):
                            'source_desc_textview': 'description'}
     view_accept_buttons = ['sd_ok_button']
 
-    def __init__(self, model, view):
-        view.init_translatable_combo('source_type_combo', source_type_values)
-        super().__init__(model, view, refresh_view=True, do_commit=True)
-        self.create_toolbar()
+    def __init__(self, model, view, do_commit=True, source_types=None,
+                 **kwargs):
+
+        _source_type_vals = source_type_values
+        default_source_type = None
+        if source_types:
+            _source_type_vals = [
+                (k, v) for k, v in source_type_values if k in source_types
+            ]
+            if len(source_types) == 1:
+                default_source_type = source_types[0]
+
+        source_type_combo = view.widgets.source_type_combo
+        # init combo before super().__init__
+        view.init_translatable_combo(source_type_combo,
+                                     _source_type_vals)
+
+        super().__init__(model,
+                         view,
+                         refresh_view=True,
+                         do_commit=do_commit,
+                         **kwargs)
+
+        # set combo default after super().__init__
+        if default_source_type:
+            treeiter = utils.combo_get_value_iter(source_type_combo,
+                                                  default_source_type)
+            source_type_combo.set_active_iter(treeiter)
+
         view.set_accept_buttons_sensitive(False)
 
     def on_textbuffer_changed_description(self, widget, value=None, attr=None):

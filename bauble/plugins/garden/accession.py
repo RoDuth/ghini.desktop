@@ -1624,7 +1624,7 @@ class SourcePresenter(editor.GenericEditorPresenter):
         self._dirty = True
         self.refresh_sensitivity()
 
-    def on_new_source_button_clicked(self, *args):
+    def on_new_source_button_clicked(self, _button):
         """Opens a new SourceDetailEditor when clicked and repopulates the
         source combo if a new SourceDetail is created.
         """
@@ -1633,75 +1633,97 @@ class SourcePresenter(editor.GenericEditorPresenter):
                 "plugins/garden/source_detail_editor.glade"),
             parent=self.view.get_window(),
             root_widget_name='source_details_dialog')
-        source = SourceDetail()
-        presenter = SourceDetailPresenter(source, view)
-        if presenter.start() == Gtk.ResponseType.OK:
-            source = presenter.model
-            self.session.add(source)
-            self.populate_source_combo(source)
 
-    def populate_source_combo(self, active=None):
+        source = SourceDetail()
+        source_type = self.view.widget_get_value('source_type_combo')
+        source_types = None
+        source_keys = dict(source_type_values).keys()
+
+        if source_type:
+            if source_type in source_keys:
+                source_types = [source_type]
+            if source_type == 'contact':
+                source_types = [k for k in source_keys if k != 'Expedition']
+
+        presenter = SourceDetailPresenter(source,
+                                          view,
+                                          do_commit=False,
+                                          source_types=source_types,
+                                          session=self.session)
+        if presenter.start() == Gtk.ResponseType.OK:
+            self.populate_source_combo(source, new=True)
+
+    def populate_source_combo(self, active=None, new=False):
         """If active=None then set whatever was previously active before
         repopulating the combo.
         """
         combo = self.view.widgets.acc_source_comboentry
-        if not active:
-            treeiter = combo.get_active_iter()
-            if treeiter:
-                active = combo.get_model()[treeiter][0]
+        if not active and (treeiter := combo.get_active_iter()):
+            active = combo.get_model()[treeiter][0]
         combo.set_model(None)
         model = Gtk.ListStore(object)
         none_iter = model.append([''])
         value = self.view.widget_get_value('source_type_combo')
+        new_button = self.view.widgets.new_source_button
+        new_button.set_property('sensitive', True)
 
         if value == 'garden_prop':
             model.append([self.GARDEN_PROP_STR])
             active = self.GARDEN_PROP_STR
             query = []
+            new_button.set_property('sensitive', False)
         elif value == 'contact':
             query = (self.session.query(SourceDetail)
                      .filter(SourceDetail.source_type != 'Expedition')
                      .order_by(func.lower(SourceDetail.name)))
-            active = None
         elif value:
             query = (self.session.query(SourceDetail)
                      .filter_by(source_type=value)
                      .order_by(func.lower(SourceDetail.name)))
-            active = None
         else:
             model.append([self.GARDEN_PROP_STR])
             query = (self.session.query(SourceDetail)
                      .order_by(func.lower(SourceDetail.name)))
-            active = None
+
+        if new:
+            model.append([active])
+        else:
+            # only allow triggering dirty if this has been called from adding a
+            # new source detail.
+            combo.populate = True
 
         for i in query:
             model.append([i])
         combo.set_model(model)
         combo.get_child().get_completion().set_model(model)
 
-        combo._populate = True
         if active:
             results = utils.search_tree_model(model, active)
             if results:
                 combo.set_active_iter(results[0])
+            else:
+                combo.set_active_iter(none_iter)
         else:
             combo.set_active_iter(none_iter)
-        combo._populate = False
+        combo.populate = False
 
     def init_source_comboentry(self, on_select):
-        """A comboentry that allows the location to be entered requires more
-        custom setup than view.attach_completion and self.assign_simple_handler
-        can provides.
+        """A comboentry that allows the source to be entered.
 
-        This method allows us to have completions on the location entry based
-        on the location code, location name and location string as well as
-        selecting a location from a combo drop down.
+        Requires more custom setup than attach_completion and
+        assign_simple_handler can provide.
+
+        This method:
+            - allows setting which widget is visible below.
+            - allows completion matching by any part of the source string.
+            - allows match selection by source name or string ignoring case.
+            - avoids dirtying the presenter on population.
 
         :param on_select: called when an item is selected
         """
         PROBLEM = 'unknown_source'
 
-        def cell_data_func(col, cell, model, treeiter, data=None):
+        def cell_data_func(_col, cell, model, treeiter):
             cell.props.text = str(model[treeiter][0])
 
         combo = self.view.widgets.acc_source_comboentry
@@ -1715,15 +1737,14 @@ class SourcePresenter(editor.GenericEditorPresenter):
         completion.pack_start(cell, True)
         completion.set_cell_data_func(cell, cell_data_func)
 
-        def match_func(completion, key, treeiter, data=None):
+        def match_func(completion, key, treeiter):
             model = completion.get_model()
             value = model[treeiter][0]
-            # allows completions of source details by their ID
-            if (str(value).lower().startswith(key.lower()) or
-                    (isinstance(value, SourceDetail) and
-                     str(value.id).startswith(key))):
+            # allows completion via any matching part
+            if key.lower() in str(value).lower():
                 return True
             return False
+
         completion.set_match_func(match_func)
 
         entry = combo.get_child()
@@ -1741,10 +1762,10 @@ class SourcePresenter(editor.GenericEditorPresenter):
                 # self.model.source.source_detail = value
                 widget_visibility['source_sw'] = True
             for widget, value in widget_visibility.items():
-                self.view.widgets[widget].props.visible = value
+                self.view.widgets[widget].set_property('visible', value)
             self.view.widgets.source_alignment.props.sensitive = True
 
-        def on_match_select(completion, model, treeiter):
+        def on_match_select(_completion, model, treeiter):
             value = model[treeiter][0]
             # TODO: should we reset/store the entry values if the
             # source is changed and restore them if they are switched
@@ -1757,27 +1778,27 @@ class SourcePresenter(editor.GenericEditorPresenter):
                 on_select(value)
 
             # don't set the model as dirty if this is called during
-            # populate_source_combo
-            if not combo._populate:
+            # populate_source_combo (unless due to a new source added)
+            if not combo.populate:
                 self._dirty = True
                 self.refresh_sensitivity()
             return True
+
         self.view.connect(completion, 'match-selected', on_match_select)
 
-        def on_entry_changed(entry, data=None):
+        def on_entry_changed(entry):
             text = utils.nstr(entry.props.text)
             # see if the text matches a completion string
             comp = entry.get_completion()
 
             def _cmp(row, data):
-                val = row[0]
-                if (str(val) == data or
-                        (isinstance(val, SourceDetail) and val.id == data)):
+                if str(row[0]).lower() == data.lower():
                     return True
-                else:
-                    return False
+                if hasattr(row[0], 'name'):
+                    return row[0].name.lower() == data.lower()
+                return False
 
-            found = utils.search_tree_model(comp.get_model(), text, _cmp)
+            found = utils.search_tree_model(comp.get_model(), text, cmp=_cmp)
 
             if len(found) == 1:
                 # the model and iter here should technically be the tree
@@ -1787,6 +1808,7 @@ class SourcePresenter(editor.GenericEditorPresenter):
                 self.add_problem(PROBLEM, entry)
             update_visible()
             return True
+
         self.view.connect(entry, 'changed', on_entry_changed)
 
         def on_combo_changed(combo, *args):
@@ -2496,6 +2518,19 @@ class AccessionEditor(editor.GenericModelViewPresenterEditor):
             else:
                 utils.delete_or_expunge(
                     self.presenter.source_presenter.propagation)
+
+            # remove any newly created parts if they do not end up used. (i.e.
+            # user backed out)
+            for new in self.session.new:
+                if (isinstance(new, SourceDetail) and new !=
+                        self.model.source.source_detail):
+                    self.session.expunge(new)
+                if (isinstance(new, Collection) and new !=
+                        self.model.source.collection):
+                    self.session.expunge(new)
+                if (isinstance(new, Propagation) and new !=
+                        self.model.source.propagation):
+                    self.session.expunge(new)
         else:
             utils.delete_or_expunge(
                 self.presenter.source_presenter.source)
@@ -2646,14 +2681,14 @@ class SourceExpander(InfoExpander):
         lat_str = ''
         if collection.latitude is not None:
             dir, deg, min, sec = latitude_to_dms(collection.latitude)
-            lat_str = '%s (%s %s\302\260%s\'%.2f") %s' % \
+            lat_str = '%s (%s %s°%s\'%.3f") %s' % \
                 (collection.latitude, dir, deg, min, sec, geo_accy)
         self.widget_set_value('lat_data', lat_str)
 
         long_str = ''
         if collection.longitude is not None:
             dir, deg, min, sec = longitude_to_dms(collection.longitude)
-            long_str = '%s (%s %s\302\260%s\'%.2f") %s' % \
+            long_str = '%s (%s %s°%s\'%.2f") %s' % \
                 (collection.longitude, dir, deg, min, sec, geo_accy)
         self.widget_set_value('lon_data', long_str)
 

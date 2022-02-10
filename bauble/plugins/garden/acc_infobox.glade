@@ -626,7 +626,7 @@
                       </packing>
                     </child>
                     <child>
-                      <object class="GtkLabel" id="loc_data">
+                      <object class="GtkLabel" id="lat_data">
                         <property name="visible">True</property>
                         <property name="can-focus">False</property>
                         <property name="label">--</property>
@@ -815,7 +815,7 @@
                       </packing>
                     </child>
                     <child>
-                      <object class="GtkLabel" id="lat_data">
+                      <object class="GtkLabel" id="loc_data">
                         <property name="visible">True</property>
                         <property name="can-focus">False</property>
                         <property name="label">--</property>
