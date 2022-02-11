@@ -499,9 +499,6 @@ class GenusEditorView(editor.GenericEditorView):
         self.widgets.gen_ok_and_add_button.set_sensitive(sensitive)
         self.widgets.gen_next_button.set_sensitive(sensitive)
 
-    def start(self):
-        return self.get_window().run()
-
 
 class GenusEditorPresenter(editor.GenericEditorPresenter):
 
@@ -619,10 +616,6 @@ class GenusEditorPresenter(editor.GenericEditorPresenter):
             else:
                 value = getattr(self.model, field)
             self.view.widget_set_value(widget, value)
-
-    def start(self):
-        result = self.view.start()
-        return result
 
 
 class SynonymsPresenter(editor.GenericEditorPresenter):

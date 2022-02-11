@@ -18,7 +18,7 @@
 # along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
 import os
 
-from unittest import mock
+from unittest import mock, SkipTest
 from tempfile import mkstemp
 import logging
 logger = logging.getLogger(__name__)
@@ -189,6 +189,7 @@ class PrefsViewTests(BaubleTestCase):
     @mock.patch('bauble.prefs.Gtk.MessageDialog.run',
                 return_value=Gtk.ResponseType.OK)
     def test_on_button_press_event_adds_menu_can_active(self, mock_dialog):
+        raise SkipTest('needs rewrite re: switching from Gtk.Menu to Gio.Menu')
         # NOTE causes a deprecation warning re Gtk.Menu.popup_for_device,
         # Gtk.Action.create_menu_item
         # also:

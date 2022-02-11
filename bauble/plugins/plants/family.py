@@ -385,9 +385,6 @@ class FamilyEditorView(editor.GenericEditorView):
         self.widgets.fam_ok_and_add_button.set_sensitive(sensitive)
         self.widgets.fam_next_button.set_sensitive(sensitive)
 
-    def start(self):
-        return self.get_window().run()
-
 
 class FamilyEditorPresenter(editor.GenericEditorPresenter):
 
@@ -453,10 +450,6 @@ class FamilyEditorPresenter(editor.GenericEditorPresenter):
         super().cleanup()
         self.synonyms_presenter.cleanup()
         self.notes_presenter.cleanup()
-
-    def start(self):
-        r = self.view.start()
-        return r
 
 
 class SynonymsPresenter(editor.GenericEditorPresenter):

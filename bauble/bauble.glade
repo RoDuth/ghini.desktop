@@ -96,7 +96,7 @@
       </object>
     </child>
   </object>
-  <object class="GtkWindow" id="main_window">
+  <object class="GtkApplicationWindow" id="main_window">
     <property name="can-focus">True</property>
     <property name="title">Ghini</property>
     <property name="role">bauble</property>
@@ -113,21 +113,6 @@
             <property name="visible">True</property>
             <property name="can-focus">True</property>
             <property name="orientation">vertical</property>
-            <child>
-              <object class="GtkBox" id="menu_box">
-                <property name="visible">True</property>
-                <property name="can-focus">True</property>
-                <property name="orientation">vertical</property>
-                <child>
-                  <placeholder/>
-                </child>
-              </object>
-              <packing>
-                <property name="expand">False</property>
-                <property name="fill">False</property>
-                <property name="position">0</property>
-              </packing>
-            </child>
             <child>
               <object class="GtkBox" id="head_box">
                 <property name="visible">True</property>

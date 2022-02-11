@@ -269,7 +269,7 @@ class ExpressionRow:
 
     @staticmethod
     def on_prop_button_clicked(_button, event, menu):
-        menu.popup(None, None, None, None, event.button, event.time)
+        menu.popup_at_pointer(event)
 
     def on_value_changed(self, widget):
         """Call the QueryBuilder.validate() for this row.

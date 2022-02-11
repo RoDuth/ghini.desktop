@@ -40,15 +40,16 @@ from sqlalchemy import (Column,
                         UnicodeText,
                         select)
 from sqlalchemy.orm import relationship, backref
+from sqlalchemy.orm.session import object_session
 
 from bauble import db
 from bauble import editor
-from bauble.plugins.plants.geography import Geography, GeographyMenu
 from bauble import utils
 from bauble import btypes as types
-from bauble.view import Action, InfoExpander, InfoBox, PropertiesExpander
 from bauble import paths
 from bauble import prefs
+from bauble.view import Action, InfoExpander, InfoBox, PropertiesExpander
+from bauble.plugins.plants.geography import Geography, GeographyMenu
 
 
 def collection_edit_callback(coll):
@@ -357,23 +358,20 @@ class CollectionPresenter(editor.ChildPresenter):
         self.view.widgets.add_region_button.set_sensitive(False)
 
         def on_add_button_pressed(_widget, event):
-            self.geo_menu.popup(None, None, None, None, event.button,
-                                event.time)
+            self.geo_menu.popup_at_pointer(event)
 
         self.view.connect('add_region_button', 'button-press-event',
                           on_add_button_pressed)
 
-        def _init_geo():
-            add_button = self.view.widgets.add_region_button
-            self.geo_menu = GeographyMenu(self.set_region)
-            self.geo_menu.attach_to_widget(add_button, None)
-            add_button.set_sensitive(True)
-
-        GLib.idle_add(_init_geo)
+        add_button = self.view.widgets.add_region_button
+        self.geo_menu = GeographyMenu.new_menu(self.set_region, add_button)
+        self.geo_menu.attach_to_widget(add_button, None)
+        add_button.set_sensitive(True)
 
         self._dirty = False
 
-    def set_region(self, _menu_item, geo_id):
+    def set_region(self, _action, geo_id):
+        geo_id = int(geo_id.unpack())
         geography = self.session.query(Geography).get(geo_id)
         self.set_model_attr('region', geography)
         self.view.widgets.add_region_button.props.label = str(geography)
@@ -817,7 +815,6 @@ def source_detail_remove_callback(details):
             "%s?") % ', '.join(i for i in s_lst)
     if not utils.yes_no_dialog(msg):
         return False
-    from sqlalchemy.orm.session import object_session
     session = object_session(detail)
     for detail in details:
         session.delete(detail)
@@ -961,10 +958,10 @@ class GeneralSourceDetailExpander(InfoExpander):
             description = utils.xml_safe(row.description)
         self.widget_set_value('sd_desc_data', description, markup=True)
 
-        source = Source.__table__
-        nacc = select([source.c.id],
-                      source.c.source_detail_id == row.id
-                      ).alias('s_list').count().execute().fetchone()[0]
+        session = object_session(row)
+        nacc = (session.query(Source)
+                .filter(Source.source_detail_id == row.id)
+                .count())
         self.widget_set_value('sd_nacc_data', nacc)
 
 

@@ -34,6 +34,7 @@ logger = logging.getLogger(__name__)
 from pyparsing import ParseException
 
 from gi.repository import Gtk
+from gi.repository import Gio
 from gi.repository import Gdk
 from gi.repository import GLib
 from gi.repository import Pango
@@ -44,7 +45,7 @@ import sqlalchemy.exc as saexc
 
 import bauble
 from bauble import db
-from bauble.error import check, BaubleError
+from bauble.error import check
 from bauble import paths
 from bauble import pluginmgr
 from bauble import prefs
@@ -65,47 +66,33 @@ INFOBOXPAGE_WIDTH_PREF = 'bauble.infoboxpage_width'
 """The preferences key for storing the InfoBoxPage width."""
 
 
-class Action(Gtk.Action):
-
-    """
-    An Action allows a label, tooltip, callback and accelerator to be called
-    when specific items are selected in the SearchView
-    """
-    # issue #30: multiselect and singleselect are really specific to the
-    # SearchView and we could probably generalize this class a little bit
-    # more...or we just assume this class is specific to the SearchView and
-    # document it that way
-
-    def __init__(self, name, label, tooltip=None, stock_id=None,
-                 callback=None, accelerator=None,
-                 multiselect=False, singleselect=True):
+class Action:
+    """SearchView context menu items."""
+    def __init__(self,
+                 name,
+                 label,
+                 callback=None,
+                 accelerator=None,
+                 multiselect=False):
         """
-        callback: the function to call when the the action is activated
-        accelerator: accelerator to call this action
-        multiselect: show menu when multiple items are selected
-        singleselect: show menu when single items are selected
-
-        The activate signal is not automatically connected to the
-        callback method.
+        :param callback: the function to call when the the action is activated,
+            if anything that evaluates to True is returned triggers
+            SearchView.update()
+        :param accelerator: accelerator to call this action
+        :param multiselect: show menu when multiple items are selected
         """
-        super().__init__(name=name, label=label, tooltip=tooltip,
-                         stock_id=stock_id)
+        self.label = label
+        self.name = name
         self.callback = callback
         self.multiselect = multiselect
-        self.singleselect = singleselect
         self.accelerator = accelerator
+        self.action = Gio.SimpleAction.new(name, None)
+        self.connected = False
 
-    @property
-    def enabled(self):
-        return self.get_visible()
-
-    @enabled.setter
-    def enabled(self, enable):
-        self.set_visible(enable)
-        # if enable:
-        #     self.connect_accelerator()
-        # else:
-        #     self.disconnect_accelerator()
+    def connect(self, _action, handler, callback):
+        if not self.connected:
+            self.action.connect('activate', handler, callback)
+            self.connected = True
 
 
 class InfoExpander(Gtk.Expander):
@@ -505,7 +492,7 @@ class CountResultsTask(threading.Thread):
         self.set_statusbar(value)
 
     def error(self, e):
-        """error_callback for multirpocessing worker.
+        """error_callback for multiprocessing worker.
 
         Cancels dots_thread and logs error
         """
@@ -551,8 +538,6 @@ class CountResultsTask(threading.Thread):
                 amap = pool.map_async(proc, utils.chunks(self.ids, chunk_size),
                                       callback=self.callback,
                                       error_callback=self.error)
-                if self.__cancel:  # check whether caller asks to cancel
-                    pool.terminate()
                 # keeps the thread alive and allow cancel
                 while not amap.ready():
                     if self.__cancel:  # check whether caller asks to cancel
@@ -597,6 +582,7 @@ class SearchView(pluginmgr.View):
                 self.children = None
                 self.infobox = None
                 self.markup_func = None
+                self.context_menu = None
                 self.actions = []
 
             def set(self, children=None, infobox=None, context_menu=None,
@@ -622,8 +608,8 @@ class SearchView(pluginmgr.View):
                 self.context_menu = context_menu
                 self.actions = []
                 if self.context_menu:
-                    self.actions = [
-                        x for x in self.context_menu if isinstance(x, Action)]
+                    self.actions = [x for x in self.context_menu if
+                                    isinstance(x, Action)]
 
             def get_children(self, obj):
                 """
@@ -645,6 +631,14 @@ class SearchView(pluginmgr.View):
 
     row_meta = ViewMeta()
     bottom_info = ViewMeta()
+    context_menu_callbacks = set()
+    """Callbacks for constructing context menus for selected items.
+    Callbacks should recieve a single argument containing the selected items
+    and return a single menu section of type Gio.Menu
+    """
+
+    cursor_changed_callbacks = set()
+    """Callbacks called each time the cursor changes"""
 
     def __init__(self):
         """
@@ -662,9 +656,6 @@ class SearchView(pluginmgr.View):
         pictures_view.floating_window = pictures_view.PicturesView(
             parent=self.widgets.search_h2pane)
 
-        # we only need this for the timeout version of populate_results
-        self.populate_callback_id = None
-
         # the context menu cache holds the context menus by type in the results
         # view so that we don't have to rebuild them every time
         self.context_menu_cache = {}
@@ -676,8 +667,9 @@ class SearchView(pluginmgr.View):
         self.session = db.Session()
         self.add_notes_page_to_bottom_notebook()
         self.running_threads = []
-        self.installed_accels = []
+        self.actions = set()
         self.cursor_change_blocked = None
+        self.context_menu_model = Gio.Menu()
 
     def add_notes_page_to_bottom_notebook(self):
         """add notebook page for notes
@@ -736,7 +728,7 @@ class SearchView(pluginmgr.View):
                                         row_activated)
         bottom_info['label'] = label
 
-    def update_bottom_notebook(self):
+    def update_bottom_notebook(self, selected_values):
         """Update the bottom_notebook from the currently selected row.
 
         bottom_notebook has one page per type of information. Every page
@@ -747,15 +739,13 @@ class SearchView(pluginmgr.View):
         this should have a model, and the ordered names of the fields to
         be stored in the model is in bottom_info['fields_used'].
         """
-        values = self.get_selected_values()
         # Only one should be selected
-        if len(values or []) != 1:
+        if len(selected_values or []) != 1:
             self.widgets.bottom_notebook.hide()
             self.picpane.get_child2().hide()
             return
 
-        self.widgets.bottom_notebook.show()
-        row = values[0]  # the selected row
+        row = selected_values[0]  # the selected row
 
         # loop over bottom_info plugin classes (eg: Tag)
         for klass, bottom_info in self.bottom_info.items():
@@ -778,31 +768,31 @@ class SearchView(pluginmgr.View):
                 for obj in objs:
                     model.append([str(getattr(obj, k) or '')
                                   for k in bottom_info['fields_used']])
+        self.widgets.bottom_notebook.show()
 
-    def update_infobox(self):
+    def update_infobox(self, selected_values):
         """Sets the infobox according to the currently selected row.
 
         no infobox is shown if nothing is selected
         """
         # start of update_infobox
         logger.debug('update_infobox')
-        values = self.get_selected_values()
-        if not values or not values[0]:
+        if not selected_values or not selected_values[0]:
             self.set_infobox_from_row(None)
             return
 
-        if object_session(values[0]) is None:
+        if object_session(selected_values[0]) is None:
             logger.debug('cannot populate info box from detached object')
             return
 
         try:
             # send an object (e.g. a Plant instance)
-            self.set_infobox_from_row(values[0])
-        except Exception as e:
+            self.set_infobox_from_row(selected_values[0])
+        except Exception as e:  # pylint: disable=broad-except
             # if an error occurrs, log it and empty infobox.
-            logger.debug('SearchView.update_infobox: %s', e)
+            logger.debug('%s(%s)', type(e).__name__, e)
             logger.debug(traceback.format_exc())
-            logger.debug(values)
+            logger.debug(selected_values)
             self.set_infobox_from_row(None)
 
     def set_infobox_from_row(self, row):
@@ -828,13 +818,20 @@ class SearchView(pluginmgr.View):
         # if we have already created an infobox of this type:
         new_infobox = self.infobox_cache.get(selected_type)
 
-        # otherwise create one and put in the infobox_cache
         if not new_infobox:
-            logger.debug('not found infobox, make a new one')
-            new_infobox = self.row_meta[selected_type].infobox()
+            # it might be in cache under different name
+            for infobox in self.infobox_cache.values():
+                if isinstance(infobox, self.row_meta[selected_type].infobox):
+                    logger.debug('found same infobox under different name')
+                    new_infobox = infobox
+            # otherwise create one and put in the infobox_cache
+            if not new_infobox:
+                logger.debug('not found infobox, we make a new one')
+                new_infobox = self.row_meta[selected_type].infobox()
             self.infobox_cache[selected_type] = new_infobox
+
         logger.debug('created or retrieved infobox %s %s',
-                     type(new_infobox), new_infobox)
+                     type(new_infobox).__name__, new_infobox)
 
         # remove any old infoboxes connected to the pane
         if (self.infobox is not None and type(self.infobox) is not
@@ -856,58 +853,126 @@ class SearchView(pluginmgr.View):
             return None
         return [model[row][0] for row in rows]
 
-    def on_cursor_changed(self, _tree_view):
-        """Update the infobox and switch the accelerators depending on the
-        type of the row that the cursor points to.
+    def on_selection_changed(self, _tree_selection):
+        """Update the infobox and bottom notebooks. Switch context_menus,
+        actions and accelerators depending on the type of the rows selected.
         """
+        # grab values once
+        selected_values = self.get_selected_values()
         # update all forward-looking info boxes
-        self.update_infobox()
+        self.update_infobox(selected_values)
         # update all backward-looking info boxes
-        self.update_bottom_notebook()
+        self.update_bottom_notebook(selected_values)
 
-        for accel, call_back in self.installed_accels:
-            # disconnect previously installed accelerators by the key
-            # and modifier, accel_group.disconnect_by_func won't work
-            # here since we install a closure as the actual callback
-            # instead of the original action.callback
-            disconnected = self.accel_group.disconnect_key(accel[0], accel[1])
-            if not disconnected:
-                logger.warning('callback not removed: %s', call_back)
-        self.installed_accels = []
+        self.update_context_menus(selected_values)
 
-        selected = self.get_selected_values()
-        if not selected:
+        for callback in self.cursor_changed_callbacks:
+            callback(selected_values)
+
+    def update_context_menus(self, selected_values):
+        """Update the context menu dependant on selected values."""
+
+        self.context_menu_model.remove_all()
+
+        if not selected_values:
             return
-        pictures_view.floating_window.set_selection(selected)
-        selected_type = type(selected[0])
+        selected_types = set(map(type, selected_values))
 
+        pictures_view.floating_window.set_selection(selected_values)
+
+        selected_type = None
+        if len(selected_types) == 1:
+            selected_type = selected_types.pop()
+
+        current_actions = set()
+
+        # if selected_type is None this should not return any actions
         for action in self.row_meta[selected_type].actions:
-            enabled = ((len(selected) > 1 and action.multiselect) or
-                       (len(selected) <= 1 and action.singleselect))
-            if not enabled:
-                continue
-            # if enabled then connect the accelerator
-            keyval, mod = Gtk.accelerator_parse(action.accelerator)
-            if (keyval, mod) != (0, 0):
-                def make_call_back(func):
-                    def _impl(*_args):
-                        # getting the selected here allows the
-                        # callback to be called on all the selected
-                        # values and not just the value where the
-                        # cursor is
-                        sel = self.get_selected_values()
-                        if func(sel):
-                            self.update()
-                    return _impl
-                self.accel_group.connect(keyval, mod,
-                                         Gtk.AccelFlags.VISIBLE,
-                                         make_call_back(action.callback))
-                self.installed_accels.append(((keyval, mod), action.callback))
-            else:
-                logger.warning(
-                    'Could not parse accelerator: %s' % (action.accelerator))
+            current_actions.add(action.name)
 
-    nresults_statusbar_context = 'searchview.nresults'
+            if not bauble.gui.lookup_action(action.name):
+                self.actions.add(action.name)
+                bauble.gui.window.add_action(action.action)
+
+                def on_activate(_action, _param, call_back):
+                    result = False
+                    try:
+                        # have to get the selected values again here
+                        # because for some unknown reason using the
+                        # "selected_values" variable from the parent scope
+                        # will give us the objects but they won't be
+                        # in an session...maybe it's a thread thing
+                        values = self.get_selected_values()
+                        result = call_back(values)
+                    except Exception as e:   # pylint: disable=broad-except
+                        msg = utils.xml_safe(str(e))
+                        trace = utils.xml_safe(traceback.format_exc())
+                        utils.message_details_dialog(
+                            msg, trace, Gtk.MessageType.ERROR)
+                        logger.warning(traceback.format_exc())
+                    if result:
+                        self.update()
+
+                action.connect('activate', on_activate, action.callback)
+                app = Gio.Application.get_default()
+                app.set_accels_for_action(f'win.{action.name}',
+                                          [action.accelerator])
+
+            menu_item = Gio.MenuItem.new(action.label,
+                                         f'win.{action.name}')
+            self.context_menu_model.append_item(menu_item)
+
+            if ((len(selected_values) > 1 and action.multiselect) or
+                    len(selected_values) == 1):
+                action.action.set_enabled(True)
+            else:
+                action.action.set_enabled(False)
+
+        copy_selection_action_name = 'copy_selection_strings'
+
+        if not bauble.gui.lookup_action(copy_selection_action_name):
+            bauble.gui.add_action(copy_selection_action_name,
+                                  self.on_copy_selection)
+
+        apply_active_tag_menu_item = Gio.MenuItem.new(
+            _('Copy Selection'), f'win.{copy_selection_action_name}'
+        )
+        self.context_menu_model.append_item(apply_active_tag_menu_item)
+
+        for action_name in self.actions.copy():
+            if action_name not in current_actions:
+                bauble.gui.remove_action(action_name)
+                self.actions.remove(action_name)
+
+        edit_context_menu = bauble.gui.edit_context_menu
+        edit_context_menu.remove_all()
+        edit_context_menu.insert_section(0, None, self.context_menu_model)
+
+    def on_copy_selection(self, _action, _param):
+        selected_values = self.get_selected_values()
+        if not selected_values:
+            return
+
+        out = []
+        from mako.template import Template
+        try:
+            for value in selected_values:
+                domain = type(value).__name__.lower()
+                pref_key = f'copy_templates.{domain}'
+                template_str = prefs.prefs.get(
+                    pref_key, '${value}, ${type(value).__name__}'
+                )
+                template = Template(template_str)
+                out.append(template.render(value=value))
+        except Exception as e:  # pylint: disable=broad-except
+            logger.debug("%s(%s)", type(e).__name__, e)
+            msg = (_('Copy error.  Check your copy_templates in Preferences?'
+                     '\n\n%s') % utils.xml_safe(str(e)))
+            utils.message_details_dialog(msg, traceback.format_exc(),
+                                         typ=Gtk.MessageType.ERROR)
+
+        string = '\n'.join(out)
+        bauble.gui.get_display_clipboard().set_text(string, -1)
 
     def search(self, text):
         """search the database using text"""
@@ -921,7 +986,6 @@ class SearchView(pluginmgr.View):
         self.cancel_threads()
         self.session.close()
         self.session = db.Session()
-        # self.session.rollback()
         bold = '<b>%s</b>'
         results = []
         try:
@@ -939,7 +1003,6 @@ class SearchView(pluginmgr.View):
 
         # not error
         utils.clear_model(self.results_view)
-        self.update_infobox()
         statusbar = bauble.gui.widgets.statusbar
         sbcontext_id = statusbar.get_context_id('searchview.nresults')
         statusbar.pop(sbcontext_id)
@@ -949,15 +1012,11 @@ class SearchView(pluginmgr.View):
                 _('Could not find anything for search: "%s"') % text)
             model.append([msg])
             self.results_view.set_model(model)
+            # # TODO leaving here for now but I don't think I need this
+            # anymore.
             # disconnect cursor change signal handler avoids errors with
             # updating infopane and bottom notebooks
-            if not self.cursor_change_blocked:
-                self.results_view.handler_block(self.cursor_change_handler)
-                self.cursor_change_blocked = True
         else:
-            if self.cursor_change_blocked:
-                self.results_view.handler_unblock(self.cursor_change_handler)
-                self.cursor_change_blocked = False
             statusbar.push(sbcontext_id, _("Retrieving %s search "
                                            "results…") % len(results))
             if len(results) > 30000:
@@ -996,8 +1055,6 @@ class SearchView(pluginmgr.View):
                 self.results_view.set_cursor(0)
                 GLib.idle_add(lambda: self.results_view.scroll_to_cell(0))
 
-        self.update_bottom_notebook()
-
     def remove_children(self, model, parent):
         """Remove all children of some parent in the model.
 
@@ -1005,7 +1062,7 @@ class SearchView(pluginmgr.View):
         """
         while model.iter_has_child(parent):
             nkids = model.iter_n_children(parent)
-            child = model.iter_nth_child(parent, nkids-1)
+            child = model.iter_nth_child(parent, nkids - 1)
             model.remove(child)
 
     def on_test_expand_row(self, view, treeiter, path, data=None):
@@ -1217,72 +1274,33 @@ class SearchView(pluginmgr.View):
             if ref.valid():
                 self.results_view.expand_to_path(ref.get_path())
 
-    def on_view_button_release(self, view, event, data=None):
+    def on_view_button_release(self, view, event):
         """right-mouse-button release.
 
         Popup a context menu on the selected row.
         """
+        logger.debug('button release event: %s type: %s device: %s button: %s',
+                     event, event.type, event.device, event.button)
+        # if not right click - bail (but allow propagating the event further)
         if event.button != 3:
-            return False  # if not right click then leave
+            return False
 
         selected = self.get_selected_values()
         if not selected:
-            return
-        selected_types = set(map(type, selected))
-        if len(selected_types) > 1:
-            # issue #31: currently we only show the menu when all objects
-            # are of the same type. we could also show a common menu in case
-            # the selection is of different types.
-            return False
-        selected_type = selected_types.pop()
-
-        if not self.row_meta[selected_type].actions:
-            # no actions
             return True
 
-        # issue #31: ** important ** we need a common menu for all types
-        # that can be merged with the specific menu for the selection,
-        # e.g. provide a menu with a "Tag" action so you can tag
-        # everything...or we could just ignore this and add "Tag" to all of
-        # our action lists
-        menu = None
-        try:
-            menu = self.context_menu_cache[selected_type]
-        except KeyError:
-            menu = Gtk.Menu()
-            for action in self.row_meta[selected_type].actions:
-                logger.debug('path: %s' % action.get_accel_path())
-                item = action.create_menu_item()
+        menu_model = Gio.Menu()
+        menu_model.insert_section(0, None, self.context_menu_model)
 
-                def on_activate(item, call_back):
-                    result = False
-                    try:
-                        # have to get the selected values again here
-                        # because for some unknown reason using the
-                        # "selected" variable from the parent scope
-                        # will give us the objects but they won't be
-                        # in an session...maybe it's a thread thing
-                        values = self.get_selected_values()
-                        result = call_back(values)
-                    except Exception as e:
-                        msg = utils.xml_safe(str(e))
-                        tb = utils.xml_safe(traceback.format_exc())
-                        utils.message_details_dialog(
-                            msg, tb, Gtk.MessageType.ERROR)
-                        logger.warning(traceback.format_exc())
-                    if result:
-                        self.update()
+        for callback in self.context_menu_callbacks:
+            section = callback(selected)
+            if section:
+                menu_model.append_section(None, section)
 
-                item.connect('activate', on_activate, action.callback)
-                menu.append(item)
-            self.context_menu_cache[selected_type] = menu
+        menu = Gtk.Menu.new_from_model(menu_model)
+        menu.attach_to_widget(view)
 
-        # enable/disable the menu items depending on the selection
-        for action in self.row_meta[selected_type].actions:
-            action.enabled = (len(selected) > 1 and action.multiselect) or \
-                (len(selected) <= 1 and action.singleselect)
-
-        menu.popup(None, None, None, None, event.button, event.time)
+        menu.popup_at_pointer(event)
         return True
 
     def update(self):
@@ -1348,9 +1366,9 @@ class SearchView(pluginmgr.View):
         self.results_view.append_column(column)
 
         # view signals
-        self.cursor_change_handler = self.results_view.connect(
-            "cursor-changed", self.on_cursor_changed)
-        self.cursor_change_blocked = False
+        results_view_selection = self.results_view.get_selection()
+        results_view_selection.connect('changed', self.on_selection_changed)
+
         self.results_view.connect("test-expand-row",
                                   self.on_test_expand_row)
         self.results_view.connect("button-release-event",
@@ -1359,9 +1377,14 @@ class SearchView(pluginmgr.View):
         def on_press(view, event):
             """Ignore the mouse right-click event.
 
-            This makes sure that we don't remove the multiple selection
-            when clicking a mouse button.
+            This makes sure that we don't remove the multiple selection on a
+            right click.
             """
+            # TODO this is only temporary, remove.
+            logger.debug(
+                'button press event: %s type: %s device: %s button: %s',
+                event, event.type, event.device, event.button
+            )
             if event.button == 3:
                 if (event.get_state() & Gdk.ModifierType.CONTROL_MASK) == 0:
                     pos = view.get_path_at_pos(int(event.x), int(event.y))
@@ -1371,10 +1394,13 @@ class SearchView(pluginmgr.View):
                     path, _, _, _ = pos
                     if not view.get_selection().path_is_selected(path):
                         return False
+                # emulate 'cursor-changed' signal
+                self.on_selection_changed(None)
                 return True
             return False
 
-        self.results_view.connect("button-press-event", on_press)
+        self.results_view.connect("button-press-event",
+                                  on_press)
 
         self.results_view.connect("row-activated",
                                   self.on_view_row_activated)
@@ -1383,7 +1409,6 @@ class SearchView(pluginmgr.View):
         # Gtk.Window.add_accel_group since the group will be added
         # automatically when the view is set
         self.accel_group = Gtk.AccelGroup()
-        self.installed_accels = []
 
         self.pane = self.widgets.search_hpane
         self.picpane = self.widgets.search_h2pane

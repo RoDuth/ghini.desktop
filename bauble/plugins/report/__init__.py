@@ -703,7 +703,7 @@ class ReportTool(pluginmgr.Tool):  # pylint: disable=too-few-public-methods
             utils.message_dialog(_('Search for something first.'))
             return
 
-        bauble.gui.set_busy(True)
+        bauble.gui.set_busy(True, 'not-allowed')
         okay = False
         try:
             while True:

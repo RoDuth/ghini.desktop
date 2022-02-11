@@ -92,7 +92,6 @@ class XMLExporter:
 
     def __export_task(self, path, one_file=True):
         if one_file:
-            print('is one_file')
             tableset_el = etree.Element('tableset')
 
         for table_name, table in db.metadata.tables.items():

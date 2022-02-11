@@ -160,8 +160,7 @@ def generic_taxon_add_action(model, view, presenter, top_presenter,
 
 
 def edit_callback(accessions):
-    e = AccessionEditor(model=accessions[0])
-    return e.start()
+    return AccessionEditor(model=accessions[0]).start()
 
 
 def add_plants_callback(accessions):
@@ -211,7 +210,7 @@ def remove_callback(accessions):
 edit_action = Action('acc_edit', _('_Edit'),
                      callback=edit_callback,
                      accelerator='<ctrl>e')
-add_plant_action = Action('acc_add', _('_Add plants'),
+add_plant_action = Action('acc_add', _('_Add Plants'),
                           callback=add_plants_callback,
                           accelerator='<ctrl>k')
 remove_action = Action('acc_remove', _('_Delete'),
@@ -988,9 +987,6 @@ class AccessionEditorView(editor.GenericEditorView):
             expanded = prefs.prefs.get(pref, True)
             self.widgets[expander].set_expanded(expanded)
 
-    def start(self):
-        return self.get_window().run()
-
     # staticmethod ensures the AccessionEditorView gets garbage collected.
     @staticmethod
     def datum_match(completion, key, treeiter, data=None):
@@ -1706,6 +1702,7 @@ class SourcePresenter(editor.GenericEditorPresenter):
         else:
             combo.set_active_iter(none_iter)
         combo.populate = False
+        # any new SourceDetail is added to session by now
 
     def init_source_comboentry(self, on_select):
         """A comboentry that allows the source to be entered.

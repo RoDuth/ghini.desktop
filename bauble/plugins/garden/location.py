@@ -241,9 +241,6 @@ class LocationEditorView(GenericEditorView):
                                                          and sensitive)
         self.widgets.loc_next_button.set_sensitive(sensitive)
 
-    def start(self):
-        return self.get_window().run()
-
 
 class LocationEditorPresenter(GenericEditorPresenter):
 
@@ -375,10 +372,6 @@ class LocationEditorPresenter(GenericEditorPresenter):
         for widget, field in self.widget_to_field_map.items():
             value = getattr(self.model, field)
             self.view.widget_set_value(widget, value)
-
-    def start(self):
-        r = self.view.start()
-        return r
 
 
 class LocationEditor(GenericModelViewPresenterEditor):

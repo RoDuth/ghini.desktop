@@ -27,9 +27,12 @@ from pathlib import Path
 import logging
 logger = logging.getLogger(__name__)
 
-from gi.repository import Gtk  # noqa
+from gi.repository import Gtk
+from gi.repository import Gio
 from gi.repository import Gdk
+from gi.repository import GLib
 from gi.repository import GdkPixbuf
+from pyparsing import StringStart, Word, alphanums, restOfLine, StringEnd
 
 import bauble
 from bauble import db
@@ -109,7 +112,7 @@ class SplashCommandHandler(pluginmgr.CommandHandler):
         self.view.update()
 
 
-class GUI():
+class GUI:
 
     entry_history_pref = 'bauble.history'
     history_size_pref = 'bauble.history_size'
@@ -133,6 +136,15 @@ class GUI():
         Gdk.Screen.get_default(), _css,
         Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
 
+    set_view_callbacks = set()
+    """Any callbacks added to this list will be called each time the set_view
+    is called.
+    """
+    disable_on_busy_actions = set()
+    """Gio.Actions added to this will be enabled/disabled when the gui window
+    is set_busy.
+    """
+
     def __init__(self):
         filename = os.path.join(paths.lib_dir(), 'bauble.glade')
         self.widgets = utils.load_widgets(filename)
@@ -149,10 +161,20 @@ class GUI():
             self.window.set_default_size(*geometry)
             self.window.set_position(Gtk.WindowPosition.CENTER)
 
+        self.window.connect('destroy', self.on_destroy)
         self.window.connect('delete-event', self.on_delete_event)
-        self.window.connect("destroy", self.on_quit)
         self.window.connect("size_allocate", self.on_resize)
         self.window.set_title(self.title)
+        actions = (
+            ('cut', self.on_edit_menu_cut),
+            ('copy', self.on_edit_menu_copy),
+            ('paste', self.on_edit_menu_paste),
+        )
+
+        for name, handler in actions:
+            self.add_action(name, handler)
+
+        self.create_main_menu()
 
         try:
             logger.debug("loading icon from %s", bauble.default_icon)
@@ -162,9 +184,6 @@ class GUI():
             logger.warning(_('Could not load icon from %s'),
                            bauble.default_icon)
             logger.warning(traceback.format_exc())
-
-        menubar = self.create_main_menu()
-        self.widgets.menu_box.pack_start(menubar, True, True, 0)
 
         combo = self.widgets.main_comboentry
         combo.connect('changed', self.on_main_combo_changed)
@@ -185,10 +204,10 @@ class GUI():
         self.window.add_accel_group(accel_group)
 
         self.widgets.home_button.connect(
-            'clicked', self.on_home_button_clicked)
+            'clicked', self.on_home_clicked)
 
         self.widgets.prev_view_button.connect(
-            'clicked', self.on_prev_view_button_clicked)
+            'clicked', self.on_prev_view_clicked)
 
         self.widgets.go_button.connect(
             'clicked', self.on_go_button_clicked)
@@ -229,14 +248,27 @@ class GUI():
         vbox.show()
         hbox.show()
 
-        from pyparsing import StringStart, Word, alphanums, restOfLine, \
-            StringEnd
         cmd = StringStart() + ':' + Word(
             alphanums + '-_').setResultsName('cmd')
         arg = restOfLine.setResultsName('arg')
         self.cmd_parser = (cmd + StringEnd()) | (cmd + '=' + arg) | arg
 
         combo.grab_focus()
+
+    def add_action(self, name, handler, value=None, param_type=None):
+        action = Gio.SimpleAction.new(name, param_type)
+        if value:
+            action.connect('activate', handler, value)
+        else:
+            action.connect('activate', handler)
+        self.window.add_action(action)
+        return action
+
+    def remove_action(self, name):
+        self.window.remove_action(name)
+
+    def lookup_action(self, name):
+        return self.window.lookup_action(name)
 
     def close_message_box(self):
         parent = self.widgets.msg_box_parent
@@ -273,7 +305,7 @@ class GUI():
         box.show()
 
     def show(self):
-        self.window.show()
+        self.window.present()
 
     @property
     def history_size(self):
@@ -323,12 +355,14 @@ class GUI():
         self.widgets.go_button.emit("clicked")
 
     @staticmethod
-    def on_home_button_clicked(_widget):
+    def on_home_clicked(*_args):
+        # Need args here to use from both menu action and button
         bauble.command_handler('home', None)
 
-    def on_prev_view_button_clicked(self, _widget):
+    def on_prev_view_clicked(self, *_args):
+        # Need args here to use from both menu action and button
         self.widgets.main_comboentry.get_child().set_text('')
-        bauble.gui.set_view('previous')
+        self.set_view('previous')
 
     def on_go_button_clicked(self, _widget):
         self.close_message_box()
@@ -465,13 +499,20 @@ class GUI():
         return '%s %s - %s' % ('Ghini', bauble.version,
                                bauble.conn_name)
 
-    def set_busy(self, busy):
-        self.widgets.main_box.set_sensitive(not busy)
+    def set_busy(self, busy, name='wait'):
         if busy:
-            self.window.get_property('window').set_cursor(
-                Gdk.Cursor.new(Gdk.CursorType.WATCH))
+            for action in self.disable_on_busy_actions:
+                action.set_enabled(False)
+            display = Gdk.Display.get_default()
+            cursor = Gdk.Cursor.new_from_name(display, name)
+            self.window.get_property('window').set_cursor(cursor)
         else:
-            self.window.get_property('window').set_cursor(None)
+            for action in self.disable_on_busy_actions:
+                action.set_enabled(True)
+            window = self.window.get_property('window')
+            if window:
+                window.set_cursor(None)
+        self.widgets.main_window.set_sensitive(not busy)
 
     def set_default_view(self):
         main_entry = self.widgets.main_comboentry.get_child()
@@ -482,7 +523,7 @@ class GUI():
         pluginmgr.register_command(SplashCommandHandler)
 
     def set_view(self, view=None):
-        """set the view, if view is None then remove any views currently set
+        """set the view.
 
         :param view: default=None
         """
@@ -504,6 +545,11 @@ class GUI():
                 kid.cancel_threads()
         if must_add_this_view:
             view_box.pack_start(view, True, True, 0)
+        for callback in self.set_view_callbacks:
+            GLib.idle_add(callback)
+        # remove the edit menu SearchView selection context part (get rebuilt
+        # each time selection changes in SearchView)
+        self.edit_context_menu.remove_all()
         view.show_all()
 
     def get_view(self):
@@ -513,105 +559,42 @@ class GUI():
                 return kid
         return None
 
+    @staticmethod
+    def get_display_clipboard():
+        return Gtk.Clipboard.get_default(Gdk.Display.get_default())
+
     def create_main_menu(self):
-        """get the main menu from the UIManager XML description, add its actions
-        and return the menubar
+        """get the main menu from the XML description, add its actions and
+        return the menubar
         """
-        self.ui_manager = Gtk.UIManager()
+        menu_builder = Gtk.Builder()
+        menu_builder.add_from_file(os.path.join(paths.lib_dir(),
+                                                'bauble.ui'))
+        menu_builder.connect_signals(self)
+        self.menubar = menu_builder.get_object('menubar')
 
-        # add accel group
-        accel_group = self.ui_manager.get_accel_group()
-        self.window.add_accel_group(accel_group)
+        self.insert_menu = menu_builder.get_object('insert_menu')
+        self.edit_context_menu = menu_builder.get_object('edit_context_menu')
+        self.tools_menu = menu_builder.get_object('tools_menu')
 
-        # create and add action group for menu actions
-        menu_actions = Gtk.ActionGroup(name="MenuActions")
-        menu_actions.add_actions([("file", None, _("_File")),
-                                  ("connection", None, _("_Connection")),
-                                  ("conn_new", Gtk.STOCK_NEW, _("_New"),
-                                   None, None, self.on_file_menu_new),
-                                  ("conn_open", Gtk.STOCK_OPEN, _("_Open"),
-                                   '<ctrl>c', None, self.on_file_menu_open),
-                                  ("file_quit", Gtk.STOCK_QUIT, _("_Quit"),
-                                   None, None, self.on_quit),
-                                  ("edit", None, _("_Edit")),
-                                  ("edit_cut", Gtk.STOCK_CUT, _("_Cut"), None,
-                                   None, self.on_edit_menu_cut),
-                                  ("edit_copy", Gtk.STOCK_COPY, _("_Copy"),
-                                   None, None, self.on_edit_menu_copy),
-                                  ("edit_paste", Gtk.STOCK_PASTE, _("_Paste"),
-                                   None, None, self.on_edit_menu_paste),
-                                  ("edit_prefs", Gtk.STOCK_PREFERENCES,
-                                   _("_Preferences"), None, None,
-                                   self.on_edit_menu_preferences),
-                                  ("edit_history", Gtk.STOCK_HARDDISK,
-                                   _("_View History"), None, None,
-                                   self.on_edit_menu_history),
-                                  ("insert", None, _("_Insert")),
-                                  ("tools", None, _("_Tools")),
-                                  ("help", None, _("_Help")),
-                                  ("help_contents", Gtk.STOCK_HELP,
-                                   _("Contents"), None, None,
-                                   self.on_help_menu_contents),
-                                  ("help_bug", None, _("Report a bug"), None,
-                                   None, self.on_help_menu_bug),
-                                  ("help_logfile", Gtk.STOCK_PROPERTIES,
-                                   _("Open the log-file"), None,
-                                   None, self.on_help_menu_logfile),
-                                  ("help_web.devel", Gtk.STOCK_HOME,
-                                   _("Ghini development website"), None,
-                                   None, self.on_help_menu_web_devel),
-                                  ("help_web.wiki", Gtk.STOCK_EDIT,
-                                   _("Ghini news"), None,
-                                   None, self.on_help_menu_web_wiki),
-                                  ("help_web.forum", Gtk.STOCK_JUSTIFY_LEFT,
-                                   _("Ghini forum"), None,
-                                   None, self.on_help_menu_web_forum),
-                                  ("help_about", Gtk.STOCK_ABOUT, _("About"),
-                                   None, None, self.on_help_menu_about),
-                                  ])
-        self.ui_manager.insert_action_group(menu_actions, 0)
-
-        # TODO: The menubar was made available in Gtk.Builder in Gtk+
-        # 2.16 so whenever we decide 2.16 is the minimum version we
-        # should get rid of this .ui file
-
-        # load ui
-        ui_filename = os.path.join(paths.lib_dir(), 'bauble.ui')
-        self.ui_manager.add_ui_from_file(ui_filename)
-
-        # get menu bar from ui manager
-        self.menubar = self.ui_manager.get_widget("/MenuBar")
-
-        self.clear_menu('/ui/MenuBar/insert_menu')
-        self.clear_menu('/ui/MenuBar/tools_menu')
-
-        self.insert_menu = self.ui_manager.get_widget(
-            '/ui/MenuBar/insert_menu')
         return self.menubar
 
-    def clear_menu(self, path):
+    def remove_menu(self, position):
         """remove all the menus items from a menu"""
-        # clear out the insert an tools menus
-        menu = self.ui_manager.get_widget(path)
-        submenu = menu.get_submenu()
-        for child in submenu.get_children():
-            submenu.remove(child)
-        menu.show()
+        self.menubar.remove(position)
 
-    def add_menu(self, name, menu):
+    def add_menu(self, name, menu, from_end=1):
         """add a menu to the menubar
 
-        :param name:
-        :param menu:
-        :param index:
-        """
-        menu_item = Gtk.MenuItem(label=name)
-        menu_item.set_submenu(menu)
-        self.menubar.insert(menu_item, len(self.menubar.get_children()) - 1)
-        self.menubar.show_all()
-        return menu_item
+        :param name: the name of the menu to add
+        :param menu: the menu to add
+        :param from_end: places from the end of the menubar as an int
 
-    __insert_menu_cache = {}
+        :return: position in the menu as an int
+        """
+        position = self.menubar.get_n_items() - from_end
+        self.menubar.insert_submenu(position, name, menu)
+        return position
 
     def add_to_insert_menu(self, editor, label):
         """add an editor to the insert menu
@@ -619,71 +602,62 @@ class GUI():
         :param editor: the editor to add to the menu
         :param label: the label for the menu item
         """
-        menu = self.ui_manager.get_widget('/ui/MenuBar/insert_menu')
-        submenu = menu.get_submenu()
-        item = Gtk.MenuItem(label=label)
-        item.connect('activate', self.on_insert_menu_item_activate, editor)
-        submenu.append(item)
-        self.__insert_menu_cache[label] = item
-        item.show()
-        # sort items
-        i = 0
-        for lbl in sorted(self.__insert_menu_cache.keys()):
-            submenu.reorder_child(self.__insert_menu_cache[lbl], i)
-            i += 1
+        action_name = f'{label.lower()}_activated'
+        action = self.add_action(action_name,
+                                 self.on_insert_menu_item_activate,
+                                 editor)
+        self.disable_on_busy_actions.add(action)
+        item = Gio.MenuItem.new(label, f'win.{action_name}')
+        self.insert_menu.append_item(item)
 
     def build_tools_menu(self):
         """Build the tools menu from the tools provided by the plugins.
 
         This method is generally called after plugin initialization
         """
-        topmenu = self.ui_manager.get_widget('/ui/MenuBar/tools_menu')
-        menu = topmenu.get_submenu()
-        for child in menu.get_children():
-            menu.remove(child)
-        menu.show()
+        item_num = 0
+        self.tools_menu.remove_all()
         tools = {'__root': []}
         # categorize the tools into a dict
         for plugin in list(pluginmgr.plugins.values()):
             for tool in plugin.tools:
                 if tool.category is not None:
-                    try:
-                        tools[tool.category].append(tool)
-                    except KeyError:
-                        # initialize tools dictionary
-                        tools[tool.category] = []
-                        tools[tool.category].append(tool)
+                    tools.setdefault(tool.category, []).append(tool)
                 else:
                     tools['__root'].append(tool)
 
         # add the tools with no category to the root menu
         root_tools = sorted(tools.pop('__root'), key=lambda tool: tool.label)
         for tool in root_tools:
-            item = Gtk.MenuItem(label=tool.label)
-            item.show()
-            item.connect("activate", self.on_tools_menu_item_activate, tool)
-            menu.append(item)
+            action_name = f'tool{item_num}_activated'
+            item_num += 1
+            action = self.add_action(action_name,
+                                     self.on_tools_menu_item_activate,
+                                     tool)
+            self.disable_on_busy_actions.add(action)
+            item = Gio.MenuItem.new(tool.label, f'win.{action_name}')
+            self.tools_menu.append_item(item)
             if not tool.enabled:
                 item.set_sensitive(False)
 
         # create submenus for the categories and add the tools
         for category in sorted(tools.keys()):
-            submenu = Gtk.Menu()
-            submenu_item = Gtk.MenuItem(label=category)
-            submenu_item.set_submenu(submenu)
-            menu.append(submenu_item)
+            submenu = Gio.Menu()
+            self.tools_menu.append_submenu(category, submenu)
             for tool in sorted(tools[category], key=lambda tool: tool.label):
-                item = Gtk.MenuItem(label=tool.label)
-                item.connect("activate", self.on_tools_menu_item_activate,
-                             tool)
-                submenu.append(item)
+                action_name = f'tool{item_num}_activated'
+                item_num += 1
+                action = self.add_action(action_name,
+                                         self.on_tools_menu_item_activate,
+                                         tool)
+                self.disable_on_busy_actions.add(action)
+                item = Gio.MenuItem.new(tool.label, f'win.{action_name}')
+                submenu.append_item(item)
                 if not tool.enabled:
                     item.set_sensitive(False)
-        menu.show_all()
-        return menu
 
     @staticmethod
-    def on_tools_menu_item_activate(_widget, tool):
+    def on_tools_menu_item_activate(_action, _param, tool):
         """Start a tool on the Tool menu."""
         try:
             tool.start()
@@ -693,7 +667,7 @@ class GUI():
                                          Gtk.MessageType.ERROR)
             logger.debug(traceback.format_exc())
 
-    def on_insert_menu_item_activate(self, _widget, editor_cls):
+    def on_insert_menu_item_activate(self, _action, _param, editor_cls):
         try:
             view = self.get_view()
             if isinstance(view, SearchView):
@@ -742,24 +716,24 @@ class GUI():
             if obj != []:
                 logger.warning('%s leaked: %s', view_cls.__name__, obj)
 
-    def on_edit_menu_cut(self, _widget):
+    def on_edit_menu_cut(self, _action, _param):
         self.widgets.main_comboentry.get_child().cut_clipboard()
 
-    def on_edit_menu_copy(self, _widget):
+    def on_edit_menu_copy(self, _action, _param):
         self.widgets.main_comboentry.get_child().copy_clipboard()
 
-    def on_edit_menu_paste(self, _widget):
+    def on_edit_menu_paste(self, _action, _param):
         self.widgets.main_comboentry.get_child().paste_clipboard()
 
     @staticmethod
-    def on_edit_menu_preferences(_widget):
+    def on_edit_menu_preferences(_action, _param):
         bauble.command_handler('prefs', None)
 
     @staticmethod
-    def on_edit_menu_history(_widget):
+    def on_edit_menu_history(_action, _param):
         bauble.command_handler('history', None)
 
-    def on_file_menu_new(self, _widget):
+    def on_file_menu_new(self, _action, _param):
         msg = _("<b>CAUTION! This will wipe all data for the current "
                 "connection</b>\n\n"
                 "If a database already exists at this connection then "
@@ -769,11 +743,6 @@ class GUI():
         if not utils.yes_no_dialog(msg, yes_delay=2):
             return
 
-        # if gui is not None and hasattr(gui, 'insert_menu'):
-        submenu = self.insert_menu.get_submenu()
-        for child in submenu.get_children():
-            submenu.remove(child)
-        self.insert_menu.show()
         try:
             db.create()
             pluginmgr.init()
@@ -785,7 +754,7 @@ class GUI():
             return
         bauble.command_handler('home', None)
 
-    def on_file_menu_open(self, _widget):
+    def on_file_menu_open(self, _action, _param):
         """Open the connection manager."""
         from .connmgr import start_connection_manager
         default_conn = prefs.prefs[bauble.conn_default_pref]
@@ -801,7 +770,7 @@ class GUI():
             utils.message_details_dialog(msg, traceback.format_exc(),
                                          Gtk.MessageType.ERROR)
             logger.warning(e)
-            self.on_file_menu_open(None)
+            self.on_file_menu_open(None, None)
 
         if engine is None:
             # the database wasn't opened
@@ -818,7 +787,7 @@ class GUI():
         # using the same instance of a view that could have old
         # settings from the previous handler...
         bauble.last_handler = None
-        self.clear_menu('/ui/MenuBar/insert_menu')
+        self.insert_menu.remove_all()
         self.statusbar_clear()
         pluginmgr.init()
         bauble.command_handler('home', None)
@@ -837,37 +806,37 @@ class GUI():
             self.widgets.statusbar.pop(cid)
 
     @staticmethod
-    def on_help_menu_contents(_widget):
+    def on_help_menu_contents(_action, _param):
         desktop.open('http://ghini.readthedocs.io/en/ghini-1.0-dev/',
                      dialog_on_error=True)
 
     @staticmethod
-    def on_help_menu_bug(_widget):
+    def on_help_menu_bug(_action, _param):
         desktop.open('https://github.com/RoDuth/ghini.desktop/issues/new',
                      dialog_on_error=True)
 
     @staticmethod
-    def on_help_menu_logfile(_widget):
+    def on_help_menu_logfile(_action, _param):
         logger.debug('opening log file from help menu')
         filename = os.path.join(paths.appdata_dir(), 'bauble.log')
         desktop.open(filename, dialog_on_error=True)
 
     @staticmethod
-    def on_help_menu_web_devel(_widget):
+    def on_help_menu_web_devel(_action, _param):
         desktop.open('http://github.com/RoDuth/ghini.desktop/',
                      dialog_on_error=True)
 
     @staticmethod
-    def on_help_menu_web_wiki(_widget):
+    def on_help_menu_web_wiki(_action, _param):
         desktop.open('http://ghini.github.io/',
                      dialog_on_error=True)
 
     @staticmethod
-    def on_help_menu_web_forum(_widget):
+    def on_help_menu_web_forum(_action, _param):
         desktop.open('https://groups.google.com/forum/#!forum/bauble',
                      dialog_on_error=True)
 
-    def on_help_menu_about(self, _widget):
+    def on_help_menu_about(self, _action, _param):
         about = Gtk.AboutDialog(transient_for=self.window)
         about.set_program_name('Ghini (BBG)')
         about.set_version(bauble.version)
@@ -880,11 +849,11 @@ class GUI():
 
         if not self.lic_path.exists():
             # most likely only when run from source
-            lic_path = list(paths.root_dir().glob('**/LICENSE'))[0]
+            self.lic_path = list(paths.root_dir().glob('**/LICENSE'))[0]
 
-        logger.debug('about using license at %s', lic_path)
+        logger.debug('about using license at %s', self.lic_path)
 
-        with open(lic_path) as f:
+        with self.lic_path.open('r', encoding='utf-8') as f:
             lics = f.read()
         about.set_license(lics)  # not translated
         about.set_comments(_('This version installed on: %s\n'
@@ -900,23 +869,28 @@ class GUI():
 
     @staticmethod
     def on_delete_event(_widget, _event):
-        from bauble import task
-        if task.running():
+        if bauble.task.running():
             msg = _('Would you like to cancel the current tasks?')
             if not utils.yes_no_dialog(msg):
                 # stop other handlers for being invoked for this event
                 return True
-            task.kill()
+            bauble.task.kill()
             msg = _('Close Ghini?')
             if not utils.yes_no_dialog(msg):
                 # don't close
                 return True
         return False
 
+    def on_destroy(self, _window):
+        active_view = self.get_view()
+        if active_view:
+            active_view.cancel_threads()
+            active_view.prevent_threads = True
+        bauble.task.kill()
+
     def on_resize(self, _widget, _data):
         rect = self.window.get_size()
         prefs.prefs[self.window_geometry_pref] = rect.width, rect.height
 
-    @staticmethod
-    def on_quit(_widget):
-        bauble.quit()
+    def on_quit(self, _action, _param):
+        self.window.destroy()

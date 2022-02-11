@@ -401,7 +401,7 @@ class ShapefileExportSettingsBox(Gtk.ScrolledWindow):
 
     @staticmethod
     def on_prop_button_press_event(_widget, event, menu):
-        menu.popup(None, None, None, None, event.button, event.time)
+        menu.popup_at_pointer(event)
 
     def _add_prop_button(self, db_field, row):
         prop_button = Gtk.Button(hexpand=True, use_underline=False)

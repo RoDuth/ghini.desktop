@@ -29,7 +29,8 @@ from random import random
 import logging
 logger = logging.getLogger(__name__)
 
-from gi.repository import Gtk  # noqa
+from gi.repository import Gtk
+from gi.repository import Gio
 from gi.repository import GLib
 
 from sqlalchemy.orm.session import object_session, Session
@@ -786,22 +787,35 @@ class DistributionPresenter(editor.GenericEditorPresenter):
         self.parent_ref = weakref.ref(parent)
         self.session = parent.session
         self._dirty = False
-        self.remove_menu = Gtk.Menu()
-        self.remove_menu.attach_to_widget(
-            self.view.widgets.sp_dist_remove_button, None)
+
+        self.remove_menu_model = Gio.Menu()
+        action = Gio.SimpleAction.new('geography_remove',
+                                      GLib.VariantType('s'))
+        action.connect('activate', self.on_activate_remove_menu_item)
+
+        action_group = Gio.SimpleActionGroup()
+        action_group.add_action(action)
+
+        remove_button = self.view.widgets.sp_dist_remove_button
+        remove_button.insert_action_group('geo', action_group)
+
+        self.remove_menu = Gtk.Menu.new_from_model(self.remove_menu_model)
+        self.remove_menu.attach_to_widget(remove_button, None)
+
         self.view.connect('sp_dist_add_button', 'button-press-event',
                           self.on_add_button_pressed)
         self.view.connect('sp_dist_remove_button', 'button-press-event',
                           self.on_remove_button_pressed)
+
         self.view.widgets.sp_dist_add_button.set_sensitive(False)
         self.geo_menu = None
 
-        def _init_geo():
-            add_button = self.view.widgets.sp_dist_add_button
-            self.geo_menu = GeographyMenu(self.on_activate_add_menu_item)
-            self.geo_menu.attach_to_widget(add_button, None)
-            add_button.set_sensitive(True)
-        GLib.idle_add(_init_geo)
+        add_button = self.view.widgets.sp_dist_add_button
+        self.geo_menu = GeographyMenu.new_menu(
+            self.on_activate_add_menu_item, add_button
+        )
+        self.geo_menu.attach_to_widget(add_button)
+        add_button.set_sensitive(True)
 
     def refresh_view(self):
         label = self.view.widgets.sp_dist_label
@@ -812,23 +826,21 @@ class DistributionPresenter(editor.GenericEditorPresenter):
         self.geo_menu.popup(None, None, None, None, event.button, event.time)
 
     def on_remove_button_pressed(self, _button, event):
-        # clear the menu
-        for child in self.remove_menu.get_children():
-            self.remove_menu.remove(child)
-        # add distributions to menu
+        # clear the menu first
+        self.remove_menu_model.remove_all()
         for dist in self.model.distribution:
-            item = Gtk.MenuItem(label=str(dist))
-            self.view.connect(item, 'activate',
-                              self.on_activate_remove_menu_item, dist)
-            self.remove_menu.append(item)
-        self.remove_menu.show_all()
-        self.remove_menu.popup(None, None, None, None, event.button,
-                               event.time)
+            # NOTE can't use dist.id as dist may not have been committed yet.
+            item = Gio.MenuItem.new(
+                str(dist), f'geo.geography_remove::{dist.geography.id}'
+            )
+            self.remove_menu_model.append_item(item)
 
-    def on_activate_add_menu_item(self, widget, geoid=None):
-        logger.debug('on_activate_add_menu_item %s %s', widget, geoid)
+        self.remove_menu.popup_at_pointer(event)
+
+    def on_activate_add_menu_item(self, _action, geo_id):
+        geo_id = int(geo_id.unpack())
         from bauble.plugins.plants.geography import Geography
-        geo = self.session.query(Geography).get(geoid)
+        geo = self.session.query(Geography).get(geo_id)
         # check that this geography isn't already in the distributions
         if geo in [d.geography for d in self.model.distribution]:
             logger.debug('%s already in %s', geo, self.model)
@@ -840,7 +852,10 @@ class DistributionPresenter(editor.GenericEditorPresenter):
         self.refresh_view()
         self.parent_ref().refresh_sensitivity()
 
-    def on_activate_remove_menu_item(self, _widget, dist):
+    def on_activate_remove_menu_item(self, _action, geo_id):
+        geo_id = int(geo_id.unpack())
+        dist = [i for i in self.model.distribution if
+                i.geography.id == geo_id][0]
         self.model.distribution.remove(dist)
         utils.delete_or_expunge(dist)
         self.refresh_view()
@@ -1259,10 +1274,6 @@ class SpeciesEditorView(editor.GenericEditorView):
         for expander, pref in self.expanders_pref_map.items():
             expanded = prefs.prefs.get(pref, True)
             self.widgets[expander].set_expanded(expanded)
-
-    def start(self):
-        """starts the views, essentially calls run() on the main dialog."""
-        return self.get_window().run()
 
 
 class SpeciesEditorMenuItem(editor.GenericModelViewPresenterEditor):

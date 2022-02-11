@@ -1,33 +1,108 @@
-<ui>
-  <menubar name="MenuBar">
-    <menu action="file">
-      <menu action="connection">
-        <menuitem action="conn_open"/>
-        <menuitem action="conn_new"/>
-      </menu>
-      <separator/>
-      <menuitem action="file_quit"/>
-    </menu>
-    <menu action="edit">
-      <menuitem action="edit_cut"/>
-      <menuitem action="edit_copy"/>
-      <menuitem action="edit_paste"/>
-      <separator/>
-      <menuitem action="edit_prefs"/>
-      <menuitem action="edit_history"/>
-    </menu>
-    <menu name="insert_menu" action="insert"/>
-    <menu name="tools_menu" action="tools"/>
-    <menu name="help_menu" action="help">
-      <menuitem action="help_contents"/>
-      <separator/>
-      <menuitem action="help_bug"/>
-      <menuitem action="help_logfile"/>
-      <menuitem action="help_web.devel"/>
-      <menuitem action="help_web.wiki"/>
-      <menuitem action="help_web.forum"/>
-      <separator/>
-      <menuitem action="help_about"/>
-    </menu>
-  </menubar>
-</ui>
+<?xml version="1.0"?>
+<interface>
+  <menu id="menubar">
+    <submenu>
+      <attribute name="label">File</attribute>
+      <submenu>
+        <attribute name="label">Connection</attribute>
+        <section>
+          <item>
+            <attribute name="label" translatable="yes">Open</attribute>
+            <attribute name="action">app.open</attribute>
+          </item>
+          <item>
+            <attribute name="label" translatable="yes">New</attribute>
+            <attribute name="action">app.new</attribute>
+          </item>
+        </section>
+      </submenu>
+      <section>
+        <item>
+          <attribute name="label" translatable="yes">_Quit</attribute>
+          <attribute name="action">app.quit</attribute>
+        </item>
+      </section>
+    </submenu>
+    <submenu>
+      <attribute name="label">Edit</attribute>
+      <section>
+        <item>
+          <attribute name="label" translatable="yes">Cut</attribute>
+          <attribute name="action">win.cut</attribute>
+          <attribute name="accel">&lt;Primary&gt;x</attribute>
+        </item>
+        <item>
+          <attribute name="label" translatable="yes">Copy</attribute>
+          <attribute name="action">win.copy</attribute>
+          <attribute name="accel">&lt;Primary&gt;c</attribute>
+        </item>
+        <item>
+          <attribute name="label" translatable="yes">Paste</attribute>
+          <attribute name="action">win.paste</attribute>
+          <attribute name="accel">&lt;Primary&gt;v</attribute>
+        </item>
+      </section>
+      <section  id='edit_context_menu'>
+      </section>
+    </submenu>
+    <submenu>
+      <attribute name="label">View</attribute>
+      <section>
+        <item>
+          <attribute name="label" translatable="yes">History</attribute>
+          <attribute name="action">app.history</attribute>
+          <attribute name="accel">&lt;control&gt;h</attribute>
+        </item>
+        <item>
+          <attribute name="label" translatable="yes">Home</attribute>
+          <attribute name="action">app.home</attribute>
+          <attribute name="accel">&lt;Primary&gt;h</attribute>
+        </item>
+        <item>
+          <attribute name="label" translatable="yes">Preferences</attribute>
+          <attribute name="action">app.preferences</attribute>
+        </item>
+      </section>
+      <section>
+        <item>
+          <attribute name="label" translatable="yes">Back</attribute>
+          <attribute name="action">app.previous</attribute>
+          <attribute name="accel">&lt;Primary&gt;h</attribute>
+        </item>
+      </section>
+    </submenu>
+    <submenu id='insert_menu'>
+      <attribute name="label">Insert</attribute>
+    </submenu>
+    <submenu id='tools_menu'>
+      <attribute name="label">Tools</attribute>
+    </submenu>
+    <submenu>
+      <attribute name="label">Help</attribute>
+      <section>
+        <item>
+          <attribute name="label" translatable="yes">Contents…</attribute>
+          <attribute name="action">app.help_contents</attribute>
+        </item>
+      </section>
+      <section>
+        <item>
+          <attribute name="label" translatable="yes">Report a Bug…</attribute>
+          <attribute name="action">app.help_bug</attribute>
+        </item>
+      </section>
+      <section>
+        <item>
+          <attribute name="label" translatable="yes">Open the Log File…</attribute>
+          <attribute name="action">app.help_log</attribute>
+        </item>
+      </section>
+      <section>
+        <item>
+          <attribute name="label" translatable="yes">_About</attribute>
+          <attribute name="action">app.about</attribute>
+        </item>
+      </section>
+    </submenu>
+  </menu>
+</interface>

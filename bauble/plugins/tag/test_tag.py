@@ -22,7 +22,8 @@ from sys import platform
 from functools import partial
 import importlib
 
-from gi.repository import Gtk  # noqa
+from gi.repository import Gtk
+from gi.repository import Gio
 
 import bauble.plugins.tag as tag_plugin
 from bauble.plugins.plants import Family
@@ -46,25 +47,26 @@ def test_duplicate_ids():
 
 class TagMenuTests(BaubleTestCase):
     def test_no_tags(self):
-        m = tag_plugin.tags_menu_manager.build_menu()
-        self.assertTrue(isinstance(m, Gtk.Menu))
+        menu_model = tag_plugin.tags_menu_manager.build_menu()
+        self.assertTrue(isinstance(menu_model, Gio.Menu))
+        m = Gtk.Menu.new_from_model(menu_model)
         self.assertEqual(len(m.get_children()), 1)
+        self.assertEqual(menu_model.get_n_items(), 1)
         self.assertEqual(m.get_children()[0].get_label(), _('Tag Selection'))
 
     def test_one_tag(self):
-        tagname = 'some_tag'
+        tagname = 'some-tag'
         t = Tag(tag=tagname, description='description')
         self.session.add(t)
         self.session.flush()
-        m = tag_plugin.tags_menu_manager.build_menu()
-        self.assertTrue(isinstance(m, Gtk.Menu))
-        self.assertEqual(len(m.get_children()), 6)
-        self.assertTrue(m.get_children()[1], Gtk.SeparatorMenuItem)
+        menu_model = tag_plugin.tags_menu_manager.build_menu()
+        self.assertTrue(isinstance(menu_model, Gio.Menu))
+        m = Gtk.Menu.new_from_model(menu_model)
+        self.assertEqual(menu_model.get_n_items(), 3)
         self.assertEqual(m.get_children()[2].get_label(), tagname)
-        self.assertTrue(m.get_children()[3], Gtk.SeparatorMenuItem)
 
     def test_more_tags(self):
-        tagname = '%s-some_tag'
+        tagname = '%s-some-tag'
         t1 = Tag(tag=tagname % 1, description='description')
         t2 = Tag(tag=tagname % 3, description='description')
         t3 = Tag(tag=tagname % 2, description='description')
@@ -72,8 +74,10 @@ class TagMenuTests(BaubleTestCase):
         t5 = Tag(tag=tagname % 4, description='description')
         self.session.add_all([t1, t2, t3, t4, t5])
         self.session.flush()
-        m = tag_plugin.tags_menu_manager.build_menu()
-        self.assertTrue(isinstance(m, Gtk.Menu))
+        menu_model = tag_plugin.tags_menu_manager.build_menu()
+        self.assertTrue(isinstance(menu_model, Gio.Menu))
+        m = Gtk.Menu.new_from_model(menu_model)
+        self.assertEqual(menu_model.get_n_items(), 3)
         self.assertEqual(len(m.get_children()), 10)
         for i in range(5):
             self.assertEqual(m.get_children()[i + 2].get_label(), tagname % i)
@@ -601,11 +605,13 @@ class TagCallbackTest(BaubleTestCase):
                 self.invoked.append((args, kwargs))
                 pass
         import bauble
-        bauble.gui = localgui = FakeGui()
-        tag_plugin._on_add_tag_activated()
-        importlib.reload(bauble)
-        self.assertEqual(localgui.invoked[0],
+        _orig_gui = bauble.gui
+        bauble.gui = FakeGui()
+        tag_plugin._on_add_tag_activated(None, None)
+        # importlib.reload(bauble)
+        self.assertEqual(bauble.gui.invoked[0],
                          (('In order to tag an item you must first search for something and select one of the results.', ), {}))
+        bauble.gui = _orig_gui
 
     def test_on_add_tag_activated_search_view_empty_selection(self):
         class FakeGui:
@@ -619,11 +625,12 @@ class TagCallbackTest(BaubleTestCase):
                 self.invoked.append((args, kwargs))
                 pass
         import bauble
-        bauble.gui = localgui = FakeGui()
+        _orig_gui = bauble.gui
+        bauble.gui = FakeGui()
+        _orig_message_dialog = utils.message_dialog
         utils.message_dialog = bauble.gui.show_message_box
-        tag_plugin._on_add_tag_activated()
-        importlib.reload(bauble)
-        importlib.reload(utils)
-        self.assertEqual(localgui.invoked[0],
+        tag_plugin._on_add_tag_activated(None, None)
+        self.assertEqual(bauble.gui.invoked[0],
                          (('Nothing selected', ), {}))
-
+        utils.message_dialog = _orig_message_dialog
+        bauble.gui = _orig_gui

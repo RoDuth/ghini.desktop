@@ -28,6 +28,8 @@ import logging
 logger = logging.getLogger(__name__)
 
 from gi.repository import Gtk
+from gi.repository import Gio
+from gi.repository import GLib
 from gi.repository import Gdk
 
 from sqlalchemy import (Column,
@@ -54,147 +56,243 @@ from bauble.editor import GenericEditorView, GenericEditorPresenter
 
 
 class TagsMenuManager:
+
+    ACTIVATED_ACTION_NAME = 'tag_activated'
+    REMOVE_CONTEXT_ACTION_NAME = 'context_tag_remove'
+    APPLY_CONTEXT_ACTION_NAME = 'context_tag_apply'
+    REMOVE_ACTIVE_ACTION_NAME = 'remove_active_tag'
+    APPLY_ACTIVE_ACTION_NAME = 'apply_active_tag'
+    TAG_ACTION_NAME = 'tag_selection'
+
     def __init__(self):
-        self.menu_item = None
+        self.menu_pos = None
         self.active_tag_name = None
-        # silence pylint attribute-defined-outside-init
-        self.apply_active_tag_menu_item = None
-        self.remove_active_tag_menu_item = None
-        self.item_list = {}
+        self.apply_active_tag_action = None
+        self.remove_active_tag_action = None
+        self.select_tag_action = None
+        self.tag_selection_action = None
 
     def reset(self, make_active_tag=None):
-        """initialize or replace Tags menu in main menu
-        """
+        """initialize or replace Tags menu in main menu."""
+        # setting active_tag_name here likely doesn't do much as its only
+        # called when adding a new tag in TagItemGUI. (which should make it the
+        # last ID and hence select it when rebuilding anyway.)
         self.active_tag_name = make_active_tag and make_active_tag.tag
         tags_menu = self.build_menu()
-        if self.menu_item is None:
-            self.menu_item = bauble.gui.add_menu(_("Tags"), tags_menu)
+        if self.menu_pos is None:
+            self.menu_pos = bauble.gui.add_menu(_("Tags"), tags_menu)
         else:
-            # self.menu_item.remove_submenu()
-            self.menu_item.set_submenu(None)
-            self.menu_item.set_submenu(tags_menu)
-            self.menu_item.show_all()
-        self.show_active_tag()
+            bauble.gui.remove_menu(self.menu_pos)
+            self.menu_pos = bauble.gui.add_menu(_("Tags"), tags_menu)
+        self.refresh()
 
-    def show_active_tag(self):
-        for item in self.item_list.values():
-            item.set_image(None)
-        widget = self.item_list.get(self.active_tag_name)
-        if widget:
-            image = Gtk.Image.new_from_icon_name('emblem-ok-symbolic',
-                                                 Gtk.IconSize.MENU)
-            widget.set_image(image)
-            self.apply_active_tag_menu_item.set_sensitive(True)
-            self.remove_active_tag_menu_item.set_sensitive(True)
+    def reset_active_tag_name(self):
+        """Reset the active tag to latest by ID if current is not valid."""
+        session = db.Session()
+        if (not self.active_tag_name or (
+            self.active_tag_name and not
+                session.query(Tag)
+                .filter_by(tag=self.active_tag_name)
+                .first())):
+            last_tag = session.query(Tag).order_by(Tag.id.desc()).first()
+            self.active_tag_name = last_tag and last_tag.tag
+        session.close()
+
+    def refresh(self, selected_values=None):
+        """Refresh the tag menu, set the active tag, enable/disable menu items.
+        """
+        self.reset_active_tag_name()
+
+        if self.select_tag_action and self.active_tag_name:
+            self.select_tag_action.set_state(
+                GLib.Variant.new_string(self.active_tag_name)
+            )
+
+        if not selected_values:
+            view = bauble.gui.get_view()
+            if isinstance(view, SearchView):
+                selected_values = view.get_selected_values()
+
+        if selected_values:
+            if self.active_tag_name:
+                self.apply_active_tag_action.set_enabled(True)
+                self.remove_active_tag_action.set_enabled(True)
+            self.tag_selection_action.set_enabled(True)
         else:
-            self.apply_active_tag_menu_item.set_sensitive(False)
-            self.remove_active_tag_menu_item.set_sensitive(False)
+            self.apply_active_tag_action.set_enabled(False)
+            self.remove_active_tag_action.set_enabled(False)
+            self.tag_selection_action.set_enabled(False)
 
-    def item_activated(self, _widget, tag_name):
-        self.active_tag_name = tag_name
-        self.show_active_tag()
-        bauble.gui.send_command('tag="%s"' % tag_name)
+    def on_tag_change_state(self, action, tag_name):
+        action.set_state(tag_name)
+        self.active_tag_name = tag_name.unpack()
+        bauble.gui.send_command(f'tag={tag_name}')
         view = bauble.gui.get_view()
         if isinstance(view, SearchView):
             view.results_view.expand_to_path(Gtk.TreePath.new_first())
+        self.refresh()
+
+    @staticmethod
+    def on_context_menu_apply_activated(_action, tag_name):
+        values = bauble.gui.get_view().get_selected_values()
+        # unpack to python type
+        tag_objects(tag_name.unpack(), values)
+
+    @staticmethod
+    def on_context_menu_remove_activated(_action, tag_name):
+        values = bauble.gui.get_view().get_selected_values()
+        # unpack to python type
+        untag_objects(tag_name.unpack(), values)
+
+    def context_menu_callback(self, selected):
+        """Build the SearchView context menu tag section for the selected
+        items.
+        """
+        # Only add actions if they have not already been added...  Adding here
+        # to wait for bauble.gui.
+        if not bauble.gui.lookup_action(self.APPLY_CONTEXT_ACTION_NAME):
+
+            bauble.gui.add_action(self.APPLY_CONTEXT_ACTION_NAME,
+                                  self.on_context_menu_apply_activated,
+                                  param_type=GLib.VariantType('s'))
+
+            bauble.gui.add_action(self.REMOVE_CONTEXT_ACTION_NAME,
+                                  self.on_context_menu_remove_activated,
+                                  param_type=GLib.VariantType('s'))
+
+        session = object_session(selected[0])
+        query = session.query(Tag)
+        if not query.first():
+            return None
+
+        section = Gio.Menu()
+        tag_item = Gio.MenuItem.new(_('Tag Selection'),
+                                    f'win.{self.TAG_ACTION_NAME}')
+        section.append_item(tag_item)
+
+        apply_submenu = Gio.Menu()
+        section.append_submenu('Apply Tag', apply_submenu)
+
+        for tag in query.order_by(Tag.tag):
+            menu_item = Gio.MenuItem.new(
+                tag.tag.replace('_', '__'),
+                f'win.{self.APPLY_CONTEXT_ACTION_NAME}::{tag.tag}'
+            )
+            apply_submenu.append_item(menu_item)
+
+        attached_tags = set()
+        for item in selected:
+            attached_tags.update(Tag.attached_to(item))
+        # bail early if no attached tags
+        if not attached_tags:
+            return section
+
+        remove_submenu = Gio.Menu()
+        section.append_submenu('Remove Tag', remove_submenu)
+
+        for tag in attached_tags:
+            menu_item = Gio.MenuItem.new(
+                tag.tag.replace('_', '__'),
+                f'win.{self.REMOVE_CONTEXT_ACTION_NAME}::{tag.tag}'
+            )
+            remove_submenu.append_item(menu_item)
+
+        return section
 
     def build_menu(self):
-        """build tags Gtk.Menu based on current data."""
-        tags_menu = Gtk.Menu()
-        add_tag_menu_item = Gtk.MenuItem(label=_('Tag Selection'))
-        add_tag_menu_item.connect('activate', _on_add_tag_activated)
-        self.apply_active_tag_menu_item = Gtk.MenuItem(
-            label=_('Apply active tag'))
-        self.apply_active_tag_menu_item.connect(
-            'activate', self.on_apply_active_tag_activated
-        )
-        self.remove_active_tag_menu_item = Gtk.MenuItem(
-            label=_('Remove active tag')
-        )
-        self.remove_active_tag_menu_item.connect(
-            'activate', self.on_remove_active_tag_activated)
+        """build tags menu based on current data."""
+        tags_menu = Gio.Menu()
+
         if bauble.gui:
-            accel_group = Gtk.AccelGroup()
-            bauble.gui.window.add_accel_group(accel_group)
-            add_tag_menu_item.add_accelerator(
-                'activate',
-                accel_group,
-                ord('T'),
-                Gdk.ModifierType.CONTROL_MASK,
-                Gtk.AccelFlags.VISIBLE
-            )
-            self.apply_active_tag_menu_item.add_accelerator(
-                'activate',
-                accel_group,
-                ord('Y'),
-                Gdk.ModifierType.CONTROL_MASK,
-                Gtk.AccelFlags.VISIBLE
-            )
-            key, mask = Gtk.accelerator_parse('<Control><Shift>y')
-            self.remove_active_tag_menu_item.add_accelerator(
-                'activate',
-                accel_group,
-                key,
-                mask,
-                Gtk.AccelFlags.VISIBLE
-            )
-        tags_menu.append(add_tag_menu_item)
+            # set up actions
+            if not self.tag_selection_action:
+                self.tag_selection_action = bauble.gui.add_action(
+                    self.TAG_ACTION_NAME, _on_add_tag_activated
+                )
+
+            if not self.apply_active_tag_action:
+                self.apply_active_tag_action = bauble.gui.add_action(
+                    self.APPLY_ACTIVE_ACTION_NAME,
+                    self.on_apply_active_tag_activated
+                )
+
+            if not self.remove_active_tag_action:
+                self.remove_active_tag_action = bauble.gui.add_action(
+                    self.REMOVE_ACTIVE_ACTION_NAME,
+                    self.on_remove_active_tag_activated
+                )
+
+        # tag selection
+        add_tag_menu_item = Gio.MenuItem.new(_('Tag Selection'),
+                                             f'win.{self.TAG_ACTION_NAME}')
+
+        # apply active tag
+        apply_active_tag_menu_item = Gio.MenuItem.new(
+            _('Apply Active Tag'), f'win.{self.APPLY_ACTIVE_ACTION_NAME}'
+        )
+
+        # remove active tag
+        remove_active_tag_menu_item = Gio.MenuItem.new(
+            _('Remove Active Tag'), f'win.{self.REMOVE_ACTIVE_ACTION_NAME}'
+        )
+
+        app = Gio.Application.get_default()
+        if app:
+            # tag selection
+            app.set_accels_for_action(f'win.{self.TAG_ACTION_NAME}',
+                                      ['<Control>t'])
+            # apply active tag
+            app.set_accels_for_action(f'win.{self.APPLY_ACTIVE_ACTION_NAME}',
+                                      ['<Control>y'])
+            # remove active tag
+            app.set_accels_for_action(f'win.{self.REMOVE_ACTIVE_ACTION_NAME}',
+                                      ['<Control><Shift>y'])
+
+        tags_menu.append_item(add_tag_menu_item)
 
         session = db.Session()
-        query = session.query(Tag).order_by(Tag.tag)
+        query = session.query(Tag)
         has_tags = query.first()
-        if has_tags:
-            tags_menu.append(Gtk.SeparatorMenuItem())
-        # menuitem and submenu corresponding to full item path; it is a list
-        # because it needs to be mutable
-        submenu = {'': [None, tags_menu]}
 
-        def confirm_attach_path(parts):
-            full_path = ''
-            parent = tags_menu
-            while parts:
-                name = parts.pop()
-                full_path += name
-                if full_path not in submenu:
-                    item = Gtk.ImageMenuItem(label=name)
-                    parent.append(item)
-                    submenu[full_path] = [item, None]
-                if submenu[full_path][1] is None:
-                    take_this = Gtk.Menu()
-                    submenu[full_path] = [item, take_this]
-                    item.set_submenu(take_this)
-                parent = submenu[full_path]
-                full_path += '/'
-        try:
-            for tag in query:
-                path = tag.tag.split('/')
-                tail = path.pop()
-                head = '/'.join(path)
-                item = Gtk.ImageMenuItem(label=tail)
-                submenu[tag.tag] = [item, None]
-                item.set_image(None)
-                item.set_always_show_image(True)
-                self.item_list[tag.tag] = item
-                item.connect("activate", self.item_activated, tag.tag)
-                confirm_attach_path(path)
-                submenu[head][1].append(item)
-        except Exception:
-            logger.debug(traceback.format_exc())
-            msg = _('Could not create the tags menus')
-            utils.message_details_dialog(msg, traceback.format_exc(),
-                                         Gtk.MessageType.ERROR)
+        if has_tags:
+            if (bauble.gui and not self.select_tag_action):
+                # setup the select_tag_action only if there are existing tags.
+                # Most likely little harm in leaving the action in place even
+                # if all tags are deleted, the menu is unavailable anyway.
+                # set a valid value for self.active_tag_name
+                self.reset_active_tag_name()
+                variant = GLib.Variant.new_string(self.active_tag_name)
+                self.select_tag_action = Gio.SimpleAction.new_stateful(
+                    self.ACTIVATED_ACTION_NAME, variant.get_type(), variant
+                )
+                self.select_tag_action.connect('change-state',
+                                               self.on_tag_change_state)
+
+                bauble.gui.window.add_action(self.select_tag_action)
+            section = Gio.Menu()
+            for tag in query.order_by(Tag.tag):
+                menu_item = Gio.MenuItem.new(
+                    tag.tag.replace('_', '__'),
+                    f'win.{self.ACTIVATED_ACTION_NAME}::{tag.tag}'
+                )
+                section.append_item(menu_item)
+
+            tags_menu.append_section(None, section)
+
+
+            section = Gio.Menu()
+            section.append_item(apply_active_tag_menu_item)
+            section.append_item(remove_active_tag_menu_item)
+            tags_menu.append_section(None, section)
+            if bauble.gui:
+                self.apply_active_tag_action.set_enabled(False)
+                self.remove_active_tag_action.set_enabled(False)
         session.close()
-
-        if has_tags:
-            tags_menu.append(Gtk.SeparatorMenuItem())
-            tags_menu.append(self.apply_active_tag_menu_item)
-            tags_menu.append(self.remove_active_tag_menu_item)
-            self.apply_active_tag_menu_item.set_sensitive(False)
-            self.remove_active_tag_menu_item.set_sensitive(False)
         return tags_menu
 
     def toggle_tag(self, applying):
         view = bauble.gui.get_view()
+        values = None
         try:
             values = view.get_selected_values()
         except AttributeError:
@@ -211,14 +309,14 @@ class TagsMenuManager:
             utils.message_dialog(msg)
             return
         applying(self.active_tag_name, values)
-        view.update_bottom_notebook()
+        view.update_bottom_notebook(values)
 
-    def on_apply_active_tag_activated(self, *args, **kwargs):
+    def on_apply_active_tag_activated(self, _action, _param):
         logger.debug("you're applying %s to the selection",
                      self.active_tag_name)
         self.toggle_tag(applying=tag_objects)
 
-    def on_remove_active_tag_activated(self, *args, **kwargs):
+    def on_remove_active_tag_activated(self, _action, _param):
         logger.debug("you're removing %s from the selection",
                      self.active_tag_name)
         self.toggle_tag(applying=untag_objects)
@@ -727,9 +825,10 @@ def get_tag_ids(objs):
     return (s_all, s_some, s_none)
 
 
-def _on_add_tag_activated(*args, **kwargs):
+def _on_add_tag_activated(_action, _param):
     # get the selection from the search view
     view = bauble.gui.get_view()
+    values = None
     try:
         values = view.get_selected_values()
     except AttributeError:
@@ -743,7 +842,7 @@ def _on_add_tag_activated(*args, **kwargs):
         return
     tagitem = TagItemGUI(values)
     tagitem.start()
-    view.update_bottom_notebook()
+    view.update_bottom_notebook(values)
 
 
 class GeneralTagExpander(InfoExpander):
@@ -840,11 +939,19 @@ class TagPlugin(pluginmgr.Plugin):
             'name': _('Tags'),
             'row_activated': cls.on_tag_bottom_info_activated,
         }
-        # Only want to add this once (incase of opening another connection).
+        # Only want to add this once (incase of opening another connection),
+        # hence directly accessing underlying dict with setdefault
         # If no 'label' key in the Meta object add_page_to_bottom_notebook will
         # be called again adding another page.
         SearchView.bottom_info.data.setdefault(Tag, tag_meta)
-        if bauble.gui is not None:
+        SearchView.context_menu_callbacks.add(
+            tags_menu_manager.context_menu_callback
+        )
+        SearchView.cursor_changed_callbacks.add(
+            tags_menu_manager.refresh
+        )
+        if bauble.gui:
+            bauble.gui.set_view_callbacks.add(tags_menu_manager.refresh)
             tags_menu_manager.reset()
 
     @staticmethod

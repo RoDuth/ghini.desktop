@@ -788,11 +788,6 @@ def start_connection_manager(default_conn=None):
         root_widget_name='main_dialog')
 
     cm = ConnMgrPresenter(view)
-    # on mac osx connection manager starts in the background.
-    import sys
-    if sys.platform == 'darwin':
-        cm.view.get_window().set_keep_above(True)
-        cm.view.get_window().set_keep_above(False)
     result = cm.start()
     if result == Gtk.ResponseType.OK:
         cm.view.get_window().destroy()

@@ -198,8 +198,10 @@ class GenericEditorView:
         self.widgets = utils.BuilderWidgets(builder)
         if parent:
             self.get_window().set_transient_for(parent)
+            self.get_window().set_destroy_with_parent(True)
         elif bauble.gui:
             self.get_window().set_transient_for(bauble.gui.window)
+            self.get_window().set_destroy_with_parent(True)
         self.response = None
         self.__attached_signals = []
         self.boxes = set()
@@ -670,7 +672,8 @@ class GenericEditorView:
         :param combo:
         :param translations: a list of pairs, or a dictionary,
             of values->translation.
-        :param default: the index of the intial value as an int.
+        :param default: the intial value as found in the first column of the
+            model.
         :param key: a callable that returns a key for sorting
         """
         if isinstance(combo, str):
@@ -727,7 +730,14 @@ class GenericEditorView:
     def start(self):
         # while being ran, the view will invoke callbacks in the presenter
         # which, in turn, will alter the attributes in the model.
-        return self.get_window().run()
+        # Setting gui busy has same effect as modal but allows disabling menu
+        # items that should only be available when the main window is focused.
+        if bauble.gui:
+            bauble.gui.set_busy(True, 'not-allowed')
+        result = self.get_window().run()
+        if bauble.gui:
+            bauble.gui.set_busy(False)
+        return result
 
     def cleanup(self):
         """Should be called when after self.start() returns.
@@ -1761,7 +1771,7 @@ class GenericEditorPresenter:
 
     def start(self):
         """run the dialog associated to the view"""
-        result = self.view.get_window().run()
+        result = self.view.start()
         if (self.is_committing_presenter and result in
                 self.committing_results and self._dirty):
             self.commit_changes()

@@ -27,11 +27,14 @@ from pathlib import Path
 import logging
 logger = logging.getLogger(__name__)
 
-from gi.repository import Gtk  # noqa
+from gi.repository import Gtk
+from gi.repository import Gio
+from gi.repository import GLib
 
 from sqlalchemy import select, Column, Unicode, String, Integer, ForeignKey
 from sqlalchemy.orm import object_session, relationship, backref, deferred
 
+import bauble
 from bauble import db, utils
 from bauble import btypes as types
 
@@ -68,7 +71,8 @@ def get_species_in_geography(geo):
     return query.all()
 
 
-class GeographyMenu(Gtk.Menu):
+class GeographyMenu(Gio.Menu):
+    ACTION_NAME = 'geography_activated'
 
     def __init__(self, callback):
         super().__init__()
@@ -78,9 +82,21 @@ class GeographyMenu(Gtk.Menu):
                             geography_table.c.name,
                             geography_table.c.parent_id]).execute().fetchall()
         self.geos_hash = {}
+        self.populate()
 
-        from gi.repository import GLib
-        GLib.idle_add(self.populate)
+    @classmethod
+    def new_menu(cls, callback, button):
+        menu = cls(callback)
+        menu.attach_action_group(callback, button)
+
+        return Gtk.Menu.new_from_model(menu)
+
+    def attach_action_group(self, callback, button):
+        action = Gio.SimpleAction.new(self.ACTION_NAME, GLib.VariantType('s'))
+        action.connect('activate', callback)
+        action_group = Gio.SimpleActionGroup()
+        action_group.add_action(action)
+        button.insert_action_group('geo', action_group)
 
     def get_geos_hash(self):
         geos_hash = {}
@@ -92,37 +108,26 @@ class GeographyMenu(Gtk.Menu):
 
         return geos_hash
 
-    def get_kids(self, pid):
-        return self.geos_hash.get(pid, [])
-
-    def has_kids(self, pid):
-        return len(self.get_kids(pid)) > 0
-
     def build_menu(self, geo_id, name):
-        item = Gtk.MenuItem(label=name)
-        if not self.has_kids(geo_id):
-            if item.get_submenu() is None:
-                item.connect('activate', self.callback, geo_id)
-            return item
+        if next_level := self.geos_hash.get(geo_id):
+            submenu = Gio.Menu()
+            item = Gio.MenuItem.new(
+                name, f'geo.{self.ACTION_NAME}::{geo_id}'
+            )
+            submenu.append_item(item)
+            section = Gio.Menu()
+            submenu.append_section(None, section)
+            for id_, name_ in next_level:
+                item = self.build_menu(id_, name_)
+                if isinstance(item, Gio.MenuItem):
+                    section.append_item(item)
+                else:
+                    section.append_submenu(name_, item)
+            return submenu
 
-        kids_added = False
-        submenu = Gtk.Menu()
-        # removes two levels of kids with the same name, there must be a
-        # better way to do this but i got tired of thinking about it
-        kids = self.get_kids(geo_id)
-        if len(kids) > 0:
-            kids_added = True
-        for kid_id, kid_name in kids:  # get_kids(geo_id):
-            submenu.append(self.build_menu(kid_id, kid_name))
-
-        if kids_added:
-            sel_item = Gtk.MenuItem(label=name)
-            submenu.insert(sel_item, 0)
-            submenu.insert(Gtk.SeparatorMenuItem(), 1)
-            item.set_submenu(submenu)
-            sel_item.connect('activate', self.callback, geo_id)
-        else:
-            item.connect('activate', self.callback, geo_id)
+        item = Gio.MenuItem.new(
+            name, f'geo.{self.ACTION_NAME}::{geo_id}'
+        )
         return item
 
     def populate(self):
@@ -130,21 +135,14 @@ class GeographyMenu(Gtk.Menu):
         have any kids are appended to the bottom of the menu
         """
         self.geos_hash = self.get_geos_hash()
+
         if not self.geos_hash:
-            # we would get here if the Geography menu is populate, usually
+            # we would get here if the geos_hash isn't populated, usually
             # during a unit test
             return
-        no_kids = []
+
         for geo_id, geo_name in self.geos_hash[None]:
-            if geo_id not in list(self.geos_hash.keys()):
-                no_kids.append((geo_id, geo_name))
-            else:
-                self.append(self.build_menu(geo_id, geo_name))
-
-        for geo_id, geo_name in sorted(no_kids):
-            self.append(self.build_menu(geo_id, geo_name))
-
-        self.show_all()
+            self.append_submenu(geo_name, self.build_menu(geo_id, geo_name))
 
 
 class Geography(db.Base):

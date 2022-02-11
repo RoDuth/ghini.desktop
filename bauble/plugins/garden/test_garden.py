@@ -92,7 +92,8 @@ location_test_data = (
     {'id': 3, 'name': 'Somewhere Else', 'code': 'SE'},
 )
 
-geography_test_data = [{'id': 1, 'name': 'Somewhere'}]
+geography_test_data = [{'id': 1, 'name': 'Somewhere'},
+                       {'id': 2, 'name': 'SomewhereSubArea', 'parent_id': 1}]
 
 source_test_data = (
     {'id': 1, 'accession_id': 2},

@@ -41,7 +41,8 @@ from configparser import ConfigParser
 import logging
 logger = logging.getLogger(__name__)
 
-from gi.repository import Gtk  # noqa
+from gi.repository import Gtk
+from gi.repository import Gio
 
 import bauble
 from bauble import db
@@ -354,6 +355,11 @@ def update_prefs(conf_file):
             logger.debug('adding section: %s', section)
             for option in config[section]:
                 prefs[f'{section}.{option}'] = config.get(section, option)
+        elif (config.has_section(section) and
+              config.has_option(section, 'extend')):
+            for option in config[section]:
+                if option != 'append' and f'{section}.{option}' not in prefs:
+                    prefs[f'{section}.{option}'] = config.get(section, option)
     prefs.save()
 
 
@@ -372,34 +378,42 @@ class PrefsView(pluginmgr.View):
         self.prefs_ls = self.view.widgets.prefs_prefs_ls
         self.plugins_ls = self.view.widgets.prefs_plugins_ls
         self.prefs_tv = self.view.widgets.prefs_prefs_tv
-        # TODO should really be using Gio.SimpleAction/Gio.Action
-        self.action = bauble.view.Action('prefs_insert', _('_Insert'),
-                                         callback=self.add_new)
         self.button_press_id = None
 
     def on_button_press_event(self, widget, event):
         logger.debug('event.button %s', event.button)
         if event.button == 3:
-            def on_activate(_item, callback):
-                try:
-                    model, tree_path = (self.prefs_tv
-                                        .get_selection()
-                                        .get_selected_rows())
-                    logger.debug('model: %s tree_path: %s', model, tree_path)
-                    if not model or not tree_path:
-                        logger.debug('no model or tree_path')
-                        return
-                    callback(model, tree_path)
-                except Exception as e:   # pylint: disable=broad-except
-                    msg = utils.xml_safe(str(e))
-                    logger.warning(msg)
-            item = self.action.create_menu_item()
-            item.connect('activate', on_activate, self.action.callback)
-            menu = Gtk.Menu()
-            menu.append(item)
+
+            action_name = 'prefs_insert'
+
+            if bauble.gui and not bauble.gui.lookup_action(action_name):
+                action = Gio.SimpleAction.new(action_name, None)
+                bauble.gui.window.add_action(action)
+                action.connect('activate', self.on_prefs_insert_activate)
+
+            item = Gio.MenuItem.new(_('_Insert'),
+                                    f'win.{action_name}')
+            menu_model = Gio.Menu()
+            menu_model.insert_item(0, item)
+            menu = Gtk.Menu.new_from_model(menu_model)
             menu.attach_to_widget(widget)
             logger.debug('attaching menu to %s', widget)
-            menu.popup(None, None, None, None, event.button, event.time)
+
+            menu.popup_at_pointer(event)
+
+    def on_prefs_insert_activate(self, _action, _param):
+        try:
+            model, tree_path = (self.prefs_tv
+                                .get_selection()
+                                .get_selected_rows())
+            logger.debug('model: %s tree_path: %s', model, tree_path)
+            if not model or not tree_path:
+                logger.debug('no model or tree_path')
+                return
+            self.add_new(model, tree_path)
+        except Exception as e:   # pylint: disable=broad-except
+            msg = utils.xml_safe(str(e))
+            logger.warning(msg)
 
     @staticmethod
     def add_new(model, tree_path, text=None):
@@ -418,6 +432,7 @@ class PrefsView(pluginmgr.View):
         message_area.add(box)
         dialog.resize(1, 1)
         dialog.show_all()
+        new_iter = None
         if dialog.run() == Gtk.ResponseType.OK:
             tree_iter = model.get_iter(tree_path)
             option = option_entry.get_text()

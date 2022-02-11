@@ -47,6 +47,7 @@ from gi.repository import Gtk  # noqa
 from sqlalchemy import Column, Unicode, select
 from sqlalchemy.orm.exc import NoResultFound
 
+import bauble
 from bauble import db
 from bauble.error import BaubleError
 from bauble import paths
@@ -276,9 +277,8 @@ def init(force=False):
             prefs.update_prefs(conf_file)
     # don't build the tools menu if we're running from the tests and
     # we don't have a gui
-    from bauble import gui
-    if gui is not None:
-        gui.build_tools_menu()
+    if bauble.gui is not None:
+        bauble.gui.build_tools_menu()
 
 
 def install(plugins_to_install, import_defaults=True, force=False):
@@ -492,6 +492,7 @@ class View(Gtk.Box):
             self.view.widgets.remove_parent(widget)
             self.add(widget)
         self.running_threads = []
+        self.prevent_threads = False
 
     def cancel_threads(self):
         for k in self.running_threads:
@@ -503,6 +504,8 @@ class View(Gtk.Box):
     def start_thread(self, thread):
         self.running_threads.append(thread)
         thread.start()
+        if self.prevent_threads:
+            self.cancel_threads()
         return thread
 
     def update(self):
