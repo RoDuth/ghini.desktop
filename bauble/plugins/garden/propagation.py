@@ -103,8 +103,8 @@ class Propagation(db.Base):
         incomplete = True
         if self.prop_type == 'UnrootedCutting':
             incomplete = self._cutting is None  # cutting without fields
-            if not incomplete:
-                quantity = self._cutting.rooted_pct
+            if not incomplete and self._cutting.rooted:
+                quantity = sum(i.quantity for i in self._cutting.rooted)
         elif self.prop_type == 'Seed':
             incomplete = self._seed is None  # seed without fields
             if not incomplete:
