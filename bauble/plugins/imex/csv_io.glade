@@ -4,6 +4,8 @@
   <requires lib="gtk+" version="3.24"/>
   <object class="GtkDialog" id="csv_export_dialog">
     <property name="can-focus">False</property>
+    <property name="border-width">5</property>
+    <property name="title" translatable="yes">Export CSV</property>
     <property name="type-hint">dialog</property>
     <child internal-child="vbox">
       <object class="GtkBox" id="export_box">
@@ -15,8 +17,8 @@
             <property name="can-focus">False</property>
             <property name="layout-style">end</property>
             <child>
-              <object class="GtkButton" id="exp_button_ok">
-                <property name="label" translatable="yes">OK</property>
+              <object class="GtkButton" id="exp_button_cancel">
+                <property name="label" translatable="yes">Cancel</property>
                 <property name="visible">True</property>
                 <property name="can-focus">True</property>
                 <property name="receives-default">True</property>
@@ -28,8 +30,8 @@
               </packing>
             </child>
             <child>
-              <object class="GtkButton" id="exp_button_cancel">
-                <property name="label" translatable="yes">Cancel</property>
+              <object class="GtkButton" id="exp_button_ok">
+                <property name="label" translatable="yes">OK</property>
                 <property name="visible">True</property>
                 <property name="can-focus">True</property>
                 <property name="receives-default">True</property>
@@ -51,7 +53,6 @@
           <object class="GtkBox" id="out_box">
             <property name="visible">True</property>
             <property name="can-focus">False</property>
-            <property name="border-width">10</property>
             <property name="orientation">vertical</property>
             <child>
               <object class="GtkFrame">
@@ -133,6 +134,8 @@
   </object>
   <object class="GtkDialog" id="csv_import_dialog">
     <property name="can-focus">False</property>
+    <property name="border-width">5</property>
+    <property name="title" translatable="yes">Import CSV</property>
     <property name="type-hint">dialog</property>
     <child internal-child="vbox">
       <object class="GtkBox" id="import_box">
@@ -144,8 +147,8 @@
             <property name="can-focus">False</property>
             <property name="layout-style">end</property>
             <child>
-              <object class="GtkButton" id="imp_button_ok">
-                <property name="label" translatable="yes">OK</property>
+              <object class="GtkButton" id="imp_button_cancel">
+                <property name="label" translatable="yes">Cancel</property>
                 <property name="visible">True</property>
                 <property name="can-focus">True</property>
                 <property name="receives-default">True</property>
@@ -157,8 +160,8 @@
               </packing>
             </child>
             <child>
-              <object class="GtkButton" id="imp_button_cancel">
-                <property name="label" translatable="yes">Cancel</property>
+              <object class="GtkButton" id="imp_button_ok">
+                <property name="label" translatable="yes">OK</property>
                 <property name="visible">True</property>
                 <property name="can-focus">True</property>
                 <property name="receives-default">True</property>
@@ -180,7 +183,6 @@
           <object class="GtkBox" id="in_box">
             <property name="visible">True</property>
             <property name="can-focus">False</property>
-            <property name="border-width">10</property>
             <property name="orientation">vertical</property>
             <child>
               <object class="GtkFrame">

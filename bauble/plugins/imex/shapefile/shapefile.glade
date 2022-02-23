@@ -18,12 +18,12 @@
             <property name="visible">True</property>
             <property name="can-focus">False</property>
             <child>
-              <object class="GtkButton" id="exp_button_ok">
-                <property name="label">OK</property>
+              <object class="GtkButton" id="exp_button_cancel">
+                <property name="label">Cancel</property>
                 <property name="use-action-appearance">False</property>
                 <property name="visible">True</property>
                 <property name="can-focus">True</property>
-                <property name="receives-default">True</property>
+                <property name="receives-default">False</property>
               </object>
               <packing>
                 <property name="expand">False</property>
@@ -32,12 +32,12 @@
               </packing>
             </child>
             <child>
-              <object class="GtkButton" id="exp_button_cancel">
-                <property name="label">Cancel</property>
+              <object class="GtkButton" id="exp_button_ok">
+                <property name="label">OK</property>
                 <property name="use-action-appearance">False</property>
                 <property name="visible">True</property>
                 <property name="can-focus">True</property>
-                <property name="receives-default">False</property>
+                <property name="receives-default">True</property>
               </object>
               <packing>
                 <property name="expand">False</property>
@@ -355,8 +355,8 @@
             <property name="can-focus">False</property>
             <property name="layout-style">end</property>
             <child>
-              <object class="GtkButton" id="imp_button_ok">
-                <property name="label">OK</property>
+              <object class="GtkButton" id="imp_button_cancel">
+                <property name="label">Cancel</property>
                 <property name="use-action-appearance">False</property>
                 <property name="visible">True</property>
                 <property name="can-focus">True</property>
@@ -369,8 +369,8 @@
               </packing>
             </child>
             <child>
-              <object class="GtkButton" id="imp_button_cancel">
-                <property name="label">Cancel</property>
+              <object class="GtkButton" id="imp_button_ok">
+                <property name="label">OK</property>
                 <property name="use-action-appearance">False</property>
                 <property name="visible">True</property>
                 <property name="can-focus">True</property>
