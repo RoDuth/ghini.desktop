@@ -178,7 +178,8 @@ class Geography(db.Base):
     iso_code = Column(String(7))
     parent_id = Column(Integer, ForeignKey('geography.id'))
     geojson = deferred(Column(types.JSON()))
-    collection = relationship('Collection', back_populates='region')
+    # don't use, can lead to InvalidRequestError (Collection unknown)
+    # collection = relationship('Collection', back_populates='region')
     distribution = relationship('SpeciesDistribution',
                                 back_populates='geography')
 
