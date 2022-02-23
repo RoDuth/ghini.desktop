@@ -23,7 +23,7 @@ Search functionailty.
 import logging
 logger = logging.getLogger(__name__)
 
-from gi.repository import Gtk  # noqa
+from gi.repository import Gtk
 
 from sqlalchemy import Integer, Float
 from sqlalchemy.orm import class_mapper, RelationshipProperty
@@ -83,8 +83,7 @@ class SchemaMenu(Gtk.Menu):
         self.show_all()
 
     def on_activate(self, menuitem, prop):
-        """Call when menu items that hold column properties are activated."""
-        path = []
+        """Called when menu items that hold column properties are activated."""
         path = [menuitem.get_child().props.label]
         menu = menuitem.get_parent()
         while menu is not None:
@@ -231,13 +230,13 @@ class ExpressionRow:
 
         self.prop_button = Gtk.Button(label=_('Choose a property…'))
 
-        self.schema_menu = SchemaMenu(self.presenter.mapper,
-                                      self.on_schema_menu_activated,
-                                      self.column_filter,
-                                      self.relation_filter)
+        schema_menu = SchemaMenu(self.presenter.mapper,
+                                 self.on_schema_menu_activated,
+                                 self.column_filter,
+                                 self.relation_filter)
         self.prop_button.connect('button-press-event',
                                  self.on_prop_button_clicked,
-                                 self.schema_menu)
+                                 schema_menu)
         self.prop_button.set_tooltip_text('The property to query')
         self.grid.attach(self.prop_button, 1, row_number, 1, 1)
 
@@ -352,6 +351,7 @@ class ExpressionRow:
         self.presenter.validate()
 
     def set_value_widget(self, prop):
+        val = utils.get_widget_value(self.value_widget)
         if isinstance(self.proptype, bauble.btypes.Enum):
             self.value_widget = Gtk.ComboBox()
             cell = Gtk.CellRendererText()
@@ -369,11 +369,12 @@ class ExpressionRow:
                 prop_values = [(v, v or 'None') for v in sorted(values)]
             for value, translation in prop_values:
                 model.append([value, translation])
-            self.value_widget.props.model = model
+            self.value_widget.set_model(model)
             self.value_widget.set_tooltip_text(
                 'select a value, "None" means no value has been set'
             )
             self.value_widget.connect('changed', self.on_value_changed)
+            utils.set_widget_value(self.value_widget, val)
 
         elif isinstance(self.proptype, Integer):
             val_widgt_adjustment = Gtk.Adjustment(upper=1000000000000,
@@ -384,6 +385,11 @@ class ExpressionRow:
             self.value_widget.set_tooltip_text(
                 'Number (non decimal) or "None" for no value has been set'
             )
+            try:
+                val = int(val)
+                self.value_widget.set_value(float(val))
+            except ValueError:
+                pass
             self.value_widget.connect('changed', self.on_value_changed)
 
         elif isinstance(self.proptype, Float):
@@ -397,14 +403,22 @@ class ExpressionRow:
             self.value_widget.set_tooltip_text(
                 'Number, decimal number or "None" for no value has been set'
             )
+            try:
+                val = float(val)
+                self.value_widget.set_value(val)
+            except ValueError:
+                pass
             self.value_widget.connect('changed', self.on_value_changed)
 
         elif isinstance(self.proptype, bauble.btypes.Boolean):
+            values = ['False', 'True']
             self.value_widget = Gtk.ComboBoxText()
-            self.value_widget.append_text('False')
-            self.value_widget.append_text('True')
+            for value in values:
+                self.value_widget.append_text(value)
             self.value_widget.set_tooltip_text('Select a value')
             self.value_widget.connect('changed', self.on_value_changed)
+            utils.set_widget_value(self.value_widget,
+                                   val if val in values else 'False')
 
         elif isinstance(self.proptype, (bauble.btypes.Date,
                                         bauble.btypes.DateTime)):
@@ -415,6 +429,8 @@ class ExpressionRow:
                 'set'
             )
             self.value_widget.connect('changed', self.on_date_value_changed)
+            # set value - on_date_value_changed will clean up
+            self.value_widget.set_text(val)
             conditions = self.CONDITIONS.copy()
             conditions.append('on')
             self.cond_combo.handler_block(self.cond_handler)
@@ -425,25 +441,25 @@ class ExpressionRow:
             self.cond_combo.set_active(len(conditions) - 1)
             self.cond_combo.handler_unblock(self.cond_handler)
             self.cond_combo.set_tooltip_text('How to search')
-        elif (not isinstance(self.value_widget, Gtk.Entry) or
-              isinstance(self.value_widget, Gtk.SpinButton)):
+        else:
             self.value_widget = Gtk.Entry()
             self.value_widget.set_tooltip_text(
                 'The text value to search for or "None" for no value has been '
                 'set'
             )
             self.value_widget.connect('changed', self.on_value_changed)
+            if val is not None:
+                self.value_widget.set_text(str(val))
 
     # TODO what to do with synonyms?  Could leave out sp, genus, family and
     # use epithet only?  sp2, bc_distribution, infrasp1,2,3,4 etc.?
-    # flower_color_id, genus_id (basically any column that ends with _id as its
-    # available via the relationship's id property, e.g. genus_id is the same
-    # as genus.id) _default_vernacular_name
     @staticmethod
     def column_filter(prop):
         if hasattr(prop, 'key'):
             if prop.key in ['bc_distribution', 'sp2']:
                 return False
+            # skip any id fields (e.g. genus_id) as they are available via the
+            # related id property (e.g. species.genus_id == species.genus.id)
             if prop.key.endswith('_id'):
                 return False
         return True

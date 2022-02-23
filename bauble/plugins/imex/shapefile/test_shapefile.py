@@ -499,13 +499,13 @@ class MockGrid(Gtk.Widget):     # pylint: disable=too-many-instance-attributes
         self.max_x -= 1
 
 
-class MochSchemaMenu:
+class MockSchemaMenu:
     full_path = None
 
     def __init__(self, *args, **kwargs):
         self.activate_cb = args[1]
 
-    def popup(self, *args):
+    def popup_at_pointer(self, *args):
         self.activate_cb(None, self.full_path, None)
 
     def append(self, *args):
@@ -1719,7 +1719,7 @@ class ImportSettingsBoxTests(ShapefileTestCase):
     def test_on_prop_change_field_map_changes(self):
         import bauble
         _orig_schema_menu = bauble.query_builder.SchemaMenu
-        bauble.query_builder.SchemaMenu = MochSchemaMenu
+        bauble.query_builder.SchemaMenu = MockSchemaMenu
         shape_reader = ShapefileReader(
             create_shapefile('test',
                              prj_str_3857,
@@ -1733,7 +1733,7 @@ class ImportSettingsBoxTests(ShapefileTestCase):
         prop_button, schema_menu = settings_box._get_prop_button(
             Plant, 'bed', 3
         )
-        MochSchemaMenu.full_path = 'bed_name'
+        MockSchemaMenu.full_path = 'bed_name'
         settings_box.on_prop_button_press_event(prop_button, mock_event,
                                                 schema_menu)
         self.assertEqual(shape_reader.field_map.get('bed'), 'bed_name')
@@ -1741,7 +1741,7 @@ class ImportSettingsBoxTests(ShapefileTestCase):
         prop_button2, schema_menu = settings_box._get_prop_button(
             Plant, 'bed_description', 4
         )
-        MochSchemaMenu.full_path = 'location.desciption'
+        MockSchemaMenu.full_path = 'location.desciption'
         settings_box.on_prop_button_press_event(prop_button2, mock_event,
                                                 schema_menu)
         self.assertEqual(shape_reader.field_map.get('bed_description'),
@@ -1751,7 +1751,7 @@ class ImportSettingsBoxTests(ShapefileTestCase):
     def test_on_prop_none_field_map_value_deleted(self):
         import bauble
         _orig_schema_menu = bauble.query_builder.SchemaMenu
-        bauble.query_builder.SchemaMenu = MochSchemaMenu
+        bauble.query_builder.SchemaMenu = MockSchemaMenu
         shape_reader = ShapefileReader(
             create_shapefile('test',
                              prj_str_3857,
@@ -1765,7 +1765,7 @@ class ImportSettingsBoxTests(ShapefileTestCase):
         prop_button, schema_menu = settings_box._get_prop_button(
             Plant, 'bed', 1
         )
-        MochSchemaMenu.full_path = None
+        MockSchemaMenu.full_path = None
         settings_box.on_prop_button_press_event(prop_button, mock_event,
                                                 schema_menu)
         self.assertIsNone(shape_reader.field_map.get('bed'))
