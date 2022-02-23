@@ -252,8 +252,11 @@ class GenericEditorView:
                                       target)
 
     @staticmethod
-    def run_entry_dialog(title, parent, flags, buttons, visible=True):
-        dialog = Gtk.Dialog(title, parent, flags, buttons)
+    def run_entry_dialog(title, parent, buttons, visible=True, **kwargs):
+        dialog = Gtk.Dialog(title=title,
+                            transient_for=parent,
+                            **kwargs)
+        dialog.add_buttons(*buttons)
         dialog.set_default_response(Gtk.ResponseType.ACCEPT)
         dialog.set_default_size(250, -1)
         dialog.set_position(Gtk.WindowPosition.CENTER)

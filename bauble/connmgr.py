@@ -29,11 +29,11 @@ import os
 from pathlib import Path
 import copy
 from importlib import import_module
-import dateutil
 
 import logging
 logger = logging.getLogger(__name__)
 
+import dateutil
 from gi.repository import Gtk  # noqa
 from gi.repository import GdkPixbuf
 
@@ -70,18 +70,19 @@ def populate_dbtypes(package_list):
                        if is_package_name(first)]
 
 
-populate_dbtypes([('sqlite3', 'SQLite'),
-                  ('psycopg2', 'PostgreSQL'),
-                  ('mysql', 'MySQL'),
-                  ('pyodbc', 'MS SQL Server'),
-                  ('cx_Oracle', 'Oracle'),
-                  ])
+populate_dbtypes([
+    ('sqlite3', 'SQLite'),
+    ('psycopg2', 'PostgreSQL'),
+])
+#     ('mysql', 'MySQL'),
+#     ('pyodbc', 'MS SQL Server'),
+#     ('cx_Oracle', 'Oracle'),
 
 
 def type_combo_cell_data_func(combo, renderer, model, iter, data=None):
     """passed to the gtk method set_cell_data_func
 
-    item is sensitive iff in working_dbtypes
+    item is sensitive if in working_dbtypes
     """
     dbtype = model[iter][0]
     sensitive = dbtype in working_dbtypes
@@ -526,7 +527,7 @@ class ConnMgrPresenter(GenericEditorPresenter):
         if self.connection_names:
             self.view.combobox_set_active('name_combo', 0)
 
-    def on_add_button_clicked(self, *args):
+    def on_add_button_clicked(self, _button):
         if not self.are_prefs_already_saved(self.prev_connection_name):
             msg = (_("Do you want to save your changes to %s ?")
                    % self.prev_connection_name)
@@ -536,8 +537,10 @@ class ConnMgrPresenter(GenericEditorPresenter):
         name = self.view.run_entry_dialog(
             _("Enter a connection name"),
             self.view.get_window(),
-            Gtk.DialogFlags.MODAL | Gtk.DialogFlags.DESTROY_WITH_PARENT,
-            ('OK', Gtk.ResponseType.ACCEPT))
+            buttons=('OK', Gtk.ResponseType.ACCEPT),
+            modal=True,
+            destroy_with_parent=True
+        )
         if name != '':
             self.connection_name = name
             self.connection_names.insert(0, name)
@@ -626,14 +629,14 @@ class ConnMgrPresenter(GenericEditorPresenter):
         """
         Show a dialog with and entry and return the value entered.
         """
-        # TODO: if self.dialog is None then ask from the command line
-        # or just set dialog parent to None
         passwd = self.view.run_entry_dialog(
             title,
             self.view.get_window(),
-            Gtk.DialogFlags.MODAL | Gtk.DialogFlags.DESTROY_WITH_PARENT,
             ('OK', Gtk.ResponseType.ACCEPT),
-            visible=False)
+            visible=False,
+            modal=True,
+            destroy_with_parent=True
+        )
         return passwd
 
     def parameters_to_uri(self, params):
