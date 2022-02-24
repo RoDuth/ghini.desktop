@@ -218,6 +218,12 @@ class Application(Gtk.Application):
 
         self.set_menubar(bauble.gui.menubar)
 
+        # TODO temp solution to get menubar working for windows/linux
+        if sys.platform in ['win32', 'linux']:
+            menu_bar = Gtk.MenuBar.new_from_model(bauble.gui.menubar)
+            menu_bar.show_all()
+            bauble.gui.widgets.menu_box.pack_end(menu_bar, True, True, 0)
+
     def do_shutdown(self, *args, **kwargs):
         prefs.prefs.save()
         Gtk.Application.do_shutdown(self, *args, **kwargs)
