@@ -356,9 +356,9 @@ def update_prefs(conf_file):
             for option in config[section]:
                 prefs[f'{section}.{option}'] = config.get(section, option)
         elif (config.has_section(section) and
-              config.has_option(section, 'extend')):
+              config.has_option(section, '_extend')):
             for option in config[section]:
-                if option != 'append' and f'{section}.{option}' not in prefs:
+                if option != '_extend' and f'{section}.{option}' not in prefs:
                     prefs[f'{section}.{option}'] = config.get(section, option)
     prefs.save()
 
