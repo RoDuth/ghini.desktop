@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# pylint: disable=consider-using-f-string
 # -*- coding: utf-8 -*-
 #
 # Copyright 2004-2010 Brett Adams <brett@bauble.io>
@@ -135,14 +136,14 @@ bump_desktop_file(os.path.join(root_of_clone(), 'data/ghini.desktop'))
 rgx = r"(^VERSION=\").*?\..*?\..*?(\".*?%s.*?$)" % bump_tag
 bump_file(os.path.join(root_of_clone(), 'packages/builddeb.sh'), rgx)
 
-rgx = r"(^  release: \'v).*?\..*?\..*?( \(BBG Branch\)\'.*?%s.*?$)" % bump_tag
+rgx = r"(^  release: \'v).*?\..*?\..*?(\'.*?%s.*?$)" % bump_tag
 bump_file(os.path.join(root_of_clone(), '.appveyor.yml'), rgx)
 
-rgx = r'(^!define VERSION ").*?\..*?\..*?(-BBG".*?%s.*?$)' % bump_tag
+rgx = r'(^!define VERSION "").*?\..*?\..*?(\".*?%s.*?$)' % bump_tag
 bump_file(os.path.join(root_of_clone(), 'scripts/build-multiuser.nsi'), rgx)
 
 rgx = r'(^!define VERSION ").*?\..*?\..*?(\".*?%s.*?$)' % bump_tag
-bump_file(os.path.join(root_of_clone(), 'scripts/build-multiuser-embeded.nsi'),
+bump_file(os.path.join(root_of_clone(), 'scripts/build-multiuser-fop.nsi'),
           rgx)
 
 print()
@@ -152,7 +153,7 @@ print(('git commit -m "bumping_to_%s" '
        'data/ghini.desktop '
        'packages/builddeb.sh '
        'scripts/build-multiuser.nsi '
-       'scripts/build-multiuser-embeded.nsi '
+       'scripts/build-multiuser-fop.nsi '
        '.appveyor.yml'
        % version))
 print()

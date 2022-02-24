@@ -49,7 +49,7 @@ Unicode true
 
 ; Global
 Name "ghini.desktop"
-!define VERSION "1.3.0-b" ; :bump
+!define VERSION "1.3.0-b2" ; :bump
 !define SRC_DIR "..\dist\ghini"
 !define PRODUCT_NAME "ghini.desktop"
 Outfile "..\dist\${PRODUCT_NAME}-${VERSION}-full-setup.exe"
