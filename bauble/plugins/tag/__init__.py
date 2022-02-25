@@ -160,42 +160,55 @@ class TagsMenuManager:
                                   self.on_context_menu_remove_activated,
                                   param_type=GLib.VariantType('s'))
 
-        session = object_session(selected[0])
-        query = session.query(Tag)
-        if not query.first():
-            return None
-
         section = Gio.Menu()
         tag_item = Gio.MenuItem.new(_('Tag Selection'),
                                     f'win.{self.TAG_ACTION_NAME}')
         section.append_item(tag_item)
 
-        apply_submenu = Gio.Menu()
-        section.append_submenu('Apply Tag', apply_submenu)
-
-        for tag in query.order_by(Tag.tag):
-            menu_item = Gio.MenuItem.new(
-                tag.tag.replace('_', '__'),
-                f'win.{self.APPLY_CONTEXT_ACTION_NAME}::{tag.tag}'
-            )
-            apply_submenu.append_item(menu_item)
-
-        attached_tags = set()
-        for item in selected:
-            attached_tags.update(Tag.attached_to(item))
-        # bail early if no attached tags
-        if not attached_tags:
+        session = object_session(selected[0])
+        query = session.query(Tag)
+        # bail early if no tags
+        if not query.first():
             return section
 
-        remove_submenu = Gio.Menu()
-        section.append_submenu('Remove Tag', remove_submenu)
+        all_tagged = None
+        attached_tags = set()
+        for item in selected:
+            tags = Tag.attached_to(item)
+            if all_tagged is None:
+                all_tagged = set(tags)
+            elif all_tagged:
+                all_tagged.intersection_update(tags)
+            attached_tags.update(tags)
 
-        for tag in attached_tags:
-            menu_item = Gio.MenuItem.new(
-                tag.tag.replace('_', '__'),
-                f'win.{self.REMOVE_CONTEXT_ACTION_NAME}::{tag.tag}'
-            )
-            remove_submenu.append_item(menu_item)
+        apply_tags = set()
+
+        if all_tagged:
+            query = query.filter(Tag.id.notin_([i.id for i in all_tagged]))
+
+        for tag in query:
+            apply_tags.add(tag)
+
+        if apply_tags:
+            apply_submenu = Gio.Menu()
+            section.append_submenu('Apply Tag', apply_submenu)
+            for tag in apply_tags:
+                menu_item = Gio.MenuItem.new(
+                    tag.tag.replace('_', '__'),
+                    f'win.{self.APPLY_CONTEXT_ACTION_NAME}::{tag.tag}'
+                )
+                apply_submenu.append_item(menu_item)
+
+        if attached_tags:
+            remove_submenu = Gio.Menu()
+            section.append_submenu('Remove Tag', remove_submenu)
+
+            for tag in attached_tags:
+                menu_item = Gio.MenuItem.new(
+                    tag.tag.replace('_', '__'),
+                    f'win.{self.REMOVE_CONTEXT_ACTION_NAME}::{tag.tag}'
+                )
+                remove_submenu.append_item(menu_item)
 
         return section
 
@@ -269,7 +282,9 @@ class TagsMenuManager:
                                                self.on_tag_change_state)
 
                 bauble.gui.window.add_action(self.select_tag_action)
+
             section = Gio.Menu()
+
             for tag in query.order_by(Tag.tag):
                 menu_item = Gio.MenuItem.new(
                     tag.tag.replace('_', '__'),
@@ -278,7 +293,6 @@ class TagsMenuManager:
                 section.append_item(menu_item)
 
             tags_menu.append_section(None, section)
-
 
             section = Gio.Menu()
             section.append_item(apply_active_tag_menu_item)
