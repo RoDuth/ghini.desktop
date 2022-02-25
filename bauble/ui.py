@@ -603,13 +603,12 @@ class GUI:
         :param label: the label for the menu item
         """
         action_name = f'{label.lower()}_activated'
-        if not self.lookup_action(action_name):
-            action = self.add_action(action_name,
-                                     self.on_insert_menu_item_activate,
-                                     editor)
-            self.disable_on_busy_actions.add(action)
-            item = Gio.MenuItem.new(label, f'win.{action_name}')
-            self.insert_menu.append_item(item)
+        action = self.add_action(action_name,
+                                 self.on_insert_menu_item_activate,
+                                 editor)
+        self.disable_on_busy_actions.add(action)
+        item = Gio.MenuItem.new(label, f'win.{action_name}')
+        self.insert_menu.append_item(item)
 
     def build_tools_menu(self):
         """Build the tools menu from the tools provided by the plugins.
@@ -745,6 +744,7 @@ class GUI:
             return
 
         try:
+            self.insert_menu.remove_all()
             db.create()
             pluginmgr.init()
         except Exception as e:  # pylint: disable=broad-except
