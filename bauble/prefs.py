@@ -446,12 +446,9 @@ class PrefsView(pluginmgr.View):
         state = widget.get_active()
         logger.debug('edit state %s', state)
         msg = _(
-            '<b>CAUTION! this functionality is at BETA level and may change '
-            'in future releases:</b>\n\n(NOTE: backup/restore buttons for '
-            'your current state is provided - use them first.)\n\nSome '
-            'changes will not take effect until restarted.\n\n<b>Making '
-            'incorrect changes to your preferences could be detrimental.'
-            '\n\nDO YOU WISH TO PROCEED?</b>'
+            '\n\n<b>CAUTION! Making incorrect changes to your preferences '
+            'could be detrimental.\n\nDO YOU WISH TO PROCEED?</b>\n\nSome '
+            'changes will not take effect until restarted.'
         )
         if state and utils.yes_no_dialog(msg, parent=self.view.get_window()):
             logger.debug('enable editing prefs')
