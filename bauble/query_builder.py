@@ -1,6 +1,6 @@
 # Copyright 2008, 2009, 2010 Brett Adams
 # Copyright 2014-2015 Mario Frasca <mario@anche.no>.
-# Copyright 2021 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright 2021-2022 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -344,112 +344,127 @@ class ExpressionRow:
             self.cond_combo.set_active(0)
             self.cond_combo.handler_unblock(self.cond_handler)
             self.cond_combo.set_tooltip_text('How to search')
-        self.set_value_widget(prop)
+
+        val = utils.get_widget_value(self.value_widget)
+        set_value_widget = self.get_set_value_widget()
+        set_value_widget(prop, val)
 
         self.grid.attach(self.value_widget, left, top, 1, 1)
         self.grid.show_all()
         self.presenter.validate()
 
-    def set_value_widget(self, prop):
-        val = utils.get_widget_value(self.value_widget)
+    def get_set_value_widget(self):
         if isinstance(self.proptype, bauble.btypes.Enum):
-            self.value_widget = Gtk.ComboBox()
-            cell = Gtk.CellRendererText()
-            self.value_widget.pack_start(cell, True)
-            self.value_widget.add_attribute(cell, 'text', 1)
-            model = Gtk.ListStore(str, str)
-            if prop.columns[0].type.translations:
-                trans = prop.columns[0].type.translations
-                sorted_keys = [
-                    i for i in trans.keys() if i is None
-                ] + sorted(i for i in trans.keys() if i is not None)
-                prop_values = [(k, trans[k] or 'None') for k in sorted_keys]
-            else:
-                values = prop.columns[0].type.values
-                prop_values = [(v, v or 'None') for v in sorted(values)]
-            for value, translation in prop_values:
-                model.append([value, translation])
-            self.value_widget.set_model(model)
-            self.value_widget.set_tooltip_text(
-                'select a value, "None" means no value has been set'
-            )
-            self.value_widget.connect('changed', self.on_value_changed)
-            utils.set_widget_value(self.value_widget, val)
+            return self.set_enum_widget
+        if isinstance(self.proptype, Integer):
+            return self.set_int_widget
+        if isinstance(self.proptype, Float):
+            return self.set_float_widget
+        if isinstance(self.proptype, bauble.btypes.Boolean):
+            return self.set_bool_widget
+        if isinstance(self.proptype, (bauble.btypes.Date,
+                                      bauble.btypes.DateTime)):
+            return self.set_date_widget
+        return self.set_entry_widget
 
-        elif isinstance(self.proptype, Integer):
-            val_widgt_adjustment = Gtk.Adjustment(upper=1000000000000,
-                                                  step_increment=1,
-                                                  page_increment=10)
-            self.value_widget = Gtk.SpinButton(adjustment=val_widgt_adjustment,
-                                               numeric=False)
-            self.value_widget.set_tooltip_text(
-                'Number (non decimal) or "None" for no value has been set'
-            )
-            try:
-                val = int(val)
-                self.value_widget.set_value(float(val))
-            except ValueError:
-                pass
-            self.value_widget.connect('changed', self.on_value_changed)
-
-        elif isinstance(self.proptype, Float):
-            val_widgt_adjustment = Gtk.Adjustment(upper=10000000,
-                                                  lower=0.00000000001,
-                                                  step_increment=0.1,
-                                                  page_increment=1)
-            self.value_widget = Gtk.SpinButton(adjustment=val_widgt_adjustment,
-                                               digits=10,
-                                               numeric=False)
-            self.value_widget.set_tooltip_text(
-                'Number, decimal number or "None" for no value has been set'
-            )
-            try:
-                val = float(val)
-                self.value_widget.set_value(val)
-            except ValueError:
-                pass
-            self.value_widget.connect('changed', self.on_value_changed)
-
-        elif isinstance(self.proptype, bauble.btypes.Boolean):
-            values = ['False', 'True']
-            self.value_widget = Gtk.ComboBoxText()
-            for value in values:
-                self.value_widget.append_text(value)
-            self.value_widget.set_tooltip_text('Select a value')
-            self.value_widget.connect('changed', self.on_value_changed)
-            utils.set_widget_value(self.value_widget,
-                                   val if val in values else 'False')
-
-        elif isinstance(self.proptype, (bauble.btypes.Date,
-                                        bauble.btypes.DateTime)):
-            self.value_widget = Gtk.Entry()
-            self.value_widget.set_tooltip_text(
-                'Date (e.g. 1/1/2021), 0 for today, a negative number for '
-                'number of days before today or "None" for no date has been '
-                'set'
-            )
-            self.value_widget.connect('changed', self.on_date_value_changed)
-            # set value - on_date_value_changed will clean up
-            self.value_widget.set_text(val)
-            conditions = self.CONDITIONS.copy()
-            conditions.append('on')
-            self.cond_combo.handler_block(self.cond_handler)
-            self.cond_combo.remove_all()
-            for condition in conditions:
-                self.cond_combo.append_text(condition)
-            # set 'on' as default
-            self.cond_combo.set_active(len(conditions) - 1)
-            self.cond_combo.handler_unblock(self.cond_handler)
-            self.cond_combo.set_tooltip_text('How to search')
+    def set_enum_widget(self, prop, val):
+        self.value_widget = Gtk.ComboBox()
+        cell = Gtk.CellRendererText()
+        self.value_widget.pack_start(cell, True)
+        self.value_widget.add_attribute(cell, 'text', 1)
+        model = Gtk.ListStore(str, str)
+        if prop.columns[0].type.translations:
+            trans = prop.columns[0].type.translations
+            sorted_keys = [
+                i for i in trans.keys() if i is None
+            ] + sorted(i for i in trans.keys() if i is not None)
+            prop_values = [(k, trans[k] or 'None') for k in sorted_keys]
         else:
-            self.value_widget = Gtk.Entry()
-            self.value_widget.set_tooltip_text(
-                'The text value to search for or "None" for no value has been '
-                'set'
-            )
-            self.value_widget.connect('changed', self.on_value_changed)
-            if val is not None:
-                self.value_widget.set_text(str(val))
+            values = prop.columns[0].type.values
+            prop_values = [(v, v or 'None') for v in sorted(values)]
+        for value, translation in prop_values:
+            model.append([value, translation])
+        self.value_widget.set_model(model)
+        self.value_widget.set_tooltip_text(
+            'select a value, "None" means no value has been set'
+        )
+        self.value_widget.connect('changed', self.on_value_changed)
+        utils.set_widget_value(self.value_widget, val)
+
+    def set_int_widget(self, _prop, val):
+        adjustment = Gtk.Adjustment(upper=1000000000000,
+                                    step_increment=1,
+                                    page_increment=10)
+        self.value_widget = Gtk.SpinButton(adjustment=adjustment,
+                                           numeric=False)
+        self.value_widget.set_tooltip_text(
+            'Number (non decimal) or "None" for no value has been set'
+        )
+        try:
+            val = int(val)
+            self.value_widget.set_value(float(val))
+        except ValueError:
+            pass
+        self.value_widget.connect('changed', self.on_value_changed)
+
+    def set_float_widget(self, _prop, val):
+        adjustment = Gtk.Adjustment(upper=10000000,
+                                    lower=0.00000000001,
+                                    step_increment=0.1,
+                                    page_increment=1)
+        self.value_widget = Gtk.SpinButton(adjustment=adjustment,
+                                           digits=10,
+                                           numeric=False)
+        self.value_widget.set_tooltip_text(
+            'Number, decimal number or "None" for no value has been set'
+        )
+        try:
+            val = float(val)
+            self.value_widget.set_value(val)
+        except ValueError:
+            pass
+        self.value_widget.connect('changed', self.on_value_changed)
+
+    def set_bool_widget(self, _prop, val):
+        values = ['False', 'True']
+        self.value_widget = Gtk.ComboBoxText()
+        for value in values:
+            self.value_widget.append_text(value)
+        self.value_widget.set_tooltip_text('Select a value')
+        self.value_widget.connect('changed', self.on_value_changed)
+        utils.set_widget_value(self.value_widget,
+                               val if val in values else 'False')
+
+    def set_date_widget(self, _prop, val):
+        self.value_widget = Gtk.Entry()
+        self.value_widget.set_tooltip_text(
+            'Date (e.g. 1/1/2021), 0 for today, a negative number for '
+            'number of days before today or "None" for no date has been '
+            'set'
+        )
+        self.value_widget.connect('changed', self.on_date_value_changed)
+        # set value - on_date_value_changed will clean up
+        self.value_widget.set_text(val)
+        conditions = self.CONDITIONS.copy()
+        conditions.append('on')
+        self.cond_combo.handler_block(self.cond_handler)
+        self.cond_combo.remove_all()
+        for condition in conditions:
+            self.cond_combo.append_text(condition)
+        # set 'on' as default
+        self.cond_combo.set_active(len(conditions) - 1)
+        self.cond_combo.handler_unblock(self.cond_handler)
+        self.cond_combo.set_tooltip_text('How to search')
+
+    def set_entry_widget(self, _prop, val):
+        self.value_widget = Gtk.Entry()
+        self.value_widget.set_tooltip_text(
+            'The text value to search for or "None" for no value has been '
+            'set'
+        )
+        self.value_widget.connect('changed', self.on_value_changed)
+        if val is not None:
+            self.value_widget.set_text(str(val))
 
     # TODO what to do with synonyms?  Could leave out sp, genus, family and
     # use epithet only?  sp2, bc_distribution, infrasp1,2,3,4 etc.?
