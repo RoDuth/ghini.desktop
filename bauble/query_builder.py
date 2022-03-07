@@ -565,7 +565,7 @@ class BuiltQuery:
     expression = Group(clause) + ZeroOrMore(Group(
         AND_ + clause | OR_ + clause | ((OR_ | AND_) + unparseable_clause)
         .suppress()))
-    query = Word(alphas) + CaselessLiteral("where") + expression
+    query = Word(alphas, alphas + '_') + CaselessLiteral("where") + expression
 
     def __init__(self, search_string):
         self.parsed = None
