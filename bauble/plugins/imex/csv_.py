@@ -1,7 +1,7 @@
 # Copyright 2008-2010 Brett Adams
 # Copyright 2012-2015 Mario Frasca <mario@anche.no>.
 # Copyright 2017 Jardín Botánico de Quito
-# Copyright 2018-2021 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright 2018-2022 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -152,7 +152,7 @@ class CSVRestore:
         geography = [i for i in filenames if i.endswith('geography.txt')]
 
         if bauble_meta and geography and not force:
-            with open(bauble_meta[0], 'r') as f:
+            with open(bauble_meta[0], 'r', encoding='utf-8', newline='') as f:
                 in_file = csv.DictReader(f)
                 version = None
                 for line in in_file:
@@ -163,15 +163,11 @@ class CSVRestore:
 
                 if version < '1.3.0-b':
                     msg = _('You are importing data from a version prior '
-                            'to v1.3.0-b?\n\nThe geography table (e.g. '
-                            'as possibly used in species distributions and '
-                            'collection data) has changed.\n\nWould you like '
-                            'to transform your data to match the new version? '
-                            '\n(Select "Yes". To continue with your old data '
-                            'select "No")\n\nIf you keep a copy of your '
-                            'backup you can always undo this by restoring '
-                            'again. Alternatively copies of the original '
-                            'files will be saved with an appended "_ORIG_"')
+                            'to v1.3.0-b?\n\nSveral tables have changed '
+                            '\n\nWould you like to transform your data to '
+                            'match the new version? \n\nCopies of the '
+                            'original files will be saved with an appended '
+                            '"_ORIG_"')
                     response = utils.yes_no_dialog(msg)
                     if response:
                         change_lst = [i for i in filenames if
@@ -181,11 +177,111 @@ class CSVRestore:
                         bauble.task.queue(
                             self.set_geo_translator(geography[0]))
                         bauble.task.queue(
-                            self.upgrader(change_lst))
+                            self.geo_upgrader(change_lst))
+                        bauble.task.queue(self.acc_upgrader(filenames))
+                        bauble.task.queue(self.changes_upgrader(filenames))
 
         bauble.task.queue(self.run(filenames, metadata, force))
 
-    def upgrader(self, change_lst: list[str]) -> None:
+    def acc_upgrader(self, filenames):
+        """Upgrade accession file"""
+        accession_file = [i for i in filenames if i.endswith('accession.txt')]
+
+        # bail early
+        if not accession_file:
+            return
+
+        depr_wild_prov = ['Impound',
+                          'Collection',
+                          'Rescue',
+                          'InsufficientData',
+                          'Unknown']
+
+        depr_prov_type = ['Purchase', 'Unknown']
+
+        accession_file = accession_file[0]
+        original = accession_file + '_ORIG_'
+
+        msg = _('removing deprecated provenance entries: ')
+        logger.debug('upgrading %s', accession_file)
+        bauble.task.set_message(msg + accession_file)
+
+        with open(accession_file, 'r', encoding='utf-8', newline='') as f:
+            num_lines = len(f.readlines())
+
+        if num_lines <= 1:
+            logger.debug('%s contains no table data skip translation',
+                         accession_file)
+            return
+
+        os.rename(accession_file, original)
+        five_percent = int(num_lines / 20) or 1
+
+        with (open(original, 'r', encoding='utf-8', newline='') as old,
+              open(accession_file, 'w', encoding='utf-8', newline='') as new):
+            in_file = csv.DictReader(old)
+            fieldnames = in_file.fieldnames
+            out_file = csv.DictWriter(new, fieldnames=fieldnames)
+            out_file.writeheader()
+            for count, line in enumerate(in_file):
+                wp_status = line.get('wild_prov_status')
+                if wp_status in depr_wild_prov:
+                    line['wild_prov_status'] = None
+                prov_type = line.get('prov_type')
+                if prov_type in depr_prov_type:
+                    line['prov_type'] = None
+                out_file.writerow(line)
+                if count % five_percent == 0:
+                    pb_set_fraction(count / num_lines)
+                    yield
+
+    def changes_upgrader(self, filenames):
+        """Upgrade plant_change file"""
+        changes_file = [i for i in filenames if i.endswith('plant_change.txt')]
+
+        # bail early
+        if not changes_file:
+            return
+
+        deprecated = ['FOGS',
+                      'PLOP',
+                      'BA40',
+                      'TOTM']
+
+        changes_file = changes_file[0]
+        original = changes_file + '_ORIG_'
+
+        msg = _('removing deprecated reason entries: ')
+        logger.debug('upgrading %s', changes_file)
+        bauble.task.set_message(msg + changes_file)
+
+        with open(changes_file, 'r', encoding='utf-8', newline='') as f:
+            num_lines = len(f.readlines())
+
+        if num_lines <= 1:
+            logger.debug('%s contains no table data skip translation',
+                         changes_file)
+            return
+
+        os.rename(changes_file, original)
+        five_percent = int(num_lines / 20) or 1
+
+        with (open(original, 'r', encoding='utf-8', newline='') as old,
+              open(changes_file, 'w', encoding='utf-8', newline='') as new):
+            in_file = csv.DictReader(old)
+            fieldnames = in_file.fieldnames
+            out_file = csv.DictWriter(new, fieldnames=fieldnames)
+            out_file.writeheader()
+            for count, line in enumerate(in_file):
+                wps = line.get('reason')
+                if wps in deprecated:
+                    line['wild_prov_status'] = None
+                out_file.writerow(line)
+                if count % five_percent == 0:
+                    pb_set_fraction(count / num_lines)
+                    yield
+
+    def geo_upgrader(self, change_lst: list[str]) -> None:
         """Upgrade changes from v1.0 to v1.3 prior to importing"""
         for file in change_lst:
             original = file + '_ORIG_'
@@ -194,17 +290,18 @@ class CSVRestore:
             logger.debug('translating %s', file)
             bauble.task.set_message(msg + file)
 
-            with open(file, 'r') as f:
+            with open(file, 'r', encoding='utf-8', newline='') as f:
                 num_lines = len(f.readlines())
 
             if num_lines <= 1:
-                logger.debug(
-                    '%s contains no table data skip translation', file)
+                logger.debug('%s contains no table data skip translation',
+                             file)
                 continue
 
             os.rename(file, original)
             five_percent = int(num_lines / 20) or 1
-            with open(original, 'r') as old, open(file, 'w') as new:
+            with (open(original, 'r', encoding='utf-8', newline='') as old,
+                  open(file, 'w', encoding='utf-8', newline='') as new):
                 in_file = csv.DictReader(old)
                 fieldnames = in_file.fieldnames
                 out_file = csv.DictWriter(new, fieldnames=fieldnames)
@@ -230,12 +327,12 @@ class CSVRestore:
         logger.debug(msg)
         bauble.task.set_message(msg)
 
-        with open(geography, 'r') as f:
+        with open(geography, 'r', encoding='utf-8', newline='') as f:
             num_lines = len(f.readlines())
 
         five_percent = int(num_lines / 20) or 1
         old_geos = {}
-        with open(geography, 'r') as f:
+        with open(geography, 'r', encoding='utf-8', newline='') as f:
             geo = csv.DictReader(f)
             for count, line in enumerate(geo):
                 id_ = line.get('id')
@@ -396,7 +493,7 @@ class CSVRestore:
         filesizes = {}
         for filename in filenames:
             # get the total number of lines for all the files
-            with open(filename, 'r') as f:
+            with open(filename, 'r', encoding='utf-8', newline='') as f:
                 nlines = len(f.readlines())
 
             filesizes[filename] = nlines
