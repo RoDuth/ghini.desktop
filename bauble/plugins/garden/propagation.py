@@ -1,5 +1,6 @@
 # Copyright 2008-2010 Brett Adams
 # Copyright 2015-2017 Mario Frasca <mario@anche.no>.
+# Copyright 2021-2022 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -104,7 +105,8 @@ class Propagation(db.Base):
         if self.prop_type == 'UnrootedCutting':
             incomplete = self._cutting is None  # cutting without fields
             if not incomplete and self._cutting.rooted:
-                quantity = sum(i.quantity for i in self._cutting.rooted)
+                quantity = sum(i.quantity for i in self._cutting.rooted if
+                               i.quantity)
         elif self.prop_type == 'Seed':
             incomplete = self._seed is None  # seed without fields
             if not incomplete:
@@ -433,7 +435,10 @@ class PropagationTabPresenter(editor.GenericEditorPresenter):
         label.props.wrap = True
         label.set_xalign(0)
         label.set_yalign(0)
-        label.set_padding(0, 2)
+        label.set_margin_start(15)
+        label.set_margin_end(5)
+        label.set_margin_top(2)
+        label.set_margin_bottom(2)
         expander.add(label)
 
         def on_edit_clicked(button, prop, label):
@@ -444,9 +449,12 @@ class PropagationTabPresenter(editor.GenericEditorPresenter):
                 self._dirty = True
             self.parent_ref().refresh_sensitivity()
 
+        vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         button_box = Gtk.Box(spacing=5)
-        hbox.pack_start(button_box, False, False, 0)
+        vbox.pack_start(button_box, False, False, 0)
+        hbox.pack_start(vbox, False, False, 0)
         button = Gtk.Button(label='Edit')
+        button.set_vexpand(False)
         self.view.connect(button, 'clicked', on_edit_clicked, propagation,
                           label)
         button_box.pack_start(button, False, False, 0)
