@@ -70,7 +70,6 @@ class AskTPL(threading.Thread):
             net_sess = get_net_sess()
 
             logger.debug("net session type = %s", type(net_sess))
-            logger.debug("net session proxies = %s", net_sess.proxies)
 
             result = net_sess.get(
                 'http://www.theplantlist.org/tpl1.1/search?q=' + binomial +

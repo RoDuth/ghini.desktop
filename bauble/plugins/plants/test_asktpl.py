@@ -18,7 +18,7 @@
 #
 # Description: test for the Plant plugin
 #
-
+from unittest import mock
 from bauble.test import BaubleTestCase
 import requests
 
@@ -40,13 +40,13 @@ requests.get = requests_get
 
 from .ask_tpl import AskTPL, what_to_do_with_it
 
-import bauble  # pylint: disable=wrong-import-order
-bauble.plugins.plants.ask_tpl.net_sess = requests
-
 
 class TestOne(BaubleTestCase):
 
-    def test_simple_answer(self):
+    @mock.patch('bauble.plugins.plants.ask_tpl.get_net_sess',
+                return_value=requests)
+    def test_simple_answer(self, _mock_sess):
+        print('test simple answer')
         self.handler.reset()
         binomial = 'Mangifera indica'
         AskTPL(binomial, what_to_do_with_it, timeout=2).run()
@@ -54,7 +54,9 @@ class TestOne(BaubleTestCase):
         self.assertEqual(len(infolog), 1)
         self.assertEqual(infolog[0], 'Mangifera indica L. (Anacardiaceae)')
 
-    def test_taxon_is_synonym(self):
+    @mock.patch('bauble.plugins.plants.ask_tpl.get_net_sess',
+                return_value=requests)
+    def test_taxon_is_synonym(self, _mock_sess):
         self.handler.reset()
         binomial = 'Iris florentina'
         AskTPL(binomial, what_to_do_with_it, timeout=2).run()
@@ -63,7 +65,9 @@ class TestOne(BaubleTestCase):
         self.assertEqual(infolog[0], 'Iris ×florentina L. (Iridaceae)')
         self.assertEqual(infolog[1], 'Iris ×germanica L. (Iridaceae) - is its accepted form')
 
-    def test_empty_answer(self):
+    @mock.patch('bauble.plugins.plants.ask_tpl.get_net_sess',
+                return_value=requests)
+    def test_empty_answer(self, _mock_sess):
         self.handler.reset()
         binomial = 'Manducaria italica'
         AskTPL(binomial, what_to_do_with_it, timeout=2).run()
@@ -71,7 +75,9 @@ class TestOne(BaubleTestCase):
         self.assertEqual(len(infolog), 1)
         self.assertEqual(infolog[0], 'nothing matches')
 
-    def test_do_not_run_same_query_twice(self):
+    @mock.patch('bauble.plugins.plants.ask_tpl.get_net_sess',
+                return_value=requests)
+    def test_do_not_run_same_query_twice(self, _mock_sess):
         self.handler.reset()
         binomial = 'Iris florentina'
         obj = AskTPL(binomial, what_to_do_with_it, timeout=2)
@@ -81,7 +87,9 @@ class TestOne(BaubleTestCase):
         debuglog = self.handler.messages['bauble.plugins.plants.ask_tpl']['debug']
         self.assertTrue('already requesting Iris florentina, ignoring repeated request' in set(debuglog))
 
-    def test_do_not_run_two_requests_at_same_time(self):
+    @mock.patch('bauble.plugins.plants.ask_tpl.get_net_sess',
+                return_value=requests)
+    def test_do_not_run_two_requests_at_same_time(self, _mock_sess):
         self.handler.reset()
         obj = AskTPL('Iris florentina', what_to_do_with_it, timeout=2)
         obj.start()
