@@ -235,7 +235,11 @@ class GenericImporter(ABC):   # pylint: disable=too-many-instance-attributes
         """
         try:
             path_type = getattr(model, attr).type
-            value = path_type.python_type(value)
+            if path_type.__class__.__name__ == 'JSON':
+                from ast import literal_eval
+                value = literal_eval(value)
+            else:
+                value = path_type.python_type(value)
         except Exception as e:   # pylint: disable=broad-except
             logger.debug('convert models: %s type k: %s, v: %s raised %s (%s)',
                          model, attr, value, type(e).__name__, e)

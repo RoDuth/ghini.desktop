@@ -1545,6 +1545,36 @@ class GenericImporterTests(BaubleTestCase):
             data3.get('death').get('date').lower())
         self.assertEqual(len(result.changes), 2)
 
+    def test_add_rec_to_db_plants_w_geojson(self):
+        data1 = {
+            'accession.species.genus.family': {'family': 'Bromeliaceae'},
+            'accession.species.genus': {'genus': 'Tillandsia', 'author': 'L.'},
+            'accession.source.source_detail': {'name':
+                                               'Tropical Garden Foliage'},
+            'accession.species': {'infrasp1_rank': 'f.',
+                                  'infrasp1': 'fastigiate',
+                                  'infrasp1_author': 'Koide',
+                                  'sp': 'ionantha',
+                                  'sp_author': 'Planchon'},
+            'location': {'name': 'Epiphites of the Americas', 'code': '10.10'},
+            'accession': {'code': 'XXXX000001'},
+            'planted': {'date': '01/01/2001 12:00:00 pm'},
+            'code': '1',
+            'quantity': 1,
+            'geojson': ("{'type': 'Point', 'coordinates': [0.0, 0.0]}")
+        }
+
+        obj = Plant()
+        self.session.add(obj)
+        out = GenericImporter.add_rec_to_db(self.session, obj, data1)
+        self.assertEqual(obj, out)
+        # Committing will reveal issues that only show up at commit
+        self.session.commit()
+        result = self.session.query(Plant).get(1)
+        self.assertEqual(result.geojson.get('type'), 'Point')
+        self.assertEqual(len(result.geojson.get('coordinates')), 2)
+        self.assertEqual(len(result.changes), 1)
+
     def test_add_rec_to_db_location(self):
         data1 = {
             'code': '10.10',

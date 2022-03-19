@@ -605,6 +605,46 @@ class CSVImporterTests(CSVTestCase):
         # 3 new species
         self.assertEqual(end_sp, start_sp + 3)
 
+    def test_update_plants_geojson(self):
+        start_plants = self.session.query(Plant).count()
+        importer = self.importer
+        plants_csv_data = [
+            {'id': 'id', 'geojson': 'geojson'},
+            {'id': 1,
+             'geojson': "{'type': 'Point', 'coordinates': [0.0, 0.0]}"},
+        ]
+        importer.filename = create_csv(plants_csv_data,
+                                       self.temp_dir.name)
+        importer.search_by = ['id']
+        importer.fields = plants_csv_data[0]
+        importer.domain = Plant
+        importer.option = '0'
+        importer.run()
+        updated_plant = self.session.query(Plant).get(1)
+        end_plants = self.session.query(Plant).count()
+        # check the plant was updated
+        self.assertEqual(updated_plant.geojson.get('type'), 'Point')
+        self.assertEqual(len(updated_plant.geojson.get('coordinates')), 2)
+        self.assertEqual(updated_plant.geojson.get('coordinates')[0], 0.0)
+        # nothing added
+        self.assertEqual(end_plants, start_plants)
+
+        # test setting to None
+        plants_csv_data = [
+            {'id': 'id', 'geojson': 'geojson'},
+            {'id': 1,
+             'geojson': ""},
+        ]
+        importer.filename = create_csv(plants_csv_data,
+                                       self.temp_dir.name)
+        importer.search_by = ['id']
+        importer.fields = plants_csv_data[0]
+        importer.domain = Plant
+        importer.option = '0'
+        importer.run()
+        self.session.expire_all()
+        self.assertIsNone(updated_plant.geojson)
+
     def test_update_plants(self):
         start_plants = self.session.query(Plant).count()
         start_sp = self.session.query(Species).count()
