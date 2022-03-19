@@ -49,7 +49,7 @@ for:
     PATH: C:\msys64\usr\bin;C:\Program Files (x86)\NSIS\Bin;C:\Program Files\OpenJDK\jdk-17.0.1\bin;%PATH%
 
   install:
-    - choco install openjdk -y
+    - choco install openjdk --version 17.0.1 -y  # NOTE temp solution.
     - java --version
     - jlink --version
     - bash -lc "pacman --noconfirm -Syuu"
