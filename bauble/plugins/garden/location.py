@@ -249,10 +249,10 @@ class LocationEditorPresenter(GenericEditorPresenter):
                            'loc_desc_textview': 'description'}
 
     def __init__(self, model, view):
-        '''
+        """
         model: should be an instance of class Accession
         view: should be an instance of AccessionEditorView
-        '''
+        """
         super().__init__(model, view)
         self.create_toolbar()
         self.session = object_session(model)
@@ -343,7 +343,7 @@ class LocationEditorPresenter(GenericEditorPresenter):
                 self.view.widgets.loc_name_entry.get_text(),
                 getattr(self.merger_candidate, 'name'),
                 "%s\n---------\n%s"))
-        #self.add_problem('MERGED', self.view.widgets.loc_desc_textview)
+        # self.add_problem('MERGED', self.view.widgets.loc_desc_textview)
 
         # step 3: delete self.merger_candidate and clean the entry
         self.session.delete(self.merger_candidate)
@@ -382,10 +382,10 @@ class LocationEditor(GenericModelViewPresenterEditor):
     ok_responses = (RESPONSE_OK_AND_ADD, RESPONSE_NEXT)
 
     def __init__(self, model=None, parent=None):
-        '''
+        """
         :param model: Location instance or None
         :param parent: the parent widget or None
-        '''
+        """
         # view and presenter are created in self.start()
         self.view = None
         self.presenter = None
@@ -401,9 +401,7 @@ class LocationEditor(GenericModelViewPresenterEditor):
         self.presenter = LocationEditorPresenter(self.model, view)
 
     def handle_response(self, response):
-        '''
-        handle the response from self.presenter.start() in self.start()
-        '''
+        """handle the response from self.presenter.start() in self.start()"""
         not_ok_msg = 'Are you sure you want to lose your changes?'
         if response == Gtk.ResponseType.OK or response in self.ok_responses:
             try:
@@ -413,20 +411,22 @@ class LocationEditor(GenericModelViewPresenterEditor):
             except DBAPIError as e:
                 msg = _('Error committing changes.\n\n%s') % \
                     utils.xml_safe(e.orig)
-                utils.message_details_dialog(msg, str(e), Gtk.MessageType.ERROR)
+                utils.message_details_dialog(msg,
+                                             str(e),
+                                             Gtk.MessageType.ERROR)
                 self.session.rollback()
                 return False
             except Exception as e:
-                msg = _('Unknown error when committing changes. See the '
-                        'details for more information.\n\n%s') % \
-                    utils.xml_safe(e)
+                msg = (_('Unknown error when committing changes. See the '
+                         'details for more information.\n\n%s') %
+                       utils.xml_safe(e))
                 utils.message_details_dialog(msg, traceback.format_exc(),
                                              Gtk.MessageType.ERROR)
                 self.session.rollback()
                 return False
-        elif self.presenter.is_dirty() \
-                and utils.yes_no_dialog(not_ok_msg) \
-                or not self.presenter.is_dirty():
+        elif (self.presenter.is_dirty() and
+              utils.yes_no_dialog(not_ok_msg) or not
+              self.presenter.is_dirty()):
             self.session.rollback()
             return True
         else:

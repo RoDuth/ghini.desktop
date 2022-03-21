@@ -288,4 +288,6 @@ def open(url, desktop=None, wait=0, dialog_on_error=False):
         else:
             raise
 
+    # ResouceWarning here can be ignored I believe.
+    # See: https://bugs.python.org/issue38890
     return _run(cmd, 0, wait)

@@ -95,6 +95,8 @@ class Cache:
                 k = min(list(zip(list(self.storage.values()),
                                  list(self.storage.keys()))))[1]
                 del self.storage[k]
+            # ResourceWarning here can be ignored I believe
+            # https://github.com/psf/requests/issues/3912
             value = getter()
         import time
         self.storage[key] = time.time(), value
@@ -1657,9 +1659,9 @@ class NetSessionFunctor:
 
     If proxy settings are set returns requests.Session with proxies set.  If no
     settings are set tries pypac.PACSession, if no pac file is found sets pref
-    to not try PACSession ever again and allways return requests.Session.  The
-    same Session is returned for all future calls in the current app
-    instance."""
+    to not try PACSession ever again and always return requests.Session.  The
+    same Session is returned for all future calls in the current instance.
+    """
     def __init__(self):
         self.net_sess = None
 
