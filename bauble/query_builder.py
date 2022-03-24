@@ -45,7 +45,8 @@ from pyparsing import (Word,
                        WordEnd,
                        ZeroOrMore,
                        Literal,
-                       ParseException)
+                       ParseException,
+                       Optional)
 
 import bauble
 from bauble import utils
@@ -227,6 +228,18 @@ class ExpressionRow:
             self.and_or_combo.append_text("or")
             self.and_or_combo.set_active(0)
             self.grid.attach(self.and_or_combo, 0, row_number, 1, 1)
+            self.and_or_combo.connect('changed',
+                                      lambda w: self.presenter.validate())
+
+        self.not_combo = Gtk.ComboBoxText()
+        self.not_combo.append_text("")
+        self.not_combo.append_text("not")
+        self.not_combo.set_active(0)
+        self.grid.attach(self.not_combo, 1, row_number, 1, 1)
+        self.not_combo.connect('changed', lambda w: self.presenter.validate())
+        self.not_combo.set_tooltip_text(
+            'Set to "not" to search for the inverse'
+        )
 
         self.prop_button = Gtk.Button(label=_('Choose a property…'))
 
@@ -238,7 +251,7 @@ class ExpressionRow:
                                  self.on_prop_button_clicked,
                                  schema_menu)
         self.prop_button.set_tooltip_text('The property to query')
-        self.grid.attach(self.prop_button, 1, row_number, 1, 1)
+        self.grid.attach(self.prop_button, 2, row_number, 1, 1)
 
         # start with a default combobox and entry but value_widget and
         # cond_combo can change depending on the type of the property chosen in
@@ -247,7 +260,7 @@ class ExpressionRow:
         for condition in self.CONDITIONS:
             self.cond_combo.append_text(condition)
         self.cond_combo.set_active(0)
-        self.grid.attach(self.cond_combo, 2, row_number, 1, 1)
+        self.grid.attach(self.cond_combo, 3, row_number, 1, 1)
         self.cond_handler = self.cond_combo.connect(
             'changed', lambda w: self.presenter.validate()
         )
@@ -256,15 +269,20 @@ class ExpressionRow:
         self.value_widget = Gtk.Entry()
         self.value_widget.connect('changed', self.on_value_changed)
         self.value_widget.set_tooltip_text('The value to search for')
-        self.grid.attach(self.value_widget, 3, row_number, 1, 1)
+        self.grid.attach(self.value_widget, 4, row_number, 1, 1)
 
         if row_number != 1:
             self.remove_button = Gtk.Button.new_from_icon_name(
                 'list-remove-symbolic', Gtk.IconSize.BUTTON
             )
-            self.remove_button.connect('clicked',
-                                       lambda b: remove_callback(self))
-            self.grid.attach(self.remove_button, 4, row_number, 1, 1)
+
+            def on_remove_btn_clicked(_button):
+                remove_callback(self)
+                self.presenter.validate()
+
+            self.remove_button.connect('clicked', on_remove_btn_clicked)
+            self.grid.attach(self.remove_button, 5, row_number, 1, 1)
+        query_builder.view.get_window().resize(1, 1)
 
     @staticmethod
     def on_prop_button_clicked(_button, event, menu):
@@ -491,8 +509,9 @@ class ExpressionRow:
         value_widget, and remove_button widgets.
         """
         return (
-            i for i in (self.and_or_combo, self.prop_button, self.cond_combo,
-                        self.value_widget, self.remove_button) if i)
+            i for i in (self.and_or_combo, self.not_combo, self.prop_button,
+                        self.cond_combo, self.value_widget,
+                        self.remove_button) if i)
 
     def get_expression(self):
         """Return the expression represented by this ExpressionRow.
@@ -518,15 +537,16 @@ class ExpressionRow:
         and_or = ''
         if self.and_or_combo:
             and_or = self.and_or_combo.get_active_text()
+        not_ = self.not_combo.get_active_text()
         field_name = self.prop_button.get_label()
         if value == EmptyToken():
             field_name = field_name.rsplit('.', 1)[0]
             value = repr(value)
         if isinstance(value, NoneToken):
             value = 'None'
-        result = ' '.join([and_or, field_name,
-                           self.cond_combo.get_active_text(),
-                           value]).strip()
+        result = ' '.join([i for i in (and_or, not_, field_name,
+                                       self.cond_combo.get_active_text(),
+                                       value) if i]).strip()
         return result
 
 
@@ -537,6 +557,7 @@ class BuiltQuery:
 
     wordStart, wordEnd = WordStart(), WordEnd()
 
+    NOT = wordStart + CaselessLiteral('not') + wordEnd
     AND_ = wordStart + CaselessLiteral('and') + wordEnd
     OR_ = wordStart + CaselessLiteral('or') + wordEnd
     BETWEEN_ = wordStart + CaselessLiteral('between') + wordEnd
@@ -559,7 +580,7 @@ class BuiltQuery:
              typed_value)
     conditions = ' '.join(ExpressionRow.CONDITIONS) + ' on'
     binop = oneOf(conditions, caseless=True)
-    clause = fieldname + binop + value
+    clause = Optional(NOT) + fieldname + binop + value
     unparseable_clause = (fieldname + BETWEEN_ + value + AND_ + value) | (
         Word(alphanums) + '(' + fieldname + ')' + binop + value)
     expression = Group(clause) + ZeroOrMore(Group(
@@ -579,13 +600,31 @@ class BuiltQuery:
     @property
     def clauses(self):
         if not self.__clauses:
-            self.__clauses = [
-                type('FooBar', (object,),
-                     dict(connector=len(i) == 4 and i[0] or None,
-                          field='.'.join(i[-3]),
-                          operator=i[-2],
-                          value=i[-1]))()
-                for i in [k for k in self.parsed if len(k) > 0][2:]]
+            from dataclasses import dataclass
+
+            @dataclass
+            class Clause:
+                not_: str = None
+                connector: str = None
+                field: str = None
+                operator: str = None
+                value: str = None
+
+            self.__clauses = []
+            for part in [k for k in self.parsed if len(k) > 0][2:]:
+                clause = Clause()
+                if len(part) > 3:
+                    for i, j in enumerate(part[:2]):
+                        if (i == 0 and isinstance(j, str) and
+                                j.lower() in ['and', 'or']):
+                            clause.connector = j
+                        elif isinstance(j, str) and j.lower() == 'not':
+                            clause.not_ = j
+                clause.field = '.'.join(part[-3])
+                clause.operator = part[-2]
+                clause.value = part[-1]
+                self.__clauses.append(clause)
+
         return self.__clauses
 
     @property
@@ -628,7 +667,8 @@ class QueryBuilder(GenericEditorPresenter):
     def on_help_clicked(self, _label, _event):
         msg = _("<b>Search Domain</b> - the type of items you want "
                 "returned.\n\n"
-                "<b>Clauses</b> - consists of a <b>property</b> a "
+                "<b>Clauses</b> - consists of an <b>optional 'not'</b> "
+                "(searches for the inverse), a <b>property</b>, a "
                 "<b>condition</b> and a <b>value</b>.\n"
                 "Can be chained together with <b>and</b> or <b>or</b>.\n\n"
                 "<b>property</b> - the field or related field to query\n"
@@ -791,6 +831,8 @@ class QueryBuilder(GenericEditorPresenter):
             if clause.connector:
                 row.and_or_combo.set_active(
                     {'and': 0, 'or': 1}[clause.connector])
+            if clause.not_:
+                row.not_combo.set_active(1)
 
             # the part about the value is a bit more complex: where the
             # clause.field leads to an enumerated property, on_add_clause

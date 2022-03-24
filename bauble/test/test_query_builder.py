@@ -460,6 +460,8 @@ class TestQBP(BaubleTestCase):
         self.assertEqual(len(query.clauses), 2)
         self.assertEqual(query.clauses[0].connector, None)
         self.assertEqual(query.clauses[1].connector, 'or')
+        self.assertIsNone(query.clauses[0].not_)
+        self.assertIsNone(query.clauses[1].not_)
         self.assertEqual(query.clauses[0].field, 'epithet')
         self.assertEqual(query.clauses[1].field, 'family.epithet')
         self.assertEqual(query.clauses[0].operator, '=')
@@ -471,6 +473,8 @@ class TestQBP(BaubleTestCase):
         self.assertEqual(len(query.clauses), 2)
         self.assertEqual(query.clauses[0].connector, None)
         self.assertEqual(query.clauses[1].connector, 'and')
+        self.assertIsNone(query.clauses[0].not_)
+        self.assertIsNone(query.clauses[1].not_)
         self.assertEqual(query.clauses[0].field, 'genus.epithet')
         self.assertEqual(query.clauses[1].field, 'accessions.code')
         self.assertEqual(query.clauses[0].operator, '=')
@@ -537,3 +541,23 @@ class TestQBP(BaubleTestCase):
         self.assertEqual(query.is_valid, True)
         self.assertEqual(len(query.clauses), 1)
         self.assertEqual(query.clauses[0].value, 'None')
+
+    def test_optional_not(self):
+        # with not
+        query = BuiltQuery("accession where not code contains 'XXX'")
+        self.assertEqual(query.is_valid, True)
+        self.assertEqual(len(query.clauses), 1)
+        self.assertEqual(query.clauses[0].value, 'XXX')
+        self.assertEqual(query.clauses[0].not_, 'not')
+        self.assertEqual(query.clauses[0].operator, 'contains')
+        # with not and connector
+        query = BuiltQuery("accession where not code contains 'XXX' and "
+                           "recv_qty > 0")
+        self.assertEqual(query.is_valid, True)
+        self.assertEqual(len(query.clauses), 2)
+        self.assertEqual(query.clauses[0].value, 'XXX')
+        self.assertEqual(query.clauses[0].not_, 'not')
+        self.assertEqual(query.clauses[0].operator, 'contains')
+        self.assertEqual(query.clauses[1].value, '0')
+        self.assertIsNone(query.clauses[1].not_)
+        self.assertEqual(query.clauses[1].operator, '>')
