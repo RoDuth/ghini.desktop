@@ -30,7 +30,7 @@ for:
     - pip install pyinstaller
     - pyinstaller --clean -w --noconfirm scripts/ghini_fop.spec
     - pip install dmgbuild
-    - dmgbuild -s scripts/dmgbuild_settings.py "Ghini" Ghini.dmg   # Note: 2 last args are required but overidden in dmgbuild_settings.py
+    - dmgbuild -s scripts/dmgbuild_settings.py "Ghini" Ghini.dmg   # NOTE: last 2 args are required but overidden in dmgbuild_settings.py
 
   artifacts:
     - path: dist/Ghini-*-installer.dmg
@@ -46,14 +46,12 @@ for:
   environment:
     MSYSTEM: MINGW64
     CHERE_INVOKING: 1
-    PATH: C:\msys64\usr\bin;C:\Program Files (x86)\NSIS\Bin;C:\Program Files\OpenJDK\jdk-17.0.1\bin;%PATH%
+    PATH: C:\msys64\usr\bin;C:\Program Files (x86)\NSIS\Bin;\Program Files\OpenJDK\jdk-18\bin;%PATH%
 
   install:
-    - choco install openjdk --version 17.0.1 -y  # NOTE temp solution.
-    - java --version
-    - jlink --version
-    - bash -lc "pacman --noconfirm -Syuu"
-    - bash -lc "pacman --noconfirm -Syuu"
+    - choco install openjdk -y  # NOTE Change PATH to match version
+    # - bash -lc "pacman --noconfirm -Syuu"  # NOTE not normally required
+    # - bash -lc "pacman --noconfirm -Syuu"  # NOTE not normally required
     - bash -lc "pacman --noconfirm --needed -S - < ./scripts/mingw64_pkglist.txt"
     - bash -lc "python --version"
     - bash -lc "python -m pip install --upgrade pip"
