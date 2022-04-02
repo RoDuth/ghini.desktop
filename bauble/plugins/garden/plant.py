@@ -60,7 +60,7 @@ from bauble import btypes as types
 from bauble import utils
 from bauble.view import (InfoBox, InfoExpander, PropertiesExpander,
                          LinksExpander, select_in_search_results, Action)
-from bauble.plugins.garden.accession import Accession
+from .accession import Accession
 
 # TODO: might be worthwhile to have a label or textview next to the
 # location combo that shows the description of the currently selected
@@ -564,6 +564,9 @@ class Plant(db.Base, db.Serializable, db.DefiningPictures, db.WithNotes):
     quantity = Column(Integer, autoincrement=False, nullable=False)
 
     accession_id = Column(Integer, ForeignKey('accession.id'), nullable=False)
+    accession = relationship('Accession', lazy='subquery', uselist=False,
+                             back_populates='plants')
+
     location_id = Column(Integer, ForeignKey('location.id'), nullable=False)
     # spatial data deferred mainly to avoid comparison issues in union search
     # (i.e. reports)

@@ -277,7 +277,9 @@ class Verification(db.Base):  # pylint: disable=too-few-public-methods
     verifier = Column(Unicode(64), nullable=False)
     date = Column(types.Date, nullable=False)
     reference = Column(UnicodeText)
+
     accession_id = Column(Integer, ForeignKey('accession.id'), nullable=False)
+    accession = relationship('Accession', back_populates='verifications')
 
     # the level of assurance of this verification
     level = Column(Integer, nullable=False, autoincrement=False)
@@ -317,10 +319,8 @@ class Voucher(db.Base):  # pylint: disable=too-few-public-methods
     code = Column(Unicode(32), nullable=False)
     parent_material = Column(types.Boolean, default=False)
     accession_id = Column(Integer, ForeignKey('accession.id'), nullable=False)
-
-    # accession  = relationship('Accession', uselist=False,
-    #                       backref=backref('vouchers',
-    #                                       cascade='all, delete-orphan'))
+    accession = relationship('Accession', uselist=False,
+                             back_populates='vouchers')
 
 
 # ITF2 - E.1; Provenance Type Flag; Transfer code: prot
@@ -559,37 +559,35 @@ class Accession(db.Base, db.Serializable, db.WithNotes):
                      default=None)
 
     private = Column(types.Boolean, default=False)
+
     species_id = Column(Integer, ForeignKey('species.id'), nullable=False)
+    species = relationship('Species', uselist=False,
+                           back_populates='accessions')
 
     # intended location
     intended_location_id = Column(Integer, ForeignKey('location.id'))
-    intended2_location_id = Column(Integer, ForeignKey('location.id'))
+    intended_location = relationship(
+        'Location', primaryjoin='Accession.intended_location_id==Location.id'
+    )
 
-    # the source of the accession
+    intended2_location_id = Column(Integer, ForeignKey('location.id'))
+    intended2_location = relationship(
+        'Location', primaryjoin='Accession.intended2_location_id==Location.id'
+    )
+
     source = relationship('Source', uselist=False,
                           cascade='all, delete-orphan',
-                          backref=backref('accession', uselist=False))
-
-    # relations
-    species = relationship('Species', uselist=False,
-                           backref=backref('accessions',
-                                           cascade='all, delete-orphan'))
+                          back_populates='accession')
 
     # use Plant.code for the order_by to avoid ambiguous column names
     plants = relationship('Plant', cascade='all, delete-orphan',
-                          # order_by='plant.code',
-                          backref=backref('accession',
-                                          lazy='subquery',
-                                          uselist=False))
-    verifications = relationship('Verification',  # order_by='date',
-                                 cascade='all, delete-orphan',
-                                 backref=backref('accession', uselist=False))
+                          back_populates='accession')
+
+    verifications = relationship('Verification', order_by='Verification.date',
+                                 cascade='all, delete-orphan')
+
     vouchers = relationship('Voucher', cascade='all, delete-orphan',
-                            backref=backref('accession', uselist=False))
-    intended_location = relationship(
-        'Location', primaryjoin='Accession.intended_location_id==Location.id')
-    intended2_location = relationship(
-        'Location', primaryjoin='Accession.intended2_location_id==Location.id')
+                            back_populates='accession')
 
     retrieve_cols = ['id', 'code']
 

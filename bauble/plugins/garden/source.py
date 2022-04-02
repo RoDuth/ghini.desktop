@@ -97,7 +97,10 @@ class Source(db.Base):
     # ITF2 - E7 - Donor's Accession Identifier - donacc
     sources_code = Column(Unicode(32))
 
-    accession_id = Column(Integer, ForeignKey('accession.id'), unique=True)
+    accession_id = Column(Integer, ForeignKey('accession.id'), nullable=False,
+                          unique=True)
+    accession = relationship('Accession', uselist=False,
+                             back_populates='source')
 
     source_detail_id = Column(Integer, ForeignKey('source_detail.id'))
     source_detail = relationship('SourceDetail', uselist=False,
