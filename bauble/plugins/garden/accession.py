@@ -27,6 +27,7 @@ import os
 from random import random
 import traceback
 import weakref
+import re
 from functools import reduce, partial
 from pathlib import Path
 
@@ -621,8 +622,9 @@ class Accession(db.Base, db.Serializable, db.WithNotes):
             code_format = cls.code_format
         frmt = code_format.replace('%PD', Plant.get_delimiter())
         today = datetime.date.today()
-        if frmt.find('%{Y-1}') >= 0:
-            frmt = frmt.replace('%{Y-1}', str(today.year - 1))
+        if match := re.match(r"%\{Y-(\d+)\}", frmt):
+            frmt = frmt.replace(match.group(0),
+                                str(today.year - int(match.group(1))))
         frmt = today.strftime(frmt)
         start = str(frmt.rstrip('#'))
         if start == frmt:
