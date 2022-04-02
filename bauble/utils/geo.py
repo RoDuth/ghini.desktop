@@ -77,13 +77,13 @@ def transform(geometry, in_crs=DEFAULT_IN_PROJ, out_crs=None, always_xy=False):
         # system CRS string, let the user have the opportunity to select a
         # different preference if they desire
         msg = _('Set a system wide Coordinate Reference System string, this '
-                'can only be set once.\n\n"epsg:4326" is a safe default but '
-                'you may have a different preference.\n\nIf using a novel '
-                'CRS you may also need to populate the internal database '
-                'with a .prj file string or importing/exporting shapefile '
-                'data with that CRS may fail.\n\nThis is most easily done by '
-                'using the shapefile import tool and providing a shapefile in '
-                'the desired CRS.')
+                'can only be set once.\n\n"epsg:4326" is a safe default (WGS '
+                '84 as used in GPS) but you may have a different preference.'
+                '\n\nIf using a novel CRS you may also need to populate the '
+                'internal database with a .prj file string or '
+                'importing/exporting shapefile data with that CRS may fail.'
+                '\n\nThis is most easily done by using the shapefile import '
+                'tool and providing a shapefile in the desired CRS.')
         sys_crs = confirm_default('system_proj_string', DEFAULT_SYS_PROJ, msg)
         if sys_crs:
             out_crs = sys_crs.value

@@ -24,6 +24,7 @@
 """
 A common set of utility functions used throughout Ghini.
 """
+from collections.abc import Iterable
 from typing import Any, Union
 import datetime
 import os
@@ -43,7 +44,6 @@ from gi.repository import GdkPixbuf
 
 import bauble
 from bauble.error import check
-from bauble import paths
 
 
 def read_in_chunks(file_object, chunk_size=1024):
@@ -1783,3 +1783,17 @@ def copy_tree(src_dir, dest_dir, suffixes=None, over_write=False):
                 destination.parent.mkdir(parents=True)
             if not destination.exists() or over_write:
                 copy(path, destination)
+
+
+def hide_widgets(widgets: Iterable[Gtk.Widget]) -> None:
+    """hides and disables the widgets from showing with show_all() calls."""
+    for widget in widgets:
+        widget.set_visible(False)
+        widget.set_no_show_all(True)
+
+
+def unhide_widgets(widgets: Iterable[Gtk.Widget]) -> None:
+    """unhides and enable the widgets to show with show_all() calls."""
+    for widget in widgets:
+        widget.set_visible(True)
+        widget.set_no_show_all(False)
