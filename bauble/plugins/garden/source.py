@@ -309,7 +309,7 @@ class CollectionPresenter(editor.ChildPresenter):
     PROBLEM_INVALID_LOCALE = random()
 
     def __init__(self, parent, model, view, session):
-        super().__init__(model, view)
+        super().__init__(model, view, session=session)
         self.parent_ref = weakref.ref(parent)
         self.session = session
         self.refresh_view()
@@ -602,8 +602,8 @@ class PropagationChooserPresenter(editor.ChildPresenter):
     """
     widget_to_field_map = {}
 
-    def __init__(self, parent, model, view, session):
-        super().__init__(model, view)
+    def __init__(self, parent, model, view, session=None):
+        super().__init__(model, view, session=session)
         self.parent_ref = weakref.ref(parent)
         self.session = session
         self._dirty = False
@@ -615,11 +615,12 @@ class PropagationChooserPresenter(editor.ChildPresenter):
         self.view.widgets.source_prop_treeview.set_model(self.tree_model)
         self.refresh_view()
 
-        cell = self.view.widgets.prop_toggle_cell
+        prop_toggle_cell = self.view.widgets.prop_toggle_cell
         self.view.widgets.prop_toggle_column.set_cell_data_func(
-            cell, self.toggle_cell_data_func)
+            prop_toggle_cell, self.toggle_cell_data_func)
 
-        self.view.connect_after(cell, 'toggled', self.on_toggled)
+        self.view.connect_after(prop_toggle_cell, 'toggled',
+                                self.on_prop_toggle_cell_toggled)
 
         # assign_completions_handler
         def plant_cell_data_func(_column, renderer, tree_model, itr):
@@ -637,7 +638,7 @@ class PropagationChooserPresenter(editor.ChildPresenter):
         self.assign_completions_handler(
             'source_prop_plant_entry',
             self.plant_get_completions,
-            on_select=self.on_select,
+            on_select=self.on_propagation_search_select,
             comparer=lambda row, txt: plant_to_string_matcher(row[0], txt)
         )
 
@@ -648,8 +649,9 @@ class PropagationChooserPresenter(editor.ChildPresenter):
         query = (self.session.query(Plant)
                  .filter(Plant.propagations.any())
                  .join('accession')
-                 .filter(Accession.id != self.model.accession.id)
                  .order_by(Accession.code, Plant.code))
+        if self.model.accession and self.model.accession.id:
+            query = query.filter(Accession.id != self.model.accession.id)
         result = []
         for plant in query:
             has_accessible = False
@@ -660,7 +662,7 @@ class PropagationChooserPresenter(editor.ChildPresenter):
                 result.append(plant)
         return result
 
-    def on_select(self, value):
+    def on_propagation_search_select(self, value):
         logger.debug('on select: %s', value)
         if isinstance(value, str):
             return
@@ -687,7 +689,7 @@ class PropagationChooserPresenter(editor.ChildPresenter):
             )
         self.view.widgets.source_prop_treeview.set_sensitive(True)
 
-    def on_toggled(self, cell, path):
+    def on_prop_toggle_cell_toggled(self, cell, path):
         if cell.get_sensitive() is False:
             return
         prop = None
@@ -703,7 +705,7 @@ class PropagationChooserPresenter(editor.ChildPresenter):
             # need to set the model value for id_qual_rank
             self.parent_ref().model.id_qual_rank = utils.nstr(
                 prop.plant.accession.id_qual_rank)
-            self.parent_ref().refresh_id_qual_rank_combo()
+            self.parent_ref().parent_ref().refresh_id_qual_rank_combo()
             acc_view.widget_set_value(
                 'acc_quantity_recvd_entry',
                 utils.nstr(prop.accessible_quantity))
@@ -713,18 +715,23 @@ class PropagationChooserPresenter(editor.ChildPresenter):
                 'acc_recvd_type_comboentry',
                 recvd_type_values[prop_type_results[prop.prop_type]],
                 index=1)
+            self.parent_ref().model.source = self.model
+        else:
+            self.parent_ref().model.source = None
+
         self.model.plant_propagation = prop
         self._dirty = True
         self.parent_ref().refresh_sensitivity()
 
     def populate_with_all(self):
-        from bauble.plugins.garden.accession import Accession
-        from bauble.plugins.garden.plant import Plant
+        from .accession import Accession
+        from .plant import Plant
         query = (self.session.query(Plant)
                  .filter(Plant.propagations.any())
                  .join('accession')
-                 .filter(Accession.id != self.model.accession.id)
                  .order_by(Accession.code, Plant.code))
+        if self.model.accession and self.model.accession.id:
+            query = query.filter(Accession.id != self.model.accession.id)
         results = []
         for plant in query:
             has_accessible = False

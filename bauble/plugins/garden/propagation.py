@@ -566,9 +566,8 @@ class CuttingPresenter(editor.GenericEditorPresenter):
         :param model: an instance of class Propagation
         :param view: an instance of PropagationEditorView
         """
-        super().__init__(model, view)
+        super().__init__(model, view, session=session)
         self.parent_ref = weakref.ref(parent)
-        self.session = session
         self._dirty = False
 
         # instance is initialized with a Propagation instance as model, but
@@ -757,10 +756,9 @@ class SeedPresenter(editor.GenericEditorPresenter):
         :param model: an instance of class Propagation
         :param view: an instance of PropagationEditorView
         """
-        super().__init__(model, view)
+        super().__init__(model, view, session=session)
         self._dirty = False
         self.parent_ref = weakref.ref(parent)
-        self.session = session
 
         self.propagation = self.model
         if not self.propagation._seed:
@@ -842,12 +840,12 @@ class PropagationPresenter(editor.ChildPresenter):
                            'prop_date_entry': 'date',
                            'notes_textview': 'notes'}
 
-    def __init__(self, model, view):
+    def __init__(self, model, view, session=None):
         """
         :param model: an instance of class Propagation
         :param view: an instance of PropagationEditorView
         """
-        super().__init__(model, view)
+        super().__init__(model, view, session=session)
         self.session = object_session(model)
 
         # initialize the propagation type combo and set the initial value
@@ -951,7 +949,6 @@ class SourcePropagationPresenter(PropagationPresenter):
     """
     def __init__(self, parent, model, view, session):
         self.parent_ref = weakref.ref(parent)
-        self.parent_session = session
         try:
             view.widgets.prop_main_box
         except:
@@ -975,7 +972,7 @@ class SourcePropagationPresenter(PropagationPresenter):
         view.widgets.prop_type_combo.get_model().append([None, ''])
 
         self._dirty = False
-        super().__init__(model, view)
+        super().__init__(model, view, session=session)
 
     def on_prop_type_changed(self, combo, *args):
         """Override PropagationPresenter.on_type_changed() to handle the None

@@ -1405,19 +1405,7 @@ class SourcePresenter(editor.GenericEditorPresenter):
         self.view.widgets.source_none_label.set_visible(True)
 
         # populate the source combo
-        def on_select(source):
-            if not source:
-                self.model.source = None
-            elif isinstance(source, SourceDetail):
-                self.model.source = self.source
-                self.model.source.source_detail = source
-            elif source == self.GARDEN_PROP_STR:
-                self.model.source = self.source
-                self.model.source.source_detail = None
-            else:
-                logger.warning('unknown source: %s' % source)
-
-        self.init_source_comboentry(on_select)
+        self.init_source_comboentry(self.on_source_select)
 
         if self.model.source:
             self.source = self.model.source
@@ -1425,9 +1413,6 @@ class SourcePresenter(editor.GenericEditorPresenter):
                 self.source.sources_code or '')
         else:
             self.source = Source()
-            # self.model.source will be reset the None if the source
-            # combo value is None in commit_changes()
-            self.model.source = self.source
             self.view.widgets.sources_code_entry.set_text('')
 
         if self.source.collection:
@@ -1435,7 +1420,6 @@ class SourcePresenter(editor.GenericEditorPresenter):
             enabled = True
         else:
             self.collection = Collection()
-            self.session.add(self.collection)
             enabled = False
 
         self._set_source_coll_enabled(enabled)
@@ -1445,7 +1429,6 @@ class SourcePresenter(editor.GenericEditorPresenter):
             enabled = True
         else:
             self.propagation = Propagation()
-            self.session.add(self.propagation)
             enabled = False
 
         self._set_source_prop_enabled(enabled)
@@ -1508,6 +1491,21 @@ class SourcePresenter(editor.GenericEditorPresenter):
             self.source.sources_code = None
         self._dirty = True
         self.refresh_sensitivity()
+
+    def on_source_select(self, source):
+        if not source:
+            self.source.source_detail = None
+            self.model.source = None
+        elif isinstance(source, SourceDetail):
+            self.source.source_detail = source
+            self.model.source = self.source
+        elif source == self.GARDEN_PROP_STR:
+            # setting the model.source to self.source happens when a
+            # propagation is toggled in the PropagationChooserPresenter
+            self.source.source_detail = None
+            self.model.source = None
+        else:
+            logger.warning('unknown source: %s', source)
 
     def on_type_filter_changed(self, _combo):
         """Resets source_combo"""

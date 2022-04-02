@@ -1089,6 +1089,7 @@ class GenericEditorPresenter:
             self.owns_session = False
             logger.debug("GenericEditorPresenter::__init__ - sessionless")
         elif session is None:
+            logger.debug('session is None')
             try:
                 self.session = object_session(model)
             except Exception as e:
@@ -1096,9 +1097,12 @@ class GenericEditorPresenter:
 
             if self.session is None:  # object_session gave None without error
                 if db.Session is not None:
+                    logger.debug('creating own session')
                     self.session = db.Session()
                     self.owns_session = True
                     if isinstance(model, db.Base):
+                        logger.debug('merging model into own session')
+                        # creates a new object if it is new
                         self.model = model = self.session.merge(model)
                 else:
                     logger.debug('db.Session was None, cannot get a session.')
@@ -1802,8 +1806,8 @@ class ChildPresenter(GenericEditorPresenter):
     view.
     """
 
-    def __init__(self, model, view):
-        super().__init__(model, view)
+    def __init__(self, model, view, session=None):
+        super().__init__(model, view, session=session)
 
     @property
     def view(self):
