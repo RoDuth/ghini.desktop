@@ -2067,7 +2067,7 @@ class ConservationStatus_test(PlantTestCase):
         self.assertEqual(obj.conservation, 'LC')
 
 
-from editor import GenericModelViewPresenterEditor, MockView
+from bauble.editor import GenericModelViewPresenterEditor, MockView
 
 
 class PresenterTest(PlantTestCase):

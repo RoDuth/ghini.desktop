@@ -24,6 +24,7 @@
 import datetime
 import os
 import weakref
+from pathlib import Path
 from random import random
 from typing import Optional
 from collections.abc import Callable
@@ -33,14 +34,13 @@ logger = logging.getLogger(__name__)
 
 import dateutil.parser as date_parser
 
-from gi.repository import Gtk  # noqa
+from gi.repository import Gtk
 from gi.repository import GLib
 from gi.repository import GdkPixbuf
-from gi.repository import Pango
 
 from sqlalchemy.orm import object_mapper, object_session
 
-# from lxml import etree
+from lxml import etree
 
 import bauble
 from bauble import db
@@ -341,20 +341,16 @@ class GenericEditorView:
                                      message_box_type)
 
     def connect_signals(self, target):
-        'connect all signals declared in the glade file'
+        """connect all signals declared in the glade file"""
         if not hasattr(self, 'signals'):
-            # NOTE import here rather than module level due to temp fix for
-            # lxml.etree errors in mingw and using xml.etree.ElementTree as a
-            # drop in replacement in NoteBox()
-            from lxml import etree
             doc = etree.parse(self.filename)
-            self.signals = doc.xpath('//signal') \
-                # pylint: disable=attribute-defined-outside-init
+            # pylint: disable=attribute-defined-outside-init
+            self.signals = doc.xpath('//signal')
         for signal in self.signals:
             try:
                 handler = getattr(target, signal.get('handler'))
-            except AttributeError as text:
-                logger.debug("AttributeError: %s", text)
+            except AttributeError as e:
+                logger.debug("%s(%s)", type(e).__name__, e)
                 continue
             signaller = getattr(self.widgets, signal.getparent().get('id'))
             handler_id = signaller.connect(signal.get('name'), handler)
@@ -1866,42 +1862,23 @@ class GenericModelViewPresenterEditor:
             self.session.close()
 
 
-class NoteBox(Gtk.Box):
-    glade_ui = 'notes.glade'
+class GenericNoteBox:
+    """Generic note box class meant to be subclassed by a Gtk.Template
+    decoratated class that can supply appropriate widget members:
 
-    def set_content(self, text):
-        buff = Gtk.TextBuffer()
-        self.widgets.note_textview.set_buffer(buff)
-        utils.set_widget_value(self.widgets.note_textview,
-                               text or '')
-        if not text:
-            self.presenter.add_problem(
-                self.presenter.PROBLEM_EMPTY, self.widgets.note_textview)
-        buff.connect('changed', self.on_note_buffer_changed,
-                     self.widgets.note_textview)
+        note_expander
+        category_comboentry
+        date_entry
+        date_button
+        user_entry
+        notes_remove_button
+    """
+    # pylint: disable=no-member
+
+    PROBLEM_BAD_DATE = f'bad_date:{random()}'
 
     def __init__(self, presenter, model=None):
         super().__init__()
-
-        # open the glade file and extract the markup that the
-        # expander will use
-        filename = os.path.join(paths.lib_dir(), self.glade_ui)
-        # TODO <RD> TEMP FIX for mingw need to revert this if possible
-        # NOTE after discovering this bug in lxml on mingw:
-        # https://github.com/msys2/MINGW-packages/issues/8864
-        # decided to use this approach for the time being
-        from xml.etree import ElementTree as etree
-        xml = etree.parse(filename)
-        # el = xml.find("//object[@id='notes_box']")
-        el = xml.find(".//object[@id='notes_box']")
-        s = '<interface>%s</interface>' % etree.tostring(el)
-        builder = Gtk.Builder()
-        builder.add_from_string(s)
-        self.widgets = utils.BuilderWidgets(builder)
-
-        notes_box = self.widgets.notes_box
-        self.widgets.remove_parent(notes_box)
-        self.pack_start(notes_box, True, True, 0)
 
         self.session = object_session(presenter.model)
         self.presenter = presenter
@@ -1916,20 +1893,17 @@ class NoteBox(Gtk.Box):
             date_str = utils.today_str()
             self.set_model_attr('date', date_str, dirty=False)
 
-        self.widgets.notes_expander.props.use_markup = True
-        self.widgets.notes_expander.props.label = ''
-        self.widgets.notes_expander.props.label_widget.\
-            ellipsize = Pango.EllipsizeMode.END
+        self.note_expander.set_label('')
 
         # set the model values on the widgets
         mapper = object_mapper(self.model)
         values = utils.get_distinct_values(mapper.c['category'],
                                            self.session)
-        utils.setup_text_combobox(self.widgets.category_comboentry, values)
-        utils.set_widget_value(self.widgets.category_comboentry,
+        utils.setup_text_combobox(self.category_comboentry, values)
+        utils.set_widget_value(self.category_comboentry,
                                self.model.category or '')
-        utils.setup_date_button(None, self.widgets.date_entry,
-                                self.widgets.date_button)
+        utils.setup_date_button(None, self.date_entry,
+                                self.date_button)
         date_str = utils.today_str()
         if self.model.date:
             try:
@@ -1938,57 +1912,61 @@ class NoteBox(Gtk.Box):
             except AttributeError:
                 # new note, date already a string
                 pass
-        utils.set_widget_value(self.widgets.date_entry, date_str)
+        utils.set_widget_value(self.date_entry, date_str)
 
-        utils.set_widget_value(self.widgets.user_entry, self.model.user or '')
+        utils.set_widget_value(self.user_entry, self.model.user or '')
 
         self.set_content(self.model.note)
 
         # connect the signal handlers
-        self.widgets.date_entry.connect(
-            'changed', self.on_date_entry_changed)
-        self.widgets.user_entry.connect(
-            'changed', self.on_user_entry_changed)
+        self.date_entry.connect('changed', self.on_date_entry_changed)
+        self.user_entry.connect('changed', self.on_user_entry_changed)
         # connect category comboentry widget and child entry
-        self.widgets.category_comboentry.connect(
-            'changed', self.on_category_combo_changed)
-        self.widgets.category_comboentry.get_child().connect(
-            'changed', self.on_category_entry_changed)
-        self.widgets.notes_remove_button.connect(
-            'clicked', self.on_notes_remove_button)
+        self.category_comboentry.connect('changed',
+                                         self.on_category_combo_changed)
+        self.category_comboentry.get_child().connect(
+            'changed', self.on_category_entry_changed
+        )
+
+        self.notes_remove_button.connect('clicked',
+                                         self.on_notes_remove_button)
 
         self.update_label()
         self.show_all()
 
-    def set_expanded(self, expand):
-        self.widgets.notes_expander.props.expanded = expand
+    def set_content(self, text):
+        raise NotImplementedError
 
-    def on_notes_remove_button(self, button, *args):
+    def set_expanded(self, expanded):
+        self.note_expander.set_expanded(expanded)
+
+    def on_notes_remove_button(self, _button, *_args):
         if self.model in self.presenter.notes:
             self.presenter.notes.remove(self.model)
-        self.widgets.remove_parent(self.widgets.notes_box)
+        # self.widgets.remove_parent(self.widgets.note_box)
+        # self.get_parent().remove(self)
+        self.destroy()
         self.presenter._dirty = True
         self.presenter.parent_ref().refresh_sensitivity()
 
-    def on_date_entry_changed(self, entry, *args):
-        PROBLEM = 'BAD_DATE'
-        text = entry.props.text
+    def on_date_entry_changed(self, entry, *_args):
+        text = entry.get_text()
         try:
             text = DateValidator().to_python(text)
-        except Exception as e:
+        except ValidatorError as e:
             logger.debug("%s(%s)", type(e).__name__, e)
-            self.presenter.add_problem(PROBLEM, entry)
+            self.presenter.add_problem(self.PROBLEM_BAD_DATE, entry)
         else:
-            self.presenter.remove_problem(PROBLEM, entry)
+            self.presenter.remove_problem(self.PROBLEM_BAD_DATE, entry)
             self.set_model_attr('date', text)
 
-    def on_user_entry_changed(self, entry, *args):
+    def on_user_entry_changed(self, entry, *_args):
         value = entry.props.text
         # only want either empty string or a name (a string), not None.
         # Presetting new notes with the current users display name ensures this
         self.set_model_attr('user', value)
 
-    def on_category_combo_changed(self, combo, *args):
+    def on_category_combo_changed(self, combo, *_args):
         """Sets the text on the entry.
 
         The model value is set in the entry "changed" handler.
@@ -1999,60 +1977,49 @@ class NoteBox(Gtk.Box):
             text = utils.nstr(combo.get_model()[treeiter][0])
         else:
             return
-        self.widgets.category_comboentry.get_child().props.text = \
-            utils.nstr(text)
+        self.category_comboentry.get_child().set_text(utils.nstr(text))
 
-    def on_category_entry_changed(self, entry, *args):
+    def on_category_entry_changed(self, entry, *_args):
         value = utils.nstr(entry.props.text)
         if not value:  # if value == ''
             value = None
         self.set_model_attr('category', value)
-
-    def on_note_buffer_changed(self, buff, widget, *args):
-        value = utils.nstr(buff.props.text)
-        if not value:  # if value == ''
-            value = None
-            self.presenter.add_problem(self.presenter.PROBLEM_EMPTY, widget)
-        else:
-            self.presenter.remove_problem(self.presenter.PROBLEM_EMPTY, widget)
-        self.set_model_attr('note', value)
 
     def update_label(self):
         label = []
         date_str = None
         if self.model.date and isinstance(self.model.date, datetime.date):
             fmat = prefs.prefs[prefs.date_format_pref]
-            date_str = utils.xml_safe(
-                self.model.date.strftime(fmat))
+            date_str = utils.xml_safe(self.model.date.strftime(fmat))
         elif self.model.date:
             date_str = utils.xml_safe(self.model.date)
         else:
-            date_str = self.widgets.date_entry.props.text
+            date_str = self.date_entry.get_text()
 
         if self.model.user and date_str:  # and self.model.date:
             label.append(_('%(user)s on %(date)s') %
                          dict(user=utils.xml_safe(self.model.user),
                               date=date_str))
         elif date_str:
-            label.append('%s' % date_str)
+            label.append(date_str)
         elif self.model.user:
-            label.append('%s' % utils.xml_safe(self.model.user))
+            label.append(utils.xml_safe(self.model.user))
 
         if self.model.category:
-            label.append('(%s)' % utils.xml_safe(self.model.category))
+            label.append(f'({utils.xml_safe(self.model.category)})')
 
         if self.model.note:
-            note_str = ' : %s' % utils.xml_safe(self.model.note).\
-                replace('\n', '  ')
+            note_str = ' : '
+            note_str += utils.xml_safe(self.model.note).replace('\n', '  ')
             max_length = 25
             # label.props.ellipsize doesn't work properly on a
             # label in an expander we just do it ourselves here
             if len(self.model.note) > max_length:
-                label.append('%s …' % note_str[0:max_length - 1])
+                label.append(f'{note_str[0:max_length - 1]} …')
             else:
                 label.append(note_str)
 
-        self.widgets.notes_expander.set_label(' '.join(label))
+        self.note_expander.set_label(' '.join(label))
 
     def set_model_attr(self, attr, value, dirty=True):
         setattr(self.model, attr, value)
@@ -2063,34 +2030,82 @@ class NoteBox(Gtk.Box):
         self.presenter.parent_ref().refresh_sensitivity()
 
     @classmethod
-    def is_valid_note(cls, note):
+    def is_valid_note(cls, _note):
         return True
 
 
-class PictureBox(NoteBox):
-    glade_ui = 'pictures.glade'
-    from pathlib import Path
+# NOTE that due to the way PyGObject handles templated classes and inheritance
+# NoteBox and PictureBox use two near identical UI files
+
+
+@Gtk.Template(filename=str(Path(paths.lib_dir(), 'note_box.glade')))
+class NoteBox(GenericNoteBox, Gtk.Box):
+
+    __gtype_name__ = 'NoteBox'
+
+    note_expander = Gtk.Template.Child()
+    category_comboentry = Gtk.Template.Child()
+    date_entry = Gtk.Template.Child()
+    date_button = Gtk.Template.Child()
+    user_entry = Gtk.Template.Child()
+    notes_remove_button = Gtk.Template.Child()
+    note_textview = Gtk.Template.Child()
+
+    def set_content(self, text):
+        buff = Gtk.TextBuffer()
+        self.note_textview.set_buffer(buff)
+        utils.set_widget_value(self.note_textview,
+                               text or '')
+        if not text:
+            self.presenter.add_problem(
+                self.presenter.PROBLEM_EMPTY, self.note_textview)
+        buff.connect('changed', self.on_note_buffer_changed,
+                     self.note_textview)
+
+    def on_note_buffer_changed(self, buff, widget, *_args):
+        value = utils.nstr(buff.props.text)
+        if not value:  # if value == ''
+            value = None
+            self.presenter.add_problem(self.presenter.PROBLEM_EMPTY, widget)
+        else:
+            self.presenter.remove_problem(self.presenter.PROBLEM_EMPTY, widget)
+        self.set_model_attr('note', value)
+
+
+@Gtk.Template(filename=str(Path(paths.lib_dir(), 'picture_box.glade')))
+class PictureBox(GenericNoteBox, Gtk.Box):
+
+    __gtype_name__ = 'PictureBox'
+
+    note_expander = Gtk.Template.Child()
+    category_comboentry = Gtk.Template.Child()
+    date_entry = Gtk.Template.Child()
+    date_button = Gtk.Template.Child()
+    user_entry = Gtk.Template.Child()
+    notes_remove_button = Gtk.Template.Child()
+    picture_button = Gtk.Template.Child()
+
     last_folder = str(Path.home())
 
     def __init__(self, presenter, model=None):
         super().__init__(presenter, model)
-        utils.set_widget_value(self.widgets.category_comboentry,
+        utils.set_widget_value(self.category_comboentry,
                                '<picture>')
         self.presenter._dirty = False
 
-        self.widgets.picture_button.connect(
-            "clicked", self.on_activate_browse_button)
+        self.picture_button.connect("clicked", self.on_activate_browse_button)
 
-    def set_content(self, basename):
-        for widget in list(self.widgets.picture_button.get_children()):
+    def set_content(self, text):
+        # NOTE text param here is the filename as a string
+        for widget in list(self.picture_button.get_children()):
             widget.destroy()
-        if basename is not None:
+        if text is not None:
             img = Gtk.Image()
             try:
                 thumbname = os.path.join(
-                    prefs.prefs[prefs.picture_root_pref], 'thumbs', basename)
+                    prefs.prefs[prefs.picture_root_pref], 'thumbs', text)
                 filename = os.path.join(
-                    prefs.prefs[prefs.picture_root_pref], basename)
+                    prefs.prefs[prefs.picture_root_pref], text)
                 if os.path.isfile(thumbname):
                     pixbuf = GdkPixbuf.Pixbuf.new_from_file(thumbname)
                 else:
@@ -2105,11 +2120,11 @@ class PictureBox(NoteBox):
                         x, y, GdkPixbuf.InterpType.BILINEAR)
                 img.set_from_pixbuf(pixbuf)
             except GLib.GError as e:
-                logger.debug("picture %s caused GLib.GError %s", basename, e)
-                label = _('picture file %s not found.') % basename
+                logger.debug("picture %s caused GLib.GError %s", text, e)
+                label = _('picture file %s not found.') % text
                 img = Gtk.Label()
                 img.set_text(label)
-            except Exception as e:
+            except Exception as e:  # pylint: disable=broad-except
                 logger.warning("can't commit changes: (%s) %s", type(e), e)
                 img = Gtk.Label()
                 img.set_text(e)
@@ -2118,10 +2133,10 @@ class PictureBox(NoteBox):
             img = Gtk.Label()
             img.set_text(_('Choose a file…'))
         img.show()
-        self.widgets.picture_button.add(img)
-        self.widgets.picture_button.show()
+        self.picture_button.add(img)
+        self.picture_button.show()
 
-    def on_activate_browse_button(self, _widget, data=None):
+    def on_activate_browse_button(self, _widget):
         file_chooser_dialog = Gtk.FileChooserNative()
         try:
             logger.debug('about to set current folder - %s', self.last_folder)
@@ -2144,9 +2159,8 @@ class PictureBox(NoteBox):
                 # store basename in note field and fire callbacks.
                 self.set_model_attr('note', basename)
                 self.set_content(basename)
-        except Exception as e:
-            logger.warning("unhandled exception in editor.py: (%s)%s",
-                           type(e).__name__, e)
+        except Exception as e:   # pylint: disable=broad-except
+            logger.warning("unhandled exception: (%s)%s", type(e).__name__, e)
         file_chooser_dialog.destroy()
 
     def on_category_entry_changed(self, entry, *args):
@@ -2163,16 +2177,16 @@ class PictureBox(NoteBox):
 # TODO: add an "editable" property to the NotesPresenter and if it is
 # True then show the add/remove buttons
 
+
 class NotesPresenter(GenericEditorPresenter):
     """The NotesPresenter provides a generic presenter for editor notes
     on an item in the database.
 
-    This presenter requires that the notes property provide a specific
-    interface.
+    This presenter requires that notes_property provide a specific interface.
 
     :param presenter: the parent presenter of this presenter
-    :param notes_property: the string name of the notes property of
-      the presenter.model
+    :param notes_property: the string name of the notes property of the
+        presenter.model
     :param parent_container: the Gtk.Container to add the notes editor box to
     """
 
@@ -2181,13 +2195,7 @@ class NotesPresenter(GenericEditorPresenter):
     def __init__(self, presenter, notes_property, parent_container):
         super().__init__(presenter.model, None)
 
-        # The glade file named in ContentBox is structured with two top
-        # GtkWindow next to each other. Here, by not doing any lookup, we
-        # get the first one, from which we extract the 'notes_editor_box'
-        # child. This is expected to contain a 'notes_expander_box' vertical
-        # box, which will host all expanders.  In the content box we
-        # extract, from the same file, the widget named 'notes_box'.
-        filename = os.path.join(paths.lib_dir(), self.ContentBox.glade_ui)
+        filename = str(Path(paths.lib_dir(), 'notes.glade'))
         self.widgets = utils.BuilderWidgets(filename)
 
         self.parent_ref = weakref.ref(presenter)
@@ -2196,9 +2204,7 @@ class NotesPresenter(GenericEditorPresenter):
                          .mapper.class_)
         self.notes = getattr(presenter.model, notes_property)
         self.parent_container = parent_container
-        editor_box = self.widgets.notes_editor_box
-        self.widgets.remove_parent(editor_box)
-        parent_container.add(editor_box)
+        parent_container.add(self.widgets.notes_editor_box)
 
         # the `expander`s are added to self.box
         self.box = self.widgets.notes_expander_box
@@ -2217,7 +2223,7 @@ class NotesPresenter(GenericEditorPresenter):
             'clicked', self.on_add_button_clicked)
         self.box.show_all()
 
-    def on_add_button_clicked(self, *args):
+    def on_add_button_clicked(self, *_args):
         box = self.add_note()
         box.set_expanded(True)
 
