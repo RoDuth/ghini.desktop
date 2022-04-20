@@ -84,7 +84,10 @@ exe = EXE(pyz,
           strip=False,
           upx=True,
           console=False,
-          icon='../bauble/images/icon.ico')
+          # icon='../bauble/images/icon.ico')
+          # NOTE fix for:
+          # https://github.com/pyinstaller/pyinstaller/issues/6759
+          icon=str(bauble_root / 'images/icon.ico'))
 coll = COLLECT(exe,
                a.binaries,
                a.zipfiles,
