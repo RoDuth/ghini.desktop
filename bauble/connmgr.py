@@ -1,7 +1,7 @@
 # Copyright 2008-2010 Brett Adams
 # Copyright 2015-2017 Mario Frasca <mario@anche.no>.
 # Copyright 2017 Jardín Botánico de Quito
-# Copyright 2016-2021 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright 2016-2022 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -133,100 +133,9 @@ def set_installation_date():
     bauble.installation_date = datetime.fromtimestamp(last_modified_seconds)
 
 
-def retrieve_latest_release_date():
-    # retrieve remote information from github regarding the latest release.
-    # this is executed in a different thread, and it will overwrite the
-    # bauble.release_date text.
-
-    response = {'commit':
-                {'commit':
-                 {'committer': {'date': _('not available when offline')}}}}
-    version_on_github = (
-        'https://raw.githubusercontent.com/RoDuth/ghini'
-        '.desktop/ghini-%s.%s-bbg/bauble/version.py'
-    ) % bauble.version_tuple[:2]
-    try:
-        import urllib.request
-        import urllib.error
-        import urllib.parse
-        import ssl
-        import json
-        # from github retrieve the date of the latest release
-        stream = urllib.request.urlopen(
-            ("https://api.github.com/repos/RoDuth/ghini.desktop/"
-             "branches/ghini-1.3-bbg"),
-            timeout=5)
-        response = json.load(stream)
-        release_date = response['commit']['commit']['committer']['date']
-        release_date = dateutil.parser.isoparse(release_date)
-        bauble.release_date = release_date.astimezone(tz=None)
-
-        # from github retrieve the version number
-        github_version_stream = urllib.request.urlopen(version_on_github,
-                                                       timeout=5)
-        bauble.release_version = newer_version_on_github(github_version_stream,
-                                                         force=True)
-
-    except urllib.error.URLError:
-        logger.info('connection is slow or down')
-    except ssl.SSLError as e:
-        logger.info('SSLError %s while checking for newer version', e)
-    except urllib.error.HTTPError:
-        logger.info('HTTPError while checking for newer version')
-    except Exception as e:  # pylint: disable=broad-except
-        logger.warning('unhandled %s(%s) while checking for newer version',
-                       type(e), e)
-
-
-def check_and_notify_new_version(view):
-    # check whether there's a newer version on github.  this is executed in
-    # a different thread, which does nothing or terminates the program.
-    version_on_github = (
-        'https://raw.githubusercontent.com/RoDuth/ghini'
-        '.desktop/ghini-%s.%s-bbg/bauble/version.py'
-    ) % bauble.version_tuple[:2]
-    try:
-        import urllib.request, urllib.error, urllib.parse
-        import ssl
-        github_version_stream = urllib.request.urlopen(
-            version_on_github, timeout=5)
-        remote = newer_version_on_github(github_version_stream)
-        if remote:
-            def show_message_box():
-                # if remote has '-' in it its likely a development version
-                if '-' in remote:
-                    msg = _("remote development version %s available.\n"
-                            "continue, or exit to upgrade."
-                            ) % remote
-                else:
-                    msg = _("new remote version %s available.\n"
-                            "continue, or exit to upgrade."
-                            ) % remote
-                box = view.add_message_box()
-                box.message = msg
-                box.show()
-                view.add_box(box)
-
-            # Any code that modifies the UI that is called from outside the
-            # main thread must be pushed into the main thread and called
-            # asynchronously in the main loop, with GObject.idle_add.
-            from gi.repository import GLib
-            GLib.idle_add(show_message_box)
-    except urllib.error.URLError:
-        logger.info('connection is slow or down')
-    except ssl.SSLError as e:
-        logger.info('SSLError %s while checking for newer version' % e)
-    except urllib.error.HTTPError:
-        logger.info('HTTPError while checking for newer version')
-    except Exception as e:
-        logger.warning('unhandled %s(%s) while checking for newer version',
-                       type(e), e)
-
-
 def retrieve_latest_release_data():
-    """
-    Using the github API to grab the latests release info and return the json
-    data if successful, otherwise return None
+    """Using the github API to grab the latests release info and return the
+    json data if successful, otherwise return None
     """
     github_releases_uri = ('https://api.github.com/repos/RoDuth/ghini'
                            '.desktop/releases')
@@ -236,23 +145,20 @@ def retrieve_latest_release_data():
         github_release_req = net_sess.get(github_releases_uri, timeout=5)
         if github_release_req.ok:
             return github_release_req.json()[0]
-        else:
-            logger.info('client or server error while checking for a newer '
-                        'installer')
+        logger.info('client or server error while checking for a new release')
     except exceptions.Timeout:
-        logger.info('connection timed out while checking for newer installer')
+        logger.info('connection timed out while checking for new release')
     except exceptions.RequestException as e:
-        logger.info('Requests error %s while checking for newer installer', e)
+        logger.info('Requests error %s while checking for new release', e)
     except Exception as e:
-        logger.warning('unhandled %s(%s) while checking for newer '
-                       'installer', type(e).__name__, e)
+        logger.warning('unhandled %s(%s) while checking for new release',
+                       type(e).__name__, e)
     return None
 
 
-def check_new_installer(github_release_data):
-    """
-    Check if the supplied json data descibes a newer release than the current
-    version.
+def check_new_release(github_release_data):
+    """Check if the supplied json data descibes a newer release than the
+    current version.
 
     If if is return the data, otherwise return False
 
@@ -272,33 +178,29 @@ def check_new_installer(github_release_data):
 
     github_version = github_release.split()[0][1:]
     current_version = bauble.version
-    logger.debug('latest installer on github is release: %s',
+    logger.debug('latest release on github is release: %s',
                  github_release)
-    logger.debug('latest installer on github is a prerelease?: %s',
+    logger.debug('latest release on github is a prerelease?: %s',
                  github_prerelease)
     logger.debug('this version %s', current_version)
     if github_version > current_version:
         return github_release_data
     if github_version < current_version:
-        logger.info('running unreleased windows installer version')
+        logger.info('running unreleased version')
     return False
 
 
-def notify_new_installer(view):
-    """
-    If the latest release on github is newer than the current version notify
-    the user.  If its a prerelease version state so.
+def notify_new_release(view):
+    """If the latest release on github is newer than the current version notify
+    the user.
+
+    If its a prerelease version state so.
     """
     github_release_data = retrieve_latest_release_data()
-    new_installer = check_new_installer(github_release_data)
+    new_installer = check_new_release(github_release_data)
     if new_installer:
         def show_message_box():
-            if new_installer.get('prerelease'):
-                msg = _('prerelease installer %s available.\ncontinue, or '
-                        'exit to try it.') % new_installer.get('name')
-            else:
-                msg = _('new installer %s available.\ncontinue, or exit to '
-                        'upgrade.') % new_installer.get('name')
+            msg = _('New version %s available.') % bauble.release_version
             box = view.add_message_box()
             box.message = msg
             box.show()
@@ -372,24 +274,13 @@ class ConnMgrPresenter(GenericEditorPresenter):
         logo_path = os.path.join(paths.lib_dir(), "images", "bauble_logo.png")
         view.image_set_from_file('logo_image', logo_path)
         view.set_title('%s %s' % ('Ghini', bauble.version))
-        try:
-            view.set_icon(GdkPixbuf.Pixbuf.new_from_file(bauble.default_icon))
-        except:
-            pass
+        view.set_icon(GdkPixbuf.Pixbuf.new_from_file(bauble.default_icon))
 
-        from bauble.paths import main_is_frozen
         from threading import Thread
         set_installation_date()
-        if main_is_frozen():
-            logger.debug('checking win installer version')
-            self.start_thread(Thread(target=notify_new_installer,
-                                     args=[self.view]))
-        else:
-            logger.debug('checking github version')
-            self.start_thread(Thread(target=check_and_notify_new_version,
-                                     args=[self.view]))
-            self.start_thread(Thread(target=retrieve_latest_release_date))
-        logger.debug('main_is_frozen = %s' % (main_is_frozen()))
+        logger.debug('checking for new version')
+        self.start_thread(Thread(target=notify_new_release,
+                                 args=[self.view]))
 
     def on_file_btnbrowse_clicked(self, *args):
         previously = self.view.widget_get_value('file_entry')

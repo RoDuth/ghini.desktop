@@ -1,7 +1,7 @@
 # Copyright (c) 2005,2006,2007,2008,2009 Brett Adams <brett@belizebotanic.org>
 # Copyright (c) 2015-2016 Mario Frasca <mario@anche.no>
 # Copyright 2017 Jardín Botánico de Quito
-# Copyright (c) 2018-2021 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright (c) 2018-2022 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -25,13 +25,13 @@
 A common set of utility functions used throughout Ghini.
 """
 from collections.abc import Iterable
+from collections import UserDict
 from typing import Any, Union
 import datetime
 import os
 import re
 import inspect
 import threading
-from collections import UserDict
 from xml.sax import saxutils
 
 import logging
@@ -95,8 +95,6 @@ class Cache:
                 k = min(list(zip(list(self.storage.values()),
                                  list(self.storage.keys()))))[1]
                 del self.storage[k]
-            # ResourceWarning here can be ignored I believe
-            # https://github.com/psf/requests/issues/3912
             value = getter()
         import time
         self.storage[key] = time.time(), value
@@ -227,10 +225,15 @@ class ImageLoader(threading.Thread):
         self.box.add(spinner)
         self.box.show_all()
         net_sess = get_net_sess()
-        response = net_sess.get(self.url)
+        try:
+            response = net_sess.get(self.url, timeout=5)
+        except Exception as e:  # pylint: disable=broad-except
+            # timeout, failed to get url, malformed url, etc.
+            logger.debug('%s(%s)', type(e).__name__, e)
+            response = None
         self.box.remove(label)
         self.box.remove(spinner)
-        if response.ok:
+        if response and response.ok:
             self.loader.write(response.content)
             return response.content
         return None
@@ -1655,13 +1658,18 @@ def get_urls(text):
 
 
 class NetSessionFunctor:
-    """A functor to cache the network session to use globally.
+    """Functor to return a global network Session.
+
+    Defers creating the Session until first use.  Beware of race conditions if
+    first use is within multiple threads.  Calling early in a single short
+    lived thread (i.e. `connmgr.notify_new_release()`) avoids this problem.
 
     If proxy settings are set returns requests.Session with proxies set.  If no
     settings are set tries pypac.PACSession, if no pac file is found sets pref
     to not try PACSession ever again and always return requests.Session.  The
     same Session is returned for all future calls in the current instance.
     """
+
     def __init__(self):
         self.net_sess = None
 
@@ -1672,8 +1680,8 @@ class NetSessionFunctor:
 
     @staticmethod
     def get_net_sess():
-        """return a requests or pypac session for making api calls, depending on
-        prefrences.
+        """return a requests or pypac session for making api calls, depending
+        on prefrences.
         """
         logger.debug('getting a network session')
 

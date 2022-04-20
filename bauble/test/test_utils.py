@@ -697,6 +697,17 @@ class GetNetSessionTest(BaubleTestCase):
         self.assertIsInstance(sess, requests.Session)
         self.assertFalse(sess.proxies)
 
+    def test_get_net_sess_not_called_twice_wo_pacsession(self):
+        prefs.prefs[prefs.web_proxy_prefs] = 'use_requests_without_proxies'
+        utils.get_net_sess.net_sess = None
+        sess = utils.get_net_sess()
+        sess2 = utils.get_net_sess()
+        self.assertIsInstance(sess, requests.Session)
+        self.assertIsInstance(sess2, requests.Session)
+        self.assertFalse(sess.proxies)
+        self.assertFalse(sess2.proxies)
+        self.assertIs(sess, sess2)
+
     def test_w_pref_dict_returns_requests_session_w_proxies_(self):
         proxies = {
             "https": "http://10.10.10.10/8000",
