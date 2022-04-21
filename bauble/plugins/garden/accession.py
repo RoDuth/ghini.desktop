@@ -2697,13 +2697,15 @@ class SourceExpander(InfoExpander):
         else:
             utils.hide_widgets(prop_widgets)
 
+        collection_widgets = [self.widgets.collection_expander,
+                              self.widgets.collection_seperator]
+
         if row.source.collection:
+            utils.unhide_widgets(collection_widgets)
             self.widgets.collection_expander.set_expanded(True)
-            self.widgets.collection_expander.set_sensitive(True)
             self.update_collection(row.source.collection)
         else:
-            self.widgets.collection_expander.set_expanded(False)
-            self.widgets.collection_expander.set_sensitive(False)
+            utils.hide_widgets(collection_widgets)
 
 
 # TODO implement

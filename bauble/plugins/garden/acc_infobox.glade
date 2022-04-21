@@ -583,7 +583,7 @@
           </packing>
         </child>
         <child>
-          <object class="GtkSeparator" id="hseparator1">
+          <object class="GtkSeparator" id="collection_seperator">
             <property name="visible">True</property>
             <property name="can-focus">False</property>
           </object>
