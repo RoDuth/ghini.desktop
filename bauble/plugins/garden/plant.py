@@ -191,7 +191,8 @@ class PlantSearch(SearchStrategy):
 
     @staticmethod
     def use(text):
-        if text.startswith('plant') and text.split()[1] != 'where':
+        if (text.startswith('plant') and len(splt := text.split()) > 1 and
+                splt[1] != 'where'):
             logger.debug("reducing strategies to PlantSearch")
             return 'only'
         return 'exclude'
