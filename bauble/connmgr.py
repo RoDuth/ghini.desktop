@@ -90,39 +90,6 @@ def type_combo_cell_data_func(combo, renderer, model, iter, data=None):
     renderer.set_property('text', dbtype)
 
 
-def newer_version_on_github(input_stream, force=False):
-    """is there a new patch on github for this production line
-
-    if the remote version is higher than the running one, return
-    something evaluating to True (possibly the remote version string).
-    otherwise, return something evaluating to False
-    """
-
-    try:
-        version_lines = str(input_stream.read()).split('\n')
-        valid_lines = [i for i in version_lines
-                       if not i.startswith('#') and i.strip()]
-        if len(valid_lines) == 1:
-            try:
-                github_version = eval('"' + valid_lines[0].split('"')[1] + '"')
-            except:
-                logger.warning("can't parse github version.")
-                return False
-            github_patch = github_version
-            current_patch = bauble.version
-            if force or github_patch > current_patch:
-                return github_version
-            if github_patch < current_patch:
-                logger.info("running unreleased version")
-    except TypeError as e:
-        logger.warning('TypeError while reading github stream: %s', e)
-    except IndexError:
-        logger.warning('incorrect format for github version')
-    except ValueError:
-        logger.warning('incorrect format for github version')
-    return False
-
-
 def set_installation_date():
     """Set bauble.installation_date
     """
@@ -142,15 +109,16 @@ def retrieve_latest_release_data():
     try:
         from requests import exceptions
         net_sess = utils.get_net_sess()
-        github_release_req = net_sess.get(github_releases_uri, timeout=5)
-        if github_release_req.ok:
-            return github_release_req.json()[0]
-        logger.info('client or server error while checking for a new release')
+        response = net_sess.get(github_releases_uri, timeout=5)
+        if response.ok:
+            return response.json()[0]
+        logger.info('error while checking for a new release')
     except exceptions.Timeout:
         logger.info('connection timed out while checking for new release')
     except exceptions.RequestException as e:
         logger.info('Requests error %s while checking for new release', e)
-    except Exception as e:
+    except Exception as e:  # pylint: disable=broad-except
+        # used in tests
         logger.warning('unhandled %s(%s) while checking for new release',
                        type(e).__name__, e)
     return None
@@ -190,15 +158,28 @@ def check_new_release(github_release_data):
     return False
 
 
-def notify_new_release(view):
+def notify_new_release(view, retrieve_latest_func, check_new_func):
     """If the latest release on github is newer than the current version notify
     the user.
 
     If its a prerelease version state so.
+
+    :param retrieve_latest_func: a function to retrieve github release data
+        json i.e. :func:`retrieve_latest_release_data`
+    :param check_new_func: a function to check if release data points to a new
+        release and set bauble.release_version i.e. :func:`check_new_release`
     """
-    github_release_data = retrieve_latest_release_data()
-    new_installer = check_new_release(github_release_data)
-    if new_installer:
+    github_release_data = retrieve_latest_func()
+    if not github_release_data:
+        # used in tests
+        logger.debug('no release data')
+        return
+    new_release = check_new_func(github_release_data)
+    if new_release:
+
+        # used in tests
+        logger.debug('notifying new release')
+
         def show_message_box():
             msg = _('New version %s available.') % bauble.release_version
             box = view.add_message_box()
@@ -208,6 +189,9 @@ def notify_new_release(view):
 
         from gi.repository import GLib
         GLib.idle_add(show_message_box)
+    else:
+        # used in tests
+        logger.debug('not new release')
 
 
 def make_absolute(path):
@@ -279,8 +263,11 @@ class ConnMgrPresenter(GenericEditorPresenter):
         from threading import Thread
         set_installation_date()
         logger.debug('checking for new version')
-        self.start_thread(Thread(target=notify_new_release,
-                                 args=[self.view]))
+        if not prefs.testing:
+            self.start_thread(Thread(target=notify_new_release,
+                                     args=[self.view,
+                                           retrieve_latest_release_data,
+                                           check_new_release]))
 
     def on_file_btnbrowse_clicked(self, *args):
         previously = self.view.widget_get_value('file_entry')

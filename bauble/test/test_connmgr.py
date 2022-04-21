@@ -1,4 +1,5 @@
 # Copyright (c) 2015 Mario Frasca <mario@anche.no>
+# Copyright (c) 2022 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -19,14 +20,22 @@ import os
 
 # just keeping it here because I am forgetful and I never recall how to
 # import SkipTest otherwise! and commented out because of FlyCheck.
-from unittest import SkipTest
+from unittest import SkipTest, mock
+from pathlib import Path
 
-from bauble.test import BaubleTestCase, check_dupids
-from bauble.connmgr import ConnMgrPresenter
-from bauble.editor import MockView, MockDialog
 import gi
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk  # noqa
+
+import bauble
+from bauble import paths
+from bauble import prefs
+from bauble.test import BaubleTestCase, check_dupids
+from bauble.connmgr import (ConnMgrPresenter,
+                            check_new_release,
+                            retrieve_latest_release_data,
+                            notify_new_release)
+from bauble.editor import MockView, MockDialog
 
 RESPONSE_OK = Gtk.ResponseType.OK
 RESPONSE_CANCEL = Gtk.ResponseType.CANCEL
@@ -37,12 +46,10 @@ def test_duplicate_ids():
     Test for duplicate ids for all .glade files in the tag plugin.
     """
     import bauble.connmgr as mod
-    head, tail = os.path.split(mod.__file__)
+    head, _tail = os.path.split(mod.__file__)
     assert(not check_dupids(os.path.join(head, 'connmgr.glade')))
 
 
-import bauble
-import bauble.prefs as prefs
 prefs.testing = True
 
 
@@ -58,7 +65,6 @@ class ConnMgrPresenterTests(BaubleTestCase):
     def test_no_connections_then_message(self):
         view = MockView(combos={'name_combo': [],
                                 'type_combo': []})
-        prefs.prefs[bauble.conn_list_pref] = {}
         presenter = ConnMgrPresenter(view)
 
         self.assertFalse(presenter.view.widget_get_visible(
@@ -355,7 +361,6 @@ class ConnMgrPresenterTests(BaubleTestCase):
         view = MockView(combos={'name_combo': [],
                                 'type_combo': []})
         prefs.prefs[bauble.conn_default_pref] = None
-        prefs.prefs[bauble.conn_list_pref] = {}
         presenter = ConnMgrPresenter(view)
         params = {'type': 'SQLite',
                   'default': False,
@@ -442,7 +447,6 @@ class AddConnectionTests(BaubleTestCase):
     def test_no_connection_on_add_confirm_negative(self):
         view = MockView(combos={'name_combo': [],
                                 'type_combo': []})
-        prefs.prefs[bauble.conn_list_pref] = {}
         presenter = ConnMgrPresenter(view)
         presenter.view.reply_entry_dialog.append('')
         presenter.on_add_button_clicked('button')
@@ -457,7 +461,6 @@ class AddConnectionTests(BaubleTestCase):
     def test_no_connection_on_add_confirm_positive(self):
         view = MockView(combos={'name_combo': [],
                                 'type_combo': []})
-        prefs.prefs[bauble.conn_list_pref] = {}
         presenter = ConnMgrPresenter(view)
         presenter.view.reply_entry_dialog.append('conn_name')
         presenter.on_add_button_clicked('button')
@@ -490,34 +493,173 @@ class AddConnectionTests(BaubleTestCase):
                         in presenter.view.invoked_detailed)
         raise SkipTest("related to issue #194")
 
+    def test_get_parent_folder(self):
+        path = ConnMgrPresenter.get_parent_folder('')
+        self.assertEqual(paths.appdata_dir(), path)
+        path = ConnMgrPresenter.get_parent_folder(None)
+        self.assertEqual(paths.appdata_dir(), path)
+        relative_path = './test/this'
+        path = ConnMgrPresenter.get_parent_folder(relative_path)
+        self.assertEqual(
+            str(Path(paths.appdata_dir(), relative_path[2:]).parent), path
+        )
+        absolute_path = Path(paths.appdata_dir(), relative_path[2:])
+        absolute_parent = str(absolute_path.parent)
+        path = ConnMgrPresenter.get_parent_folder(str(absolute_path))
+        self.assertEqual(absolute_parent, path)
+
+    def test_replace_leading_appdata(self):
+        view = MockView(combos={'name_combo': [],
+                                'type_combo': []})
+        presenter = ConnMgrPresenter(view)
+        path = str(Path(paths.appdata_dir(), 'test/this'))
+        presenter.view.widget_set_value('pictureroot_entry', path)
+        presenter.replace_leading_appdata('pictureroot_entry')
+        self.assertEqual(presenter.view.widget_get_value('pictureroot_entry'),
+                         './test/this')
+
 
 class MockRenderer(dict):
-    def set_property(self, property, value):
-        self[property] = value
+    def set_property(self, prop, value):
+        self[prop] = value
 
 
 class GlobalFunctionsTests(BaubleTestCase):
-    'Presenter manages view and model, implements view callbacks.'
+
+    def test_make_absolute(self):
+        path = str(Path(paths.appdata_dir(), 'test/this'))
+        self.assertEqual(bauble.connmgr.make_absolute('./test/this'),
+                         path)
+        path = str(Path(paths.appdata_dir(), 'test\\this'))
+        self.assertEqual(bauble.connmgr.make_absolute('.\\test\\this'),
+                         path)
+
+    """Presenter manages view and model, implements view callbacks."""
+    @mock.patch('bauble.connmgr.WORKING_DBTYPES', ['a', 'd'])
+    @mock.patch('bauble.connmgr.DBTYPES', ['a', 'b', 'c', 'd'])
     def test_combo_cell_data_func(self):
-        import bauble.connmgr
-        wt, at = bauble.connmgr.working_dbtypes, bauble.connmgr.dbtypes
-        bauble.connmgr.working_dbtypes = ['a', 'd']
-        bauble.connmgr.dbtypes = ['a', 'b', 'c', 'd']
 
         renderer = MockRenderer()
-        for iter, name in enumerate(bauble.connmgr.dbtypes):
+        for itr, name in enumerate(bauble.connmgr.DBTYPES):
             bauble.connmgr.type_combo_cell_data_func(
-                None, renderer, bauble.connmgr.dbtypes, iter)
+                None, renderer, bauble.connmgr.DBTYPES, itr)
             self.assertEqual(renderer['sensitive'],
-                              name in bauble.connmgr.working_dbtypes)
+                             name in bauble.connmgr.WORKING_DBTYPES)
             self.assertEqual(renderer['text'], name)
-
-        bauble.connmgr.working_dbtypes, bauble.connmgr.dbtypes = wt, at
 
     def test_is_package_name(self):
         from bauble.connmgr import is_package_name
         self.assertTrue(is_package_name("sqlite3"))
         self.assertFalse(is_package_name("sqlheavy42"))
+
+    def test_check_new_release(self):
+        created_date = '2021-01-01T00:00:00Z'
+        test_data = {'name': 'v1.3.0-a (BBG Branch)',
+                     'prerelease': True,
+                     'assets': [{'created_at': created_date}]}
+        test_data['name'] = 'v1.3.999-a (BBG Branch)'
+        self.assertEqual(check_new_release(test_data), test_data)
+        test_data['name'] = 'v1.4999-a (BBG Branch)'
+        self.assertEqual(check_new_release(test_data), test_data)
+        test_data['name'] = 'v1.3 (BBG Branch)'
+        self.assertFalse(check_new_release(test_data))
+        test_data['name'] = 'v1.3.999 (MRBG Branch)'
+        self.assertEqual(check_new_release(test_data), test_data)
+        test_data['name'] = 'v1.3.999 (BBG Branch)'
+        test_data['prerelease'] = False
+        self.assertEqual(check_new_release(test_data), test_data)
+        test_data['prerelease'] = True
+        self.assertTrue(check_new_release(test_data) and True or False)
+        test_data['name'] = 'v1.0.0 (BBG Branch)'
+        test_data['prerelease'] = False
+        self.assertFalse(check_new_release(test_data))
+        test_data['name'] = 'v1.0.0-a (BBG Branch)'
+        self.assertFalse(check_new_release(test_data))
+        test_data['name'] = 'v1.0.0-b (BBG Branch)'
+        self.assertFalse(check_new_release(test_data) and True or False)
+        import dateutil
+        self.assertEqual(bauble.release_date,
+                         dateutil.parser.isoparse(created_date))
+
+    @mock.patch('bauble.connmgr.utils.get_net_sess')
+    def test_retrieve_latest_release_data_returns_none_wo_bad_response(
+            self, mock_get_net_sess
+    ):
+        mock_response = mock.Mock()
+        mock_response.json.return_value = ['test']
+        mock_response.ok = False
+        mock_net_sess = mock.Mock(**{'get.return_value': mock_response})
+        mock_get_net_sess.return_value = mock_net_sess
+        self.assertIsNone(retrieve_latest_release_data())
+        mock_response.get.asset_called()
+        mock_response.json.asset_not_called()
+
+    @mock.patch('bauble.connmgr.utils.get_net_sess')
+    def test_retrieve_latest_release_data_returns_none_w_error(
+            self, mock_get_net_sess
+    ):
+        mock_net_sess = mock.Mock(**{'get.side_effect': Exception()})
+        mock_get_net_sess.return_value = mock_net_sess
+        with self.assertLogs(level='DEBUG') as logs:
+            self.assertIsNone(retrieve_latest_release_data())
+        self.assertEqual(len(logs), 2)
+        self.assertEqual(
+            'unhandled Exception() while checking for new release',
+            logs.records[0].getMessage()
+        )
+
+    @mock.patch('bauble.connmgr.utils.get_net_sess')
+    def test_retrieve_latest_release_data_returns_response(self,
+                                                           mock_get_net_sess):
+        mock_response = mock.Mock()
+        mock_response.json.return_value = ['test']
+        mock_response.ok = True
+        mock_net_sess = mock.Mock(**{'get.return_value': mock_response})
+        mock_get_net_sess.return_value = mock_net_sess
+        self.assertEqual(retrieve_latest_release_data(), 'test')
+        mock_response.get.asset_called()
+        mock_response.json.asset_called()
+
+    def test_notify_new_release_notifies_when_new_release(self):
+        mock_view = mock.Mock()
+        mock_retrieve_latest = mock.Mock()
+        mock_check_new = mock.Mock()
+        with self.assertLogs(level='DEBUG') as logs:
+            notify_new_release(mock_view, mock_retrieve_latest, mock_check_new)
+        mock_retrieve_latest.assert_called()
+        mock_check_new.assert_called()
+        self.assertEqual(
+            'notifying new release',
+            logs.records[0].getMessage()
+        )
+
+    def test_notify_new_release_doesnt_notify_when_not_new_release(self):
+        mock_view = mock.Mock()
+        mock_retrieve_latest = mock.Mock()
+        mock_check_new = mock.Mock()
+        mock_check_new.return_value = False
+        with self.assertLogs(level='DEBUG') as logs:
+            notify_new_release(mock_view, mock_retrieve_latest, mock_check_new)
+        mock_retrieve_latest.assert_called()
+        mock_check_new.assert_called()
+        self.assertEqual(
+            'not new release',
+            logs.records[0].getMessage()
+        )
+
+    def test_notify_new_release_doesnt_notify_when_no_data(self):
+        mock_view = mock.Mock()
+        mock_retrieve_latest = mock.Mock()
+        mock_retrieve_latest.return_value = None
+        mock_check_new = mock.Mock()
+        with self.assertLogs(level='DEBUG') as logs:
+            notify_new_release(mock_view, mock_retrieve_latest, mock_check_new)
+        mock_retrieve_latest.assert_called()
+        mock_check_new.assert_not_called()
+        self.assertEqual(
+            'no release data',
+            logs.records[0].getMessage()
+        )
 
 
 class ButtonBrowseButtons(BaubleTestCase):
@@ -580,7 +722,6 @@ class OnDialogResponseTests(BaubleTestCase):
     def test_on_dialog_response_ok_invalid_params(self):
         view = MockView(combos={'name_combo': [],
                                 'type_combo': []})
-        prefs.prefs[bauble.conn_list_pref] = {}
         view.reply_file_chooser_dialog = []
         presenter = ConnMgrPresenter(view)
         dialog = MockDialog()
