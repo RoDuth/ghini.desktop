@@ -277,8 +277,9 @@ class Species(db.Base, db.Serializable, db.DefiningPictures, db.WithNotes):
     # see retrieve classmethod.
     retrieve_cols = uniq_props + ['id', 'genus.genus', 'genus.epithet']
 
-    accessions = relationship('Accession', cascade='all, delete-orphan',
-                              back_populates='species')
+    # don't use back_populates, can lead to InvalidRequestError
+    # accessions = relationship('Accession', cascade='all, delete-orphan',
+    #                           back_populates='species')
 
     @classmethod
     def retrieve(cls, session, keys):

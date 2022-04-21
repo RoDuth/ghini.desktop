@@ -39,7 +39,7 @@ from gi.repository import Gtk
 from gi.repository import Pango
 from sqlalchemy import func
 from sqlalchemy import ForeignKey, Column, Unicode, Integer, UnicodeText
-from sqlalchemy.orm import relationship, validates
+from sqlalchemy.orm import relationship, validates, backref
 from sqlalchemy.orm.session import object_session
 from sqlalchemy.exc import DBAPIError
 
@@ -561,8 +561,12 @@ class Accession(db.Base, db.Serializable, db.WithNotes):
     private = Column(types.Boolean, default=False)
 
     species_id = Column(Integer, ForeignKey('species.id'), nullable=False)
+
+    # use backref not back_populates here to avoid InvalidRequestError in
+    # view.multiproc_counter
     species = relationship('Species', uselist=False,
-                           back_populates='accessions')
+                           backref=backref('accessions',
+                                           cascade='all, delete-orphan'))
 
     # intended location
     intended_location_id = Column(Integer, ForeignKey('location.id'))
