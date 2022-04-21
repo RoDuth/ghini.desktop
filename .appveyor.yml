@@ -46,7 +46,7 @@ for:
   environment:
     MSYSTEM: MINGW64
     CHERE_INVOKING: 1
-    PATH: C:\msys64\usr\bin;C:\Program Files (x86)\NSIS\Bin;\Program Files\OpenJDK\jdk-18.0.1\bin;%PATH%
+    PATH: C:\msys64\usr\bin;C:\Program Files (x86)\NSIS\Bin;%PATH%
 
   install:
     - choco install openjdk -y  # NOTE Change PATH to match version
@@ -62,7 +62,7 @@ for:
     - bash -lc "pip install pyinstaller"
     - bash -lc "python -m PyInstaller --clean --noconfirm scripts/ghini.spec"
     - makensis scripts\build-multiuser.nsi
-    - jlink --output jre --add-modules java.base,java.logging,java.desktop,java.xml
+    - for /f %%i in ('dir "C:\Program Files\OpenJDK\jdk*" /b') do "C:\Program Files"\OpenJDK\%%i\bin\jlink --output jre --add-modules java.base,java.logging,java.desktop,java.xml
     - bash -lc "scripts/get_fop.sh"
     - bash -lc "python -m PyInstaller --clean --noconfirm scripts/ghini_fop.spec"
     - makensis scripts\build-multiuser-fop.nsi
