@@ -46,7 +46,7 @@ for:
   environment:
     MSYSTEM: MINGW64
     CHERE_INVOKING: 1
-    PATH: C:\msys64\usr\bin;C:\Program Files (x86)\NSIS\Bin;\Program Files\OpenJDK\jdk-18\bin;%PATH%
+    PATH: C:\msys64\usr\bin;C:\Program Files (x86)\NSIS\Bin;\Program Files\OpenJDK\jdk-18.0.1\bin;%PATH%
 
   install:
     - choco install openjdk -y  # NOTE Change PATH to match version
