@@ -215,9 +215,10 @@ class SplashInfoBox(pluginmgr.View):
         )
 
         for i in range(1, 11):
-            wname = "stqr_%02d_button" % i
+            wname = f"stqr_{i:02d}_button"
             widget = getattr(self.widgets, wname)
             widget.connect('clicked', partial(self.on_sqb_clicked, i))
+
         wname = "splash_stqr_button"
         widget = getattr(self.widgets, wname)
         widget.connect('clicked', self.on_splash_stqr_button_clicked)
@@ -230,18 +231,19 @@ class SplashInfoBox(pluginmgr.View):
         bauble.gui.widgets.main_comboentry.get_child().set_text('')
 
         session = db.Session()
-        query = session.query(bauble.meta.BaubleMeta)
-        query = query.filter(bauble.meta.BaubleMeta.name.startswith('stqr'))
+        query = (session.query(bauble.meta.BaubleMeta)
+                 .filter(bauble.meta.BaubleMeta.name.startswith('stqr')))
         name_tooltip_query = dict(
             (int(i.name[5:]), (i.value.split(':', 2)))
             for i in query.all())
         session.close()
 
         for i in range(1, 11):
-            wname = "stqr_%02d_button" % i
+            wname = f"stqr_{i:02d}_button"
             widget = getattr(self.widgets, wname)
             name, tooltip, _query = name_tooltip_query.get(
-                i, (_('<empty>'), '', ''))
+                i, (_('<empty>'), '', '')
+            )
             widget.set_label(name)
             widget.set_tooltip_text(tooltip)
 
@@ -338,9 +340,10 @@ class SplashInfoBox(pluginmgr.View):
                          "join accession on accession.species_id=species.id)"))
 
     def on_sqb_clicked(self, btn_no, _widget):
-        query = self.name_tooltip_query[btn_no][2]
-        bauble.gui.widgets.main_comboentry.get_child().set_text(query)
-        bauble.gui.widgets.go_button.emit("clicked")
+        query = self.name_tooltip_query.get(btn_no)
+        if query:
+            bauble.gui.widgets.main_comboentry.get_child().set_text(query[2])
+            bauble.gui.widgets.go_button.emit("clicked")
 
     @staticmethod
     def on_splash_stqr_button_clicked(_widget):
