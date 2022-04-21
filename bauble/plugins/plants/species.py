@@ -214,7 +214,8 @@ class SynonymSearch(search.SearchStrategy):
             return []
         results = []
         for models, id_set in ids.items():
-            # vernacular names are a special case.
+            # vernacular names are a special case.  Only returning if both
+            # accepted and synonym have a VernacularName entry.
             if models[0] == VernacularName:
                 syn_model_id = getattr(models[1], 'species_id')
                 syn_id = getattr(models[1], 'synonym_id')

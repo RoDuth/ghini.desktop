@@ -28,7 +28,7 @@ logger = logging.getLogger(__name__)
 
 from shapefile import Writer
 
-from gi.repository import Gtk, Gdk  # noqa
+from gi.repository import Gtk, Gdk
 from gi.repository import GLib
 
 from sqlalchemy.orm import class_mapper

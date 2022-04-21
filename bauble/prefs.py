@@ -225,7 +225,7 @@ class _prefs(UserDict):
     def yearfirst(self):
         # pylint: disable=no-member
         fmat = self[date_format_pref]
-        if fmat.find('%Y') == 0 or fmat.find('%y') == 0:
+        if fmat.startswith('%Y') or fmat.startswith('%y'):
             return True
         return False
 

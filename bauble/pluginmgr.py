@@ -512,7 +512,7 @@ class View(Gtk.Box):
         pass
 
 
-class CommandHandler(object):
+class CommandHandler:
 
     command = None
 

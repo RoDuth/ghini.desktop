@@ -70,6 +70,7 @@ def sqlalchemy_debug(verbose):
 SQLALCHEMY_DEBUG = False
 if os.environ.get('BAUBLE_SQLA_DEBUG') == 'True':
     SQLALCHEMY_DEBUG = True
+
 sqlalchemy_debug(SQLALCHEMY_DEBUG)
 
 
@@ -260,16 +261,12 @@ def open(uri, verify=True, show_error_dialogs=False):
 
     # avoid sqlite thread errors
     connect_args = {}
-    if uri.find('sqlite') != -1:
-        # NOTE If this is causing errors consider removing it
+    if uri.startswith('sqlite'):
+        logger.debug('sqlite, setting check_same_thread to False')
         connect_args = {"check_same_thread": False}
 
-    # NOTE sqla, by default, for sqlite uses SingletonThreadPool for
-    # :memory: databases and NullPool for files.  For other DBs QueuePool
-    # is used
-    # docs states: re: SingletonThreadPool is only intended for sqlite memory
-    # data, generally testing, and 'not recommended for production use'.
-    new_engine = sa.create_engine(uri, echo=SQLALCHEMY_DEBUG,
+    new_engine = sa.create_engine(uri,
+                                  echo=SQLALCHEMY_DEBUG,
                                   connect_args=connect_args,
                                   implicit_returning=False)
 
@@ -598,7 +595,7 @@ class WithNotes:
                 except Exception as e:
                     logger.debug(
                         'not parsed %s(%s), returning literal text »%s«',
-                        type(e), e, note.note)
+                        type(e).__name__, e, note.note)
                     return note.note
         if result == []:
             # if nothing was found, do not break the proxy.
@@ -609,21 +606,21 @@ class WithNotes:
 
 
 class DefiningPictures:
+    """Mixin for classes that have notes used for pictures.
+
+    Depends on WithNotes mixin."""
 
     @property
     def pictures(self):
         """a list of Gtk.Image objects."""
 
         result = []
-        for note in self.notes:
+        for note in self.notes:  # pylint: disable=no-member
             if note.category != '<picture>':
                 continue
             # contains the image or the error message
             box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-            # Avoid pixbuf errors during test_import_pocket_log
-            from bauble.prefs import testing
-            if not testing:
-                utils.ImageLoader(box, note.note).start()
+            utils.ImageLoader(box, note.note).start()
             result.append(box)
         return result
 

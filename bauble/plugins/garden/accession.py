@@ -36,7 +36,6 @@ logger = logging.getLogger(__name__)
 
 from gi.repository import Gtk
 
-# from lxml import etree
 from gi.repository import Pango
 from sqlalchemy import func
 from sqlalchemy import ForeignKey, Column, Unicode, Integer, UnicodeText

@@ -27,7 +27,7 @@ from functools import partial
 import logging
 logger = logging.getLogger(__name__)
 
-from gi.repository import Gtk  # noqa
+from gi.repository import Gtk
 from gi.repository import GLib
 
 import bauble

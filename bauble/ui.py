@@ -688,7 +688,7 @@ class GUI:
             utils.message_details_dialog(utils.xml_safe(str(e)),
                                          traceback.format_exc(),
                                          Gtk.MessageType.ERROR)
-            logger.error('bauble.gui.on_insert_menu_item_activate():\n %s',
+            logger.error("%s(%s)\n%s", type(e).__name__, e,
                          traceback.format_exc())
             return
 

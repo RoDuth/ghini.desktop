@@ -903,8 +903,6 @@ def setup_date_button(view, entry, button):
         button.connect('clicked', on_clicked)
 
 
-
-
 def nstr(obj: Any) -> Union[str, None]:
     """If obj is None return None else return str(obj).
 

@@ -60,6 +60,7 @@ class ValidatorError(Exception):
 
 class Validator:
     """The interface that other validators should implement."""
+    # pylint: disable=too-few-public-methods
 
     def to_python(self, value):
         raise NotImplementedError
@@ -67,6 +68,8 @@ class Validator:
 
 class DateValidator(Validator):
     """Validate that string is parseable with dateutil"""
+    # pylint: disable=too-few-public-methods
+
     def to_python(self, value):
         if not value:
             return None
@@ -80,7 +83,7 @@ class DateValidator(Validator):
             if date.year == default_year:
                 raise ValueError
         except Exception as e:
-            raise ValidatorError(str(e))
+            raise ValidatorError from e
         return value
 
 
@@ -88,6 +91,7 @@ class StringOrNoneValidator(Validator):
     """If the value is an empty string then return None, else return the
     str() of the value.
     """
+    # pylint: disable=too-few-public-methods
 
     def to_python(self, value):
         if value in ('', None):
@@ -111,6 +115,8 @@ class UnicodeOrEmptyValidator(Validator):
     """If the value is an empty unicode string then return '', else return the
     unicode() of the value. The default encoding is 'utf-8'.
     """
+    # pylint: disable=too-few-public-methods
+
     def to_python(self, value):
         if not value.strip():
             return ''
@@ -121,6 +127,7 @@ class IntOrNoneStringValidator(Validator):
     """If the value is an int, long or can be cast to int then return the
     number, else return None
     """
+    # pylint: disable=too-few-public-methods
 
     def to_python(self, value):
         if value is None or (isinstance(value, str) and value == ''):
@@ -129,15 +136,15 @@ class IntOrNoneStringValidator(Validator):
             return value
         try:
             return int(value)
-        except Exception:
-            raise ValidatorError('Could not convert value to int: %s (%s)'
-                                 % (value, type(value)))
+        except Exception as e:
+            raise ValidatorError from e
 
 
 class FloatOrNoneStringValidator(Validator):
     """If the value is an int, long, float or can be cast to float then return
     the number, else return None
     """
+    # pylint: disable=too-few-public-methods
 
     def to_python(self, value):
         if value is None or (isinstance(value, str) and value == ''):
@@ -146,9 +153,8 @@ class FloatOrNoneStringValidator(Validator):
             return value
         try:
             return float(value)
-        except Exception:
-            raise ValidatorError('Could not convert value to float: %s (%s)'
-                                 % (value, type(value)))
+        except Exception as e:
+            raise ValidatorError from e
 
 
 def default_completion_cell_data_func(_column, renderer, model, treeiter):
@@ -211,9 +217,8 @@ class GenericEditorView:
             try:
                 self.widgets[widget_name].set_tooltip_markup(markup)
             except Exception as e:
-                values = dict(widget_name=widget_name, exception=e)
-                logger.debug(_('Couldn\'t set the tooltip on widget '
-                               '%(widget_name)s\n\n%(exception)s') % values)
+                logger.debug('Couldn\'t set the tooltip on widget '
+                             '%s\n\n%s', widget_name, e)
 
         try:
             window = self.get_window()
@@ -1204,7 +1209,7 @@ class GenericEditorPresenter:
         """
         for widget, attr in list(self.widget_to_field_map.items()):
             value = getattr(self.model, attr)
-            value = value if (value is not None) else ''
+            value = value if value is not None else ''
             self.view.widget_set_value(widget, value)
 
     def cancel_threads(self):
@@ -1846,7 +1851,7 @@ class GenericModelViewPresenterEditor:
             self.session.commit()
             try:
                 bauble.gui.get_view().update()
-            except Exception as e:
+            except Exception:
                 pass
         except Exception as e:
             logger.warning("can't commit changes: (%s)%s", type(e).__name__, e)
