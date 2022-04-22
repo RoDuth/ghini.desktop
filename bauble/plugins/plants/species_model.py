@@ -27,7 +27,8 @@ from sqlalchemy.ext.associationproxy import association_proxy
 
 from sqlalchemy import (Column, Unicode, Integer, ForeignKey, UnicodeText,
                         UniqueConstraint)
-from sqlalchemy.orm import relationship, backref, synonym
+from sqlalchemy.orm import relationship, backref
+from sqlalchemy.orm import synonym as sa_synonym
 from sqlalchemy.ext.hybrid import hybrid_property
 from bauble import db
 from bauble import error
@@ -200,7 +201,7 @@ class Species(db.Base, db.Serializable, db.DefiningPictures, db.WithNotes):
 
     # columns
     sp = Column(Unicode(128), index=True)
-    epithet = synonym('sp')
+    epithet = sa_synonym('sp')
     sp2 = Column(Unicode(64), index=True)  # in case hybrid=True
     sp_author = Column(Unicode(128))
     hybrid = Column(types.Boolean, default=False)

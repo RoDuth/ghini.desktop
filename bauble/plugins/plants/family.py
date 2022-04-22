@@ -31,7 +31,8 @@ from gi.repository import Gtk
 
 from sqlalchemy import (Column, Integer, ForeignKey, and_, UniqueConstraint,
                         String)
-from sqlalchemy.orm import relationship, validates, synonym
+from sqlalchemy.orm import relationship, validates
+from sqlalchemy.orm import synonym as sa_synonym
 from sqlalchemy.orm.session import object_session
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.associationproxy import association_proxy
@@ -149,7 +150,7 @@ class Family(db.Base, db.Serializable, db.WithNotes):
 
     # columns
     family = Column(String(45), nullable=False, index=True)
-    epithet = synonym('family')
+    epithet = sa_synonym('family')
 
     # we use the blank string here instead of None so that the
     # contraints will work properly,

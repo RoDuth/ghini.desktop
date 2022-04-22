@@ -32,7 +32,8 @@ from gi.repository import Gtk  # noqa
 
 from sqlalchemy import (Column, Unicode, Integer, ForeignKey, String,
                         UniqueConstraint, and_)
-from sqlalchemy.orm import relationship, backref, synonym
+from sqlalchemy.orm import relationship, backref
+from sqlalchemy.orm import synonym as sa_synonym
 from sqlalchemy.orm.session import object_session
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.associationproxy import association_proxy
@@ -168,7 +169,7 @@ class Genus(db.Base, db.Serializable, db.WithNotes):
 
     # columns
     genus = Column(String(64), nullable=False, index=True)
-    epithet = synonym('genus')
+    epithet = sa_synonym('genus')
 
     # use '' instead of None so that the constraints will work propertly
     author = Column(Unicode(255), default='')
