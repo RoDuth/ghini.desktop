@@ -758,8 +758,7 @@ class GUI:
     def on_file_menu_open(self, _action, _param):
         """Open the connection manager."""
         from .connmgr import start_connection_manager
-        default_conn = prefs.prefs[bauble.conn_default_pref]
-        name, uri = start_connection_manager(default_conn)
+        name, uri = start_connection_manager()
         if name is None:
             return
 
