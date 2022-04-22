@@ -3,6 +3,7 @@
 # Copyright (c) 2007 Kopfgeldjaeger
 # Copyright (c) 2012-2017 Mario Frasca <mario@anche.no>
 # Copyright 2017 Jardín Botánico de Quito
+# Copyright (c) 2022 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -33,46 +34,46 @@ in :mod:`bauble`
 """
 
 import os
+import sys
 import locale
 import gettext
 from bauble import paths
 from bauble import version_tuple
 
-# the following has effect on Windows: to set the environment variables as
-# on an operating system. operating systems don't need it.
-import bauble.gettext_windows
-bauble.gettext_windows.setup_env()
+if sys.platform == "win32":
+    import ctypes
+    windll = ctypes.windll.kernel32
+    language = locale.windows_locale.get(windll.GetUserDefaultUILanguage())
+    os.environ['LANGUAGE'] = language
 
 __all__ = ["_"]
 
 TEXT_DOMAIN = 'ghini-%s' % '.'.join(version_tuple[0:2])
 
-#
 # most of the following code was adapted from:
 # http://www.learningpython.com/2006/12/03/\
 # translating-your-pythonpygtk-application/
 
 langs = []
-#Check the default locale
+# Check the default locale
 lang_code, encoding = locale.getdefaultlocale()
 if lang_code:
     # If we have a default, it's the first in the list
     langs = [lang_code]
 # Now lets get all of the supported languages on the system
-language = os.environ.get('LANGUAGE', None)
+language = os.environ.get('LANGUAGE')
 if language:
     # language comes back something like en_CA:en_US:en_GB:en on linuxy
     # systems, on Win32 it's nothing, so we need to split it up into a list
-    langs += language.split(":")
+    langs.extend(language.split(":"))
 # add on to the back of the list the translations that we know that we
 # have, our defaults"""
-langs += ["en"]
+langs.append("en")
 
 # langs is a list of all of the languages that we are going to try to
 # use.  First we check the default, then what the system told us, and
 # finally the 'known' list
 
-import sys
 if sys.platform in ['win32', 'darwin']:
     locale = gettext
 
