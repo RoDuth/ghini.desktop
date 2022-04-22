@@ -669,20 +669,20 @@ class CuttingPresenter(editor.GenericEditorPresenter):
                                    'leaves_reduced_pct')
 
         self.assign_simple_handler('cutting_media_comboentry', 'media',
-                                   editor.UnicodeOrNoneValidator())
+                                   editor.StringOrNoneValidator())
         self.assign_simple_handler('cutting_container_comboentry', 'container',
-                                   editor.UnicodeOrNoneValidator())
+                                   editor.StringOrNoneValidator())
 
         self.assign_simple_handler('cutting_buds_combo', 'flower_buds')
         self.assign_simple_handler('cutting_wound_combo', 'wound')
         self.assign_simple_handler('cutting_fungal_comboentry', 'fungicide',
-                                   editor.UnicodeOrNoneValidator())
+                                   editor.StringOrNoneValidator())
         self.assign_simple_handler('cutting_hormone_comboentry', 'hormone',
-                                   editor.UnicodeOrNoneValidator())
+                                   editor.StringOrNoneValidator())
         self.assign_simple_handler('cutting_location_comboentry', 'location',
-                                   editor.UnicodeOrNoneValidator())
+                                   editor.StringOrNoneValidator())
         self.assign_simple_handler('cutting_cover_comboentry', 'cover',
-                                   editor.UnicodeOrNoneValidator())
+                                   editor.StringOrNoneValidator())
         self.assign_simple_handler('cutting_heat_entry', 'bottom_heat_temp')
         self.assign_simple_handler('cutting_heat_unit_combo',
                                    'bottom_heat_unit')
@@ -785,24 +785,24 @@ class SeedPresenter(editor.GenericEditorPresenter):
 
         self.assign_simple_handler('seed_pretreatment_textview',
                                    'pretreatment',
-                                   editor.UnicodeOrNoneValidator())
+                                   editor.StringOrNoneValidator())
         # TODO: this should validate to an integer
         self.assign_simple_handler('seed_nseeds_entry', 'nseeds',
-                                   editor.UnicodeOrNoneValidator())
+                                   editor.StringOrNoneValidator())
         self.assign_simple_handler('seed_sown_entry', 'date_sown',
                                    editor.DateValidator())
         utils.setup_date_button(self.view, 'seed_sown_entry',
                                 'seed_sown_button')
         self.assign_simple_handler('seed_container_comboentry', 'container',
-                                   editor.UnicodeOrNoneValidator())
+                                   editor.StringOrNoneValidator())
         self.assign_simple_handler('seed_media_comboentry', 'media',
-                                   editor.UnicodeOrNoneValidator())
+                                   editor.StringOrNoneValidator())
         self.assign_simple_handler('seed_location_comboentry', 'location',
-                                   editor.UnicodeOrNoneValidator())
+                                   editor.StringOrNoneValidator())
         self.assign_simple_handler('seed_mvdfrom_entry', 'moved_from',
-                                   editor.UnicodeOrNoneValidator())
+                                   editor.StringOrNoneValidator())
         self.assign_simple_handler('seed_mvdto_entry', 'moved_to',
-                                   editor.UnicodeOrNoneValidator())
+                                   editor.StringOrNoneValidator())
         self.assign_simple_handler('seed_germdate_entry', 'germ_date',
                                    editor.DateValidator())
         utils.setup_date_button(self.view, 'seed_germdate_entry',
@@ -878,7 +878,7 @@ class PropagationPresenter(editor.ChildPresenter):
         self.assign_simple_handler('prop_date_entry', 'date',
                                    editor.DateValidator())
         self.assign_simple_handler('notes_textview', 'notes',
-                                   editor.UnicodeOrNoneValidator())
+                                   editor.StringOrNoneValidator())
 
         def on_expanded(*args):
             if self.model.prop_type == 'Other':

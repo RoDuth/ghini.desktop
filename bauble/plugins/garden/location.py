@@ -38,7 +38,7 @@ from bauble import btypes as types
 from bauble.editor import (GenericModelViewPresenterEditor,
                            GenericEditorView,
                            GenericEditorPresenter,
-                           UnicodeOrNoneValidator)
+                           StringOrNoneValidator)
 from bauble import utils
 from bauble import paths
 from bauble import editor
@@ -268,11 +268,11 @@ class LocationEditorPresenter(GenericEditorPresenter):
 
         # connect signals
         self.assign_simple_handler('loc_name_entry', 'name',
-                                   UnicodeOrNoneValidator())
+                                   StringOrNoneValidator())
         self.assign_simple_handler('loc_code_entry', 'code',
-                                   UnicodeOrNoneValidator())
+                                   StringOrNoneValidator())
         self.assign_simple_handler('loc_desc_textview', 'description',
-                                   UnicodeOrNoneValidator())
+                                   StringOrNoneValidator())
         self.refresh_sensitivity()
         if self.model not in self.session.new:
             self.view.widgets.loc_ok_and_add_button.set_sensitive(True)

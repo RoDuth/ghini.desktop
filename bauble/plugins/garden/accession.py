@@ -1917,7 +1917,7 @@ class AccessionEditorPresenter(editor.GenericEditorPresenter):
             'acc_quantity_recvd_entry', 'changed',
             self.refresh_create_plant_checkbutton_sensitivity)
         self.assign_simple_handler('acc_id_qual_combo', 'id_qual',
-                                   editor.UnicodeOrNoneValidator())
+                                   editor.StringOrNoneValidator())
         self.assign_simple_handler('acc_private_check', 'private')
 
         self.refresh_sensitivity()

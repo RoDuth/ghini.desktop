@@ -316,11 +316,11 @@ class CollectionPresenter(editor.ChildPresenter):
         self.geo_menu = None
 
         self.assign_simple_handler('collector_entry', 'collector',
-                                   editor.UnicodeOrNoneValidator())
+                                   editor.StringOrNoneValidator())
         self.assign_simple_handler('locale_entry', 'locale',
-                                   editor.UnicodeOrNoneValidator())
+                                   editor.StringOrNoneValidator())
         self.assign_simple_handler('collid_entry', 'collectors_code',
-                                   editor.UnicodeOrNoneValidator())
+                                   editor.StringOrNoneValidator())
         self.assign_simple_handler('geoacc_entry', 'geo_accy',
                                    editor.IntOrNoneStringValidator())
         self.assign_simple_handler('alt_entry', 'elevation',
@@ -328,21 +328,21 @@ class CollectionPresenter(editor.ChildPresenter):
         self.assign_simple_handler('altacc_entry', 'elevation_accy',
                                    editor.FloatOrNoneStringValidator())
         self.assign_simple_handler('habitat_textview', 'habitat',
-                                   editor.UnicodeOrNoneValidator())
+                                   editor.StringOrNoneValidator())
         self.assign_simple_handler('coll_notes_textview', 'notes',
-                                   editor.UnicodeOrNoneValidator())
+                                   editor.StringOrNoneValidator())
         # the list of completions are added in AccessionEditorView.__init__
 
         def on_match(completion, model, itr):
             value = model[itr][0]
-            validator = editor.UnicodeOrNoneValidator()
+            validator = editor.StringOrNoneValidator()
             self.set_model_attr('gps_data', value, validator)
             completion.get_entry().set_text(value)
 
         completion = self.view.widgets.datum_entry.get_completion()
         self.view.connect(completion, 'match-selected', on_match)
         self.assign_simple_handler('datum_entry', 'gps_datum',
-                                   editor.UnicodeOrNoneValidator())
+                                   editor.StringOrNoneValidator())
 
         self.view.connect('lat_entry', 'changed', self.on_lat_entry_changed)
         self.view.connect('lon_entry', 'changed', self.on_lon_entry_changed)

@@ -61,7 +61,7 @@ API Documentation
 .. autoclass:: bauble.editor.ValidatorError
 .. autoclass:: bauble.editor.Validator
 .. autoclass:: bauble.editor.StringOrNoneValidator
-.. autoclass:: bauble.editor.UnicodeOrNoneValidator
+.. autoclass:: bauble.editor.StringOrEmptyValidator
 .. autoclass:: bauble.editor.IntOrNoneStringValidator
 .. autoclass:: bauble.editor.FloatOrNoneStringValidator
 .. autoclass:: bauble.editor.GenericEditorView

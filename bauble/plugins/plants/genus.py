@@ -574,9 +574,9 @@ class GenusEditorPresenter(editor.GenericEditorPresenter):
                                         fam_get_completions,
                                         on_select=on_select)
         self.assign_simple_handler('gen_genus_entry', 'genus',
-                                   editor.UnicodeOrNoneValidator())
+                                   editor.StringOrNoneValidator())
         self.assign_simple_handler('gen_author_entry', 'author',
-                                   editor.UnicodeOrNoneValidator())
+                                   editor.StringOrNoneValidator())
 
         notes_parent = self.view.widgets.notes_parent_box
         notes_parent.foreach(notes_parent.remove)

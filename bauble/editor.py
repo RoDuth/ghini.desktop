@@ -99,28 +99,16 @@ class StringOrNoneValidator(Validator):
         return str(value)
 
 
-# TODO <RD> deprecated use StringOrNoneValidator
-class UnicodeOrNoneValidator(Validator):
-    """If the value is an empty unicode string then return None, else return
-    the unicode() of the value. The default encoding is 'utf-8'.
-    """
-    def to_python(self, value):
-        if value in ('', None):
-            return None
-        return str(value)
-
-
-# TODO <RD> deprecated
-class UnicodeOrEmptyValidator(Validator):
-    """If the value is an empty unicode string then return '', else return the
-    unicode() of the value. The default encoding is 'utf-8'.
+class StringOrEmptyValidator(Validator):
+    """If the value is an empty string then return '', else return the
+    the value.
     """
     # pylint: disable=too-few-public-methods
 
     def to_python(self, value):
         if not value.strip():
             return ''
-        return utils.nstr(value)
+        return value
 
 
 class IntOrNoneStringValidator(Validator):

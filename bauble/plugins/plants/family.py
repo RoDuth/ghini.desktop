@@ -407,9 +407,9 @@ class FamilyEditorPresenter(editor.GenericEditorPresenter):
 
         # connect signals
         self.assign_simple_handler('fam_family_entry', 'family',
-                                   editor.UnicodeOrNoneValidator())
+                                   editor.StringOrNoneValidator())
         self.assign_simple_handler('fam_qualifier_combo', 'qualifier',
-                                   editor.UnicodeOrEmptyValidator())
+                                   editor.StringOrEmptyValidator())
 
         notes_parent = self.view.widgets.notes_parent_box
         notes_parent.foreach(notes_parent.remove)

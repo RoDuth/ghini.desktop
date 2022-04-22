@@ -403,13 +403,13 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
                                         gen_get_completions,
                                         on_select=on_select)
         self.assign_simple_handler('sp_cvgroup_entry', 'cv_group',
-                                   editor.UnicodeOrNoneValidator())
+                                   editor.StringOrNoneValidator())
         self.assign_simple_handler('sp_spqual_combo', 'sp_qual',
-                                   editor.UnicodeOrNoneValidator())
+                                   editor.StringOrNoneValidator())
         self.assign_simple_handler('sp_label_dist_entry', 'label_distribution',
-                                   editor.UnicodeOrNoneValidator())
+                                   editor.StringOrNoneValidator())
         self.assign_simple_handler('sp_awards_entry', 'awards',
-                                   editor.UnicodeOrNoneValidator())
+                                   editor.StringOrNoneValidator())
 
         self.refresh_sensitivity()
         if self.model not in self.session.new:
