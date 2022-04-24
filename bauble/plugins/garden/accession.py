@@ -2420,6 +2420,7 @@ class AccessionEditor(editor.GenericModelViewPresenterEditor):
             utils.message_dialog(msg)
             # close session here or __del__ will commit the blank accession
             self.session.close()
+            self.presenter.cleanup()
             return None
 
         while True:
