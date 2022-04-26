@@ -101,18 +101,17 @@ def transform(geometry, in_crs=DEFAULT_IN_PROJ, out_crs=None, always_xy=False):
     try:
         if geometry_type == 'Polygon':
             for x, y in geometry.get('coordinates')[0]:
-                x_out, y_out = transformer.transform(x, y, errcheck=True)
-                coords.append([x_out, y_out])
+                coords.append([*transformer.transform(x, y, errcheck=True)])
             geometry_out['coordinates'] = [coords]
         elif geometry_type == 'LineString':
             for x, y in geometry.get('coordinates'):
-                x_out, y_out = transformer.transform(x, y, errcheck=True)
-                coords.append([x_out, y_out])
+                coords.append([*transformer.transform(x, y, errcheck=True)])
             geometry_out['coordinates'] = coords
         elif geometry_type == 'Point':
             x, y = geometry.get('coordinates')
-            x_out, y_out = transformer.transform(x, y, errcheck=True)
-            geometry_out['coordinates'] = [x_out, y_out]
+            geometry_out['coordinates'] = [
+                *transformer.transform(x, y, errcheck=True)
+            ]
         else:
             # avoid anything that doesn't parse
             logger.debug('transform: unsupported geometry: %s', geometry)

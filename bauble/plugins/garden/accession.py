@@ -1111,8 +1111,8 @@ class VerificationBox(Gtk.Box):
         if self.model.reference:
             self.ref_entry.set_text(self.model.reference)
 
-        self.presenter().view.connect(
-            self.ref_entry, 'changed', self.on_entry_changed, 'reference')
+        self.presenter().view.connect(self.ref_entry, 'changed',
+                                      self.on_entry_changed, 'reference')
 
         self.presenter().view.attach_completion(
             self.prev_taxon_entry,

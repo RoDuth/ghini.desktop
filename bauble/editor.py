@@ -1026,13 +1026,6 @@ class MockView:
             self.boxes.remove(box)
 
 
-class DontCommitException(Exception):
-    """This is used for GenericModelViewPresenterEditor.commit_changes() to
-    signal that for some reason the editor doesn't want to commit the current
-    values and would like to redisplay
-    """
-
-
 class GenericEditorPresenter:
     """The presenter of the Model View Presenter Pattern
 

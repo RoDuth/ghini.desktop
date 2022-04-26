@@ -29,16 +29,14 @@ from random import random
 import logging
 logger = logging.getLogger(__name__)
 
-from gi.repository import Gtk  # noqa
-from gi.repository import GLib
+from gi.repository import Gtk
 
 from sqlalchemy import (Column,
                         Unicode,
                         Integer,
                         ForeignKey,
                         Float,
-                        UnicodeText,
-                        select)
+                        UnicodeText)
 from sqlalchemy.orm import relationship, backref
 from sqlalchemy.orm.session import object_session
 

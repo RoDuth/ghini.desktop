@@ -79,9 +79,7 @@ def add_species_callback(genera):
 
 
 def remove_callback(genera):
-    """
-    The callback function to remove a genus from the genus context menu.
-    """
+    """The callback function to remove a genus from the genus context menu."""
     genus = genera[0]
     g_lst = []
     session = object_session(genus)

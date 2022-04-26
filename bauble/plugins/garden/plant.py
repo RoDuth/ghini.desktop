@@ -1044,8 +1044,8 @@ class PlantEditorPresenter(GenericEditorPresenter):
 
         pictures_parent = self.view.widgets.pictures_parent_box
         pictures_parent.foreach(pictures_parent.remove)
-        self.pictures_presenter = PicturesPresenter(
-            self, 'notes', pictures_parent)
+        self.pictures_presenter = PicturesPresenter(self, 'notes',
+                                                    pictures_parent)
 
         from bauble.plugins.garden.propagation import PropagationTabPresenter
         self.prop_presenter = PropagationTabPresenter(self, self.model,

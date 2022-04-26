@@ -220,15 +220,13 @@ def init_location_comboentry(presenter, combo, on_select, required=True):
     combo.set_model(model)
     completion.set_model(model)
 
-    def match_func(completion, key, treeiter, data=None):
-        logger.debug('match_func')
+    def match_func(completion, key, treeiter):
         loc = completion.get_model()[treeiter][0]
         # skip the first blank ('') row
         if loc == '':
             return False
-        return (loc.name and loc.name.lower().startswith(key.lower())) or \
-               (loc.code and loc.code.lower().startswith(key.lower()))
-
+        return ((loc.name and loc.name.lower().startswith(key.lower())) or
+                (loc.code and loc.code.lower().startswith(key.lower())))
     completion.set_match_func(match_func)
 
     def on_match_select(_completion, model, treeiter):

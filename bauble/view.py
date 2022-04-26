@@ -224,7 +224,8 @@ class InfoBoxPage(Gtk.ScrolledWindow):
         self.label = None
         self.connect('size-allocate', self.on_resize)
 
-    def on_resize(self, window, allocation):
+    @staticmethod
+    def on_resize(_window, allocation):
         prefs.prefs[INFOBOXPAGE_WIDTH_PREF] = allocation.width
 
     def add_expander(self, expander):
@@ -668,7 +669,6 @@ class SearchView(pluginmgr.View):
         self.add_notes_page_to_bottom_notebook()
         self.running_threads = []
         self.actions = set()
-        self.cursor_change_blocked = None
         self.context_menu_model = Gio.Menu()
 
     def add_notes_page_to_bottom_notebook(self):
@@ -1012,10 +1012,6 @@ class SearchView(pluginmgr.View):
                 _('Could not find anything for search: "%s"') % text)
             model.append([msg])
             self.results_view.set_model(model)
-            # # TODO leaving here for now but I don't think I need this
-            # anymore.
-            # disconnect cursor change signal handler avoids errors with
-            # updating infopane and bottom notebooks
         else:
             statusbar.push(sbcontext_id, _("Retrieving %s search "
                                            "results…") % len(results))
@@ -1053,7 +1049,6 @@ class SearchView(pluginmgr.View):
                                    _('size of non homogeneous result: %s') %
                                    len(results))
                 self.results_view.set_cursor(0)
-                GLib.idle_add(lambda: self.results_view.scroll_to_cell(0))
 
     def remove_children(self, model, parent):
         """Remove all children of some parent in the model.
@@ -1137,9 +1132,6 @@ class SearchView(pluginmgr.View):
 
         # iterate over slice of size "steps", yield after adding each
         # slice to the model
-        #for obj in itertools.islice(itertools.chain(*groups), 0,None, steps):
-        #for obj in itertools.islice(itertools.chain(results), 0,None, steps):
-
         added = set()
         for obj in itertools.chain(*groups):
             if obj in added:  # only add unique object
