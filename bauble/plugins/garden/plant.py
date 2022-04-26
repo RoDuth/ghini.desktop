@@ -1007,8 +1007,8 @@ class PlantEditorPresenter(GenericEditorPresenter):
                            'plant_quantity_entry': 'quantity'
                            }
 
-    PROBLEM_DUPLICATE_PLANT_CODE = str(random())
-    PROBLEM_INVALID_QUANTITY = str(random())
+    PROBLEM_DUPLICATE_PLANT_CODE = f'duplicate_plant_code:{random()}'
+    PROBLEM_INVALID_QUANTITY = f'invalid_quantity:{random()}'
 
     def __init__(self, model, view, branch_mode=False):
         """

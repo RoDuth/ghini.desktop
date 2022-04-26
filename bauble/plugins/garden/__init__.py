@@ -21,6 +21,7 @@
 
 import re
 import logging
+from random import random
 logger = logging.getLogger(__name__)
 
 from sqlalchemy.orm import object_session, eagerload
@@ -186,7 +187,8 @@ def init_location_comboentry(presenter, combo, on_select, required=True):
     :param combo: a Gtk.ComboBox widget with a Gtk.Entry
     :param on_select: a one-parameter function
     """
-    PROBLEM = 'UNKNOWN_LOCATION'
+    # not a constant here but named so for consistency
+    PROBLEM = f'unknown_location:{random()}'  # pylint: disable=invalid-name
 
     re_code_name_splitter = re.compile(r'\(([^)]+)\) ?(.*)')
 

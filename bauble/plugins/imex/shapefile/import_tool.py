@@ -661,9 +661,9 @@ class ShapefileImportDialogPresenter(GenericEditorPresenter):
     }
     view_accept_buttons = ['imp_button_ok']
 
-    PROBLEM_NOT_SHAPEFILE = random()
-    PROBLEM_NO_PROJ = random()
-    PROBLEM_PROJ_MISMATCH = random()
+    PROBLEM_NOT_SHAPEFILE = f'no_shapefile:{random()}'
+    PROBLEM_NO_PROJ = f'no_proj:{random()}'
+    PROBLEM_PROJ_MISMATCH = f'proj_mismatch:{random()}'
 
     last_folder = str(Path.home())
 

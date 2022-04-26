@@ -480,7 +480,7 @@ class ShapefileExportDialogPresenter(GenericEditorPresenter):
 
     view_accept_buttons = ['exp_button_ok']
 
-    PROBLEM_NO_DIR = random()
+    PROBLEM_NO_DIR = f'no_dir:{random()}'
 
     last_folder = str(Path.home())
 

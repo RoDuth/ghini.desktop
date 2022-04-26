@@ -304,9 +304,9 @@ class CollectionPresenter(editor.ChildPresenter):
                            'add_region_button': 'region',
                            }
 
-    PROBLEM_BAD_LATITUDE = random()
-    PROBLEM_BAD_LONGITUDE = random()
-    PROBLEM_INVALID_LOCALE = random()
+    PROBLEM_BAD_LATITUDE = f'bad_latitude:{random()}'
+    PROBLEM_BAD_LONGITUDE = f'bad_longitude:{random()}'
+    PROBLEM_INVALID_LOCALE = f'invalid_locale:{random()}'
 
     def __init__(self, parent, model, view, session):
         super().__init__(model, view, session=session)

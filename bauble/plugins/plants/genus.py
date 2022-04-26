@@ -621,8 +621,6 @@ class GenusEditorPresenter(editor.GenericEditorPresenter):
 
 class SynonymsPresenter(editor.GenericEditorPresenter):
 
-    PROBLEM_INVALID_SYNONYM = 1
-
     def __init__(self, parent):
         """
         :param parent: GenusEditorPreesnter

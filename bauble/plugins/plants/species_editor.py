@@ -139,8 +139,6 @@ def species_cell_data_func(_column, renderer, model, treeiter):
 
 class SpeciesEditorPresenter(editor.GenericEditorPresenter):
 
-    PROBLEM_INVALID_GENUS = random()
-
     widget_to_field_map = {'sp_genus_entry': 'genus',
                            'sp_species_entry': 'sp',
                            'sp_author_entry': 'sp_author',
@@ -1044,7 +1042,7 @@ class VernacularNamePresenter(editor.GenericEditorPresenter):
 
 class SynonymsPresenter(editor.GenericEditorPresenter):
 
-    PROBLEM_INVALID_SYNONYM = 1
+    PROBLEM_INVALID_SYNONYM = f'invalid_synonym:{random()}'
 
     def __init__(self, parent):
         """

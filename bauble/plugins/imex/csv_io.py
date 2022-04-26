@@ -70,7 +70,7 @@ class CSVExportDialogPresenter(GenericEditorPresenter):
 
     view_accept_buttons = ['exp_button_ok']
 
-    PROBLEM_NO_FILENAME = random()
+    PROBLEM_NO_FILENAME = f'no_filename:{random()}'
 
     last_file = None
 
@@ -383,7 +383,7 @@ class CSVImportDialogPresenter(GenericEditorPresenter):
 
     view_accept_buttons = ['imp_button_ok']
 
-    PROBLEM_INVALID_FILENAME = random()
+    PROBLEM_INVALID_FILENAME = f'invalid_filename:{random()}'
 
     last_file = None
 

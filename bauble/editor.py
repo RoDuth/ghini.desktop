@@ -1053,8 +1053,8 @@ class GenericEditorPresenter:
     widget_to_field_map = {}
     view_accept_buttons = []
 
-    PROBLEM_DUPLICATE = random()
-    PROBLEM_EMPTY = random()
+    PROBLEM_DUPLICATE = f'duplicate:{random()}'
+    PROBLEM_EMPTY = f'empty:{random()}'
 
     def __init__(self, model, view, refresh_view=False, session=None,
                  do_commit=False, committing_results=[Gtk.ResponseType.OK]):
@@ -1258,16 +1258,16 @@ class GenericEditorPresenter:
         :param prop: a tuple of the form (model, property as a string) that
             will be set.
         """
+        widget_name = Gtk.Buildable.get_name(entry)
         logger.debug("on_date_entry_changed(%s, %s)", entry, prop)
         value = None
-        PROBLEM = 'INVALID_DATE'
         try:
             value = DateValidator().to_python(entry.props.text)
         except ValidatorError as e:
             logger.debug("%s(%s)", type(e).__name__, e)
-            self.add_problem(PROBLEM, entry)
+            self.add_problem(f'BAD_DATE::{widget_name}', entry)
         else:
-            self.remove_problem(PROBLEM, entry)
+            self.remove_problem(f'BAD_DATE::{widget_name}', entry)
             self._dirty = True
             self.view._dirty = True
         setattr(*prop, value)
@@ -1471,7 +1471,7 @@ class GenericEditorPresenter:
                 if isinstance(w, Gtk.Widget) and not prefs.testing:
                     w.get_style_context().remove_class('problem')
                 self.problems.remove((p, w))
-        logger.debug('problems now: %s' % self.problems)
+        logger.debug('problems now: %s', self.problems)
 
     def add_problem(self, problem_id, problem_widgets=None):
         """Add problem_id to self.problems and change the background of
@@ -1530,10 +1530,10 @@ class GenericEditorPresenter:
         if validator:
             try:
                 value = validator.to_python(value)
-                self.remove_problem('BAD_VALUE_%s' % attr)
+                self.remove_problem(f'BAD_VALUE_{attr}')
             except ValidatorError as e:
                 logger.debug("GenericEditorPresenter.set_model_attr %s", e)
-                self.add_problem('BAD_VALUE_%s' % attr)
+                self.add_problem(f'BAD_VALUE_{attr}')
             else:
                 setattr(self.model, attr, value)
         else:
@@ -1561,13 +1561,13 @@ class GenericEditorPresenter:
             def to_python(self, value):
                 try:
                     value = self.wrapped.to_python(value)
-                    self.presenter.remove_problem('BAD_VALUE_%s'
-                                                  % model_attr, widget)
+                    self.presenter.remove_problem(f'BAD_VALUE_{model_attr}',
+                                                  widget)
                 except Exception as e:
                     logger.debug("GenericEditorPresenter.ProblemValidator"
                                  ".to_python %s", e)
-                    self.presenter.add_problem('BAD_VALUE_%s'
-                                               % model_attr, widget)
+                    self.presenter.add_problem(f'BAD_VALUE_{model_attr}',
+                                               widget)
                     raise
                 return value
 
@@ -1626,7 +1626,7 @@ class GenericEditorPresenter:
         """Dynamically handle completions on a Gtk.Entry.
 
         Attach a handler to widgets 'changed' signal that reconstructs the
-        widgets model if appropriate and adds/removes PROBLEM.
+        widgets model if appropriate and adds/removes a PROBLEM.
 
         :param widget: a Gtk.Entry instance or widget name
         :param get_completions: the callable to invoke when a list of
@@ -1642,7 +1642,10 @@ class GenericEditorPresenter:
         logger.debug('assign_completions_handler %s', widget)
         if not isinstance(widget, Gtk.Entry):
             widget = self.view.widgets[widget]
-        PROBLEM = hash(Gtk.Buildable.get_name(widget))
+        widget_name = Gtk.Buildable.get_name(widget)
+        # not a true constant but named so for consistency
+        PROBLEM_NOT_FOUND = f'{widget_name}:not_found' \
+            # pylint: disable=invalid-name
 
         def add_completions(text):
             """Reconstruct the widgets model (Gtk.ListStore)"""
@@ -1668,7 +1671,7 @@ class GenericEditorPresenter:
             """If entry's text is greater than widget's minimum_key_length call
             :func:`add_completions` to reconstruct the widgets model.  Also
             calls :func:`idle_callback` with the entry's text to add remove
-            PROBLEM or select an item if appropriate.
+            PROBLEM_NOT_FOUND or select an item if appropriate.
 
             :param entry: a Gtk.Entry widget
             """
@@ -1724,23 +1727,23 @@ class GenericEditorPresenter:
                         on_select(None)
 
                 if (text != '' and not found and
-                        (PROBLEM, widget) not in self.problems):
-                    self.add_problem(PROBLEM, widget)
+                        (PROBLEM_NOT_FOUND, widget) not in self.problems):
+                    self.add_problem(PROBLEM_NOT_FOUND, widget)
                     on_select(None)
-                elif found and (PROBLEM, widget) in self.problems:
-                    self.remove_problem(PROBLEM, widget)
+                elif found and (PROBLEM_NOT_FOUND, widget) in self.problems:
+                    self.remove_problem(PROBLEM_NOT_FOUND, widget)
 
                 # if entry is empty select nothing and remove all problem
                 if text == '':
                     on_select(None)
-                    self.remove_problem(PROBLEM, widget)
+                    self.remove_problem(PROBLEM_NOT_FOUND, widget)
                 elif not comp_model:
                     # completion model is not in place when object is forced
                     # programmatically.
                     # `on_select` will know how to convert the text into a
                     # properly typed value.
                     on_select(text)
-                    self.remove_problem(PROBLEM, widget)
+                    self.remove_problem(PROBLEM_NOT_FOUND, widget)
                 logger.debug('on_changed - part two - returning')
 
             # callback keeps comparer in scope
@@ -1754,7 +1757,7 @@ class GenericEditorPresenter:
             # doesn't get called twice
             with widget.handler_block(_changed_sid):
                 widget.props.text = str(value)
-            self.remove_problem(PROBLEM, widget)
+            self.remove_problem(PROBLEM_NOT_FOUND, widget)
             on_select(value)
             return True  # return True or on_changed() will be called with ''
 
