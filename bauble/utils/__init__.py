@@ -1496,13 +1496,6 @@ class MessageBox(GenericMessageBox):
         self.details = details
         self.details_expander.add(scroll_win)
 
-        def on_expanded(_widget, expanded):
-            requisition = self.size_request()
-            self.set_size_request(requisition.width, -1)
-            self.queue_resize()
-
-        self.details_expander.connect('notify::expanded', on_expanded)
-
         def on_close(_widget):
             parent = self.get_parent()
             if parent is not None:
