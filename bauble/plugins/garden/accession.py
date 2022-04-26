@@ -1545,6 +1545,8 @@ class SourcePresenter(editor.GenericEditorPresenter):
     def on_coll_remove_button_clicked(self, *_args):
         self.model.source.collection = None
         self._set_source_coll_enabled(False)
+        # remove any problems
+        self.collection_presenter.problems = set()
         self._dirty = True
         self.refresh_sensitivity()
 
