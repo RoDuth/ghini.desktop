@@ -446,7 +446,7 @@ class CollectionPresenter(editor.ChildPresenter):
             self.view.widgets.geoacc_entry.set_sensitive(False)
             self.view.widgets.datum_entry.set_sensitive(False)
 
-    def on_east_west_radio_toggled(self, _widget, _data):
+    def on_east_west_radio_toggled(self, _widget):
         direction = self._get_lon_direction()
         entry = self.view.widgets.lon_entry
         lon_text = entry.get_text()
@@ -454,15 +454,15 @@ class CollectionPresenter(editor.ChildPresenter):
             return
 
         try:
-            # make sure that the first part of the string is an
-            # integer before toggling
-            int(lon_text.split(' ')[0])
-        except Exception as e:
-            logger.warning("east-west %s(%s)", type(e), e)
+            # make sure that the first part of the string is a number before
+            # toggling
+            float(lon_text.split(' ')[0])
+        except TypeError as e:
+            logger.debug("%s(%s)", type(e), e)
             return
 
         if direction == 'W' and lon_text[0] != '-':
-            entry.set_text('-%s' % lon_text)
+            entry.set_text(f'-{lon_text}')
         elif direction == 'E' and lon_text[0] == '-':
             entry.set_text(lon_text[1:])
 
@@ -474,15 +474,15 @@ class CollectionPresenter(editor.ChildPresenter):
             return
 
         try:
-            # make sure that the first part of the string is an
-            # number before toggling
+            # make sure that the first part of the string is a number before
+            # toggling
             float(lat_text.split(' ')[0])
-        except Exception as e:
+        except TypeError as e:
             logger.debug("%s(%s)", type(e).__name__, e)
             return
 
         if direction == 'S' and lat_text[0] != '-':
-            entry.set_text('-%s' % lat_text)
+            entry.set_text(f'-{lat_text}')
         elif direction == 'N' and lat_text[0] == '-':
             entry.set_text(lat_text[1:])
 
