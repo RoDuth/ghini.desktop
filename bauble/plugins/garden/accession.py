@@ -1169,7 +1169,7 @@ class VerificationBox(Gtk.Box):
         self.notes_textview.set_border_width(1)
         buff = Gtk.TextBuffer()
         if self.model.notes:
-            buff.props.text = self.model.notes
+            buff.set_text(self.model.notes)
         self.notes_textview.set_buffer(buff)
         self.presenter().view.connect(buff, 'changed',
                                       self.on_entry_changed, 'notes')
@@ -1257,11 +1257,12 @@ class VerificationBox(Gtk.Box):
         self.presenter().parent_ref().refresh_sensitivity()
 
     def on_entry_changed(self, entry, attr):
-        text = entry.get_text()
+        # Don't use entry.get_text() here, fails for notes TextBuffer
+        text = entry.get_property('text').strip()
         if not text:
             self.set_model_attr(attr, None)
         else:
-            self.set_model_attr(attr, utils.nstr(text))
+            self.set_model_attr(attr, text)
 
     def on_level_combo_changed(self, combo):
         itr = combo.get_active_iter()
