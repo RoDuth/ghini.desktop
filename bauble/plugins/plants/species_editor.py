@@ -822,7 +822,7 @@ class DistributionPresenter(editor.GenericEditorPresenter):
         label.set_text(txt)
 
     def on_add_button_pressed(self, _button, event):
-        self.geo_menu.popup(None, None, None, None, event.button, event.time)
+        self.geo_menu.popup_at_pointer(event)
 
     def on_remove_button_pressed(self, _button, event):
         # clear the menu first
