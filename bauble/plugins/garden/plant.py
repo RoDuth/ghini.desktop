@@ -172,7 +172,10 @@ def is_code_unique(plant, code):
     # if the range builder only creates one number then we assume the
     # code is not a range and so we test against the string version of
     # code
-    codes = [str(i) for i in utils.range_builder(code)]
+    try:
+        codes = [str(i) for i in utils.range_builder(code)]
+    except CheckConditionError:
+        return False
     if len(codes) == 1:
         codes = [str(code)]
 

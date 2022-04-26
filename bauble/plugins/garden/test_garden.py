@@ -591,6 +591,7 @@ class PlantTests(GardenTestCase):
         self.assertTrue(is_code_unique(self.plant, '01'))
         self.assertFalse(is_code_unique(self.plant, '1-2'))
         self.assertFalse(is_code_unique(self.plant, '01-2'))
+        self.assertFalse(is_code_unique(self.plant, '10-2'))
 
     def test_living_plant_has_no_death(self):
         self.assertIsNone(self.plant.death)

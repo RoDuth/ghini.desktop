@@ -1297,8 +1297,8 @@ def ilike(col, val, engine=None):
 
 def range_builder(text):
     """Return a list of numbers from a string range of the form 1-3,4,5"""
-    from pyparsing import Word, Group, Suppress, delimitedList, nums, \
-        ParseException, ParseResults
+    from pyparsing import (Word, Group, Suppress, delimitedList, nums,
+                           ParseException, ParseResults)
     rng = Group(Word(nums) + Suppress('-') + Word(nums))
     range_list = delimitedList(rng | Word(nums))
 
