@@ -1175,9 +1175,8 @@ class VerificationBox(Gtk.Box):
                                       self.on_entry_changed, 'notes')
 
         # remove button
-        self._sid = self.presenter().view.connect(
-            self.remove_button, 'clicked', self.on_remove_button_clicked
-        )
+        self.presenter().view.connect(self.remove_button, 'clicked',
+                                      self.on_remove_button_clicked)
 
         # copy to general tab
         self.use_taxon_button.set_tooltip_text(
@@ -1238,16 +1237,13 @@ class VerificationBox(Gtk.Box):
             self.presenter()._dirty = True
             self.presenter().parent_ref().refresh_sensitivity()
 
-    def on_remove_button_clicked(self, button):
+    def on_remove_button_clicked(self, _button):
         parent = self.get_parent()
         msg = _("Are you sure you want to remove this verification?")
         if not utils.yes_no_dialog(msg):
             return
         if parent:
             parent.remove(self)
-
-        # disconnect clicked signal to make garbage collecting work
-        button.disconnect(self._sid)
 
         # remove verification from accession
         if self.model.accession:
