@@ -785,9 +785,11 @@ class SearchView(pluginmgr.View):
             logger.debug('cannot populate info box from detached object')
             return
 
+        sensitive = len(selected_values) == 1
+
         try:
             # send an object (e.g. a Plant instance)
-            self.set_infobox_from_row(selected_values[0])
+            self.set_infobox_from_row(selected_values[0], sensitive)
         except Exception as e:  # pylint: disable=broad-except
             # if an error occurrs, log it and empty infobox.
             logger.debug('%s(%s)', type(e).__name__, e)
@@ -795,7 +797,7 @@ class SearchView(pluginmgr.View):
             logger.debug(selected_values)
             self.set_infobox_from_row(None)
 
-    def set_infobox_from_row(self, row):
+    def set_infobox_from_row(self, row, sensitive=True):
         """implement the logic for update_infobox"""
 
         logger.debug('set_infobox_from_row: %s --  %s', row, repr(row))
@@ -844,6 +846,7 @@ class SearchView(pluginmgr.View):
         if self.infobox is not None:
             self.infobox.update(row)
             self.pane.pack2(self.infobox, resize=False, shrink=True)
+            self.infobox.set_sensitive(sensitive)
             self.pane.show_all()
 
     def get_selected_values(self):
