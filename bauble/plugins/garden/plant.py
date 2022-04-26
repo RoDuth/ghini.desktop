@@ -1064,7 +1064,7 @@ class PlantEditorPresenter(GenericEditorPresenter):
                 self.change.quantity = self.model.quantity
             self.refresh_view()
 
-        from bauble.plugins.garden import init_location_comboentry
+        from . import init_location_comboentry
         init_location_comboentry(self, self.view.widgets.plant_loc_comboentry,
                                  on_location_select)
 
@@ -1087,9 +1087,9 @@ class PlantEditorPresenter(GenericEditorPresenter):
 
         self.view.init_translatable_combo('reason_combo', self.reasons)
 
-        date_str = utils.today_str()
         utils.setup_date_button(self.view, 'plant_date_entry',
                                 'plant_date_button')
+        date_str = utils.today_str()
         utils.set_widget_value(self.view.widgets.plant_date_entry, date_str)
         self.view.connect('plant_date_entry', 'changed',
                           self.on_date_entry_changed, (self.change, 'date'))
@@ -1409,7 +1409,6 @@ class PlantEditorPresenter(GenericEditorPresenter):
                      self.is_dirty() and len(self.problems) == 0)
         self.view.widgets.pad_ok_button.set_sensitive(sensitive)
         self.view.widgets.pad_next_button.set_sensitive(sensitive)
-        self.view.widgets.split_planting_button.set_visible(False)
 
     def set_model_attr(self, attr, value, validator=None):
         logger.debug('set_model_attr(%s, %s)', attr, value)

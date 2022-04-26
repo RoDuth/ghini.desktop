@@ -1885,6 +1885,12 @@ class AccessionEditorPresenter(editor.GenericEditorPresenter):
         utils.setup_date_button(self.view, 'acc_date_accd_entry',
                                 'acc_date_accd_button')
 
+        if self.model in self.session.new:
+            # new accession, set date accessioned to today
+            date_str = utils.today_str()
+            utils.set_widget_value(self.view.widgets.acc_date_accd_entry,
+                                   date_str)
+
         self.view.connect(
             self.view.widgets.intended_loc_add_button,
             'clicked',
@@ -2002,11 +2008,10 @@ class AccessionEditorPresenter(editor.GenericEditorPresenter):
 
     def populate_code_formats(self, entry_one=None, values=None):
         logger.debug('populate_code_formats %s %s', entry_one, values)
-        list_store = self.view.widgets.acc_code_format_liststore
+        list_store = self.view.widgets.acc_code_format_comboentry.get_model()
         if entry_one is None:
             entry_one = list_store.get_value(list_store.get_iter_first(), 0)
-        list_store.clear()
-        list_store.append([entry_one])
+        self.view.widgets.acc_code_format_comboentry.remove_all()
         if values is None:
             query = (self.session
                      .query(meta.BaubleMeta)
@@ -2015,11 +2020,11 @@ class AccessionEditorPresenter(editor.GenericEditorPresenter):
             if query.first():
                 Accession.code_format = query.first().value
             values = [r.value for r in query]
-        for v in values:
-            list_store.append([v])
+        for value in values:
+            self.view.widgets.acc_code_format_comboentry.append_text(value)
 
-    def on_acc_code_format_comboentry_changed(self, widget, *_args):
-        code_format = (self.view.widget_get_value(widget) or
+    def on_acc_code_format_comboentry_changed(self, combobox, *_args):
+        code_format = (self.view.widget_get_value(combobox) or
                        Accession.code_format)
         code = Accession.get_next_code(code_format)
         self.view.widget_set_value('acc_code_entry', code)

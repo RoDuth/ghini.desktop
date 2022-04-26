@@ -7,7 +7,7 @@
     <property name="can-focus">False</property>
     <property name="orientation">vertical</property>
     <child>
-      <object class="GtkBox" id="hbox1">
+      <object class="GtkBox">
         <property name="visible">True</property>
         <property name="can-focus">False</property>
         <child>
@@ -15,20 +15,20 @@
             <property name="visible">True</property>
             <property name="can-focus">True</property>
             <child>
-              <object class="GtkBox" id="vbox2">
+              <object class="GtkBox">
                 <property name="visible">True</property>
                 <property name="can-focus">False</property>
                 <property name="orientation">vertical</property>
                 <property name="spacing">5</property>
                 <child>
                   <!-- n-columns=4 n-rows=2 -->
-                  <object class="GtkGrid" id="table1">
+                  <object class="GtkGrid">
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
                     <property name="row-spacing">3</property>
                     <property name="column-spacing">5</property>
                     <child>
-                      <object class="GtkLabel" id="label3">
+                      <object class="GtkLabel">
                         <property name="visible">True</property>
                         <property name="can-focus">False</property>
                         <property name="label" translatable="yes">User</property>
@@ -52,7 +52,7 @@
                       </packing>
                     </child>
                     <child>
-                      <object class="GtkLabel" id="label4">
+                      <object class="GtkLabel">
                         <property name="visible">True</property>
                         <property name="can-focus">False</property>
                         <property name="label" translatable="yes">Category</property>
@@ -80,7 +80,7 @@
                       </packing>
                     </child>
                     <child>
-                      <object class="GtkLabel" id="label2">
+                      <object class="GtkLabel">
                         <property name="visible">True</property>
                         <property name="can-focus">False</property>
                         <property name="label" translatable="yes">Date</property>
@@ -92,7 +92,7 @@
                       </packing>
                     </child>
                     <child>
-                      <object class="GtkBox" id="hbox5">
+                      <object class="GtkBox">
                         <property name="visible">True</property>
                         <property name="can-focus">False</property>
                         <child>
@@ -134,7 +134,7 @@
                   </packing>
                 </child>
                 <child>
-                  <object class="GtkFrame" id="scrolledwindow1">
+                  <object class="GtkFrame">
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
                     <property name="label-xalign">0</property>
@@ -182,7 +182,7 @@
             <property name="margin-end">8</property>
             <property name="margin-top">8</property>
             <child>
-              <object class="GtkImage" id="image1">
+              <object class="GtkImage">
                 <property name="visible">True</property>
                 <property name="can-focus">False</property>
                 <property name="icon-name">list-remove-symbolic</property>
@@ -203,7 +203,7 @@
       </packing>
     </child>
     <child>
-      <object class="GtkSeparator" id="hseparator2">
+      <object class="GtkSeparator">
         <property name="visible">True</property>
         <property name="can-focus">False</property>
       </object>

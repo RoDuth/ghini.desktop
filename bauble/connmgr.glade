@@ -27,7 +27,7 @@
     <signal name="delete-event" handler="on_dialog_close_or_delete" swapped="no"/>
     <signal name="response" handler="on_dialog_response" swapped="no"/>
     <child internal-child="vbox">
-      <object class="GtkBox" id="dialog-vbox1">
+      <object class="GtkBox">
         <property name="visible">True</property>
         <property name="can-focus">False</property>
         <property name="orientation">vertical</property>
@@ -39,7 +39,7 @@
             <property name="layout-style">end</property>
             <child>
               <object class="GtkButton" id="cancel_button">
-                <property name="label">Cancel</property>
+                <property name="label" translatable="yes">Cancel</property>
                 <property name="visible">True</property>
                 <property name="can-focus">True</property>
                 <property name="can-default">True</property>
@@ -53,7 +53,7 @@
             </child>
             <child>
               <object class="GtkButton" id="connect_button">
-                <property name="label">Connect</property>
+                <property name="label" translatable="yes">Connect</property>
                 <property name="visible">True</property>
                 <property name="can-focus">True</property>
                 <property name="has-focus">True</property>
@@ -108,7 +108,7 @@
               </packing>
             </child>
             <child>
-              <object class="GtkBox" id="hbox3">
+              <object class="GtkBox">
                 <property name="visible">True</property>
                 <property name="can-focus">False</property>
                 <property name="border-width">10</property>
@@ -127,7 +127,7 @@
                 </child>
                 <child>
                   <object class="GtkButton" id="add_button">
-                    <property name="label">Add</property>
+                    <property name="label" translatable="yes">Add</property>
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
                     <property name="receives-default">False</property>
@@ -142,7 +142,7 @@
                 </child>
                 <child>
                   <object class="GtkButton" id="remove_button">
-                    <property name="label">Remove</property>
+                    <property name="label" translatable="yes">Remove</property>
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
                     <property name="receives-default">False</property>
@@ -163,7 +163,7 @@
               </packing>
             </child>
             <child>
-              <object class="GtkBox" id="hbox2">
+              <object class="GtkBox">
                 <property name="visible">True</property>
                 <property name="can-focus">False</property>
                 <child>
@@ -191,11 +191,11 @@ Click on &lt;b&gt;Add&lt;/b&gt; to create a new connection.</property>
                         <property name="orientation">vertical</property>
                         <property name="spacing">10</property>
                         <child>
-                          <object class="GtkBox" id="hbox4">
+                          <object class="GtkBox">
                             <property name="visible">True</property>
                             <property name="can-focus">False</property>
                             <child>
-                              <object class="GtkLabel" id="label4">
+                              <object class="GtkLabel">
                                 <property name="visible">True</property>
                                 <property name="can-focus">False</property>
                                 <property name="halign">end</property>
@@ -230,7 +230,7 @@ Click on &lt;b&gt;Add&lt;/b&gt; to create a new connection.</property>
                           </packing>
                         </child>
                         <child>
-                          <object class="GtkBox" id="hbox1">
+                          <object class="GtkBox">
                             <property name="visible">True</property>
                             <property name="can-focus">False</property>
                             <child>
@@ -254,7 +254,7 @@ Click on &lt;b&gt;Add&lt;/b&gt; to create a new connection.</property>
                                   </packing>
                                 </child>
                                 <child>
-                                  <object class="GtkLabel" id="label2">
+                                  <object class="GtkLabel">
                                     <property name="visible">True</property>
                                     <property name="can-focus">False</property>
                                     <property name="halign">end</property>
@@ -267,7 +267,7 @@ Click on &lt;b&gt;Add&lt;/b&gt; to create a new connection.</property>
                                   </packing>
                                 </child>
                                 <child>
-                                  <object class="GtkBox" id="hbox5">
+                                  <object class="GtkBox">
                                     <property name="visible">True</property>
                                     <property name="can-focus">False</property>
                                     <property name="hexpand">True</property>
@@ -314,7 +314,7 @@ Click on &lt;b&gt;Add&lt;/b&gt; to create a new connection.</property>
                                   </packing>
                                 </child>
                                 <child>
-                                  <object class="GtkLabel" id="label3">
+                                  <object class="GtkLabel">
                                     <property name="visible">True</property>
                                     <property name="can-focus">False</property>
                                     <property name="halign">end</property>
@@ -327,7 +327,7 @@ Click on &lt;b&gt;Add&lt;/b&gt; to create a new connection.</property>
                                   </packing>
                                 </child>
                                 <child>
-                                  <object class="GtkBox" id="hbox6">
+                                  <object class="GtkBox">
                                     <property name="visible">True</property>
                                     <property name="can-focus">False</property>
                                     <property name="hexpand">True</property>
@@ -386,7 +386,7 @@ Click on &lt;b&gt;Add&lt;/b&gt; to create a new connection.</property>
                               <object class="GtkGrid" id="dbms_parambox">
                                 <property name="can-focus">False</property>
                                 <child>
-                                  <object class="GtkLabel" id="label6">
+                                  <object class="GtkLabel">
                                     <property name="visible">True</property>
                                     <property name="can-focus">False</property>
                                     <property name="halign">end</property>
@@ -414,7 +414,7 @@ Click on &lt;b&gt;Add&lt;/b&gt; to create a new connection.</property>
                                   </packing>
                                 </child>
                                 <child>
-                                  <object class="GtkLabel" id="label7">
+                                  <object class="GtkLabel">
                                     <property name="visible">True</property>
                                     <property name="can-focus">False</property>
                                     <property name="halign">end</property>
@@ -442,7 +442,7 @@ Click on &lt;b&gt;Add&lt;/b&gt; to create a new connection.</property>
                                   </packing>
                                 </child>
                                 <child>
-                                  <object class="GtkLabel" id="label1">
+                                  <object class="GtkLabel">
                                     <property name="visible">True</property>
                                     <property name="can-focus">False</property>
                                     <property name="halign">end</property>
@@ -470,7 +470,7 @@ Click on &lt;b&gt;Add&lt;/b&gt; to create a new connection.</property>
                                   </packing>
                                 </child>
                                 <child>
-                                  <object class="GtkLabel" id="label8">
+                                  <object class="GtkLabel">
                                     <property name="visible">True</property>
                                     <property name="can-focus">False</property>
                                     <property name="halign">end</property>
@@ -498,7 +498,7 @@ Click on &lt;b&gt;Add&lt;/b&gt; to create a new connection.</property>
                                   </packing>
                                 </child>
                                 <child>
-                                  <object class="GtkLabel" id="label9">
+                                  <object class="GtkLabel">
                                     <property name="visible">True</property>
                                     <property name="can-focus">False</property>
                                     <property name="halign">end</property>
@@ -524,7 +524,7 @@ Click on &lt;b&gt;Add&lt;/b&gt; to create a new connection.</property>
                                   </packing>
                                 </child>
                                 <child>
-                                  <object class="GtkLabel" id="label10">
+                                  <object class="GtkLabel">
                                     <property name="visible">True</property>
                                     <property name="can-focus">False</property>
                                     <property name="halign">end</property>
@@ -537,7 +537,7 @@ Click on &lt;b&gt;Add&lt;/b&gt; to create a new connection.</property>
                                   </packing>
                                 </child>
                                 <child>
-                                  <object class="GtkBox" id="hbox7">
+                                  <object class="GtkBox">
                                     <property name="visible">True</property>
                                     <property name="can-focus">False</property>
                                     <property name="hexpand">True</property>
@@ -601,7 +601,7 @@ Click on &lt;b&gt;Add&lt;/b&gt; to create a new connection.</property>
                       </object>
                     </child>
                     <child type="label">
-                      <object class="GtkLabel" id="label5">
+                      <object class="GtkLabel">
                         <property name="visible">True</property>
                         <property name="can-focus">False</property>
                         <property name="label" translatable="yes">Connection Details</property>

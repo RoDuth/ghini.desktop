@@ -6,7 +6,7 @@
     <property name="can-focus">False</property>
     <property name="title" translatable="yes">Family Window</property>
     <child>
-      <object class="GtkBox" id="vbox5">
+      <object class="GtkBox">
         <property name="visible">True</property>
         <property name="can-focus">False</property>
         <property name="orientation">vertical</property>
@@ -31,7 +31,7 @@
             </child>
             <child>
               <!-- n-columns=2 n-rows=4 -->
-              <object class="GtkGrid" id="table3">
+              <object class="GtkGrid">
                 <property name="visible">True</property>
                 <property name="can-focus">False</property>
                 <property name="row-spacing">8</property>
@@ -233,7 +233,7 @@
     <property name="can-focus">False</property>
     <property name="title" translatable="yes">Genus Window</property>
     <child>
-      <object class="GtkBox" id="vbox2">
+      <object class="GtkBox">
         <property name="visible">True</property>
         <property name="can-focus">False</property>
         <property name="orientation">vertical</property>
@@ -244,7 +244,7 @@
             <property name="orientation">vertical</property>
             <property name="spacing">5</property>
             <child>
-              <object class="GtkBox" id="vbox3">
+              <object class="GtkBox">
                 <property name="visible">True</property>
                 <property name="can-focus">False</property>
                 <property name="orientation">vertical</property>
@@ -293,7 +293,7 @@
             </child>
             <child>
               <!-- n-columns=2 n-rows=3 -->
-              <object class="GtkGrid" id="table2">
+              <object class="GtkGrid">
                 <property name="visible">True</property>
                 <property name="can-focus">False</property>
                 <property name="row-spacing">8</property>
@@ -463,7 +463,7 @@
     <property name="default-width">440</property>
     <property name="default-height">250</property>
     <child>
-      <object class="GtkBox" id="vbox1">
+      <object class="GtkBox">
         <property name="visible">True</property>
         <property name="can-focus">False</property>
         <property name="orientation">vertical</property>
@@ -490,7 +490,7 @@
                           <object class="GtkLabel" id="sp_gen_data">
                             <property name="visible">True</property>
                             <property name="can-focus">False</property>
-                            <property name="label">-</property>
+                            <property name="label">--</property>
                             <property name="use-markup">True</property>
                             <property name="xalign">0</property>
                           </object>
@@ -509,7 +509,7 @@
                         <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
                         <property name="margin-top">5</property>
                         <property name="margin-bottom">5</property>
-                        <property name="label">-</property>
+                        <property name="label">--</property>
                         <property name="use-markup">True</property>
                         <property name="selectable">True</property>
                         <property name="xalign">0</property>
@@ -537,7 +537,7 @@
                         <property name="visible">True</property>
                         <property name="can-focus">False</property>
                         <property name="margin-start">10</property>
-                        <property name="label">-</property>
+                        <property name="label">--</property>
                         <property name="use-markup">True</property>
                         <property name="xalign">0</property>
                       </object>
@@ -558,7 +558,7 @@
             </child>
             <child>
               <!-- n-columns=2 n-rows=6 -->
-              <object class="GtkGrid" id="table1">
+              <object class="GtkGrid">
                 <property name="can-focus">False</property>
                 <property name="row-spacing">8</property>
                 <property name="column-spacing">15</property>
@@ -666,7 +666,7 @@
                   </packing>
                 </child>
                 <child>
-                  <object class="GtkLabel" id="label1">
+                  <object class="GtkLabel">
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
                     <property name="label" translatable="yes">CITES:</property>
@@ -682,7 +682,7 @@
                   </packing>
                 </child>
                 <child>
-                  <object class="GtkLabel" id="label9">
+                  <object class="GtkLabel">
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
                     <property name="label" translatable="yes">Awards:</property>
@@ -698,7 +698,7 @@
                   </packing>
                 </child>
                 <child>
-                  <object class="GtkLabel" id="label4">
+                  <object class="GtkLabel">
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
                     <property name="label" translatable="yes">Habit:</property>
@@ -714,7 +714,7 @@
                   </packing>
                 </child>
                 <child>
-                  <object class="GtkLabel" id="sp_nplants_label1">
+                  <object class="GtkLabel">
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
                     <property name="label" translatable="yes">Living Plants:</property>
@@ -749,7 +749,7 @@
               </packing>
             </child>
             <child>
-              <object class="GtkSeparator" id="hseparator1">
+              <object class="GtkSeparator">
                 <property name="visible">True</property>
                 <property name="can-focus">False</property>
               </object>
@@ -797,7 +797,7 @@
                   </packing>
                 </child>
                 <child>
-                  <object class="GtkLabel" id="label8">
+                  <object class="GtkLabel">
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
                     <property name="label" translatable="yes">Distribution for label:</property>
@@ -885,7 +885,7 @@
       </object>
     </child>
   </object>
-  <object class="GtkWindow" id="splash_window">
+  <object class="GtkWindow">
     <property name="can-focus">False</property>
     <child>
       <object class="GtkBox" id="splash_vbox">
@@ -895,14 +895,14 @@
         <property name="spacing">16</property>
         <child>
           <!-- n-columns=4 n-rows=7 -->
-          <object class="GtkGrid" id="splash_table">
+          <object class="GtkGrid">
             <property name="visible">True</property>
             <property name="can-focus">False</property>
             <property name="row-spacing">2</property>
             <property name="column-spacing">2</property>
             <property name="column-homogeneous">True</property>
             <child>
-              <object class="GtkLabel" id="splash_nspc_label">
+              <object class="GtkLabel">
                 <property name="visible">True</property>
                 <property name="can-focus">False</property>
                 <property name="margin-end">6</property>
@@ -921,7 +921,7 @@
               </packing>
             </child>
             <child>
-              <object class="GtkLabel" id="splash_ngen_label">
+              <object class="GtkLabel">
                 <property name="visible">True</property>
                 <property name="can-focus">False</property>
                 <property name="margin-end">6</property>
@@ -940,7 +940,7 @@
               </packing>
             </child>
             <child>
-              <object class="GtkLabel" id="splash_nfam_label">
+              <object class="GtkLabel">
                 <property name="visible">True</property>
                 <property name="can-focus">False</property>
                 <property name="margin-end">6</property>
@@ -959,7 +959,7 @@
               </packing>
             </child>
             <child>
-              <object class="GtkLabel" id="splash_tot_label">
+              <object class="GtkLabel">
                 <property name="visible">True</property>
                 <property name="can-focus">False</property>
                 <property name="hexpand">True</property>
@@ -975,7 +975,7 @@
               </packing>
             </child>
             <child>
-              <object class="GtkLabel" id="splash_nacc_label">
+              <object class="GtkLabel">
                 <property name="visible">True</property>
                 <property name="can-focus">False</property>
                 <property name="margin-end">6</property>
@@ -994,7 +994,7 @@
               </packing>
             </child>
             <child>
-              <object class="GtkLabel" id="splash_nplt_label">
+              <object class="GtkLabel">
                 <property name="visible">True</property>
                 <property name="can-focus">False</property>
                 <property name="margin-end">6</property>
@@ -1013,7 +1013,7 @@
               </packing>
             </child>
             <child>
-              <object class="GtkLabel" id="splash_nloc_label">
+              <object class="GtkLabel">
                 <property name="visible">True</property>
                 <property name="can-focus">False</property>
                 <property name="margin-end">6</property>
@@ -1032,12 +1032,12 @@
               </packing>
             </child>
             <child>
-              <object class="GtkViewport" id="splash_nfamtot_viewport">
+              <object class="GtkViewport">
                 <property name="visible">True</property>
                 <property name="can-focus">False</property>
                 <property name="shadow-type">etched-out</property>
                 <child>
-                  <object class="GtkEventBox" id="splash_nfamtot_ebox">
+                  <object class="GtkEventBox">
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
                     <property name="border-width">2</property>
@@ -1048,7 +1048,7 @@
                         <property name="margin-top">8</property>
                         <property name="margin-bottom">8</property>
                         <property name="hexpand">True</property>
-                        <property name="label">-</property>
+                        <property name="label">--</property>
                         <attributes>
                           <attribute name="weight" value="bold"/>
                         </attributes>
@@ -1063,12 +1063,12 @@
               </packing>
             </child>
             <child>
-              <object class="GtkViewport" id="splash_nplttot_viewport">
+              <object class="GtkViewport">
                 <property name="visible">True</property>
                 <property name="can-focus">False</property>
                 <property name="shadow-type">etched-out</property>
                 <child>
-                  <object class="GtkEventBox" id="splash_nplttot_ebox">
+                  <object class="GtkEventBox">
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
                     <property name="border-width">2</property>
@@ -1078,7 +1078,7 @@
                         <property name="can-focus">False</property>
                         <property name="margin-top">8</property>
                         <property name="margin-bottom">8</property>
-                        <property name="label">-</property>
+                        <property name="label">--</property>
                         <attributes>
                           <attribute name="weight" value="bold"/>
                         </attributes>
@@ -1093,12 +1093,12 @@
               </packing>
             </child>
             <child>
-              <object class="GtkViewport" id="splash_nacctot_viewport">
+              <object class="GtkViewport">
                 <property name="visible">True</property>
                 <property name="can-focus">False</property>
                 <property name="shadow-type">etched-out</property>
                 <child>
-                  <object class="GtkEventBox" id="splash_nacctot_ebox">
+                  <object class="GtkEventBox">
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
                     <property name="border-width">2</property>
@@ -1108,7 +1108,7 @@
                         <property name="can-focus">False</property>
                         <property name="margin-top">8</property>
                         <property name="margin-bottom">8</property>
-                        <property name="label">-</property>
+                        <property name="label">--</property>
                         <attributes>
                           <attribute name="weight" value="bold"/>
                         </attributes>
@@ -1123,12 +1123,12 @@
               </packing>
             </child>
             <child>
-              <object class="GtkViewport" id="splash_ngentot_viewport">
+              <object class="GtkViewport">
                 <property name="visible">True</property>
                 <property name="can-focus">False</property>
                 <property name="shadow-type">etched-out</property>
                 <child>
-                  <object class="GtkEventBox" id="splash_ngentot_ebox">
+                  <object class="GtkEventBox">
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
                     <property name="border-width">2</property>
@@ -1138,7 +1138,7 @@
                         <property name="can-focus">False</property>
                         <property name="margin-top">8</property>
                         <property name="margin-bottom">8</property>
-                        <property name="label">-</property>
+                        <property name="label">--</property>
                         <attributes>
                           <attribute name="weight" value="bold"/>
                         </attributes>
@@ -1153,12 +1153,12 @@
               </packing>
             </child>
             <child>
-              <object class="GtkViewport" id="splash_nspctot_viewport">
+              <object class="GtkViewport">
                 <property name="visible">True</property>
                 <property name="can-focus">False</property>
                 <property name="shadow-type">etched-out</property>
                 <child>
-                  <object class="GtkEventBox" id="splash_nspctot_ebox">
+                  <object class="GtkEventBox">
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
                     <property name="border-width">2</property>
@@ -1168,7 +1168,7 @@
                         <property name="can-focus">False</property>
                         <property name="margin-top">8</property>
                         <property name="margin-bottom">8</property>
-                        <property name="label">-</property>
+                        <property name="label">--</property>
                         <attributes>
                           <attribute name="weight" value="bold"/>
                         </attributes>
@@ -1183,12 +1183,12 @@
               </packing>
             </child>
             <child>
-              <object class="GtkViewport" id="splash_nloctot_viewport">
+              <object class="GtkViewport">
                 <property name="visible">True</property>
                 <property name="can-focus">False</property>
                 <property name="shadow-type">etched-out</property>
                 <child>
-                  <object class="GtkEventBox" id="splash_nloctot_ebox">
+                  <object class="GtkEventBox">
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
                     <property name="border-width">2</property>
@@ -1198,7 +1198,7 @@
                         <property name="can-focus">False</property>
                         <property name="margin-top">8</property>
                         <property name="margin-bottom">8</property>
-                        <property name="label">-</property>
+                        <property name="label">--</property>
                         <attributes>
                           <attribute name="weight" value="bold"/>
                         </attributes>
@@ -1213,7 +1213,7 @@
               </packing>
             </child>
             <child>
-              <object class="GtkLabel" id="splash_use_label">
+              <object class="GtkLabel">
                 <property name="visible">True</property>
                 <property name="can-focus">False</property>
                 <property name="hexpand">True</property>
@@ -1229,12 +1229,12 @@
               </packing>
             </child>
             <child>
-              <object class="GtkViewport" id="splash_nfamuse_viewport">
+              <object class="GtkViewport">
                 <property name="visible">True</property>
                 <property name="can-focus">False</property>
                 <property name="shadow-type">etched-out</property>
                 <child>
-                  <object class="GtkEventBox" id="splash_nfamuse_ebox">
+                  <object class="GtkEventBox">
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
                     <property name="border-width">2</property>
@@ -1245,7 +1245,7 @@
                         <property name="margin-top">8</property>
                         <property name="margin-bottom">8</property>
                         <property name="hexpand">True</property>
-                        <property name="label">-</property>
+                        <property name="label">--</property>
                         <attributes>
                           <attribute name="weight" value="bold"/>
                         </attributes>
@@ -1260,12 +1260,12 @@
               </packing>
             </child>
             <child>
-              <object class="GtkViewport" id="splash_ngenuse_viewport">
+              <object class="GtkViewport">
                 <property name="visible">True</property>
                 <property name="can-focus">False</property>
                 <property name="shadow-type">etched-out</property>
                 <child>
-                  <object class="GtkEventBox" id="splash_ngenuse_ebox">
+                  <object class="GtkEventBox">
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
                     <property name="border-width">2</property>
@@ -1275,7 +1275,7 @@
                         <property name="can-focus">False</property>
                         <property name="margin-top">8</property>
                         <property name="margin-bottom">8</property>
-                        <property name="label">-</property>
+                        <property name="label">--</property>
                         <attributes>
                           <attribute name="weight" value="bold"/>
                         </attributes>
@@ -1290,12 +1290,12 @@
               </packing>
             </child>
             <child>
-              <object class="GtkViewport" id="splash_nspcuse_viewport">
+              <object class="GtkViewport">
                 <property name="visible">True</property>
                 <property name="can-focus">False</property>
                 <property name="shadow-type">etched-out</property>
                 <child>
-                  <object class="GtkEventBox" id="splash_nspcuse_ebox">
+                  <object class="GtkEventBox">
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
                     <property name="border-width">2</property>
@@ -1305,7 +1305,7 @@
                         <property name="can-focus">False</property>
                         <property name="margin-top">8</property>
                         <property name="margin-bottom">8</property>
-                        <property name="label">-</property>
+                        <property name="label">--</property>
                         <attributes>
                           <attribute name="weight" value="bold"/>
                         </attributes>
@@ -1320,12 +1320,12 @@
               </packing>
             </child>
             <child>
-              <object class="GtkViewport" id="splash_naccuse_viewport">
+              <object class="GtkViewport">
                 <property name="visible">True</property>
                 <property name="can-focus">False</property>
                 <property name="shadow-type">etched-out</property>
                 <child>
-                  <object class="GtkEventBox" id="splash_naccuse_ebox">
+                  <object class="GtkEventBox">
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
                     <property name="border-width">2</property>
@@ -1335,7 +1335,7 @@
                         <property name="can-focus">False</property>
                         <property name="margin-top">8</property>
                         <property name="margin-bottom">8</property>
-                        <property name="label">-</property>
+                        <property name="label">--</property>
                         <attributes>
                           <attribute name="weight" value="bold"/>
                         </attributes>
@@ -1350,12 +1350,12 @@
               </packing>
             </child>
             <child>
-              <object class="GtkViewport" id="splash_npltnot_viewport">
+              <object class="GtkViewport">
                 <property name="visible">True</property>
                 <property name="can-focus">False</property>
                 <property name="shadow-type">etched-out</property>
                 <child>
-                  <object class="GtkEventBox" id="splash_npltnot_ebox">
+                  <object class="GtkEventBox">
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
                     <property name="border-width">2</property>
@@ -1365,7 +1365,7 @@
                         <property name="can-focus">False</property>
                         <property name="margin-top">8</property>
                         <property name="margin-bottom">8</property>
-                        <property name="label">-</property>
+                        <property name="label">--</property>
                         <attributes>
                           <attribute name="weight" value="bold"/>
                         </attributes>
@@ -1380,12 +1380,12 @@
               </packing>
             </child>
             <child>
-              <object class="GtkViewport" id="splash_npltuse_viewport">
+              <object class="GtkViewport">
                 <property name="visible">True</property>
                 <property name="can-focus">False</property>
                 <property name="shadow-type">etched-out</property>
                 <child>
-                  <object class="GtkEventBox" id="splash_npltuse_ebox">
+                  <object class="GtkEventBox">
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
                     <property name="border-width">2</property>
@@ -1395,7 +1395,7 @@
                         <property name="can-focus">False</property>
                         <property name="margin-top">8</property>
                         <property name="margin-bottom">8</property>
-                        <property name="label">-</property>
+                        <property name="label">--</property>
                         <attributes>
                           <attribute name="weight" value="bold"/>
                         </attributes>
@@ -1410,12 +1410,12 @@
               </packing>
             </child>
             <child>
-              <object class="GtkViewport" id="splash_nlocuse_viewport">
+              <object class="GtkViewport">
                 <property name="visible">True</property>
                 <property name="can-focus">False</property>
                 <property name="shadow-type">etched-out</property>
                 <child>
-                  <object class="GtkEventBox" id="splash_nlocuse_ebox">
+                  <object class="GtkEventBox">
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
                     <property name="border-width">2</property>
@@ -1425,7 +1425,7 @@
                         <property name="can-focus">False</property>
                         <property name="margin-top">8</property>
                         <property name="margin-bottom">8</property>
-                        <property name="label">-</property>
+                        <property name="label">--</property>
                         <attributes>
                           <attribute name="weight" value="bold"/>
                         </attributes>
@@ -1440,12 +1440,12 @@
               </packing>
             </child>
             <child>
-              <object class="GtkViewport" id="splash_naccnot_viewport">
+              <object class="GtkViewport">
                 <property name="visible">True</property>
                 <property name="can-focus">False</property>
                 <property name="shadow-type">etched-out</property>
                 <child>
-                  <object class="GtkEventBox" id="splash_naccnot_ebox">
+                  <object class="GtkEventBox">
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
                     <property name="border-width">2</property>
@@ -1455,7 +1455,7 @@
                         <property name="can-focus">False</property>
                         <property name="margin-top">8</property>
                         <property name="margin-bottom">8</property>
-                        <property name="label">-</property>
+                        <property name="label">--</property>
                         <attributes>
                           <attribute name="weight" value="bold"/>
                         </attributes>
@@ -1470,12 +1470,12 @@
               </packing>
             </child>
             <child>
-              <object class="GtkViewport" id="splash_nspcnot_viewport">
+              <object class="GtkViewport">
                 <property name="visible">True</property>
                 <property name="can-focus">False</property>
                 <property name="shadow-type">etched-out</property>
                 <child>
-                  <object class="GtkEventBox" id="splash_nspcnot_ebox">
+                  <object class="GtkEventBox">
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
                     <property name="border-width">2</property>
@@ -1485,7 +1485,7 @@
                         <property name="can-focus">False</property>
                         <property name="margin-top">8</property>
                         <property name="margin-bottom">8</property>
-                        <property name="label">-</property>
+                        <property name="label">--</property>
                         <attributes>
                           <attribute name="weight" value="bold"/>
                         </attributes>
@@ -1500,12 +1500,12 @@
               </packing>
             </child>
             <child>
-              <object class="GtkViewport" id="splash_ngennot_viewport">
+              <object class="GtkViewport">
                 <property name="visible">True</property>
                 <property name="can-focus">False</property>
                 <property name="shadow-type">etched-out</property>
                 <child>
-                  <object class="GtkEventBox" id="splash_ngennot_ebox">
+                  <object class="GtkEventBox">
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
                     <property name="border-width">2</property>
@@ -1515,7 +1515,7 @@
                         <property name="can-focus">False</property>
                         <property name="margin-top">8</property>
                         <property name="margin-bottom">8</property>
-                        <property name="label">-</property>
+                        <property name="label">--</property>
                         <attributes>
                           <attribute name="weight" value="bold"/>
                         </attributes>
@@ -1530,12 +1530,12 @@
               </packing>
             </child>
             <child>
-              <object class="GtkViewport" id="splash_nfamnot_viewport">
+              <object class="GtkViewport">
                 <property name="visible">True</property>
                 <property name="can-focus">False</property>
                 <property name="shadow-type">etched-out</property>
                 <child>
-                  <object class="GtkEventBox" id="splash_nfamnot_ebox">
+                  <object class="GtkEventBox">
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
                     <property name="border-width">2</property>
@@ -1546,7 +1546,7 @@
                         <property name="margin-top">8</property>
                         <property name="margin-bottom">8</property>
                         <property name="hexpand">True</property>
-                        <property name="label">-</property>
+                        <property name="label">--</property>
                         <attributes>
                           <attribute name="weight" value="bold"/>
                         </attributes>
@@ -1561,7 +1561,7 @@
               </packing>
             </child>
             <child>
-              <object class="GtkLabel" id="splash_not_label">
+              <object class="GtkLabel">
                 <property name="visible">True</property>
                 <property name="can-focus">False</property>
                 <property name="hexpand">True</property>
@@ -1577,12 +1577,12 @@
               </packing>
             </child>
             <child>
-              <object class="GtkViewport" id="splash_nlocnot_viewport">
+              <object class="GtkViewport">
                 <property name="visible">True</property>
                 <property name="can-focus">False</property>
                 <property name="shadow-type">etched-out</property>
                 <child>
-                  <object class="GtkEventBox" id="splash_nlocnot_ebox">
+                  <object class="GtkEventBox">
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
                     <property name="border-width">2</property>
@@ -1592,7 +1592,7 @@
                         <property name="can-focus">False</property>
                         <property name="margin-top">8</property>
                         <property name="margin-bottom">8</property>
-                        <property name="label">-</property>
+                        <property name="label">--</property>
                         <attributes>
                           <attribute name="weight" value="bold"/>
                         </attributes>
@@ -1764,7 +1764,7 @@
               </packing>
             </child>
             <child>
-              <object class="GtkLabel" id="label18">
+              <object class="GtkLabel">
                 <property name="visible">True</property>
                 <property name="can-focus">False</property>
                 <property name="margin-end">8</property>
@@ -1792,7 +1792,7 @@
                 <property name="tooltip-text" translatable="yes">edit stored queries</property>
                 <signal name="clicked" handler="on_splash_stqr_button_clicked" swapped="no"/>
                 <child>
-                  <object class="GtkImage" id="image1">
+                  <object class="GtkImage">
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
                     <property name="icon-name">document-properties-symbolic</property>

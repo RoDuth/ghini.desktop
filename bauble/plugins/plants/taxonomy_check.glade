@@ -8,12 +8,12 @@
     <property name="border_width">5</property>
     <property name="type_hint">dialog</property>
     <child internal-child="vbox">
-      <object class="GtkVBox" id="dialog-vbox1">
+      <object class="GtkVBox">
         <property name="visible">True</property>
         <property name="can_focus">False</property>
         <property name="spacing">2</property>
         <child>
-          <object class="GtkHBox" id="hbox1">
+          <object class="GtkHBox" >
             <property name="visible">True</property>
             <property name="can_focus">False</property>
             <property name="homogeneous">True</property>
@@ -29,7 +29,7 @@
                     <property name="can_focus">False</property>
                     <property name="left_padding">12</property>
                     <child>
-                      <object class="GtkVBox" id="vbox1">
+                      <object class="GtkVBox">
                         <property name="visible">True</property>
                         <property name="can_focus">False</property>
                         <child>
@@ -49,7 +49,7 @@
                           </packing>
                         </child>
                         <child>
-                          <object class="GtkHBox" id="hbox2">
+                          <object class="GtkHBox">
                             <property name="visible">True</property>
                             <property name="can_focus">False</property>
                             <child>
@@ -79,7 +79,7 @@
                                 <property name="use_action_appearance">False</property>
                                 <signal name="clicked" handler="on_filebtnbrowse_clicked" swapped="no"/>
                                 <child>
-                                  <object class="GtkImage" id="image9">
+                                  <object class="GtkImage">
                                     <property name="visible">True</property>
                                     <property name="can_focus">False</property>
                                     <property name="xpad">3</property>
@@ -116,11 +116,11 @@
                                 <property name="use_action_appearance">False</property>
                                 <signal name="clicked" handler="on_copy_to_clipboard_button_clicked" swapped="no"/>
                                 <child>
-                                  <object class="GtkHBox" id="hbox6">
+                                  <object class="GtkHBox">
                                     <property name="visible">True</property>
                                     <property name="can_focus">False</property>
                                     <child>
-                                      <object class="GtkImage" id="image4">
+                                      <object class="GtkImage">
                                         <property name="visible">True</property>
                                         <property name="can_focus">False</property>
                                         <property name="tooltip_text" translatable="yes">copy result selection to clipboard</property>
@@ -133,7 +133,7 @@
                                       </packing>
                                     </child>
                                     <child>
-                                      <object class="GtkLabel" id="label6">
+                                      <object class="GtkLabel">
                                         <property name="visible">True</property>
                                         <property name="can_focus">False</property>
                                         <property name="label" translatable="yes">copy</property>
@@ -162,11 +162,11 @@
                                 <property name="use_action_appearance">False</property>
                                 <signal name="clicked" handler="on_tnrs_browse_button_clicked" swapped="no"/>
                                 <child>
-                                  <object class="GtkHBox" id="hbox7">
+                                  <object class="GtkHBox">
                                     <property name="visible">True</property>
                                     <property name="can_focus">False</property>
                                     <child>
-                                      <object class="GtkImage" id="image8">
+                                      <object class="GtkImage">
                                         <property name="visible">True</property>
                                         <property name="can_focus">False</property>
                                         <property name="stock">gtk-find</property>
@@ -178,7 +178,7 @@
                                       </packing>
                                     </child>
                                     <child>
-                                      <object class="GtkLabel" id="label7">
+                                      <object class="GtkLabel">
                                         <property name="visible">True</property>
                                         <property name="can_focus">False</property>
                                         <property name="label" translatable="yes">browse</property>
@@ -208,11 +208,11 @@ continue to next screen</property>
                                 <property name="use_action_appearance">False</property>
                                 <signal name="clicked" handler="on_frame1_next" swapped="no"/>
                                 <child>
-                                  <object class="GtkHBox" id="hbox8">
+                                  <object class="GtkHBox">
                                     <property name="visible">True</property>
                                     <property name="can_focus">False</property>
                                     <child>
-                                      <object class="GtkLabel" id="label8">
+                                      <object class="GtkLabel">
                                         <property name="visible">True</property>
                                         <property name="can_focus">False</property>
                                         <property name="label" translatable="yes">next</property>
@@ -224,7 +224,7 @@ continue to next screen</property>
                                       </packing>
                                     </child>
                                     <child>
-                                      <object class="GtkImage" id="image1">
+                                      <object class="GtkImage">
                                         <property name="visible">True</property>
                                         <property name="can_focus">False</property>
                                         <property name="stock">gtk-go-forward</property>
@@ -256,7 +256,7 @@ continue to next screen</property>
                   </object>
                 </child>
                 <child type="label">
-                  <object class="GtkLabel" id="label1">
+                  <object class="GtkLabel">
                     <property name="visible">True</property>
                     <property name="can_focus">False</property>
                     <property name="label" translatable="yes">TNRSapp - Taxonomic Name Resolution Service</property>
@@ -282,11 +282,11 @@ continue to next screen</property>
                     <property name="can_focus">False</property>
                     <property name="left_padding">12</property>
                     <child>
-                      <object class="GtkVBox" id="vbox2">
+                      <object class="GtkVBox">
                         <property name="visible">True</property>
                         <property name="can_focus">False</property>
                         <child>
-                          <object class="GtkScrolledWindow" id="scrolledwindow2">
+                          <object class="GtkScrolledWindow">
                             <property name="visible">True</property>
                             <property name="can_focus">True</property>
                             <property name="hscrollbar_policy">automatic</property>
@@ -367,7 +367,7 @@ continue to next screen</property>
                           </packing>
                         </child>
                         <child>
-                          <object class="GtkHBox" id="hbox3">
+                          <object class="GtkHBox">
                             <property name="visible">True</property>
                             <property name="can_focus">False</property>
                             <child>
@@ -379,7 +379,7 @@ continue to next screen</property>
                                 <property name="focus_on_click">False</property>
                                 <signal name="clicked" handler="on_toggle_all_clicked" swapped="no"/>
                                 <child>
-                                  <object class="GtkImage" id="image2">
+                                  <object class="GtkImage">
                                     <property name="visible">True</property>
                                     <property name="can_focus">False</property>
                                     <property name="stock">gtk-no</property>
@@ -420,11 +420,11 @@ continue to next screen</property>
                                 <property name="use_action_appearance">False</property>
                                 <signal name="clicked" handler="on_frame_previous" swapped="no"/>
                                 <child>
-                                  <object class="GtkHBox" id="hbox9">
+                                  <object class="GtkHBox">
                                     <property name="visible">True</property>
                                     <property name="can_focus">False</property>
                                     <child>
-                                      <object class="GtkImage" id="image7">
+                                      <object class="GtkImage">
                                         <property name="visible">True</property>
                                         <property name="can_focus">False</property>
                                         <property name="stock">gtk-go-back</property>
@@ -436,7 +436,7 @@ continue to next screen</property>
                                       </packing>
                                     </child>
                                     <child>
-                                      <object class="GtkLabel" id="label9">
+                                      <object class="GtkLabel">
                                         <property name="visible">True</property>
                                         <property name="can_focus">False</property>
                                         <property name="label" translatable="yes">prev</property>
@@ -469,11 +469,11 @@ continue to next screen</property>
                                 <property name="use_action_appearance">False</property>
                                 <signal name="clicked" handler="on_frame2_next" swapped="no"/>
                                 <child>
-                                  <object class="GtkHBox" id="hbox10">
+                                  <object class="GtkHBox">
                                     <property name="visible">True</property>
                                     <property name="can_focus">False</property>
                                     <child>
-                                      <object class="GtkLabel" id="label10">
+                                      <object class="GtkLabel">
                                         <property name="visible">True</property>
                                         <property name="can_focus">False</property>
                                         <property name="label" translatable="yes">next</property>
@@ -485,7 +485,7 @@ continue to next screen</property>
                                       </packing>
                                     </child>
                                     <child>
-                                      <object class="GtkImage" id="image10">
+                                      <object class="GtkImage">
                                         <property name="visible">True</property>
                                         <property name="can_focus">False</property>
                                         <property name="stock">gtk-go-forward</property>
@@ -517,7 +517,7 @@ continue to next screen</property>
                   </object>
                 </child>
                 <child type="label">
-                  <object class="GtkLabel" id="label2">
+                  <object class="GtkLabel">
                     <property name="visible">True</property>
                     <property name="can_focus">False</property>
                     <property name="label" translatable="yes">&lt;b&gt;Tick Off&lt;/b&gt;</property>
@@ -532,7 +532,7 @@ continue to next screen</property>
               </packing>
             </child>
             <child>
-              <object class="GtkFrame" id="frame3">
+              <object class="GtkFrame">
                 <property name="visible">True</property>
                 <property name="can_focus">False</property>
                 <property name="label_xalign">0</property>
@@ -543,11 +543,11 @@ continue to next screen</property>
                     <property name="can_focus">False</property>
                     <property name="left_padding">12</property>
                     <child>
-                      <object class="GtkVBox" id="vbox3">
+                      <object class="GtkVBox">
                         <property name="visible">True</property>
                         <property name="can_focus">False</property>
                         <child>
-                          <object class="GtkScrolledWindow" id="scrolledwindow3">
+                          <object class="GtkScrolledWindow">
                             <property name="visible">True</property>
                             <property name="can_focus">True</property>
                             <property name="hscrollbar_policy">automatic</property>
@@ -584,11 +584,11 @@ continue to next screen</property>
                                 <property name="use_action_appearance">False</property>
                                 <signal name="clicked" handler="on_frame_previous" swapped="no"/>
                                 <child>
-                                  <object class="GtkHBox" id="hbox11">
+                                  <object class="GtkHBox">
                                     <property name="visible">True</property>
                                     <property name="can_focus">False</property>
                                     <child>
-                                      <object class="GtkImage" id="image5">
+                                      <object class="GtkImage">
                                         <property name="visible">True</property>
                                         <property name="can_focus">False</property>
                                         <property name="stock">gtk-go-back</property>
@@ -600,7 +600,7 @@ continue to next screen</property>
                                       </packing>
                                     </child>
                                     <child>
-                                      <object class="GtkLabel" id="label11">
+                                      <object class="GtkLabel">
                                         <property name="visible">True</property>
                                         <property name="can_focus">False</property>
                                         <property name="label" translatable="yes">prev</property>
@@ -638,7 +638,7 @@ continue to next screen</property>
                   </object>
                 </child>
                 <child type="label">
-                  <object class="GtkLabel" id="label3">
+                  <object class="GtkLabel">
                     <property name="visible">True</property>
                     <property name="can_focus">False</property>
                     <property name="label" translatable="yes">&lt;b&gt;Review log report&lt;/b&gt;</property>
@@ -671,11 +671,11 @@ continue to next screen</property>
                 <property name="receives_default">True</property>
                 <property name="use_action_appearance">False</property>
                 <child>
-                  <object class="GtkHBox" id="hbox4">
+                  <object class="GtkHBox">
                     <property name="visible">True</property>
                     <property name="can_focus">False</property>
                     <child>
-                      <object class="GtkImage" id="image3">
+                      <object class="GtkImage">
                         <property name="visible">True</property>
                         <property name="can_focus">False</property>
                         <property name="stock">gtk-stop</property>
@@ -687,7 +687,7 @@ continue to next screen</property>
                       </packing>
                     </child>
                     <child>
-                      <object class="GtkLabel" id="label4">
+                      <object class="GtkLabel">
                         <property name="visible">True</property>
                         <property name="can_focus">False</property>
                         <property name="label" translatable="yes">Cancel</property>
@@ -714,11 +714,11 @@ continue to next screen</property>
                 <property name="receives_default">True</property>
                 <property name="use_action_appearance">False</property>
                 <child>
-                  <object class="GtkHBox" id="hbox5">
+                  <object class="GtkHBox">
                     <property name="visible">True</property>
                     <property name="can_focus">False</property>
                     <child>
-                      <object class="GtkImage" id="image6">
+                      <object class="GtkImage">
                         <property name="visible">True</property>
                         <property name="can_focus">False</property>
                         <property name="stock">gtk-yes</property>
@@ -730,7 +730,7 @@ continue to next screen</property>
                       </packing>
                     </child>
                     <child>
-                      <object class="GtkLabel" id="label5">
+                      <object class="GtkLabel">
                         <property name="visible">True</property>
                         <property name="can_focus">False</property>
                         <property name="label" translatable="yes">OK</property>

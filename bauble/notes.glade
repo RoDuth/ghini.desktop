@@ -8,12 +8,12 @@
     <property name="orientation">vertical</property>
     <property name="spacing">3</property>
     <child>
-      <object class="GtkBox" id="hbox4">
+      <object class="GtkBox">
         <property name="visible">True</property>
         <property name="can-focus">False</property>
         <child>
           <object class="GtkButton" id="notes_add_button">
-            <property name="label">Add</property>
+            <property name="label" translatable="yes">Add</property>
             <property name="visible">True</property>
             <property name="can-focus">True</property>
             <property name="receives-default">True</property>
@@ -36,7 +36,7 @@
       </packing>
     </child>
     <child>
-      <object class="GtkSeparator" id="hseparator1">
+      <object class="GtkSeparator">
         <property name="visible">True</property>
         <property name="can-focus">False</property>
       </object>
@@ -48,12 +48,12 @@
       </packing>
     </child>
     <child>
-      <object class="GtkScrolledWindow" id="scrolledwindow2">
+      <object class="GtkScrolledWindow">
         <property name="visible">True</property>
         <property name="can-focus">True</property>
         <property name="hscrollbar-policy">never</property>
         <child>
-          <object class="GtkViewport" id="viewport1">
+          <object class="GtkViewport">
             <property name="visible">True</property>
             <property name="can-focus">False</property>
             <property name="hexpand">True</property>

@@ -5,7 +5,7 @@
   <object class="GtkWindow" id="loc_window">
     <property name="can-focus">False</property>
     <child>
-      <object class="GtkBox" id="vbox1">
+      <object class="GtkBox">
         <property name="visible">True</property>
         <property name="can-focus">False</property>
         <child>
@@ -32,14 +32,14 @@
             </child>
             <child>
               <!-- n-columns=2 n-rows=2 -->
-              <object class="GtkGrid" id="table2">
+              <object class="GtkGrid">
                 <property name="visible">True</property>
                 <property name="can-focus">False</property>
                 <property name="row-spacing">8</property>
                 <property name="column-spacing">15</property>
                 <property name="row-homogeneous">True</property>
                 <child>
-                  <object class="GtkLabel" id="label7">
+                  <object class="GtkLabel">
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
                     <property name="label" translatable="yes"># of Plants:</property>
@@ -72,7 +72,7 @@
                   </packing>
                 </child>
                 <child>
-                  <object class="GtkLabel" id="label6">
+                  <object class="GtkLabel">
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
                     <property name="label" translatable="yes">GeoJSON Type:</property>
@@ -120,7 +120,7 @@
             <property name="border-width">5</property>
             <property name="orientation">vertical</property>
             <child>
-              <object class="GtkScrolledWindow" id="scrolledwindow1">
+              <object class="GtkScrolledWindow">
                 <property name="visible">True</property>
                 <property name="can-focus">False</property>
                 <property name="shadow-type">in</property>

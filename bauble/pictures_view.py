@@ -52,10 +52,10 @@ class PicturesView(Gtk.Box):
         glade_file = os.path.join(
             paths.lib_dir(), 'pictures_view.glade')
         self.widgets = utils.BuilderWidgets(glade_file)
-        self.widgets.remove_parent(self.widgets.scrolledwindow2)
-        parent.add(self.widgets.scrolledwindow2)
+        self.widgets.remove_parent(self.widgets.pics_scrolledwindow)
+        parent.add(self.widgets.pics_scrolledwindow)
         parent.show_all()
-        self.widgets.scrolledwindow2.show()
+        self.widgets.pics_scrolledwindow.show()
 
     def set_selection(self, selection):
         logger.debug("PicturesView.set_selection(%s)" % selection)

@@ -182,8 +182,8 @@ def init_location_comboentry(presenter, combo, on_select, required=True):
     the location code, location name and location string as well as selecting a
     location from a combo drop down.
 
-    :param presenter:
-    :param combo:
+    :param presenter: instance of GenericEditorPresenter
+    :param combo: a Gtk.ComboBox widget with a Gtk.Entry
     :param on_select: a one-parameter function
     """
     PROBLEM = 'UNKNOWN_LOCATION'

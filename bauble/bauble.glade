@@ -140,7 +140,7 @@
                     <property name="tooltip-text" translatable="yes">back to startup screen</property>
                     <property name="relief">none</property>
                     <child>
-                      <object class="GtkImage" id="image3">
+                      <object class="GtkImage">
                         <property name="visible">True</property>
                         <property name="can-focus">False</property>
                         <property name="icon-name">go-home-symbolic</property>
@@ -161,7 +161,7 @@
                     <property name="tooltip-text" translatable="yes">previous view</property>
                     <property name="relief">none</property>
                     <child>
-                      <object class="GtkImage" id="image4">
+                      <object class="GtkImage">
                         <property name="visible">True</property>
                         <property name="can-focus">False</property>
                         <property name="icon-name">go-previous-symbolic</property>
@@ -182,7 +182,7 @@
                     <property name="tooltip-text" translatable="yes">activate query builder</property>
                     <property name="relief">none</property>
                     <child>
-                      <object class="GtkImage" id="image2">
+                      <object class="GtkImage">
                         <property name="visible">True</property>
                         <property name="can-focus">True</property>
                         <property name="icon-name">edit-find-replace-symbolic</property>
@@ -230,7 +230,7 @@
                     <property name="tooltip-text" translatable="yes">execute the query</property>
                     <property name="relief">none</property>
                     <child>
-                      <object class="GtkImage" id="image1">
+                      <object class="GtkImage">
                         <property name="visible">True</property>
                         <property name="can-focus">True</property>
                         <property name="icon-name">edit-find-symbolic</property>
@@ -253,7 +253,7 @@
               </packing>
             </child>
             <child>
-              <object class="GtkBox" id="vbox1">
+              <object class="GtkBox">
                 <property name="visible">True</property>
                 <property name="can-focus">True</property>
                 <property name="orientation">vertical</property>
@@ -560,7 +560,7 @@
           </object>
         </child>
         <child type="tab">
-          <object class="GtkLabel" id="label1">
+          <object class="GtkLabel">
             <property name="visible">True</property>
             <property name="can-focus">False</property>
             <property name="label" translatable="yes">Preferences</property>
@@ -616,7 +616,7 @@
           </packing>
         </child>
         <child type="tab">
-          <object class="GtkLabel" id="label2">
+          <object class="GtkLabel">
             <property name="visible">True</property>
             <property name="can-focus">False</property>
             <property name="label" translatable="yes">Plugins</property>
@@ -654,7 +654,7 @@
                     <property name="orientation">vertical</property>
                     <property name="position">9999</property>
                     <child>
-                      <object class="GtkScrolledWindow" id="scrolledwindow1">
+                      <object class="GtkScrolledWindow">
                         <property name="visible">True</property>
                         <property name="can-focus">True</property>
                         <property name="hscrollbar-policy">never</property>
