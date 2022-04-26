@@ -468,6 +468,7 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
         values change in the model
         """
         super().set_model_attr(attr, value, validator)
+        self._dirty = True
         self.refresh_sensitivity()
 
     def refresh_sensitivity(self):
