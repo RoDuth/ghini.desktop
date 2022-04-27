@@ -1057,6 +1057,10 @@ class VoucherPresenter(editor.GenericEditorPresenter):
         treeview.set_cursor(path, column, start_editing=True)
 
 
+def species_comparer(row, string):
+    return species_to_string_matcher(row[0], string)
+
+
 @Gtk.Template(filename=str(Path(__file__).resolve().parent /
                            'acc_ver_box.glade'))
 class VerificationBox(Gtk.Box):
@@ -1125,9 +1129,12 @@ class VerificationBox(Gtk.Box):
         sp_get_completions = partial(generic_sp_get_completions,
                                      self.presenter().session)
 
-        self.presenter().assign_completions_handler(
-            self.prev_taxon_entry, sp_get_completions, self.on_sp_select,
-            comparer=lambda l, s: species_to_string_matcher(l[0], s))
+        on_prev_sp_select = partial(self.on_sp_select, attr='prev_species')
+
+        self.presenter().assign_completions_handler(self.prev_taxon_entry,
+                                                    sp_get_completions,
+                                                    on_prev_sp_select,
+                                                    comparer=species_comparer)
 
         self.presenter().view.attach_completion(
             self.new_taxon_entry,
@@ -1137,9 +1144,10 @@ class VerificationBox(Gtk.Box):
         if self.model.species:
             self.new_taxon_entry.set_text(self.model.species.str())
 
-        self.presenter().assign_completions_handler(
-            self.new_taxon_entry, sp_get_completions, self.on_sp_select,
-            comparer=lambda l, s: species_to_string_matcher(l[0], s))
+        self.presenter().assign_completions_handler(self.new_taxon_entry,
+                                                    sp_get_completions,
+                                                    self.on_sp_select,
+                                                    comparer=species_comparer)
 
         # adding a taxon implies setting the new_taxon_entry
         self.presenter().view.connect(self.taxon_add_button,
@@ -1193,11 +1201,11 @@ class VerificationBox(Gtk.Box):
         descr = model[treeiter][1]
         cell.set_property('markup', f'<b>{level}</b>  :  {descr}')
 
-    def on_sp_select(self, value):
+    def on_sp_select(self, value, attr='species'):
         # only set attr if is a species, i.e. not str (Avoids the first 2
         # letters prior to the completions handler kicking in.)
         if isinstance(value, Species):
-            self.set_model_attr('species', value)
+            self.set_model_attr(attr, value)
 
     def on_copy_to_taxon_general_clicked(self, _button):
         """Copy the selected verification's 'new taxon' into the parent
@@ -1854,7 +1862,7 @@ class AccessionEditorPresenter(editor.GenericEditorPresenter):
             'acc_species_entry',
             partial(generic_sp_get_completions, self.session),
             on_select=self.on_species_select,
-            comparer=lambda l, s: species_to_string_matcher(l[0], s)
+            comparer=species_comparer
         )
         self.assign_simple_handler('acc_prov_combo', 'prov_type')
         self.assign_simple_handler('acc_wild_prov_combo', 'wild_prov_status')
@@ -1967,14 +1975,11 @@ class AccessionEditorPresenter(editor.GenericEditorPresenter):
         if isinstance(value, str):
             value = Species.retrieve(self.session, {'species': value})
 
-        def set_model(v):
-            self.set_model_attr('species', v)
-            self.refresh_id_qual_rank_combo()
-
         for kid in self.view.widgets.message_box_parent.get_children():
             self.view.widgets.remove_parent(kid)
         if do_set:
-            set_model(value)
+            self.set_model_attr('species', value)
+            self.refresh_id_qual_rank_combo()
         if not value:
             return
         syn = (self.session.query(SpeciesSynonym)
