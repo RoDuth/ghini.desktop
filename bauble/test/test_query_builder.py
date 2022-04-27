@@ -282,7 +282,21 @@ class QueryBuilderTests(BaubleTestCase):
         qb.set_query("plant where id between 1 and 10")
         self.assertFalse(qb.validate())
 
-    def test_nonetype_query(self):
+    def test_empty_query(self):
+        import os
+        gladefilepath = os.path.join(paths.lib_dir(), "querybuilder.glade")
+        view = GenericEditorView(
+            gladefilepath,
+            parent=None,
+            root_widget_name='main_dialog')
+        qb = QueryBuilder(view)
+        query = "plant where notes.id = Empty"
+        qb.set_query(query)
+        self.assertTrue(qb.validate())
+        # should drop the attribute
+        self.assertEqual(qb.get_query(), "plant where notes = Empty")
+
+    def test_none_string_query(self):
         import os
         gladefilepath = os.path.join(paths.lib_dir(), "querybuilder.glade")
         view = GenericEditorView(
@@ -295,7 +309,7 @@ class QueryBuilderTests(BaubleTestCase):
         self.assertTrue(qb.validate())
         self.assertEqual(qb.get_query(), query)
 
-    def test_none_string_query(self):
+    def test_nonetype_query(self):
         import os
         gladefilepath = os.path.join(paths.lib_dir(), "querybuilder.glade")
         view = GenericEditorView(
@@ -411,10 +425,45 @@ class QueryBuilderTests(BaubleTestCase):
         )
         # it is removed when changed to a none date search
         from bauble.plugins.plants.family import Family
-        qb.expression_rows[0].on_schema_menu_activated(None, 'id', Family.id)
+        prop = Family.__mapper__.get_property('id')
+        qb.expression_rows[0].on_schema_menu_activated(None, 'id', prop)
         self.assertFalse(
             tree_model_has(qb.expression_rows[0].cond_combo.get_model(), 'on')
         )
+
+    def test_adding_date_field_sets_cond_to_on(self):
+        import os
+        gladefilepath = os.path.join(paths.lib_dir(), "querybuilder.glade")
+        view = GenericEditorView(
+            gladefilepath,
+            parent=None,
+            root_widget_name='main_dialog')
+        qb = QueryBuilder(view)
+        query = "family where epithet = Myrt"
+        qb.set_query(query)
+        self.assertTrue(qb.validate())
+        from bauble.plugins.plants.family import Family
+        prop = Family.__mapper__.get_property('_created')
+        qb.expression_rows[0].on_schema_menu_activated(None, '_created', prop)
+        self.assertEqual(
+            qb.expression_rows[0].cond_combo.get_active_text(), 'on'
+        )
+
+    def test_remove_button_removes_row(self):
+        import os
+        gladefilepath = os.path.join(paths.lib_dir(), "querybuilder.glade")
+        view = GenericEditorView(
+            gladefilepath,
+            parent=None,
+            root_widget_name='main_dialog')
+        qb = QueryBuilder(view)
+        qb.set_query('plant where id=0 or id=1 or id>10')
+        self.assertEqual(len(qb.expression_rows), 3)
+        qb.expression_rows[2].remove_button.emit('clicked')
+        self.assertEqual(len(qb.expression_rows), 2)
+        self.assertEqual(qb.get_query(), "plant where id = 0 or id = 1")
+        self.assertTrue(qb.validate())
+
 
 
 class TestQBP(BaubleTestCase):

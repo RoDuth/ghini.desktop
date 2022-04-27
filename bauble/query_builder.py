@@ -288,6 +288,10 @@ class ExpressionRow:
     def on_prop_button_clicked(_button, event, menu):
         menu.popup_at_pointer(event)
 
+    @staticmethod
+    def is_accepted_text(text):
+        return text in ('None'[:len(text)], 'Empty'[:len(text)])
+
     def on_value_changed(self, widget):
         """Call the QueryBuilder.validate() for this row.
 
@@ -296,8 +300,8 @@ class ExpressionRow:
         """
         # change to a standard entry if the user tries to enter none numbers
         if isinstance(widget, Gtk.SpinButton):
-            if not widget.get_text().isdigit():
-                text = widget.get_text()
+            text = widget.get_text()
+            if text and self.is_accepted_text(text):
                 focus = widget.has_focus()
                 top = self.grid.child_get_property(self.value_widget,
                                                    'top-attach')
@@ -307,7 +311,6 @@ class ExpressionRow:
                 self.value_widget = Gtk.Entry()
                 self.value_widget.connect('changed',
                                           self.on_number_value_changed)
-                self.value_widget.set_text(text)
                 self.value_widget.set_tooltip_text(
                     'Number or "None" for no value has been set'
                 )
@@ -315,18 +318,22 @@ class ExpressionRow:
                 self.grid.show_all()
                 if focus:
                     self.value_widget.grab_focus()
-        if isinstance(widget, Gtk.Entry):
+                self.value_widget.set_text(text)
+                self.value_widget.set_position(1)
+            self.value_widget.set_activates_default(True)
+        elif isinstance(widget, Gtk.Entry):
             if any(i in widget.get_text() for i in ['%', '_']):
                 self.cond_combo.set_active(self.CONDITIONS.index('like'))
             elif self.cond_combo.get_active_text() == 'like':
                 self.cond_combo.set_active(0)
+            self.value_widget.set_activates_default(True)
 
         self.presenter.validate()
 
     def on_date_value_changed(self, widget):
         """Loosely constrain text to None or numbers and datetime parts only"""
         val = widget.get_text()
-        if not val == 'None'[:len(val)]:
+        if not self.is_accepted_text(val):
             val = ''.join([i for i in val if i in ',/-.0123456789'])
             widget.set_text(val)
         self.on_value_changed(widget)
@@ -334,7 +341,7 @@ class ExpressionRow:
     def on_number_value_changed(self, widget):
         """Loosely constrain text to None or numbers parts only"""
         val = widget.get_text()
-        if not val == 'None'[:len(val)]:
+        if not self.is_accepted_text(val):
             val = ''.join([i for i in val if i in '-.0123456789'])
             widget.set_text(val)
         self.on_value_changed(widget)
@@ -348,6 +355,7 @@ class ExpressionRow:
         self.grid.remove(self.value_widget)
 
         # change the widget depending on the type of the selected property
+        logger.debug('prop = %s', prop)
         try:
             self.proptype = prop.columns[0].type
         except AttributeError:
@@ -372,6 +380,7 @@ class ExpressionRow:
         self.presenter.validate()
 
     def get_set_value_widget(self):
+        logger.debug('proptype = %s', self.proptype)
         if isinstance(self.proptype, bauble.btypes.Enum):
             return self.set_enum_widget
         if isinstance(self.proptype, Integer):
@@ -470,6 +479,7 @@ class ExpressionRow:
         for condition in conditions:
             self.cond_combo.append_text(condition)
         # set 'on' as default
+        logger.debug("setting condition to 'on'")
         self.cond_combo.set_active(len(conditions) - 1)
         self.cond_combo.handler_unblock(self.cond_handler)
         self.cond_combo.set_tooltip_text('How to search')
@@ -638,7 +648,7 @@ class QueryBuilder(GenericEditorPresenter):
     default_size = []
 
     def __init__(self, view=None):
-        super().__init__(self, view=view, refresh_view=False)
+        super().__init__(self, view=view, refresh_view=False, session=False)
 
         self.expression_rows = []
         self.mapper = None
@@ -742,7 +752,7 @@ class QueryBuilder(GenericEditorPresenter):
         self.view.get_window().resize(1, 1)
         self.view.widgets.expressions_table.show_all()
         # let user add more clauses
-        self.view.widgets.add_clause_button.props.sensitive = True
+        self.view.widgets.add_clause_button.set_sensitive(True)
 
     def validate(self):
         """Validate the search expression is a valid expression."""
@@ -764,7 +774,7 @@ class QueryBuilder(GenericEditorPresenter):
                 valid = False
                 break
 
-        self.view.widgets.confirm_button.props.sensitive = valid
+        self.view.widgets.confirm_button.set_sensitive(valid)
         return valid
 
     def remove_expression_row(self, row):
@@ -869,4 +879,6 @@ class QueryBuilder(GenericEditorPresenter):
                     if item[0] == val:
                         row.value_widget.set_active_iter(item.iter)
                         break
-            row.cond_combo.set_active(conditions.index(clause.operator))
+            # check for misplaced 'on'
+            if clause.operator in conditions:
+                row.cond_combo.set_active(conditions.index(clause.operator))

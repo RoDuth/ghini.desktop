@@ -43,6 +43,8 @@
                 <property name="visible">True</property>
                 <property name="can-focus">True</property>
                 <property name="receives-default">True</property>
+                <property name="can-default">True</property>
+                <property name="has-default">True</property>
               </object>
               <packing>
                 <property name="expand">False</property>
