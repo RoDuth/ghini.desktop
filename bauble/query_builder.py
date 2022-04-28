@@ -180,9 +180,9 @@ def parse_typed_value(value, proptype):
     elif value == 'Empty':
         value = EmptyToken()
     elif isinstance(proptype, (bauble.btypes.DateTime, bauble.btypes.Date)):
-        # btypes.DateTime/Date accepts string dates
-        if not any(value.count(i) == 2 for i in ['/', '.', '-']):
-            value = f'|datetime|{value}|'
+        # allow string dates e.g. 12th of April '22
+        if ' ' in value:
+            value = repr(value)
     elif isinstance(proptype, bauble.btypes.Boolean):
         # btypes.Boolean accepts strings and 0, 1
         if value not in ['True', 'False', 1, 0]:
@@ -330,14 +330,6 @@ class ExpressionRow:
 
         self.presenter.validate()
 
-    def on_date_value_changed(self, widget):
-        """Loosely constrain text to None or numbers and datetime parts only"""
-        val = widget.get_text()
-        if not self.is_accepted_text(val):
-            val = ''.join([i for i in val if i in ',/-.0123456789'])
-            widget.set_text(val)
-        self.on_value_changed(widget)
-
     def on_number_value_changed(self, widget):
         """Loosely constrain text to None or numbers parts only"""
         val = widget.get_text()
@@ -462,25 +454,29 @@ class ExpressionRow:
         utils.set_widget_value(self.value_widget,
                                val if val in values else 'False')
 
-    def set_date_widget(self, _prop, val):
+    def set_date_widget(self, prop, val):
         self.value_widget = Gtk.Entry()
         self.value_widget.set_tooltip_text(
             'Date (e.g. 1/1/2021), 0 for today, a negative number for '
             'number of days before today or "None" for no date has been '
-            'set'
+            'set.  Also accepts text dates (e.g. "15 Feb \'22") and "today" '
+            'or "yesterday"'
         )
-        self.value_widget.connect('changed', self.on_date_value_changed)
-        # set value - on_date_value_changed will clean up
+        self.value_widget.connect('changed', self.on_value_changed)
         self.value_widget.set_text(val)
         conditions = self.CONDITIONS.copy()
+        prev = self.cond_combo.get_active_text()
         conditions.append('on')
         self.cond_combo.handler_block(self.cond_handler)
         self.cond_combo.remove_all()
         for condition in conditions:
             self.cond_combo.append_text(condition)
         # set 'on' as default
-        logger.debug("setting condition to 'on'")
-        self.cond_combo.set_active(len(conditions) - 1)
+        if isinstance(prop.columns[0].type, bauble.btypes.DateTime):
+            logger.debug("setting condition to 'on'")
+            self.cond_combo.set_active(len(conditions) - 1)
+        else:
+            self.cond_combo.set_active(conditions.index(prev))
         self.cond_combo.handler_unblock(self.cond_handler)
         self.cond_combo.set_tooltip_text('How to search')
 
@@ -604,7 +600,8 @@ class BuiltQuery:
         try:
             self.parsed = self.query.parseString(search_string)
             self.is_valid = True
-        except ParseException:
+        except ParseException as e:
+            logger.debug('%s(%s)', type(e).__name__, e)
             self.is_valid = False
 
     @property

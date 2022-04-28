@@ -21,7 +21,7 @@ Custom database types.
 """
 # pylint: disable=abstract-method # re TypeDecorator
 
-from datetime import timezone
+from datetime import timezone, datetime, timedelta
 
 import dateutil.parser as date_parser
 from sqlalchemy import types
@@ -91,14 +91,23 @@ class Enum(types.TypeDecorator):
                               ) % dict(value=value, all_values=self.values))
         return value
 
-    def process_result_value(self, value, dialect):
-        """Process the value returned from the database."""
-        # if self.strict and value not in self.values:
-        #     raise ValueError(_('"%s" not in Enum.values') % value)
-        return value
-
     def copy(self, **_kwargs):
         return Enum(self.values, self.empty_to_none, self.strict)
+
+
+def get_date(string: str) -> datetime:
+    offset = None
+    if isinstance(string, float):
+        offset = string
+    elif string.strip().lower() == _('today'):
+        offset = 0
+    elif string.strip().lower() == _('yesterday'):
+        offset = -1
+    if offset is not None:
+        return (datetime.now().replace(
+            hour=0, minute=0, second=0, microsecond=0
+        ) + timedelta(offset))
+    return None
 
 
 class DateTime(types.TypeDecorator):
@@ -108,6 +117,19 @@ class DateTime(types.TypeDecorator):
     impl = types.DateTime
     _dayfirst = None
     _yearfirst = None
+
+    class comparator_factory(types.DateTime.Comparator):
+        # pylint: disable=invalid-name
+        def operate(self, op, *other, **kwargs):
+            vals = []
+            for val in other:
+                if isinstance(val, (str, float)):
+                    date = get_date(val)
+                    if date:
+                        val = date.astimezone(tz=timezone.utc)
+                vals.append(val)
+            other = tuple(vals)
+            return super().operate(op, *other)
 
     def process_bind_param(self, value, dialect):
         if not isinstance(value, str):
@@ -146,6 +168,19 @@ class Date(types.TypeDecorator):
     _dayfirst = None
     _yearfirst = None
 
+    class comparator_factory(types.Date.Comparator):
+        # pylint: disable=invalid-name
+        def operate(self, op, *other, **kwargs):
+            vals = []
+            for val in other:
+                if isinstance(val, (str, float)):
+                    date = get_date(val)
+                    if date:
+                        val = date
+                vals.append(val)
+            other = tuple(vals)
+            return super().operate(op, *other)
+
     def process_bind_param(self, value, dialect):
         if not isinstance(value, str):
             return value
@@ -163,9 +198,6 @@ class Date(types.TypeDecorator):
             result = date_parser.parse(value, dayfirst=Date._dayfirst,
                                        yearfirst=Date._yearfirst)
         return result.date()
-
-    def process_result_value(self, value, dialect):
-        return value
 
 
 class JSON(types.TypeDecorator):

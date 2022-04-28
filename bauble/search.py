@@ -21,7 +21,7 @@ Search functionailty.
 """
 
 from abc import ABC, abstractmethod
-from datetime import datetime, timedelta, timezone
+from datetime import timedelta, timezone
 import logging
 logger = logging.getLogger(__name__)
 
@@ -170,7 +170,7 @@ class ValueABC(ABC):
 class ValueToken(ValueABC):
 
     def __repr__(self):
-        return repr(self.value)
+        return str(self.value)
 
     def express(self):
         return self.value.express()
@@ -182,64 +182,12 @@ class StringToken(ValueABC):
         return f"'{self.value}'"
 
 
-class DateToken(ValueABC):
-
-    def __repr__(self):
-        return f"{self.value}"
-
-
 class NumericToken(ValueABC):
     def __init__(self, token):  # pylint: disable=super-init-not-called
         self.value = float(token[0])  # store the float value
 
     def __repr__(self):
-        return f"{self.value}"
-
-
-def smartdatetime(year_or_offset, *args):
-    """return either datetime.datetime, or a day with given offset.
-
-    When given only one argument, this is interpreted as an offset for
-    timedelta, and it is added to datetime.today().  If given more
-    arguments, it just behaves as datetime.datetime.
-    """
-    if not args:
-        return (datetime.now()
-                .replace(hour=0, minute=0, second=0, microsecond=0) +
-                timedelta(year_or_offset))
-    return datetime(year_or_offset, *args)
-
-
-def smartboolean(*args):
-    """translate args into boolean value
-
-    Result is True whenever first argument is not numerically zero nor
-    literally 'false'.  No arguments cause error.
-    """
-    if len(args) == 1:
-        try:
-            return float(args[0]) != 0.0
-        except (ValueError, TypeError):
-            return args[0].lower() != 'false'
-    return True
-
-
-class TypedValueToken(ValueABC):
-    # |<name>|<paramlist>|
-    constructor = {'datetime': (smartdatetime, int),
-                   'bool': (smartboolean, str)}
-
-    def __init__(self, token):  # pylint: disable=super-init-not-called
-        logger.debug('constructing typedvaluetoken %s', str(token))
-        try:
-            constructor, converter = self.constructor[token[1]]
-        except KeyError:
-            return
-        params = tuple(converter(i) for i in token[3].express())
-        self.value = constructor(*params)
-
-    def __repr__(self):
-        return f'{self.value}'
+        return str(self.value)
 
 
 class IdentifierAction:
@@ -289,8 +237,9 @@ class FilteredIdentifierAction:
         self.operation = OPERATIONS.get(self.filter_op)
 
     def __repr__(self):
-        return "%s[%s%s%s].%s" % ('.'.join(self.steps), self.filter_attr,
-                                  self.filter_op, self.filter_value, self.leaf)
+        return (f"{'.'.join(self.steps)}"
+                f"[{self.filter_attr}{self.filter_op}{self.filter_value}]"
+                f".{self.leaf}")
 
     def evaluate(self, env):
         """return pair (query, attribute)"""
@@ -325,7 +274,7 @@ class IdentExpression:
         self.operands = tokens[0][0::2]  # every second object is an operand
 
     def __repr__(self):
-        return "(%s %s %s)" % (self.operands[0], self.oper, self.operands[1])
+        return f"({self.operands[0]} {self.oper} {self.operands[1]})"
 
     def evaluate(self, env):
         query, attr = self.operands[0].evaluate(env)
@@ -356,15 +305,21 @@ class ElementSetExpression(IdentExpression):
 
 def get_datetime(value):
     from dateutil import parser
-    try:
-        # try parsing as iso8601 first
-        result = parser.isoparse(value)
-    except ValueError:
-        result = parser.parse(
-            value,
-            dayfirst=prefs.prefs[prefs.parse_dayfirst_pref],
-            yearfirst=prefs.prefs[prefs.parse_yearfirst_pref]
-        )
+    from .btypes import get_date
+    result = get_date(value)
+    if not result:
+        try:
+            # try parsing as iso8601 first
+            result = parser.isoparse(value)
+        except ValueError:
+            try:
+                result = parser.parse(
+                    value,
+                    dayfirst=prefs.prefs[prefs.parse_dayfirst_pref],
+                    yearfirst=prefs.prefs[prefs.parse_yearfirst_pref]
+                )
+            except ValueError:
+                result = parser.parse(value, fuzzy=True)
     return result.replace(hour=0, minute=0, second=0, microsecond=0)
 
 
@@ -374,7 +329,7 @@ class DateOnExpression(IdentExpression):
     def evaluate(self, env):
         query, attr = self.operands[0].evaluate(env)
         date_val = self.operands[1].express()
-        if isinstance(date_val, str):
+        if isinstance(date_val, (str, float)):
             date_val = get_datetime(date_val)
         if isinstance(attr.type, bauble.btypes.DateTime):
             logger.debug('is DateTime')
@@ -424,19 +379,13 @@ class BetweenExpressionAction:
         self.operands = tokens[0][0::2]  # every second object is an operand
 
     def __repr__(self):
-        return "(BETWEEN %s %s %s)" % tuple(self.operands)
+        return f"(BETWEEN {' '.join(str(i) for i in self.operands)})"
 
     def evaluate(self, env):
         query, attr = self.operands[0].evaluate(env)
 
-        def clause_low(low):
-            return low <= attr
-
-        def clause_high(high):
-            return attr <= high
-
-        return query.filter(and_(clause_low(self.operands[1].express()),
-                                 clause_high(self.operands[2].express())))
+        return query.filter(and_(self.operands[1].express() <= attr,
+                                 attr <= self.operands[2].express()))
 
     def needs_join(self, env):
         return [self.operands[0].needs_join(env)]
@@ -448,7 +397,7 @@ class UnaryLogical(ABC):
         self.oper, self.operand = tokens[0]
 
     def __repr__(self):
-        return "%s %s" % (self.name, str(self.operand))
+        return f"{self.name} {str(self.operand)}"
 
     def needs_join(self, env):
         return self.operand.needs_join(env)
@@ -470,7 +419,7 @@ class BinaryLogical(ABC):
         self.operands = tokens[0][0::2]  # every second object is an operand
 
     def __repr__(self):
-        return "(%s %s %s)" % (self.operands[0], self.name, self.operands[1])
+        return f"({self.operands[0]} {self.name} {self.operands[1]})"
 
     def needs_join(self, env):
         return (self.operands[0].needs_join(env) +
@@ -521,7 +470,7 @@ class ParenthesisedQuery:
         self.content = tokens[1]
 
     def __repr__(self):
-        return "(%s)" % self.content.__repr__()
+        return f"({self.content})"
 
     def evaluate(self, env):
         return self.content.evaluate(env)
@@ -539,7 +488,7 @@ class QueryAction:
         self.session = None
 
     def __repr__(self):
-        return "SELECT * FROM %s WHERE %s" % (self.domain, self.filter)
+        return f"SELECT * FROM {self.domain} WHERE {self.filter}"
 
     def invoke(self, search_strategy):
         """update search_strategy object with statement results
@@ -555,7 +504,7 @@ class QueryAction:
         domain = self.domain
         check(domain in search_strategy.domains or
               domain in search_strategy.shorthand,
-              'Unknown search domain: %s' % domain)
+              f'Unknown search domain: {domain}')
         self.domain = search_strategy.shorthand.get(domain, domain)
         self.domain = search_strategy.domains[domain][0]
         self.search_strategy = search_strategy
@@ -573,13 +522,13 @@ class QueryAction:
         return result
 
 
-class StatementAction:
+class StatementAction:  # pylint: disable=too-few-public-methods
     def __init__(self, tokens):
         self.content = tokens[0]
         self.invoke = self.content.invoke
 
     def __repr__(self):
-        return repr(self.content)
+        return str(self.content)
 
 
 class BinomialNameAction:
@@ -651,7 +600,7 @@ class DomainExpressionAction:
         self.values = tokens[2]
 
     def __repr__(self):
-        return "%s %s %s" % (self.domain, self.cond, self.values)
+        return f"{self.domain} {self.cond} {self.values}"
 
     def invoke(self, search_strategy):
         logger.debug('DomainExpressionAction:invoke')
@@ -679,10 +628,10 @@ class DomainExpressionAction:
 
         if self.cond in ('like', 'ilike'):
             def condition(col):
-                return lambda val: utils.ilike(mapper.c[col], '%s' % val)
+                return lambda val: utils.ilike(mapper.c[col], str(val))
         elif self.cond in ('contains', 'icontains', 'has', 'ihas'):
             def condition(col):
-                return lambda val: utils.ilike(mapper.c[col], '%%%s%%' % val)
+                return lambda val: utils.ilike(mapper.c[col], f'%%{val}%%')
         elif self.cond == '=':
             def condition(col):
                 return lambda val: mapper.c[col] == utils.nstr(val)
@@ -708,7 +657,7 @@ class AggregatingAction:
         self.identifier = tokens[2]
 
     def __repr__(self):
-        return "(%s %s)" % (self.function, self.identifier)
+        return f"({self.function} {self.identifier})"
 
     def needs_join(self, env):
         return [self.identifier.needs_join(env)]
@@ -788,16 +737,18 @@ class ValueListAction:
 wordStart, wordEnd = WordStart(), WordEnd()
 
 
-class SearchParser:
+class SearchParser:  # pylint: disable=too-few-public-methods
     """The parser for bauble.search.MapperSearch"""
 
     date_str = Regex(
         r'\d{1,4}[/.-]{1}\d{1,2}[/.-]{1}\d{1,4}'
-    ).setParseAction(DateToken)('date')
+    ).setParseAction(StringToken)('date')
     numeric_value = Regex(
         r'[-]?\d+(\.\d*)?([eE]\d+)?'
     ).setParseAction(NumericToken)('number')
+
     unquoted_string = Word(alphanums + alphas8bit + '%.-_*;:')
+
     string_value = (
         quotedString.setParseAction(removeQuotes) | unquoted_string
     ).setParseAction(StringToken)('string')
@@ -805,19 +756,7 @@ class SearchParser:
     none_token = Literal('None').setParseAction(NoneToken)
     empty_token = Literal('Empty').setParseAction(EmptyToken)
 
-    value_list = Forward()
-    typed_value = (
-        Literal("|") + unquoted_string + Literal("|") +
-        value_list + Literal("|")
-    ).setParseAction(TypedValueToken)
-    date_typed = (
-        Literal("|") + Literal("datetime") + Literal("|") +
-        value_list + Literal("|")
-    ).setParseAction(TypedValueToken)
-    date_value = (date_str | date_typed)
-
     value = (
-        typed_value |
         date_str |
         WordStart('0123456789.-e') + numeric_value + WordEnd('0123456789.-e') |
         none_token |
@@ -825,8 +764,7 @@ class SearchParser:
         string_value
     ).setParseAction(ValueToken)('value')
 
-    # pylint: disable=expression-not-assigned
-    value_list << Group(
+    value_list = Group(
         OneOrMore(value) ^ delimitedList(value)
     ).setParseAction(ValueListAction)('value_list')
 
@@ -875,7 +813,7 @@ class SearchParser:
                               ).setParseAction(IdentExpression) |
                         Group(identifier + binop_set + value_list
                               ).setParseAction(ElementSetExpression) |
-                        Group(identifier + binop_date + date_value
+                        Group(identifier + binop_date + value
                               ).setParseAction(DateOnExpression) |
                         Group(aggregated + binop + value
                               ).setParseAction(AggregatedExpression) |
@@ -884,6 +822,7 @@ class SearchParser:
     between_expression = Group(
         identifier + BETWEEN_ + value + AND_ + value
     ).setParseAction(BetweenExpressionAction)
+    # pylint: disable=expression-not-assigned
     query_expression << infixNotation(
         (ident_expression | between_expression),
         [(NOT_, 1, opAssoc.RIGHT, SearchNotAction),

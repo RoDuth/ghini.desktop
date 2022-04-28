@@ -106,61 +106,6 @@ class SearchParserTests(unittest.TestCase):
         results = parser.value.parseString('123.1')
         self.assertEqual(results.value.express(), 123.1)
 
-    def test_bool_typed_no_arguments(self):
-        "bool syntax needs at least one argument"
-
-        self.assertRaises(ParseException, parser.value.parseString, '|bool||')
-
-    def test_bool_typed_values(self):
-        "recognizes bool syntax"
-
-        results = parser.value.parseString('|bool|0|')
-        self.assertEqual(results.getName(), 'value')
-        self.assertEqual(results.value.express(), False)
-
-        results = parser.value.parseString('|bool|0.0|')
-        self.assertEqual(results.getName(), 'value')
-        self.assertEqual(results.value.express(), False)
-
-        results = parser.value.parseString('|bool|false|')
-        self.assertEqual(results.getName(), 'value')
-        self.assertEqual(results.value.express(), False)
-
-        results = parser.value.parseString('|bool|FalsE|')
-        self.assertEqual(results.getName(), 'value')
-        self.assertEqual(results.value.express(), False)
-
-        for i in ['True', 'true', 'TRUE', '"anything not false"', '"1"', '1', '1.1']:
-            results = parser.value.parseString('|bool|%s|' % i)
-            self.assertEqual(results.getName(), 'value')
-            self.assertEqual(results.value.express(), True)
-
-        for i in ['True', 'true', 'TRUE', '"anything not false"', '"1"', '1', '1.1']:
-            results = parser.value.parseString('|bool|abc, %s, 3|' % i)
-            self.assertEqual(results.getName(), 'value')
-            self.assertEqual(results.value.express(), True)
-
-    def test_datetime_typed_values(self):
-        "recognizes datetime syntax"
-
-        from datetime import datetime
-        results = parser.value.parseString('|datetime|1970,1,1|')
-        self.assertEqual(results.getName(), 'value')
-        self.assertEqual(results.value.express(), datetime(1970, 1, 1))
-
-    def test_datetime_typed_values_offset(self):
-        "recognizes datetime offset syntax"
-
-        from datetime import datetime, timedelta
-        today = datetime.today().replace(hour=0, minute=0, second=0, microsecond=0)
-        yesterday = today - timedelta(1)
-        results = parser.value.parseString('|datetime|0|')
-        self.assertEqual(results.getName(), 'value')
-        self.assertEqual(results.value.express(), today)
-        results = parser.value.parseString('|datetime|-1|')
-        self.assertEqual(results.getName(), 'value')
-        self.assertEqual(results.value.express(), yesterday)
-
     def test_value_token(self):
         "value should only return the first string or raise a parse exception"
 
@@ -699,57 +644,6 @@ class SearchTests(BaubleTestCase):
         results = mapper_search.search(s, self.session)
         self.assertEqual(set(results), set([genus21]))
 
-    def test_search_by_datetype_query(self):
-
-        import datetime
-        Family = self.Family
-        Genus = self.Genus
-        from bauble.plugins.plants.species_model import Species
-        from bauble.plugins.garden.accession import Accession
-        from bauble.plugins.garden.location import Location
-        from bauble.plugins.garden.plant import Plant
-        family2 = Family(family='family2')
-        g2 = Genus(family=family2, genus='genus2')
-        f3 = Family(family='fam3', qualifier='s. lat.')
-        g3 = Genus(family=f3, genus='Ixora')
-        sp = Species(sp="coccinea", genus=g3)
-        ac = Accession(species=sp, code='1979.0001')
-        lc = Location(name='loc1', code='loc1')
-        pp = Plant(accession=ac, code='01', location=lc, quantity=1)
-        pp2 = Plant(accession=ac, code='02', location=lc, quantity=1)
-        pp3 = Plant(accession=ac, code='03', location=lc, quantity=1)
-        from datetime import timezone
-        pp._last_updated = (datetime.datetime(2009, 2, 13)
-                            .astimezone(tz=timezone.utc))
-
-        two_days_ago = ((datetime.datetime.now() - datetime.timedelta(days=2))
-                        .astimezone(tz=timezone.utc))
-        pp3._last_updated = two_days_ago
-        logger.debug('two days ago: %s', two_days_ago)
-        self.session.add_all([family2, g2, f3, g3, sp, ac, lc, pp, pp2, pp3])
-        self.session.commit()
-
-        mapper_search = search.get_strategy('MapperSearch')
-        self.assertTrue(isinstance(mapper_search, search.MapperSearch))
-
-        s = 'plant where _last_updated < |datetime|2000,1,1|'
-        results = mapper_search.search(s, self.session)
-        self.assertEqual(results, set())
-
-        s = 'plant where _last_updated > |datetime|2000,1,1|'
-        results = mapper_search.search(s, self.session)
-        self.assertEqual(results, set([pp, pp2, pp3]))
-
-        s = 'plant where _last_updated on |datetime|0|'
-        results = mapper_search.search(s, self.session)
-        logger.debug('pp2 last updated: %s', pp2._last_updated)
-        self.assertEqual(results, set([pp2]))
-
-        # test "on" operator
-        s = 'plant where _last_updated on |datetime|-2|'
-        results = mapper_search.search(s, self.session)
-        self.assertEqual(results, set([pp3]))
-
     def test_search_by_datestring_query(self):
 
         import datetime
@@ -766,12 +660,19 @@ class SearchTests(BaubleTestCase):
         sp = Species(sp="coccinea", genus=g3)
         ac = Accession(species=sp, code='1979.0001')
         ac.date_recvd = datetime.date(2021, 11, 21)
+        a2 = Accession(species=sp, code='1979.0002')
+        a2.date_recvd = datetime.datetime.today()
         lc = Location(name='loc1', code='loc1')
         pp = Plant(accession=ac, code='01', location=lc, quantity=1)
+        p2 = Plant(accession=ac, code='02', location=lc, quantity=1)
         from datetime import timezone
         pp._last_updated = (datetime.datetime(2009, 2, 13)
                             .astimezone(tz=timezone.utc))
-        self.session.add_all([family2, g2, f3, g3, sp, ac, lc, pp])
+        yesterday = ((datetime.datetime.now() - datetime.timedelta(days=1))
+                     .astimezone(tz=timezone.utc))
+        p2._last_updated = yesterday
+
+        self.session.add_all([family2, g2, f3, g3, sp, ac, lc, pp, p2])
         self.session.commit()
 
         mapper_search = search.get_strategy('MapperSearch')
@@ -782,9 +683,17 @@ class SearchTests(BaubleTestCase):
         results = mapper_search.search(s, self.session)
         self.assertEqual(results, set())
 
+        s = 'plant where _created > yesterday'
+        results = mapper_search.search(s, self.session)
+        self.assertEqual(results, {pp, p2})
+
+        s = 'plant where _created > -5'
+        results = mapper_search.search(s, self.session)
+        self.assertEqual(results, {pp, p2})
+
         s = 'plant where _last_updated > 1-1-2000'
         results = mapper_search.search(s, self.session)
-        self.assertEqual(results, set([pp]))
+        self.assertEqual(results, {pp, p2})
 
         # isoparse
         s = 'plant where _last_updated < 2000-01-01'
@@ -796,6 +705,15 @@ class SearchTests(BaubleTestCase):
         results = mapper_search.search(s, self.session)
         self.assertEqual(results, set([pp]))
 
+        s = ('plant where _last_updated between 13/2/2009 and 14/2/2009')
+        results = mapper_search.search(s, self.session)
+        self.assertEqual(results, {pp})
+
+        logger.debug('CREATED = %s', pp._created)
+        s = ('plant where _last_updated between yesterday and today')
+        results = mapper_search.search(s, self.session)
+        self.assertEqual(results, {p2})
+
         s = 'plant where _last_updated on 13/2/2009'
         results = mapper_search.search(s, self.session)
         self.assertEqual(results, set([pp]))
@@ -805,7 +723,39 @@ class SearchTests(BaubleTestCase):
         results = mapper_search.search(s, self.session)
         self.assertEqual(results, set([pp]))
 
+        s = 'plant where _created on 0'
+        results = mapper_search.search(s, self.session)
+        self.assertEqual(results, {pp, p2})
+
+        s = 'plant where _created on today'
+        results = mapper_search.search(s, self.session)
+        self.assertEqual(results, {pp, p2})
+
+        s = 'plant where _last_updated on -1'
+        results = mapper_search.search(s, self.session)
+        self.assertEqual(results, {p2})
+
+        s = 'plant where _last_updated on yesterday'
+        results = mapper_search.search(s, self.session)
+        self.assertEqual(results, {p2})
+
+        s = 'plant where _created > -10'
+        results = mapper_search.search(s, self.session)
+        self.assertEqual(results, {pp, p2})
+
         # Date type:
+        s = 'accession where date_recvd = today'
+        results = mapper_search.search(s, self.session)
+        self.assertEqual(results, {a2})
+
+        s = 'accession where date_recvd = 0'
+        results = mapper_search.search(s, self.session)
+        self.assertEqual(results, {a2})
+
+        s = 'accession where date_recvd > -10'
+        results = mapper_search.search(s, self.session)
+        self.assertEqual(results, {a2})
+
         s = 'accession where date_recvd on 21/11/2021'
         results = mapper_search.search(s, self.session)
         self.assertEqual(results, set([ac]))
@@ -1428,7 +1378,6 @@ class AggregatingFunctions(BaubleTestCase):
         self.assertEqual(result.id, 2)
 
     def test_count_just_parse(self):
-        'use BETWEEN value and value'
         import bauble.search
         SearchParser = bauble.search.SearchParser
         sp = SearchParser()

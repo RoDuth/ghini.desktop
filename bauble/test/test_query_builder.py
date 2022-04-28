@@ -49,11 +49,6 @@ class ParseTypedValue(BaubleTestCase):
 
     def test_parsed_typed_value_bool(self):
         from bauble.btypes import Boolean
-        result = parse_typed_value('true', Boolean())
-        self.assertEqual(result, '|bool|true|')
-        result = parse_typed_value('false', Boolean())
-        self.assertEqual(result, '|bool|false|')
-        # these should remain as strings
         result = parse_typed_value('True', Boolean())
         self.assertEqual(result, 'True')
         result = parse_typed_value('False', Boolean())
@@ -63,21 +58,22 @@ class ParseTypedValue(BaubleTestCase):
 
     def test_parse_typed_value_date(self):
         from bauble.btypes import DateTime, Date
-        result = parse_typed_value('2020,01,1', DateTime())
-        self.assertEqual(result, '|datetime|2020,01,1|')
-        result = parse_typed_value('2020,01,1', Date())
-        self.assertEqual(result, '|datetime|2020,01,1|')
-        result = parse_typed_value('-30', Date())
-        self.assertEqual(result, '|datetime|-30|')
-        # these should remain as strings
         result = parse_typed_value('1-1-20', Date())
         self.assertEqual(result, '1-1-20')
         result = parse_typed_value('1/1/20', Date())
         self.assertEqual(result, '1/1/20')
-        result = parse_typed_value('2020/1/1', Date())
+        result = parse_typed_value('2020/1/1', DateTime())
         self.assertEqual(result, '2020/1/1')
         result = parse_typed_value('2020-1-1', Date())
         self.assertEqual(result, '2020-1-1')
+        result = parse_typed_value("15 Feb 1999", Date())
+        self.assertEqual(result, "'15 Feb 1999'")
+        result = parse_typed_value("15 Feb '99", DateTime())
+        self.assertEqual(result, '"15 Feb \'99"')
+        result = parse_typed_value('yesterday', Date())
+        self.assertEqual(result, 'yesterday')
+        result = parse_typed_value('today', DateTime())
+        self.assertEqual(result, 'today')
 
     def test_parse_typed_value_none(self):
         result = parse_typed_value('None', None)
@@ -463,7 +459,6 @@ class QueryBuilderTests(BaubleTestCase):
         self.assertEqual(len(qb.expression_rows), 2)
         self.assertEqual(qb.get_query(), "plant where id = 0 or id = 1")
         self.assertTrue(qb.validate())
-
 
 
 class TestQBP(BaubleTestCase):
