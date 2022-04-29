@@ -539,7 +539,7 @@
                         <property name="shadow-type">none</property>
                         <child>
                           <!-- n-columns=2 n-rows=2 -->
-                          <object class="GtkGrid">
+                          <object class="GtkGrid" id="change_grid">
                             <property name="visible">True</property>
                             <property name="can-focus">False</property>
                             <property name="row-spacing">5</property>

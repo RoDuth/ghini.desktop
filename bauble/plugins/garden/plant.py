@@ -899,7 +899,12 @@ class PlantEditorView(GenericEditorView):
             'While some minimal editing is possible here it is most often not '
             'wise to do so. Changes are normally triggered by events. '
             'Date changes may confuse the plants history and reasons are not '
-            'constrained here as in the main editor. Use at your own risk.')
+            'constrained here as in the main editor.  Use at your own risk.'),
+        'change_grid': _('Changes are recorded for new entries and whenever '
+                         'the quantity or location is changed.\n\nThe '
+                         'earliest recorded change becomes the "planted" '
+                         'change.  The last recorded change that reduces '
+                         'quantity to 0 becomes the "death"')
     }
 
     def __init__(self, parent=None):
