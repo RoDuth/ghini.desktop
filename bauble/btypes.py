@@ -129,7 +129,7 @@ class DateTime(types.TypeDecorator):
                         val = date.astimezone(tz=timezone.utc)
                 vals.append(val)
             other = tuple(vals)
-            return super().operate(op, *other)
+            return super().operate(op, *other, **kwargs)
 
     def process_bind_param(self, value, dialect):
         if not isinstance(value, str):
@@ -179,7 +179,7 @@ class Date(types.TypeDecorator):
                         val = date
                 vals.append(val)
             other = tuple(vals)
-            return super().operate(op, *other)
+            return super().operate(op, *other, **kwargs)
 
     def process_bind_param(self, value, dialect):
         if not isinstance(value, str):
