@@ -2255,16 +2255,18 @@ class AccessionEditorPresenter(editor.GenericEditorPresenter):
             prop = self.model.source.propagation
             prop_ignore = ['id', 'propagation_id']
             prop_model = None
-            if prop and prop.prop_type == 'Seed':
-                prop_model = prop._seed
-            elif prop and prop.prop_type == 'UnrootedCutting':
-                prop_model = prop._cutting
-            elif prop and prop.prop_type == 'Other':
-                return True
-            else:
-                # should never get here.
-                logger.error('validate unknown prop_type')
-                return False
+            if prop:
+                # pylint: disable=protected-access
+                if prop.prop_type == 'Seed':
+                    prop_model = prop._seed
+                elif prop.prop_type == 'UnrootedCutting':
+                    prop_model = prop._cutting
+                elif prop.prop_type == 'Other':
+                    return True
+                else:
+                    # should never get here.
+                    logger.error('validate unknown prop_type')
+                    return False
 
             if utils.get_invalid_columns(prop_model, prop_ignore):
                 return False
@@ -2281,7 +2283,8 @@ class AccessionEditorPresenter(editor.GenericEditorPresenter):
             self.view.widgets.acc_id_qual_rank_combo.set_sensitive(False)
             if self.view.widgets.acc_id_qual_rank_combo.get_model():
                 utils.set_widget_value(
-                    self.view.widgets.acc_id_qual_rank_combo, None, index=1)
+                    self.view.widgets.acc_id_qual_rank_combo, None, index=1
+                )
 
         sensitive = (self.is_dirty() and
                      self.validate() and

@@ -371,17 +371,8 @@ class GUI:
             return
         self.add_to_history(text)
         tokens = self.cmd_parser.parseString(text)
-        cmd = None
-        arg = None
-        try:
-            cmd = tokens['cmd']
-        except KeyError as e:
-            logger.debug("%s(%s)", type(e).__name__, e)
-
-        try:
-            arg = tokens['arg']
-        except KeyError as e:
-            logger.debug("%s(%s)", type(e).__name__, e)
+        cmd = tokens.get('cmd')
+        arg = tokens.get('arg')
 
         bauble.command_handler(cmd, arg)
 

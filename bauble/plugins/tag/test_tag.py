@@ -419,9 +419,6 @@ class MockTagView(GenericEditorView):
     def set_accept_buttons_sensitive(self, value):
         self.sensitive = value
 
-    def mark_problem(self, widget_name):
-        pass
-
     def widget_set_value(self, widget, value, markup=False, default=None,
                          index=0):
         self.dict[widget] = value

@@ -322,7 +322,7 @@ class ConnMgrPresenter(GenericEditorPresenter):
                 self.view.widget_set_visible('sqlite_parambox', False)
 
     def on_usedefaults_chkbx_toggled(self, widget, *args):
-        self.on_chkbx_toggled(widget, *args)
+        self.on_check_toggled(widget, *args)
         self.refresh_entries_sensitive()
 
     def refresh_entries_sensitive(self):

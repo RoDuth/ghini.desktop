@@ -129,12 +129,12 @@ def species_match_func(completion: Gtk.EntryCompletion,
 
 
 def species_cell_data_func(_column, renderer, model, treeiter):
-    v = model[treeiter][0]
+    sp = model[treeiter][0]
     # occassionally the session gets lost and can result in
     # DetachedInstanceErrors. So check first
-    if sa_inspect(v).persistent:
-        renderer.set_property(
-            'text', '%s (%s)' % (v.str(authors=True), v.genus.family))
+    if sa_inspect(sp).persistent:
+        renderer.set_property('text',
+                              f'{sp.str(authors=True)} ({sp.genus.family})')
 
 
 class SpeciesEditorPresenter(editor.GenericEditorPresenter):

@@ -90,10 +90,9 @@ def natsort(attr, obj):
     partial(natsort, 'accessions')(species)
     partial(natsort, 'species.accessions')(vern_name)
     """
-    from bauble import utils
     jumps = attr.split('.')
-    for attr in jumps:
-        obj = getattr(obj, attr)
+    for atr in jumps:
+        obj = getattr(obj, atr)
     return sorted(obj, key=utils.natsort_key)
 
 
@@ -120,8 +119,7 @@ class MapperBase(DeclarativeMeta):
             cls.top_level_count = lambda x: {classname: 1}
         if 'search_view_markup_pair' not in dict_:
             cls.search_view_markup_pair = lambda x: (
-                utils.xml_safe(str(x)),
-                '(%s)' % type(x).__name__)
+                utils.xml_safe(str(x)), f'({type(x).__name__})')
 
         super().__init__(classname, bases, dict_)
 
@@ -325,7 +323,6 @@ def create(import_defaults=True):
     import bauble
     from bauble import meta
     from bauble import pluginmgr
-    import datetime
 
     connection = engine.connect()
     transaction = connection.begin()

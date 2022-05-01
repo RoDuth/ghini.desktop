@@ -571,7 +571,7 @@ class Plant(db.Base, db.Serializable, db.DefiningPictures, db.WithNotes):
     accession = relationship('Accession', lazy='subquery', uselist=False,
                              back_populates='plants')
 
-    location_id = Column(Integer, ForeignKey('location.id'), nullable=False)
+    location_id = Column(Integer, ForeignKey(Location.id), nullable=False)
     # spatial data deferred mainly to avoid comparison issues in union search
     # (i.e. reports)
     geojson = deferred(Column(types.JSON()))

@@ -738,9 +738,6 @@ class GenericEditorView:
         """
         self.disconnect_all()
 
-    def mark_problem(self, widget):
-        pass
-
 
 class MockDialog:
     def __init__(self):
@@ -1005,9 +1002,6 @@ class MockView:
     def set_accept_buttons_sensitive(self, sensitive=True):
         self.invoked.append('set_accept_buttons_sensitive')
         self.invoked_detailed.append((self.invoked[-1], [sensitive, ]))
-
-    def mark_problem(self, widget):
-        pass
 
     def add_message_box(self, message_box_type=utils.MESSAGE_BOX_INFO):
         self.invoked.append('set_accept_buttons_sensitive')
@@ -1366,27 +1360,20 @@ class GenericEditorPresenter:
         if attr is not None:
             self.__set_model_attr(attr, value)
         else:
-            logging.debug("presenter %s does not know widget %s" % (
-                self.__class__.__name__, self.__get_widget_name(widget)))
-
-    on_chkbx_toggled = on_check_toggled
-
-    def on_relation_entry_changed(self, widget, value=None):
-        attr = self.__get_widget_attr(widget)
-        logger.debug(
-            'calling unimplemented on_relation_entry_changed(%s, %s, %s(%s))'
-            % (widget, attr, type(value), value))
+            logging.debug("presenter %s does not know widget %s",
+                          self.__class__.__name__,
+                          self.__get_widget_name(widget))
 
     def on_group_changed(self, widget, *args):
         """handle group-changed signal on radio-button"""
         if args:
-            logger.warning("on_group_changed received extra arguments" +
+            logger.warning("on_group_changed received extra arguments %s",
                            str(args))
         attr = self.__get_widget_attr(widget)
         value = self.__get_widget_name(widget)
         self.__set_model_attr(attr, value)
 
-    def on_combo_changed(self, widget, value=None, *args):
+    def on_combo_changed(self, widget, value=None):
         """handle changed signal on combo box
 
         value is only specified while testing
@@ -1416,9 +1403,9 @@ class GenericEditorPresenter:
         problem at all.
         """
         if widget is None:
-            return self.problems and True or False
-        for p, w in self.problems:
-            if widget == w:
+            return bool(self.problems)
+        for _prob, widg in self.problems:
+            if widget == widg:
                 return True
         return False
 
@@ -1443,8 +1430,7 @@ class GenericEditorPresenter:
              from, if None then remove all occurrences of problem_id regardless
              of the widget
         """
-        logger.debug('remove_problem(%s, %s, %s)' %
-                     (self, problem_id, widget))
+        logger.debug('remove_problem(%s, %s, %s)', self, problem_id, widget)
         if problem_id is None and widget is None:
             logger.warning('invoke remove_problem with None, None')
             # if no problem id and not problem widgets then don't do anything
@@ -1457,13 +1443,13 @@ class GenericEditorPresenter:
                 logger.info("can't get widget %s", widget)
 
         tmp = self.problems.copy()
-        for p, w in tmp:
-            if (w == widget and p == problem_id) or \
-                    (widget is None and p == problem_id) or \
-                    (w == widget and problem_id is None):
-                if isinstance(w, Gtk.Widget) and not prefs.testing:
-                    w.get_style_context().remove_class('problem')
-                self.problems.remove((p, w))
+        for prob, widg in tmp:
+            if ((widg == widget and prob == problem_id) or
+                    (widget is None and prob == problem_id) or
+                    (widg == widget and problem_id is None)):
+                if isinstance(widg, Gtk.Widget) and not prefs.testing:
+                    widg.get_style_context().remove_class('problem')
+                self.problems.remove((prob, widg))
         logger.debug('problems now: %s', self.problems)
 
     def add_problem(self, problem_id, problem_widgets=None):
@@ -1476,8 +1462,8 @@ class GenericEditorPresenter:
               (default=None)
         """
         # list of widgets.
-        logger.debug('add_problem(%s, %s, %s)' %
-                     (self, problem_id, problem_widgets))
+        logger.debug('add_problem(%s, %s, %s)', self, problem_id,
+                     problem_widgets)
         if isinstance(problem_widgets, (tuple, list)):
             for widget in problem_widgets:
                 self.add_problem(problem_id, widget)
@@ -1489,13 +1475,12 @@ class GenericEditorPresenter:
             try:
                 widget = getattr(self.view.widgets, widget)
             except:
-                logger.info("can't get widget %s" % widget)
+                logger.info("can't get widget %s", widget)
         self.problems.add((problem_id, widget))
-        if isinstance(widget, str):
-            self.view.mark_problem(widget)
-        elif widget is not None:
+        # we get here if we couldn't get the widget above (i.e. testing)
+        if isinstance(widget, Gtk.Widget):
             widget.get_style_context().add_class('problem')
-        logger.debug('problems now: %s' % self.problems)
+        logger.debug('problems now: %s', self.problems)
 
     def init_enum_combo(self, widget_name, field):
         """Initialize a Gtk.ComboBox widget with name widget_name from enum
@@ -1744,7 +1729,7 @@ class GenericEditorPresenter:
             logger.debug('on_changed - part one - returning')
             return True
 
-        def on_match_select(completion, compl_model, treeiter):
+        def on_match_select(_completion, compl_model, treeiter):
             value = compl_model[treeiter][0]
             # temporarily block the changed ID so that this function
             # doesn't get called twice

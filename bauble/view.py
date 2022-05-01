@@ -16,9 +16,11 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
-#
-# Description: the default view
-#
+
+"""
+Description: the default view
+"""
+
 import itertools
 import os
 import sys
@@ -119,7 +121,7 @@ class InfoExpander(Gtk.Expander):
             self.set_expanded(True)
         self.connect("notify::expanded", self.on_expanded)
 
-    def on_expanded(self, expander, *args):
+    def on_expanded(self, expander, *_args):
         if self.expanded_pref:
             prefs.prefs[self.expanded_pref] = expander.get_expanded()
             prefs.prefs.save()
@@ -207,9 +209,7 @@ class PropertiesExpander(InfoExpander):
 
 
 class InfoBoxPage(Gtk.ScrolledWindow):
-    """
-    A :class:`Gtk.ScrolledWindow` that contains
-    :class:`bauble.view.InfoExpander` objects.
+    """A `Gtk.ScrolledWindow` that contains `bauble.view.InfoExpander` objects.
     """
 
     def __init__(self):
@@ -229,8 +229,8 @@ class InfoBoxPage(Gtk.ScrolledWindow):
         prefs.prefs[INFOBOXPAGE_WIDTH_PREF] = allocation.width
 
     def add_expander(self, expander):
-        """
-        Add an expander to the list of exanders in this infobox
+        """Add an expander to the dictionary of exanders in this infobox using
+        the label name as the key.
 
         :param expander: the bauble.view.InfoExpander to add to this infobox
         """
@@ -241,8 +241,7 @@ class InfoBoxPage(Gtk.ScrolledWindow):
         self.vbox.pack_start(expander._sep, False, False, padding=0)
 
     def get_expander(self, label):
-        """
-        Returns an expander by the expander's label name
+        """Returns an expander by the expander's label name.
 
         :param label: the name of the expander to return
         """
@@ -251,8 +250,7 @@ class InfoBoxPage(Gtk.ScrolledWindow):
         return None
 
     def remove_expander(self, label):
-        """
-        Remove expander from the infobox by the expander's label bel
+        """Remove expander from the infobox by the expander's label name.
 
         :param label: the name of th expander to remove
 
@@ -263,19 +261,17 @@ class InfoBoxPage(Gtk.ScrolledWindow):
         return None
 
     def update(self, row):
-        """
-        Updates the infobox with values from row
+        """Updates the infobox with values from row.
 
         :param row: the mapper instance to use to update this infobox,
-          this is passed to each of the infoexpanders in turn
+            this is passed to each of the infoexpanders in turn
         """
         for expander in list(self.expanders.values()):
             expander.update(row)
 
 
 class InfoBox(Gtk.Notebook):
-    """
-    Holds list of expanders with an optional tabbed layout.
+    """Holds list of expanders with an optional tabbed layout.
 
     The default is to not use tabs. To create the InfoBox with tabs
     use InfoBox(tabbed=True).  When using tabs then you can either add
@@ -299,20 +295,16 @@ class InfoBox(Gtk.Notebook):
         self.set_current_page(0)
         self.connect('switch-page', self.on_switch_page)
 
-    # not sure why we pass have self and notebook in the arg list here
-    # since they are the same
-    def on_switch_page(self, notebook, dummy_page, page_num,  *args):
-        """
-        Called when a page is switched
-        """
+    # notebook == self
+    def on_switch_page(self, _notebook, _page, page_num, *_args):
+        """Called when a page is switched."""
         if not self.row:
             return
         page = self.get_nth_page(page_num)
         page.update(self.row)
 
     def add_expander(self, expander, page_num=0):
-        """
-        Add an expander to a page.
+        """Add an expander to a page.
 
         :param expander: The expander to add.
         :param page_num: The page number in the InfoBox to add the expander.
@@ -321,9 +313,7 @@ class InfoBox(Gtk.Notebook):
         page.add_expander(expander)
 
     def update(self, row):
-        """
-        Update the current page with row.
-        """
+        """Update the current page with row."""
         self.row = row
         page_num = self.get_current_page()
         self.get_nth_page(page_num).update(row)
@@ -401,7 +391,7 @@ class AddOneDot(threading.Thread):
         statusbar.pop(sbcontext_id)
         statusbar.push(sbcontext_id, _('counting results') + '.' * dotno)
 
-    def __init__(self, group=None, verbose=None, **kwargs):
+    def __init__(self, group=None, **kwargs):
         super().__init__(group=group, target=None, name=None)
         self.__stopped = threading.Event()
         self.dotno = 0
@@ -486,7 +476,7 @@ class CountResultsTask(threading.Thread):
                 k = k[1]
             if isinstance(v, set):
                 v = len(v)
-            result.append("%s: %d" % (k, v))
+            result.append(f"{k}: {v}")
             if self.__cancel:  # check whether caller asks to cancel
                 break
         value = _("top level count: %s") % (", ".join(result))
@@ -632,6 +622,7 @@ class SearchView(pluginmgr.View):
 
     row_meta = ViewMeta()
     bottom_info = ViewMeta()
+
     context_menu_callbacks = set()
     """Callbacks for constructing context menus for selected items.
     Callbacks should recieve a single argument containing the selected items
@@ -708,7 +699,7 @@ class SearchView(pluginmgr.View):
             # fire it
             bauble.gui.send_command(query)
         except Exception as e:
-            logger.debug('on_note_row_actived %s, %s', type(e), e)
+            logger.debug('on_note_row_actived %s(%s)', type(e).__name__, e)
 
     def add_page_to_bottom_notebook(self, bottom_info):
         """add notebook page for a plugin class."""
@@ -764,7 +755,7 @@ class SearchView(pluginmgr.View):
                 label.set_label(bottom_info['name'])
             else:
                 label.set_use_markup(True)
-                label.set_label('<b>%s</b>' % bottom_info['name'])
+                label.set_label(f'<b>{bottom_info["name"]}</b>')
                 for obj in objs:
                     model.append([str(getattr(obj, k) or '')
                                   for k in bottom_info['fields_used']])
@@ -1025,18 +1016,7 @@ class SearchView(pluginmgr.View):
                 if not utils.yes_no_dialog(msg):
                     return
             try:
-                # don't bother with a task if the results are small,
-                # this keeps the screen from flickering when the main
-                # window is set to a busy state
-                if len(results) > 3000:
-                    self.populate_results(results)
-                else:
-                    task = self._populate_worker(results)
-                    while True:
-                        try:
-                            next(task)
-                        except StopIteration:
-                            break
+                self.populate_results(results)
             except StopIteration:
                 return
             else:
@@ -1053,7 +1033,8 @@ class SearchView(pluginmgr.View):
                                    len(results))
                 self.results_view.set_cursor(0)
 
-    def remove_children(self, model, parent):
+    @staticmethod
+    def remove_children(model, parent):
         """Remove all children of some parent in the model.
 
         Reverse iterate through them so you don't invalidate the iter.
@@ -1063,10 +1044,9 @@ class SearchView(pluginmgr.View):
             child = model.iter_nth_child(parent, nkids - 1)
             model.remove(child)
 
-    def on_test_expand_row(self, view, treeiter, path, data=None):
-        """
-        Look up the table type of the selected row and if it has
-        any children then add them to the row
+    def on_test_expand_row(self, view, treeiter, path):
+        """Look up the table type of the selected row and if it has any
+        children then add them to the row
         """
         model = view.get_model()
         row = model.get_value(treeiter, 0)
@@ -1097,7 +1077,18 @@ class SearchView(pluginmgr.View):
         :param results: a list or list-like object
         :param check_for_kids: only used for testing
         """
-        bauble.task.queue(self._populate_worker(results, check_for_kids))
+        # don't bother with a task if the results are small,
+        # this keeps the screen from flickering when the main
+        # window is set to a busy state
+        if len(results) > 3000:
+            bauble.task.queue(self._populate_worker(results, check_for_kids))
+        else:
+            task = self._populate_worker(results)
+            while True:
+                try:
+                    next(task)
+                except StopIteration:
+                    break
 
     def _populate_worker(self, results, check_for_kids=False):
         """Generator function for adding the search results to the
@@ -1130,7 +1121,7 @@ class SearchView(pluginmgr.View):
         # results by type in the same order
         groups = sorted(groups, key=lambda x: str(type(x[0])), reverse=True)
 
-        update_every = 200
+        five_percent = int(nresults / 20) or 200
         steps_so_far = 0
 
         # iterate over slice of size "steps", yield after adding each
@@ -1139,19 +1130,16 @@ class SearchView(pluginmgr.View):
         for obj in itertools.chain(*groups):
             if obj in added:  # only add unique object
                 continue
-            else:
-                added.add(obj)
+            added.add(obj)
             parent = model.prepend(None, [obj])
             obj_type = type(obj)
             if check_for_kids:
-                kids = self.row_meta[obj_type].get_children(obj)
-                if len(kids) > 0:
+                if len(self.row_meta[obj_type].get_children(obj)) > 0:
                     model.prepend(parent, ['-'])
             elif self.row_meta[obj_type].children is not None:
                 model.prepend(parent, ['-'])
-            # steps_so_far += chunk_size
             steps_so_far += 1
-            if steps_so_far % update_every == 0:
+            if steps_so_far % five_percent == 0:
                 percent = float(steps_so_far) / float(nresults)
                 if 0 < percent < 1.0:
                     bauble.gui.progressbar.set_fraction(percent)
@@ -1161,8 +1149,7 @@ class SearchView(pluginmgr.View):
         self.results_view.thaw_child_notify()
 
     def append_children(self, model, parent, kids):
-        """
-        append object to a parent iter in the model
+        """Append object to a parent iter in the model.
 
         :param model: the model the append to
         :param parent:  the parent Gtk.TreeIter
@@ -1176,7 +1163,7 @@ class SearchView(pluginmgr.View):
                 model.append(i, ["_dummy"])
         return model
 
-    def cell_data_func(self, col, cell, model, treeiter, data=None):
+    def cell_data_func(self, col, cell, model, treeiter, _data):
         # start with a (redundant) check, whether the cell is visible.
         path = model.get_path(treeiter)
         tree_rect = self.results_view.get_visible_rect()
@@ -1192,8 +1179,7 @@ class SearchView(pluginmgr.View):
             for found in utils.search_tree_model(model, value):
                 model.remove(found)
             self.results_view.set_model(model)
-        # logger.debug('TBR: far too detailed, please do not keep us here')
-        # logger.debug('TBR: %s' % value)
+
         if isinstance(value, str):
             cell.set_property('markup', value)
         else:
@@ -1210,47 +1196,40 @@ class SearchView(pluginmgr.View):
                 else:
                     self.session.merge(value)
             try:
-                r = value.search_view_markup_pair()
-                # logger.debug('TBR: %s' % str(r))
+                rep = value.search_view_markup_pair()
                 try:
-                    main, substr = r
-                except:
-                    main = r
-                    substr = '(%s)' % type(value).__name__
+                    main, substr = rep
+                except ValueError:
+                    main = rep
+                    substr = f'({type(value).__name__})'
                 cell.set_property(
-                    'markup', '%s\n%s' %
-                    (_mainstr_tmpl % utils.nstr(main),
-                     _substr_tmpl % utils.nstr(substr)))
+                    'markup', f'{_mainstr_tmpl % utils.nstr(main)}\n'
+                    f'{_substr_tmpl % utils.nstr(substr)}'
+                )
 
             except ObjectDeletedError as e:
                 # incase object has been deleted but for some reason not
                 # removed from the results_view
-                logger.debug(
-                    'bauble.view.SearchView.cell_data_func(): \n(%s)%s' %
-                    (type(e), e))
+                logger.debug('cell_data_func: (%s)%s', type(e).__name__, e)
 
                 GLib.idle_add(remove)
 
             except (saexc.InvalidRequestError, TypeError) as e:
-                logger.warning(
-                    'bauble.view.SearchView.cell_data_func(): \n(%s)%s' %
-                    (type(e), e))
+                logger.warning('cell_data_func: (%s)%s', type(e).__name__, e)
 
                 GLib.idle_add(remove)
 
             except Exception as e:
-                logger.error(
-                    'bauble.view.SearchView.cell_data_func(): \n(%s)%s' %
-                    (type(e), e))
+                logger.error('cell_data_func: (%s)%s', type(e).__name__, e)
                 raise
 
     def get_expanded_rows(self):
-        """
-        return all the rows in the model that are expanded
-        """
+        """Rturn all the rows in the model that are expanded """
         expanded_rows = []
-        expand = lambda view, path: \
+
+        def expand(view, path):
             expanded_rows.append(Gtk.TreeRowReference(view.get_model(), path))
+
         self.results_view.map_expanded_rows(expand)
         # seems to work better if we passed the reversed rows to
         # self.expand_to_all_refs
@@ -1299,18 +1278,17 @@ class SearchView(pluginmgr.View):
         return True
 
     def update(self):
-        """
-        Expire all the children in the model, collapse everything,
-        reexpand the rows to the previous state where possible and
-        update the infobox.
+        """Expire all the children in the model, collapse everything, reexpand
+        the rows to the previous state where possible and update the infobox.
         """
         logger.debug('SearchView::update')
-        model, paths = self.results_view.get_selection().get_selected_rows()
+        selection = self.results_view.get_selection()
+        model, tree_paths = selection.get_selected_rows()
         ref = None
         try:
             # try to get the reference to the selected object, if the
             # object has been deleted then we won't try to reselect it later
-            ref = Gtk.TreeRowReference(model, paths[0])
+            ref = Gtk.TreeRowReference(model, tree_paths[0])
         except IndexError as e:
             logger.debug('unable to get ref to selected object: %s(%s)',
                          type(e).__name__, e)
@@ -1328,18 +1306,15 @@ class SearchView(pluginmgr.View):
         self.expand_to_all_refs(expanded_rows)
         self.results_view.set_cursor(path)
 
-    def on_view_row_activated(self, view, path, column, data=None):
-        """
-        expand the row on activation
-        """
-        logger.debug("SearchView::on_view_row_activated %s %s %s %s"
-                     % (view, path, column, data))
+    @staticmethod
+    def on_view_row_activated(view, path, column):
+        """Expand the row on activation."""
+        logger.debug("SearchView::on_view_row_activated %s %s %s", view, path,
+                     column)
         view.expand_row(path, False)
 
     def create_gui(self):
-        """
-        create the interface
-        """
+        """Create the interface."""
         logger.debug('SearchView::create_gui')
         # create the results view and info box
         self.results_view = self.widgets.results_treeview
@@ -1436,7 +1411,7 @@ class AppendThousandRows(threading.Thread):
         row[4] = '** ' + _('interrupted') + ' **'
         self.view.liststore.append(row)
 
-    def __init__(self, view, group=None, verbose=None, **kwargs):
+    def __init__(self, view, group=None, **kwargs):
         super().__init__(group=group, target=None, name=None)
         self.__stopped = threading.Event()
         self.view = view
@@ -1461,8 +1436,7 @@ class AppendThousandRows(threading.Thread):
 
 
 class HistoryView(pluginmgr.View):
-    """Show the tables row in the order they were last updated
-    """
+    """Show the tables row in the order they were last updated."""
 
     TVC_TIMESTAMP = 0
     TVC_OPERATION = 1
@@ -1503,9 +1477,9 @@ class HistoryView(pluginmgr.View):
         dct = literal_eval(item.values)
         del dct['_created']
         del dct['_last_updated']
-        friendly = ', '.join(
-            "%s: %s" % (k, self.show_typed_value(v))
-            for k, v in sorted(list(dct.items()), key=self.cmp_items_key))
+        friendly = ', '.join(f"{k}: {self.show_typed_value(v)}"
+                             for k, v in sorted(list(dct.items()),
+                                                key=self.cmp_items_key))
         self.liststore.append([
             item.timestamp.strftime(
                 prefs.prefs.get(prefs.datetime_format_pref)),
@@ -1535,7 +1509,7 @@ class HistoryView(pluginmgr.View):
                 obj_id = int(dic[key])
         mapper_search = search.get_strategy('MapperSearch')
         if table in mapper_search.domains:
-            query = '%s where id=%s' % (table, obj_id)
+            query = f'{table} where id={obj_id}'
             bauble.gui.widgets.main_comboentry.get_child().set_text(query)
             bauble.gui.widgets.go_button.emit("clicked")
 

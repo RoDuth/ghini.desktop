@@ -546,12 +546,8 @@ def _find_plugins(path):
     plugins_list = []
     errors = {}
 
-    if path.find('library.zip') != -1:
-        plugin_names = [m for m in _find_module_names(path)
-                        if m.startswith('bauble.plugins')]
-    else:
-        plugin_names = ['bauble.plugins.%s' % m
-                        for m in _find_module_names(path)]
+    plugin_names = [f'bauble.plugins.{module}' for module in
+                    _find_module_names(path)]
 
     from importlib import import_module
     for name in plugin_names:
