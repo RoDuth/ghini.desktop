@@ -1,6 +1,6 @@
 # Copyright 2008-2010 Brett Adams
 # Copyright 2014-2017 Mario Frasca <mario@anche.no>.
-# Copyright 2016 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright 2016-2022 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -22,7 +22,7 @@ import re
 import logging
 logger = logging.getLogger(__name__)
 
-from gi.repository import Gtk  # noqa
+from gi.repository import Gtk
 
 from bauble.utils import desktop
 
@@ -33,30 +33,35 @@ class BaubleLinkButton(Gtk.LinkButton):
     _space = "_"
     title = _("Search")
     tooltip = None
-    pt = re.compile(r'%\(([a-z_\.]*)\)s')
+    fields = []
+    pt = re.compile(r'%\(([a-z_\.]+)\)s')
 
-    def __init__(self, title=_("Search"), tooltip=None):
+    def __init__(self):
         super().__init__(uri="", label=self.title)
         self.set_tooltip_text(self.tooltip or self.title)
         self.__class__.fields = self.pt.findall(self._base_uri)
+        self.set_halign(Gtk.Align.START)
         self.connect('activate-link', self.on_link_activated)
 
-    def on_link_activated(self, view):
+    def on_link_activated(self, _button):
         logger.debug("opening link %s", self.get_uri())
         desktop.open(self.get_uri())
         return True
 
     def set_string(self, row):
         if self.fields == []:
-            s = str(row)
             # remove any zws (species string)
-            s = s.replace('\u200b', '')
-            self.set_uri(self._base_uri % s.replace(' ', self._space))
+            string = str(row).replace('\u200b', '').replace(' ', self._space)
+            self.set_uri(self._base_uri % string)
         else:
             values = {}
             for key in self.fields:
                 value = row
                 for step in key.split('.'):
                     value = getattr(value, step, '-')
-                values[key] = value if (value == str(value)) else ''
+                values[key] = value if value == str(value) else ''
             self.set_uri(self._base_uri % values)
+
+
+def link_button_factory(link):
+    return type(link.get('name', 'LinkButton'), (BaubleLinkButton, ), link)()

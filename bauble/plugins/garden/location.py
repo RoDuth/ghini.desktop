@@ -463,7 +463,10 @@ class LocationEditor(GenericModelViewPresenterEditor):
         return self._committed
 
 
-from bauble.view import InfoBox, InfoExpander, PropertiesExpander
+from bauble.view import (InfoBox,
+                         InfoExpander,
+                         PropertiesExpander,
+                         LinksExpander)
 
 
 class GeneralLocationExpander(InfoExpander):
@@ -528,10 +531,13 @@ class LocationInfoBox(InfoBox):
         self.add_expander(self.general)
         self.description = DescriptionExpander(self.widgets)
         self.add_expander(self.description)
+        self.links = LinksExpander('notes')
+        self.add_expander(self.links)
         self.props = PropertiesExpander()
         self.add_expander(self.props)
 
     def update(self, row):
         self.general.update(row)
         self.description.update(row)
+        self.links.update(row)
         self.props.update(row)

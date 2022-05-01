@@ -2820,15 +2820,7 @@ class AccessionInfoBox(InfoBox):
 
         # self.vouchers.update(row)
 
-        urls = [x for x in
-                [utils.get_urls(note.note) for note in row.notes]
-                if x != []]
-        links_widgets = [self.links, self.links._sep]
-        if not urls:
-            utils.hide_widgets(links_widgets)
-        else:
-            utils.unhide_widgets(links_widgets)
-            self.links.update(row)
+        self.links.update(row)
 
         # TODO: should test if the source should be expanded from the prefs
         expanded = prefs.prefs.get('acc_source_expander', True)

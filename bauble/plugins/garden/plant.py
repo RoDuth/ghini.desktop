@@ -2013,19 +2013,7 @@ class PlantInfoBox(InfoBox):
         self.transfers.update(row)
         self.propagations.update(row)
 
-        urls = [x for x in [utils.get_urls(note.note) for note in row.notes] if
-                x != []]
-        if not urls:
-            self.links.set_visible(False)
-            self.links.set_no_show_all(True)
-            self.links._sep.set_visible(False)
-            self.links._sep.set_no_show_all(True)
-        else:
-            self.links.set_visible(True)
-            self.links.set_no_show_all(False)
-            self.links._sep.set_visible(True)
-            self.links._sep.set_no_show_all(False)
-            self.links.update(row)
+        self.links.update(row)
 
         self.props.update(row)
 

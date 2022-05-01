@@ -53,6 +53,7 @@ from bauble import pluginmgr
 from bauble import prefs
 from bauble import search
 from bauble import utils
+from bauble.utils.web import link_button_factory
 from bauble import editor
 from bauble import pictures_view
 
@@ -333,53 +334,55 @@ class LinksExpander(InfoExpander):
         self.vbox.pack_start(self.link_box, False, False, 0)
         self.notes = notes
         self.buttons = []
-        from bauble.utils.web import BaubleLinkButton
         for link in links:
             try:
-                klass = type(link['name'], (BaubleLinkButton, ),
-                             link)
-                self.buttons.append(klass())
-            except Exception as e:
+                btn = link_button_factory(link)
+                self.buttons.append(btn)
+                self.link_box.pack_start(btn, False, False, 0)
+            except Exception as e:  # pylint: disable=broad-except
+                # broad except, user data.
                 logger.debug('wrong link definition %s, %s(%s)', link,
                              type(e).__name__, e)
-        for btn in self.buttons:
-            btn.set_halign(Gtk.Align.START)
-            self.link_box.pack_start(btn, False, False, 0)
 
     def update(self, row):
+        hide = True
+        separator = False
         for btn in self.buttons:
             btn.set_string(row)
+            hide = False
         for child in self.dynamic_box.get_children():
             self.dynamic_box.remove(child)
         if self.notes:
-            separator = False
-            notes = getattr(row, self.notes)
-            for note in notes:
+            for note in getattr(row, self.notes):
                 if note.category == '<picture>':
                     continue
                 for label, url in utils.get_urls(note.note):
                     if not label:
                         label = url
-                    from bauble.utils.web import BaubleLinkButton
                     try:
                         link = {
                             'title': label,
                             'tooltip': f'from note of category {note.category}'
                         }
-                        klass = type('LinkButton', (BaubleLinkButton, ), link)
-                        button = klass()
+                        button = link_button_factory(link)
                         button.set_uri(url)
-                        button.set_halign(Gtk.Align.START)
                         self.dynamic_box.pack_start(button, False, False, 0)
                         separator = True
-                    except Exception as e:
+                        hide = False
+                    except Exception as e:  # pylint: disable=broad-except
+                        # broad except, user data.
                         logger.debug('wrong link definition %s, %s(%s)', link,
                                      type(e).__name__, e)
+
             if separator and self.buttons:
                 sep = Gtk.Separator(margin_start=15, margin_end=15)
                 self.dynamic_box.pack_start(sep, False, False, 0)
-        self.dynamic_box.show_all()
-        self.link_box.show_all()
+
+        if hide:
+            utils.hide_widgets([self, self._sep])
+        else:
+            utils.unhide_widgets([self, self._sep])
+            self.show_all()
 
 
 class AddOneDot(threading.Thread):
@@ -1498,6 +1501,7 @@ class HistoryView(pluginmgr.View):
                 ('location_note', 'location', 'location_id'),
                 ('accession_note', 'accession', 'accession_id'),
                 ('plant_note', 'plant', 'plant_id'),
+                ('location_note', 'location', 'location_id'),
                 ('genus_synonym', 'genus', 'genus_id'),
                 ('species_synonym', 'species', 'species_id'),
                 ('vernacular_name', 'species', 'species_id'),
