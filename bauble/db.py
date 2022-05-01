@@ -46,7 +46,7 @@ except ImportError:
     raise
 
 from sqlalchemy import event
-from sqlalchemy.orm import class_mapper
+from sqlalchemy.orm import class_mapper, object_session
 from sqlalchemy.ext.declarative import declarative_base, DeclarativeMeta
 # sqla >1.4 i think will be:
 # from sqlalchemy.orm import class_mapper, declarative_base
@@ -178,7 +178,9 @@ def _add_to_history(operation, mapper, connection, instance):
 
 @event.listens_for(Base, 'after_update', propagate=True)
 def after_update(mapper, connection, instance):
-    _add_to_history('update', mapper, connection, instance)
+    if object_session(instance).is_modified(instance,
+                                            include_collections=False):
+        _add_to_history('update', mapper, connection, instance)
 
 
 @event.listens_for(Base, 'after_insert', propagate=True)
