@@ -47,6 +47,7 @@ except ImportError:
 
 from sqlalchemy import event
 from sqlalchemy.orm import class_mapper, object_session
+from sqlalchemy.orm.attributes import get_history
 from sqlalchemy.ext.declarative import declarative_base, DeclarativeMeta
 # sqla >1.4 i think will be:
 # from sqlalchemy.orm import class_mapper, declarative_base
@@ -155,21 +156,29 @@ An instance of :class:`sqlalchemy.ext.declarative.Base`
 
 
 def _add_to_history(operation, mapper, connection, instance):
-    """
-    Add a new entry to the history table.
-    """
-    user = current_user()
+    """Add a new entry to the history table."""
+    user = utils.get_user_display_name()
 
     row = {}
     for column in mapper.local_table.c:
         # skip defered geojson columns
         if column.name == 'geojson':
+            # TODO should deal with this better but not sure how without it
+            # being too expensive. Could just not it has changed but that gives
+            # no history of from to where.
             continue
+        if operation == 'update':
+            history = get_history(instance, column.name)
+            if history.has_changes():
+                row[column.name] = str(history.sum())
+                continue
         row[column.name] = str(getattr(instance, column.name))
-    table = History.__table__   # pylint: disable=no-member
+    table = History.__table__
     stmt = table.insert(dict(table_name=mapper.local_table.name,
-                             table_id=instance.id, values=str(row),
-                             operation=operation, user=user,
+                             table_id=instance.id,
+                             values=str(row),
+                             operation=operation,
+                             user=user,
                              timestamp=datetime.datetime.utcnow()))
     connection.execute(stmt)
 

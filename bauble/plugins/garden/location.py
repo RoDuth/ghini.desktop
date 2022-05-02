@@ -142,7 +142,10 @@ class Location(db.Base, db.Serializable, db.WithNotes):
     code = Column(Unicode(12), unique=True, nullable=False)
     name = Column(Unicode(128))
     description = Column(UnicodeText)
-    # spatial data
+    # spatial data deferred mainly to avoid comparison issues in union search
+    # (i.e. reports)  NOTE that deferring can lead to the instance becoming
+    # dirty when merged into another session (i.e. an editor) and the column
+    # has already been loaded (i.e. infobox)
     geojson = deferred(Column(types.JSON()))
 
     # relations
@@ -494,7 +497,13 @@ class GeneralLocationExpander(InfoExpander):
         session = object_session(row)
         nplants = session.query(Plant).filter_by(location_id=row.id).count()
         self.widget_set_value('loc_nplants_data', nplants)
-        shape = row.geojson.get('type', '') if row.geojson else ''
+        # NOTE don't load geojson from the row or history will always record
+        # an unpdate and _last_updated will always chenge when a note is edited
+        # (e.g. `shape = row.geojson...`) instead use a temp session
+        temp = db.Session()
+        geojson = temp.query(Location.geojson).filter_by(id=row.id).scalar()
+        shape = geojson.get('type', '') if geojson else ''
+        temp.close()
         self.widget_set_value('geojson_type', shape)
 
 

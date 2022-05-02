@@ -573,7 +573,9 @@ class Plant(db.Base, db.Serializable, db.DefiningPictures, db.WithNotes):
 
     location_id = Column(Integer, ForeignKey(Location.id), nullable=False)
     # spatial data deferred mainly to avoid comparison issues in union search
-    # (i.e. reports)
+    # (i.e. reports)  NOTE that deferring can lead to the instance becoming
+    # dirty when merged into another session (i.e. an editor) and the column
+    # has already been loaded (i.e. infobox)
     geojson = deferred(Column(types.JSON()))
 
     propagations = relationship(
@@ -1793,7 +1795,14 @@ class GeneralPlantExpander(InfoExpander):
                               markup=True)
         self.widget_set_value('location_data', str(row.location))
         self.widget_set_value('quantity_data', row.quantity)
-        shape = row.geojson.get('type', '') if row.geojson else ''
+        # NOTE don't load geojson from the row or history will always record
+        # an unpdate and _last_updated will always chenge when a relationship
+        # (note, propagation, etc.) is edited. (e.g. `shape = row.geojson...`
+        # instead use a temp session)
+        temp = db.Session()
+        geojson = temp.query(Plant.geojson).filter_by(id=row.id).scalar()
+        shape = geojson.get('type', '') if geojson else ''
+        temp.close()
         self.widget_set_value('geojson_type', shape)
 
         status_str = _('Alive')
