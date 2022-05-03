@@ -79,7 +79,7 @@ class DefaultView(pluginmgr.View):
         # the following means we do not have an infobox yet
         self.infobox = None
 
-    def update(self):
+    def update(self, *_args):
         logger.debug('DefaultView::update')
         if self.infoboxclass and not self.infobox:
             logger.debug('DefaultView::update - creating infobox')

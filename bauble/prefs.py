@@ -515,7 +515,7 @@ class PrefsView(pluginmgr.View):
         else:
             utils.message_dialog(_('No backup found'))
 
-    def update(self):
+    def update(self, *_argd):
         self.prefs_ls.clear()
         for key, value in sorted(prefs.iteritems()):
             logger.debug('update prefs: %s, %s, %s', key, value,

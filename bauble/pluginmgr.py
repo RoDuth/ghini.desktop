@@ -483,7 +483,7 @@ class View(Gtk.Box):
             del kwargs['root_widget_name']
         super().__init__(*args, orientation=Gtk.Orientation.VERTICAL, **kwargs)
         if filename is not None:
-            from bauble import utils, editor
+            from bauble import editor
             self.widgets = utils.load_widgets(filename)
             self.view = editor.GenericEditorView(
                 filename, root_widget_name=root_widget_name)
@@ -508,8 +508,8 @@ class View(Gtk.Box):
             self.cancel_threads()
         return thread
 
-    def update(self):
-        pass
+    def update(self, *args):
+        raise NotImplementedError
 
 
 class CommandHandler:

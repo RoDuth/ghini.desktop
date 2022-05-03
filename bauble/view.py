@@ -1280,7 +1280,7 @@ class SearchView(pluginmgr.View):
         menu.popup_at_pointer(event)
         return True
 
-    def update(self):
+    def update(self, *_args):
         """Expire all the children in the model, collapse everything, reexpand
         the rows to the previous state where possible and update the infobox.
         """
@@ -1405,6 +1405,12 @@ class Note:
 
 class AppendThousandRows(threading.Thread):
 
+    def __init__(self, view, arg=None, group=None, **kwargs):
+        super().__init__(group=group, target=None, name=None)
+        self.__stopped = threading.Event()
+        self.arg = arg
+        self.view = view
+
     def callback(self, rows):
         for row in rows:
             self.view.add_row(row)
@@ -1414,17 +1420,37 @@ class AppendThousandRows(threading.Thread):
         row[4] = '** ' + _('interrupted') + ' **'
         self.view.liststore.append(row)
 
-    def __init__(self, view, group=None, **kwargs):
-        super().__init__(group=group, target=None, name=None)
-        self.__stopped = threading.Event()
-        self.view = view
-
     def cancel(self):
         self.__stopped.set()
 
+    def get_query_filters(self):
+        """Parse the string provided in arg and return the equivalent as
+        consumed by sqlalchemy query `filter()` method."""
+        from pyparsing import (oneOf, quotedString, removeQuotes, Word,
+                               ZeroOrMore, printables, CaselessLiteral, Group,
+                               alphas)
+        operator = oneOf('= != < > like contains has')
+        value = quotedString.setParseAction(removeQuotes) | Word(printables)
+        and_ = CaselessLiteral("and").suppress()
+        identifier = Word(alphas + '_')
+        ident_expression = Group(identifier + operator + value)
+        expression = ident_expression + ZeroOrMore(and_ + ident_expression)
+
+        filters = []
+        for part in expression.parseString(self.arg):
+            attr = getattr(db.History, part[0])
+            val = part[2]
+            operation = search.OPERATIONS.get(part[1])
+            filters.append(operation(attr, val))
+
+        return filters
+
     def run(self):
         session = db.Session()
-        query = session.query(db.History).order_by(db.History.timestamp.desc())
+        query = session.query(db.History)
+        if self.arg:
+            query = query.filter(*self.get_query_filters())
+        query = query.order_by(db.History.timestamp.desc())
         # add rows in small batches
         offset = 0
         step = 200
@@ -1455,7 +1481,6 @@ class HistoryView(pluginmgr.View):
             root_widget_name='history_window')
         self.view.connect_signals(self)
         self.liststore = self.view.widgets.history_ls
-        self.update()
 
     @staticmethod
     def cmp_items_key(val):
@@ -1514,15 +1539,12 @@ class HistoryView(pluginmgr.View):
         mapper_search = search.get_strategy('MapperSearch')
         if table in mapper_search.domains:
             query = f'{table} where id={obj_id}'
-            bauble.gui.widgets.main_comboentry.get_child().set_text(query)
-            bauble.gui.widgets.go_button.emit("clicked")
+            bauble.gui.send_command(query)
 
-    def update(self):
-        """
-        Add the history items to the view.
-        """
+    def update(self, *args):
+        """Add the history items to the view."""
         self.liststore.clear()
-        self.start_thread(AppendThousandRows(self))
+        self.start_thread(AppendThousandRows(self, args[0]))
 
 
 class HistoryCommandHandler(pluginmgr.CommandHandler):
@@ -1536,7 +1558,7 @@ class HistoryCommandHandler(pluginmgr.CommandHandler):
         return self.view
 
     def __call__(self, cmd, arg):
-        self.view.update()
+        self.view.update(arg)
 
 
 pluginmgr.register_command(HistoryCommandHandler)
