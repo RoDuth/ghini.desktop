@@ -818,7 +818,7 @@ class SeedPresenter(editor.GenericEditorPresenter):
         return self._dirty
 
     def set_model_attr(self, field, value, validator=None):
-        #debug('%s = %s' % (field, value))
+        logger.debug('%s = %s', field, value)
         super().set_model_attr(field, value, validator)
         self._dirty = True
         self.parent_ref().refresh_sensitivity()
@@ -846,7 +846,6 @@ class PropagationPresenter(editor.ChildPresenter):
         :param view: an instance of PropagationEditorView
         """
         super().__init__(model, view, session=session)
-        self.session = object_session(model)
 
         # initialize the propagation type combo and set the initial value
         self.view.connect('prop_type_combo', 'changed',
@@ -942,7 +941,7 @@ class SourcePropagationPresenter(PropagationPresenter):
 
     This type of propagation is not associated with a Plant.
 
-    :param parent: AccessionEditorPresenter
+    :param parent: SourcePresenter
     :param model:  Propagation instance
     :param view:  AccessionEditorView
     :param session: sqlalchemy.orm.sesssion

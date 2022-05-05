@@ -2472,11 +2472,11 @@ class AccessionEditor(editor.GenericModelViewPresenterEditor):
                 utils.delete_or_expunge(
                     self.presenter.source_presenter.collection)
 
-            if self.model.source.propagation:
-                self.model.source.propagation.clean()
-            else:
+            self.presenter.source_presenter.propagation.clean()
+            if not self.model.source.propagation:
                 utils.delete_or_expunge(
-                    self.presenter.source_presenter.propagation)
+                    self.presenter.source_presenter.propagation
+                )
 
             # remove any newly created parts if they do not end up used. (i.e.
             # user backed out)

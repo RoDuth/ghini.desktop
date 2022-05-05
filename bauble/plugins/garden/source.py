@@ -591,7 +591,7 @@ class CollectionPresenter(editor.ChildPresenter):
 
 
 class PropagationChooserPresenter(editor.ChildPresenter):
-    """Chooser for selecting an existing propagation for the source.
+    """Chooser for selecting an existing garden propagation for the source.
 
     :param parent: the parent AccessionEditorPresenter
     :param model: a Source instance
