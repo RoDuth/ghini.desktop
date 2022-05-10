@@ -27,8 +27,7 @@ import logging
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
-from sqlalchemy import (
-    Column, Integer)
+from sqlalchemy import Column, Integer
 
 import unittest
 import bauble

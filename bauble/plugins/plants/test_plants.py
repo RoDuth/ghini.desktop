@@ -89,6 +89,8 @@ genus_test_data = (
 
 genus_note_test_data = (
     {'id': 1, 'genus_id': 5, 'category': 'CITES', 'note': 'I'},
+    {'id': 2, 'genus_id': 1, 'category': 'URL', 'note':
+     'https://en.wikipedia.org/wiki/Maxillaria'},
 )
 
 species_test_data = (

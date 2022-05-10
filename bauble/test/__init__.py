@@ -23,6 +23,7 @@ import os
 from tempfile import mkstemp
 # from tempfile import NamedTemporaryFile
 from pathlib import Path
+from sqlalchemy.pool import StaticPool
 
 import logging
 logger = logging.getLogger(__name__)
@@ -93,9 +94,11 @@ class BaubleTestCase(unittest.TestCase):
     def setUp(self):
         assert uri is not None, "The database URI is not set"
         try:
-            # we know we're connecting to an empty database
-            db.open(uri, verify=False, show_error_dialogs=False)
-        except Exception as e:
+            # we know we're connecting to an empty database, use StaticPool so
+            # threads work in memory database.
+            db.open(uri, verify=False, show_error_dialogs=False,
+                    poolclass=StaticPool)
+        except Exception as e:  # pylint: disable=broad-except
             print(e, file=sys.stderr)
         if not bauble.db.engine:
             raise BaubleError('not connected to a database')
@@ -109,8 +112,8 @@ class BaubleTestCase(unittest.TestCase):
         prefs.default_prefs_file = self.temp
         prefs.prefs = prefs._prefs(filename=self.temp)
         prefs.prefs.init()
-        prefs.testing = True
         prefs.prefs[prefs.web_proxy_prefs] = 'use_requests_without_proxies'
+        prefs.testing = True
         bauble.pluginmgr.plugins = {}
         pluginmgr.load()
         db.create(import_defaults=False)
@@ -123,6 +126,7 @@ class BaubleTestCase(unittest.TestCase):
         logger.debug('prefs filename: %s', prefs.prefs._filename)
 
     def tearDown(self):
+        update_gui()
         logging.getLogger().removeHandler(self.handler)
         self.session.close()
         db.metadata.drop_all(bind=db.engine)
@@ -130,9 +134,26 @@ class BaubleTestCase(unittest.TestCase):
         pluginmgr.plugins.clear()
         os.close(self.handle)
         os.remove(self.temp)
+        db.engine.dispose()
         # self.temp_prefs_file.close()
 
 
 def mockfunc(msg=None, name=None, caller=None, result=False, *args, **kwargs):
     caller.invoked.append((name, msg))
     return result
+
+
+def get_setUp_data_funcs():
+    """Search plugins directory for tests and return setUp_data functions."""
+    from importlib import import_module
+    funcs = []
+    root = paths.root_dir()
+    for i in Path(root).glob('bauble/plugins/**/test_*.py'):
+        mod_path = str(i).replace(os.sep, '.')[len(str(root)) + 1:-3]
+        try:
+            mod = import_module(mod_path)
+            func = getattr(mod, 'setUp_data')
+            funcs.append(func)
+        except Exception:
+            pass
+    return funcs

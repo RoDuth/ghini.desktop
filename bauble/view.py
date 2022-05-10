@@ -33,7 +33,16 @@ from collections import UserDict
 import logging
 logger = logging.getLogger(__name__)
 
-from pyparsing import ParseException
+from pyparsing import (ParseException,
+                       oneOf,
+                       quotedString,
+                       removeQuotes,
+                       Word,
+                       ZeroOrMore,
+                       printables,
+                       CaselessLiteral,
+                       Group,
+                       alphas)
 
 from gi.repository import Gtk
 from gi.repository import Gio
@@ -128,15 +137,13 @@ class InfoExpander(Gtk.Expander):
             prefs.prefs.save()
 
     def widget_set_value(self, widget_name, value, markup=False, default=None):
-        """
-        a shorthand for L{bauble.utils.set_widget_value()}
-        """
+        """A shorthand for `bauble.utils.set_widget_value()`"""
         utils.set_widget_value(self.widgets[widget_name], value,
                                markup, default)
 
     def update(self, row):
-        """
-        This method should be implemented by classes that extend InfoExpander
+        """This method should be implemented by classes that extend
+        InfoExpander
         """
         raise NotImplementedError("InfoExpander.update(): not implemented")
 
@@ -242,9 +249,10 @@ class InfoBoxPage(Gtk.ScrolledWindow):
         self.vbox.pack_start(expander._sep, False, False, padding=0)
 
     def get_expander(self, label):
-        """Returns an expander by the expander's label name.
+        """Get an expander by the expander's label name.
 
         :param label: the name of the expander to return
+        :return: expander or None
         """
         if label in self.expanders:
             return self.expanders[label]
@@ -296,7 +304,7 @@ class InfoBox(Gtk.Notebook):
         self.set_current_page(0)
         self.connect('switch-page', self.on_switch_page)
 
-    # notebook == self
+    # notebook == self could be a static method and just use the notebook?
     def on_switch_page(self, _notebook, _page, page_num, *_args):
         """Called when a page is switched."""
         if not self.row:
@@ -506,7 +514,9 @@ class CountResultsTask(threading.Thread):
                 self.dots_thread.cancel()
                 GLib.idle_add(sb_call, value)
         else:
+            self.dots_thread.cancel()
             logger.debug("showing text %s", value)
+        # NOTE log used in tests
         logger.debug('counting results class:%s complete', self.klass.__name__)
 
     def run(self):
@@ -529,7 +539,8 @@ class CountResultsTask(threading.Thread):
             proc = partial(multiproc_counter, str(db.engine.url), self.klass)
             logger.debug('counting results using multiprocesing')
             with get_context('spawn').Pool() as pool:
-                amap = pool.map_async(proc, utils.chunks(self.ids, chunk_size),
+                amap = pool.map_async(proc,
+                                      utils.chunks(self.ids, chunk_size),
                                       callback=self.callback,
                                       error_callback=self.error)
                 # keeps the thread alive and allow cancel
@@ -581,20 +592,17 @@ class SearchView(pluginmgr.View):
 
             def set(self, children=None, infobox=None, context_menu=None,
                     markup_func=None):
-                """
-                :param children: where to find the children for this type,
-                    can be a callable of the form C{children(row)}
+                """Set attributes for the selected meta object.
 
+                :param children: where to find the children for this type, can
+                    be a callable of the form `children(row)`
                 :param infobox: the infobox for this type
-
                 :param context_menu: a dict describing the context menu used
-                when the user right clicks on this type
-
-                :param markup_func: the function to call to markup
-                search results of this type, if markup_func is None
-                the instances __str__() function is called...the
-                strings returned by this function should escape any
-                non markup characters
+                    when the user right clicks on this type
+                :param markup_func: the function to call to markup search
+                    results of this type, if markup_func is None the instances
+                    __str__() function is called...the strings returned by this
+                    function should escape any non markup characters
                 """
                 self.children = children
                 self.infobox = infobox
@@ -608,9 +616,9 @@ class SearchView(pluginmgr.View):
             def get_children(self, obj):
                 """
                 :param obj: get the children from obj according to
-                self.children,
+                    self.children,
 
-                Returns a list or list-like object.
+                :return: a list or list-like object of any children objects.
                 """
                 if self.children is None:
                     return []
@@ -700,7 +708,11 @@ class SearchView(pluginmgr.View):
             # construct the query
             query = f"{domain} where notes[category={cat}].note={note}"
             # fire it
-            bauble.gui.send_command(query)
+            if bauble.gui:
+                bauble.gui.send_command(query)
+            else:
+                # NOTE used in testing
+                return query
         except Exception as e:
             logger.debug('on_note_row_actived %s(%s)', type(e).__name__, e)
 
@@ -770,7 +782,8 @@ class SearchView(pluginmgr.View):
         no infobox is shown if nothing is selected
         """
         # start of update_infobox
-        logger.debug('update_infobox')
+        # NOTE log used in tests
+        logger.debug('SearchView::update_infobox')
         if not selected_values or not selected_values[0]:
             self.set_infobox_from_row(None)
             return
@@ -804,9 +817,12 @@ class SearchView(pluginmgr.View):
 
         # set width from pref once per session.
         if self.infobox is None:
-            rect = bauble.gui.window.get_size()
+            # for tests when no gui
+            width = 100
+            if bauble.gui:
+                width = bauble.gui.window.get_size().width
             info_width = prefs.prefs.get(INFOBOXPAGE_WIDTH_PREF, 300)
-            pane_pos = rect.width - info_width - 1
+            pane_pos = width - info_width - 1
             logger.debug('setting pane position to %s', pane_pos)
             self.pane.set_position(pane_pos)
 
@@ -844,7 +860,7 @@ class SearchView(pluginmgr.View):
             self.pane.show_all()
 
     def get_selected_values(self):
-        """Return the values in all the selected rows."""
+        """Get the values in all the selected rows."""
         model, rows = self.results_view.get_selection().get_selected_rows()
         if model is None or rows is None:
             return None
@@ -854,6 +870,8 @@ class SearchView(pluginmgr.View):
         """Update the infobox and bottom notebooks. Switch context_menus,
         actions and accelerators depending on the type of the rows selected.
         """
+        # NOTE log used in tests
+        logger.debug('SearchView::on_selection_changed')
         # grab values once
         selected_values = self.get_selected_values()
         # update all forward-looking info boxes
@@ -887,7 +905,7 @@ class SearchView(pluginmgr.View):
         for action in self.row_meta[selected_type].actions:
             current_actions.add(action.name)
 
-            if not bauble.gui.lookup_action(action.name):
+            if bauble.gui and not bauble.gui.lookup_action(action.name):
                 self.actions.add(action.name)
                 bauble.gui.window.add_action(action.action)
 
@@ -927,7 +945,8 @@ class SearchView(pluginmgr.View):
 
         copy_selection_action_name = 'copy_selection_strings'
 
-        if not bauble.gui.lookup_action(copy_selection_action_name):
+        if (bauble.gui and not
+                bauble.gui.lookup_action(copy_selection_action_name)):
             bauble.gui.add_action(copy_selection_action_name,
                                   self.on_copy_selection)
 
@@ -938,12 +957,14 @@ class SearchView(pluginmgr.View):
 
         for action_name in self.actions.copy():
             if action_name not in current_actions:
-                bauble.gui.remove_action(action_name)
+                if bauble.gui:
+                    bauble.gui.remove_action(action_name)
                 self.actions.remove(action_name)
 
-        edit_context_menu = bauble.gui.edit_context_menu
-        edit_context_menu.remove_all()
-        edit_context_menu.insert_section(0, None, self.context_menu_model)
+        if bauble.gui:
+            edit_context_menu = bauble.gui.edit_context_menu
+            edit_context_menu.remove_all()
+            edit_context_menu.insert_section(0, None, self.context_menu_model)
 
     def on_copy_selection(self, _action, _param):
         selected_values = self.get_selected_values()
@@ -969,7 +990,11 @@ class SearchView(pluginmgr.View):
                                          typ=Gtk.MessageType.ERROR)
 
         string = '\n'.join(out)
-        bauble.gui.get_display_clipboard().set_text(string, -1)
+        if bauble.gui:
+            bauble.gui.get_display_clipboard().set_text(string, -1)
+        else:
+            # NOTE used in testing
+            return string
 
     def search(self, text):
         """search the database using text"""
@@ -1000,7 +1025,11 @@ class SearchView(pluginmgr.View):
 
         # not error
         utils.clear_model(self.results_view)
-        statusbar = bauble.gui.widgets.statusbar
+        if bauble.gui:
+            statusbar = bauble.gui.widgets.statusbar
+        else:
+            # for testing...
+            statusbar = Gtk.Statusbar()
         sbcontext_id = statusbar.get_context_id('searchview.nresults')
         statusbar.pop(sbcontext_id)
         if len(results) == 0:
@@ -1070,21 +1099,21 @@ class SearchView(pluginmgr.View):
             logger.debug(traceback.format_exc())
             return True
         else:
-            self.append_children(
-                model, treeiter, sorted(kids, key=utils.natsort_key))
+            self.append_children(model,
+                                 treeiter,
+                                 sorted(kids, key=utils.natsort_key))
             return False
 
-    def populate_results(self, results, check_for_kids=False):
+    def populate_results(self, results):
         """Adds results to the search view in a task.
 
         :param results: a list or list-like object
-        :param check_for_kids: only used for testing
         """
         # don't bother with a task if the results are small,
         # this keeps the screen from flickering when the main
         # window is set to a busy state
         if len(results) > 3000:
-            bauble.task.queue(self._populate_worker(results, check_for_kids))
+            bauble.task.queue(self._populate_worker(results))
         else:
             task = self._populate_worker(results)
             while True:
@@ -1093,11 +1122,11 @@ class SearchView(pluginmgr.View):
                 except StopIteration:
                     break
 
-    def _populate_worker(self, results, check_for_kids=False):
+    def _populate_worker(self, results):
         """Generator function for adding the search results to the
         model.
 
-        This method is usually called by self.populate_results()
+        This method is usually called by `self.populate_results()`
         """
         nresults = len(results)
         model = Gtk.TreeStore(object)
@@ -1136,10 +1165,7 @@ class SearchView(pluginmgr.View):
             added.add(obj)
             parent = model.prepend(None, [obj])
             obj_type = type(obj)
-            if check_for_kids:
-                if len(self.row_meta[obj_type].get_children(obj)) > 0:
-                    model.prepend(parent, ['-'])
-            elif self.row_meta[obj_type].children is not None:
+            if self.row_meta[obj_type].children is not None:
                 model.prepend(parent, ['-'])
             steps_so_far += 1
             if steps_so_far % five_percent == 0:
@@ -1154,10 +1180,10 @@ class SearchView(pluginmgr.View):
     def append_children(self, model, parent, kids):
         """Append object to a parent iter in the model.
 
-        :param model: the model the append to
+        :param model: the model to append to
         :param parent:  the parent Gtk.TreeIter
         :param kids: a list of kids to append
-        @return: the model with the kids appended
+        :return: the model with the kids appended
         """
         check(parent is not None, "append_children(): need a parent")
         for k in kids:
@@ -1167,12 +1193,14 @@ class SearchView(pluginmgr.View):
         return model
 
     def cell_data_func(self, col, cell, model, treeiter, _data):
-        # start with a (redundant) check, whether the cell is visible.
-        path = model.get_path(treeiter)
-        tree_rect = self.results_view.get_visible_rect()
-        cell_rect = self.results_view.get_cell_area(path, col)
-        if cell_rect.y > tree_rect.height:
-            return
+        # for tests use int treeiter
+        if not isinstance(treeiter, int):
+            # start with a (redundant) check, whether the cell is visible.
+            path = model.get_path(treeiter)
+            tree_rect = self.results_view.get_visible_rect()
+            cell_rect = self.results_view.get_cell_area(path, col)
+            if cell_rect.y > tree_rect.height:
+                return
         # now update the the cell
         value = model[treeiter][0]
 
@@ -1190,7 +1218,7 @@ class SearchView(pluginmgr.View):
             # view's session so that we can access its child
             # properties...this usually happens when one of the
             # ViewMeta's get_children() functions return a list of
-            # object whose session was closed...we add it here for
+            # objects whose session was closed...we add it here for
             # performance reasons so we only add it once it's visible
             if not object_session(value):
                 if value in self.session:
@@ -1227,7 +1255,7 @@ class SearchView(pluginmgr.View):
                 raise
 
     def get_expanded_rows(self):
-        """Rturn all the rows in the model that are expanded """
+        """Get all the rows in the model that are expanded """
         expanded_rows = []
 
         def expand(view, path):
@@ -1256,8 +1284,8 @@ class SearchView(pluginmgr.View):
 
         Popup a context menu on the selected row.
         """
-        logger.debug('button release event: %s type: %s device: %s button: %s',
-                     event, event.type, event.device, event.button)
+        logger.debug('button release event: %s type: %s button: %s', event,
+                     event.type, event.button)
         # if not right click - bail (but allow propagating the event further)
         if event.button != 3:
             return False
@@ -1282,8 +1310,11 @@ class SearchView(pluginmgr.View):
 
     def update(self, *_args):
         """Expire all the children in the model, collapse everything, reexpand
-        the rows to the previous state where possible and update the infobox.
+        the rows to the previous state where possible.
+
+        Infoboxes are update in on_selection_changed which this should trigger.
         """
+        # NOTE log used in tests
         logger.debug('SearchView::update')
         selection = self.results_view.get_selection()
         model, tree_paths = selection.get_selected_rows()
@@ -1344,8 +1375,6 @@ class SearchView(pluginmgr.View):
 
         self.results_view.connect("test-expand-row",
                                   self.on_test_expand_row)
-        self.results_view.connect("button-release-event",
-                                  self.on_view_button_release)
 
         def on_press(view, event):
             """Ignore the mouse right-click event.
@@ -1353,13 +1382,10 @@ class SearchView(pluginmgr.View):
             This makes sure that we don't remove the multiple selection on a
             right click.
             """
-            # TODO this is only temporary, remove.
-            logger.debug(
-                'button press event: %s type: %s device: %s button: %s',
-                event, event.type, event.device, event.button
-            )
+            logger.debug('button press event: %s type: %s button: %s', event,
+                         event.type, event.button)
             if event.button == 3:
-                if (event.get_state() & Gdk.ModifierType.CONTROL_MASK) == 0:
+                if event.get_state() and Gdk.ModifierType.CONTROL_MASK == 0:
                     pos = view.get_path_at_pos(int(event.x), int(event.y))
                     # occasionally pos will return None and can't be unpacked
                     if not pos:
@@ -1374,6 +1400,8 @@ class SearchView(pluginmgr.View):
 
         self.results_view.connect("button-press-event",
                                   on_press)
+        self.results_view.connect("button-release-event",
+                                  self.on_view_button_release)
 
         self.results_view.connect("row-activated",
                                   self.on_view_row_activated)
@@ -1426,9 +1454,6 @@ class AppendThousandRows(threading.Thread):
     def get_query_filters(self):
         """Parse the string provided in arg and return the equivalent as
         consumed by sqlalchemy query `filter()` method."""
-        from pyparsing import (oneOf, quotedString, removeQuotes, Word,
-                               ZeroOrMore, printables, CaselessLiteral, Group,
-                               alphas)
         operator = oneOf('= != < > like contains has')
         value = quotedString.setParseAction(removeQuotes) | Word(printables)
         and_ = CaselessLiteral("and").suppress()
@@ -1511,8 +1536,11 @@ class HistoryView(pluginmgr.View):
         self.liststore.append([
             item.timestamp.strftime(
                 prefs.prefs.get(prefs.datetime_format_pref)),
-            item.operation, item.user,
-            item.table_name, friendly, item.values
+            item.operation,
+            item.user,
+            item.table_name,
+            friendly,
+            item.values
         ])
 
     def on_row_activated(self, _tree, path, _column):
@@ -1525,6 +1553,7 @@ class HistoryView(pluginmgr.View):
                 ('species_note', 'species', 'species_id'),
                 ('location_note', 'location', 'location_id'),
                 ('accession_note', 'accession', 'accession_id'),
+                ('source', 'accession', 'accession_id'),
                 ('plant_note', 'plant', 'plant_id'),
                 ('location_note', 'location', 'location_id'),
                 ('genus_synonym', 'genus', 'genus_id'),
@@ -1536,10 +1565,13 @@ class HistoryView(pluginmgr.View):
             if table == table_name:
                 table = equivalent
                 obj_id = int(dic[key])
-        mapper_search = search.get_strategy('MapperSearch')
-        if table in mapper_search.domains:
+        if table in search.MapperSearch.domains:
             query = f'{table} where id={obj_id}'
-            bauble.gui.send_command(query)
+            if bauble.gui:
+                bauble.gui.send_command(query)
+            else:
+                # for testing...
+                return query
 
     def update(self, *args):
         """Add the history items to the view."""
@@ -1569,8 +1601,7 @@ def select_in_search_results(obj):
     then add it and select it.
 
     :param obj: the object the select
-    :returns: a Gtk.TreeIter to the selected row
-
+    :return: a Gtk.TreeIter to the selected row
     """
     check(obj is not None, 'select_in_search_results: arg is None')
     view = bauble.gui.get_view()
@@ -1591,9 +1622,6 @@ def select_in_search_results(obj):
 
 
 class DefaultCommandHandler(pluginmgr.CommandHandler):
-
-    def __init__(self):
-        super().__init__()
 
     command = [None]
     view = None

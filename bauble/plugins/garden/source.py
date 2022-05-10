@@ -229,6 +229,8 @@ class Collection(db.Base):
     geography_id = Column(Integer, ForeignKey('geography.id'))
     # use backref here or can lead to InvalidRequestError (Collection unknown
     # in Geography) particularly in view.multiproc_counter
+    # region = relationship('Geography', uselist=False,
+    #                       back_populates='collection')
     region = relationship(Geography, uselist=False,
                           backref=backref('collection', uselist=True))
 

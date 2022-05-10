@@ -534,7 +534,6 @@ class GlobalFunctionsTests(BaubleTestCase):
         self.assertEqual(bauble.connmgr.make_absolute('.\\test\\this'),
                          path)
 
-    """Presenter manages view and model, implements view callbacks."""
     @mock.patch('bauble.connmgr.WORKING_DBTYPES', ['a', 'd'])
     @mock.patch('bauble.connmgr.DBTYPES', ['a', 'b', 'c', 'd'])
     def test_combo_cell_data_func(self):

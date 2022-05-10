@@ -78,6 +78,7 @@ accession_test_data = (
     {'id': 1, 'code': '2001.1', 'species_id': 1, 'private': True},
     {'id': 2, 'code': '2001.2', 'species_id': 2, 'source_type': 'Collection'},
     {'id': 3, 'code': '2020.1', 'species_id': 1, 'source_type': 'Collection'},
+    {'id': 4, 'code': '2020.2', 'species_id': 2, 'source_type': 'Individual'},
 )
 
 plant_test_data = (
@@ -95,9 +96,14 @@ location_test_data = (
 geography_test_data = [{'id': 1, 'name': 'Somewhere'},
                        {'id': 2, 'name': 'SomewhereSubArea', 'parent_id': 1}]
 
+source_detail_data = (
+    {'id': 1, 'name': 'Jade Green', 'source_type': 'Individual'},
+)
+
 source_test_data = (
     {'id': 1, 'accession_id': 2},
     {'id': 2, 'accession_id': 3},
+    {'id': 3, 'accession_id': 4, 'source_detail_id': 1},
 )
 
 collection_test_data = (
@@ -147,6 +153,7 @@ test_data_table_control = ((Accession, accession_test_data),
                            (Location, location_test_data),
                            (Plant, plant_test_data),
                            (Geography, geography_test_data),
+                           (SourceDetail, source_detail_data),
                            (Source, source_test_data),
                            (Collection, collection_test_data))
 testing_today = datetime.date(2017, 1, 1)
@@ -219,9 +226,6 @@ class GardenTestCase(BaubleTestCase):
 
 
 class PlantTests(GardenTestCase):
-
-    def __init__(self, *args):
-        super().__init__(*args)
 
     def setUp(self):
         super().setUp()
@@ -459,17 +463,17 @@ class PlantTests(GardenTestCase):
         self.assertFalse(splt[0].planted.parent_plant)
 
     def test_bulk_branch(self):
-        # use our own plant because PlantEditor.commit_changes() will
-        # only work in bulk mode when the plant is in session.new
+        # create a plant with sufficient quantity
         plant = Plant(accession=self.accession, code='5',
                       location=self.location, quantity=20)
         loc2a = Location(name='site2a', code='2a')
         self.session.add_all([plant, loc2a])
-        self.session.flush()
+        self.session.commit()
         editor = PlantEditor(model=plant, branch_mode=True)
-        loc2a = object_session(
-            editor.branched_plant).query(
-                Location).filter(Location.code == '2a').one()
+        loc2a = (object_session(editor.branched_plant)
+                 .query(Location)
+                 .filter(Location.code == '2a')
+                 .one())
         editor.model.location = loc2a
         widgets = editor.presenter.view.widgets
         rng = '6-9'
@@ -1928,6 +1932,7 @@ class InstitutionTests(GardenTestCase):
         (self.session.query(BaubleMeta)
          .filter(utils.ilike(BaubleMeta.name, 'inst_%'))
          .delete(synchronize_session=False))
+        self.session.commit()
         o = Institution()
         o.name = 'Ghini'
         o.email = 'bauble@anche.no'
@@ -1940,6 +1945,7 @@ class InstitutionTests(GardenTestCase):
                       if i.value is not None)
         self.assertEqual(fields['name'], 'Ghini')
         self.assertEqual(fields['email'], 'bauble@anche.no')
+        logger.debug(fields)
         self.assertEqual(len(fields), 2)
 
 
@@ -2515,7 +2521,7 @@ class AccessionGetNextCode(GardenTestCase):
         self.session.add(acc)
         acc = Accession(species=self.species, code='SD.002')
         self.session.add(acc)
-        self.session.flush()
+        self.session.commit()
         Accession.code_format = 'H.###'
         self.assertEqual(Accession.get_next_code(), 'H.013')
         Accession.code_format = 'SD.###'
@@ -2527,7 +2533,7 @@ class AccessionGetNextCode(GardenTestCase):
         this_code = this_year + '.0050'
         acc = Accession(species=self.species, code=this_code)
         self.session.add(acc)
-        self.session.flush()
+        self.session.commit()
         self.assertEqual(Accession.get_next_code('H.###'), 'H.001')
         self.assertEqual(Accession.get_next_code('SD.###'), 'SD.001')
 
@@ -2536,7 +2542,7 @@ class AccessionGetNextCode(GardenTestCase):
         self.session.add(acc)
         acc = Accession(species=self.species, code='SD.002')
         self.session.add(acc)
-        self.session.flush()
+        self.session.commit()
         self.assertEqual(Accession.get_next_code('H.###'), 'H.013')
         self.assertEqual(Accession.get_next_code('SD.###'), 'SD.003')
 
@@ -2574,7 +2580,7 @@ class AccessionGetNextCode(GardenTestCase):
         acc = Accession(species=self.species, code='%s.0012' % last_year)
         ac2 = Accession(species=self.species, code='%s.0987' % this_year)
         self.session.add_all([acc, ac2])
-        self.session.flush()
+        self.session.commit()
         self.assertEqual(Accession.get_next_code('%{Y-1}.####')[5:], '0013')
         self.assertEqual(Accession.get_next_code('%Y.####')[5:], '0988')
 
@@ -2886,30 +2892,30 @@ class RetrieveTests(GardenTestCase):
         self.assertIsNone(plt)
 
     def test_contact_retreives(self):
-        contact1 = SourceDetail(name='name1', id=1)
-        contact2 = SourceDetail(name='name2', id=2)
+        contact1 = SourceDetail(name='name1', id=2)
+        contact2 = SourceDetail(name='name2', id=3)
         self.session.add_all([contact1, contact2])
         self.session.commit()
         keys = {
             'name': 'name1',
         }
         contact = SourceDetail.retrieve(self.session, keys)
-        self.assertEqual(contact.id, 1)
+        self.assertEqual(contact.id, 2)
 
     def test_contact_retreives_id_only(self):
-        contact1 = SourceDetail(name='name1', id=1)
-        contact2 = SourceDetail(name='name2', id=2)
+        contact1 = SourceDetail(name='name1', id=2)
+        contact2 = SourceDetail(name='name2', id=3)
         self.session.add_all([contact1, contact2])
         self.session.commit()
         keys = {
-            'id': 2
+            'id': 3
         }
         contact = SourceDetail.retrieve(self.session, keys)
         self.assertEqual(contact.name, 'name2')
 
     def test_contact_doesnt_retreive_non_existent(self):
-        contact1 = SourceDetail(name='name1', id=1)
-        contact2 = SourceDetail(name='name2', id=2)
+        contact1 = SourceDetail(name='name1', id=2)
+        contact2 = SourceDetail(name='name2', id=3)
         self.session.add_all([contact1, contact2])
         self.session.commit()
         keys = {
@@ -2919,8 +2925,8 @@ class RetrieveTests(GardenTestCase):
         self.assertIsNone(contact)
 
     def test_contact_doesnt_retreive_wrong_keys(self):
-        contact1 = SourceDetail(name='name1', id=1)
-        contact2 = SourceDetail(name='name2', id=2)
+        contact1 = SourceDetail(name='name1', id=2)
+        contact2 = SourceDetail(name='name2', id=3)
         self.session.add_all([contact1, contact2])
         self.session.commit()
         keys = {

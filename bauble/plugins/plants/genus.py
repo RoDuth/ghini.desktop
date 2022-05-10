@@ -914,7 +914,13 @@ class GeneralGenusExpander(InfoExpander):
             self.widget_set_value('gen_nplants_data', '%s in %s accessions'
                                   % (nplants, nacc_in_plants))
 
-        on_clicked_search = utils.generate_on_clicked(bauble.gui.send_command)
+        if bauble.gui:
+            on_clicked_search = utils.generate_on_clicked(
+                bauble.gui.send_command
+            )
+        else:
+            # for testing...
+            on_clicked_search = utils.generate_on_clicked(lambda *args: None)
 
         from .species import on_taxa_clicked
 

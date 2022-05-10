@@ -108,7 +108,7 @@ class TagsMenuManager:
                 GLib.Variant.new_string(self.active_tag_name)
             )
 
-        if not selected_values:
+        if not selected_values and bauble.gui:
             view = bauble.gui.get_view()
             if isinstance(view, SearchView):
                 selected_values = view.get_selected_values()
@@ -117,8 +117,9 @@ class TagsMenuManager:
             if self.active_tag_name:
                 self.apply_active_tag_action.set_enabled(True)
                 self.remove_active_tag_action.set_enabled(True)
-            self.tag_selection_action.set_enabled(True)
-        else:
+            if self.tag_selection_action:
+                self.tag_selection_action.set_enabled(True)
+        elif self.tag_selection_action:
             self.apply_active_tag_action.set_enabled(False)
             self.remove_active_tag_action.set_enabled(False)
             self.tag_selection_action.set_enabled(False)

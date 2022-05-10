@@ -396,11 +396,13 @@ def search_tree_model(parent, data, cmp=lambda row, data: row[0] == data):
 
 
 def remove_from_results_view(objs):
-    """Remove the supplied objects from the SearchView results. This will only
-    succeed when the current view is a SearchView.  Intended for use in remove
-    callbacks.
+    """Remove the supplied objects from the SearchView results.
 
-    :param obj: the item to remove"""
+    This will only succeed when the current view is a SearchView.  Intended for
+    use in remove callbacks.  Exists here rather than SearchView for
+    convenience. (DRY)
+
+    :param objs: the items to remove"""
     # Avoid errors in tests
     if not bauble.gui:
         return

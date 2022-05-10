@@ -242,7 +242,7 @@ class History(HistoryBase):
     timestamp = sa.Column(types.DateTime, nullable=False)
 
 
-def open(uri, verify=True, show_error_dialogs=False):
+def open(uri, verify=True, show_error_dialogs=False, poolclass=None):
     """Open a database connection.  This function sets bauble.db.engine to
     the opened engined.
 
@@ -260,6 +260,8 @@ def open(uri, verify=True, show_error_dialogs=False):
     :param show_error_dialogs: A flag to indicate whether the error
         dialogs should be displayed.  This is used mostly for testing.
     :type show_error_dialogs: bool
+    :param poolclass: the poolclass to use, if left as None sqlalchemy default
+        is used. Used in testing.
     """
 
     # ** WARNING: this can print your passwd
@@ -277,6 +279,7 @@ def open(uri, verify=True, show_error_dialogs=False):
     new_engine = sa.create_engine(uri,
                                   echo=SQLALCHEMY_DEBUG,
                                   connect_args=connect_args,
+                                  poolclass=poolclass,
                                   implicit_returning=False)
 
     # TODO: there is a problem here: the code may cause an exception, but we

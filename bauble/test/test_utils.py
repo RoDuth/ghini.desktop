@@ -88,6 +88,7 @@ class UtilsTest(TestCase):
 
         self.assertEqual(buffer.get_line_count(), 3)
         self.assertEqual(buffer.get_text(*buffer.get_bounds(), False), details)
+        dlog.destroy()
 
     def test_create_message_dialog(self):
         msg = 'test message'
@@ -100,6 +101,7 @@ class UtilsTest(TestCase):
         contents = dlog.get_content_area().get_children()
         # should just be message_area and button_box  (no details area)
         self.assertEqual(len(contents), 2)
+        dlog.destroy()
 
     def test_search_tree_model(self):
         """
