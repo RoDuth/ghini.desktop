@@ -279,6 +279,10 @@ class Collection(db.Base):
     def __str__(self):
         return _('Collection at %s') % (self.locale or repr(self))
 
+    def has_children(self):
+        # more expensive than other models (loads full accession query)
+        return self.source.accession.has_children()
+
 
 class CollectionPresenter(editor.ChildPresenter):
 
@@ -903,6 +907,13 @@ class SourceDetail(db.Base, db.Serializable):
         safe = utils.xml_safe
         return (safe(self.name),
                 safe(self._source_types.get(self.source_type)))
+
+    def has_children(self):
+        from sqlalchemy import exists
+        session = object_session(self)
+        return session.query(
+            exists().where(Source.source_detail_id == self.id)
+        ).scalar()
 
 
 class SourceDetailPresenter(editor.GenericEditorPresenter):

@@ -1163,10 +1163,7 @@ class SearchView(pluginmgr.View):
             if obj in added:  # only add unique object
                 continue
             added.add(obj)
-            parent = model.prepend(None, [obj])
-            obj_type = type(obj)
-            if self.row_meta[obj_type].children is not None:
-                model.prepend(parent, ['-'])
+            model.prepend(None, [obj])
             steps_so_far += 1
             if steps_so_far % five_percent == 0:
                 percent = float(steps_so_far) / float(nresults)
@@ -1183,14 +1180,13 @@ class SearchView(pluginmgr.View):
         :param model: the model to append to
         :param parent:  the parent Gtk.TreeIter
         :param kids: a list of kids to append
-        :return: the model with the kids appended
         """
         check(parent is not None, "append_children(): need a parent")
-        for k in kids:
-            i = model.append(parent, [k])
-            if self.row_meta[type(k)].children is not None:
-                model.append(i, ["_dummy"])
-        return model
+        for kid in kids:
+            itr = model.append(parent, [kid])
+            if (self.row_meta[type(kid)].children is not None and
+                    kid.has_children()):
+                model.append(itr, ['-'])
 
     def cell_data_func(self, col, cell, model, treeiter, _data):
         # for tests use int treeiter
@@ -1226,6 +1222,12 @@ class SearchView(pluginmgr.View):
                     self.session.expire(value)
                 else:
                     self.session.merge(value)
+            if (self.row_meta[type(value)].children is not None and
+                    value.has_children()):
+                # treeiter is int for testing
+                if (not isinstance(treeiter, int) and
+                        not model.iter_has_child(treeiter)):
+                    model.prepend(treeiter, ['-'])
             try:
                 rep = value.search_view_markup_pair()
                 try:

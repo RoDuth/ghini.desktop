@@ -27,7 +27,7 @@ from sqlalchemy.ext.associationproxy import association_proxy
 
 from sqlalchemy import (Column, Unicode, Integer, ForeignKey, UnicodeText,
                         UniqueConstraint)
-from sqlalchemy.orm import relationship, backref
+from sqlalchemy.orm import relationship, backref, object_session
 from sqlalchemy.orm import synonym as sa_synonym
 from sqlalchemy.ext.hybrid import hybrid_property
 from bauble import db
@@ -56,7 +56,6 @@ class VNList(list):
         try:
             # see if the deleted vernacular name is the default then remove
             # from both if it is.
-            from sqlalchemy.orm import object_session
             session = object_session(vernacular)
             vn_sp = session.query(Species).get(vernacular.species_id)
             if vn_sp.default_vernacular_name == vernacular:
@@ -582,7 +581,6 @@ class Species(db.Base, db.Serializable, db.DefiningPictures, db.WithNotes):
             if lang:
                 kwargs['language'] = lang
             vnobj = None
-            from sqlalchemy.orm.session import object_session
             session = object_session(self)
             if session:
                 vnobj = db.get_create_or_update(session, VernacularName,
@@ -741,7 +739,6 @@ class Species(db.Base, db.Serializable, db.DefiningPictures, db.WithNotes):
     @property
     def accepted(self):
         'Name that should be used if name of self should be rejected'
-        from sqlalchemy.orm.session import object_session
         session = object_session(self)
         if not session:
             logger.warning('species:accepted - object not in session')
@@ -759,7 +756,6 @@ class Species(db.Base, db.Serializable, db.DefiningPictures, db.WithNotes):
         if self in value.synonyms:
             return
         # remove any previous `accepted` link
-        from sqlalchemy.orm.session import object_session
         session = object_session(self)
         if not session:
             logger.warning('species:accepted.setter - object not in session')
@@ -854,6 +850,14 @@ class Species(db.Base, db.Serializable, db.DefiningPictures, db.WithNotes):
                 (8, 'Sources'): set([a.source.source_detail.id
                                      for a in self.accessions
                                      if a.source and a.source.source_detail])}
+
+    def has_children(self):
+        cls = self.__class__.accessions.prop.mapper.class_
+        from sqlalchemy import exists
+        session = object_session(self)
+        return session.query(
+            exists().where(cls.species_id == self.id)
+        ).scalar()
 
 
 def as_dict(self):
@@ -1026,6 +1030,10 @@ class VernacularName(db.Base, db.Serializable):
     @property
     def pictures(self):
         return self.species.pictures  # pylint: disable=no-member
+
+    def has_children(self):
+        # pylint: disable=no-member
+        return self.species.has_children()
 
 
 class DefaultVernacularName(db.Base):

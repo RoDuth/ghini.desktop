@@ -27,10 +27,44 @@ from gi.repository import Gio
 
 import bauble.plugins.tag as tag_plugin
 from bauble.plugins.plants import Family
-from bauble.plugins.tag import Tag, TagEditorPresenter, TagInfoBox
+from bauble.plugins.tag import Tag, TagEditorPresenter, TagInfoBox, TaggedObj
 from bauble.test import BaubleTestCase, check_dupids, mockfunc
 from bauble.editor import GenericEditorView, MockView
 from bauble import utils
+
+
+tag_test_data = (
+    {'id': 1, 'tag': 'test1', 'description': 'empty test tag'},
+    {'id': 2, 'tag': 'test2', 'description': 'not empty test tag'},
+)
+
+# tags a tag just to keep plugins separated.
+tag_object_test_data = (
+    {'id': 1, 'obj_id': 1, 'obj_class': f'{Tag.__module__}.{Tag.__name__}',
+     'tag_id': 2},
+)
+
+test_data_table_control = (
+    (Tag, tag_test_data),
+    (TaggedObj, tag_object_test_data)
+)
+
+
+def setUp_data():
+    """Load test data.
+
+    if this method is called again before tearDown_test_data is called you
+    will get an error about the test data rows already existing in the database
+    """
+
+    for mapper, data in test_data_table_control:
+        table = mapper.__table__
+        # insert row by row instead of doing an insert many since each
+        # row will have different columns
+        for row in data:
+            table.insert().execute(row).close()
+        for col in table.c:
+            utils.reset_sequence(col)
 
 
 def test_duplicate_ids():

@@ -799,6 +799,14 @@ class Accession(db.Base, db.Serializable, db.WithNotes):
                 (7, 'Locations'): set(p.location.id for p in self.plants),
                 (8, 'Sources'): set([source.id] if source else [])}
 
+    def has_children(self):
+        cls = self.__class__.plants.prop.mapper.class_
+        from sqlalchemy import exists
+        session = object_session(self)
+        return session.query(
+            exists().where(cls.accession_id == self.id)
+        ).scalar()
+
 
 # late import after Accession is defined
 from .plant import Plant, PlantEditor

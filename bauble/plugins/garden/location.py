@@ -195,6 +195,14 @@ class Location(db.Base, db.Serializable, db.WithNotes):
                                      for a in accessions
                                      if a.source and a.source.source_detail])}
 
+    def has_children(self):
+        cls = self.__class__.plants.prop.mapper.class_
+        from sqlalchemy import exists
+        session = object_session(self)
+        return session.query(
+            exists().where(cls.location_id == self.id)
+        ).scalar()
+
 
 def mergevalues(value1, value2, formatter):
     """return the common value

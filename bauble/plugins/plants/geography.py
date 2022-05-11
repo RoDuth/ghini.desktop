@@ -176,7 +176,6 @@ class Geography(db.Base):
     tdwg_code = Column(String(6))
     tdwg_level = Column(Integer)
     iso_code = Column(String(7))
-    parent_id = Column(Integer, ForeignKey('geography.id'))
     geojson = deferred(Column(types.JSON()))
     # don't use, can lead to InvalidRequestError (Collection unknown)
     # collection = relationship('Collection', back_populates='region')
@@ -184,6 +183,7 @@ class Geography(db.Base):
                                 back_populates='geography')
 
     retrieve_cols = ['id', 'tdwg_code']
+    parent_id = Column(Integer, ForeignKey('geography.id'))
     children = relationship('Geography',
                             cascade='all',
                             backref=backref('parent',
@@ -200,6 +200,23 @@ class Geography(db.Base):
 
     def __str__(self):
         return str(self.name)
+
+    def has_children(self):
+        # has this geopraphy or any of it children got SpeciesDistribution
+        # Much more expensive than other models
+        from sqlalchemy import exists
+        from .species_model import SpeciesDistribution
+        session = object_session(self)
+        ids = {self.id}
+        parent_ids = [self.id]
+        while child_id := (session.query(Geography.id)
+                           .filter(Geography.parent_id.in_(parent_ids)).all()):
+            parent_ids = [i[0] for i in child_id]
+            ids.update(parent_ids)
+
+        return session.query(
+            exists().where(SpeciesDistribution.geography_id.in_(ids))
+        ).scalar()
 
 
 class GeneralGeographyExpander(InfoExpander):

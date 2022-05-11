@@ -121,7 +121,22 @@ class TestSearchView(BaubleTestCase):
             list(search.MapperSearch.get_domain_classes().values())
         )
 
-    def test_bottum_info_populates_with_note_and_tag(self):
+    def test_all_domains_w_children_has_children_returns_correct(self):
+        search_view = SearchView()
+        for func in get_setUp_data_funcs():
+            func()
+        for cls in search.MapperSearch.get_domain_classes().values():
+            print(cls)
+            if not SearchView.row_meta[cls].children:
+                continue
+            for obj in self.session.query(cls):
+                self.assertIsInstance(obj.has_children(), bool, cls)
+                kids = search_view.row_meta[cls].get_children(obj)
+                has_kids = bool(kids)
+                self.assertEqual(obj.has_children(), has_kids,
+                                 f'{obj}: {kids}')
+
+    def test_bottom_info_populates_with_note_and_tag(self):
         search_view = SearchView()
         self.assertEqual(
             list(search_view.bottom_info.keys()),
@@ -154,7 +169,7 @@ class TestSearchView(BaubleTestCase):
         # remove so further tests don't fail
         del SearchView.row_meta.data[Parent]
 
-    def test_on_test_expand_row(self):
+    def test_on_test_expand_row_w_kids_returns_false_adds_kids(self):
         for func in get_setUp_data_funcs():
             func()
         search_view = SearchView()
@@ -168,6 +183,22 @@ class TestSearchView(BaubleTestCase):
         self.assertFalse(val)
         kid = model.get_value(model.get_iter_from_string('0:1'), 0)
         self.assertEqual(kid.genus_id, 1)
+
+    def test_on_test_expand_row_w_no_kids_returns_true_adds_no_kids(self):
+        # doesn't propagate
+        for func in get_setUp_data_funcs():
+            func()
+        search_view = SearchView()
+        search_view.search('plant where id = 1')
+        model = search_view.results_view.get_model()
+        val = search_view.on_test_expand_row(
+            search_view.results_view,
+            model.get_iter_first(),
+            Gtk.TreePath.new_first()
+        )
+        self.assertTrue(val)
+        with self.assertRaises(ValueError):
+            model.get_iter_from_string('0:1')
 
     @mock.patch('bauble.view.SearchView.get_selected_values')
     def test_on_note_row_activated(self, mock_get_selected):

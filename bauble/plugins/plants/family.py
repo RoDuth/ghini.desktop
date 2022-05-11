@@ -282,6 +282,14 @@ class Family(db.Base, db.Serializable, db.WithNotes):
                                      for a in accessions
                                      if a.source and a.source.source_detail])}
 
+    def has_children(self):
+        cls = self.__class__.genera.prop.mapper.class_
+        from sqlalchemy import exists
+        session = object_session(self)
+        return session.query(
+            exists().where(cls.family_id == self.id)
+        ).scalar()
+
 
 # defining the latin alias to the class.
 Familia = Family

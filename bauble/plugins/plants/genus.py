@@ -387,6 +387,12 @@ class Genus(db.Base, db.Serializable, db.WithNotes):
                                  accessions if a.source and
                                  a.source.source_detail}}
 
+    def has_children(self):
+        cls = self.__class__.species.prop.mapper.class_
+        from sqlalchemy import exists
+        session = object_session(self)
+        return session.query(exists().where(cls.genus_id == self.id)).scalar()
+
 
 def compute_serializable_fields(_cls, session, keys):
     result = {'genus': None}
