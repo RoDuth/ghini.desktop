@@ -417,24 +417,32 @@ class PlantChange(db.Base):
 
     # relations
     plant = relationship(
-        'Plant', uselist=False,
+        'Plant',
+        uselist=False,
         primaryjoin='PlantChange.plant_id == Plant.id',
-        backref=backref('changes', cascade='all, delete-orphan'))
+        backref=backref('changes', cascade='all, delete-orphan')
+    )
     parent_plant = relationship(
-        'Plant', uselist=False,
+        'Plant',
+        uselist=False,
         primaryjoin='PlantChange.parent_plant_id == Plant.id',
-        backref=backref('branches'))
+        backref=backref('branches')
+    )
 
     child_plant = relationship(
-        'Plant', uselist=False,
+        'Plant',
+        uselist=False,
         primaryjoin='PlantChange.child_plant_id == Plant.id',
         backref=backref('branched_from', uselist=False,
-                        cascade='delete, delete-orphan'))
+                        cascade='delete, delete-orphan')
+    )
 
     from_location = relationship(
-        'Location', primaryjoin='PlantChange.from_location_id == Location.id')
+        'Location', primaryjoin='PlantChange.from_location_id == Location.id'
+    )
     to_location = relationship(
-        'Location', primaryjoin='PlantChange.to_location_id == Location.id')
+        'Location', primaryjoin='PlantChange.to_location_id == Location.id'
+    )
 
 
 condition_values = {
@@ -578,11 +586,11 @@ class Plant(db.Base, db.Serializable, db.DefiningPictures, db.WithNotes):
     # has already been loaded (i.e. infobox)
     geojson = deferred(Column(types.JSON()))
 
-    propagations = relationship(
-        'Propagation', cascade='all, delete-orphan',
-        single_parent=True,
-        secondary=PlantPropagation.__table__,
-        backref=backref('plant', uselist=False))
+    propagations = relationship('Propagation',
+                                cascade='all, delete-orphan',
+                                single_parent=True,
+                                secondary=PlantPropagation.__table__,
+                                backref=backref('plant', uselist=False))
 
     # provide a way to search and use the change that recorded either a death
     # or a planting date directly.  This is not fool proof but close enough.
@@ -646,9 +654,6 @@ class Plant(db.Base, db.Serializable, db.DefiningPictures, db.WithNotes):
 
     def search_view_markup_pair(self):
         """provide the two lines describing object for SearchView row."""
-        import inspect
-        logger.debug('entering search_view_markup_pair %s, %s', self,
-                     str(inspect.stack()[1]))
         sp_str = self.accession.species_str(markup=True)
         dead_color = "#9900ff"
         if self.quantity <= 0:
@@ -778,14 +783,13 @@ def plant_after_update(_mapper, connection, target):  \
             if to_update.child_plant:
                 return
 
-    from_loc = (get_history(target, 'location_id').deleted[0]
-                if get_history(target, 'location_id').deleted else None)
-    to_loc = (get_history(target, 'location_id').added[0]
-              if get_history(target, 'location_id').added else None)
+    loc_history = get_history(target, 'location_id')
+    qty_history = get_history(target, 'quantity')
+    from_loc = (loc_history.deleted[0] if loc_history.deleted else None)
+    to_loc = (loc_history.added[0] if loc_history.added else None)
     # NOTE if both location and quantity have changed likely want 2 changes
-    if get_history(target, 'location_id').has_changes():
-        quantity_change = (get_history(target, 'quantity').deleted[0] if
-                           get_history(target, 'quantity').deleted else
+    if loc_history.has_changes():
+        quantity_change = (qty_history.deleted[0] if qty_history.deleted else
                            target.quantity)
         logger.debug("%s has location change %s->%s", target, from_loc, to_loc)
         values = {
@@ -799,14 +803,12 @@ def plant_after_update(_mapper, connection, target):  \
         values = {k: v for k, v in values.items() if v is not None}
         changes.append(values)
 
-    if get_history(target, 'quantity').has_changes():
+    if qty_history.has_changes():
         # NOTE has_changes can pick up str/int/etc changes and not just ints so
         # to be sure convert to int first.  It also possible that only added or
         # deleted will exist not both.
-        added = int(get_history(target, 'quantity').added[0] if
-                    get_history(target, 'quantity').added else 0)
-        deleted = int(get_history(target, 'quantity').deleted[0] if
-                      get_history(target, 'quantity').deleted else 0)
+        added = int(qty_history.added[0] if qty_history.added else 0)
+        deleted = int(qty_history.deleted[0] if qty_history.deleted else 0)
         quantity_change = (added - deleted)
         logger.debug("%s has quantity change %s", target, quantity_change)
         if quantity_change > 0:
@@ -833,6 +835,7 @@ def plant_after_update(_mapper, connection, target):  \
             }
             values = {k: v for k, v in values.items() if v is not None}
             changes.append(values)
+
     for values in changes:
         if to_update:
             logger.debug("update existing change with %s", values)
@@ -944,9 +947,7 @@ class PlantEditorView(GenericEditorView):
 
 
 # could live in accession but is only used here so for now leave here...
-def acc_to_string_matcher(accession: Accession,
-                          key: str,
-                          sp_path: str = '') -> bool:
+def acc_to_string_matcher(accession: Accession, key: str) -> bool:
     """Helper function to match string or partial string of the pattern
     'ACCESSIONCODE Genus species' with a Accession
 
@@ -955,7 +956,6 @@ def acc_to_string_matcher(accession: Accession,
 
     :param species: a Accession table entry
     :param key: the string to search with
-    :param sp_path: optional path for model obects to get to the species
 
     :return: bool, True if the Species matches the key
     """

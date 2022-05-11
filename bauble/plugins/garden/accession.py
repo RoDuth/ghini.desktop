@@ -1240,6 +1240,7 @@ class VerificationBox(Gtk.Box):
         # copy verification species to general tab
         if self.model.accession:
             parent = self.presenter().parent_ref()
+
             # set the entry text.
             acc_species_entry = parent.view.widgets.acc_species_entry
             logger.debug('setting species from %s to verification %s',

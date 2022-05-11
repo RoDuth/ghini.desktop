@@ -272,6 +272,8 @@ class Species(db.Base, db.Serializable, db.DefiningPictures, db.WithNotes):
 
     # hardiness_zone = Column(Unicode(4))
 
+    hybrid_char = '×'
+
     awards = Column(UnicodeText)
 
     # see retrieve classmethod.
@@ -319,12 +321,10 @@ class Species(db.Base, db.Serializable, db.DefiningPictures, db.WithNotes):
         """provide the two lines describing object for SearchView row."""
         try:
             if len(self.vernacular_names) > 0:
-                substring = (
-                    '%s -- %s' %
-                    (self.genus.family,
-                     ', '.join([str(v) for v in self.vernacular_names])))
+                vnames = ', '.join([str(v) for v in self.vernacular_names])
+                substring = f'{self.genus.family} -- {vnames}'
             else:
-                substring = '%s' % self.genus.family
+                substring = f'{self.genus.family}'
             trail = ''
             if self.accepted:
                 trail += ('<span foreground="#555555" size="small" '
@@ -362,16 +362,16 @@ class Species(db.Base, db.Serializable, db.DefiningPictures, db.WithNotes):
         not enforced by the software in v1.0.x
         """
 
-        {'EX': _('Extinct (EX)'),
-         'EW': _('Extinct Wild (EW)'),
-         'RE': _('Regionally Extinct (RE)'),
-         'CR': _('Critically Endangered (CR)'),
-         'EN': _('Endangered (EN)'),
-         'VU': _('Vulnerable (VU)'),
-         'NT': _('Near Threatened (NT)'),
-         'LV': _('Least Concern (LC)'),
-         'DD': _('Data Deficient (DD)'),
-         'NE': _('Not Evaluated (NE)')}
+        # {'EX': _('Extinct (EX)'),
+        #  'EW': _('Extinct Wild (EW)'),
+        #  'RE': _('Regionally Extinct (RE)'),
+        #  'CR': _('Critically Endangered (CR)'),
+        #  'EN': _('Endangered (EN)'),
+        #  'VU': _('Vulnerable (VU)'),
+        #  'NT': _('Near Threatened (NT)'),
+        #  'LV': _('Least Concern (LC)'),
+        #  'DD': _('Data Deficient (DD)'),
+        #  'NE': _('Not Evaluated (NE)')}
 
         notes = [i.note for i in self.notes
                  if i.category and i.category.upper() == 'IUCN']
@@ -385,7 +385,7 @@ class Species(db.Base, db.Serializable, db.DefiningPictures, db.WithNotes):
         area of interest. it is really an interpretation, not a fact.
         """
         # one of, but not forcibly so:
-        [_('endemic'), _('indigenous'), _('native'), _('introduced')]
+        # [_('endemic'), _('indigenous'), _('native'), _('introduced')]
 
         notes = [i.note for i in self.notes
                  if i.category.lower() == 'condition']
@@ -411,7 +411,8 @@ class Species(db.Base, db.Serializable, db.DefiningPictures, db.WithNotes):
         return self.__lowest_infraspecific()[0] or ''
 
     @infraspecific_rank.expression
-    def infraspecific_rank(cls):   # noqa pylint: disable=no-self-argument,no-self-use
+    def infraspecific_rank(cls):
+        # pylint: disable=no-self-argument,no-self-use
         # use the last epithet that is not 'cv'. available (the user should be
         # keeping their infraspecific parts in order)
         from sqlalchemy.sql.expression import case
@@ -430,7 +431,8 @@ class Species(db.Base, db.Serializable, db.DefiningPictures, db.WithNotes):
         return self.__lowest_infraspecific()[1] or ''
 
     @infraspecific_epithet.expression
-    def infraspecific_epithet(cls):   # noqa pylint: disable=no-self-argument,no-self-use
+    def infraspecific_epithet(cls):
+        # pylint: disable=no-self-argument,no-self-use
         # use the last epithet that is not 'cv'.
         from sqlalchemy.sql.expression import case
         return (
@@ -461,7 +463,7 @@ class Species(db.Base, db.Serializable, db.DefiningPictures, db.WithNotes):
         return ''
 
     @cultivar_epithet.expression
-    def cultivar_epithet(cls):  # noqa pylint: disable=no-self-argument,no-self-use
+    def cultivar_epithet(cls):  # pylint: disable=no-self-argument,no-self-use
         from sqlalchemy.sql.expression import case
         return (
             case([
@@ -479,7 +481,7 @@ class Species(db.Base, db.Serializable, db.DefiningPictures, db.WithNotes):
                    (self.infrasp2_rank, self.infrasp2),
                    (self.infrasp3_rank, self.infrasp3),
                    (self.infrasp4_rank, self.infrasp4))
-        for i, (rank, epithet) in enumerate(infrasp):
+        for i, (rank, _epithet) in enumerate(infrasp):
             if rank in ['cv.', None]:
                 if value:
                     if value == 'cv.':
@@ -504,7 +506,8 @@ class Species(db.Base, db.Serializable, db.DefiningPictures, db.WithNotes):
         return parts
 
     @infraspecific_parts.expression
-    def infraspecific_parts(cls):   # noqa pylint: disable=no-self-argument,no-self-use
+    def infraspecific_parts(cls):
+        # pylint: disable=no-self-argument,no-self-use
         from sqlalchemy.sql.expression import case, text, cast
         from sqlalchemy.types import String
         return case([
@@ -559,7 +562,8 @@ class Species(db.Base, db.Serializable, db.DefiningPictures, db.WithNotes):
         return self._default_vernacular_name.vernacular_name
 
     @default_vernacular_name.expression
-    def default_vernacular_name(cls): # noqa pylint: disable=no-self-argument,no-self-use
+    def default_vernacular_name(cls):
+        # pylint: disable=no-self-argument,no-self-use
         from sqlalchemy.sql.expression import select, and_
         # pylint: disable=no-member
         return (
@@ -607,7 +611,7 @@ class Species(db.Base, db.Serializable, db.DefiningPictures, db.WithNotes):
     def distribution_str(self):
         if self.distribution is None:
             return ''
-        dist = ['%s' % d for d in self.distribution]
+        dist = [f'{d}' for d in self.distribution]
         return str(', ').join(sorted(dist))
 
     def markup(self, authors=False, genus=True):
@@ -618,8 +622,6 @@ class Species(db.Base, db.Serializable, db.DefiningPictures, db.WithNotes):
 
         """
         return self.str(authors, markup=True, genus=genus)
-
-    hybrid_char = '×'
 
     def str(self, authors=False, markup=False, remove_zws=True, genus=True,
             qualification=None):
@@ -684,7 +686,7 @@ class Species(db.Base, db.Serializable, db.DefiningPictures, db.WithNotes):
                     group_added = True
                     infrasp_parts.append(_("(%(group)s Group)") %
                                          dict(group=self.cv_group))
-                infrasp_parts.append("'%s'" % escape(epithet))
+                infrasp_parts.append(f"'{escape(epithet)}'")
             else:
                 if rank:
                     infrasp_parts.append(rank)
@@ -721,20 +723,20 @@ class Species(db.Base, db.Serializable, db.DefiningPictures, db.WithNotes):
                 if infrasp_parts:
                     infrasp_parts.insert(0, qual)
             else:
-                for r, e, a in infrasp:
-                    if r == 'cv.':
-                        e = "'%s'" % e
-                    if rank == r:
-                        pos = infrasp_parts.index(e)
+                for rnk, eptht, _a in infrasp:
+                    if rnk == 'cv.':
+                        eptht = f"'{eptht}'"
+                    if rank == rnk:
+                        pos = infrasp_parts.index(eptht)
                         infrasp_parts.insert(pos, qual)
-                else:
-                    logger.info('cannot find specified rank %s' % e)
+                    else:
+                        logger.info('cannot find specified rank %s', eptht)
 
         parts = chain(binomial, infrasp_parts, tail)
-        s = utils.nstr(' '.join(i for i in parts if i))
+        string = utils.nstr(' '.join(i for i in parts if i))
         if self.hybrid:
-            s = s.replace('%s ' % self.hybrid_char, self.hybrid_char)
-        return s
+            string = string.replace(f'{self.hybrid_char} ', self.hybrid_char)
+        return string
 
     @property
     def accepted(self):
@@ -760,12 +762,16 @@ class Species(db.Base, db.Serializable, db.DefiningPictures, db.WithNotes):
         if not session:
             logger.warning('species:accepted.setter - object not in session')
             return
-        previous_synonymy_link = session.query(SpeciesSynonym).filter(
-            SpeciesSynonym.synonym_id == self.id).first()
+        previous_synonymy_link = (session.query(SpeciesSynonym)
+                                  .filter(SpeciesSynonym.synonym_id == self.id)
+                                  .first())
         if previous_synonymy_link:
-            a = session.query(Species).filter(
-                Species.id == previous_synonymy_link.species_id).one()
-            a.synonyms.remove(self)
+            accepted = (
+                session.query(Species)
+                .filter(Species.id == previous_synonymy_link.species_id)
+                .one()
+            )
+            accepted.synonyms.remove(self)
         session.flush()
         if value != self:
             value.synonyms.append(self)
@@ -847,9 +853,9 @@ class Species(db.Base, db.Serializable, db.DefiningPictures, db.WithNotes):
                 (5, 'Plantings'): len(plants),
                 (6, 'Living plants'): sum(p.quantity for p in plants),
                 (7, 'Locations'): set(p.location.id for p in plants),
-                (8, 'Sources'): set([a.source.source_detail.id
-                                     for a in self.accessions
-                                     if a.source and a.source.source_detail])}
+                (8, 'Sources'): set(a.source.source_detail.id for a in
+                                    self.accessions if a.source and
+                                    a.source.source_detail)}
 
     def has_children(self):
         cls = self.__class__.accessions.prop.mapper.class_
@@ -866,8 +872,8 @@ def as_dict(self):
     return result
 
 
-def compute_serializable_fields(cls, session, keys):
-    logger.debug('compute_serializable_fields(session, %s)' % keys)
+def compute_serializable_fields(_cls, session, keys):
+    logger.debug('compute_serializable_fields(session, %s)', keys)
     result = {}
     genus_name, epithet = keys['species'].split(' ', 1)
     sp_dict = {'ht-epithet': genus_name,
@@ -881,11 +887,13 @@ def retrieve(cls, session, keys):
     from .genus import Genus
     genus, epithet = keys['species'].split(' ', 1)
     try:
-        return session.query(cls).filter(
-            cls.category == keys['category']).join(Species).filter(
-            Species.sp == epithet).join(Genus).filter(
-            Genus.genus == genus).one()
-    except:
+        return (session.query(cls)
+                .filter(cls.category == keys['category'])
+                .join(Species)
+                .filter(Species.sp == epithet)
+                .join(Genus)
+                .filter(Genus.genus == genus).one())
+    except Exception:
         return None
 
 
@@ -1005,7 +1013,7 @@ class VernacularName(db.Base, db.Serializable):
         return self.name or ''
 
     def replacement(self):
-        'user wants the species, not just the name'
+        """user wants the species, not just the name"""
         return self.species   # pylint: disable=no-member
 
     def as_dict(self):
@@ -1029,7 +1037,8 @@ class VernacularName(db.Base, db.Serializable):
 
     @property
     def pictures(self):
-        return self.species.pictures  # pylint: disable=no-member
+        # pylint: disable=no-member
+        return self.species.pictures
 
     def has_children(self):
         # pylint: disable=no-member
@@ -1104,9 +1113,8 @@ class Habit(db.Base):
 
     def __str__(self):
         if self.name:
-            return '%s (%s)' % (self.name, self.code)
-        else:
-            return str(self.code)
+            return f'{self.name} ({self.code})'
+        return str(self.code)
 
 
 class Color(db.Base):
@@ -1117,9 +1125,8 @@ class Color(db.Base):
 
     def __str__(self):
         if self.name:
-            return '%s (%s)' % (self.name, self.code)
-        else:
-            return str(self.code)
+            return f'{self.name} ({self.code})'
+        return str(self.code)
 
 
 db.Species = Species

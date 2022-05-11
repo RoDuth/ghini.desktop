@@ -114,7 +114,7 @@ class TagsMenuManager:
                 selected_values = view.get_selected_values()
 
         if selected_values:
-            if self.active_tag_name:
+            if self.active_tag_name and self.apply_active_tag_action:
                 self.apply_active_tag_action.set_enabled(True)
                 self.remove_active_tag_action.set_enabled(True)
             if self.tag_selection_action:
@@ -366,7 +366,7 @@ def remove_callback(tags):
     tag = tags[0]
     tlst = []
     for tag in tags:
-        tlst.append('%s: %s' % (tag.__class__.__name__, utils.xml_safe(tag)))
+        tlst.append(f'{tag.__class__.__name__}: {utils.xml_safe(tag)}')
     msg = _("Are you sure you want to remove %s?") % ', '.join(i for i in tlst)
     if not utils.yes_no_dialog(msg):
         return False
@@ -412,8 +412,7 @@ class TagEditorPresenter(GenericEditorPresenter):
 
 
 class TagItemGUI(editor.GenericEditorView):
-    """
-    Interface for tagging individual items in the results of the SearchView
+    """Interface for tagging individual items in the results of the SearchView
     """
     def __init__(self, values):
         filename = os.path.join(paths.lib_dir(), 'plugins', 'tag',
@@ -424,14 +423,13 @@ class TagItemGUI(editor.GenericEditorView):
         self.item_data_label.set_text(', '.join([str(s) for s in self.values]))
         self.connect(self.widgets.new_button,
                      'clicked', self.on_new_button_clicked)
+        self.tag_tree = self.widgets.tag_tree
 
     def get_window(self):
         return self.widgets.tag_item_dialog
 
-    def on_new_button_clicked(self, *args):
-        """
-        create a new tag
-        """
+    def on_new_button_clicked(self, *_args):
+        """create a new tag"""
         session = db.Session()
         tag = Tag(description='')
         session.add(tag)
@@ -442,10 +440,8 @@ class TagItemGUI(editor.GenericEditorView):
             tags_menu_manager.reset(tag)
         session.close()
 
-    def on_toggled(self, renderer, path, data=None):
-        """
-        tag or untag the objs in self.values
-        """
+    def on_toggled(self, renderer, path):
+        """tag or untag the objs in self.values """
         active = not renderer.get_active()
         model = self.tag_tree.get_model()
         itr = model.get_iter(path)
@@ -458,9 +454,7 @@ class TagItemGUI(editor.GenericEditorView):
             untag_objects(name, self.values)
 
     def build_tag_tree_columns(self):
-        """
-        Build the tag tree columns.
-        """
+        """Build the tag tree columns."""
         renderer = Gtk.CellRendererToggle()
         self.connect(renderer, 'toggled', self.on_toggled)
         renderer.set_property('activatable', True)
@@ -473,10 +467,9 @@ class TagItemGUI(editor.GenericEditorView):
 
         return [toggle_column, tag_column]
 
-    def on_key_released(self, widget, event):
-        """
-        if the user hits the delete key on a selected tag in the tag editor
-        then delete the tag
+    def on_key_released(self, _widget, event):
+        """When the user hits the delete key on a selected tag in the tag
+        editor delete the tag
         """
         keyname = Gdk.keyval_name(event.keyval)
         if keyname != "Delete":
@@ -505,10 +498,6 @@ class TagItemGUI(editor.GenericEditorView):
             session.close()
 
     def start(self):
-        # we keep restarting the dialog here since the gui was created with
-        # glade then the 'new tag' button emits a response we want to ignore
-        self.tag_tree = self.widgets.tag_tree
-
         # we remove the old columns and create new ones each time the
         # tag editor is started since we have to connect and
         # disconnect the toggled signal each time
@@ -520,7 +509,7 @@ class TagItemGUI(editor.GenericEditorView):
 
         # create the model
         model = Gtk.ListStore(bool, str, bool)
-        tag_all, tag_some, tag_none = get_tag_ids(self.values)
+        tag_all, tag_some, _tag_none = get_tag_ids(self.values)
         session = db.Session()  # we need close it
         tag_query = session.query(Tag)
         for tag in tag_query:
@@ -531,8 +520,8 @@ class TagItemGUI(editor.GenericEditorView):
         self.connect(self.tag_tree, "key-release-event", self.on_key_released)
 
         response = self.get_window().run()
-        while response != Gtk.ResponseType.OK \
-                and response != Gtk.ResponseType.DELETE_EVENT:
+        while response not in (Gtk.ResponseType.OK,
+                               Gtk.ResponseType.DELETE_EVENT):
             response = self.get_window().run()
 
         self.get_window().hide()
@@ -578,7 +567,7 @@ class Tag(db.Base):
             return db.Base.__str__(self)
 
     def markup(self):
-        return '%s Tag' % self.tag
+        return f'{self.tag} Tag'
 
     def tag_objects(self, objects):
         session = object_session(self)
@@ -606,13 +595,12 @@ class Tag(db.Base):
             # tag must have been removed or session lost
             if session is None:
                 return []
-            else:
-                last_history = (session.query(db.History)
-                                .order_by(db.History.timestamp.desc())
-                                .limit(1)
-                                .one())
-                if last_history.timestamp > self.__my_own_timestamp:
-                    self.__last_objects = None
+            last_history = (session.query(db.History)
+                            .order_by(db.History.timestamp.desc())
+                            .limit(1)
+                            .one())
+            if last_history.timestamp > self.__my_own_timestamp:
+                self.__last_objects = None
         if self.__last_objects is None:
             # here I update my list
             from datetime import datetime
@@ -622,14 +610,11 @@ class Tag(db.Base):
         return self.__last_objects
 
     def is_tagging(self, obj):
-        """tell whether self tags obj
-
-        """
+        """tell whether self tags obj."""
         return obj in self.objects
 
     def get_tagged_objects(self):
-        """
-        Return all object tagged with tag and clean up any that are left
+        """Get all object tagged with tag and clean up any that are left
         hanging.
         """
         session = object_session(self)
@@ -662,18 +647,15 @@ class Tag(db.Base):
             return []
         modname = type(obj).__module__
         clsname = type(obj).__name__
-        full_cls_name = '%s.%s' % (modname, clsname)
+        full_cls_name = f'{modname}.{clsname}'
         qto = session.query(TaggedObj).filter(
             TaggedObj.obj_class == full_cls_name,
             TaggedObj.obj_id == obj.id)
         return [i.tag for i in qto.all()]
 
     def search_view_markup_pair(self):
-        """provide the two lines describing object for SearchView row.
-        """
-        import inspect
-        logging.debug('entering search_view_markup_pair %s, %s' % (
-            self, str(inspect.stack()[1])))
+        """provide the two lines describing object for SearchView row."""
+        logging.debug('entering search_view_markup_pair %s', self)
         objects = self.objects
         classes = set(type(o) for o in objects)
         if len(classes) == 1:
@@ -687,13 +669,13 @@ class Tag(db.Base):
                              "types") % {'objs': len(objects),
                                          'clss': len(classes)})
             if len(classes) < 4:
-                fine_prints += ': ' + (', '.join(
-                    sorted(t.__name__ for t in classes)))
-        first = '%s - <span weight="light">%s</span>' % (
-            utils.xml_safe(self), fine_prints)
-        second = '(%s) - <span weight="light">%s</span>' % (
-            type(self).__name__,
-            (self.description or '').replace('\n', ' ')[:256])
+                fine_prints += ': '
+                fine_prints += ', '.join(sorted(t.__name__ for t in classes))
+        first = (f'{utils.xml_safe(self)} - '
+                 f'<span weight="light">{fine_prints}</span>')
+        fine_print = (self.description or '').replace('\n', ' ')[:256]
+        second = (f'({type(self).__name__}) - '
+                  f'<span weight="light">{fine_print}</span>')
         return first, second
 
     def has_children(self):
@@ -708,14 +690,14 @@ class Tag(db.Base):
 class TaggedObj(db.Base):
     """
     :Table name: tagged_obj
-    :Columns:
-      obj_id: :class:`sqlalchemy.types.Integer`
-        The id of the tagged object.
-      obj_class: :class:`sqlalchemy.types.Unicode`
-        The class name of the tagged object.
-      tag_id: :class:`sqlalchemy.types.Integer`
-        A ForeignKey to :class:`Tag`.
 
+    :Columns:
+        *obj_id*
+            interger, The id of the tagged object.
+        *obj_class*
+            The class name of the tagged object.
+        *tag_id*
+            A ForeignKey to :class:`Tag`.
     """
     __tablename__ = 'tagged_obj'
 
@@ -725,7 +707,7 @@ class TaggedObj(db.Base):
     tag_id = Column(Integer, ForeignKey('tag.id'))
 
     def __str__(self):
-        return '%s: %s' % (self.obj_class, self.obj_id)
+        return f'{self.obj_class}: {self.obj_id}'
 
 
 def _get_tagged_object_pair(obj):
@@ -733,7 +715,7 @@ def _get_tagged_object_pair(obj):
     :param obj: a TaggedObj instance
     """
     try:
-        module_name, part, cls_name = str(obj.obj_class).rpartition('.')
+        module_name, _part, cls_name = str(obj.obj_class).rpartition('.')
         module = import_module(module_name)
         cls = getattr(module, cls_name)
         return(cls, obj.obj_id)
@@ -744,18 +726,16 @@ def _get_tagged_object_pair(obj):
 
 
 def create_named_empty_tag(name):
-    """make sure the named tag exists
-    """
+    """make sure the named tag exists"""
     session = db.Session()
     try:
         tag = session.query(Tag).filter_by(tag=name).one()
     except InvalidRequestError as e:
-        logger.debug("create_named_empty_tag: %s - %s" % (type(e), e))
+        logger.debug("create_named_empty_tag: %s - %s", type(e).__name__, e)
         tag = Tag(tag=name)
         session.add(tag)
         session.commit()
     session.close()
-    return
 
 
 def untag_objects(name, objs):
@@ -907,7 +887,7 @@ class GeneralTagExpander(InfoExpander):
             label.set_yalign(0.5)
             eventbox.add(label)
             grid.attach(eventbox, 1, row_no, 1, 1)
-            label.set_text(" %s " % len(obj_ids))
+            label.set_text(f' {len(obj_ids)} ')
             utils.make_label_clickable(
                 label,
                 lambda l, e, x: bauble.gui.send_command(x),

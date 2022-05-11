@@ -403,6 +403,8 @@ class LocationEditor(GenericModelViewPresenterEditor):
         if model is None:
             model = Location()
         super().__init__(model, parent)
+        # NOTE model is now modified for first time due to it having been
+        # merged yet the geojson has already been loaded in the searchview
         if not parent and bauble.gui:
             parent = bauble.gui.window
         self.parent = parent

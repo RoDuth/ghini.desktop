@@ -34,7 +34,6 @@ from gi.repository import GLib
 from sqlalchemy import select, Column, Unicode, String, Integer, ForeignKey
 from sqlalchemy.orm import object_session, relationship, backref, deferred
 
-import bauble
 from bauble import db, utils
 from bauble import btypes as types
 

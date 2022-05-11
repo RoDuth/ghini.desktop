@@ -17,9 +17,10 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
-#
-# Family table definition
-#
+"""
+Family table definition
+"""
+
 import os
 import traceback
 import weakref
@@ -44,21 +45,20 @@ from bauble import editor
 from bauble import utils
 from bauble import btypes as types
 from bauble import prefs
-from bauble import view
+from bauble.view import (Action, InfoBox, InfoExpander, PropertiesExpander,
+                         select_in_search_results, LinksExpander)
+from bauble import paths
+from .species_model import Species
 
 
 def edit_callback(families):
-    """
-    Family context menu callback
-    """
+    """Family context menu callback"""
     family = families[0]
     return FamilyEditor(model=family).start() is not None
 
 
 def add_genera_callback(families):
-    """
-    Family context menu callback
-    """
+    """Family context menu callback"""
     session = db.Session()
     family = session.merge(families[0])
     e = GenusEditor(model=Genus(family=family))
@@ -67,11 +67,9 @@ def add_genera_callback(families):
 
 
 def remove_callback(families):
-    """
-    The callback function to remove a family from the family context menu.
+    """The callback function to remove a family from the family context menu.
     """
     family = families[0]
-    from bauble.plugins.plants.genus import Genus
     session = object_session(family)
     for family in families:
         ngen = session.query(Genus).filter_by(family_id=family.id).count()
@@ -81,12 +79,12 @@ def remove_callback(families):
                      '\n\n') % {'1': safe_str, '2': ngen} +
                    _('You cannot remove a family with genera.'))
             utils.message_dialog(msg, typ=Gtk.MessageType.WARNING)
-            return
+            return None
     fams = ', '.join([utils.xml_safe(i) for i in families])
     msg = _("Are you sure you want to remove the following families "
             "<i>%s</i>?") % fams
     if not utils.yes_no_dialog(msg):
-        return
+        return None
     for family in families:
         session.delete(family)
     try:
@@ -100,22 +98,19 @@ def remove_callback(families):
     return True
 
 
-edit_action = view.Action('family_edit', _('_Edit'),
-                          callback=edit_callback,
-                          accelerator='<ctrl>e')
-add_species_action = view.Action('family_genus_add', _('_Add genus'),
-                                 callback=add_genera_callback,
-                                 accelerator='<ctrl>k')
-remove_action = view.Action('family_remove', _('_Delete'),
-                            callback=remove_callback,
-                            accelerator='<ctrl>Delete', multiselect=True)
+edit_action = Action('family_edit', _('_Edit'),
+                     callback=edit_callback,
+                     accelerator='<ctrl>e')
+add_species_action = Action('family_genus_add', _('_Add genus'),
+                            callback=add_genera_callback,
+                            accelerator='<ctrl>k')
+remove_action = Action('family_remove', _('_Delete'),
+                       callback=remove_callback,
+                       accelerator='<ctrl>Delete', multiselect=True)
 
 family_context_menu = [edit_action, add_species_action, remove_action]
 
 
-#
-# Family
-#
 class Family(db.Base, db.Serializable, db.WithNotes):
     """
     :Table name: family
@@ -187,7 +182,7 @@ class Family(db.Base, db.Serializable, db.WithNotes):
         return None
 
     @validates('genus')
-    def validate_stripping(self, key, value):
+    def validate_stripping(self, _key, value):
         if value is None:
             return None
         return value.strip()
@@ -206,17 +201,16 @@ class Family(db.Base, db.Serializable, db.WithNotes):
         return Family.str(self)
 
     @staticmethod
-    def str(family, qualifier=False, author=False):
-        # author is not in the model but it really should
+    def str(family, _qualifier=False, _author=False):
+        # TODO author is not in the model but it really should
         if family.family is None:
             return db.Base.__repr__(family)
-        else:
-            return ' '.join([s for s in [
-                family.family, family.qualifier] if s not in (None, '')])
+        return ' '.join([s for s in [
+            family.family, family.qualifier] if s not in (None, '')])
 
     @property
     def accepted(self):
-        'Name that should be used if name of self should be rejected'
+        """Name that should be used if name of self should be rejected"""
         session = object_session(self)
         if not session:
             logger.warning('family:accepted - object not in session')
@@ -241,12 +235,6 @@ class Family(db.Base, db.Serializable, db.WithNotes):
             FamilySynonym.synonym_id == self.id).delete()
         session.commit()
         value.synonyms.append(self)
-
-    def has_accessions(self):
-        """true if family is linked to at least one accession
-        """
-
-        return False
 
     def as_dict(self, recurse=True):
         result = db.Serializable.as_dict(self)
@@ -278,9 +266,9 @@ class Family(db.Base, db.Serializable, db.WithNotes):
                 (5, 'Plantings'): len(plants),
                 (6, 'Living plants'): sum(p.quantity for p in plants),
                 (7, 'Locations'): set(p.location.id for p in plants),
-                (8, 'Sources'): set([a.source.source_detail.id
-                                     for a in accessions
-                                     if a.source and a.source.source_detail])}
+                (8, 'Sources'): set(a.source.source_detail.id for a in
+                                    accessions if a.source and
+                                    a.source.source_detail)}
 
     def has_children(self):
         cls = self.__class__.genera.prop.mapper.class_
@@ -295,7 +283,7 @@ class Family(db.Base, db.Serializable, db.WithNotes):
 Familia = Family
 
 
-def compute_serializable_fields(cls, session, keys):
+def compute_serializable_fields(_cls, session, keys):
     result = {'family': None}
 
     family_keys = {'epithet': keys['family']}
@@ -343,7 +331,8 @@ class FamilySynonym(db.Base):
         return Family.str(self.synonym)
 
 
-from bauble.plugins.plants.genus import Genus, GenusEditor
+# avoid circular imports
+from .genus import Genus, GenusEditor
 
 
 class FamilyEditorView(editor.GenericEditorView):
@@ -440,9 +429,9 @@ class FamilyEditorPresenter(editor.GenericEditorPresenter):
             sensitive = True
         self.view.set_accept_buttons_sensitive(sensitive)
 
-    def set_model_attr(self, field, value, validator=None):
-        # debug('set_model_attr(%s, %s)' % (field, value))
-        super().set_model_attr(field, value, validator)
+    def set_model_attr(self, attr, value, validator=None):
+        # debug('set_model_attr(%s, %s)' % (attr, value))
+        super().set_model_attr(attr, value, validator)
         self._dirty = True
         self.refresh_sensitivity()
 
@@ -475,9 +464,9 @@ class SynonymsPresenter(editor.GenericEditorPresenter):
 
         def fam_get_completions(text):
             query = self.session.query(Family)
-            return query.filter(and_(Family.family.like('%s%%' % text),
-                                     Family.id != self.model.id)).\
-                order_by(Family.family)
+            return (query.filter(and_(Family.family.like(f'{text}%%'),
+                                      Family.id != self.model.id))
+                    .order_by(Family.family))
 
         self._selected = None
 
@@ -500,9 +489,7 @@ class SynonymsPresenter(editor.GenericEditorPresenter):
         return self._dirty
 
     def init_treeview(self):
-        """
-        initialize the Gtk.TreeView
-        """
+        """initialize the Gtk.TreeView"""
         self.treeview = self.view.widgets.fam_syn_treeview
         # remove any columns that were setup previous, this became a
         # problem when we starting reusing the glade files with
@@ -511,14 +498,15 @@ class SynonymsPresenter(editor.GenericEditorPresenter):
         for col in self.treeview.get_columns():
             self.treeview.remove_column(col)
 
-        def _syn_data_func(column, cell, model, iter, data=None):
-            v = model[iter][0]
+        def _syn_data_func(_column, cell, model, itr, _data):
+            v = model[itr][0]
             cell.set_property('text', str(v))
             # just added so change the background color to indicate it's new
             if v.id is None:
                 cell.set_property('foreground', 'blue')
             else:
                 cell.set_property('foreground', None)
+
         cell = Gtk.CellRendererText()
         col = Gtk.TreeViewColumn('Synonym', cell)
         col.set_cell_data_func(cell, _syn_data_func)
@@ -531,20 +519,16 @@ class SynonymsPresenter(editor.GenericEditorPresenter):
         self.view.connect(self.treeview, 'cursor-changed',
                           self.on_tree_cursor_changed)
 
-    def on_tree_cursor_changed(self, tree, data=None):
-        path, column = tree.get_cursor()
+    def on_tree_cursor_changed(self, _tree):
         self.view.widgets.fam_syn_remove_button.set_sensitive(True)
 
     def refresh_view(self):
-        """
-        doesn't do anything
-        """
+        """Doesn't do anything"""
         return
 
-    def on_add_button_clicked(self, button, data=None):
-        """
-        adds the synonym from the synonym entry to the list of synonyms for
-            this species
+    def on_add_button_clicked(self, _button):
+        """adds the synonym from the synonym entry to the list of synonyms for
+        this species
         """
         syn = FamilySynonym(family=self.model, synonym=self._selected)
         tree_model = self.treeview.get_model()
@@ -558,22 +542,20 @@ class SynonymsPresenter(editor.GenericEditorPresenter):
         self._dirty = True
         self.parent_ref().refresh_sensitivity()
 
-    def on_remove_button_clicked(self, button, data=None):
-        """
-        removes the currently selected synonym from the list of synonyms for
+    def on_remove_button_clicked(self, _button):
+        """removes the currently selected synonym from the list of synonyms for
         this species
         """
         # TODO: maybe we should only ask 'are you sure' if the selected value
         # is an instance, this means it will be deleted from the database
         tree = self.view.widgets.fam_syn_treeview
-        path, col = tree.get_cursor()
+        path, _col = tree.get_cursor()
         tree_model = tree.get_model()
         value = tree_model[tree_model.get_iter(path)][0]
-#        debug('%s: %s' % (value, type(value)))
-        s = Family.str(value.synonym)
-        msg = 'Are you sure you want to remove %s as a synonym to the ' \
-              'current family?\n\n<i>Note: This will not remove the family '\
-              '%s from the database.</i>' % (s, s)
+        syn_str = Family.str(value.synonym)
+        msg = _('Are you sure you want to remove %s as a synonym to the '
+                'current family?\n\n<i>Note: This will not remove the family '
+                '%s from the database.</i>') % (syn_str, syn_str)
         if utils.yes_no_dialog(msg, parent=self.view.get_window()):
             tree_model.remove(tree_model.get_iter(path))
             self.model.synonyms.remove(value.synonym)
@@ -608,9 +590,9 @@ class FamilyEditor(editor.GenericModelViewPresenterEditor):
 
     def handle_response(self, response):
         """
-        @return: return a list if we want to tell start() to close the editor,
-        the list should either be empty or the list of committed values, return
-        None if we want to keep editing
+        :return: list if we want to tell start() to close the editor, the list
+            should either be empty or the list of committed values, return None
+            if we want to keep editing
         """
         not_ok_msg = 'Are you sure you want to lose your changes?'
         if response == Gtk.ResponseType.OK or response in self.ok_responses:
@@ -668,27 +650,12 @@ class FamilyEditor(editor.GenericModelViewPresenterEditor):
         return self._committed
 
 
-#
-# Family infobox
-#
-from bauble.view import (InfoBox, InfoExpander, PropertiesExpander,
-                         select_in_search_results)
-from bauble import paths
-from bauble.plugins.plants.species_model import Species
-
-
 class GeneralFamilyExpander(InfoExpander):
-    """
-    generic information about an family like number of genus, species,
+    """Generic information about an family like number of genus, species,
     accessions and plants
     """
 
     def __init__(self, widgets):
-        """
-
-        Arguments:
-        - `widgets`:
-        """
         super().__init__(_("General"), widgets)
         general_box = self.widgets.fam_general_box
         self.widgets.remove_parent(general_box)
@@ -700,7 +667,7 @@ class GeneralFamilyExpander(InfoExpander):
 
         :param row: the row to get the values from
         """
-        self.widget_set_value('fam_name_data', '<big>%s</big>' % row,
+        self.widget_set_value('fam_name_data', f'<big>{row}</big>',
                               markup=True)
         session = object_session(row)
         # get the number of genera
@@ -716,8 +683,8 @@ class GeneralFamilyExpander(InfoExpander):
             ngen_in_sp = (session.query(Species.genus_id).
                           join('genus', 'family').
                           filter_by(id=row.id).distinct().count())
-            self.widget_set_value('fam_nsp_data', '%s in %s genera'
-                                  % (nsp, ngen_in_sp))
+            self.widget_set_value('fam_nsp_data',
+                                  f'{nsp} in  {ngen_in_sp} genera')
 
         # stop here if no GardenPlugin
         if 'GardenPlugin' not in pluginmgr.plugins:
@@ -736,8 +703,8 @@ class GeneralFamilyExpander(InfoExpander):
             nsp_in_acc = (session.query(Accession.species_id).
                           join('species', 'genus', 'family').
                           filter_by(id=row.id).distinct().count())
-            self.widget_set_value('fam_nacc_data', '%s in %s species'
-                                  % (nacc, nsp_in_acc))
+            self.widget_set_value('fam_nacc_data',
+                                  f'{nacc} in {nsp_in_acc} species')
 
         # get the number of plants in the family
         nplants = (session.query(Plant).
@@ -746,11 +713,11 @@ class GeneralFamilyExpander(InfoExpander):
         if nplants == 0:
             self.widget_set_value('fam_nplants_data', nplants)
         else:
-            nacc_in_plants = session.query(Plant.accession_id).\
-                join('accession', 'species', 'genus', 'family').\
-                filter_by(id=row.id).distinct().count()
-            self.widget_set_value('fam_nplants_data', '%s in %s accessions'
-                                  % (nplants, nacc_in_plants))
+            nacc_in_plants = (session.query(Plant.accession_id)
+                              .join('accession', 'species', 'genus', 'family')
+                              .filter_by(id=row.id).distinct().count())
+            self.widget_set_value('fam_nplants_data',
+                                  f'{nplants} in {nacc_in_plants} accessions')
 
         on_clicked = utils.generate_on_clicked(bauble.gui.send_command)
 
@@ -790,8 +757,7 @@ class SynonymsExpander(InfoExpander):
         self.vbox.pack_start(synonyms_box, True, True, 0)
 
     def update(self, row):
-        """
-        update the expander
+        """update the expander
 
         :param row: the row to get thevalues from
         """
@@ -812,7 +778,7 @@ class SynonymsExpander(InfoExpander):
             label = Gtk.Label()
             label.set_xalign(0.0)
             label.set_yalign(0.5)
-            label.set_markup(Family.str(row.accepted, author=True))
+            label.set_markup(Family.str(row.accepted))
             box.add(label)
             utils.make_label_clickable(label, on_clicked, row.accepted)
             syn_box.pack_start(box, False, False, 0)
@@ -854,7 +820,7 @@ class FamilyInfoBox(InfoBox):
         self.add_expander(self.general)
         self.synonyms = SynonymsExpander(self.widgets)
         self.add_expander(self.synonyms)
-        self.links = view.LinksExpander('notes', links=button_defs)
+        self.links = LinksExpander('notes', links=button_defs)
         self.add_expander(self.links)
         self.props = PropertiesExpander()
         self.add_expander(self.props)
@@ -870,5 +836,6 @@ class FamilyInfoBox(InfoBox):
         self.synonyms.update(row)
         self.links.update(row)
         self.props.update(row)
+
 
 db.Family = Family

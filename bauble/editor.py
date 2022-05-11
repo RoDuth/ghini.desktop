@@ -1477,6 +1477,7 @@ class GenericEditorPresenter:
             except:
                 logger.info("can't get widget %s", widget)
         self.problems.add((problem_id, widget))
+
         # we get here if we couldn't get the widget above (i.e. testing)
         if isinstance(widget, Gtk.Widget):
             widget.get_style_context().add_class('problem')
