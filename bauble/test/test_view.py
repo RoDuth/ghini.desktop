@@ -380,6 +380,31 @@ class TestSearchView(BaubleTestCase):
                   f'{_substr_tmpl % utils.nstr(substr)}')
         mock_renderer.set_property.assert_called_with('markup', markup)
 
+    def test_cell_data_func_w_deleted(self):
+        # as if another user had deleted an item we were also looking at.
+        for func in get_setUp_data_funcs():
+            func()
+        search_view = SearchView()
+        search_view.search('genus where id < 3')
+
+        start = search_view.get_selected_values()
+
+        mock_renderer = mock.Mock()
+        results_view = search_view.results_view
+        # delete item
+        db.engine.execute(f"DELETE FROM genus WHERE id = {start[0].id}")
+
+        with self.assertLogs(level='DEBUG') as logs:
+            search_view.cell_data_func(results_view.get_column(0),
+                                       mock_renderer,
+                                       results_view.get_model(),
+                                       0,
+                                       None)
+            update_gui()
+        end = search_view.get_selected_values()
+        self.assertNotEqual(start, end)
+        self.assertTrue(any('remove_row called' in i for i in logs.output))
+
     def test_update_expires_all_and_triggers_selection_change(self):
         for func in get_setUp_data_funcs():
             func()

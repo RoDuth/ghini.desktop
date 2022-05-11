@@ -1202,55 +1202,36 @@ class SearchView(pluginmgr.View):
         # now update the the cell
         value = model[treeiter][0]
 
+        # expire so that any external updates are picked up.
+        # (e.g. another user has deleted while we are also using it.)
+        self.session.expire(value)
 
-        if isinstance(value, str):
-            cell.set_property('markup', value)
-        else:
-            # if the value isn't part of a session then add it to the
-            # view's session so that we can access its child
-            # properties...this usually happens when one of the
-            # ViewMeta's get_children() functions return a list of
-            # objects whose session was closed...we add it here for
-            # performance reasons so we only add it once it's visible
-            if not object_session(value):
-                if value in self.session:
-                    # expire the object in the session with the same key
-                    self.session.expire(value)
-                else:
-                    self.session.merge(value)
+        try:
             if (self.row_meta[type(value)].children is not None and
                     value.has_children()):
                 # treeiter is int for testing
                 if (not isinstance(treeiter, int) and
                         not model.iter_has_child(treeiter)):
                     model.prepend(treeiter, ['-'])
+            rep = value.search_view_markup_pair()
             try:
-                rep = value.search_view_markup_pair()
-                try:
-                    main, substr = rep
-                except ValueError:
-                    main = rep
-                    substr = f'({type(value).__name__})'
-                cell.set_property(
-                    'markup', f'{_mainstr_tmpl % utils.nstr(main)}\n'
-                    f'{_substr_tmpl % utils.nstr(substr)}'
-                )
+                main, substr = rep
+            except ValueError:
+                main = rep
+                substr = f'({type(value).__name__})'
+            cell.set_property(
+                'markup', f'{_mainstr_tmpl % utils.nstr(main)}\n'
+                f'{_substr_tmpl % utils.nstr(substr)}'
+            )
 
-            except ObjectDeletedError as e:
-                # incase object has been deleted but for some reason not
-                # removed from the results_view
-                logger.debug('cell_data_func: (%s)%s', type(e).__name__, e)
+        except (saexc.InvalidRequestError, ObjectDeletedError, TypeError) as e:
+            logger.debug('cell_data_func: (%s)%s', type(e).__name__, e)
 
-                GLib.idle_add(remove)
+            GLib.idle_add(self.remove_row, value)
 
-            except (saexc.InvalidRequestError, TypeError) as e:
-                logger.warning('cell_data_func: (%s)%s', type(e).__name__, e)
-
-                GLib.idle_add(remove)
-
-            except Exception as e:
-                logger.error('cell_data_func: (%s)%s', type(e).__name__, e)
-                raise
+        except Exception as e:
+            logger.error('cell_data_func: (%s)%s', type(e).__name__, e)
+            raise
 
     def get_expanded_rows(self):
         """Get all the rows in the model that are expanded """
@@ -1352,7 +1333,7 @@ class SearchView(pluginmgr.View):
         self.session.expire_all()
 
         expanded_rows = self.get_expanded_rows()
-        self.results_view.collapse_all()
+
         # expand_to_all_refs will invalidate the ref so get the path first
         if not ref:
             return
