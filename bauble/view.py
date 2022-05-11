@@ -79,6 +79,7 @@ INFOBOXPAGE_WIDTH_PREF = 'bauble.infoboxpage_width'
 
 
 class Action:
+    # pylint: disable=too-few-public-methods, too-many-arguments
     """SearchView context menu items."""
     def __init__(self,
                  name,
@@ -715,6 +716,7 @@ class SearchView(pluginmgr.View):
                 return query
         except Exception as e:
             logger.debug('on_note_row_actived %s(%s)', type(e).__name__, e)
+        return None
 
     def add_page_to_bottom_notebook(self, bottom_info):
         """add notebook page for a plugin class."""
@@ -884,6 +886,20 @@ class SearchView(pluginmgr.View):
         for callback in self.cursor_changed_callbacks:
             callback(selected_values)
 
+    def on_action_activate(self, _action, _param, call_back):
+        result = False
+        try:
+            values = self.get_selected_values()
+            result = call_back(values)
+        except Exception as e:   # pylint: disable=broad-except
+            msg = utils.xml_safe(str(e))
+            trace = utils.xml_safe(traceback.format_exc())
+            utils.message_details_dialog(
+                msg, trace, Gtk.MessageType.ERROR)
+            logger.warning(traceback.format_exc())
+        if result:
+            self.update()
+
     def update_context_menus(self, selected_values):
         """Update the context menu dependant on selected values."""
 
@@ -909,26 +925,8 @@ class SearchView(pluginmgr.View):
                 self.actions.add(action.name)
                 bauble.gui.window.add_action(action.action)
 
-                def on_activate(_action, _param, call_back):
-                    result = False
-                    try:
-                        # have to get the selected values again here
-                        # because for some unknown reason using the
-                        # "selected_values" variable from the parent scope
-                        # will give us the objects but they won't be
-                        # in an session...maybe it's a thread thing
-                        values = self.get_selected_values()
-                        result = call_back(values)
-                    except Exception as e:   # pylint: disable=broad-except
-                        msg = utils.xml_safe(str(e))
-                        trace = utils.xml_safe(traceback.format_exc())
-                        utils.message_details_dialog(
-                            msg, trace, Gtk.MessageType.ERROR)
-                        logger.warning(traceback.format_exc())
-                    if result:
-                        self.update()
-
-                action.connect('activate', on_activate, action.callback)
+                action.connect('activate', self.on_action_activate,
+                               action.callback)
                 app = Gio.Application.get_default()
                 app.set_accels_for_action(f'win.{action.name}',
                                           [action.accelerator])
@@ -969,7 +967,7 @@ class SearchView(pluginmgr.View):
     def on_copy_selection(self, _action, _param):
         selected_values = self.get_selected_values()
         if not selected_values:
-            return
+            return None
 
         out = []
         from mako.template import Template
@@ -992,9 +990,9 @@ class SearchView(pluginmgr.View):
         string = '\n'.join(out)
         if bauble.gui:
             bauble.gui.get_display_clipboard().set_text(string, -1)
-        else:
-            # NOTE used in testing
-            return string
+            return None
+        # NOTE used in testing
+        return string
 
     def search(self, text):
         """search the database using text"""
@@ -1047,23 +1045,19 @@ class SearchView(pluginmgr.View):
                         'want to continue?') % len(results)
                 if not utils.yes_no_dialog(msg):
                     return
-            try:
-                self.populate_results(results)
-            except StopIteration:
-                return
+            self.populate_results(results)
+            statusbar.pop(sbcontext_id)
+            statusbar.push(sbcontext_id, _('counting results'))
+            if len(set(item.__class__ for item in results)) == 1:
+                dots_thread = self.start_thread(AddOneDot())
+                self.start_thread(CountResultsTask(
+                    results[0].__class__, [i.id for i in results],
+                    dots_thread))
             else:
-                statusbar.pop(sbcontext_id)
-                statusbar.push(sbcontext_id, _('counting results'))
-                if len(set(item.__class__ for item in results)) == 1:
-                    dots_thread = self.start_thread(AddOneDot())
-                    self.start_thread(CountResultsTask(
-                        results[0].__class__, [i.id for i in results],
-                        dots_thread))
-                else:
-                    statusbar.push(sbcontext_id,
-                                   _('size of non homogeneous result: %s') %
-                                   len(results))
-                self.results_view.set_cursor(0)
+                statusbar.push(sbcontext_id,
+                               _('size of non homogeneous result: %s') %
+                               len(results))
+            self.results_view.set_cursor(0)
 
     @staticmethod
     def remove_children(model, parent):
@@ -1078,7 +1072,7 @@ class SearchView(pluginmgr.View):
 
     def on_test_expand_row(self, view, treeiter, path):
         """Look up the table type of the selected row and if it has any
-        children then add them to the row
+        children then add them to the row.
         """
         model = view.get_model()
         row = model.get_value(treeiter, 0)
@@ -1188,6 +1182,15 @@ class SearchView(pluginmgr.View):
                     kid.has_children()):
                 model.append(itr, ['-'])
 
+    def remove_row(self, value):
+        """Remove a row from the results_view"""
+        # NOTE used in testing...
+        logger.info('remove_row called')
+
+        model = self.results_view.get_model()
+        for found in utils.search_tree_model(model, value):
+            model.remove(found)
+
     def cell_data_func(self, col, cell, model, treeiter, _data):
         # for tests use int treeiter
         if not isinstance(treeiter, int):
@@ -1200,12 +1203,6 @@ class SearchView(pluginmgr.View):
         # now update the the cell
         value = model[treeiter][0]
 
-        def remove():
-            model = self.results_view.get_model()
-            self.results_view.set_model(None)  # detach model
-            for found in utils.search_tree_model(model, value):
-                model.remove(found)
-            self.results_view.set_model(model)
 
         if isinstance(value, str):
             cell.set_property('markup', value)
@@ -1378,30 +1375,8 @@ class SearchView(pluginmgr.View):
         self.results_view.connect("test-expand-row",
                                   self.on_test_expand_row)
 
-        def on_press(view, event):
-            """Ignore the mouse right-click event.
-
-            This makes sure that we don't remove the multiple selection on a
-            right click.
-            """
-            logger.debug('button press event: %s type: %s button: %s', event,
-                         event.type, event.button)
-            if event.button == 3:
-                if event.get_state() and Gdk.ModifierType.CONTROL_MASK == 0:
-                    pos = view.get_path_at_pos(int(event.x), int(event.y))
-                    # occasionally pos will return None and can't be unpacked
-                    if not pos:
-                        return False
-                    path, _, _, _ = pos
-                    if not view.get_selection().path_is_selected(path):
-                        return False
-                # emulate 'cursor-changed' signal
-                self.on_selection_changed(None)
-                return True
-            return False
-
         self.results_view.connect("button-press-event",
-                                  on_press)
+                                  self.on_view_button_press)
         self.results_view.connect("button-release-event",
                                   self.on_view_button_release)
 
@@ -1422,6 +1397,7 @@ class SearchView(pluginmgr.View):
 
 
 class Note:
+    # pylint: disable=too-few-public-methods
     """temporary patch before we implement Notes as a plugin."""
 
     @classmethod
@@ -1574,6 +1550,7 @@ class HistoryView(pluginmgr.View):
             else:
                 # for testing...
                 return query
+        return None
 
     def update(self, *args):
         """Add the history items to the view."""
@@ -1619,6 +1596,8 @@ def select_in_search_results(obj):
     else:
         row_iter = model.append(None, [obj])
         model.append(row_iter, ['-'])
+        # NOTE used in test...
+        logger.debug('%s added to search results', obj)
     view.results_view.set_cursor(model.get_path(row_iter))
     return row_iter
 
