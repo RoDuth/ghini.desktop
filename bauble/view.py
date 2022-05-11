@@ -46,7 +46,6 @@ from pyparsing import (ParseException,
 
 from gi.repository import Gtk
 from gi.repository import Gio
-from gi.repository import Gdk
 from gi.repository import GLib
 from gi.repository import Pango
 
@@ -1277,6 +1276,30 @@ class SearchView(pluginmgr.View):
         for ref in references:
             if ref.valid():
                 self.results_view.expand_to_path(ref.get_path())
+
+    def on_view_button_press(self, view, event):
+        """Ignore the mouse right-click event.
+
+        This makes sure that we don't remove the multiple selection on a
+        right click.
+        """
+        # TODO this is only temporary, remove.  Related to surface
+        logger.debug('button press event: %s type: %s button: %s', event,
+                     event.type, event.button)
+        if event.button == 3:
+            pos = view.get_path_at_pos(int(event.x), int(event.y))
+            # NOTE used in test...
+            logger.debug('view button 3 press, pos = %s', pos)
+            # occasionally pos will return None and can't be unpacked
+            if not pos:
+                return False
+            path, __, __, __ = pos
+            if not view.get_selection().path_is_selected(path):
+                return False
+            # emulate 'cursor-changed' signal
+            self.on_selection_changed(None)
+            return True
+        return False
 
     def on_view_button_release(self, view, event):
         """right-mouse-button release.

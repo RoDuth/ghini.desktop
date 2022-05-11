@@ -403,6 +403,71 @@ class TestSearchView(BaubleTestCase):
                 continue
             self.assertTrue(expired, obj)
 
+    def test_on_view_button_press_not_3_returns_false(self):
+        for func in get_setUp_data_funcs():
+            func()
+        search_view = SearchView()
+        search_view.search('genus where id = 1')
+
+        results_view = search_view.results_view
+
+        # test bails on non 3 buttons and returns False (allows propagating the
+        # event)
+        self.assertFalse(
+            search_view.on_view_button_press(results_view, mock.Mock(button=1))
+        )
+
+        self.assertFalse(
+            search_view.on_view_button_press(results_view, mock.Mock(button=2))
+        )
+
+        self.assertFalse(
+            search_view.on_view_button_press(results_view, mock.Mock(button=4))
+        )
+
+    def test_on_view_button_press_3_outside_selection_returns_false(self):
+        for func in get_setUp_data_funcs():
+            func()
+        search_view = SearchView()
+        search_view.search('genus where id = 1')
+
+        results_view = search_view.results_view
+
+        event = Gdk.EventButton()
+        event.type = Gdk.EventType.BUTTON_PRESS
+        event.button = 3
+        event.x = 1.0
+        event.y = 1.0
+
+        with self.assertLogs(level='DEBUG') as logs:
+            self.assertFalse(
+                search_view.on_view_button_press(results_view, event)
+            )
+
+        self.assertTrue(any('view button 3 press' in i for i in logs.output))
+
+    def test_on_view_button_press_3_inside_selection_returns_true(self):
+        for func in get_setUp_data_funcs():
+            func()
+        search_view = SearchView()
+        search_view.search('genus where id = 1')
+
+        event = Gdk.EventButton()
+        event.type = Gdk.EventType.BUTTON_PRESS
+        event.button = 3
+        event.x = 1.0
+        event.y = 1.0
+
+        mock_view = mock.Mock()
+        mock_view.get_path_at_pos.return_value = (0, 0, 0, 0)
+
+        with self.assertLogs(level='DEBUG') as logs:
+            self.assertTrue(
+                search_view.on_view_button_press(mock_view, event)
+            )
+
+        self.assertTrue(any('view button 3 press' in i for i in logs.output))
+
     def test_on_view_button_release_not_3_returns_false(self):
         for func in get_setUp_data_funcs():
             func()
