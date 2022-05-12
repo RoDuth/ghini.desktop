@@ -1202,6 +1202,10 @@ class SearchView(pluginmgr.View):
         # now update the the cell
         value = model[treeiter][0]
 
+        # could not find anything message.
+        if isinstance(value, str):
+            cell.set_property('markup', value)
+            return
         # expire so that any external updates are picked up.
         # (e.g. another user has deleted while we are also using it.)
         self.session.expire(value)
