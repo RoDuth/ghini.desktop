@@ -130,7 +130,9 @@ class TagsMenuManager:
         bauble.gui.send_command(f'tag={tag_name}')
         view = bauble.gui.get_view()
         if isinstance(view, SearchView):
-            view.results_view.expand_to_path(Gtk.TreePath.new_first())
+            GLib.idle_add(
+                view.results_view.expand_to_path, Gtk.TreePath.new_first()
+            )
         self.refresh()
 
     @staticmethod

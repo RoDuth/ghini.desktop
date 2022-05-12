@@ -702,9 +702,9 @@ class SynonymsPresenter(editor.GenericEditorPresenter):
         self.view.connect(self.treeview, 'cursor-changed',
                           self.on_tree_cursor_changed)
 
-    def on_tree_cursor_changed(self, tree, data=None):
-        _path, column = tree.get_cursor()
-        self.view.widgets.gen_syn_remove_button.set_sensitive(True)
+    def on_tree_cursor_changed(self, tree):
+        path, _column = tree.get_cursor()
+        self.view.widgets.gen_syn_remove_button.set_sensitive(path is not None)
 
     def refresh_view(self):
         """
@@ -724,7 +724,7 @@ class SynonymsPresenter(editor.GenericEditorPresenter):
         entry.props.text = ''
         entry.set_position(-1)
         self.view.widgets.gen_syn_add_button.set_sensitive(False)
-        self.view.widgets.gen_syn_add_button.set_sensitive(False)
+        self.view.widgets.gen_syn_remove_button.set_sensitive(False)
         self._dirty = True
         self.parent_ref().refresh_sensitivity()
 

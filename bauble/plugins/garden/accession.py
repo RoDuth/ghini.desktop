@@ -2012,7 +2012,8 @@ class AccessionEditorPresenter(editor.GenericEditorPresenter):
                 model.append([syn.species])
                 completion.set_model(model)
                 self.view.widgets.acc_species_entry.set_text(str(syn.species))
-                set_model(syn.species)
+                self.set_model_attr('species', value)
+                self.refresh_id_qual_rank_combo()
 
         box = self.view.add_message_box(utils.MESSAGE_BOX_YESNO)
         box.message = msg

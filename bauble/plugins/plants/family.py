@@ -519,8 +519,9 @@ class SynonymsPresenter(editor.GenericEditorPresenter):
         self.view.connect(self.treeview, 'cursor-changed',
                           self.on_tree_cursor_changed)
 
-    def on_tree_cursor_changed(self, _tree):
-        self.view.widgets.fam_syn_remove_button.set_sensitive(True)
+    def on_tree_cursor_changed(self, tree):
+        path, _column = tree.get_cursor()
+        self.view.widgets.fam_syn_remove_button.set_sensitive(path is not None)
 
     def refresh_view(self):
         """Doesn't do anything"""
