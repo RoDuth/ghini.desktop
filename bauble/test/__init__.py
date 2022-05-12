@@ -52,6 +52,14 @@ def update_gui():
         Gtk.main_iteration()
 
 
+def wait_on_threads():
+    """Wait for any still running threads to complete"""
+    import threading
+    from time import sleep
+    while threading.active_count() > 1:
+        sleep(0.1)
+
+
 def check_dupids(filename):
     """
     Return a list of duplicate ids in a glade file

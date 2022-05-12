@@ -29,7 +29,8 @@ from bauble.view import (AppendThousandRows,
                          _mainstr_tmpl,
                          _substr_tmpl,
                          select_in_search_results)
-from bauble.test import BaubleTestCase, update_gui, get_setUp_data_funcs
+from bauble.test import (BaubleTestCase, update_gui, get_setUp_data_funcs,
+                         wait_on_threads)
 from bauble import db, utils, search, prefs, pluginmgr
 
 # pylint: disable=too-few-public-methods
@@ -115,15 +116,23 @@ class TestMultiprocCounter(TestCase):
 
 
 class TestSearchView(BaubleTestCase):
+    def setUp(self):
+        super().setUp()
+        self.search_view = SearchView()
+
+    def tearDown(self):
+        self.search_view.cancel_threads()
+        super().tearDown()
+
     def test_row_meta_populates_with_all_domains(self):
-        search_view = SearchView()
+        search_view = self.search_view
         self.assertEqual(
             list(search_view.row_meta.keys()),
             list(search.MapperSearch.get_domain_classes().values())
         )
 
     def test_all_domains_w_children_has_children_returns_correct(self):
-        search_view = SearchView()
+        search_view = self.search_view
         for func in get_setUp_data_funcs():
             func()
         for cls in search.MapperSearch.get_domain_classes().values():
@@ -138,7 +147,7 @@ class TestSearchView(BaubleTestCase):
                                  f'{obj}: {kids}')
 
     def test_bottom_info_populates_with_note_and_tag(self):
-        search_view = SearchView()
+        search_view = self.search_view
         self.assertEqual(
             list(search_view.bottom_info.keys()),
             [search.MapperSearch.get_domain_classes()['tag'], Note]
@@ -161,7 +170,7 @@ class TestSearchView(BaubleTestCase):
 
         SearchView.row_meta[Parent].set(children="children")
 
-        search_view = SearchView()
+        search_view = self.search_view
         parent = Parent(name='test1')
         child = Child(name='test2', parent=parent)
 
@@ -173,7 +182,7 @@ class TestSearchView(BaubleTestCase):
     def test_on_test_expand_row_w_kids_returns_false_adds_kids(self):
         for func in get_setUp_data_funcs():
             func()
-        search_view = SearchView()
+        search_view = self.search_view
         search_view.search('genus where id = 1')
         model = search_view.results_view.get_model()
         val = search_view.on_test_expand_row(
@@ -189,7 +198,7 @@ class TestSearchView(BaubleTestCase):
         # doesn't propagate
         for func in get_setUp_data_funcs():
             func()
-        search_view = SearchView()
+        search_view = self.search_view
         search_view.search('plant where id = 1')
         model = search_view.results_view.get_model()
         val = search_view.on_test_expand_row(
@@ -204,7 +213,7 @@ class TestSearchView(BaubleTestCase):
     def test_remove_children(self):
         for func in get_setUp_data_funcs():
             func()
-        search_view = SearchView()
+        search_view = self.search_view
         search_view.search('genus where id = 1')
         model = search_view.results_view.get_model()
         # expand a row
@@ -228,7 +237,7 @@ class TestSearchView(BaubleTestCase):
     def test_on_action_activate_supplies_selected_updates(self):
         for func in get_setUp_data_funcs():
             func()
-        search_view = SearchView()
+        search_view = self.search_view
         search_view.search('genus where id = 1')
         values = search_view.get_selected_values()
 
@@ -243,7 +252,7 @@ class TestSearchView(BaubleTestCase):
 
     @mock.patch('bauble.view.utils.message_details_dialog')
     def test_on_action_activate_with_error_notifies(self, mock_dialog):
-        search_view = SearchView()
+        search_view = self.search_view
         mock_callback = mock.Mock()
         mock_callback.side_effect = ValueError('boom')
         search_view.on_action_activate(None, None, mock_callback)
@@ -255,14 +264,14 @@ class TestSearchView(BaubleTestCase):
         mock_tree.get_model.return_value = {'note':
                                             [None, None, 'cat', 'note']}
         mock_get_selected.return_value = [type('Test', (), {})()]
-        search_view = SearchView()
+        search_view = self.search_view
         self.assertEqual(
             search_view.on_note_row_activated(mock_tree, 'note', None),
             "test where notes[category='cat'].note='note'"
         )
 
     def test_search_no_result(self):
-        search_view = SearchView()
+        search_view = self.search_view
         search_view.search('genus where epithet = None')
         model = search_view.results_view.get_model()
         self.assertIn('Could not find anything for search', model[0][0])
@@ -270,7 +279,7 @@ class TestSearchView(BaubleTestCase):
         self.assertIsNone(search_view.infobox)
 
     def test_search_w_error(self):
-        search_view = SearchView()
+        search_view = self.search_view
         mock_gui = mock.patch('bauble.gui')
         with mock.patch('bauble.gui') as mock_gui:
             mock_show_err_box = mock.Mock()
@@ -287,7 +296,7 @@ class TestSearchView(BaubleTestCase):
         prefs.prefs['bauble.search.return_accepted'] = False
         for func in get_setUp_data_funcs():
             func()
-        search_view = SearchView()
+        search_view = self.search_view
         for klass in search_view.row_meta:
             if klass.__tablename__ == 'tag':
                 continue
@@ -302,6 +311,8 @@ class TestSearchView(BaubleTestCase):
             string = f'{domain} where id = 1'
             with self.assertLogs(level='DEBUG') as logs:
                 search_view.search(string)
+                # wait for the CountResultsTask thread to finish
+                wait_on_threads()
             # check counting occured
             self.assertTrue(any('top level count:' in i for i in logs.output))
             # test the correct object was returned
@@ -324,7 +335,7 @@ class TestSearchView(BaubleTestCase):
                 return 'Mock Data'
 
         mock_get_selected.return_value = [MockData()]
-        search_view = SearchView()
+        search_view = self.search_view
         self.assertEqual(
             search_view.on_copy_selection(None, None),
             "Mock Data, MockData"
@@ -332,7 +343,6 @@ class TestSearchView(BaubleTestCase):
         prefs.prefs['copy_templates.mockdata'] = '${value}, ${value.field}'
 
         mock_get_selected.return_value = [MockData()]
-        search_view = SearchView()
         self.assertEqual(
             search_view.on_copy_selection(None, None),
             "Mock Data, Mock Field"
@@ -341,7 +351,7 @@ class TestSearchView(BaubleTestCase):
     def test_cell_data_func(self):
         for func in get_setUp_data_funcs():
             func()
-        search_view = SearchView()
+        search_view = self.search_view
         search_view.search('genus where id < 3')
 
         selected = search_view.get_selected_values()[0]
@@ -384,7 +394,7 @@ class TestSearchView(BaubleTestCase):
         # as if another user had deleted an item we were also looking at.
         for func in get_setUp_data_funcs():
             func()
-        search_view = SearchView()
+        search_view = self.search_view
         search_view.search('genus where id < 3')
 
         start = search_view.get_selected_values()
@@ -408,7 +418,7 @@ class TestSearchView(BaubleTestCase):
     def test_update_expires_all_and_triggers_selection_change(self):
         for func in get_setUp_data_funcs():
             func()
-        search_view = SearchView()
+        search_view = self.search_view
         search_view.search('accession where id < 3')
         with self.assertLogs(level='DEBUG') as logs:
             search_view.update()
@@ -431,7 +441,7 @@ class TestSearchView(BaubleTestCase):
     def test_on_view_button_press_not_3_returns_false(self):
         for func in get_setUp_data_funcs():
             func()
-        search_view = SearchView()
+        search_view = self.search_view
         search_view.search('genus where id = 1')
 
         results_view = search_view.results_view
@@ -453,7 +463,7 @@ class TestSearchView(BaubleTestCase):
     def test_on_view_button_press_3_outside_selection_returns_false(self):
         for func in get_setUp_data_funcs():
             func()
-        search_view = SearchView()
+        search_view = self.search_view
         search_view.search('genus where id = 1')
 
         results_view = search_view.results_view
@@ -474,7 +484,7 @@ class TestSearchView(BaubleTestCase):
     def test_on_view_button_press_3_inside_selection_returns_true(self):
         for func in get_setUp_data_funcs():
             func()
-        search_view = SearchView()
+        search_view = self.search_view
         search_view.search('genus where id = 1')
 
         event = Gdk.EventButton()
@@ -496,7 +506,7 @@ class TestSearchView(BaubleTestCase):
     def test_on_view_button_release_not_3_returns_false(self):
         for func in get_setUp_data_funcs():
             func()
-        search_view = SearchView()
+        search_view = self.search_view
         search_view.search('genus where id = 1')
 
         results_view = search_view.results_view
@@ -528,7 +538,7 @@ class TestSearchView(BaubleTestCase):
     def test_on_view_button_release_3_returns_true(self):
         for func in get_setUp_data_funcs():
             func()
-        search_view = SearchView()
+        search_view = self.search_view
         search_view.search('genus where id = 1')
 
         results_view = search_view.results_view
@@ -557,10 +567,7 @@ class TestHistoryView(BaubleTestCase):
         hist_view = HistoryView()
         hist_view.update(None)
         # wait for the thread to finish
-        import threading
-        from time import sleep
-        while threading.active_count() > 1:
-            sleep(0.1)
+        wait_on_threads()
         update_gui()
         self.assertEqual(len(hist_view.liststore), history_count)
         session.close()
@@ -657,6 +664,7 @@ class GlobalFunctionsTests(BaubleTestCase):
         end = search_view.get_selected_values()
         self.assertNotEqual(start, end)
         self.assertEqual(end[0].id, obj.id)
+        search_view.cancel_threads()
 
     def test_select_in_search_results_adds_not_existing(self):
         for func in get_setUp_data_funcs():
@@ -674,3 +682,5 @@ class GlobalFunctionsTests(BaubleTestCase):
         end = search_view.get_selected_values()
         self.assertNotEqual(start, end)
         self.assertEqual(end[0].id, obj.id)
+        update_gui()
+        search_view.cancel_threads()

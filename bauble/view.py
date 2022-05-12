@@ -438,6 +438,9 @@ def multiproc_counter(url, klass, ids):
     results = {}
     for id_ in ids:
         item = session.query(klass).get(id_)
+        # item has since been deleted elsewhere
+        if not item:
+            continue
         for k, v in item.top_level_count().items():
             if isinstance(v, set):
                 # need strings to pickle results
@@ -556,6 +559,9 @@ class CountResultsTask(threading.Thread):
                 item = session.query(self.klass).get(id_)
                 if self.__cancel:  # check whether caller asks to cancel
                     break
+                # item has been deleted elswhere (race condition)
+                if not item:
+                    continue
                 for k, v in item.top_level_count().items():
                     if isinstance(v, set):
                         results[k] = v.union(results.get(k, set()))
