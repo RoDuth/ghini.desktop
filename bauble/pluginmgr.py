@@ -495,10 +495,10 @@ class View(Gtk.Box):
         self.prevent_threads = False
 
     def cancel_threads(self):
-        for k in self.running_threads:
-            k.cancel()
-        for k in self.running_threads:
-            k.join()
+        for thread in self.running_threads:
+            thread.cancel()
+        for thread in self.running_threads:
+            thread.join()
         self.running_threads = []
 
     def start_thread(self, thread):

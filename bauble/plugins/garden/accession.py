@@ -2772,8 +2772,8 @@ class VouchersExpander(InfoExpander):
 
         parents = [v for v in row.vouchers if v.parent_material]
         for voucher in parents:
-            s = '%s %s (parent)' % (voucher.herbarium, voucher.code)
-            label = Gtk.Label(label=s)
+            string = f'{voucher.herbarium} {voucher.code} (parent)'
+            label = Gtk.Label(label=string)
             label.set_xalign(0)
             label.set_yalign(0.5)
             self.vbox.pack_start(label, True, True, 0)
@@ -2781,8 +2781,8 @@ class VouchersExpander(InfoExpander):
 
         not_parents = [v for v in row.vouchers if not v.parent_material]
         for voucher in not_parents:
-            s = '%s %s' % (voucher.herbarium, voucher.code)
-            label = Gtk.Label(label=s)
+            string = f'{voucher.herbarium} {voucher.code}'
+            label = Gtk.Label(label=string)
             label.set_xalign(0)
             label.set_yalign(0.5)
             self.vbox.pack_start(label, True, True, 0)

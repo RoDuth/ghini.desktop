@@ -17,9 +17,9 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
-#
-# Genera table module
-#
+"""
+Genera table module
+"""
 
 import os
 import traceback
@@ -332,8 +332,7 @@ class Genus(db.Base, db.Serializable, db.WithNotes):
         if self.genus.isupper():
             gen = escape(self.genus)
         else:
-            gen = '<i>{}</i>'.format(
-                escape(self.genus).replace('x ', '</i>×<i>'))
+            gen = f'<i>{escape(self.genus).replace("x ", "</i>×<i>")}</i>'
         if self.qualifier:
             gen += ' ' + self.qualifier
         if authors and self.author:
@@ -476,15 +475,16 @@ class GenusEditorView(editor.GenericEditorView):
         return self.widgets.genus_dialog
 
     @staticmethod
-    def syn_cell_data_func(_column, renderer, model, itr, data=None):
-        v = model[itr][0]
+    def syn_cell_data_func(_column, renderer, model, itr):
+        value = model[itr][0]
         author = None
-        if v.author is None:
+        if value.author is None:
             author = ''
         else:
-            author = utils.xml_safe(str(v.author))
-        renderer.set_property('markup', '<i>%s</i> %s (<small>%s</small>)'
-                              % (Genus.str(v), author, Family.str(v.family)))
+            author = utils.xml_safe(str(value.author))
+        renderer.set_property('markup',
+                              f'<i>{Genus.str(value)}</i> {author} '
+                              f'(<small>{Family.str(value.family)}</small>)')
 
     def save_state(self):
         """save the current state of the gui to the preferences"""
@@ -527,8 +527,8 @@ class GenusEditorPresenter(editor.GenericEditorPresenter):
         # connect signals
         def fam_get_completions(text):
             query = self.session.query(Family)
-            return query.filter(Family.family.like('%s%%' % text)).\
-                order_by(Family.family)
+            return (query.filter(Family.family.like(f'{text}%%'))
+                    .order_by(Family.family))
 
         def on_select(value):
             for kid in self.view.widgets.message_box_parent.get_children():
@@ -637,9 +637,9 @@ class SynonymsPresenter(editor.GenericEditorPresenter):
 
         def gen_get_completions(text):
             query = self.session.query(Genus)
-            return query.filter(and_(Genus.genus.like('%s%%' % text),
-                                     Genus.id != self.model.id)).\
-                order_by(Genus.genus)
+            return (query.filter(and_(Genus.genus.like(f'{text}%%'),
+                                      Genus.id != self.model.id))
+                    .order_by(Genus.genus))
 
         self._selected = None
 
@@ -667,9 +667,7 @@ class SynonymsPresenter(editor.GenericEditorPresenter):
         return self._dirty
 
     def init_treeview(self):
-        """
-        initialize the Gtk.TreeView
-        """
+        """initialize the Gtk.TreeView"""
         self.treeview = self.view.widgets.gen_syn_treeview
         # remove any columns that were setup previous, this became a
         # problem when we starting reusing the glade files with
@@ -678,13 +676,13 @@ class SynonymsPresenter(editor.GenericEditorPresenter):
         for col in self.treeview.get_columns():
             self.treeview.remove_column(col)
 
-        def _syn_data_func(_column, cell, model, itr, data=None):
+        def _syn_data_func(_column, cell, model, itr, _data):
             v = model[itr][0]
             syn = v.synonym
-            cell.set_property('markup', '<i>%s</i> %s (<small>%s</small>)'
-                              % (Genus.str(syn),
-                                 utils.xml_safe(str(syn.author)),
-                                 Family.str(syn.family)))
+            cell.set_property('markup',
+                              f'<i>{Genus.str(syn)}</i> '
+                              f'{utils.xml_safe(syn.author)} '
+                              f'(<small>{Family.str(syn.family)}</small>)')
             # set background color to indicate it's new
             if v.id is None:
                 cell.set_property('foreground', 'blue')
@@ -712,7 +710,7 @@ class SynonymsPresenter(editor.GenericEditorPresenter):
         """
         return
 
-    def on_add_button_clicked(self, _button, data=None):
+    def on_add_button_clicked(self, _button):
         """adds the synonym from the synonym entry to the list of synonyms for
         this species
         """
@@ -728,7 +726,7 @@ class SynonymsPresenter(editor.GenericEditorPresenter):
         self._dirty = True
         self.parent_ref().refresh_sensitivity()
 
-    def on_remove_button_clicked(self, _button, data=None):
+    def on_remove_button_clicked(self, _button):
         """removes the currently selected synonym from the list of synonyms for
         this species
         """
@@ -858,9 +856,6 @@ class GeneralGenusExpander(InfoExpander):
     """expander to present general information about a genus"""
 
     def __init__(self, widgets):
-        """
-        the constructor
-        """
         super().__init__(_("General"), widgets)
         general_box = self.widgets.gen_general_box
         self.widgets.remove_parent(general_box)
@@ -869,14 +864,14 @@ class GeneralGenusExpander(InfoExpander):
         self.current_obj = None
 
     def update(self, row):
-        """
-        update the expander
+        """update the expander
 
         :param row: the row to get the values from
         """
         session = object_session(row)
-        self.widget_set_value('gen_name_data', '<big>%s</big> %s' %
-                              (row.markup(), utils.xml_safe(str(row.author))),
+        self.widget_set_value('gen_name_data',
+                              f'<big>{row.markup()}</big> '
+                              f'{utils.xml_safe(str(row.author))}',
                               markup=True)
         self.widget_set_value('gen_fam_data',
                               (utils.xml_safe(str(row.family))))
@@ -904,8 +899,8 @@ class GeneralGenusExpander(InfoExpander):
             nsp_in_acc = (session.query(Accession.species_id).
                           join('species', 'genus').
                           filter_by(id=row.id).distinct().count())
-            self.widget_set_value('gen_nacc_data', '%s in %s species'
-                                  % (nacc, nsp_in_acc))
+            self.widget_set_value('gen_nacc_data',
+                                  f'{nacc} in {nsp_in_acc} species')
 
         # get the number of plants in the genus
         nplants = (session.query(Plant).
@@ -917,8 +912,8 @@ class GeneralGenusExpander(InfoExpander):
             nacc_in_plants = (session.query(Plant.accession_id).
                               join('accession', 'species', 'genus').
                               filter_by(id=row.id).distinct().count())
-            self.widget_set_value('gen_nplants_data', '%s in %s accessions'
-                                  % (nplants, nacc_in_plants))
+            self.widget_set_value('gen_nplants_data',
+                                  f'{nplants} in {nacc_in_plants} accessions')
 
         if bauble.gui:
             on_clicked_search = utils.generate_on_clicked(

@@ -18,6 +18,9 @@
 # You should have received a copy of the GNU General Public License
 # along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
 #
+"""
+The garden plugin
+"""
 
 import re
 import logging
@@ -31,6 +34,7 @@ from gi.repository import Gtk
 import bauble
 
 from bauble import utils
+from bauble import db
 from bauble import pluginmgr
 from bauble.view import SearchView
 from bauble import search
@@ -192,7 +196,7 @@ def init_location_comboentry(presenter, combo, on_select, required=True):
 
     re_code_name_splitter = re.compile(r'\(([^)]+)\) ?(.*)')
 
-    def cell_data_func(_col, cell, model, treeiter, data=None):
+    def cell_data_func(_col, cell, model, treeiter):
         val = model[treeiter][0]
         from sqlalchemy import inspect as sa_inspect
         if isinstance(val, str) or sa_inspect(val).persistent:
@@ -266,10 +270,10 @@ def init_location_comboentry(presenter, combo, on_select, required=True):
             code, name = match.groups()
         else:
             code = name = text
-        codes = presenter.session.query(Location).filter(
-            utils.ilike(Location.code, '%s' % utils.nstr(code)))
-        names = presenter.session.query(Location).filter(
-            utils.ilike(Location.name, '%s' % utils.nstr(name)))
+        codes = (presenter.session.query(Location)
+                 .filter(utils.ilike(Location.code, code)))
+        names = (presenter.session.query(Location)
+                 .filter(utils.ilike(Location.name, name)))
         if codes.count() == 1:
             logger.debug('location matches code')
             location = codes.first()
@@ -287,7 +291,7 @@ def init_location_comboentry(presenter, combo, on_select, required=True):
 
     presenter.view.connect(entry, 'changed', on_entry_changed, presenter)
 
-    def on_combo_changed(combo, *args):
+    def on_combo_changed(combo, *_args):
         # model = combo.get_model()
         active = combo.get_active_iter()
         if not active:
@@ -301,11 +305,9 @@ def init_location_comboentry(presenter, combo, on_select, required=True):
                            utils.format_combo_entry_text)
 
 
-from bauble import db
-
 plugin = GardenPlugin
 
-## make names visible to db module
+# make names visible to db module
 db.Accession = Accession
 db.AccessionNote = AccessionNote
 db.Plant = Plant

@@ -681,11 +681,10 @@ class Tag(db.Base):
         return first, second
 
     def has_children(self):
-        cls = self.__class__._objects.prop.mapper.class_
         from sqlalchemy import exists
         session = object_session(self)
         return session.query(
-            exists().where(cls.tag_id == self.id)
+            exists().where(TaggedObj.tag_id == self.id)
         ).scalar()
 
 

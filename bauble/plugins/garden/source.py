@@ -18,9 +18,9 @@
 # You should have received a copy of the GNU General Public License
 # along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
 #
-#
-# source.py
-#
+"""
+Source and associated tables, etc.
+"""
 import os
 import traceback
 import weakref
@@ -47,7 +47,7 @@ from bauble import btypes as types
 from bauble import paths
 from bauble import prefs
 from bauble.view import Action, InfoExpander, InfoBox, PropertiesExpander
-from bauble.plugins.plants.geography import Geography, GeographyMenu
+from ..plants.geography import Geography, GeographyMenu
 
 
 def collection_edit_callback(coll):
@@ -272,9 +272,8 @@ class Collection(db.Base):
         """provide the two lines describing object for SearchView row."""
         acc = self.source.accession  # pylint: disable=no-member
         safe = utils.xml_safe
-        return (
-            '%s - <small>%s</small>' % (safe(acc), safe(acc.species_str())),
-            safe(self))
+        return (f'{safe(acc)} - <small>{safe(acc.species_str())}</small>',
+                safe(self))
 
     def __str__(self):
         return _('Collection at %s') % (self.locale or repr(self))
@@ -421,7 +420,8 @@ class CollectionPresenter(editor.ChildPresenter):
 
         latitude = self.model.latitude
         if latitude is not None:
-            dms_string = '%s %s\u00B0%s\'%s"' % latitude_to_dms(latitude)
+            direct, degs, mins, secs = latitude_to_dms(latitude)
+            dms_string = f'{direct} {degs}°{mins}\'{secs}"'
             self.view.widgets.lat_dms_label.set_text(dms_string)
             if float(latitude) < 0:
                 self.view.widgets.south_radio.set_active(True)
@@ -433,7 +433,8 @@ class CollectionPresenter(editor.ChildPresenter):
 
         longitude = self.model.longitude
         if longitude is not None:
-            dms_string = '%s %s\u00B0%s\'%s"' % longitude_to_dms(longitude)
+            direct, degs, mins, secs = longitude_to_dms(longitude)
+            dms_string = f'{direct} {degs}°{mins}\'{secs}"'
             self.view.widgets.lon_dms_label.set_text(dms_string)
             if float(longitude) < 0:
                 self.view.widgets.west_radio.set_active(True)
@@ -533,7 +534,7 @@ class CollectionPresenter(editor.ChildPresenter):
 
     def on_lat_entry_changed(self, entry):
         """set the latitude value from text"""
-        from bauble.plugins.garden.accession import latitude_to_dms
+        from .accession import latitude_to_dms
         text = entry.get_text()
         latitude = None
         dms_string = ''
@@ -548,7 +549,8 @@ class CollectionPresenter(editor.ChildPresenter):
                 north_radio.handler_unblock(self.north_toggle_signal_id)
                 direction = self._get_lat_direction()
                 latitude = CollectionPresenter._parse_lat_lon(direction, text)
-                dms_string = '%s %s\u00B0%s\'%s"' % latitude_to_dms(latitude)
+                direct, degs, mins, secs = latitude_to_dms(latitude)
+                dms_string = f'{direct} {degs}°{mins}\'{secs}"'
         except Exception:
             logger.debug(traceback.format_exc())
             self.add_problem(self.PROBLEM_BAD_LATITUDE,
@@ -564,7 +566,7 @@ class CollectionPresenter(editor.ChildPresenter):
             self.set_model_attr('latitude', utils.nstr(latitude))
 
     def on_lon_entry_changed(self, entry):
-        from bauble.plugins.garden.accession import longitude_to_dms
+        from .accession import longitude_to_dms
         text = entry.get_text()
         longitude = None
         dms_string = ''
@@ -579,8 +581,8 @@ class CollectionPresenter(editor.ChildPresenter):
                 east_radio.handler_unblock(self.east_toggle_signal_id)
                 direction = self._get_lon_direction()
                 longitude = CollectionPresenter._parse_lat_lon(direction, text)
-                dms_string = '%s %s\u00B0%s\'%s"' % longitude_to_dms(
-                    longitude)
+                direct, degs, mins, secs = longitude_to_dms(longitude)
+                dms_string = f'{direct} {degs}°{mins}\'{secs}"'
         except Exception:
             logger.debug(traceback.format_exc())
             self.add_problem(self.PROBLEM_BAD_LONGITUDE,
@@ -629,8 +631,7 @@ class PropagationChooserPresenter(editor.ChildPresenter):
         # assign_completions_handler
         def plant_cell_data_func(_column, renderer, tree_model, itr):
             val = tree_model[itr][0]
-            renderer.set_property('text', '%s (%s)' %
-                                  (str(val), str(val.accession.species)))
+            renderer.set_property('text', f'{val} ({val.accession.species})')
 
         from .plant import plant_match_func
         self.view.attach_completion('source_prop_plant_entry',
@@ -954,7 +955,7 @@ class SourceDetailPresenter(editor.GenericEditorPresenter):
 
         view.set_accept_buttons_sensitive(False)
 
-    def on_textbuffer_changed_description(self, widget, value=None, attr=None):
+    def on_textbuffer_changed_description(self, widget, value=None):
         return self.on_textbuffer_changed(widget, value, attr='description')
 
 
@@ -969,8 +970,9 @@ class GeneralSourceDetailExpander(InfoExpander):
         self.vbox.pack_start(gen_box, True, True, 0)
 
     def update(self, row):
-        self.widget_set_value('sd_name_data', '<big>%s</big>' %
-                              utils.xml_safe(row.name), markup=True)
+        self.widget_set_value('sd_name_data',
+                              f'<big>{utils.xml_safe(row.name)}</big>',
+                              markup=True)
         source_type = ''
         if row.source_type:
             source_type = utils.xml_safe(row.source_type)

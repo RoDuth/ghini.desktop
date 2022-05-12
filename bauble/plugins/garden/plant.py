@@ -657,13 +657,13 @@ class Plant(db.Base, db.Serializable, db.DefiningPictures, db.WithNotes):
         sp_str = self.accession.species_str(markup=True)
         dead_color = "#9900ff"
         if self.quantity <= 0:
-            dead_markup = '<span foreground="%s">%s</span>' % (
-                dead_color, utils.xml_safe(self))
+            dead_markup = (f'<span foreground="{dead_color}">'
+                           f'{utils.xml_safe(self)}</span>')
             return dead_markup, sp_str
-        located_counted = ('%s <span foreground="#555555" size="small" '
-                           'weight="light">- %s alive in %s</span>') % (
-                               utils.xml_safe(self), self.quantity,
-                               utils.xml_safe(self.location))
+        located_counted = (f'{utils.xml_safe(self)} '
+                           '<span foreground="#555555" size="small" '
+                           f'weight="light">- {self.quantity} alive in '
+                           f'{utils.xml_safe(self.location)}</span>')
         return located_counted, sp_str
 
     @classmethod
@@ -713,8 +713,8 @@ class Plant(db.Base, db.Serializable, db.DefiningPictures, db.WithNotes):
         return plant
 
     def markup(self):
-        return "%s%s%s (%s)" % (self.accession, self.delimiter, self.code,
-                                self.accession.species_str(markup=True))
+        return (f'{self.accession}{self.delimiter}{self.code} '
+                f'({self.accession.species_str(markup=True)})')
 
     def as_dict(self):
         result = db.Serializable.as_dict(self)
@@ -920,14 +920,12 @@ class PlantEditorView(GenericEditorView):
         self.widgets.pad_next_button.set_sensitive(False)
 
         def acc_cell_data_func(_column, renderer, model, treeiter):
-            v = model[treeiter][0]
+            value = model[treeiter][0]
             # when cancelling an insert sometimes the session gets lost and can
             # result in a long cycle of DetachedInstanceErrors. So check first
             from sqlalchemy import inspect as sa_inspect
-            if sa_inspect(v).persistent:
-                renderer.set_property(
-                    'text', '%s (%s)' % (str(v), str(v.species))
-                )
+            if sa_inspect(value).persistent:
+                renderer.set_property('text', f'{value} ({value.species})')
 
         self.attach_completion('plant_acc_entry',
                                cell_data_func=acc_cell_data_func,
@@ -1162,14 +1160,14 @@ class PlantEditorPresenter(GenericEditorPresenter):
         if len(parts) == 1:
             # try straight accession code search first
             query = (self.session.query(Accession)
-                     .filter(ilike(Accession.code, '%s%%' % text))
+                     .filter(ilike(Accession.code, f'{text}%%'))
                      .order_by(Accession.code))
             if not query.first():
                 # if that fails try the genus
                 query = (self.session.query(Accession)
                          .join(Species)
                          .join(Genus)
-                         .filter(ilike(Genus.epithet, '%s%%' % text))
+                         .filter(ilike(Genus.epithet, f'{text}%%'))
                          .order_by(Accession.code))
         else:
             accession = parts[0]
@@ -1179,8 +1177,8 @@ class PlantEditorPresenter(GenericEditorPresenter):
                      .join(Species)
                      .join(Genus)
                      .filter(and_(
-                         ilike(Accession.code, '%s%%' % accession),
-                         ilike(Genus.epithet, '%s%%' % genus)))
+                         ilike(Accession.code, f'{accession}%%'),
+                         ilike(Genus.epithet, f'{genus}%%')))
                      .order_by(Accession.code))
             if not query.first():
                 # if fails try genus species
@@ -1190,8 +1188,8 @@ class PlantEditorPresenter(GenericEditorPresenter):
                          .join(Species)
                          .join(Genus)
                          .filter(and_(
-                             ilike(Genus.epithet, '%s%%' % genus),
-                             ilike(Species.epithet, '%s%%' % species)))
+                             ilike(Genus.epithet, f'{genus}%%'),
+                             ilike(Species.epithet, f'{species}%%')))
                          .order_by(Accession.code))
         # limit results, can have a lot, avoid slow down.
         return query.limit(80)
@@ -1744,14 +1742,14 @@ class PlantEditor(GenericModelViewPresenterEditor):
 
         if self.branched_plant:
             # set title if in branch mode
-            self.presenter.view.get_window().props.title += \
-                utils.nstr(' - %s' % _('Split Mode'))
+            window = self.presenter.view.get_window()
+            window.props.title += ' - ' + _('Split Mode')
             message_box_parent = self.presenter.view.widgets.message_box_parent
             for child in message_box_parent.get_children():
                 message_box_parent.remove(child)
-            msg = _('Splitting from %(plant_code)s.  The quantity will '
-                    'be subtracted from %(plant_code)s') \
-                % {'plant_code': str(self.branched_plant)}
+            msg = (_('Splitting from %(plant_code)s.  The quantity will '
+                     'be subtracted from %(plant_code)s')
+                   % {'plant_code': str(self.branched_plant)})
             box = self.presenter.view.add_message_box(utils.MESSAGE_BOX_INFO)
             box.message = msg
             box.show_all()
@@ -1785,11 +1783,12 @@ class GeneralPlantExpander(InfoExpander):
         plant_code = str(row)
         head, tail = plant_code[:len(acc_code)], plant_code[len(acc_code):]
 
-        self.widget_set_value('acc_code_data', '<big>%s</big>' %
-                              utils.xml_safe(str(head)),
+        self.widget_set_value('acc_code_data',
+                              f'<big>{utils.xml_safe(head)}</big>',
                               markup=True)
-        self.widget_set_value('plant_code_data', '<big>%s</big>' %
-                              utils.xml_safe(str(tail)), markup=True)
+        self.widget_set_value('plant_code_data',
+                              f'<big>{utils.xml_safe(tail)}</big>',
+                              markup=True)
         self.widget_set_value('name_data',
                               row.accession.species_str(markup=True),
                               markup=True)

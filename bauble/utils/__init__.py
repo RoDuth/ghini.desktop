@@ -37,8 +37,7 @@ from xml.sax import saxutils
 import logging
 logger = logging.getLogger(__name__)
 
-from gi.repository import Gtk  # noqa
-from gi.repository import Gdk  # noqa
+from gi.repository import Gtk
 from gi.repository import GLib
 from gi.repository import GdkPixbuf
 
@@ -307,7 +306,7 @@ class BuilderLoader:
 
     @classmethod
     def load(cls, filename):
-        if filename in list(cls.builders.keys()):
+        if filename in cls.builders:
             return cls.builders[filename]
         builder = Gtk.Builder()
         builder.add_from_file(filename)
@@ -440,14 +439,14 @@ def set_combo_from_value(combo, value, cmp=lambda row, value: row[0] == value):
     """Find value in combo model and set it as active, else raise ValueError
     cmp(row, value) is the a function to use for comparison
 
-    .. note:: if more than one value is found in the combo then the
-      first one in the list is set
+    .. note:: if more than one value is found in the combo then the first one
+        in the list is set
     """
     model = combo.get_model()
     matches = search_tree_model(model, value, cmp)
     if len(matches) == 0:
         raise ValueError('set_combo_from_value() - could not find value in '
-                         'combo: %s' % value)
+                         f'combo: {value}')
     combo.set_active_iter(matches[0])
     combo.emit('changed')
 
@@ -462,7 +461,7 @@ def combo_get_value_iter(combo, value, cmp=lambda row, value: row[0] == value):
       the default is C{lambda row, value: row[0] == value}
 
     .. note:: if more than one value is found in the combo then the first one
-      in the list is returned
+        in the list is returned
     """
     model = combo.get_model()
     matches = search_tree_model(model, value, cmp)
@@ -504,9 +503,8 @@ def get_widget_value(widget):
     if isinstance(widget, Gtk.Button):
         return nstr(widget.props.label)
 
-    raise TypeError('utils.set_widget_value(): Don\'t know how to handle '
-                    'the widget type %s with name %s' %
-                    (type(widget), widget.name))
+    raise TypeError('utils.get_widget_value(): Don\'t know how to handle '
+                    f'the widget type {type(widget)} with name {widget.name}')
 
 
 def set_widget_value(widget, value, markup=False, default=None, index=0):
@@ -597,8 +595,8 @@ def set_widget_value(widget, value, markup=False, default=None, index=0):
 
     else:
         raise TypeError('utils.set_widget_value(): Don\'t know how to handle '
-                        'the widget type %s with name %s' %
-                        (type(widget), widget.name))
+                        f'the widget type {type(widget)} with name '
+                        f'{widget.name}')
 
 
 def create_message_dialog(msg, typ=Gtk.MessageType.INFO,
@@ -622,7 +620,7 @@ def create_message_dialog(msg, typ=Gtk.MessageType.INFO,
     if parent is None:
         try:  # this might get called before bauble has started
             parent = bauble.gui.window
-        except Exception:
+        except AttributeError:
             parent = None
     dialog = Gtk.MessageDialog(modal=True, destroy_with_parent=True,
                                transient_for=parent, message_type=typ,
@@ -966,14 +964,14 @@ def xml_safe_name(obj):
     return name
 
 
-def complex_hyb(tax):
+def complex_hyb(string):
     """a helper function that splits a complex hybrid formula into its parts.
 
-    :param tax: string containing brackets surounding 2 phrases seperated by
+    :param string: string containing brackets surounding 2 phrases seperated by
         a cross/multipy symbol
     """
     # break apart the name parts
-    prts = tax.split("×")
+    prts = string.split("×")
     len_prts = len(prts)
     left = right = find = found = 0
     result = []
@@ -1003,103 +1001,103 @@ def complex_hyb(tax):
 
     # if have a bracketed part remove the outer brackets and parse that else
     # return the part italicised
-    italicize_part = lambda prt: (  # noqa: E731
-        '({})'.format(markup_italics(prt[1:-1]))
-        if prt.startswith('(') and prt.endswith(')') else
-        markup_italics(prt)
-    )
+    def italicize_part(part):
+        if part.startswith('(') and part.endswith(')'):
+            return f'({markup_italics(part[1:-1])})'
+        return markup_italics(part)
+
     # recompile adding the cross symbols back
     return ''.join([italicize_part(i) + ' × ' for i in result])[:-3]
 
 
-def markup_italics(tax):
+def markup_italics(string):
     """Add italics markup to the appropriate parts of a species string.
 
-    :param tax: the taxon name as a unicode string
+    :param string: the taxon name as a unicode string
     """
     # store the zws to reapply later (if used)
-    if tax.startswith('\u200b'):
+    if string.startswith('\u200b'):
         start = '\u200b'
-        tax = tax.strip('\u200b')
+        string = string.strip('\u200b')
     else:
         start = ''
 
-    tax = tax.strip()
+    string = string.strip()
     result = ''
     # simple sp.
-    if tax == 'sp.':
-        result = '{}'.format(tax)
+    if string == 'sp.':
+        result = f'{string}'
     # simple species
-    elif re.match(r'^[a-z-]+$', tax):
-        result = '<i>{}</i>'.format(tax)
+    elif re.match(r'^[a-z-]+$', string):
+        result = f'<i>{string}</i>'
     # simple species hybrids (lowercase words separated by a multiplication
     # symbol)
-    elif re.match('^[a-z-]+( × [a-z-]+)*$', tax):
-        result = '<i>{}</i>'.format(tax).replace(' × ', '</i> × <i>')
+    elif re.match('^[a-z-]+( × [a-z-]+)*$', string):
+        result = f'<i>{string}</i>'.replace(' × ', '</i> × <i>')
     # simple cultivar (starts and ends with a ' and can be almost have anything
     # between (except further quote symbols or multiplication symbols
-    elif re.match("^'[^×\'\"]+'$", tax):
-        result = '{}'.format(tax)
+    elif re.match("^'[^×\'\"]+'$", string):
+        result = f'{string}'
     # simple infraspecific hybrid with nothospecies name
-    elif re.match('^×[a-z-]+$', tax):
-        result = '{}<i>{}</i>'.format(tax[0], tax[1:])
+    elif re.match('^×[a-z-]+$', string):
+        result = f'{string[0]}<i>{string[1:]}</i>'
     # simple provisory or descriptor sp.
-    elif re.match(r'^sp. \([^×]+\)$', tax):
-        result = '{}'.format(tax)
+    elif re.match(r'^sp. \([^×]+\)$', string):
+        result = f'{string}'
     # simple descriptor (brackets surrounding anything without a multiplication
     # symbol)
-    elif re.match(r'^\([^×]*\)$', tax):
-        result = '{}'.format(tax)
+    elif re.match(r'^\([^×]*\)$', string):
+        result = f'{string}'
 
     # recursive parts
     # species with descriptor (part with only lower letters + space + bracketed
     # section)
-    elif re.match(r'^[a-z-]+ \([^×]+\)$', tax):
+    elif re.match(r'^[a-z-]+ \([^×]+\)$', string):
         result = ''.join(
-            [markup_italics(i) + ' ' for i in tax.split(' ', 1)]
+            [markup_italics(i) + ' ' for i in string.split(' ', 1)]
         )[:-1]
     # complex hybrids (contains brackets surounding 2 phrases seperated by a
     # multipy symbol) These need to be reduce to less and less complex hybrids.
-    elif re.search(r'\(.+×.+\)', tax):
-        result = '{}'.format(complex_hyb(tax))
+    elif re.search(r'\(.+×.+\)', string):
+        result = f'{complex_hyb(string)}'
     # any other type of hybrid (i.e. cv to species, provisory to cv, etc..) try
     # breaking it apart and italicizing the parts
-    elif re.match('.+ × .+', tax):
-        parts = [i.strip() for i in tax.split(' × ')]
+    elif re.match('.+ × .+', string):
+        parts = [i.strip() for i in string.split(' × ')]
         result = ''.join([markup_italics(i) + ' × ' for i in parts])[:-3]
     # anything else with spaces in it. Break them off one by one and try
     # identify the parts.
-    elif ' ' in tax:
+    elif ' ' in string:
         result = ''.join(
-            [markup_italics(i) + ' ' for i in tax.split(' ', 1)]
+            [markup_italics(i) + ' ' for i in string.split(' ', 1)]
         )[:-1]
     # lastly, what to do if we just don't know... (infraspecific ranks etc.)
     else:
-        result = '{}'.format(tax)
+        result = string
 
     result = result.strip()
     return start + result
 
 
-def safe_numeric(s):
-    'evaluate the string as a number, or return zero'
+def safe_numeric(string):
+    """evaluate the string as a number, or return zero"""
 
     try:
-        return int(s)
+        return int(string)
     except ValueError:
         pass
     try:
-        return float(s)
+        return float(string)
     except ValueError:
         pass
     return 0
 
 
-def safe_int(s):
+def safe_int(string):
     'evaluate the string as an integer, or return zero'
 
     try:
-        return int(s)
+        return int(string)
     except ValueError:
         pass
     return 0
@@ -1118,18 +1116,18 @@ def natsort_key(obj):
     """
 
     item = str(obj)
-    chunks = __natsort_rx.split(item)
-    for i in range(len(chunks)):
-        if chunks[i] and chunks[i][0] in '0123456789':
-            if '.' in chunks[i]:
+    parts = __natsort_rx.split(item)
+    for part in parts:
+        if part and part[0] in '0123456789':
+            if '.' in part:
                 numtype = float
             else:
                 numtype = int
             # wrap in tuple with '0' to explicitly specify numbers come first
-            chunks[i] = (0, numtype(chunks[i]))
+            part = (0, numtype(part))
         else:
-            chunks[i] = (1, chunks[i])
-    return (chunks, item)
+            part = (1, part)
+    return (parts, item)
 
 
 def delete_or_expunge(obj):
@@ -1162,7 +1160,7 @@ def reset_sequence(column):
     """
     from bauble import db
     from sqlalchemy.types import Integer
-    from sqlalchemy import schema
+    from sqlalchemy import schema, text
     if not db.engine.name == 'postgresql':
         return
 
@@ -1174,16 +1172,15 @@ def reset_sequence(column):
           (column.default is None or
            (isinstance(column.default, schema.Sequence) and
             column.default.optional)) and len(column.foreign_keys) == 0):
-        sequence_name = '%s_%s_seq' % (column.table.name, column.name)
+        sequence_name = f'{column.table.name}_{column.name}_seq'
     else:
         return
     conn = db.engine.connect()
     trans = conn.begin()
     try:
         # the FOR UPDATE locks the table for the transaction
-        stmt = "SELECT %s from %s FOR UPDATE;" % (
-            column.name, column.table.name)
-        result = conn.execute(stmt)
+        stmt = text("SELECT :col from :table FOR UPDATE;")
+        result = conn.execute(col=column.name, tabe=column.table.name)
         maxid = None
         vals = list(result)
         if vals:
@@ -1191,11 +1188,14 @@ def reset_sequence(column):
         result.close()
         if maxid is None:
             # set the sequence to nextval()
-            stmt = "SELECT nextval('%s');" % (sequence_name)
+            stmt = text("SELECT nextval(:seq);")
+            kwargs = dict(seq=sequence_name)
         else:
-            stmt = "SELECT setval('%s', max(%s)+1) from %s;" \
-                % (sequence_name, column.name, column.table.name)
-        conn.execute(stmt)
+            stmt = text("SELECT setval(:seq, max(:col)+1) from :table;")
+            kwargs = dict(seq=sequence_name,
+                          col=column.name,
+                          table=column.table.name)
+        conn.execute(stmt, **kwargs)
     except Exception as e:
         logger.warning('bauble.utils.reset_sequence(): %s', nstr(e))
         trans.rollback()
@@ -1223,6 +1223,7 @@ def make_label_clickable(label, on_clicked, *args):
     :param on_clicked: callback to be called when the label is clicked
       on_clicked(label, event, data)
     """
+    # pylint: disable=protected-access
     eventbox = label.get_parent()
 
     check(eventbox is not None, 'label must have a parent')
@@ -1293,8 +1294,7 @@ def ilike(col, val, engine=None):
         engine = bauble.db.engine
     if engine.name == 'postgresql':
         return col.op('ILIKE')(val)
-    else:
-        return func.lower(col).like(func.lower(val))
+    return func.lower(col).like(func.lower(val))
 
 
 def range_builder(text):
@@ -1335,8 +1335,7 @@ def gc_objects_by_type(tipe):
 
 def mem(size="rss"):
     """Generalization; memory sizes: rss, rsz, vsz."""
-    return int(os.popen('ps -p %d -o %s | tail -1' %
-                        (os.getpid(), size)).read())
+    return int(os.popen(f'ps -p {os.getpid():d} -o {size} | tail -1').read())
 
 
 # Original topological sort code written by Ofer Faigon (www.bitformation.com)
@@ -1447,12 +1446,12 @@ class GenericMessageBox(Gtk.EventBox):
         self.box.set_spacing(10)
         self.add(self.box)
 
-    def show_all(self):
+    def show_all(self, *_args, **_kwargs):
         self.get_parent().show_all()
         size_req = self.get_preferred_size()[1]
         self.set_size_request(size_req.width, size_req.height + 10)
 
-    def show(self):
+    def show(self, *_args, **_kwargs):
         self.show_all()
 
 
@@ -1587,22 +1586,22 @@ MESSAGE_BOX_ERROR = 2
 MESSAGE_BOX_YESNO = 3
 
 
-def add_message_box(parent, type=MESSAGE_BOX_INFO):
+def add_message_box(parent, typ=MESSAGE_BOX_INFO):
     """
     :param parent: the parent :class:`Gtk.Box` width to add the
       message box to
-    :param type: one of MESSAGE_BOX_INFO, MESSAGE_BOX_ERROR or
+    :param typ: one of MESSAGE_BOX_INFO, MESSAGE_BOX_ERROR or
       MESSAGE_BOX_YESNO
     """
     msg_box = None
-    if type == MESSAGE_BOX_INFO:
+    if typ == MESSAGE_BOX_INFO:
         msg_box = MessageBox()
-    elif type == MESSAGE_BOX_ERROR:
+    elif typ == MESSAGE_BOX_ERROR:
         msg_box = MessageBox()  # check this
-    elif type == MESSAGE_BOX_YESNO:
+    elif typ == MESSAGE_BOX_YESNO:
         msg_box = YesNoMessageBox()
     else:
-        raise ValueError('unknown message box type: %s' % type)
+        raise ValueError(f'unknown message box type: {typ}')
     parent.pack_start(msg_box, True, True, 0)
     return msg_box
 

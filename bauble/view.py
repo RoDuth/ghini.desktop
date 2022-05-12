@@ -444,7 +444,7 @@ def multiproc_counter(url, klass, ids):
         for k, v in item.top_level_count().items():
             if isinstance(v, set):
                 # need strings to pickle results
-                new_v = set(str(i) for i in v)
+                new_v = {str(i) for i in v}
                 results[k] = new_v.union(results.get(k, set()))
             else:
                 results[k] = v + results.get(k, 0)
