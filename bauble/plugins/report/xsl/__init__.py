@@ -85,7 +85,8 @@ class FOP:
     def init(self):
         # if pref doesn't exist assume False
         self.external_fop_pref = prefs.prefs.get(USE_EXTERNAL_FOP_PREF, False)
-        if self.set_fop_command():
+        self.set_fop_command()
+        if not self.external_fop_pref:
             self.set_fop_classpath()
 
     def update(self):
@@ -154,6 +155,7 @@ class FOP:
             if candidate.is_file():
                 logger.debug('found FOP on PATH %s', str(candidate))
                 self.fop = str(candidate)
+                self.external_fop_pref = True
                 return True
         logger.debug('FOP not found')
         return False

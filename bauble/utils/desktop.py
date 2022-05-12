@@ -223,7 +223,7 @@ def is_standard():
 
 # Activity functions.
 
-def open(url, desktop=None, wait=0, dialog_on_error=False):
+def open(url, desktop=None, wait=0.5, dialog_on_error=False):
 
     """
     Open the 'url' in the current desktop's preferred file browser. If the
