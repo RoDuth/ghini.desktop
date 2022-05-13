@@ -1495,12 +1495,7 @@ class MessageBox(GenericMessageBox):
         self.details = details
         self.details_expander.add(scroll_win)
 
-        def on_close(_widget):
-            parent = self.get_parent()
-            if parent is not None:
-                parent.remove(self)
-
-        button.connect('clicked', on_close)
+        button.connect('clicked', lambda w: self.destroy())
 
     @property
     def message(self):
@@ -1524,8 +1519,12 @@ class MessageBox(GenericMessageBox):
     def details(self, msg):
         if msg:
             self.details_buffer.set_text(msg)
+            self.details_expander.show()
+            self.details_expander.set_no_show_all(False)
         else:
             self.details_buffer.set_text('')
+            self.details_expander.hide()
+            self.details_expander.set_no_show_all(True)
 
 
 class YesNoMessageBox(GenericMessageBox):
