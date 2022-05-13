@@ -1160,7 +1160,7 @@ def reset_sequence(column):
     """
     from bauble import db
     from sqlalchemy.types import Integer
-    from sqlalchemy import schema, text
+    from sqlalchemy import schema
     if not db.engine.name == 'postgresql':
         return
 
@@ -1179,8 +1179,8 @@ def reset_sequence(column):
     trans = conn.begin()
     try:
         # the FOR UPDATE locks the table for the transaction
-        stmt = text("SELECT :col from :table FOR UPDATE;")
-        result = conn.execute(col=column.name, tabe=column.table.name)
+        stmt = f"SELECT {column.name} from {column.table.name} FOR UPDATE;"
+        result = conn.execute(stmt)
         maxid = None
         vals = list(result)
         if vals:
@@ -1188,16 +1188,14 @@ def reset_sequence(column):
         result.close()
         if maxid is None:
             # set the sequence to nextval()
-            stmt = text("SELECT nextval(:seq);")
-            kwargs = dict(seq=sequence_name)
+            stmt = f"SELECT nextval('{sequence_name}');"
         else:
-            stmt = text("SELECT setval(:seq, max(:col)+1) from :table;")
-            kwargs = dict(seq=sequence_name,
-                          col=column.name,
-                          table=column.table.name)
-        conn.execute(stmt, **kwargs)
+            stmt = (f"SELECT setval('{sequence_name}', max({column.name})+1) "
+                    f"from {column.table.name};")
+        conn.execute(stmt)
     except Exception as e:
-        logger.warning('bauble.utils.reset_sequence(): %s', nstr(e))
+        logger.warning('bauble.utils.reset_sequence(): %s(%s)',
+                       type(e).__name__, e)
         trans.rollback()
     else:
         trans.commit()
