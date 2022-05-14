@@ -76,6 +76,12 @@ else:
 INFOBOXPAGE_WIDTH_PREF = 'bauble.infoboxpage_width'
 """The preferences key for storing the InfoBoxPage width."""
 
+SEARCHVIEW_POLL_SECS_PREF = 'bauble.searchview_poll_secs'
+"""Preference key for how often to poll the database in search view"""
+
+SEARCHVIEW_CACHE_SIZE_PREF = 'bauble.searchview_cache_size'
+"""Preference key for size of search view's cache of database results"""
+
 
 class Action:
     # pylint: disable=too-few-public-methods, too-many-arguments
@@ -678,6 +684,12 @@ class SearchView(pluginmgr.View):
         self.running_threads = []
         self.actions = set()
         self.context_menu_model = Gio.Menu()
+        poll_secs = prefs.prefs.get(SEARCHVIEW_POLL_SECS_PREF)
+        if poll_secs:
+            self.has_kids.set_secs(poll_secs)  # pylint: disable=no-member
+        cache_size = prefs.prefs.get(SEARCHVIEW_CACHE_SIZE_PREF)
+        if cache_size:
+            self.has_kids.set_size(cache_size)  # pylint: disable=no-member
 
     def add_notes_page_to_bottom_notebook(self):
         """add notebook page for notes
@@ -1027,6 +1039,7 @@ class SearchView(pluginmgr.View):
             return
 
         # not error
+        self.has_kids.clear_cache()  # pylint: disable=no-member
         utils.clear_model(self.results_view)
         if bauble.gui:
             statusbar = bauble.gui.widgets.statusbar
@@ -1196,7 +1209,7 @@ class SearchView(pluginmgr.View):
         for found in utils.search_tree_model(model, value):
             model.remove(found)
 
-    @utils.timed_cache(secs=2)
+    @utils.timed_cache()
     def has_kids(self, value):
         """Expire and check for children"""
         # expire so that any external updates are picked up.

@@ -1797,15 +1797,26 @@ def unhide_widgets(widgets: Iterable[Gtk.Widget]) -> None:
         widget.set_no_show_all(False)
 
 
-def timed_cache(secs):
-    """Timed cache decorator.
+def timed_cache(size=200, secs=2.0):
+    """Timed cache function decorator.
 
-    Vary basic cache that will memoise the last value calculated only until
-    `secs` seconds or more have passed.
+    Vary basic cache that will memoise the last value calculated for a set
+    amount of seconds (default = 2.0).  Cache size can be set (default = 200).
 
     Cached funtion's arguments must be hashable.
 
-    :param secs: number of seconds before updating from the decorated function
+    To clear the cache at anytime call clear_cache e.g. `func.clear_cache()`
+
+    To set the size of the cache either supply the `size` paramater or at
+    anytime use set_size e.g. `func.set_size(500)`. For an unlimited cache size
+    set size to 0.
+
+    To set a value for the delay in seconds before updating from the decorated
+    function either supply the `secs` parameter or at anytime use set_secs e.g.
+    `func.set_secs(1.0)`
+
+    :param size: size of the cache.
+    :param secs: delay in seconds before updating.
     """
     cache = {}
 
@@ -1813,6 +1824,8 @@ def timed_cache(secs):
         @wraps(func)
         def wrapper(*args):
             now = time.time()
+            if size and len(cache) > size:
+                cache.pop(next(iter(cache)))
             previous = cache.get(args, None)
             if previous is not None and now - previous[0] < secs:
                 return previous[1]
@@ -1823,6 +1836,16 @@ def timed_cache(secs):
         def clear_cache():
             cache.clear()
 
+        def set_secs(val):
+            nonlocal secs
+            secs = val
+
+        def set_size(val):
+            nonlocal size
+            size = val
+
         wrapper.clear_cache = clear_cache
+        wrapper.set_secs = set_secs
+        wrapper.set_size = set_size
         return wrapper
     return decoratorating

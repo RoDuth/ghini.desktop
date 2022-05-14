@@ -763,3 +763,168 @@ class GetNetSessionTest(BaubleTestCase):
         sess2 = utils.get_net_sess()
         mock_pacsession.get_pac.called_once()
         self.assertIs(sess, sess2)
+
+
+class TimedCacheTest(TestCase):
+    def test_cache_size_one_calls_every_new_param(self):
+        mock_func = mock.Mock()
+        mock_func.return_value = 'result'
+        decorated = utils.timed_cache(size=1)(mock_func)
+        # make 2 calls
+        result = decorated('test')
+        mock_func.assert_called_with('test')
+        self.assertEqual(result, 'result')
+        mock_func.return_value = 'result2'
+        result = decorated('test2')
+        mock_func.assert_called_with('test2')
+        self.assertEqual(result, 'result2')
+        # make the same 2 calls but with different return values
+        mock_func.return_value = 'result3'
+        result = decorated('test')
+        mock_func.assert_called_with('test')
+        self.assertEqual(result, 'result3')
+        mock_func.return_value = 'result4'
+        result = decorated('test2')
+        mock_func.assert_called_with('test2')
+        self.assertEqual(result, 'result4')
+
+    def test_multipe_identical_calls_do_cache(self):
+        mock_func = mock.Mock()
+        mock_func.return_value = 'result'
+        decorated = utils.timed_cache(size=10)(mock_func)
+        result = decorated('test')
+        mock_func.assert_called_with('test')
+        self.assertEqual(result, 'result')
+        for _ in range(10):
+            result = decorated('test')
+            self.assertEqual(result, 'result')
+            self.assertEqual(mock_func.call_count, 1)
+
+    def test_func_calls_when_cache_overflows(self):
+        mock_func = mock.Mock()
+        mock_func.return_value = 'result'
+        decorated = utils.timed_cache(size=10)(mock_func)
+        for i in range(10):
+            result = decorated(f'test{i}')
+            self.assertEqual(result, 'result')
+            mock_func.assert_called_with(f'test{i}')
+
+        self.assertEqual(mock_func.call_count, 10)
+        start = mock_func.call_count
+
+        # make the same calls and check not called
+        for i in range(10):
+            mock_func.return_value = f'result{i}'
+            result = decorated(f'test{i}')
+            self.assertEqual(result, 'result')
+
+        # one more overflows
+        mock_func.return_value = 'end'
+        result = decorated('end')
+        self.assertEqual(result, 'end')
+
+        end = mock_func.call_count
+        self.assertEqual(end, start + 1)
+
+    def test_func_calls_again_after_secs(self):
+        mock_func = mock.Mock()
+        mock_func.return_value = 'result'
+        decorated = utils.timed_cache(size=10, secs=0.2)(mock_func)
+        # preload cache
+        mock_func.return_value = 'result'
+        result = decorated('test')
+        self.assertEqual(mock_func.call_count, 1)
+        self.assertEqual(result, 'result')
+        # make some calls and only 1 mock_func call no value change
+        for i in range(5):
+            mock_func.return_value = f'result{i}'
+            result = decorated('test')
+            self.assertEqual(mock_func.call_count, 1)
+            self.assertEqual(result, 'result')
+
+        from time import sleep
+        sleep(0.2)
+        # make same call after pause and this time it does call
+        mock_func.return_value = 'end'
+        result = decorated('test')
+        self.assertEqual(mock_func.call_count, 2)
+        self.assertEqual(result, 'end')
+
+    def test_set_size(self):
+        # set size via param to 1 then via set_size and check for overflow
+        mock_func = mock.Mock()
+        mock_func.return_value = 'result'
+        decorated = utils.timed_cache(size=1, secs=10)(mock_func)
+        decorated.set_size(10)
+
+        for i in range(10):
+            result = decorated(f'test{i}')
+            self.assertEqual(result, 'result')
+            mock_func.assert_called_with(f'test{i}')
+
+        for i in range(10):
+            result = decorated(f'test{i}')
+            self.assertEqual(result, 'result')
+            mock_func.assert_called_with('test9')
+
+        self.assertEqual(mock_func.call_count, 10)
+
+        # one extra cal creates once extra call
+        mock_func.return_value = 'end'
+        result = decorated('end')
+        self.assertEqual(result, 'end')
+        mock_func.assert_called_with('end')
+
+        self.assertEqual(mock_func.call_count, 11)
+
+    def test_set_secs(self):
+        mock_func = mock.Mock()
+        mock_func.return_value = 'result'
+        decorated = utils.timed_cache(size=10, secs=10.0)(mock_func)
+        decorated.set_secs(0.2)
+        # preload cache
+        mock_func.return_value = 'result'
+        result = decorated('test')
+        self.assertEqual(mock_func.call_count, 1)
+        self.assertEqual(result, 'result')
+        # make some calls and only 1 mock_func call no value change
+        for i in range(5):
+            mock_func.return_value = f'result{i}'
+            result = decorated('test')
+            self.assertEqual(mock_func.call_count, 1)
+            self.assertEqual(result, 'result')
+
+        from time import sleep
+        sleep(0.2)
+        # make same call after pause and this time it does call
+        mock_func.return_value = 'end'
+        result = decorated('test')
+        self.assertEqual(mock_func.call_count, 2)
+        self.assertEqual(result, 'end')
+
+    def test_clear_cache(self):
+        mock_func = mock.Mock()
+        mock_func.return_value = 'result'
+        decorated = utils.timed_cache(size=100, secs=10)(mock_func)
+        decorated.set_size(10)
+
+        for i in range(10):
+            result = decorated(f'test{i}')
+            self.assertEqual(result, 'result')
+            mock_func.assert_called_with(f'test{i}')
+
+        for i in range(10):
+            result = decorated(f'test{i}')
+            self.assertEqual(result, 'result')
+            mock_func.assert_called_with('test9')
+
+        self.assertEqual(mock_func.call_count, 10)
+
+        decorated.clear_cache()
+        # cache clear does call
+        mock_func.return_value = 'end'
+        result = decorated('test9')
+        self.assertEqual(result, 'end')
+        mock_func.assert_called_with('test9')
+
+        self.assertEqual(mock_func.call_count, 11)
