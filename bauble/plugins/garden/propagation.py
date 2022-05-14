@@ -88,10 +88,10 @@ class Propagation(db.Base):
         if not self.used_source:
             return []
         accessions = []
-        session = object_session(self.used_source[0].accession)
-        for us in self.used_source:
-            if us.accession not in session.new:
-                accessions.append(us.accession)
+        session = object_session(self.used_source[0])
+        for used in self.used_source:
+            if used.accession and used.accession not in session.new:
+                accessions.append(used.accession)
         return sorted(accessions, key=utils.natsort_key)
 
     @property
