@@ -246,6 +246,7 @@ class TestSearchView(BaubleTestCase):
 
         with self.assertLogs(level='DEBUG') as logs:
             search_view.on_action_activate(None, None, mock_callback)
+            update_gui()
         self.assertTrue(any('SearchView::update' in i for i in logs.output))
 
         mock_callback.assert_called_with(values)

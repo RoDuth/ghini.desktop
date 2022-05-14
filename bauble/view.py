@@ -903,7 +903,7 @@ class SearchView(pluginmgr.View):
                 msg, trace, Gtk.MessageType.ERROR)
             logger.warning(traceback.format_exc())
         if result:
-            self.update()
+            GLib.idle_add(self.update)
 
     def update_context_menus(self, selected_values):
         """Update the context menu dependant on selected values."""
@@ -1196,15 +1196,16 @@ class SearchView(pluginmgr.View):
         for found in utils.search_tree_model(model, value):
             model.remove(found)
 
-    def cell_data_func(self, col, cell, model, treeiter, _data):
+    @utils.timed_cache(secs=2)
+    def has_kids(self, value):
+        """Expire and check for children"""
+        # expire so that any external updates are picked up.
+        # (e.g. another user has deleted while we are also using it.)
+        self.session.expire(value)
+        return value.has_children()
+
+    def cell_data_func(self, _col, cell, model, treeiter, _data):
         # for tests use int treeiter
-        if not isinstance(treeiter, int):
-            # start with a (redundant) check, whether the cell is visible.
-            path = model.get_path(treeiter)
-            tree_rect = self.results_view.get_visible_rect()
-            cell_rect = self.results_view.get_cell_area(path, col)
-            if cell_rect.y > tree_rect.height:
-                return
         # now update the the cell
         value = model[treeiter][0]
 
@@ -1212,17 +1213,16 @@ class SearchView(pluginmgr.View):
         if isinstance(value, str):
             cell.set_property('markup', value)
             return
-        # expire so that any external updates are picked up.
-        # (e.g. another user has deleted while we are also using it.)
-        self.session.expire(value)
 
         try:
             if (self.row_meta[type(value)].children is not None and
-                    value.has_children()):
+                    self.has_kids(value)):
                 # treeiter is int for testing
                 if (not isinstance(treeiter, int) and
                         not model.iter_has_child(treeiter)):
                     model.prepend(treeiter, ['-'])
+            else:
+                self.remove_children(model, treeiter)
             rep = value.search_view_markup_pair()
             try:
                 main, substr = rep
@@ -1341,8 +1341,11 @@ class SearchView(pluginmgr.View):
                          type(e).__name__, e)
 
         self.session.expire_all()
+        self.has_kids.clear_cache()  # pylint: disable=no-member
 
         expanded_rows = self.get_expanded_rows()
+
+        self.results_view.collapse_all()
 
         # expand_to_all_refs will invalidate the ref so get the path first
         if not ref:

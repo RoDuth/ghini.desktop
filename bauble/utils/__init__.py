@@ -26,7 +26,9 @@ A common set of utility functions used throughout Ghini.
 """
 from collections.abc import Iterable
 from collections import UserDict
+from functools import wraps
 from typing import Any, Union
+import time
 import datetime
 import os
 import re
@@ -95,7 +97,6 @@ class Cache:
                                  list(self.storage.keys()))))[1]
                 del self.storage[k]
             value = getter()
-        import time
         self.storage[key] = time.time(), value
         return value
 
@@ -1794,3 +1795,34 @@ def unhide_widgets(widgets: Iterable[Gtk.Widget]) -> None:
     for widget in widgets:
         widget.set_visible(True)
         widget.set_no_show_all(False)
+
+
+def timed_cache(secs):
+    """Timed cache decorator.
+
+    Vary basic cache that will memoise the last value calculated only until
+    `secs` seconds or more have passed.
+
+    Cached funtion's arguments must be hashable.
+
+    :param secs: number of seconds before updating from the decorated function
+    """
+    cache = {}
+
+    def decoratorating(func):
+        @wraps(func)
+        def wrapper(*args):
+            now = time.time()
+            previous = cache.get(args, None)
+            if previous is not None and now - previous[0] < secs:
+                return previous[1]
+            new_val = func(*args)
+            cache[args] = [now, new_val]
+            return new_val
+
+        def clear_cache():
+            cache.clear()
+
+        wrapper.clear_cache = clear_cache
+        return wrapper
+    return decoratorating
