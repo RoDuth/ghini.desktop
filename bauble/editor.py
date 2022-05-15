@@ -2013,7 +2013,7 @@ class GenericNoteBox:
 # NoteBox and PictureBox use two near identical UI files
 
 
-@Gtk.Template(filename=str(Path(paths.lib_dir(), 'note_box.glade')))
+@Gtk.Template(filename=str(Path(paths.lib_dir(), 'note_box.ui')))
 class NoteBox(GenericNoteBox, Gtk.Box):
 
     __gtype_name__ = 'NoteBox'
@@ -2047,7 +2047,7 @@ class NoteBox(GenericNoteBox, Gtk.Box):
         self.set_model_attr('note', value)
 
 
-@Gtk.Template(filename=str(Path(paths.lib_dir(), 'picture_box.glade')))
+@Gtk.Template(filename=str(Path(paths.lib_dir(), 'picture_box.ui')))
 class PictureBox(GenericNoteBox, Gtk.Box):
 
     __gtype_name__ = 'PictureBox'

@@ -47,16 +47,14 @@ from bauble.view import SearchView
 from bauble.editor import GenericEditorView
 
 
-# NOTE pluginmgr.View is a Gtk.Box vertical orientation that can take a root
-# widget or glade file.
-class DefaultView(pluginmgr.View):
+class DefaultView(pluginmgr.View, Gtk.Box):
     """consider DefaultView a splash screen.
 
-    it is displayed at program start and never again.
-    it's the core of the "what do I do now" screen.
+    It is displayed at program start and when home is selected.  it's the core
+    of the "what do I do now" screen.
 
-    DefaultView is related to the SplashCommandHandler,
-    not to the view.DefaultCommandHandler
+    DefaultView is related to the SplashCommandHandler, not to the
+    view.DefaultCommandHandler
     """
     infoboxclass = None
 
@@ -83,7 +81,7 @@ class DefaultView(pluginmgr.View):
         logger.debug('DefaultView::update')
         if self.infoboxclass and not self.infobox:
             logger.debug('DefaultView::update - creating infobox')
-            self.infobox = self.infoboxclass()
+            self.infobox = self.infoboxclass()   # pylint: disable=not-callable
             self.hbox.pack_end(self.infobox, False, False, 8)
             self.infobox.set_vexpand(False)
             self.infobox.set_hexpand(False)

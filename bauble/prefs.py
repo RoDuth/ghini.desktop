@@ -363,21 +363,24 @@ def update_prefs(conf_file):
     prefs.save()
 
 
-class PrefsView(pluginmgr.View):
+@Gtk.Template(filename=str(Path(paths.lib_dir(), 'prefs_view.ui')))
+class PrefsView(pluginmgr.View, Gtk.Box):
     """The PrefsView displays the values in the plugin registry and displays
     and allows limited editing of preferences, only after warning users of
     possible dangers.
     """
 
+    __gtype_name__ = 'PrefsView'
+
+    prefs_ls = Gtk.Template.Child()
+    plugins_ls = Gtk.Template.Child()
+    prefs_tv = Gtk.Template.Child()
+    prefs_data_renderer = Gtk.Template.Child()
+    prefs_edit_chkbx = Gtk.Template.Child()
+
     def __init__(self):
         logger.debug('PrefsView::__init__')
-        super().__init__(
-            filename=os.path.join(paths.lib_dir(), 'bauble.glade'),
-            root_widget_name='prefs_window')
-        self.view.connect_signals(self)
-        self.prefs_ls = self.view.widgets.prefs_prefs_ls
-        self.plugins_ls = self.view.widgets.prefs_plugins_ls
-        self.prefs_tv = self.view.widgets.prefs_prefs_tv
+        super().__init__()
         self.button_press_id = None
 
     def on_button_press_event(self, widget, event):
@@ -442,6 +445,7 @@ class PrefsView(pluginmgr.View):
         dialog.destroy()
         return new_iter
 
+    @Gtk.Template.Callback()
     def on_prefs_edit_toggled(self, widget):
         state = widget.get_active()
         logger.debug('edit state %s', state)
@@ -450,33 +454,35 @@ class PrefsView(pluginmgr.View):
             'could be detrimental.\n\nDO YOU WISH TO PROCEED?</b>\n\nSome '
             'changes will not take effect until restarted.'
         )
-        if state and utils.yes_no_dialog(msg, parent=self.view.get_window()):
+        parent = bauble.gui.window if bauble.gui else None
+        if state and utils.yes_no_dialog(msg, parent=parent):
             logger.debug('enable editing prefs')
-            self.view.widgets.prefs_data_renderer.set_property(
-                'editable', state)
+            self.prefs_data_renderer.set_property('editable', state)
             self.button_press_id = self.prefs_tv.connect(
                 "button-press-event", self.on_button_press_event)
 
         else:
             logger.debug('disable editing prefs')
             widget.set_active(False)
-            self.view.widgets.prefs_data_renderer.set_property(
-                'editable', False)
+            self.prefs_data_renderer.set_property('editable', False)
             if self.button_press_id:
                 self.prefs_tv.disconnect(self.button_press_id)
                 self.button_press_id = None
 
+    @Gtk.Template.Callback()
     def on_prefs_edited(self, _renderer, path, new_text):
         key, repr_str, type_str = self.prefs_ls[path]
         if new_text == '':
             msg = _('Delete the %s preference key?') % key
-            if utils.yes_no_dialog(msg, parent=self.view.get_window()):
+            parent = bauble.gui.window if bauble.gui else None
+            if utils.yes_no_dialog(msg, parent=parent):
                 del prefs[key]
                 prefs.save()
                 self.refresh_view()
                 logger.debug('deleting: %s', key)
-                self.prefs_ls.remove(self.prefs_ls.get_iter_from_string(
-                    str(path)))
+                self.prefs_ls.remove(
+                    self.prefs_ls.get_iter_from_string(str(path))
+                )
                 return
 
         try:
@@ -500,11 +506,13 @@ class PrefsView(pluginmgr.View):
         prefs.save()
         self.refresh_view()
 
+    @Gtk.Template.Callback()
     @staticmethod
     def on_prefs_backup_clicked(_widget):
         from shutil import copy2
         copy2(default_prefs_file, default_prefs_file + 'BAK')
 
+    @Gtk.Template.Callback()
     def on_prefs_restore_clicked(self, _widget):
         from shutil import copy2
         # pylint: disable=using-constant-test
@@ -515,7 +523,7 @@ class PrefsView(pluginmgr.View):
         else:
             utils.message_dialog(_('No backup found'))
 
-    def update(self, *_argd):
+    def update(self, *_args):
         self.prefs_ls.clear()
         for key, value in sorted(prefs.iteritems()):
             logger.debug('update prefs: %s, %s, %s', key, value,

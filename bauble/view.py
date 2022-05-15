@@ -22,7 +22,7 @@ Description: the default view
 """
 
 import itertools
-import os
+from pathlib import Path
 import sys
 import traceback
 import html
@@ -62,7 +62,6 @@ from bauble import prefs
 from bauble import search
 from bauble import utils
 from bauble.utils.web import link_button_factory
-from bauble import editor
 from bauble import pictures_view
 
 # use different formatting template for the result view depending on the
@@ -577,17 +576,24 @@ class CountResultsTask(threading.Thread):
             self.callback(results)
 
 
-class SearchView(pluginmgr.View):
+@Gtk.Template(filename=str(Path(paths.lib_dir(), 'search_view.ui')))
+class SearchView(pluginmgr.View, Gtk.Box):
     """The SearchView is the main view for Ghini.
 
     Manages the search results returned when search strings are entered into
     the main text entry.
     """
 
+    __gtype_name__ = 'SearchView'
+
+    bottom_notebook = Gtk.Template.Child()
+    results_view = Gtk.Template.Child()
+    info_pane = Gtk.Template.Child()
+    pic_pane = Gtk.Template.Child()
+
     class ViewMeta(UserDict):
-        """
-        This class shouldn't need to be instantiated directly.  Access
-        the meta for the SearchView with the :class:`bauble.view.SearchView`'s
+        """This class shouldn't need to be instantiated directly.  Access the
+        meta for the SearchView with the :class:`bauble.view.SearchView`'s
         `row_meta` or `bottom_info` attributes.
 
         ...note: can access the actual dictionary used to store the contents
@@ -656,20 +662,14 @@ class SearchView(pluginmgr.View):
     """Callbacks called each time the cursor changes"""
 
     def __init__(self):
-        """
-        the constructor
-        """
         logger.debug('SearchView::__init__')
         super().__init__()
-        filename = os.path.join(paths.lib_dir(), 'bauble.glade')
-        self.widgets = utils.BuilderWidgets(filename)
-        self.view = editor.GenericEditorView(
-            filename, root_widget_name='main_window')
 
         self.create_gui()
 
         pictures_view.floating_window = pictures_view.PicturesView(
-            parent=self.widgets.search_h2pane)
+            parent=self.pic_pane
+        )
 
         # the context menu cache holds the context menus by type in the results
         # view so that we don't have to rebuild them every time
@@ -698,20 +698,20 @@ class SearchView(pluginmgr.View):
         implemented as a plugin. then notes will be added with the
         generic add_page_to_bottom_notebook.
         """
-        page = self.widgets.notes_scrolledwindow
-        # detach it from parent (its container)
-        self.widgets.remove_parent(page)
+        glade_name = str(Path(paths.lib_dir(), 'notes_page.glade'))
+        widgets = utils.BuilderWidgets(glade_name)
+        page = widgets['notes_scrolledwindow']
         # create the label object
         label = Gtk.Label(label='Notes')
-        self.widgets.bottom_notebook.append_page(page, label)
+        self.bottom_notebook.append_page(page, label)
         self.bottom_info[Note] = {
             'fields_used': ['date', 'user', 'category', 'note'],
             'tree': page.get_children()[0],
             'label': label,
             'name': _('Notes'),
         }
-        self.widgets.notes_treeview.connect("row-activated",
-                                            self.on_note_row_activated)
+        widgets.notes_treeview.connect("row-activated",
+                                       self.on_note_row_activated)
 
     def on_note_row_activated(self, tree, path, _column):
         try:
@@ -738,14 +738,14 @@ class SearchView(pluginmgr.View):
     def add_page_to_bottom_notebook(self, bottom_info):
         """add notebook page for a plugin class."""
         glade_name = bottom_info['glade_name']
-        bwid = utils.BuilderWidgets(glade_name)
-        page = bwid[bottom_info['page_widget']]
+        widgets = utils.BuilderWidgets(glade_name)
+        page = widgets[bottom_info['page_widget']]
         # 2: detach it from parent (its container)
-        bwid.remove_parent(page)
+        widgets.remove_parent(page)
         # 3: create the label object
         label = Gtk.Label(label=bottom_info['name'])
         # 4: add the page, non sensitive
-        self.widgets.bottom_notebook.append_page(page, label)
+        self.bottom_notebook.append_page(page, label)
         # 5: store the values for later use
         bottom_info['tree'] = page.get_children()[0]
         if row_activated := bottom_info.get('row_activated'):
@@ -766,8 +766,8 @@ class SearchView(pluginmgr.View):
         """
         # Only one should be selected
         if len(selected_values or []) != 1:
-            self.widgets.bottom_notebook.hide()
-            self.picpane.get_child2().hide()
+            self.bottom_notebook.hide()
+            self.pic_pane.get_child2().hide()
             return
 
         row = selected_values[0]  # the selected row
@@ -793,7 +793,7 @@ class SearchView(pluginmgr.View):
                 for obj in objs:
                     model.append([str(getattr(obj, k) or '')
                                   for k in bottom_info['fields_used']])
-        self.widgets.bottom_notebook.show()
+        self.bottom_notebook.show()
 
     def update_infobox(self, selected_values):
         """Sets the infobox according to the currently selected row.
@@ -830,8 +830,8 @@ class SearchView(pluginmgr.View):
         # remove the current infobox if there is one and it is not needed
         if row is None:
             if (self.infobox is not None and
-                    self.infobox.get_parent() == self.pane):
-                self.pane.remove(self.infobox)
+                    self.infobox.get_parent() == self.info_pane):
+                self.info_pane.remove(self.infobox)
             return
 
         # set width from pref once per session.
@@ -843,7 +843,7 @@ class SearchView(pluginmgr.View):
             info_width = prefs.prefs.get(INFOBOXPAGE_WIDTH_PREF, 300)
             pane_pos = width - info_width - 1
             logger.debug('setting pane position to %s', pane_pos)
-            self.pane.set_position(pane_pos)
+            self.info_pane.set_position(pane_pos)
 
         selected_type = type(row)
         # if we have already created an infobox of this type:
@@ -867,16 +867,16 @@ class SearchView(pluginmgr.View):
         # remove any old infoboxes connected to the pane
         if (self.infobox is not None and type(self.infobox) is not
                 type(new_infobox)):
-            if self.infobox.get_parent() == self.pane:
-                self.pane.remove(self.infobox)
+            if self.infobox.get_parent() == self.info_pane:
+                self.info_pane.remove(self.infobox)
 
         # update the infobox and put it in the pane
         self.infobox = new_infobox
         if self.infobox is not None:
             self.infobox.update(row)
-            self.pane.pack2(self.infobox, resize=False, shrink=True)
+            self.info_pane.pack2(self.infobox, resize=False, shrink=True)
             self.infobox.set_sensitive(sensitive)
-            self.pane.show_all()
+            self.info_pane.show_all()
 
     def get_selected_values(self):
         """Get the values in all the selected rows."""
@@ -1380,8 +1380,6 @@ class SearchView(pluginmgr.View):
         """Create the interface."""
         logger.debug('SearchView::create_gui')
         # create the results view and info box
-        self.results_view = self.widgets.results_treeview
-
         self.results_view.set_headers_visible(False)
         # self.results_view.set_rules_hint(True)  # depricated
         self.results_view.set_fixed_height_mode(True)
@@ -1417,13 +1415,6 @@ class SearchView(pluginmgr.View):
         # Gtk.Window.add_accel_group since the group will be added
         # automatically when the view is set
         self.accel_group = Gtk.AccelGroup()
-
-        self.pane = self.widgets.search_hpane
-        self.picpane = self.widgets.search_h2pane
-
-        vbox = self.widgets.search_vbox
-        self.widgets.remove_parent(vbox)
-        self.pack_start(vbox, True, True, 0)
 
 
 class Note:
@@ -1497,8 +1488,13 @@ class AppendThousandRows(threading.Thread):
             GLib.idle_add(self.cancel_callback)
 
 
-class HistoryView(pluginmgr.View):
+@Gtk.Template(filename=str(Path(paths.lib_dir(), 'history_view.ui')))
+class HistoryView(pluginmgr.View, Gtk.Box):
     """Show the tables row in the order they were last updated."""
+
+    __gtype_name__ = 'HistoryView'
+
+    liststore = Gtk.Template.Child()
 
     TVC_TIMESTAMP = 0
     TVC_OPERATION = 1
@@ -1508,12 +1504,8 @@ class HistoryView(pluginmgr.View):
     TVC_DICT = 5
 
     def __init__(self):
-        logger.debug('PrefsView::__init__')
-        super().__init__(
-            filename=os.path.join(paths.lib_dir(), 'bauble.glade'),
-            root_widget_name='history_window')
-        self.view.connect_signals(self)
-        self.liststore = self.view.widgets.history_ls
+        logger.debug('HistoryView::__init__')
+        super().__init__()
 
     @staticmethod
     def cmp_items_key(val):
@@ -1551,6 +1543,7 @@ class HistoryView(pluginmgr.View):
             item.values
         ])
 
+    @Gtk.Template.Callback()
     def on_row_activated(self, _tree, path, _column):
         row = self.liststore[path]
         dic = literal_eval(row[self.TVC_DICT])

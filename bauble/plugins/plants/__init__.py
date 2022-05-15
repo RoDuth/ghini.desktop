@@ -1,6 +1,6 @@
 # Copyright 2008-2010 Brett Adams
 # Copyright 2012-2015 Mario Frasca <mario@anche.no>.
-# Copyright 2021 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright 2021-2020 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -23,6 +23,7 @@ plants plugin
 import os
 from threading import Thread
 from functools import partial
+from pathlib import Path
 
 import logging
 logger = logging.getLogger(__name__)
@@ -86,137 +87,164 @@ class LabelUpdater(Thread):
         session.close()
 
 
-class SplashInfoBox(pluginmgr.View):
+@Gtk.Template(filename=str(Path(__file__).resolve().parent / 'splash_info.ui'))
+class SplashInfoBox(pluginmgr.View, Gtk.Box):
     """info box shown in the initial splash screen."""
+
+    __gtype_name__ = 'SplashInfoBox'
+
+    splash_stqr_button = Gtk.Template.Child()
+    splash_nlocnot = Gtk.Template.Child()
+    splash_nlocuse = Gtk.Template.Child()
+    splash_nloctot = Gtk.Template.Child()
+    splash_npltnot = Gtk.Template.Child()
+    splash_npltuse = Gtk.Template.Child()
+    splash_nplttot = Gtk.Template.Child()
+    splash_naccnot = Gtk.Template.Child()
+    splash_naccuse = Gtk.Template.Child()
+    splash_nacctot = Gtk.Template.Child()
+    splash_nspcnot = Gtk.Template.Child()
+    splash_nspcuse = Gtk.Template.Child()
+    splash_nspctot = Gtk.Template.Child()
+    splash_ngennot = Gtk.Template.Child()
+    splash_ngenuse = Gtk.Template.Child()
+    splash_ngentot = Gtk.Template.Child()
+    splash_nfamtot = Gtk.Template.Child()
+    splash_nfamuse = Gtk.Template.Child()
+    splash_nfamnot = Gtk.Template.Child()
+
+    for i in range(1, 11):
+        wname = f"stqr_{i:02d}_button"
+        locals()[wname] = Gtk.Template.Child()
 
     def __init__(self):
         logger.debug('SplashInfoBox::__init__')
         super().__init__()
-        filename = os.path.join(lib_dir(), 'plugins', 'plants',
-                                'infoboxes.glade')
-        self.widgets = utils.load_widgets(filename)
-        self.widgets.remove_parent(self.widgets.splash_vbox)
-        self.pack_start(self.widgets.splash_vbox, False, False, 8)
+
+        for i in range(1, 11):
+            wname = f"stqr_{i:02d}_button"
+            widget = getattr(self, wname)
+            widget.connect('clicked', partial(self.on_sqb_clicked, i))
+
         self.name_tooltip_query = None
 
         on_clicked_search = utils.generate_on_clicked(bauble.gui.send_command)
 
         utils.make_label_clickable(
-            self.widgets.splash_nfamtot,
+            self.splash_nfamtot,
             on_clicked_search,
             'family like %'
         )
 
         utils.make_label_clickable(
-            self.widgets.splash_nfamuse,
+            self.splash_nfamuse,
             on_clicked_search,
             'family where genera.species.accessions.id != 0'
         )
 
         utils.make_label_clickable(
-            self.widgets.splash_nfamnot,
+            self.splash_nfamnot,
             on_clicked_search,
             'family where not genera.species.accessions.id != 0'
         )
 
         utils.make_label_clickable(
-            self.widgets.splash_ngentot,
+            self.splash_ngentot,
             on_clicked_search,
             'genus like %'
         )
 
         utils.make_label_clickable(
-            self.widgets.splash_ngenuse,
+            self.splash_ngenuse,
             on_clicked_search,
             'genus where species.accessions.id!=0'
         )
 
         utils.make_label_clickable(
-            self.widgets.splash_ngennot,
+            self.splash_ngennot,
             on_clicked_search,
             'genus where not species.accessions.id!=0'
         )
 
         utils.make_label_clickable(
-            self.widgets.splash_nspctot,
+            self.splash_nspctot,
             on_clicked_search,
             'species like %'
         )
 
         utils.make_label_clickable(
-            self.widgets.splash_nspcuse,
+            self.splash_nspcuse,
             on_clicked_search,
             'species where not accessions = Empty'
         )
 
         utils.make_label_clickable(
-            self.widgets.splash_nspcnot,
+            self.splash_nspcnot,
             on_clicked_search,
             'species where accessions = Empty'
         )
 
         utils.make_label_clickable(
-            self.widgets.splash_nacctot,
+            self.splash_nacctot,
             on_clicked_search,
             'accession like %'
         )
 
         utils.make_label_clickable(
-            self.widgets.splash_naccuse,
+            self.splash_naccuse,
             on_clicked_search,
             'accession where sum(plants.quantity)>0'
         )
 
         utils.make_label_clickable(
-            self.widgets.splash_naccnot,
+            self.splash_naccnot,
             on_clicked_search,
             'accession where plants = Empty or sum(plants.quantity)=0'
         )
 
         utils.make_label_clickable(
-            self.widgets.splash_nplttot,
+            self.splash_nplttot,
             on_clicked_search,
             'plant like %'
         )
 
         utils.make_label_clickable(
-            self.widgets.splash_npltuse,
+            self.splash_npltuse,
             on_clicked_search,
             'plant where sum(quantity)>0'
         )
 
         utils.make_label_clickable(
-            self.widgets.splash_npltnot,
+            self.splash_npltnot,
             on_clicked_search,
             'plant where sum(quantity)=0'
         )
 
         utils.make_label_clickable(
-            self.widgets.splash_nloctot,
+            self.splash_nloctot,
             on_clicked_search,
             'location like %'
         )
 
         utils.make_label_clickable(
-            self.widgets.splash_nlocuse,
+            self.splash_nlocuse,
             on_clicked_search,
             'location where sum(plants.quantity)>0'
         )
 
         utils.make_label_clickable(
-            self.widgets.splash_nlocnot,
+            self.splash_nlocnot,
             on_clicked_search,
             'location where plants is Empty or sum(plants.quantity)=0'
         )
 
         for i in range(1, 11):
             wname = f"stqr_{i:02d}_button"
-            widget = getattr(self.widgets, wname)
+            widget = getattr(self, wname)
             widget.connect('clicked', partial(self.on_sqb_clicked, i))
 
-        wname = "splash_stqr_button"
-        widget = getattr(self.widgets, wname)
-        widget.connect('clicked', self.on_splash_stqr_button_clicked)
+        self.splash_stqr_button.connect('clicked',
+                                        self.on_splash_stqr_button_clicked)
 
     def update(self, *_args):
         logger.debug('SplashInfoBox::update')
@@ -235,7 +263,7 @@ class SplashInfoBox(pluginmgr.View):
 
         for i in range(1, 11):
             wname = f"stqr_{i:02d}_button"
-            widget = getattr(self.widgets, wname)
+            widget = getattr(self, wname)
             name, tooltip, _query = name_tooltip_query.get(
                 i, (_('<empty>'), '', '')
             )
@@ -247,41 +275,41 @@ class SplashInfoBox(pluginmgr.View):
         # LabelUpdater objects **can** run in a thread.
         if 'GardenPlugin' in pluginmgr.plugins:
             self.start_thread(
-                LabelUpdater(self.widgets.splash_nplttot,
+                LabelUpdater(self.splash_nplttot,
                              "select count(*) from plant"))
             self.start_thread(
-                LabelUpdater(self.widgets.splash_npltuse,
+                LabelUpdater(self.splash_npltuse,
                              "select count(*) from plant where quantity>0"))
             self.start_thread(
-                LabelUpdater(self.widgets.splash_npltnot,
+                LabelUpdater(self.splash_npltnot,
                              "select count(*) from plant where quantity=0"))
             self.start_thread(
-                LabelUpdater(self.widgets.splash_nacctot,
+                LabelUpdater(self.splash_nacctot,
                              "select count(*) from accession"))
             self.start_thread(
-                LabelUpdater(self.widgets.splash_naccuse,
+                LabelUpdater(self.splash_naccuse,
                              "select count(distinct accession.id) "
                              "from accession "
                              "join plant on plant.accession_id=accession.id "
                              "where plant.quantity>0"))
             self.start_thread(
-                LabelUpdater(self.widgets.splash_naccnot,
+                LabelUpdater(self.splash_naccnot,
                              "select count(id) "
                              "from accession "
                              "where id not in "
                              "(select accession_id from plant "
                              " where plant.quantity>0)"))
             self.start_thread(
-                LabelUpdater(self.widgets.splash_nloctot,
+                LabelUpdater(self.splash_nloctot,
                              "select count(*) from location"))
             self.start_thread(
-                LabelUpdater(self.widgets.splash_nlocuse,
+                LabelUpdater(self.splash_nlocuse,
                              "select count(distinct location.id) "
                              "from location "
                              "join plant on plant.location_id=location.id "
                              "where plant.quantity>0"))
             self.start_thread(
-                LabelUpdater(self.widgets.splash_nlocnot,
+                LabelUpdater(self.splash_nlocnot,
                              "select count(id) "
                              "from location "
                              "where id not in "
@@ -289,45 +317,45 @@ class SplashInfoBox(pluginmgr.View):
                              " where plant.quantity>0)"))
 
         self.start_thread(
-            LabelUpdater(self.widgets.splash_nspcuse,
+            LabelUpdater(self.splash_nspcuse,
                          "select count(distinct species.id) "
                          "from species join accession "
                          "on accession.species_id=species.id"))
         self.start_thread(
-            LabelUpdater(self.widgets.splash_ngenuse,
+            LabelUpdater(self.splash_ngenuse,
                          "select count(distinct species.genus_id) "
                          "from species join accession "
                          "on accession.species_id=species.id"))
         self.start_thread(
-            LabelUpdater(self.widgets.splash_nfamuse,
+            LabelUpdater(self.splash_nfamuse,
                          "select count(distinct genus.family_id) from genus "
                          "join species on species.genus_id=genus.id "
                          "join accession on accession.species_id=species.id "))
         self.start_thread(
-            LabelUpdater(self.widgets.splash_nspctot,
+            LabelUpdater(self.splash_nspctot,
                          "select count(*) from species"))
         self.start_thread(
-            LabelUpdater(self.widgets.splash_ngentot,
+            LabelUpdater(self.splash_ngentot,
                          "select count(*) from genus"))
         self.start_thread(
-            LabelUpdater(self.widgets.splash_nfamtot,
+            LabelUpdater(self.splash_nfamtot,
                          "select count(*) from family"))
         self.start_thread(
-            LabelUpdater(self.widgets.splash_nspcnot,
+            LabelUpdater(self.splash_nspcnot,
                          "select count(id) from species "
                          "where id not in "
                          "(select distinct species.id "
                          " from species join accession "
                          " on accession.species_id=species.id)"))
         self.start_thread(
-            LabelUpdater(self.widgets.splash_ngennot,
+            LabelUpdater(self.splash_ngennot,
                          "select count(id) from genus "
                          "where id not in "
                          "(select distinct species.genus_id "
                          " from species join accession "
                          " on accession.species_id=species.id)"))
         self.start_thread(
-            LabelUpdater(self.widgets.splash_nfamnot,
+            LabelUpdater(self.splash_nfamnot,
                          "select count(id) from family "
                          "where id not in "
                          "(select distinct genus.family_id from genus "

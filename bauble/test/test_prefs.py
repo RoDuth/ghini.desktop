@@ -228,36 +228,31 @@ class PrefsViewTests(BaubleTestCase):
 
         # starts without editing
         self.assertFalse(
-            prefs_view.view.widgets.prefs_data_renderer.props.editable)
+            prefs_view.prefs_data_renderer.props.editable)
         self.assertIsNone(prefs_view.button_press_id)
 
         # toggle editing to True with yes to dialog
         utils.yes_no_dialog = lambda x, parent: True
-        prefs_view.view.widgets.prefs_edit_chkbx.set_active(True)
-        prefs_view.on_prefs_edit_toggled(
-            prefs_view.view.widgets.prefs_edit_chkbx)
+        prefs_view.prefs_edit_chkbx.set_active(True)
+        prefs_view.on_prefs_edit_toggled(prefs_view.prefs_edit_chkbx)
 
-        self.assertTrue(
-            prefs_view.view.widgets.prefs_data_renderer.props.editable)
+        self.assertTrue(prefs_view.prefs_data_renderer.props.editable)
         self.assertIsNotNone(prefs_view.button_press_id)
 
         # toggle editing to False
-        prefs_view.view.widgets.prefs_edit_chkbx.set_active(False)
-        prefs_view.on_prefs_edit_toggled(
-            prefs_view.view.widgets.prefs_edit_chkbx)
+        prefs_view.prefs_edit_chkbx.set_active(False)
+        prefs_view.on_prefs_edit_toggled(prefs_view.prefs_edit_chkbx)
 
         self.assertFalse(
-            prefs_view.view.widgets.prefs_data_renderer.props.editable)
+            prefs_view.prefs_data_renderer.props.editable)
         self.assertIsNone(prefs_view.button_press_id)
 
         # toggle editing to True with no to dialog
         utils.yes_no_dialog = lambda x, parent: False
-        prefs_view.view.widgets.prefs_edit_chkbx.set_active(True)
-        prefs_view.on_prefs_edit_toggled(
-            prefs_view.view.widgets.prefs_edit_chkbx)
+        prefs_view.prefs_edit_chkbx.set_active(True)
+        prefs_view.on_prefs_edit_toggled(prefs_view.prefs_edit_chkbx)
 
-        self.assertFalse(
-            prefs_view.view.widgets.prefs_data_renderer.props.editable)
+        self.assertFalse(prefs_view.prefs_data_renderer.props.editable)
         self.assertIsNone(prefs_view.button_press_id)
 
         utils.yes_no_dialog = orig_yes_no_dialog

@@ -65,8 +65,7 @@ def register_command(handler):
 
     :param handler:  A class which extends pluginmgr.CommandHandler
     """
-    global commands
-    logger.debug('registering command handler %s', str(handler.command))
+    logger.debug('registering command handler %s', handler.command)
     if isinstance(handler.command, str):
         if handler.command in commands:
             logger.info('overwriting command %s', handler.command)
@@ -470,27 +469,13 @@ class Tool:   # pylint: disable=too-few-public-methods
         pass
 
 
-class View(Gtk.Box):
+class View:
 
     def __init__(self, *args, **kwargs):
-        """If a class extends this View and provides its own __init__ it *must*
-        call its parent (this) __init__
+        """If a class extends this View it will most likely also inherit from
+        Gtk.Box and should call this __init__.
         """
-        filename = kwargs.get('filename')
-        if filename is not None:
-            del kwargs['filename']
-            root_widget_name = kwargs.get('root_widget_name')
-            del kwargs['root_widget_name']
-        super().__init__(*args, orientation=Gtk.Orientation.VERTICAL, **kwargs)
-        if filename is not None:
-            from bauble import editor
-            self.widgets = utils.load_widgets(filename)
-            self.view = editor.GenericEditorView(
-                filename, root_widget_name=root_widget_name)
-            root_widget = getattr(self.view.widgets, root_widget_name)
-            widget = root_widget.get_children()[0]
-            self.view.widgets.remove_parent(widget)
-            self.add(widget)
+        super().__init__(*args, **kwargs)
         self.running_threads = []
         self.prevent_threads = False
 
