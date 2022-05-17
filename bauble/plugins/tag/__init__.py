@@ -137,15 +137,19 @@ class TagsMenuManager:
 
     @staticmethod
     def on_context_menu_apply_activated(_action, tag_name):
-        values = bauble.gui.get_view().get_selected_values()
+        view = bauble.gui.get_view()
+        values = view.get_selected_values()
         # unpack to python type
         tag_objects(tag_name.unpack(), values)
+        view.update_bottom_notebook(values)
 
     @staticmethod
     def on_context_menu_remove_activated(_action, tag_name):
-        values = bauble.gui.get_view().get_selected_values()
+        view = bauble.gui.get_view()
+        values = view.get_selected_values()
         # unpack to python type
         untag_objects(tag_name.unpack(), values)
+        view.update_bottom_notebook(values)
 
     def context_menu_callback(self, selected):
         """Build the SearchView context menu tag section for the selected
