@@ -317,6 +317,7 @@ class Species(db.Base, db.Serializable, db.DefiningPictures, db.WithNotes):
         except MultipleResultsFound:
             return None
 
+    @utils.timed_cache(size=50, secs=0.2)
     def search_view_markup_pair(self):
         """provide the two lines describing object for SearchView row."""
         try:
@@ -1004,6 +1005,7 @@ class VernacularName(db.Base, db.Serializable):
                 return None
         return None
 
+    @utils.timed_cache(size=50, secs=0.2)
     def search_view_markup_pair(self):
         """provide the two lines describing object for SearchView row."""
         # pylint: disable=no-member

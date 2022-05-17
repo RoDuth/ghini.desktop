@@ -1011,6 +1011,17 @@ def complex_hyb(string):
     return ''.join([italicize_part(i) + ' × ' for i in result])[:-3]
 
 
+_re_simple_sp = re.compile(r'^[a-z-]+$')
+_re_simple_hyb = re.compile('^[a-z-]+( × [a-z-]+)*$')
+_re_simple_cv = re.compile("^'[^×\'\"]+'$")
+_re_simple_infra_hyb = re.compile('^×[a-z-]+$')
+_re_simple_prov = re.compile(r'^sp. \([^×]+\)$')
+_re_simple_desc = re.compile(r'^\([^×]*\)$')
+_re_complex_desc = re.compile(r'^[a-z-]+ \([^×]+\)$')
+_re_complex_hyb = re.compile(r'\(.+×.+\)')
+_re_other_hyb = re.compile('.+ × .+')
+
+
 def markup_italics(string):
     """Add italics markup to the appropriate parts of a species string.
 
@@ -1029,41 +1040,41 @@ def markup_italics(string):
     if string == 'sp.':
         result = f'{string}'
     # simple species
-    elif re.match(r'^[a-z-]+$', string):
+    elif _re_simple_sp.match(string):
         result = f'<i>{string}</i>'
     # simple species hybrids (lowercase words separated by a multiplication
     # symbol)
-    elif re.match('^[a-z-]+( × [a-z-]+)*$', string):
+    elif _re_simple_hyb.match(string):
         result = f'<i>{string}</i>'.replace(' × ', '</i> × <i>')
     # simple cultivar (starts and ends with a ' and can be almost have anything
     # between (except further quote symbols or multiplication symbols
-    elif re.match("^'[^×\'\"]+'$", string):
+    elif _re_simple_cv.match(string):
         result = f'{string}'
     # simple infraspecific hybrid with nothospecies name
-    elif re.match('^×[a-z-]+$', string):
+    elif _re_simple_infra_hyb.match(string):
         result = f'{string[0]}<i>{string[1:]}</i>'
     # simple provisory or descriptor sp.
-    elif re.match(r'^sp. \([^×]+\)$', string):
+    elif _re_simple_prov.match(string):
         result = f'{string}'
     # simple descriptor (brackets surrounding anything without a multiplication
     # symbol)
-    elif re.match(r'^\([^×]*\)$', string):
+    elif _re_simple_desc.match(string):
         result = f'{string}'
 
     # recursive parts
     # species with descriptor (part with only lower letters + space + bracketed
     # section)
-    elif re.match(r'^[a-z-]+ \([^×]+\)$', string):
+    elif _re_complex_desc.match(string):
         result = ''.join(
             [markup_italics(i) + ' ' for i in string.split(' ', 1)]
         )[:-1]
     # complex hybrids (contains brackets surounding 2 phrases seperated by a
     # multipy symbol) These need to be reduce to less and less complex hybrids.
-    elif re.search(r'\(.+×.+\)', string):
+    elif _re_complex_hyb.search(string):
         result = f'{complex_hyb(string)}'
     # any other type of hybrid (i.e. cv to species, provisory to cv, etc..) try
     # breaking it apart and italicizing the parts
-    elif re.match('.+ × .+', string):
+    elif _re_other_hyb.match(string):
         parts = [i.strip() for i in string.split(' × ')]
         result = ''.join([markup_italics(i) + ' × ' for i in parts])[:-3]
     # anything else with spaces in it. Break them off one by one and try
@@ -1800,7 +1811,7 @@ def unhide_widgets(widgets: Iterable[Gtk.Widget]) -> None:
 def timed_cache(size=200, secs=2.0):
     """Timed cache function decorator.
 
-    Vary basic cache that will memoise the last value calculated for a set
+    Very basic cache that will memoise the last value calculated for a set
     amount of seconds (default = 2.0).  Cache size can be set (default = 200).
 
     Cached funtion's arguments must be hashable.
@@ -1826,7 +1837,7 @@ def timed_cache(size=200, secs=2.0):
             now = time.time()
             if size and len(cache) > size:
                 cache.pop(next(iter(cache)))
-            previous = cache.get(args, None)
+            previous = cache.get(args)
             if previous is not None and now - previous[0] < secs:
                 return previous[1]
             new_val = func(*args)

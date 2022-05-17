@@ -243,6 +243,7 @@ class Genus(db.Base, db.Serializable, db.WithNotes):
             return query.one_or_none()
         return None
 
+    @utils.timed_cache(size=50, secs=0.2)
     def search_view_markup_pair(self):
         """provide the two lines describing object for SearchView row."""
         citation = self.markup(authors=True)

@@ -268,6 +268,7 @@ class Collection(db.Base):
                 return None
         return None
 
+    @utils.timed_cache(size=50, secs=0.2)
     def search_view_markup_pair(self):
         """provide the two lines describing object for SearchView row."""
         acc = self.source.accession  # pylint: disable=no-member
@@ -903,6 +904,7 @@ class SourceDetail(db.Base, db.Serializable):
             return f'{self.name} ({self._source_types.get(self.source_type)})'
         return f'{self.name}'
 
+    @utils.timed_cache(size=50, secs=0.2)
     def search_view_markup_pair(self):
         """provide the two lines describing object for SearchView row."""
         safe = utils.xml_safe

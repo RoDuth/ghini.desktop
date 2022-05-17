@@ -650,6 +650,7 @@ class Accession(db.Base, db.Serializable, db.WithNotes):
             session.close()
         return str(nxt)
 
+    @utils.timed_cache(size=50, secs=0.2)
     def search_view_markup_pair(self):
         """provide the two lines describing object for SearchView row."""
         first, second = (utils.xml_safe(str(self)),

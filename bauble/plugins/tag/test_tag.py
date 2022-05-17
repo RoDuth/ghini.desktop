@@ -242,9 +242,10 @@ class TagTests(BaubleTestCase):
             ('test2 - <span weight="light">tagging 1 objects of type '
              'Family</span>',
              '(Tag) - <span weight="light"></span>'))
-        # required for windows tests to succeed due to 16ms resolution
+        # required for windows tests to succeed due to 16ms resolution (also
+        # timed cache)
         from time import sleep
-        sleep(0.02)
+        sleep(0.3)
         t2.tag_objects([t1])
         self.session.flush()
         self.assertEqual(

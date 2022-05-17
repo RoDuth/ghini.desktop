@@ -915,7 +915,9 @@ class SearchView(pluginmgr.View, Gtk.Box):
                 msg, trace, Gtk.MessageType.ERROR)
             logger.warning(traceback.format_exc())
         if result:
-            GLib.idle_add(self.update)
+            # can lead to update called twice but ensures its called when not
+            # an editor.  Editors will also call update from insert menu.
+            self.update()
 
     def update_context_menus(self, selected_values):
         """Update the context menu dependant on selected values."""
@@ -1242,10 +1244,9 @@ class SearchView(pluginmgr.View, Gtk.Box):
             except ValueError:
                 main = rep
                 substr = f'({type(value).__name__})'
-            cell.set_property(
-                'markup', f'{_mainstr_tmpl % utils.nstr(main)}\n'
-                f'{_substr_tmpl % utils.nstr(substr)}'
-            )
+            cell.set_property('markup',
+                              f'{_mainstr_tmpl % utils.nstr(main)}\n'
+                              f'{_substr_tmpl % utils.nstr(substr)}')
 
         except (saexc.InvalidRequestError, ObjectDeletedError, TypeError) as e:
             logger.debug('cell_data_func: (%s)%s', type(e).__name__, e)
