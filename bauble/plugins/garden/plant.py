@@ -652,7 +652,6 @@ class Plant(db.Base, db.Serializable, db.DefiningPictures, db.WithNotes):
             return None
         return value.strip()
 
-    @utils.timed_cache(size=50, secs=0.2)
     def search_view_markup_pair(self):
         """provide the two lines describing object for SearchView row."""
         sp_str = self.accession.species_str(markup=True)

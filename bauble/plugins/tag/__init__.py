@@ -659,7 +659,6 @@ class Tag(db.Base):
             TaggedObj.obj_id == obj.id)
         return [i.tag for i in qto.all()]
 
-    @utils.timed_cache(size=50, secs=0.2)
     def search_view_markup_pair(self):
         """provide the two lines describing object for SearchView row."""
         logging.debug('entering search_view_markup_pair %s', self)
@@ -691,6 +690,12 @@ class Tag(db.Base):
         return session.query(
             exists().where(TaggedObj.tag_id == self.id)
         ).scalar()
+
+    def count_children(self):
+        session = object_session(self)
+        return (session.query(TaggedObj.id)
+                .filter(TaggedObj.tag_id == self.id)
+                .count())
 
 
 class TaggedObj(db.Base):

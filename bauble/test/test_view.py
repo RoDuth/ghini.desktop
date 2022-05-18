@@ -136,7 +136,6 @@ class TestSearchView(BaubleTestCase):
         for func in get_setUp_data_funcs():
             func()
         for cls in search.MapperSearch.get_domain_classes().values():
-            print(cls)
             if not SearchView.row_meta[cls].children:
                 continue
             for obj in self.session.query(cls):
@@ -144,6 +143,20 @@ class TestSearchView(BaubleTestCase):
                 kids = search_view.row_meta[cls].get_children(obj)
                 has_kids = bool(kids)
                 self.assertEqual(obj.has_children(), has_kids,
+                                 f'{obj}: {kids}')
+
+    def test_all_domains_w_children_count_children_returns_correct(self):
+        search_view = self.search_view
+        for func in get_setUp_data_funcs():
+            func()
+        for cls in search.MapperSearch.get_domain_classes().values():
+            if not SearchView.row_meta[cls].children:
+                continue
+            for obj in self.session.query(cls):
+                self.assertIsInstance(obj.count_children(), int, cls)
+                kids = search_view.row_meta[cls].get_children(obj)
+                kids_count = len(kids)
+                self.assertEqual(obj.count_children(), kids_count,
                                  f'{obj}: {kids}')
 
     def test_bottom_info_populates_with_note_and_tag(self):
@@ -359,10 +372,12 @@ class TestSearchView(BaubleTestCase):
 
         mock_renderer = mock.Mock()
         results_view = search_view.results_view
+        model = results_view.get_model()
+        tree_iter = model.get_iter(Gtk.TreePath.new_first())
         search_view.cell_data_func(results_view.get_column(0),
                                    mock_renderer,
-                                   results_view.get_model(),
-                                   0,
+                                   model,
+                                   tree_iter,
                                    None)
         mock_renderer.set_property.assert_called()
         main, substr = selected.search_view_markup_pair()
@@ -371,19 +386,20 @@ class TestSearchView(BaubleTestCase):
         mock_renderer.set_property.assert_called_with('markup', markup)
 
         # change selection and check it updates
-        search_view.results_view.set_cursor(
-            Gtk.TreePath.new_from_string('1')
-        )
+        path = Gtk.TreePath.new_from_string('1')
+        search_view.results_view.set_cursor(path)
 
         selected2 = search_view.get_selected_values()[0]
         self.assertNotEqual(selected, selected2)
 
         mock_renderer = mock.Mock()
         results_view = search_view.results_view
+        model = results_view.get_model()
+        tree_iter = model.get_iter(path)
         search_view.cell_data_func(results_view.get_column(0),
                                    mock_renderer,
-                                   results_view.get_model(),
-                                   1,
+                                   model,
+                                   tree_iter,
                                    None)
         mock_renderer.set_property.assert_called()
         main, substr = selected2.search_view_markup_pair()
@@ -402,19 +418,57 @@ class TestSearchView(BaubleTestCase):
 
         mock_renderer = mock.Mock()
         results_view = search_view.results_view
+        model = results_view.get_model()
+        tree_iter = model.get_iter(Gtk.TreePath.new_first())
         # delete item
         db.engine.execute(f"DELETE FROM genus WHERE id = {start[0].id}")
 
         with self.assertLogs(level='DEBUG') as logs:
             search_view.cell_data_func(results_view.get_column(0),
                                        mock_renderer,
-                                       results_view.get_model(),
-                                       0,
+                                       model,
+                                       tree_iter,
                                        None)
             update_gui()
         end = search_view.get_selected_values()
         self.assertNotEqual(start, end)
         self.assertTrue(any('remove_row called' in i for i in logs.output))
+
+    def test_cell_data_func_w_added_adds_item(self):
+        # as if another user had deleted an item we were also looking at.
+        for func in get_setUp_data_funcs():
+            func()
+        search_view = self.search_view
+        search_view.search('genus where id = 1')
+
+        results_view = search_view.results_view
+        model = results_view.get_model()
+        path = Gtk.TreePath.new_first()
+        tree_iter = model.get_iter(path)
+        # expand
+        search_view.on_test_expand_row(results_view, tree_iter, path)
+        results_view.expand_all()
+        update_gui()
+
+        start = model.iter_n_children(tree_iter)
+        self.assertGreater(start, 1)
+        # add new item
+        db.engine.execute(
+            """
+            INSERT INTO species (sp, hybrid, genus_id, _created, _last_updated)
+            VALUES ('test2', 0, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            """
+        )
+
+        mock_renderer = mock.Mock()
+        search_view.cell_data_func(results_view.get_column(0),
+                                   mock_renderer,
+                                   model,
+                                   tree_iter,
+                                   None)
+        update_gui()
+        end = model.iter_n_children(tree_iter)
+        self.assertEqual(start + 1, end)
 
     def test_update_expires_all_and_triggers_selection_change(self):
         for func in get_setUp_data_funcs():

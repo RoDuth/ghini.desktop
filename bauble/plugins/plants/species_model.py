@@ -317,7 +317,6 @@ class Species(db.Base, db.Serializable, db.DefiningPictures, db.WithNotes):
         except MultipleResultsFound:
             return None
 
-    @utils.timed_cache(size=50, secs=0.2)
     def search_view_markup_pair(self):
         """provide the two lines describing object for SearchView row."""
         try:
@@ -866,6 +865,11 @@ class Species(db.Base, db.Serializable, db.DefiningPictures, db.WithNotes):
             exists().where(cls.species_id == self.id)
         ).scalar()
 
+    def count_children(self):
+        cls = self.__class__.accessions.prop.mapper.class_
+        session = object_session(self)
+        return session.query(cls.id).filter(cls.species_id == self.id).count()
+
 
 def as_dict(self):
     result = db.Serializable.as_dict(self)
@@ -1005,7 +1009,6 @@ class VernacularName(db.Base, db.Serializable):
                 return None
         return None
 
-    @utils.timed_cache(size=50, secs=0.2)
     def search_view_markup_pair(self):
         """provide the two lines describing object for SearchView row."""
         # pylint: disable=no-member
@@ -1045,6 +1048,10 @@ class VernacularName(db.Base, db.Serializable):
     def has_children(self):
         # pylint: disable=no-member
         return self.species.has_children()
+
+    def count_children(self):
+        # pylint: disable=no-member
+        return self.species.count_children()
 
 
 class DefaultVernacularName(db.Base):

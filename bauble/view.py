@@ -75,11 +75,23 @@ else:
 INFOBOXPAGE_WIDTH_PREF = 'bauble.infoboxpage_width'
 """The preferences key for storing the InfoBoxPage width."""
 
-SEARCHVIEW_POLL_SECS_PREF = 'bauble.searchview_poll_secs'
+SEARCH_POLL_SECS_PREF = 'bauble.search.poll_secs'
 """Preference key for how often to poll the database in search view"""
 
-SEARCHVIEW_CACHE_SIZE_PREF = 'bauble.searchview_cache_size'
-"""Preference key for size of search view's cache of database results"""
+SEARCH_CACHE_SIZE_PREF = 'bauble.search.cache_size'
+"""Preference key for size of search view's has_kids cache"""
+
+SEARCH_REFRESH_PREF = 'bauble.search.refresh'
+"""Preference key, should search view attempt to refresh from the database
+regularly
+"""
+
+SEARCH_COUNT_FAST_PREF = 'bauble.search.count_fast'
+"""Set multiprocessing processes on large searches to count top level count,
+
+Values: int (number of processes), bool (use multiprocessing),
+    str (just provide length of results)
+"""
 
 
 class Action:
@@ -533,6 +545,7 @@ class CountResultsTask(threading.Thread):
         Results are handed to self.callback either by the multiprocessing
         worker or directly
         """
+        count_fast = prefs.prefs.get(SEARCH_COUNT_FAST_PREF, True)
         # NOTE these figures were arrived at by trial and error on a particular
         # dataset. No guarantee they are ideal in all situations.
         if self.klass.__name__ in ['Family', 'Location']:
@@ -541,12 +554,18 @@ class CountResultsTask(threading.Thread):
         else:
             max_ids = 300
             chunk_size = 100
-        if len(self.ids) > max_ids:
+        if count_fast and len(self.ids) > max_ids:
             from multiprocessing import get_context
             from functools import partial
             proc = partial(multiproc_counter, str(db.engine.url), self.klass)
-            logger.debug('counting results using multiprocesing')
-            with get_context('spawn').Pool() as pool:
+            processes = None
+            # pylint: disable=unidiomatic-typecheck # bool is subclass of int,
+            # isinstance won't work.
+            if type(count_fast) is int:
+                processes = count_fast
+            logger.debug('counting results multiprocessing, processes=%s',
+                         processes)
+            with get_context('spawn').Pool(processes) as pool:
                 amap = pool.map_async(proc,
                                       utils.chunks(self.ids, chunk_size),
                                       callback=self.callback,
@@ -604,12 +623,10 @@ class SearchView(pluginmgr.View, Gtk.Box):
             def __init__(self):
                 self.children = None
                 self.infobox = None
-                self.markup_func = None
                 self.context_menu = None
                 self.actions = []
 
-            def set(self, children=None, infobox=None, context_menu=None,
-                    markup_func=None):
+            def set(self, children=None, infobox=None, context_menu=None):
                 """Set attributes for the selected meta object.
 
                 :param children: where to find the children for this type, can
@@ -617,14 +634,9 @@ class SearchView(pluginmgr.View, Gtk.Box):
                 :param infobox: the infobox for this type
                 :param context_menu: a dict describing the context menu used
                     when the user right clicks on this type
-                :param markup_func: the function to call to markup search
-                    results of this type, if markup_func is None the instances
-                    __str__() function is called...the strings returned by this
-                    function should escape any non markup characters
                 """
                 self.children = children
                 self.infobox = infobox
-                self.markup_func = markup_func
                 self.context_menu = context_menu
                 self.actions = []
                 if self.context_menu:
@@ -684,12 +696,13 @@ class SearchView(pluginmgr.View, Gtk.Box):
         self.running_threads = []
         self.actions = set()
         self.context_menu_model = Gio.Menu()
-        poll_secs = prefs.prefs.get(SEARCHVIEW_POLL_SECS_PREF)
+        poll_secs = prefs.prefs.get(SEARCH_POLL_SECS_PREF)
         if poll_secs:
             self.has_kids.set_secs(poll_secs)  # pylint: disable=no-member
-        cache_size = prefs.prefs.get(SEARCHVIEW_CACHE_SIZE_PREF)
+        cache_size = prefs.prefs.get(SEARCH_CACHE_SIZE_PREF)
         if cache_size:
             self.has_kids.set_size(cache_size)  # pylint: disable=no-member
+        self.refresh = prefs.prefs.get(SEARCH_REFRESH_PREF, True)
 
     def add_notes_page_to_bottom_notebook(self):
         """add notebook page for notes
@@ -1068,7 +1081,11 @@ class SearchView(pluginmgr.View, Gtk.Box):
             self.populate_results(results)
             statusbar.pop(sbcontext_id)
             statusbar.push(sbcontext_id, _('counting results'))
-            if len(set(item.__class__ for item in results)) == 1:
+            count_fast = prefs.prefs.get(SEARCH_COUNT_FAST_PREF, True)
+            if isinstance(count_fast, str):
+                statusbar.push(sbcontext_id,
+                               _('size of result: %s') % len(results))
+            elif len(set(item.__class__ for item in results)) == 1:
                 dots_thread = self.start_thread(AddOneDot())
                 self.start_thread(CountResultsTask(
                     results[0].__class__, [i.id for i in results],
@@ -1177,8 +1194,11 @@ class SearchView(pluginmgr.View, Gtk.Box):
             if obj in added:  # only add unique object
                 continue
             added.add(obj)
-            model.prepend(None, [obj])
+            parent = model.prepend(None, [obj])
             steps_so_far += 1
+            if (not self.refresh and self.row_meta[type(obj)].children is not
+                    None):
+                model.prepend(parent, ['-'])
             if steps_so_far % five_percent == 0:
                 percent = float(steps_so_far) / float(nresults)
                 if 0 < percent < 1.0:
@@ -1198,9 +1218,13 @@ class SearchView(pluginmgr.View, Gtk.Box):
         check(parent is not None, "append_children(): need a parent")
         for kid in kids:
             itr = model.append(parent, [kid])
-            if (self.row_meta[type(kid)].children is not None and
-                    kid.has_children()):
-                model.append(itr, ['-'])
+            if self.refresh:
+                if (self.row_meta[type(kid)].children is not None and
+                        kid.has_children()):
+                    model.append(itr, ['-'])
+            else:
+                if self.row_meta[type(kid)].children is not None:
+                    model.append(itr, ['-'])
 
     def remove_row(self, value):
         """Remove a row from the results_view"""
@@ -1213,14 +1237,33 @@ class SearchView(pluginmgr.View, Gtk.Box):
 
     @utils.timed_cache()
     def has_kids(self, value):
-        """Expire and check for children"""
+        """Expire and check for children
+
+        Results are cached to avoid expiring too regularly"""
         # expire so that any external updates are picked up.
         # (e.g. another user has deleted while we are also using it.)
         self.session.expire(value)
         return value.has_children()
 
+    @staticmethod
+    @utils.timed_cache(size=20, secs=0.2)
+    def count_kids(value):
+        """Get the count of children.
+
+        Minimally cached to avoid repeated database calls for same value.
+        """
+        return value.count_children()
+
+    @staticmethod
+    @utils.timed_cache(size=200, secs=0.2)
+    def get_markup_pair(value):
+        """Get the markup pair.
+
+        Minimally cached to avoid repeated database calls for same value.
+        """
+        return value.search_view_markup_pair()
+
     def cell_data_func(self, _col, cell, model, treeiter, _data):
-        # for tests use int treeiter
         # now update the the cell
         value = model[treeiter][0]
 
@@ -1229,16 +1272,24 @@ class SearchView(pluginmgr.View, Gtk.Box):
             cell.set_property('markup', value)
             return
 
+        meta = self.row_meta[type(value)]
         try:
-            if (self.row_meta[type(value)].children is not None and
-                    self.has_kids(value)):
-                # treeiter is int for testing
-                if (not isinstance(treeiter, int) and
-                        not model.iter_has_child(treeiter)):
-                    model.prepend(treeiter, ['-'])
-            else:
-                self.remove_children(model, treeiter)
-            rep = value.search_view_markup_pair()
+            if self.refresh:
+                if (meta.children is not None and self.has_kids(value)):
+                    path = model.get_path(treeiter)
+                    # check if any new items added externally
+                    if self.results_view.row_expanded(path):
+                        if (model.iter_n_children(treeiter) !=
+                                self.count_kids(value)):
+                            self.on_test_expand_row(self.results_view,
+                                                    treeiter,
+                                                    path)
+                            self.results_view.expand_to_path(path)
+                    elif not model.iter_has_child(treeiter):
+                        model.prepend(treeiter, ['-'])
+                else:
+                    self.remove_children(model, treeiter)
+            rep = self.get_markup_pair(value)
             try:
                 main, substr = rep
             except ValueError:
@@ -1546,7 +1597,7 @@ class HistoryView(pluginmgr.View, Gtk.Box):
 
     @Gtk.Template.Callback()
     def on_row_activated(self, _tree, path, _column):
-        row = self.liststore[path]
+        row = self.liststore[path]  # pylint: disable=unsubscriptable-object
         dic = literal_eval(row[self.TVC_DICT])
         table = row[self.TVC_TABLE]
         obj_id = int(dic['id'])

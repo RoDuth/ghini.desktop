@@ -1827,7 +1827,8 @@ def timed_cache(size=200, secs=2.0):
     `func.set_secs(1.0)`
 
     :param size: size of the cache.
-    :param secs: delay in seconds before updating.
+    :param secs: delay in seconds before updating.  Set to None to behave as a
+        regular LRU cache.
     """
     cache = {}
 
@@ -1838,6 +1839,9 @@ def timed_cache(size=200, secs=2.0):
             if size and len(cache) > size:
                 cache.pop(next(iter(cache)))
             previous = cache.get(args)
+            # no timer
+            if previous is not None and secs is None:
+                return previous[1]
             if previous is not None and now - previous[0] < secs:
                 return previous[1]
             new_val = func(*args)

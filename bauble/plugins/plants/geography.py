@@ -201,7 +201,7 @@ class Geography(db.Base):
         return str(self.name)
 
     def has_children(self):
-        # has this geopraphy or any of it children got SpeciesDistribution
+        # has this geography or any of it children got SpeciesDistribution
         # Much more expensive than other models
         from sqlalchemy import exists
         from .species_model import SpeciesDistribution
@@ -216,6 +216,21 @@ class Geography(db.Base):
         return session.query(
             exists().where(SpeciesDistribution.geography_id.in_(ids))
         ).scalar()
+
+    def count_children(self):
+        # Much more expensive than other models
+        from .species_model import SpeciesDistribution
+        session = object_session(self)
+        ids = {self.id}
+        parent_ids = [self.id]
+        while child_id := (session.query(Geography.id)
+                           .filter(Geography.parent_id.in_(parent_ids)).all()):
+            parent_ids = [i[0] for i in child_id]
+            ids.update(parent_ids)
+
+        return (session.query(SpeciesDistribution.id)
+                .filter(SpeciesDistribution.geography_id.in_(ids))
+                .count())
 
 
 class GeneralGeographyExpander(InfoExpander):

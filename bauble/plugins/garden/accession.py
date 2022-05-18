@@ -650,7 +650,6 @@ class Accession(db.Base, db.Serializable, db.WithNotes):
             session.close()
         return str(nxt)
 
-    @utils.timed_cache(size=50, secs=0.2)
     def search_view_markup_pair(self):
         """provide the two lines describing object for SearchView row."""
         first, second = (utils.xml_safe(str(self)),
@@ -807,6 +806,13 @@ class Accession(db.Base, db.Serializable, db.WithNotes):
         return session.query(
             exists().where(cls.accession_id == self.id)
         ).scalar()
+
+    def count_children(self):
+        cls = self.__class__.plants.prop.mapper.class_
+        session = object_session(self)
+        return (session.query(cls.id)
+                .filter(cls.accession_id == self.id)
+                .count())
 
 
 # late import after Accession is defined

@@ -268,7 +268,6 @@ class Collection(db.Base):
                 return None
         return None
 
-    @utils.timed_cache(size=50, secs=0.2)
     def search_view_markup_pair(self):
         """provide the two lines describing object for SearchView row."""
         acc = self.source.accession  # pylint: disable=no-member
@@ -282,6 +281,10 @@ class Collection(db.Base):
     def has_children(self):
         # more expensive than other models (loads full accession query)
         return self.source.accession.has_children()
+
+    def count_children(self):
+        # more expensive than other models (loads full accession query)
+        return self.source.accession.count_children()
 
 
 class CollectionPresenter(editor.ChildPresenter):
@@ -904,7 +907,6 @@ class SourceDetail(db.Base, db.Serializable):
             return f'{self.name} ({self._source_types.get(self.source_type)})'
         return f'{self.name}'
 
-    @utils.timed_cache(size=50, secs=0.2)
     def search_view_markup_pair(self):
         """provide the two lines describing object for SearchView row."""
         safe = utils.xml_safe
@@ -917,6 +919,12 @@ class SourceDetail(db.Base, db.Serializable):
         return session.query(
             exists().where(Source.source_detail_id == self.id)
         ).scalar()
+
+    def count_children(self):
+        session = object_session(self)
+        return (session.query(Source.id)
+                .filter(Source.source_detail_id == self.id)
+                .count())
 
 
 class SourceDetailPresenter(editor.GenericEditorPresenter):

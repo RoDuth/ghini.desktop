@@ -278,6 +278,11 @@ class Family(db.Base, db.Serializable, db.WithNotes):
             exists().where(cls.family_id == self.id)
         ).scalar()
 
+    def count_children(self):
+        cls = self.__class__.genera.prop.mapper.class_
+        session = object_session(self)
+        return session.query(cls.id).filter(cls.family_id == self.id).count()
+
 
 # defining the latin alias to the class.
 Familia = Family
