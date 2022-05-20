@@ -26,11 +26,14 @@ import shutil
 import tempfile
 import json
 from datetime import datetime
+from pathlib import Path
+from tempfile import TemporaryDirectory
 
 from sqlalchemy import Column, Integer
 
 from bauble.btypes import Boolean
 
+import bauble
 from bauble import db
 from bauble import prefs
 from bauble.plugins.plants import (Familia,
@@ -39,10 +42,14 @@ from bauble.plugins.plants import (Familia,
                                    Species,
                                    VernacularName,
                                    SpeciesNote)
-from bauble.plugins.garden import Accession, Location, Plant, SourceDetail, Source
+from bauble.plugins.garden import (Accession,
+                                   Location,
+                                   Plant,
+                                   SourceDetail,
+                                   Source)
 import bauble.plugins.garden.test_garden as garden_test
 import bauble.plugins.plants.test_plants as plants_test
-from bauble.test import BaubleTestCase
+from bauble.test import BaubleTestCase, get_setUp_data_funcs
 from bauble.editor import MockView
 from bauble.utils import get_user_display_name
 from .csv_ import (CSVRestore,
@@ -51,6 +58,7 @@ from .csv_ import (CSVRestore,
                    QUOTE_STYLE)
 from .iojson import JSONImporter, JSONExporter
 from . import GenericExporter, GenericImporter
+from .xml import XMLExporter
 
 
 family_data = [{'id': 1, 'family': 'Orchidaceae', 'qualifier': None},
@@ -1281,11 +1289,79 @@ class JSONImportTests(BaubleTestCase):
         self.assertNotEqual(summit, None)
 
 
+class XMLExporterTests(BaubleTestCase):
+
+    def test_export_one_file_exports_all_tables_empty_db(self):
+        bauble.conn_name = 'test_xml'
+        exporter = XMLExporter()
+        exporter.one_file = True
+        with TemporaryDirectory() as temp_dir:
+            exporter.start(path=temp_dir)
+            out = Path(temp_dir, 'test_xml.xml')
+            self.assertTrue(out.exists())
+            with out.open('r', encoding='utf8') as file:
+                data = file.readline()
+                self.assertEqual(data,
+                                 "<?xml version='1.0' encoding='UTF8'?>\n")
+                data = file.readline()
+                self.assertGreater(len(data), 100, data)
+                for table in db.metadata.tables:
+                    self.assertIn(f'<table name="{table}"', data)
+
+    def test_export_one_file_exports_all_tables_non_empty_db(self):
+        for func in get_setUp_data_funcs():
+            func()
+        bauble.conn_name = 'test_xml'
+        exporter = XMLExporter()
+        exporter.one_file = True
+        with TemporaryDirectory() as temp_dir:
+            exporter.start(path=temp_dir)
+            out = Path(temp_dir, 'test_xml.xml')
+            self.assertTrue(out.exists())
+            with out.open('r', encoding='utf8') as file:
+                data = file.readline()
+                self.assertEqual(data,
+                                 "<?xml version='1.0' encoding='UTF8'?>\n")
+                data = file.readline()
+                self.assertGreater(len(data), 100, data)
+                for table in db.metadata.tables:
+                    self.assertIn(f'<table name="{table}"', data)
+
+    def test_export_one_file_per_table(self):
+        exporter = XMLExporter()
+        exporter.one_file = False
+        with TemporaryDirectory() as temp_dir:
+            exporter.start(path=temp_dir)
+            out_dir = Path(temp_dir)
+            files = [i.stem for i in out_dir.glob('*.xml')]
+            for table in db.metadata.tables:
+                self.assertIn(table, files)
+            for out in out_dir.glob('*.xml'):
+                with out.open('r', encoding='utf8') as file:
+                    data = file.readline()
+                    self.assertEqual(data,
+                                     "<?xml version='1.0' encoding='UTF8'?>\n")
+                    data = file.readline()
+                    self.assertGreater(len(data), 10, data)
+
+    def test_raises_bad_path(self):
+        exporter = XMLExporter()
+        self.assertRaises(ValueError,
+                          exporter.start,
+                          path='/some/NoExistent/PATH/name')
+
+    def test_presenter_adds_problem_invalid_paths(self):
+        exporter = XMLExporter()
+        entry = exporter.presenter.view.widgets.filename_entry
+        self.assertFalse(exporter.presenter.has_problems(entry))
+        entry.set_text('/some/NoExistent/PATH/name')
+        self.assertTrue(exporter.presenter.has_problems(entry))
+
+
 class GlobalFunctionsTests(BaubleTestCase):
     def test_json_serializer_datetime(self):
-        import datetime
         from .iojson import serializedatetime
-        stamp = datetime.datetime(2011, 11, 11, 12, 13)
+        stamp = datetime(2011, 11, 11, 12, 13)
         self.assertEqual(serializedatetime(stamp),
                          {'millis': 1321013580000, '__class__': 'datetime'})
 
