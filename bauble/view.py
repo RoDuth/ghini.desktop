@@ -42,7 +42,8 @@ from pyparsing import (ParseException,
                        printables,
                        CaselessLiteral,
                        Group,
-                       alphas)
+                       alphas,
+                       Regex)
 
 from gi.repository import Gtk
 from gi.repository import Gio
@@ -1506,7 +1507,12 @@ class AppendThousandRows(threading.Thread):
         """Parse the string provided in arg and return the equivalent as
         consumed by sqlalchemy query `filter()` method."""
         operator = oneOf('= != < > like contains has')
-        value = quotedString.setParseAction(removeQuotes) | Word(printables)
+        numeric_value = Regex(
+            r'[-]?\d+(\.\d*)?([eE]\d+)?'
+        ).setParseAction(lambda s, l, t: [float(t[0])])
+        value = (quotedString.setParseAction(removeQuotes) |
+                 numeric_value |
+                 Word(printables))
         and_ = CaselessLiteral("and").suppress()
         identifier = Word(alphas + '_')
         ident_expression = Group(identifier + operator + value)
