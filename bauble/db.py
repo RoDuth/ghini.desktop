@@ -157,15 +157,15 @@ An instance of :class:`sqlalchemy.ext.declarative.Base`
 
 def _add_to_history(operation, mapper, connection, instance):
     """Add a new entry to the history table."""
-    user = utils.get_user_display_name()
+    user = current_user()
 
     row = {}
     for column in mapper.local_table.c:
         # skip defered geojson columns
         if column.name == 'geojson':
             # TODO should deal with this better but not sure how without it
-            # being too expensive. Could just not it has changed but that gives
-            # no history of from to where.
+            # being too expensive. Could just note it has changed but that
+            # gives no history of from to where.
             continue
         if operation == 'update':
             history = get_history(instance, column.name)
@@ -947,7 +947,7 @@ def get_create_or_update(session, model, **kwargs):
     return inst
 
 
-class current_user_functor:
+class CurrentUserFunctor:
     """implement the current_user function, and allow overriding.
 
     invoke the current_user object as a function.
@@ -964,18 +964,18 @@ class current_user_functor:
         """return current user name: from database, or system """
         if self.override_value:
             return self.override_value
-        try:
-            if engine.name.startswith('postgresql'):
-                r = engine.execute('select current_user;')
-                user = r.fetchone()[0]
-                r.close()
-            elif engine.name.startswith('mysql'):
-                r = engine.execute('select current_user();')
-                user = r.fetchone()[0]
-                r.close()
-            else:
-                raise TypeError()
-        except:
+        user = None
+        if engine.name.startswith('postgresql'):
+            with engine.connect() as conn:
+                result = conn.execute('select current_user;')
+                user = result.fetchone()[0]
+        elif engine.name.startswith('mysql'):
+            with engine.connect() as conn:
+                result = conn.execute('select current_user();')
+                user = result.fetchone()[0]
+        elif engine.name.startswith('sqlite'):
+            user = utils.get_user_display_name()
+        if not user:
             logger.debug("retrieving user name from system")
             user = (os.getenv('USER') or os.getenv('USERNAME') or
                     os.getenv('LOGNAME') or os.getenv('LNAME'))
@@ -983,4 +983,4 @@ class current_user_functor:
         return user
 
 
-current_user = current_user_functor()
+current_user = CurrentUserFunctor()
