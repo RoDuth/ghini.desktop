@@ -47,7 +47,8 @@ package_data = {
 }
 
 for plugin in find_packages(where='bauble/plugins'):
-    package_data.setdefault(f'bauble.plugins.{plugin}', []).append('*.glade')
+    package_data.setdefault(f'bauble.plugins.{plugin}', []).extend(['*.glade',
+                                                                    '*.ui'])
 
 with open("README.rst", "r", encoding='utf-8', newline='') as f:
     long_description = f.read()
