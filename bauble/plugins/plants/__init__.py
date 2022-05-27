@@ -67,7 +67,6 @@ from .species import (Species,
 from .geography import (Geography,
                         get_species_in_geography,
                         GeographyInfoBox)
-from .taxonomy_check import TaxonomyCheckTool
 from .stored_queries import StoredQueryEditorTool
 
 # imported by clients of the module
@@ -375,7 +374,7 @@ class SplashInfoBox(pluginmgr.View, Gtk.Box):
 
 
 class PlantsPlugin(pluginmgr.Plugin):
-    tools = [TaxonomyCheckTool, StoredQueryEditorTool]
+    tools = [StoredQueryEditorTool]
     provides = {'Family': Family,
                 'FamilyNote': FamilyNote,
                 'Genus': Genus,

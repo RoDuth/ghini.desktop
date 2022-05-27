@@ -68,7 +68,6 @@ from .institution import (Institution,
                           InstitutionCommand,
                           InstitutionTool,
                           start_institution_editor)
-from .pocket_server import PocketServerTool
 
 # other ideas:
 # - cultivation table
@@ -78,7 +77,7 @@ from .pocket_server import PocketServerTool
 class GardenPlugin(pluginmgr.Plugin):
 
     depends = ["PlantsPlugin"]
-    tools = [InstitutionTool, PocketServerTool]
+    tools = [InstitutionTool]
     commands = [InstitutionCommand]
     provides = {'Accession': Accession,
                 'AccessionNote': AccessionNote,
