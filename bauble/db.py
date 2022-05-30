@@ -297,13 +297,7 @@ def open(uri, verify=True, show_error_dialogs=False, poolclass=None):
         engine = new_engine
         metadata.bind = engine  # make engine implicit for metadata
 
-        def temp():
-            import inspect
-            logger.debug('creating session %s' % str(inspect.stack()[1]))
-            return scoped_session(sessionmaker(bind=engine, autoflush=False))()
-
-        # Session = scoped_session(sessionmaker(bind=engine, autoflush=False))
-        Session = temp
+        Session = sessionmaker(bind=engine, autoflush=False)
 
     if new_engine is not None and not verify:
         _bind()
