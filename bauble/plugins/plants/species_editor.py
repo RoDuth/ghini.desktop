@@ -364,6 +364,7 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
                 kid = self.genus_check_messages.pop()
                 self.view.widgets.remove_parent(kid)
             self.set_model_attr('genus', value)
+            self.refresh_fullname_label()
             if not value:  # no choice is a fine choice
                 return
             # is value considered a synonym?
@@ -386,6 +387,7 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
                     self.set_model_attr('genus', syn.genus)
                     self.refresh_view()
                     self.refresh_fullname_label()
+
             box = self.view.add_message_box(utils.MESSAGE_BOX_YESNO)
             box.message = msg
             box.on_response = on_response
@@ -493,10 +495,14 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
         def refresh(*args):
             self.refresh_fullname_label(*args)
 
-        widgets = ['sp_genus_entry', 'sp_species_entry', 'sp_author_entry',
-                   'sp_cvgroup_entry', 'sp_spqual_combo']
+        widgets = ['sp_species_entry',
+                   'sp_author_entry',
+                   'sp_cvgroup_entry',
+                   'sp_spqual_combo']
+
         for widget_name in widgets:
             self.view.connect_after(widget_name, 'changed', refresh)
+
         self.view.connect_after('sp_hybrid_check', 'toggled', refresh)
 
     def on_sp_species_entry_insert_text(self, entry, text, _length, position):
