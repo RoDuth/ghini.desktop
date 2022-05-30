@@ -209,6 +209,8 @@ class Application(Gtk.Application):
             ('about', bauble.gui.on_help_menu_about),
         )
         for name, handler in actions:
+            if not db.current_user.is_admin and name == 'new':
+                continue
             action = Gio.SimpleAction.new(name, None)
             action.connect("activate", handler)
             self.add_action(action)

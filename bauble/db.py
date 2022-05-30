@@ -960,6 +960,26 @@ class CurrentUserFunctor:
     def override(self, value=None):
         self.override_value = value
 
+    @property
+    def is_admin(self):
+        """Does the current user have CREATE privilege.
+
+        Only relevent to postgres databases, will return True for others.
+        """
+        # on cancel connmgr main still runs _build_menubar
+        if not engine:
+            return None
+        if not engine.name.startswith('postgresql'):
+            return True
+        from psycopg2.sql import SQL, Literal
+        conn = engine.raw_connection()
+        with conn.cursor() as cur:
+            stmt = "SELECT has_database_privilege({role}, {db}, 'CREATE')"
+            stmt = SQL(stmt).format(role=Literal(self()),
+                                    db=Literal(engine.url.database))
+            cur.execute(stmt)
+            return cur.fetchone()[0]
+
     def __call__(self):
         """return current user name: from database, or system """
         if self.override_value:
