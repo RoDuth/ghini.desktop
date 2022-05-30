@@ -154,6 +154,32 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
         super().__init__(model, view)
         self.create_toolbar()
         self.session = object_session(model)
+        # get the starting position
+        self.start_sp_dict = None
+        self.start_sp_markup = None
+        if model not in self.session.new:
+            self.start_sp_dict = {
+                'genus_id': model.genus_id,
+                'sp': model.sp,
+                'hybrid': model.hybrid,
+                'sp_author': model.sp_author,
+                'sp_qual': model.sp_qual,
+                'cv_group': model.cv_group,
+                'infrasp1': model.infrasp1,
+                'infrasp1_rank': model.infrasp1_rank,
+                'infrasp1_author': model.infrasp1_author,
+                'infrasp2': model.infrasp2,
+                'infrasp2_rank': model.infrasp2_rank,
+                'infrasp2_author': model.infrasp2_author,
+                'infrasp3': model.infrasp3,
+                'infrasp3_rank': model.infrasp3_rank,
+                'infrasp3_author': model.infrasp3_author,
+                'infrasp4': model.infrasp4,
+                'infrasp4_rank': model.infrasp4_rank,
+                'infrasp4_author': model.infrasp4_author,
+            }
+            self.start_sp_markup = model.str(markup=True, authors=True)
+
         self._dirty = False
         self.omonym_box = None
         self.species_check_messages = []
@@ -569,6 +595,16 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
             return
         sp_str = self.model.str(markup=True, authors=True)
         self.view.set_label('sp_fullname_label', sp_str)
+
+        # add previous species as synonym
+        if self.start_sp_markup and sp_str != self.start_sp_markup:
+            self.view.widgets.prev_sp_box.set_visible(True)
+            self.view.set_label('sp_prev_name_label',
+                                self.start_sp_markup + ' (previous name)')
+        else:
+            self.view.widgets.prev_sp_box.set_visible(False)
+            self.view.widgets.add_syn_chkbox.set_active(False)
+
         if self.model.genus is not None:
             def _warn_double_ups():
                 genus = self.model.genus
@@ -1216,7 +1252,9 @@ class SpeciesEditorView(editor.GenericEditorView):
         'sp_ok_and_add_button': _('Save your changes and add an '
                                   'accession to this species'),
         'sp_next_button': _('Save your changes and add another '
-                            'species ')
+                            'species '),
+        'add_syn_chkbox': _('Create a copy of the previous taxonomic name and '
+                            'attach it as a synonym of this species.')
     }
 
     def __init__(self, parent=None):
@@ -1392,6 +1430,9 @@ class SpeciesEditorMenuItem(editor.GenericModelViewPresenterEditor):
                 self.model.vernacular_names.remove(vernacular)
                 utils.delete_or_expunge(vernacular)
                 del vernacular
+        if self.presenter.view.widgets.add_syn_chkbox.get_active():
+            syn = Species(**self.presenter.start_sp_dict)
+            self.model.synonyms.append(syn)
         super().commit_changes()
 
     def start(self):
