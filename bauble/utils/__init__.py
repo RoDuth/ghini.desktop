@@ -810,8 +810,10 @@ def default_cell_data_func(_column, cell, model, treeiter, data=None):
         columns's set_cell_data_func, that when supplied obj will return an
         appropriate string for the cell's text property
     """
+    if data == None:
+        data = str
     obj = model[treeiter][0]
-    cell.props.text = data(obj)
+    cell.set_property('text', data(obj))
 
 
 def setup_text_combobox(combo, values=None, cell_data_func=None):

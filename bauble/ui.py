@@ -753,7 +753,7 @@ class GUI:
 
         engine = None
         try:
-            engine = db.open(uri, True, True)
+            engine = db.open_conn(uri, True, True)
         except Exception as e:  # pylint: disable=broad-except
             msg = (_("Could not open connection.\n\n%s") % e)
             utils.message_details_dialog(msg, traceback.format_exc(),

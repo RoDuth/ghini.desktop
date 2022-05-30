@@ -223,7 +223,7 @@ class StandalonePluginMgrTests(unittest.TestCase):
     def test_successfulinit(self):
         "bauble.pluginmgr.init() should be successful"
 
-        db.open(uri, verify=False)
+        db.open_conn(uri, verify=False)
         db.create(False)
         bauble.pluginmgr.plugins[C.__name__] = C()
         bauble.pluginmgr.plugins[B.__name__] = B()
@@ -245,7 +245,7 @@ class StandalonePluginMgrTests(unittest.TestCase):
 
         utils.message_details_dialog = fake_dialog
 
-        db.open(uri, verify=False)
+        db.open_conn(uri, verify=False)
         db.create(False)
         bauble.pluginmgr.plugins[
             FailingInitPlugin.__name__] = FailingInitPlugin()
@@ -259,7 +259,7 @@ class StandalonePluginMgrTests(unittest.TestCase):
     def test_install_with_problem(self):
         "bauble.pluginmgr.init() using plugin which can't install"
 
-        db.open(uri, verify=False)
+        db.open_conn(uri, verify=False)
         db.create(False)
         bauble.pluginmgr.plugins[
             FailingInstallPlugin.__name__] = FailingInstallPlugin()
@@ -279,7 +279,7 @@ class StandalonePluginMgrTests(unittest.TestCase):
         bauble.pluginmgr.plugins[C.__name__] = pC
         bauble.pluginmgr.plugins[B.__name__] = pB
         bauble.pluginmgr.plugins[A.__name__] = pA
-        db.open(uri, verify=False)
+        db.open_conn(uri, verify=False)
         db.create(False)
         bauble.pluginmgr.install((pA, pB, pC), force=True)
         self.assertTrue(A.installed and B.installed and C.installed)
@@ -296,7 +296,7 @@ class StandalonePluginMgrTests(unittest.TestCase):
         self.assertFalse(C.installed)
         self.assertFalse(B.installed)
         self.assertFalse(A.installed)
-        db.open(uri, verify=False)
+        db.open_conn(uri, verify=False)
         db.create(False)
         # the creation of the database installed all plugins, so we manually
         # reset everything, just to make sure we really test the logic
@@ -319,7 +319,7 @@ class StandalonePluginMgrTests(unittest.TestCase):
         self.assertFalse(C.installed)
         self.assertFalse(B.installed)
         self.assertFalse(A.installed)
-        db.open(uri, verify=False)
+        db.open_conn(uri, verify=False)
         db.create(False)
         # the creation of the database installed all plugins, so we manually
         # reset everything, just to make sure we really test the logic

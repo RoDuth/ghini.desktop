@@ -740,7 +740,7 @@ class Species(db.Base, db.Serializable, db.DefiningPictures, db.WithNotes):
 
     @property
     def accepted(self):
-        'Name that should be used if name of self should be rejected'
+        """Name that should be used if name of self should be rejected"""
         session = object_session(self)
         if not session:
             logger.warning('species:accepted - object not in session')

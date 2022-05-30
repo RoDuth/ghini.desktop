@@ -18,6 +18,9 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
+"""
+Database connection and associated.
+"""
 
 import datetime
 import os
@@ -29,22 +32,7 @@ logger = logging.getLogger(__name__)
 
 from gi.repository import Gtk  # noqa
 
-try:
-    import sqlalchemy as sa
-    from bauble import error
-    parts = tuple(int(i) for i in sa.__version__.split('.')[:2])
-    if parts < (0, 6):
-        msg = _('This version of Ghini requires SQLAlchemy 0.6 or greater. '
-                'You are using version %s. '
-                'Please download and install a newer version of SQLAlchemy '
-                'from http://www.sqlalchemy.org or contact your system '
-                'administrator.') % '.'.join(parts)
-        raise error.SQLAlchemyVersionError(msg)
-except ImportError:
-    msg = _('SQLAlchemy not installed. Please install SQLAlchemy from '
-            'http://www.sqlalchemy.org')
-    raise
-
+import sqlalchemy as sa
 from sqlalchemy import event
 from sqlalchemy.orm import class_mapper, object_session
 from sqlalchemy.orm.attributes import get_history
@@ -53,10 +41,9 @@ from sqlalchemy.ext.declarative import declarative_base, DeclarativeMeta
 # from sqlalchemy.orm import class_mapper, declarative_base
 # from sqlalchemy.ext.decl_api import DeclarativeMeta
 
-# pylint: disable=ungrouped-imports
 from bauble import utils
 from bauble import btypes as types
-# pylint: enable=ungrouped-imports
+from bauble import error
 
 
 def sqlalchemy_debug(verbose):
@@ -76,7 +63,7 @@ sqlalchemy_debug(SQLALCHEMY_DEBUG)
 
 
 def natsort(attr, obj):
-    """return the naturally sorted list of the object attribute
+    """Return the naturally sorted list of the object attribute
 
     meant to be curried.  the main role of this function is to invert
     the order in which the function getattr receives its arguments.
@@ -134,7 +121,7 @@ connection to the database.
 Session = None
 """
 bauble.db.Session is created after the database has been opened with
-:func:`bauble.db.open()`. bauble.db.Session should be used when you need
+:func:`bauble.db.open_conn()`. bauble.db.Session should be used when you need
 to do ORM based activities on a bauble database.  To create a new
 Session use::Uncategorized
 
@@ -148,8 +135,8 @@ databases.
 
 Base = declarative_base(metaclass=MapperBase)
 """
-All tables/mappers in Ghini which use the SQLAlchemy declarative
-plugin for declaring tables and mappers should derive from this class.
+All tables/mappers which use the SQLAlchemy declarative plugin for declaring
+tables and mappers should derive from this class.
 
 An instance of :class:`sqlalchemy.ext.declarative.Base`
 """
@@ -201,7 +188,7 @@ def after_delete(mapper, connection, instance):
 
 
 metadata = Base.metadata
-"""The default metadata for all Ghini tables.
+"""The default metadata for all tables.
 
 An instance of :class:`sqlalchemy.schema.Metadata`
 """
@@ -242,7 +229,7 @@ class History(HistoryBase):
     timestamp = sa.Column(types.DateTime, nullable=False)
 
 
-def open(uri, verify=True, show_error_dialogs=False, poolclass=None):
+def open_conn(uri, verify=True, show_error_dialogs=False, poolclass=None):
     """Open a database connection.  This function sets bauble.db.engine to
     the opened engined.
 
@@ -265,9 +252,8 @@ def open(uri, verify=True, show_error_dialogs=False, poolclass=None):
     """
 
     # ** WARNING: this can print your passwd
-    logger.debug('db.open(%s)', uri)
-    from sqlalchemy.orm import sessionmaker, scoped_session
-    global engine
+    # logger.debug('db.open(%s)', uri)
+    from sqlalchemy.orm import sessionmaker
     new_engine = None
 
     # avoid sqlite thread errors
@@ -282,14 +268,7 @@ def open(uri, verify=True, show_error_dialogs=False, poolclass=None):
                                   poolclass=poolclass,
                                   implicit_returning=False)
 
-    # TODO: there is a problem here: the code may cause an exception, but we
-    # immediately loose the 'new_engine', which should know about the
-    # encoding used in the exception string.
-    try:
-        new_engine.connect().close()  # make sure we can connect
-    except Exception:
-        logger.info('about to forget about encoding of exception text.')
-        raise
+    new_engine.connect().close()  # make sure we can connect
 
     def _bind():
         """bind metadata to engine and create sessionmaker """
@@ -312,8 +291,7 @@ def open(uri, verify=True, show_error_dialogs=False, poolclass=None):
 
 
 def create(import_defaults=True):
-    """
-    Create new Ghini database at the current connection
+    """Create new database at the current connection
 
     :param import_defaults: A flag that is passed to each plugins
         install() method to indicate where it should import its
@@ -333,22 +311,21 @@ def create(import_defaults=True):
     connection = engine.connect()
     transaction = connection.begin()
     try:
-        # TODO: here we are dropping/creating all the tables in the
-        # metadata whether they are in the registry or not, we should
-        # really only be creating those tables from registered
-        # plugins, maybe with an uninstall() method on Plugin
         metadata.drop_all(bind=connection, checkfirst=True)
         metadata.create_all(bind=connection)
 
         # fill in the bauble meta table and install all the plugins
         meta_table = meta.BaubleMeta.__table__
-        meta_table.insert(bind=connection).\
-            execute(name=meta.VERSION_KEY,
-                    value=str(bauble.version)).close()
+        (meta_table
+         .insert(bind=connection)
+         .execute(name=meta.VERSION_KEY, value=str(bauble.version))
+         .close())
         from dateutil.tz import tzlocal
-        meta_table.insert(bind=connection).\
-            execute(name=meta.CREATED_KEY,
-                    value=str(datetime.datetime.now(tz=tzlocal()))).close()
+        (meta_table
+         .insert(bind=connection)
+         .execute(name=meta.CREATED_KEY,
+                  value=str(datetime.datetime.now(tz=tzlocal())))
+         .close())
     except GeneratorExit as e:
         # this is here in case the main windows is closed in the middle
         # of a task
@@ -390,23 +367,23 @@ def create(import_defaults=True):
         connection.close()
 
 
-def verify_connection(engine, show_error_dialogs=False):
-    """
-    Test whether a connection to an engine is a valid Ghini database. This
-    method will raise an error for the first problem it finds with the
+def verify_connection(new_engine, show_error_dialogs=False):
+    """Test whether a connection to an engine is a valid database.
+
+    This method will raise an error for the first problem it finds with the
     database.
 
-    :param engine: the engine to test
-    :type engine: :class:`sqlalchemy.engine.Engine`
+    :param new_engine: the engine to test
+    :type new_engine: :class:`sqlalchemy.engine.Engine`
     :param show_error_dialogs: flag for whether or not to show message
         dialogs detailing the error, default=False
     :type show_error_dialogs: bool
     """
-    logger.debug('entered verify_connection(%s)' % show_error_dialogs)
+    logger.debug('entered verify_connection(%s)', show_error_dialogs)
     import bauble
     if show_error_dialogs:
         try:
-            return verify_connection(engine, False)
+            return verify_connection(new_engine, False)
         except error.EmptyDatabaseError:
             msg = _('The database you have connected to is empty.')
             utils.message_dialog(msg, Gtk.MessageType.ERROR)
@@ -433,23 +410,23 @@ def verify_connection(engine, show_error_dialogs=False):
                      'or some of your data may become unexpectedly '
                      'corrupted.') %
                    {'version': bauble.version,
-                    'db_version': '%s' % e.version})
+                    'db_version': str(e.version)})
             utils.message_dialog(msg, Gtk.MessageType.ERROR)
             raise
 
     # check if the database has any tables
-    if len(engine.table_names()) == 0:
+    if len(new_engine.table_names()) == 0:
         raise error.EmptyDatabaseError()
 
     from bauble import meta
     # check that the database we connected to has the bauble meta table
-    if not engine.has_table(meta.BaubleMeta.__tablename__):
+    if not new_engine.has_table(meta.BaubleMeta.__tablename__):
         raise error.MetaTableError()
 
     from sqlalchemy.orm import sessionmaker
     # if we don't close this session before raising an exception then we
     # will probably get deadlocks....i'm not really sure why
-    session = sessionmaker(bind=engine)()
+    session = sessionmaker(bind=new_engine)()
     query = session.query  # (meta.BaubleMeta)
 
     # check that the database we connected to has a "created" timestamp
@@ -466,10 +443,10 @@ def verify_connection(engine, show_error_dialogs=False):
         session.close()
         raise error.VersionError(None)
     try:
-        major, minor, revision = result.value.split('.')
-    except Exception:
+        major, minor, _revision = result.value.split('.')
+    except Exception as e:
         session.close()
-        raise error.VersionError(result.value)
+        raise error.VersionError(result.value) from e
 
     if major != bauble.version_tuple[0] or minor != bauble.version_tuple[1]:
         session.close()
@@ -491,8 +468,7 @@ def make_note_class(name, compute_serializable_fields, as_dict=None,
         return not self.user and not self.category and not self.note
 
     def retrieve_or_create(cls, session, keys, create=True, update=True):
-        """return database object corresponding to keys
-        """
+        """return database object corresponding to keys."""
         category = keys.get('category', '')
 
         # normally, it's one note per category, but for list values, and for
@@ -520,7 +496,7 @@ def make_note_class(name, compute_serializable_fields, as_dict=None,
             qry = qry.filter(cls.category == keys['category'])
         try:
             return qry.one()
-        except:
+        except Exception:
             return None
 
     def as_dict_default(self):
@@ -578,26 +554,26 @@ class WithNotes:
         for note in self.notes:
             if note.category is None:
                 pass
-            elif note.category == ('[%s]' % name):
+            elif note.category == f'[{name}]':
                 result.append(note.note)
-            elif (note.category.startswith('{%s:' % name) and
+            elif (note.category.startswith(f'{{{name}:') and
                   note.category.endswith('}')):
                 is_dict = True
                 match = self.key_pattern.match(note.category)
                 key = match.group(1)
                 result.append((key, note.note))
-            elif note.category == ('<%s>' % name):
+            elif note.category == f'<{name}>':
                 try:
                     return json.loads(
                         re.sub(r'(\w+)[ ]*(?=:)', r'"\g<1>"',
                                '{' + note.note.replace(';', ',') + '}')
                     )
-                except Exception as e:
+                except json.JSONDecodeError:
                     pass
                 try:
                     return json.loads(
                         re.sub(r'(\w+)[ ]*(?=:)', r'"\g<1>"', note.note))
-                except Exception as e:
+                except json.JSONDecodeError as e:
                     logger.debug(
                         'not parsed %s(%s), returning literal text »%s«',
                         type(e).__name__, e, note.note)
@@ -631,7 +607,6 @@ class DefiningPictures:
 
 
 class Serializable:
-    import re
     single_cap_re = re.compile('([A-Z])')
     link_keys = []
 
@@ -650,12 +625,10 @@ class Serializable:
 
         exchange format may use different keys than class attributes
         """
-        pass
 
     @classmethod
     def compute_serializable_fields(cls, session, keys):
-        """create objects corresponding to keys (class dependent)
-        """
+        """create objects corresponding to keys (class dependent)"""
         return {}
 
     @classmethod
@@ -702,9 +675,9 @@ class Serializable:
         # and have as value objects that are possibly in the database, or
         # not, but they cannot be used to construct the `self` object.
         link_values = {}
-        for k in cls.link_keys:
-            if keys.get(k):
-                link_values[k] = keys[k]
+        for key in cls.link_keys:
+            if keys.get(key):
+                link_values[key] = keys[key]
 
         logger.debug("link_values : %s", str(link_values))
 
@@ -723,11 +696,11 @@ class Serializable:
             # completing the task of building the links
             logger.debug("links? %s, %s", cls.link_keys, list(keys.keys()))
             for key in cls.link_keys:
-                d = link_values.get(key)
-                if d is None:
+                val = link_values.get(key)
+                if val is None:
                     continue
-                logger.debug('recursive call to construct_from_dict %s', d)
-                obj = construct_from_dict(session, d)
+                logger.debug('recursive call to construct_from_dict %s', val)
+                obj = construct_from_dict(session, val)
                 keys[key] = obj
             logger.debug("going to create new %s with %s", cls, keys)
             result = cls(**keys)
@@ -740,11 +713,11 @@ class Serializable:
             # completing the task of building the links
             logger.debug("links? %s, %s", cls.link_keys, list(keys.keys()))
             for key in cls.link_keys:
-                d = link_values.get(key)
-                if d is None:
+                val = link_values.get(key)
+                if val is None:
                     continue
-                logger.debug('recursive call to construct_from_dict %s', d)
-                obj = construct_from_dict(session, d)
+                logger.debug('recursive call to construct_from_dict %s', val)
+                obj = construct_from_dict(session, val)
                 keys[key] = obj
 
         logger.debug("going to update %s with %s", result, keys)
@@ -753,9 +726,9 @@ class Serializable:
         for k, v in list(keys.items()):
             if isinstance(v, dict):
                 if v.get('__class__') == 'datetime':
-                    m = v.get('millis', 0)
+                    msecs = v.get('millis', 0)
                     v = datetime.datetime(1970, 1, 12)
-                    v = v + datetime.timedelta(0, m)
+                    v = v + datetime.timedelta(0, msecs)
                 else:
                     v = None
             if v is not None:

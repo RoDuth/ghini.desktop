@@ -327,7 +327,7 @@ class _prefs(UserDict):
         if testing and not force:
             return
         try:
-            with open(self._filename, "w+") as f:
+            with open(self._filename, "w+", encoding='utf-8') as f:
                 self.config.write(f)
         except Exception:  # pylint: disable=broad-except
             msg = (_("Can't save your user preferences. \n\nPlease "

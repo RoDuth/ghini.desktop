@@ -449,7 +449,7 @@ def multiproc_counter(url, klass, ids):
         # around a second and then disappearing.
         import AppKit
         AppKit.NSApp.setActivationPolicy_(1)   # 2 also works
-    db.open(url)
+    db.open_conn(url)
     # get tables across plugins (e.g. plants - Genus, garden - Accession )
     pluginmgr.load()
     session = db.Session()

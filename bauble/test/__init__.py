@@ -101,11 +101,15 @@ class BaubleTestCase(unittest.TestCase):
 
     def setUp(self):
         assert uri is not None, "The database URI is not set"
+        bauble.db.engine = None
         try:
-            # we know we're connecting to an empty database, use StaticPool so
-            # threads work in memory database.
-            db.open(uri, verify=False, show_error_dialogs=False,
-                    poolclass=StaticPool)
+            poolclass = None
+            if uri.startswith('sqlite'):
+                # we know we're connecting to an empty database, use StaticPool
+                # so threads work in memory database.
+                poolclass = StaticPool
+            db.open_conn(uri, verify=False, show_error_dialogs=False,
+                         poolclass=poolclass)
         except Exception as e:  # pylint: disable=broad-except
             print(e, file=sys.stderr)
         if not bauble.db.engine:

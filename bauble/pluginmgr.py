@@ -157,7 +157,7 @@ def init(force=False):
     3. Register the command handlers in the plugin's commands[]
 
     NOTE: This is called after the GUI has been created and a connection has
-    been established to a database with db.open()
+    been established to a database with db.open_conn()
     """
     logger.debug('bauble.pluginmgr.init()')
     # ******

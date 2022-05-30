@@ -43,7 +43,7 @@ class TestMultiprocCounter(TestCase):
         from tempfile import mkstemp
         self.db_handle, self.temp_db = mkstemp(suffix='.db', text=True)
         self.uri = f'sqlite:///{self.temp_db}'
-        db.open(self.uri, verify=False, show_error_dialogs=False)
+        db.open_conn(self.uri, verify=False, show_error_dialogs=False)
         self.handle, self.temp = mkstemp(suffix='.cfg', text=True)
         # reason not to use `from bauble.prefs import prefs`
         prefs.default_prefs_file = self.temp

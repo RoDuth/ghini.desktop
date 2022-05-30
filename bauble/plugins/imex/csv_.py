@@ -428,7 +428,8 @@ class CSVRestore:
         name = Path(filename).name
         filename = Path(tmppath, name)
         with open(filename, 'w', encoding='utf-8', newline='') as tmpfile:
-            tmpfile.write('%s\n' % ','.join(fields))
+            row = ','.join(fields)
+            tmpfile.write(f"{row}\n")
             # writer = UnicodeWriter(tmpfile, fields, quotechar=QUOTE_CHAR,
             writer = csv.DictWriter(tmpfile, fields, quotechar=QUOTE_CHAR,
                                     quoting=QUOTE_STYLE)
@@ -752,7 +753,7 @@ class CSVRestore:
             for table, filename in sorted_tables:
                 for col in table.c:
                     utils.reset_sequence(col)
-        except Exception as e:
+        except Exception:
             col_name = None
             try:
                 col_name = col.name
@@ -777,9 +778,6 @@ class CSVRestore:
         return filenames
 
 
-# TODO: add support for exporting only specific tables
-
-
 class CSVBackup:
 
     def start(self, path=None):
@@ -798,11 +796,12 @@ class CSVBackup:
             raise ValueError(_("CSVBackup: path does not exist.\n%s") % path)
 
         try:
-            bauble.task.queue(self.__export_task(path))
+            bauble.task.queue(self._export_task(path))
         except Exception as e:
-            logger.debug("%s(%s)" % (type(e).__name__, e))
+            logger.debug("%s(%s)", type(e).__name__, e)
 
-    def __export_task(self, path):
+    @staticmethod
+    def _export_task(path):
         filename_template = os.path.join(path, "%s.csv")
         steps_so_far = 0
         ntables = 0
@@ -817,24 +816,21 @@ class CSVBackup:
                 if not utils.yes_no_dialog(msg):  # if NO: return
                     return
 
-        def replace(s):
-            if isinstance(s, str):
-                s.replace('\n', '\\n').replace('\r', '\\r')
-            return s
+        def replace(string):
+            if isinstance(string, str):
+                string.replace('\n', '\\n').replace('\r', '\\r')
+            return string
 
         def write_csv(filename, rows):
-            f = open(filename, 'w', encoding='utf-8', newline='')
-            writer = UnicodeWriter(f, quotechar=QUOTE_CHAR,
-                                   quoting=QUOTE_STYLE)
-            writer.writerows(rows)
-            f.close()
+            with open(filename, 'w', encoding='utf-8', newline='') as f:
+                writer = UnicodeWriter(f, quotechar=QUOTE_CHAR,
+                                       quoting=QUOTE_STYLE)
+                writer.writerows(rows)
 
         five_percent = int(ntables / 20) or 1
         for table in db.metadata.sorted_tables:
             filename = filename_template % table.name
             steps_so_far += 1
-            fraction = steps_so_far / ntables
-            pb_set_fraction(fraction)
             msg = _('exporting %(table)s table to %(filename)s')\
                 % {'table': table.name, 'filename': filename}
             bauble.task.set_message(msg)
@@ -858,6 +854,7 @@ class CSVBackup:
                     logger.error(traceback.format_exc())
             write_csv(filename, rows)
             if ntables % five_percent == 0:
+                pb_set_fraction(steps_so_far / ntables)
                 yield
 
 
@@ -890,7 +887,7 @@ class CSVRestoreTool(pluginmgr.Tool):
         Start the CSV importer.  This tool will also reinitialize the
         plugins after importing.
         """
-        msg = _('Restoreing data into this database will destroy or corrupt '
+        msg = _('Restoring data into this database will destroy or corrupt '
                 'any existing data.\n\n<i>Would you like to continue?</i>')
         if utils.yes_no_dialog(msg, yes_delay=2):
             csv_im = CSVRestore()

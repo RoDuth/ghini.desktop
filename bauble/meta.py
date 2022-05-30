@@ -27,21 +27,14 @@ VERSION_KEY = 'version'
 CREATED_KEY = 'created'
 REGISTRY_KEY = 'registry'
 
-# date format strings:
-# yy - short year
-# yyyy - long year
-# dd - number day, always two digits
-# d - number day, two digits when necessary
-# mm -number month, always two digits
-# m - number month, two digits when necessary
 DATE_FORMAT_KEY = 'date_format'
 
 
 def get_default(name, default=None, session=None):
-    """
-    Get a BaubleMeta object with name.  If the default value is not
-    None then a BaubleMeta object is returned with name and the
-    default value given.
+    """Get a BaubleMeta object with name.
+
+    If the default value is not None then a BaubleMeta object is returned with
+    name and the default value given.
 
     If a session instance is passed (session != None) then we
     don't commit the session.
@@ -70,9 +63,8 @@ def get_default(name, default=None, session=None):
 
 
 def confirm_default(name, default, msg, parent=None):
-    """
-    Allow the user to confirm the value of a BaubleMeta object the first time
-    it is needed.
+    """Allow the user to confirm the value of a BaubleMeta object the first
+    time it is needed.
     """
     current_default = get_default(name)
     if not current_default:
@@ -103,8 +95,7 @@ def confirm_default(name, default, msg, parent=None):
 
 
 class BaubleMeta(db.Base):
-    """
-    The BaubleMeta class is used to set and retrieve meta information
+    """The BaubleMeta class is used to set and retrieve meta information
     based on key/name values from the bauble meta table.
 
     :Table name: bauble
@@ -115,7 +106,6 @@ class BaubleMeta(db.Base):
 
       *value*:
         The value.
-
     """
     __tablename__ = 'bauble'
     name = Column(Unicode(64), unique=True)

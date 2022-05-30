@@ -96,13 +96,13 @@ class Application(Gtk.Application):
             try:
                 # testing, database initialized at current version.  or we
                 # get two different exceptions.
-                if db.open(uri, True, True):
+                if db.open_conn(uri, True, True):
                     prefs.prefs[bauble.conn_default_pref] = conn_name
                     break
                 uri = conn_name = None
             except err.VersionError as e:
                 logger.warning("%s(%s)", type(e).__name__, e)
-                db.open(uri, False)
+                db.open_conn(uri, False)
                 break
             except (err.EmptyDatabaseError, err.MetaTableError,
                     err.TimestampError, err.RegistryError) as e:
@@ -110,7 +110,7 @@ class Application(Gtk.Application):
                 open_exc = e
                 # reopen without verification so that db.Session and
                 # db.engine, db.metadata will be bound to an engine
-                db.open(uri, False)
+                db.open_conn(uri, False)
                 break
             except err.DatabaseError as e:
                 logger.debug("%s(%s)", type(e).__name__, e)
@@ -137,8 +137,7 @@ class Application(Gtk.Application):
 
     @staticmethod
     def _setup_logging():
-        # add console root handler, and file root handler, set it at the
-        # logging level specified by BAUBLE_LOGGING, or at INFO level.
+        # add console root handler and file root handler, set logging levels
         filename = os.path.join(paths.appdata_dir(), 'bauble.log')
         formatter = logging.Formatter(
             '%(asctime)s - %(name)s:%(lineno)d - %(levelname)s - %(thread)d '

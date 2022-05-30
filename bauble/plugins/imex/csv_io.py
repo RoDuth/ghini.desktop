@@ -306,7 +306,6 @@ class CSVExporter(GenericExporter):
     def __init__(self, view=None, open_=True):
         super().__init__(open_)
         if view is None:
-            # view = CSVExportDialogView()
             view = GenericEditorView(
                 str(Path(__file__).resolve().parent / 'csv_io.glade'),
                 root_widget_name='csv_export_dialog',

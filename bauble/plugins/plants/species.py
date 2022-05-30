@@ -339,8 +339,7 @@ class SynonymsExpander(InfoExpander):
 
 
 class GeneralSpeciesExpander(InfoExpander):
-    """expander to present general information about a species
-    """
+    """expander to present general information about a species"""
 
     def __init__(self, widgets):
         super().__init__(_("General"), widgets)
@@ -375,19 +374,24 @@ class GeneralSpeciesExpander(InfoExpander):
         session = object_session(row)
 
         # Link to family
-        self.widget_set_value('sp_fam_data', '<small>(%s)</small>' %
-                              row.genus.family.family, markup=True)
-        utils.make_label_clickable(
-            self.widgets.sp_fam_data, on_taxa_clicked, row.genus.family)
+        self.widget_set_value('sp_fam_data',
+                              f'<small>({row.genus.family.family})</small>',
+                              markup=True)
+        utils.make_label_clickable(self.widgets.sp_fam_data,
+                                   on_taxa_clicked,
+                                   row.genus.family)
         genus = row.genus.markup()
-        self.widget_set_value('sp_gen_data', '<big>%s</big>' %
-                              genus, markup=True)
+        self.widget_set_value('sp_gen_data',
+                              f'<big>{genus}</big>',
+                              markup=True)
         utils.make_label_clickable(
             self.widgets.sp_gen_data, on_taxa_clicked, row.genus)
         # epithet (full binomial but missing genus)
-        self.widget_set_value('sp_epithet_data', ' <big>%s</big>' %
-                              row.markup(authors=True, genus=False),
-                              markup=True)
+        self.widget_set_value(
+            'sp_epithet_data',
+            f' <big>{row.markup(authors=True, genus=False)}</big>',
+            markup=True
+        )
 
         awards = ''
         if row.awards:
