@@ -312,7 +312,7 @@
                                 <property name="visible">True</property>
                                 <property name="can-focus">False</property>
                                 <child>
-                                  <object class="GtkEntry" id="sp_species_entry">
+                                  <object class="SpeciesEntry" id="sp_species_entry">
                                     <property name="visible">True</property>
                                     <property name="can-focus">True</property>
                                     <property name="hexpand">True</property>
@@ -320,7 +320,6 @@
                                     <property name="primary-icon-activatable">False</property>
                                     <property name="secondary-icon-activatable">False</property>
                                     <signal name="changed" handler="on_sp_species_entry_changed" swapped="no"/>
-                                    <signal name="insert-text" handler="on_sp_species_entry_insert_text" swapped="no"/>
                                   </object>
                                   <packing>
                                     <property name="expand">True</property>

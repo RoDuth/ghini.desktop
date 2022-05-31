@@ -137,6 +137,52 @@ def species_cell_data_func(_column, renderer, model, treeiter):
                               f'{sp.str(authors=True)} ({sp.genus.family})')
 
 
+# This, rather than insert-text signal handler, due to a bug in PyGObject, see:
+# https://gitlab.gnome.org/GNOME/pygobject/-/issues/12
+# https://stackoverflow.com/a/38831655/14739447
+class SpeciesEntry(Gtk.Entry, Gtk.Editable):
+
+    __gtype_name__ = "SpeciesEntry"
+
+    def __init__(self):
+        super().__init__()
+        self.species_space = False  # do not accept spaces in epithet
+
+    def do_insert_text(self, text, _length, position):
+        # logic here used to resided in signal handler for insert-text
+        # SpeciesEditorPresenter.on_sp_species_entry_insert_text
+
+        # immediately allow spaces when opening a species for editing or
+        # pasting text.
+        if any(i for i in (text.count('×'),
+                           text.count(' ('),
+                           text[:4] == 'sp. ')):
+            self.species_space = True
+
+        if '*' in text:
+            self.species_space = True
+            text = text.replace('*', " × ")
+        # provisional names (e.g. 'sp. nov.', 'sp. (OrmeauL.H.Bird AQ435851)')
+        full_text = self.get_chars(0, -1)
+        if full_text[:3] == 'sp.':
+            self.species_space = True
+
+        # informal descriptive names (e.g. 'caerulea (Finch Hatton)')
+        if text == ('(') and self.species_space is False:
+            self.species_space = True
+            text = text.replace('(', " (")
+
+        if self.species_space is False:
+            text = text.replace(' ', '')
+
+        if text != '':
+            # best way to get correct length (accounts for ×)
+            length = self.get_buffer().insert_text(position, text, -1)
+            new_pos = position + length
+            return new_pos
+        return position
+
+
 class SpeciesEditorPresenter(editor.GenericEditorPresenter):
 
     widget_to_field_map = {'sp_genus_entry': 'genus',
@@ -184,7 +230,6 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
         self.omonym_box = None
         self.species_check_messages = []
         self.genus_check_messages = []
-        self.species_space = False  # do not accept spaces in epithet
         self.init_fullname_widgets()
         self.vern_presenter = VernacularNamePresenter(self)
         self.synonyms_presenter = SynonymsPresenter(self)
@@ -530,59 +575,6 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
             self.view.connect_after(widget_name, 'changed', refresh)
 
         self.view.connect_after('sp_hybrid_check', 'toggled', refresh)
-
-    def on_sp_species_entry_insert_text(self, entry, text, _length, position):
-        """validate species epithet"""
-
-        while self.species_check_messages:
-            kid = self.species_check_messages.pop()
-            self.view.widgets.remove_parent(kid)
-
-        # get position from entry, can't trust position parameter
-        position = entry.get_position()
-        # imediately allow spaces for names that fit our allowances. Works only
-        # on the first pass when opening a species for an edit or when pasting
-        # in text.  Without it spaces are removed when opened to edit.
-        if any(i for i in (text.count('×'),
-                           text.count(' ('),
-                           text[:4] == 'sp. ')):
-            self.species_space = True
-
-        if text.count('*'):
-            self.species_space = True
-            text = text.replace('*', " × ")
-        # allow provisional names for unnamed species(e.g. 'sp. nov.'
-        # 'sp. (OrmeauL.H.Bird AQ435851)') - see ITF2 - Species Epithet:
-        # Rule of information 1.2
-        # using get_chars method here as the 'text' variable, while typing,
-        # only contains the last entered character
-        full_text = entry.get_chars(0, -1)
-        if full_text[:3] == 'sp.':
-            self.species_space = True
-
-        # allow informal descriptive names e.g. 'caerulea (Finch Hatton)'
-        # (although not strictly ITF2 compliant the practice is in common use)
-        # note this will add the space in when adding a ( only if spaces have
-        # not already been allowed due to one of the other rules.
-        if text == ('(') and self.species_space is False:
-            self.species_space = True
-            text = text.replace('(', " (")
-
-        if self.species_space is False:
-            text = text.replace(' ', '')
-        if text != '':
-            # Insert the text at cursor (block handler to avoid recursion).
-            entry.handler_block_by_func(self.on_sp_species_entry_insert_text)
-            entry.insert_text(text, position)
-            entry.handler_unblock_by_func(self.on_sp_species_entry_insert_text)
-            # Set the new cursor position immediately after the inserted text.
-            new_pos = position + len(text)
-            # Can't modify the cursor position from within this handler,
-            # so we add it to be done at the end of the main loop:
-            GLib.idle_add(entry.set_position, new_pos)
-
-        # We handled the signal so stop it from being processed further.
-        entry.stop_emission_by_name("insert_text")
 
     def refresh_fullname_label(self, widget=None):
         """set the value of sp_fullname_label to either '--' if there
