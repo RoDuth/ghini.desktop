@@ -38,6 +38,7 @@ package_data = {
     'bauble.utils': ['prj_crs.db'],
     'bauble.plugins.plants': ['default/*.csv',
                               'default/wgsrpd/*.geojson'],
+    'bauble.plugins.garden': ['*.kml'],
     'bauble.plugins.abcd': ['*.xsd'],
     'bauble.plugins.report.mako.templates': ['*.csv', '*.html'],
     'bauble.plugins.report.xsl.stylesheets': ['*.xsl'],

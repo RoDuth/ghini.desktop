@@ -98,6 +98,7 @@ def transform(geometry, in_crs=DEFAULT_IN_PROJ, out_crs=None, always_xy=False):
         return None
     coords = []
     transformer = Transformer.from_crs(in_crs, out_crs, always_xy=always_xy)
+    logger.debug('transform %s >> %s', in_crs, out_crs)
     try:
         if geometry_type == 'Polygon':
             for x, y in geometry.get('coordinates')[0]:

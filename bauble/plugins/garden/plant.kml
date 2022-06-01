@@ -1,0 +1,115 @@
+## vim: ft=mako:fdm=marker
+<%!
+from polylabel import polylabel
+from bauble.utils import xml_safe
+from bauble.utils.geo import transform
+from bauble.meta import get_default
+sys_crs = get_default('system_proj_string')
+%>\
+<%
+def json_to_kml_point(coords):
+    return ','.join(str(i) for i in coords + [0])
+
+def json_to_kml_line(coords):
+    return ' '.join(json_to_kml_point(i) for i in coords)
+
+def json_to_kml_poly(coords):
+    return ' '.join(json_to_kml_point(i) for i in coords[0])
+
+point = line = poly = None
+if value.geojson and sys_crs:
+  # incase another system crs is used.
+  geojson = transform(value.geojson, in_crs=sys_crs.value, out_crs='epsg:4326')
+  if geojson.get('type') == 'Point':
+    point = json_to_kml_point(value.geojson.get('coordinates'))
+  elif geojson.get('type') == 'LineString':
+    line = json_to_kml_line(geojson.get('coordinates'))
+  elif geojson.get('type') == 'Polygon':
+    plygn = geojson.get('coordinates')
+    poly = json_to_kml_poly(plygn)
+    label = polylabel(plygn, precision=0.01)
+%>\
+<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2" xmlns:gx="http://www.google.com/kml/ext/2.2">
+  <Document>
+    <name>${xml_safe(value)}</name>
+    <visibility>1</visibility>
+    <Placemark>
+      <name>${xml_safe(value)}</name>
+      <description><![CDATA[
+        <table>
+          <tr>
+            <td>SPECIES:</td>
+            <td>${value.accession.species_str(markup=True)}</td>
+          </tr>
+          <tr>
+            <td>QUANTITY:</td>
+            <td>${value.quantity}</td>
+          </tr>
+          % if value.accession.species.default_vernacular_name:
+          <tr>
+            <td>COMMON:</td>
+            <td>${value.accession.species.default_vernacular_name}</td>
+          </tr>
+          % endif
+          % if value.accession.species.label_distribution:
+          <tr>
+            <td>DISTRIBUTION:</td>
+            <td>${xml_safe(value.accession.species.label_distribution)}</td>
+          </tr>
+          % endif
+          <tr>
+            <td>FAMILY:</td>
+            <td>${value.accession.species.genus.family}</td>
+          </tr>
+          <tr>
+            <td>BED:</td>
+            <td>${xml_safe(value.location.code)} ${xml_safe(value.location.name or '')}</td>
+          </tr>
+        </table>
+          ]]>
+      </description>
+      <visibility>1</visibility>
+      % if point:
+      <Point>
+        <coordinates>
+          ${point}
+        </coordinates>
+      </Point>
+      % elif line:
+      <MultiGeometry>
+      % for point in line.split():
+        <Point>
+          <coordinates>
+            ${point}
+          </coordinates>
+        </Point>
+      % endfor
+        <LineString>
+          <coordinates>
+            ${line}
+          </coordinates>
+        </LineString>
+      </MultiGeometry>
+      % elif poly:
+      <MultiGeometry>
+        <Point>
+          <coordinates>
+            ${label[0]},${label[1]},0
+          </coordinates>
+        </Point>
+        <Polygon>
+          <altitudeMode>relativeToGround</altitudeMode>
+          <outerBoundaryIs>
+            <LinearRing>
+              <coordinates>
+                ${poly.replace(',0 ', ',0.2 ')}
+              </coordinates>
+            </LinearRing>
+          </outerBoundaryIs>
+        </Polygon>
+      </MultiGeometry>
+      % endif
+    </Placemark>
+  </Document>
+</kml>

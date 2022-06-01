@@ -24,6 +24,7 @@
 import datetime
 import os
 import weakref
+import json
 from pathlib import Path
 from random import random
 from typing import Optional
@@ -35,6 +36,7 @@ logger = logging.getLogger(__name__)
 import dateutil.parser as date_parser
 
 from gi.repository import Gtk
+from gi.repository import Gio
 from gi.repository import GLib
 from gi.repository import GdkPixbuf
 
@@ -1765,6 +1767,107 @@ class GenericEditorPresenter:
         self.clear_problems()
         if isinstance(self.view, GenericEditorView):
             self.view.cleanup()
+
+
+class PresenterMapMixin:
+    """Mixin for presenters that include a map GtkMenuButton.
+
+    Classes that use this mixin must:
+    - subclass `GenericEditorPresenter`
+    - have a `view` attribute that points to an instance of `GenericEditorView`
+    - provide a GtkMenuButton widget named `map_menu_btn` that contains a
+      GtkImage widget named `map_btn_icon` within the view's widgets
+    - supply a valid string path to a mako kml template via the
+      `self.kml_template` attribute
+    - call `self.init_map_menu()`
+    - have a `model` attribute with a `geojson` attribute that returns valid a
+      geojson feature geometry part with "type" and "coordinates" keys.
+    """
+
+    def __init__(self):
+        self.kml_template = None
+
+    def on_map_copy(self, *_args):
+        # convert to JSON string and copy to clipboard
+        geojson = json.dumps(self.model.geojson)
+        if bauble.gui:
+            bauble.gui.get_display_clipboard().set_text(geojson, -1)
+
+    def on_map_paste(self, *_args):
+        if bauble.gui:
+            text = bauble.gui.get_display_clipboard().wait_for_text()
+            try:
+                geojson = json.loads(text)
+                # basic validation...
+                if not set(geojson.keys()) == {'type', 'coordinates'}:
+                    raise AttributeError
+                self.model.geojson = geojson
+                self._dirty = True
+                self.refresh_sensitivity()
+            except (AttributeError, json.JSONDecodeError) as e:
+                logger.debug('geojson paste %s(%s)', type(e).__name__, e)
+                logger.debug('geojson paste %s', text)
+                self.view.run_message_dialog(
+                    _('Paste failed, invalid geojson?')
+                )
+        self.init_map_menu()
+
+    def on_map_delete(self, *_args):
+        if self.view.run_yes_no_dialog(
+            _('Are you sure you want to delete geojson data?'), yes_delay=1
+        ):
+            self.model.geojson = None
+            self._dirty = True
+            self.refresh_sensitivity()
+            self.init_map_menu()
+
+    def on_map_kml_show(self, *_args):
+        import tempfile
+        from mako.template import Template
+        template = Template(filename=self.kml_template,
+                            input_encoding='utf-8',
+                            output_encoding='utf-8')
+        file_handle, filename = tempfile.mkstemp(suffix='.kml')
+        out = template.render(value=self.model)
+        os.write(file_handle, out)
+        os.close(file_handle)
+        try:
+            utils.desktop.open(filename)
+        except OSError:
+            self.view.run_message_dialog(
+                _('Could not open the kml file. You can open the file '
+                  'manually at %s') % filename
+            )
+
+    def init_map_menu(self):
+        menu = Gio.Menu()
+        action_name = self.model.__tablename__.lower() + '_map'
+        action_group = Gio.SimpleActionGroup()
+        menu_items = (
+            (_('Copy'), 'copy', self.on_map_copy),
+            (_('Paste'), 'paste', self.on_map_paste),
+            (_('Delete'), 'delete', self.on_map_delete),
+            (_('Show'), 'show', self.on_map_kml_show),
+        )
+        if not self.model.geojson:
+            menu_items = (menu_items[1],)
+            self.view.widgets.map_btn_icon.set_from_icon_name(
+                'location-services-disabled-symbolic', Gtk.IconSize.BUTTON
+            )
+        else:
+            self.view.widgets.map_btn_icon.set_from_icon_name(
+                'location-services-active-symbolic', Gtk.IconSize.BUTTON
+            )
+        for label, name, handler in menu_items:
+            action = Gio.SimpleAction.new(name, None)
+            action.connect("activate", handler)
+            action_group.add_action(action)
+            menu_item = Gio.MenuItem.new(label, f'{action_name}.{name}')
+            menu.append_item(menu_item)
+
+        map_menu_btn = self.view.widgets.map_menu_btn
+        map_menu_btn.set_menu_model(menu)
+        map_menu_btn.insert_action_group(action_name, action_group)
 
 
 class ChildPresenter(GenericEditorPresenter):

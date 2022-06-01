@@ -1,7 +1,7 @@
 # Copyright 2008-2010 Brett Adams
 # Copyright 2015-2017 Mario Frasca <mario@anche.no>.
 # Copyright 2017 Jardín Botánico de Quito
-# Copyright 2020-2021 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright 2020-2022 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -26,11 +26,12 @@ Defines the plant table and handled editing plants
 import os
 import traceback
 from random import random
+from pathlib import Path
 
 import logging
 logger = logging.getLogger(__name__)
 
-from gi.repository import Gtk  # noqa
+from gi.repository import Gtk
 
 from sqlalchemy import or_, and_, func, event, tuple_, not_
 from sqlalchemy import (ForeignKey, Column, Unicode, Integer, UnicodeText,
@@ -47,19 +48,22 @@ from pyparsing import (Word, removeQuotes, delimitedList, OneOrMore, oneOf,
 
 from bauble import db
 from bauble.error import CheckConditionError
-from bauble.editor import (GenericEditorView, GenericEditorPresenter,
-                           GenericModelViewPresenterEditor, NotesPresenter,
-                           PicturesPresenter)
+from bauble.editor import (GenericEditorView,
+                           GenericEditorPresenter,
+                           GenericModelViewPresenterEditor,
+                           NotesPresenter,
+                           PicturesPresenter,
+                           PresenterMapMixin)
 from bauble import meta
 from bauble import paths
-from bauble.plugins.garden.location import Location, LocationEditor
-from bauble.plugins.garden.propagation import PlantPropagation
 from bauble import prefs
 from bauble.search import SearchStrategy
 from bauble import btypes as types
 from bauble import utils
 from bauble.view import (InfoBox, InfoExpander, PropertiesExpander,
                          LinksExpander, select_in_search_results, Action)
+from .location import Location, LocationEditor
+from .propagation import PlantPropagation
 from .accession import Accession
 
 # TODO: might be worthwhile to have a label or textview next to the
@@ -1002,7 +1006,7 @@ def acc_match_func(completion: Gtk.EntryCompletion,
     return acc_to_string_matcher(accession, key)
 
 
-class PlantEditorPresenter(GenericEditorPresenter):
+class PlantEditorPresenter(GenericEditorPresenter, PresenterMapMixin):
 
     widget_to_field_map = {'plant_code_entry': 'code',
                            'plant_acc_entry': 'accession',
@@ -1150,6 +1154,8 @@ class PlantEditorPresenter(GenericEditorPresenter):
         self.history_expanded = False
 
         self.init_changes_history_view()
+        self.kml_template = str(Path(__file__).resolve().parent / 'plant.kml')
+        self.init_map_menu()
 
     def acc_get_completions(self, text):
         text = text.lower()

@@ -21,11 +21,12 @@ Location table definition and related
 """
 import os
 import traceback
+from pathlib import Path
 
 import logging
 logger = logging.getLogger(__name__)
 
-from gi.repository import Gtk  # noqa
+from gi.repository import Gtk
 
 from sqlalchemy import Column, Unicode, UnicodeText
 from sqlalchemy.orm import relationship, backref, validates, deferred
@@ -38,7 +39,8 @@ from bauble import btypes as types
 from bauble.editor import (GenericModelViewPresenterEditor,
                            GenericEditorView,
                            GenericEditorPresenter,
-                           StringOrNoneValidator)
+                           StringOrNoneValidator,
+                           PresenterMapMixin)
 from bauble import utils
 from bauble import paths
 from bauble import editor
@@ -258,7 +260,7 @@ class LocationEditorView(GenericEditorView):
         self.widgets.loc_next_button.set_sensitive(sensitive)
 
 
-class LocationEditorPresenter(GenericEditorPresenter):
+class LocationEditorPresenter(GenericEditorPresenter, PresenterMapMixin):
 
     widget_to_field_map = {'loc_name_entry': 'name',
                            'loc_code_entry': 'code',
@@ -305,6 +307,8 @@ class LocationEditorPresenter(GenericEditorPresenter):
                                  on_location_select)
         self.view.connect('loc_merge_button', 'clicked',
                           self.on_loc_merge_button_clicked)
+        self.kml_template = str(Path(__file__).resolve().parent / 'loc.kml')
+        self.init_map_menu()
 
     def on_loc_merge_button_clicked(self, _entry, *_args):
         entry_widget = self.view.widgets.loc_merge_entry
