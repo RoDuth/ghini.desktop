@@ -250,8 +250,9 @@ class Geography(db.Base):
             parent_ids = [i[0] for i in child_id]
             ids.update(parent_ids)
 
-        return (session.query(SpeciesDistribution.id)
+        return (session.query(SpeciesDistribution.species_id)
                 .filter(SpeciesDistribution.geography_id.in_(ids))
+                .distinct()
                 .count())
 
 
