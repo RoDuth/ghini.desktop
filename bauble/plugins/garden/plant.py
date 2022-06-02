@@ -60,6 +60,7 @@ from bauble import prefs
 from bauble.search import SearchStrategy
 from bauble import btypes as types
 from bauble import utils
+from bauble.utils.geo import KMLMapCallbackFunctor
 from bauble.view import (InfoBox, InfoExpander, PropertiesExpander,
                          LinksExpander, select_in_search_results, Action)
 from .location import Location, LocationEditor
@@ -129,9 +130,13 @@ def remove_callback(plants):
     return True
 
 
+map_kml_callback = KMLMapCallbackFunctor(str(Path(__file__).resolve().parent /
+                                             'plant.kml'))
+
+
 edit_action = Action('plant_edit', _('_Edit'),
                      callback=edit_callback,
-                     accelerator='<ctrl>e', multiselect=True)
+                     accelerator='<ctrl>e')
 
 branch_action = Action('plant_branch', _('_Split'),
                        callback=branch_callback,
@@ -141,8 +146,13 @@ remove_action = Action('plant_remove', _('_Delete'),
                        callback=remove_callback,
                        accelerator='<ctrl>Delete', multiselect=True)
 
-plant_context_menu = [
-    edit_action, branch_action, remove_action, ]
+map_action = Action('plant_map',
+                    _('Show in _map'),
+                    callback=map_kml_callback,
+                    accelerator='<ctrl>m',
+                    multiselect=True)
+
+plant_context_menu = [edit_action, branch_action, remove_action, map_action]
 
 
 def get_next_code(acc):

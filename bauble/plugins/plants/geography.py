@@ -35,10 +35,26 @@ from sqlalchemy import select, Column, Unicode, String, Integer, ForeignKey
 from sqlalchemy.orm import object_session, relationship, backref, deferred
 
 from bauble import db, utils
+from bauble.utils.geo import KMLMapCallbackFunctor
 from bauble import btypes as types
 
-from bauble.view import (InfoBox, InfoExpander, select_in_search_results,
-                         PropertiesExpander)
+from bauble.view import (InfoBox,
+                         InfoExpander,
+                         select_in_search_results,
+                         PropertiesExpander,
+                         Action)
+
+
+map_kml_callback = KMLMapCallbackFunctor(str(Path(__file__).resolve().parent /
+                                             'geo.kml'))
+
+map_action = Action('geo_map',
+                    _('Show in _map'),
+                    callback=map_kml_callback,
+                    accelerator='<ctrl>m',
+                    multiselect=True)
+
+geography_context_menu = [map_action]
 
 
 def get_species_in_geography(geo):

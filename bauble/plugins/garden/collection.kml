@@ -1,0 +1,61 @@
+## vim: ft=mako:fdm=marker
+<%!
+from bauble.utils import xml_safe
+from bauble import prefs
+date_frmt = prefs.prefs.get(prefs.date_format_pref)
+%>\
+<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2" xmlns:gx="http://www.google.com/kml/ext/2.2">
+  <Document>
+  <name>${xml_safe(value.source.accession)}</name>
+    <visibility>1</visibility>
+    <Placemark>
+      <name>${value.source.accession.species_str()}</name>
+      <description><![CDATA[
+        <table>
+          <tr>
+            <td>ACESSION:</td>
+            <td>${xml_safe(value.source.accession)}</td>
+          </tr>
+          % if value.collector:
+          <tr>
+            <td>COLLECTOR:</td>
+            <td>${xml_safe(value.collector)}</td>
+          </tr>
+          % endif
+          % if value.collectors_code:
+          <tr>
+            <td>COLLECTORS CODE:</td>
+            <td>${xml_safe(value.collectors_code)}</td>
+          </tr>
+          % endif
+          % if value.date:
+          <tr>
+            <td>DATE:</td>
+            <td>${value.date.strftime(date_frmt)}</td>
+          </tr>
+          % endif
+          % if value.locale:
+          <tr>
+            <td>LOCALE:</td>
+            <td>${xml_safe(value.locale)}</td>
+          </tr>
+          % endif
+          % if value.habitat:
+          <tr>
+            <td>HABITAT:</td>
+            <td>${xml_safe(value.habitat)}</td>
+          </tr>
+          % endif
+        </table>
+          ]]>
+      </description>
+      <visibility>1</visibility>
+      <Point>
+        <coordinates>
+          ${value.longitude}, ${value.latitude}
+        </coordinates>
+      </Point>
+    </Placemark>
+  </Document>
+</kml>

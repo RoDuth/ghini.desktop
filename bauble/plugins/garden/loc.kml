@@ -1,6 +1,5 @@
 ## vim: ft=mako:fdm=marker
 <%!
-from polylabel import polylabel
 from bauble.utils import xml_safe
 from bauble.utils.geo import transform
 from bauble.meta import get_default
@@ -29,7 +28,6 @@ if value.geojson and sys_crs:
   elif geojson.get('type') == 'Polygon':
     plygn = geojson.get('coordinates')
     poly = json_to_kml_poly(plygn)
-    label = polylabel(plygn, precision=0.01)
 %>\
 <?xml version="1.0" encoding="UTF-8"?>
 <kml xmlns="http://www.opengis.net/kml/2.2" xmlns:gx="http://www.google.com/kml/ext/2.2">

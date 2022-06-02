@@ -2,7 +2,7 @@
 #
 # Copyright (c) 2005-2009 Brett Adams <brett@belizebotanic.org>
 # Copyright (c) 2015 Mario Frasca <mario@anche.no>
-# Copyright (c) 2016-2021 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright (c) 2016-2022 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -37,7 +37,8 @@ package_data = {
                'images/*.bmp'],
     'bauble.utils': ['prj_crs.db'],
     'bauble.plugins.plants': ['default/*.csv',
-                              'default/wgsrpd/*.geojson'],
+                              'default/wgsrpd/*.geojson',
+                              '*.kml'],
     'bauble.plugins.garden': ['*.kml'],
     'bauble.plugins.abcd': ['*.xsd'],
     'bauble.plugins.report.mako.templates': ['*.csv', '*.html'],

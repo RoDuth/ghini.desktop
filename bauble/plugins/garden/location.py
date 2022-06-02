@@ -1,6 +1,6 @@
 # Copyright 2008-2010 Brett Adams
 # Copyright 2015 Mario Frasca <mario@anche.no>.
-# Copyright 2020-2021 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright 2020-2022 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -42,6 +42,7 @@ from bauble.editor import (GenericModelViewPresenterEditor,
                            StringOrNoneValidator,
                            PresenterMapMixin)
 from bauble import utils
+from bauble.utils.geo import KMLMapCallbackFunctor
 from bauble import paths
 from bauble import editor
 from bauble.view import Action
@@ -92,17 +93,33 @@ def remove_callback(locations):
     return True
 
 
-edit_action = Action('loc_edit', _('_Edit'),
+map_kml_callback = KMLMapCallbackFunctor(str(Path(__file__).resolve().parent /
+                                             'loc.kml'))
+
+
+edit_action = Action('loc_edit',
+                     _('_Edit'),
                      callback=edit_callback,
                      accelerator='<ctrl>e')
-add_plant_action = Action('loc_add_plant', _('_Add plants'),
+
+add_plant_action = Action('loc_add_plant',
+                          _('_Add plants'),
                           callback=add_plants_callback,
                           accelerator='<ctrl>k')
-remove_action = Action('loc_remove', _('_Delete'),
-                       callback=remove_callback,
-                       accelerator='<ctrl>Delete', multiselect=True)
 
-loc_context_menu = [edit_action, add_plant_action, remove_action]
+remove_action = Action('loc_remove',
+                       _('_Delete'),
+                       callback=remove_callback,
+                       accelerator='<ctrl>Delete',
+                       multiselect=True)
+
+map_action = Action('loc_map',
+                    _('Show in _map'),
+                    callback=map_kml_callback,
+                    accelerator='<ctrl>m',
+                    multiselect=True)
+
+loc_context_menu = [edit_action, add_plant_action, remove_action, map_action]
 
 
 def compute_serializable_fields(_cls, session, keys):

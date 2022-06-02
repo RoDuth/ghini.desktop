@@ -25,11 +25,13 @@ import os
 import traceback
 import weakref
 from random import random
+from pathlib import Path
 
 import logging
 logger = logging.getLogger(__name__)
 
 from gi.repository import Gtk
+from gi.repository import Gio
 
 from sqlalchemy import (Column,
                         Unicode,
@@ -40,9 +42,11 @@ from sqlalchemy import (Column,
 from sqlalchemy.orm import relationship, backref
 from sqlalchemy.orm.session import object_session
 
+import bauble
 from bauble import db
 from bauble import editor
 from bauble import utils
+from bauble.utils.geo import KMLMapCallbackFunctor
 from bauble import btypes as types
 from bauble import paths
 from bauble import prefs
@@ -51,7 +55,7 @@ from ..plants.geography import Geography, GeographyMenu
 
 
 def collection_edit_callback(coll):
-    from bauble.plugins.garden.accession import edit_callback
+    from .accession import edit_callback
     # TODO: set the tab to the source tab on the accession editor
     return edit_callback([coll[0].source.accession])
 
@@ -80,6 +84,38 @@ collection_remove_action = Action('collection_remove', _('_Delete'),
 
 collection_context_menu = [collection_edit_action, collection_add_plant_action,
                            collection_remove_action]
+
+
+map_kml_callback = KMLMapCallbackFunctor(str(Path(__file__).resolve().parent /
+                                             'collection.kml'))
+
+
+def map_callback(_action, _values):
+    view = bauble.gui.get_view()
+    values = view.get_selected_values()
+    map_kml_callback(values)
+
+
+def collection_context_menu_callback(selected):
+    action_name = 'collection_map'
+    # Only add actions if they have not already been added...  Adding here
+    # to wait for bauble.gui.
+    if not bauble.gui.lookup_action(action_name):
+
+        bauble.gui.add_action(action_name, map_callback)
+
+    if any(not isinstance(i, Collection) for i in selected):
+        return None
+
+    if all(i.latitude and i.longitude for i in selected):
+
+        section = Gio.Menu()
+        tag_item = Gio.MenuItem.new(_('Show in _map'),
+                                    f'win.{action_name}')
+        section.append_item(tag_item)
+
+        return section
+    return None
 
 
 class Source(db.Base):

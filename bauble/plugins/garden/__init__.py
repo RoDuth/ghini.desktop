@@ -63,7 +63,8 @@ from .source import (Source,
                      SourceDetailInfoBox,
                      source_detail_context_menu,
                      Collection,
-                     collection_context_menu)
+                     collection_context_menu,
+                     collection_context_menu_callback)
 from .institution import (Institution,
                           InstitutionCommand,
                           InstitutionTool,
@@ -174,6 +175,8 @@ class GardenPlugin(pluginmgr.Plugin):
         institution = Institution()
         if bauble.gui is not None and not institution.name:
             start_institution_editor()
+
+        SearchView.context_menu_callbacks.add(collection_context_menu_callback)
 
 
 def init_location_comboentry(presenter, combo, on_select, required=True):

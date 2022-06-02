@@ -66,7 +66,8 @@ from .species import (Species,
                       return_accepted_pref)
 from .geography import (Geography,
                         get_species_in_geography,
-                        GeographyInfoBox)
+                        GeographyInfoBox,
+                        geography_context_menu)
 from .stored_queries import StoredQueryEditorTool
 
 # imported by clients of the module
@@ -467,7 +468,9 @@ class PlantsPlugin(pluginmgr.Plugin):
         mapper_search.add_meta(('geography', 'geo'), Geography, ['name'])
         SearchView.row_meta[Geography].set(
             children=get_species_in_geography,
-            infobox=GeographyInfoBox)
+            infobox=GeographyInfoBox,
+            context_menu=geography_context_menu
+        )
 
         # now it's the turn of the DefaultView
         logger.debug('PlantsPlugin::init, registering splash info box')

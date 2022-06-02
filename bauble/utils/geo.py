@@ -1,4 +1,4 @@
-# Copyright (c) 2021 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright (c) 2021-2022 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -252,3 +252,39 @@ class ProjDB:
         cur.execute('UPDATE proj SET always_xy=? WHERE prj_text=?',
                     (int(axy), prj))
         self.con.commit()
+
+
+class KMLMapCallbackFunctor:
+    """Provides an action callback that can be instantiated with an appropriate
+    filename for a Mako kml template to generate a kml map.
+    """
+
+    def __init__(self, filename):
+        self.filename = filename
+
+    def __call__(self, values):
+        import tempfile
+        from mako.template import Template
+        from bauble import utils
+        template = Template(filename=self.filename,
+                            input_encoding='utf-8',
+                            output_encoding='utf-8')
+        count = 0
+        for value in values:
+            if hasattr(value, 'geojson') and not value.geojson:
+                continue
+            file_handle, filename = tempfile.mkstemp(suffix='.kml')
+            out = template.render(value=value)
+            os.write(file_handle, out)
+            os.close(file_handle)
+            count += 1
+            try:
+                utils.desktop.open(filename)
+            except OSError:
+                utils.message_dialog(
+                    _('Could not open the kml file. It can be found here %s') %
+                    filename
+                )
+                break
+        if count == 0:
+            utils.message_dialog(_('No map data for selected items.'))
