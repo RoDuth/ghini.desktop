@@ -42,6 +42,7 @@ from bauble.editor import (GenericModelViewPresenterEditor,
                            StringOrNoneValidator,
                            PresenterMapMixin)
 from bauble import utils
+from bauble import prefs
 from bauble.utils.geo import KMLMapCallbackFunctor
 from bauble import paths
 from bauble import editor
@@ -93,8 +94,13 @@ def remove_callback(locations):
     return True
 
 
-map_kml_callback = KMLMapCallbackFunctor(str(Path(__file__).resolve().parent /
-                                             'loc.kml'))
+LOC_KML_MAP_PREFS = 'kml_templates.location'
+"""pref for path to a custom mako kml template."""
+
+map_kml_callback = KMLMapCallbackFunctor(
+    prefs.prefs.get(LOC_KML_MAP_PREFS,
+                    str(Path(__file__).resolve().parent / 'loc.kml'))
+)
 
 
 edit_action = Action('loc_edit',
@@ -324,7 +330,10 @@ class LocationEditorPresenter(GenericEditorPresenter, PresenterMapMixin):
                                  on_location_select)
         self.view.connect('loc_merge_button', 'clicked',
                           self.on_loc_merge_button_clicked)
-        self.kml_template = str(Path(__file__).resolve().parent / 'loc.kml')
+        self.kml_template = prefs.prefs.get(
+            LOC_KML_MAP_PREFS,
+            str(Path(__file__).resolve().parent / 'loc.kml')
+        )
         self.init_map_menu()
 
     def on_loc_merge_button_clicked(self, _entry, *_args):

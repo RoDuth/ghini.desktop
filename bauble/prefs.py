@@ -259,6 +259,9 @@ class _prefs(UserDict):
         return value
 
     def __getitem__(self, key):
+        # Avoid errors when init has not been called (e.g. multiproc_counter)
+        if self.config is None:
+            return None
         if key == parse_dayfirst_pref:
             return self.dayfirst
         if key == parse_yearfirst_pref:

@@ -130,8 +130,13 @@ def remove_callback(plants):
     return True
 
 
-map_kml_callback = KMLMapCallbackFunctor(str(Path(__file__).resolve().parent /
-                                             'plant.kml'))
+PLANT_KML_MAP_PREFS = 'kml_templates.plant'
+"""pref for path to a custom mako kml template."""
+
+map_kml_callback = KMLMapCallbackFunctor(
+    prefs.prefs.get(PLANT_KML_MAP_PREFS,
+                    str(Path(__file__).resolve().parent / 'plant.kml'))
+)
 
 
 edit_action = Action('plant_edit', _('_Edit'),
@@ -1164,7 +1169,10 @@ class PlantEditorPresenter(GenericEditorPresenter, PresenterMapMixin):
         self.history_expanded = False
 
         self.init_changes_history_view()
-        self.kml_template = str(Path(__file__).resolve().parent / 'plant.kml')
+        self.kml_template = prefs.prefs.get(
+            PLANT_KML_MAP_PREFS,
+            str(Path(__file__).resolve().parent / 'plant.kml')
+        )
         self.init_map_menu()
 
     def acc_get_completions(self, text):

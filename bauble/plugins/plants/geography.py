@@ -35,6 +35,7 @@ from sqlalchemy import select, Column, Unicode, String, Integer, ForeignKey
 from sqlalchemy.orm import object_session, relationship, backref, deferred
 
 from bauble import db, utils
+from bauble import prefs
 from bauble.utils.geo import KMLMapCallbackFunctor
 from bauble import btypes as types
 
@@ -45,8 +46,13 @@ from bauble.view import (InfoBox,
                          Action)
 
 
-map_kml_callback = KMLMapCallbackFunctor(str(Path(__file__).resolve().parent /
-                                             'geo.kml'))
+GEO_KML_MAP_PREFS = 'kml_templates.geography'
+"""pref for path to a custom mako kml template."""
+
+map_kml_callback = KMLMapCallbackFunctor(
+    prefs.prefs.get(GEO_KML_MAP_PREFS,
+                    str(Path(__file__).resolve().parent / 'geo.kml'))
+)
 
 map_action = Action('geo_map',
                     _('Show in _map'),

@@ -85,9 +85,13 @@ collection_remove_action = Action('collection_remove', _('_Delete'),
 collection_context_menu = [collection_edit_action, collection_add_plant_action,
                            collection_remove_action]
 
+PLANT_KML_MAP_PREFS = 'kml_templates.collection'
+"""pref for path to a custom mako kml template."""
 
-map_kml_callback = KMLMapCallbackFunctor(str(Path(__file__).resolve().parent /
-                                             'collection.kml'))
+map_kml_callback = KMLMapCallbackFunctor(
+    prefs.prefs.get(PLANT_KML_MAP_PREFS,
+                    str(Path(__file__).resolve().parent / 'collection.kml'))
+)
 
 
 def map_callback(_action, _values):
