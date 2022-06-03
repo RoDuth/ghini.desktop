@@ -22,6 +22,7 @@
 Source and associated tables, etc.
 """
 import os
+import re
 import traceback
 import weakref
 from random import random
@@ -92,6 +93,12 @@ map_kml_callback = KMLMapCallbackFunctor(
     prefs.prefs.get(PLANT_KML_MAP_PREFS,
                     str(Path(__file__).resolve().parent / 'collection.kml'))
 )
+
+lat_re = re.compile(r"[SN]{0,1}[ ]{0,1}([0-9]{1,3})°\s*([0-9]{1,2})'\s*"
+                    r"([0-9]{1,2}\.*[0-9]*)\"")
+
+long_re = re.compile(r"[EW]{0,1}[ ]{0,1}([0-9]{1,3})°\s*([0-9]{1,2})'\s*"
+                     r"([0-9]{1,2}\.*[0-9]*)\"")
 
 
 def map_callback(_action, _values):
@@ -585,12 +592,15 @@ class CollectionPresenter(editor.ChildPresenter):
             if text != '' and text is not None:
                 north_radio = self.view.widgets.north_radio
                 north_radio.handler_block(self.north_toggle_signal_id)
-                if text[0] == '-':
+                if text[0] in ['-', 'S'] or text[-1] == 'S':
                     self.view.widgets.south_radio.set_active(True)
                 else:
                     north_radio.set_active(True)
                 north_radio.handler_unblock(self.north_toggle_signal_id)
                 direction = self._get_lat_direction()
+                if match := lat_re.match(text):
+                    text = ' '.join(match.groups())
+
                 latitude = CollectionPresenter._parse_lat_lon(direction, text)
                 direct, degs, mins, secs = latitude_to_dms(latitude)
                 dms_string = f'{direct} {degs}°{mins}\'{secs}"'
@@ -617,12 +627,15 @@ class CollectionPresenter(editor.ChildPresenter):
             if text != '' and text is not None:
                 east_radio = self.view.widgets.east_radio
                 east_radio.handler_block(self.east_toggle_signal_id)
-                if text[0] == '-':
+                if text[0] in ['-', 'W'] or text[-1] == 'W':
                     self.view.widgets.west_radio.set_active(True)
                 else:
                     self.view.widgets.east_radio.set_active(True)
                 east_radio.handler_unblock(self.east_toggle_signal_id)
                 direction = self._get_lon_direction()
+                if match := long_re.match(text):
+                    text = ' '.join(match.groups())
+
                 longitude = CollectionPresenter._parse_lat_lon(direction, text)
                 direct, degs, mins, secs = longitude_to_dms(longitude)
                 dms_string = f'{direct} {degs}°{mins}\'{secs}"'
