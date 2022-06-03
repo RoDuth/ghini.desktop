@@ -57,8 +57,7 @@ from ..plants.geography import Geography, GeographyMenu
 
 def collection_edit_callback(coll):
     from .accession import edit_callback
-    # TODO: set the tab to the source tab on the accession editor
-    return edit_callback([coll[0].source.accession])
+    return edit_callback([coll[0].source.accession], page=1)
 
 
 def collection_add_plants_callback(coll):

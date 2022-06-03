@@ -158,8 +158,10 @@ def generic_taxon_add_action(model, view, presenter, top_presenter,
         logger.debug('new taxon not added after request from AccessionEditor')
 
 
-def edit_callback(accessions):
-    return AccessionEditor(model=accessions[0]).start()
+def edit_callback(accessions, page=0):
+    acc_editor = AccessionEditor(model=accessions[0])
+    acc_editor.presenter.view.widgets.notebook.set_current_page(page)
+    return acc_editor.start()
 
 
 def add_plants_callback(accessions):
