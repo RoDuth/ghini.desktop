@@ -1858,6 +1858,8 @@ class GeneralPlantExpander(InfoExpander):
 class ChangesExpander(InfoExpander):
     """ChangesExpander"""
 
+    expanded_pref = 'infobox.plant.changes.expanded'
+
     def __init__(self, widgets):
         super().__init__(_('Changes'), widgets)
         self.add_change_grid()
@@ -1869,10 +1871,12 @@ class ChangesExpander(InfoExpander):
         self.vbox.pack_start(self.change_grid, False, False, 0)
 
     def update(self, row):
+        self.reset()
         self.vbox.remove(self.change_grid)
         self.add_change_grid()
         if not row.changes:
             return
+        self.set_sensitive(True)
 
         on_clicked = utils.generate_on_clicked(select_in_search_results)
 
@@ -1956,6 +1960,8 @@ class ChangesExpander(InfoExpander):
 class PropagationExpander(InfoExpander):
     """Propagation Expander"""
 
+    expanded_pref = 'infobox.plant.proagations.expanded'
+
     def __init__(self, widgets):
         super().__init__(_('Propagations'), widgets)
         self.add_prop_grid()
@@ -1967,10 +1973,12 @@ class PropagationExpander(InfoExpander):
         self.vbox.pack_start(self.prop_grid, False, False, 0)
 
     def update(self, row):
+        self.reset()
         self.vbox.remove(self.prop_grid)
         self.add_prop_grid()
         if not row.propagations:
             return
+        self.set_sensitive(True)
         frmt = prefs.prefs[prefs.date_format_pref]
         count = 0
 
@@ -2028,8 +2036,8 @@ class PlantInfoBox(InfoBox):
         self.general = GeneralPlantExpander(self.widgets)
         self.add_expander(self.general)
 
-        self.transfers = ChangesExpander(self.widgets)
-        self.add_expander(self.transfers)
+        self.changes = ChangesExpander(self.widgets)
+        self.add_expander(self.changes)
 
         self.propagations = PropagationExpander(self.widgets)
         self.add_expander(self.propagations)
@@ -2042,7 +2050,13 @@ class PlantInfoBox(InfoBox):
 
     def update(self, row):
         self.general.update(row)
-        self.transfers.update(row)
+        self.changes.update(row)
+
+        if row.propagations:
+            self.propagations.set_sensitive(True)
+        else:
+            self.propagations.set_sensitive(False)
+
         self.propagations.update(row)
 
         self.links.update(row)

@@ -867,7 +867,6 @@
           <object class="GtkBox" id="sp_synonyms_box">
             <property name="visible">True</property>
             <property name="can-focus">False</property>
-            <property name="border-width">5</property>
             <property name="orientation">vertical</property>
             <child>
               <placeholder/>

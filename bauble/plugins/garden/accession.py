@@ -52,8 +52,12 @@ from bauble import paths
 from bauble import prefs
 from bauble import btypes as types
 from bauble import utils
-from bauble.view import (InfoBox, InfoExpander, LinksExpander,
-                         PropertiesExpander, select_in_search_results, Action)
+from bauble.view import (InfoBox,
+                         InfoExpander,
+                         LinksExpander,
+                         PropertiesExpander,
+                         select_in_search_results,
+                         Action)
 from bauble.utils import safe_int
 from ..plants.species_editor import (species_cell_data_func,
                                      species_match_func,
@@ -2636,11 +2640,31 @@ class GeneralAccessionExpander(InfoExpander):
 
 
 class SourceExpander(InfoExpander):
+
+    expanded_pref = 'infobox.accession.source.expanded'
+
     def __init__(self, widgets):
         super().__init__(_('Source'), widgets)
         source_box = self.widgets.source_box
         self.widgets.source_window.remove(source_box)
         self.vbox.pack_start(source_box, True, True, 0)
+
+        self.source_detail_widgets = [self.widgets.source_name_label,
+                                      self.widgets.source_name_data]
+        self.source_code_widgets = [self.widgets.sources_code_data,
+                                    self.widgets.sources_code_label]
+        self.plt_prop_widgets = [self.widgets.parent_plant_label,
+                                 self.widgets.parent_plant_eventbox]
+        self.prop_widgets = [self.widgets.propagation_label,
+                             self.widgets.propagation_data]
+        self.collection_widgets = [self.widgets.collection_expander,
+                                   self.widgets.collection_seperator]
+
+        self.display_widgets = [*self.source_detail_widgets,
+                                *self.source_code_widgets,
+                                *self.plt_prop_widgets,
+                                *self.prop_widgets,
+                                *self.collection_widgets]
 
     def update_collection(self, collection):
         self.widget_set_value('loc_data', collection.locale)
@@ -2680,16 +2704,15 @@ class SourceExpander(InfoExpander):
         self.widget_set_value('collnotes_data', collection.notes)
 
     def update(self, row):
-        if not row.source:
-            self.props.expanded = False
-            self.props.sensitive = False
+        self.reset()
+
+        if row.source:
+            self.set_sensitive(True)
+        else:
             return
 
-        source_detail_widgets = [self.widgets.source_name_label,
-                                 self.widgets.source_name_data]
-
         if row.source.source_detail:
-            utils.unhide_widgets(source_detail_widgets)
+            utils.unhide_widgets(self.source_detail_widgets)
             self.widget_set_value('source_name_data',
                                   utils.nstr(row.source.source_detail))
 
@@ -2697,87 +2720,91 @@ class SourceExpander(InfoExpander):
             utils.make_label_clickable(self.widgets.source_name_data,
                                        on_clicked,
                                        row.source.source_detail)
-        else:
-            utils.hide_widgets(source_detail_widgets)
 
         sources_code = ''
 
-        source_code_widgets = [self.widgets.sources_code_data,
-                               self.widgets.sources_code_label]
         if row.source.sources_code:
-            utils.unhide_widgets(source_code_widgets)
+            utils.unhide_widgets(self.source_code_widgets)
             sources_code = row.source.sources_code
             self.widget_set_value('sources_code_data', str(sources_code))
-        else:
-            utils.hide_widgets(source_code_widgets)
 
-        plt_prop_widgets = [self.widgets.parent_plant_label,
-                            self.widgets.parent_plant_eventbox]
         prop_str = ''
         if row.source.plant_propagation:
-            utils.unhide_widgets(plt_prop_widgets)
+            utils.unhide_widgets(self.plt_prop_widgets)
             self.widget_set_value('parent_plant_data',
                                   str(row.source.plant_propagation.plant))
             prop_str = row.source.plant_propagation.get_summary(partial=2)
-        else:
-            utils.hide_widgets(plt_prop_widgets)
 
         if row.source.propagation:
             prop_str = row.source.propagation.get_summary()
 
         self.widget_set_value('propagation_data', prop_str)
-        prop_widgets = [self.widgets.propagation_label,
-                        self.widgets.propagation_data]
-        if prop_str:
-            utils.unhide_widgets(prop_widgets)
-        else:
-            utils.hide_widgets(prop_widgets)
 
-        collection_widgets = [self.widgets.collection_expander,
-                              self.widgets.collection_seperator]
+        if prop_str:
+            utils.unhide_widgets(self.prop_widgets)
 
         if row.source.collection:
-            utils.unhide_widgets(collection_widgets)
+            utils.unhide_widgets(self.collection_widgets)
             self.widgets.collection_expander.set_expanded(True)
             self.update_collection(row.source.collection)
-        else:
-            utils.hide_widgets(collection_widgets)
 
 
-# TODO implement
 class VerificationsExpander(InfoExpander):
     """the accession's verifications"""
 
+    expanded_pref = 'infobox.accession.verifications.expanded'
+
     def __init__(self, widgets):
         super().__init__(_("Verifications"), widgets)
-        # notes_box = self.widgets.notes_box
-        # self.widgets.notes_window.remove(notes_box)
-        # self.vbox.pack_start(notes_box, True, True, 0)
 
     def update(self, row):
-        pass
-        # self.widget_set_value('notes_data', row.notes)
+        self.reset()
+
+        for kid in self.vbox.get_children():
+            self.vbox.remove(kid)
+
+        if row.verifications:
+            self.set_sensitive(True)
+        else:
+            return
+
+        frmt = prefs.prefs[prefs.date_format_pref]
+        for ver in sorted(row.verifications,
+                          key=lambda v: v.date,
+                          reverse=True):
+            date = ver.date.strftime(frmt)
+            date_lbl = Gtk.Label()
+            date_lbl.set_markup(f'<b>{date}</b>')
+            date_lbl.set_xalign(0.0)
+            date_lbl.set_yalign(0.5)
+            self.vbox.pack_start(date_lbl, True, True, 0)
+            label = Gtk.Label()
+            string = (f'verified as {ver.species.markup()} by {ver.verifier}')
+            label.set_markup(string)
+            label.set_xalign(0.0)
+            label.set_yalign(0.5)
+            self.vbox.pack_start(label, True, True, 0)
+            label.show()
 
 
-# TODO implement
 class VouchersExpander(InfoExpander):
     """the accession's vouchers"""
+
+    expanded_pref = 'infobox.accession.vouchers.expanded'
 
     def __init__(self, widgets):
         super().__init__(_("Vouchers"), widgets)
 
     def update(self, row):
+        self.reset()
+
         for kid in self.vbox.get_children():
             self.vbox.remove(kid)
 
-        if not row.vouchers:
-            self.set_expanded(False)
-            self.set_sensitive(False)
+        if row.vouchers:
+            self.set_sensitive(True)
+        else:
             return
-
-        # TODO: should save/restore the expanded state of the vouchers
-        self.set_expanded(True)
-        self.set_sensitive(True)
 
         parents = [v for v in row.vouchers if v.parent_material]
         for voucher in parents:
@@ -2813,11 +2840,10 @@ class AccessionInfoBox(InfoBox):
         self.source = SourceExpander(self.widgets)
         self.add_expander(self.source)
 
-        # TODO implement
-        # self.vouchers = VouchersExpander(self.widgets)
-        # self.add_expander(self.vouchers)
-        # self.verifications = VerificationsExpander(self.widgets)
-        # self.add_expander(self.verifications)
+        self.vouchers = VouchersExpander(self.widgets)
+        self.add_expander(self.vouchers)
+        self.verifications = VerificationsExpander(self.widgets)
+        self.add_expander(self.verifications)
 
         self.links = LinksExpander('notes')
         self.add_expander(self.links)
@@ -2832,22 +2858,12 @@ class AccessionInfoBox(InfoBox):
         self.general.update(row)
         self.props.update(row)
 
-        # if row.verifications:
-        #     self.verifications.update(row)
-        # self.verifications.set_expanded(row.verifications != None)
-        # self.verifications.set_sensitive(row.verifications != None)
+        self.verifications.update(row)
 
-        # self.vouchers.update(row)
+        self.vouchers.update(row)
 
         self.links.update(row)
 
-        # TODO: should test if the source should be expanded from the prefs
-        expanded = prefs.prefs.get('acc_source_expander', True)
-        self.source.props.expanded = expanded
-        if row.source:
-            self.source.set_sensitive(True)
-        else:
-            self.source.set_sensitive(False)
         self.source.update(row)
 
 

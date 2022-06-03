@@ -36,7 +36,9 @@ from bauble import db
 
 from bauble import pluginmgr
 from bauble import utils
-from bauble.view import (InfoBox, InfoBoxPage, InfoExpander,
+from bauble.view import (InfoBox,
+                         InfoBoxPage,
+                         InfoExpander,
                          select_in_search_results)
 from bauble import search
 from bauble.view import PropertiesExpander, Action
@@ -235,47 +237,46 @@ class SynonymSearch(search.SearchStrategy):
         return results
 
 
-#
-# Species infobox for SearchView
-#
 class VernacularExpander(InfoExpander):
-    """
-    VernacularExpander
+    """VernacularExpander
 
     :param widgets:
     """
+
+    expanded_pref = 'infobox.species.vernacular.expanded'
+
     def __init__(self, widgets):
         super().__init__(_("Vernacular names"), widgets)
         vernacular_box = self.widgets.sp_vernacular_box
         self.widgets.remove_parent(vernacular_box)
         self.vbox.pack_start(vernacular_box, True, True, 0)
+        self.display_widgets = [vernacular_box]
 
     def update(self, row):
-        """
-        update the expander
+        """update the expander
 
-        :param row: the row to get thevalues from
+        :param row: the row to get the values from
         """
-        if len(row.vernacular_names) == 0:
-            self.set_sensitive(False)
-            self.set_expanded(False)
-        else:
+        self.reset()
+        if row.vernacular_names:
+            self.unhide_widgets()
             names = []
             for vernacular in row.vernacular_names:
-                if row.default_vernacular_name is not None \
-                        and vernacular == row.default_vernacular_name:
-                    names.insert(0, '%s - %s (default)' %
-                                 (vernacular.name, vernacular.language))
+                if (row.default_vernacular_name is not None and
+                        vernacular == row.default_vernacular_name):
+                    names.insert(
+                        0,
+                        f'{vernacular.name} - {vernacular.language} (default)'
+                    )
                 else:
-                    names.append('%s - %s' %
-                                 (vernacular.name, vernacular.language))
+                    names.append(f'{vernacular.name} - {vernacular.language}')
             self.widget_set_value('sp_vernacular_data', '\n'.join(names))
             self.set_sensitive(True)
-            # TODO: get expanded state from prefs
-            self.set_expanded(True)
 
 
 class SynonymsExpander(InfoExpander):
+
+    expanded_pref = 'infobox.species.synonyms.expanded'
 
     def __init__(self, widgets):
         super().__init__(_("Synonyms"), widgets)
@@ -288,19 +289,14 @@ class SynonymsExpander(InfoExpander):
 
         :param row: the row to get the values from
         """
+        self.reset()
         syn_box = self.widgets.sp_synonyms_box
         # remove old labels
         syn_box.foreach(syn_box.remove)
         logger.debug(row.synonyms)
-        session = object_session(row)
-        syn = session.query(SpeciesSynonym).filter(
-            SpeciesSynonym.synonym_id == row.id).first()
-        accepted = syn and syn.species
-        logger.debug("species %s is synonym of %s and has synonyms %s",
-                     row, accepted, row.synonyms)
         self.set_label(_("Synonyms"))  # reset default value
         on_label_clicked = utils.generate_on_clicked(select_in_search_results)
-        if accepted is not None:
+        if row.accepted is not None:
             self.set_label(_("Accepted name"))
             # create clickable label that will select the synonym
             # in the search results
@@ -308,19 +304,13 @@ class SynonymsExpander(InfoExpander):
             label = Gtk.Label()
             label.set_xalign(0.0)
             label.set_yalign(0.5)
-            label.set_markup(accepted.str(markup=True, authors=True))
+            label.set_markup(row.accepted.str(markup=True, authors=True))
             box.add(label)
-            utils.make_label_clickable(label, on_label_clicked, accepted)
+            utils.make_label_clickable(label, on_label_clicked, row.accepted)
             syn_box.pack_start(box, False, False, 0)
             self.show_all()
             self.set_sensitive(True)
-            self.set_expanded(True)
-        elif len(row.synonyms) == 0:
-            self.set_sensitive(False)
-            self.set_expanded(False)
-        else:
-            # remove all the children
-            syn_box.foreach(syn_box.remove)
+        elif row.synonyms:
             for syn in row.synonyms:
                 # create clickable label that will select the synonym
                 # in the search results
@@ -334,8 +324,6 @@ class SynonymsExpander(InfoExpander):
                 syn_box.pack_start(box, False, False, 0)
             self.show_all()
             self.set_sensitive(True)
-            # TODO: get expanded state from prefs
-            self.set_expanded(True)
 
 
 class GeneralSpeciesExpander(InfoExpander):
@@ -351,15 +339,15 @@ class GeneralSpeciesExpander(InfoExpander):
 
         self.current_obj = None
 
-        def on_nacc_clicked(*args):
-            cmd = 'accession where species.id=%s' % self.current_obj.id
+        def on_nacc_clicked(*_args):
+            cmd = f'accession where species.id={self.current_obj.id}'
             bauble.gui.send_command(cmd)
 
         utils.make_label_clickable(self.widgets.sp_nacc_data,
                                    on_nacc_clicked)
 
-        def on_nplants_clicked(*args):
-            cmd = 'plant where accession.species.id=%s' % self.current_obj.id
+        def on_nplants_clicked(*_args):
+            cmd = f'plant where accession.species.id={self.current_obj.id}'
             bauble.gui.send_command(cmd)
 
         utils.make_label_clickable(self.widgets.sp_nplants_data,

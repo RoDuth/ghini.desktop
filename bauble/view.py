@@ -145,6 +145,7 @@ class InfoExpander(Gtk.Expander):
         self.vbox.set_border_width(5)
         self.add(self.vbox)
         self.widgets = widgets
+        self.display_widgets = []
         if not self.expanded_pref:
             self.set_expanded(True)
         self.connect("notify::expanded", self.on_expanded)
@@ -159,14 +160,28 @@ class InfoExpander(Gtk.Expander):
         utils.set_widget_value(self.widgets[widget_name], value,
                                markup, default)
 
+    def unhide_widgets(self):
+        utils.unhide_widgets(self.display_widgets)
+
+    def reset(self):
+        """Hide `display_widgets`, set set sensitive False and restore expanded
+        state.
+        """
+        if self.display_widgets:
+            utils.hide_widgets(self.display_widgets)
+        self.set_sensitive(False)
+        self.set_expanded(prefs.prefs.get(self.expanded_pref, True))
+
     def update(self, row):
-        """This method should be implemented by classes that extend
-        InfoExpander
+        """This method should be implimented in subclass to update from the
+        selected row
         """
         raise NotImplementedError("InfoExpander.update(): not implemented")
 
 
 class PropertiesExpander(InfoExpander):
+
+    expanded_pref = 'infobox.generic.properties.expanded'
 
     def __init__(self):
         super().__init__(_('Properties'))
@@ -224,6 +239,7 @@ class PropertiesExpander(InfoExpander):
 
     def update(self, row):
         """"Update the widget in the expander."""
+        self.set_expanded(prefs.prefs.get(self.expanded_pref, True))
         self.id_data.set_text(str(row.id))
         self.type_data.set_text(str(type(row).__name__))
         fmat = prefs.prefs.get(prefs.datetime_format_pref)
@@ -348,6 +364,8 @@ class InfoBox(Gtk.Notebook):
 
 class LinksExpander(InfoExpander):
 
+    expanded_pref = 'infobox.generic.links.expanded'
+
     def __init__(self, notes=None, links=None):
         """
         :param notes: the name of the notes property on the row
@@ -371,6 +389,7 @@ class LinksExpander(InfoExpander):
                              type(e).__name__, e)
 
     def update(self, row):
+        self.set_expanded(prefs.prefs.get(self.expanded_pref, True))
         hide = True
         separator = False
         for btn in self.buttons:

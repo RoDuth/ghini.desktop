@@ -767,11 +767,10 @@ class SynonymsExpander(InfoExpander):
 
         :param row: the row to get thevalues from
         """
+        self.reset()
         syn_box = self.widgets.fam_synonyms_box
         # remove old labels
         syn_box.foreach(syn_box.remove)
-        # use True comparison in case the preference isn't set
-        self.set_expanded(prefs.prefs[self.expanded_pref] is True)
         logger.debug("family %s is synonym of %s and has synonyms %s", row,
                      row.accepted, row.synonyms)
         self.set_label(_("Synonyms"))  # reset default value
@@ -790,9 +789,7 @@ class SynonymsExpander(InfoExpander):
             syn_box.pack_start(box, False, False, 0)
             self.show_all()
             self.set_sensitive(True)
-        elif len(row.synonyms) == 0:
-            self.set_sensitive(False)
-        else:
+        elif row.synonyms:
             for syn in row.synonyms:
                 # create clickable label that will select the synonym
                 # in the search results
