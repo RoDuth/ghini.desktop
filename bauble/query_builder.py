@@ -372,7 +372,7 @@ class ExpressionRow:
         self.presenter.validate()
 
     def get_set_value_widget(self):
-        logger.debug('proptype = %s', self.proptype)
+        logger.debug('proptype = %s', type(self.proptype))
         if isinstance(self.proptype, bauble.btypes.Enum):
             return self.set_enum_widget
         if isinstance(self.proptype, Integer):
