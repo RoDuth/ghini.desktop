@@ -501,13 +501,12 @@ class CollectionPresenter(editor.ChildPresenter):
         lon_text = entry.get_text()
         if lon_text == '':
             return
-
         try:
             # make sure that the first part of the string is a number before
             # toggling
             float(lon_text.split(' ')[0])
-        except TypeError as e:
-            logger.debug("%s(%s)", type(e), e)
+        except (TypeError, ValueError) as e:
+            logger.debug("%s(%s)", type(e).__name__, e)
             return
 
         if direction == 'W' and lon_text[0] != '-':
@@ -526,7 +525,7 @@ class CollectionPresenter(editor.ChildPresenter):
             # make sure that the first part of the string is a number before
             # toggling
             float(lat_text.split(' ')[0])
-        except TypeError as e:
+        except (TypeError, ValueError) as e:
             logger.debug("%s(%s)", type(e).__name__, e)
             return
 
