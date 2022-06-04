@@ -16,10 +16,10 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
-#
-# Description: a collection of functions and abstract classes for creating
-# editors for Ghini data
-#
+"""
+Description: a collection of functions and abstract classes for creating
+editors
+"""
 
 import datetime
 import os

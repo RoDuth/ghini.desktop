@@ -16,9 +16,9 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
-#
-# Species table definition
-#
+"""
+Species table definition
+"""
 
 import os
 import traceback
@@ -76,8 +76,8 @@ def generic_sp_get_completions(session: Session,
     from bauble.utils import ilike
     query = query.filter(
         and_(Species.genus_id == Genus.id,
-             or_(ilike(Genus.genus, '%s%%' % text),
-                 ilike(Genus.genus, '%s%%' % genus)))
+             or_(ilike(Genus.genus, f'%{text}%'),
+                 ilike(Genus.genus, f'%{genus}%')))
     ).order_by(Species.sp)
     return query
 
@@ -278,9 +278,9 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
         # connect signals
         def gen_get_completions(text):
             query = (self.session.query(Genus)
-                     .filter(utils.ilike(Genus.genus, '%s%%' % str(text)))
+                     .filter(utils.ilike(Genus.genus, f'%{text}%'))
                      .order_by(Genus.genus)
-                     .limit(80))    # unlikely likely to be reached.
+                     .limit(80))
             return query
 
         def sp_species_tpl_callback(found, accepted):
@@ -408,7 +408,7 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
                 kid = self.species_check_messages.pop()
                 self.view.widgets.remove_parent(kid)
 
-            binomial = '%s %s' % (self.model.genus, self.model.sp)
+            binomial = f'{self.model.genus} {self.model.sp}'
             # we need a longer timeout for the first time at least when using
             # pypac to get the proxy configuration
             logger.debug('calling AskTpl with binomial=%s', binomial)
@@ -668,6 +668,112 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
         self.dist_presenter.refresh_view()
 
 
+class InfraspRow:
+
+    def __init__(self, presenter, level):
+        self.presenter = presenter
+        self.species = presenter.model
+        grid = self.presenter.view.widgets.infrasp_grid
+        self.level = level
+
+        rank, epithet, author = self.species.get_infrasp(self.level)
+        self.new = all(i is None for i in [rank, epithet, author])
+
+        # rank combo
+        self.rank_combo = Gtk.ComboBox()
+        self.presenter.view.init_translatable_combo(
+            self.rank_combo,
+            infrasp_rank_values,
+            key=lambda x: compare_rank.get(str(x[0])))
+        utils.set_widget_value(self.rank_combo, rank)
+        presenter.view.connect(self.rank_combo, 'changed',
+                               self.on_rank_combo_changed)
+        grid.attach(self.rank_combo, 0, level, 1, 1)
+
+        # epithet entry
+        self.epithet_entry = Gtk.Entry(hexpand=True)
+        utils.set_widget_value(self.epithet_entry, epithet)
+        presenter.view.connect(self.epithet_entry, 'changed',
+                               self.on_epithet_entry_changed)
+        grid.attach(self.epithet_entry, 1, level, 1, 1)
+
+        # author entry
+        self.author_entry = Gtk.Entry(hexpand=True)
+        utils.set_widget_value(self.author_entry, author)
+        presenter.view.connect(self.author_entry, 'changed',
+                               self.on_author_entry_changed)
+        grid.attach(self.author_entry, 2, level, 1, 1)
+
+        # remove button
+        self.remove_button = Gtk.Button.new_from_icon_name(
+            'list-remove-symbolic', Gtk.IconSize.BUTTON
+        )
+        presenter.view.connect(self.remove_button, 'clicked',
+                               self.on_remove_button_clicked)
+        grid.attach(self.remove_button, 3, level, 1, 1)
+        grid.show_all()
+
+    def on_remove_button_clicked(self, _widget):
+        # remove the widgets
+        grid = self.presenter.view.widgets.infrasp_grid
+        # Not perfect but allows saving a deleted row on old entries
+        dirty = self.presenter._dirty
+        # remove the infrasp from the species and reset the levels
+        # on the remaining infrasp that have a higher level than
+        # the one being deleted
+        grid.remove(self.rank_combo)
+        grid.remove(self.epithet_entry)
+        grid.remove(self.author_entry)
+        grid.remove(self.remove_button)
+
+        self.set_model_attr('rank', None)
+        self.set_model_attr('epithet', None)
+        self.set_model_attr('author', None)
+
+        # move all the infrasp values up a level
+        for i in range(self.level + 1, 5):
+            rank, epithet, author = self.species.get_infrasp(i)
+            self.species.set_infrasp(i - 1, rank, epithet, author)
+
+        if self.new:
+            self.presenter._dirty = dirty
+        self.presenter.parent_ref().refresh_fullname_label()
+        self.presenter.parent_ref().refresh_sensitivity()
+        (self.presenter.view.widgets
+         .add_infrasp_button.props.sensitive) = True
+
+    def set_model_attr(self, attr, value):
+        infrasp_attr = Species.infrasp_attr[self.level][attr]
+        setattr(self.species, infrasp_attr, value)
+        self.presenter._dirty = True
+        self.presenter.parent_ref().refresh_fullname_label()
+        self.presenter.parent_ref().refresh_sensitivity()
+
+    def on_rank_combo_changed(self, combo):
+        logger.info("on_rank_combo_changed)")
+        model = combo.get_model()
+        itr = combo.get_active_iter()
+        value = model[itr][0]
+        if value is not None:
+            self.set_model_attr('rank', utils.nstr(model[itr][0]))
+        else:
+            self.set_model_attr('rank', None)
+
+    def on_epithet_entry_changed(self, entry):
+        logger.info("on_epithet_entry_changed")
+        value = utils.nstr(entry.props.text)
+        if not value:  # if None or ''
+            value = None
+        self.set_model_attr('epithet', value)
+
+    def on_author_entry_changed(self, entry):
+        logger.info("on_author_entry_changed")
+        value = utils.nstr(entry.props.text)
+        if not value:  # if None or ''
+            value = None
+        self.set_model_attr('author', value)
+
+
 class InfraspPresenter(editor.GenericEditorPresenter):
     def __init__(self, parent):
         """
@@ -694,7 +800,7 @@ class InfraspPresenter(editor.GenericEditorPresenter):
 
     def append_infrasp(self, _widget):
         level = len(self.table_rows) + 1
-        row = InfraspPresenter.Row(self, level)
+        row = InfraspRow(self, level)
         self.table_rows.append(row)
         if level >= 4:
             self.view.widgets.add_infrasp_button.props.sensitive = False
@@ -705,109 +811,6 @@ class InfraspPresenter(editor.GenericEditorPresenter):
         if self.table_rows:
             for row in self.table_rows:
                 row.on_remove_button_clicked(None)
-
-    class Row:
-
-        def __init__(self, presenter, level):
-            self.presenter = presenter
-            self.species = presenter.model
-            grid = self.presenter.view.widgets.infrasp_grid
-            self.level = level
-
-            rank, epithet, author = self.species.get_infrasp(self.level)
-
-            # rank combo
-            self.rank_combo = Gtk.ComboBox()
-            self.presenter.view.init_translatable_combo(
-                self.rank_combo,
-                infrasp_rank_values,
-                key=lambda x: compare_rank.get(str(x[0])))
-            utils.set_widget_value(self.rank_combo, rank)
-            presenter.view.connect(self.rank_combo, 'changed',
-                                   self.on_rank_combo_changed)
-            grid.attach(self.rank_combo, 0, level, 1, 1)
-
-            # epithet entry
-            self.epithet_entry = Gtk.Entry(hexpand=True)
-            utils.set_widget_value(self.epithet_entry, epithet)
-            presenter.view.connect(self.epithet_entry, 'changed',
-                                   self.on_epithet_entry_changed)
-            grid.attach(self.epithet_entry, 1, level, 1, 1)
-
-            # author entry
-            self.author_entry = Gtk.Entry(hexpand=True)
-            utils.set_widget_value(self.author_entry, author)
-            presenter.view.connect(self.author_entry, 'changed',
-                                   self.on_author_entry_changed)
-            grid.attach(self.author_entry, 2, level, 1, 1)
-
-            # remove button
-            self.remove_button = Gtk.Button.new_from_icon_name(
-                'list-remove-symbolic', Gtk.IconSize.BUTTON
-            )
-            presenter.view.connect(self.remove_button, 'clicked',
-                                   self.on_remove_button_clicked)
-            grid.attach(self.remove_button, 3, level, 1, 1)
-            grid.show_all()
-
-        def on_remove_button_clicked(self, _widget):
-            # remove the widgets
-            grid = self.presenter.view.widgets.infrasp_grid
-
-            # remove the infrasp from the species and reset the levels
-            # on the remaining infrasp that have a higher level than
-            # the one being deleted
-            grid.remove(self.rank_combo)
-            grid.remove(self.epithet_entry)
-            grid.remove(self.author_entry)
-            grid.remove(self.remove_button)
-
-            self.set_model_attr('rank', None)
-            self.set_model_attr('epithet', None)
-            self.set_model_attr('author', None)
-
-            # move all the infrasp values up a level
-            for i in range(self.level + 1, 5):
-                rank, epithet, author = self.species.get_infrasp(i)
-                self.species.set_infrasp(i - 1, rank, epithet, author)
-
-            self.presenter._dirty = False
-            self.presenter.parent_ref().refresh_fullname_label()
-            self.presenter.parent_ref().refresh_sensitivity()
-            (self.presenter.view.widgets
-             .add_infrasp_button.props.sensitive) = True
-
-        def set_model_attr(self, attr, value):
-            infrasp_attr = Species.infrasp_attr[self.level][attr]
-            setattr(self.species, infrasp_attr, value)
-            self.presenter._dirty = True
-            self.presenter.parent_ref().refresh_fullname_label()
-            self.presenter.parent_ref().refresh_sensitivity()
-
-        def on_rank_combo_changed(self, combo):
-            logger.info("on_rank_combo_changed)")
-            model = combo.get_model()
-            itr = combo.get_active_iter()
-            value = model[itr][0]
-            if value is not None:
-                self.set_model_attr('rank', utils.nstr(model[itr][0]))
-            else:
-                self.set_model_attr('rank', None)
-
-        def on_epithet_entry_changed(self, entry):
-            logger.info("on_epithet_entry_changed")
-            value = utils.nstr(entry.props.text)
-            if not value:  # if None or ''
-                value = None
-            self.set_model_attr('epithet', value)
-            # now warn if same binomial is already in database
-
-        def on_author_entry_changed(self, entry):
-            logger.info("on_author_entry_changed")
-            value = utils.nstr(entry.props.text)
-            if not value:  # if None or ''
-                value = None
-            self.set_model_attr('author', value)
 
 
 class DistributionPresenter(editor.GenericEditorPresenter):
@@ -1165,8 +1168,7 @@ class SynonymsPresenter(editor.GenericEditorPresenter):
         self.parent_ref().refresh_sensitivity()
 
     def on_remove_button_clicked(self, _button):
-        """
-        removes the currently selected synonym from the list of synonyms for
+        """Removes the currently selected synonym from the list of synonyms for
         this species
         """
         # TODO: maybe we should only ask 'are you sure' if the selected value
@@ -1311,7 +1313,7 @@ class SpeciesEditorView(editor.GenericEditorView):
             self.widgets[expander].set_expanded(expanded)
 
 
-class SpeciesEditorMenuItem(editor.GenericModelViewPresenterEditor):
+class SpeciesEditor(editor.GenericModelViewPresenterEditor):
 
     # these have to correspond to the response values in the view
     RESPONSE_OK_AND_ADD = 11
@@ -1387,15 +1389,15 @@ class SpeciesEditorMenuItem(editor.GenericModelViewPresenterEditor):
         more_committed = None
         if response == self.RESPONSE_NEXT:
             self.presenter.cleanup()
-            e = SpeciesEditorMenuItem(
-                Species(genus=self.model.genus), self.parent)
-            more_committed = e.start()
+            sp_editor = SpeciesEditor(Species(genus=self.model.genus),
+                                              self.parent)
+            more_committed = sp_editor.start()
         elif response == self.RESPONSE_OK_AND_ADD:
             from bauble.plugins.garden.accession import (
                 AccessionEditor, Accession)
-            e = AccessionEditor(Accession(species=self.model),
-                                parent=self.parent)
-            more_committed = e.start()
+            acc_editor = AccessionEditor(Accession(species=self.model),
+                                         parent=self.parent)
+            more_committed = acc_editor.start()
 
         if more_committed is not None:
             if isinstance(more_committed, list):
@@ -1446,8 +1448,8 @@ class SpeciesEditorMenuItem(editor.GenericModelViewPresenterEditor):
 
 
 def edit_species(model=None, parent_view=None, is_dependent_window=False):
-    kkk = SpeciesEditorMenuItem(model, parent_view, is_dependent_window)
-    kkk.start()
-    result = kkk._committed
-    del kkk
+    sp_editor = SpeciesEditor(model, parent_view, is_dependent_window)
+    sp_editor.start()
+    result = sp_editor._committed
+    del sp_editor
     return result

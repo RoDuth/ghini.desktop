@@ -439,9 +439,9 @@ class MakoFormatterPlugin(FormatterPlugin):
             msg = _('Please select a template.')
             utils.message_dialog(msg, Gtk.MessageType.WARNING)
             return False
-        template = Template(
-            filename=template_filename, input_encoding='utf-8',
-            output_encoding='utf-8')
+        template = Template(filename=template_filename,
+                            input_encoding='utf-8',
+                            output_encoding='utf-8')
 
         # make sure the options dictionary is initialized at all
         with open(template_filename) as f:

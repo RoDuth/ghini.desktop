@@ -31,18 +31,18 @@ logger = logging.getLogger(__name__)
 
 def main_is_frozen():
     """tell if running a frozen (pyinstaller) executable."""
-    return (hasattr(sys, "frozen"))
+    return hasattr(sys, "frozen")
 
 
 def main_dir():
     """Returns the path of the bauble executable."""
     if main_is_frozen():
-        d = os.path.dirname(sys.executable)
+        directory = os.path.dirname(sys.executable)
     else:
-        d = os.path.dirname(sys.argv[0])
-    if d == "":
-        d = os.curdir
-    return os.path.abspath(d)
+        directory = os.path.dirname(sys.argv[0])
+    if directory == "":
+        directory = os.curdir
+    return os.path.abspath(directory)
 
 
 def root_dir():
@@ -57,18 +57,18 @@ def root_dir():
 def lib_dir():
     """Returns the path of the bauble module."""
     if main_is_frozen():
-        d = os.path.join(main_dir(), 'bauble')
+        directory = os.path.join(main_dir(), 'bauble')
     else:
-        d = os.path.dirname(__file__)
-    return os.path.abspath(d)
+        directory = os.path.dirname(__file__)
+    return os.path.abspath(directory)
 
 
 def locale_dir():
     """Returns the root path of the locale files"""
 
     the_installation_directory = installation_dir()
-    d = os.path.join(the_installation_directory, 'share', 'locale')
-    return os.path.abspath(d)
+    directory = os.path.join(the_installation_directory, 'share', 'locale')
+    return os.path.abspath(directory)
 
 
 def installation_dir():
@@ -81,15 +81,15 @@ def installation_dir():
             index_of_lib = this_file_location.index('lib')
         except ValueError:
             index_of_lib = 0
-        d = os.path.sep.join(this_file_location[:-index_of_lib - 1])
+        directory = os.path.sep.join(this_file_location[:-index_of_lib - 1])
     elif sys.platform == 'win32':
         # main_dir is the location of the scripts, which is located in the
         # installation_dir:
-        d = main_dir()
+        directory = main_dir()
     else:
         raise NotImplementedError('This platform does not support '
-                                  'translations: %s' % sys.platform)
-    return os.path.abspath(d)
+                                  f'translations: {sys.platform}')
+    return os.path.abspath(directory)
 
 
 def appdata_dir():
@@ -121,9 +121,10 @@ def appdata_dir():
             appd = os.path.join(os.path.expanduser('~%s' % os.environ['USER']),
                                 '.bauble')
         except Exception as e:
-            raise Exception('Could not get path for user settings: '
-                            'could not expand $HOME for user %(username)s' %
-                            {'username': os.environ['USER']}) from e
+            raise Exception(
+                'Could not get path for user settings: could not expand $HOME '
+                f'for user {os.environ["USER"]}'
+            ) from e
     else:
         raise Exception('Could not get path for user settings: '
                         'unsupported platform')
@@ -149,7 +150,7 @@ def is_portable_installation():
             f.write("test")
         os.remove(test_file_name)
         return True
-    except:
+    except Exception:
         return False
 
 

@@ -53,7 +53,7 @@ from .genus import (Genus,
                     GenusNote,
                     genus_context_menu)
 from .species import (Species,
-                      SpeciesEditorMenuItem,
+                      SpeciesEditor,
                       SpeciesInfoBox,
                       SpeciesNote,
                       species_context_menu,
@@ -479,7 +479,7 @@ class PlantsPlugin(pluginmgr.Plugin):
         if bauble.gui is not None:
             bauble.gui.add_to_insert_menu(FamilyEditor, _('Family'))
             bauble.gui.add_to_insert_menu(GenusEditor, _('Genus'))
-            bauble.gui.add_to_insert_menu(SpeciesEditorMenuItem, _('Species'))
+            bauble.gui.add_to_insert_menu(SpeciesEditor, _('Species'))
 
     @staticmethod
     def on_return_syns_chkbx_toggled(widget):

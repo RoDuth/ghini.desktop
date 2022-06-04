@@ -18,6 +18,9 @@
 # You should have received a copy of the GNU General Public License
 # along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
 #
+"""
+Species modules
+"""
 
 import os
 import traceback
@@ -47,7 +50,7 @@ from bauble import prefs
 from .species_editor import (SpeciesDistribution,
                              SpeciesEditorPresenter,
                              SpeciesEditorView,
-                             SpeciesEditorMenuItem,
+                             SpeciesEditor,
                              edit_species)
 from .species_model import (Species,
                             SpeciesNote,
@@ -60,7 +63,7 @@ from .family import Family, FamilySynonym
 # imported by clients of this modules
 __all__ = [
     'SpeciesDistribution', 'SpeciesEditorPresenter', 'SpeciesEditorView',
-    'SpeciesEditorMenuItem', 'edit_species', 'DefaultVernacularName',
+    'SpeciesEditor', 'edit_species', 'DefaultVernacularName',
     'SpeciesNote'
 ]
 
@@ -137,6 +140,7 @@ remove_action = Action('species_remove', _('_Delete'),
                        accelerator='<ctrl>Delete', multiselect=True)
 
 species_context_menu = [edit_action, remove_action]
+
 vernname_context_menu = [edit_action]
 
 
@@ -430,20 +434,26 @@ class GeneralSpeciesExpander(InfoExpander):
         from bauble.plugins.garden.accession import Accession
         from bauble.plugins.garden.plant import Plant
 
-        nacc = session.query(Accession).join('species').\
-            filter_by(id=row.id).count()
+        nacc = (session.query(Accession)
+                .join('species')
+                .filter_by(id=row.id)
+                .count())
         self.widget_set_value('sp_nacc_data', nacc)
 
-        nplants = session.query(Plant).join('accession', 'species').\
-            filter_by(id=row.id).count()
+        nplants = (session.query(Plant)
+                   .join('accession', 'species')
+                   .filter_by(id=row.id)
+                   .count())
         if nplants == 0:
             self.widget_set_value('sp_nplants_data', nplants)
         else:
-            nacc_in_plants = session.query(Plant.accession_id).\
-                join('accession', 'species').\
-                filter_by(id=row.id).distinct().count()
-            self.widget_set_value('sp_nplants_data', '%s in %s accessions'
-                                  % (nplants, nacc_in_plants))
+            nacc_in_plants = (session.query(Plant.accession_id)
+                              .join('accession', 'species')
+                              .filter_by(id=row.id)
+                              .distinct()
+                              .count())
+            self.widget_set_value('sp_nplants_data',
+                                  f'{nplants} in {nacc_in_plants} accessions')
 
         living_plants = sum(i.quantity for i in
                             session.query(Plant)

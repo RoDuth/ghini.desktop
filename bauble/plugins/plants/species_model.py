@@ -619,7 +619,6 @@ class Species(db.Base, db.Serializable, db.DefiningPictures, db.WithNotes):
 
         :param authors: whether the authorship should be included
         :param genus: whether the genus name should be included
-
         """
         return self.str(authors, markup=True, genus=genus)
 
@@ -791,16 +790,18 @@ class Species(db.Base, db.Serializable, db.DefiningPictures, db.WithNotes):
                         'author': 'infrasp4_author'}}
 
     def get_infrasp(self, level):
+        """Get the 3 fields of infrasp at `level` as a tuple
+
+        :param level: 1-4
         """
-        level should be 1-4
-        """
-        return getattr(self, self.infrasp_attr[level]['rank']), \
-            getattr(self, self.infrasp_attr[level]['epithet']), \
-            getattr(self, self.infrasp_attr[level]['author'])
+        return (getattr(self, self.infrasp_attr[level]['rank']),
+                getattr(self, self.infrasp_attr[level]['epithet']),
+                getattr(self, self.infrasp_attr[level]['author']))
 
     def set_infrasp(self, level, rank, epithet, author=None):
-        """
-        level should be 1-4
+        """set the rank, epithet and author fields of infrasp at `level`
+
+        :param level: 1-4
         """
         setattr(self, self.infrasp_attr[level]['rank'], rank)
         setattr(self, self.infrasp_attr[level]['epithet'], epithet)
