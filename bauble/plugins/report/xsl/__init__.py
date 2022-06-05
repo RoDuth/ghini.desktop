@@ -435,7 +435,9 @@ class XSLFormatterPlugin(FormatterPlugin):
         # Don't use check so we can log output etc.  Errors will be picked up
         # by the lack of file
         # pylint: disable=subprocess-run-check
-        temp = str(Path(tempfile.mkstemp()[1]).with_suffix(f'.{file_ext}'))
+        handle, name = tempfile.mkstemp()
+        os.close(handle)
+        temp = str(Path(name).with_suffix(f'.{file_ext}'))
         filename = kwargs.get('out_file') or temp
         fop_out = subprocess.run(
             [*fop_cmd, '-xml', xml_filename, '-xsl', stylesheet, fop_flag,
