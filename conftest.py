@@ -18,14 +18,9 @@ import shutil
 from bauble import paths
 
 
-def pytest_sessionstart(session):
-    """Called before test."""
-    # Note this doesn't print with `pytest --cov=bauble`, haven't investigated
-    print(f'==sessionstart== tempdir: {paths.TEMPDIR}')
-
-
 def pytest_sessionfinish(session, exitstatus):
     """Called after all test have finished."""
+    print()
+    print(f'==sessionfinish== removing tempdir at {paths.TEMPDIR}')
     # Clean up tempfiles
-    print(f'===sessionfinish== removing tempdir at {paths.TEMPDIR}')
     shutil.rmtree(paths.TEMPDIR)
