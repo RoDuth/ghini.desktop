@@ -28,6 +28,13 @@ from pathlib import Path
 import logging
 logger = logging.getLogger(__name__)
 
+import tempfile
+
+TEMPDIR = tempfile.mkdtemp()
+"""global temp directory, deleted on application shutdown."""
+
+tempfile.tempdir = TEMPDIR
+
 
 def main_is_frozen():
     """tell if running a frozen (pyinstaller) executable."""

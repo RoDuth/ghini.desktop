@@ -52,6 +52,8 @@ class Application(Gtk.Application):
         if not os.path.exists(paths.appdata_dir()):
             os.makedirs(paths.appdata_dir())
         self._setup_logging()
+        # log TEMPDIR
+        logger.debug('tempdir: %s', paths.TEMPDIR)
         # initialise prefs
         prefs.prefs.init()
         # set the logging level to debug level per module as listed in prefs
@@ -226,6 +228,9 @@ class Application(Gtk.Application):
 
     def do_shutdown(self, *args, **kwargs):
         prefs.prefs.save()
+        import shutil
+        # delete global tempdir
+        shutil.rmtree(paths.TEMPDIR)
         Gtk.Application.do_shutdown(self, *args, **kwargs)
 
 
