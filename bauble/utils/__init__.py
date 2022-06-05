@@ -1719,7 +1719,6 @@ get_net_sess = NetSessionFunctor()
 
 def get_user_display_name():
     import sys
-    from bauble import db
     if sys.platform == 'win32':
         import ctypes
 
@@ -1736,7 +1735,12 @@ def get_user_display_name():
         import pwd
         fname = str(pwd.getpwuid(os.getuid())[4])
 
-    return fname or db.current_user()
+    if not fname:
+        # fall back to value of $USER
+        fname = (os.getenv('USER') or os.getenv('USERNAME') or
+                 os.getenv('LOGNAME') or os.getenv('LNAME'))
+
+    return fname
 
 
 def run_file_chooser_dialog(text, parent, action, last_folder, target):
