@@ -38,6 +38,7 @@ class PreferencesTests(BaubleTestCase):
         p.init()
         with open(pname) as f:
             self.assertEqual(f.read(), '')
+        os.close(handle)
 
     def test_assert_initial_values(self):
         handle, pname = mkstemp(suffix='.dict')
@@ -56,6 +57,7 @@ class PreferencesTests(BaubleTestCase):
         self.assertEqual(p[prefs.parse_dayfirst_pref], True)
         self.assertEqual(p[prefs.parse_yearfirst_pref], False)
         self.assertEqual(p[prefs.datetime_format_pref], '%d-%m-%Y %I:%M:%S %p')
+        os.close(handle)
 
     def test_not_saved_while_testing(self):
         prefs.testing = True
@@ -65,6 +67,7 @@ class PreferencesTests(BaubleTestCase):
         p.save()
         with open(pname) as f:
             self.assertEqual(f.read(), '')
+        os.close(handle)
 
     def test_can_force_save(self):
         prefs.testing = True
@@ -74,6 +77,7 @@ class PreferencesTests(BaubleTestCase):
         p.save(force=True)
         with open(pname) as f:
             self.assertFalse(f.read() == '')
+        os.close(handle)
 
     def test_get_does_not_store_values(self):
         handle, pname = mkstemp(suffix='.dict')
@@ -87,6 +91,7 @@ class PreferencesTests(BaubleTestCase):
         self.assertFalse('not_there_yet.2' in p)
         self.assertFalse('not_there_yet.3' in p)
         self.assertFalse('not_there_yet.4' in p)
+        os.close(handle)
 
     def test_use___setitem___to_store_value_and_create_section(self):
         handle, pname = mkstemp(suffix='.dict')
@@ -97,6 +102,7 @@ class PreferencesTests(BaubleTestCase):
         self.assertTrue('test.not_there_yet-1' in p)
         self.assertEqual(p['test.not_there_yet-1'], 'all is a ball')
         self.assertEqual(p.get('test.not_there_yet-1', 33), 'all is a ball')
+        os.close(handle)
 
     def test_most_values_converted_to_string(self):
         handle, pname = mkstemp(suffix='.dict')
@@ -106,6 +112,7 @@ class PreferencesTests(BaubleTestCase):
         p['test.not_there_yet-1'] = 1
         self.assertTrue('test.not_there_yet-1' in p)
         self.assertEqual(p['test.not_there_yet-1'], 1)
+        os.close(handle)
 
     def test_none_stays_none(self):
         # is this really useful?
@@ -114,6 +121,7 @@ class PreferencesTests(BaubleTestCase):
         p.init()
         p['test.not_there_yet-3'] = None
         self.assertEqual(p['test.not_there_yet-3'], None)
+        os.close(handle)
 
     def test_boolean_values_stay_boolean(self):
         handle, pname = mkstemp(suffix='.dict')
@@ -124,6 +132,7 @@ class PreferencesTests(BaubleTestCase):
         self.assertEqual(p['test.not_there_yet-1'], True)
         p['test.not_there_yet-2'] = False
         self.assertEqual(p['test.not_there_yet-2'], False)
+        os.close(handle)
 
     def test_saved_dictionary_like_ini_file(self):
         handle, pname = mkstemp(suffix='.dict')
@@ -137,6 +146,7 @@ class PreferencesTests(BaubleTestCase):
             content = f.read()
             self.assertTrue(content.index('not_there_yet-1 = 1') > 0)
             self.assertTrue(content.index('[test]') > 0)
+        os.close(handle)
 
     def test_generated_dayfirst_yearfirst(self):
         prefs.prefs[prefs.date_format_pref] = '%Y-%m-%d'

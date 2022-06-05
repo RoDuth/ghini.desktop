@@ -101,8 +101,9 @@ class ABCDTestCase(BaubleTestCase):
                                 notes='some notes')
         source.collection = collection
         self.session.commit()
-        _handle, filename = tempfile.mkstemp()
+        handle, filename = tempfile.mkstemp()
         abcd.ABCDExporter().start(filename)
+        os.close(handle)
 
     def test_plants_to_abcd(self):
         plants = self.session.query(Plant)
