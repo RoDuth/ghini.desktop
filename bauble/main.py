@@ -52,13 +52,15 @@ class Application(Gtk.Application):
         if not os.path.exists(paths.appdata_dir()):
             os.makedirs(paths.appdata_dir())
         self._setup_logging()
-        # log TEMPDIR
-        logger.debug('tempdir: %s', paths.TEMPDIR)
         # initialise prefs
         prefs.prefs.init()
+
         # set the logging level to debug level per module as listed in prefs
         for handler in prefs.prefs.get(prefs.debug_logging_prefs, []):
             logging.getLogger(handler).setLevel(logging.DEBUG)
+
+        # log TEMPDIR
+        logger.debug('tempdir: %s', paths.TEMPDIR)
 
         open_exc = self._get_connection()
         self._load_plugins()
