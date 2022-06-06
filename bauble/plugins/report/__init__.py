@@ -62,7 +62,6 @@ DEFAULT_CONFIG_PREF = 'report.current'
 """
 the preferences key the currently selected report.
 """
-formatter_settings_expanded_pref = 'report.settings.expanded'
 
 
 # to be populated by the dialog box, with fields mentioned in the template

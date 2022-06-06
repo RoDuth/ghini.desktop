@@ -1858,7 +1858,7 @@ class GeneralPlantExpander(InfoExpander):
 class ChangesExpander(InfoExpander):
     """ChangesExpander"""
 
-    expanded_pref = 'infobox.plant.changes.expanded'
+    EXPANDED_PREF = 'infobox.plant_changes_expanded'
 
     def __init__(self, widgets):
         super().__init__(_('Changes'), widgets)
@@ -1960,7 +1960,7 @@ class ChangesExpander(InfoExpander):
 class PropagationExpander(InfoExpander):
     """Propagation Expander"""
 
-    expanded_pref = 'infobox.plant.proagations.expanded'
+    EXPANDED_PREF = 'infobox.plant_proagations_expanded'
 
     def __init__(self, widgets):
         super().__init__(_('Propagations'), widgets)

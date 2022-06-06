@@ -446,8 +446,6 @@ from .species_editor import edit_species
 
 class GenusEditorView(editor.GenericEditorView):
 
-    syn_expanded_pref = 'editor.genus.synonyms.expanded'
-
     _tooltips = {
         'gen_family_entry': _('The family name'),
         'gen_genus_entry': _('The genus name'),
@@ -958,7 +956,7 @@ class GeneralGenusExpander(InfoExpander):
 
 class SynonymsExpander(InfoExpander):
 
-    expanded_pref = 'infobox.genus.synonyms.expanded'
+    EXPANDED_PREF = 'infobox.genus_synonyms_expanded'
 
     def __init__(self, widgets):
         super().__init__(_("Synonyms"), widgets)

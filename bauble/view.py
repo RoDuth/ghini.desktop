@@ -73,7 +73,7 @@ if sys.platform == 'win32':
 else:
     _substr_tmpl = '<small>%s</small>'
 
-INFOBOXPAGE_WIDTH_PREF = 'bauble.infoboxpage_width'
+INFOBOXPAGE_WIDTH_PREF = 'infobox.page_width'
 """The preferences key for storing the InfoBoxPage width."""
 
 SEARCH_POLL_SECS_PREF = 'bauble.search.poll_secs'
@@ -131,7 +131,7 @@ class InfoExpander(Gtk.Expander):
     """
 
     # preference for storing the expanded state
-    expanded_pref = None
+    EXPANDED_PREF = None
 
     def __init__(self, label, widgets=None):
         """
@@ -146,13 +146,13 @@ class InfoExpander(Gtk.Expander):
         self.add(self.vbox)
         self.widgets = widgets
         self.display_widgets = []
-        if not self.expanded_pref:
+        if not self.EXPANDED_PREF:
             self.set_expanded(True)
         self.connect("notify::expanded", self.on_expanded)
 
     def on_expanded(self, expander, *_args):
-        if self.expanded_pref:
-            prefs.prefs[self.expanded_pref] = expander.get_expanded()
+        if self.EXPANDED_PREF:
+            prefs.prefs[self.EXPANDED_PREF] = expander.get_expanded()
             prefs.prefs.save()
 
     def widget_set_value(self, widget_name, value, markup=False, default=None):
@@ -170,7 +170,7 @@ class InfoExpander(Gtk.Expander):
         if self.display_widgets:
             utils.hide_widgets(self.display_widgets)
         self.set_sensitive(False)
-        self.set_expanded(prefs.prefs.get(self.expanded_pref, True))
+        self.set_expanded(prefs.prefs.get(self.EXPANDED_PREF, True))
 
     def update(self, row):
         """This method should be implimented in subclass to update from the
@@ -181,7 +181,7 @@ class InfoExpander(Gtk.Expander):
 
 class PropertiesExpander(InfoExpander):
 
-    expanded_pref = 'infobox.generic.properties.expanded'
+    EXPANDED_PREF = 'infobox.generic_properties_expanded'
 
     def __init__(self):
         super().__init__(_('Properties'))
@@ -239,7 +239,7 @@ class PropertiesExpander(InfoExpander):
 
     def update(self, row):
         """"Update the widget in the expander."""
-        self.set_expanded(prefs.prefs.get(self.expanded_pref, True))
+        self.set_expanded(prefs.prefs.get(self.EXPANDED_PREF, True))
         self.id_data.set_text(str(row.id))
         self.type_data.set_text(str(type(row).__name__))
         fmat = prefs.prefs.get(prefs.datetime_format_pref)
@@ -364,7 +364,7 @@ class InfoBox(Gtk.Notebook):
 
 class LinksExpander(InfoExpander):
 
-    expanded_pref = 'infobox.generic.links.expanded'
+    EXPANDED_PREF = 'infobox.generic_links_expanded'
 
     def __init__(self, notes=None, links=None):
         """
@@ -389,7 +389,7 @@ class LinksExpander(InfoExpander):
                              type(e).__name__, e)
 
     def update(self, row):
-        self.set_expanded(prefs.prefs.get(self.expanded_pref, True))
+        self.set_expanded(prefs.prefs.get(self.EXPANDED_PREF, True))
         hide = True
         separator = False
         for btn in self.buttons:

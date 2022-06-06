@@ -2644,7 +2644,7 @@ class GeneralAccessionExpander(InfoExpander):
 
 class SourceExpander(InfoExpander):
 
-    expanded_pref = 'infobox.accession.source.expanded'
+    EXPANDED_PREF = 'infobox.accession_source_expanded'
 
     def __init__(self, widgets):
         super().__init__(_('Source'), widgets)
@@ -2755,7 +2755,7 @@ class SourceExpander(InfoExpander):
 class VerificationsExpander(InfoExpander):
     """the accession's verifications"""
 
-    expanded_pref = 'infobox.accession.verifications.expanded'
+    EXPANDED_PREF = 'infobox.accession_verifications_expanded'
 
     def __init__(self, widgets):
         super().__init__(_("Verifications"), widgets)
@@ -2793,7 +2793,7 @@ class VerificationsExpander(InfoExpander):
 class VouchersExpander(InfoExpander):
     """the accession's vouchers"""
 
-    expanded_pref = 'infobox.accession.vouchers.expanded'
+    EXPANDED_PREF = 'infobox.accession_vouchers_expanded'
 
     def __init__(self, widgets):
         super().__init__(_("Vouchers"), widgets)

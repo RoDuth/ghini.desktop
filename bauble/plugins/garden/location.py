@@ -248,7 +248,6 @@ def mergevalues(value1, value2, formatter):
 
 class LocationEditorView(GenericEditorView):
 
-    # source_expanded_pref = 'editor.accesssion.source.expanded'
     _tooltips = {
         'loc_name_entry': _('The name that you will use '
                             'later to refer to this location.'),

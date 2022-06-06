@@ -342,8 +342,6 @@ from .genus import Genus, GenusEditor
 
 class FamilyEditorView(editor.GenericEditorView):
 
-    syn_expanded_pref = 'editor.family.synonyms.expanded'
-
     _tooltips = {
         'fam_family_entry': _('The family name.'),
         'fam_qualifier_combo': _('The family qualifier helps to remove '
@@ -754,7 +752,7 @@ class GeneralFamilyExpander(InfoExpander):
 
 class SynonymsExpander(InfoExpander):
 
-    expanded_pref = 'infobox.family.synonyms.expanded'
+    EXPANDED_PREF = 'infobox.family_synonyms_expanded'
 
     def __init__(self, widgets):
         super().__init__(_("Synonyms"), widgets)

@@ -241,13 +241,14 @@ class SynonymSearch(search.SearchStrategy):
         return results
 
 
+# TODO should these and even the InfoBoxPage be Gtk.Template?
 class VernacularExpander(InfoExpander):
     """VernacularExpander
 
     :param widgets:
     """
 
-    expanded_pref = 'infobox.species.vernacular.expanded'
+    EXPANDED_PREF = 'infobox.species_vernacular_expanded'
 
     def __init__(self, widgets):
         super().__init__(_("Vernacular names"), widgets)
@@ -280,7 +281,7 @@ class VernacularExpander(InfoExpander):
 
 class SynonymsExpander(InfoExpander):
 
-    expanded_pref = 'infobox.species.synonyms.expanded'
+    EXPANDED_PREF = 'infobox.species_synonyms_expanded'
 
     def __init__(self, widgets):
         super().__init__(_("Synonyms"), widgets)
