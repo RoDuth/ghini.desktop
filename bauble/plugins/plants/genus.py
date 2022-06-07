@@ -765,9 +765,6 @@ class GenusEditor(editor.GenericModelViewPresenterEditor):
         :param model: Genus instance or None
         :param parent: None
         """
-        # the view and presenter are created in self.start()
-        self.view = None
-        self.presenter = None
         if model is None:
             model = Genus()
         super().__init__(model, parent)

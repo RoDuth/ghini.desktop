@@ -366,19 +366,16 @@ class FamilyEditorView(editor.GenericEditorView):
         self.attach_completion('fam_syn_entry')
         self.set_accept_buttons_sensitive(False)
         self.widgets.notebook.set_current_page(0)
-        self.restore_state()
 
     def get_window(self):
         return self.widgets.family_dialog
 
+    # TODO can this be removed?
     def save_state(self):
-        # prefs[self.syn_expanded_pref] = \
-        # self.widgets.fam_syn_expander.get_expanded()
         pass
 
+    # TODO can this be removed?  (was only for syn_expanded_pref)
     def restore_state(self):
-        # expanded = prefs.get(self.syn_expanded_pref, True)
-        # self.widgets.fam_syn_expander.set_expanded(expanded)
         pass
 
     def set_accept_buttons_sensitive(self, sensitive):

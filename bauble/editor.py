@@ -261,18 +261,22 @@ class GenericEditorView:
             entry.set_visibility(False)
         entry.connect("activate",
                       lambda entry: dialog.response(Gtk.ResponseType.ACCEPT))
-        dialog.vbox.pack_start(entry, True, True, 0)
+        dialog.get_content_area().pack_start(entry, True, True, 0)
         dialog.show_all()
         dialog.run()
         user_reply = entry.get_text()
         dialog.destroy()
         return user_reply
 
-    def run_message_dialog(self, msg, typ=Gtk.MessageType.INFO,
-                           buttons=Gtk.ButtonsType.OK, parent=None):
+    @staticmethod
+    def run_message_dialog(msg,
+                           typ=Gtk.MessageType.INFO,
+                           buttons=Gtk.ButtonsType.OK,
+                           parent=None):
         utils.message_dialog(msg, typ, buttons, parent)
 
-    def run_yes_no_dialog(self, msg, parent=None, yes_delay=-1):
+    @staticmethod
+    def run_yes_no_dialog(msg, parent=None, yes_delay=-1):
         return utils.yes_no_dialog(msg, parent, yes_delay)
 
     def get_selection(self):
@@ -285,7 +289,7 @@ class GenericEditorView:
             check(tree_view is not None)
         except CheckConditionError:
             self.run_message_dialog(_('Search for something first.'))
-            return
+            return None
 
         return [row[0] for row in tree_view]
 
@@ -486,7 +490,7 @@ class GenericEditorView:
     @staticmethod
     def combobox_setup(combo, values, cell_data_func):
         if values is None:
-            return
+            return None
         return utils.setup_text_combobox(combo, values, cell_data_func)
 
     def combobox_remove(self, widget, item):

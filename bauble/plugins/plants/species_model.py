@@ -1,7 +1,7 @@
 # Copyright 2008-2010 Brett Adams
 # Copyright 2012-2016 Mario Frasca <mario@anche.no>.
 # Copyright 2017 Jardín Botánico de Quito
-# Copyright 2020-2021 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright 2020-2022 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -17,6 +17,9 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
+"""
+The species database model
+"""
 
 from itertools import chain
 
@@ -83,13 +86,6 @@ infrasp_rank_values = {'subsp.': _('subsp.'),
 # or cultivar group is specificed
 
 
-# def compare_rank(rank1, rank2):
-#     'implement the binary comparison operation needed for sorting'
-
-#     ordering = ['familia', 'subfamilia', 'tribus', 'subtribus',
-#                 'genus', 'subgenus', 'species', None, 'subsp.',
-#                 'var.', 'subvar.', 'f.', 'subf.', 'cv.']
-#     return ordering.index(rank1).__cmp__(ordering.index(rank2))
 compare_rank = {
     'familia': 1,
     'subfamilia': 10,

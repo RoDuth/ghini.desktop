@@ -1,6 +1,6 @@
 # Copyright 2008-2010 Brett Adams
 # Copyright 2012-2015 Mario Frasca <mario@anche.no>.
-# Copyright 2016-2021 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright 2016-2022 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -201,6 +201,72 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
         self.create_toolbar()
         self.session = object_session(model)
         # get the starting position
+        self.capture_start_sp(model)
+
+        self._dirty = False
+        self.omonym_box = None
+        self.species_check_messages = []
+        self.genus_check_messages = []
+        self.init_fullname_widgets()
+        self.vern_presenter = VernacularNamePresenter(self)
+        self.synonyms_presenter = SynonymsPresenter(self)
+        self.dist_presenter = DistributionPresenter(self)
+        self.infrasp_presenter = InfraspPresenter(self)
+
+        notes_parent = self.view.widgets.notes_parent_box
+        notes_parent.foreach(notes_parent.remove)
+        self.notes_presenter = editor.NotesPresenter(
+            self, 'notes', notes_parent
+        )
+
+        pictures_parent = self.view.widgets.pictures_parent_box
+        pictures_parent.foreach(pictures_parent.remove)
+        self.pictures_presenter = editor.PicturesPresenter(
+            self, 'notes', pictures_parent)
+
+        self.init_enum_combo('sp_spqual_combo', 'sp_qual')
+
+        combo = self.view.widgets.sp_habit_comboentry
+        model = Gtk.ListStore(str, object)
+        for habit in self.session.query(Habit):
+            model.append((str(habit), habit))
+        utils.setup_text_combobox(combo, model)
+
+        combo.get_child().connect('changed', self.on_habit_entry_changed,
+                                  combo)
+
+        # set the model values in the widgets
+        self.refresh_view()
+
+        # connect habit comboentry widget and child entry
+        self.view.connect('sp_habit_comboentry', 'changed',
+                          self.on_habit_comboentry_changed)
+
+        # select the current genus but don't dirty the presenter
+        self.gen_on_select(self.model.genus)
+        self._dirty = False
+
+        # connect signals
+        self.view.connect('sp_species_button', "clicked",
+                          self.on_sp_species_button_clicked)
+
+        self.assign_completions_handler('sp_genus_entry',
+                                        self.gen_get_completions,
+                                        on_select=self.gen_on_select)
+        self.assign_simple_handler('sp_cvgroup_entry', 'cv_group',
+                                   editor.StringOrNoneValidator())
+        self.assign_simple_handler('sp_spqual_combo', 'sp_qual',
+                                   editor.StringOrNoneValidator())
+        self.assign_simple_handler('sp_label_dist_entry', 'label_distribution',
+                                   editor.StringOrNoneValidator())
+        self.assign_simple_handler('sp_awards_entry', 'awards',
+                                   editor.StringOrNoneValidator())
+
+        self.refresh_sensitivity()
+        if self.model not in self.session.new:
+            self.view.widgets.sp_ok_and_add_button.set_sensitive(True)
+
+    def capture_start_sp(self, model):
         self.start_sp_dict = None
         self.start_sp_markup = None
         if model not in self.session.new:
@@ -226,265 +292,214 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
             }
             self.start_sp_markup = model.str(markup=True, authors=True)
 
-        self._dirty = False
-        self.omonym_box = None
-        self.species_check_messages = []
-        self.genus_check_messages = []
-        self.init_fullname_widgets()
-        self.vern_presenter = VernacularNamePresenter(self)
-        self.synonyms_presenter = SynonymsPresenter(self)
-        self.dist_presenter = DistributionPresenter(self)
-        self.infrasp_presenter = InfraspPresenter(self)
+    @staticmethod
+    def on_habit_entry_changed(entry, combo):
+        # check if the combo has a problem then check if the value
+        # in the entry matches one of the habit codes and if so
+        # then change the value to the habit
+        code = entry.get_text()
+        try:
+            utils.set_combo_from_value(
+                combo,
+                code.lower(),
+                cmp=lambda r, v: str(r[1]).lower() == v.lower()
+            )
+        except ValueError as e:
+            print('Error')
+            logger.debug('%s (%s)', type(e).__name__, e)
 
-        notes_parent = self.view.widgets.notes_parent_box
-        notes_parent.foreach(notes_parent.remove)
-        self.notes_presenter = editor.NotesPresenter(
-            self, 'notes', notes_parent)
+    def gen_get_completions(self, text):
+        query = (self.session.query(Genus)
+                 .filter(utils.ilike(Genus.genus, f'%{text}%'))
+                 .order_by(Genus.genus)
+                 .limit(80))
+        return query
 
-        pictures_parent = self.view.widgets.pictures_parent_box
-        pictures_parent.foreach(pictures_parent.remove)
-        self.pictures_presenter = editor.PicturesPresenter(
-            self, 'notes', pictures_parent)
+    def sp_species_tpl_callback(self, found, accepted):
+        # both found and accepted are dictionaries, their keys here
+        # relevant: 'Species hybrid marker', 'Species', 'Authorship',
+        # 'Taxonomic status in TPL'.
 
-        self.init_enum_combo('sp_spqual_combo', 'sp_qual')
+        # we can provide the user the option to accept spellings
+        # corrections in 'Species', the full value of 'Authorship', and
+        # full acceptedy links. it's TWO boxes that we might show. or
+        # one if nothing matches.
 
-        combo = self.view.widgets.sp_habit_comboentry
-        model = Gtk.ListStore(str, object)
-        for habit in self.session.query(Habit):
-            model.append((str(habit), habit))
-        utils.setup_text_combobox(combo, model)
+        self.view.close_boxes()
+        if found:
+            found = dict((k, utils.nstr(v)) for k, v in found.items())
+            found_s = dict((k, utils.xml_safe(utils.nstr(v))) for k, v in
+                           found.items())
+        if accepted:
+            accepted = dict((k, utils.nstr(v)) for k, v in
+                            accepted.items())
+            accepted_s = dict((k, utils.xml_safe(utils.nstr(v))) for
+                              k, v in accepted.items())
 
-        def on_changed(entry):
-            # check if the combo has a problem then check if the value
-            # in the entry matches one of the habit codes and if so
-            # then change the value to the habit
-            code = entry.props.text
-            try:
-                utils.set_combo_from_value(
-                    combo, code.lower(),
-                    cmp=lambda r, v: str(r[1]).lower() == v.lower())
-            except ValueError as e:
-                logger.debug('%s (%s)', type(e).__name__, e)
+        msg_box_msg = _('No match found on ThePlantList.org')
 
-        combo.get_child().connect('changed', on_changed)
+        if not (found is None and accepted is None):
 
-        # set the model values in the widgets
-        self.refresh_view()
+            # if inserted data matches found, just say so.
+            if (self.model.sp == found['Species'] and
+                    self.model.sp_author == found['Authorship'] and
+                    self.model.hybrid == (
+                        found['Species hybrid marker'] == '×')):
+                msg_box_msg = _('your data finely matches ThePlantList.org')
+            else:
+                cit = (f'<i>{found_s["Genus"]}</i> '
+                       f'{found_s["Species hybrid marker"]}'
+                       f'<i>{found_s["Species"]}</i> '
+                       f'{found_s["Authorship"]} ({found_s["Family"]})')
+                msg = _('%s is the closest match for your data.\n'
+                        'Do you want to accept it?') % cit
+                box = self.view.add_message_box(utils.MESSAGE_BOX_YESNO)
+                box1 = box
+                box.message = msg
 
-        # connect habit comboentry widget and child entry
-        self.view.connect('sp_habit_comboentry', 'changed',
-                          self.on_habit_comboentry_changed)
+                def on_response_found(_button, response):
+                    self.view.remove_box(box1)
+                    if response:
+                        self.set_model_attr('sp', found['Species'])
+                        self.set_model_attr('sp_author',
+                                            found['Authorship'])
+                        self.set_model_attr(
+                            'hybrid',
+                            found['Species hybrid marker'] == '×')
+                        self.refresh_view()
+                        self.refresh_fullname_label()
 
-        # connect signals
-        def gen_get_completions(text):
-            query = (self.session.query(Genus)
-                     .filter(utils.ilike(Genus.genus, f'%{text}%'))
-                     .order_by(Genus.genus)
-                     .limit(80))
-            return query
+                box.on_response = on_response_found
+                box.show()
+                self.view.add_box(box)
+                self.species_check_messages.append(box)
+                msg_box_msg = None
 
-        def sp_species_tpl_callback(found, accepted):
-            # both found and accepted are dictionaries, their keys here
-            # relevant: 'Species hybrid marker', 'Species', 'Authorship',
-            # 'Taxonomic status in TPL'.
-
-            # we can provide the user the option to accept spellings
-            # corrections in 'Species', the full value of 'Authorship', and
-            # full acceptedy links. it's TWO boxes that we might show. or
-            # one if nothing matches.
-
-            self.view.close_boxes()
-            if found:
-                found = dict((k, utils.nstr(v)) for k, v in found.items())
-                found_s = dict((k, utils.xml_safe(utils.nstr(v))) for k, v in
-                               found.items())
-            if accepted:
-                accepted = dict((k, utils.nstr(v)) for k, v in
-                                accepted.items())
-                accepted_s = dict((k, utils.xml_safe(utils.nstr(v))) for
-                                  k, v in accepted.items())
-
-            msg_box_msg = _('No match found on ThePlantList.org')
-
-            if not (found is None and accepted is None):
-
-                # if inserted data matches found, just say so.
-                if (self.model.sp == found['Species'] and
-                        self.model.sp_author == found['Authorship'] and
-                        self.model.hybrid == (
-                            found['Species hybrid marker'] == '×')):
-                    msg_box_msg = _(
-                        'your data finely matches ThePlantList.org')
-                else:
-                    cit = ('<i>%(Genus)s</i> %(Species hybrid marker)s'
-                           '<i>%(Species)s</i> %(Authorship)s (%(Family)s)'
-                           ) % found_s
-                    msg = _('%s is the closest match for your data.\n'
-                            'Do you want to accept it?') % cit
-                    box1 = box = self.view.add_message_box(
-                        utils.MESSAGE_BOX_YESNO)
+            if self.model.accepted is None and accepted is not None:
+                # TODO why not handle infrspecific?
+                if not accepted:  # infraspecific synonym, can't handle
+                    msg = _('closest match is a synonym of something at '
+                            'infraspecific rank, which I cannot handle.')
+                    box = self.view.add_message_box(utils.MESSAGE_BOX_INFO)
+                    box2 = box
                     box.message = msg
 
-                    def on_response_found(_button, response):
-                        self.view.remove_box(box1)
+                    def on_response_accepted(_button, _response):
+                        self.view.remove_box(box2)
+                else:
+                    # synonym is at rank species, this is fine
+                    cit = (f'<i>{accepted_s["Genus"]}</i> '
+                           f'{accepted_s["Species hybrid marker"]}'
+                           f'<i>{accepted_s["Species"]}</i> '
+                           f'{accepted_s["Authorship"]} '
+                           f'({accepted_s["Family"]})')
+                    msg = _('%s is the accepted taxon for your data.\n'
+                            'Do you want to add it?') % cit
+                    box = self.view.add_message_box(utils.MESSAGE_BOX_YESNO)
+                    box2 = box
+                    box.message = msg
+
+                    def on_response_accepted(_button, response):
+                        self.view.remove_box(box2)
                         if response:
-                            self.set_model_attr('sp', found['Species'])
-                            self.set_model_attr('sp_author',
-                                                found['Authorship'])
-                            self.set_model_attr(
-                                'hybrid',
-                                found['Species hybrid marker'] == '×')
+                            hybrid = (accepted['Species hybrid marker'] ==
+                                      Species.hybrid_char)
+                            self.model.accepted = (
+                                Species.retrieve_or_create(
+                                    self.session, {
+                                        'object': 'taxon',
+                                        'rank': 'species',
+                                        'ht-rank': 'genus',
+                                        'familia': accepted['Family'],
+                                        'ht-epithet': accepted['Genus'],
+                                        'epithet': accepted['Species'],
+                                        'author': accepted['Authorship'],
+                                        'hybrid': hybrid
+                                    }
+                                )
+                            )
                             self.refresh_view()
                             self.refresh_fullname_label()
 
-                    box.on_response = on_response_found
-                    box.show()
-                    self.view.add_box(box)
-                    self.species_check_messages.append(box)
-                    msg_box_msg = None
+                box.on_response = on_response_accepted
+                box.show()
+                self.view.add_box(box)
+                self.species_check_messages.append(box)
+                msg_box_msg = None
 
-                if self.model.accepted is None and accepted is not None:
-                    if not accepted:  # infraspecific synonym, can't handle
-                        msg = _('closest match is a synonym of something at '
-                                'infraspecific rank, which I cannot handle.')
-                        box2 = box = self.view.add_message_box(
-                            utils.MESSAGE_BOX_INFO)
-                        box.message = msg
-
-                        def on_response_accepted(_button, _response):
-                            self.view.remove_box(box2)
-                    else:
-                        # synonym is at rank species, this is fine
-                        cit = ('<i>%(Genus)s</i> %(Species hybrid marker)s'
-                               '<i>%(Species)s</i> %(Authorship)s (%(Family)s)'
-                               ) % accepted_s
-                        msg = _('%s is the accepted taxon for your data.\n'
-                                'Do you want to add it?') % cit
-                        box2 = box = self.view.add_message_box(
-                            utils.MESSAGE_BOX_YESNO)
-                        box.message = msg
-
-                        def on_response_accepted(_button, response):
-                            self.view.remove_box(box2)
-                            if response:
-                                hybrid = (accepted['Species hybrid marker'] ==
-                                          Species.hybrid_char)
-                                self.model.accepted = (
-                                    Species.retrieve_or_create(
-                                        self.session, {
-                                            'object': 'taxon',
-                                            'rank': 'species',
-                                            'ht-rank': 'genus',
-                                            'familia': accepted['Family'],
-                                            'ht-epithet': accepted['Genus'],
-                                            'epithet': accepted['Species'],
-                                            'author': accepted['Authorship'],
-                                            'hybrid': hybrid}
-                                    )
-                                )
-                                self.refresh_view()
-                                self.refresh_fullname_label()
-
-                    box.on_response = on_response_accepted
-                    box.show()
-                    self.view.add_box(box)
-                    self.species_check_messages.append(box)
-                    msg_box_msg = None
-
-            if msg_box_msg is not None:
-                box0 = self.view.add_message_box(utils.MESSAGE_BOX_INFO)
-                box0.message = msg_box_msg
-                box0.on_response = lambda b, r: self.view.remove_box(box0)
-                box0.show()
-                self.view.add_box(box0)
-                self.species_check_messages.append(box0)
-
-        def on_sp_species_button_clicked(_widget, event=None):
-            # the real activity runs in a separate thread.
-            logger.debug('sp_species button clicked, importing AskTpl')
-            from .ask_tpl import AskTPL
-
-            while self.species_check_messages:
-                kid = self.species_check_messages.pop()
-                self.view.widgets.remove_parent(kid)
-
-            binomial = f'{self.model.genus} {self.model.sp}'
-            # we need a longer timeout for the first time at least when using
-            # pypac to get the proxy configuration
-            logger.debug('calling AskTpl with binomial=%s', binomial)
-            AskTPL(binomial, sp_species_tpl_callback, timeout=7, gui=True
-                   ).start()
+        if msg_box_msg is not None:
             box0 = self.view.add_message_box(utils.MESSAGE_BOX_INFO)
-            box0.message = _("querying the plant list")
+            box0.message = msg_box_msg
             box0.on_response = lambda b, r: self.view.remove_box(box0)
             box0.show()
             self.view.add_box(box0)
-            if event is not None:
-                return False
+            self.species_check_messages.append(box0)
 
-        self.view.connect('sp_species_button', "clicked",
-                          on_sp_species_button_clicked)
+    def on_sp_species_button_clicked(self, _widget, event=None):
+        # the real activity runs in a separate thread.
+        logger.debug('sp_species button clicked, importing AskTpl')
+        from .ask_tpl import AskTPL
 
-        # called when a genus is selected from the genus completions
-        def on_select(value):
-            logger.debug('on select: %s', value)
-            if isinstance(value, str):
-                value = self.session.query(Genus).filter(
-                    Genus.genus == value).first()
-            while self.genus_check_messages:
-                kid = self.genus_check_messages.pop()
-                self.view.widgets.remove_parent(kid)
-            self.set_model_attr('genus', value)
-            self.refresh_fullname_label()
-            if not value:  # no choice is a fine choice
-                return
-            # is value considered a synonym?
-            syn = self.session.query(GenusSynonym).filter(
-                GenusSynonym.synonym_id == value.id).first()
-            if not syn:
-                # chosen value is not a synonym, also fine
-                return
+        while self.species_check_messages:
+            kid = self.species_check_messages.pop()
+            self.view.widgets.remove_parent(kid)
 
-            # value is a synonym: user alert needed
-            msg = _('The genus <b>%(synonym)s</b> is a synonym of '
-                    '<b>%(genus)s</b>.\n\nWould you like to choose '
-                    '<b>%(genus)s</b> instead?') % \
-                {'synonym': syn.synonym, 'genus': syn.genus}
-            box = None
+        binomial = f'{self.model.genus} {self.model.sp}'
+        # we need a longer timeout for the first time at least when using
+        # pypac to get the proxy configuration
+        logger.debug('calling AskTpl with binomial=%s', binomial)
+        AskTPL(binomial,
+               self.sp_species_tpl_callback,
+               timeout=7,
+               gui=True).start()
+        box0 = self.view.add_message_box(utils.MESSAGE_BOX_INFO)
+        box0.message = _("querying the plant list")
+        box0.on_response = lambda b, r: self.view.remove_box(box0)
+        box0.show()
+        self.view.add_box(box0)
+        if event is not None:
+            return False
 
-            def on_response(_button, response):
-                self.view.remove_box(box)
-                if response:
-                    self.set_model_attr('genus', syn.genus)
-                    self.refresh_view()
-                    self.refresh_fullname_label()
+    # called when a genus is selected from the genus completions
+    def gen_on_select(self, value):
+        logger.debug('on select: %s', value)
+        if isinstance(value, str):
+            value = self.session.query(Genus).filter(
+                Genus.genus == value).first()
+        while self.genus_check_messages:
+            kid = self.genus_check_messages.pop()
+            self.view.widgets.remove_parent(kid)
+        self.set_model_attr('genus', value)
+        self.refresh_fullname_label()
+        if not value:  # no choice is a fine choice
+            return
+        # is value considered a synonym?
+        syn = self.session.query(GenusSynonym).filter(
+            GenusSynonym.synonym_id == value.id).first()
+        if not syn:
+            # chosen value is not a synonym, also fine
+            return
 
-            box = self.view.add_message_box(utils.MESSAGE_BOX_YESNO)
-            box.message = msg
-            box.on_response = on_response
-            box.show()
-            self.view.add_box(box)
-            self.genus_check_messages.append(box)
+        # value is a synonym: user alert needed
+        msg = _('The genus <b>%(synonym)s</b> is a synonym of '
+                '<b>%(genus)s</b>.\n\nWould you like to choose '
+                '<b>%(genus)s</b> instead?') % {'synonym': syn.synonym,
+                                                'genus': syn.genus}
+        box = None
 
-        # select the current genus but don't dirty the presenter
-        on_select(self.model.genus)
-        self._dirty = False
+        def on_response(_button, response):
+            self.view.remove_box(box)
+            if response:
+                self.set_model_attr('genus', syn.genus)
+                self.refresh_view()
+                self.refresh_fullname_label()
 
-        self.assign_completions_handler('sp_genus_entry',  # 'genus',
-                                        gen_get_completions,
-                                        on_select=on_select)
-        self.assign_simple_handler('sp_cvgroup_entry', 'cv_group',
-                                   editor.StringOrNoneValidator())
-        self.assign_simple_handler('sp_spqual_combo', 'sp_qual',
-                                   editor.StringOrNoneValidator())
-        self.assign_simple_handler('sp_label_dist_entry', 'label_distribution',
-                                   editor.StringOrNoneValidator())
-        self.assign_simple_handler('sp_awards_entry', 'awards',
-                                   editor.StringOrNoneValidator())
-
-        self.refresh_sensitivity()
-        if self.model not in self.session.new:
-            self.view.widgets.sp_ok_and_add_button.set_sensitive(True)
+        box = self.view.add_message_box(utils.MESSAGE_BOX_YESNO)
+        box.message = msg
+        box.on_response = on_response
+        box.show()
+        self.view.add_box(box)
+        self.genus_check_messages.append(box)
 
     def set_visible_buttons(self, visible):
         self.view.widgets.sp_ok_and_add_button.set_visible(visible)
@@ -663,7 +678,7 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
 
         utils.set_widget_value(self.view.widgets.sp_habit_comboentry,
                                self.model.habit or '')
-        self.vern_presenter.refresh_view(self.model.default_vernacular_name)
+        self.vern_presenter.refresh_view()
         self.synonyms_presenter.refresh_view()
         self.dist_presenter.refresh_view()
 
@@ -903,13 +918,9 @@ class DistributionPresenter(editor.GenericEditorPresenter):
 
 
 class VernacularNamePresenter(editor.GenericEditorPresenter):
-    # TODO: change the background of the entries and desensitize the
-    # name/lang entries if the name conflicts with an existing vernacular
-    # name for this species
-    """
-    in the VernacularNamePresenter we don't really use self.model, we
+    """In the VernacularNamePresenter we don't really use self.model, we
     more rely on the model in the TreeView which are VernacularName
-    objects
+    objects.
     """
     def __init__(self, parent):
         """
@@ -926,15 +937,10 @@ class VernacularNamePresenter(editor.GenericEditorPresenter):
                           self.on_remove_button_clicked)
 
     def is_dirty(self):
-        """
-        @return True or False if the vernacular names have changed.
-        """
         return self._dirty
 
     def on_add_button_clicked(self, _button):
-        """
-        Add the values in the entries to the model.
-        """
+        """Add the values in the entries to the model."""
         treemodel = self.treeview.get_model()
         column = self.treeview.get_column(0)
         vernacular = VernacularName()
@@ -946,9 +952,7 @@ class VernacularNamePresenter(editor.GenericEditorPresenter):
             self.model.default_vernacular_name = vernacular
 
     def on_remove_button_clicked(self, _button):
-        """
-        Removes the currently selected vernacular name from the view.
-        """
+        """Removes the currently selected vernacular name from the view."""
         tree = self.view.widgets.vern_treeview
         path, _col = tree.get_cursor()
         treemodel = tree.get_model()
@@ -975,9 +979,7 @@ class VernacularNamePresenter(editor.GenericEditorPresenter):
         self.parent_ref().refresh_sensitivity()
 
     def on_default_toggled(self, cell, path):
-        """
-        Default column callback.
-        """
+        """Default column callback."""
         active = cell.get_active()
         if not active:  # then it's becoming active
             vernacular = self.treeview.get_model()[path][0]
@@ -995,8 +997,7 @@ class VernacularNamePresenter(editor.GenericEditorPresenter):
         self.parent_ref().refresh_sensitivity()
 
     def init_treeview(self, model):
-        """
-        Initialized the list of vernacular names.
+        """Initialized the list of vernacular names.
 
         The columns and cell renderers are loaded from the .glade file
         so we just need to customize them a bit.
@@ -1006,10 +1007,10 @@ class VernacularNamePresenter(editor.GenericEditorPresenter):
             return
 
         def _name_data_func(_column, cell, model, treeiter, _data):
-            v = model[treeiter][0]
-            cell.set_property('text', v.name)
+            val = model[treeiter][0]
+            cell.set_property('text', val.name)
             # just added so change the background color to indicate it's new
-            if v.id is None:  # hasn't been committed
+            if val.id is None:  # hasn't been committed
                 cell.set_property('foreground', 'blue')
             else:
                 cell.set_property('foreground', None)
@@ -1019,9 +1020,9 @@ class VernacularNamePresenter(editor.GenericEditorPresenter):
         self.view.connect(cell, 'edited', self.on_cell_edited, 'name')
 
         def _lang_data_func(_column, cell, model, treeiter, _data):
-            v = model[treeiter][0]
-            cell.set_property('text', v.language)
-            if v.id is None:  # hasn't been committed
+            val = model[treeiter][0]
+            cell.set_property('text', val.language)
+            if val.id is None:  # hasn't been committed
                 cell.set_property('foreground', 'blue')
             else:
                 cell.set_property('foreground', None)
@@ -1031,10 +1032,10 @@ class VernacularNamePresenter(editor.GenericEditorPresenter):
         self.view.connect(cell, 'edited', self.on_cell_edited, 'language')
 
         def _default_data_func(_column, cell, model, itr, _data):
-            v = model[itr][0]
+            val = model[itr][0]
             try:
-                cell.set_property(
-                    'active', v == self.model.default_vernacular_name)
+                cell.set_property('active',
+                                  val == self.model.default_vernacular_name)
                 return
             except AttributeError as e:
                 logger.debug("AttributeError %s", e)
@@ -1059,7 +1060,7 @@ class VernacularNamePresenter(editor.GenericEditorPresenter):
     def on_tree_cursor_changed(self, _tree):
         self.view.widgets.sp_vern_remove_button.set_sensitive(True)
 
-    def refresh_view(self, default_vernacular_name):
+    def refresh_view(self):
         tree_model = self.treeview.get_model()
         vernacular_names = self.model.vernacular_names
         default_vernacular_name = self.model.default_vernacular_name
@@ -1131,16 +1132,14 @@ class SynonymsPresenter(editor.GenericEditorPresenter):
         return self._dirty
 
     def init_treeview(self):
-        """
-        initialize the Gtk.TreeView
-        """
+        """initialize the Gtk.TreeView"""
         self.treeview = self.view.widgets.sp_syn_treeview
 
         def _syn_data_func(_column, cell, model, treeiter, _data):
-            v = model[treeiter][0]
-            cell.set_property('text', str(v))
+            val = model[treeiter][0]
+            cell.set_property('text', str(val))
             # background color to indicate it's new
-            if self.session.is_modified(v):
+            if self.session.is_modified(val):
                 cell.set_property('foreground', 'blue')
             else:
                 cell.set_property('foreground', None)
@@ -1160,9 +1159,7 @@ class SynonymsPresenter(editor.GenericEditorPresenter):
         self.view.widgets.sp_syn_remove_button.set_sensitive(True)
 
     def refresh_view(self):
-        """
-        doesn't do anything
-        """
+        """doesn't do anything"""
         return
 
     def on_add_button_clicked(self, _button):
@@ -1185,7 +1182,6 @@ class SynonymsPresenter(editor.GenericEditorPresenter):
         entry = self.view.widgets.sp_syn_entry
         entry.set_text('')
         entry.set_position(-1)
-        self.view.widgets.sp_syn_add_button.set_sensitive(False)
         self.view.widgets.sp_syn_add_button.set_sensitive(False)
         self._dirty = True
         self.parent_ref().refresh_sensitivity()
@@ -1255,8 +1251,7 @@ class SpeciesEditorView(editor.GenericEditorView):
     }
 
     def __init__(self, parent=None):
-        """the constructor
-
+        """
         :param parent: the parent window
         """
         filename = os.path.join(paths.lib_dir(), 'plugins', 'plants',
@@ -1353,7 +1348,7 @@ class SpeciesEditor(editor.GenericModelViewPresenterEditor):
 
     def handle_response(self, response):
         """
-        @return: return True if the editor is ready to be closed, False if
+        :return: return True if the editor is ready to be closed, False if
         we want to keep editing, if any changes are committed they are stored
         in self._committed
         """
@@ -1367,22 +1362,22 @@ class SpeciesEditor(editor.GenericModelViewPresenterEditor):
                     self.commit_changes()
                     self._committed.append(self.model)
             except DBAPIError as e:
-                msg = _('Error committing changes.\n\n%s') % \
-                    utils.xml_safe(e.orig)
+                msg = (_('Error committing changes.\n\n%s') %
+                       utils.xml_safe(e.orig))
                 logger.debug(traceback.format_exc())
                 utils.message_details_dialog(msg, str(e),
                                              Gtk.MessageType.ERROR)
                 return False
             except Exception as e:
-                msg = _('Unknown error when committing changes. See the '
-                        'details for more information.\n\n%s') % \
-                    utils.xml_safe(e)
+                msg = (_('Unknown error when committing changes. See the '
+                         'details for more information.\n\n%s') %
+                       utils.xml_safe(e))
                 logger.debug(traceback.format_exc())
                 utils.message_details_dialog(msg, traceback.format_exc(),
                                              Gtk.MessageType.ERROR)
                 return False
-        elif self.presenter.is_dirty() and utils.yes_no_dialog(not_ok_msg) \
-                or not self.presenter.is_dirty():
+        elif (self.presenter.is_dirty() and utils.yes_no_dialog(not_ok_msg) or
+              not self.presenter.is_dirty()):
             self.session.rollback()
             self.view.close_boxes()
             return True
@@ -1393,11 +1388,10 @@ class SpeciesEditor(editor.GenericModelViewPresenterEditor):
         if response == self.RESPONSE_NEXT:
             self.presenter.cleanup()
             sp_editor = SpeciesEditor(Species(genus=self.model.genus),
-                                              self.parent)
+                                      self.parent)
             more_committed = sp_editor.start()
         elif response == self.RESPONSE_OK_AND_ADD:
-            from bauble.plugins.garden.accession import (
-                AccessionEditor, Accession)
+            from ..garden.accession import AccessionEditor, Accession
             acc_editor = AccessionEditor(Accession(species=self.model),
                                          parent=self.parent)
             more_committed = acc_editor.start()

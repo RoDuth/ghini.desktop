@@ -404,8 +404,8 @@ class LocationEditorPresenter(GenericEditorPresenter, PresenterMapMixin):
     def refresh_sensitivity(self):
         sensitive = False
         ignore = ('id')
-        if self.is_dirty() and not \
-                utils.get_invalid_columns(self.model, ignore_columns=ignore):
+        if (self.is_dirty() and not
+                utils.get_invalid_columns(self.model, ignore_columns=ignore)):
             sensitive = True
         self.view.set_accept_buttons_sensitive(sensitive)
 
@@ -460,8 +460,8 @@ class LocationEditor(GenericModelViewPresenterEditor):
                     self.commit_changes()
                 self._committed.append(self.model)
             except DBAPIError as e:
-                msg = _('Error committing changes.\n\n%s') % \
-                    utils.xml_safe(e.orig)
+                msg = (_('Error committing changes.\n\n%s') %
+                       utils.xml_safe(e.orig))
                 utils.message_details_dialog(msg,
                                              str(e),
                                              Gtk.MessageType.ERROR)
