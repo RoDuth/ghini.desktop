@@ -1100,9 +1100,24 @@ class SynonymsPresenter(editor.GenericEditorPresenter):
 
         sp_get_completions = partial(generic_sp_get_completions,
                                      self.session)
+
+        # Skip current synonyms, self and already added synonyms
+        def get_completions(text):
+            result = sp_get_completions(text)
+            ids = [i[0] for i in self.session.query(SpeciesSynonym.synonym_id)]
+            for syn in self.model._synonyms:
+                if syn.synonym and (id_ := syn.synonym.id) not in ids:
+                    ids.append(id_)
+            if (id_ := self.model.id):
+                ids.append(id_)
+            return result.filter(Species.id.notin_(ids))
+
         self.assign_completions_handler(
-            'sp_syn_entry', sp_get_completions, on_select=on_select,
-            comparer=lambda l, s: species_to_string_matcher(l[0], s))
+            'sp_syn_entry',
+            get_completions,
+            on_select=on_select,
+            comparer=lambda l, s: species_to_string_matcher(l[0], s)
+        )
         on_select(None)  # set to default state
 
         self._selected = None
@@ -1124,8 +1139,8 @@ class SynonymsPresenter(editor.GenericEditorPresenter):
         def _syn_data_func(_column, cell, model, treeiter, _data):
             v = model[treeiter][0]
             cell.set_property('text', str(v))
-            # just added so change the background color to indicate it's new
-            if not hasattr(v, 'id') or v.id is None:
+            # background color to indicate it's new
+            if self.session.is_modified(v):
                 cell.set_property('foreground', 'blue')
             else:
                 cell.set_property('foreground', None)
@@ -1151,13 +1166,21 @@ class SynonymsPresenter(editor.GenericEditorPresenter):
         return
 
     def on_add_button_clicked(self, _button):
-        """
-        Adds the synonym from the synonym entry to the list of synonyms for
+        """Adds the synonym from the synonym entry to the list of synonyms for
         this species.
+
+        If the synonym is already considered a synonym, move them all across to
+        this species
         """
+        synonyms = []
         syn = SpeciesSynonym(species=self.model, synonym=self._selected)
+        synonyms.append(syn)
+        for syn in self._selected._synonyms:
+            synonyms.append(syn)
         tree_model = self.treeview.get_model()
-        tree_model.append([syn])
+        for syn in synonyms:
+            syn.species = self.model
+            tree_model.append([syn])
         self._selected = None
         entry = self.view.widgets.sp_syn_entry
         entry.set_text('')
@@ -1171,8 +1194,6 @@ class SynonymsPresenter(editor.GenericEditorPresenter):
         """Removes the currently selected synonym from the list of synonyms for
         this species
         """
-        # TODO: maybe we should only ask 'are you sure' if the selected value
-        # is an instance, this means it will be deleted from the database
         tree = self.view.widgets.sp_syn_treeview
         path, _col = tree.get_cursor()
         tree_model = tree.get_model()
@@ -1180,35 +1201,13 @@ class SynonymsPresenter(editor.GenericEditorPresenter):
         syn = value.synonym.str(markup=True)
         msg = _('Are you sure you want to remove %s as a synonym to the '
                 'current species?\n\n<i>Note: This will not remove the '
-                'species %s from the database.</i>' % (syn, syn))
+                'species %s from the database.</i>') % (syn, syn)
         if not utils.yes_no_dialog(msg, parent=self.view.get_window()):
             return
 
         tree_model.remove(tree_model.get_iter(path))
         self.model.synonyms.remove(value.synonym)
         utils.delete_or_expunge(value)
-        # TODO: ** important ** this doesn't respect any unique
-        # contraints on the species for synonyms and allow a
-        # species to have another species as a synonym multiple
-        # times...see below
-
-        # TODO: using session.flush here with an argument is
-        # deprecated in SA 0.5 and will probably removed in SA
-        # 0.6...but how do we only flush the one value..unless we
-        # create a new session, merge it, commit that session,
-        # close it and then refresh the same object in
-        # self.session
-
-        # make the change in synonym immediately available so that if
-        # we try to add the same species again we don't break the
-        # SpeciesSynonym UniqueConstraint
-
-        # tmp_session = db.Session()
-        # tmp_value = tmp.session.merge(value)
-        # tmp.session.commit()
-        # tmp.session.close()
-        # self.session.refresh(value)
-        # self.session.flush([value])
         self._dirty = True
         self.parent_ref().refresh_sensitivity()
 
@@ -1233,9 +1232,13 @@ class SpeciesEditorView(editor.GenericEditorView):
         'sp_spqual_combo': _('Species qualifier'),
         'sp_dist_frame': _('Species distribution'),
         'sp_vern_frame': _('Vernacular names'),
-        'sp_syn_frame': _('Species synonyms\n(if blue they have not been '
-                          'committed to the database yet.  Clicking OK will '
-                          'commit them)'),
+        'sp_syn_frame': _('Species synonyms, only species that are not '
+                          'already synonyms can be selected (can removed them '
+                          'first).  If a species is selected that already has '
+                          'synonyms then all its synonyms will be moved here. '
+                          '\n(NOTE: blue entries have not been committed to '
+                          'the database yet and will be only when OK is '
+                          'clicked.)'),
         'sp_label_dist_entry': _('The distribution string that will be used '
                                  'on the label.  If this entry is blank then '
                                  'the species distribution will be used'),
