@@ -807,21 +807,6 @@ def plant_after_update(_mapper, connection, target):  \
     from_loc = (loc_history.deleted[0] if loc_history.deleted else None)
     to_loc = (loc_history.added[0] if loc_history.added else None)
     # NOTE if both location and quantity have changed likely want 2 changes
-    if loc_history.has_changes():
-        quantity_change = (qty_history.deleted[0] if qty_history.deleted else
-                           target.quantity)
-        logger.debug("%s has location change %s->%s", target, from_loc, to_loc)
-        values = {
-            'plant_id': target.id,
-            'date': date,
-            'reason': reason,
-            'quantity': quantity_change,
-            'from_location_id': from_loc,
-            'to_location_id': to_loc
-        }
-        values = {k: v for k, v in values.items() if v is not None}
-        changes.append(values)
-
     if qty_history.has_changes():
         # NOTE has_changes can pick up str/int/etc changes and not just ints so
         # to be sure convert to int first.  It also possible that only added or
@@ -854,6 +839,21 @@ def plant_after_update(_mapper, connection, target):  \
             }
             values = {k: v for k, v in values.items() if v is not None}
             changes.append(values)
+
+    if loc_history.has_changes():
+        quantity_change = (qty_history.deleted[0] if qty_history.deleted else
+                           target.quantity)
+        logger.debug("%s has location change %s->%s", target, from_loc, to_loc)
+        values = {
+            'plant_id': target.id,
+            'date': date,
+            'reason': reason,
+            'quantity': quantity_change,
+            'from_location_id': from_loc,
+            'to_location_id': to_loc
+        }
+        values = {k: v for k, v in values.items() if v is not None}
+        changes.append(values)
 
     for values in changes:
         if to_update:
