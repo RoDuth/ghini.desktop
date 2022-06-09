@@ -1783,7 +1783,8 @@ class PresenterMapMixin:
       GtkImage widget named `map_btn_icon` within the view's widgets
     - supply a valid string path to a mako kml template via the
       `self.kml_template` attribute
-    - call `self.init_map_menu()`
+    - call `self.init_map_menu()` on initializing.
+    - call `self.remove_map_action_group()` on close. (e.g. in `self.cleanup`)
     - have a `model` attribute with a `geojson` attribute that returns valid a
       geojson feature geometry part with "type" and "coordinates" keys.
     """
@@ -1844,6 +1845,12 @@ class PresenterMapMixin:
             )
 
     def init_map_menu(self):
+        """Initialise the map menu button.
+
+        Sets an appropriate icon on the button, appends an appropriate menu and
+        inserts an action group to the map_menu_btn widget.  The action group
+        should be removed on close for the editor to be garbage collected.
+        """
         menu = Gio.Menu()
         action_name = self.model.__tablename__.lower() + '_map'
         action_group = Gio.SimpleActionGroup()
@@ -1872,6 +1879,11 @@ class PresenterMapMixin:
         map_menu_btn = self.view.widgets.map_menu_btn
         map_menu_btn.set_menu_model(menu)
         map_menu_btn.insert_action_group(action_name, action_group)
+
+    def remove_map_action_group(self):
+        """Remove the action group from map_menu_btn widget."""
+        action_name = self.model.__tablename__.lower() + '_map'
+        self.view.widgets.map_menu_btn.insert_action_group(action_name, None)
 
 
 class ChildPresenter(GenericEditorPresenter):

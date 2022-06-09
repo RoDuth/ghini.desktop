@@ -335,6 +335,10 @@ class LocationEditorPresenter(GenericEditorPresenter, PresenterMapMixin):
         )
         self.init_map_menu()
 
+    def cleanup(self):
+        super().cleanup()
+        self.remove_map_action_group()
+
     def on_loc_merge_button_clicked(self, _entry, *_args):
         entry_widget = self.view.widgets.loc_merge_entry
         if self.has_problems(entry_widget):

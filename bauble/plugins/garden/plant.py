@@ -1517,6 +1517,7 @@ class PlantEditorPresenter(GenericEditorPresenter, PresenterMapMixin):
         # the entry is made not editable for branch mode
         self.view.widgets.plant_acc_entry.props.editable = True
         self.view.get_window().props.title = _('Plant Editor')
+        self.remove_map_action_group()
 
     def start(self):
         return self.view.start()
