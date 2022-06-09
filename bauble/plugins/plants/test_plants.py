@@ -25,7 +25,7 @@ logging.basicConfig()
 # logging.getLogger('sqlalchemy.engine').setLevel(logging.INFO)
 
 import os
-from unittest import TestCase, skip
+from unittest import TestCase, skip, mock
 from functools import partial
 
 from sqlalchemy.orm.exc import NoResultFound
@@ -409,14 +409,13 @@ class FamilyTests(PlantTestCase):
         f.qualifier = 's. lat.'
         self.assertTrue(str(f) == 'fam s. lat.')
 
-    @skip('requires interaction')
-    def test_editor(self):
-        """
-        Interactively test the FamilyEditor
-        """
+    @mock.patch('bauble.editor.GenericEditorView.start')
+    def test_editor_doesnt_leak(self, mock_start):
+        from gi.repository import Gtk
+        mock_start.return_value = Gtk.ResponseType.OK
         fam = Family(family='some family')
         editor = FamilyEditor(model=fam)
-        # editor.start()
+        editor.start()
         del editor
         self.assertEqual(utils.gc_objects_by_type('FamilyEditor'),
                          [], 'FamilyEditor not deleted')
@@ -602,12 +601,11 @@ class GenusTests(PlantTestCase):
         """
         pass
 
-    @skip('requires interaction')
-    def test_editor(self):
-        """
-        Interactively test the GenusEditor
-        """
-        #loc = self.create(Genus, name=u'some site')
+    @mock.patch('bauble.editor.GenericEditorView.start')
+    def test_editor_doesnt_leak(self, mock_start):
+        from gi.repository import Gtk
+        mock_start.return_value = Gtk.ResponseType.OK
+        # loc = self.create(Genus, name=u'some site')
         fam = Family(family='family')
         fam2 = Family(family='family2')
         fam2.synonyms.append(fam)
@@ -617,12 +615,12 @@ class GenusTests(PlantTestCase):
         editor = GenusEditor(model=gen)
         editor.start()
         del editor
-        assert utils.gc_objects_by_type('GenusEditor') == [], \
-            'GenusEditor not deleted'
-        assert utils.gc_objects_by_type('GenusEditorPresenter') == [], \
-            'GenusEditorPresenter not deleted'
-        assert utils.gc_objects_by_type('GenusEditorView') == [], \
-            'GenusEditorView not deleted'
+        self.assertEqual(utils.gc_objects_by_type('GenusEditor'),
+                         [], 'GenusEditor not deleted')
+        self.assertEqual(utils.gc_objects_by_type('GenusEditorPresenter'),
+                         [], 'GenusEditorPresenter not deleted')
+        self.assertEqual(utils.gc_objects_by_type('GenusEditorView'),
+                         [], 'GenusEditorView not deleted')
 
     def test_can_use_epithet_field(self):
         family = Family(epithet='family')

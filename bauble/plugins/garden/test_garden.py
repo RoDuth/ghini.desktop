@@ -307,7 +307,7 @@ class PlantTests(GardenTestCase):
         # only work in bulk mode when the plant is in session.new
         p = Plant(accession=self.accession, location=self.location, code='2',
                   quantity=52)
-        self.editor = PlantEditor(model=p)
+        editor = PlantEditor(model=p)
         # editor.start()
         update_gui()
         rng = '2,3,4-6'
@@ -318,21 +318,23 @@ class PlantTests(GardenTestCase):
                             Plant.code == utils.nstr(code)))
             self.assertTrue(not q.first(), 'code already exists')
 
-        widgets = self.editor.presenter.view.widgets
+        widgets = editor.presenter.view.widgets
         # make sure the entry gets a Problem added to it if an
         # existing plant code is used in bulk mode
         widgets.plant_code_entry.set_text('1,' + rng)
         widgets.plant_quantity_entry.set_text('2')
         update_gui()
-        problem = (self.editor.presenter.PROBLEM_DUPLICATE_PLANT_CODE,
-                   self.editor.presenter.view.widgets.plant_code_entry)
-        self.assertTrue(problem in self.editor.presenter.problems,
+        problem = (editor.presenter.PROBLEM_DUPLICATE_PLANT_CODE,
+                   editor.presenter.view.widgets.plant_code_entry)
+        self.assertTrue(problem in editor.presenter.problems,
                         'no problem added for duplicate plant code')
 
         # create multiple plant codes
         widgets.plant_code_entry.set_text(rng)
         update_gui()
-        self.editor.handle_response(Gtk.ResponseType.OK)
+        editor.handle_response(Gtk.ResponseType.OK)
+        editor.presenter.cleanup()
+        del editor
 
         for code in utils.range_builder(rng):
             q = self.session.query(Plant).join('accession').\
@@ -346,6 +348,24 @@ class PlantTests(GardenTestCase):
             self.assertIsNotNone(plt.planted)
             self.assertEqual(plt.planted.to_location, self.location)
             self.assertEqual(plt.planted.quantity, plt.quantity)
+
+    @unittest.mock.patch('bauble.editor.GenericEditorView.start')
+    def test_editor_doesnt_leak(self, mock_start):
+        # garbage collect before start..
+        import gc
+        gc.collect()
+        mock_start.return_value = Gtk.ResponseType.OK
+        loc = Location(name='site1', code='1')
+        plt = Plant(accession=self.accession, location=loc, quantity=1)
+        editor = PlantEditor(model=plt)
+        editor.start()
+        del editor
+        self.assertEqual(utils.gc_objects_by_type('PlantEditor'),
+                         [], 'PlantEditor not deleted')
+        self.assertEqual(utils.gc_objects_by_type('PlantEditorPresenter'),
+                         [], 'PlantEditorPresenter not deleted')
+        self.assertEqual(utils.gc_objects_by_type('PlantEditorView'),
+                         [], 'PlantEditorView not deleted')
 
     @unittest.skip('requires interaction')
     def test_editor(self):
@@ -367,6 +387,8 @@ class PlantTests(GardenTestCase):
         p = Plant(accession=self.accession, location=loc, quantity=1)
         editor = PlantEditor(model=p)
         editor.start()
+        editor.presenter.cleanup()
+        del editor
 
     def test_remove_callback(self):
         # action
@@ -416,6 +438,8 @@ class PlantTests(GardenTestCase):
         self.assertEqual(change.quantity, editor.model.quantity)
         self.assertEqual(change.to_location, editor.model.location)
         self.assertEqual(change.from_location, editor.branched_plant.location)
+        editor.presenter.cleanup()
+        del editor
 
     def test_branch_then_delete_parent(self):
         plant = Plant(accession=self.accession, code='11',
@@ -461,6 +485,8 @@ class PlantTests(GardenTestCase):
         self.assertTrue(splt[0].planted.from_location)
         self.assertTrue(splt[0].planted.to_location)
         self.assertFalse(splt[0].planted.parent_plant)
+        editor.presenter.cleanup()
+        del editor
 
     def test_bulk_branch(self):
         # create a plant with sufficient quantity
@@ -510,6 +536,8 @@ class PlantTests(GardenTestCase):
             self.assertEqual(change.quantity, plt.quantity)
             self.assertEqual(change.to_location, plt.location)
             self.assertEqual(change.from_location, plant.location)
+        editor.presenter.cleanup()
+        del editor
 
     def test_branch_editor(self):
 
@@ -534,14 +562,14 @@ class PlantTests(GardenTestCase):
         quantity = 5
         self.plant.quantity = quantity
         self.session.commit()
-        self.editor = PlantEditor(model=self.plant, branch_mode=True)
+        editor = PlantEditor(model=self.plant, branch_mode=True)
         update_gui()
 
-        widgets = self.editor.presenter.view.widgets
+        widgets = editor.presenter.view.widgets
         new_quantity = '2'
         widgets.plant_quantity_entry.props.text = new_quantity
         update_gui()
-        self.editor.handle_response(Gtk.ResponseType.OK)
+        editor.handle_response(Gtk.ResponseType.OK)
 
         # there should only be one new plant,
         new_plant = (self.session.query(Plant)
@@ -559,6 +587,8 @@ class PlantTests(GardenTestCase):
         # test the parent_plant for the change is the same as the
         # original plant
         self.assertEqual(new_plant.changes[0].parent_plant, self.plant)
+        editor.presenter.cleanup()
+        del editor
 
     @unittest.skip('not implimented')
     def test_branch_callback(self):
@@ -1033,27 +1063,27 @@ class PropagationTests(GardenTestCase):
                       quantity=1)
         propagation = Propagation()
         plant.propagations.append(propagation)
-        self.editor = PropagationEditor(model=propagation)
-        widgets = self.editor.presenter.view.widgets
+        editor = PropagationEditor(model=propagation)
+        widgets = editor.presenter.view.widgets
         self.assertTrue(widgets is not None)
-        view = self.editor.presenter.view
+        view = editor.presenter.view
         view.widget_set_value('prop_type_combo', 'UnrootedCutting')
         view.widget_set_value('prop_date_entry', utils.today_str())
-        cutting_presenter = self.editor.presenter._cutting_presenter
+        cutting_presenter = editor.presenter._cutting_presenter
         for widget, attr in cutting_presenter.widget_to_field_map.items():
             #debug('%s=%s' % (widget, default_cutting_values[attr]))
             view.widget_set_value(widget, default_cutting_values[attr])
         update_gui()
-        self.editor.handle_response(Gtk.ResponseType.OK)
-        self.editor.commit_changes()
-        model = self.editor.model
+        editor.handle_response(Gtk.ResponseType.OK)
+        editor.commit_changes()
+        model = editor.model
         s = object_session(model)
         s.expire(model)
         self.assertTrue(model.prop_type == 'UnrootedCutting')
         for attr, value in default_cutting_values.items():
             v = getattr(model._cutting, attr)
             self.assertTrue(v == value, '%s = %s(%s)' % (attr, value, v))
-        self.editor.session.close()
+        editor.session.close()
 
     def test_seed_editor_commit(self):
         loc = Location(name='name', code='code')
@@ -1544,10 +1574,10 @@ class AccessionTests(GardenTestCase):
         plant_prop_id = prop.id
 
         acc = Accession(code='code', species=self.species, quantity_recvd=2)
-        self.editor = AccessionEditor(acc)
+        editor = AccessionEditor(acc)
         # normally called by editor.presenter.start() but we don't call it here
-        self.editor.presenter.source_presenter.start()
-        widgets = self.editor.presenter.view.widgets
+        editor.presenter.source_presenter.start()
+        widgets = editor.presenter.view.widgets
         update_gui()
 
         # set the date so the presenter will be "dirty"
@@ -1556,7 +1586,7 @@ class AccessionTests(GardenTestCase):
         # set the source type as "Garden Propagation"
         widgets.acc_source_comboentry.get_child().props.text = \
             SourcePresenter.GARDEN_PROP_STR
-        self.assertTrue(not self.editor.presenter.problems)
+        self.assertTrue(not editor.presenter.problems)
 
         # set the source plant
         widgets.source_prop_plant_entry.props.text = str(plant)
@@ -1578,8 +1608,8 @@ class AccessionTests(GardenTestCase):
         self.assertTrue(toggle_cell is None)
 
         # commit the changes and cleanup
-        self.editor.handle_response(Gtk.ResponseType.OK)
-        self.editor.session.close()
+        editor.handle_response(Gtk.ResponseType.OK)
+        editor.session.close()
 
         # open a separate session and make sure everything committed
         session = db.Session()
@@ -1597,14 +1627,14 @@ class AccessionTests(GardenTestCase):
     @unittest.skip('problem not found in presenter')
     def test_accession_editor(self):
         acc = Accession(code='code', species=self.species)
-        self.editor = AccessionEditor(acc)
+        editor = AccessionEditor(acc)
         update_gui()
 
-        widgets = self.editor.presenter.view.widgets
+        widgets = editor.presenter.view.widgets
         # make sure there is a problem if the species entry text isn't
         # a species string
         widgets.acc_species_entry.set_text('asdasd')
-        self.assertTrue(self.editor.presenter.problems)
+        self.assertTrue(editor.presenter.problems)
 
         # make sure the problem is removed if the species entry text
         # is set to a species string
@@ -1614,14 +1644,14 @@ class AccessionTests(GardenTestCase):
         update_gui()  # ensures idle callback is called to add completions
         # set the fill string which should match from completions
         widgets.acc_species_entry.set_text(str(self.species))
-        assert not self.editor.presenter.problems, \
-            self.editor.presenter.problems
+        assert not editor.presenter.problems, \
+            editor.presenter.problems
 
         # commit the changes and cleanup
-        self.editor.model.name = 'asda'
+        editor.model.name = 'asda'
 
-        self.editor.handle_response(Gtk.ResponseType.OK)
-        self.editor.session.close()
+        editor.handle_response(Gtk.ResponseType.OK)
+        editor.session.close()
 
     @unittest.skip('requires interaction')
     def test_editor(self):
@@ -1670,9 +1700,9 @@ class AccessionTests(GardenTestCase):
 
         self.session.commit()
 
-        self.editor = AccessionEditor(model=acc)
+        editor = AccessionEditor(model=acc)
         try:
-            self.editor.start()
+            editor.start()
         except Exception as e:
             import traceback
             logger.debug(traceback.format_exc(0))
@@ -1860,20 +1890,23 @@ class LocationTests(GardenTestCase):
         editor.presenter.cleanup()
         return
 
-    @unittest.skip('not implimented')
-    def test_deleting_editor(self):
-        # TODO: what is this garbage collection testing?
+    @unittest.mock.patch('bauble.editor.GenericEditorView.start')
+    def test_editor_doesnt_leak(self, mock_start):
+        # garbage collect before start..
+        import gc
+        gc.collect()
+        mock_start.return_value = Gtk.ResponseType.OK
         loc = self.create(Location, name='some site', code='STE')
         editor = LocationEditor(model=loc)
 
+        editor.start()
         del editor
-        self.assertEqual(utils.gc_objects_by_type('LocationEditor'), [],
-                         'LocationEditor not deleted')
-        self.assertEqual(
-            utils.gc_objects_by_type('LocationEditorPresenter'), [],
-            'LocationEditorPresenter not deleted')
-        self.assertEqual(utils.gc_objects_by_type('LocationEditorView'), [],
-                         'LocationEditorView not deleted')
+        self.assertEqual(utils.gc_objects_by_type('LocationEditor'),
+                         [], 'LocationEditor not deleted')
+        self.assertEqual(utils.gc_objects_by_type('LocationEditorPresenter'),
+                         [], 'LocationEditorPresenter not deleted')
+        self.assertEqual(utils.gc_objects_by_type('LocationEditorView'),
+                         [], 'LocationEditorView not deleted')
 
 
 class CollectionTests(GardenTestCase):
