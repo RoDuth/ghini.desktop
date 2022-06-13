@@ -82,8 +82,15 @@ class LabelUpdater(Thread):
 
     def run(self):
         session = db.Session()
-        value = session.execute(self.query).first()
-        GLib.idle_add(self.widget.set_text, str(value[0]))
+        try:
+            value = session.execute(self.query).first()[0]
+            GLib.idle_add(self.widget.set_text, str(value))
+        except SystemError:
+            # tuple error should investigate further, seems specific to sqlite,
+            # when using insert menu with splashscreen visible.  Possibly a
+            # race condition?  Re running seems to always succeed second time
+            # around.
+            self.run()
         session.close()
 
 
