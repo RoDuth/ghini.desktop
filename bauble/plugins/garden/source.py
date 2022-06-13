@@ -161,19 +161,24 @@ class Source(db.Base):
     # i.e. a Propagation of source material (i.e. purchased seeds etc.)
     propagation_id = Column(Integer, ForeignKey('propagation.id'))
     propagation = relationship(
-        'Propagation', uselist=False, single_parent=True,
+        'Propagation',
+        uselist=False,
+        single_parent=True,
         primaryjoin='Source.propagation_id==Propagation.id',
         cascade='all, delete-orphan',
-        backref=backref('source', uselist=False))
+        backref=backref('source', uselist=False)
+    )
 
     # relation to a Propagation that already exists and is attached
     # to a Plant
     # i.e. a plant is propagation from to create a new accession
     plant_propagation_id = Column(Integer, ForeignKey('propagation.id'))
     plant_propagation = relationship(
-        'Propagation', uselist=False,
+        'Propagation',
+        uselist=False,
         primaryjoin='Source.plant_propagation_id==Propagation.id',
-        backref=backref('used_source', uselist=True))
+        backref=backref('used_source', uselist=True)
+    )
 
 
 source_type_values = [('Expedition', _('Expedition')),

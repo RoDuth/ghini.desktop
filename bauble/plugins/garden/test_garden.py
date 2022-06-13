@@ -1,7 +1,7 @@
 # Copyright 2008-2010 Brett Adams
 # Copyright 2015,2017 Mario Frasca <mario@anche.no>.
 # Copyright 2017 Jardín Botánico de Quito
-# Copyright 2021 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright 2021-2022 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -367,29 +367,6 @@ class PlantTests(GardenTestCase):
         self.assertEqual(utils.gc_objects_by_type('PlantEditorView'),
                          [], 'PlantEditorView not deleted')
 
-    @unittest.skip('requires interaction')
-    def test_editor(self):
-        """
-        Interactively test the PlantEditor
-        """
-        for plant in self.session.query(Plant):
-            self.session.delete(plant)
-        for location in self.session.query(Location):
-            self.session.delete(location)
-        self.session.commit()
-
-        # editor = PlantEditor(model=self.plant)
-        loc = Location(name='site1', code='1')
-        loc2 = Location(name='site2', code='2')
-        loc2a = Location(name='site2a', code='2a')
-        self.session.add_all([loc, loc2, loc2a])
-        self.session.commit()
-        p = Plant(accession=self.accession, location=loc, quantity=1)
-        editor = PlantEditor(model=p)
-        editor.start()
-        editor.presenter.cleanup()
-        del editor
-
     def test_remove_callback(self):
         # action
         self.invoked = []
@@ -590,18 +567,18 @@ class PlantTests(GardenTestCase):
         editor.presenter.cleanup()
         del editor
 
-    @unittest.skip('not implimented')
-    def test_branch_callback(self):
+    @unittest.mock.patch('bauble.editor.GenericEditorView.start')
+    def test_branch_callback(self, mock_start):
         """
         Test bauble.plugins.garden.plant.branch_callback()
         """
+        mock_start.return_value = Gtk.ResponseType.OK
         for plant in self.session.query(Plant):
             self.session.delete(plant)
         for location in self.session.query(Location):
             self.session.delete(location)
         self.session.commit()
 
-        # editor = PlantEditor(model=self.plant)
         loc = Location(name='site1', code='1')
         loc2 = Location(name='site2', code='2')
         quantity = 5
@@ -611,8 +588,7 @@ class PlantTests(GardenTestCase):
         self.session.commit()
 
         branch_callback([plant])
-        new_plant = self.session.query(Plant).filter(
-            Plant.code != '1').first()
+        new_plant = self.session.query(Plant).filter(Plant.code != '1').first()
         self.session.refresh(plant)
         self.assertEqual(plant.quantity, quantity - new_plant.quantity)
         self.assertEqual(new_plant.changes[0].quantity, new_plant.quantity)
@@ -904,7 +880,7 @@ class PropagationTests(GardenTestCase):
         self.assertEqual(summary,
                          ('Cutting; Cutting type: Nodal; Length: 2mm; Tip: '
                           'Intact; Leaves: Intact; Flower buds: None; Wounded:'
-                          ' Singled; Fungal soak: Physan; Hormone treatment: '
+                          ' Singled; Fungicide: Physan; Hormone treatment: '
                           'Auxin powder; Bottom heat: 65°F; Container: 4" pot;'
                           ' Media: standard mix; Location: Mist frame; Cover:'
                           ' Poly cover; Rooted: 90%'))
@@ -1191,19 +1167,27 @@ class PropagationTests(GardenTestCase):
             self.assertTrue(value == default,
                          '%s = %s (%s)' % (attr, value, default))
 
-    @unittest.skip('requires interaction')
-    def test_editor(self):
-        """
-        Interactively test the PropagationEditor
-        """
-        from bauble.plugins.garden.propagation import PropagationEditor
+    @unittest.mock.patch('gi.repository.Gtk.Dialog.run')
+    def test_editor(self, mock_start):
+        # Not sure this really tests much...
+        mock_start.return_value = Gtk.ResponseType.OK
         propagation = Propagation()
-        #propagation.prop_type = u'UnrootedCutting'
-        propagation.accession = self.accession
+        propagation.used_source = [Source(accession_id=1)]
         editor = PropagationEditor(model=propagation)
+        utils.set_combo_from_value(
+            editor.presenter.view.widgets.prop_type_combo, 'Other'
+        )
+        utils.set_widget_value(
+            editor.presenter.view.widgets.notes_textview, 'TEST'
+        )
         propagation = editor.start()
         logger.debug(propagation)
-        self.assertTrue(propagation.accession)
+        self.assertTrue(propagation.accessions)
+        self.assertEqual(propagation.prop_type, 'Other')
+        self.assertEqual(propagation.notes, 'TEST')
+        del editor
+        self.assertEqual(utils.gc_objects_by_type('PropagationEditor'),
+                         [], 'PropagationEditor not deleted')
 
 
 class VoucherTests(GardenTestCase):
