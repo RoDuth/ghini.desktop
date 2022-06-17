@@ -1,6 +1,6 @@
 # Copyright (c) 2005,2006,2007,2008,2009 Brett Adams <brett@belizebotanic.org>
 # Copyright (c) 2012-2015 Mario Frasca <mario@anche.no>
-# Copyright (c) 2018-2021 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright (c) 2018-2022 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -35,19 +35,19 @@ logger = logging.getLogger(__name__)
 
 from gi.repository import Gtk
 
-from bauble import paths
-from bauble import prefs
-from bauble.plugins.abcd import (create_abcd,
-                                 SpeciesABCDAdapter,
-                                 AccessionABCDAdapter,
-                                 PlantABCDAdapter)
-from bauble.plugins.report import (get_plants_pertinent_to,
-                                   get_species_pertinent_to,
-                                   get_accessions_pertinent_to,
-                                   FormatterPlugin,
-                                   SettingsBox)
+from lxml import etree
+
+from bauble import paths, prefs, utils, task
 from bauble.error import BaubleError
-from bauble import utils
+from bauble.plugins.abcd import (SpeciesABCDAdapter,
+                                 AccessionABCDAdapter,
+                                 PlantABCDAdapter,
+                                 ABCDCreator)
+from .. import (get_plants_pertinent_to,
+                get_species_pertinent_to,
+                get_accessions_pertinent_to,
+                FormatterPlugin,
+                SettingsBox)
 
 # TODO: need to make sure we can't select the OK button if we haven't selected
 # a value for everything required.
@@ -164,18 +164,16 @@ class FOP:
 _fop = FOP()
 
 
-def create_abcd_xml(directory, source_type, include_private, authors, objs):
-    """convert objects to ABCDAdapters depending on source type for passing to
-    create_abcd.
+def create_abcd_xml(path, source_type, include_private, authors, objs):
+    """convert objects to ABCDAdapters depending on source type.
 
-    :param directory: directory to save to
+    :param path: Path object of file to save to.
     :param source_type: type to create: PLANT_SOURCE_TYPE, SPECIES_SOURCE_TYPE,
         ACCESSION_SOURCE_TYPE
     :param include_private: include private entries?
     :param authors: include authors?
     :param objs: SQLAlchemy objects to be converted
     """
-    adapted = []
     if source_type == PLANT_SOURCE_TYPE:
         get_pertinent = get_plants_pertinent_to
         msg = _('There are no plants in the search results.  Please try '
@@ -200,38 +198,38 @@ def create_abcd_xml(directory, source_type, include_private, authors, objs):
     else:
         raise NotImplementedError('unknown source type')
 
-    objs = sorted(get_pertinent(objs), key=utils.natsort_key)
+    objs = get_pertinent(objs, as_task=True)
 
-    if len(objs) == 0:
-        utils.message_dialog(msg)
-        return False
+    def unit_generator():
+        records_done = None
+        for records_done, obj in enumerate(objs):
+            if include_private or not private_path:
+                yield Adapter(obj, for_reports=True)
+            elif private_path and not attrgetter(private_path)(obj):
+                yield Adapter(obj, for_reports=True)
+        if records_done is None:
+            raise BaubleError(msg)
 
-    for obj in objs:
-        if include_private or not private_path:
-            adapted.append(Adapter(obj, for_labels=True))
-        elif private_path and not attrgetter(private_path)(obj):
-            adapted.append(Adapter(obj, for_labels=True))
+    abcd = ABCDCreator(unit_generator(), authors=authors)
+    task.queue(abcd.generate_elements())
 
-    if len(adapted) == 0:
+    if len(abcd.units) == 0:
         # nothing adapted....possibly everything was private
         msg = _('No objects could be adapted to ABCD units.')
         if not include_private:
             msg += (' You chose not to include private entries.  All items '
                     'maybe marked private?')
         raise BaubleError(msg)
-    abcd_data = create_abcd(adapted, authors=authors, validate=False)
+
+    abcd_data = abcd.get_element_tree()
 
     # use for debugging only (dumps to stdout):
     # etree.dump(abcd_data.getroot())
 
-    handle, xml_filename = tempfile.mkstemp(suffix='.xml', dir=directory)
-    with open(xml_filename, 'w', encoding='utf-8') as f:
+    with path.open('w', encoding='utf-8') as f:
         f.write(etree.tostring(abcd_data, encoding='unicode'))
 
-    # Close the handle here so can delete the file later (win32 at least)
-    os.close(handle)
-
-    return xml_filename
+    return str(path)
 
 
 class XSLFormatterSettingsBox(SettingsBox):
@@ -409,11 +407,13 @@ class XSLFormatterPlugin(FormatterPlugin):
 
         fop_flag, file_ext = FORMATS.get(kwargs.get('out_format'))
 
-        xml_filename = create_abcd_xml(str(Path(stylesheet).parent),
-                                       source_type,
-                                       kwargs.get('private'),
-                                       kwargs.get('authors'),
-                                       selfobjs)
+        xml_filename = create_abcd_xml(
+            Path(stylesheet).parent / '.temp_data.xml',
+            source_type,
+            kwargs.get('private'),
+            kwargs.get('authors'),
+            selfobjs
+        )
 
         if not xml_filename:
             return False
@@ -439,6 +439,7 @@ class XSLFormatterPlugin(FormatterPlugin):
         os.close(handle)
         temp = str(Path(name).with_suffix(f'.{file_ext}'))
         filename = kwargs.get('out_file') or temp
+
         fop_out = subprocess.run(
             [*fop_cmd, '-xml', xml_filename, '-xsl', stylesheet, fop_flag,
              filename],
@@ -446,12 +447,12 @@ class XSLFormatterPlugin(FormatterPlugin):
             creationflags=creationflags,
         )
 
+        os.remove(xml_filename)
+
         logger.debug('FOP return code: %s', fop_out.returncode)
         logger.debug('FOP stderr: %s', fop_out.stderr)
         logger.debug('FOP stdout: %s', fop_out.stdout)
         logger.debug(filename)
-
-        os.remove(xml_filename)
 
         if not Path(filename).exists():
             utils.message_dialog(_('Error creating the file. Please '
@@ -477,12 +478,4 @@ class XSLFormatterPlugin(FormatterPlugin):
         return True
 
 
-# expose the formatter
-try:
-    from lxml import etree
-except ImportError:
-    utils.message_dialog('The <i>lxml</i> package is required for the '
-                         'XSL report plugin')
-else:
-    # Is this still used?
-    formatter_plugin = XSLFormatterPlugin
+formatter_plugin = XSLFormatterPlugin

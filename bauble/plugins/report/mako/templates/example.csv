@@ -1,3 +1,4 @@
+## vim:set ft=mako:
 ## This file is part of ghini.desktop.
 ##
 ## ghini.desktop is free software: you can redistribute it and/or modify
@@ -18,7 +19,7 @@
 ##
 code,name,location
 ##
-% for p in get_plants_pertinent_to(values):
+% for p in get_plants_pertinent_to(values, as_task=True):
 ##
 ${p},${p.accession.species_str()},${p.location}
 ##

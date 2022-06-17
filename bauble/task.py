@@ -1,5 +1,6 @@
 # Copyright (c) 2005,2006,2007,2008,2009 Brett Adams <brett@belizebotanic.org>
 # Copyright (c) 2012-2015 Mario Frasca <mario@anche.no>
+# Copyright (c) 2020-2022 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -62,12 +63,49 @@ def _idle():
         raise StopIteration()
 
 
-def queue(task):
+def _yielding_queue(task):
+    """Run a blocking task that must occasionally update the UI.
+
+    This version will yield the results and is essentially just a copy of
+    `queue` that yields instead of running to exhaustion. It is intended to be
+    returned from `queue`.
+    """
+    if bauble.gui is not None:
+        bauble.gui.set_busy(True)
+        bauble.gui.progressbar.show()
+        bauble.gui.progressbar.set_pulse_step(1.0)
+        bauble.gui.progressbar.set_fraction(0)
+    global __running
+    __running = True
+    try:
+        while True:
+            try:
+                _idle()
+                yield next(task)
+            except StopIteration:
+                break
+        __running = False
+    except Exception as e:
+        logger.debug('%s(%s)', type(e).__name__, e)
+        raise
+    finally:
+        __running = False
+        if bauble.gui is not None:
+            bauble.gui.progressbar.set_pulse_step(0)
+            bauble.gui.progressbar.set_fraction(0)
+            bauble.gui.progressbar.hide()
+            bauble.gui.set_busy(False)
+        clear_messages()
+
+
+def queue(task, yielding=False):
     """Run a blocking task that must occasionally update the UI.
 
     Task should be a generator with UI side effects. It does not matter what it
     yields only that it does yield from time to time to allow updating the UI.
     """
+    if yielding:
+        return _yielding_queue(task)
 
     if bauble.gui is not None:
         bauble.gui.set_busy(True)

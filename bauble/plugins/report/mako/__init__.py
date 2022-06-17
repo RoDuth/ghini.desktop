@@ -326,7 +326,7 @@ class MakoFormatterSettingsBox(SettingsBox):
         # which options does the template accept? (can be None)
         options_box = self.widgets.mako_options_box
         try:
-            with open(widget.get_text()) as f:
+            with open(widget.get_text(), encoding='utf-8') as f:
                 # scan the header filtering lines starting with # OPTION
                 option_lines = [_f for _f in [self.pattern.match(i.strip())
                                               for i in f.readlines()] if _f]
@@ -396,10 +396,11 @@ _settings_box = MakoFormatterSettingsBox()
 
 
 class MakoFormatterPlugin(FormatterPlugin):
-    """
-    The MakoFormatterPlugins passes the values in the search
-    results directly to a Mako template.  It is up to the template
-    author to validate the type of the values and act accordingly if not.
+    """The MakoFormatterPlugin passes the values in the search results
+    directly to a Mako template.
+
+    It is up to the template author to validate the type of the values and act
+    accordingly if not.
     """
 
     title = 'Mako'
@@ -453,10 +454,7 @@ class MakoFormatterPlugin(FormatterPlugin):
         for fname, _ftype, fdefault, _ftooltip in option_fields:
             options.setdefault(fname, fdefault)
 
-        session = db.Session()
-        values = [session.merge(obj) for obj in objs]
-        report = template.render(values=values)
-        session.close()
+        report = template.render(values=objs)
         # assume the template is the same file type as the output file
         _head, ext = os.path.splitext(template_filename)
         file_handle, filename = tempfile.mkstemp(suffix=ext)

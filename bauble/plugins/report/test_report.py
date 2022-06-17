@@ -25,9 +25,16 @@ from gi.repository import Gtk
 
 from bauble import prefs
 from bauble.test import BaubleTestCase, check_dupids, update_gui
-from bauble.plugins.plants import (Family, Genus, Species, VernacularName,
+from bauble.plugins.plants import (Family,
+                                   Genus,
+                                   Species,
+                                   VernacularName,
                                    Geography)
-from bauble.plugins.garden import Accession, Plant, Location, Source, SourceDetail
+from bauble.plugins.garden import (Accession,
+                                   Plant,
+                                   Location,
+                                   Source,
+                                   SourceDetail)
 from bauble.plugins.tag import tag_objects, Tag
 from . import (get_species_pertinent_to,
                get_accessions_pertinent_to,
@@ -171,7 +178,7 @@ class ReportTests(BaubleTestCase):
         ids = get_ids(get_species_pertinent_to([vn], self.session))
         self.assertCountEqual(ids, [1])
 
-        tag_objects('test', [family, genus])
+        tag_objects('test', [family, genus, location, accession])
         tag = self.session.query(Tag).filter_by(tag='test').one()
         ids = get_ids(get_species_pertinent_to([tag], self.session))
         self.assertCountEqual(ids, list(range(1, 5)))
@@ -303,7 +310,7 @@ class ReportTests(BaubleTestCase):
         family = self.session.query(Family).get(1)
         family2 = self.session.query(Family).get(2)
         ids = get_ids(get_locations_pertinent_to([family, family2],
-            self.session))
+                                                 self.session))
         self.assertCountEqual(ids, list(range(1, 33)))
 
         genus = self.session.query(Genus).get(1)

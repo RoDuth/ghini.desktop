@@ -35,7 +35,7 @@
               <xsl:variable name="full-botanic-name">
                 <!-- GENUS -->
                 <!--  ID Qualifier, if present at genus level -->
-                <xsl:if test=".//abcd:IdentificationQualifier[@insertionpoint='genus']">
+                <xsl:if test=".//abcd:IdentificationQualifier[@insertionpoint='1']">
                   <fo:inline font-style="normal">
                     <xsl:choose>
                       <xsl:when test=".//abcd:IdentificationQualifier = 'incorrect'">
@@ -70,7 +70,7 @@
                 <xsl:if test=".//abcd:FirstEpithet != ''">
                   <xsl:text> </xsl:text>
                   <!--  ID Qualifier, if present at species level -->
-                  <xsl:if test=".//abcd:IdentificationQualifier[@insertionpoint='sp']">
+                  <xsl:if test=".//abcd:IdentificationQualifier[@insertionpoint='2']">
                     <fo:inline font-style="normal">
                       <xsl:value-of select=".//abcd:IdentificationQualifier"/>
                       <xsl:if test=".//abcd:IdentificationQualifier != '?'"><xsl:text> </xsl:text></xsl:if>
@@ -94,7 +94,7 @@
                 <!--  ID Qualifier, if present at infraspecific rank level -->
                 <xsl:if test=".//abcd:Rank != ''">
                   <xsl:text> </xsl:text>
-                  <xsl:if test=".//abcd:IdentificationQualifier[@insertionpoint='infrasp']">
+                  <xsl:if test=".//abcd:IdentificationQualifier[@insertionpoint='3']">
                     <fo:inline font-style="normal">
                       <xsl:value-of select=".//abcd:IdentificationQualifier"/>
                       <xsl:if test=".//abcd:IdentificationQualifier != '?'"><xsl:text> </xsl:text></xsl:if>

@@ -1,3 +1,4 @@
+## vim:set ft=mako:
 ## This file is part of ghini.desktop.
 ##
 ## ghini.desktop is free software: you can redistribute it and/or modify
@@ -17,7 +18,7 @@
 <html>
 <head>
 <title>Labels</title>
-<style type="text/css" media="all">  
+<style type="text/css" media="all">
 @page {
     margin: 0;
     orphans: 100;
@@ -70,14 +71,14 @@
 
 .code {
     /* border: 1px solid orange; */
-    font: normal normal 15pt serif;    
+    font: normal normal 15pt serif;
     vertical-align: bottom;
     text-align: left;
     white-space: nowrap;
   }
 .distribution {
     /* border: 1px solid blue; */
-    font: normal normal 14pt serif; 
+    font: normal normal 14pt serif;
     vertical-align: bottom;
     text-align: right;
   }
@@ -99,16 +100,16 @@
     </tr>
     <tr>
       <td colspan="2" class="name">
-	<div class="species">
-	  ${plant.accession.species_str(markup=True)}
-	</div>
-	<div class="vernacular">
-	  <% 
-	  s = plant.accession.species.default_vernacular_name
-	  if s:
-	    context.write(str(s))
-	  %>
-	</div>
+  <div class="species">
+    ${plant.accession.species_str(markup=True)}
+  </div>
+  <div class="vernacular">
+    <%
+    s = plant.accession.species.default_vernacular_name
+    if s:
+      context.write(str(s))
+    %>
+  </div>
       </td>
     </tr>
     <tr>
@@ -116,17 +117,14 @@
         ${plant}
       </td>
       <td class="distribution">
-	${plant.accession.species.distribution_str()}
-      </td>      
+  ${plant.accession.species.distribution_str()}
+      </td>
     </tr>
   </table>
 
-	
-</%def>
-   % for v in values:
-       % for p in get_plants_pertinent_to(v, session):
-           ${make_label(p)}
-       % endfor
-   % endfor
-</body>
 
+</%def>
+     % for p in get_plants_pertinent_to(values, session, as_task=True):
+         ${make_label(p)}
+     % endfor
+</body>

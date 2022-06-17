@@ -77,6 +77,7 @@ def pb_set_fraction(fraction):
     we use this in the tests where there is no gui
     """
     if gui is not None and gui.progressbar is not None:
+        fraction = round(fraction, 3)
         gui.progressbar.set_fraction(fraction)
 
 

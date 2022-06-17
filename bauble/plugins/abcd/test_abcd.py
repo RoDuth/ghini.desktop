@@ -26,6 +26,8 @@ import lxml.etree as etree
 import os
 import tempfile
 
+from unittest import mock
+
 import logging
 logger = logging.getLogger(__name__)
 
@@ -54,56 +56,33 @@ class ABCDTestCase(BaubleTestCase):
         xmlschema_doc = etree.parse(schema_file)
         self.abcd_schema = etree.XMLSchema(xmlschema_doc)
 
-    def test_abcd(self):
-        # TODO: this needs to be updated, we don't use the
-        # ElementFactory anymore
-        pass
-        # datasets = DataSets()
-        # ds = ElementFactory(datasets, 'DataSet')
-        # tech_contacts = ElementFactory( ds, 'TechnicalContacts')
-        # tech_contact = ElementFactory(tech_contacts, 'TechnicalContact')
-        # ElementFactory(tech_contact, 'Name', text='Brett')
-        # ElementFactory(tech_contact, 'Email', text='brett@belizebotanic.org')
-        # cont_contacts = ElementFactory(ds, 'ContentContacts')
-        # cont_contact = ElementFactory(cont_contacts, 'ContentContact')
-        # ElementFactory(cont_contact, 'Name', text='Brett')
-        # ElementFactory(cont_contact, 'Email', text='brett@belizebotanic.org')
-        # metadata = ElementFactory(ds, 'Metadata', )
-        # description = ElementFactory(metadata, 'Description')
-        #   representation = ElementFactory(description, 'Representation',
-        #                                   attrib={'language': 'en'})
-        # revision = ElementFactory(metadata, 'RevisionData')
-        # ElementFactory(revision, 'DateModified', text='2001-03-01T00:00:00')
-        # title = ElementFactory(representation, 'Title', text='TheTitle')
-        # units = ElementFactory(ds, 'Units')
-        # unit = ElementFactory(units, 'Unit')
-        # ElementFactory(unit, 'SourceInstitutionID', text='BBG')
-        # ElementFactory(unit, 'SourceID', text='1111')
-        # unit_id = ElementFactory(unit, 'UnitID', text='2222')
-
-        # self.assert_(self.validate(datasets), self.abcd_schema.error_log)
-
-    def test_export(self):
-        """
-        Test the ABCDExporter
-        """
+    @mock.patch('bauble.utils.message_dialog')
+    def test_export(self, mock_dialog):
+        """Test the ABCDExporter.  If message_dialog is called fail. i.e.
+        validation fails"""
         self.assertTrue(self.session.query(Plant).count() > 0)
         accession = self.session.query(Accession).first()
         source = Source()
         accession.source = source
         source.sources_code = '1'
-        collection = Collection(collector='Bob', collectors_code='1',
-                                geography_id=1, locale='locale',
+        collection = Collection(collector='Bob',
+                                collectors_code='1',
+                                geography_id=1,
+                                locale='locale',
                                 date=datetime.date.today(),
-                                latitude='1.1', longitude='1.1',
+                                latitude='1.1',
+                                longitude='1.1',
+                                geo_accy=1.1,
                                 habitat='habitat description',
-                                elevation=1, elevation_accy=1,
+                                elevation=1,
+                                elevation_accy=1,
                                 notes='some notes')
         source.collection = collection
         self.session.commit()
         handle, filename = tempfile.mkstemp()
         abcd.ABCDExporter().start(filename)
         os.close(handle)
+        mock_dialog.assert_not_called()
 
     def test_plants_to_abcd(self):
         plants = self.session.query(Plant)

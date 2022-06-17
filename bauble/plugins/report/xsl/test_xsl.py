@@ -1,4 +1,4 @@
-# Copyright (c) 2021 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright (c) 2021-2022 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -435,10 +435,11 @@ class GlobalFunctionsTests(XSLTestCase):
     def setUp(self):
         super().setUp()
         prefs.prefs[USE_EXTERNAL_FOP_PREF] = True
+        self.temp_path = Path(self.temp_dir.name) / '.testABCDdata.xml'
 
     def test_create_abcd_xml_all_plants(self):
         objs = self.session.query(Species).all()
-        test_xml = create_abcd_xml(self.temp_dir.name, PLANT_SOURCE_TYPE, True,
+        test_xml = create_abcd_xml(self.temp_path, PLANT_SOURCE_TYPE, True,
                                    False, objs)
         # test well formed xml
         self.assertTrue(etree.parse(test_xml))
@@ -446,7 +447,7 @@ class GlobalFunctionsTests(XSLTestCase):
 
     def test_create_abcd_xml_all_plants_exclude_private(self):
         objs = self.session.query(Species).all()
-        test_xml = create_abcd_xml(self.temp_dir.name, PLANT_SOURCE_TYPE,
+        test_xml = create_abcd_xml(self.temp_path, PLANT_SOURCE_TYPE,
                                    False, False, objs)
         # test well formed xml
         self.assertTrue(etree.parse(test_xml))
@@ -454,7 +455,7 @@ class GlobalFunctionsTests(XSLTestCase):
 
     def test_create_abcd_xml_all_accession(self):
         objs = self.session.query(Species).all()
-        test_xml = create_abcd_xml(self.temp_dir.name, ACCESSION_SOURCE_TYPE,
+        test_xml = create_abcd_xml(self.temp_path, ACCESSION_SOURCE_TYPE,
                                    True, True, objs)
         # test well formed xml
         self.assertTrue(etree.parse(test_xml))
@@ -462,7 +463,7 @@ class GlobalFunctionsTests(XSLTestCase):
 
     def test_create_abcd_xml_all_accession_exlude_private(self):
         objs = self.session.query(Species).all()
-        test_xml = create_abcd_xml(self.temp_dir.name, ACCESSION_SOURCE_TYPE,
+        test_xml = create_abcd_xml(self.temp_path, ACCESSION_SOURCE_TYPE,
                                    False, True, objs)
         # test well formed xml
         self.assertTrue(etree.parse(test_xml))
@@ -470,7 +471,7 @@ class GlobalFunctionsTests(XSLTestCase):
 
     def test_create_abcd_xml_all_species(self):
         objs = self.session.query(Species).all()
-        test_xml = create_abcd_xml(self.temp_dir.name, SPECIES_SOURCE_TYPE,
+        test_xml = create_abcd_xml(self.temp_path, SPECIES_SOURCE_TYPE,
                                    True, False, objs)
         # test well formed xml
         self.assertTrue(etree.parse(test_xml))
@@ -478,7 +479,7 @@ class GlobalFunctionsTests(XSLTestCase):
 
     def test_create_abcd_xml_all_species_exclude_private_succeeds(self):
         objs = self.session.query(Species).all()
-        test_xml = create_abcd_xml(self.temp_dir.name, SPECIES_SOURCE_TYPE,
+        test_xml = create_abcd_xml(self.temp_path, SPECIES_SOURCE_TYPE,
                                    False, False, objs)
         # test well formed xml
         self.assertTrue(etree.parse(test_xml))
@@ -488,54 +489,48 @@ class GlobalFunctionsTests(XSLTestCase):
         objs = [self.session.query(Accession).get(1)]
         # plants
         with self.assertRaises(BaubleError):
-            create_abcd_xml(self.temp_dir.name, PLANT_SOURCE_TYPE, False,
+            create_abcd_xml(self.temp_path, PLANT_SOURCE_TYPE, False,
                             False, objs)
 
     def test_create_abcd_xml_accessions_private_only_exclude_raises(self):
         objs = [self.session.query(Accession).get(1)]
         # test does not create xml
         with self.assertRaises(BaubleError):
-            create_abcd_xml(self.temp_dir.name, ACCESSION_SOURCE_TYPE, False,
+            create_abcd_xml(self.temp_path, ACCESSION_SOURCE_TYPE, False,
                             False, objs)
 
     def test_create_abcd_xml_accessions_private_only_include_succeeds(self):
         objs = [self.session.query(Accession).get(1)]
-        test_xml = create_abcd_xml(self.temp_dir.name, ACCESSION_SOURCE_TYPE,
+        test_xml = create_abcd_xml(self.temp_path, ACCESSION_SOURCE_TYPE,
                                    True, True, objs)
         # test well formed xml
         self.assertTrue(etree.parse(test_xml))
         os.remove(test_xml)
 
-    @mock.patch('bauble.utils.message_dialog')
-    def test_create_abcd_xml_species_without_accessions_notifies_user(
-            self, mock_dialog):
+    def test_create_abcd_xml_species_without_accessions_raises(self):
         objs = (self.session.query(Species)
                 .filter(~Species.accessions.any())
                 .all())
         # accessions
-        test_xml = create_abcd_xml(self.temp_dir.name, ACCESSION_SOURCE_TYPE,
-                                   True, True, objs)
-        mock_dialog.assert_called()
-        self.assertFalse(test_xml)
+        with self.assertRaises(BaubleError):
+            create_abcd_xml(self.temp_path, ACCESSION_SOURCE_TYPE, True, True,
+                            objs)
 
-    @mock.patch('bauble.utils.message_dialog')
-    def test_create_abcd_xml_species_without_plants_notifies_user(self,
-                                                                  mock_dialog):
+    def test_create_abcd_xml_species_without_plants_raises(self):
         objs = (self.session.query(Species)
                 .filter(~Species.accessions.any())
                 .all())
         # plants
-        test_xml = create_abcd_xml(self.temp_dir.name, PLANT_SOURCE_TYPE,
-                                   True, True, objs)
-        mock_dialog.assert_called()
-        self.assertFalse(test_xml)
+        with self.assertRaises(BaubleError):
+            create_abcd_xml(self.temp_path, PLANT_SOURCE_TYPE, True, True,
+                            objs)
 
     def test_create_abcd_xml_species_without_accession_species_succeeds(self):
         objs = (self.session.query(Species)
                 .filter(~Species.accessions.any())
                 .all())
         # species
-        test_xml = create_abcd_xml(self.temp_dir.name, SPECIES_SOURCE_TYPE,
+        test_xml = create_abcd_xml(self.temp_path, SPECIES_SOURCE_TYPE,
                                    True, False, objs)
         # test well formed xml
         self.assertTrue(etree.parse(test_xml))

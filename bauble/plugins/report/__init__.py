@@ -31,8 +31,6 @@ logger = logging.getLogger(__name__)
 from gi.repository import Gtk
 from gi.repository import GLib
 
-from sqlalchemy import union
-
 import bauble
 from bauble.error import BaubleError
 from bauble import prefs
@@ -68,12 +66,28 @@ the preferences key the currently selected report.
 options = {}
 
 
-def _get_pertinent_objects(cls, get_query_func, objs, session):
+def _pertinent_objects_generator(query, order_by):
+    """Generator to return results and update progressbar in tasks."""
+    from bauble import pb_set_fraction
+    num_objs = query.distinct().count()
+    if order_by:
+        query = query.order_by(*order_by)
+    five_percent = int(num_objs / 20) or 1
+    for records_done, item in enumerate(query):
+        if records_done % five_percent == 0:
+            pb_set_fraction(records_done / num_objs)
+        yield item
+
+
+def _get_pertinent_objects(join, get_query_func, objs, session, as_task=False,
+                           order_by=None):
     """
     :param cls:
     :param get_query_func:
     :param objs:
     :param session:
+    :param as_task: if True return a generator appropriate for use in tasks.
+    :param order_by: columns to order_by
     """
     if session is None:
         from bauble import db
@@ -84,16 +98,33 @@ def _get_pertinent_objects(cls, get_query_func, objs, session):
     grouped = {}
     for obj in objs:
         grouped.setdefault(type(obj), []).append(obj)
+
     queries = [
         get_query_func(cls, objs, session) for cls, objs in grouped.items()
     ]
-    unions = union(*[query.statement for query in queries])
-    results = session.query(cls).from_statement(unions)
-    return results
+
+    query = queries[0]
+    has_union = len(queries) > 1
+    if has_union:
+        query = query.union(*queries[1:])
+    # this ugly hack because query._join_entities is deprecated and the
+    # SQL output is predictable
+    if join and (f'JOIN {join.__tablename__}' not in str(query) or has_union):
+        query = query.join(join)
+
+    if as_task:
+        from bauble import task
+        return task.queue(_pertinent_objects_generator(query, order_by),
+                          yielding=True)
+
+    if order_by:
+        query = query.order_by(*order_by)
+
+    return query
 
 
 # pylint: disable=too-many-return-statements
-def get_plant_query(cls, objs, session) -> list[Plant]:
+def get_plant_query(cls, objs, session):
     query = session.query(Plant)
     ids = {obj.id for obj in objs}
     if cls is Family:
@@ -127,17 +158,21 @@ def get_plant_query(cls, objs, session) -> list[Plant]:
     raise BaubleError(_("Can't get plants from a %s") % cls.__name__)
 
 
-def get_plants_pertinent_to(objs, session=None):
+def get_plants_pertinent_to(objs, session=None, as_task=False):
     """
     :param objs: an instance of a mapped object
     :param session: the session to use for the queries
+    :param as_task: if True will yield results and update progressbar as
+        appropriate for use in a yielding task
 
     Return all the plants found in objs.
     """
-    return _get_pertinent_objects(Plant, get_plant_query, objs, session)
+    order_by = [Accession.code, Plant.code]
+    return _get_pertinent_objects(Accession, get_plant_query, objs, session,
+                                  as_task, order_by=order_by)
 
 
-def get_accession_query(cls, objs, session) -> list[Accession]:
+def get_accession_query(cls, objs, session):
     query = session.query(Accession)
     ids = {obj.id for obj in objs}
     if cls is Family:
@@ -170,30 +205,31 @@ def get_accession_query(cls, objs, session) -> list[Accession]:
     raise BaubleError(_("Can't get accessions from a %s") % cls.__name__)
 
 
-def get_accessions_pertinent_to(objs, session=None):
+def get_accessions_pertinent_to(objs, session=None, as_task=False):
     """
     :param objs: an instance of a mapped object
     :param session: the session to use for the queries
+    :param as_task: if True will yield results and update progressbar as
+        appropriate for use in a yielding task
 
     Return all the accessions found in objs.
     """
-    return _get_pertinent_objects(
-        Accession, get_accession_query, objs, session)
+    return _get_pertinent_objects(None, get_accession_query, objs, session,
+                                  as_task, order_by=[Accession.code])
 
 
-def get_species_query(cls, objs, session) -> list[Species]:
+def get_species_query(cls, objs, session):
     query = session.query(Species)
     ids = {obj.id for obj in objs}
     if cls is Family:
         return (query.join('genus', 'family')
                 .filter(cls.id.in_(ids)))
     if cls is Genus:
-        return query.join('genus').filter(Genus.id.in_(ids))
+        return query.join('genus').filter(cls.id.in_(ids))
     if cls is Species:
         return query.filter(cls.id.in_(ids))
     if cls is VernacularName:
-        return (query.join('vernacular_names')
-                .filter(cls.id.in_(ids)))
+        return query.join('vernacular_names').filter(cls.id.in_(ids))
     if cls is Geography:
         return query.join('distribution', 'geography').filter(cls.id.in_(ids))
     if cls is Plant:
@@ -202,8 +238,7 @@ def get_species_query(cls, objs, session) -> list[Species]:
         return query.join('accessions').filter(cls.id.in_(ids))
     if cls is Location:
         return (query.join('accessions', 'plants', 'location')
-                .filter(cls.id.in_(ids))
-                )
+                .filter(cls.id.in_(ids)))
     if cls is SourceDetail:
         return (query.join('accessions', 'source', 'source_detail')
                 .filter(cls.id.in_(ids)))
@@ -215,19 +250,20 @@ def get_species_query(cls, objs, session) -> list[Species]:
     raise BaubleError(_("Can't get species from a %s") % cls.__name__)
 
 
-def get_species_pertinent_to(objs, session=None):
+def get_species_pertinent_to(objs, session=None, as_task=False):
     """
     :param objs: an instance of a mapped object
     :param session: the session to use for the queries
+    :param as_task: if True will yield results and update progressbar as
+        appropriate for use in a yielding task
 
     Return all the species found in objs.
     """
-    return sorted(
-        _get_pertinent_objects(Species, get_species_query, objs, session),
-        key=str)
+    return _get_pertinent_objects(Genus, get_species_query, objs, session,
+                                  as_task, order_by=[Genus.genus, Species.sp])
 
 
-def get_location_query(cls, objs, session) -> list[Location]:
+def get_location_query(cls, objs, session):
     query = session.query(Location)
     ids = {obj.id for obj in objs}
     if cls is Location:
@@ -264,19 +300,20 @@ def get_location_query(cls, objs, session) -> list[Location]:
     raise BaubleError(_("Can't get Location from a %s") % cls.__name__)
 
 
-def get_locations_pertinent_to(objs, session=None):
+def get_locations_pertinent_to(objs, session=None, as_task=False):
     """
     :param objs: an instance of a mapped object
     :param session: the session to use for the queries
+    :param as_task: if True will yield results and update progressbar as
+        appropriate for use in a yielding task
 
     Return all the locations found in objs.
     """
-    return sorted(
-        _get_pertinent_objects(Location, get_location_query, objs, session),
-        key=str)
+    return _get_pertinent_objects(None, get_location_query, objs, session,
+                                  as_task, order_by=[Location.code])
 
 
-def get_geography_query(cls, objs, session) -> list[Geography]:
+def get_geography_query(cls, objs, session):
     query = session.query(Geography)
     ids = {obj.id for obj in objs}
     if cls is Geography:
@@ -316,16 +353,17 @@ def get_geography_query(cls, objs, session) -> list[Geography]:
 # pylint: enable=too-many-return-statements
 
 
-def get_geographies_pertinent_to(objs, session=None):
+def get_geographies_pertinent_to(objs, session=None, as_task=False):
     """
     :param objs: an instance of a mapped object
     :param session: the session to use for the queries
+    :param as_task: if True will yield results and update progressbar as
+        appropriate for use in a yielding task
 
     Return all the locations found in objs.
     """
-    return sorted(
-        _get_pertinent_objects(Geography, get_geography_query, objs, session),
-        key=str)
+    return _get_pertinent_objects(None, get_geography_query, objs,
+                                  session, as_task, order_by=[Geography.name])
 
 
 class SettingsBox(Gtk.Box):
@@ -487,7 +525,7 @@ class ReportToolDialogPresenter:
         prefs.prefs[CONFIG_LIST_PREF] = formatters
 
     def on_new_button_clicked(self, _button):
-        text = '<b>%s</b>' % _('Enter a name for the new formatter')
+        text = '<b>' + _('Enter a name for the new formatter') + '</b>'
         dialog = utils.create_message_dialog(
             text,
             buttons=Gtk.ButtonsType.OK_CANCEL,
