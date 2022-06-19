@@ -20,8 +20,6 @@ from bauble.plugins.report import get_plants_pertinent_to
 % for v in get_plants_pertinent_to(values):
 <%
     genus = v.accession.species.genus.genus
-    if genus.startswith('Zzz-'):
-        genus = ''
     species_epithet = v.accession.species.sp
     if species_epithet == 'sp':
         species_epithet = ''

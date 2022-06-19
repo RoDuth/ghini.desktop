@@ -1,3 +1,4 @@
+## vim:set ft=mako:
 ## This file is part of ghini.desktop.
 ##
 ## ghini.desktop is free software: you can redistribute it and/or modify
@@ -19,16 +20,15 @@ from bauble.plugins.report import get_species_pertinent_to
 % for v in get_species_pertinent_to(values):
 <%
     genus = v.genus.genus
-    if genus.startswith('Zzz-'):
-        genus = ''
-    species_epithet = v.sp
-    if species_epithet.startswith('sp'):
+    genus_hybrid_marker = ''
+    if genus[0] in ['×', 'x']:
+        genus_hybrid_marker = 'H'
+        genus = genus[1:].strip()
+    species_epithet = v.sp or ''
+    if species_epithet.startswith('sp.'):
         species_epithet = ''
-    hybrid_marker = ''
-    if '×' in v.sp:
-        hybrid_marker = 'H'
-    if '×' in v.sp[:1]:
-        hybrid_marker = '×'
-        species_epithet = species_epithet[1:]
-%>${v.genus.hybrid_marker},${v.genus.epithet},${hybrid_marker},${species_epithet},${v.infraspecific_rank or ''},${v.infraspecific_epithet or ''},${v.cultivar_epithet or ''}
+    sp_hybrid_marker = ''
+    if v.hybrid:
+        sp_hybrid_marker = 'H'
+%>${genus_hybrid_marker},${genus},${sp_hybrid_marker},${species_epithet},${v.infraspecific_rank or ''},${v.infraspecific_epithet or ''},${v.cultivar_epithet or ''}
 % endfor

@@ -1,3 +1,9 @@
+## vim:set ft=mako:
+## OPTION authors: (type: boolean, default: 'true', tooltip: '')
+## OPTION sort_by: (type: string, default: 'None', tooltip: 'sort, options are: family, habit, None - None sorts by genus, species')
+##
+## NOTE this template used in testing
+##
 ## This file is part of ghini.desktop.
 ##
 ## ghini.desktop is free software: you can redistribute it and/or modify
@@ -14,13 +20,23 @@
 ## along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
 ##
 <%
-from bauble.plugins.report import get_species_pertinent_to
-%>Family	Genus	Species	Author	CITES	Condition	Conservation	Groups	Plants	Habit
-% for v in get_species_pertinent_to(values):
+from bauble.plugins.report import get_species_pertinent_to, options
+%>\
+<%
+  species = get_species_pertinent_to(values)
+  if options.get('sort_by') == 'family':
+    species = sorted(species, key=lambda v: v.genus.family.family)
+  elif options.get('sort_by') == 'habit':
+    species = sorted(species, key=lambda v: v.habit.code if v.habit else '')
+%>\
+Family,Genus,Species,\
+% if options.get('authors'):
+Author,\
+% endif
+CITES,Condition,Conservation,Groups,Plants,Habit
+% for v in species:
 <%
     genus = v.genus.genus
-    if genus.startswith('Zzz-'):
-        genus = ''
     species_epithet = v.sp
     if species_epithet == 'sp':
         species_epithet = ''
@@ -31,5 +47,9 @@ from bauble.plugins.report import get_species_pertinent_to
         group_count += len(a.plants)
         for p in a.plants:
             plant_count += p.quantity
-%>${v.genus.family}	${genus}	${species_epithet}	${v.sp_author or ''}	${v.cites or ''}	${v.condition or ''}	${v.conservation or ''}	${group_count}	${plant_count}	${v.habit or ''}
+%>${v.genus.family},${genus},${species_epithet},\
+% if options.get('authors'):
+${v.sp_author or ''},\
+% endif
+${cites},${v.condition or ''},${v.conservation or ''},${group_count},${plant_count},${v.habit or ''}
 % endfor

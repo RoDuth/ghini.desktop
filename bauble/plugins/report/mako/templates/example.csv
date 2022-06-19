@@ -1,4 +1,5 @@
 ## vim:set ft=mako:
+## OPTION use_private: (type: boolean, default: '', tooltip: '')
 ## This file is part of ghini.desktop.
 ##
 ## ghini.desktop is free software: you can redistribute it and/or modify
@@ -15,12 +16,14 @@
 ## along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
 ##
 ##
-<% from bauble.plugins.report import get_plants_pertinent_to %>\
+<% from bauble.plugins.report import get_plants_pertinent_to, options %>\
 ##
 code,name,location
 ##
 % for p in get_plants_pertinent_to(values, as_task=True):
+  % if options.get('use_private') or p.accession.private == False:
 ##
 ${p},${p.accession.species_str()},${p.location}
+  % endif
 ##
 % endfor
