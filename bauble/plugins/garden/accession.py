@@ -1742,7 +1742,7 @@ class SourcePresenter(editor.GenericEditorPresenter):
                           utils.format_combo_entry_text)
 
     def on_source_entry_changed(self, entry):
-        text = utils.nstr(entry.get_text())
+        text = entry.get_text()
         # see if the text matches a completion string
         comp = entry.get_completion()
 
@@ -1762,6 +1762,7 @@ class SourcePresenter(editor.GenericEditorPresenter):
         else:
             self.add_problem(self.PROBLEM_UNKOWN_SOURCE, entry)
         self.update_visible()
+        self.refresh_sensitivity()
         return True
 
     @staticmethod
@@ -1973,7 +1974,7 @@ class AccessionEditorPresenter(editor.GenericEditorPresenter):
     def on_id_qual_rank_changed(self, combo, *_args):
         itr = combo.get_active_iter()
         if not itr:
-            self.model.id_qual_rank = None
+            self.set_model_attr('id_qual_rank', None)
             return
         _text, col = combo.get_model()[itr]
         self.set_model_attr('id_qual_rank', utils.nstr(col))
@@ -2241,10 +2242,11 @@ class AccessionEditorPresenter(editor.GenericEditorPresenter):
             wild_prov_combo.set_sensitive(prov_sensitive)
             self.view.widgets.acc_wild_prov_combo.set_sensitive(prov_sensitive)
 
-        if attr == 'id_qual' and not self.model.id_qual_rank:
+        if self.model.id_qual and not self.model.id_qual_rank:
             self.add_problem(self.PROBLEM_ID_QUAL_RANK_REQUIRED,
                              self.view.widgets.acc_id_qual_rank_combo)
-        else:
+        elif not self.model.id_qual or (self.model.id_qual_rank and
+                                        self.model.id_qual):
             self.remove_problem(self.PROBLEM_ID_QUAL_RANK_REQUIRED)
 
         self.refresh_sensitivity()

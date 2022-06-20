@@ -128,6 +128,7 @@ class GUI:
         b'.inf-bg * {background-image: image(#B6DAF2);}'
         b'.click-label {color: blue;}'
         b'.problem {background-color: #FFDCDF;}'
+        b'.problem-bg * {background-image: image(#FFDCDF);}'
         b'.err-btn * {color: #FF9999;}'
     )
     Gtk.StyleContext.add_provider_for_screen(
