@@ -371,7 +371,7 @@ class AccessionABCDAdapter(SpeciesABCDAdapter):
         idqrank = self.accession.id_qual_rank
         if idqrank is None:
             return None
-        return {'genus': '1', 'sp': '2', 'infrasp': '3'}.get(idqrank)
+        return {'genus': '1', 'sp': '2', 'infrasp': '3'}.get(idqrank, '1')
 
     def get_datelastedited(self):
         return utils.xml_safe(self.accession._last_updated.isoformat())
