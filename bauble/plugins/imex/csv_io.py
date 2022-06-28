@@ -350,7 +350,7 @@ class CSVExporter(GenericExporter):
         prefs.prefs[f"{CSV_IO_PREFS}.{table_name}"] = dict(
             self.presenter.fields
         )
-        with open(self.filename, 'w', encoding='utf-8', newline='') as f:
+        with open(self.filename, 'w', encoding='utf-8-sig', newline='') as f:
             writer = csv.DictWriter(f,
                                     fields.keys(),
                                     extrasaction='ignore',
@@ -430,7 +430,7 @@ class CSVImportDialogPresenter(GenericEditorPresenter):
             prefs.prefs[CSV_IMPORT_DIR_PREF] = str(path.parent)
             self.filename = path
 
-            with self.filename.open() as f:
+            with self.filename.open('r', encoding='utf-8-sig') as f:
                 reader = csv.DictReader(f)
                 field_map = next(reader)
                 logger.debug('field_map: %s', field_map)
@@ -611,13 +611,13 @@ class CSVImporter(GenericImporter):
         logger.debug('importing %s with options %s', self.filename, options)
 
         record_count = 0
-        with file.open() as f:
+        with file.open('r', encoding='utf-8-sig') as f:
             record_count = len(f.readlines())
         five_percent = int(record_count / 20) or 1
 
         records_added = records_done = 0
 
-        with file.open() as f:
+        with file.open('r', encoding='utf-8-sig') as f:
             reader = csv.DictReader(f)
             next(reader, None)  # skip field_map row
             for record in reader:

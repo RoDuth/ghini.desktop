@@ -132,7 +132,7 @@ class CSVExporterTests(CSVTestCase):
         out_file = Path(self.temp_dir.name) / 'test.csv'
         exporter.filename = str(out_file)
         exporter.run()
-        with out_file.open() as f:
+        with out_file.open('r', encoding='utf-8-sig') as f:
             reader = csv.DictReader(f)
             field_map = next(reader)
             self.assertEqual(field_map, fields)
@@ -174,7 +174,7 @@ class CSVExporterTests(CSVTestCase):
         out_file = Path(self.temp_dir.name) / 'test.csv'
         exporter.filename = str(out_file)
         exporter.run()
-        with out_file.open() as f:
+        with out_file.open('r', encoding='utf-8-sig') as f:
             reader = csv.DictReader(f)
             field_map = next(reader)
             self.assertEqual(field_map, fields)
@@ -204,7 +204,7 @@ class CSVExporterTests(CSVTestCase):
         out_file = Path(self.temp_dir.name) / 'test.csv'
         exporter.filename = str(out_file)
         exporter.run()
-        with out_file.open() as f:
+        with out_file.open('r', encoding='utf-8-sig') as f:
             reader = csv.DictReader(f)
             field_map = next(reader)
             self.assertEqual(field_map, fields)
@@ -235,7 +235,7 @@ class CSVExporterTests(CSVTestCase):
         out_file = Path(self.temp_dir.name) / 'test.csv'
         exporter.filename = str(out_file)
         exporter.start()
-        with out_file.open() as f:
+        with out_file.open('r', encoding='utf-8-sig') as f:
             reader = csv.DictReader(f)
             field_map = next(reader)
             self.assertEqual(field_map, fields)
