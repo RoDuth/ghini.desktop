@@ -46,6 +46,7 @@ from pyparsing import (ParseException,
                        Regex)
 
 from gi.repository import Gtk
+from gi.repository import Gdk
 from gi.repository import Gio
 from gi.repository import GLib
 from gi.repository import Pango
@@ -194,11 +195,15 @@ class PropertiesExpander(InfoExpander):
         id_label.set_use_markup(True)
         id_label.set_xalign(1)
         id_label.set_yalign(0.5)
+        table.attach(id_label, 0, 0, 1, 1)
+
+        id_event = Gtk.EventBox()
         self.id_data = Gtk.Label(label='--')
         self.id_data.set_xalign(0)
         self.id_data.set_yalign(0.5)
-        table.attach(id_label, 0, 0, 1, 1)
-        table.attach(self.id_data, 1, 0, 1, 1)
+        id_event.add(self.id_data)
+        table.attach(id_event, 1, 0, 1, 1)
+        id_event.connect('button_press_event', self.on_id_button_press)
 
         # object type
         type_label = Gtk.Label(label="<b>" + _("Type:") + "</b>")
@@ -248,6 +253,17 @@ class PropertiesExpander(InfoExpander):
             row._created.strftime(fmat) if row._created else '')
         self.updated_data.set_text(
             row._last_updated.strftime(fmat) if row._last_updated else '')
+
+    def on_id_button_press(self, _widget, event):
+        """Copy the ID value to clipboard."""
+        # pylint: disable=protected-access
+        if event.button == 1 and event.type == Gdk.EventType._2BUTTON_PRESS:
+            # Copy the ID on a double click
+            string = self.id_data.get_text()
+            if bauble.gui:
+                bauble.gui.get_display_clipboard().set_text(string, -1)
+            return True
+        return False
 
 
 class InfoBoxPage(Gtk.ScrolledWindow):
