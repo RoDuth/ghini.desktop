@@ -78,6 +78,7 @@ class MakoFormatterSettingsBox(SettingsBox):
     def on_file_entry_changed(self, widget):
         text = widget.get_text()
         self.clear_options_box()
+        utils.hide_widgets([self.widgets.private_check])
         if Path(text).exists():
             self.on_file_set(widget)
             widget.get_style_context().remove_class('problem')
@@ -114,7 +115,6 @@ class MakoFormatterSettingsBox(SettingsBox):
 
         option_fields = [i.groups() for i in option_lines]
         current_row = 0
-        utils.hide_widgets([self.widgets.private_check])
         # populate the options box
         for fname, ftype, fdefault, ftooltip in option_fields:
             # use_private most be in the options to enable it but the other
