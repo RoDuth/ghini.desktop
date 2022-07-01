@@ -405,7 +405,7 @@ class GenericEditorView:
         :meth:`GenericEditorView.connect` or
         :meth:`GenericEditorView.connect_after`
         """
-        logger.debug('GenericEditorView:disconnect_all')
+        logger.debug('%s:disconnect_all', self.__class__.__name__)
         for obj, sid in self.__attached_signals:
             obj.disconnect(sid)
         del self.__attached_signals[:]
@@ -742,6 +742,7 @@ class GenericEditorView:
 
         By default all it does is call self.disconnect_all()
         """
+        logger.debug('%s::cleanup', self.__class__.__name__)
         self.disconnect_all()
 
 
@@ -1683,6 +1684,7 @@ class GenericEditorPresenter:
 
         By default it only calls self.view.cleanup()
         """
+        logger.debug('%s::cleanup', self.__class__.__name__)
         self.clear_problems()
         if isinstance(self.view, GenericEditorView):
             self.view.cleanup()
