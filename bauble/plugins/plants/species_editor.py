@@ -1334,11 +1334,6 @@ class SpeciesEditor(editor.GenericModelViewPresenterEditor):
         self.presenter = SpeciesEditorPresenter(self.model, view)
         self.presenter.set_visible_buttons(not is_dependent_window)
 
-        # I do not follow this: we have a MVP model, but also an extra
-        # 'Editor' thing and is it stealing functionality from either the
-        # view or the presenter?
-        self.view = view
-
         # set default focus
         if self.model.genus is None:
             view.widgets.sp_genus_entry.grab_focus()
@@ -1378,7 +1373,7 @@ class SpeciesEditor(editor.GenericModelViewPresenterEditor):
         elif (self.presenter.is_dirty() and utils.yes_no_dialog(not_ok_msg) or
               not self.presenter.is_dirty()):
             self.session.rollback()
-            self.view.close_boxes()
+            self.presenter.view.close_boxes()
             return True
         else:
             return False
@@ -1401,7 +1396,7 @@ class SpeciesEditor(editor.GenericModelViewPresenterEditor):
             else:
                 self._committed.append(more_committed)
 
-        self.view.close_boxes()
+        self.presenter.view.close_boxes()
         return True
 
     def commit_changes(self):

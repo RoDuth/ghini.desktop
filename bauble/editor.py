@@ -586,7 +586,7 @@ class GenericEditorView:
             utils.set_widget_value(self.widgets[widget], value, markup,
                                    default, index)
 
-    def on_dialog_response(self, dialog, response, *args):
+    def on_dialog_response(self, dialog, response, *_args):
         """Called if self.get_window() is a Gtk.Dialog and it receives the
         response signal.
         """
@@ -595,7 +595,8 @@ class GenericEditorView:
         self.response = response
         return response
 
-    def on_dialog_close(self, dialog, event=None):
+    @staticmethod
+    def on_dialog_close(dialog, _event=None):
         """Called if self.get_window() is a Gtk.Dialog and it receives the
         close signal.
         """
@@ -603,7 +604,8 @@ class GenericEditorView:
         dialog.hide()
         return False
 
-    def on_window_delete(self, window, event=None):
+    @staticmethod
+    def on_window_delete(window, _event=None):
         """Called when the window return by get_window() receives the delete
         event.
         """
@@ -717,12 +719,14 @@ class GenericEditorView:
 
         e.g. prefs[pref_string] = pref_value
         """
+        # TODO
         pass
 
     def restore_state(self):
         """Restore the state of the view, this is usually done by getting a
         value by the preferences and setting the equivalent in the interface
         """
+        # TODO
         pass
 
     def start(self):
@@ -1180,19 +1184,16 @@ class GenericEditorPresenter:
     def on_textbuffer_changed(self, widget, value=None, attr=None):
         """handle 'changed' signal on textbuffer widgets.
 
-        this will not work directly. check the unanswered question
-        http://stackoverflow.com/questions/32106765/
-
-        to use it, you need pass the `attr` yourself.
+        :param attr: name of the model field to set, NOTE: must be supplied.
         """
-
-        if attr is None:
-            attr = self.__get_widget_attr(widget)
+        # NOTE TextBuffer being just a kind of datastore is not Gtk.Buildable
+        # nor aware of the TextView(s) using it.  This is why attr must be
+        # supplied here rather than using __get_widget_attr
         if attr is None:
             return
+
         if value is None:
-            value = widget.props.text
-            value = utils.nstr(value)
+            value = widget.get_text(*widget.get_bounds(), False)
         logger.debug("on_text_entry_changed(%s, %s) - %s -> %s", widget, attr,
                      getattr(self.model, attr), value)
         self.__set_model_attr(attr, value)
@@ -1202,7 +1203,7 @@ class GenericEditorPresenter:
 
         attr = self.__get_widget_attr(widget)
         if attr is None:
-            return
+            return None
         value = self.view.widget_get_value(widget)
         logger.debug("on_text_entry_changed(%s, %s) - %s -> %s", widget, attr,
                      getattr(self.model, attr), value)
@@ -1254,14 +1255,14 @@ class GenericEditorPresenter:
             self.remove_problem(self.PROBLEM_EMPTY, widget)
         if getattr(self.model, attr) == value:
             return
-        logger.debug("on_unique_text_entry_changed(%s, %s) - %s → %s"
-                     % (widget, attr, getattr(self.model, attr), value))
+        logger.debug("on_unique_text_entry_changed(%s, %s) - %s → %s",
+                     widget, attr, getattr(self.model, attr), value)
         # check uniqueness
         klass = self.model.__class__
         k_attr = getattr(klass, attr)
-        q = self.session.query(klass)
-        q = q.filter(k_attr == value)
-        omonym = q.first()
+        query = self.session.query(klass)
+        query = query.filter(k_attr == value)
+        omonym = query.first()
         if omonym is not None and omonym is not self.model:
             self.add_problem(self.PROBLEM_DUPLICATE, widget)
         else:
@@ -1390,15 +1391,16 @@ class GenericEditorPresenter:
 
         # single widget.
         widget = problem_widgets
-        if not isinstance(widget, Gtk.Widget):
+        if isinstance(widget, str):
             try:
                 widget = getattr(self.view.widgets, widget)
-            except:
+            except AttributeError:
                 logger.info("can't get widget %s", widget)
         self.problems.add((problem_id, widget))
 
-        # we get here if we couldn't get the widget above (i.e. testing)
+        # Should always be true (except some tests).
         if isinstance(widget, Gtk.Widget):
+            # THIS was in place for id_qual_rank, may be obsoete now
             if isinstance(widget, Gtk.ComboBox):
                 widget.get_style_context().add_class('problem-bg')
             else:
@@ -1663,8 +1665,8 @@ class GenericEditorPresenter:
             return True  # return True or on_changed() will be called with ''
 
         completion = widget.get_completion()
-        check(completion is not None, 'the Gtk.Entry %s doesn\'t have a '
-              'completion attached to it' % widget.get_name())
+        check(completion is not None,
+              f"Gtk.Entry {widget.get_name()} has no completion attached")
 
         _changed_sid = self.view.connect(widget, 'changed', on_changed)
         self.view.connect(completion, 'match-selected', on_match_select)

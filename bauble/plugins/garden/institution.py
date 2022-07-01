@@ -27,7 +27,7 @@ import os
 import logging
 logger = logging.getLogger(__name__)
 
-from gi.repository import Gtk  # noqa
+from gi.repository import Gtk
 
 from bauble import editor
 from bauble import meta
@@ -41,8 +41,8 @@ class Institution:
     """Institution is a "live" object. When properties are changed the changes
     are immediately reflected in the database.
 
-    Institution values are stored in the Ghini meta database and not in
-    its own table
+    Institution values are stored in the Ghini meta database and not in its own
+    table
     """
     __properties = ('name', 'abbreviation', 'code',
                     'contact', 'technical_contact', 'email',

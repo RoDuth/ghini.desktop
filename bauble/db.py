@@ -198,8 +198,8 @@ HistoryBase = declarative_base(metadata=metadata)
 
 class History(HistoryBase):
     """
-    The history table records ever changed made to every table that
-    inherits from :ref:`Base`
+    The history table records every change made to every table that inherits
+    from :ref:`Base`
 
     :Table name: history
 
