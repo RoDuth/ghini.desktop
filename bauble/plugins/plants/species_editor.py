@@ -198,7 +198,6 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
 
     def __init__(self, model, view):
         super().__init__(model, view)
-        self.create_toolbar()
         self.session = object_session(model)
         # get the starting position
         self.capture_start_sp(model)

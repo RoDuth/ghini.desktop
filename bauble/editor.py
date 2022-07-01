@@ -1060,12 +1060,6 @@ class GenericEditorPresenter:
         self.running_threads = []
         self.owns_session = False
         self.session = session
-        self.clipboard_presenters = []
-        if not hasattr(self.__class__, 'clipboard'):
-            logging.debug('creating clipboard in presenter class %s',
-                          self.__class__.__name__)
-            self.__class__.clipboard = {}
-
         if session is False:
             self.session = None
             self.owns_session = False
@@ -1095,89 +1089,6 @@ class GenericEditorPresenter:
             if model and refresh_view:
                 self.refresh_view()
             view.connect_signals(self)
-
-    def create_toolbar(self, *args, **kwargs):
-        # TODO <RD> This causes leaks, temp disable for now...
-        return
-
-        view, model = self.view, self.model
-        logger.debug('creating toolbar in content_area presenter %s',
-                     self.__class__.__name__)
-        actiongroup = Gtk.ActionGroup('window-clip-actions')
-        accelgroup = Gtk.AccelGroup()
-        fake_toolbar = Gtk.Toolbar()
-        fake_toolbar.set_name('toolbar')
-        view.get_window().add_accel_group(accelgroup)
-        view.get_window().get_content_area().pack_start(fake_toolbar, True,
-                                                        True, 0)
-        for shortcut, cb in (('<ctrl><shift>c', self.on_window_clip_copy),
-                             ('<ctrl><shift>v', self.on_window_clip_paste)):
-            action = Gtk.Action(shortcut, shortcut, 'clip-action', None)
-            actiongroup.add_action_with_accel(action, shortcut)
-            action.connect("activate", cb)
-            action.set_accel_group(accelgroup)
-            action.connect_accelerator()
-            toolitem = action.create_tool_item()
-            fake_toolbar.insert(toolitem, -1)
-        fake_toolbar.set_visible(False)
-        self.clipboard_presenters.append(self)
-
-    def register_clipboard(self):
-        parent = self.parent_ref()
-        parent.clipboard_presenters.append(self)
-
-    def on_window_clip_copy(self, widget, *args, **kwargs):
-        try:
-            notebook = self.view.widgets['notebook']
-            current_page_no = notebook.get_current_page()
-            current_page_widget = notebook.get_nth_page(current_page_no)
-        except:
-            notebook = None
-            current_page_widget = self.view.get_window().get_content_area()
-        for presenter in self.clipboard_presenters:
-            for name in presenter.widget_to_field_map:
-                container = presenter.view.widgets[name]
-                while container.get_parent() != notebook:
-                    if current_page_widget == container:
-                        break
-                    container = container.get_parent()
-                if current_page_widget == container:
-                    value = presenter.view.widget_get_value(name)
-                    logger.debug(
-                        'writing »%s« in clipboard %s for %s' % (
-                            value, presenter.__class__.__name__, name))
-                    presenter.clipboard[name] = value
-
-    def on_window_clip_paste(self, widget, *args, **kwargs):
-        try:
-            notebook = self.view.widgets['notebook']
-            current_page_no = notebook.get_current_page()
-            current_page_widget = notebook.get_nth_page(current_page_no)
-        except:
-            notebook = None
-            current_page_widget = self.view.get_window().get_content_area()
-        for presenter in self.clipboard_presenters:
-            for name in presenter.widget_to_field_map:
-                container = presenter.view.widgets[name]
-                while container.get_parent() != notebook:
-                    if current_page_widget == container:
-                        break
-                    container = container.get_parent()
-                if current_page_widget == container:
-                    if presenter.view.widget_get_value(name):
-                        logger.debug(
-                            'skipping %s in clipboard %s because widget has '
-                            'value' % (name, presenter.__class__.__name__))
-                        continue
-                    clipboard_value = presenter.clipboard.get(name)
-                    if not clipboard_value:
-                        logger.debug('skipping %s because clipboard %s has no '
-                                     'value' % (name,
-                                                presenter.__class__.__name__))
-                        continue
-                    logger.debug('setting »%s« from clipboard %s for %s' % (
-                        clipboard_value, presenter.__class__.__name__, name))
-                    presenter.view.widget_set_value(name, clipboard_value)
 
     def refresh_sensitivity(self):
         logger.debug('you should implement this in your subclass')

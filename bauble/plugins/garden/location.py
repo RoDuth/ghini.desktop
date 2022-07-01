@@ -294,7 +294,6 @@ class LocationEditorPresenter(GenericEditorPresenter, PresenterMapMixin):
         view: should be an instance of AccessionEditorView
         """
         super().__init__(model, view)
-        self.create_toolbar()
         self.session = object_session(model)
         self._dirty = False
 

@@ -520,7 +520,6 @@ class GenusEditorPresenter(editor.GenericEditorPresenter):
         :param view: should be an instance of GenusEditorView
         """
         super().__init__(model, view)
-        self.create_toolbar()
         self.session = object_session(model)
 
         # initialize widgets

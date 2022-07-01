@@ -1464,7 +1464,6 @@ class SourcePresenter(editor.GenericEditorPresenter):
         self.source_prop_presenter = SourcePropagationPresenter(
             self, self.propagation, view, session
         )
-        self.source_prop_presenter.register_clipboard()
 
         # presenter that allows us to select an existing propagation
         self.prop_chooser_presenter = PropagationChooserPresenter(
@@ -1474,7 +1473,6 @@ class SourcePresenter(editor.GenericEditorPresenter):
         # collection data
         self.collection_presenter = CollectionPresenter(self, self.collection,
                                                         view, session)
-        self.collection_presenter.register_clipboard()
 
         self.view.connect('sources_code_entry', 'changed',
                           self.on_sources_code_changed)
@@ -1831,7 +1829,6 @@ class AccessionEditorPresenter(editor.GenericEditorPresenter):
         ;param view: an instance of AccessionEditorView
         """
         super().__init__(model, view)
-        self.create_toolbar()
         self._dirty = False
         self.session = object_session(model)
         self._original_code = self.model.code
@@ -2472,26 +2469,6 @@ class AccessionEditor(editor.GenericModelViewPresenterEditor):
         self.session.close()  # cleanup session
         self.presenter.cleanup()
         return self._committed
-
-    @staticmethod
-    def _cleanup_collection(model):
-        if not model:
-            return None
-        if model.latitude is not None or model.longitude is not None:
-            if ((model.latitude is not None and model.longitude is None) or
-                    (model.longitude is not None and model.latitude is None)):
-                msg = _('model must have both latitude and longitude or '
-                        'neither')
-                raise ValueError(msg)
-            if model.latitude is None and model.longitude is None:
-                model.geo_accy = None  # don't save
-        else:
-            model.geo_accy = None  # don't save
-
-        # reset the elevation accuracy if the elevation is None
-        if model.elevation is None:
-            model.elevation_accy = None
-        return model
 
     def commit_changes(self):
         if self.model.source:

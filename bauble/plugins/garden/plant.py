@@ -1040,7 +1040,6 @@ class PlantEditorPresenter(GenericEditorPresenter, PresenterMapMixin):
         :param view: should be an instance of PlantEditorView
         """
         super().__init__(model, view)
-        self.create_toolbar()
         self.session = object_session(model)
         self.branch_mode = branch_mode
         self._original_accession_id = self.model.accession_id
