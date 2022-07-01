@@ -251,16 +251,21 @@ class PlantTests(GardenTestCase):
         # rollback the IntegrityError so tearDown() can do its job
         self.session.rollback()
 
-    @unittest.skip('not implimented')
     def test_delete(self):
         """
-        Test that when a plant is deleted...
+        Test that when a plant is deleted so are its changes (and not its
+        location)
         """
-        pass
+        plt = self.create(Plant, accession=self.accession, quantity=1,
+                          location=self.location, code='2')
 
-    @unittest.skip('not implimented')
-    def test_editor_addnote(self):
-        pass
+        self.session.commit()
+        planted = plt.planted
+        planted_id = planted.id
+        self.session.delete(plt)
+        self.session.commit()
+        self.assertFalse(self.session.query(PlantChange).get(planted_id))
+        self.assertTrue(self.session.query(Location).get(self.location.id))
 
     def test_duplicate(self):
         """
@@ -418,7 +423,9 @@ class PlantTests(GardenTestCase):
         editor.presenter.cleanup()
         del editor
 
-    def test_branch_then_delete_parent(self):
+    @unittest.mock.patch('bauble.utils.yes_no_dialog')
+    def test_branch_then_delete_parent(self, mock_dialog):
+        mock_dialog.return_value = True
         plant = Plant(accession=self.accession, code='11',
                       location=self.location, quantity=10)
         loc2a = Location(name='site2a', code='2a')
@@ -437,18 +444,15 @@ class PlantTests(GardenTestCase):
         # test that if we delete the original plant using remove_callback it
         # doesn't error, fail or delete the planting date of the split plant
         # NOTE in the above self.session is equivalent to the searchview's
-        # session. Branching the plant it is done within the editors session.
+        # session. Branching the plant is done within the editors session.
         # If the searchview is unchanged and the original plant deleted an
         # error can occur if plant.duplication is called on the instance in
         # searchview's session not the editors.
-        self.invoked = []
-        utils.yes_no_dialog = partial(mockfunc, name='yes_no_dialog',
-                                      caller=self, result=True)
         from bauble.plugins.garden.plant import remove_callback
         result = remove_callback([plant])
         self.assertTrue(result)
+        mock_dialog.assert_called()
 
-        self.assertTrue('yes_no_dialog' in [f for (f, m) in self.invoked])
         qry = self.session.query(Plant).filter_by(
             accession=self.accession)
         match = qry.filter_by(code='11').all()
@@ -1522,7 +1526,7 @@ class AccessionTests(GardenTestCase):
         plant_id = plant.id
         self.session.delete(acc)
         self.session.commit()
-        self.assertTrue(not self.session.query(Plant).get(plant_id))
+        self.assertFalse(self.session.query(Plant).get(plant_id))
 
     def test_constraints(self):
         """
@@ -1608,7 +1612,6 @@ class AccessionTests(GardenTestCase):
         logger.debug(acc.source.__dict__)
         self.assertEqual(acc.source.plant_propagation_id, plant_prop_id)
 
-    @unittest.skip('problem not found in presenter')
     def test_accession_editor(self):
         acc = Accession(code='code', species=self.species)
         editor = AccessionEditor(acc)
@@ -1628,14 +1631,14 @@ class AccessionTests(GardenTestCase):
         update_gui()  # ensures idle callback is called to add completions
         # set the fill string which should match from completions
         widgets.acc_species_entry.set_text(str(self.species))
-        assert not editor.presenter.problems, \
-            editor.presenter.problems
+        self.assertFalse(editor.presenter.problems)
 
         # commit the changes and cleanup
         editor.model.name = 'asda'
 
         editor.handle_response(Gtk.ResponseType.OK)
         editor.session.close()
+        del editor
 
     @unittest.skip('requires interaction')
     def test_editor(self):
@@ -1995,63 +1998,6 @@ class InstitutionPresenterTests(GardenTestCase):
         self.assertTrue('remove_box' in view.invoked)
         self.assertEqual(o.name, 'bauble')
         self.assertEqual(presenter.view.boxes, set())
-
-    @unittest.skip('not implimented')
-    def test_no_email_means_no_registering(self):
-        # TODO Not currently enabled in this version
-        from bauble.editor import MockView
-        view = MockView(sensitive={'inst_register': None,
-                                   'inst_ok': None})
-        o = Institution()
-        o.name = 'bauble'
-        o.email = ''
-        InstitutionPresenter(o, view)
-        self.assertFalse(view.widget_get_sensitive('inst_register'))
-
-    @unittest.skip('not implimented')
-    def test_invalid_email_means_no_registering(self):
-        # TODO Not currently enabled in this version
-        from bauble.editor import MockView
-        view = MockView(sensitive={'inst_register': None,
-                                   'inst_ok': None})
-        o = Institution()
-        o.name = 'bauble'
-        o.email = 'mario'
-        InstitutionPresenter(o, view)
-        self.assertFalse(view.widget_get_sensitive('inst_register'))
-
-    @unittest.skip('not implimented')
-    def test_no_email_means_can_register(self):
-        # TODO Not currently enabled in this version
-        from bauble.editor import MockView
-        view = MockView(sensitive={'inst_register': None,
-                                   'inst_ok': None})
-        o = Institution()
-        o.name = 'bauble'
-        o.email = 'bauble@anche.no'
-        InstitutionPresenter(o, view)
-        self.assertTrue(view.widget_get_sensitive('inst_register'))
-
-    @unittest.skip('not implimented')
-    def test_when_user_registers_info_is_logged(self):
-        # TODO Not currently enabled in this version
-        from bauble.utils import desktop
-        from bauble.test import mockfunc
-        from functools import partial
-        self.invoked = []
-        desktop.open = partial(mockfunc, name='desktop.open', caller=self)
-        from bauble.editor import MockView
-        view = MockView(sensitive={'inst_register': None,
-                                   'inst_ok': None})
-        o = Institution()
-        p = InstitutionPresenter(o, view)
-        p.on_inst_register_clicked()
-        target = [('fax', None), ('address', None), ('name', ''),
-                                  ('contact', None), ('technical_contact', None), ('geo_diameter', None),
-                                  ('abbreviation', None), ('code', None), ('geo_longitude', None),
-                                  ('tel', None), ('email', ''), ('geo_latitude', None)]
-        for i in eval(self.handler.messages['bauble.registrations']['info'][0]):
-            self.assertTrue(i in target, i)
 
 # latitude: deg[0-90], min[0-59], sec[0-59]
 # longitude: deg[0-180], min[0-59], sec[0-59]
