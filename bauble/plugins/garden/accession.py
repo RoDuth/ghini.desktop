@@ -1916,10 +1916,11 @@ class AccessionEditorPresenter(editor.GenericEditorPresenter):
                                 'acc_date_accd_button')
 
         if self.model in self.session.new:
-            # new accession, set date accessioned to today
+            # new accession, set date accessioned to today but don't set dirty
             date_str = utils.today_str()
             utils.set_widget_value(self.view.widgets.acc_date_accd_entry,
                                    date_str)
+            self._dirty = False
 
         self.view.connect(
             self.view.widgets.intended_loc_add_button,
