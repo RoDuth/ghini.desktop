@@ -2148,8 +2148,9 @@ class AccessionEditorPresenter(editor.GenericEditorPresenter):
             if self.model.id_qual_rank == 'infrasp':
                 active = itr
 
-        itr = model.append(('', None))
+        # add None only if no active (NOTE default set in refresh_sensitivity)
         if not active:
+            itr = model.append(('', None))
             active = itr
         combo.set_model(model)
         combo.set_active_iter(active)
@@ -2230,7 +2231,10 @@ class AccessionEditorPresenter(editor.GenericEditorPresenter):
         wild_prov_combo = self.view.widgets.acc_wild_prov_combo
         if attr == 'prov_type':
             if self.model.prov_type == 'Wild':
-                self.model.wild_prov_status = wild_prov_combo.get_active_iter()
+                itr = wild_prov_combo.get_active_iter()
+                if itr:
+                    status = wild_prov_combo.get_model()[itr][0]
+                    self.model.wild_prov_status = status
             else:
                 # remove the value in the model from the wild_prov_combo
                 prov_sensitive = False
@@ -2304,6 +2308,11 @@ class AccessionEditorPresenter(editor.GenericEditorPresenter):
         """
         if self.model.species and self.model.id_qual:
             self.view.widgets.acc_id_qual_rank_combo.set_sensitive(True)
+            if self.model.id_qual and not self.model.id_qual_rank:
+                # set default
+                utils.set_widget_value(
+                    self.view.widgets.acc_id_qual_rank_combo, 'genus', index=1
+                )
         else:
             self.view.widgets.acc_id_qual_rank_combo.set_sensitive(False)
             if self.view.widgets.acc_id_qual_rank_combo.get_model():
