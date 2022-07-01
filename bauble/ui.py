@@ -733,6 +733,7 @@ class GUI:
         if not utils.yes_no_dialog(msg, yes_delay=2):
             return
 
+        bauble.command_handler('home', None)
         try:
             self.insert_menu.remove_all()
             db.create()
@@ -743,7 +744,6 @@ class GUI:
             traceb = utils.xml_safe(traceback.format_exc())
             utils.message_details_dialog(msg, traceb, Gtk.MessageType.ERROR)
             return
-        bauble.command_handler('home', None)
 
     def on_file_menu_open(self, _action, _param):
         """Open the connection manager."""
