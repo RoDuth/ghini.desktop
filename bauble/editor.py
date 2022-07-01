@@ -1735,9 +1735,8 @@ class PresenterMapMixin:
         self.init_map_menu()
 
     def on_map_delete(self, *_args):
-        if self.view.run_yes_no_dialog(
-            _('Are you sure you want to delete geojson data?'), yes_delay=1
-        ):
+        msg = _('Are you sure you want to delete spatial data?')
+        if self.view.run_yes_no_dialog(msg, yes_delay=1):
             self.model.geojson = None
             self._dirty = True
             self.refresh_sensitivity()
