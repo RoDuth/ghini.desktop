@@ -104,8 +104,11 @@ class GenericImporter(ABC):   # pylint: disable=too-many-instance-attributes
         """
         in_dict_mapped = {}
         for field in self.search_by:
-            logger.debug('searching by %s = %s', field, record.get(field))
-            in_dict_mapped[self.fields.get(field)] = record.get(field)
+            record_field = self.get_value_as_python_type(self.domain,
+                                                         field,
+                                                         record.get(field))
+            logger.debug('searching by %s = %s', field, record_field)
+            in_dict_mapped[self.fields.get(field)] = record_field
 
         if in_dict_mapped:
             if item := self.domain.retrieve(session, in_dict_mapped):

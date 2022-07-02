@@ -477,7 +477,7 @@ def make_note_class(name, compute_serializable_fields, as_dict=None,
                         category == '<picture>')):
             # dirty trick: making sure it's not going to be found!
             import uuid
-            keys['category'] = str(uuid.uuid4())
+            keys['category'] = str(uuid.uuid4())[:32]
         result = super(globals()[class_name], cls
                        ).retrieve_or_create(session, keys, create, update)
         keys['category'] = category

@@ -36,32 +36,78 @@ class FormatterTests(BaubleTestCase):
         self.session.commit()
 
     @mock.patch('bauble.utils.desktop.open', new=mock.Mock())
-    def test_format_all_templates(self):
+    def test_format_all_csv_templates_locations(self):
         """MakoFormatterPlugin.format() runs without raising an error for all
-        templates.  Integration test.
+        templates.
         """
-        plants = self.session.query(Plant).all()
-        locations = self.session.query(Location).all()
-        families = self.session.query(Family).all()
         templates_dir = Path(__file__).parent / 'templates'
+        locations = self.session.query(Location).all()
+        for template in templates_dir.glob('*.csv'):
+            report = MakoFormatterPlugin.format(locations,
+                                                template=str(template))
+            self.assertTrue(isinstance(report, bytes))
+
+    @mock.patch('bauble.utils.desktop.open', new=mock.Mock())
+    def test_format_all_csv_templates_families(self):
+        """MakoFormatterPlugin.format() runs without raising an error for all
+        templates.
+        """
+        templates_dir = Path(__file__).parent / 'templates'
+        families = self.session.query(Family).all()
+
+        for template in templates_dir.glob('*.csv'):
+            report = MakoFormatterPlugin.format(families,
+                                                template=str(template))
+            self.assertTrue(isinstance(report, bytes))
+
+    @mock.patch('bauble.utils.desktop.open', new=mock.Mock())
+    def test_format_all_csv_templates_plants(self):
+        """MakoFormatterPlugin.format() runs without raising an error for all
+        templates.
+        """
+        templates_dir = Path(__file__).parent / 'templates'
+        plants = self.session.query(Plant).all()
 
         for template in templates_dir.glob('*.csv'):
             report = MakoFormatterPlugin.format(plants, template=str(template))
             self.assertTrue(isinstance(report, bytes))
+
+    @mock.patch('bauble.utils.desktop.open', new=mock.Mock())
+    def test_format_all_html_templates_locations(self):
+        """MakoFormatterPlugin.format() runs without raising an error for all
+        templates.
+        """
+        templates_dir = Path(__file__).parent / 'templates'
+        locations = self.session.query(Location).all()
+
+        for template in templates_dir.glob('*.html'):
             report = MakoFormatterPlugin.format(locations,
                                                 template=str(template))
             self.assertTrue(isinstance(report, bytes))
+
+    @mock.patch('bauble.utils.desktop.open', new=mock.Mock())
+    def test_format_all_html_templates_families(self):
+        """MakoFormatterPlugin.format() runs without raising an error for all
+        templates.
+        """
+        templates_dir = Path(__file__).parent / 'templates'
+        families = self.session.query(Family).all()
+
+        for template in templates_dir.glob('*.html'):
             report = MakoFormatterPlugin.format(families,
                                                 template=str(template))
             self.assertTrue(isinstance(report, bytes))
+
+    @mock.patch('bauble.utils.desktop.open', new=mock.Mock())
+    def test_format_all_html_templates_plants(self):
+        """MakoFormatterPlugin.format() runs without raising an error for all
+        templates.
+        """
+        templates_dir = Path(__file__).parent / 'templates'
+        plants = self.session.query(Plant).all()
+
         for template in templates_dir.glob('*.html'):
             report = MakoFormatterPlugin.format(plants, template=str(template))
-            self.assertTrue(isinstance(report, bytes))
-            report = MakoFormatterPlugin.format(locations,
-                                                template=str(template))
-            self.assertTrue(isinstance(report, bytes))
-            report = MakoFormatterPlugin.format(families,
-                                                template=str(template))
             self.assertTrue(isinstance(report, bytes))
 
 

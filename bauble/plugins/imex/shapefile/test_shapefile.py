@@ -30,6 +30,7 @@ from shapefile import Writer, Reader
 
 from gi.repository import Gtk
 
+from bauble import utils
 from bauble.test import BaubleTestCase
 from bauble.editor import MockView, MockDialog
 from bauble.utils.geo import ProjDB
@@ -914,20 +915,21 @@ class ShapefileExportTests(ShapefileTestCase):
         plt_data[0]['geojson'] = epsg4326_point_xy
         plt_data[1]['geojson'] = epsg4326_line_xy
         plt_data[2]['geojson'] = epsg4326_poly_xy
-        data = ((Family, family_data),
-                (Genus, genus_data),
-                (Species, species_data),
-                (Accession, accession_data),
-                (Location, loc_data),
-                (LocationNote, loc_note_data),
-                (Plant, plt_data),
-                (PlantNote, plt_note_data))
+        test_data = ((Family, family_data),
+                     (Genus, genus_data),
+                     (Species, species_data),
+                     (Accession, accession_data),
+                     (Location, loc_data),
+                     (LocationNote, loc_note_data),
+                     (Plant, plt_data),
+                     (PlantNote, plt_note_data))
 
-        for klass, dics in data:
-            for dic in dics:
-                obj = klass(**dic)
-                self.session.add(obj)
-        self.session.commit()
+        for cls, data in test_data:
+            table = cls.__table__
+            for row in data:
+                table.insert().execute(row).close()
+            for col in table.c:
+                utils.reset_sequence(col)
         # something to compare for plants
         self.taxa_to_acc = {}
         for acc in accession_data:   # pylint: disable=too-many-nested-blocks
@@ -1408,7 +1410,7 @@ class ShapefileExportTests(ShapefileTestCase):
         bulk_plants = [
             Plant(code=str(i // len(accs) + 4),
                   accession=accs[i % len(accs)],
-                  location_id=i // 2 + 1,
+                  location_id=i % 2 + 1,
                   quantity=i)
             for i in range(30)
         ]
@@ -1453,7 +1455,7 @@ class ShapefileExportTests(ShapefileTestCase):
         bulk_plants = [
             Plant(code=str(i // len(accs) + 4),
                   accession=accs[i % len(accs)],
-                  location_id=i // 2 + 1,
+                  location_id=i % 2 + 1,
                   quantity=i)
             for i in range(400)
         ]
@@ -1962,22 +1964,23 @@ class ShapefileImportTests(ShapefileTestCase):
     def setUp(self):
         super().setUp()
         get_default('system_proj_string', DEFAULT_SYS_PROJ)
-        data = ((Family, family_data),
-                (Genus, genus_data),
-                (Species, species_data),
-                (VernacularName, vernacular_data),
-                (DefaultVernacularName, default_vernacular_data),
-                (Accession, accession_data),
-                (Location, location_data),
-                (LocationNote, loc_note_data),
-                (Plant, plant_data),
-                (PlantNote, plt_note_data))
+        test_data = ((Family, family_data),
+                     (Genus, genus_data),
+                     (Species, species_data),
+                     (VernacularName, vernacular_data),
+                     (DefaultVernacularName, default_vernacular_data),
+                     (Accession, accession_data),
+                     (Location, location_data),
+                     (LocationNote, loc_note_data),
+                     (Plant, plant_data),
+                     (PlantNote, plt_note_data))
+        for cls, data in test_data:
+            table = cls.__table__
+            for row in data:
+                table.insert().execute(row).close()
+            for col in table.c:
+                utils.reset_sequence(col)
 
-        for klass, dics in data:
-            for dic in dics:
-                obj = klass(**dic)
-                self.session.add(obj)
-        self.session.commit()
         # importer
         self.importer = ShapefileImporter(view=MockView(),
                                           proj_db=ProjDB(db_path=':memory:'))
@@ -2323,7 +2326,7 @@ class ShapefileImportTests(ShapefileTestCase):
         importer = self.importer
         in_data = plt_rec_3857_points
         # try create a possible conflict where just wanting to swap the names,
-        # this could potetntially create new species etc. when not needed.
+        # this could potentially create new species etc. when not needed.
         in_data[0]['record']['vernacular'] = 'Mountain Grey Gum'
         in_data[1]['record']['vernacular'] = 'Silky Oak'
         importer.filename = create_shapefile('test',
@@ -2362,8 +2365,6 @@ class ShapefileImportTests(ShapefileTestCase):
         # name in setup data so should end up with 3
         self.assertEqual(len(vernaculars), 3)
         self.assertEqual(vernaculars[0].id, 1)
-        self.assertEqual(vernaculars[1].id, 2)
-        self.assertEqual(vernaculars[2].id, 3)
         self.assertEqual(vernaculars[0].species_id, 2)    # 2
         self.assertEqual(vernaculars[1].species_id, 1)    # 1
         self.assertEqual(vernaculars[2].species_id, 2)    # 2
@@ -2419,8 +2420,6 @@ class ShapefileImportTests(ShapefileTestCase):
         # name in setup data so should end up with 3
         self.assertEqual(len(vernaculars), 3)
         self.assertEqual(vernaculars[0].id, 1)
-        self.assertEqual(vernaculars[1].id, 2)
-        self.assertEqual(vernaculars[2].id, 3)
         self.assertEqual(vernaculars[0].species_id, 2)
         self.assertEqual(vernaculars[1].species_id, 1)
         self.assertEqual(vernaculars[2].species_id, 2)
@@ -2581,7 +2580,7 @@ class ShapefileImportTests(ShapefileTestCase):
         sys_proj.value = 'epsg:3857'
         self.session.commit()
         importer.run()
-        result = self.session.query(Location).all()
+        result = self.session.query(Location).order_by(Location.id).all()
         # assert len reflects no additions
         self.assertEqual(len(result), 2)
         # assert db geojson wasn't added

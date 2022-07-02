@@ -412,7 +412,7 @@ class TestSearchView(BaubleTestCase):
         for func in get_setUp_data_funcs():
             func()
         search_view = self.search_view
-        search_view.search('genus where id < 3')
+        search_view.search('genus where id > 1 and id < 5')
 
         start = search_view.get_selected_values()
 
@@ -421,6 +421,9 @@ class TestSearchView(BaubleTestCase):
         model = results_view.get_model()
         tree_iter = model.get_iter(Gtk.TreePath.new_first())
         # delete item
+        db.engine.execute(
+            f"DELETE FROM species WHERE genus_id = {start[0].id}"
+        )
         db.engine.execute(f"DELETE FROM genus WHERE id = {start[0].id}")
 
         with self.assertLogs(level='DEBUG') as logs:
@@ -455,8 +458,8 @@ class TestSearchView(BaubleTestCase):
         # add new item
         db.engine.execute(
             """
-            INSERT INTO species (sp, hybrid, genus_id, _created, _last_updated)
-            VALUES ('test2', 0, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            INSERT INTO species (sp, genus_id, _created, _last_updated)
+            VALUES ('test2', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
             """
         )
 

@@ -526,14 +526,13 @@ class CSVImporterTests(CSVTestCase):
         end_plants = start_plants + len(plant_full_csv_data) - 1
         self.assertEqual(result, end_plants)
         # check some data
-        new_plt1 = self.session.query(Plant).get(4)
-        new_plt2 = self.session.query(Plant).get(4)
+        plts = self.session.query(Plant).all()
         accs = [i.get('acc') for i in plant_full_csv_data[1:]]
         spp = ['Dyckia sp. (red/brown)', "Syzygium australe 'Bush Christmas'"]
-        self.assertIn(new_plt1.accession.code, accs)
-        self.assertIn(str(new_plt1.accession.species), spp)
-        self.assertIn(new_plt2.accession.code, accs)
-        self.assertIn(str(new_plt2.accession.species), spp)
+        self.assertIn(plts[-1].accession.code, accs)
+        self.assertIn(str(plts[-1].accession.species), spp)
+        self.assertIn(plts[-2].accession.code, accs)
+        self.assertIn(str(plts[-2].accession.species), spp)
 
     def test_update_accession_w_str_dates(self):
         acc = [
@@ -702,13 +701,17 @@ class CSVImporterTests(CSVTestCase):
         updated_plant = self.session.query(Plant).get(plt_id)
         logger.debug('updated_plant: %s', updated_plant)
         end_plants = self.session.query(Plant).count()
-        # date changed
-        self.assertEqual(updated_plant.planted.date,
-                         datetime(2020, 9, 29, 22, 0, 0).astimezone(None))
+        # date changed, quantity the same
+        date = datetime(2020, 9, 29, 22, 0, 0).astimezone(None)
+        self.assertEqual(updated_plant.planted.date, date)
+        self.assertEqual(updated_plant.planted.quantity, 1)
         # no plants are added
         self.assertEqual(end_plants, start_plants)
         # quantity changed and a change was added.
-        self.assertTrue(updated_plant.changes[1].quantity == 3)
+        self.assertEqual(len(updated_plant.changes), 2)
+        # change that isn't planted
+        chg = [i for i in updated_plant.changes if i.date != date][0]
+        self.assertEqual(chg.quantity, 3)
         self.assertEqual(updated_plant.quantity, 4)
 
     def test_update_plant_quantity_death_date(self):
@@ -807,8 +810,10 @@ class CSVImporterTests(CSVTestCase):
         self.assertEqual(end_accs, start_accs)
         # still only one note
         self.assertEqual(len(updated_acc.notes), 1)
-        self.assertEqual([i for i in notes if i.category == 'test'][0].note,
-                         'test 2')
+        self.assertEqual(
+            [i for i in updated_acc.notes if i.category == 'test'][0].note,
+            'test 2'
+        )
 
     def test_add_location_w_notes_w_categories(self):
         start_locs = self.session.query(Location).count()

@@ -92,7 +92,7 @@ class TagMenuTests(BaubleTestCase):
         tagname = 'some-tag'
         t = Tag(tag=tagname, description='description')
         self.session.add(t)
-        self.session.flush()
+        self.session.commit()
         menu_model = tag_plugin.tags_menu_manager.build_menu()
         self.assertTrue(isinstance(menu_model, Gio.Menu))
         m = Gtk.Menu.new_from_model(menu_model)
@@ -107,7 +107,7 @@ class TagMenuTests(BaubleTestCase):
         t4 = Tag(tag=tagname % 0, description='description')
         t5 = Tag(tag=tagname % 4, description='description')
         self.session.add_all([t1, t2, t3, t4, t5])
-        self.session.flush()
+        self.session.commit()
         menu_model = tag_plugin.tags_menu_manager.build_menu()
         self.assertTrue(isinstance(menu_model, Gio.Menu))
         m = Gtk.Menu.new_from_model(menu_model)
@@ -377,12 +377,6 @@ class GetTagIdsTests(BaubleTestCase):
         tag_plugin.tag_objects('test3', [self.fam2, self.fam3])
         self.session.commit()
 
-    def tearDown(self):
-        self.session.query(Family).delete()
-        self.session.query(Tag).delete()
-        self.session.commit()
-        super().tearDown()
-
     def test_get_tag_ids1(self):
         s_all, s_some, s_none = tag_plugin.get_tag_ids([self.fam1, self.fam2])
         self.assertEqual(s_all, set([1]))
@@ -417,18 +411,21 @@ class GetTagIdsTests(BaubleTestCase):
         self.assertEqual(s_some, set([1, 2]))
 
     def test_get_tag_ids7(self):
-        self.assertEqual(self.session.query(Tag).delete(), 3)
+        for tag in self.session.query(Tag):
+            self.session.delete(tag)
         self.session.commit()
         tag_plugin.tag_objects('test1', [self.fam1, self.fam4])
         tag_plugin.tag_objects('test2', [self.fam1])
         tag_plugin.tag_objects('test3', [self.fam2, self.fam4])
         self.session.commit()
-        s_all, s_some, s_none = tag_plugin.get_tag_ids([self.fam1,
+        tag_ids = (self.session.query(Tag.id)
+                   .filter(Tag.tag.in_(['test1', 'test2', 'test3'])))
+        s_all, s_some, _s_none = tag_plugin.get_tag_ids([self.fam1,
                                                         self.fam2,
                                                         self.fam3,
                                                         self.fam4])
         self.assertEqual(s_all, set([]))
-        self.assertEqual(s_some, set([1, 2, 3]))
+        self.assertEqual(s_some, {i[0] for i in tag_ids})
 
 
 import bauble.db as db

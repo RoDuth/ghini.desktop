@@ -23,11 +23,13 @@ import os
 from tempfile import mkstemp
 # from tempfile import NamedTemporaryFile
 from pathlib import Path
-from sqlalchemy.pool import StaticPool
 
 import logging
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
+
+from sqlalchemy.pool import StaticPool
+from sqlalchemy.orm import close_all_sessions
 
 import bauble
 from bauble import db
@@ -36,8 +38,15 @@ from bauble import pluginmgr
 from bauble import prefs
 from bauble import paths
 
-# for sake of testing, just use sqlite3.
+# by default use sqlite memory uri
 uri = 'sqlite:///:memory:'
+# uri = 'postgresql://test:test@localhost/test'
+
+# allow user to overide uri via an envar
+# e.g. to run tests on postgresql:
+# BAUBLE_TEST_DB_URI=postgresql://test:test@localhost/test pytest
+if os.environ.get('BAUBLE_TEST_DB_URI'):
+    uri = os.environ.get('BAUBLE_TEST_DB_URI')
 
 
 def update_gui():
@@ -140,7 +149,8 @@ class BaubleTestCase(unittest.TestCase):
     def tearDown(self):
         update_gui()
         logging.getLogger().removeHandler(self.handler)
-        self.session.close()
+        self.session.rollback()
+        close_all_sessions()
         db.metadata.drop_all(bind=db.engine)
         bauble.pluginmgr.commands.clear()
         pluginmgr.plugins.clear()

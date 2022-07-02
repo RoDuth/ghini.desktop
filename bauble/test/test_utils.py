@@ -392,7 +392,6 @@ class CacheTest(TestCase):
 
 
 class ResetSequenceTests(BaubleTestCase):
-    # TODO Is this and the function it tests redundant?
 
     def setUp(self):
         super().setUp()
@@ -402,16 +401,6 @@ class ResetSequenceTests(BaubleTestCase):
     def tearDown(self):
         super().tearDown()
         self.metadata.drop_all()
-
-    @staticmethod
-    def get_currval(col):
-        if db.engine.name == 'postgresql':
-            name = '%s_%s_seq' % (col.table.name, col.name)
-            stmt = "select currval('%s');" % name
-            return db.engine.execute(stmt).fetchone()[0]
-        elif db.engine.name == 'sqlite':
-            stmt = 'select max(%s) from %s' % (col.name, col.table.name)
-            return db.engine.execute(stmt).fetchone()[0] + 1
 
     def test_no_col_sequence(self):
         """
@@ -425,7 +414,7 @@ class ResetSequenceTests(BaubleTestCase):
         table = Table('test_reset_sequence', self.metadata,
                       Column('id', Integer, primary_key=True))
         self.metadata.create_all()
-        self.insert = table.insert()  #.compile()
+        self.insert = table.insert()  # .compile()
         db.engine.execute(self.insert, values=[{'id': 1}])
         utils.reset_sequence(table.c.id)
 
@@ -444,25 +433,6 @@ class ResetSequenceTests(BaubleTestCase):
         # self.insert = table.insert()#.compile()
         # db.engine.execute(self.insert, values=[{'id': 1}])
         utils.reset_sequence(table.c.id)
-
-    def test_with_col_sequence(self):
-        """
-        Test utils.reset_sequence on a column that has an Sequence()
-        """
-        # UPDATE: 10/18/2011 -- we don't use Sequence() explicitly,
-        # just autoincrement=True on primary_key columns so this test
-        # probably isn't necessary
-        table = Table('test_reset_sequence', self.metadata,
-                      Column('id', Integer,
-                             Sequence('test_reset_sequence_id_seq'),
-                             primary_key=True, unique=True))
-        self.metadata.create_all()
-        rangemax = 10
-        for i in range(1, rangemax + 1):
-            table.insert().values(id=i).execute()
-        utils.reset_sequence(table.c.id)
-        currval = self.get_currval(table.c.id)
-        self.assertTrue(currval > rangemax, currval)
 
 
 class GlobalFuncsTests(BaubleTestCase):

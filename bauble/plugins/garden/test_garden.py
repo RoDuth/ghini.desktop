@@ -149,13 +149,16 @@ default_seed_values = {
     'date_planted': datetime.date(2017, 2, 8),
 }
 
-test_data_table_control = ((Accession, accession_test_data),
-                           (Location, location_test_data),
-                           (Plant, plant_test_data),
-                           (Geography, geography_test_data),
-                           (SourceDetail, source_detail_data),
-                           (Source, source_test_data),
-                           (Collection, collection_test_data))
+test_data_table_control = (
+    (Location, location_test_data),
+    (Geography, geography_test_data),
+    (Accession, accession_test_data),
+    (SourceDetail, source_detail_data),
+    (Source, source_test_data),
+    (Plant, plant_test_data),
+    (Collection, collection_test_data)
+)
+
 testing_today = datetime.date(2017, 1, 1)
 
 
@@ -207,8 +210,8 @@ class GardenTestCase(BaubleTestCase):
 
     def setUp(self):
         super().setUp()
-        setUp_data()
         plants_test.setUp_data()
+        setUp_data()
         self.family = Family(family='Cactaceae')
         self.genus = Genus(family=self.family, genus='Echinocactus')
         self.species = Species(genus=self.genus, sp='grusonii')
@@ -772,13 +775,6 @@ class PropagationTests(GardenTestCase):
                 specifically = type('FooBar', (object,), {})()
             specifically.propagation = prop
         self.session.commit()
-
-    def tearDown(self):
-        self.session.query(Plant).delete()
-        self.session.query(Location).delete()
-        self.session.query(Accession).delete()
-        self.session.commit()
-        super().tearDown()
 
     def test_propagation_cutting_quantity_new_zero(self):
         self.add_plants(['1'])
@@ -2126,9 +2122,10 @@ class FromAndToDictTest(GardenTestCase):
         date = '10/12/2001'
         Location.retrieve_or_create(self.session, {'code': '1',
                                                    '_created': date})
+        self.session.commit()
         # retrieve same object from other session
         session = db.Session()
-        loc = Location.retrieve_or_create(session, {'code': '1', })
+        loc = Location.retrieve_or_create(session, {'code': '1'})
         self.assertEqual(loc._created.strftime('%d/%m/%Y'), date)
 
     def test_set_create_timestamp_iso8601(self):
@@ -2137,9 +2134,10 @@ class FromAndToDictTest(GardenTestCase):
         Location.retrieve_or_create(
             self.session, {'code': '1',
                            '_created': date})
+        self.session.commit()
         # retrieve same object from other session
         session = db.Session()
-        loc = Location.retrieve_or_create(session, {'code': '1', })
+        loc = Location.retrieve_or_create(session, {'code': '1'})
         self.assertEqual(loc._created.strftime('%Y-%m-%d'), date)
 
 
@@ -2448,13 +2446,14 @@ class AccessionGetNextCode(GardenTestCase):
         this_code = Accession.get_next_code()
         acc = Accession(species=self.species, code=str(this_code))
         self.session.add(acc)
-        self.session.flush()
+        self.session.commit()
         self.assertEqual(Accession.get_next_code(), this_year + '.0002')
 
     def test_get_next_code_absolute_beginning(self):
         this_year = str(datetime.date.today().year)
-        self.session.query(Accession).delete()
-        self.session.flush()
+        for i in self.session.query(Accession).all():
+            self.session.delete(i)
+        self.session.commit()
         self.assertEqual(Accession.get_next_code(), this_year + '.0001')
 
     def test_get_next_code_next_with_hole(self):
@@ -2462,7 +2461,7 @@ class AccessionGetNextCode(GardenTestCase):
         this_code = this_year + '.0050'
         acc = Accession(species=self.species, code=this_code)
         self.session.add(acc)
-        self.session.flush()
+        self.session.commit()
         self.assertEqual(Accession.get_next_code(), this_year + '.0051')
 
     def test_get_next_code_alter_format_first(self):
@@ -2471,7 +2470,7 @@ class AccessionGetNextCode(GardenTestCase):
         orig = Accession.code_format
         acc = Accession(species=self.species, code=this_code)
         self.session.add(acc)
-        self.session.flush()
+        self.session.commit()
         Accession.code_format = 'H.###'
         self.assertEqual(Accession.get_next_code(), 'H.001')
         Accession.code_format = 'SD.###'
@@ -2515,7 +2514,7 @@ class AccessionGetNextCode(GardenTestCase):
     def test_get_next_code_plain_numeric_next(self):
         acc = Accession(species=self.species, code='00012')
         self.session.add(acc)
-        self.session.flush()
+        self.session.commit()
         self.assertEqual(Accession.get_next_code('#####'), '00013')
 
     def test_get_next_code_plain_numeric_next_multiple(self):
@@ -2523,7 +2522,7 @@ class AccessionGetNextCode(GardenTestCase):
         ac2 = Accession(species=self.species, code='H.0987')
         ac3 = Accession(species=self.species, code='2112.0019')
         self.session.add_all([acc, ac2, ac3])
-        self.session.flush()
+        self.session.commit()
         self.assertEqual(Accession.get_next_code('#####'), '00013')
 
     def test_get_next_code_fixed(self):
@@ -2531,7 +2530,7 @@ class AccessionGetNextCode(GardenTestCase):
         ac2 = Accession(species=self.species, code='H.0987')
         ac3 = Accession(species=self.species, code='2112.0019')
         self.session.add_all([acc, ac2, ac3])
-        self.session.flush()
+        self.session.commit()
         self.assertEqual(Accession.get_next_code('2112.003'), '2112.003')
         self.assertEqual(Accession.get_next_code('2112.0003'), '2112.0003')
         self.assertEqual(Accession.get_next_code('00003'), '00003')
