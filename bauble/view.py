@@ -739,6 +739,7 @@ class SearchView(pluginmgr.View, Gtk.Box):
         if cache_size:
             self.has_kids.set_size(cache_size)  # pylint: disable=no-member
         self.refresh = prefs.prefs.get(SEARCH_REFRESH_PREF, True)
+        self.btn_1_timer = (0, 0, 0)
 
     def add_notes_page_to_bottom_notebook(self):
         """add notebook page for notes
@@ -1375,7 +1376,10 @@ class SearchView(pluginmgr.View, Gtk.Box):
         This makes sure that we don't remove the multiple selection on a
         right click.
         """
-        # TODO this is only temporary, remove.  Related to surface
+        if event.button == 1:
+            self.btn_1_timer = (event.time, int(event.x), int(event.y))
+            logger.debug('button 1 timer: %s', self.btn_1_timer)
+
         logger.debug('button press event: %s type: %s button: %s', event,
                      event.type, event.button)
         if event.button == 3:
@@ -1400,6 +1404,15 @@ class SearchView(pluginmgr.View, Gtk.Box):
         """
         logger.debug('button release event: %s type: %s button: %s', event,
                      event.type, event.button)
+        logger.debug('button 1 timer: %s', self.btn_1_timer)
+
+        # imitate right button on long (> 1 sec) press - targets tablet use
+        if (event.button == 1 and
+                event.time - self.btn_1_timer[0] > 1000 and
+                self.btn_1_timer[1] == int(event.x) and
+                self.btn_1_timer[2] == int(event.y)):
+            event.button = 3
+
         # if not right click - bail (but allow propagating the event further)
         if event.button != 3:
             return False

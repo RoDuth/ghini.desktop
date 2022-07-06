@@ -506,16 +506,19 @@ class TestSearchView(BaubleTestCase):
 
         # test bails on non 3 buttons and returns False (allows propagating the
         # event)
+        mock_button = mock.Mock(button=1, x=1, y=1)
         self.assertFalse(
-            search_view.on_view_button_press(results_view, mock.Mock(button=1))
+            search_view.on_view_button_press(results_view, mock_button)
         )
 
+        mock_button = mock.Mock(button=2, x=1, y=1)
         self.assertFalse(
-            search_view.on_view_button_press(results_view, mock.Mock(button=2))
+            search_view.on_view_button_press(results_view, mock_button)
         )
 
+        mock_button = mock.Mock(button=4, x=1, y=1)
         self.assertFalse(
-            search_view.on_view_button_press(results_view, mock.Mock(button=4))
+            search_view.on_view_button_press(results_view, mock_button)
         )
 
     def test_on_view_button_press_3_outside_selection_returns_false(self):
@@ -575,21 +578,21 @@ class TestSearchView(BaubleTestCase):
 
         # test bails on non 3 buttons and returns False (allows propagating the
         # event)
+        mock_button = mock.Mock(button=1, x=1, y=1, time=100000000)
         self.assertFalse(
-            search_view.on_view_button_release(results_view,
-                                               mock.Mock(button=1))
+            search_view.on_view_button_release(results_view, mock_button)
         )
         mock_callback.assert_not_called()
 
+        mock_button = mock.Mock(button=2, x=1, y=1, time=100000000)
         self.assertFalse(
-            search_view.on_view_button_release(results_view,
-                                               mock.Mock(button=2))
+            search_view.on_view_button_release(results_view, mock_button)
         )
         mock_callback.assert_not_called()
 
+        mock_button = mock.Mock(button=4, x=1, y=1, time=100000000)
         self.assertFalse(
-            search_view.on_view_button_release(results_view,
-                                               mock.Mock(button=4))
+            search_view.on_view_button_release(results_view, mock_button)
         )
         mock_callback.assert_not_called()
 
