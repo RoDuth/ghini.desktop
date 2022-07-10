@@ -362,7 +362,8 @@ class FamilyEditorView(editor.GenericEditorView):
     def __init__(self, parent=None):
         filename = os.path.join(paths.lib_dir(), 'plugins', 'plants',
                                 'family_editor.glade')
-        super().__init__(filename, parent=parent)
+        super().__init__(filename, parent=parent,
+                         root_widget_name='family_dialog')
         self.attach_completion('fam_syn_entry')
         self.set_accept_buttons_sensitive(False)
         self.widgets.notebook.set_current_page(0)
@@ -410,8 +411,9 @@ class FamilyEditorPresenter(editor.GenericEditorPresenter):
 
         notes_parent = self.view.widgets.notes_parent_box
         notes_parent.foreach(notes_parent.remove)
-        self.notes_presenter = \
-            editor.NotesPresenter(self, 'notes', notes_parent)
+        self.notes_presenter = editor.NotesPresenter(self,
+                                                     'notes',
+                                                     notes_parent)
 
         if self.model not in self.session.new:
             self.view.widgets.fam_ok_and_add_button.set_sensitive(True)

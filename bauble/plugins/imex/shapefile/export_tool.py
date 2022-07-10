@@ -462,6 +462,10 @@ class ShapefileExportSettingsBox(Gtk.ScrolledWindow):
         menu_activated(None, db_field, None)
         # return prop_button, schema_menu
 
+    def cleanup(self):
+        # garbage collection
+        self.grid.destroy()
+
 
 class ShapefileExportDialogPresenter(GenericEditorPresenter):
     """The presenter for the Dialog.
@@ -587,6 +591,11 @@ class ShapefileExportDialogPresenter(GenericEditorPresenter):
             sensitive = True
         self.view.widget_set_sensitive('exp_settings_expander', sensitive)
         self.view.set_accept_buttons_sensitive(sensitive)
+
+    def cleanup(self):
+        for settings_box in self.settings_boxes:
+            settings_box.cleanup()
+        super().cleanup()
 
 
 class ShapefileExporter(GenericExporter):

@@ -188,7 +188,7 @@ class GenericEditorView:
         if tooltips is not None:
             self._tooltips = tooltips
         self.root_widget_name = root_widget_name
-        builder = self.builder = Gtk.Builder()
+        builder = Gtk.Builder()
         builder.add_from_file(filename)
         self.filename = filename
         self.widgets = utils.BuilderWidgets(builder)
@@ -744,10 +744,13 @@ class GenericEditorView:
     def cleanup(self):
         """Should be called when after self.start() returns.
 
-        By default all it does is call self.disconnect_all()
+        Calls self.disconnect_all() and destroys the window if root_widget_name
+        is defined.
         """
         logger.debug('%s::cleanup', self.__class__.__name__)
         self.disconnect_all()
+        if self.root_widget_name:
+            self.get_window().destroy()
 
 
 class MockDialog:
@@ -1054,8 +1057,14 @@ class GenericEditorPresenter:
     PROBLEM_DUPLICATE = f'duplicate:{random()}'
     PROBLEM_EMPTY = f'empty:{random()}'
 
-    def __init__(self, model, view, refresh_view=False, session=None,
-                 do_commit=False, committing_results=[Gtk.ResponseType.OK]):
+    def __init__(self,
+                 model,
+                 view,
+                 refresh_view=False,
+                 session=None,
+                 do_commit=False,
+                 connect_signals=True,
+                 committing_results=[Gtk.ResponseType.OK]):
         self.model = model
         self.view = view
         self.problems = set()
@@ -1093,7 +1102,8 @@ class GenericEditorPresenter:
             view.accept_buttons = self.view_accept_buttons
             if model and refresh_view:
                 self.refresh_view()
-            view.connect_signals(self)
+            if connect_signals:
+                view.connect_signals(self)
 
     def refresh_sensitivity(self):
         logger.debug('you should implement this in your subclass')
@@ -1349,7 +1359,8 @@ class GenericEditorPresenter:
              from, if None then remove all occurrences of problem_id regardless
              of the widget
         """
-        logger.debug('remove_problem(%s, %s, %s)', self, problem_id, widget)
+        logger.debug('remove_problem(%s, %s, %s)', self.__class__.__name__,
+                     problem_id, widget)
         if problem_id is None and widget is None:
             logger.warning('invoke remove_problem with None, None')
             # if no problem id and not problem widgets then don't do anything
@@ -1382,8 +1393,8 @@ class GenericEditorPresenter:
               (default=None)
         """
         # list of widgets.
-        logger.debug('add_problem(%s, %s, %s)', self, problem_id,
-                     problem_widgets)
+        logger.debug('add_problem(%s, %s, %s)', self.__class__.__name__,
+                     problem_id, problem_widgets)
         if isinstance(problem_widgets, (tuple, list)):
             for widget in problem_widgets:
                 self.add_problem(problem_id, widget)
@@ -1815,7 +1826,7 @@ class ChildPresenter(GenericEditorPresenter):
     """
 
     def __init__(self, model, view, session=None):
-        super().__init__(model, view, session=session)
+        super().__init__(model, view, session=session, connect_signals=False)
 
     @property
     def view(self):
@@ -2195,6 +2206,8 @@ class NotesPresenter(GenericEditorPresenter):
     on an item in the database.
 
     This presenter requires that notes_property provide a specific interface.
+    Must also call cleanup when finished to ensure it is correctly garbage
+    collected.
 
     :param presenter: the parent presenter of this presenter
     :param notes_property: the string name of the notes property of the
@@ -2215,7 +2228,6 @@ class NotesPresenter(GenericEditorPresenter):
                          .get_property(notes_property)
                          .mapper.class_)
         self.notes = getattr(presenter.model, notes_property)
-        self.parent_container = parent_container
         parent_container.add(self.widgets.notes_editor_box)
 
         # the `expander`s are added to self.box
@@ -2231,11 +2243,16 @@ class NotesPresenter(GenericEditorPresenter):
         logger.debug('notes: %s', self.notes)
         logger.debug('children: %s', self.box.get_children())
 
-        self.widgets.notes_add_button.connect(
-            'clicked', self.on_add_button_clicked)
+        self.widgets.notes_add_button.connect('clicked',
+                                              self.on_add_button_clicked)
         self.box.show_all()
 
-    def on_add_button_clicked(self, *_args):
+    def cleanup(self):
+        # garbage collect (esp. the on_add_button_clicked signal handler)
+        self.widgets.notes_editor_box.destroy()
+        super().cleanup()
+
+    def on_add_button_clicked(self, _button):
         box = self.add_note()
         box.set_expanded(True)
 

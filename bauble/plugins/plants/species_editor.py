@@ -533,10 +533,10 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
     def __del__(self):
         # we have to delete the views in the child presenters manually
         # to avoid the circular reference
+        # NOTE pictures_presenter and notes_presenter have no view
         del self.vern_presenter.view
         del self.synonyms_presenter.view
         del self.dist_presenter.view
-        del self.notes_presenter.view
         del self.infrasp_presenter.view
 
     def is_dirty(self):
@@ -661,6 +661,8 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
         self.synonyms_presenter.cleanup()
         self.dist_presenter.cleanup()
         self.infrasp_presenter.cleanup()
+        self.notes_presenter.cleanup()
+        self.pictures_presenter.cleanup()
 
     def start(self):
         response = self.view.start()
@@ -793,7 +795,8 @@ class InfraspPresenter(editor.GenericEditorPresenter):
         """
         :param parent: the parent SpeciesEditorPresenter
         """
-        super().__init__(parent.model, parent.view)
+        super().__init__(parent.model, parent.view, session=False,
+                         connect_signals=False)
         self.parent_ref = weakref.ref(parent)
         self._dirty = False
         self.view.connect('add_infrasp_button', "clicked", self.append_infrasp)
@@ -833,9 +836,9 @@ class DistributionPresenter(editor.GenericEditorPresenter):
         """
         :param parent: the parent SpeciesEditorPresenter
         """
-        super().__init__(parent.model, parent.view)
+        super().__init__(parent.model, parent.view, session=parent.session,
+                         connect_signals=False)
         self.parent_ref = weakref.ref(parent)
-        self.session = parent.session
         self._dirty = False
 
         self.remove_menu_model = Gio.Menu()
@@ -866,6 +869,10 @@ class DistributionPresenter(editor.GenericEditorPresenter):
         )
         self.geo_menu.attach_to_widget(add_button)
         add_button.set_sensitive(True)
+
+    def cleanup(self):
+        super().cleanup()
+        self.geo_menu.destroy()
 
     def refresh_view(self):
         label = self.view.widgets.sp_dist_label
@@ -925,9 +932,9 @@ class VernacularNamePresenter(editor.GenericEditorPresenter):
         """
         :param parent: the parent SpeciesEditorPresenter
         """
-        super().__init__(parent.model, parent.view)
+        super().__init__(parent.model, parent.view, session=parent.session,
+                         connect_signals=False)
         self.parent_ref = weakref.ref(parent)
-        self.session = parent.session
         self._dirty = False
         self.init_treeview(self.model.vernacular_names)
         self.view.connect('sp_vern_add_button', 'clicked',
@@ -1085,9 +1092,9 @@ class SynonymsPresenter(editor.GenericEditorPresenter):
         """
         :param parent: the parent SpeciesEditorPresenter
         """
-        super().__init__(parent.model, parent.view)
+        super().__init__(parent.model, parent.view, session=parent.session,
+                         connect_signals=False)
         self.parent_ref = weakref.ref(parent)
-        self.session = parent.session
         self.view.widgets.sp_syn_entry.props.text = ''
         self.init_treeview()
 
@@ -1255,7 +1262,8 @@ class SpeciesEditorView(editor.GenericEditorView):
         """
         filename = os.path.join(paths.lib_dir(), 'plugins', 'plants',
                                 'species_editor.glade')
-        super().__init__(filename, parent=parent)
+        super().__init__(filename, parent=parent,
+                         root_widget_name='species_dialog')
         self.attach_completion('sp_genus_entry',
                                self.genus_completion_cell_data_func,
                                match_func=self.genus_match_func)

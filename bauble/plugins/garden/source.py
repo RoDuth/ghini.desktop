@@ -369,7 +369,6 @@ class CollectionPresenter(editor.ChildPresenter):
     def __init__(self, parent, model, view, session):
         super().__init__(model, view, session=session)
         self.parent_ref = weakref.ref(parent)
-        self.session = session
         self.refresh_view()
         self.geo_menu = None
 
@@ -432,6 +431,11 @@ class CollectionPresenter(editor.ChildPresenter):
         add_button.set_sensitive(True)
 
         self._dirty = False
+
+    def cleanup(self):
+        # garbage collect
+        self.geo_menu.destroy()
+        super().cleanup()
 
     def set_region(self, _action, geo_id):
         geo_id = int(geo_id.unpack())
@@ -671,7 +675,6 @@ class PropagationChooserPresenter(editor.ChildPresenter):
     def __init__(self, parent, model, view, session=None):
         super().__init__(model, view, session=session)
         self.parent_ref = weakref.ref(parent)
-        self.session = session
         self._dirty = False
 
         # first item in the list store is the object that is used when toggled

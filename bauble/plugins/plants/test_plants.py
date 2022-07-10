@@ -1,7 +1,7 @@
 # Copyright 2008-2010 Brett Adams
 # Copyright 2015 Mario Frasca <mario@anche.no>.
 # Copyright 2017 Jardín Botánico de Quito
-# Copyright 2021 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright 2021-2022 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -33,11 +33,12 @@ from sqlalchemy.exc import IntegrityError
 
 from bauble import utils, search, db
 from bauble import prefs
-from bauble.test import BaubleTestCase, check_dupids, mockfunc
+from bauble.test import BaubleTestCase, check_dupids, mockfunc, update_gui
 from .species import (Species,
                       VernacularName,
                       SpeciesSynonym,
                       edit_species,
+                      SpeciesEditor,
                       DefaultVernacularName,
                       SpeciesDistribution,
                       SpeciesNote)
@@ -810,25 +811,18 @@ class GenusSynonymyTests(PlantTestCase):
 
 class SpeciesTests(PlantTestCase):
 
-    def setUp(self):
-        super().setUp()
-
-    def tearDown(self):
-        super().tearDown()
-
-    @skip('not implimented')
-    def test_editor(self):
-        # import default geography data
-        import bauble.paths as paths
-        default_path = os.path.join(
-            paths.lib_dir(), "plugins", "plants", "default")
-        # TODO if this test is ever reinstated. Switch to geography_importer()
-        # method.
-        filenames = [os.path.join(default_path, f) for f in ('geography.csv',
-                     'habit.csv')]
+    @mock.patch('bauble.editor.GenericEditorView.start')
+    def test_editor_doesnt_leak(self, mock_start):
+        from gi.repository import Gtk
+        mock_start.return_value = Gtk.ResponseType.OK
+        from bauble import paths
+        default_path = os.path.join(paths.lib_dir(), "plugins", "plants",
+                                    "default")
         from bauble.plugins.imex.csv_ import CSVRestore
         importer = CSVRestore()
-        importer.start(filenames, force=True)
+        importer.start([os.path.join(default_path, 'habit.csv')], force=True)
+        from bauble.task import queue
+        queue(geography_importer())
 
         f = Family(family='family')
         g2 = Genus(genus='genus2', family=f)
@@ -836,14 +830,18 @@ class SpeciesTests(PlantTestCase):
         g2.synonyms.append(g)
         self.session.add(f)
         self.session.commit()
+        g.notes
         sp = Species(genus=g, sp='sp')
-        edit_species(model=sp)
-        self.assertEqual(utils.gc_objects_by_type('SpeciesEditorMenuItem'),
-                         [], 'SpeciesEditor not deleted')
+        editor = SpeciesEditor(model=sp)
+        # edit_species(model=Species(genus=g, sp='sp'))
+        update_gui()  # This is needed to check genus.
+        editor.start()
+        del editor
+        update_gui()
+        self.assertEqual(utils.gc_objects_by_type('SpeciesEditor'), [])
         self.assertEqual(utils.gc_objects_by_type('SpeciesEditorPresenter'),
-                         [], 'SpeciesEditorPresenter not deleted')
-        self.assertEqual(utils.gc_objects_by_type('SpeciesEditorView'),
-                         [], 'SpeciesEditorView not deleted')
+                         [])
+        self.assertEqual(utils.gc_objects_by_type('SpeciesEditorView'), [])
 
     def test_str(self):
         """

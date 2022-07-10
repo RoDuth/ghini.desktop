@@ -328,7 +328,6 @@ class JSONImportTool(pluginmgr.Tool):
         presenter = JSONImporter(view=editor.GenericEditorView(
             filename, root_widget_name='select_import_dialog'))
         presenter.start()  # interact && run
-        presenter.cleanup()
         s.close()
 
 
@@ -346,5 +345,4 @@ class JSONExportTool(pluginmgr.Tool):
         presenter = JSONExporter(view=editor.GenericEditorView(
             filename, root_widget_name='select_export_dialog'))
         presenter.start()  # interact && run
-        presenter.cleanup()
         s.close()

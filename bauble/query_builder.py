@@ -243,13 +243,13 @@ class ExpressionRow:
 
         self.prop_button = Gtk.Button(label=_('Choose a property…'))
 
-        schema_menu = SchemaMenu(self.presenter.mapper,
-                                 self.on_schema_menu_activated,
-                                 self.column_filter,
-                                 self.relation_filter)
+        self.schema_menu = SchemaMenu(self.presenter.mapper,
+                                      self.on_schema_menu_activated,
+                                      self.column_filter,
+                                      self.relation_filter)
         self.prop_button.connect('button-press-event',
                                  self.on_prop_button_clicked,
-                                 schema_menu)
+                                 self.schema_menu)
         self.prop_button.set_tooltip_text('The property to query')
         self.grid.attach(self.prop_button, 2, row_number, 1, 1)
 
@@ -791,6 +791,11 @@ class QueryBuilder(GenericEditorPresenter):
                             self.table_row_count)
         self.expression_rows.append(row)
         self.view.widgets.expressions_table.show_all()
+
+    def cleanup(self):
+        for row in self.expression_rows:
+            row.schema_menu.destroy()
+        super().cleanup()
 
     def start(self):
         if not self.default_size:

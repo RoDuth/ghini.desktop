@@ -934,7 +934,8 @@ class PlantEditorView(GenericEditorView):
     def __init__(self, parent=None):
         glade_file = os.path.join(paths.lib_dir(), 'plugins', 'garden',
                                   'plant_editor.glade')
-        super().__init__(glade_file, parent=parent)
+        super().__init__(glade_file, parent=parent,
+                         root_widget_name='plant_dialog')
         self.widgets.pad_ok_button.set_sensitive(False)
         self.widgets.pad_next_button.set_sensitive(False)
 
@@ -1517,6 +1518,8 @@ class PlantEditorPresenter(GenericEditorPresenter, PresenterMapMixin):
         self.view.widgets.plant_acc_entry.props.editable = True
         self.view.get_window().props.title = _('Plant Editor')
         self.remove_map_action_group()
+        self.notes_presenter.cleanup()
+        self.pictures_presenter.cleanup()
 
     def start(self):
         return self.view.start()

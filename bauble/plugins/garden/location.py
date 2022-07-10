@@ -260,7 +260,8 @@ class LocationEditorView(GenericEditorView):
         super().__init__(
             os.path.join(paths.lib_dir(),
                          'plugins', 'garden', 'loc_editor.glade'),
-            parent=parent)
+            parent=parent, root_widget_name='location_dialog'
+        )
         self.use_ok_and_add = True
         self.set_accept_buttons_sensitive(False)
         self.widgets.notebook.set_current_page(0)
@@ -336,6 +337,7 @@ class LocationEditorPresenter(GenericEditorPresenter, PresenterMapMixin):
 
     def cleanup(self):
         super().cleanup()
+        self.notes_presenter.cleanup()
         self.remove_map_action_group()
 
     def on_loc_merge_button_clicked(self, _entry, *_args):

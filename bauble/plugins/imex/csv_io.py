@@ -85,6 +85,7 @@ class CSVExportDialogPresenter(GenericEditorPresenter):
         self.last_folder = prefs.prefs.get(CSV_EXPORT_DIR_PREF,
                                            str(Path.home()))
         self.filename = None
+        self.schema_menus = []
         self._construct_grid()
         self.box.show_all()
         self.add_problem(self.PROBLEM_NO_FILENAME, 'out_filename_entry')
@@ -228,6 +229,7 @@ class CSVExportDialogPresenter(GenericEditorPresenter):
             schema_menu.append(xtra)
 
         schema_menu.show_all()
+        self.schema_menus.append(schema_menu)
 
         tooltip = (
             'use "Note" for a note of the item.  The current "name" will be '
@@ -242,7 +244,6 @@ class CSVExportDialogPresenter(GenericEditorPresenter):
         self.grid.attach(prop_button, PATH, row, 1, 1)
         # this wont work if the prop_button hasn't been attached yet
         menu_activated(None, db_field, None)
-        # return prop_button, schema_menu
 
     def on_remove_button_clicked(self, button):
         attached_row = self.grid.child_get_property(button, 'top_attach')
@@ -289,6 +290,14 @@ class CSVExportDialogPresenter(GenericEditorPresenter):
         if has_fields and self.is_dirty() and not self.has_problems():
             sensitive = True
         self.view.set_accept_buttons_sensitive(sensitive)
+
+    def cleanup(self):
+        # garbage collection
+        self.grid.destroy()
+        for schema_menu in self.schema_menus:
+            print('cleanup destroy:', schema_menu)
+            schema_menu.destroy()
+        super().cleanup()
 
 
 class CSVExporter(GenericExporter):

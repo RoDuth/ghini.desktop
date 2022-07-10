@@ -78,7 +78,6 @@ class GenericImporter(ABC):   # pylint: disable=too-many-instance-attributes
         response = self.presenter.start()
         if response == -5:  # Gtk.ResponseType.OK - avoid importing Gtk here
             self.run()
-            self.presenter.cleanup()
         logger.debug('responded %s', response)
         return response
 
@@ -396,7 +395,6 @@ class GenericExporter(ABC):
         response = self.presenter.start()
         if response == -5:  # Gtk.ResponseType.OK - avoid importing Gtk here
             self.run()
-            self.presenter.cleanup()
         logger.debug('responded %s', response)
         return response
 

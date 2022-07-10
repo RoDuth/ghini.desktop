@@ -467,7 +467,8 @@ class GenusEditorView(editor.GenericEditorView):
 
         filename = os.path.join(paths.lib_dir(), 'plugins', 'plants',
                                 'genus_editor.glade')
-        super().__init__(filename, parent=parent)
+        super().__init__(filename, parent=parent,
+                         root_widget_name='genus_dialog')
         self.attach_completion('gen_syn_entry', self.syn_cell_data_func)
         self.attach_completion('gen_family_entry')
         self.set_accept_buttons_sensitive(False)

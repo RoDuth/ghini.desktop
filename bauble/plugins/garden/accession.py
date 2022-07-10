@@ -914,7 +914,8 @@ class AccessionEditorView(editor.GenericEditorView):
                                   'plugins',
                                   'garden',
                                   'acc_editor.glade')
-        super().__init__(glade_file, parent=parent)
+        super().__init__(glade_file, parent=parent,
+                         root_widget_name='accession_dialog')
         self.attach_completion('acc_species_entry',
                                cell_data_func=species_cell_data_func,
                                match_func=species_match_func)
@@ -984,9 +985,8 @@ class AccessionEditorView(editor.GenericEditorView):
 class VoucherPresenter(editor.GenericEditorPresenter):
 
     def __init__(self, parent, model, view, session):
-        super().__init__(model, view)
+        super().__init__(model, view, session=session, connect_signals=False)
         self.parent_ref = weakref.ref(parent)
-        self.session = session
         self._dirty = False
         self.view.connect('voucher_add_button', 'clicked', self.on_add_clicked)
         self.view.connect('voucher_remove_button', 'clicked',
@@ -1358,9 +1358,8 @@ class VerificationPresenter(editor.GenericEditorPresenter):
     """
 
     def __init__(self, parent, model, view, session):
-        super().__init__(model, view)
+        super().__init__(model, view, session=session, connect_signals=False)
         self.parent_ref = weakref.ref(parent)
-        self.session = session
         self.view.connect('ver_add_button', 'clicked', self.on_add_clicked)
 
         # remove any verification boxes that would have been added to
@@ -1418,9 +1417,8 @@ class SourcePresenter(editor.GenericEditorPresenter):
     PROBLEM_UNKOWN_SOURCE = f'unknown_source:{random()}'
 
     def __init__(self, parent, model, view, session):
-        super().__init__(model, view)
+        super().__init__(model, view, session=session, connect_signals=False)
         self.parent_ref = weakref.ref(parent)
-        self.session = session
         self._dirty = False
 
         self.view.connect('new_source_button', 'clicked',
@@ -2363,9 +2361,14 @@ class AccessionEditorPresenter(editor.GenericEditorPresenter):
 
     def cleanup(self):
         super().cleanup()
+        # garbage collect.
+        msg_box_parent = self.view.widgets.message_box_parent
+        for widget in msg_box_parent.get_children():
+            widget.destroy()
         self.ver_presenter.cleanup()
         self.voucher_presenter.cleanup()
         self.source_presenter.cleanup()
+        self.notes_presenter.cleanup()
 
     def start(self):
         self.source_presenter.start()

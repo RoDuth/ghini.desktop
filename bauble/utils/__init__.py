@@ -1345,6 +1345,45 @@ def gc_objects_by_type(tipe):
     return [o for o in gc.get_objects() if isinstance(o, type(tipe))]
 
 
+def debug_gc_decorator(func):
+    """Handy decorator for sorting out garbage collection issues.
+
+    To use decorate a function e.g.:
+        bauble.view.SearchView.on_action_activate,
+        bauble.ui.GUI.on_insert_menu_item_activate
+        bauble.ui.GUI.on_tools_menu_item_activate
+    run the app from the commandline and look at the output on standard output.
+
+    NOTE: the first use may not be the concern so much as repeated uses
+    accumulating uncollected items.  Keep an eye on totals increasing.
+    """
+
+    def wrapper(*args, **kwargs):
+        import gc
+        before = {}
+        for i in gc.get_objects():
+            tipe = type(i)
+            before[tipe] = before.setdefault(tipe, 0) + 1
+
+        new_val = func(*args, **kwargs)
+
+        gc.collect()
+        after = {}
+        for i in gc.get_objects():
+            tipe = type(i)
+            after[tipe] = after.setdefault(tipe, 0) + 1
+
+        for k, v in after.items():
+            if k in before and v - before.get(k, 0) > 0:
+                print(f'{k}, {v - before.get(k)} total: {v}')
+            elif k not in before:
+                print(f'NEW: {k}, total: {v}')
+
+        return new_val
+
+    return wrapper
+
+
 def mem(size="rss"):
     """Generalization; memory sizes: rss, rsz, vsz."""
     return int(os.popen(f'ps -p {os.getpid():d} -o {size} | tail -1').read())

@@ -1570,7 +1570,7 @@ class AccessionTests(GardenTestCase):
         # set the source type as "Garden Propagation"
         widgets.acc_source_comboentry.get_child().props.text = \
             SourcePresenter.GARDEN_PROP_STR
-        self.assertTrue(not editor.presenter.problems)
+        self.assertFalse(editor.presenter.problems)
 
         # set the source plant
         widgets.source_prop_plant_entry.props.text = str(plant)
@@ -1594,6 +1594,7 @@ class AccessionTests(GardenTestCase):
         # commit the changes and cleanup
         editor.handle_response(Gtk.ResponseType.OK)
         editor.session.close()
+        editor.presenter.cleanup()
 
         # open a separate session and make sure everything committed
         session = db.Session()
@@ -1607,6 +1608,7 @@ class AccessionTests(GardenTestCase):
         logger.debug("parent plants : %s", [str(i) for i in parent.plants])
         logger.debug(acc.source.__dict__)
         self.assertEqual(acc.source.plant_propagation_id, plant_prop_id)
+        del editor
 
     def test_accession_editor(self):
         acc = Accession(code='code', species=self.species)
@@ -1634,31 +1636,21 @@ class AccessionTests(GardenTestCase):
 
         editor.handle_response(Gtk.ResponseType.OK)
         editor.session.close()
+        editor.presenter.cleanup()
         del editor
 
-    @unittest.skip('requires interaction')
-    def test_editor(self):
-        """
-        Interactively test the AccessionEditor
-        """
-        #donor = self.create(Donor, name=u'test')
+    @unittest.mock.patch('bauble.editor.GenericEditorView.start')
+    def test_editor_doesnt_leak(self, mock_start):
+        mock_start.return_value = Gtk.ResponseType.OK
         sp2 = Species(genus=self.genus, sp='species')
         sp2.synonyms.append(self.species)
         self.session.add(sp2)
         self.session.commit()
-        # import datetime again since sometimes i get an weird error
-        import datetime
         acc_code = '%s%s1' % (
             datetime.date.today().year, Plant.get_delimiter())
         acc = self.create(Accession, species=self.species, code=acc_code)
         voucher = Voucher(herbarium='abcd', code='123')
         acc.vouchers.append(voucher)
-
-        def mem(size="rss"):
-            """Generalization; memory sizes: rss, rsz, vsz."""
-            import os
-            return int(os.popen('ps -p %d -o %s | tail -1' %
-                       (os.getpid(), size)).read())
 
         # add verificaiton
         ver = Verification()
@@ -1669,14 +1661,8 @@ class AccessionTests(GardenTestCase):
         ver.level = 1
         acc.verifications.append(ver)
 
-        location = Location(name='loc1', code='loc1')
-        plant = Plant(accession=acc, location=location, code='1', quantity=1)
-        prop = Propagation(prop_type='Seed')
-        seed = PropSeed(**default_seed_values)
-        seed.propagation = prop
-        plant.propagations.append(prop)
-
-        source_detail = SourceDetail(name='Test Source', source_type='Expedition')
+        source_detail = SourceDetail(name='Test Source',
+                                     source_type='Expedition')
         source = Source(sources_code='22')
         source.source_detail = source_detail
         acc.source = source
@@ -1684,12 +1670,13 @@ class AccessionTests(GardenTestCase):
         self.session.commit()
 
         editor = AccessionEditor(model=acc)
-        try:
-            editor.start()
-        except Exception as e:
-            import traceback
-            logger.debug(traceback.format_exc(0))
-            logger.debug("%s(%s)" % (type(e).__name, e))
+        editor.start()
+        del editor
+
+        self.assertEqual(utils.gc_objects_by_type('AccessionEditor'), [])
+        self.assertEqual(utils.gc_objects_by_type('AccessionEditorPresenter'),
+                         [])
+        self.assertEqual(utils.gc_objects_by_type('AccessionEditorView'), [])
 
     def test_remove_callback_no_plants_no_confirm(self):
         # T_0

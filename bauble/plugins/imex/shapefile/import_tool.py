@@ -21,6 +21,7 @@ Import data from shapefiles (zip file with all component files).
 from zipfile import ZipFile
 from pathlib import Path
 from random import random
+import weakref
 
 import logging
 logger = logging.getLogger(__name__)
@@ -261,26 +262,28 @@ class ShapefileImportSettingsBox(Gtk.ScrolledWindow):
         super().__init__(propagate_natural_height=True)
         self.box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
         self.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
-        self.shape_reader = shape_reader
+        self.shape_reader = weakref.proxy(shape_reader)
+        self.schema_menus = []
         type_frame = Gtk.Frame(shadow_type=Gtk.ShadowType.NONE)
         type_label = Gtk.Label(justify=Gtk.Justification.LEFT)
         type_label.set_markup("<b>records type:</b>")
         type_frame.set_label_widget(type_label)
-        type_combo = Gtk.ComboBoxText()
-        type_combo.connect("changed", self.on_type_changed)
-        type_combo.append_text('plant')
-        type_combo.append_text('location')
+        self.type_combo = Gtk.ComboBoxText()
+        self._type_sid = self.type_combo.connect("changed",
+                                                 self.on_type_changed)
+        self.type_combo.append_text('plant')
+        self.type_combo.append_text('location')
 
         if shape_reader.type == 'plant':
-            type_combo.set_active(0)
+            self.type_combo.set_active(0)
         elif shape_reader.type == 'location':
-            type_combo.set_active(1)
+            self.type_combo.set_active(1)
         else:
-            type_combo.set_active(-1)
+            self.type_combo.set_active(-1)
 
         height = min(24 + (len(shape_reader.get_fields()) * 42), 550)
         self.set_min_content_height(height)
-        type_frame.add(type_combo)
+        type_frame.add(self.type_combo)
         self.box.add(type_frame)
         # for tests and avoids gtk errors
         if grid is None:
@@ -315,7 +318,7 @@ class ShapefileImportSettingsBox(Gtk.ScrolledWindow):
                     self.grid.attach(label, column, row, 1, 1)
 
                 name = field[0]
-                # chk_button = Gtk.CheckButton.new_with_label('match')
+
                 prop_button, schema_menu = self._get_prop_button(model,
                                                                  name,
                                                                  row)
@@ -348,6 +351,7 @@ class ShapefileImportSettingsBox(Gtk.ScrolledWindow):
         prop_button = Gtk.Button()
         prop_button.set_use_underline(False)
 
+        # Note need to destroy schemmenu to garbage collect this.
         def menu_activated(_widget, path, _prop):
             """Closure used to set the field_map and button label."""
             prop_button.get_style_context().remove_class('err-btn')
@@ -424,6 +428,7 @@ class ShapefileImportSettingsBox(Gtk.ScrolledWindow):
             schema_menu.append(xtra)
 
         schema_menu.show_all()
+        self.schema_menus.append(schema_menu)
 
         try:
             # If a db_field is a table then don't try importing it (is is used
@@ -479,6 +484,14 @@ class ShapefileImportSettingsBox(Gtk.ScrolledWindow):
             self.shape_reader.replace_notes.add(name)
         else:
             self.shape_reader.replace_notes.remove(name)
+
+    def cleanup(self):
+        # garbage collection
+        self.type_combo.disconnect(self._type_sid)
+        self.grid.destroy()
+        for schema_menu in self.schema_menus:
+            print('cleanup destroy:', schema_menu)
+            schema_menu.destroy()
 
 
 class ShapefileImporter(GenericImporter):
@@ -672,6 +685,7 @@ class ShapefileImportDialogPresenter(GenericEditorPresenter):
         self.prj_string = None
         self.proj_db_match = None
         self.proj_text = None
+        self.settings_box = None
         self.proj_db = proj_db
         self.add_problem(self.PROBLEM_EMPTY, self.view.widgets.input_filename)
         self.refresh_view()
@@ -739,10 +753,11 @@ class ShapefileImportDialogPresenter(GenericEditorPresenter):
         child = expander.get_child()
         if child:
             expander.remove(child)
-        settings_box = ShapefileImportSettingsBox(
-            shape_reader=self.model.shape_reader)
-        expander.add(settings_box)
-        settings_box.show_all()
+        self.settings_box = ShapefileImportSettingsBox(
+            shape_reader=self.model.shape_reader
+        )
+        expander.add(self.settings_box)
+        self.settings_box.show_all()
         return False
 
     def on_settings_activate(self, _widget):
@@ -791,3 +806,8 @@ class ShapefileImportDialogPresenter(GenericEditorPresenter):
                                  axy=self.model.always_xy)
             self.proj_db_match = self.model.projection
             self.on_projection_changed(self.view.widgets.input_projection)
+
+    def cleanup(self):
+        if self.settings_box:
+            self.settings_box.cleanup()
+        super().cleanup()

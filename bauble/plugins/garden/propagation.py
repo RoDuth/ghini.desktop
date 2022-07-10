@@ -571,7 +571,7 @@ class CuttingPresenter(editor.GenericEditorPresenter):
         :param model: an instance of class Propagation
         :param view: an instance of PropagationEditorView
         """
-        super().__init__(model, view, session=session)
+        super().__init__(model, view, session=session, connect_signals=False)
         self.parent_ref = weakref.ref(parent)
         self._dirty = False
 
@@ -769,7 +769,7 @@ class SeedPresenter(editor.GenericEditorPresenter):
         :param model: an instance of class Propagation
         :param view: an instance of PropagationEditorView
         """
-        super().__init__(model, view, session=session)
+        super().__init__(model, view, session=session, connect_signals=False)
         self._dirty = False
         self.parent_ref = weakref.ref(parent)
 
