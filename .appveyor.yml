@@ -20,8 +20,8 @@ for:
     - brew install pygobject3 gtk+3 adwaita-icon-theme openjdk
 
   build_script:
-    - . ~/venv3.9/bin/activate
-    - cp -rf "$(find /usr/local/Cellar/pygobject3 -type d -name site-packages)"/* "$(find $VIRTUAL_ENV -type d -name site-packages)"
+    - . ~/venv3.10/bin/activate
+    - cp -rf "$(find /usr/local/Cellar/pygobject3 -type d -name site-packages | tail -n 1)"/* "$(find $VIRTUAL_ENV -type d -name site-packages)"
     - /usr/local/opt/openjdk/bin/jlink --output jre --add-modules java.base,java.logging,java.desktop,java.xml
     - scripts/get_fop.sh
     - pip install --upgrade pip
@@ -36,7 +36,7 @@ for:
     - path: dist/Ghini-*-installer.dmg
 
   test_script:
-    - . ~/venv3.9/bin/activate
+    - . ~/venv3.10/bin/activate
     - pip install pytest
     - pytest -sv
 -
@@ -55,7 +55,9 @@ for:
     - bash -lc "pacman --noconfirm --needed -S - < ./scripts/mingw64_pkglist.txt"
     - bash -lc "python --version"
     - bash -lc "python -m pip install --upgrade pip"
-    - bash -lc "pip install pyproj-3.3.0-cp39-cp39-mingw_x86_64.whl"  # NOTE temp solution.
+    - bash -lc "./scripts/mingw_pyproj_workaround.sh"               # NOTE temp solution.
+    - bash -lc "pip install proj_build/dist/pyproj*.whl"  # NOTE temp solution.
+
 
   build_script:
     - bash -lc "pip install ."

@@ -12,3 +12,5 @@ mingw-w64-x86_64-python-psycopg2
 mingw-w64-x86_64-proj
 mingw-w64-x86_64-python-pytest
 mingw-w64-x86_64-python-coverage
+mingw-w64-x86_64-cython
+git
