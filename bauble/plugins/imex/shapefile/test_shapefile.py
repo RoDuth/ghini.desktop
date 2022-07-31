@@ -398,6 +398,8 @@ def create_shapefile(name, prj_string, fields, records, out_dir):  \
         'type' = shape type,
         'coordinates' = coordinates
     :param out_dir: the absolute path to save the zipped shapefile as a string
+
+    :return: Path to file
     """
     blank = {f[0]: '' for f in fields}
     out_path = Path(out_dir) / name
@@ -2843,6 +2845,68 @@ class ShapefileImportTests(ShapefileTestCase):
 
 
 class ShapefileReaderTests(ShapefileTestCase):
+
+    def test_search_by_loc_defaults(self):
+        in_data = loc_recs_3857
+        filename = create_shapefile('test',
+                                    prj_str_3857,
+                                    location_fields,
+                                    in_data,
+                                    self.temp_dir.name)
+        shape_reader = ShapefileReader(filename)
+        self.assertEqual(len(shape_reader.search_by), 1)
+        self.assertEqual(shape_reader.search_by, {'loc_code'})
+
+    def test_search_by_plt_defaults(self):
+        in_data = plt_rec_3857_points
+        filename = create_shapefile('test',
+                                    prj_str_3857,
+                                    plant_fields,
+                                    in_data,
+                                    self.temp_dir.name)
+        shape_reader = ShapefileReader(filename)
+        self.assertEqual(len(shape_reader.search_by), 2)
+        self.assertEqual(shape_reader.search_by, {'accession', 'plt_code'})
+
+    def test_search_by_add_no_type(self):
+        shape_reader = ShapefileReader(None)
+        self.assertFalse(shape_reader.search_by)  # empty
+        shape_reader.search_by.add('test')
+        self.assertEqual(len(shape_reader.search_by), 1)
+
+    def test_search_by_add_plant_type(self):
+        in_data = plt_rec_3857_points
+        filename = create_shapefile('test',
+                                    prj_str_3857,
+                                    plant_fields,
+                                    in_data,
+                                    self.temp_dir.name)
+        shape_reader = ShapefileReader(filename)
+        self.assertEqual(len(shape_reader.search_by), 2)
+        self.assertEqual(shape_reader.search_by, {'accession', 'plt_code'})
+        shape_reader.search_by.add('test')
+        self.assertEqual(len(shape_reader.search_by), 3)
+        self.assertEqual(shape_reader.search_by,
+                         {'accession', 'plt_code', 'test'})
+
+    def test_search_by_remove_all_then_add(self):
+        in_data = loc_recs_3857
+        filename = create_shapefile('test',
+                                    prj_str_3857,
+                                    location_fields,
+                                    in_data,
+                                    self.temp_dir.name)
+        shape_reader = ShapefileReader(filename)
+        self.assertEqual(len(shape_reader.search_by), 1)
+        self.assertEqual(shape_reader.search_by, {'loc_code'})
+        shape_reader.search_by.remove('loc_code')
+        # make sure this doesn't reset to defaults
+        self.assertEqual(len(shape_reader.search_by), 0)
+        self.assertEqual(shape_reader.search_by, set())
+        shape_reader.search_by.add('test')
+        self.assertEqual(len(shape_reader.search_by), 1)
+        self.assertEqual(shape_reader.search_by, {'test'})
+
     def test_get_prj_string_from_file(self):
         prj_str = 'PROJCS["test1"]'
 

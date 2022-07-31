@@ -1357,6 +1357,12 @@ class GlobalFunctionsTests(BaubleTestCase):
                          {'millis': 1321013580000, '__class__': 'datetime'})
 
 
+class TestImporter(GenericImporter):
+
+    def _import_task(self, options):
+        pass
+
+
 class GenericImporterTests(BaubleTestCase):
     def test_add_rec_to_db_plants(self):
         data1 = {
@@ -1678,6 +1684,73 @@ class GenericImporterTests(BaubleTestCase):
         self.assertEqual(result[0].code, data1.get('code'))
         self.assertEqual(result[0].name, data1.get('name'))
         self.assertEqual(result[0].description, data2.get('description'))
+
+    def test_get_db_item_id_only(self):
+        for func in get_setUp_data_funcs():
+            func()
+        loc1 = self.session.query(Location).get(1)
+        self.assertIsNotNone(loc1)
+        # Note float id will fail in postgres if get_value_as_python_type
+        # doesn't convert to int correctly
+        record = {'loc_id': 1.00}
+
+        importer = TestImporter()
+        importer.domain = Location
+        importer.search_by.add('loc_id')
+        importer.fields = {'loc_id': 'id'}
+        item = importer.get_db_item(self.session, record, add=True)
+        self.assertTrue(item in self.session)
+        self.assertEqual(item, loc1)
+
+    def test_get_db_item_id_only_w_add_creates_new(self):
+        record = {'loc_id': 1}
+
+        importer = TestImporter()
+        importer.domain = Location
+        importer.search_by.add('loc_id')
+        importer.fields = {'loc_id': 'id'}
+        item = importer.get_db_item(self.session, record, add=True)
+        self.assertFalse(item in self.session)
+
+    def test_get_db_item_id_only_wo_add_returns_none(self):
+        record = {'loc_id': 1}
+
+        importer = TestImporter()
+        importer.domain = Location
+        importer.search_by.add('loc_id')
+        importer.fields = {'loc_id': 'id'}
+        item = importer.get_db_item(self.session, record, add=False)
+        self.assertIsNone(item)
+
+    def test_get_db_item_plant_acc_code(self):
+        for func in get_setUp_data_funcs():
+            func()
+        plt1 = self.session.query(Plant).get(2)
+        self.assertIsNotNone(plt1)
+
+        record = {'accession': str(plt1.accession.code),
+                  'plt_code': str(plt1.code)}
+
+        importer = TestImporter()
+        importer.domain = Plant
+        importer.search_by.add('accession')
+        importer.search_by.add('plt_code')
+        importer.fields = {'accession': 'accession.code', 'plt_code': 'code'}
+        item = importer.get_db_item(self.session, record, add=False)
+        self.assertTrue(item in self.session)
+        self.assertEqual(item, plt1)
+
+    def test_get_db_item_plant_acc_code_new(self):
+        record = {'accession': '1234567',
+                  'plt_code': '10'}
+
+        importer = TestImporter()
+        importer.domain = Plant
+        importer.search_by.add('accession')
+        importer.search_by.add('plt_code')
+        importer.fields = {'accession': 'accession.code', 'plt_code': 'code'}
+        item = importer.get_db_item(self.session, record, add=True)
+        self.assertFalse(item in self.session)
 
 
 class GenericExporterTests(BaubleTestCase):

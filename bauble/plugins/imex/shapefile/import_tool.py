@@ -77,7 +77,7 @@ class ShapefileReader():
         self.use_id = False
         self.replace_notes = set()
         self._type = None
-        self._search_by = set()
+        self._search_by = None
         self._field_map = {}
 
     def _guess_type(self):
@@ -111,7 +111,8 @@ class ShapefileReader():
 
     @type.setter
     def type(self, typ):
-        self._search_by = set()
+        # reset whenever the type is reset.
+        self._search_by = None
         self._field_map = {}
         self._type = typ
 
@@ -127,7 +128,7 @@ class ShapefileReader():
     def filename(self, filename):
         # reset whenever the filename is reset.
         self._type = None
-        self._search_by = set()
+        self._search_by = None
         self._field_map = {}
         self._filename = filename
 
@@ -138,7 +139,8 @@ class ShapefileReader():
 
         Unless manually set this will match the defaults for the type.
         """
-        if not self._search_by:
+        if self._search_by is None:
+            self._search_by = set()
             if self.type == 'plant':
                 default_search_by = prefs.prefs.get(
                     f'{PLANT_SHAPEFILE_PREFS}.search_by', {}
