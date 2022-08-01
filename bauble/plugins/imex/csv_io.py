@@ -295,7 +295,6 @@ class CSVExportDialogPresenter(GenericEditorPresenter):
         # garbage collection
         self.grid.destroy()
         for schema_menu in self.schema_menus:
-            print('cleanup destroy:', schema_menu)
             schema_menu.destroy()
         super().cleanup()
 

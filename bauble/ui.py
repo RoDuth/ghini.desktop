@@ -485,9 +485,8 @@ class GUI:
     @property
     def title(self):
         if bauble.conn_name is None:
-            return '%s %s' % ('Ghini', bauble.version)
-        return '%s %s - %s' % ('Ghini', bauble.version,
-                               bauble.conn_name)
+            return f'Ghini {bauble.version}'
+        return f'Ghini {bauble.version} - {bauble.conn_name}'
 
     def set_busy(self, busy, name='wait'):
         if busy:

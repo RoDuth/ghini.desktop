@@ -1369,7 +1369,7 @@ class GenericEditorPresenter:
         if not isinstance(widget, (Gtk.Widget, type(None))):
             try:
                 widget = getattr(self.view.widgets, widget)
-            except:
+            except (AttributeError, TypeError):
                 logger.info("can't get widget %s", widget)
 
         tmp = self.problems.copy()

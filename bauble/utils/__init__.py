@@ -803,17 +803,17 @@ def format_combo_entry_text(combo, path):
     return str(detail)
 
 
-def default_cell_data_func(_column, cell, model, treeiter, data=None):
+def default_cell_data_func(_column, cell, model, treeiter, str_func=None):
     """generic cell_data_func.
 
-    :param data: a callable, provided to the func_data parameter of the
+    :param str_func: a callable, provided to the func_data parameter of the
         columns's set_cell_data_func, that when supplied obj will return an
         appropriate string for the cell's text property
     """
-    if data == None:
-        data = str
+    if str_func is None:
+        str_func = str
     obj = model[treeiter][0]
-    cell.set_property('text', data(obj))
+    cell.set_property('text', str_func(obj))
 
 
 def setup_text_combobox(combo, values=None, cell_data_func=None):
@@ -1352,6 +1352,7 @@ def debug_gc_decorator(func):
         bauble.view.SearchView.on_action_activate,
         bauble.ui.GUI.on_insert_menu_item_activate
         bauble.ui.GUI.on_tools_menu_item_activate
+        bauble.ui.GUI.on_query_button_clicked
     run the app from the commandline and look at the output on standard output.
 
     NOTE: the first use may not be the concern so much as repeated uses

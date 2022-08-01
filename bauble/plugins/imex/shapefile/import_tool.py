@@ -492,7 +492,6 @@ class ShapefileImportSettingsBox(Gtk.ScrolledWindow):
         self.type_combo.disconnect(self._type_sid)
         self.grid.destroy()
         for schema_menu in self.schema_menus:
-            print('cleanup destroy:', schema_menu)
             schema_menu.destroy()
 
 
