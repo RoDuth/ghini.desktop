@@ -1074,6 +1074,10 @@ class SearchView(pluginmgr.View, Gtk.Box):
         # stop whatever it might still be doing
         self.cancel_threads()
         self.session.close()
+        # clear the caches to avoid stale items.
+        self.has_kids.clear_cache()  # pylint: disable=no-member
+        self.count_kids.clear_cache()  # pylint: disable=no-member
+        self.get_markup_pair.clear_cache()  # pylint: disable=no-member
         self.session = db.Session()
         bold = '<b>%s</b>'
         results = []
@@ -1091,7 +1095,6 @@ class SearchView(pluginmgr.View, Gtk.Box):
             return
 
         # not error
-        self.has_kids.clear_cache()  # pylint: disable=no-member
         utils.clear_model(self.results_view)
         if bauble.gui:
             statusbar = bauble.gui.widgets.statusbar
