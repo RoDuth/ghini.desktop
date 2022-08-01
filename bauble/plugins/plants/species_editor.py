@@ -196,6 +196,8 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
                            'sp_habit_comboentry': 'habit',
                            }
 
+    PROBLEM_UNKOWN_HABIT = f'unknown_source:{random()}'
+
     def __init__(self, model, view):
         super().__init__(model, view)
         self.session = object_session(model)
@@ -227,6 +229,7 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
 
         combo = self.view.widgets.sp_habit_comboentry
         model = Gtk.ListStore(str, object)
+        model.append(('', None))
         for habit in self.session.query(Habit):
             model.append((str(habit), habit))
         utils.setup_text_combobox(combo, model)
@@ -290,22 +293,6 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
                 'infrasp4_author': model.infrasp4_author,
             }
             self.start_sp_markup = model.str(markup=True, authors=True)
-
-    @staticmethod
-    def on_habit_entry_changed(entry, combo):
-        # check if the combo has a problem then check if the value
-        # in the entry matches one of the habit codes and if so
-        # then change the value to the habit
-        code = entry.get_text()
-        try:
-            utils.set_combo_from_value(
-                combo,
-                code.lower(),
-                cmp=lambda r, v: str(r[1]).lower() == v.lower()
-            )
-        except ValueError as e:
-            print('Error')
-            logger.debug('%s (%s)', type(e).__name__, e)
 
     def gen_get_completions(self, text):
         query = (self.session.query(Genus)
@@ -514,6 +501,22 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
             kid = self.species_check_messages.pop()
             self.view.widgets.remove_parent(kid)
 
+    # static method ensures garbage collection
+    @staticmethod
+    def on_habit_entry_changed(entry, combo):
+        # check if the combo has a problem then check if the value
+        # in the entry matches one of the habit codes and if so
+        # then change the value to the habit
+        code = entry.get_text()
+        try:
+            utils.set_combo_from_value(
+                combo,
+                code.lower(),
+                cmp=lambda r, v: r[0].lower() == v.lower()
+            )
+        except ValueError as e:
+            logger.debug('%s (%s)', type(e).__name__, e)
+
     def on_habit_comboentry_changed(self, combo):
         """Changed handler for sp_habit_comboentry.
 
@@ -522,12 +525,15 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
         the child of the combo entries.
         """
         treeiter = combo.get_active_iter()
+        self.remove_problem(self.PROBLEM_UNKOWN_HABIT, combo.get_child())
         if not treeiter:
+            self.add_problem(self.PROBLEM_UNKOWN_HABIT, combo.get_child())
+            self.refresh_sensitivity()
             return
         value = combo.get_model()[treeiter][1]
         self.set_model_attr('habit', value)
         # the entry change handler does the validation of the model
-        combo.get_child().set_text(utils.nstr(value))
+        combo.get_child().set_text(str(value or ''))
         combo.get_child().set_position(-1)
 
     def __del__(self):
