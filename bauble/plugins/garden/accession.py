@@ -2036,9 +2036,11 @@ class AccessionEditorPresenter(editor.GenericEditorPresenter):
     def populate_code_formats(self, entry_one=None, values=None):
         logger.debug('populate_code_formats %s %s', entry_one, values)
         list_store = self.view.widgets.acc_code_format_comboentry.get_model()
-        if entry_one is None:
-            entry_one = list_store.get_value(list_store.get_iter_first(), 0)
+        if entry_one is None and (itr := list_store.get_iter_first()):
+            entry_one = list_store.get_value(itr, 0)
         self.view.widgets.acc_code_format_comboentry.remove_all()
+        if entry_one:
+            self.view.widgets.acc_code_format_comboentry.append_text(entry_one)
         if values is None:
             query = (self.session
                      .query(meta.BaubleMeta)
