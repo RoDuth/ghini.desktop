@@ -2303,10 +2303,15 @@ class AccessionEditorPresenter(editor.GenericEditorPresenter):
 
         return True
 
+    def refresh_fullname_label(self):
+        sp_str = self.model.species_str(markup=True, authors=True)
+        self.view.set_label('sp_fullname_label', sp_str or '--')
+
     def refresh_sensitivity(self):
         """Refresh the sensitivity of the fields and accept buttons according
         to the current values in the model.
         """
+        self.refresh_fullname_label()
         if self.model.species and self.model.id_qual:
             self.view.widgets.acc_id_qual_rank_combo.set_sensitive(True)
             if self.model.id_qual and not self.model.id_qual_rank:
