@@ -131,7 +131,7 @@ def command_handler(cmd, arg):
         last_handler = handler_cls()
     handler_view = last_handler.get_view()
     old_view = gui.get_view()
-    if type(old_view) != type(handler_view) and handler_view:
+    if type(old_view) is not type(handler_view) and handler_view:
         # remove the accel_group from the window if the previous view
         # had one
         if hasattr(old_view, 'accel_group'):
@@ -144,6 +144,7 @@ def command_handler(cmd, arg):
         last_handler(cmd, arg)
     except Exception as e:
         msg = utils.xml_safe(e)
-        logger.error('bauble.command_handler(): %s' % msg)
-        utils.message_details_dialog(
-            msg, traceback.format_exc(), Gtk.MessageType.ERROR)
+        logger.error('bauble.command_handler(): %s', msg)
+        utils.message_details_dialog(msg,
+                                     traceback.format_exc(),
+                                     Gtk.MessageType.ERROR)

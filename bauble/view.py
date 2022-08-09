@@ -1515,11 +1515,6 @@ class SearchView(pluginmgr.View, Gtk.Box):
         self.results_view.connect("row-activated",
                                   self.on_view_row_activated)
 
-        # this group doesn't need to be added to the main window with
-        # Gtk.Window.add_accel_group since the group will be added
-        # automatically when the view is set
-        self.accel_group = Gtk.AccelGroup()
-
 
 class Note:
     # pylint: disable=too-few-public-methods
