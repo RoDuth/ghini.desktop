@@ -81,7 +81,7 @@ deploy:
   description: 'Rolling beta release.  From a v1.0 install: create a csv backup before upgrading, upgrade to this version, then restore the backup.'
   provider: GitHub
   auth_token:
-    secure: OyO6yWwEa7RpZdY1m+zj5ZBtTYxDSb8Q/7+5dkX8nakRUrEgHeRHIwnTNLlwv9Fk
+    secure: GO6caimCl/NMwv4nYvi9uAF5l7gNNXZB4BVhqONLyzA5OHaw+ui1847EDJjnodLG
   draft: false
   prerelease: true
   force_update: true
