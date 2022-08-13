@@ -37,6 +37,7 @@ from bauble.test import BaubleTestCase, update_gui, check_dupids, mockfunc
 from bauble import utils
 from bauble import prefs
 from bauble.meta import BaubleMeta
+from . import get_plant_completions
 from .accession import (Accession,
                         AccessionEditor,
                         AccessionNote,
@@ -741,6 +742,32 @@ class PlantTests(GardenTestCase):
             create=True)
         self.assertFalse(p is None)
 
+    def test_get_plant_completions(self):
+        text = '222'
+        result = get_plant_completions(self.session, text)
+        self.assertEqual(result, set())
+
+        text = '200'
+        result = get_plant_completions(self.session, text)
+        query = (self.session.query(Plant)
+                 .join(Accession)
+                 .filter(utils.ilike(Accession.code, f'{text}%%')))
+        self.assertEqual(result, set(str(i) for i in query))
+
+        text = '2001.2'
+        result = get_plant_completions(self.session, text)
+        query = (self.session.query(Plant)
+                 .join(Accession)
+                 .filter(utils.ilike(Accession.code, f'{text}%%')))
+        self.assertEqual(result, set(str(i) for i in query))
+
+        text = '2001.2.1'
+        result = get_plant_completions(self.session, text)
+        query = (self.session.query(Plant)
+                 .join(Accession)
+                 .filter(Accession.code == '2001.2',
+                         Plant.code == '1'))
+        self.assertEqual(result, set(str(i) for i in query))
 
 
 class PropagationTests(GardenTestCase):

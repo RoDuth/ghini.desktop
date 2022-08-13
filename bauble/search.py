@@ -921,6 +921,8 @@ class MapperSearch(SearchStrategy):
     domains = {}
     shorthand = {}
     properties = {}
+    # placed here for simple search convenience.
+    completion_funcs = {}
 
     def __init__(self):
         super().__init__()

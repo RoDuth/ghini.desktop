@@ -75,6 +75,27 @@ from .institution import (Institution,
 # - conservation table
 
 
+def get_plant_completions(session, text):
+    """Get completions for plants.  For use in simple search"""
+    from sqlalchemy import and_
+    acc_code = text
+    plant_code = ''
+    delimiter = Plant.get_delimiter()
+    if delimiter in text:
+        acc_code, plant_code = text.rsplit(delimiter, 1)
+    vals = []
+    qry = (session.query(Plant)
+           .join(Accession)
+           .filter(utils.ilike(Accession.code, f'{text}%%')))
+    vals = [str(val) for val in qry.limit(10)]
+    qry = (session.query(Plant)
+           .join(Accession)
+           .filter(and_(utils.ilike(Plant.code, f'{plant_code}%%'),
+                        utils.ilike(Accession.code, f'{acc_code}%%'))))
+    vals += [str(val) for val in qry.limit(10)]
+    return set(vals)
+
+
 class GardenPlugin(pluginmgr.Plugin):
 
     depends = ["PlantsPlugin"]
@@ -116,6 +137,8 @@ class GardenPlugin(pluginmgr.Plugin):
         mapper_search.add_meta(('plant', 'planting'), Plant, ['code'])
         # special search value strategy
         search.add_strategy(PlantSearch)
+
+        mapper_search.completion_funcs['plant'] = get_plant_completions
 
         SearchView.row_meta[Plant].set(
             infobox=PlantInfoBox,

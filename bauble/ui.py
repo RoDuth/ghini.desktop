@@ -47,6 +47,103 @@ from bauble.view import SearchView
 from bauble.editor import GenericEditorView
 
 
+class SimpleSearchBox(Gtk.Frame):
+    """Privides a simple search for the splash screen."""
+
+    def __init__(self):
+        super().__init__(label=_('Simple Search'))
+        tooltip = _(
+            'Simple search provides a quick way to access basic expression '
+            'searches with the convenience of auto-completion. For more '
+            'advanced searches the query builder provides a better starting '
+            'point.\n\nTo return all of a domain use = *'
+        )
+        self.set_tooltip_text(tooltip)
+        self.domain = None
+        self.columns = None
+        self.short_domain = None
+        box = Gtk.Box(margin=10)
+        self.add(box)
+        self.domain_combo = Gtk.ComboBoxText()
+        self.domain_combo.connect('changed', self.on_domain_combo_changed)
+        box.add(self.domain_combo)
+        self.cond_combo = Gtk.ComboBoxText()
+        for cond in ['=', 'contains', 'like']:
+            self.cond_combo.append_text(cond)
+        self.cond_combo.set_active(0)
+        box.add(self.cond_combo)
+        self.entry = Gtk.Entry()
+        liststore = Gtk.ListStore(str)
+        completion = Gtk.EntryCompletion()
+        completion.set_model(liststore)
+        completion.set_text_column(0)
+        completion.set_minimum_key_length(2)
+        completion.set_popup_completion(True)
+        self.entry.set_completion(completion)
+        self.entry.connect('activate', self.on_entry_activated)
+        self.entry.connect('changed', self.on_entry_changed)
+        box.add(self.entry)
+        self.completion_getter = None
+
+    def on_entry_activated(self, entry):
+        condition = self.cond_combo.get_active_text()
+        text = entry.get_text()
+        if text != '*':
+            text = f"'{text}'"
+        search_str = f"{self.short_domain} {condition} {text}"
+        if bauble.gui:
+            bauble.gui.send_command(search_str)
+
+    def on_domain_combo_changed(self, combo):
+        from bauble import search
+        mapper_search = search.get_strategy('MapperSearch')
+        domain = combo.get_active_text()
+        # domain is None when resetting
+        if domain:
+            self.domain, self.columns = mapper_search.domains[domain]
+            self.short_domain = min(
+                [min((k, v), key=len) for k, v in
+                 mapper_search.shorthand.items() if v == domain],
+                key=len
+            )
+            self.completion_getter = mapper_search.completion_funcs.get(domain)
+
+    def on_entry_changed(self, entry):
+        from bauble.utils import ilike
+        text = entry.get_text()
+        completion = entry.get_completion()
+        key_length = completion.get_minimum_key_length()
+        utils.clear_model(completion)
+        if len(text) < key_length:
+            return
+        completion_model = Gtk.ListStore(str)
+        session = db.Session()
+        if self.completion_getter:
+            for val in self.completion_getter(session, text):
+                completion_model.append([val])
+        else:
+            for column in self.columns:
+                vals = (session.query(getattr(self.domain, column))
+                        .filter(ilike(getattr(self.domain, column),
+                                      f'{text}%%'))
+                        .distinct()
+                        .limit(10))
+                for val in vals:
+                    completion_model.append([str(val[0])])
+        session.close()
+        completion.set_model(completion_model)
+
+    def update(self):
+        from bauble import search
+        mapper_search = search.get_strategy('MapperSearch')
+        self.domain_combo.remove_all()
+        for domain in sorted(mapper_search.domains.keys()):
+            self.domain_combo.append_text(domain)
+        self.domain_combo.set_active(0)
+        self.cond_combo.set_active(0)
+        self.entry.set_text('')
+
+
 class DefaultView(pluginmgr.View, Gtk.Box):
     """consider DefaultView a splash screen.
 
@@ -69,16 +166,27 @@ class DefaultView(pluginmgr.View, Gtk.Box):
         self.hbox.set_hexpand(True)
         self.hbox.set_vexpand(True)
 
+        self.vbox = Gtk.Box(homogeneous=False, spacing=0,
+                            orientation=Gtk.Orientation.VERTICAL)
         image = Gtk.Image()
         image.set_from_file(os.path.join(paths.lib_dir(), 'images',
                                          'bauble_logo.png'))
-        self.hbox.pack_start(image, True, True, 0)
+        image.set_valign(Gtk.Align.END)
+        self.vbox.pack_start(image, True, True, 10)
+        self.search_box = SimpleSearchBox()
+        self.search_box.set_valign(Gtk.Align.START)
+        self.vbox.pack_start(self.search_box, True, True, 0)
+
+        self.hbox.set_center_widget(self.vbox)
 
         # the following means we do not have an infobox yet
         self.infobox = None
 
     def update(self, *_args):
         logger.debug('DefaultView::update')
+
+        self.search_box.update()
+
         if self.infoboxclass and not self.infobox:
             logger.debug('DefaultView::update - creating infobox')
             self.infobox = self.infoboxclass()   # pylint: disable=not-callable
