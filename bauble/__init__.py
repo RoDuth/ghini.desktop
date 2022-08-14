@@ -134,6 +134,7 @@ def command_handler(cmd, arg):
     if type(old_view) is not type(handler_view) and handler_view:
         # remove the accel_group from the window if the previous view
         # had one
+        # NOTE this (add/remove accel_group) is no longer required
         if hasattr(old_view, 'accel_group'):
             gui.window.remove_accel_group(old_view.accel_group)
         # add the new view, and its accel_group if it has one
