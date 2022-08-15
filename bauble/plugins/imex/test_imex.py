@@ -1357,7 +1357,7 @@ class GlobalFunctionsTests(BaubleTestCase):
                          {'millis': 1321013580000, '__class__': 'datetime'})
 
 
-class TestImporter(GenericImporter):
+class BasicImporter(GenericImporter):
 
     def _import_task(self, options):
         pass
@@ -1694,7 +1694,7 @@ class GenericImporterTests(BaubleTestCase):
         # doesn't convert to int correctly
         record = {'loc_id': 1.00}
 
-        importer = TestImporter()
+        importer = BasicImporter()
         importer.domain = Location
         importer.search_by.add('loc_id')
         importer.fields = {'loc_id': 'id'}
@@ -1705,7 +1705,7 @@ class GenericImporterTests(BaubleTestCase):
     def test_get_db_item_id_only_w_add_creates_new(self):
         record = {'loc_id': 1}
 
-        importer = TestImporter()
+        importer = BasicImporter()
         importer.domain = Location
         importer.search_by.add('loc_id')
         importer.fields = {'loc_id': 'id'}
@@ -1715,7 +1715,7 @@ class GenericImporterTests(BaubleTestCase):
     def test_get_db_item_id_only_wo_add_returns_none(self):
         record = {'loc_id': 1}
 
-        importer = TestImporter()
+        importer = BasicImporter()
         importer.domain = Location
         importer.search_by.add('loc_id')
         importer.fields = {'loc_id': 'id'}
@@ -1731,7 +1731,7 @@ class GenericImporterTests(BaubleTestCase):
         record = {'accession': str(plt1.accession.code),
                   'plt_code': str(plt1.code)}
 
-        importer = TestImporter()
+        importer = BasicImporter()
         importer.domain = Plant
         importer.search_by.add('accession')
         importer.search_by.add('plt_code')
@@ -1744,7 +1744,7 @@ class GenericImporterTests(BaubleTestCase):
         record = {'accession': '1234567',
                   'plt_code': '10'}
 
-        importer = TestImporter()
+        importer = BasicImporter()
         importer.domain = Plant
         importer.search_by.add('accession')
         importer.search_by.add('plt_code')
