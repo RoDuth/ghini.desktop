@@ -326,12 +326,7 @@ class Species(db.Base, db.Serializable, db.DefiningPictures, db.WithNotes):
                 trail += ('<span foreground="#555555" size="small" '
                           'weight="light"> - ' + _("synonym of %s") + "</span>"
                           ) % self.accepted.markup(authors=True)
-            citation = self.markup(authors=True)
-            authorship_text = utils.xml_safe(self.sp_author)
-            if authorship_text:
-                citation = citation.replace(
-                    authorship_text,
-                    '<span weight="light">' + authorship_text + '</span>')
+            citation = self.markup(authors=True, for_search_view=True)
             return citation + trail, substring
         except Exception:  # pylint: disable=broad-except
             return '...', '...'
@@ -610,16 +605,18 @@ class Species(db.Base, db.Serializable, db.DefiningPictures, db.WithNotes):
         dist = [f'{d}' for d in self.distribution]
         return str(', ').join(sorted(dist))
 
-    def markup(self, authors=False, genus=True):
+    def markup(self, authors=False, genus=True, for_search_view=False):
         """returns this object as a string with markup
 
         :param authors: whether the authorship should be included
         :param genus: whether the genus name should be included
+        :param for_search_view: in search view authorship is in light text
         """
-        return self.str(authors, markup=True, genus=genus)
+        return self.str(authors, markup=True, genus=genus,
+                        for_search_view=for_search_view)
 
     def str(self, authors=False, markup=False, remove_zws=True, genus=True,
-            qualification=None):
+            qualification=None, for_search_view=False):
         """Returns a string for species.
 
         :param authors: flag to toggle whether authorship should be included
@@ -630,6 +627,7 @@ class Species(db.Base, db.Serializable, db.DefiningPictures, db.WithNotes):
         :param genus: flag to toggle leading genus name.
         :param qualification: pair or None. if specified, first is the
             qualified rank, second is the qualification.
+        :param for_search_view: in search view authorship is in light text
         """
         session = False
         from sqlalchemy import inspect
@@ -663,6 +661,8 @@ class Species(db.Base, db.Serializable, db.DefiningPictures, db.WithNotes):
         author = None
         if authors and self.sp_author:
             author = escape(self.sp_author)
+            if for_search_view:
+                author = '<span weight="light">' + author + '</span>'
 
         infrasp = ((self.infrasp1_rank, self.infrasp1,
                     self.infrasp1_author),
@@ -691,7 +691,10 @@ class Species(db.Base, db.Serializable, db.DefiningPictures, db.WithNotes):
                     infrasp_parts.append(escape(epithet))
 
             if authors and iauthor:
-                infrasp_parts.append(escape(iauthor))
+                iauthor = escape(iauthor)
+                if for_search_view:
+                    iauthor = '<span weight="light">' + iauthor + '</span>'
+                infrasp_parts.append(iauthor)
         if self.cv_group and not group_added:
             infrasp_parts.append(_("%(group)s Group") %
                                  dict(group=self.cv_group))
