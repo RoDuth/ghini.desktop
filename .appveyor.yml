@@ -55,10 +55,7 @@ for:
     - bash -lc "pacman --noconfirm --needed -S - < ./scripts/mingw64_pkglist.txt"
     - bash -lc "python --version"
     - bash -lc "python -m pip install --upgrade pip"
-    # - bash -lc "./scripts/mingw_pyproj_workaround.sh"       # NOTE temp solution.
-    # - bash -lc "pip install proj_build/dist/pyproj*.whl"    # NOTE temp solution.
-    - bash -lc "pip install pyproj*.whl"
-
+    - bash -lc "SETUPTOOLS_USE_DISTUTILS=stdlib pip install pyproj"
 
   build_script:
     - bash -lc "pip install ."
