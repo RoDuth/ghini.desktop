@@ -237,3 +237,13 @@ class Boolean(types.TypeDecorator):
         if value == 'False':
             return False
         return None
+
+
+class TruncatedString(types.TypeDecorator):
+    """A String type that truncates anything past its designated length"""
+    impl = types.String
+
+    cache_ok = True
+
+    def process_bind_param(self, value, dialect):
+        return value[:self.impl.length]

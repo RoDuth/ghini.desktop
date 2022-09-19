@@ -36,7 +36,7 @@ import bauble
 from bauble import utils
 from bauble import db
 from bauble import pluginmgr
-from bauble.view import SearchView
+from bauble.view import SearchView, HistoryView
 from bauble import search
 from .accession import (AccessionEditor,
                         Accession,
@@ -200,6 +200,61 @@ class GardenPlugin(pluginmgr.Plugin):
             start_institution_editor()
 
         SearchView.context_menu_callbacks.add(collection_context_menu_callback)
+
+        note_query = '{table} where notes.id = {obj_id}'
+        HistoryView.add_translation_query('accession_note', 'accession',
+                                          note_query)
+        HistoryView.add_translation_query('plant_note', 'plant', note_query)
+        HistoryView.add_translation_query('location_note', 'location',
+                                          note_query)
+
+        HistoryView.add_translation_query('source', 'accession',
+                                          '{table} where source.id = {obj_id}')
+
+        HistoryView.add_translation_query(
+            'verification',
+            'accession',
+            '{table} where verifications.id = {obj_id}'
+        )
+
+        HistoryView.add_translation_query(
+            'plant_change',
+            'plant',
+            '{table} where changes.id = {obj_id}'
+        )
+
+        # These are a little rough, only getting to accessions that have used
+        # them as a source.
+        HistoryView.add_translation_query(
+            'propagation',
+            'accession',
+            ('{table} where source.plant_propagation.id = {obj_id} or '
+             'source.propagation.id = {obj_id}')
+        )
+        HistoryView.add_translation_query(
+            'prop_seed',
+            'accession',
+            ('{table} where source.plant_propagation._seed.id = {obj_id} or '
+             'source.propagation._seed.id = {obj_id}')
+        )
+        HistoryView.add_translation_query(
+            'prop_cutting',
+            'accession',
+            ('{table} where source.plant_propagation._cutting.id = {obj_id} '
+             'or source.propagation._cutting.id = {obj_id}')
+        )
+        HistoryView.add_translation_query(
+            'prop_cutting',
+            'accession',
+            ('{table} where source.plant_propagation._cutting.id = {obj_id} '
+             'or source.propagation._cutting.id = {obj_id}')
+        )
+        HistoryView.add_translation_query(
+            'prop_cutting_rooted',
+            'accession',
+            ('{table} where source.plant_propagation._cutting.rooted.id = '
+             '{obj_id} or source.propagation._cutting.rooted.id = {obj_id}')
+        )
 
 
 def init_location_comboentry(presenter, combo, on_select, required=True):

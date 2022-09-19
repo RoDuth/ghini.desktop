@@ -212,22 +212,36 @@ class BaubleTests(BaubleTestCase):
         self.assertTrue(ret)
 
         string = 'False'
-        boolean = bauble.btypes.Boolean()
         ret = boolean.process_bind_param(string, None)
         self.assertFalse(ret)
 
         string = 'random'
-        boolean = bauble.btypes.Boolean()
         ret = boolean.process_bind_param(string, None)
         self.assertIsNone(ret)
 
-        boolean = bauble.btypes.Boolean()
         ret = boolean.process_bind_param(False, None)
         self.assertFalse(ret)
 
-        boolean = bauble.btypes.Boolean()
         ret = boolean.process_bind_param(True, None)
         self.assertTrue(ret)
+
+    def test_truncated_string_type(self):
+        string = 'x' * 10
+        trunc_string = bauble.btypes.TruncatedString(10)
+        ret = trunc_string.process_bind_param(string, None)
+        self.assertEqual(ret, string)
+
+        long_string = string + 'y'
+        ret = trunc_string.process_bind_param(long_string, None)
+        self.assertEqual(ret, string)
+
+        long_string = string + 'y' * 10
+        ret = trunc_string.process_bind_param(long_string, None)
+        self.assertEqual(ret, string)
+
+        short_string = 'x'
+        ret = trunc_string.process_bind_param(short_string, None)
+        self.assertEqual(ret, short_string)
 
     def test_base_table(self):
         """

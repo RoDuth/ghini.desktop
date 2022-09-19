@@ -49,6 +49,7 @@ from bauble import db, editor, pluginmgr, paths, search, utils
 from bauble.view import (InfoBox,
                          InfoExpander,
                          SearchView,
+                         HistoryView,
                          Action,
                          PropertiesExpander)
 
@@ -967,6 +968,10 @@ class TagPlugin(pluginmgr.Plugin):
         if bauble.gui:
             bauble.gui.set_view_callbacks.add(tags_menu_manager.refresh)
             tags_menu_manager.reset()
+
+        HistoryView.add_translation_query(
+            'tagged_obj', 'tag', '{table} where _objects.id = {obj_id}'
+        )
 
     @staticmethod
     def on_tag_bottom_info_activated(tree, path, _column):

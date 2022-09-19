@@ -147,12 +147,16 @@ def _add_to_history(operation, mapper, connection, instance):
     user = current_user()
 
     row = {}
+    geojson = None
     for column in mapper.local_table.c:
-        # skip defered geojson columns
         if column.name == 'geojson':
-            # TODO should deal with this better but not sure how without it
-            # being too expensive. Could just note it has changed but that
-            # gives no history of from to where.
+            # only record geojson on update or insert.
+            if operation == 'update':
+                history = get_history(instance, column.name)
+                if history.has_changes():
+                    geojson = history.sum()
+            elif operation == 'insert':
+                geojson = getattr(instance, column.name)
             continue
         if operation == 'update':
             history = get_history(instance, column.name)
@@ -165,6 +169,7 @@ def _add_to_history(operation, mapper, connection, instance):
                              table_id=instance.id,
                              values=str(row),
                              operation=operation,
+                             geojson=geojson,
                              user=user,
                              timestamp=datetime.datetime.utcnow()))
     connection.execute(stmt)
@@ -210,22 +215,23 @@ class History(HistoryBase):
         The name of the table the change was made on.
       table_id: :class:`sqlalchemy.types.Integer`
         The id in the table of the row that was changed.
-      values: :class:`sqlalchemy.types.String`
+      values: :class:`sqlalchemy.types.Text`
         The changed values.
       operation: :class:`sqlalchemy.types.String`
         The type of change.  This is usually one of insert, update or delete.
-      user: :class:`sqlalchemy.types.String`
+      user: :class:`btypes.TruncatedString`
         The name of the user who made the change.
       timestamp: :class:`sqlalchemy.types.DateTime`
         When the change was made.
     """
     __tablename__ = 'history'
     id = sa.Column(sa.Integer, primary_key=True, autoincrement=True)
-    table_name = sa.Column(sa.Text, nullable=False)
+    table_name = sa.Column(sa.String(32), nullable=False)
     table_id = sa.Column(sa.Integer, nullable=False, autoincrement=False)
     values = sa.Column(sa.Text, nullable=False)
-    operation = sa.Column(sa.Text, nullable=False)
-    user = sa.Column(sa.Text)
+    geojson = sa.Column(types.JSON())
+    operation = sa.Column(sa.String(8), nullable=False)
+    user = sa.Column(types.TruncatedString(64))
     timestamp = sa.Column(types.DateTime, nullable=False)
 
 

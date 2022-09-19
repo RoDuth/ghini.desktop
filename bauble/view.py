@@ -1542,7 +1542,8 @@ class AppendThousandRows(threading.Thread):
             self.view.add_row(row)
 
     def cancel_callback(self):
-        row = ['---'] * 6
+        row = [None]
+        row += ['---'] * 6
         row[4] = '** ' + _('interrupted') + ' **'
         self.view.liststore.append(row)
 
@@ -1583,7 +1584,7 @@ class AppendThousandRows(threading.Thread):
         offset = 0
         step = 200
         count = query.count()
-        while offset < count and not self.__stopped.isSet():
+        while offset < count and not self.__stopped.is_set():
             rows = query.offset(offset).limit(step).all()
             GLib.idle_add(self.callback, rows)
             offset += step
@@ -1599,33 +1600,61 @@ class HistoryView(pluginmgr.View, Gtk.Box):
     __gtype_name__ = 'HistoryView'
 
     liststore = Gtk.Template.Child()
+    history_tv = Gtk.Template.Child()
 
-    TVC_TIMESTAMP = 0
-    TVC_OPERATION = 1
-    TVC_USER = 2
-    TVC_TABLE = 3
-    TVC_USER_FRIENDLY = 4
-    TVC_DICT = 5
+    TVC_OBJ = 0
+    TVC_TIMESTAMP = 1
+    TVC_OPERATION = 2
+    TVC_USER = 3
+    TVC_TABLE = 4
+    TVC_USER_FRIENDLY = 5
+
+    queries = {}
 
     def __init__(self):
         logger.debug('HistoryView::__init__')
         super().__init__()
 
-    @staticmethod
-    def cmp_items_key(val):
-        """Sort by the key after putting id first and None values last"""
+        # setup context_menu
+        menu_model = Gio.Menu()
+        copy_values_action_name = 'copy_hist_selection_values'
+        copy_geojson_action_name = 'copy_hist_selection_geojson'
+
+        if bauble.gui:
+            bauble.gui.add_action(copy_values_action_name,
+                                  self.on_copy_values)
+            bauble.gui.add_action(copy_geojson_action_name,
+                                  self.on_copy_geojson)
+
+        copy_values = Gio.MenuItem.new(
+            _('Copy values'), f'win.{copy_values_action_name}'
+        )
+        copy_geojson = Gio.MenuItem.new(
+            _('Copy geojson'), f'win.{copy_geojson_action_name}'
+        )
+        menu_model.append_item(copy_values)
+        menu_model.append_item(copy_geojson)
+
+        self.context_menu = Gtk.Menu.new_from_model(menu_model)
+        self.context_menu.attach_to_widget(self.history_tv)
+
+    def cmp_items_key(self, val):
+        """Sort by the key after putting id first, changes second and None
+        values last.
+        """
         k, v = val
         if k == 'id':
             return (0, k)
+        if isinstance(self.show_typed_value(v), list):
+            return (1, k)
         if v == 'None':
-            return (2, k)
-        return (1, k)
+            return (3, k)
+        return (2, k)
 
     @staticmethod
     def show_typed_value(v):
         try:
-            literal_eval(v)
-            return v
+            return literal_eval(v)
         except (ValueError, SyntaxError):
             # most likely a string
             return repr(v)
@@ -1634,44 +1663,70 @@ class HistoryView(pluginmgr.View, Gtk.Box):
         dct = literal_eval(item.values)
         del dct['_created']
         del dct['_last_updated']
-        friendly = ', '.join(f"{k}: {self.show_typed_value(v)}"
+        friendly = ', '.join(f"{k}: {self.show_typed_value(v) or repr('')}"
                              for k, v in sorted(list(dct.items()),
                                                 key=self.cmp_items_key))
+        frmt = prefs.prefs.get(prefs.datetime_format_pref)
         self.liststore.append([
-            item.timestamp.strftime(
-                prefs.prefs.get(prefs.datetime_format_pref)),
+            item,
+            item.timestamp.strftime(frmt),
             item.operation,
             item.user,
             item.table_name,
             friendly,
-            item.values
+            str(item.geojson or ''),
         ])
+
+    def get_selected_value(self):
+        """Get the selected rows object from column 0."""
+        model, itr = self.history_tv.get_selection().get_selected()
+        if model is None or itr is None:
+            return None
+        return model[itr][0]
+
+    @Gtk.Template.Callback()
+    def on_button_release(self, _view, event):
+        if event.button != 3:
+            return False
+
+        self.context_menu.popup_at_pointer(event)
+        return True
+
+    def on_copy_values(self, _action, _param):
+        if selected := self.get_selected_value():
+            string = str(selected.values)
+            if bauble.gui:
+                bauble.gui.get_display_clipboard().set_text(string, -1)
+
+    def on_copy_geojson(self, _action, _param):
+        if selected := self.get_selected_value():
+            string = str(selected.geojson)
+            if bauble.gui:
+                bauble.gui.get_display_clipboard().set_text(string, -1)
+
+    @classmethod
+    def add_translation_query(cls, table_name, domain, query):
+        cls.queries[table_name] = (domain, query)
 
     @Gtk.Template.Callback()
     def on_row_activated(self, _tree, path, _column):
+        """Search for the correct domain for the selected row's item.
+
+        This generally will only work if the item is not deleted.
+        """
         row = self.liststore[path]  # pylint: disable=unsubscriptable-object
-        dic = literal_eval(row[self.TVC_DICT])
+        obj = row[self.TVC_OBJ]
+        if not obj:
+            return None
         table = row[self.TVC_TABLE]
-        obj_id = int(dic['id'])
-        for table_name, equivalent, key in [
-                ('genus_note', 'genus', 'genus_id'),
-                ('species_note', 'species', 'species_id'),
-                ('location_note', 'location', 'location_id'),
-                ('accession_note', 'accession', 'accession_id'),
-                ('source', 'accession', 'accession_id'),
-                ('plant_note', 'plant', 'plant_id'),
-                ('location_note', 'location', 'location_id'),
-                ('genus_synonym', 'genus', 'genus_id'),
-                ('species_synonym', 'species', 'species_id'),
-                ('vernacular_name', 'species', 'species_id'),
-                ('default_vernacular_name', 'species', 'species_id'),
-                ('plant_change', 'plant', 'plant_id'),
-        ]:
-            if table == table_name:
-                table = equivalent
-                obj_id = int(dic[key])
+        obj_id = row[self.TVC_OBJ].table_id
+
+        table, query = self.queries.get(
+            table, (table, '{table} where id={obj_id}')
+        )
+
         if table in search.MapperSearch.domains:
-            query = f'{table} where id={obj_id}'
+            query = query.format(table=table, obj_id=obj_id)
             if bauble.gui:
                 bauble.gui.send_command(query)
             else:
@@ -1681,7 +1736,8 @@ class HistoryView(pluginmgr.View, Gtk.Box):
 
     def update(self, *args):
         """Add the history items to the view."""
-        self.liststore.clear()
+        self.cancel_threads()
+        GLib.idle_add(self.liststore.clear)
         self.start_thread(AppendThousandRows(self, args[0]))
 
 

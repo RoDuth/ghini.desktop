@@ -661,6 +661,7 @@ class TestHistoryView(BaubleTestCase):
             operation='insert',
             user='Jade Green',
             table_name='genus_note',
+            table_id=1,
             values=("{'id': 1, 'genus_id': 10, 'note': 'test note', "
                       "'_created': None, '_last_updated': None}")
         )
@@ -668,7 +669,7 @@ class TestHistoryView(BaubleTestCase):
         hist_view = HistoryView()
         hist_view.add_row(mock_hist_item)
         self.assertEqual(hist_view.on_row_activated(None, 0, None),
-                         'genus where id=10')
+                         'genus where notes.id = 1')
 
     def test_basic_search_query_filters_eq(self):
         string = 'table_name = plant'

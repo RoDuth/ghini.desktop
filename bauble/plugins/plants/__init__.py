@@ -39,7 +39,7 @@ from bauble import search
 from bauble.paths import lib_dir
 from bauble import pluginmgr
 from bauble import utils
-from bauble.view import SearchView
+from bauble.view import SearchView, HistoryView
 from bauble.ui import DefaultView
 from .family import (Familia,
                      Family,
@@ -465,8 +465,10 @@ class PlantsPlugin(pluginmgr.Plugin):
             infobox=SpeciesInfoBox,
             context_menu=species_context_menu)
 
-        mapper_search.add_meta(('vernacular', 'vern', 'common'),
-                               VernacularName, ['name'])
+        mapper_search.add_meta(
+            ('vernacular_name', 'vernacular', 'vern', 'common'),
+            VernacularName, ['name']
+        )
         SearchView.row_meta[VernacularName].set(
             children=partial(db.natsort, 'species.accessions'),
             infobox=VernacularNameInfoBox,
@@ -487,6 +489,30 @@ class PlantsPlugin(pluginmgr.Plugin):
             bauble.gui.add_to_insert_menu(FamilyEditor, _('Family'))
             bauble.gui.add_to_insert_menu(GenusEditor, _('Genus'))
             bauble.gui.add_to_insert_menu(SpeciesEditor, _('Species'))
+
+        note_query = '{table} where notes.id = {obj_id}'
+        HistoryView.add_translation_query('family_note', 'family', note_query)
+        HistoryView.add_translation_query('genus_note', 'genus', note_query)
+        HistoryView.add_translation_query('species_note', 'species',
+                                          note_query)
+        syn_query = '{table} where _synonyms.id = {obj_id}'
+        HistoryView.add_translation_query('family_synonym', 'family',
+                                          syn_query)
+        HistoryView.add_translation_query('genus_synonym', 'genus', syn_query)
+        HistoryView.add_translation_query('species_synonym', 'species',
+                                          syn_query)
+
+        HistoryView.add_translation_query(
+            'default_vernacular_name',
+            'species',
+            '{table} where _default_vernacular_name.id = {obj_id}'
+        )
+
+        HistoryView.add_translation_query(
+            'species_distribution',
+            'species',
+            '{table} where distribution.id = {obj_id}'
+        )
 
     @staticmethod
     def on_return_syns_chkbx_toggled(widget):
