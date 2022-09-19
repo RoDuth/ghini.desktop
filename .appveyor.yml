@@ -55,7 +55,7 @@ for:
     - bash -lc "pacman --noconfirm --needed -S - < ./scripts/mingw64_pkglist.txt"
     - bash -lc "python --version"
     - bash -lc "python -m pip install --upgrade pip"
-    - bash -lc "SETUPTOOLS_USE_DISTUTILS=stdlib pip install pyproj"
+    - bash -lc "SETUPTOOLS_USE_DISTUTILS=stdlib pip install pyproj==3.3.1"
 
   build_script:
     - bash -lc "pip install ."
