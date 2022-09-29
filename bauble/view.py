@@ -754,11 +754,16 @@ class SearchView(pluginmgr.View, Gtk.Box):
         # create the label object
         label = Gtk.Label(label='Notes')
         self.bottom_notebook.append_page(page, label)
+
+        def sorter(notes):
+            return sorted(notes, key=lambda note: note.date, reverse=True)
+
         self.bottom_info[Note] = {
             'fields_used': ['date', 'user', 'category', 'note'],
             'tree': page.get_children()[0],
             'label': label,
             'name': _('Notes'),
+            'sorter': sorter,
         }
         widgets.notes_treeview.connect("row-activated",
                                        self.on_note_row_activated)
@@ -840,7 +845,8 @@ class SearchView(pluginmgr.View, Gtk.Box):
             else:
                 label.set_use_markup(True)
                 label.set_label(f'<b>{bottom_info["name"]}</b>')
-                for obj in objs:
+                sorter = bottom_info.get('sorter', reversed)
+                for obj in sorter(objs):
                     model.append([str(getattr(obj, k) or '')
                                   for k in bottom_info['fields_used']])
         self.bottom_notebook.show()
