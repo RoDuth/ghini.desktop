@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- Generated with glade 3.38.2 -->
+<!-- Generated with glade 3.40.0 -->
 <interface>
   <requires lib="gtk+" version="3.24"/>
   <object class="GtkAdjustment" id="quantity_adj">
@@ -182,6 +182,7 @@
                             <property name="visible">True</property>
                             <property name="can-focus">True</property>
                             <property name="receives-default">False</property>
+                            <property name="halign">start</property>
                             <property name="draw-indicator">True</property>
                           </object>
                           <packing>
@@ -530,6 +531,7 @@
                               <object class="GtkLabel" id="acc_species_label">
                                 <property name="visible">True</property>
                                 <property name="can-focus">False</property>
+                                <property name="selectable">True</property>
                                 <property name="xalign">0</property>
                               </object>
                               <packing>
