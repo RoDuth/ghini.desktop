@@ -1547,6 +1547,7 @@ def move_quantity_between_plants(from_plant, to_plant, to_plant_change=None):
     from_plant_change.child_plant = to_plant
     from_plant_change.quantity = to_plant.quantity
     from_plant_change.date = to_plant_change.date
+    from_plant_change.reason = to_plant_change.reason
     from_plant_change.to_location = to_plant.location
     from_plant_change.from_location = from_plant.location
 
