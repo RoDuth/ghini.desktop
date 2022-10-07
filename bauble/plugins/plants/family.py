@@ -425,10 +425,10 @@ class FamilyEditorPresenter(editor.GenericEditorPresenter):
 
     def refresh_sensitivity(self):
         # TODO: check widgets for problems
-        sensitive = False
-        if self.is_dirty() and self.model.family:
-            sensitive = True
-        self.view.set_accept_buttons_sensitive(sensitive)
+        if self.model.family:
+            self.view.set_accept_buttons_sensitive(self.is_dirty())
+        else:
+            self.view.set_accept_buttons_sensitive(False)
 
     def set_model_attr(self, attr, value, validator=None):
         # debug('set_model_attr(%s, %s)' % (attr, value))
@@ -564,7 +564,7 @@ class SynonymsPresenter(editor.GenericEditorPresenter):
             utils.delete_or_expunge(value)
             self.session.flush([value])
             self._dirty = True
-            self.refresh_sensitivity()
+            self.parent_ref().refresh_sensitivity()
 
 
 class FamilyEditor(editor.GenericModelViewPresenterEditor):

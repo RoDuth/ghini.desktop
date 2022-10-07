@@ -603,10 +603,10 @@ class GenusEditorPresenter(editor.GenericEditorPresenter):
 
     def refresh_sensitivity(self):
         # TODO: check widgets for problems
-        sensitive = False
-        if self.model.family and self.model.genus and self.model.family:
-            sensitive = True
-        self.view.set_accept_buttons_sensitive(sensitive)
+        if self.model.family and self.model.genus:
+            self.view.set_accept_buttons_sensitive(self.is_dirty())
+        else:
+            self.view.set_accept_buttons_sensitive(False)
 
     def set_model_attr(self, attr, value, validator=None):
         super().set_model_attr(attr, value, validator)
@@ -749,7 +749,7 @@ class SynonymsPresenter(editor.GenericEditorPresenter):
             utils.delete_or_expunge(value)
             self.session.flush([value])
             self._dirty = True
-            self.refresh_sensitivity()
+            self.parent_ref().refresh_sensitivity()
 
 
 class GenusEditor(editor.GenericModelViewPresenterEditor):
