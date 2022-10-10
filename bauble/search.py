@@ -782,7 +782,7 @@ class SearchParser:  # pylint: disable=too-few-public-methods
     ).setParseAction(DomainExpressionAction)('domain_expression')
 
     caps = srange("[A-Z]")
-    lowers = caps.lower()
+    lowers = caps.lower() + '-'
     binomial_name = (
         Word(caps, lowers) + (
             Word(lowers) | Word("'", caps + lowers + " ") + Literal("'") |
