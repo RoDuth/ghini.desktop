@@ -432,14 +432,17 @@ class XSLFormatterPlugin(FormatterPlugin):
                        'org.apache.fop.cli.Main']
         logger.debug('fop_cmd: %s', fop_cmd)
 
+        def temp():
+            handle, name = tempfile.mkstemp()
+            print('calling temp')
+            os.close(handle)
+            return str(Path(name).with_suffix(f'.{file_ext}'))
+
+        filename = kwargs.get('out_file') or temp()
+
         # Don't use check so we can log output etc.  Errors will be picked up
         # by the lack of file
         # pylint: disable=subprocess-run-check
-        handle, name = tempfile.mkstemp()
-        os.close(handle)
-        temp = str(Path(name).with_suffix(f'.{file_ext}'))
-        filename = kwargs.get('out_file') or temp
-
         fop_out = subprocess.run(
             [*fop_cmd, '-xml', xml_filename, '-xsl', stylesheet, fop_flag,
              filename],
