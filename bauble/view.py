@@ -1355,29 +1355,21 @@ class SearchView(pluginmgr.View, Gtk.Box):
             raise
 
     def get_expanded_rows(self):
-        """Get all the rows in the model that are expanded """
+        """Get the TreePath to all the rows in the model that are expanded."""
         expanded_rows = []
 
-        def expand(view, path):
-            expanded_rows.append(Gtk.TreeRowReference(view.get_model(), path))
+        self.results_view.map_expanded_rows(
+            lambda view, path: expanded_rows.append(path)
+        )
 
-        self.results_view.map_expanded_rows(expand)
-        # seems to work better if we passed the reversed rows to
-        # self.expand_to_all_refs
-        expanded_rows.reverse()
         return expanded_rows
 
-    def expand_to_all_refs(self, references):
+    def expand_to_all_rows(self, expanded_rows):
         """
-        :param references: a list of TreeRowReferences to expand to
-
-        Note: This method calls get_path() on each
-        Gtk.TreeRowReference in <references> which apparently
-        invalidates the reference.
+        :param expanded_rows: a list of TreePaths to expand to
         """
-        for ref in references:
-            if ref.valid():
-                self.results_view.expand_to_path(ref.get_path())
+        for path in expanded_rows:
+            self.results_view.expand_to_path(path)
 
     def on_view_button_press(self, view, event):
         """Ignore the mouse right-click event.
@@ -1470,13 +1462,13 @@ class SearchView(pluginmgr.View, Gtk.Box):
 
         self.results_view.collapse_all()
 
-        # expand_to_all_refs will invalidate the ref so get the path first
+        # expand_to_all_rows will invalidate the ref so get the path first
         if not ref:
             return
         path = None
         if ref.valid():
             path = ref.get_path()
-        self.expand_to_all_refs(expanded_rows)
+        self.expand_to_all_rows(expanded_rows)
         self.results_view.set_cursor(path)
 
     @staticmethod

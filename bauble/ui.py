@@ -780,7 +780,7 @@ class GUI:
                 committed = editor.start()
             if committed is not None and isinstance(view, SearchView):
                 view.results_view.collapse_all()
-                view.expand_to_all_refs(expanded_rows)
+                view.expand_to_all_rows(expanded_rows)
         except Exception as e:  # pylint: disable=broad-except
             utils.message_details_dialog(utils.xml_safe(str(e)),
                                          traceback.format_exc(),
