@@ -2024,9 +2024,11 @@ class AccessionEditorPresenter(editor.GenericEditorPresenter):
                 model = Gtk.ListStore(object)
                 model.append([syn.species])
                 completion.set_model(model)
+                # remove id_qualifiers
+                utils.set_widget_value(self.view.widgets.acc_id_qual_combo,
+                                       None)
+                # triggers this signal handler to set the model
                 self.view.widgets.acc_species_entry.set_text(str(syn.species))
-                self.set_model_attr('species', value)
-                self.refresh_id_qual_rank_combo()
 
         box = self.view.add_message_box(utils.MESSAGE_BOX_YESNO)
         box.message = msg
