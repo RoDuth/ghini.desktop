@@ -262,6 +262,8 @@ class TagTests(BaubleTestCase):
         self.invoked = []
 
         # action
+        orig_yes_no_dialog = utils.yes_no_dialog
+        orig_message_details_dialog = utils.message_details_dialog
         utils.yes_no_dialog = partial(
             mockfunc, name='yes_no_dialog', caller=self, result=False)
         utils.message_details_dialog = partial(
@@ -280,6 +282,8 @@ class TagTests(BaubleTestCase):
         q = self.session.query(Tag).filter_by(tag="Arecaceae")
         matching = q.all()
         self.assertEqual(matching, [f5])
+        utils.message_details_dialog = orig_message_details_dialog
+        utils.yes_no_dialog = orig_yes_no_dialog
 
     def test_remove_callback_confirm(self):
         # T_0
@@ -290,6 +294,7 @@ class TagTests(BaubleTestCase):
         save_status = tag_plugin.tags_menu_manager.reset
 
         # action
+        orig_yes_no_dialog = utils.yes_no_dialog
         utils.yes_no_dialog = partial(
             mockfunc, name='yes_no_dialog', caller=self, result=True)
         tag_plugin.tags_menu_manager.reset = partial(
@@ -309,6 +314,7 @@ class TagTests(BaubleTestCase):
         q = self.session.query(Tag).filter_by(tag="Arecaceae")
         matching = q.all()
         self.assertEqual(matching, [])
+        utils.yes_no_dialog = orig_yes_no_dialog
 
     def test_get_tagged_objects_deletes_redundant(self):
         family2 = Family(family='family2')

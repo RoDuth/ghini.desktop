@@ -2514,7 +2514,12 @@ class ShapefileImportTests(ShapefileTestCase):
         self.assertEqual(len(result[3].notes), 1)
         self.assertEqual(len(result[4].notes), 1)
 
-    def test_add_or_update_all_records_plants_some_bad_records(self):
+    @mock.patch('bauble.utils.desktop.open')
+    @mock.patch('bauble.utils.Gtk.MessageDialog.run',
+                return_value=Gtk.ResponseType.YES)
+    def test_add_or_update_all_records_plants_some_bad_records(self,
+                                                               mock_dialog,
+                                                               mock_open):
         importer = self.importer
         in_data = plt_rec_3857_points + plt_rec_3857_points_new_some_bad
         importer.filename = create_shapefile('test',
@@ -2526,6 +2531,17 @@ class ShapefileImportTests(ShapefileTestCase):
         importer.option = '4'
         importer.projection = 'epsg:3857'
         importer.run()
+        mock_dialog.assert_called()
+        mock_open.assert_called()
+        with open(mock_open.call_args.args[0], 'r', encoding='utf-8-sig') as f:
+            bad = [3, 5]
+            import csv
+            reader = csv.DictReader(f)
+            for record in reader:
+                self.assertIn(int(record['plt_id']), bad)
+                self.assertIn(int(record['__line_#']), bad)
+        # should really get the filename here and open it and check its
+        # accurate
         result = self.session.query(Plant).all()
         # assert len reflects new records
         self.assertEqual(len(result), 4)

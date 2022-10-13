@@ -1910,3 +1910,12 @@ def timed_cache(size=200, secs=2.0):
         wrapper.set_size = set_size
         return wrapper
     return decoratorating
+
+
+def get_temp_path():
+    """Returns a pathlib.Path instance pointed at a temporary file."""
+    import tempfile
+    from pathlib import Path
+    handle, name = tempfile.mkstemp()
+    os.close(handle)
+    return Path(name)

@@ -671,6 +671,43 @@ class CSVImporterTests(CSVTestCase):
         # one new species
         self.assertEqual(end_sp, start_sp + 1)
 
+    @mock.patch('bauble.utils.desktop.open')
+    @mock.patch('bauble.utils.Gtk.MessageDialog.run',
+                return_value=Gtk.ResponseType.YES)
+    def test_update_plants_bad_data(self, mock_dialog, mock_open):
+        start_plants = self.session.query(Plant).count()
+        start_sp = self.session.query(Species).count()
+        importer = self.importer
+        bad_data = [i.copy() for i in update_plants_csv_data]
+        bad_data[1]['qty'] = 'BAD_DATA'
+        importer.filename = create_csv(bad_data,
+                                       self.temp_dir.name)
+        importer.search_by = plant_csv_search_by
+        importer.fields = plant_full_csv_data[0]
+        importer.domain = Plant
+        importer.option = '0'
+        importer.run()
+        mock_dialog.assert_called()
+        mock_open.assert_called()
+        with open(mock_open.call_args.args[0], 'r', encoding='utf-8-sig') as f:
+            bad = [3, 5]
+            import csv
+            reader = csv.DictReader(f)
+            for record in reader:
+                self.assertEqual(int(record['__line_#']), 1)
+        updated_plant = self.session.query(Plant).get(1)
+        end_plants = self.session.query(Plant).count()
+        end_sp = self.session.query(Species).count()
+        # check the plant was not changed
+        self.assertEqual(updated_plant.quantity, 1)
+        self.assertEqual(updated_plant.location.code, 'RBW')
+        self.assertEqual(str(updated_plant.accession.species),
+                         'Maxillaria variabilis')
+        # no plants added
+        self.assertEqual(end_plants, start_plants)
+        # no new species
+        self.assertEqual(end_sp, start_sp)
+
     def test_update_plant_quantity_planted_date(self):
         # add the plant here so a planted entry is created by the event
         # listener

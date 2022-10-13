@@ -433,6 +433,8 @@ class FamilyTests(PlantTestCase):
         self.invoked = []
 
         # action
+        orig_yes_no_dialog = utils.yes_no_dialog
+        orig_message_details_dialog = utils.message_details_dialog
         utils.yes_no_dialog = partial(
             mockfunc, name='yes_no_dialog', caller=self, result=False)
         utils.message_details_dialog = partial(
@@ -451,6 +453,8 @@ class FamilyTests(PlantTestCase):
         q = self.session.query(Family).filter_by(family="Arecaceae")
         matching = q.all()
         self.assertEqual(matching, [f5])
+        utils.yes_no_dialog = orig_yes_no_dialog
+        utils.message_details_dialog = orig_message_details_dialog
 
     def test_remove_callback_no_genera_confirm(self):
         # T_0
@@ -460,6 +464,8 @@ class FamilyTests(PlantTestCase):
         self.invoked = []
 
         # action
+        orig_yes_no_dialog = utils.yes_no_dialog
+        orig_message_details_dialog = utils.message_details_dialog
         utils.yes_no_dialog = partial(
             mockfunc, name='yes_no_dialog', caller=self, result=True)
         utils.message_details_dialog = partial(
@@ -480,6 +486,8 @@ class FamilyTests(PlantTestCase):
         q = self.session.query(Family).filter_by(family="Arecaceae")
         matching = q.all()
         self.assertEqual(matching, [])
+        utils.yes_no_dialog = orig_yes_no_dialog
+        utils.message_details_dialog = orig_message_details_dialog
 
     def test_remove_callback_with_genera_cant_cascade(self):
         # T_0
@@ -490,6 +498,9 @@ class FamilyTests(PlantTestCase):
         self.invoked = []
 
         # action
+        orig_yes_no_dialog = utils.yes_no_dialog
+        orig_message_dialog = utils.message_dialog
+        orig_message_details_dialog = utils.message_details_dialog
         utils.yes_no_dialog = partial(
             mockfunc, name='yes_no_dialog', caller=self, result=True)
         utils.message_dialog = partial(
@@ -514,6 +525,9 @@ class FamilyTests(PlantTestCase):
         q = self.session.query(Genus).filter_by(genus="Areca")
         matching = q.all()
         self.assertEqual(matching, [gf5])
+        utils.yes_no_dialog = orig_yes_no_dialog
+        utils.message_dialog = orig_message_dialog
+        utils.message_details_dialog = orig_message_details_dialog
 
 
 class GenusTests(PlantTestCase):
@@ -644,6 +658,8 @@ class GenusTests(PlantTestCase):
         self.invoked = []
 
         # action
+        orig_yes_no_dialog = utils.yes_no_dialog
+        orig_message_details_dialog = utils.message_details_dialog
         utils.yes_no_dialog = partial(
             mockfunc, name='yes_no_dialog', caller=self, result=False)
         utils.message_details_dialog = partial(
@@ -662,6 +678,8 @@ class GenusTests(PlantTestCase):
         q = self.session.query(Genus).filter_by(genus="Carica")
         matching = q.all()
         self.assertEqual(matching, [f5])
+        utils.yes_no_dialog = orig_yes_no_dialog
+        utils.message_details_dialog = orig_message_details_dialog
 
     def test_remove_callback_no_species_confirm(self):
         # T_0
@@ -672,6 +690,8 @@ class GenusTests(PlantTestCase):
         self.invoked = []
 
         # action
+        orig_yes_no_dialog = utils.yes_no_dialog
+        orig_message_details_dialog = utils.message_details_dialog
         utils.yes_no_dialog = partial(
             mockfunc, name='yes_no_dialog', caller=self, result=True)
         utils.message_details_dialog = partial(
@@ -692,6 +712,8 @@ class GenusTests(PlantTestCase):
         q = self.session.query(Genus).filter_by(genus="Carica")
         matching = q.all()
         self.assertEqual(matching, [])
+        utils.yes_no_dialog = orig_yes_no_dialog
+        utils.message_details_dialog = orig_message_details_dialog
 
     def test_remove_callback_with_species_cant_cascade(self):
         # T_0
@@ -703,6 +725,9 @@ class GenusTests(PlantTestCase):
         self.invoked = []
 
         # action
+        orig_yes_no_dialog = utils.yes_no_dialog
+        orig_message_dialog = utils.message_dialog
+        orig_message_details_dialog = utils.message_details_dialog
         utils.yes_no_dialog = partial(
             mockfunc, name='yes_no_dialog', caller=self, result=True)
         utils.message_dialog = partial(
@@ -727,6 +752,9 @@ class GenusTests(PlantTestCase):
         q = self.session.query(Species).filter_by(sp="papaya")
         matching = q.all()
         self.assertEqual(matching, [gf5])
+        utils.yes_no_dialog = orig_yes_no_dialog
+        utils.message_dialog = orig_message_dialog
+        utils.message_details_dialog = orig_message_details_dialog
 
 
 class GenusSynonymyTests(PlantTestCase):
@@ -1144,6 +1172,8 @@ class SpeciesTests(PlantTestCase):
         self.invoked = []
 
         # action
+        orig_yes_no_dialog = utils.yes_no_dialog
+        orig_message_details_dialog = utils.message_details_dialog
         utils.yes_no_dialog = partial(
             mockfunc, name='yes_no_dialog', caller=self, result=False)
         utils.message_details_dialog = partial(
@@ -1163,6 +1193,8 @@ class SpeciesTests(PlantTestCase):
         q = self.session.query(Species).filter_by(genus=f5, sp="papaya")
         matching = q.all()
         self.assertEqual(matching, [sp])
+        utils.yes_no_dialog = orig_yes_no_dialog
+        utils.message_details_dialog = orig_message_details_dialog
 
     def test_remove_callback_no_accessions_confirm(self):
         # T_0
@@ -1174,6 +1206,8 @@ class SpeciesTests(PlantTestCase):
         self.invoked = []
 
         # action
+        orig_yes_no_dialog = utils.yes_no_dialog
+        orig_message_details_dialog = utils.message_details_dialog
         utils.yes_no_dialog = partial(
             mockfunc, name='yes_no_dialog', caller=self, result=True)
         utils.message_details_dialog = partial(
@@ -1194,6 +1228,8 @@ class SpeciesTests(PlantTestCase):
         q = self.session.query(Species).filter_by(sp="Carica")
         matching = q.all()
         self.assertEqual(matching, [])
+        utils.yes_no_dialog = orig_yes_no_dialog
+        utils.message_details_dialog = orig_message_details_dialog
 
     def test_remove_callback_with_accessions_cant_cascade(self):
         # T_0
@@ -1207,6 +1243,9 @@ class SpeciesTests(PlantTestCase):
         self.invoked = []
 
         # action
+        orig_yes_no_dialog = utils.yes_no_dialog
+        orig_message_dialog = utils.message_dialog
+        orig_message_details_dialog = utils.message_details_dialog
         utils.yes_no_dialog = partial(
             mockfunc, name='yes_no_dialog', caller=self, result=True)
         utils.message_dialog = partial(
@@ -1231,6 +1270,9 @@ class SpeciesTests(PlantTestCase):
         q = self.session.query(Accession).filter_by(species=sp)
         matching = q.all()
         self.assertEqual(matching, [acc])
+        utils.yes_no_dialog = orig_yes_no_dialog
+        utils.message_dialog = orig_message_dialog
+        utils.message_details_dialog = orig_message_details_dialog
 
 
 class GeographyTests(PlantTestCase):

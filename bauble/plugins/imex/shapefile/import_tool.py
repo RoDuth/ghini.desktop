@@ -593,8 +593,8 @@ class ShapefileImporter(GenericImporter):
 
         with self.shape_reader.get_records() as records:
             for record in records:
-                record_dict = record.record.as_dict()
-                record_dict = {k: v for k, v in record_dict.items() if
+                rec_dict = record.record.as_dict()
+                record_dict = {k: v for k, v in rec_dict.items() if
                                self.fields.get(k)}
                 self._is_new = False
                 item = self.get_db_item(session,
@@ -603,7 +603,8 @@ class ShapefileImporter(GenericImporter):
 
                 if records_done % five_percent == 0:
                     pb_set_fraction(records_done / record_count)
-                    msg = (f'{self._committed} committed, '
+                    msg = (f'{self._total_records} records, '
+                           f'{self._committed} committed, '
                            f'{self._errors} errors')
                     task.set_message(msg)
                     yield
@@ -634,7 +635,10 @@ class ShapefileImporter(GenericImporter):
                                              record_dict)
 
                 # commit every record catches errors and avoids losing records.
-                self.commit_db(session)
+                if self.commit_db(session) is False:
+                    # record errored
+                    rec_dict['__line_#'] = self._total_records
+                    self._err_recs.append(rec_dict)
 
         session.close()
         if bauble.gui and (view := bauble.gui.get_view()):

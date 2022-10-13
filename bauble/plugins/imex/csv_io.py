@@ -628,8 +628,8 @@ class CSVImporter(GenericImporter):
         with file.open('r', encoding='utf-8-sig') as f:
             reader = csv.DictReader(f)
             next(reader, None)  # skip field_map row
-            for record in reader:
-                record = {k: v for k, v in record.items() if
+            for rec in reader:
+                record = {k: v for k, v in rec.items() if
                           self.fields.get(k)}
                 self._is_new = False
                 item = self.get_db_item(session, record,
@@ -637,7 +637,8 @@ class CSVImporter(GenericImporter):
 
                 if records_done % five_percent == 0:
                     pb_set_fraction(records_done / record_count)
-                    msg = (f'{self._committed} committed, '
+                    msg = (f'{self._total_records} records, '
+                           f'{self._committed} committed, '
                            f'{self._errors} errors')
                     task.set_message(msg)
                     yield
@@ -653,7 +654,10 @@ class CSVImporter(GenericImporter):
                     records_added += 1
 
                 # commit every record catches errors and avoids losing records.
-                self.commit_db(session)
+                if self.commit_db(session) is False:
+                    # record errored
+                    rec['__line_#'] = self._total_records
+                    self._err_recs.append(rec)
             self.presenter.__class__.last_file = self.filename
 
         session.close()

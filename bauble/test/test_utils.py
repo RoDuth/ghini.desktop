@@ -494,6 +494,22 @@ class GlobalFuncsTests(BaubleTestCase):
         temp_source.cleanup()
         self.assertEqual(len(out), 10464)
 
+    def test_get_temp_path(self):
+        temp_path = utils.get_temp_path()
+        # test file is where we expect it
+        self.assertTrue(str(temp_path).startswith(paths.TEMPDIR))
+        # test file exists
+        self.assertTrue(temp_path.exists())
+        # test file can be opened
+        self.assertTrue(temp_path.open())
+        # test we can remove the file
+        try:
+            temp_path.unlink()
+        except Exception as e:
+            self.fail(f'exception {e} raised trying to delete the file')
+        # test file no longer exists
+        self.assertFalse(temp_path.exists())
+
 
 class MarkupItalicsTests(TestCase):
     def test_markup_simple(self):

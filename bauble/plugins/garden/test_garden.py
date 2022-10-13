@@ -379,6 +379,7 @@ class PlantTests(GardenTestCase):
     def test_remove_callback(self):
         # action
         self.invoked = []
+        orig_yes_no_dialog = utils.yes_no_dialog
         utils.yes_no_dialog = partial(mockfunc, name='yes_no_dialog',
                                       caller=self, result=True)
         from bauble.plugins.garden.plant import remove_callback
@@ -391,6 +392,7 @@ class PlantTests(GardenTestCase):
         match = self.session.query(Plant).filter_by(
             accession=self.accession).all()
         self.assertEqual(match, [])
+        utils.yes_no_dialog = orig_yes_no_dialog
 
     def test_branch_change(self):
         plant = Plant(accession=self.accession, code='11',
@@ -1718,6 +1720,8 @@ class AccessionTests(GardenTestCase):
         self.invoked = []
 
         # action
+        orig_yes_no_dialog = utils.yes_no_dialog
+        orig_message_details_dialog = utils.message_details_dialog
         utils.yes_no_dialog = partial(mockfunc, name='yes_no_dialog', caller=self, result=False)
         utils.message_details_dialog = partial(mockfunc, name='message_details_dialog', caller=self)
         from bauble.plugins.garden.accession import remove_callback
@@ -1733,6 +1737,8 @@ class AccessionTests(GardenTestCase):
         q = self.session.query(Accession).filter_by(code='010101', species=sp)
         matching = q.all()
         self.assertEqual(matching, [acc])
+        utils.yes_no_dialog = orig_yes_no_dialog
+        utils.message_details_dialog = orig_message_details_dialog
 
     def test_remove_callback_no_accessions_confirm(self):
         # T_0
@@ -1747,6 +1753,8 @@ class AccessionTests(GardenTestCase):
         self.invoked = []
 
         # action
+        orig_yes_no_dialog = utils.yes_no_dialog
+        orig_message_details_dialog = utils.message_details_dialog
         utils.yes_no_dialog = partial(
             mockfunc, name='yes_no_dialog', caller=self, result=True)
         utils.message_details_dialog = partial(
@@ -1766,6 +1774,8 @@ class AccessionTests(GardenTestCase):
         q = self.session.query(Species).filter_by(sp="Carica")
         matching = q.all()
         self.assertEqual(matching, [])
+        utils.yes_no_dialog = orig_yes_no_dialog
+        utils.message_details_dialog = orig_message_details_dialog
 
     def test_remove_callback_with_accessions_cant_cascade(self):
         # T_0
@@ -1782,6 +1792,9 @@ class AccessionTests(GardenTestCase):
         self.invoked = []
 
         # action
+        orig_yes_no_dialog = utils.yes_no_dialog
+        orig_message_dialog = utils.message_dialog
+        orig_message_details_dialog = utils.message_details_dialog
         utils.yes_no_dialog = partial(mockfunc, name='yes_no_dialog', caller=self, result=True)
         utils.message_dialog = partial(mockfunc, name='message_dialog', caller=self, result=True)
         utils.message_details_dialog = partial(mockfunc, name='message_details_dialog', caller=self)
@@ -1801,6 +1814,9 @@ class AccessionTests(GardenTestCase):
         q = self.session.query(Plant).filter_by(accession=acc)
         matching = q.all()
         self.assertEqual(matching, [plant])
+        utils.yes_no_dialog = orig_yes_no_dialog
+        utils.message_dialog = orig_message_dialog
+        utils.message_details_dialog = orig_message_details_dialog
 
 
 class VerificationTests(GardenTestCase):

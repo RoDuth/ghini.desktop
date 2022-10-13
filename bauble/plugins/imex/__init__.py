@@ -66,7 +66,9 @@ class GenericImporter(ABC):   # pylint: disable=too-many-instance-attributes
         self.domain = None
         # keepng track
         self._committed = 0
+        self._total_records = 0
         self._errors = 0
+        self._err_recs = []
         self._is_new = False
         # view and presenter
         self.presenter = None
@@ -86,9 +88,22 @@ class GenericImporter(ABC):   # pylint: disable=too-many-instance-attributes
         task.clear_messages()
         task.queue(self._import_task(self.OPTIONS_MAP[int(self.option)]))
         msg = (f'import {self.filename} complete: '
-               f'{self._committed} records committed, '
+               f'of {self._total_records} records '
+               f'{self._committed} committed, '
                f'{self._errors} errors encounted')
         task.set_message(msg)
+        if self._err_recs:
+            from bauble import utils
+            msg = _('%s errors encountered, would you like to open a CSV of '
+                    'the these records?') % self._errors
+            if utils.yes_no_dialog(msg):
+                import csv
+                filepath = utils.get_temp_path().with_suffix('.csv')
+                with filepath.open('w', encoding='utf-8-sig', newline='') as f:
+                    writer = csv.DictWriter(f, self._err_recs[0].keys())
+                    writer.writeheader()
+                    writer.writerows(self._err_recs)
+                utils.desktop.open(str(filepath))
 
     @abstractmethod
     def _import_task(self, options):
@@ -181,15 +196,26 @@ class GenericImporter(ABC):   # pylint: disable=too-many-instance-attributes
         session.add(item)
 
     def commit_db(self, session):
-        from sqlalchemy.exc import IntegrityError
-        try:
-            session.commit()
-            self._committed += 1
-            logger.debug('committing')
-        except IntegrityError as e:
-            self._errors += 1
-            logger.debug('Commit failed with %s', e)
-            session.rollback()
+        """If session is dirty try committing the changes.
+
+        Also increment `_total_records`, `_committed`, `_errors` accordingly.
+
+        :param session: an sqlalchemy Session instance
+        :return: bool, if errors encountered or not.
+        """
+        from sqlalchemy.exc import SQLAlchemyError
+        self._total_records += 1
+        if session.dirty or session.new:
+            try:
+                session.commit()
+                self._committed += 1
+                logger.debug('committing')
+            except (SQLAlchemyError, ValueError) as e:
+                self._errors += 1
+                logger.debug('Commit failed with %s', e)
+                session.rollback()
+                return False
+        return True
 
     @staticmethod
     def organise_record(rec: dict) -> dict:
