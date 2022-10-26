@@ -661,14 +661,24 @@ class Accession(db.Base, db.Serializable, db.WithNotes):
 
     def search_view_markup_pair(self):
         """provide the two lines describing object for SearchView row."""
-        first, second = (utils.xml_safe(str(self)),
-                         self.species_str(markup=True))
-        suffix = _("%(1)s plant groups in %(2)s location(s)") % {
-            '1': len(set(self.plants)),
-            '2': len(set(p.location for p in self.plants))}
-        suffix = ('<span foreground="#555555" size="small" '
-                  f'weight="light"> - {suffix}</span>')
-        return first + suffix, second
+        sp_str = self.species_str(markup=True)
+        if self.active:
+            markup = utils.xml_safe(str(self))
+            suffix = _("%(1)s plant groups in %(2)s location(s)") % {
+                '1': len(set(self.plants)),
+                '2': len(set(p.location for p in self.plants))
+            }
+            suffix = ('<span foreground="#555555" size="small" '
+                      f'weight="light"> - {suffix}</span>')
+            return markup + suffix, sp_str
+        if self.plants:  # dead
+            color = "#9900ff"
+            markup = (
+                f'<span foreground="{color}">{utils.xml_safe(self)}</span>'
+            )
+        else:  # unused
+            markup = utils.xml_safe(str(self))
+        return markup, sp_str
 
     @property
     def parent_plant(self):
@@ -686,6 +696,13 @@ class Accession(db.Base, db.Serializable, db.WithNotes):
     def pictures(self):
         import operator
         return reduce(operator.add, [p.pictures for p in self.plants], [])
+
+    @property
+    def active(self):
+        for plant in self.plants:
+            if plant.quantity:
+                return True
+        return False
 
     def __str__(self):
         return str(self.code)
