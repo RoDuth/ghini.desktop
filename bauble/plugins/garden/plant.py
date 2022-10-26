@@ -1173,7 +1173,6 @@ class PlantEditorPresenter(GenericEditorPresenter, PresenterMapMixin):
             PLANT_KML_MAP_PREFS,
             str(Path(__file__).resolve().parent / 'plant.kml')
         )
-        self.init_map_menu()
 
     def acc_get_completions(self, text):
         text = text.lower()

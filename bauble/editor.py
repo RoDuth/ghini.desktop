@@ -1104,6 +1104,8 @@ class GenericEditorPresenter:
                 self.refresh_view()
             if connect_signals:
                 view.connect_signals(self)
+        # for PresenterMapMixin
+        super().__init__()
 
     def refresh_sensitivity(self):
         logger.debug('you should implement this in your subclass')
@@ -1713,7 +1715,6 @@ class PresenterMapMixin:
       GtkImage widget named `map_btn_icon` within the view's widgets
     - supply a valid string path to a mako kml template via the
       `self.kml_template` attribute
-    - call `self.init_map_menu()` on initializing.
     - call `self.remove_map_action_group()` on close. (e.g. in `self.cleanup`)
     - have a `model` attribute with a `geojson` attribute that returns valid a
       geojson feature geometry part with "type" and "coordinates" keys.
@@ -1721,6 +1722,7 @@ class PresenterMapMixin:
 
     def __init__(self):
         self.kml_template = None
+        self.init_map_menu()
 
     def on_map_copy(self, *_args):
         # convert to JSON string and copy to clipboard
@@ -1735,7 +1737,7 @@ class PresenterMapMixin:
                 geojson = json.loads(text)
                 # basic validation...
                 if not set(geojson.keys()) == {'type', 'coordinates'}:
-                    raise AttributeError
+                    raise AttributeError('wrong keys, need type, coordinates')
                 self.model.geojson = geojson
                 self._dirty = True
                 self.refresh_sensitivity()

@@ -333,7 +333,6 @@ class LocationEditorPresenter(GenericEditorPresenter, PresenterMapMixin):
             LOC_KML_MAP_PREFS,
             str(Path(__file__).resolve().parent / 'loc.kml')
         )
-        self.init_map_menu()
 
     def cleanup(self):
         super().cleanup()

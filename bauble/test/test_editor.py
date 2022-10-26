@@ -1,5 +1,6 @@
 # Copyright (c) 2005,2006,2007,2008,2009 Brett Adams <brett@belizebotanic.org>
 # Copyright (c) 2012-2015 Mario Frasca <mario@anche.no>
+# Copyright (c) 2022 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -20,11 +21,17 @@
 #
 
 import os
+import json
+from unittest import TestCase, mock
 
-from bauble.editor import GenericEditorView
-import bauble.prefs as prefs
-import bauble.paths as paths
-import bauble.utils as utils
+from gi.repository import Gtk
+
+from bauble.editor import (GenericEditorView,
+                           PresenterMapMixin)
+from bauble import paths
+from bauble import utils
+from bauble import search
+from bauble import prefs
 
 from bauble.test import BaubleTestCase
 
@@ -57,19 +64,10 @@ class BaubleTests(BaubleTestCase):
         self.assertRaises(NotImplementedError, view.set_icon, title)
 
     def test_add_widget(self):
-        import gi
-        gi.require_version("Gtk", "3.0")
-        from gi.repository import Gtk
-
         filename = os.path.join(paths.lib_dir(), 'bauble.glade')
         view = GenericEditorView(filename)
         label = Gtk.Label(label='testing')
         view.widget_add('statusbar', label)
-
-
-class PleaseIgnoreMe:
-    '''these cannot be tested in a non-windowed environment
-    '''
 
     def test_set_accept_buttons_sensitive_not_set(self):
         'it is a task of the presenter to indicate the accept buttons'
@@ -77,6 +75,7 @@ class PleaseIgnoreMe:
         view = GenericEditorView(filename, root_widget_name='main_dialog')
         self.assertRaises(AttributeError,
                           view.set_accept_buttons_sensitive, True)
+        view.get_window().destroy()
 
     def test_set_sensitive(self):
         filename = os.path.join(paths.lib_dir(), 'connmgr.glade')
@@ -85,6 +84,7 @@ class PleaseIgnoreMe:
         self.assertTrue(view.widgets.cancel_button.get_sensitive())
         view.widget_set_sensitive('cancel_button', False)
         self.assertFalse(view.widgets.cancel_button.get_sensitive())
+        view.get_window().destroy()
 
     def test_set_visible_get_visible(self):
         filename = os.path.join(paths.lib_dir(), 'connmgr.glade')
@@ -95,12 +95,12 @@ class PleaseIgnoreMe:
         view.widget_set_visible('noconnectionlabel', False)
         self.assertFalse(view.widget_get_visible('noconnectionlabel'))
         self.assertFalse(view.widgets.noconnectionlabel.get_visible())
-        
+        view.get_window().destroy()
+
 
 from dateutil.parser import parse as parse_date
 import datetime
-import unittest
-class TimeStampParserTests(unittest.TestCase):
+class TimeStampParserTests(TestCase):
 
     def test_date_parser_generic(self):
         import dateutil
@@ -144,3 +144,60 @@ class TimeStampParserTests(unittest.TestCase):
         target = parse_date('2014-01-01 20:00 +0000')
         result = parse_date('2014-01-01 20+0')
         self.assertEqual(result, target)
+
+
+class MapMixinTests(BaubleTestCase):
+
+    def setUp(self):
+        super().setUp()
+        with mock.patch('bauble.editor.PresenterMapMixin.init_map_menu'):
+            self.mixin = PresenterMapMixin()
+            self.mixin.refresh_sensitivity = mock.Mock()
+            self.geojson = {'test': 'value'}
+            self.mixin.model = mock.Mock(__tablename__='test',
+                                         geojson=self.geojson)
+            self.mixin.view = mock.Mock()
+
+    def test_on_map_delete(self):
+        self.assertEqual(self.mixin.model.geojson, self.geojson)
+        self.mixin.on_map_delete()
+        self.assertIsNone(self.mixin.model.geojson)
+        self.mixin.refresh_sensitivity.assert_called()
+
+    @mock.patch('bauble.gui')
+    def test_on_map_copy(self, mock_gui):
+        mock_clipboard = mock.Mock()
+        mock_gui.get_display_clipboard.return_value = mock_clipboard
+        self.mixin.on_map_copy()
+        self.assertEqual(self.mixin.model.geojson, self.geojson)
+        mock_clipboard.set_text.assert_called_with(json.dumps(self.geojson),
+                                                   -1)
+
+    @mock.patch('bauble.gui')
+    def test_on_map_paste(self, mock_gui):
+        mock_clipboard = mock.Mock()
+        geojson = {'type': 'TEST', 'coordinates': "test"}
+        mock_clipboard.wait_for_text.return_value = json.dumps(geojson)
+        mock_gui.get_display_clipboard.return_value = mock_clipboard
+        self.mixin.on_map_paste()
+        self.assertEqual(self.mixin.model.geojson, geojson)
+
+    @mock.patch('bauble.gui')
+    def test_on_map_paste_invalid(self, mock_gui):
+        mock_clipboard = mock.Mock()
+        mock_clipboard.wait_for_text.return_value = "INVALID VALUE"
+        mock_gui.get_display_clipboard.return_value = mock_clipboard
+        self.mixin.on_map_paste()
+        self.assertEqual(self.mixin.model.geojson, self.geojson)
+        self.mixin.view.run_message_dialog.assert_called()
+
+    @mock.patch('bauble.utils.desktop.open')
+    def test_on_map_kml_show_produces_file(self, mock_open):
+        template_str = "${value}"
+        template = utils.get_temp_path()
+        with template.open('w', encoding='utf-8') as f:
+            f.write(template_str)
+        self.mixin.kml_template = str(template)
+        self.mixin.on_map_kml_show()
+        with open(mock_open.call_args.args[0], encoding='utf-8') as f:
+            self.assertEqual(str(self.mixin.model), f.read())
