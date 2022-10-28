@@ -62,6 +62,8 @@ csv.field_size_limit(1000000)
 QUOTE_STYLE = csv.QUOTE_MINIMAL
 QUOTE_CHAR = '"'
 
+ORIG_SUFFIX = '_ORIG_'
+
 
 class UnicodeReader:
 
@@ -148,10 +150,11 @@ class CSVRestore:
         if filenames is None:
             return
 
-        bauble_meta = [i for i in filenames if i.endswith('bauble.txt')]
-        geography = [i for i in filenames if i.endswith('geography.txt')]
+        bauble_meta = [i for i in filenames if
+                       i.endswith('bauble.txt') or
+                       i.endswith('bauble.csv')]
 
-        if bauble_meta and geography and not force:
+        if bauble_meta and not force:
             with open(bauble_meta[0], 'r', encoding='utf-8', newline='') as f:
                 in_file = csv.DictReader(f)
                 version = None
@@ -162,28 +165,100 @@ class CSVRestore:
                         break
 
                 if version < '1.3.0-b':
-                    msg = _('You are importing data from a version prior '
-                            'to v1.3.0-b?\n\nSveral tables have changed '
-                            '\n\nWould you like to transform your data to '
-                            'match the new version? \n\nCopies of the '
-                            'original files will be saved with an appended '
-                            '"_ORIG_"')
-                    response = utils.yes_no_dialog(msg)
-                    if response:
+                    msg = (_('You are importing data from a version prior '
+                             'to v1.3.0-b?\n\nSome tables have changed '
+                             '\n\nWould you like to transform your data to '
+                             'match the new version? \n\nCopies of the '
+                             'original files will be saved with an appended '
+                             '"%s"') % ORIG_SUFFIX)
+                    if utils.yes_no_dialog(msg):
                         change_lst = [i for i in filenames if
                                       i.endswith('species_distribution.txt') or
                                       i.endswith('collection.txt')]
-                        filenames.remove(geography[0])
-                        bauble.task.queue(
-                            self.set_geo_translator(geography[0]))
-                        bauble.task.queue(
-                            self.geo_upgrader(change_lst))
+                        geography = [i for i in filenames if
+                                     i.endswith('geography.txt')]
+                        if geography:
+                            filenames.remove(geography[0])
+                            bauble.task.queue(
+                                self.set_geo_translator(geography[0]))
+                            bauble.task.queue(
+                                self.geo_upgrader(change_lst))
                         bauble.task.queue(self.acc_upgrader(filenames))
                         bauble.task.queue(self.changes_upgrader(filenames))
 
+                # TODO bump version
+                if version < '1.3.0-b3':
+                    msg = (_('You are importing data from a version prior '
+                             'to v1.3.0-b3?\n\nSome tables have changed '
+                             '\n\nWould you like to transform your data to '
+                             'match the new version? \n\nCopies of the '
+                             'original files will be saved with an appended '
+                             '"%s"') % ORIG_SUFFIX)
+                    if utils.yes_no_dialog(msg):
+                        bauble.task.queue(self.pics_upgrader(filenames))
+
         bauble.task.queue(self.run(filenames, metadata, force))
 
-    def acc_upgrader(self, filenames):
+    @staticmethod
+    def pics_upgrader(filenames):
+        import re
+
+        def upgrader(filename):
+            with open(filename, 'r', encoding='utf-8', newline='') as f:
+                num_lines = len(f.readlines())
+
+            if num_lines <= 1:
+                logger.debug('%s contains no table data skip translation',
+                             filename)
+                return
+
+            original = filename + ORIG_SUFFIX
+            pictures = filename.rsplit('note', 1)[0] + 'picture.csv'
+            # mutatable
+            filenames.append(pictures)
+
+            os.rename(filename, original)
+
+            five_percent = int(num_lines / 20) or 1
+
+            with (open(original, 'r', encoding='utf-8', newline='') as old,
+                  open(filename, 'w', encoding='utf-8', newline='') as new,
+                  open(pictures, 'w', encoding='utf-8', newline='') as pics):
+                in_file = csv.DictReader(old)
+
+                fieldnames = in_file.fieldnames.copy()
+                out_file = csv.DictWriter(new, fieldnames=fieldnames)
+                out_file.writeheader()
+
+                fieldnames = in_file.fieldnames.copy()
+                fieldnames.remove('note')
+                fieldnames.append('picture')
+
+                out_pics = csv.DictWriter(pics, fieldnames=fieldnames)
+                out_pics.writeheader()
+
+                for count, line in enumerate(in_file):
+                    if line.get('category') == '<picture>':
+                        line['category'] = None
+                        line['picture'] = line.get('note')
+                        del line['note']
+                        out_pics.writerow(line)
+                    else:
+                        out_file.writerow(line)
+                    if count % five_percent == 0:
+                        pb_set_fraction(count / num_lines)
+                        yield
+
+        reg = re.compile(r'.*(plant|species|location)_note\.(csv|txt)$')
+        note_filenames = [i for i in filenames if reg.match(i)]
+
+        if note_filenames:
+            for file in note_filenames:
+                logger.debug('upgrading %s', file)
+                yield from upgrader(file)
+
+    @staticmethod
+    def acc_upgrader(filenames):
         """Upgrade accession file"""
         accession_file = [i for i in filenames if i.endswith('accession.txt')]
 
@@ -200,7 +275,7 @@ class CSVRestore:
         depr_prov_type = ['Purchase', 'Unknown']
 
         accession_file = accession_file[0]
-        original = accession_file + '_ORIG_'
+        original = accession_file + ORIG_SUFFIX
 
         msg = _('removing deprecated provenance entries: ')
         logger.debug('upgrading %s', accession_file)
@@ -235,7 +310,8 @@ class CSVRestore:
                     pb_set_fraction(count / num_lines)
                     yield
 
-    def changes_upgrader(self, filenames):
+    @staticmethod
+    def changes_upgrader(filenames):
         """Upgrade plant_change file"""
         changes_file = [i for i in filenames if i.endswith('plant_change.txt')]
 
@@ -249,7 +325,7 @@ class CSVRestore:
                       'TOTM']
 
         changes_file = changes_file[0]
-        original = changes_file + '_ORIG_'
+        original = changes_file + ORIG_SUFFIX
 
         msg = _('removing deprecated reason entries: ')
         logger.debug('upgrading %s', changes_file)
@@ -284,7 +360,7 @@ class CSVRestore:
     def geo_upgrader(self, change_lst: list[str]) -> None:
         """Upgrade changes from v1.0 to v1.3 prior to importing"""
         for file in change_lst:
-            original = file + '_ORIG_'
+            original = file + ORIG_SUFFIX
 
             msg = _('translating data in: ')
             logger.debug('translating %s', file)

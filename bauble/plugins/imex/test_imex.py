@@ -41,7 +41,8 @@ from bauble.plugins.plants import (Familia,
                                    Genus,
                                    Species,
                                    VernacularName,
-                                   SpeciesNote)
+                                   SpeciesNote,
+                                   SpeciesPicture)
 from bauble.plugins.garden import (Accession,
                                    Location,
                                    Plant,
@@ -909,20 +910,22 @@ class JSONImportTests(BaubleTestCase):
         self.assertEqual(afterwards.sp_author, 'Chapm.')
         self.assertEqual(len(afterwards.notes), 3)
 
-    def test_import_new_same_picture_notes(self):
+    def test_import_new_same_picture(self):
         before = Species.retrieve_or_create(
             self.session, {'ht-epithet': "Calopogon",
                            'epithet': "pallidus"})
-        note = SpeciesNote(category='<picture>', note='a')
+        pic = SpeciesPicture(category='overall', picture='a', species=before)
+        self.session.add(pic)
         self.session.commit()
 
         json_string = (
             '[{"ht-epithet": "Calopogon", "epithet": "pallidus", "author": '
             '"Chapm.", "rank": "Species", "ht-rank": "Genus", "hybrid": '
-            'false}, {"object": "species_note", "species": "Calopogon '
-            'pallidus", "category": "<picture>", "note": "a"}, {"object": '
-            '"species_note", "species": "Calopogon pallidus", "category": '
-            '"<picture>", "note": "b"}]'
+            'false}, '
+            '{"object": "species_picture", "species": "Calopogon pallidus", '
+            '"category": "leaf", "picture": "a"}, '
+            '{"object": "species_picture", "species": "Calopogon pallidus", '
+            '"category": "overall", "picture": "b"}]'
         )
         with open(self.temp_path, "w") as f:
             f.write(json_string)
@@ -934,7 +937,7 @@ class JSONImportTests(BaubleTestCase):
             self.session, {'ht-epithet': "Calopogon",
                            'epithet': "pallidus"})
         self.assertEqual(afterwards.sp_author, 'Chapm.')
-        self.assertEqual(len(afterwards.notes), 2)
+        self.assertEqual(len(afterwards.pictures), 2)
 
     def test_import_new_with_repeated_note(self):
         json_string = (

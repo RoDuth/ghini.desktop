@@ -64,7 +64,6 @@ from bauble import prefs
 from bauble import search
 from bauble import utils
 from bauble.utils.web import link_button_factory
-from bauble import pictures_view
 
 # use different formatting template for the result view depending on the
 # platform
@@ -76,6 +75,9 @@ else:
 
 INFOBOXPAGE_WIDTH_PREF = 'infobox.page_width'
 """The preferences key for storing the InfoBoxPage width."""
+
+PICTURESSCROLLER_WIDTH_PREF = 'pictures_scroller.page_width'
+"""The preferences key for storing the pictures_scroller width."""
 
 SEARCH_POLL_SECS_PREF = 'bauble.search.poll_secs'
 """Preference key for how often to poll the database in search view"""
@@ -415,8 +417,6 @@ class LinksExpander(InfoExpander):
             self.dynamic_box.remove(child)
         if self.notes:
             for note in getattr(row, self.notes):
-                if note.category == '<picture>':
-                    continue
                 for label, url in utils.get_urls(note.note):
                     if not label:
                         label = url
@@ -631,6 +631,100 @@ class CountResultsTask(threading.Thread):
             self.callback(results)
 
 
+class PicturesScroller(Gtk.ScrolledWindow):
+    """Shows pictures corresponding to selection.
+
+    PicturesScroller object will ask each object in the selection to return
+    picture to display.
+    """
+
+    def __init__(self, parent=None):
+        logger.debug("entering PicturesScroller.__init__(parent=%s)", parent)
+        super().__init__()
+        parent.add(self)
+        parent.show_all()
+        self.pictures_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL,
+                                    can_focus=False,
+                                    spacing=5)
+        self.add(self.pictures_box)
+        self.parent = parent
+        self.show()
+        # connect to the grandparent to capture parent's values first
+        self.parent.get_parent().connect('destroy', self.on_destroy)
+        self.size_set_flag = False
+
+    def on_destroy(self, _widget):
+        # calculate the width (pic_pane - infopage) as self won't give values
+        # below 46 for some reason, similarly the self size-allocation signal
+        # stops at 46.
+        width = (self.parent.get_allocation().width -
+                 self.parent.get_child1().get_allocation().width - 5)
+        prefs.prefs[PICTURESSCROLLER_WIDTH_PREF] = width
+
+    def set_selection(self, selection):
+        # set width once per session
+        if not self.size_set_flag:
+            self.set_width()
+
+        logger.debug("PicturesScroller.set_selection(%s)", selection)
+        for kid in self.pictures_box.get_children():
+            kid.destroy()
+
+        for obj in selection or []:
+            try:
+                pics = obj.pictures
+            except AttributeError:
+                logger.debug('object %s does not know of pictures', obj)
+                pics = []
+            for pic in pics:
+                logger.debug('object %s has picture %s', obj, pic)
+                box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+                if pic.category:
+                    label = Gtk.Label(label='category: ' + pic.category)
+                    box.add(label)
+                event_box = Gtk.EventBox()
+                pic_box = Gtk.Box()
+                utils.ImageLoader(pic_box, pic.picture).start()
+                event_box.add(pic_box)
+                box.add(event_box)
+                event_box.connect('button-press-event', self.on_button_press,
+                                  pic.picture)
+                self.pictures_box.pack_start(box, False, False, 5)
+                self.pictures_box.reorder_child(box, 0)
+                box.show_all()
+
+        self.pictures_box.show_all()
+
+    def set_width(self):
+        self.size_set_flag = True
+        # for tests when no gui
+        width = 1000
+        if bauble.gui:
+            width = bauble.gui.window.get_size().width
+        pics_width = prefs.prefs.get(PICTURESSCROLLER_WIDTH_PREF, 300)
+
+        info_width = prefs.prefs.get(INFOBOXPAGE_WIDTH_PREF, 300)
+        # no search results == no infobox
+        if bauble.gui and bauble.gui.get_view().infobox is None:
+            info_width = 0
+
+        pane_pos = width - info_width - pics_width - 6
+        logger.debug('setting pane position to %s', pane_pos)
+        self.parent.set_position(pane_pos)
+
+    @staticmethod
+    def on_button_press(_view, event, link):
+        """On double click open the image in the default viewer."""
+        # if it is not a url append the picture_root and open, if it is a URL
+        # just open it.
+        # pylint: disable=protected-access
+        if event.button == 1 and event.type == Gdk.EventType._2BUTTON_PRESS:
+            if not (link.startswith('http://') or link.startswith('https://')):
+                pic_root = prefs.prefs.get(prefs.picture_root_pref)
+                link = Path(pic_root, link)
+            utils.desktop.open(link)
+
+
 @Gtk.Template(filename=str(Path(paths.lib_dir(), 'search_view.ui')))
 class SearchView(pluginmgr.View, Gtk.Box):
     """The SearchView is the main view for Ghini.
@@ -715,9 +809,7 @@ class SearchView(pluginmgr.View, Gtk.Box):
 
         self.create_gui()
 
-        pictures_view.floating_window = pictures_view.PicturesView(
-            parent=self.pic_pane
-        )
+        self.pictures_scroller = PicturesScroller(parent=self.pic_pane)
 
         # the context menu cache holds the context menus by type in the results
         # view so that we don't have to rebuild them every time
@@ -822,7 +914,6 @@ class SearchView(pluginmgr.View, Gtk.Box):
         # Only one should be selected
         if len(selected_values or []) != 1:
             self.bottom_notebook.hide()
-            self.pic_pane.get_child2().hide()
             return
 
         row = selected_values[0]  # the selected row
@@ -954,6 +1045,8 @@ class SearchView(pluginmgr.View, Gtk.Box):
         # update all backward-looking info boxes
         self.update_bottom_notebook(selected_values)
 
+        self.pictures_scroller.set_selection(selected_values)
+
         self.update_context_menus(selected_values)
 
         for callback in self.cursor_changed_callbacks:
@@ -983,8 +1076,6 @@ class SearchView(pluginmgr.View, Gtk.Box):
         if not selected_values:
             return
         selected_types = set(map(type, selected_values))
-
-        pictures_view.floating_window.set_selection(selected_values)
 
         selected_type = None
         if len(selected_types) == 1:

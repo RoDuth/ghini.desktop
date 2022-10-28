@@ -1902,7 +1902,10 @@ class GenericNoteBox:
 
     PROBLEM_BAD_DATE = f'bad_date:{random()}'
 
+    note_attr = ''
+
     def __init__(self, presenter, model=None):
+        # super required here to work with Gtk.Template in the subclasses
         super().__init__()
 
         self.session = object_session(presenter.model)
@@ -1941,7 +1944,7 @@ class GenericNoteBox:
 
         utils.set_widget_value(self.user_entry, self.model.user or '')
 
-        self.set_content(self.model.note)
+        self.set_content(getattr(self.model, self.note_attr))
 
         # connect the signal handlers
         self.date_entry.connect('changed', self.on_date_entry_changed)
@@ -1986,7 +1989,7 @@ class GenericNoteBox:
             self.set_model_attr('date', text)
 
     def on_user_entry_changed(self, entry, *_args):
-        value = entry.props.text
+        value = entry.get_text()
         # only want either empty string or a name (a string), not None.
         # Presetting new notes with the current users display name ensures this
         self.set_model_attr('user', value)
@@ -2005,7 +2008,7 @@ class GenericNoteBox:
         self.category_comboentry.get_child().set_text(utils.nstr(text))
 
     def on_category_entry_changed(self, entry, *_args):
-        value = utils.nstr(entry.props.text)
+        value = utils.nstr(entry.get_text())
         if not value:  # if value == ''
             value = None
         self.set_model_attr('category', value)
@@ -2031,15 +2034,15 @@ class GenericNoteBox:
             label.append(utils.xml_safe(self.model.user))
 
         if self.model.category:
-            label.append(f'({utils.xml_safe(self.model.category)})')
+            label.append(f'({self.model.category})')
 
-        if self.model.note:
+        if (text := getattr(self.model, self.note_attr)):
             note_str = ' : '
-            note_str += utils.xml_safe(self.model.note).replace('\n', '  ')
+            note_str += utils.xml_safe(text).replace('\n', '  ')
             max_length = 25
             # label.props.ellipsize doesn't work properly on a
             # label in an expander we just do it ourselves here
-            if len(self.model.note) > max_length:
+            if len(text) > max_length:
                 label.append(f'{note_str[0:max_length - 1]} …')
             else:
                 label.append(note_str)
@@ -2053,10 +2056,6 @@ class GenericNoteBox:
         self.update_label()
 
         self.presenter.parent_ref().refresh_sensitivity()
-
-    @classmethod
-    def is_valid_note(cls, _note):
-        return True
 
 
 # NOTE that due to the way PyGObject handles templated classes and inheritance
@@ -2075,6 +2074,8 @@ class NoteBox(GenericNoteBox, Gtk.Box):
     user_entry = Gtk.Template.Child()
     notes_remove_button = Gtk.Template.Child()
     note_textview = Gtk.Template.Child()
+
+    note_attr = 'note'
 
     def set_content(self, text):
         buff = Gtk.TextBuffer()
@@ -2108,23 +2109,40 @@ class PictureBox(GenericNoteBox, Gtk.Box):
     date_button = Gtk.Template.Child()
     user_entry = Gtk.Template.Child()
     notes_remove_button = Gtk.Template.Child()
-    picture_button = Gtk.Template.Child()
+    file_set_box = Gtk.Template.Child()
+    file_btnbrowse = Gtk.Template.Child()
+    file_entry = Gtk.Template.Child()
+    picture_box = Gtk.Template.Child()
 
     last_folder = str(Path.home())
 
+    note_attr = 'picture'
+
     def __init__(self, presenter, model=None):
         super().__init__(presenter, model)
-        utils.set_widget_value(self.category_comboentry,
-                               '<picture>')
         self.presenter._dirty = False
 
-        self.picture_button.connect("clicked", self.on_activate_browse_button)
+        self._txt_sid = self.file_entry.connect("changed",
+                                                self.on_text_entry_changed)
+        self.file_btnbrowse.connect('clicked', self.on_file_btnbrowse_clicked)
 
     def set_content(self, text):
+        text = text or ''
+        # because _txt_id can't be defined before calling super.. need to check
+        # it exists here, first run of this it won't be.
+        if hasattr(self, '_txt_sid'):
+            self.file_entry.handler_block(self._txt_sid)
+        self.file_entry.set_text(text)
+        if hasattr(self, '_txt_sid'):
+            self.file_entry.handler_unblock(self._txt_sid)
         # NOTE text param here is the filename as a string
-        for widget in list(self.picture_button.get_children()):
+        for widget in list(self.picture_box.get_children()):
             widget.destroy()
-        if text is not None:
+        if text.startswith('http://') or text.startswith('https://'):
+            img = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+            utils.ImageLoader(img, text).start()
+            self.file_btnbrowse.set_sensitive(False)
+        elif text:
             img = Gtk.Image()
             try:
                 thumbname = os.path.join(
@@ -2144,6 +2162,7 @@ class PictureBox(GenericNoteBox, Gtk.Box):
                     pixbuf = fullbuf.scale_simple(
                         x, y, GdkPixbuf.InterpType.BILINEAR)
                 img.set_from_pixbuf(pixbuf)
+                self.file_set_box.set_sensitive(False)
             except GLib.GError as e:
                 logger.debug("picture %s caused GLib.GError %s", text, e)
                 label = _('picture file %s not found.') % text
@@ -2156,12 +2175,57 @@ class PictureBox(GenericNoteBox, Gtk.Box):
         else:
             # make button hold some text
             img = Gtk.Label()
-            img.set_text(_('Choose a file…'))
+            img.set_text(_('Choose a file or enter a URL…'))
         img.show()
-        self.picture_button.add(img)
-        self.picture_button.show()
+        self.picture_box.add(img)
+        self.picture_box.show()
 
-    def on_activate_browse_button(self, _widget):
+    def on_notes_remove_button(self, _button, *_args):
+        text = self.model.picture
+        thumbname = os.path.join(prefs.prefs[prefs.picture_root_pref],
+                                 'thumbs', text)
+        filename = os.path.join(prefs.prefs[prefs.picture_root_pref],
+                                text)
+        if os.path.isfile(thumbname) or os.path.isfile(filename):
+            # for testing
+            parent = None
+            if self.presenter.parent_ref().view:
+                parent = self.presenter.parent_ref().view.get_window()
+            msg = (_('File %s exist, would you like to delete?') % text)
+
+            # check if file exists in other pictures first...
+            tables = [table for name, table in db.metadata.tables.items() if
+                      name.endswith('_picture')]
+            for table in tables:
+
+                others = (self.session.query(table)
+                          .filter(table.c.picture == self.model.picture))
+
+                if self.model.__tablename__ == table.name:
+                    others = others.filter(table.c.id != self.model.id)
+
+                others = others.count()
+
+                if others:
+                    msg += (_(' %s other picture(s) of type %s exist using '
+                              'the same file, ') % (others, table.name))
+            if utils.yes_no_dialog(msg, parent=parent, yes_delay=0.5):
+                try:
+                    if os.path.isfile(thumbname):
+                        os.remove(thumbname)
+                    if os.path.isfile(filename):
+                        os.remove(filename)
+                except Exception as e:
+                    logger.debug('%s(%s)', type(e).__name__, e)
+                    utils.create_message_details_dialog(
+                        _('Error removing file...  File in use?'),
+                        parent=parent,
+                        details=e,
+                    )
+                    return
+        super().on_notes_remove_button(_button, *_args)
+
+    def on_file_btnbrowse_clicked(self, _widget):
         file_chooser_dialog = Gtk.FileChooserNative()
         try:
             logger.debug('about to set current folder - %s', self.last_folder)
@@ -2175,25 +2239,19 @@ class PictureBox(GenericNoteBox, Gtk.Box):
                 # copy file to picture_root_dir (if not yet there),
                 # also receiving thumbnail base64
                 utils.copy_picture_with_thumbnail(self.last_folder, basename)
-                # make sure the category is <picture>
-                self.set_model_attr('category', '<picture>')
                 # append thumbnail base64 to content string
                 # see: 59375047 intended to store a base64 thumbnail in the
                 # database Currently not working, not fully investigated.
                 # basename = basename + "|data:image/jpeg;base64," + str(thumb)
                 # store basename in note field and fire callbacks.
-                self.set_model_attr('note', basename)
-                self.set_content(basename)
+                self.file_entry.set_text(basename)
         except Exception as e:   # pylint: disable=broad-except
             logger.warning("unhandled exception: (%s)%s", type(e).__name__, e)
         file_chooser_dialog.destroy()
 
-    def on_category_entry_changed(self, entry, *args):
-        pass
-
-    @classmethod
-    def is_valid_note(cls, note):
-        return note.category == '<picture>'
+    def on_text_entry_changed(self, widget):
+        self.set_model_attr('picture', widget.get_text())
+        self.set_content(widget.get_text())
 
 
 # TODO: create a separate class for browsing notes in a treeview
@@ -2237,10 +2295,9 @@ class NotesPresenter(GenericEditorPresenter):
 
         valid_notes_count = 0
         for note in self.notes:
-            if self.ContentBox.is_valid_note(note):
-                box = self.add_note(note)
-                box.set_expanded(False)
-                valid_notes_count += 1
+            box = self.add_note(note)
+            box.set_expanded(False)
+            valid_notes_count += 1
 
         logger.debug('notes: %s', self.notes)
         logger.debug('children: %s', self.box.get_children())
@@ -2268,7 +2325,7 @@ class NotesPresenter(GenericEditorPresenter):
 
 
 class PicturesPresenter(NotesPresenter):
-    """pictures are associated to notes of category <picture>.
+    """Pictures are very similar to notes.
 
     you add a picture and you see a picture but the database will just hold
     the name of the corresponding file.

@@ -357,8 +357,10 @@ def compute_serializable_fields(_cls, session, keys):
     return result
 
 
-PlantNote = db.make_note_class('Plant', compute_serializable_fields, as_dict,
-                               retrieve)
+PlantNote = db.make_note_class('Plant', compute_serializable_fields,
+                               as_dict, retrieve)
+PlantPicture = db.make_note_class('Plant', compute_serializable_fields,
+                                  as_dict, retrieve, cls_type='picture')
 
 
 change_reasons = {
@@ -538,7 +540,7 @@ acc_type_values = {'Plant': _('Plant'),
                    None: ''}
 
 
-class Plant(db.Base, db.Serializable, db.DefiningPictures, db.WithNotes):
+class Plant(db.Base, db.Serializable, db.WithNotes):
     """
     :Table name: plant
 
@@ -1068,7 +1070,7 @@ class PlantEditorPresenter(GenericEditorPresenter, PresenterMapMixin):
 
         pictures_parent = self.view.widgets.pictures_parent_box
         pictures_parent.foreach(pictures_parent.remove)
-        self.pictures_presenter = PicturesPresenter(self, 'notes',
+        self.pictures_presenter = PicturesPresenter(self, 'pictures',
                                                     pictures_parent)
 
         from bauble.plugins.garden.propagation import PropagationTabPresenter

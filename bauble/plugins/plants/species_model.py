@@ -104,7 +104,7 @@ compare_rank = {
 }
 
 
-class Species(db.Base, db.Serializable, db.DefiningPictures, db.WithNotes):
+class Species(db.Base, db.Serializable, db.WithNotes):
     """
     :Table name: species
 
@@ -904,6 +904,8 @@ def retrieve(cls, session, keys):
 
 SpeciesNote = db.make_note_class('Species', compute_serializable_fields,
                                  as_dict, retrieve)
+SpeciesPicture = db.make_note_class('Species', compute_serializable_fields,
+                                    as_dict, retrieve, cls_type='picture')
 
 
 class SpeciesSynonym(db.Base):
@@ -1140,4 +1142,5 @@ class Color(db.Base):
 
 db.Species = Species
 db.SpeciesNote = SpeciesNote
+db.SpeciesPicture = SpeciesPicture
 db.VernacularName = VernacularName

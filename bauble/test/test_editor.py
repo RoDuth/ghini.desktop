@@ -23,17 +23,21 @@
 import os
 import json
 from unittest import TestCase, mock
+import tempfile
+from shutil import copy2
 
 from gi.repository import Gtk
 
 from bauble.editor import (GenericEditorView,
+                           NoteBox,
+                           PictureBox,
                            PresenterMapMixin)
 from bauble import paths
 from bauble import utils
 from bauble import search
 from bauble import prefs
 
-from bauble.test import BaubleTestCase
+from bauble.test import BaubleTestCase, get_setUp_data_funcs
 
 
 class BaubleTests(BaubleTestCase):
@@ -144,6 +148,280 @@ class TimeStampParserTests(TestCase):
         target = parse_date('2014-01-01 20:00 +0000')
         result = parse_date('2014-01-01 20+0')
         self.assertEqual(result, target)
+
+
+class NoteBoxTests(BaubleTestCase):
+
+    def setUp(self):
+        super().setUp()
+        # get the first note class
+        for klass in search.MapperSearch.get_domain_classes().values():
+            if hasattr(klass, 'notes') and hasattr(klass.notes, 'mapper'):
+                note_cls = klass.notes.mapper.class_
+                self.model = note_cls()
+                self.session.add(self.model)
+                break
+
+    def test_note_box_set_contents_sets_widget(self):
+        presenter = mock.Mock(model=self.model)
+        box = NoteBox(presenter, self.model)
+        self.assertTrue(box)
+        # test set_contents set widget value.
+        test_str = 'test string'
+        box.set_content(test_str)
+        self.assertEqual(utils.get_widget_value(box.note_textview), test_str)
+
+    def test_note_box_set_widget_set_model(self):
+        presenter = mock.Mock(model=self.model)
+        box = NoteBox(presenter, self.model)
+        self.assertTrue(box)
+        # test set widget sets model value
+        test_str = 'test string'
+        utils.set_widget_value(box.note_textview, test_str)
+        self.assertEqual(self.model.note, test_str)
+
+    def test_note_box_on_notes_remove_button_removes_note(self):
+        presenter = mock.Mock(model=self.model, notes=[self.model])
+        box = NoteBox(presenter, self.model)
+        self.assertIn(self.model, presenter.notes)
+        box.on_notes_remove_button(None)
+        self.assertNotIn(self.model, presenter.notes)
+
+    def test_note_box_on_date_entry_changed_sets_attr(self):
+        presenter = mock.Mock(model=self.model, notes=[self.model])
+        box = NoteBox(presenter, self.model)
+        self.assertIsNone(self.model.date)
+        date = '25/10/2022'
+        box.date_entry.set_text(date)
+        self.assertEqual(self.model.date, date)
+
+    def test_note_box_on_user_entry_changed_sets_attr(self):
+        presenter = mock.Mock(model=self.model, notes=[self.model])
+        box = NoteBox(presenter, self.model)
+        self.assertIsNone(self.model.date)
+        user = 'Test User'
+        box.user_entry.set_text(user)
+        self.assertEqual(self.model.user, user)
+
+    def test_note_box_on_category_combo_changed_sets_attr(self):
+        presenter = mock.Mock(model=self.model, notes=[self.model])
+        box = NoteBox(presenter, self.model)
+        self.assertIsNone(self.model.date)
+        cat = 'Test Category'
+        utils.set_widget_value(box.category_comboentry, cat)
+        self.assertEqual(self.model.category, cat)
+
+
+class PictureBoxTests(BaubleTestCase):
+
+    def setUp(self):
+        super().setUp()
+        # get the first picture class
+        for klass in search.MapperSearch.get_domain_classes().values():
+            if hasattr(klass, 'pictures') and hasattr(klass.pictures, 'mapper'):
+                self.parent_model = klass()
+                note_cls = klass.pictures.mapper.class_
+                self.model = note_cls()
+                self.parent_model.pictures.append(self.model)
+                self.session.add(self.model)
+                break
+
+    @mock.patch('bauble.utils.ImageLoader')
+    def test_picture_box_set_contents_calls_imageloader_for_url(self,
+                                                                mockloader):
+        presenter = mock.Mock(model=self.model)
+        box = PictureBox(presenter, self.model)
+        self.assertTrue(box)
+        # sets widgets
+        test_str = 'http://test.org'
+        box.set_content(test_str)
+        self.assertEqual(utils.get_widget_value(box.file_entry),
+                         test_str)
+        self.assertIsInstance(box.picture_box.get_children()[0],
+                              Gtk.Box)
+        mockloader.assert_called()
+
+    def test_picture_box_set_contents_adds_label_for_none_existing(self):
+        presenter = mock.Mock(model=self.model)
+        box = PictureBox(presenter, self.model)
+        self.assertTrue(box)
+        # sets widgets none existing image
+        test_str = 'test.jpg'
+        box.set_content(test_str)
+        self.assertEqual(utils.get_widget_value(box.file_entry),
+                         test_str)
+        self.assertIsInstance(box.picture_box.get_children()[0],
+                              Gtk.Label)
+        self.assertIn(test_str,
+                      box.picture_box.get_children()[0].get_text())
+
+    def test_picture_box_set_contents_adds_pixbuff_for_existing(self):
+        prefs.prefs[prefs.picture_root_pref] = os.path.join(paths.lib_dir(),
+                                                            'images')
+        presenter = mock.Mock(model=self.model)
+        box = PictureBox(presenter, self.model)
+        self.assertTrue(box)
+        # sets widgets none existing image
+        test_str = 'dmg_background.png'
+        box.set_content(test_str)
+        self.assertEqual(utils.get_widget_value(box.file_entry),
+                         test_str)
+        self.assertIsInstance(box.picture_box.get_children()[0],
+                              Gtk.Image)
+
+    def test_picture_box_set_contents_adds_label_for_none(self):
+        presenter = mock.Mock(model=self.model)
+        box = PictureBox(presenter, self.model)
+        self.assertTrue(box)
+        # sets widgets none existing image
+        box.set_content(None)
+        self.assertEqual(utils.get_widget_value(box.file_entry), '')
+        self.assertIsInstance(box.picture_box.get_children()[0],
+                              Gtk.Label)
+        self.assertIn('Choose a file',
+                      box.picture_box.get_children()[0].get_text())
+
+    @mock.patch('bauble.utils.yes_no_dialog',
+                return_value=Gtk.ResponseType.YES)
+    def test_picture_box_on_notes_remove_button_removes_image(self, mock_dlog):
+        temp = tempfile.mkdtemp()
+        prefs.prefs[prefs.picture_root_pref] = temp
+        img_name = 'dmg_background.png'
+        img_full_path = os.path.join(paths.lib_dir(), 'images', img_name)
+        copy2(img_full_path, temp)
+
+        self.model.picture = img_name
+
+        mock_parent = mock.Mock(view=None)
+        presenter = mock.Mock(model=self.model, notes=[self.model],
+                              **{'parent_ref.return_value': mock_parent})
+        box = PictureBox(presenter, self.model)
+        self.assertTrue(os.path.isfile(os.path.join(temp, img_name)))
+        box.on_notes_remove_button(None)
+        self.assertFalse(os.path.isfile(os.path.join(temp, img_name)))
+        msg = mock_dlog.call_args.args[0]
+        self.assertNotIn('the same file', msg)
+
+    @mock.patch('bauble.utils.yes_no_dialog',
+                return_value=Gtk.ResponseType.YES)
+    def test_picture_box_remove_others_same_type_warns(self, mock_dlog):
+        for func in get_setUp_data_funcs():
+            func()
+        temp = tempfile.mkdtemp()
+        prefs.prefs[prefs.picture_root_pref] = temp
+        img_name = 'dmg_background.png'
+        img_full_path = os.path.join(paths.lib_dir(), 'images', img_name)
+        copy2(img_full_path, temp)
+
+        # create fake data and add a second model of different type with same
+        # img.  Commit the lot.
+        self.model.picture = img_name
+        for col in self.parent_model.__table__.columns:
+            if not col.nullable:
+                if col.name.endswith('_id'):
+                    setattr(self.parent_model, col.name, 1)
+                if not getattr(self.parent_model, col.name):
+                    setattr(self.parent_model, col.name, '123')
+
+        note_cls = type(self.model)
+        parent_model = type(self.parent_model)()
+        model2 = note_cls(picture=img_name)
+        parent_model.pictures.append(model2)
+        self.session.add(model2)
+
+        for col in parent_model.__table__.columns:
+            if not col.nullable:
+                if col.name.endswith('_id'):
+                    setattr(parent_model, col.name, 1)
+                if not getattr(parent_model, col.name):
+                    setattr(parent_model, col.name, '345')
+
+        self.session.commit()
+
+        self.assertIs(type(self.model), type(model2))
+
+        mock_parent = mock.Mock(view=None)
+        presenter = mock.Mock(model=self.model, notes=[self.model, model2],
+                              **{'parent_ref.return_value': mock_parent})
+        box = PictureBox(presenter, self.model)
+        self.assertTrue(os.path.isfile(os.path.join(temp, img_name)))
+        box.on_notes_remove_button(None)
+        self.assertFalse(os.path.isfile(os.path.join(temp, img_name)))
+        msg = mock_dlog.call_args.args[0]
+        self.assertIn('1 other', msg)
+        self.assertIn(f'of type {note_cls.__tablename__}', msg)
+
+    @mock.patch('bauble.utils.yes_no_dialog',
+                return_value=Gtk.ResponseType.YES)
+    def test_picture_box_remove_others_dif_types_warns(self, mock_dlog):
+        for func in get_setUp_data_funcs():
+            func()
+        temp = tempfile.mkdtemp()
+        prefs.prefs[prefs.picture_root_pref] = temp
+        img_name = 'dmg_background.png'
+        img_full_path = os.path.join(paths.lib_dir(), 'images', img_name)
+        copy2(img_full_path, temp)
+
+        # create fake data and add a second model of different type with same
+        # img.  Commit the lot.
+        self.model.picture = img_name
+        for col in self.parent_model.__table__.columns:
+            if not col.nullable:
+                if col.name.endswith('_id'):
+                    setattr(self.parent_model, col.name, 1)
+                if not getattr(self.parent_model, col.name):
+                    setattr(self.parent_model, col.name, '456')
+
+        count = 0
+        for klass in search.MapperSearch.get_domain_classes().values():
+            if (hasattr(klass, 'pictures') and
+                    hasattr(klass.pictures, 'mapper')):
+                count += 1
+                if count == 2:
+                    note_cls = klass.pictures.mapper.class_
+                    parent_model = klass()
+                    model2 = note_cls(picture=img_name)
+                    parent_model.pictures.append(model2)
+                    self.session.add(model2)
+                    break
+
+        for col in parent_model.__table__.columns:
+            if not col.nullable:
+                if col.name.endswith('_id'):
+                    setattr(parent_model, col.name, 1)
+                if not getattr(parent_model, col.name):
+                    setattr(parent_model, col.name, '567')
+
+        self.session.commit()
+
+        self.assertIsNot(type(self.model), type(model2))
+
+        mock_parent = mock.Mock(view=None)
+        presenter = mock.Mock(model=self.model, notes=[self.model, model2],
+                              **{'parent_ref.return_value': mock_parent})
+        box = PictureBox(presenter, self.model)
+        self.assertTrue(os.path.isfile(os.path.join(temp, img_name)))
+        box.on_notes_remove_button(None)
+        self.assertFalse(os.path.isfile(os.path.join(temp, img_name)))
+        msg = mock_dlog.call_args.args[0]
+        self.assertIn('1 other', msg)
+        self.assertIn(f'of type {note_cls.__tablename__}', msg)
+
+    @mock.patch('bauble.utils.Gtk.FileChooserNative')
+    def test_picture_box_on_file_btnbrowse_clicked_copies_file(
+        self, mock_filechooser
+    ):
+        temp = tempfile.mkdtemp()
+        prefs.prefs[prefs.picture_root_pref] = temp
+        os.mkdir(os.path.join(temp, 'thumbs'))
+        img_name = 'dmg_background.png'
+        img_full_path = os.path.join(paths.lib_dir(), 'images', img_name)
+        mock_filechooser.return_value.get_filename.return_value = img_full_path
+        presenter = mock.Mock(model=self.model, notes=[self.model])
+        box = PictureBox(presenter, self.model)
+        box.on_file_btnbrowse_clicked(None)
+        self.assertTrue(os.path.isfile(os.path.join(temp, img_name)))
+        self.assertTrue(os.path.isfile(os.path.join(temp, 'thumbs', img_name)))
 
 
 class MapMixinTests(BaubleTestCase):

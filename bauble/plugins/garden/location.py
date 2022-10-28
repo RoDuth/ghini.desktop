@@ -39,13 +39,14 @@ from bauble import btypes as types
 from bauble.editor import (GenericModelViewPresenterEditor,
                            GenericEditorView,
                            GenericEditorPresenter,
+                           NotesPresenter,
+                           PicturesPresenter,
                            StringOrNoneValidator,
                            PresenterMapMixin)
 from bauble import utils
 from bauble import prefs
 from bauble.utils.geo import KMLMapCallbackFunctor
 from bauble import paths
-from bauble import editor
 from bauble.view import Action
 
 
@@ -139,6 +140,9 @@ def compute_serializable_fields(_cls, session, keys):
 
 
 LocationNote = db.make_note_class('Location', compute_serializable_fields)
+LocationPicture = db.make_note_class('Location',
+                                     compute_serializable_fields,
+                                     cls_type='picture')
 
 
 class Location(db.Base, db.Serializable, db.WithNotes):
@@ -300,8 +304,11 @@ class LocationEditorPresenter(GenericEditorPresenter, PresenterMapMixin):
 
         notes_parent = self.view.widgets.notes_parent_box
         notes_parent.foreach(notes_parent.remove)
-        self.notes_presenter = editor.NotesPresenter(self, 'notes',
-                                                     notes_parent)
+        self.notes_presenter = NotesPresenter(self, 'notes', notes_parent)
+        pictures_parent = self.view.widgets.pictures_parent_box
+        pictures_parent.foreach(pictures_parent.remove)
+        self.pictures_presenter = PicturesPresenter(self, 'pictures',
+                                                    pictures_parent)
 
         # initialize widgets
         self.refresh_view()  # put model values in view
@@ -337,6 +344,7 @@ class LocationEditorPresenter(GenericEditorPresenter, PresenterMapMixin):
     def cleanup(self):
         super().cleanup()
         self.notes_presenter.cleanup()
+        self.pictures_presenter.cleanup()
         self.remove_map_action_group()
 
     def on_loc_merge_button_clicked(self, _entry, *_args):
@@ -419,7 +427,9 @@ class LocationEditorPresenter(GenericEditorPresenter, PresenterMapMixin):
         self.refresh_sensitivity()
 
     def is_dirty(self):
-        return self._dirty or self.notes_presenter.is_dirty()
+        return (self._dirty or
+                self.notes_presenter.is_dirty() or
+                self.pictures_presenter.is_dirty())
 
     def refresh_view(self):
         for widget, field in self.widget_to_field_map.items():

@@ -64,6 +64,7 @@ from .species import (Species,
                       VernacularNameInfoBox,
                       vernname_context_menu,
                       return_accepted_pref)
+from .species_model import SpeciesPicture
 from .geography import (Geography,
                         get_species_in_geography,
                         GeographyInfoBox,
@@ -389,6 +390,7 @@ class PlantsPlugin(pluginmgr.Plugin):
                 'GenusNote': GenusNote,
                 'Species': Species,
                 'SpeciesNote': SpeciesNote,
+                'SpeciesPicture': SpeciesPicture,
                 'VernacularName': VernacularName,
                 'Geography': Geography, }
     prefs_change_handler = None

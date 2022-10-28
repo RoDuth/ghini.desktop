@@ -463,15 +463,21 @@ def verify_connection(new_engine, show_error_dialogs=False):
 
 
 def make_note_class(name, compute_serializable_fields, as_dict=None,
-                    retrieve=None):
-    class_name = name + 'Note'
-    table_name = name.lower() + '_note'
+                    retrieve=None, cls_type='note'):
+    """Dynamically create a related table class of the notes type.
+
+    Current use is for notes and pictures tables."""
+
+    class_name = name + cls_type.capitalize()
+    table_name = name.lower() + '_' + cls_type
 
     def is_defined(self):
-        return bool(self.user and self.category and self.note)
+        return bool(self.user and self.category and getattr(self, cls_type))
 
     def is_empty(self):
-        return not self.user and not self.category and not self.note
+        return (not self.user and
+                not self.category and
+                not getattr(self, cls_type))
 
     def retrieve_or_create(cls, session, keys, create=True, update=True):
         """return database object corresponding to keys."""
@@ -479,8 +485,7 @@ def make_note_class(name, compute_serializable_fields, as_dict=None,
 
         # normally, it's one note per category, but for list values, and for
         # pictures, we can have more than one.
-        if (create and (category.startswith('[') and category.endswith(']') or
-                        category == '<picture>')):
+        if create and (category.startswith('[') and category.endswith(']')):
             # dirty trick: making sure it's not going to be found!
             import uuid
             keys['category'] = str(uuid.uuid4())[:32]
@@ -521,7 +526,7 @@ def make_note_class(name, compute_serializable_fields, as_dict=None,
                    'user': sa.Column(sa.Unicode(64),
                                      default=utils.get_user_display_name()),
                    'category': sa.Column(sa.Unicode(32)),
-                   'note': sa.Column(sa.UnicodeText, nullable=False),
+                   cls_type: sa.Column(sa.UnicodeText, nullable=False),
                    name.lower() + '_id': sa.Column(
                        sa.Integer,
                        sa.ForeignKey(name.lower() + '.id'),
@@ -529,7 +534,7 @@ def make_note_class(name, compute_serializable_fields, as_dict=None,
                    name.lower(): sa.orm.relation(
                        name,
                        uselist=False,
-                       backref=sa.orm.backref('notes',
+                       backref=sa.orm.backref(cls_type + 's',
                                               cascade='all, delete-orphan')),
                    'retrieve': classmethod(retrieve),
                    'retrieve_or_create': classmethod(retrieve_or_create),
@@ -589,26 +594,6 @@ class WithNotes:
             raise AttributeError(name)
         if is_dict:
             return dict(result)
-        return result
-
-
-class DefiningPictures:
-    """Mixin for classes that have notes used for pictures.
-
-    Depends on WithNotes mixin."""
-
-    @property
-    def pictures(self):
-        """a list of Gtk.Image objects."""
-
-        result = []
-        for note in self.notes:  # pylint: disable=no-member
-            if note.category != '<picture>':
-                continue
-            # contains the image or the error message
-            box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-            utils.ImageLoader(box, note.note).start()
-            result.append(box)
         return result
 
 

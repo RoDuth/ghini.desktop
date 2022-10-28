@@ -240,12 +240,10 @@ class ImageLoader(threading.Thread):
 
     def read_local_url(self):
         self.loader.connect("area-prepared", self.loader_notified)
-        pieces = []
         with open(self.url, "rb") as f:
-            for piece in read_in_chunks(f, 4096):
-                self.loader.write(piece)
-                pieces.append(piece)
-        return ''.join(pieces)
+            img = f.read()
+            self.loader.write(img)
+        return img
 
 
 def find_dependent_tables(table, metadata=None):

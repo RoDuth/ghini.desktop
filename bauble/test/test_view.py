@@ -18,17 +18,20 @@
 
 import os
 from unittest import mock, TestCase
+from pathlib import Path
 
 from gi.repository import Gtk, Gdk, Gio
 
 from bauble.view import (AppendThousandRows,
                          HistoryView,
+                         PicturesScroller,
                          SearchView,
                          Note,
                          multiproc_counter,
                          _mainstr_tmpl,
                          _substr_tmpl,
-                         select_in_search_results)
+                         select_in_search_results,
+                         PICTURESSCROLLER_WIDTH_PREF)
 from bauble.test import (BaubleTestCase, update_gui, get_setUp_data_funcs,
                          wait_on_threads)
 from bauble import db, utils, search, prefs, pluginmgr
@@ -710,6 +713,64 @@ class TestHistoryView(BaubleTestCase):
         string = "test = test"
         self.assertRaises(AttributeError,
                           AppendThousandRows(None, string).get_query_filters)
+
+
+class TestPicturesScroller(BaubleTestCase):
+    def test_on_destroy_records_width(self):
+        window = Gtk.Window()
+        window.resize(300, 300)
+        box = Gtk.Box()
+        paned = Gtk.Paned()
+        box2 = Gtk.Box()
+        paned.pack1(box2)
+        box.pack_start(paned, True, True, 1)
+        window.add(box)
+        PicturesScroller(parent=paned)
+        self.assertIsNone(prefs.prefs.get(PICTURESSCROLLER_WIDTH_PREF))
+        paned.set_position(100)
+        window.show_all()
+        window.destroy()
+        self.assertGreater(prefs.prefs.get(PICTURESSCROLLER_WIDTH_PREF), 100)
+
+    def test_set_width_sets_parent_pane_position(self):
+        window = Gtk.Window()
+        window.resize(500, 500)
+        box = Gtk.Box()
+        paned = Gtk.Paned()
+        box2 = Gtk.Box()
+        paned.pack1(box2)
+        box.pack_start(paned, True, True, 1)
+        window.add(box)
+        PicturesScroller(parent=paned).set_width()
+        # default position if not set
+        self.assertEqual(paned.get_position(), 1000 - 300 - 300 - 6)
+
+    def test_set_selection_adds_children(self):
+        box = Gtk.Box()
+        paned = Gtk.Paned()
+        box2 = Gtk.Box()
+        paned.pack1(box2)
+        box.pack_start(paned, True, True, 1)
+        picture_scroller = PicturesScroller(parent=paned)
+        self.assertFalse(picture_scroller.pictures_box.get_children())
+        picture_scroller.set_selection([
+            mock.Mock(
+                pictures=[mock.Mock(picture='test.jpg', category='test')]
+            )
+        ])
+        self.assertEqual(len(picture_scroller.pictures_box.get_children()), 1)
+
+    @mock.patch('bauble.utils.desktop.open')
+    def test_on_button_press_opens_picture(self, mock_open):
+        box = Gtk.Box()
+        paned = Gtk.Paned()
+        box2 = Gtk.Box()
+        paned.pack1(box2)
+        box.pack_start(paned, True, True, 1)
+        picture_scroller = PicturesScroller(parent=paned)
+        mock_event = mock.Mock(button=1, type=Gdk.EventType._2BUTTON_PRESS)
+        picture_scroller.on_button_press(None, mock_event, 'test.jpg')
+        mock_open.assert_called_with(Path('test.jpg'))
 
 
 class GlobalFunctionsTests(BaubleTestCase):

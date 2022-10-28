@@ -1,7 +1,7 @@
 # Copyright 2008-2010 Brett Adams
 # Copyright 2015 Mario Frasca <mario@anche.no>.
 # Copyright 2017 Jardín Botánico de Quito
-# Copyright 2020 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright 2020-2022 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -51,6 +51,7 @@ from .location import (LocationEditor,
                        loc_context_menu)
 from .plant import (PlantEditor,
                     PlantNote,
+                    PlantPicture,
                     Plant,
                     PlantSearch,
                     PlantInfoBox,
@@ -107,6 +108,7 @@ class GardenPlugin(pluginmgr.Plugin):
                 'LocationNote': LocationNote,
                 'Plant': Plant,
                 'PlantNote': PlantNote,
+                'PlantPicture': PlantPicture,
                 'Source': Source,
                 'SourceDetail': SourceDetail,
                 'Collection': Collection}
@@ -392,5 +394,6 @@ db.Accession = Accession
 db.AccessionNote = AccessionNote
 db.Plant = Plant
 db.PlantNote = PlantNote
+db.PlantPicture = PlantPicture
 db.Location = Location
 db.LocationNote = LocationNote
