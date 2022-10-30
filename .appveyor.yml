@@ -74,11 +74,11 @@ for:
     - bash -lc "pytest -sv"
 
 deploy:
-  release: 'v1.3.0-b2' # :bump
-  description: 'Rolling beta release.  From a v1.0 install: create a csv backup before upgrading, upgrade to this version, then restore the backup.'
+  release: 'v1.3.0-b3' # :bump
+  description: 'Final beta release.  From previous versions, create a csv backup before upgrading, upgrade to this version, then restore the backup.'
   provider: GitHub
   auth_token:
     secure: GO6caimCl/NMwv4nYvi9uAF5l7gNNXZB4BVhqONLyzA5OHaw+ui1847EDJjnodLG
   draft: false
   prerelease: true
-  force_update: true
+  force_update: false
