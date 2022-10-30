@@ -42,6 +42,7 @@ from sqlalchemy import ForeignKey, Column, Unicode, Integer, UnicodeText
 from sqlalchemy.orm import relationship, validates, backref
 from sqlalchemy.orm.session import object_session
 from sqlalchemy.exc import DBAPIError
+from sqlalchemy.ext.hybrid import hybrid_property
 
 import bauble
 from bauble import db
@@ -697,12 +698,22 @@ class Accession(db.Base, db.Serializable, db.WithNotes):
         import operator
         return reduce(operator.add, [p.pictures for p in self.plants], [])
 
-    @property
+    @hybrid_property
     def active(self):
         for plant in self.plants:
             if plant.quantity:
                 return True
         return False
+
+    @active.expression
+    def active(cls):
+        # pylint: disable=no-self-argument,no-self-use
+        from bauble.btypes import Boolean
+        from sqlalchemy.sql.expression import select, case, cast
+        total = (select([func.sum(Plant.quantity)])
+                 .where(Plant.accession_id == cls.id)
+                 .label('total'))
+        return cast(case([(total, 1)], else_=0), Boolean)
 
     def __str__(self):
         return str(self.code)
