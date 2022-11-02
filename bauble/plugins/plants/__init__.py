@@ -497,6 +497,9 @@ class PlantsPlugin(pluginmgr.Plugin):
         HistoryView.add_translation_query('genus_note', 'genus', note_query)
         HistoryView.add_translation_query('species_note', 'species',
                                           note_query)
+        pic_query = '{table} where pictures.id = {obj_id}'
+        HistoryView.add_translation_query('species_picture', 'species',
+                                          pic_query)
         syn_query = '{table} where _synonyms.id = {obj_id}'
         HistoryView.add_translation_query('family_synonym', 'family',
                                           syn_query)

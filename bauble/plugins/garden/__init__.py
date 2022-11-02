@@ -209,6 +209,10 @@ class GardenPlugin(pluginmgr.Plugin):
         HistoryView.add_translation_query('plant_note', 'plant', note_query)
         HistoryView.add_translation_query('location_note', 'location',
                                           note_query)
+        pic_query = '{table} where pictures.id = {obj_id}'
+        HistoryView.add_translation_query('plant_picture', 'plant', pic_query)
+        HistoryView.add_translation_query('location_picture', 'location',
+                                          pic_query)
 
         HistoryView.add_translation_query('source', 'accession',
                                           '{table} where source.id = {obj_id}')
