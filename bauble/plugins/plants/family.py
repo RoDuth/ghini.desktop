@@ -231,10 +231,19 @@ class Family(db.Base, db.Serializable, db.WithNotes):
         if not session:
             logger.warning('family:accepted.setter - object not in session')
             return
-        session.query(FamilySynonym).filter(
-            FamilySynonym.synonym_id == self.id).delete()
-        session.commit()
-        value.synonyms.append(self)
+        previous_synonymy_link = (session.query(FamilySynonym)
+                                  .filter(FamilySynonym.synonym_id == self.id)
+                                  .first())
+        if previous_synonymy_link:
+            accepted = (
+                session.query(Family)
+                .filter(Family.id == previous_synonymy_link.family_id)
+                .one()
+            )
+            accepted.synonyms.remove(self)
+        session.flush()
+        if value != self:
+            value.synonyms.append(self)
 
     def as_dict(self, recurse=True):
         result = db.Serializable.as_dict(self)

@@ -529,6 +529,47 @@ class FamilyTests(PlantTestCase):
         utils.message_dialog = orig_message_dialog
         utils.message_details_dialog = orig_message_details_dialog
 
+    def test_no_synonyms_means_itself_accepted(self):
+        def create_tmp_fam(id):
+            fam = Family(id=id, epithet="fam%02d" % id)
+            self.session.add(fam)
+            return fam
+
+        fam1 = create_tmp_fam(51)
+        self.session.commit()
+        self.assertEqual(fam1.accepted, None)
+
+    def test_synonyms_and_accepted_properties(self):
+        def create_tmp_fam(id):
+            fam = Family(id=id, epithet="fam%02d" % id)
+            self.session.add(fam)
+            return fam
+
+        # equivalence classes after changes
+        fam1 = create_tmp_fam(41)
+        fam2 = create_tmp_fam(42)
+        fam3 = create_tmp_fam(43)
+        fam4 = create_tmp_fam(44)  # (1), (2), (3), (4)
+        fam3.accepted = fam1  # (1 3), (2), (4)
+        self.assertEqual([i.epithet for i in fam1.synonyms], [fam3.epithet])
+        fam1.synonyms.append(fam2)  # (1 3 2), (4)
+        self.session.flush()
+        self.assertEqual(fam2.accepted.epithet, fam1.epithet)  # just added
+        self.assertEqual(fam3.accepted.epithet, fam1.epithet)  # no change
+        fam2.accepted = fam4  # (1 3), (4 2)
+        self.session.flush()
+        self.assertEqual([i.epithet for i in fam4.synonyms], [fam2.epithet])
+        self.assertEqual([i.epithet for i in fam1.synonyms], [fam3.epithet])
+        self.assertEqual(fam1.accepted, None)
+        self.assertEqual(fam2.accepted, fam4)
+        self.assertEqual(fam3.accepted, fam1)
+        self.assertEqual(fam4.accepted, None)
+        fam2.accepted = fam4  # does not change anything
+        self.assertEqual(fam1.accepted, None)
+        self.assertEqual(fam2.accepted, fam4)
+        self.assertEqual(fam3.accepted, fam1)
+        self.assertEqual(fam4.accepted, None)
+
 
 class GenusTests(PlantTestCase):
 
@@ -835,6 +876,47 @@ class GenusSynonymyTests(PlantTestCase):
         sedum = Genus(family=claceae, genus='Sedum', author='L.')
         alta.accepted = sedum
         self.session.commit()
+
+    def test_no_synonyms_means_itself_accepted(self):
+        def create_tmp_gen(id):
+            gen = Genus(id=id, epithet="gen%02d" % id, family_id=1)
+            self.session.add(gen)
+            return gen
+
+        gen1 = create_tmp_gen(51)
+        self.session.commit()
+        self.assertEqual(gen1.accepted, None)
+
+    def test_synonyms_and_accepted_properties(self):
+        def create_tmp_gen(id):
+            gen = Genus(id=id, epithet="gen%02d" % id, family_id=1)
+            self.session.add(gen)
+            return gen
+
+        # equivalence classes after changes
+        gen1 = create_tmp_gen(41)
+        gen2 = create_tmp_gen(42)
+        gen3 = create_tmp_gen(43)
+        gen4 = create_tmp_gen(44)  # (1), (2), (3), (4)
+        gen3.accepted = gen1  # (1 3), (2), (4)
+        self.assertEqual([i.epithet for i in gen1.synonyms], [gen3.epithet])
+        gen1.synonyms.append(gen2)  # (1 3 2), (4)
+        self.session.flush()
+        self.assertEqual(gen2.accepted.epithet, gen1.epithet)  # just added
+        self.assertEqual(gen3.accepted.epithet, gen1.epithet)  # no change
+        gen2.accepted = gen4  # (1 3), (4 2)
+        self.session.flush()
+        self.assertEqual([i.epithet for i in gen4.synonyms], [gen2.epithet])
+        self.assertEqual([i.epithet for i in gen1.synonyms], [gen3.epithet])
+        self.assertEqual(gen1.accepted, None)
+        self.assertEqual(gen2.accepted, gen4)
+        self.assertEqual(gen3.accepted, gen1)
+        self.assertEqual(gen4.accepted, None)
+        gen2.accepted = gen4  # does not change anything
+        self.assertEqual(gen1.accepted, None)
+        self.assertEqual(gen2.accepted, gen4)
+        self.assertEqual(gen3.accepted, gen1)
+        self.assertEqual(gen4.accepted, None)
 
 
 class SpeciesTests(PlantTestCase):

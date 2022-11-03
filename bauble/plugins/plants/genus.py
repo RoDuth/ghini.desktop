@@ -307,10 +307,19 @@ class Genus(db.Base, db.Serializable, db.WithNotes):
         if not session:
             logger.warning('genus:accepted.setter - object not in session')
             return
-        session.query(GenusSynonym).filter(
-            GenusSynonym.synonym_id == self.id).delete()
-        session.commit()
-        value.synonyms.append(self)
+        previous_synonymy_link = (session.query(GenusSynonym)
+                                  .filter(GenusSynonym.synonym_id == self.id)
+                                  .first())
+        if previous_synonymy_link:
+            accepted = (
+                session.query(Genus)
+                .filter(Genus.id == previous_synonymy_link.genus_id)
+                .one()
+            )
+            accepted.synonyms.remove(self)
+        session.flush()
+        if value != self:
+            value.synonyms.append(self)
 
     def __str__(self):
         return Genus.str(self)
