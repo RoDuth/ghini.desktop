@@ -31,7 +31,13 @@ from gi.repository import Gtk
 from gi.repository import Gio
 from gi.repository import GLib
 
-from sqlalchemy import select, Column, Unicode, String, Integer, ForeignKey
+from sqlalchemy import (select,
+                        Column,
+                        Unicode,
+                        String,
+                        Integer,
+                        ForeignKey,
+                        and_)
 from sqlalchemy.orm import object_session, relationship, backref, deferred
 
 from bauble import db, utils
@@ -322,8 +328,6 @@ def geography_importer():
     lvl3_file = root / "default/wgsrpd/level3.geojson"
     lvl4_file = root / "default/wgsrpd/level4.geojson"
 
-    session = db.Session()
-
     with lvl1_file.open('r', encoding='utf-8', newline='') as f:
         geojson_lvl1 = json.load(f)
 
@@ -349,101 +353,101 @@ def geography_importer():
         if 0 < percent < 1.0:
             pb_set_fraction(percent)
 
-    for feature in geojson_lvl1.get('features'):
-        row = Geography()
-        props = feature.get('properties')
-        row.tdwg_code = str(props.get('LEVEL1_COD'))
-        row.tdwg_level = 1
-        row.name = props.get('LEVEL1_NAM')
-        row.geojson = feature.get('geometry')
-        session.add(row)
-        session.commit()
-        steps_so_far += 1
-        if steps_so_far % five_percent == 0:
-            update_progressbar(steps_so_far)
-            yield
-
-    # pylint: disable=attribute-defined-outside-init  # Geography.parent
-    for feature in geojson_lvl2.get('features'):
-        row = Geography()
-        props = feature.get('properties')
-        row.tdwg_code = str(props.get('LEVEL2_COD'))
-        row.tdwg_level = 2
-        row.name = props.get('LEVEL2_NAM')
-        row.geojson = feature.get('geometry')
-        row.parent = (session.query(Geography)
-                      .filter(Geography.tdwg_code ==
-                              str(props.get('LEVEL1_COD')))
-                      .one())
-        session.add(row)
-        session.commit()
-        steps_so_far += 1
-        if steps_so_far % five_percent == 0:
-            update_progressbar(steps_so_far)
-            yield
-
-    for feature in geojson_lvl3.get('features'):
-        row = Geography()
-        props = feature.get('properties')
-        row.tdwg_code = str(props.get('LEVEL3_COD'))
-        row.tdwg_level = 3
-        row.name = props.get('LEVEL3_NAM')
-        row.geojson = feature.get('geometry')
-        row.parent = (session.query(Geography)
-                      .filter(Geography.tdwg_code ==
-                              str(props.get('LEVEL2_COD')))
-                      .one())
-        session.add(row)
-        session.commit()
-        steps_so_far += 1
-        if steps_so_far % five_percent == 0:
-            update_progressbar(steps_so_far)
-            yield
-
-    for feature in geojson_lvl4.get('features'):
-        props = feature.get('properties')
-        if props.get('Level4_2') == 'OO':
-            # these are really only place holders and are the same as the 3rd
-            # level elements, which should be used instead.
+    table = Geography.__table__
+    with db.engine.begin() as connection:
+        for feature in geojson_lvl1.get('features'):
+            props = feature.get('properties')
+            stmt = table.insert().values(
+                tdwg_code=str(props.get('LEVEL1_COD')),
+                tdwg_level=1,
+                name=props.get('LEVEL1_NAM'),
+                geojson=feature.get('geometry')
+            )
+            connection.execute(stmt)
             steps_so_far += 1
             if steps_so_far % five_percent == 0:
                 update_progressbar(steps_so_far)
                 yield
-            continue
-        parent = (session.query(Geography)
-                  .filter(Geography.tdwg_code == str(props.get('Level3_cod')))
-                  .one())
-        # check for duplicates (e.g. CZE-SL has 2 entries) use the version with
-        # the most detail
-        existing = (session.query(Geography)
-                    .filter_by(tdwg_level=4,
-                               parent_id=parent.id,
-                               tdwg_code=str(props.get('Level4_cod')),
-                               iso_code=props.get('ISO_Code'),
-                               name=props.get('Level_4_Na'))
-                    .first())
-        if existing:
-            logger.debug('found duplicate for: %s', props)
-            # Hacky... but works
-            if (len(str(feature.get('geometry')).split(',')) >
-                    len(str(existing.geojson).split(','))):
-                row = existing
-                logger.debug('using duplicate, overwriting original')
-            else:
-                logger.debug('dropping duplicate')
+
+        for feature in geojson_lvl2.get('features'):
+            props = feature.get('properties')
+            parent = connection.execute(
+                table.select(table.c.tdwg_code == str(props.get('LEVEL1_COD')))
+            ).first()
+            stmt = table.insert().values(
+                tdwg_code=str(props.get('LEVEL2_COD')),
+                tdwg_level=2,
+                name=props.get('LEVEL2_NAM'),
+                geojson=feature.get('geometry'),
+                parent_id=parent.id
+            )
+            connection.execute(stmt)
+            steps_so_far += 1
+            if steps_so_far % five_percent == 0:
+                update_progressbar(steps_so_far)
+                yield
+
+        for feature in geojson_lvl3.get('features'):
+            props = feature.get('properties')
+            parent = connection.execute(
+                table.select(table.c.tdwg_code == str(props.get('LEVEL2_COD')))
+            ).first()
+            stmt = table.insert().values(
+                tdwg_code=str(props.get('LEVEL3_COD')),
+                tdwg_level=3,
+                name=props.get('LEVEL3_NAM'),
+                geojson=feature.get('geometry'),
+                parent_id=parent.id
+            )
+            connection.execute(stmt)
+            steps_so_far += 1
+            if steps_so_far % five_percent == 0:
+                update_progressbar(steps_so_far)
+                yield
+
+        for feature in geojson_lvl4.get('features'):
+            props = feature.get('properties')
+            if props.get('Level4_2') == 'OO':
+                # these are really only place holders and are the same as the
+                # 3rd level elements, which should be used instead.
+                steps_so_far += 1
+                if steps_so_far % five_percent == 0:
+                    update_progressbar(steps_so_far)
+                    yield
                 continue
-        else:
-            row = Geography()
-        row.tdwg_code = str(props.get('Level4_cod'))
-        row.tdwg_level = 4
-        row.iso_code = props.get('ISO_Code')
-        row.name = props.get('Level_4_Na')
-        row.geojson = feature.get('geometry')
-        row.parent = parent
-        session.add(row)
-        session.commit()
-        steps_so_far += 1
-        if steps_so_far % five_percent == 0:
-            update_progressbar(steps_so_far)
-            yield
-    session.close()
+            parent = connection.execute(
+                table.select(table.c.tdwg_code == str(props.get('Level3_cod')))
+            ).first()
+            # check for duplicates (e.g. CZE-SL has 2 entries) use the version
+            # with the most detail
+            existing = connection.execute(
+                table.select(and_(table.c.tdwg_level == 4,
+                             table.c.parent_id == parent.id,
+                             table.c.tdwg_code == str(props.get('Level4_cod')),
+                             table.c.iso_code == props.get('ISO_Code'),
+                             table.c.name == props.get('Level_4_Na')))
+            ).first()
+            if existing:
+                logger.debug('found duplicate for: %s', props)
+                # Hacky... but works
+                if (len(str(feature.get('geometry')).split(',')) >
+                        len(str(existing.geojson).split(','))):
+                    logger.debug('removing duplicate')
+                    stmt = table.delete().where(table.c.id == existing.id)
+                    connection.execute(stmt)
+                else:
+                    logger.debug('dropping duplicate')
+                    continue
+            stmt = table.insert().values(
+                tdwg_code=str(props.get('Level4_cod')),
+                tdwg_level=4,
+                iso_code=props.get('ISO_Code'),
+                name=props.get('Level_4_Na'),
+                geojson=feature.get('geometry'),
+                parent_id=parent.id
+            )
+            connection.execute(stmt)
+            steps_so_far += 1
+            if steps_so_far % five_percent == 0:
+                update_progressbar(steps_so_far)
+                yield
