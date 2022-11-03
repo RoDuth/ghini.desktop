@@ -1,4 +1,5 @@
 # Copyright 2016 Mario Frasca <mario@anche.no>.
+# Copyright 2022 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -59,9 +60,11 @@ class StoredQueriesModel:
         session = db.Session()
         for index in range(1, 11):
             if self.__label[index] == '':
-                (session.query(meta.BaubleMeta)
-                 .filter_by(name=f'stqr_{index:02d}')
-                 .delete())
+                item = (session.query(meta.BaubleMeta)
+                        .filter_by(name=f'stqr_{index:02d}')
+                        .first())
+                if item:
+                    session.delete(item)
             else:
                 obj = db.get_or_create(session, meta.BaubleMeta,
                                        name=f'stqr_{index:02d}')
