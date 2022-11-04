@@ -351,24 +351,24 @@ class PluginRegistry(db.Base):
         Warning: Adding a plugin to the registry does not install it.  It
         should be installed before adding.
         """
+        table = PluginRegistry.__table__
+        stmt = table.insert().values(name=plugin.__class__.__name__,
+                                     version=plugin.version)
 
-        p = PluginRegistry(name=plugin.__class__.__name__,
-                           version=plugin.version)
-        session = db.Session()
-        session.add(p)
-        session.commit()
-        session.close()
+        with db.engine.begin() as connection:
+            connection.execute(stmt)
 
     @staticmethod
     def remove(plugin=None, name=None):
         """Remove a plugin from the registry by name."""
         if name is None:
             name = plugin.__class__.__name__
-        session = db.Session()
-        plug = session.query(PluginRegistry).filter_by(name=str(name)).one()
-        session.delete(plug)
-        session.commit()
-        session.close()
+
+        table = PluginRegistry.__table__
+        stmt = table.delete().where(table.c.name == str(name))
+
+        with db.engine.begin() as connection:
+            connection.execute(stmt)
 
     @staticmethod
     def all(session):
