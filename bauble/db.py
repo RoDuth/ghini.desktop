@@ -142,54 +142,30 @@ An instance of :class:`sqlalchemy.ext.declarative.Base`
 """
 
 
-def _add_to_history(operation, mapper, connection, instance):
-    """Add a new entry to the history table."""
-    user = current_user()
-
-    row = {}
-    geojson = None
-    for column in mapper.local_table.c:
-        if column.name == 'geojson':
-            # only record geojson on update or insert.
-            if operation == 'update':
-                history = get_history(instance, column.name)
-                if history.has_changes():
-                    geojson = history.sum()
-            elif operation == 'insert':
-                geojson = getattr(instance, column.name)
-            continue
-        if operation == 'update':
-            history = get_history(instance, column.name)
-            if history.has_changes():
-                row[column.name] = str(history.sum())
-                continue
-        row[column.name] = str(getattr(instance, column.name))
-    table = History.__table__
-    stmt = table.insert(dict(table_name=mapper.local_table.name,
-                             table_id=instance.id,
-                             values=str(row),
-                             operation=operation,
-                             geojson=geojson,
-                             user=user,
-                             timestamp=datetime.datetime.utcnow()))
-    connection.execute(stmt)
-
-
 @event.listens_for(Base, 'after_update', propagate=True)
 def after_update(mapper, connection, instance):
     if object_session(instance).is_modified(instance,
                                             include_collections=False):
-        _add_to_history('update', mapper, connection, instance)
+        History.add('update', mapper, connection, instance)
 
 
 @event.listens_for(Base, 'after_insert', propagate=True)
 def after_insert(mapper, connection, instance):
-    _add_to_history('insert', mapper, connection, instance)
+    History.add('insert', mapper, connection, instance)
+
+
+@event.listens_for(Base, 'before_delete', propagate=True)
+def before_delete(_mapper, _connection, instance):
+    # load the deferred column before deleting so it is available after.
+    # hasattr is enough to trigger load.
+    hasattr(instance, 'geojson')
 
 
 @event.listens_for(Base, 'after_delete', propagate=True)
 def after_delete(mapper, connection, instance):
-    _add_to_history('delete', mapper, connection, instance)
+    # NOTE these delete events do NOT WORK for session.query(...).delete()
+    # better to use session.delete(qry_obj)
+    History.add('delete', mapper, connection, instance)
 
 
 metadata = Base.metadata
@@ -228,11 +204,73 @@ class History(HistoryBase):
     id = sa.Column(sa.Integer, primary_key=True, autoincrement=True)
     table_name = sa.Column(sa.String(32), nullable=False)
     table_id = sa.Column(sa.Integer, nullable=False, autoincrement=False)
-    values = sa.Column(sa.Text, nullable=False)
-    geojson = sa.Column(types.JSON())
+    values = sa.Column(types.JSON(), nullable=False)
     operation = sa.Column(sa.String(8), nullable=False)
     user = sa.Column(types.TruncatedString(64))
     timestamp = sa.Column(types.DateTime, nullable=False)
+
+    @classmethod
+    def add(cls, operation, mapper, connection, instance):
+        """Add a new entry to the history table."""
+        user = current_user()
+
+        def _val(val):
+            if isinstance(val, (datetime.datetime, datetime.date)):
+                return str(val)
+            return val
+
+        row = {}
+        # geojson = None
+        for column in mapper.local_table.c:
+
+            if operation == 'update':
+                history = get_history(instance, column.name)
+                sum_ = [_val(i) for i in history.sum()]
+                if history.has_changes():
+                    row[column.name] = sum_
+                    continue
+
+            val = _val(getattr(instance, column.name))
+            row[column.name] = val
+        table = cls.__table__
+        stmt = table.insert(dict(table_name=mapper.local_table.name,
+                                 table_id=instance.id,
+                                 values=row,
+                                 operation=operation,
+                                 user=user,
+                                 timestamp=datetime.datetime.utcnow()))
+        connection.execute(stmt)
+
+    @classmethod
+    def revert_to(cls, id_):
+        """Rever history to the history line with id."""
+        session = Session()
+        rows = (session.query(cls)
+                .filter(cls.id >= id_)
+                .order_by(cls.id.desc()))
+        session.close()
+        with engine.begin() as connection:
+            for row in rows:
+                table = metadata.tables[row.table_name]
+                if row.operation == 'insert':
+                    stmt = table.delete().where(table.c.id == row.table_id)
+                elif row.operation == 'delete':
+                    stmt = table.insert().values(**row.values)
+                elif row.operation == 'update':
+                    # an insert and update in the one flush/commit can create a
+                    # scenario where history.sum() stores a single item list
+                    # (where the second entry would normally be None.)  Best to
+                    # avoid this situation altogether but have including the
+                    # len check here as a boots and braces approach
+                    values = {k: v[1] if len(v) == 2 else None for k, v in
+                              row.values.items() if isinstance(v, list)}
+                    stmt = (table.update()
+                            .where(table.c.id == row.table_id)
+                            .values(**values))
+                connection.execute(stmt)
+                table = cls.__table__
+                stmt = table.delete().where(table.c.id == row.id)
+                connection.execute(stmt)
 
 
 def open_conn(uri, verify=True, show_error_dialogs=False, poolclass=None):
@@ -781,7 +819,6 @@ def get_or_create(session, model, **kwargs):
         return instance
     instance = model(**kwargs)
     session.add(instance)
-    session.flush()
     return instance
 
 

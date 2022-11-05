@@ -1,6 +1,6 @@
 # Copyright 2008-2010 Brett Adams
 # Copyright 2015 Mario Frasca <mario@anche.no>.
-# Copyright 2021 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright 2021-2022 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -17,7 +17,9 @@
 # You should have received a copy of the GNU General Public License
 # along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
 
-from bauble.test import BaubleTestCase
+from sqlalchemy import func
+
+from bauble.test import BaubleTestCase, get_setUp_data_funcs
 from bauble.plugins.plants.genus import Family, Genus, Species
 from bauble.plugins.garden.accession import (AccessionNote, Accession, Plant,
                                              SourceDetail)
@@ -26,9 +28,245 @@ from bauble.plugins.plants.species_model import VernacularName
 
 from bauble import db
 from bauble import prefs
+from bauble import search
 prefs.testing = True
 
 # db.sqlalchemy_debug(True)
+
+
+class HistoryTests(BaubleTestCase):
+    def test_history_populates(self):
+
+        for setup in get_setUp_data_funcs():
+            setup()
+
+        # setUp_data functions do not use ORM and hence do not populate history
+        # Only expect 1 or 2 entries at this point
+        session = db.Session()
+        history_count1 = self.session.query(db.History).count()
+        self.assertLess(history_count1, 5)
+
+        # INSERT
+        # get a notes class and parent model...
+        for klass in search.MapperSearch.get_domain_classes().values():
+            if (hasattr(klass, 'notes') and
+                    hasattr(klass.notes, 'mapper')):
+                note_cls = klass.notes.mapper.class_
+                parent_model = klass()
+                break
+
+        # populate parent model with junk data...
+        for col in parent_model.__table__.columns:
+            if not col.nullable:
+                if col.name.endswith('_id'):
+                    setattr(parent_model, col.name, 1)
+                if not getattr(parent_model, col.name):
+                    setattr(parent_model, col.name, '567')
+
+        # add 5 notes
+        for i in range(5):
+            note_model = note_cls(note=f'test{i}')
+            parent_model.notes.append(note_model)
+        session.add(parent_model)
+        session.commit()
+
+        history_count2 = self.session.query(db.History).count()
+        # 5 notes and 1 parent
+        self.assertEqual(history_count2, history_count1 + 5 + 1)
+
+        # test we can retrieve each note record (Note casting to unicode works
+        # in postgres and sqlite)
+        from sqlalchemy import Unicode
+        for i in range(5):
+            self.assertTrue(
+                self.session.query(db.History)
+                .filter(db.History.table_name == note_cls.__tablename__)
+                .filter(db.History.operation == 'insert')
+                .filter(db.History.values.cast(Unicode).contains(f'%test{i}%'))
+                .one()
+            )
+
+        # UPDATE
+        note_model.note = 'TEST AGAIN'
+        session.commit()
+
+        updated = (self.session.query(db.History)
+                   .filter(db.History.table_name == note_cls.__tablename__)
+                   .filter(db.History.operation == 'update'))
+
+        self.assertEqual(updated.count(), 1)
+        self.assertIn('TEST AGAIN', str(updated.one().values))
+
+        # DELETE
+        session.delete(note_model)
+        session.commit()
+
+        deleted = (self.session.query(db.History)
+                   .filter(db.History.table_name == note_cls.__tablename__)
+                   .filter(db.History.operation == 'delete'))
+
+        self.assertEqual(deleted.count(), 1)
+        self.assertIn('TEST AGAIN', str(updated.one().values))
+
+        session.close()
+
+    def test_revert_to_insert(self):
+        for setup in get_setUp_data_funcs():
+            setup()
+
+        # get a notes class and parent model...
+        for klass in search.MapperSearch.get_domain_classes().values():
+            if (hasattr(klass, 'notes') and
+                    hasattr(klass.notes, 'mapper')):
+                note_cls = klass.notes.mapper.class_
+                parent_model = klass()
+                break
+
+        # populate parent model with junk data...
+        for col in parent_model.__table__.columns:
+            if not col.nullable:
+                if col.name.endswith('_id'):
+                    setattr(parent_model, col.name, 1)
+                if not getattr(parent_model, col.name):
+                    setattr(parent_model, col.name, '567')
+        start_count = self.session.query(note_cls).count()
+        # add 5 notes
+        for i in range(5):
+            parent_model.notes.append(note_cls(note=f'test{i}'))
+
+        self.session.add(parent_model)
+        self.session.commit()
+
+        self.assertEqual(self.session.query(note_cls).count(), 5 + start_count)
+
+        db.History.revert_to(
+            self.session.query(func.max(db.History.id)).scalar() - 5
+        )
+
+        self.assertEqual(self.session.query(note_cls).count(), start_count)
+
+    def test_revert_to_update(self):
+        for setup in get_setUp_data_funcs():
+            setup()
+
+        # get a notes class and parent model...
+        for klass in search.MapperSearch.get_domain_classes().values():
+            if (hasattr(klass, 'notes') and
+                    hasattr(klass.notes, 'mapper')):
+                note_cls = klass.notes.mapper.class_
+                parent_model = klass()
+                break
+        start_count = self.session.query(note_cls).count()
+
+        # populate parent model with junk data...
+        for col in parent_model.__table__.columns:
+            if not col.nullable:
+                if col.name.endswith('_id'):
+                    setattr(parent_model, col.name, 1)
+                if not getattr(parent_model, col.name):
+                    setattr(parent_model, col.name, '567')
+        # add 5 notes
+        for i in range(5):
+            parent_model.notes.append(note_cls(note=f'test{i}'))
+
+        self.session.add(parent_model)
+        self.session.commit()
+
+        start_max_id = self.session.query(func.max(db.History.id)).scalar()
+        # UPDATE
+        for note in parent_model.notes:
+            note.note = 'TEST UPDATE'
+
+        self.session.commit()
+
+        updated = (self.session.query(db.History)
+                   .filter(db.History.table_name == note_cls.__tablename__)
+                   .filter(db.History.operation == 'update'))
+
+        self.assertEqual(updated.count(), 5)
+
+        self.assertEqual(start_max_id + 5,
+                         self.session.query(func.max(db.History.id)).scalar())
+
+        self.assertEqual(self.session.query(note_cls).count(), 5 + start_count)
+
+        for note in parent_model.notes:
+            self.assertEqual(note.note, 'TEST UPDATE')
+
+        db.History.revert_to(
+            self.session.query(func.max(db.History.id)).scalar() - 4
+        )
+
+        self.assertEqual(self.session.query(note_cls).count(), 5 + start_count)
+
+        self.assertEqual(start_max_id,
+                         self.session.query(func.max(db.History.id)).scalar())
+
+        for note in parent_model.notes:
+            self.session.refresh(note)
+            self.assertNotEqual(note.note, 'TEST UPDATE')
+
+    def test_revert_to_delete(self):
+        for setup in get_setUp_data_funcs():
+            setup()
+
+        # get a notes class and parent model...
+        for klass in search.MapperSearch.get_domain_classes().values():
+            if (hasattr(klass, 'notes') and
+                    hasattr(klass.notes, 'mapper')):
+                note_cls = klass.notes.mapper.class_
+                parent_model = klass()
+                break
+        start_count = self.session.query(note_cls).count()
+
+        # populate parent model with junk data...
+        for col in parent_model.__table__.columns:
+            if not col.nullable:
+                if col.name.endswith('_id'):
+                    setattr(parent_model, col.name, 1)
+                if not getattr(parent_model, col.name):
+                    setattr(parent_model, col.name, '567')
+        # add 5 notes
+        for _ in range(5):
+            parent_model.notes.append(note_cls(note='TEST'))
+
+        self.session.add(parent_model)
+        self.session.commit()
+
+        start_max_id = self.session.query(func.max(db.History.id)).scalar()
+        # DELETE
+        for note in parent_model.notes:
+            self.session.delete(note)
+
+        self.session.commit()
+
+        deleted = (self.session.query(db.History)
+                   .filter(db.History.table_name == note_cls.__tablename__)
+                   .filter(db.History.operation == 'delete'))
+
+        self.assertEqual(deleted.count(), 5)
+
+        self.assertEqual(start_max_id + 5,
+                         self.session.query(func.max(db.History.id)).scalar())
+
+        self.assertEqual(self.session.query(note_cls).count(), start_count)
+
+        self.session.refresh(parent_model)
+        self.assertFalse(parent_model.notes)
+
+        db.History.revert_to(
+            self.session.query(func.max(db.History.id)).scalar() - 4
+        )
+
+        self.assertEqual(self.session.query(note_cls).count(), 5 + start_count)
+
+        self.assertEqual(start_max_id,
+                         self.session.query(func.max(db.History.id)).scalar())
+
+        self.session.refresh(parent_model)
+
+        for note in parent_model.notes:
+            self.assertEqual(note.note, 'TEST')
 
 
 class GlobalFunctionsTests(BaubleTestCase):

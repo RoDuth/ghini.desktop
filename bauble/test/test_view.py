@@ -34,7 +34,7 @@ from bauble.view import (AppendThousandRows,
                          PICTURESSCROLLER_WIDTH_PREF)
 from bauble.test import (BaubleTestCase, update_gui, get_setUp_data_funcs,
                          wait_on_threads)
-from bauble import db, utils, search, prefs, pluginmgr
+from bauble import db, utils, search, prefs, pluginmgr, meta
 
 # pylint: disable=too-few-public-methods
 
@@ -624,16 +624,51 @@ class TestSearchView(BaubleTestCase):
 class TestHistoryView(BaubleTestCase):
 
     def test_populates_listore(self):
+        # also tests populating history I suppose
+        for func in get_setUp_data_funcs():
+            func()
+
+        history_count = self.session.query(db.History).count()
+        self.assertLess(history_count, 5)
+
+        # get a notes class and parent model...
+        for klass in search.MapperSearch.get_domain_classes().values():
+            if (hasattr(klass, 'notes') and
+                    hasattr(klass.notes, 'mapper')):
+                note_cls = klass.notes.mapper.class_
+                parent_model = klass()
+                break
+
+        # populate parent model with junk data...
+        for col in parent_model.__table__.columns:
+            if not col.nullable:
+                if col.name.endswith('_id'):
+                    setattr(parent_model, col.name, 1)
+                if not getattr(parent_model, col.name):
+                    setattr(parent_model, col.name, '567')
+
+        # add 5 notes
+        for i in range(5):
+            parent_model.notes.append(note_cls(note=f'test{i}'))
+
         session = db.Session()
-        history_count = session.query(db.History).count()
-        # make sure there IS something minimal in history (should be in bauble)
+        session.add(parent_model)
+        session.commit()
+
+        history_count = self.session.query(db.History).count()
         self.assertGreater(history_count, 5)
+
         hist_view = HistoryView()
         hist_view.update(None)
         # wait for the thread to finish
         wait_on_threads()
         update_gui()
         self.assertEqual(len(hist_view.liststore), history_count)
+        # nothing selected
+        self.assertIsNone(hist_view.get_selected_value())
+        # select something
+        hist_view.history_tv.set_cursor(0)
+        self.assertIsNotNone(hist_view.get_selected_value())
         session.close()
 
     def test_add_row(self):
@@ -644,8 +679,8 @@ class TestHistoryView(BaubleTestCase):
             operation='insert',
             user='Jade Green',
             table_name='mock_table',
-            values=("{'id': 1, 'data': 'some random data', 'name': "
-                      " 'test name', '_created': None, '_last_updated': None}")
+            values={'id': 1, 'data': 'some random data', 'name': 'test name',
+                    '_created': None, '_last_updated': None}
         )
 
         hist_view = HistoryView()
@@ -656,6 +691,103 @@ class TestHistoryView(BaubleTestCase):
         self.assertEqual(first_row[hist_view.TVC_USER],
                          mock_hist_item.user)
 
+    def test_button_release(self):
+        mock_context = mock.Mock()
+        hist_view = HistoryView()
+        hist_view.context_menu = mock_context
+        self.assertFalse(hist_view.on_button_release(None,
+                                                     mock.Mock(button=1)))
+        mock_context.popup_at_pointer.assert_not_called()
+        self.assertTrue(hist_view.on_button_release(None, mock.Mock(button=3)))
+        mock_context.popup_at_pointer.assert_called()
+
+    @mock.patch('bauble.utils.yes_no_dialog')
+    def test_on_revert_to_history(self, mock_dialog):
+        mock_dialog.return_value = True
+        # load history
+        for setup in get_setUp_data_funcs():
+            setup()
+
+        # get a notes class and parent model...
+        for klass in search.MapperSearch.get_domain_classes().values():
+            if (hasattr(klass, 'notes') and
+                    hasattr(klass.notes, 'mapper')):
+                note_cls = klass.notes.mapper.class_
+                parent_model = klass()
+                break
+
+        # populate parent model with junk data...
+        for col in parent_model.__table__.columns:
+            if not col.nullable:
+                if col.name.endswith('_id'):
+                    setattr(parent_model, col.name, 1)
+                if not getattr(parent_model, col.name):
+                    setattr(parent_model, col.name, '567')
+        # add 5 notes
+        for i in range(5):
+            parent_model.notes.append(note_cls(note=f'test{i}'))
+
+        self.session.add(parent_model)
+        self.session.commit()
+
+        start_count = self.session.query(note_cls).count()
+        self.assertEqual(start_count, 6)
+
+        hist_view = HistoryView()
+        hist_view.update(None)
+        # wait for the thread to finish
+        wait_on_threads()
+        update_gui()
+        # select something
+        hist_view.history_tv.set_cursor(2)
+        hist_view.on_revert_to_history(None, None)
+        mock_dialog.assert_called()
+        self.assertEqual(self.session.query(note_cls).count(), start_count - 3)
+
+    @mock.patch('bauble.view.HistoryView.get_selected_value')
+    def test_on_copy_values(self, mock_get_selected):
+        from datetime import datetime
+        values = {'id': 1, 'genus_id': 10, 'note': 'test note',
+                  '_created': None, '_last_updated': None}
+
+        mock_hist_item = mock.Mock(
+            timestamp=datetime.today(),
+            operation='insert',
+            user='Jade Green',
+            table_name='genus_note',
+            table_id=1,
+            values=values
+        )
+        mock_get_selected.return_value = mock_hist_item
+
+        hist_view = HistoryView()
+        import json
+        self.assertEqual(hist_view.on_copy_values(None, None),
+                         json.dumps(values))
+
+    @mock.patch('bauble.view.HistoryView.get_selected_value')
+    def test_on_copy_geojson(self, mock_get_selected):
+        from datetime import datetime
+        geojson = {'type': 'Point', 'coordinate': [1, 2]}
+        values = {'id': 1, 'name': 'name data', '_created': None,
+                  '_last_updated': None}
+
+        mock_hist_item = mock.Mock(
+            timestamp=datetime.today(),
+            operation='insert',
+            user='Jade Green',
+            table_name='mock_table',
+            table_id=1,
+            values=values,
+            geojson=geojson
+        )
+        mock_get_selected.return_value = mock_hist_item
+
+        hist_view = HistoryView()
+        import json
+        self.assertEqual(hist_view.on_copy_geojson(None, None),
+                         json.dumps(geojson))
+
     def test_on_row_activated(self):
         from datetime import datetime
 
@@ -665,8 +797,8 @@ class TestHistoryView(BaubleTestCase):
             user='Jade Green',
             table_name='genus_note',
             table_id=1,
-            values=("{'id': 1, 'genus_id': 10, 'note': 'test note', "
-                      "'_created': None, '_last_updated': None}")
+            values={'id': 1, 'genus_id': 10, 'note': 'test note',
+                    '_created': None, '_last_updated': None}
         )
 
         hist_view = HistoryView()

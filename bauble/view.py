@@ -22,11 +22,11 @@ Description: the default view
 """
 
 import itertools
+import json
 from pathlib import Path
 import sys
 import traceback
 import html
-from ast import literal_eval
 import threading
 from collections import UserDict
 
@@ -1706,55 +1706,61 @@ class HistoryView(pluginmgr.View, Gtk.Box):
 
         # setup context_menu
         menu_model = Gio.Menu()
+        revert_action_name = 'revert_hist_to_selection'
         copy_values_action_name = 'copy_hist_selection_values'
         copy_geojson_action_name = 'copy_hist_selection_geojson'
 
         if bauble.gui:
+            bauble.gui.add_action(revert_action_name,
+                                  self.on_revert_to_history)
             bauble.gui.add_action(copy_values_action_name,
                                   self.on_copy_values)
             bauble.gui.add_action(copy_geojson_action_name,
                                   self.on_copy_geojson)
 
+        revert = Gio.MenuItem.new(
+            _('Revert to'), f'win.{revert_action_name}'
+        )
         copy_values = Gio.MenuItem.new(
             _('Copy values'), f'win.{copy_values_action_name}'
         )
         copy_geojson = Gio.MenuItem.new(
             _('Copy geojson'), f'win.{copy_geojson_action_name}'
         )
+        menu_model.append_item(revert)
         menu_model.append_item(copy_values)
         menu_model.append_item(copy_geojson)
 
         self.context_menu = Gtk.Menu.new_from_model(menu_model)
         self.context_menu.attach_to_widget(self.history_tv)
 
-    def cmp_items_key(self, val):
+        self.last_arg = None
+
+    @staticmethod
+    def _cmp_items_key(val):
         """Sort by the key after putting id first, changes second and None
         values last.
         """
         k, v = val
         if k == 'id':
             return (0, k)
-        if isinstance(self.show_typed_value(v), list):
+        if isinstance(v, list):
             return (1, k)
-        if v == 'None':
+        if v is None:
             return (3, k)
         return (2, k)
 
-    @staticmethod
-    def show_typed_value(v):
-        try:
-            return literal_eval(v)
-        except (ValueError, SyntaxError):
-            # most likely a string
-            return repr(v)
-
     def add_row(self, item):
-        dct = literal_eval(item.values)
+        dct = dict(item.values)
         del dct['_created']
         del dct['_last_updated']
-        friendly = ', '.join(f"{k}: {self.show_typed_value(v) or repr('')}"
+        geojson = None
+        if dct.get('geojson'):
+            del dct['geojson']
+            geojson = json.dumps(item.values.get('geojson'))
+        friendly = ', '.join(f"{k}: {v or repr('')}"
                              for k, v in sorted(list(dct.items()),
-                                                key=self.cmp_items_key))
+                                                key=self._cmp_items_key))
         frmt = prefs.prefs.get(prefs.datetime_format_pref)
         self.liststore.append([
             item,
@@ -1763,7 +1769,7 @@ class HistoryView(pluginmgr.View, Gtk.Box):
             item.user,
             item.table_name,
             friendly,
-            str(item.geojson or ''),
+            geojson,
         ])
 
     def get_selected_value(self):
@@ -1781,17 +1787,40 @@ class HistoryView(pluginmgr.View, Gtk.Box):
         self.context_menu.popup_at_pointer(event)
         return True
 
+    def on_revert_to_history(self, _action, _paramm):
+        selected = self.get_selected_value()
+
+        session = db.Session()
+        rows = (session.query(db.History)
+                .filter(db.History.id >= selected.id)
+                .count())
+        session.close()
+
+        msg = (_('<b>CAUTUION: reverting database is permanent.</b>\n\nYou '
+                 'have selected to revert %s changes.\n\nDo you wish to '
+                 'proceed?') % rows)
+        if utils.yes_no_dialog(msg):
+            if selected:
+                db.History.revert_to(selected.id)
+            self.update(self.last_arg)
+
     def on_copy_values(self, _action, _param):
         if selected := self.get_selected_value():
-            string = str(selected.values)
+            string = json.dumps(selected.values)
             if bauble.gui:
                 bauble.gui.get_display_clipboard().set_text(string, -1)
+            else:
+                # for testing
+                return string
 
     def on_copy_geojson(self, _action, _param):
         if selected := self.get_selected_value():
-            string = str(selected.geojson)
+            string = json.dumps(selected.geojson)
             if bauble.gui:
                 bauble.gui.get_display_clipboard().set_text(string, -1)
+            else:
+                # for testing
+                return string
 
     @classmethod
     def add_translation_query(cls, table_name, domain, query):
@@ -1827,7 +1856,8 @@ class HistoryView(pluginmgr.View, Gtk.Box):
         """Add the history items to the view."""
         self.cancel_threads()
         GLib.idle_add(self.liststore.clear)
-        self.start_thread(AppendThousandRows(self, args[0]))
+        self.last_arg = args[0]
+        self.start_thread(AppendThousandRows(self, self.last_arg))
 
 
 class HistoryCommandHandler(pluginmgr.CommandHandler):
