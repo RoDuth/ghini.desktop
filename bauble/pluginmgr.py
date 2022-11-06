@@ -354,9 +354,7 @@ class PluginRegistry(db.Base):
         table = PluginRegistry.__table__
         stmt = table.insert().values(name=plugin.__class__.__name__,
                                      version=plugin.version)
-
-        with db.engine.begin() as connection:
-            connection.execute(stmt)
+        stmt.execute()
 
     @staticmethod
     def remove(plugin=None, name=None):
@@ -366,9 +364,7 @@ class PluginRegistry(db.Base):
 
         table = PluginRegistry.__table__
         stmt = table.delete().where(table.c.name == str(name))
-
-        with db.engine.begin() as connection:
-            connection.execute(stmt)
+        stmt.execute()
 
     @staticmethod
     def all(session):

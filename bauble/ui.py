@@ -673,6 +673,7 @@ class GUI:
         self.insert_menu = menu_builder.get_object('insert_menu')
         self.edit_context_menu = menu_builder.get_object('edit_context_menu')
         self.tools_menu = menu_builder.get_object('tools_menu')
+        self.options_menu = menu_builder.get_object('options_menu')
 
         return self.menubar
 

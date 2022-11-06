@@ -53,6 +53,7 @@ def get_default(name, default=None, session=None):
             # load the properties so that we can close the session and
             # avoid getting errors when accessing the properties on the
             # returned meta
+            # pylint: disable=pointless-statement
             meta.value
             meta.name
 
@@ -92,6 +93,46 @@ def confirm_default(name, default, msg, parent=None):
 
         dialog.destroy()
     return current_default
+
+
+def set_value(name, default, msg, parent=None):
+    """Allow the user to change the value of a BaubleMeta object at any time.
+    """
+    meta = None
+    from gi.repository import Gtk  # noqa
+    import bauble
+    if bauble.gui:
+        parent = bauble.gui.window
+    dialog = utils.create_message_dialog(msg=msg,
+                                         parent=parent,
+                                         resizable=False)
+    box = dialog.get_message_area()
+    frame = Gtk.Frame(shadow_type=Gtk.ShadowType.NONE)
+    label = Gtk.Label(justify=Gtk.Justification.LEFT)
+    label.set_markup(f"<b>{name}:</b>")
+    frame.set_label_widget(label)
+    entry = Gtk.Entry()
+    entry.set_text(default)
+    frame.add(entry)
+    box.add(frame)
+    dialog.resize(1, 1)
+    dialog.show_all()
+    response = dialog.run()
+    if response == Gtk.ResponseType.OK:
+        session = db.Session()
+        meta = session.query(BaubleMeta).filter_by(name=name).first()
+        meta = meta or BaubleMeta(name=name)
+        meta.value = entry.get_text()
+        session.add(meta)
+        session.commit()
+        # load the properties to avoid DetachedInstanceError
+        # pylint: disable=pointless-statement
+        meta.name
+        meta.value
+        session.close()
+
+    dialog.destroy()
+    return meta
 
 
 class BaubleMeta(db.Base):

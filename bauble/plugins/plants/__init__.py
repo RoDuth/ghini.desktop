@@ -29,6 +29,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 from gi.repository import Gtk
+from gi.repository import Gio
 from gi.repository import GLib
 
 import bauble
@@ -394,40 +395,35 @@ class PlantsPlugin(pluginmgr.Plugin):
                 'VernacularName': VernacularName,
                 'Geography': Geography, }
     prefs_change_handler = None
+    options_menu_set = False
 
     @classmethod
     def init(cls):
 
-        if bauble.gui:
-            return_accpt_chkbx = Gtk.CheckButton(label=_('Return accepted'))
-            # set a name so its easy to find and remove
-            return_accpt_chkbx.set_name('return_accpt_chkbx')
+        if bauble.gui and not cls.options_menu_set:
+            cls.options_menu_set = True
+            accptd_action = Gio.SimpleAction.new_stateful(
+                "accepted_toggled",
+                None,
+                GLib.Variant.new_boolean(prefs.prefs.get(return_accepted_pref,
+                                                         True))
+            )
+            accptd_action.connect("change-state",
+                                  cls.on_return_syns_chkbx_toggled)
+            bauble.gui.window.add_action(accptd_action)
 
-            # if reloading (opening a new connection etc.) remove any previous
-            # return_accpt_chkbx
-            for widget in bauble.gui.widgets.head_box.get_children():
-                if widget.get_name() == 'return_accpt_chkbx':
-                    bauble.gui.widgets.head_box.remove(widget)
-
-            bauble.gui.widgets.head_box.pack_start(
-                return_accpt_chkbx, False, True, 0)
-
-            return_accpt_chkbx.set_active(
-                prefs.prefs.get(return_accepted_pref, True))
-
-            tooltip = _('For any taxonomic results: if a synonym also return '
-                        'the accepted taxon (does not affect current results '
-                        'only subsequent searches.)')
-            return_accpt_chkbx.connect('toggled',
-                                       cls.on_return_syns_chkbx_toggled)
-            return_accpt_chkbx.set_tooltip_text(tooltip)
-            return_accpt_chkbx.show()
+            item = Gio.MenuItem.new(_('Return accepted'),
+                                    'win.accepted_toggled')
+            bauble.gui.options_menu.append_item(item)
 
             def prefs_ls_changed(model, path, _itr):
                 key, _repr_str, _type_str = model[path]
                 if key == return_accepted_pref:
-                    return_accpt_chkbx.set_active(
-                        prefs.prefs.get(return_accepted_pref))
+                    accptd_action.set_state(
+                        GLib.Variant.new_boolean(
+                            prefs.prefs.get(return_accepted_pref)
+                        )
+                    )
 
             def on_view_box_added(_container, obj):
                 if isinstance(obj, prefs.PrefsView):
@@ -520,8 +516,10 @@ class PlantsPlugin(pluginmgr.Plugin):
         )
 
     @staticmethod
-    def on_return_syns_chkbx_toggled(widget):
-        prefs.prefs[return_accepted_pref] = widget.get_active()
+    def on_return_syns_chkbx_toggled(action, value):
+        action.set_state(value)
+
+        prefs.prefs[return_accepted_pref] = value.get_boolean()
         if isinstance(view := bauble.gui.get_view(), prefs.PrefsView):
             view.update()
 

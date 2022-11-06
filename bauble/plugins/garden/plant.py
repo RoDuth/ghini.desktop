@@ -695,8 +695,20 @@ class Plant(db.Base, db.Serializable, db.WithNotes):
         the delimiter from the database call with refresh=True.
         """
         if cls._delimiter is None or refresh:
-            cls._delimiter = meta.get_default(
-                plant_delimiter_key, default_plant_delimiter).value
+            cls._delimiter = meta.get_default(plant_delimiter_key,
+                                              default_plant_delimiter).value
+        return cls._delimiter
+
+    @classmethod
+    def set_delimiter(cls, *_args):
+        """Set the plant delimiter from user imput and refresh it."""
+        msg = _('Set the plant delimiter, a single character is recommended.'
+                '\n\nNote that any accession numbers/codes created before this '
+                'change (that used the previous plant delimiter) will not '
+                'change, you may need to do this manually.')
+        cls._delimiter = meta.set_value(plant_delimiter_key,
+                                        default_plant_delimiter,
+                                        msg).value
         return cls._delimiter
 
     @property

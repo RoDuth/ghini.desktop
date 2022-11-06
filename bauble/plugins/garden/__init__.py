@@ -30,6 +30,7 @@ logger = logging.getLogger(__name__)
 from sqlalchemy.orm import object_session, eagerload
 
 from gi.repository import Gtk
+from gi.repository import Gio
 
 import bauble
 
@@ -112,6 +113,7 @@ class GardenPlugin(pluginmgr.Plugin):
                 'Source': Source,
                 'SourceDetail': SourceDetail,
                 'Collection': Collection}
+    options_menu_set = False
 
     @classmethod
     def install(cls, *args, **kwargs):
@@ -261,6 +263,13 @@ class GardenPlugin(pluginmgr.Plugin):
             ('{table} where source.plant_propagation._cutting.rooted.id = '
              '{obj_id} or source.propagation._cutting.rooted.id = {obj_id}')
         )
+        if bauble.gui and not cls.options_menu_set:
+            cls.options_menu_set = True
+            bauble.gui.add_action("set_delimiter", Plant.set_delimiter)
+
+            item = Gio.MenuItem.new(_('Set global delimiter'),
+                                    'win.set_delimiter')
+            bauble.gui.options_menu.append_item(item)
 
 
 def init_location_comboentry(presenter, combo, on_select, required=True):
