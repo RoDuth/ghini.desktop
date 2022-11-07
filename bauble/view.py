@@ -1789,6 +1789,8 @@ class HistoryView(pluginmgr.View, Gtk.Box):
 
     def on_revert_to_history(self, _action, _paramm):
         selected = self.get_selected_value()
+        logger.debug('reverting to selected %s id: %s', selected.table_name,
+                     selected.table_id)
 
         session = db.Session()
         rows = (session.query(db.History)

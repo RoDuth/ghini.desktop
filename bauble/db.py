@@ -244,6 +244,7 @@ class History(HistoryBase):
     @classmethod
     def revert_to(cls, id_):
         """Rever history to the history line with id."""
+        logger.debug('reverting to id: %s', id_)
         session = Session()
         rows = (session.query(cls)
                 .filter(cls.id >= id_)

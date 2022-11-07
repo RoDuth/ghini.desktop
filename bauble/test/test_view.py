@@ -739,10 +739,14 @@ class TestHistoryView(BaubleTestCase):
         wait_on_threads()
         update_gui()
         # select something
-        hist_view.history_tv.set_cursor(2)
+        hist_view.history_tv.set_cursor(3)
+        selected = hist_view.get_selected_value()
+        remainder = (self.session.query(note_cls)
+                     .filter(note_cls.id < selected.table_id)
+                     .count())
         hist_view.on_revert_to_history(None, None)
         mock_dialog.assert_called()
-        self.assertEqual(self.session.query(note_cls).count(), start_count - 3)
+        self.assertEqual(self.session.query(note_cls).count(), remainder)
 
     @mock.patch('bauble.view.HistoryView.get_selected_value')
     def test_on_copy_values(self, mock_get_selected):
