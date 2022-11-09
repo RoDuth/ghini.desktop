@@ -703,9 +703,9 @@ class Plant(db.Base, db.Serializable, db.WithNotes):
     def set_delimiter(cls, *_args):
         """Set the plant delimiter from user imput and refresh it."""
         msg = _('Set the plant delimiter, a single character is recommended.'
-                '\n\nNote that any accession numbers/codes created before this '
-                'change (that used the previous plant delimiter) will not '
-                'change, you may need to do this manually.')
+                '\n\nNote that any accession numbers/codes created before '
+                'this change (that used the previous plant delimiter) will '
+                'not change, you may need to do this manually.')
         cls._delimiter = meta.set_value(plant_delimiter_key,
                                         default_plant_delimiter,
                                         msg).value
