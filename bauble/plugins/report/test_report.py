@@ -34,7 +34,8 @@ from bauble.plugins.garden import (Accession,
                                    Plant,
                                    Location,
                                    Source,
-                                   SourceDetail)
+                                   SourceDetail,
+                                   Collection)
 from bauble.plugins.tag import tag_objects, Tag
 from . import (get_species_pertinent_to,
                get_accessions_pertinent_to,
@@ -183,9 +184,16 @@ class ReportTests(BaubleTestCase):
         ids = get_ids(get_species_pertinent_to([tag], self.session))
         self.assertCountEqual(ids, list(range(1, 5)))
 
+        accession.source.collection = Collection(locale='down the road')
+        self.session.add(accession)
+        self.session.commit()
+        collection = self.session.query(Collection).get(1)
+        ids = get_ids(get_species_pertinent_to([collection], self.session))
+        self.assertCountEqual(ids, [1])
+
         # now test all the objects
         ids = get_ids(get_species_pertinent_to(
-            [family, genus, species, accession, plant, location],
+            [family, genus, species, accession, plant, location, collection],
             self.session))
         self.assertCountEqual(ids, list(range(1, 5)))
 
@@ -235,6 +243,13 @@ class ReportTests(BaubleTestCase):
         tag = self.session.query(Tag).filter_by(tag='test').one()
         ids = get_ids(get_accessions_pertinent_to([tag], self.session))
         self.assertCountEqual(ids, list(range(1, 9)))
+
+        accession.source.collection = Collection(locale='down the road')
+        self.session.add(accession)
+        self.session.commit()
+        collection = self.session.query(Collection).get(1)
+        ids = get_ids(get_accessions_pertinent_to([collection], self.session))
+        self.assertCountEqual(ids, [1])
 
         # now test all the objects
         ids = get_ids(get_accessions_pertinent_to(
@@ -291,9 +306,18 @@ class ReportTests(BaubleTestCase):
         ids = get_ids(get_plants_pertinent_to(tag, self.session))
         self.assertCountEqual(ids, list(range(1, 17)))
 
+        accession.source.collection = Collection(locale='down the road')
+        self.session.add(accession)
+        self.session.commit()
+        collection = self.session.query(Collection).get(1)
+        ids = get_ids(get_plants_pertinent_to([collection], self.session))
+        self.assertCountEqual(ids, list(range(1, 3)))
+
         # now test all the objects
         plants = get_plants_pertinent_to(
-            [family, genus, species, accession, plant, location], self.session)
+            [family, genus, species, accession, plant, location, collection,
+             tag],
+            self.session)
         ids = get_ids(plants)
         self.assertCountEqual(ids, list(range(1, 17)))
 
@@ -347,9 +371,17 @@ class ReportTests(BaubleTestCase):
         ids = get_ids(get_locations_pertinent_to(tag, self.session))
         self.assertCountEqual(ids, list(range(1, 17)))
 
+        accession.source.collection = Collection(locale='down the road')
+        self.session.add(accession)
+        self.session.commit()
+        collection = self.session.query(Collection).get(1)
+        ids = get_ids(get_locations_pertinent_to([collection], self.session))
+        self.assertCountEqual(ids, list(range(1, 3)))
+
         # now test all the objects
         locations = get_locations_pertinent_to(
-            [family, genus, species, accession, plant, location, tag],
+            [family, genus, species, accession, plant, location, tag,
+             collection],
             self.session)
         ids = get_ids(locations)
         self.assertCountEqual(ids, list(range(1, 17)))
@@ -359,7 +391,6 @@ class ReportTests(BaubleTestCase):
         Test getting the geographies from different types
         """
         from bauble.plugins.plants.geography import geography_importer
-        from bauble.plugins.garden import Collection
         from bauble.plugins.plants import SpeciesDistribution
         # at least we run it once during a test!
         [i for i in geography_importer()]
@@ -430,9 +461,15 @@ class ReportTests(BaubleTestCase):
         ids = get_ids(get_geographies_pertinent_to(tag, self.session))
         self.assertCountEqual(ids, [694])
 
+        accession.source.collection = Collection(locale='down the road')
+        collection = self.session.query(Collection).get(1)
+        ids = get_ids(get_geographies_pertinent_to([collection], self.session))
+        self.assertCountEqual(ids, [330])
+
         # now test all the objects
         locations = get_geographies_pertinent_to(
-            [family, genus, species, accession, plant, location, tag],
+            [family, genus, species, accession, plant, location, tag,
+             collection],
             self.session)
         ids = get_ids(locations)
         self.assertCountEqual(ids, [694, 330])
@@ -441,7 +478,6 @@ class ReportTests(BaubleTestCase):
         """get geographies from various other items
         """
         from bauble.plugins.plants.geography import geography_importer
-        from bauble.plugins.garden import Collection
         from bauble.plugins.plants import SpeciesDistribution
         from collections import deque
         # at least we run it once during a test!

@@ -42,7 +42,11 @@ from bauble.plugins.plants import (Family,
                                    Species,
                                    VernacularName,
                                    Geography)
-from bauble.plugins.garden import Accession, Plant, Location, SourceDetail
+from bauble.plugins.garden import (Accession,
+                                   Plant,
+                                   Location,
+                                   SourceDetail,
+                                   Collection)
 from bauble.plugins.tag import Tag
 from .template_downloader import TemplateDownloadTool
 
@@ -145,6 +149,9 @@ def get_plant_query(cls, objs, session):
         return query.filter(Plant.id.in_(ids))
     if cls is Accession:
         return query.join('accession').filter(Accession.id.in_(ids))
+    if cls is Collection:
+        return (query.join('accession', 'source', 'collection')
+                .filter(Collection.id.in_(ids)))
     if cls is Location:
         return query.filter(Plant.location_id.in_(ids))
     if cls is SourceDetail:
@@ -192,6 +199,9 @@ def get_accession_query(cls, objs, session):
         return query.join('plants').filter(Plant.id.in_(ids))
     if cls is Accession:
         return query.filter(Accession.id.in_(ids))
+    if cls is Collection:
+        return (query.join('source', 'collection')
+                .filter(Collection.id.in_(ids)))
     if cls is Location:
         return query.join('plants').filter(Plant.location_id.in_(ids))
     if cls is SourceDetail:
@@ -236,6 +246,9 @@ def get_species_query(cls, objs, session):
         return query.join('accessions', 'plants').filter(cls.id.in_(ids))
     if cls is Accession:
         return query.join('accessions').filter(cls.id.in_(ids))
+    if cls is Collection:
+        return (query.join('accessions', 'source', 'collection')
+                .filter(cls.id.in_(ids)))
     if cls is Location:
         return (query.join('accessions', 'plants', 'location')
                 .filter(cls.id.in_(ids)))
@@ -272,6 +285,9 @@ def get_location_query(cls, objs, session):
         return query.join('plants').filter(cls.id.in_(ids))
     if cls is Accession:
         return query.join('plants', 'accession').filter(cls.id.in_(ids))
+    if cls is Collection:
+        return (query.join('plants', 'accession', 'source', 'collection')
+                .filter(cls.id.in_(ids)))
     if cls is Family:
         return (query.join('plants', 'accession', 'species', 'genus', 'family')
                 .filter(cls.id.in_(ids)))
@@ -324,6 +340,9 @@ def get_geography_query(cls, objs, session):
     # This is the exception, it uses the collection geography entry.
     if cls is Accession:
         return (query.join('collection', 'source', 'accession')
+                .filter(cls.id.in_(ids)))
+    if cls is Collection:
+        return (query.join('collection')
                 .filter(cls.id.in_(ids)))
     if cls is Family:
         return (query.join('distribution', 'species', 'genus', 'family')
