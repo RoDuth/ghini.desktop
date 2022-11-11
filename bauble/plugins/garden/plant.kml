@@ -33,6 +33,61 @@ if value.geojson and sys_crs:
 <kml xmlns="http://www.opengis.net/kml/2.2" xmlns:gx="http://www.google.com/kml/ext/2.2">
   <Document>
     <name>${xml_safe(value)}</name>
+    <LookAt>
+    ## make an educated guess for LookAt
+<%
+  extents = {
+    'max_x': -180,
+    'min_x': 180,
+    'max_y': -180,
+    'min_y': 180,
+  }
+
+  lng = lat = 0
+
+  geo_point = geo_line = geo_shape = ''
+  if value.geojson:
+    if value.geojson.get('type') == 'Point':
+      geo_point = json_to_kml_point(value.geojson.get('coordinates'))
+    elif value.geojson.get('type') == 'LineString':
+      geo_line = json_to_kml_line(value.geojson.get('coordinates'))
+    elif value.geojson.get('type') == 'Polygon':
+      geo_shape = json_to_kml_poly(value.geojson.get('coordinates'))
+
+    points = geo_shape + ' ' + geo_line + ' ' + geo_point
+    points = points.strip()
+    if points:
+      coords = [[float(x), float(y)] for x, y, _ in [s.split(',') for s in points.split()]]
+      x_vals = [x for x, y in coords]
+      y_vals = [y for x, y in coords]
+      extents['max_x'] = max(x_vals + [extents.get('max_x')])
+      extents['min_x'] = min(x_vals + [extents.get('min_x')])
+      extents['max_y'] = max(y_vals + [extents.get('max_y')])
+      extents['min_y'] = min(y_vals + [extents.get('min_y')])
+      lng = (extents.get('max_x') + extents.get('min_x')) / 2
+      lat = (extents.get('max_y') + extents.get('min_y')) / 2
+      ## these multipliers (100000 and 150000) are arbitrary.  From trial and error they seem to work, nothing more.
+      ## They most likely are very dependant on the current resolution...
+      rang = abs(extents.get('max_x') - extents.get('min_x')) * 100000
+      rang2 = abs(extents.get('max_y') - extents.get('min_y')) * 150000
+      rang = max([rang, rang2])
+      if rang < 30:
+        rang = 30
+
+  ## Bail out if nothing has coordinates.
+  try:
+    rang
+  except NameError:
+    raise Exception("Can't find anything to map for the current selection")
+%>\
+      <longitude>${lng}</longitude>
+      <latitude>${lat}</latitude>
+      <altitude>0</altitude>
+      <heading>0</heading>
+      <tilt>0</tilt>
+      <range>${rang}</range>
+      <altitudeMode>absolute</altitudeMode>
+    </LookAt>
     <visibility>1</visibility>
     <Placemark>
       <name>${xml_safe(value)}</name>
