@@ -39,6 +39,8 @@ class Enum(types.TypeDecorator):
     """
     impl = types.Unicode
 
+    cache_ok = False
+
     def __init__(self, values, empty_to_none=False, strict=True,
                  translations=None, **kwargs):
         """
@@ -118,6 +120,8 @@ class DateTime(types.TypeDecorator):
     _dayfirst = None
     _yearfirst = None
 
+    cache_ok = True
+
     class comparator_factory(types.DateTime.Comparator):
         # pylint: disable=invalid-name
         def operate(self, op, *other, **kwargs):
@@ -167,6 +171,8 @@ class Date(types.TypeDecorator):
     impl = types.Date
     _dayfirst = None
     _yearfirst = None
+
+    cache_ok = True
 
     class comparator_factory(types.Date.Comparator):
         # pylint: disable=invalid-name

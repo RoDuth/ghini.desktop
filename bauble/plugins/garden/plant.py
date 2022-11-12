@@ -625,7 +625,9 @@ class Plant(db.Base, db.Serializable, db.WithNotes):
                          "PlantChange.quantity < 0))"
                          ".correlate(Plant)"
                          ".order_by(desc(PlantChange.date))"
-                         ".limit(1))",
+                         ".limit(1)"
+                         ".scalar_subquery())",
+                         viewonly=True,
                          uselist=False)
 
     planted = relationship("PlantChange",
@@ -640,7 +642,8 @@ class Plant(db.Base, db.Serializable, db.WithNotes):
                            ".correlate(Plant)"
                            ".order_by(PlantChange.date)"
                            ".limit(1)"
-                           ".as_scalar())",
+                           ".scalar_subquery())",
+                           viewonly=True,
                            uselist=False)
 
     _delimiter = None

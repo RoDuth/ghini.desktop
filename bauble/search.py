@@ -124,6 +124,30 @@ OPERATIONS = {
 }
 
 
+def create_joins(query, cls, steps):
+    """Given a starting query, class and steps add the appropriate join()
+    clauses to the query.  Returns the query and the last class in the joins.
+    """
+    to_join = [cls]
+    for step in steps:
+        if hasattr(cls, step):
+            joinee = get_related_class(cls, step)
+
+            if joinee in to_join:
+                from sqlalchemy.orm import aliased
+                joinee = aliased(joinee)
+                query = query.join(
+                    getattr(cls, step).of_type(joinee)
+                )
+            else:
+                query = query.join(getattr(cls, step))
+                to_join.append(joinee)
+
+            cls = joinee
+
+    return (query, cls)
+
+
 class NoneToken:
     def __init__(self, token=None):
         pass
@@ -212,8 +236,8 @@ class IdentifierAction:
             cls = env.domain
         else:
             # identifier is an attribute of a joined table
-            query = query.join(*self.steps, aliased=True)
-            cls = get_related_class(env.domain, '.'.join(self.steps))
+            query, cls = create_joins(query, env.domain, self.steps)
+
         attr = getattr(cls, self.leaf)
         logger.debug('IdentifierToken for %s, %s evaluates to %s', cls,
                      self.leaf, attr)
@@ -245,8 +269,9 @@ class FilteredIdentifierAction:
         """return pair (query, attribute)"""
         query = env.session.query(env.domain)
         # identifier is an attribute of a joined table
-        query = query.join(*self.steps, aliased=True)
-        cls = get_related_class(env.domain, '.'.join(self.steps))
+
+        query, cls = create_joins(query, env.domain, self.steps)
+
         attr = getattr(cls, self.filter_attr)
 
         def clause(val):
@@ -289,7 +314,8 @@ class IdentExpression:
             return self.operation(attr, val)
 
         logger.debug('filtering on %s(%s)', type(attr), attr)
-        return query.filter(clause(self.operands[1].express()))
+        query = query.filter(clause(self.operands[1].express()))
+        return query
 
     def needs_join(self, env):
         return [self.operands[0].needs_join(env)]
@@ -460,9 +486,11 @@ class SearchNotAction(UnaryLogical):
 
     def evaluate(self, env):
         query = env.session.query(env.domain)
-        for i in env.domains:
-            query.join(*i)
-        return query.except_(self.operand.evaluate(env))
+        for steps in env.domains:
+            if steps:
+                query, _ = create_joins(query, env.domain, steps)
+        query = query.except_(self.operand.evaluate(env))
+        return query
 
 
 class ParenthesisedQuery:
@@ -669,7 +697,6 @@ class AggregatingAction:
         not need alter anything right now since the condition on the
         aggregated identifier is applied in the HAVING and not in the
         WHERE.
-
         """
 
         return self.identifier.evaluate(env)
@@ -742,19 +769,19 @@ class SearchParser:  # pylint: disable=too-few-public-methods
 
     date_str = Regex(
         r'\d{1,4}[/.-]{1}\d{1,2}[/.-]{1}\d{1,4}'
-    ).setParseAction(StringToken)('date')
+    ).set_parse_action(StringToken)
     numeric_value = Regex(
         r'[-]?\d+(\.\d*)?([eE]\d+)?'
-    ).setParseAction(NumericToken)('number')
+    ).set_parse_action(NumericToken)
 
     unquoted_string = Word(alphanums + alphas8bit + '%.-_*;:')
 
     string_value = (
-        quotedString.setParseAction(removeQuotes) | unquoted_string
-    ).setParseAction(StringToken)('string')
+        quotedString.set_parse_action(removeQuotes) | unquoted_string
+    ).set_parse_action(StringToken)
 
-    none_token = Literal('None').setParseAction(NoneToken)
-    empty_token = Literal('Empty').setParseAction(EmptyToken)
+    none_token = Literal('None').set_parse_action(NoneToken)
+    empty_token = Literal('Empty').set_parse_action(EmptyToken)
 
     value = (
         date_str |
@@ -762,11 +789,11 @@ class SearchParser:  # pylint: disable=too-few-public-methods
         none_token |
         empty_token |
         string_value
-    ).setParseAction(ValueToken)('value')
+    ).set_parse_action(ValueToken)('value')
 
     value_list = Group(
         OneOrMore(value) ^ delimitedList(value)
-    ).setParseAction(ValueListAction)('value_list')
+    ).set_parse_action(ValueListAction)('value_list')
 
     domain = Word(alphas, alphas + '_')
     binop = oneOf('= == != <> < <= > >= not like contains has ilike '
@@ -779,7 +806,7 @@ class SearchParser:  # pylint: disable=too-few-public-methods
     domain_expression = (
         (domain + equals + star_value + stringEnd) |
         (domain + binop + domain_values + stringEnd)
-    ).setParseAction(DomainExpressionAction)('domain_expression')
+    ).set_parse_action(DomainExpressionAction)('domain_expression')
 
     caps = srange("[A-Z]")
     lowers = caps.lower() + '-'
@@ -787,7 +814,7 @@ class SearchParser:  # pylint: disable=too-few-public-methods
         Word(caps, lowers) + (
             Word(lowers) | Word("'", caps + lowers + " ") + Literal("'") |
             Word("'", caps + lowers))
-    ).setParseAction(BinomialNameAction)('binomial_name')
+    ).set_parse_action(BinomialNameAction)('binomial_name')
 
     AND_ = wordStart + (CaselessLiteral("AND") | Literal("&&")) + wordEnd
     OR_ = wordStart + (CaselessLiteral("OR") | Literal("||")) + wordEnd
@@ -797,45 +824,46 @@ class SearchParser:  # pylint: disable=too-few-public-methods
     aggregating_func = (Literal('sum') | Literal('min') | Literal('max') |
                         Literal('count'))
 
-    query_expression = Forward()('filter')
+    query_expression = Forward()
 
     atomic_identifier = Word(alphas + '_', alphanums + '_')
     identifier = (
         Group(atomic_identifier + ZeroOrMore('.' + atomic_identifier) + '[' +
               atomic_identifier + binop + value + ']' + '.' +
-              atomic_identifier).setParseAction(FilteredIdentifierAction) |
+              atomic_identifier).set_parse_action(FilteredIdentifierAction) |
         Group(atomic_identifier + ZeroOrMore('.' + atomic_identifier)
-              ).setParseAction(IdentifierAction))
+              ).set_parse_action(IdentifierAction))
 
     aggregated = (aggregating_func + Literal('(') + identifier + Literal(')')
-                  ).setParseAction(AggregatingAction)
+                  ).set_parse_action(AggregatingAction)
     ident_expression = (Group(identifier + binop + value
-                              ).setParseAction(IdentExpression) |
+                              ).set_parse_action(IdentExpression) |
                         Group(identifier + binop_set + value_list
-                              ).setParseAction(ElementSetExpression) |
+                              ).set_parse_action(ElementSetExpression) |
                         Group(identifier + binop_date + value
-                              ).setParseAction(DateOnExpression) |
+                              ).set_parse_action(DateOnExpression) |
                         Group(aggregated + binop + value
-                              ).setParseAction(AggregatedExpression) |
+                              ).set_parse_action(AggregatedExpression) |
                         (Literal('(') + query_expression + Literal(')')
-                         ).setParseAction(ParenthesisedQuery))
+                         ).set_parse_action(ParenthesisedQuery))
     between_expression = Group(
         identifier + BETWEEN_ + value + AND_ + value
-    ).setParseAction(BetweenExpressionAction)
+    ).set_parse_action(BetweenExpressionAction)
     # pylint: disable=expression-not-assigned
     query_expression << infixNotation(
         (ident_expression | between_expression),
         [(NOT_, 1, opAssoc.RIGHT, SearchNotAction),
          (AND_, 2, opAssoc.LEFT, SearchAndAction),
-         (OR_, 2, opAssoc.LEFT, SearchOrAction)])
+         (OR_, 2, opAssoc.LEFT, SearchOrAction)])('filter')
+
     query = (domain + Keyword('where', caseless=True).suppress() +
-             Group(query_expression) + stringEnd).setParseAction(QueryAction)
+             Group(query_expression) + stringEnd).set_parse_action(QueryAction)
 
     statement = (query('query') |
                  domain_expression('domain') |
                  binomial_name('binomial') |
                  value_list('value_list')
-                 ).setParseAction(StatementAction)('statement')
+                 ).set_parse_action(StatementAction)('statement')
 
     def parse_string(self, text):
         """request pyparsing object to parse text

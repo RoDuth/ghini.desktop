@@ -157,15 +157,18 @@ class Family(db.Base, db.Serializable, db.WithNotes):
     synonyms = association_proxy('_synonyms', 'synonym')
     _synonyms = relationship('FamilySynonym',
                              primaryjoin='Family.id==FamilySynonym.family_id',
-                             cascade='all, delete-orphan', uselist=True,
+                             cascade='all, delete-orphan',
+                             uselist=True,
                              backref='family')
 
     # this is a dummy relation, it is only here to make cascading work
     # correctly and to ensure that all synonyms related to this family
     # get deleted if this family gets deleted
-    __syn = relationship('FamilySynonym',
-                         primaryjoin='Family.id==FamilySynonym.synonym_id',
-                         cascade='all, delete-orphan', uselist=True)
+    _accepted = relationship('FamilySynonym',
+                             primaryjoin='Family.id==FamilySynonym.synonym_id',
+                             cascade='all, delete-orphan',
+                             uselist=True,
+                             backref='synonym')
 
     retrieve_cols = ['id', 'epithet', 'family']
     genera = relationship('Genus',
@@ -330,10 +333,6 @@ class FamilySynonym(db.Base):
     family_id = Column(Integer, ForeignKey('family.id'), nullable=False)
     synonym_id = Column(Integer, ForeignKey('family.id'), nullable=False,
                         unique=True)
-
-    # relations
-    synonym = relationship('Family', uselist=False,
-                           primaryjoin='FamilySynonym.synonym_id==Family.id')
 
     def __init__(self, synonym=None, **kwargs):
         # it is necessary that the first argument here be synonym for

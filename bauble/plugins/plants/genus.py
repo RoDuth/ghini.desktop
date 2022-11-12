@@ -182,15 +182,18 @@ class Genus(db.Base, db.Serializable, db.WithNotes):
     synonyms = association_proxy('_synonyms', 'synonym')
     _synonyms = relationship('GenusSynonym',
                              primaryjoin='Genus.id==GenusSynonym.genus_id',
-                             cascade='all, delete-orphan', uselist=True,
+                             cascade='all, delete-orphan',
+                             uselist=True,
                              backref='genus')
 
     # this is a dummy relation, it is only here to make cascading work
     # correctly and to ensure that all synonyms related to this genus
     # get deleted if this genus gets deleted
-    __syn = relationship('GenusSynonym',
-                         primaryjoin='Genus.id==GenusSynonym.synonym_id',
-                         cascade='all, delete-orphan', uselist=True)
+    _accepted = relationship('GenusSynonym',
+                             primaryjoin='Genus.id==GenusSynonym.synonym_id',
+                             cascade='all, delete-orphan',
+                             uselist=True,
+                             backref='synonym')
 
     species = relationship('Species', cascade='all, delete-orphan',
                            order_by='Species.sp',
@@ -432,10 +435,6 @@ class GenusSynonym(db.Base):
     # a genus can only be a synonum of one other genus
     synonym_id = Column(Integer, ForeignKey('genus.id'), nullable=False,
                         unique=True)
-
-    # relations
-    synonym = relationship('Genus', uselist=False,
-                           primaryjoin='GenusSynonym.synonym_id==Genus.id')
 
     def __init__(self, synonym=None, **kwargs):
         # it is necessary that the first argument here be synonym for

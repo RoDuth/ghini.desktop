@@ -236,15 +236,20 @@ class Species(db.Base, db.Serializable, db.WithNotes):
     _synonyms = relationship(
         'SpeciesSynonym',
         primaryjoin='Species.id==SpeciesSynonym.species_id',
-        cascade='all, delete-orphan', uselist=True,
+        cascade='all, delete-orphan',
+        uselist=True,
         backref='species')
 
     # this is a dummy relation, it is only here to make cascading work
     # correctly and to ensure that all synonyms related to this genus
     # get deleted if this genus gets deleted
-    _syn = relationship('SpeciesSynonym',
-                        primaryjoin='Species.id==SpeciesSynonym.synonym_id',
-                        cascade='all, delete-orphan', uselist=True)
+    _accepted = relationship(
+        'SpeciesSynonym',
+        primaryjoin='Species.id==SpeciesSynonym.synonym_id',
+        cascade='all, delete-orphan',
+        uselist=True,
+        backref='synonym'
+    )
 
     # VernacularName.species gets defined here too.
     vernacular_names = relationship('VernacularName',
@@ -919,10 +924,6 @@ class SpeciesSynonym(db.Base):
                         nullable=False)
     synonym_id = Column(Integer, ForeignKey('species.id'),
                         nullable=False, unique=True)
-
-    # relations
-    synonym = relationship('Species', uselist=False,
-                           primaryjoin='SpeciesSynonym.synonym_id==Species.id')
 
     def __init__(self, synonym=None, **kwargs):
         # it is necessary that the first argument here be synonym for

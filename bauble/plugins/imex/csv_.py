@@ -35,7 +35,7 @@ logger = logging.getLogger(__name__)
 
 from gi.repository import Gtk  # noqa
 
-from sqlalchemy import ColumnDefault, func, select
+from sqlalchemy import ColumnDefault, func, select, inspect
 
 import bauble
 from bauble import db
@@ -652,7 +652,8 @@ class CSVRestore:
                 # could have been dropped whereas table.exists() can
                 # return true for a dropped table if the transaction
                 # hasn't been committed
-                if table in depends or not table.exists():
+                if table in depends or not (inspect(db.engine)
+                                            .has_table(table.name)):
                     logger.info('%s does not exist. creating.', table.name)
                     create_table(table)
                 elif table.name not in created_tables and table not in depends:
@@ -925,7 +926,7 @@ class CSVBackup:
             rows.append(list(table.c.keys()))  # append col names
             for row in results:
                 try:
-                    rows.append([replace(i) for i in row.values()])
+                    rows.append([replace(i) for i in row._mapping.values()])
                 except Exception:  # pylint: disable=broad-except
                     logger.error(traceback.format_exc())
             write_csv(filename, rows)

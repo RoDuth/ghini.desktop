@@ -59,9 +59,6 @@ class PlantPropagation(db.Base):
     propagation_id = Column(Integer, ForeignKey('propagation.id'),
                             nullable=False)
 
-    propagation = relationship('Propagation', uselist=False)
-    plant = relationship('Plant', uselist=False)
-
 
 class Propagation(db.Base):
     """Propagation"""

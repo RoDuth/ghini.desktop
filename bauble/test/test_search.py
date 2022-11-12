@@ -923,6 +923,64 @@ class SearchTests(BaubleTestCase):
         results = mapper_search.search(s, self.session)
         self.assertEqual(results, set([sp]))
 
+    def test_search_ambiguous_joins_no_results(self):
+        """These joins broke down when upgrading to SQLA 1.4"""
+        mapper_search = search.get_strategy('MapperSearch')
+        self.assertTrue(isinstance(mapper_search, search.MapperSearch))
+
+        s = "genus where _synonyms.synonym.id != 0"
+        results = mapper_search.search(s, self.session)
+        self.assertEqual(results, set())
+
+        s = ("geography where tdwg_code = '50' or "
+             "parent.tdwg_code = '50' or "
+             "parent.parent.tdwg_code = '50'")
+        results = mapper_search.search(s, self.session)
+        self.assertEqual(results, set())
+
+        s = ("plant where accession.species.genus.family.genera.epithet "
+             "= 'Ficus'")
+        results = mapper_search.search(s, self.session)
+        self.assertEqual(results, set())
+
+    def test_search_ambiguous_joins_w_results(self):
+        """These joins broke down when upgrading to SQLA 1.4"""
+        from bauble.plugins.plants.geography import geography_importer
+        [_ for _ in geography_importer()]
+        from bauble.plugins.plants.family import Family
+        from bauble.plugins.plants.genus import Genus, GenusSynonym
+        from bauble.plugins.plants.species import Species
+        g2 = Genus(family=self.family, genus='genus2')
+        self.genus.accepted = g2
+        f1 = Family(epithet='Moraceae')
+        g3 = Genus(family=f1, genus='Ficus')
+        g4 = Genus(family=f1, genus='Artocarpus')
+        sp1 = Species(genus=g3, epithet='virens')
+        sp2 = Species(genus=g4, epithet='heterophyllus')
+        self.session.add_all([g2, g3, g4, f1, sp1, sp2])
+        self.session.commit()
+
+        mapper_search = search.get_strategy('MapperSearch')
+        self.assertTrue(isinstance(mapper_search, search.MapperSearch))
+
+        s = "genus where _synonyms.synonym.id != 0"
+        results = mapper_search.search(s, self.session)
+        self.assertEqual(results, set([g2]))
+
+        s = ("geography where tdwg_code = '50' or "
+             "parent.tdwg_code = '50' or "
+             "parent.parent.tdwg_code = '50'")
+        results = mapper_search.search(s, self.session)
+        expected = ["WAU-AC", "50", "NSW-CT", "QLD-CS", "NFK-LH", "NSW",
+                    "NSW-NS", "NFK-NI", "NFK", "NTA", "QLD", "QLD-QU", "SOA",
+                    "TAS", "VIC", "WAU-WA", "WAU"]
+
+        self.assertCountEqual([i.tdwg_code for i in results], expected)
+
+        s = ("species where genus.family.genera.epithet = 'Ficus'")
+        results = mapper_search.search(s, self.session)
+        self.assertEqual(results, {sp1, sp2})
+
 
 class InOperatorSearch(BaubleTestCase):
     def __init__(self, *args):

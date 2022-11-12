@@ -460,12 +460,12 @@ def verify_connection(new_engine, show_error_dialogs=False):
             raise
 
     # check if the database has any tables
-    if len(new_engine.table_names()) == 0:
+    if len(sa.inspect(new_engine).get_table_names()) == 0:
         raise error.EmptyDatabaseError()
 
     from bauble import meta
     # check that the database we connected to has the bauble meta table
-    if not new_engine.has_table(meta.BaubleMeta.__tablename__):
+    if not sa.inspect(new_engine).has_table(meta.BaubleMeta.__tablename__):
         raise error.MetaTableError()
 
     from sqlalchemy.orm import sessionmaker
