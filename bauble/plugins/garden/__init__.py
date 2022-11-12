@@ -191,10 +191,13 @@ class GardenPlugin(pluginmgr.Plugin):
         meta.get_default(plant_delimiter_key, default_plant_delimiter)
 
         def get_default_acc_code_format():
-            query = (db.Session().query(meta.BaubleMeta)
-                     .filter(meta.BaubleMeta.name.like('acidf_%'))
-                     .order_by(meta.BaubleMeta.name))
-            return query.first()
+            session = db.Session()
+            frmt = (session.query(meta.BaubleMeta.value)
+                    .filter(meta.BaubleMeta.name.like('acidf_%'))
+                    .order_by(meta.BaubleMeta.name)
+                    .first())
+            session.close()
+            return frmt.value if frmt else None
 
         Accession.code_format = (get_default_acc_code_format() or
                                  BAUBLE_ACC_CODE_FORMAT)
