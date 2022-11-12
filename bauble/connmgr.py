@@ -212,6 +212,7 @@ class ConnMgrPresenter(GenericEditorPresenter):
         self.user = None
         self.pictureroot = None
         self.connection_name = None
+        self.ignore = None
         self.prev_connection_name = None
         self.use_defaults = True
         self.passwd = False
@@ -427,17 +428,26 @@ class ConnMgrPresenter(GenericEditorPresenter):
         """are current prefs already saved under given name?"""
         if not name:  # no name, no need to check
             return True
-        conn_dict = prefs.prefs.get(bauble.conn_list_pref)
+
+        if name == self.ignore:  # generally development only
+            return True
+
+        conn_dict = prefs.prefs.get(bauble.conn_list_pref, {})
+
         if conn_dict is None or name not in conn_dict:
             return False
+
         stored_params = conn_dict[name]
         params = copy.copy(self.get_params())
+
         return params == stored_params
 
     def on_name_combo_changed(self, combo, data=None):
         """the name changed so fill in everything else"""
         logger.debug('on_name_combo_changing from %s to %s',
                      self.prev_connection_name, self.connection_name)
+
+        self.view.widgets.type_combo.set_sensitive(True)
 
         conn_dict = self.connections
         if self.prev_connection_name is not None and \
@@ -466,7 +476,9 @@ class ConnMgrPresenter(GenericEditorPresenter):
             if conn_dict[self.connection_name]['type'] not in DBTYPES:
                 # in case the connection type has changed or isn't supported
                 # on this computer
-                self.view.combobox_set_active('type_combo', -1)
+                self.view.widgets.type_combo.set_active(-1)
+                self.view.widgets.type_combo.set_sensitive(False)
+                self.ignore = self.connection_name
             else:
                 index = DBTYPES.index(conn_dict[self.connection_name]
                                       ["type"])
