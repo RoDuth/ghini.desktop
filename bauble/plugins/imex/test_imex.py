@@ -1806,3 +1806,19 @@ class GenericExporterTests(BaubleTestCase):
         item = self.session.query(Species).get(1)
         val = GenericExporter.get_item_value('hybrid', item)
         self.assertEqual(val, 'False')
+
+    def test_get_item_record_w_notes(self):
+        item = self.session.query(Species).get(1)
+        val = GenericExporter.get_item_record(item, {'sp': 'species',
+                                                     'gen': 'genus.epithet'})
+        self.assertEqual(val, {'sp': 'Maxillaria variabilis',
+                               'gen': 'Maxillaria'})
+
+    def test_get_item_record_wo_notes(self):
+        from bauble.plugins.plants.geography import (Geography,
+                                                     geography_importer)
+        [_ for _ in geography_importer()]
+        item = self.session.query(Geography).filter(
+            Geography.tdwg_code == 50).one()
+        val = GenericExporter.get_item_record(item, {'name': 'name'})
+        self.assertEqual(val, {'name': 'Australia'})

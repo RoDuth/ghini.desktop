@@ -506,7 +506,7 @@ class GenericExporter(ABC):
         """
         record = {}
         # handle generated attribute notes
-        attr_notes = cls.get_attr_notes(item)
+        attr_notes = cls.get_attr_notes(item) if hasattr(item, 'notes') else []
         for name, path in fields.items():
             if name == 'domain':
                 record[name] = path
