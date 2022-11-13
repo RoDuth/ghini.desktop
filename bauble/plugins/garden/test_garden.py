@@ -429,9 +429,7 @@ class PlantTests(GardenTestCase):
         editor.presenter.cleanup()
         del editor
 
-    @unittest.mock.patch('bauble.utils.yes_no_dialog')
-    def test_branch_then_delete_parent(self, mock_dialog):
-        mock_dialog.return_value = True
+    def test_branch_then_delete_parent(self):
         plant = Plant(accession=self.accession, code='11',
                       location=self.location, quantity=10)
         loc2a = Location(name='site2a', code='2a')
@@ -447,6 +445,8 @@ class PlantTests(GardenTestCase):
         editor.compute_plant_split_changes()
         update_gui()
         editor.handle_response(Gtk.ResponseType.OK)
+        editor.presenter.cleanup()
+        del editor
         # test that if we delete the original plant using remove_callback it
         # doesn't error, fail or delete the planting date of the split plant
         # NOTE in the above self.session is equivalent to the searchview's
@@ -455,25 +455,27 @@ class PlantTests(GardenTestCase):
         # error can occur if plant.duplication is called on the instance in
         # searchview's session not the editors.
         from bauble.plugins.garden.plant import remove_callback
-        result = remove_callback([plant])
-        self.assertTrue(result)
-        mock_dialog.assert_called()
+        with unittest.mock.patch(
+                'bauble.plugins.garden.plant.utils.yes_no_dialog'
+        ) as mock_dialog:
+            mock_dialog.return_value = True
+            result = remove_callback([plant])
+            self.assertTrue(result)
+            mock_dialog.assert_called()
 
-        qry = self.session.query(Plant).filter_by(
-            accession=self.accession)
-        match = qry.filter_by(code='11').all()
-        self.assertEqual(match, [])
-        splt = qry.filter_by(quantity=3).all()
-        self.assertEqual(len(splt), 1)
-        # test that the parent_plant entry in the change is nullified rather
-        # than deleting the whole change.  (which would lose the planted entry
-        # and all data with it.)
-        self.assertTrue(splt[0].planted)
-        self.assertTrue(splt[0].planted.from_location)
-        self.assertTrue(splt[0].planted.to_location)
-        self.assertFalse(splt[0].planted.parent_plant)
-        editor.presenter.cleanup()
-        del editor
+            qry = self.session.query(Plant).filter_by(
+                accession=self.accession)
+            match = qry.filter_by(code='11').all()
+            self.assertEqual(match, [])
+            splt = qry.filter_by(quantity=3).all()
+            self.assertEqual(len(splt), 1)
+            # test that the parent_plant entry in the change is nullified rather
+            # than deleting the whole change.  (which would lose the planted entry
+            # and all data with it.)
+            self.assertTrue(splt[0].planted)
+            self.assertTrue(splt[0].planted.from_location)
+            self.assertTrue(splt[0].planted.to_location)
+            self.assertFalse(splt[0].planted.parent_plant)
 
     def test_bulk_branch(self):
         # create a plant with sufficient quantity
