@@ -1,5 +1,5 @@
 # pylint: disable=too-few-public-methods
-# Copyright (c) 2020 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright (c) 2020-2022 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -40,8 +40,15 @@ from bauble import prefs
 from bauble.task import set_message
 
 CONFIG_LIST_PREF = 'report.configs'
-TEMPLATES_DEFAULT_URI = ('https://github.com/RoDuth/ghini_report_templates'
+
+TEMPLATES_DEFAULT_URL = ('https://github.com/RoDuth/ghini_report_templates'
                          '/archive/master.zip')
+
+TEMPLATES_URL_PREF = 'template_downloader.url'
+"""
+Directory to store downloaded templates and their config etc..
+"""
+
 TEMPLATES_ROOT_PREF = 'template_downloader.root_dir'
 """
 Directory to store downloaded templates and their config etc..
@@ -99,7 +106,8 @@ def download_templates(root):
     # grab the templates zip file
     try:
         net_sess = get_net_sess()
-        result = net_sess.get(TEMPLATES_DEFAULT_URI, timeout=5)
+        url = prefs.prefs.get(TEMPLATES_URL_PREF, TEMPLATES_DEFAULT_URL)
+        result = net_sess.get(url, timeout=5)
 
     except exceptions.Timeout:
         msg = 'connection timed out while getting templates'
@@ -118,7 +126,7 @@ def download_templates(root):
         from io import BytesIO
         with ZipFile(BytesIO(result.content)) as zipped:
             # the smallest directory is the root directory
-            zip_root = min(
+            zip_root = min(     # pylint: disable=consider-using-generator
                 [i for i in zipped.namelist() if i.endswith('/')],
                 key=len
             )
@@ -155,7 +163,8 @@ class TemplateDownloadTool(pluginmgr.Tool):
         root = prefs.prefs.get(TEMPLATES_ROOT_PREF, None)
 
         if yes_no_dialog(_('Download online report templates?\n\nSource: %s?'
-                           % TEMPLATES_DEFAULT_URI)):
+                           % prefs.prefs.get(TEMPLATES_URL_PREF,
+                                             TEMPLATES_DEFAULT_URL))):
             dload_root = download_templates(root)
             msg = _('Templates update complete')
             # look for config files to update prefs with.

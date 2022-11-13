@@ -1,7 +1,7 @@
 # Copyright (c) 2005,2006,2007,2008,2009 Brett Adams <brett@belizebotanic.org>
 # Copyright (c) 2012-2017 Mario Frasca <mario@anche.no>
 # Copyright 2017 Jardín Botánico de Quito
-# Copyright (c) 2017-2021 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright (c) 2017-2022 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -19,7 +19,8 @@
 # along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
 
 import os
-from unittest import mock
+from unittest import mock, TestCase
+from pathlib import Path
 
 from gi.repository import Gtk
 
@@ -37,6 +38,10 @@ from bauble.plugins.garden import (Accession,
                                    SourceDetail,
                                    Collection)
 from bauble.plugins.tag import tag_objects, Tag
+from .template_downloader import (download_templates,
+                                  set_templates_root_pref,
+                                  update_report_template_prefs,
+                                  TEMPLATES_ROOT_PREF)
 from . import (get_species_pertinent_to,
                get_accessions_pertinent_to,
                get_plants_pertinent_to,
@@ -619,3 +624,80 @@ class ReportToolDialogTests(BaubleTestCase):
                                 .get(CONFIG_LIST_PREF, {})
                                 .get(name, (None, None)))
         self.assertEqual(formatter, 'XSL')
+
+
+class TemplateDowloaderTests(BaubleTestCase):
+
+    @mock.patch('gi.repository.Gtk.FileChooserNative.get_filename')
+    @mock.patch('gi.repository.Gtk.FileChooserNative.run')
+    def test_set_templates_root_ref(self, mock_run, mock_get_fname):
+        mock_run.return_value = Gtk.ResponseType.ACCEPT
+        here = str(Path('.'))
+        mock_get_fname.return_value = here
+        result = set_templates_root_pref()
+        self.assertTrue(result)
+        self.assertEqual(prefs.prefs.get(TEMPLATES_ROOT_PREF), here)
+
+    def test_update_template_prefs(self):
+        config = b"""
+[report]
+configs = {'species list': ('Mako', {'private': False, 'template': 'species.html'})}
+"""
+        from tempfile import mkstemp, mkdtemp
+        handle, filename = mkstemp(suffix='.cfg')
+        os.write(handle, config)
+        os.close(handle)
+
+        templates_root = mkdtemp()
+        prefs.prefs[TEMPLATES_ROOT_PREF] = templates_root
+        prefs.prefs.save()
+        update_report_template_prefs(templates_root, filename)
+        path = Path(templates_root, 'species.html')
+        self.assertEqual(
+            prefs.prefs.get(CONFIG_LIST_PREF),
+            {'species list': ('Mako',
+                              {'private': False,
+                               'template': f'{path}'})})
+
+    @mock.patch('bauble.plugins.report.template_downloader.yes_no_dialog')
+    @mock.patch('bauble.plugins.report.template_downloader.get_net_sess')
+    def test_download_templates(self, mock_get_sess, mock_dialog):
+        import zipfile
+        import io
+        from tempfile import mkdtemp
+        templates_root = mkdtemp()
+
+        zip_mem = io.BytesIO()
+        with zipfile.ZipFile(zip_mem, mode='w') as zf:
+            # These 2 lines are a hack as zf.mkdir() was not available prior to
+            # python v3.11
+            zf.writestr('root/trunk/leaf/', "")
+            zf.writestr('root/', "")
+
+            zf.writestr('root/file1.txt', "test1")
+            zf.writestr('root/file2.txt', "test2")
+            zf.writestr('root/trunk/leaf/file3.txt', "test3")
+
+        mock_sess = mock.Mock()
+        mock_result = mock.Mock(content=zip_mem.getvalue())
+        mock_sess.get.return_value = mock_result
+        # mock_sess.get.return_value = str(zip_mem)
+
+        mock_get_sess.return_value = mock_sess
+
+        result = download_templates(templates_root)
+
+        mock_get_sess.assert_called()
+        mock_sess.get.assert_called()
+        mock_dialog.assert_not_called()
+
+        self.assertEqual(str(result), str(Path(templates_root, 'root')))
+
+        # call a second time should ask to delete previous version
+        mock_dialog.return_value = True
+
+        result = download_templates(templates_root)
+
+        mock_dialog.assert_called()
+
+        self.assertEqual(str(result), str(Path(templates_root, 'root')))
