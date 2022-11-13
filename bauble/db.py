@@ -213,6 +213,8 @@ class History(HistoryBase):
     def add(cls, operation, mapper, connection, instance):
         """Add a new entry to the history table."""
         user = current_user()
+        logger.debug('adding history, operation; %s instance: %s', operation,
+                     instance)
 
         def _val(val):
             if isinstance(val, (datetime.datetime, datetime.date)):
@@ -220,7 +222,6 @@ class History(HistoryBase):
             return val
 
         row = {}
-        # geojson = None
         for column in mapper.local_table.c:
 
             if operation == 'update':

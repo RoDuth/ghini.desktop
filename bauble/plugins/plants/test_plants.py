@@ -1190,8 +1190,18 @@ class SpeciesTests(PlantTestCase):
         self.session.delete(sp2)
         self.session.commit()
         assert sp2 not in sp1.synonyms
+        # but doesn't delete the species it referes to.
+        self.assertTrue(self.session.query(Species).get(sp1.id))
 
-        self.session.expunge_all()
+        # test that deleting a species that has synonyms deletes all
+        # the synonyms that refer to that species
+        sp3 = Species(genus=self.session.query(Genus).get(1), epithet='three')
+        self.session.add(sp3)
+        sp1.synonyms.append(sp3)
+        self.session.commit()
+        self.session.delete(sp1)
+        self.session.commit()
+        self.assertTrue(self.session.query(SpeciesSynonym).count() == 0)
 
     def test_no_synonyms_means_itself_accepted(self):
         def create_tmp_sp(id):

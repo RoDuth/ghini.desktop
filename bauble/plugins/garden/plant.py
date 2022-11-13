@@ -817,6 +817,7 @@ def plant_after_update(_mapper, connection, target):  \
             to_update = change
             # bail early if a split change
             if to_update.child_plant:
+                logger.debug('is split change bailing early')
                 return
 
     loc_history = get_history(target, 'location_id')
