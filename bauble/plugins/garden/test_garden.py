@@ -455,9 +455,8 @@ class PlantTests(GardenTestCase):
         # error can occur if plant.duplication is called on the instance in
         # searchview's session not the editors.
         from bauble.plugins.garden.plant import remove_callback
-        with unittest.mock.patch(
-                'bauble.plugins.garden.plant.utils.yes_no_dialog'
-        ) as mock_dialog:
+
+        with unittest.mock.patch('bauble.utils.yes_no_dialog') as mock_dialog:
             mock_dialog.return_value = True
             result = remove_callback([plant])
             self.assertTrue(result)
@@ -469,9 +468,9 @@ class PlantTests(GardenTestCase):
             self.assertEqual(match, [])
             splt = qry.filter_by(quantity=3).all()
             self.assertEqual(len(splt), 1)
-            # test that the parent_plant entry in the change is nullified rather
-            # than deleting the whole change.  (which would lose the planted entry
-            # and all data with it.)
+            # test that the parent_plant entry in the change is nullified
+            # rather than deleting the whole change.  (which would lose the
+            # planted entry and all data with it.)
             self.assertTrue(splt[0].planted)
             self.assertTrue(splt[0].planted.from_location)
             self.assertTrue(splt[0].planted.to_location)
@@ -559,6 +558,8 @@ class PlantTests(GardenTestCase):
         widgets.plant_quantity_entry.props.text = new_quantity
         update_gui()
         editor.handle_response(Gtk.ResponseType.OK)
+        editor.presenter.cleanup()
+        del editor
 
         # there should only be one new plant,
         new_plant = (self.session.query(Plant)
@@ -576,8 +577,6 @@ class PlantTests(GardenTestCase):
         # test the parent_plant for the change is the same as the
         # original plant
         self.assertEqual(new_plant.changes[0].parent_plant, self.plant)
-        editor.presenter.cleanup()
-        del editor
 
     @unittest.mock.patch('bauble.editor.GenericEditorView.start')
     def test_branch_callback(self, mock_start):
