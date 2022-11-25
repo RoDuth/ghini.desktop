@@ -1785,23 +1785,13 @@ class GenusHybridMarker_test(PlantTestCase):
 class SpeciesInfraspecificProp(PlantTestCase):
 
     def test_cultivar_epithet_1(self):
-        obj = Species.retrieve_or_create(
-            self.session, {'object': 'taxon',
-                           'ht-rank': 'genus',
-                           'ht-epithet': 'Paphiopedilum',
-                           'rank': 'species',
-                           'epithet': ''})
+        obj = self.session.query(Species).get(1)
         obj.infrasp1 = 'Eva Weigner'
         obj.infrasp1_rank = 'cv.'
         self.assertEqual(obj.cultivar_epithet, 'Eva Weigner')
 
     def test_cultivar_epithet_2(self):
-        obj = Species.retrieve_or_create(
-            self.session, {'object': 'taxon',
-                           'ht-rank': 'genus',
-                           'ht-epithet': 'Paphiopedilum',
-                           'rank': 'species',
-                           'epithet': ''})
+        obj = self.session.query(Species).get(1)
         obj.infrasp2 = 'Eva Weigner'
         obj.infrasp2_rank = 'cv.'
         self.assertEqual(obj.cultivar_epithet, 'Eva Weigner')
@@ -1812,22 +1802,12 @@ Lauraceae,,Cinnamomum,,"camphora",,"","(L.) J.Presl"
 Lauraceae,,Cinnamomum,,"camphora",f.,"linaloolifera","(Y.Fujita) Sugim."
 Lauraceae,,Cinnamomum,,"camphora",var.,"nominale","Hats. & Hayata"
 '''
-        Family.retrieve_or_create(
-            self.session, {'object': 'taxon',
-                           'rank': 'family',
-                           'epithet': 'Lauraceae'})
-        self.cinnamomum = Genus.retrieve_or_create(
-            self.session, {'object': 'taxon',
-                           'ht-rank': 'family',
-                           'ht-epithet': 'Lauraceae',
-                           'rank': 'genus',
-                           'epithet': 'Cinnamomum'})
-        self.cinnamomum_camphora = Species.retrieve_or_create(
-            self.session, {'object': 'taxon',
-                           'ht-rank': 'genus',
-                           'ht-epithet': 'Cinnamomum',
-                           'rank': 'species',
-                           'epithet': 'camphora'})
+        self.cinnamomum = Genus(family=Family(epithet='Lauraceae'),
+                                epithet='Cinnamomum')
+        self.cinnamomum_camphora = Species(genus=self.cinnamomum,
+                                           epithet='camphora')
+        self.session.add(self.cinnamomum_camphora)
+        self.session.commit()
 
     def test_infraspecific_1(self):
         self.include_cinnamomum_camphora()
@@ -1853,22 +1833,12 @@ Lauraceae,,Cinnamomum,,"camphora",var.,"nominale","Hats. & Hayata"
 
     def include_gleditsia_triacanthos(self):
         "Gleditsia triacanthos var. inermis 'Sunburst'."
-        Family.retrieve_or_create(
-            self.session, {'object': 'taxon',
-                           'rank': 'family',
-                           'epithet': 'Fabaceae'})
-        self.gleditsia = Genus.retrieve_or_create(
-            self.session, {'object': 'taxon',
-                           'ht-rank': 'family',
-                           'ht-epithet': 'Fabaceae',
-                           'rank': 'genus',
-                           'epithet': 'Gleditsia'})
-        self.gleditsia_triacanthos = Species.retrieve_or_create(
-            self.session, {'object': 'taxon',
-                           'ht-rank': 'genus',
-                           'ht-epithet': 'Gleditsia',
-                           'rank': 'species',
-                           'epithet': 'triacanthos'})
+        self.gleditsia = Genus(family=Family(epithet='Fabaceae'),
+                               epithet='Gleditsia')
+        self.gleditsia_triacanthos = Species(genus=self.gleditsia,
+                                             epithet='triacanthos')
+        self.session.add(self.gleditsia_triacanthos)
+        self.session.commit()
 
     def test_variety_and_cultivar_1(self):
         self.include_gleditsia_triacanthos()
@@ -1897,32 +1867,18 @@ Lauraceae,,Cinnamomum,,"camphora",var.,"nominale","Hats. & Hayata"
         self.assertEqual(obj.cultivar_epithet, 'Sunburst')
 
     def test_infraspecific_props_is_lowest_ranked(self):
-        '''Saxifraga aizoon\
-        var. aizoon subvar. brevifolia f. multicaulis subf. surculosa'''
-        Family.retrieve_or_create(
-            self.session, {'object': 'taxon',
-                           'rank': 'family',
-                           'epithet': 'Saxifragaceae'})
-        self.genus = Genus.retrieve_or_create(
-            self.session, {'object': 'taxon',
-                           'ht-rank': 'family',
-                           'ht-epithet': 'Saxifragaceae',
-                           'rank': 'genus',
-                           'epithet': 'Saxifraga'})
-        self.species = Species.retrieve_or_create(
-            self.session, {'object': 'taxon',
-                           'ht-rank': 'genus',
-                           'ht-epithet': 'Saxifraga',
-                           'rank': 'species',
-                           'epithet': 'aizoon'})
-        subvar = Species(genus=self.genus,
+        """Saxifraga aizoon var. aizoon subvar. brevifolia f. multicaulis
+        subf. surculosa"""
+        genus = Genus(family=Family(epithet='Saxifragaceae'),
+                      epithet='Saxifraga')
+        subvar = Species(genus=genus,
                          sp='aizoon',
                          infrasp1_rank='var.',
                          infrasp1='aizoon',
                          infrasp2_rank='subvar.',
                          infrasp2='brevifolia',
                          )
-        subf = Species(genus=self.genus,
+        subf = Species(genus=genus,
                        sp='aizoon',
                        infrasp2_rank='var.',
                        infrasp2='aizoon',
@@ -1943,7 +1899,7 @@ Lauraceae,,Cinnamomum,,"camphora",var.,"nominale","Hats. & Hayata"
         self.assertEqual(subf.cultivar_epithet, '')
         "Saxifraga aizoon var. aizoon subvar. brevifolia f. multicaulis "
         "cv. 'Bellissima'"
-        cv = Species(genus=self.genus,
+        cv = Species(genus=genus,
                      sp='aizoon',
                      infrasp4_rank='var.',
                      infrasp4='aizoon',
@@ -2101,101 +2057,59 @@ class SpeciesProperties_test(PlantTestCase):
                            'note': 'EX'},
             create=False, update=True)
         self.assertEqual(obj.note, 'EX')
-
-
 class AttributesStoredInNotes(PlantTestCase):
+
+    def setUp(self):
+        super().setUp()
+        self.obj = (self.session.query(Species)
+                    .join(Genus)
+                    .filter(Genus.epithet == 'Laelia')
+                    .filter(Species.epithet == 'lobata')
+                    .one())
+
     def test_proper_yaml_dictionary(self):
-        obj = Species.retrieve_or_create(
-            self.session, {'object': 'taxon',
-                           'ht-rank': 'genus',
-                           'rank': 'species',
-                           'ht-epithet': 'Laelia',
-                           'epithet': 'lobata'},
-            create=False, update=False)
         note = SpeciesNote(category='<coords>', note='{1: 1, 2: 2}')
-        note.species = obj
+        note.species = self.obj
         self.session.commit()
-        self.assertEqual(obj.coords, {'1': 1, '2': 2})
+        self.assertEqual(self.obj.coords, {'1': 1, '2': 2})
 
     def test_very_sloppy_json_dictionary(self):
-        obj = Species.retrieve_or_create(
-            self.session, {'object': 'taxon',
-                           'ht-rank': 'genus',
-                           'rank': 'species',
-                           'ht-epithet': 'Laelia',
-                           'epithet': 'lobata'},
-            create=False, update=False)
         note = SpeciesNote(category='<coords>', note='lat:8.3,lon:-80.1')
-        note.species = obj
+        note.species = self.obj
         self.session.commit()
-        self.assertEqual(obj.coords, {'lat': 8.3, 'lon': -80.1})
+        self.assertEqual(self.obj.coords, {'lat': 8.3, 'lon': -80.1})
 
     def test_very_very_sloppy_json_dictionary(self):
-        obj = Species.retrieve_or_create(
-            self.session, {'object': 'taxon',
-                           'ht-rank': 'genus',
-                           'rank': 'species',
-                           'ht-epithet': 'Laelia',
-                           'epithet': 'lobata'},
-            create=False, update=False)
         note = SpeciesNote(category='<coords>',
                            note='lat:8.3;lon:-80.1;alt:1400.0')
-        note.species = obj
+        note.species = self.obj
         self.session.commit()
-        self.assertEqual(obj.coords, {'lat': 8.3, 'lon': -80.1, 'alt': 1400.0})
+        self.assertEqual(self.obj.coords,
+                         {'lat': 8.3, 'lon': -80.1, 'alt': 1400.0})
 
     def test_atomic_value_interpreted(self):
-        obj = Species.retrieve_or_create(
-            self.session, {'object': 'taxon',
-                           'ht-rank': 'genus',
-                           'rank': 'species',
-                           'ht-epithet': 'Laelia',
-                           'epithet': 'lobata'},
-            create=False, update=False)
-        self.assertEqual(obj.price, 19.50)
+        self.assertEqual(self.obj.price, 19.50)
 
     def test_atomic_value_verbatim(self):
-        obj = Species.retrieve_or_create(
-            self.session, {'object': 'taxon',
-                           'ht-rank': 'genus',
-                           'rank': 'species',
-                           'ht-epithet': 'Laelia',
-                           'epithet': 'lobata'},
-            create=False, update=False)
-        self.assertEqual(obj.price_tag, '$19.50')
+        self.assertEqual(self.obj.price_tag, '$19.50')
 
     def test_list_value(self):
-        obj = Species.retrieve_or_create(
-            self.session, {'object': 'taxon',
-                           'ht-rank': 'genus',
-                           'rank': 'species',
-                           'ht-epithet': 'Laelia',
-                           'epithet': 'lobata'},
-            create=False, update=False)
-        self.assertEqual(obj.list_var, ['abc', 'def'])
+        self.assertEqual(self.obj.list_var, ['abc', 'def'])
 
     def test_dict_value(self):
-        obj = Species.retrieve_or_create(
-            self.session, {'object': 'taxon',
-                           'ht-rank': 'genus',
-                           'rank': 'species',
-                           'ht-epithet': 'Laelia',
-                           'epithet': 'lobata'},
-            create=False, update=False)
-        self.assertEqual(obj.dict_var, {'k': 'abc', 'l': 'def', 'm': 'xyz'})
+        self.assertEqual(self.obj.dict_var,
+                         {'k': 'abc', 'l': 'def', 'm': 'xyz'})
 
 
 class ConservationStatus_test(PlantTestCase):
     "can retrieve the IUCN conservation status as defined in species"
 
     def test(self):
-        obj = Species.retrieve_or_create(
-            self.session, {'object': 'taxon',
-                           'ht-rank': 'genus',
-                           'ht-epithet': 'Encyclia',
-                           'rank': 'species',
-                           'epithet': 'fragrans'},
-            create=False, update=False)
+        obj = (self.session.query(Species)
+               .join(Genus)
+               .filter(Genus.epithet == 'Encyclia')
+               .filter(Species.epithet == 'fragrans')
+               .one())
         self.assertEqual(obj.conservation, 'LC')
 
 
@@ -2204,13 +2118,11 @@ from bauble.editor import GenericModelViewPresenterEditor, MockView
 
 class PresenterTest(PlantTestCase):
     def test_canreeditobject(self):
-        species = Species.retrieve_or_create(
-            self.session, {'object': 'taxon',
-                           'ht-rank': 'genus',
-                           'ht-epithet': 'Paphiopedilum',
-                           'rank': 'species',
-                           'epithet': 'adductum'},
-            create=False, update=False)
+        species = (self.session.query(Species)
+                   .join(Genus)
+                   .filter(Genus.epithet == 'Paphiopedilum')
+                   .filter(Species.epithet == 'adductum')
+                   .one())
         presenter = GenericModelViewPresenterEditor(species, MockView())
         species.author = 'wrong'
         presenter.commit_changes()
@@ -2222,13 +2134,11 @@ class PresenterTest(PlantTestCase):
         'while binomial name in view matches database item, warn user'
 
         from .species_editor import SpeciesEditorPresenter
-        model = Species.retrieve_or_create(
-            self.session, {'object': 'taxon',
-                           'ht-rank': 'genus',
-                           'ht-epithet': 'Laelia',
-                           'rank': 'species',
-                           'epithet': 'lobata'},
-            create=False, update=False)
+        model = (self.session.query(Species)
+                 .join(Genus)
+                 .filter(Genus.epithet == 'Laelia')
+                 .filter(Species.epithet == 'lobata')
+                 .one())
         presenter = SpeciesEditorPresenter(model, MockView())
         presenter.on_text_entry_changed('sp_species_entry', 'grandiflora')
 
@@ -2241,21 +2151,17 @@ class PresenterTest(PlantTestCase):
 
 class GlobalFunctionsTest(PlantTestCase):
     def test_species_markup_func(self):
-        eCo = Species.retrieve_or_create(
-            self.session, {'object': 'taxon',
-                           'ht-rank': 'genus',
-                           'ht-epithet': 'Maxillaria',
-                           'rank': 'species',
-                           'epithet': 'variabilis'},
-            create=False, update=False)
-        model = Species.retrieve_or_create(
-            self.session, {'object': 'taxon',
-                           'ht-rank': 'genus',
-                           'ht-epithet': 'Laelia',
-                           'rank': 'species',
-                           'epithet': 'lobata'},
-            create=False, update=False)
-        first, second = eCo.search_view_markup_pair()
+        sp1 = (self.session.query(Species)
+               .join(Genus)
+               .filter(Genus.epithet == 'Maxillaria')
+               .filter(Species.epithet == 'variabilis')
+               .one())
+        sp2 = (self.session.query(Species)
+               .join(Genus)
+               .filter(Genus.epithet == 'Laelia')
+               .filter(Species.epithet == 'lobata')
+               .one())
+        first, second = sp1.search_view_markup_pair()
         self.assertTrue(remove_zws(first).startswith(
             '<i>Maxillaria</i> <i>variabilis</i>'))
         expect = '<i>Maxillaria</i> <i>variabilis</i> <span weight="light">'\
@@ -2264,7 +2170,7 @@ class GlobalFunctionsTest(PlantTestCase):
             '(L.) Lemée</span>'
         self.assertEqual(remove_zws(first), expect)
         self.assertEqual(second, 'Orchidaceae -- SomeName, SomeName 2')
-        first, second = model.search_view_markup_pair()
+        first, second = sp2.search_view_markup_pair()
         self.assertEqual(remove_zws(first), '<i>Laelia</i> <i>lobata</i>')
         self.assertEqual(second, 'Orchidaceae')
 
