@@ -213,8 +213,10 @@ class History(HistoryBase):
     def add(cls, operation, mapper, connection, instance):
         """Add a new entry to the history table."""
         user = current_user()
-        logger.debug('adding history, operation; %s instance: %s', operation,
-                     instance)
+        # XXX logging here can cause test_get_create_or_update to fail when run
+        # seperately to the whole test suite (??)
+        # logger.debug('adding history, operation: %s instance: %s', operation,
+        #              instance)
 
         def _val(val):
             if isinstance(val, (datetime.datetime, datetime.date)):
