@@ -829,8 +829,8 @@ class GenusEditor(editor.GenericModelViewPresenterEditor):
         if response == self.RESPONSE_NEXT:
             self.presenter.cleanup()
             model = Genus(family=self.model.family)
-            e = GenusEditor(model=model, parent=self.parent)
-            more_committed = e.start()
+            editor = GenusEditor(model=model, parent=self.parent)
+            more_committed = editor.start()
         elif response == self.RESPONSE_OK_AND_ADD:
             sp = Species(genus=self.model)
             more_committed = edit_species(model=sp, parent_view=self.parent)

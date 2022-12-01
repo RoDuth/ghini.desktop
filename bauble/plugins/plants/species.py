@@ -199,9 +199,7 @@ class SynonymSearch(search.SearchStrategy):
                 models = (VernacularName, SpeciesSynonym)
                 id_ = result.species.id
             if models:
-                id_set = ids.get(models, set())
-                id_set.add(id_)
-                ids[models] = id_set
+                ids.setdefault(models, set()).add(id_)
         return ids
 
     def search(self, text, session=None):

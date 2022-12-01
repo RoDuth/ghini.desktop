@@ -186,9 +186,7 @@ class GardenPlugin(pluginmgr.Plugin):
             bauble.gui.add_to_insert_menu(LocationEditor, _('Location'))
             bauble.gui.add_to_insert_menu(create_source_detail, _('Source'))
 
-        # if the plant delimiter isn't in the bauble meta then add the default
         from bauble import meta
-        meta.get_default(plant_delimiter_key, default_plant_delimiter)
 
         def get_default_acc_code_format():
             session = db.Session()

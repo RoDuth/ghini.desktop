@@ -709,9 +709,11 @@ class Plant(db.Base, db.Serializable, db.WithNotes):
                 '\n\nNote that any accession numbers/codes created before '
                 'this change (that used the previous plant delimiter) will '
                 'not change, you may need to do this manually.')
-        cls._delimiter = meta.set_value(plant_delimiter_key,
-                                        default_plant_delimiter,
-                                        msg).value
+        delimeter = meta.set_value(plant_delimiter_key,
+                                   default_plant_delimiter,
+                                   msg)
+        if delimeter:
+            cls._delimiter = delimeter.value
         return cls._delimiter
 
     @property
@@ -884,7 +886,8 @@ def plant_after_update(_mapper, connection, target):  \
         else:
             logger.debug("creating new change with %s", values)
             connection.execute(
-                PlantChange.__table__.insert().values(values))
+                PlantChange.__table__.insert().values(values)
+            )
 
 
 @event.listens_for(Plant, 'after_insert')

@@ -79,7 +79,7 @@ class Enum(types.TypeDecorator):
         self.empty_to_none = empty_to_none
         # the length of the string/unicode column should be the
         # longest string in values
-        size = max([len(v) for v in values if v is not None])
+        size = max(len(v) for v in values if v is not None)
         super().__init__(size, **kwargs)
 
     def process_bind_param(self, value, dialect):

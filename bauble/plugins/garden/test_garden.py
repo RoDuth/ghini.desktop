@@ -238,6 +238,7 @@ class PlantTests(GardenTestCase):
         self.location = self.create(Location, name='site', code='STE')
         self.plant = self.create(Plant, accession=self.accession,
                                  location=self.location, code='1', quantity=1)
+        self.session.add_all([self.accession, self.location, self.plant])
         self.session.commit()
 
     def tearDown(self):

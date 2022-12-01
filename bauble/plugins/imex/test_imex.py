@@ -1818,7 +1818,7 @@ class GenericExporterTests(BaubleTestCase):
         from bauble.plugins.plants.geography import (Geography,
                                                      geography_importer)
         [_ for _ in geography_importer()]
-        item = self.session.query(Geography).filter(
-            Geography.tdwg_code == 50).one()
+        item = (self.session.query(Geography)
+                .filter(Geography.tdwg_code == '50').one())
         val = GenericExporter.get_item_record(item, {'name': 'name'})
         self.assertEqual(val, {'name': 'Australia'})
