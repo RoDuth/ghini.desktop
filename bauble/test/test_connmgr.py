@@ -186,7 +186,6 @@ class ConnMgrPresenterTests(BaubleTestCase):
             'expander'))
         self.assertFalse(presenter.view.widget_get_visible(
             'noconnectionlabel'))
-        self.assertTrue('combobox_set_active' in view.invoked)
 
     def test_one_connection_shown_and_selected_sqlite(self):
         view = MockView(combos={'name_combo': [],

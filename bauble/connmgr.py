@@ -386,8 +386,6 @@ class ConnMgrPresenter(GenericEditorPresenter):
         if not self.view.run_yes_no_dialog(msg):
             return
         self.remove_connection(self.connection_name)
-        if self.connection_names:
-            self.view.combobox_set_active('name_combo', 0)
 
     def on_add_button_clicked(self, _button):
         if not self.are_prefs_already_saved(self.prev_connection_name):
