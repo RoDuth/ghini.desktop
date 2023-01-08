@@ -602,12 +602,17 @@ class Tag(db.Base):
             # tag must have been removed or session lost
             if session is None:
                 return []
-            last_history = (session.query(db.History)
+
+            last_history = (session.query(db.History.timestamp)
                             .order_by(db.History.timestamp.desc())
                             .limit(1)
-                            .one())
-            if last_history.timestamp > self.__my_own_timestamp:
+                            .scalar())
+            # last_history can be None when no history (i.e. a recent restore
+            # of older data where history table has been dropped) note:
+            # __last_objects will be None first run.
+            if last_history and last_history > self.__my_own_timestamp:
                 self.__last_objects = None
+
         if self.__last_objects is None:
             # here I update my list
             from datetime import datetime
@@ -732,7 +737,7 @@ def _get_tagged_object_pair(obj):
         module_name, _part, cls_name = str(obj.obj_class).rpartition('.')
         module = import_module(module_name)
         cls = getattr(module, cls_name)
-        return(cls, obj.obj_id)
+        return cls, obj.obj_id
     except (KeyError, DBAPIError, AttributeError) as e:
         logger.warning('_get_tagged_object_pair (%s) error: %s:%s', obj,
                        type(e).__name__, e)
