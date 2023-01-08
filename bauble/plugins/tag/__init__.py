@@ -394,7 +394,7 @@ def remove_callback(tags):
     return True
 
 
-edit_action = Action('acc_edit', _('_Edit'),
+edit_action = Action('tag_edit', _('_Edit'),
                      callback=edit_callback,
                      accelerator='<ctrl>e')
 
