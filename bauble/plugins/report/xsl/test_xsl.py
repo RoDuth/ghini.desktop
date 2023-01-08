@@ -28,7 +28,6 @@ from bauble import paths
 from bauble import prefs
 from bauble.error import BaubleError
 from bauble.test import BaubleTestCase
-# from bauble.editor import MockView, MockDialog
 from bauble.plugins.garden import test_garden as garden_test
 from bauble.plugins.plants import test_plants as plants_test
 from bauble.plugins.plants.species import Species

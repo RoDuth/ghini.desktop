@@ -14,11 +14,15 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
+"""
+Global hooks, etc. for pytest.
+"""
 import shutil
 from bauble import paths
 
 
 def pytest_sessionfinish(session, exitstatus):
+    # pylint: disable=unused-argument
     """Called after all test have finished."""
     print()
     print(f'==sessionfinish== removing tempdir at {paths.TEMPDIR}')

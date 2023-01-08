@@ -827,8 +827,7 @@ def get_related_class(model, path):
     # we have one relationship with a synonym - default_vernacular_name
     if syn := model.__mapper__.synonyms.get(relation):
         relation = syn.name
-    model = model.__mapper__.relationships.get(
-        relation).mapper.class_
+    model = model.__mapper__.relationships.get(relation).mapper.class_
     return get_related_class(model, path)
 
 

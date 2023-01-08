@@ -564,6 +564,7 @@ class StatementAction:  # pylint: disable=too-few-public-methods
         return str(self.content)
 
 
+# TODO move this to its own strategy and place it in species.py
 class BinomialNameAction:
     """created when the parser hits a binomial_name token.
 

@@ -110,7 +110,6 @@ class TestMultiprocCounter(TestCase):
             for proc in procs:
                 result = proc.get(9.0)
                 results.append(result)
-                pool.terminate()
 
         for result in results:
             self.assertEqual(len(result), 1)

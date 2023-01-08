@@ -36,13 +36,11 @@ from bauble import prefs
 from bauble.test import (BaubleTestCase,
                          check_dupids,
                          mockfunc,
-                         update_gui,
-                         wait_on_threads)
+                         update_gui)
 from . import SplashInfoBox
 from .species import (Species,
                       VernacularName,
                       SpeciesSynonym,
-                      edit_species,
                       SpeciesEditor,
                       DefaultVernacularName,
                       SpeciesDistribution,
@@ -50,6 +48,7 @@ from .species import (Species,
 from .species_editor import (species_to_string_matcher,
                              species_match_func,
                              generic_sp_get_completions)
+from .species_model import _remove_zws as remove_zws
 from .family import Family, FamilySynonym, FamilyEditor, FamilyNote
 from .genus import Genus, GenusSynonym, GenusEditor, GenusNote
 from .geography import Geography, get_species_in_geography, geography_importer
@@ -67,9 +66,6 @@ from .geography import Geography, get_species_in_geography, geography_importer
 # deletes the synonym
 
 # TODO: create some scenarios that should fail
-
-
-from bauble.plugins.plants.species_model import _remove_zws as remove_zws
 
 
 family_test_data = (
