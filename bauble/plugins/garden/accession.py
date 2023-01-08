@@ -2094,7 +2094,9 @@ class AccessionEditorPresenter(editor.GenericEditorPresenter):
                 Accession.code_format = query.first().value
             values = [r.value for r in query]
         for value in values:
-            self.view.widgets.acc_code_format_comboentry.append_text(value)
+            # Don't append entry_one twice
+            if value != entry_one:
+                self.view.widgets.acc_code_format_comboentry.append_text(value)
 
     def on_acc_code_format_comboentry_changed(self, combobox, *_args):
         code_format = (self.view.widget_get_value(combobox) or
