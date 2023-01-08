@@ -16,7 +16,6 @@ for:
       - image: macos
 
   install:
-    - rm '/usr/local/include/X11'
     - brew install pygobject3 gtk+3 adwaita-icon-theme openjdk
 
   build_script:
