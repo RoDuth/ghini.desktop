@@ -989,6 +989,10 @@ class SourceDetail(db.Base, db.Serializable):
         return query.count()
 
 
+# backwards compatibility (e.g. Tags, History)
+Contact = SourceDetail
+
+
 class SourceDetailPresenter(editor.GenericEditorPresenter):
 
     widget_to_field_map = {'source_name_entry': 'name',
