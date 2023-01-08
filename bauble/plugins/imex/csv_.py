@@ -186,7 +186,6 @@ class CSVRestore:
                         bauble.task.queue(self.acc_upgrader(filenames))
                         bauble.task.queue(self.changes_upgrader(filenames))
 
-                # TODO bump version
                 if version < '1.3.0-b3':
                     msg = (_('You are importing data from a version prior '
                              'to v1.3.0-b3?\n\nSome tables have changed '
@@ -766,11 +765,12 @@ class CSVRestore:
                                 line[column] = None
                             elif column not in line:
                                 line[column] = None
-                            elif column == 'geojson':
-                                # eval json data
+                            elif (table.c[column].type.__class__.__name__ ==
+                                  'JSON'):
                                 from ast import literal_eval
                                 line[column] = literal_eval(
-                                    line.get(column, 'None'))
+                                    line.get(column, 'None')
+                                )
                             elif ((filename.endswith('bauble.csv') or
                                    filename.endswith('bauble.txt')) and
                                   line.get(column) == 'version'):
