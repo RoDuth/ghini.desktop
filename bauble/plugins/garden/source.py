@@ -1,7 +1,7 @@
 # Copyright 2008-2010 Brett Adams
 # Copyright 2015-2016 Mario Frasca <mario@anche.no>.
 # Copyright 2017 Jardín Botánico de Quito
-# Copyright 2020-2022 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright 2020-2023 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -981,9 +981,12 @@ class SourceDetail(db.Base, db.Serializable):
 
     def count_children(self):
         session = object_session(self)
-        return (session.query(Source.id)
-                .filter(Source.source_detail_id == self.id)
-                .count())
+        query = (session.query(Source.id)
+                 .filter(Source.source_detail_id == self.id))
+        if prefs.prefs.get(prefs.exclude_inactive_pref):
+            cls = Source.accession.prop.mapper.class_
+            query = query.join(cls).filter(cls.active.is_(True))
+        return query.count()
 
 
 class SourceDetailPresenter(editor.GenericEditorPresenter):

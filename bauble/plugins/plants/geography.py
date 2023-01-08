@@ -1,6 +1,6 @@
 # Copyright 2008-2010 Brett Adams
 # Copyright 2012-2015 Mario Frasca <mario@anche.no>.
-# Copyright 2021-2022 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright 2021-2023 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -256,10 +256,13 @@ class Geography(db.Base):
             parent_ids = [i[0] for i in child_id]
             ids.update(parent_ids)
 
-        return (session.query(SpeciesDistribution.species_id)
-                .filter(SpeciesDistribution.geography_id.in_(ids))
-                .distinct()
-                .count())
+        query = (session.query(SpeciesDistribution.species_id)
+                 .filter(SpeciesDistribution.geography_id.in_(ids))
+                 .distinct())
+        if prefs.prefs.get(prefs.exclude_inactive_pref):
+            cls = SpeciesDistribution.species.prop.mapper.class_
+            query = query.join(cls).filter(cls.active.is_(True))
+        return query.count()
 
 
 class GeneralGeographyExpander(InfoExpander):

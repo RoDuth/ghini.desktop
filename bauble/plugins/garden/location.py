@@ -1,6 +1,6 @@
 # Copyright 2008-2010 Brett Adams
 # Copyright 2015 Mario Frasca <mario@anche.no>.
-# Copyright 2020-2022 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright 2020-2023 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -209,11 +209,12 @@ class Location(db.Base, db.Serializable, db.WithNotes):
         return str(self.code)
 
     def top_level_count(self):
-        accessions = set(p.accession for p in self.plants)
+        plants = db.get_active_children('plants', self)
+        accessions = set(p.accession for p in plants)
         species = set(a.species for a in accessions)
         genera = set(s.genus for s in species)
         return {(1, 'Locations'): 1,
-                (2, 'Plantings'): len(self.plants),
+                (2, 'Plantings'): len(plants),
                 (3, 'Living plants'): sum(p.quantity for p in self.plants),
                 (4, 'Accessions'): set(a.id for a in accessions),
                 (5, 'Species'): set(s.id for s in species),
@@ -234,7 +235,10 @@ class Location(db.Base, db.Serializable, db.WithNotes):
     def count_children(self):
         cls = self.__class__.plants.prop.mapper.class_
         session = object_session(self)
-        return session.query(cls.id).filter(cls.location_id == self.id).count()
+        query = session.query(cls.id).filter(cls.location_id == self.id)
+        if prefs.prefs.get(prefs.exclude_inactive_pref):
+            query = query.filter(cls.active.is_(True))
+        return query.count()
 
 
 def mergevalues(value1, value2, formatter):

@@ -1,5 +1,5 @@
 # pylint: disable=missing-module-docstring
-# Copyright (c) 2022 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright (c) 2022-2023 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -149,6 +149,22 @@ class TestSearchView(BaubleTestCase):
                                  f'{obj}: {kids}')
 
     def test_all_domains_w_children_count_children_returns_correct(self):
+        search_view = self.search_view
+        for func in get_setUp_data_funcs():
+            func()
+        for cls in search.MapperSearch.get_domain_classes().values():
+            if not SearchView.row_meta[cls].children:
+                continue
+            for obj in self.session.query(cls):
+                self.assertIsInstance(obj.count_children(), int, cls)
+                kids = search_view.row_meta[cls].get_children(obj)
+                kids_count = len(kids)
+                self.assertEqual(obj.count_children(), kids_count,
+                                 f'{obj}: {kids}')
+
+    def test_all_domains_w_children_count_children_returns_active(self):
+        prefs.prefs[prefs.exclude_inactive_pref] = True
+
         search_view = self.search_view
         for func in get_setUp_data_funcs():
             func()
@@ -415,7 +431,7 @@ class TestSearchView(BaubleTestCase):
         for func in get_setUp_data_funcs():
             func()
         search_view = self.search_view
-        search_view.search('genus where id > 1 and id < 5')
+        search_view.search('genus where id > 3 and id < 7')
 
         start = search_view.get_selected_values()
 

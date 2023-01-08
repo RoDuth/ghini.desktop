@@ -1,5 +1,5 @@
 # Copyright (c) 2017 Mario Frasca <mario@anche.no>
-# Copyright (c) 2021 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright (c) 2021-2023 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -107,9 +107,10 @@ class SchemaMenuTests(BaubleTestCase):
     def test_menu_populates_w_plants(self):
         schema_menu = SchemaMenu(class_mapper(Plant), self.menu_activated)
         for i in class_mapper(Plant).all_orm_descriptors:
-            self.assertTrue(i.key in [j.get_label() for j in
-                                      schema_menu.get_children()],
-                            f'key:{i.key} not found in schema menu')
+            key = self.key(i)
+            self.assertTrue(key in [j.get_label() for j in
+                                    schema_menu.get_children()],
+                            f'key:{key} not found in schema menu')
 
     def test_menu_populates_w_species(self):
         mapper = class_mapper(Species)
@@ -132,9 +133,10 @@ class SchemaMenuTests(BaubleTestCase):
                                  self.menu_activated,
                                  selectable_relations=True)
         for i in class_mapper(Plant).all_orm_descriptors:
-            self.assertTrue(i.key in [j.get_label() for j in
-                                      schema_menu.get_children()],
-                            f'key:{i.key} not found in schema menu')
+            key = self.key(i)
+            self.assertTrue(key in [j.get_label() for j in
+                                    schema_menu.get_children()],
+                            f'key:{key} not found in schema menu')
             self.assertTrue(
                 'plant' in [i.get_label() for i in schema_menu.get_children()])
         items = {i.get_label(): i for i in schema_menu.get_children()}
@@ -143,7 +145,7 @@ class SchemaMenuTests(BaubleTestCase):
 
     def test_column_filter(self):
         def test_filter(prop):
-            if prop.key == 'code':
+            if hasattr(prop, 'key') and prop.key == 'code':
                 return False
             return True
 
@@ -156,7 +158,7 @@ class SchemaMenuTests(BaubleTestCase):
 
     def test_relation_filter(self):
         def test_filter(prop):
-            if prop.key == 'accession':
+            if hasattr(prop, 'key') and prop.key == 'accession':
                 return False
             return True
 

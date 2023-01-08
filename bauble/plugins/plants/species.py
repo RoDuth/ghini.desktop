@@ -1,7 +1,7 @@
 # Copyright 2008-2010 Brett Adams
 # Copyright 2012-2015 Mario Frasca <mario@anche.no>.
 # Copyright 2017 Jardín Botánico de Quito
-# Copyright 2020-2021 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright 2020-2023 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -32,6 +32,7 @@ from gi.repository import Gtk  # noqa
 from gi.repository import Pango
 
 from sqlalchemy.orm.session import object_session
+from sqlalchemy import or_
 
 import bauble
 from bauble import paths
@@ -144,39 +145,32 @@ species_context_menu = [edit_action, remove_action]
 vernname_context_menu = [edit_action]
 
 
-return_accepted_pref = 'bauble.search.return_accepted'
-"""
-The preferences key for also returning accepted names for results that are
-considered synonyms.
-"""
-
-
 def on_taxa_clicked(_label, _event, taxon):
     """Function intended for use with :func:`utils.make_label_clickable`
 
     if the return_accepted_pref is set True then select both the name synonym
     clicked on and its accepted name.
     """
-    if prefs.prefs.get(return_accepted_pref) and taxon.accepted:
+    if prefs.prefs.get(prefs.return_accepted_pref) and taxon.accepted:
         select_in_search_results(taxon.accepted)
     select_in_search_results(taxon)
 
 
 class SynonymSearch(search.SearchStrategy):
-    """Return any synonyms for matching species.
+    """Return any synonyms for matching taxa.
 
     'bauble.search.return_accepted' pref toggles this.
     """
 
     def __init__(self):
         super().__init__()
-        if return_accepted_pref not in prefs.prefs:
-            prefs.prefs[return_accepted_pref] = True
+        if prefs.return_accepted_pref not in prefs.prefs:
+            prefs.prefs[prefs.return_accepted_pref] = True
             prefs.prefs.save()
 
     @staticmethod
     def use(_text):
-        if prefs.prefs.get(return_accepted_pref):
+        if prefs.prefs.get(prefs.return_accepted_pref):
             return 'include'
         return 'exclude'
 
@@ -207,7 +201,7 @@ class SynonymSearch(search.SearchStrategy):
         results
         """
         super().search(text, session)
-        if not prefs.prefs.get(return_accepted_pref):
+        if not prefs.prefs.get(prefs.return_accepted_pref):
             # filter should prevent us getting here.
             return []
         mapper_results = search.result_cache.get('MapperSearch')
@@ -235,6 +229,11 @@ class SynonymSearch(search.SearchStrategy):
                 query = (session.query(models[0])
                          .join(models[1], syn_model_id == id_)
                          .filter(syn_id.in_(id_set)))
+            if (prefs.prefs.get(prefs.exclude_inactive_pref) and
+                    hasattr(models[0], 'active')):
+                query = query.filter(or_(models[0].active.is_(True),
+                                         models[1].synonym.has(active=True)))
+
             results.extend(query.all())
         return results
 

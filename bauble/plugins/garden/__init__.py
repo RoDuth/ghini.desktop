@@ -1,7 +1,7 @@
 # Copyright 2008-2010 Brett Adams
 # Copyright 2015 Mario Frasca <mario@anche.no>.
 # Copyright 2017 Jardín Botánico de Quito
-# Copyright 2020-2022 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright 2020-2023 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -27,14 +27,16 @@ import logging
 from random import random
 logger = logging.getLogger(__name__)
 
-from sqlalchemy.orm import object_session, eagerload
+from sqlalchemy.orm import object_session
 
 from gi.repository import Gtk
+from gi.repository import GLib
 from gi.repository import Gio
 
 import bauble
 
 from bauble import utils
+from bauble import prefs
 from bauble import db
 from bauble import pluginmgr
 from bauble.view import SearchView, HistoryView
@@ -128,13 +130,15 @@ class GardenPlugin(pluginmgr.Plugin):
         from functools import partial
         mapper_search.add_meta(('accession', 'acc'), Accession, ['code'])
         SearchView.row_meta[Accession].set(
-            children=partial(db.natsort, "plants"),
+            children=partial(db.get_active_children,
+                             partial(db.natsort, "plants")),
             infobox=AccessionInfoBox,
             context_menu=acc_context_menu)
 
         mapper_search.add_meta(('location', 'loc'), Location, ['name', 'code'])
         SearchView.row_meta[Location].set(
-            children=partial(db.natsort, 'plants'),
+            children=partial(db.get_active_children,
+                             partial(db.natsort, "plants")),
             infobox=LocationInfoBox,
             context_menu=loc_context_menu)
 
@@ -156,13 +160,12 @@ class GardenPlugin(pluginmgr.Plugin):
             results = (session.query(Accession)
                        .join(Source)
                        .join(SourceDetail)
-                       .options(eagerload('species'))
                        .filter(SourceDetail.id == detail.id)
                        .all())
             return results
 
         SearchView.row_meta[SourceDetail].set(
-            children=sd_kids,
+            children=partial(db.get_active_children, sd_kids),
             infobox=SourceDetailInfoBox,
             context_menu=source_detail_context_menu)
 
@@ -173,7 +176,7 @@ class GardenPlugin(pluginmgr.Plugin):
             return sorted(coll.source.accession.plants, key=utils.natsort_key)
 
         SearchView.row_meta[Collection].set(
-            children=coll_kids,
+            children=partial(db.get_active_children, coll_kids),
             infobox=AccessionInfoBox,
             context_menu=collection_context_menu)
 
@@ -266,11 +269,36 @@ class GardenPlugin(pluginmgr.Plugin):
         )
         if bauble.gui and not cls.options_menu_set:
             cls.options_menu_set = True
+
+            inactive_action = Gio.SimpleAction.new_stateful(
+                "inactive_toggled",
+                None,
+                GLib.Variant.new_boolean(
+                    prefs.prefs.get(prefs.exclude_inactive_pref, True)
+                )
+            )
+            inactive_action.connect("change-state",
+                                    cls.on_inactive_toggled)
+            bauble.gui.window.add_action(inactive_action)
+
+            item = Gio.MenuItem.new(_('Exclude Inactive'),
+                                    'win.inactive_toggled')
+            bauble.gui.options_menu.append_item(item)
+
             bauble.gui.add_action("set_delimiter", Plant.set_delimiter)
 
-            item = Gio.MenuItem.new(_('Set global delimiter'),
+            item = Gio.MenuItem.new(_('Set Global Delimiter'),
                                     'win.set_delimiter')
             bauble.gui.options_menu.append_item(item)
+
+    @staticmethod
+    def on_inactive_toggled(action, value):
+        action.set_state(value)
+
+        prefs.prefs[prefs.exclude_inactive_pref] = value.get_boolean()
+        if isinstance(view := bauble.gui.get_view(),
+                      (prefs.PrefsView, bauble.ui.DefaultView)):
+            view.update()
 
 
 def init_location_comboentry(presenter, combo, on_select, required=True):

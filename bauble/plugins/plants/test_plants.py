@@ -1,7 +1,7 @@
 # Copyright 2008-2010 Brett Adams
 # Copyright 2015 Mario Frasca <mario@anche.no>.
 # Copyright 2017 Jardín Botánico de Quito
-# Copyright 2021-2022 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright 2021-2023 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -33,7 +33,12 @@ from sqlalchemy.exc import IntegrityError
 
 from bauble import utils, search, db
 from bauble import prefs
-from bauble.test import BaubleTestCase, check_dupids, mockfunc, update_gui
+from bauble.test import (BaubleTestCase,
+                         check_dupids,
+                         mockfunc,
+                         update_gui,
+                         wait_on_threads)
+from . import SplashInfoBox
 from .species import (Species,
                       VernacularName,
                       SpeciesSynonym,
@@ -570,6 +575,70 @@ class FamilyTests(PlantTestCase):
         self.assertEqual(fam3.accepted, fam1)
         self.assertEqual(fam4.accepted, None)
 
+    def test_top_level_count_w_plant_qty(self):
+        from ..garden import Accession, Plant, Location
+        fam = Family(family='Myrtaceae')
+        gen = Genus(epithet='Syzygium', family=fam)
+        sp = Species(epithet='australe', genus=gen)
+        acc = Accession(species=sp, code='1')
+        plant = Plant(accession=acc,
+                      quantity=1,
+                      location=Location(name='site', code='STE'),
+                      code='1')
+        self.session.add_all([fam, gen, sp, acc, plant])
+        self.session.commit()
+        self.assertEqual(len(fam.top_level_count()[(1, 'Families')]), 1)
+        self.assertEqual(len(fam.top_level_count()[(2, 'Genera')]), 1)
+        self.assertEqual(len(fam.top_level_count()[(3, 'Species')]), 1)
+        self.assertEqual(fam.top_level_count()[(4, 'Accessions')], 1)
+        self.assertEqual(fam.top_level_count()[(5, 'Plantings')], 1)
+        self.assertEqual(fam.top_level_count()[(6, 'Living plants')], 1)
+        self.assertEqual(len(fam.top_level_count()[(7, 'Locations')]), 1)
+        self.assertEqual(len(fam.top_level_count()[(8, 'Sources')]), 0)
+
+    def test_top_level_count_wo_plant_qty(self):
+        from ..garden import Accession, Plant, Location
+        fam = Family(family='Myrtaceae')
+        gen = Genus(epithet='Syzygium', family=fam)
+        sp = Species(epithet='australe', genus=gen)
+        acc = Accession(species=sp, code='1')
+        plant = Plant(accession=acc,
+                      quantity=0,
+                      location=Location(name='site', code='STE'),
+                      code='1')
+        self.session.add_all([fam, gen, sp, acc, plant])
+        self.session.commit()
+        self.assertEqual(len(fam.top_level_count()[(1, 'Families')]), 1)
+        self.assertEqual(len(fam.top_level_count()[(2, 'Genera')]), 1)
+        self.assertEqual(len(fam.top_level_count()[(3, 'Species')]), 1)
+        self.assertEqual(fam.top_level_count()[(4, 'Accessions')], 1)
+        self.assertEqual(fam.top_level_count()[(5, 'Plantings')], 1)
+        self.assertEqual(fam.top_level_count()[(6, 'Living plants')], 0)
+        self.assertEqual(len(fam.top_level_count()[(7, 'Locations')]), 1)
+        self.assertEqual(len(fam.top_level_count()[(8, 'Sources')]), 0)
+
+    def test_top_level_count_wo_plant_qty_exclude_inactive_set(self):
+        from ..garden import Accession, Plant, Location
+        fam = Family(family='Myrtaceae')
+        gen = Genus(epithet='Syzygium', family=fam)
+        sp = Species(epithet='australe', genus=gen)
+        acc = Accession(species=sp, code='1')
+        plant = Plant(accession=acc,
+                      quantity=0,
+                      location=Location(name='site', code='STE'),
+                      code='1')
+        self.session.add_all([fam, gen, sp, acc, plant])
+        self.session.commit()
+        prefs.prefs[prefs.exclude_inactive_pref] = True
+        self.assertEqual(len(fam.top_level_count()[(1, 'Families')]), 1)
+        self.assertEqual(len(fam.top_level_count()[(2, 'Genera')]), 1)
+        self.assertEqual(len(fam.top_level_count()[(3, 'Species')]), 0)
+        self.assertEqual(fam.top_level_count()[(4, 'Accessions')], 0)
+        self.assertEqual(fam.top_level_count()[(5, 'Plantings')], 0)
+        self.assertEqual(fam.top_level_count()[(6, 'Living plants')], 0)
+        self.assertEqual(len(fam.top_level_count()[(7, 'Locations')]), 0)
+        self.assertEqual(len(fam.top_level_count()[(8, 'Sources')]), 0)
+
 
 class GenusTests(PlantTestCase):
 
@@ -796,6 +865,147 @@ class GenusTests(PlantTestCase):
         utils.yes_no_dialog = orig_yes_no_dialog
         utils.message_dialog = orig_message_dialog
         utils.message_details_dialog = orig_message_details_dialog
+
+    def test_count_children_wo_plants(self):
+        from ..garden import Accession
+        fam = Family(family='Myrtaceae')
+        gen = Genus(epithet='Syzygium', family=fam)
+        sp = Species(epithet='australe', genus=gen)
+        acc = Accession(species=sp, code='1')
+        self.session.add_all([fam, gen, sp, acc])
+        self.session.commit()
+
+        self.assertEqual(gen.count_children(), 1)
+
+    def test_count_children_w_plant_w_qty(self):
+        from ..garden import Accession, Plant, Location
+        fam = Family(family='Myrtaceae')
+        gen = Genus(epithet='Syzygium', family=fam)
+        sp = Species(epithet='australe', genus=gen)
+        acc = Accession(species=sp, code='1')
+        plant = Plant(accession=acc,
+                      quantity=1,
+                      location=Location(name='site', code='STE'),
+                      code='1')
+        self.session.add_all([fam, gen, sp, acc, plant])
+        self.session.commit()
+
+        self.assertEqual(gen.count_children(), 1)
+
+    def test_count_children_w_plant_w_qty_exclude_inactive_set(self):
+        # should be the same as if exclude inactive not set.
+        from ..garden import Accession, Plant, Location
+        fam = Family(family='Myrtaceae')
+        gen = Genus(epithet='Syzygium', family=fam)
+        sp = Species(epithet='australe', genus=gen)
+        acc = Accession(species=sp, code='1')
+        plant = Plant(accession=acc,
+                      quantity=1,
+                      location=Location(name='site', code='STE'),
+                      code='1')
+        self.session.add_all([fam, gen, sp, acc, plant])
+        self.session.commit()
+
+        prefs.prefs[prefs.exclude_inactive_pref] = True
+
+        self.assertEqual(gen.count_children(), 1)
+
+    def test_count_children_w_plant_wo_qty(self):
+        from ..garden import Accession, Plant, Location
+        fam = Family(family='Myrtaceae')
+        gen = Genus(epithet='Syzygium', family=fam)
+        sp = Species(epithet='australe', genus=gen)
+        acc = Accession(species=sp, code='1')
+        plant = Plant(accession=acc,
+                      quantity=0,
+                      location=Location(name='site', code='STE'),
+                      code='1')
+        self.session.add_all([fam, gen, sp, acc, plant])
+        self.session.commit()
+
+        self.assertEqual(gen.count_children(), 1)
+
+    def test_count_children_w_plant_wo_qty_exclude_inactive_set(self):
+        from ..garden import Accession, Plant, Location
+        fam = Family(family='Myrtaceae')
+        gen = Genus(epithet='Syzygium', family=fam)
+        sp = Species(epithet='australe', genus=gen)
+        acc = Accession(species=sp, code='1')
+        plant = Plant(accession=acc,
+                      quantity=0,
+                      location=Location(name='site', code='STE'),
+                      code='1')
+        self.session.add_all([fam, gen, sp, acc, plant])
+        self.session.commit()
+
+        prefs.prefs[prefs.exclude_inactive_pref] = True
+
+        self.assertEqual(gen.count_children(), 0)
+
+    def test_top_level_count_w_plant_qty(self):
+        from ..garden import Accession, Plant, Location
+        fam = Family(family='Myrtaceae')
+        gen = Genus(epithet='Syzygium', family=fam)
+        sp = Species(epithet='australe', genus=gen)
+        acc = Accession(species=sp, code='1')
+        plant = Plant(accession=acc,
+                      quantity=1,
+                      location=Location(name='site', code='STE'),
+                      code='1')
+        self.session.add_all([fam, gen, sp, acc, plant])
+        self.session.commit()
+        self.assertEqual(len(gen.top_level_count()[(1, 'Genera')]), 1)
+        self.assertEqual(len(gen.top_level_count()[(2, 'Families')]), 1)
+        self.assertEqual(gen.top_level_count()[(3, 'Species')], 1)
+        self.assertEqual(gen.top_level_count()[(4, 'Accessions')], 1)
+        self.assertEqual(gen.top_level_count()[(5, 'Plantings')], 1)
+        self.assertEqual(gen.top_level_count()[(6, 'Living plants')], 1)
+        self.assertEqual(len(gen.top_level_count()[(7, 'Locations')]), 1)
+        self.assertEqual(len(gen.top_level_count()[(8, 'Sources')]), 0)
+
+    def test_top_level_count_wo_plant_qty(self):
+        from ..garden import Accession, Plant, Location
+        fam = Family(family='Myrtaceae')
+        gen = Genus(epithet='Syzygium', family=fam)
+        sp = Species(epithet='australe', genus=gen)
+        acc = Accession(species=sp, code='1')
+        plant = Plant(accession=acc,
+                      quantity=0,
+                      location=Location(name='site', code='STE'),
+                      code='1')
+        self.session.add_all([fam, gen, sp, acc, plant])
+        self.session.commit()
+        self.assertEqual(len(gen.top_level_count()[(1, 'Genera')]), 1)
+        self.assertEqual(len(gen.top_level_count()[(2, 'Families')]), 1)
+        self.assertEqual(gen.top_level_count()[(3, 'Species')], 1)
+        self.assertEqual(gen.top_level_count()[(4, 'Accessions')], 1)
+        self.assertEqual(gen.top_level_count()[(5, 'Plantings')], 1)
+        self.assertEqual(gen.top_level_count()[(6, 'Living plants')], 0)
+        self.assertEqual(len(gen.top_level_count()[(7, 'Locations')]), 1)
+        self.assertEqual(len(gen.top_level_count()[(8, 'Sources')]), 0)
+
+    def test_top_level_count_wo_plant_qty_exclude_inactive_set(self):
+        from ..garden import Accession, Plant, Location
+        fam = Family(family='Myrtaceae')
+        gen = Genus(epithet='Syzygium', family=fam)
+        sp = Species(epithet='australe', genus=gen)
+        acc = Accession(species=sp, code='1')
+        plant = Plant(accession=acc,
+                      quantity=0,
+                      location=Location(name='site', code='STE'),
+                      code='1')
+        self.session.add_all([fam, gen, sp, acc, plant])
+        self.session.commit()
+        prefs.prefs[prefs.exclude_inactive_pref] = True
+        self.assertEqual(len(gen.top_level_count()[(1, 'Genera')]), 1)
+        self.assertEqual(len(gen.top_level_count()[(2, 'Families')]), 1)
+        self.assertEqual(gen.top_level_count()[(3, 'Species')], 0)
+        self.assertEqual(gen.top_level_count()[(4, 'Accessions')], 0)
+        self.assertEqual(gen.top_level_count()[(5, 'Plantings')], 0)
+        self.assertEqual(gen.top_level_count()[(6, 'Living plants')], 0)
+        self.assertEqual(len(gen.top_level_count()[(7, 'Locations')]), 0)
+        self.assertEqual(len(gen.top_level_count()[(8, 'Sources')]), 0)
+
 
 
 class GenusSynonymyTests(PlantTestCase):
@@ -1365,6 +1575,214 @@ class SpeciesTests(PlantTestCase):
         utils.yes_no_dialog = orig_yes_no_dialog
         utils.message_dialog = orig_message_dialog
         utils.message_details_dialog = orig_message_details_dialog
+
+    def test_active_no_accessions(self):
+        from ..garden.accession import Accession
+        fam = Family(family='Myrtaceae')
+        gen = Genus(epithet='Syzygium', family=fam)
+        sp = Species(epithet='australe', genus=gen)
+        self.session.add_all([fam, gen, sp])
+        self.session.commit()
+        self.assertTrue(sp.active)
+        # test the hybrid_property expression
+        # pylint: disable=no-member
+        sp_active_in_db = (self.session.query(Species)
+                           .filter(Species.active.is_(True)))
+        self.assertIn(sp, sp_active_in_db)
+
+    def test_active_no_plants(self):
+        from ..garden.accession import Accession
+        fam = Family(family='Myrtaceae')
+        gen = Genus(epithet='Syzygium', family=fam)
+        sp = Species(epithet='australe', genus=gen)
+        acc = Accession(species=sp, code='1')
+        self.session.add_all([fam, gen, sp, acc])
+        self.session.commit()
+        self.assertTrue(sp.active)
+        # test the hybrid_property expression
+        # pylint: disable=no-member
+        sp_active_in_db = (self.session.query(Species)
+                           .filter(Species.active.is_(True)))
+        self.assertIn(sp, sp_active_in_db)
+
+    def test_active_plants_w_qty(self):
+        from ..garden import Accession, Plant, Location
+        fam = Family(family='Myrtaceae')
+        gen = Genus(epithet='Syzygium', family=fam)
+        sp = Species(epithet='australe', genus=gen)
+        acc = Accession(species=sp, code='1')
+        plant = Plant(accession=acc,
+                      quantity=1,
+                      location=Location(name='site', code='STE'),
+                      code='1')
+        self.session.add_all([fam, gen, sp, acc, plant])
+        self.session.commit()
+        self.assertTrue(sp.active)
+        # test the hybrid_property expression
+        # pylint: disable=no-member
+        sp_active_in_db = (self.session.query(Species)
+                           .filter(Species.active.is_(True)))
+        self.assertIn(sp, sp_active_in_db)
+
+    def test_active_plants_wo_qty(self):
+        from ..garden import Accession, Plant, Location
+        fam = Family(family='Myrtaceae')
+        gen = Genus(epithet='Syzygium', family=fam)
+        sp = Species(epithet='australe', genus=gen)
+        acc = Accession(species=sp, code='1')
+        plant = Plant(accession=acc,
+                      quantity=0,
+                      location=Location(name='site', code='STE'),
+                      code='1')
+        self.session.add_all([fam, gen, sp, acc, plant])
+        self.session.commit()
+        self.assertFalse(sp.active)
+        self.assertFalse(plant.active)
+        # test the hybrid_property expression
+        # pylint: disable=no-member
+        sp_active_in_db = (self.session.query(Species)
+                           .filter(Species.active.is_(True)))
+        self.assertNotIn(sp, sp_active_in_db)
+
+    def test_count_children_wo_plants(self):
+        from ..garden import Accession
+        fam = Family(family='Myrtaceae')
+        gen = Genus(epithet='Syzygium', family=fam)
+        sp = Species(epithet='australe', genus=gen)
+        acc = Accession(species=sp, code='1')
+        self.session.add_all([fam, gen, sp, acc])
+        self.session.commit()
+
+        self.assertEqual(sp.count_children(), 1)
+
+    def test_count_children_w_plant_w_qty(self):
+        from ..garden import Accession, Plant, Location
+        fam = Family(family='Myrtaceae')
+        gen = Genus(epithet='Syzygium', family=fam)
+        sp = Species(epithet='australe', genus=gen)
+        acc = Accession(species=sp, code='1')
+        plant = Plant(accession=acc,
+                      quantity=1,
+                      location=Location(name='site', code='STE'),
+                      code='1')
+        self.session.add_all([fam, gen, sp, acc, plant])
+        self.session.commit()
+
+        self.assertEqual(sp.count_children(), 1)
+
+    def test_count_children_w_plant_w_qty_exclude_inactive_set(self):
+        # should be the same as if exclude inactive not set.
+        from ..garden import Accession, Plant, Location
+        fam = Family(family='Myrtaceae')
+        gen = Genus(epithet='Syzygium', family=fam)
+        sp = Species(epithet='australe', genus=gen)
+        acc = Accession(species=sp, code='1')
+        plant = Plant(accession=acc,
+                      quantity=1,
+                      location=Location(name='site', code='STE'),
+                      code='1')
+        self.session.add_all([fam, gen, sp, acc, plant])
+        self.session.commit()
+
+        prefs.prefs[prefs.exclude_inactive_pref] = True
+
+        self.assertEqual(sp.count_children(), 1)
+
+    def test_count_children_w_plant_wo_qty(self):
+        from ..garden import Accession, Plant, Location
+        fam = Family(family='Myrtaceae')
+        gen = Genus(epithet='Syzygium', family=fam)
+        sp = Species(epithet='australe', genus=gen)
+        acc = Accession(species=sp, code='1')
+        plant = Plant(accession=acc,
+                      quantity=0,
+                      location=Location(name='site', code='STE'),
+                      code='1')
+        self.session.add_all([fam, gen, sp, acc, plant])
+        self.session.commit()
+
+        self.assertEqual(sp.count_children(), 1)
+
+    def test_count_children_w_plant_wo_qty_exclude_inactive_set(self):
+        from ..garden import Accession, Plant, Location
+        fam = Family(family='Myrtaceae')
+        gen = Genus(epithet='Syzygium', family=fam)
+        sp = Species(epithet='australe', genus=gen)
+        acc = Accession(species=sp, code='1')
+        plant = Plant(accession=acc,
+                      quantity=0,
+                      location=Location(name='site', code='STE'),
+                      code='1')
+        self.session.add_all([fam, gen, sp, acc, plant])
+        self.session.commit()
+
+        prefs.prefs[prefs.exclude_inactive_pref] = True
+
+        self.assertEqual(sp.count_children(), 0)
+
+    def test_top_level_count_w_plant_qty(self):
+        from ..garden import Accession, Plant, Location
+        fam = Family(family='Myrtaceae')
+        gen = Genus(epithet='Syzygium', family=fam)
+        sp = Species(epithet='australe', genus=gen)
+        acc = Accession(species=sp, code='1')
+        plant = Plant(accession=acc,
+                      quantity=1,
+                      location=Location(name='site', code='STE'),
+                      code='1')
+        self.session.add_all([fam, gen, sp, acc, plant])
+        self.session.commit()
+        self.assertEqual(sp.top_level_count()[(1, 'Species')], 1)
+        self.assertEqual(len(sp.top_level_count()[(2, 'Genera')]), 1)
+        self.assertEqual(len(sp.top_level_count()[(3, 'Families')]), 1)
+        self.assertEqual(sp.top_level_count()[(4, 'Accessions')], 1)
+        self.assertEqual(sp.top_level_count()[(5, 'Plantings')], 1)
+        self.assertEqual(sp.top_level_count()[(6, 'Living plants')], 1)
+        self.assertEqual(len(sp.top_level_count()[(7, 'Locations')]), 1)
+        self.assertEqual(len(sp.top_level_count()[(8, 'Sources')]), 0)
+
+    def test_top_level_count_wo_plant_qty(self):
+        from ..garden import Accession, Plant, Location
+        fam = Family(family='Myrtaceae')
+        gen = Genus(epithet='Syzygium', family=fam)
+        sp = Species(epithet='australe', genus=gen)
+        acc = Accession(species=sp, code='1')
+        plant = Plant(accession=acc,
+                      quantity=0,
+                      location=Location(name='site', code='STE'),
+                      code='1')
+        self.session.add_all([fam, gen, sp, acc, plant])
+        self.session.commit()
+        self.assertEqual(sp.top_level_count()[(1, 'Species')], 1)
+        self.assertEqual(len(sp.top_level_count()[(2, 'Genera')]), 1)
+        self.assertEqual(len(sp.top_level_count()[(3, 'Families')]), 1)
+        self.assertEqual(sp.top_level_count()[(4, 'Accessions')], 1)
+        self.assertEqual(sp.top_level_count()[(5, 'Plantings')], 1)
+        self.assertEqual(sp.top_level_count()[(6, 'Living plants')], 0)
+        self.assertEqual(len(sp.top_level_count()[(7, 'Locations')]), 1)
+        self.assertEqual(len(sp.top_level_count()[(8, 'Sources')]), 0)
+
+    def test_top_level_count_wo_plant_qty_exclude_inactive_set(self):
+        from ..garden import Accession, Plant, Location
+        fam = Family(family='Myrtaceae')
+        gen = Genus(epithet='Syzygium', family=fam)
+        sp = Species(epithet='australe', genus=gen)
+        acc = Accession(species=sp, code='1')
+        plant = Plant(accession=acc,
+                      quantity=0,
+                      location=Location(name='site', code='STE'),
+                      code='1')
+        self.session.add_all([fam, gen, sp, acc, plant])
+        self.session.commit()
+        prefs.prefs[prefs.exclude_inactive_pref] = True
+        self.assertEqual(sp.top_level_count()[(1, 'Species')], 1)
+        self.assertEqual(len(sp.top_level_count()[(2, 'Genera')]), 1)
+        self.assertEqual(len(sp.top_level_count()[(3, 'Families')]), 1)
+        self.assertEqual(sp.top_level_count()[(4, 'Accessions')], 0)
+        self.assertEqual(sp.top_level_count()[(5, 'Plantings')], 0)
+        self.assertEqual(sp.top_level_count()[(6, 'Living plants')], 0)
+        self.assertEqual(len(sp.top_level_count()[(7, 'Locations')]), 0)
+        self.assertEqual(len(sp.top_level_count()[(8, 'Sources')]), 0)
 
 
 class GeographyTests(PlantTestCase):
@@ -2651,3 +3069,29 @@ class RetrieveTests(PlantTestCase):
         }
         geo = Geography.retrieve(self.session, keys)
         self.assertIsNone(geo)
+
+
+class SplashInfoBoxTests(BaubleTestCase):
+    @mock.patch('bauble.gui')
+    def test_update_sensitise_exclude_inactive(self, _mock_gui):
+        splash = SplashInfoBox()
+        splash.update()
+        # wait_on_threads()
+        for widget in [splash.splash_nplttot,
+                       splash.splash_npltnot,
+                       splash.splash_nacctot,
+                       splash.splash_naccnot,
+                       splash.splash_nspctot,
+                       splash.splash_nspcnot]:
+            self.assertTrue(widget.get_parent().get_sensitive())
+
+        prefs.prefs[prefs.exclude_inactive_pref] = True
+        splash.update()
+        # wait_on_threads()
+        for widget in [splash.splash_nplttot,
+                       splash.splash_npltnot,
+                       splash.splash_nacctot,
+                       splash.splash_naccnot,
+                       splash.splash_nspctot,
+                       splash.splash_nspcnot]:
+            self.assertFalse(widget.get_parent().get_sensitive())

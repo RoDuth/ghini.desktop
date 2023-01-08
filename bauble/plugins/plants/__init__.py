@@ -1,6 +1,6 @@
 # Copyright 2008-2010 Brett Adams
 # Copyright 2012-2015 Mario Frasca <mario@anche.no>.
-# Copyright 2021-2022 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright 2021-2023 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -63,8 +63,7 @@ from .species import (Species,
                       SpeciesDistribution,
                       VernacularName,
                       VernacularNameInfoBox,
-                      vernname_context_menu,
-                      return_accepted_pref)
+                      vernname_context_menu)
 from .species_model import SpeciesPicture
 from .geography import (Geography,
                         get_species_in_geography,
@@ -256,6 +255,16 @@ class SplashInfoBox(pluginmgr.View, Gtk.Box):
                                         self.on_splash_stqr_button_clicked)
 
     def update(self, *_args):
+        # desensitise links that wont work.
+        sensitive = not prefs.prefs.get(prefs.exclude_inactive_pref)
+        for widget in [self.splash_nplttot,
+                       self.splash_npltnot,
+                       self.splash_nacctot,
+                       self.splash_naccnot,
+                       self.splash_nspctot,
+                       self.splash_nspcnot]:
+            widget.get_parent().set_sensitive(sensitive)
+
         logger.debug('SplashInfoBox::update')
         statusbar = bauble.gui.widgets.statusbar
         sbcontext_id = statusbar.get_context_id('searchview.nresults')
@@ -405,23 +414,24 @@ class PlantsPlugin(pluginmgr.Plugin):
             accptd_action = Gio.SimpleAction.new_stateful(
                 "accepted_toggled",
                 None,
-                GLib.Variant.new_boolean(prefs.prefs.get(return_accepted_pref,
-                                                         True))
+                GLib.Variant.new_boolean(prefs.prefs.get(
+                    prefs.return_accepted_pref, True
+                ))
             )
             accptd_action.connect("change-state",
                                   cls.on_return_syns_chkbx_toggled)
             bauble.gui.window.add_action(accptd_action)
 
-            item = Gio.MenuItem.new(_('Return accepted'),
+            item = Gio.MenuItem.new(_('Return Accepted'),
                                     'win.accepted_toggled')
             bauble.gui.options_menu.append_item(item)
 
             def prefs_ls_changed(model, path, _itr):
                 key, _repr_str, _type_str = model[path]
-                if key == return_accepted_pref:
+                if key == prefs.return_accepted_pref:
                     accptd_action.set_state(
                         GLib.Variant.new_boolean(
-                            prefs.prefs.get(return_accepted_pref)
+                            prefs.prefs.get(prefs.return_accepted_pref)
                         )
                     )
 
@@ -450,7 +460,9 @@ class PlantsPlugin(pluginmgr.Plugin):
                                         context_menu=family_context_menu)
 
         mapper_search.add_meta(('genus', 'gen'), Genus, ['genus'])
-        SearchView.row_meta[Genus].set(children="species",
+
+        SearchView.row_meta[Genus].set(children=partial(db.get_active_children,
+                                                        'species'),
                                        infobox=GenusInfoBox,
                                        context_menu=genus_context_menu)
 
@@ -459,22 +471,26 @@ class PlantsPlugin(pluginmgr.Plugin):
                                ['sp', 'sp2', 'infrasp1', 'infrasp2',
                                 'infrasp3', 'infrasp4'])
         SearchView.row_meta[Species].set(
-            children=partial(db.natsort, 'accessions'),
+            children=partial(db.get_active_children,
+                             partial(db.natsort, 'accessions')),
             infobox=SpeciesInfoBox,
-            context_menu=species_context_menu)
+            context_menu=species_context_menu
+        )
 
         mapper_search.add_meta(
             ('vernacular_name', 'vernacular', 'vern', 'common'),
             VernacularName, ['name']
         )
         SearchView.row_meta[VernacularName].set(
-            children=partial(db.natsort, 'species.accessions'),
+            children=partial(db.get_active_children,
+                             partial(db.natsort, 'species.accessions')),
             infobox=VernacularNameInfoBox,
-            context_menu=vernname_context_menu)
+            context_menu=vernname_context_menu
+        )
 
         mapper_search.add_meta(('geography', 'geo'), Geography, ['name'])
         SearchView.row_meta[Geography].set(
-            children=get_species_in_geography,
+            children=partial(db.get_active_children, get_species_in_geography),
             infobox=GeographyInfoBox,
             context_menu=geography_context_menu
         )
@@ -519,7 +535,7 @@ class PlantsPlugin(pluginmgr.Plugin):
     def on_return_syns_chkbx_toggled(action, value):
         action.set_state(value)
 
-        prefs.prefs[return_accepted_pref] = value.get_boolean()
+        prefs.prefs[prefs.return_accepted_pref] = value.get_boolean()
         if isinstance(view := bauble.gui.get_view(), prefs.PrefsView):
             view.update()
 

@@ -1,7 +1,7 @@
 # Copyright 2008-2010 Brett Adams
 # Copyright 2015,2017 Mario Frasca <mario@anche.no>.
 # Copyright 2017 Jardín Botánico de Quito
-# Copyright 2021-2022 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright 2021-2023 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -69,7 +69,7 @@ from ..plants import test_plants as plants_test
 from ..plants.geography import Geography
 from ..plants.family import Family
 from ..plants.genus import Genus
-from ..plants.species_model import Species
+from ..plants.species_model import Species, SpeciesDistribution
 from ..plants.species_model import _remove_zws as remove_zws
 
 prefs.testing = True
@@ -80,12 +80,14 @@ accession_test_data = (
     {'id': 2, 'code': '2001.2', 'species_id': 2, 'source_type': 'Collection'},
     {'id': 3, 'code': '2020.1', 'species_id': 1, 'source_type': 'Collection'},
     {'id': 4, 'code': '2020.2', 'species_id': 2, 'source_type': 'Individual'},
+    {'id': 5, 'code': '2022.1', 'species_id': 3, 'source_type': 'Individual'},
 )
 
 plant_test_data = (
     {'id': 1, 'code': '1', 'accession_id': 1, 'location_id': 1, 'quantity': 1},
     {'id': 2, 'code': '1', 'accession_id': 2, 'location_id': 1, 'quantity': 1},
     {'id': 3, 'code': '2', 'accession_id': 2, 'location_id': 1, 'quantity': 1},
+    {'id': 4, 'code': '1', 'accession_id': 5, 'location_id': 1, 'quantity': 0},
 )
 
 location_test_data = (
@@ -105,6 +107,7 @@ source_test_data = (
     {'id': 1, 'accession_id': 2},
     {'id': 2, 'accession_id': 3},
     {'id': 3, 'accession_id': 4, 'source_detail_id': 1},
+    {'id': 4, 'accession_id': 5, 'source_detail_id': 1},
 )
 
 collection_test_data = (
@@ -112,6 +115,11 @@ collection_test_data = (
      'collector': 'Someone', 'collectors_code': '1111', 'geography_id': 1},
     {'id': 2, 'source_id': 2, 'locale': 'Somewhere Else',
      'collector': 'Someone Else', 'collectors_code': '2222', 'geography_id': 1}
+)
+
+# needs to be here (not in test_plants) or will fail in postgresql
+species_distribution_test_data = (
+    {'species_id': 3, 'geography_id': 1},
 )
 
 default_propagation_values = {'notes': 'test notes',
@@ -153,6 +161,7 @@ default_seed_values = {
 test_data_table_control = (
     (Location, location_test_data),
     (Geography, geography_test_data),
+    (SpeciesDistribution, species_distribution_test_data),
     (Accession, accession_test_data),
     (SourceDetail, source_detail_data),
     (Source, source_test_data),
@@ -435,12 +444,12 @@ class PlantTests(GardenTestCase):
                       location=self.location, quantity=10)
         loc2a = Location(name='site2a', code='2a')
         self.session.add_all([plant, loc2a])
-        # self.session.flush()
         self.session.commit()
         editor = PlantEditor(model=plant, branch_mode=True)
-        loc2a = object_session(
-            editor.model).query(
-                Location).filter(Location.code == '2a').one()
+        loc2a = (object_session(editor.model)
+                 .query(Location)
+                 .filter(Location.code == '2a')
+                 .one())
         editor.model.location = loc2a
         editor.model.quantity = 3
         editor.compute_plant_split_changes()
@@ -463,8 +472,7 @@ class PlantTests(GardenTestCase):
             self.assertTrue(result)
             mock_dialog.assert_called()
 
-            qry = self.session.query(Plant).filter_by(
-                accession=self.accession)
+            qry = self.session.query(Plant).filter_by(accession=self.accession)
             match = qry.filter_by(code='11').all()
             self.assertEqual(match, [])
             splt = qry.filter_by(quantity=3).all()
@@ -772,6 +780,55 @@ class PlantTests(GardenTestCase):
                  .filter(Accession.code == '2001.2',
                          Plant.code == '1'))
         self.assertEqual(result, set(str(i) for i in query))
+
+    def test_active_w_qty(self):
+        self.assertTrue(self.plant.active)
+        # test the hybrid_property expression
+        # pylint: disable=no-member
+        plt_active_in_db = (self.session.query(Plant)
+                            .filter(Plant.active.is_(True)))
+        self.assertIn(self.plant, plt_active_in_db)
+
+    def test_active_wo_qty(self):
+        self.session.refresh(self.plant)
+        self.plant.quantity = 0
+        self.session.commit()
+        self.session.refresh(self.plant)
+        # make sure we have killed the plant
+        self.assertIsNotNone(self.plant.death)
+        self.assertFalse(self.plant.active)
+        # test the hybrid_property expression
+        # pylint: disable=no-member
+        plt_active_in_db = (self.session.query(Plant)
+                            .filter(Plant.active.is_(True)))
+        self.assertNotIn(self.plant, plt_active_in_db)
+
+    def test_top_level_count_w_plant_qty(self):
+        plt = self.plant
+
+        self.assertEqual(plt.top_level_count()[(1, 'Plantings')], 1)
+        self.assertEqual(len(plt.top_level_count()[(2, 'Accessions')]), 1)
+        self.assertEqual(len(plt.top_level_count()[(3, 'Species')]), 1)
+        self.assertEqual(len(plt.top_level_count()[(4, 'Genera')]), 1)
+        self.assertEqual(len(plt.top_level_count()[(5, 'Families')]), 1)
+        self.assertEqual(plt.top_level_count()[(6, 'Living plants')], 1)
+        self.assertEqual(len(plt.top_level_count()[(7, 'Locations')]), 1)
+        self.assertEqual(len(plt.top_level_count()[(8, 'Sources')]), 0)
+
+    def test_top_level_count_wo_plant_qty(self):
+        self.plant.quantity = 0
+        plt = self.plant
+
+        self.session.commit()
+
+        self.assertEqual(plt.top_level_count()[(1, 'Plantings')], 1)
+        self.assertEqual(len(plt.top_level_count()[(2, 'Accessions')]), 1)
+        self.assertEqual(len(plt.top_level_count()[(3, 'Species')]), 1)
+        self.assertEqual(len(plt.top_level_count()[(4, 'Genera')]), 1)
+        self.assertEqual(len(plt.top_level_count()[(5, 'Families')]), 1)
+        self.assertEqual(plt.top_level_count()[(6, 'Living plants')], 0)
+        self.assertEqual(len(plt.top_level_count()[(7, 'Locations')]), 1)
+        self.assertEqual(len(plt.top_level_count()[(8, 'Sources')]), 0)
 
 
 class PropagationTests(GardenTestCase):
@@ -1820,6 +1877,143 @@ class AccessionTests(GardenTestCase):
         utils.message_dialog = orig_message_dialog
         utils.message_details_dialog = orig_message_details_dialog
 
+    def test_active_no_plants(self):
+        acc = self.create(Accession, species=self.species, code='1')
+        self.session.commit()
+        self.assertTrue(acc.active)
+        # test the hybrid_property expression
+        # pylint: disable=no-member  # is_
+        acc_active_in_db = (self.session.query(Accession)
+                            .filter(Accession.active.is_(True)))
+        self.assertIn(acc, acc_active_in_db)
+
+    def test_active_plants_w_qty(self):
+        acc = self.create(Accession, species=self.species, code='1')
+        self.create(Plant, accession=acc, quantity=1,
+                    location=Location(name='site', code='STE'),
+                    code='1')
+        self.session.commit()
+        self.assertTrue(acc.active)
+        # test the hybrid_property expression
+        # pylint: disable=no-member
+        acc_active_in_db = (self.session.query(Accession)
+                            .filter(Accession.active.is_(True)))
+        self.assertIn(acc, acc_active_in_db)
+
+    def test_active_plants_wo_qty(self):
+        acc = self.create(Accession, species=self.species, code='1')
+        self.create(Plant, accession=acc, quantity=0,
+                    location=Location(name='site', code='STE'),
+                    code='1')
+        self.session.commit()
+        self.assertFalse(acc.active)
+        # test the hybrid_property expression
+        # pylint: disable=no-member
+        acc_active_in_db = (self.session.query(Accession)
+                            .filter(Accession.active.is_(True)))
+        self.assertNotIn(acc, acc_active_in_db)
+
+    def test_count_children_wo_plants(self):
+        acc = self.create(Accession, species=self.species, code='1')
+        self.session.commit()
+
+        self.assertEqual(acc.count_children(), 0)
+
+    def test_count_children_w_plant_w_qty(self):
+        acc = self.create(Accession, species=self.species, code='1')
+        self.create(Plant, accession=acc, quantity=1,
+                    location=Location(name='site', code='STE'),
+                    code='1')
+        self.session.commit()
+
+        self.assertEqual(acc.count_children(), 1)
+
+    def test_count_children_w_plant_w_qty_exclude_inactive_set(self):
+        # should be the same as if exclude inactive not set.
+        acc = self.create(Accession, species=self.species, code='1')
+        self.create(Plant, accession=acc, quantity=1,
+                    location=Location(name='site', code='STE'),
+                    code='1')
+        self.session.commit()
+
+        prefs.prefs[prefs.exclude_inactive_pref] = True
+
+        self.assertEqual(acc.count_children(), 1)
+
+    def test_count_children_w_plant_wo_qty(self):
+        acc = self.create(Accession, species=self.species, code='1')
+        self.create(Plant, accession=acc, quantity=0,
+                    location=Location(name='site', code='STE'),
+                    code='1')
+        self.session.commit()
+
+        self.assertEqual(acc.count_children(), 1)
+
+    def test_count_children_w_plant_wo_qty_exclude_inactive_set(self):
+        acc = self.create(Accession, species=self.species, code='1')
+        self.create(Plant, accession=acc, quantity=0,
+                    location=Location(name='site', code='STE'),
+                    code='1')
+        self.session.commit()
+
+        prefs.prefs[prefs.exclude_inactive_pref] = True
+
+        self.assertEqual(acc.count_children(), 0)
+
+    def test_top_level_count_w_plant_qty(self):
+        acc = self.create(Accession, species=self.species, code='1')
+        self.create(Plant, accession=acc, quantity=1,
+                    location=Location(name='site', code='STE'),
+                    code='1')
+        self.session.commit()
+
+        self.assertEqual(acc.top_level_count()[(1, 'Accessions')], 1)
+        self.assertEqual(len(acc.top_level_count()[(2, 'Species')]), 1)
+        self.assertEqual(len(acc.top_level_count()[(3, 'Genera')]), 1)
+        self.assertEqual(len(acc.top_level_count()[(4, 'Families')]), 1)
+        self.assertEqual(acc.top_level_count()[(5, 'Plantings')], 1)
+        self.assertEqual(acc.top_level_count()[(6, 'Living plants')], 1)
+        self.assertEqual(len(acc.top_level_count()[(7, 'Locations')]), 1)
+        self.assertEqual(len(acc.top_level_count()[(8, 'Sources')]), 0)
+
+    def test_top_level_count_wo_plant_qty(self):
+        acc = self.create(Accession, species=self.species, code='1')
+        self.create(Plant, accession=acc, quantity=0,
+                    location=Location(name='site', code='STE'),
+                    code='1')
+        self.session.commit()
+
+        self.assertEqual(acc.top_level_count()[(1, 'Accessions')], 1)
+        self.assertEqual(len(acc.top_level_count()[(2, 'Species')]), 1)
+        self.assertEqual(len(acc.top_level_count()[(3, 'Genera')]), 1)
+        self.assertEqual(len(acc.top_level_count()[(4, 'Families')]), 1)
+        self.assertEqual(acc.top_level_count()[(5, 'Plantings')], 1)
+        self.assertEqual(acc.top_level_count()[(6, 'Living plants')], 0)
+        self.assertEqual(len(acc.top_level_count()[(7, 'Locations')]), 1)
+        self.assertEqual(len(acc.top_level_count()[(8, 'Sources')]), 0)
+
+    def test_top_level_count_wo_plant_qty_exclude_inactive_set(self):
+        # NOTE in the reality this accession would not show in search view with
+        # exclude inactive set unless it had a second alive plant (and
+        # hence top_level_count would not be called) but thats not a concern
+        # here.
+        acc = self.create(Accession, species=self.species, code='1')
+        self.create(Plant, accession=acc, quantity=0,
+                    location=Location(name='site', code='STE'),
+                    code='1')
+        self.session.commit()
+
+        prefs.prefs[prefs.exclude_inactive_pref] = True
+
+        self.assertEqual(acc.top_level_count()[(1, 'Accessions')], 1)
+        self.assertEqual(len(acc.top_level_count()[(2, 'Species')]), 1)
+        self.assertEqual(len(acc.top_level_count()[(3, 'Genera')]), 1)
+        self.assertEqual(len(acc.top_level_count()[(4, 'Families')]), 1)
+        self.assertEqual(acc.top_level_count()[(5, 'Plantings')], 0)
+        self.assertEqual(acc.top_level_count()[(6, 'Living plants')], 0)
+        self.assertEqual(len(acc.top_level_count()[(7, 'Locations')]), 0)
+        self.assertEqual(len(acc.top_level_count()[(8, 'Sources')]), 0)
+
 
 class VerificationTests(GardenTestCase):
 
@@ -1922,6 +2116,104 @@ class LocationTests(GardenTestCase):
                          [], 'LocationEditorPresenter not deleted')
         self.assertEqual(utils.gc_objects_by_type('LocationEditorView'),
                          [], 'LocationEditorView not deleted')
+
+    def test_count_children_wo_plants(self):
+        loc = self.create(Location, name='some site', code='STE')
+        self.session.commit()
+
+        self.assertEqual(loc.count_children(), 0)
+
+    def test_count_children_w_plant_w_qty(self):
+        acc = self.create(Accession, species=self.species, code='1')
+        loc = self.create(Location, name='site', code='STE')
+        self.create(Plant, accession=acc, quantity=1,
+                    location=loc,
+                    code='1')
+        self.session.commit()
+
+        self.assertEqual(loc.count_children(), 1)
+
+    def test_count_children_w_plant_w_qty_exclude_inactive_set(self):
+        # should be the same as if exclude inactive not set.
+        acc = self.create(Accession, species=self.species, code='1')
+        loc = self.create(Location, name='site', code='STE')
+        self.create(Plant, accession=acc, quantity=1,
+                    location=loc,
+                    code='1')
+        self.session.commit()
+
+        prefs.prefs[prefs.exclude_inactive_pref] = True
+
+        self.assertEqual(loc.count_children(), 1)
+
+    def test_count_children_w_plant_wo_qty(self):
+        acc = self.create(Accession, species=self.species, code='1')
+        loc = self.create(Location, name='site', code='STE')
+        self.create(Plant, accession=acc, quantity=0,
+                    location=loc,
+                    code='1')
+        self.session.commit()
+
+        self.assertEqual(loc.count_children(), 1)
+
+    def test_count_children_w_plant_wo_qty_exclude_inactive_set(self):
+        acc = self.create(Accession, species=self.species, code='1')
+        loc = self.create(Location, name='site', code='STE')
+        self.create(Plant, accession=acc, quantity=0,
+                    location=loc,
+                    code='1')
+        self.session.commit()
+
+        prefs.prefs[prefs.exclude_inactive_pref] = True
+
+        self.assertEqual(loc.count_children(), 0)
+
+    def test_top_level_count_w_plant_qty(self):
+        acc = self.create(Accession, species=self.species, code='1')
+        loc = Location(name='site', code='STE')
+        self.create(Plant, accession=acc, quantity=1, location=loc, code='1')
+        self.session.commit()
+
+        self.assertEqual(loc.top_level_count()[(1, 'Locations')], 1)
+        self.assertEqual(loc.top_level_count()[(2, 'Plantings')], 1)
+        self.assertEqual(loc.top_level_count()[(3, 'Living plants')], 1)
+        self.assertEqual(len(loc.top_level_count()[(4, 'Accessions')]), 1)
+        self.assertEqual(len(loc.top_level_count()[(5, 'Species')]), 1)
+        self.assertEqual(len(loc.top_level_count()[(6, 'Genera')]), 1)
+        self.assertEqual(len(loc.top_level_count()[(7, 'Families')]), 1)
+        self.assertEqual(len(loc.top_level_count()[(8, 'Sources')]), 0)
+
+    def test_top_level_count_wo_plant_qty(self):
+        acc = self.create(Accession, species=self.species, code='1')
+        loc = Location(name='site', code='STE')
+        self.create(Plant, accession=acc, quantity=0, location=loc, code='1')
+        self.session.commit()
+
+        self.assertEqual(loc.top_level_count()[(1, 'Locations')], 1)
+        self.assertEqual(loc.top_level_count()[(2, 'Plantings')], 1)
+        self.assertEqual(loc.top_level_count()[(3, 'Living plants')], 0)
+        self.assertEqual(len(loc.top_level_count()[(4, 'Accessions')]), 1)
+        self.assertEqual(len(loc.top_level_count()[(5, 'Species')]), 1)
+        self.assertEqual(len(loc.top_level_count()[(6, 'Genera')]), 1)
+        self.assertEqual(len(loc.top_level_count()[(7, 'Families')]), 1)
+        self.assertEqual(len(loc.top_level_count()[(8, 'Sources')]), 0)
+
+    def test_top_level_count_wo_plant_qty_exclude_inactive_set(self):
+        acc = self.create(Accession, species=self.species, code='1')
+        loc = Location(name='site', code='STE')
+        self.create(Plant, accession=acc, quantity=0, location=loc, code='1')
+        self.session.commit()
+
+        prefs.prefs[prefs.exclude_inactive_pref] = True
+
+        self.assertEqual(loc.top_level_count()[(1, 'Locations')], 1)
+        self.assertEqual(loc.top_level_count()[(2, 'Plantings')], 0)
+        self.assertEqual(loc.top_level_count()[(3, 'Living plants')], 0)
+        self.assertEqual(len(loc.top_level_count()[(4, 'Accessions')]), 0)
+        self.assertEqual(len(loc.top_level_count()[(5, 'Species')]), 0)
+        self.assertEqual(len(loc.top_level_count()[(6, 'Genera')]), 0)
+        self.assertEqual(len(loc.top_level_count()[(7, 'Families')]), 0)
+        self.assertEqual(len(loc.top_level_count()[(8, 'Sources')]), 0)
 
 
 class CollectionTests(GardenTestCase):
@@ -2372,7 +2664,7 @@ class PlantSearchTests(BaubleTestCase):
         self.assertTrue(isinstance(mapper_search, PlantSearch))
 
         qry = 'planting = XXXX.1'
-        results = mapper_search.search(qry, self.session)
+        results = list(mapper_search.search(qry, self.session))
         self.assertEqual(results, [self.plt1])
 
     def test__eq__plant_search(self):
@@ -2624,11 +2916,13 @@ class SourceDetailTests(GardenTestCase):
         contact = session.query(SourceDetail).filter_by(name='name').one()
         session.delete(contact)
         session.commit()
+        session.close()
 
         # the source field in the accession got removed
         session = db.Session()
         acc = session.query(Accession).filter_by(code='2001.0001').one()
         self.assertEqual(acc.source, None)
+        session.close()
 
     def test_representation_of_contact(self):
         contact = SourceDetail(name='name')
@@ -2638,6 +2932,73 @@ class SourceDetailTests(GardenTestCase):
         self.assertEqual("%s" % contact, 'ANBG (Botanic Garden or Arboretum)')
         self.assertEqual(contact.search_view_markup_pair(),
                          ('ANBG', 'Botanic Garden or Arboretum'))
+
+    def test_count_children_wo_plants(self):
+        source = self.create(SourceDetail, name='name')
+        self.session.commit()
+
+        self.assertEqual(source.count_children(), 0)
+
+    def test_count_children_w_plant_w_qty(self):
+        acc = self.create(Accession, species=self.species, code='2001.0001')
+        contact = SourceDetail(name='name')
+        source = Source()
+        source.source_detail = contact
+        acc.source = source
+        loc = self.create(Location, name='site', code='STE')
+        self.create(Plant, accession=acc, quantity=1,
+                    location=loc,
+                    code='1')
+        self.session.commit()
+
+        self.assertEqual(contact.count_children(), 1)
+
+    def test_count_children_w_plant_w_qty_exclude_inactive_set(self):
+        # should be the same as if exclude inactive not set.
+        acc = self.create(Accession, species=self.species, code='2001.0001')
+        contact = SourceDetail(name='name')
+        source = Source()
+        source.source_detail = contact
+        acc.source = source
+        loc = self.create(Location, name='site', code='STE')
+        self.create(Plant, accession=acc, quantity=1,
+                    location=loc,
+                    code='1')
+        self.session.commit()
+
+        prefs.prefs[prefs.exclude_inactive_pref] = True
+
+        self.assertEqual(contact.count_children(), 1)
+
+    def test_count_children_w_plant_wo_qty(self):
+        acc = self.create(Accession, species=self.species, code='2001.0001')
+        contact = SourceDetail(name='name')
+        source = Source()
+        source.source_detail = contact
+        acc.source = source
+        loc = self.create(Location, name='site', code='STE')
+        self.create(Plant, accession=acc, quantity=0,
+                    location=loc,
+                    code='1')
+        self.session.commit()
+
+        self.assertEqual(contact.count_children(), 1)
+
+    def test_count_children_w_plant_wo_qty_exclude_inactive_set(self):
+        acc = self.create(Accession, species=self.species, code='2001.0001')
+        contact = SourceDetail(name='name')
+        source = Source()
+        source.source_detail = contact
+        acc.source = source
+        loc = self.create(Location, name='site', code='STE')
+        self.create(Plant, accession=acc, quantity=0,
+                    location=loc,
+                    code='1')
+        self.session.commit()
+
+        prefs.prefs[prefs.exclude_inactive_pref] = True
+
+        self.assertEqual(contact.count_children(), 0)
 
 
 class SourceDetailPresenterTests(BaubleTestCase):

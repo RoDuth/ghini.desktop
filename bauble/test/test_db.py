@@ -1,6 +1,6 @@
 # Copyright 2008-2010 Brett Adams
 # Copyright 2015 Mario Frasca <mario@anche.no>.
-# Copyright 2021-2022 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright 2021-2023 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -17,6 +17,7 @@
 # You should have received a copy of the GNU General Public License
 # along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
 
+from unittest import mock
 from sqlalchemy import func
 
 from bauble.test import BaubleTestCase, get_setUp_data_funcs
@@ -382,3 +383,43 @@ class GlobalFunctionsTests(BaubleTestCase):
         self.assertEqual(sp1_new.sp, 'luehmanii')
         self.assertEqual(sp1_new.sp_author, 'F.Muell.')
         self.session.commit()
+
+    def test_get_active_children_excludes_inactive_if_pref_set(self):
+        mock_child1 = mock.Mock(active=True)
+        mock_child2 = mock.Mock(active=False)
+        # obj without an active attr
+        mock_child3 = mock.Mock()
+        del mock_child3.active
+
+        mock_parent = mock.Mock(kids=[mock_child1, mock_child2, mock_child3])
+
+        prefs.prefs[prefs.exclude_inactive_pref] = True
+
+        self.assertEqual(db.get_active_children('kids', mock_parent),
+                         [mock_child1, mock_child3])
+
+        def kids_func(obj):
+            return obj.kids
+
+        self.assertEqual(db.get_active_children(kids_func, mock_parent),
+                         [mock_child1, mock_child3])
+
+    def test_get_active_children_includes_inactive_if_pref_not_set(self):
+        mock_child1 = mock.Mock(active=True)
+        mock_child2 = mock.Mock(active=False)
+        # obj without an active attr
+        mock_child3 = mock.Mock()
+        del mock_child3.active
+
+        mock_parent = mock.Mock(kids=[mock_child1, mock_child2, mock_child3])
+
+        prefs.prefs[prefs.exclude_inactive_pref] = False
+
+        self.assertEqual(db.get_active_children('kids', mock_parent),
+                         [mock_child1, mock_child2, mock_child3])
+
+        def kids_func(obj):
+            return obj.kids
+
+        self.assertEqual(db.get_active_children(kids_func, mock_parent),
+                         [mock_child1, mock_child2, mock_child3])

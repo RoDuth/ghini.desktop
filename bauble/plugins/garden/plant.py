@@ -1,7 +1,7 @@
 # Copyright 2008-2010 Brett Adams
 # Copyright 2015-2017 Mario Frasca <mario@anche.no>.
 # Copyright 2017 Jardín Botánico de Quito
-# Copyright 2020-2022 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright 2020-2023 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -41,6 +41,7 @@ from sqlalchemy.orm import (relationship, backref, object_mapper, validates,
 from sqlalchemy.orm.session import object_session
 from sqlalchemy.exc import DBAPIError, OperationalError
 from sqlalchemy.orm.attributes import get_history
+from sqlalchemy.ext.hybrid import hybrid_property
 
 from pyparsing import (Word, removeQuotes, delimitedList, OneOrMore, oneOf,
                        Literal, printables, stringEnd, quotedString,
@@ -307,7 +308,11 @@ class PlantSearch(SearchStrategy):
                      .join(Accession)
                      .filter(tuple_(Accession.code, Plant.code)
                      .in_(vals)))
-        return query.all()
+
+        if prefs.prefs.get(prefs.exclude_inactive_pref):
+            query = query.filter(Plant.active.is_(True))
+
+        return query
 
 
 def as_dict(self):
@@ -720,6 +725,16 @@ class Plant(db.Base, db.Serializable, db.WithNotes):
     def delimiter(self):
         return Plant.get_delimiter()
 
+    @hybrid_property
+    def active(self):
+        return self.quantity > 0
+
+    @active.expression
+    def active(cls):
+        # pylint: disable=no-self-argument
+        from sqlalchemy.sql.expression import case, cast
+        return cast(cls.quantity > 0, types.Boolean)
+
     def __str__(self):
         return f'{self.accession}{self.delimiter}{self.code}'
 
@@ -795,7 +810,7 @@ class Plant(db.Base, db.Serializable, db.WithNotes):
                 (5, 'Families'): set([self.accession.species.genus.family.id]),
                 (6, 'Living plants'): self.quantity,
                 (7, 'Locations'): set([self.location.id]),
-                (8, 'Sources'): set(source and [source.id] or [])}
+                (8, 'Sources'): set([source.id] if source else [])}
 
 
 # ensure an appropriate change has been capture for all changes or insertions.

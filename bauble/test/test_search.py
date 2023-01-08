@@ -1,6 +1,6 @@
 # Copyright 2008-2010 Brett Adams
 # Copyright 2015 Mario Frasca <mario@anche.no>.
-# Copyright 2021 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright 2021-2023 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -258,7 +258,7 @@ class SearchTests(BaubleTestCase):
         self.assertTrue(isinstance(mapper_search, search.MapperSearch))
 
         # search for family by domain
-        results = mapper_search.search('fam=family1', self.session)
+        results = list(mapper_search.search('fam=family1', self.session))
         self.assertEqual(len(results), 1)
         f = list(results)[0]
         self.assertTrue(isinstance(f, self.Family))
@@ -269,7 +269,7 @@ class SearchTests(BaubleTestCase):
         self.assertTrue(isinstance(mapper_search, search.MapperSearch))
 
         # search for genus by domain
-        results = mapper_search.search('gen=genus1', self.session)
+        results = list(mapper_search.search('gen=genus1', self.session))
         self.assertEqual(len(results), 1)
         g = list(results)[0]
         self.assertTrue(isinstance(g, self.Genus))
@@ -280,7 +280,7 @@ class SearchTests(BaubleTestCase):
         self.assertTrue(isinstance(mapper_search, search.MapperSearch))
 
         # search for genus by domain
-        results = mapper_search.search('genus=g', self.session)
+        results = list(mapper_search.search('genus=g', self.session))
         self.assertEqual(len(results), 0)
 
     def test_search_by_expression_genus_eq_everything(self):
@@ -288,7 +288,7 @@ class SearchTests(BaubleTestCase):
         self.assertTrue(isinstance(mapper_search, search.MapperSearch))
 
         # search for genus by domain
-        results = mapper_search.search('genus=*', self.session)
+        results = list(mapper_search.search('genus=*', self.session))
         self.assertEqual(len(results), 1)
 
     def test_search_by_expression_genus_like_nomatch(self):
@@ -296,13 +296,13 @@ class SearchTests(BaubleTestCase):
         self.assertTrue(isinstance(mapper_search, search.MapperSearch))
 
         # search for genus by domain
-        results = mapper_search.search('genus like gen', self.session)
+        results = list(mapper_search.search('genus like gen', self.session))
         self.assertEqual(len(results), 0)
         # search for genus by domain
-        results = mapper_search.search('genus like nus%', self.session)
+        results = list(mapper_search.search('genus like nus%', self.session))
         self.assertEqual(len(results), 0)
         # search for genus by domain
-        results = mapper_search.search('genus like %gen', self.session)
+        results = list(mapper_search.search('genus like %gen', self.session))
         self.assertEqual(len(results), 0)
 
     def test_search_by_expression_genus_like_contains_eq(self):
@@ -316,23 +316,24 @@ class SearchTests(BaubleTestCase):
         self.session.commit()
 
         # search for family by domain
-        results = mapper_search.search('family contains fam', self.session)
+        results = list(mapper_search.search('family contains fam', self.session))
         self.assertEqual(len(results), 4)  # all do
-        results = mapper_search.search('family like f%', self.session)
+        results = list(mapper_search.search('family like f%', self.session))
         self.assertEqual(len(results), 3)  # three start by f
-        results = mapper_search.search('family like af%', self.session)
+        results = list(mapper_search.search('family like af%', self.session))
         self.assertEqual(len(results), 1)  # one starts by af
-        results = mapper_search.search('family like fam', self.session)
+        results = list(mapper_search.search('family like fam', self.session))
         self.assertEqual(len(results), 0)
-        results = mapper_search.search('family = fam', self.session)
+        results = list(mapper_search.search('family = fam', self.session))
         self.assertEqual(len(results), 0)
-        results = mapper_search.search('family = fam4', self.session)
+        results = list(mapper_search.search('family = fam4', self.session))
         self.assertEqual(len(results), 1)  # exact name match
-        results = mapper_search.search('family = Fam4', self.session)
+        results = list(mapper_search.search('family = Fam4', self.session))
         self.assertEqual(len(results), 0)  # = is case sensitive
-        results = mapper_search.search('family like Fam4', self.session)
+        results = list(mapper_search.search('family like Fam4', self.session))
         self.assertEqual(len(results), 1)  # like is case insensitive
-        results = mapper_search.search('family contains FAM', self.session)
+        results = list(mapper_search.search('family contains FAM',
+                                            self.session))
         self.assertEqual(len(results), 4)  # they case insensitively do
 
     def test_search_by_query_singular(self):
@@ -350,8 +351,8 @@ class SearchTests(BaubleTestCase):
         self.assertTrue(isinstance(mapper_search, search.MapperSearch))
 
         # search cls.column
-        results = mapper_search.search('genus where genus=genus1',
-                                       self.session)
+        results = list(mapper_search.search('genus where genus=genus1',
+                                            self.session))
         self.assertEqual(len(results), 1)
         f = list(results)[0]
         self.assertTrue(isinstance(f, Genus))
@@ -399,10 +400,9 @@ class SearchTests(BaubleTestCase):
         self.assertTrue(isinstance(mapper_search, search.MapperSearch))
 
         s = 'genus where id>1 AND id<3'
-        results = mapper_search.search(s, self.session)
+        results = list(mapper_search.search(s, self.session))
         self.assertEqual(len(results), 1)
-        result = results.pop()
-        self.assertEqual(result.id, 2)
+        self.assertEqual(results[0].id, 2)
 
         s = 'genus where id>0 AND id<3'
         results = list(mapper_search.search(s, self.session))
@@ -424,16 +424,16 @@ class SearchTests(BaubleTestCase):
         self.assertTrue(isinstance(mapper_search, search.MapperSearch))
 
         # search cls.parent.column
-        results = mapper_search.search('genus where family.family=family1',
-                                       self.session)
+        s = 'genus where family.family=family1'
+        results = list(mapper_search.search(s, self.session))
         self.assertEqual(len(results), 1)
         g0 = list(results)[0]
         self.assertTrue(isinstance(g0, Genus))
         self.assertEqual(g0.id, self.genus.id)
 
         # search cls.children.column
-        results = mapper_search.search('family where genera.genus=genus1',
-                                       self.session)
+        results = list(mapper_search.search('family where genera.genus=genus1',
+                                            self.session))
         self.assertEqual(len(results), 1)
         f = list(results)[0]
         self.assertEqual(len(results), 1)
@@ -457,11 +457,11 @@ class SearchTests(BaubleTestCase):
         self.assertTrue(isinstance(mapper_search, search.MapperSearch))
 
         s = 'genus where genus=genus2 AND family.family=fam3'
-        results = mapper_search.search(s, self.session)
+        results = list(mapper_search.search(s, self.session))
         self.assertEqual(len(results), 0)
 
         s = 'genus where genus=genus3 AND family.family=fam3'
-        results = mapper_search.search(s, self.session)
+        results = list(mapper_search.search(s, self.session))
         self.assertEqual(len(results), 1)
         g0 = list(results)[0]
         self.assertTrue(isinstance(g0, Genus))
@@ -473,21 +473,21 @@ class SearchTests(BaubleTestCase):
         self.assertEqual(r, [])
 
         s = 'genus where family.family=fam3 AND family.qualifier=""'
-        results = mapper_search.search(s, self.session)
-        self.assertEqual(results, set([]))
+        results = list(mapper_search.search(s, self.session))
+        self.assertEqual(results, [])
 
         # sqlite3 stores None as the empty string.
         s = 'genus where family.qualifier=""'
-        results = mapper_search.search(s, self.session)
-        self.assertEqual(results, set([g2]))
+        results = list(mapper_search.search(s, self.session))
+        self.assertEqual(results, [g2])
 
         # test where the column is ambiguous so make sure we choose
         # the right one, in this case we want to make sure we get the
         # qualifier on the family and not the genus
         s = ('plant where accession.species.genus.family.family="Orchidaceae" '
              'AND accession.species.genus.family.qualifier=""')
-        results = mapper_search.search(s, self.session)
-        self.assertEqual(results, set([]))
+        results = list(mapper_search.search(s, self.session))
+        self.assertEqual(results, [])
 
     def test_search_by_symbol_query(self):
         """query with &&, ||, !"""
@@ -506,15 +506,15 @@ class SearchTests(BaubleTestCase):
         self.assertTrue(isinstance(mapper_search, search.MapperSearch))
 
         s = 'genus where genus=genus2 && family.family=fam3'
-        results = mapper_search.search(s, self.session)
+        results = list(mapper_search.search(s, self.session))
         self.assertEqual(len(results), 0)
 
         s = 'family where family=family1 || family=fam3'
-        results = mapper_search.search(s, self.session)
+        results = list(mapper_search.search(s, self.session))
         self.assertEqual(len(results), 2)
 
         s = 'family where ! family=family1'
-        results = mapper_search.search(s, self.session)
+        results = list(mapper_search.search(s, self.session))
         self.assertEqual(len(results), 2)
 
     def test_search_by_query_none(self):
@@ -538,26 +538,27 @@ class SearchTests(BaubleTestCase):
         self.assertTrue(isinstance(mapper_search, search.MapperSearch))
 
         s = 'genus where family.qualifier is None'
-        results = mapper_search.search(s, self.session)
-        self.assertEqual(results, set([]))
+        results = list(mapper_search.search(s, self.session))
+        self.assertEqual(results, [])
 
         # make sure None isn't treated as the string 'None' and that
         # the query picks up the is operator
         s = 'genus where author is None'
-        results = mapper_search.search(s, self.session)
-        self.assertEqual(results, set([]))
+        results = list(mapper_search.search(s, self.session))
+        self.assertEqual(results, [])
 
+        # NOTE Genus.author has default of ''
         s = 'genus where author not None'
-        resultsNone = mapper_search.search(s, self.session)
-        s = 'genus where NOT author = ""'
-        resultsEmptyString = mapper_search.search(s, self.session)
-        self.assertEqual(resultsNone, resultsEmptyString)
+        results = list(mapper_search.search(s, self.session))
+        self.assertCountEqual(results, [self.genus, g2, g3])
 
         s = 'genus where author != None'
-        resultsNone = mapper_search.search(s, self.session)
+        results = list(mapper_search.search(s, self.session))
+        self.assertCountEqual(results, [self.genus, g2, g3])
+
         s = 'genus where NOT author = ""'
-        resultsEmptyString = mapper_search.search(s, self.session)
-        self.assertEqual(resultsNone, resultsEmptyString)
+        results = list(mapper_search.search(s, self.session))
+        self.assertCountEqual(results, [])
 
     def test_search_by_query_id_joined_tables(self):
         """query with MapperSearch, joined tables, test on id of dependent
@@ -582,7 +583,7 @@ class SearchTests(BaubleTestCase):
         # as the fact that the query doesn't raise and exception
         s = 'plant where accession.species.id=1'
         results = mapper_search.search(s, self.session)
-        list(results)
+        self.assertEqual(len(list(results)), 0)
 
     def test_search_by_like_percent_query_joined_table(self):
         """query with MapperSearch, joined tables, LIKE %"""
@@ -680,102 +681,102 @@ class SearchTests(BaubleTestCase):
 
         # DateTime type:
         s = 'plant where _last_updated < 1.1.2000'
-        results = mapper_search.search(s, self.session)
-        self.assertEqual(results, set())
+        results = list(mapper_search.search(s, self.session))
+        self.assertEqual(results, [])
 
         s = 'plant where _created > yesterday'
-        results = mapper_search.search(s, self.session)
-        self.assertEqual(results, {pp, p2})
+        results = list(mapper_search.search(s, self.session))
+        self.assertCountEqual(results, [pp, p2])
 
         s = 'plant where _created > -5'
-        results = mapper_search.search(s, self.session)
-        self.assertEqual(results, {pp, p2})
+        results = list(mapper_search.search(s, self.session))
+        self.assertCountEqual(results, [pp, p2])
 
         s = 'plant where _last_updated > 1-1-2000'
-        results = mapper_search.search(s, self.session)
-        self.assertEqual(results, {pp, p2})
+        results = list(mapper_search.search(s, self.session))
+        self.assertCountEqual(results, [pp, p2])
 
         # isoparse
         s = 'plant where _last_updated < 2000-01-01'
-        results = mapper_search.search(s, self.session)
-        self.assertEqual(results, set())
+        results = list(mapper_search.search(s, self.session))
+        self.assertEqual(results, [])
 
         s = ('plant where _last_updated >= 13/2/2009 '
              'and _last_updated < 14/2/2009')
-        results = mapper_search.search(s, self.session)
-        self.assertEqual(results, set([pp]))
+        results = list(mapper_search.search(s, self.session))
+        self.assertEqual(results, [pp])
 
         s = ('plant where _last_updated between 13/2/2009 and 14/2/2009')
-        results = mapper_search.search(s, self.session)
-        self.assertEqual(results, {pp})
+        results = list(mapper_search.search(s, self.session))
+        self.assertEqual(results, [pp])
 
         logger.debug('CREATED = %s', pp._created)
         s = ('plant where _last_updated between yesterday and today')
-        results = mapper_search.search(s, self.session)
-        self.assertEqual(results, {p2})
+        results = list(mapper_search.search(s, self.session))
+        self.assertEqual(results, [p2])
 
         s = 'plant where _last_updated on 13/2/2009'
-        results = mapper_search.search(s, self.session)
-        self.assertEqual(results, set([pp]))
+        results = list(mapper_search.search(s, self.session))
+        self.assertEqual(results, [pp])
 
         # isoparse
         s = 'plant where _last_updated on 2009-02-13'
-        results = mapper_search.search(s, self.session)
-        self.assertEqual(results, set([pp]))
+        results = list(mapper_search.search(s, self.session))
+        self.assertEqual(results, [pp])
 
         s = 'plant where _created on 0'
-        results = mapper_search.search(s, self.session)
-        self.assertEqual(results, {pp, p2})
+        results = list(mapper_search.search(s, self.session))
+        self.assertCountEqual(results, [pp, p2])
 
         s = 'plant where _created on today'
-        results = mapper_search.search(s, self.session)
-        self.assertEqual(results, {pp, p2})
+        results = list(mapper_search.search(s, self.session))
+        self.assertCountEqual(results, [pp, p2])
 
         s = 'plant where _last_updated on -1'
-        results = mapper_search.search(s, self.session)
-        self.assertEqual(results, {p2})
+        results = list(mapper_search.search(s, self.session))
+        self.assertEqual(results, [p2])
 
         s = 'plant where _last_updated on yesterday'
-        results = mapper_search.search(s, self.session)
-        self.assertEqual(results, {p2})
+        results = list(mapper_search.search(s, self.session))
+        self.assertEqual(results, [p2])
 
         s = 'plant where _created > -10'
-        results = mapper_search.search(s, self.session)
-        self.assertEqual(results, {pp, p2})
+        results = list(mapper_search.search(s, self.session))
+        self.assertCountEqual(results, [pp, p2])
 
         # Date type:
         s = 'accession where date_recvd = today'
-        results = mapper_search.search(s, self.session)
-        self.assertEqual(results, {a2})
+        results = list(mapper_search.search(s, self.session))
+        self.assertEqual(results, [a2])
 
         s = 'accession where date_recvd = 0'
-        results = mapper_search.search(s, self.session)
-        self.assertEqual(results, {a2})
+        results = list(mapper_search.search(s, self.session))
+        self.assertEqual(results, [a2])
 
         s = 'accession where date_recvd > -10'
-        results = mapper_search.search(s, self.session)
-        self.assertEqual(results, {a2})
+        results = list(mapper_search.search(s, self.session))
+        self.assertEqual(results, [a2])
 
         s = 'accession where date_recvd on 21/11/2021'
-        results = mapper_search.search(s, self.session)
-        self.assertEqual(results, set([ac]))
+        results = list(mapper_search.search(s, self.session))
+        self.assertEqual(results, [ac])
 
         s = 'accession where date_recvd = 21/11/2021'
-        results = mapper_search.search(s, self.session)
-        self.assertEqual(results, set([ac]))
+        results = list(mapper_search.search(s, self.session))
+        self.assertEqual(results, [ac])
 
         s = 'accession where date_recvd on 22/11/2021'
-        results = mapper_search.search(s, self.session)
-        self.assertEqual(results, set([]))
+        results = list(mapper_search.search(s, self.session))
+        self.assertEqual(results, [])
 
         s = 'accession where date_recvd on 20/11/2021'
-        results = mapper_search.search(s, self.session)
-        self.assertEqual(results, set([]))
+        results = list(mapper_search.search(s, self.session))
+        self.assertEqual(results, [])
 
         s = ('accession where date_recvd < 20/11/2021 and '
              'date_recvd > 22/11/2021')
-        results = mapper_search.search(s, self.session)
-        self.assertEqual(results, set([]))
+        results = list(mapper_search.search(s, self.session))
+        self.assertEqual(results, [])
 
 
     def test_search_by_datestring_query_tz_limits(self):
@@ -816,12 +817,12 @@ class SearchTests(BaubleTestCase):
 
         # isoparse
         search_str = 'plant where _last_updated on 2009-02-12'
-        results = mapper_search.search(search_str, self.session)
-        self.assertEqual(results, set([pp, pp2]))
+        results = list(mapper_search.search(search_str, self.session))
+        self.assertCountEqual(results, [pp, pp2])
 
         search_str = 'plant where _last_updated on 12/2/2009'
-        results = mapper_search.search(search_str, self.session)
-        self.assertEqual(results, set([pp, pp2]))
+        results = list(mapper_search.search(search_str, self.session))
+        self.assertCountEqual(results, [pp, pp2])
 
         # hybrid property
         pp.planted.date = start_of_day
@@ -829,8 +830,8 @@ class SearchTests(BaubleTestCase):
         self.session.add_all([pp, pp2])
         self.session.commit()
         search_str = 'plant where planted.date on 12/2/2009'
-        results = mapper_search.search(search_str, self.session)
-        self.assertEqual(results, set([pp, pp2]))
+        results = list(mapper_search.search(search_str, self.session))
+        self.assertCountEqual(results, [pp, pp2])
 
 
     def test_between_evaluate(self):
@@ -854,11 +855,11 @@ class SearchTests(BaubleTestCase):
         self.assertTrue(isinstance(mapper_search, search.MapperSearch))
 
         s = 'accession where code between "1978" and "1980"'
-        results = mapper_search.search(s, self.session)
-        self.assertEqual(results, set([ac]))
+        results = list(mapper_search.search(s, self.session))
+        self.assertEqual(results, [ac])
         s = 'accession where code between "1980" and "1980"'
-        results = mapper_search.search(s, self.session)
-        self.assertEqual(results, set())
+        results = list(mapper_search.search(s, self.session))
+        self.assertEqual(results, [])
 
     def test_search_by_query_synonyms(self):
         """SynonymSearch strategy gives all synonyms of given taxon."""
@@ -900,8 +901,7 @@ class SearchTests(BaubleTestCase):
         results = search.result_cache.get('SynonymSearch')
         self.assertIsNone(results)
 
-    def test_search_by_query_vernacural(self):
-        """can find species by vernacular name"""
+    def test_search_by_query_vernacular(self):
 
         Family = self.Family
         Genus = self.Genus
@@ -921,7 +921,7 @@ class SearchTests(BaubleTestCase):
 
         s = "rojo"
         results = mapper_search.search(s, self.session)
-        self.assertEqual(results, set([sp]))
+        self.assertEqual(results, {vn})
 
     def test_search_ambiguous_joins_no_results(self):
         """These joins broke down when upgrading to SQLA 1.4"""
@@ -929,19 +929,19 @@ class SearchTests(BaubleTestCase):
         self.assertTrue(isinstance(mapper_search, search.MapperSearch))
 
         s = "genus where _synonyms.synonym.id != 0"
-        results = mapper_search.search(s, self.session)
-        self.assertEqual(results, set())
+        results = list(mapper_search.search(s, self.session))
+        self.assertEqual(results, [])
 
         s = ("geography where tdwg_code = '50' or "
              "parent.tdwg_code = '50' or "
              "parent.parent.tdwg_code = '50'")
-        results = mapper_search.search(s, self.session)
-        self.assertEqual(results, set())
+        results = list(mapper_search.search(s, self.session))
+        self.assertEqual(results, [])
 
         s = ("plant where accession.species.genus.family.genera.epithet "
              "= 'Ficus'")
-        results = mapper_search.search(s, self.session)
-        self.assertEqual(results, set())
+        results = list(mapper_search.search(s, self.session))
+        self.assertEqual(results, [])
 
     def test_search_ambiguous_joins_w_results(self):
         """These joins broke down when upgrading to SQLA 1.4"""
@@ -964,8 +964,8 @@ class SearchTests(BaubleTestCase):
         self.assertTrue(isinstance(mapper_search, search.MapperSearch))
 
         s = "genus where _synonyms.synonym.id != 0"
-        results = mapper_search.search(s, self.session)
-        self.assertEqual(results, set([g2]))
+        results = list(mapper_search.search(s, self.session))
+        self.assertEqual(results, [g2])
 
         s = ("geography where tdwg_code = '50' or "
              "parent.tdwg_code = '50' or "
@@ -978,8 +978,8 @@ class SearchTests(BaubleTestCase):
         self.assertCountEqual([i.tdwg_code for i in results], expected)
 
         s = ("species where genus.family.genera.epithet = 'Ficus'")
-        results = mapper_search.search(s, self.session)
-        self.assertEqual(results, {sp1, sp2})
+        results = list(mapper_search.search(s, self.session))
+        self.assertCountEqual(results, [sp1, sp2])
 
 
 class InOperatorSearch(BaubleTestCase):
@@ -1007,40 +1007,40 @@ class InOperatorSearch(BaubleTestCase):
         self.assertTrue(isinstance(mapper_search, search.MapperSearch))
 
         s = 'genus where id in 1'
-        results = mapper_search.search(s, self.session)
-        self.assertEqual(results, set([self.g1]))
+        results = list(mapper_search.search(s, self.session))
+        self.assertEqual(results, [self.g1])
 
     def test_in_list(self):
         mapper_search = search.get_strategy('MapperSearch')
         self.assertTrue(isinstance(mapper_search, search.MapperSearch))
 
         s = 'genus where id in 1,2,3'
-        results = mapper_search.search(s, self.session)
-        self.assertEqual(results, set([self.g1, self.g2, self.g3]))
+        results = list(mapper_search.search(s, self.session))
+        self.assertCountEqual(results, [self.g1, self.g2, self.g3])
 
     def test_in_list_no_result(self):
         mapper_search = search.get_strategy('MapperSearch')
         self.assertTrue(isinstance(mapper_search, search.MapperSearch))
 
         s = 'genus where id in 5,6'
-        results = mapper_search.search(s, self.session)
-        self.assertEqual(results, set())
+        results = list(mapper_search.search(s, self.session))
+        self.assertEqual(results, [])
 
     def test_in_composite_expression(self):
         mapper_search = search.get_strategy('MapperSearch')
         self.assertTrue(isinstance(mapper_search, search.MapperSearch))
 
         s = 'genus where id in 1,2 or id>8'
-        results = mapper_search.search(s, self.session)
-        self.assertEqual(results, set([self.g1, self.g2]))
+        results = list(mapper_search.search(s, self.session))
+        self.assertCountEqual(results, [self.g1, self.g2])
 
     def test_in_composite_expression_excluding(self):
         mapper_search = search.get_strategy('MapperSearch')
         self.assertTrue(isinstance(mapper_search, search.MapperSearch))
 
         s = 'genus where id in 1,2,4 and id<3'
-        results = mapper_search.search(s, self.session)
-        self.assertEqual(results, set([self.g1, self.g2]))
+        results = list(mapper_search.search(s, self.session))
+        self.assertCountEqual(results, [self.g1, self.g2])
 
 
 class BinomialSearchTests(BaubleTestCase):
@@ -1080,32 +1080,32 @@ class BinomialSearchTests(BaubleTestCase):
         self.assertTrue(isinstance(mapper_search, search.MapperSearch))
 
         s = 'Ixora coccinea'  # matches Ixora coccinea
-        results = mapper_search.search(s, self.session)
-        self.assertEqual(results, set([self.ic]))
+        results = list(mapper_search.search(s, self.session))
+        self.assertEqual(results, [self.ic])
 
     def test_binomial_incomplete(self):
         mapper_search = search.get_strategy('MapperSearch')
         self.assertTrue(isinstance(mapper_search, search.MapperSearch))
 
         s = 'Ix cocc'  # matches Ixora coccinea
-        results = mapper_search.search(s, self.session)
-        self.assertEqual(results, set([self.ic]))
+        results = list(mapper_search.search(s, self.session))
+        self.assertEqual(results, [self.ic])
 
     def test_binomial_no_match(self):
         mapper_search = search.get_strategy('MapperSearch')
         self.assertTrue(isinstance(mapper_search, search.MapperSearch))
 
         s = 'Cosito inesistente'  # matches nothing
-        results = mapper_search.search(s, self.session)
-        self.assertEqual(results, set())
+        results = list(mapper_search.search(s, self.session))
+        self.assertEqual(results, [])
 
     def test_almost_binomial(self):
         mapper_search = search.get_strategy('MapperSearch')
         self.assertTrue(isinstance(mapper_search, search.MapperSearch))
 
         s = 'ixora coccinea'  # matches Ixora, I.coccinea, P.coccinea
-        results = mapper_search.search(s, self.session)
-        self.assertEqual(results, set([self.ixora, self.ic, self.pc]))
+        results = list(mapper_search.search(s, self.session))
+        self.assertCountEqual(results, [self.ixora, self.ic, self.pc])
 
     def test_sp_cultivar_also_matches(self):
         mapper_search = search.get_strategy('MapperSearch')
@@ -1119,32 +1119,32 @@ class BinomialSearchTests(BaubleTestCase):
         self.session.add_all([sp5])
         self.session.commit()
         s = 'Ixora coccinea'  # matches I.coccinea and Nora Grant
-        results = mapper_search.search(s, self.session)
-        self.assertEqual(results, set([self.ic, sp5]))
+        results = list(mapper_search.search(s, self.session))
+        self.assertCountEqual(results, [self.ic, sp5])
 
     def test_cultivar_no_sp_search(self):
         mapper_search = search.get_strategy('MapperSearch')
         self.assertTrue(isinstance(mapper_search, search.MapperSearch))
 
         s = "Ixora 'Mag"
-        results = mapper_search.search(s, self.session)
-        self.assertEqual(results, set([self.cv1]))
+        results = list(mapper_search.search(s, self.session))
+        self.assertEqual(results, [self.cv1])
 
     def test_cultivar_w_sp_search(self):
         mapper_search = search.get_strategy('MapperSearch')
         self.assertTrue(isinstance(mapper_search, search.MapperSearch))
 
         s = "Ixo 'Pri"
-        results = mapper_search.search(s, self.session)
-        self.assertEqual(results, set([self.cv2]))
+        results = list(mapper_search.search(s, self.session))
+        self.assertEqual(results, [self.cv2])
 
     def test_full_cultivar_search(self):
         mapper_search = search.get_strategy('MapperSearch')
         self.assertTrue(isinstance(mapper_search, search.MapperSearch))
 
         s = "Ixora 'Prince Of Orange'"
-        results = mapper_search.search(s, self.session)
-        self.assertEqual(results, set([self.cv2]))
+        results = list(mapper_search.search(s, self.session))
+        self.assertEqual(results, [self.cv2])
 
 
 class BuildingSQLStatements(BaubleTestCase):
@@ -1303,56 +1303,56 @@ class FilterThenMatchTests(BaubleTestCase):
         self.assertTrue(isinstance(mapper_search, search.MapperSearch))
 
         s = "genus where notes.note='olim'"
-        results = mapper_search.search(s, self.session)
-        self.assertEqual(results, set([self.genus1, self.genus3]))
+        results = list(mapper_search.search(s, self.session))
+        self.assertCountEqual(results, [self.genus1, self.genus3])
 
         s = "genus where notes[category='test'].note='olim'"
-        results = mapper_search.search(s, self.session)
-        self.assertEqual(results, set([self.genus3]))
+        results = list(mapper_search.search(s, self.session))
+        self.assertCountEqual(results, [self.genus3])
 
         s = "genus where notes.category='commentarii'"
-        results = mapper_search.search(s, self.session)
-        self.assertEqual(results, set([self.genus1, self.genus2]))
+        results = list(mapper_search.search(s, self.session))
+        self.assertCountEqual(results, [self.genus1, self.genus2])
 
         s = "genus where notes[note='verbum'].category='commentarii'"
-        results = mapper_search.search(s, self.session)
-        self.assertEqual(results, set([self.genus2]))
+        results = list(mapper_search.search(s, self.session))
+        self.assertEqual(results, [self.genus2])
 
     def test_can_find_empty_set(self):
         mapper_search = search.get_strategy('MapperSearch')
         self.assertTrue(isinstance(mapper_search, search.MapperSearch))
 
         s = "genus where notes=Empty"
-        results = mapper_search.search(s, self.session)
-        self.assertEqual(results, set([self.genus4]))
+        results = list(mapper_search.search(s, self.session))
+        self.assertEqual(results, [self.genus4])
 
     def test_can_find_non_empty_set(self):
         mapper_search = search.get_strategy('MapperSearch')
         self.assertTrue(isinstance(mapper_search, search.MapperSearch))
 
         s = "genus where notes!=Empty"
-        results = mapper_search.search(s, self.session)
-        self.assertEqual(results, set([self.genus1, self.genus2, self.genus3]))
+        results = list(mapper_search.search(s, self.session))
+        self.assertCountEqual(results, [self.genus1, self.genus2, self.genus3])
 
     def test_can_match_list_of_values(self):
         mapper_search = search.get_strategy('MapperSearch')
         self.assertTrue(isinstance(mapper_search, search.MapperSearch))
 
         s = "genus where notes.note in 'olim', 'erat', 'verbum'"
-        results = mapper_search.search(s, self.session)
-        self.assertEqual(results, set([self.genus1, self.genus2, self.genus3]))
+        results = list(mapper_search.search(s, self.session))
+        self.assertEqual(results, [self.genus1, self.genus2, self.genus3])
 
         s = "genus where notes[category='test'].note in 'olim', 'erat', 'verbum'"
-        results = mapper_search.search(s, self.session)
-        self.assertEqual(results, set([self.genus3]))
+        results = list(mapper_search.search(s, self.session))
+        self.assertEqual(results, [self.genus3])
 
     def test_parenthesised_search(self):
         mapper_search = search.get_strategy('MapperSearch')
         self.assertTrue(isinstance(mapper_search, search.MapperSearch))
 
         s = "genus where (notes!=Empty) and (notes=Empty)"
-        results = mapper_search.search(s, self.session)
-        self.assertEqual(results, set())
+        results = list(mapper_search.search(s, self.session))
+        self.assertEqual(results, [])
 
 
 class EmptySetEqualityTest(unittest.TestCase):
@@ -1420,17 +1420,17 @@ class AggregatingFunctions(BaubleTestCase):
         self.assertTrue(isinstance(mapper_search, search.MapperSearch))
 
         s = 'genus where count(species.id) > 3'
-        results = mapper_search.search(s, self.session)
+        results = list(mapper_search.search(s, self.session))
         self.assertEqual(len(results), 0)
 
         s = 'genus where count(species.id) > 2'
-        results = mapper_search.search(s, self.session)
+        results = list(mapper_search.search(s, self.session))
         self.assertEqual(len(results), 1)
         result = results.pop()
         self.assertEqual(result.id, 1)
 
         s = 'genus where count(species.id) == 2'
-        results = mapper_search.search(s, self.session)
+        results = list(mapper_search.search(s, self.session))
         self.assertEqual(len(results), 1)
         result = results.pop()
         self.assertEqual(result.id, 2)

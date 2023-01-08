@@ -1,7 +1,7 @@
 # Copyright 2008-2010 Brett Adams
 # Copyright 2012-2017 Mario Frasca <mario@anche.no>.
 # Copyright 2017 Jardín Botánico de Quito
-# Copyright 2017-2021 Ross Demuth
+# Copyright 2017-2023 Ross Demuth
 #
 # This file is part of ghini.desktop.
 #
@@ -83,21 +83,29 @@ def _pertinent_objects_generator(query, order_by):
         yield item
 
 
-def _get_pertinent_objects(join, get_query_func, objs, session, as_task=False,
+def _get_pertinent_objects(cls,
+                           get_query_func,
+                           objs,
+                           session,
+                           as_task=False,
                            order_by=None):
     """
-    :param cls:
+    :param cls: class of the objects to return
     :param get_query_func:
     :param objs:
     :param session:
     :param as_task: if True return a generator appropriate for use in tasks.
     :param order_by: columns to order_by
     """
+    close_session = False
     if session is None:
         from bauble import db
         session = db.Session()
+        close_session = True
+
     if not isinstance(objs, (tuple, list)):
         objs = [objs]
+
     # query once for each type
     grouped = {}
     for obj in objs:
@@ -111,25 +119,39 @@ def _get_pertinent_objects(join, get_query_func, objs, session, as_task=False,
     has_union = len(queries) > 1
     if has_union:
         query = query.union(*queries[1:])
+
+    join = None
+    for col in order_by:
+        if (klass := col.class_) is not cls:
+            join = klass
     # this ugly hack because query._join_entities is deprecated and the
     # SQL output is predictable
     if join and (f'JOIN {join.__tablename__}' not in str(query) or has_union):
         query = query.join(join)
 
-    if as_task:
-        from bauble import task
-        return task.queue(_pertinent_objects_generator(query, order_by),
-                          yielding=True)
+    try:
+        if as_task:
+            from bauble import task
+            return task.queue(_pertinent_objects_generator(query, order_by),
+                              yielding=True)
 
-    if order_by:
-        query = query.order_by(*order_by)
+        if order_by:
+            query = query.order_by(*order_by)
 
-    return query
+        return query
+    finally:
+        if close_session:
+            session.close()
 
 
 # pylint: disable=too-many-return-statements
 def get_plant_query(cls, objs, session):
     query = session.query(Plant)
+
+    if prefs.prefs.get(prefs.exclude_inactive_pref):
+        # filter out inactive
+        query = query.filter(Plant.active.is_(True))
+
     ids = {obj.id for obj in objs}
     if cls is Family:
         return (query.join('accession', 'species', 'genus', 'family')
@@ -175,12 +197,17 @@ def get_plants_pertinent_to(objs, session=None, as_task=False):
     Return all the plants found in objs.
     """
     order_by = [Accession.code, Plant.code]
-    return _get_pertinent_objects(Accession, get_plant_query, objs, session,
+    return _get_pertinent_objects(Plant, get_plant_query, objs, session,
                                   as_task, order_by=order_by)
 
 
 def get_accession_query(cls, objs, session):
     query = session.query(Accession)
+
+    if prefs.prefs.get(prefs.exclude_inactive_pref):
+        # filter out inactive
+        query = query.filter(Accession.active.is_(True))
+
     ids = {obj.id for obj in objs}
     if cls is Family:
         return (query.join('species', 'genus', 'family')
@@ -224,12 +251,17 @@ def get_accessions_pertinent_to(objs, session=None, as_task=False):
 
     Return all the accessions found in objs.
     """
-    return _get_pertinent_objects(None, get_accession_query, objs, session,
-                                  as_task, order_by=[Accession.code])
+    return _get_pertinent_objects(Accession, get_accession_query, objs,
+                                  session, as_task, order_by=[Accession.code])
 
 
 def get_species_query(cls, objs, session):
     query = session.query(Species)
+
+    if prefs.prefs.get(prefs.exclude_inactive_pref):
+        # filter out inactive
+        query = query.filter(Species.active.is_(True))
+
     ids = {obj.id for obj in objs}
     if cls is Family:
         return (query.join('genus', 'family')
@@ -272,7 +304,7 @@ def get_species_pertinent_to(objs, session=None, as_task=False):
 
     Return all the species found in objs.
     """
-    return _get_pertinent_objects(Genus, get_species_query, objs, session,
+    return _get_pertinent_objects(Species, get_species_query, objs, session,
                                   as_task, order_by=[Genus.genus, Species.sp])
 
 
@@ -325,8 +357,8 @@ def get_locations_pertinent_to(objs, session=None, as_task=False):
 
     Return all the locations found in objs.
     """
-    return _get_pertinent_objects(None, get_location_query, objs, session,
-                                  as_task, order_by=[Location.code])
+    return _get_pertinent_objects(Location, get_location_query, objs,
+                                  session, as_task, order_by=[Location.code])
 
 
 def get_geography_query(cls, objs, session):
@@ -381,7 +413,7 @@ def get_geographies_pertinent_to(objs, session=None, as_task=False):
 
     Return all the locations found in objs.
     """
-    return _get_pertinent_objects(None, get_geography_query, objs,
+    return _get_pertinent_objects(Geography, get_geography_query, objs,
                                   session, as_task, order_by=[Geography.name])
 
 

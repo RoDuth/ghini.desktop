@@ -1,6 +1,6 @@
 # Copyright 2008, 2009, 2010 Brett Adams
 # Copyright 2014-2015 Mario Frasca <mario@anche.no>.
-# Copyright 2021 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright 2021-2023 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 
 
 from sqlalchemy import or_, and_
-from sqlalchemy.orm import class_mapper
+from sqlalchemy.orm import class_mapper, Query
 from pyparsing import (Word,
                        alphas8bit,
                        removeQuotes,
@@ -58,15 +58,26 @@ from bauble import utils
 from bauble import prefs
 
 
-def search(text, session=None):
+result_cache = {}
+"""Cache of search strategy results, can use instead of running the search
+repeatedly. MapperSearch results should be available first."""
+
+
+def search(text: str, session: bauble.db.Session) -> list:
+    """Given a query string run the appropriate SearchStrategy(s) and return
+    the collated results as a list
+    """
     results = set()
+    # clear the cache
+    result_cache.clear()
     strategies = get_strategies(text)
     for strategy in strategies:
         strategy_name = type(strategy).__name__
         logger.debug("applying search strategy %s from module %s",
                      strategy_name, type(strategy).__module__)
-        result = strategy.search(text, session)
-        # add results to cache
+        # result_cache - cache the result list not the query
+        result = list(strategy.search(text, session))
+
         result_cache[strategy_name] = result
         results.update(result)
     return list(results)
@@ -465,20 +476,22 @@ class SearchAndAction(BinaryLogical):
     name = 'AND'
 
     def evaluate(self, env):
-        result = self.operands[0].evaluate(env)
+        query = self.operands[0].evaluate(env)
         for i in self.operands[1:]:
-            result = result.intersect(i.evaluate(env))
-        return result
+            if (joins := i.needs_join(env)[0]):
+                query, __ = create_joins(query, env.domain, joins)
+            query = query.filter(i.evaluate(env).whereclause)
+        return query
 
 
 class SearchOrAction(BinaryLogical):
     name = 'OR'
 
     def evaluate(self, env):
-        result = self.operands[0].evaluate(env)
+        query = self.operands[0].evaluate(env)
         for i in self.operands[1:]:
-            result = result.union(i.evaluate(env))
-        return result
+            query = query.union(i.evaluate(env))
+        return query
 
 
 class SearchNotAction(UnaryLogical):
@@ -488,7 +501,7 @@ class SearchNotAction(UnaryLogical):
         query = env.session.query(env.domain)
         for steps in env.domains:
             if steps:
-                query, _ = create_joins(query, env.domain, steps)
+                query, __ = create_joins(query, env.domain, steps)
         query = query.except_(self.operand.evaluate(env))
         return query
 
@@ -511,7 +524,6 @@ class QueryAction:
     def __init__(self, tokens):
         self.domain = tokens[0]
         self.filter = tokens[1][0]
-        self.search_strategy = None
         self.domains = None
         self.session = None
 
@@ -529,25 +541,18 @@ class QueryAction:
 
         logger.debug('QueryAction:invoke - %s(%s) %s(%s)', type(self.domain),
                      self.domain, type(self.filter), self.filter)
-        domain = self.domain
-        check(domain in search_strategy.domains or
-              domain in search_strategy.shorthand,
-              f'Unknown search domain: {domain}')
-        self.domain = search_strategy.shorthand.get(domain, domain)
-        self.domain = search_strategy.domains[domain][0]
-        self.search_strategy = search_strategy
+        check(self.domain in search_strategy.domains or
+              self.domain in search_strategy.shorthand,
+              f'Unknown search domain: {self.domain}')
+        self.domain = search_strategy.shorthand.get(self.domain, self.domain)
+        self.domain = search_strategy.domains[self.domain][0]
 
-        result = set()
         if search_strategy.session is not None:
             self.domains = self.filter.needs_join(self)
             self.session = search_strategy.session
-            records = self.filter.evaluate(self).all()
-            result.update(records)
+            query = self.filter.evaluate(self)
 
-        if None in result:
-            logger.warning('removing None from result set')
-            result = set(i for i in result if i is not None)
-        return result
+        return query
 
 
 class StatementAction:  # pylint: disable=too-few-public-methods
@@ -585,31 +590,24 @@ class BinomialNameAction:
         logger.debug('BinomialNameAction:invoke')
         from bauble.plugins.plants.genus import Genus
         from bauble.plugins.plants.species import Species
-        result = None
+
         if self.species_epithet:
             logger.debug('binomial search sp: %s, gen: %s',
                          self.species_epithet, self.genus_epithet)
-            result = (search_strategy.session.query(Species)
-                      .filter(Species.sp.startswith(self.species_epithet))
-                      .join(Genus)
-                      .filter(Genus.genus.startswith(self.genus_epithet))
-                      .all())
-            result = set(result)
+            query = (search_strategy.session.query(Species)
+                     .filter(Species.sp.startswith(self.species_epithet))
+                     .join(Genus)
+                     .filter(Genus.genus.startswith(self.genus_epithet)))
         else:
             logger.debug('cultivar search cv: %s, gen: %s',
                          self.cultivar_epithet, self.genus_epithet)
             # pylint: disable=no-member  # re: cultivar_epithet.startswith
-            result = (search_strategy.session.query(Species)
-                      .filter(Species.cultivar_epithet
-                              .startswith(self.cultivar_epithet))
-                      .join(Genus)
-                      .filter(Genus.genus.startswith(self.genus_epithet))
-                      .all())
-            result = set(result)
-        if None in result:
-            logger.warning('removing None from result set')
-            result = set(i for i in result if i is not None)
-        return result
+            query = (search_strategy.session.query(Species)
+                     .filter(Species.cultivar_epithet
+                             .startswith(self.cultivar_epithet))
+                     .join(Genus)
+                     .filter(Genus.genus.startswith(self.genus_epithet)))
+        return query
 
 
 class DomainExpressionAction:
@@ -645,12 +643,9 @@ class DomainExpressionAction:
         # domain values. each domain class should define its own 'I have
         # accessions' filter. see issue #42
 
-        result = set()
-
         # select all objects from the domain
         if self.values == '*':
-            result.update(query.all())
-            return result
+            return query
 
         mapper = class_mapper(cls)
 
@@ -660,21 +655,18 @@ class DomainExpressionAction:
         elif self.cond in ('contains', 'icontains', 'has', 'ihas'):
             def condition(col):
                 return lambda val: utils.ilike(mapper.c[col], f'%%{val}%%')
-        elif self.cond == '=':
+        elif self.cond in ('=', '=='):
             def condition(col):
                 return lambda val: mapper.c[col] == utils.nstr(val)
         else:
             def condition(col):
                 return mapper.c[col].oper(self.cond)
 
-        for col in properties:
-            ors = or_(*[condition(col)(i) for i in self.values.express()])
-            result.update(query.filter(ors).all())
+        ors = [condition(col)(i) for i in self.values.express() for
+               col in properties]
+        query = query.filter(or_(*ors))
 
-        if None in result:
-            logger.warning('removing None from result set')
-            result = set(i for i in result if i is not None)
-        return result
+        return query
 
 
 class AggregatingAction:
@@ -744,20 +736,6 @@ class ValueListAction:
                      .filter(or_(*[contains(table.c[c], v) for c, v in
                                    column_cross_value])))
             result.update(query.all())
-
-        def replace(i):
-            try:
-                replacement = i.replacement()
-                logger.debug('replacing %s by %s in result set', i,
-                             replacement)
-                return replacement
-            except AttributeError:
-                return i
-        result = set(replace(i) for i in result)
-        logger.debug("result is now %s", result)
-        if None in result:
-            logger.warning('removing None from result set')
-            result = set(i for i in result if i is not None)
         return result
 
 
@@ -901,11 +879,6 @@ class SearchStrategy(ABC):
         logger.debug('SearchStrategy "%s" (%s)', text, self.__class__.__name__)
 
 
-result_cache = {}
-"""Cache of search strategy results, can use instead of running the search
-repeatedly. MapperSearch results should be available first."""
-
-
 def get_strategies(text: str) -> list[SearchStrategy]:
     """Provided the search text return appropriate strategies.
 
@@ -918,8 +891,6 @@ def get_strategies(text: str) -> list[SearchStrategy]:
     :param text: the search string
     """
     all_strategies = _search_strategies.values()
-    # clear the cache
-    result_cache.clear()
     selected_strategies = []
     for strategy in all_strategies:
         if strategy.use(text) == 'only':
@@ -954,7 +925,6 @@ class MapperSearch(SearchStrategy):
 
     def __init__(self):
         super().__init__()
-        self._results = set()
         self.parser = SearchParser()
 
     @staticmethod
@@ -1000,24 +970,32 @@ class MapperSearch(SearchStrategy):
             domains.setdefault(domain, item[0])
         return domains
 
-    def search(self, text, session=None):
-        """Returns a set() of database hits for the text search string.
-
-        If session=None then the session should be closed after the results
-        have been processed or it is possible that some database backends
-        could cause deadlocks.
+    def search(self, text, session):
+        """Returns an interable of database hits for the text search string.
         """
         super().search(text, session)
         self.session = session
-
-        self._results.clear()
         statement = self.parser.parse_string(text).statement
         logger.debug("statement : %s(%s)", type(statement), statement)
-        self._results.update(statement.invoke(self))
-        logger.debug('search returns %s results', len(self._results))
+        results_or_query = statement.invoke(self)
 
-        # these _results get filled in when the parse actions are called
-        return self._results
+        # NOTE handy print statement for development
+        # if isinstance(results_or_query, Query):
+        #     print(results_or_query)
+
+        if prefs.prefs.get(prefs.exclude_inactive_pref):
+            # handle within the database when possible
+            if (isinstance(results_or_query, Query) and
+                    results_or_query.is_single_entity):
+                table = results_or_query.column_descriptions[0]['type']
+                if hasattr(table, 'active'):
+                    results_or_query = (results_or_query
+                                        .filter(table.active.is_(True)))
+            else:
+                results_or_query = [i for i in results_or_query if
+                                    getattr(i, 'active', True)]
+
+        return results_or_query
 
 
 # list of search strategies to be tried on each search string

@@ -1,7 +1,7 @@
 # Copyright 2008-2010 Brett Adams
 # Copyright 2012-2016 Mario Frasca <mario@anche.no>.
 # Copyright 2017 Jardín Botánico de Quito
-# Copyright 2020-2022 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright 2020-2023 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -28,11 +28,17 @@ logger = logging.getLogger(__name__)
 
 from sqlalchemy.ext.associationproxy import association_proxy
 
-from sqlalchemy import (Column, Unicode, Integer, ForeignKey, UnicodeText,
-                        UniqueConstraint)
+from sqlalchemy import (Column,
+                        Unicode,
+                        Integer,
+                        ForeignKey,
+                        UnicodeText,
+                        UniqueConstraint,
+                        func)
 from sqlalchemy.orm import relationship, backref, object_session
 from sqlalchemy.orm import synonym as sa_synonym
 from sqlalchemy.ext.hybrid import hybrid_property
+from sqlalchemy.sql.expression import select, case, cast
 from bauble import db
 from bauble import error
 from bauble import utils
@@ -741,6 +747,33 @@ class Species(db.Base, db.Serializable, db.WithNotes):
             string = string.replace(f'{self.hybrid_char} ', self.hybrid_char)
         return string
 
+    @hybrid_property
+    def active(self):
+        """False when all accessions have been deaccessioned
+        (e.g. all plants have died)
+        """
+        if not self.accessions:
+            return True
+        for acc in self.accessions:
+            if acc.active:
+                return True
+        return False
+
+    @active.expression
+    def active(cls):
+        # pylint: disable=no-self-argument
+        acc_cls = cls.accessions.prop.mapper.class_
+        plt_cls = acc_cls.plants.prop.mapper.class_
+        inactive = (select([cls.id])
+                    .outerjoin(acc_cls)
+                    .where(acc_cls.id.is_not(None))
+                    .join(plt_cls)
+                    .group_by(cls.id)
+                    .having(func.sum(plt_cls.quantity) == 0)
+                    .scalar_subquery())
+        return cast(case([(cls.id.in_(inactive), 0)], else_=1),
+                    types.Boolean)
+
     @property
     def accepted(self):
         """Name that should be used if name of self should be rejected"""
@@ -850,11 +883,13 @@ class Species(db.Base, db.Serializable, db.WithNotes):
         return result
 
     def top_level_count(self):
-        plants = [p for a in self.accessions for p in a.plants]
+        accessions = db.get_active_children('accessions', self)
+        plants = [p for a in accessions for p in
+                  db.get_active_children('plants', a)]
         return {(1, 'Species'): 1,
                 (2, 'Genera'): set([self.genus.id]),
                 (3, 'Families'): set([self.genus.family.id]),
-                (4, 'Accessions'): len(self.accessions),
+                (4, 'Accessions'): len(accessions),
                 (5, 'Plantings'): len(plants),
                 (6, 'Living plants'): sum(p.quantity for p in plants),
                 (7, 'Locations'): set(p.location.id for p in plants),
@@ -873,7 +908,11 @@ class Species(db.Base, db.Serializable, db.WithNotes):
     def count_children(self):
         cls = self.__class__.accessions.prop.mapper.class_
         session = object_session(self)
-        return session.query(cls.id).filter(cls.species_id == self.id).count()
+        from bauble import prefs
+        query = session.query(cls.id).filter(cls.species_id == self.id)
+        if prefs.prefs.get(prefs.exclude_inactive_pref):
+            query = query.filter(cls.active.is_(True))
+        return query.count()
 
 
 def as_dict(self):
@@ -1019,10 +1058,6 @@ class VernacularName(db.Base, db.Serializable):
 
     def __str__(self):
         return self.name or ''
-
-    def replacement(self):
-        """user wants the species, not just the name"""
-        return self.species   # pylint: disable=no-member
 
     def as_dict(self):
         result = db.Serializable.as_dict(self)

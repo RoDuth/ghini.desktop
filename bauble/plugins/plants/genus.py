@@ -1,7 +1,7 @@
 # Copyright 2008-2010 Brett Adams
 # Copyright 2015 Mario Frasca <mario@anche.no>.
 # Copyright 2017 Jardín Botánico de Quito
-# Copyright 2020-2021 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright 2020-2023 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -385,11 +385,14 @@ class Genus(db.Base, db.Serializable, db.WithNotes):
         return result
 
     def top_level_count(self):
-        accessions = [a for s in self.species for a in s.accessions]
-        plants = [p for a in accessions for p in a.plants]
+        species = db.get_active_children('species', self)
+        accessions = [a for s in species for a in
+                      db.get_active_children('accessions', s)]
+        plants = [p for a in accessions for p in
+                  db.get_active_children('plants', a)]
         return {(1, 'Genera'): set([self.id]),
                 (2, 'Families'): set([self.family.id]),
-                (3, 'Species'): len(self.species),
+                (3, 'Species'): len(species),
                 (4, 'Accessions'): len(accessions),
                 (5, 'Plantings'): len(plants),
                 (6, 'Living plants'): sum(p.quantity for p in plants),
@@ -407,7 +410,10 @@ class Genus(db.Base, db.Serializable, db.WithNotes):
     def count_children(self):
         cls = self.__class__.species.prop.mapper.class_
         session = object_session(self)
-        return session.query(cls.id).filter(cls.genus_id == self.id).count()
+        query = session.query(cls.id).filter(cls.genus_id == self.id)
+        if prefs.prefs.get(prefs.exclude_inactive_pref):
+            query = query.filter(cls.active.is_(True))
+        return query.count()
 
 
 def compute_serializable_fields(_cls, session, keys):

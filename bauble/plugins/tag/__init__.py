@@ -1,6 +1,6 @@
 # Copyright (c) 2005,2006,2007,2008,2009 Brett Adams <brett@belizebotanic.org>
 # Copyright (c) 2012-2017 Mario Frasca <mario@anche.no>
-# Copyright (c) 2021-2022 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright (c) 2021-2023 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -45,7 +45,7 @@ from sqlalchemy.exc import DBAPIError, InvalidRequestError
 from sqlalchemy.orm.session import object_session
 
 import bauble
-from bauble import db, editor, pluginmgr, paths, search, utils
+from bauble import db, editor, pluginmgr, paths, search, utils, prefs
 from bauble.view import (InfoBox,
                          InfoExpander,
                          SearchView,
@@ -694,6 +694,8 @@ class Tag(db.Base):
 
     def count_children(self):
         session = object_session(self)
+        if prefs.prefs.get(prefs.exclude_inactive_pref):
+            return len([i for i in self.objects if getattr(i, 'active', True)])
         return (session.query(TaggedObj.id)
                 .filter(TaggedObj.tag_id == self.id)
                 .count())
@@ -943,7 +945,8 @@ class TagPlugin(pluginmgr.Plugin):
         mapper_search = search.get_strategy('MapperSearch')
         mapper_search.add_meta(('tag', 'tags'), Tag, ['tag'])
         SearchView.row_meta[Tag].set(
-            children=partial(db.natsort, 'objects'),
+            children=partial(db.get_active_children,
+                             partial(db.natsort, 'objects')),
             infobox=TagInfoBox,
             context_menu=tag_context_menu)
         tag_meta = {

@@ -1414,10 +1414,11 @@ class SearchView(pluginmgr.View, Gtk.Box):
             if self.refresh:
                 if (meta.children is not None and self.has_kids(value)):
                     path = model.get_path(treeiter)
-                    # check if any new items added externally
+                    # check if any items added/removed
                     if self.results_view.row_expanded(path):
                         if (model.iter_n_children(treeiter) !=
                                 self.count_kids(value)):
+                            logger.debug('cell_data_func: refreshing children')
                             self.on_test_expand_row(self.results_view,
                                                     treeiter,
                                                     path)

@@ -1,7 +1,7 @@
 # Copyright (c) 2005,2006,2007,2008,2009 Brett Adams <brett@belizebotanic.org>
 # Copyright (c) 2012-2017 Mario Frasca <mario@anche.no>
 # Copyright 2017 Jardín Botánico de Quito
-# Copyright (c) 2017-2022 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright (c) 2017-2023 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -202,6 +202,23 @@ class ReportTests(BaubleTestCase):
             self.session))
         self.assertCountEqual(ids, list(range(1, 5)))
 
+        # test doesn't return inactive only when exclude_inactive set
+        for acc in species.accessions:
+            for plt in acc.plants:
+                print(plt)
+                plt.quantity = 0
+        self.session.commit()
+        ids = get_ids(get_species_pertinent_to([plant], self.session))
+        self.assertCountEqual(ids, [1])
+        prefs.prefs[prefs.exclude_inactive_pref] = True
+        self.assertFalse(get_species_pertinent_to([plt], self.session).all())
+        # with all objects (should not return species)
+        result = get_species_pertinent_to(
+            [family, genus, species, accession, plant, location, collection],
+            self.session
+        )
+        self.assertNotIn(species, result)
+
     def test_get_accessions_pertinent_to(self):
         """
         Test getting the accessions from different types
@@ -261,6 +278,22 @@ class ReportTests(BaubleTestCase):
             [family, genus, species, accession, plant, location],
             self.session))
         self.assertCountEqual(ids, list(range(1, 9)))
+
+        # test doesn't return inactive only when exclude_inactive set
+        for plt in plant.accession.plants:
+            plt.quantity = 0
+        self.session.commit()
+        ids = get_ids(get_accessions_pertinent_to([plant], self.session))
+        self.assertCountEqual(ids, [1])
+        prefs.prefs[prefs.exclude_inactive_pref] = True
+        self.assertFalse(get_accessions_pertinent_to([plant], self.session)
+                         .all())
+        # with all the objects shouldn't return plant.accession
+        result = get_accessions_pertinent_to(
+            [family, genus, species, accession, plant, location],
+            self.session
+        )
+        self.assertNotIn(plant.accession, result)
 
     def test_get_plants_pertinent_to(self):
         """
@@ -325,6 +358,21 @@ class ReportTests(BaubleTestCase):
             self.session)
         ids = get_ids(plants)
         self.assertCountEqual(ids, list(range(1, 17)))
+
+        # test doesn't return inactive only when exclude_inactive set
+        plant.quantity = 0
+        self.session.commit()
+        ids = get_ids(get_plants_pertinent_to([genus], self.session))
+        self.assertCountEqual(ids, list(range(1, 9)))
+        prefs.prefs[prefs.exclude_inactive_pref] = True
+        ids = get_ids(get_plants_pertinent_to([genus], self.session))
+        self.assertCountEqual(ids, list(range(2, 9)))
+        # with all the objects shouldn't return plant (we exclude it from the
+        # query)
+        plants = get_plants_pertinent_to(
+            [family, genus, species, accession, location, collection, tag],
+            self.session)
+        self.assertNotIn(plant, plants)
 
     def test_get_locations_pertinent_to(self):
         """

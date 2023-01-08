@@ -1,6 +1,6 @@
 # Copyright (c) 2005,2006,2007,2008,2009 Brett Adams <brett@belizebotanic.org>
 # Copyright (c) 2012-2015 Mario Frasca <mario@anche.no>
-# Copyright (c) 2021 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright (c) 2021-2023 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -18,15 +18,14 @@
 # along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
 
 import os
-from sys import platform
 from functools import partial
-import importlib
 
 from gi.repository import Gtk
 from gi.repository import Gio
 
 import bauble.plugins.tag as tag_plugin
 from bauble.plugins.plants import Family
+from bauble.plugins.garden import Accession
 from bauble.plugins.tag import Tag, TagEditorPresenter, TagInfoBox, TaggedObj
 from bauble.test import BaubleTestCase, check_dupids, mockfunc
 from bauble.editor import GenericEditorView, MockView
@@ -38,10 +37,11 @@ tag_test_data = (
     {'id': 2, 'tag': 'test2', 'description': 'not empty test tag'},
 )
 
-# tags a tag just to keep plugins separated.
 tag_object_test_data = (
     {'id': 1, 'obj_id': 1, 'obj_class': f'{Tag.__module__}.{Tag.__name__}',
      'tag_id': 2},
+    {'id': 2, 'obj_id': 5, 'obj_class':
+     f'{Accession.__module__}.{Accession.__name__}', 'tag_id': 2}
 )
 
 test_data_table_control = (

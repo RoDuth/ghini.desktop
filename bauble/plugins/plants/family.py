@@ -1,7 +1,7 @@
 # Copyright 2008-2010 Brett Adams
 # Copyright 2014-2015 Mario Frasca <mario@anche.no>.
 # Copyright 2017 Jardín Botánico de Quito
-# Copyright 2020-2021 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright 2020-2023 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -268,12 +268,15 @@ class Family(db.Base, db.Serializable, db.WithNotes):
 
     def top_level_count(self):
         genera = set(g for g in self.genera if g.species)
-        species = [s for g in genera for s in g.species]
-        accessions = [a for s in species for a in s.accessions]
-        plants = [p for a in accessions for p in a.plants]
+        species = [s for g in genera for s in
+                   db.get_active_children('species', g)]
+        accessions = [a for s in species for a in
+                      db.get_active_children('accessions', s)]
+        plants = [p for a in accessions for p in
+                  db.get_active_children('plants', a)]
         return {(1, 'Families'): set([self.id]),
                 (2, 'Genera'): genera,
-                (3, 'Species'): set(species),
+                (3, 'Species'): set(s.id for s in species),
                 (4, 'Accessions'): len(accessions),
                 (5, 'Plantings'): len(plants),
                 (6, 'Living plants'): sum(p.quantity for p in plants),

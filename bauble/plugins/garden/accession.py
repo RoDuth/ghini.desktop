@@ -1,7 +1,7 @@
 # Copyright 2008-2010 Brett Adams
 # Copyright 2015-2016 Mario Frasca <mario@anche.no>.
 # Copyright 2017 Jardín Botánico de Quito
-# Copyright 2020-2022 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright 2020-2023 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -37,12 +37,18 @@ logger = logging.getLogger(__name__)
 from gi.repository import Gtk
 
 from gi.repository import Pango
-from sqlalchemy import func
-from sqlalchemy import ForeignKey, Column, Unicode, Integer, UnicodeText
+from sqlalchemy import (ForeignKey,
+                        Column,
+                        Unicode,
+                        Integer,
+                        UnicodeText,
+                        func,
+                        exists)
 from sqlalchemy.orm import relationship, validates, backref
 from sqlalchemy.orm.session import object_session
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.hybrid import hybrid_property
+from sqlalchemy.sql.expression import select, case, cast
 
 import bauble
 from bauble import db
@@ -700,20 +706,27 @@ class Accession(db.Base, db.Serializable, db.WithNotes):
 
     @hybrid_property
     def active(self):
+        """False when all plants have 0 quantity (e.g. all plants have died,
+        deaccessioned)
+        """
+        if not self.plants:
+            return True
         for plant in self.plants:
-            if plant.quantity:
+            if plant.active:
                 return True
         return False
 
     @active.expression
     def active(cls):
-        # pylint: disable=no-self-argument,no-self-use
-        from bauble.btypes import Boolean
-        from sqlalchemy.sql.expression import select, case, cast
-        total = (select([func.sum(Plant.quantity)])
-                 .where(Plant.accession_id == cls.id)
-                 .label('total'))
-        return cast(case([(total, 1)], else_=0), Boolean)
+        # pylint: disable=no-self-argument
+        inactive = (select([cls.id])
+                    .outerjoin(Plant)
+                    .where(Plant.id.is_not(None))
+                    .group_by(cls.id)
+                    .having(func.sum(Plant.quantity) == 0)
+                    .scalar_subquery())
+        return cast(case([(cls.id.in_(inactive), 0)], else_=1),
+                    types.Boolean)
 
     def __str__(self):
         return str(self.code)
@@ -827,18 +840,18 @@ class Accession(db.Base, db.Serializable, db.WithNotes):
 
     def top_level_count(self):
         source = self.source.source_detail if self.source else None
+        plants = db.get_active_children('plants', self)
         return {(1, 'Accessions'): 1,
                 (2, 'Species'): set([self.species.id]),
                 (3, 'Genera'): set([self.species.genus.id]),
                 (4, 'Families'): set([self.species.genus.family.id]),
-                (5, 'Plantings'): len(self.plants),
-                (6, 'Living plants'): sum(p.quantity for p in self.plants),
-                (7, 'Locations'): set(p.location.id for p in self.plants),
+                (5, 'Plantings'): len(plants),
+                (6, 'Living plants'): sum(p.quantity for p in plants),
+                (7, 'Locations'): set(p.location.id for p in plants),
                 (8, 'Sources'): set([source.id] if source else [])}
 
     def has_children(self):
         cls = self.__class__.plants.prop.mapper.class_
-        from sqlalchemy import exists
         session = object_session(self)
         return session.query(
             exists().where(cls.accession_id == self.id)
@@ -847,9 +860,10 @@ class Accession(db.Base, db.Serializable, db.WithNotes):
     def count_children(self):
         cls = self.__class__.plants.prop.mapper.class_
         session = object_session(self)
-        return (session.query(cls.id)
-                .filter(cls.accession_id == self.id)
-                .count())
+        query = session.query(cls.id).filter(cls.accession_id == self.id)
+        if prefs.prefs.get(prefs.exclude_inactive_pref):
+            query = query.filter(cls.active.is_(True))
+        return query.count()
 
 
 # late import after Accession is defined

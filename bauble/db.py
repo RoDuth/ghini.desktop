@@ -2,7 +2,7 @@
 # Copyright 2015-2017 Mario Frasca <mario@anche.no>.
 # Copyright 2017 Jardín Botánico de Quito
 # Copyright 2018 Ilja Everilä
-# Copyright 2021-2022 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright 2021-2023 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -26,11 +26,13 @@ import datetime
 import os
 import re
 import json
+from collections.abc import Callable, Iterable
+from typing import Any
 
 import logging
 logger = logging.getLogger(__name__)
 
-from gi.repository import Gtk  # noqa
+from gi.repository import Gtk
 
 import sqlalchemy as sa
 from sqlalchemy import event
@@ -82,6 +84,19 @@ def natsort(attr, obj):
     for atr in jumps:
         obj = getattr(obj, atr)
     return sorted(obj, key=utils.natsort_key)
+
+
+def get_active_children(children: Callable | str, obj: Any) -> Iterable:
+    """Return only active children of obj if the 'exclude_inactive' pref is
+    set True else return all children.
+    """
+    children = (children(obj) if callable(children)
+                else getattr(obj, children))
+    # avoid circular refs
+    from bauble import prefs
+    if prefs.prefs.get(prefs.exclude_inactive_pref):
+        return [i for i in children if getattr(i, 'active', True)]
+    return children
 
 
 class MapperBase(DeclarativeMeta):

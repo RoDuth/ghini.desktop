@@ -1882,8 +1882,6 @@ class GenericModelViewPresenterEditor:
 
     def __del__(self):
         if hasattr(self, 'session'):
-            # in case one of the check()'s fail in __init__
-            self.session.commit()
             self.session.close()
 
 

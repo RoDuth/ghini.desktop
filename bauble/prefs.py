@@ -172,6 +172,17 @@ than a dict for the value of proxies e.g.:
 proxies = "no"
 """   # noqa
 
+return_accepted_pref = 'bauble.search.return_accepted'
+"""
+The preferences key for also returning accepted names for results that are
+considered synonyms.
+"""
+
+exclude_inactive_pref = 'bauble.search.exclude_inactive'
+"""
+The preferences key for ignoring inactive (deaccessioned etc.) search results.
+"""
+
 
 class _prefs(UserDict):
 
