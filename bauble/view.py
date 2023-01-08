@@ -52,7 +52,7 @@ from gi.repository import GLib
 from gi.repository import Pango
 
 from sqlalchemy.orm import object_session
-from sqlalchemy.orm.exc import ObjectDeletedError
+from sqlalchemy.orm.exc import ObjectDeletedError, DetachedInstanceError
 import sqlalchemy.exc as saexc
 
 import bauble
@@ -675,6 +675,10 @@ class PicturesScroller(Gtk.ScrolledWindow):
                 pics = obj.pictures
             except AttributeError:
                 logger.debug('object %s does not know of pictures', obj)
+                pics = []
+            except DetachedInstanceError:
+                # when session is lost... (e.g. successful search followed by a
+                # failed one)
                 pics = []
             for pic in pics:
                 logger.debug('object %s has picture %s', obj, pic)
@@ -1614,9 +1618,10 @@ class Note:
     def attached_to(cls, obj):
         """return the list of notes connected to obj"""
 
-        if hasattr(obj, 'notes') and obj.notes:
+        try:
             return obj.notes
-        return []
+        except (AttributeError, DetachedInstanceError):
+            return []
 
 
 class AppendThousandRows(threading.Thread):
