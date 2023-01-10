@@ -283,6 +283,23 @@ class PictureBoxTests(BaubleTestCase):
 
     @mock.patch('bauble.utils.yes_no_dialog',
                 return_value=Gtk.ResponseType.YES)
+    def test_picture_box_on_notes_remove_button_empty_entry(self, mock_dlog):
+        temp = tempfile.mkdtemp()
+        prefs.prefs[prefs.picture_root_pref] = temp
+
+        self.model.picture = None
+
+        mock_parent = mock.Mock(view=None)
+        presenter = mock.Mock(model=self.model, notes=[self.model],
+                              **{'parent_ref.return_value': mock_parent})
+        box = PictureBox(presenter, self.model)
+        self.assertIn(self.model, presenter.notes)
+        box.on_notes_remove_button(None)
+        mock_dlog.assert_not_called()
+        self.assertNotIn(self.model, presenter.notes)
+
+    @mock.patch('bauble.utils.yes_no_dialog',
+                return_value=Gtk.ResponseType.YES)
     def test_picture_box_on_notes_remove_button_removes_image(self, mock_dlog):
         temp = tempfile.mkdtemp()
         prefs.prefs[prefs.picture_root_pref] = temp

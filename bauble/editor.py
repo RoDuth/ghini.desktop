@@ -2179,7 +2179,7 @@ class PictureBox(GenericNoteBox, Gtk.Box):
         self.picture_box.show()
 
     def on_notes_remove_button(self, _button, *_args):
-        text = self.model.picture
+        text = self.model.picture or ''
         thumbname = os.path.join(prefs.prefs[prefs.picture_root_pref],
                                  'thumbs', text)
         filename = os.path.join(prefs.prefs[prefs.picture_root_pref],
