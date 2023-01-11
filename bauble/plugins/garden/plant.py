@@ -220,7 +220,7 @@ class PlantSearch(SearchStrategy):
             return 'only'
         return 'exclude'
 
-    def search(self, text, session=None): \
+    def search(self, text, session): \
             # pylint: disable=too-many-branches,too-many-locals
         """domain search for plants, only returns a result if appropriate
         string is supplied.  Searches a combination of Accession.code,

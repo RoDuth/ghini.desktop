@@ -196,7 +196,7 @@ class SynonymSearch(search.SearchStrategy):
                 ids.setdefault(models, set()).add(id_)
         return ids
 
-    def search(self, text, session=None):
+    def search(self, text, session):
         """Search for a synonym for each item in the results and add to the
         results
         """

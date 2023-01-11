@@ -143,20 +143,33 @@ class SearchParserTests(unittest.TestCase):
             self.assertRaises(ParseException, parser.value.parseString, s, parseAll=True)
 
     def test_needs_join(self):
-        "check the join steps"
+        """check the join steps"""
+        # am not sure this is testing much?
 
         env = None
         results = parser.statement.parseString("plant where accession.species."
                                                "id=44")
-        self.assertEqual(results.statement.content.filter.needs_join(env),
-                          [['accession', 'species']])
+        self.assertEqual(
+            results.statement.content.filter.operands[0].needs_join(env),
+            ['accession', 'species']
+        )
         results = parser.statement.parseString("plant where accession.id=44")
-        self.assertEqual(results.statement.content.filter.needs_join(env),
-                          [['accession']])
+        self.assertEqual(
+            results.statement.content.filter.operands[0].needs_join(env),
+            ['accession']
+        )
         results = parser.statement.parseString("plant where accession.id=4 OR "
                                                "accession.species.id=3")
-        self.assertEqual(results.statement.content.filter.needs_join(env),
-                          [['accession'], ['accession', 'species']])
+        self.assertEqual(
+            results.statement.content.filter.operands[0]
+            .operands[0].needs_join(env),
+            ['accession']
+        )
+        self.assertEqual(
+            results.statement.content.filter.operands[1]
+            .operands[0].needs_join(env),
+            ['accession', 'species']
+        )
 
     def test_value_list_token(self):
         """value_list: should return all values
@@ -943,6 +956,18 @@ class SearchTests(BaubleTestCase):
         results = list(mapper_search.search(s, self.session))
         self.assertEqual(results, [])
 
+        import warnings
+        # possible: SAWarning: SELECT statement has a cartesian product between
+        # FROM element(s) "species" and FROM element "species_1"
+        with warnings.catch_warnings(record=True) as warns:
+            warnings.simplefilter("always")
+            results = list(mapper_search.search(
+                "species where sp = 'viminalis' and _accepted.species.sp"
+                " = 'sp'", self.session))
+            self.assertEqual(results, [])
+            self.assertEqual(warns, [])
+            warnings.resetwarnings()
+
     def test_search_ambiguous_joins_w_results(self):
         """These joins broke down when upgrading to SQLA 1.4"""
         from bauble.plugins.plants.geography import geography_importer
@@ -957,7 +982,9 @@ class SearchTests(BaubleTestCase):
         g4 = Genus(family=f1, genus='Artocarpus')
         sp1 = Species(genus=g3, epithet='virens')
         sp2 = Species(genus=g4, epithet='heterophyllus')
-        self.session.add_all([g2, g3, g4, f1, sp1, sp2])
+        sp3 = Species(sp="sp", genus=g3)
+        self.session.add_all([g2, g3, g4, f1, sp1, sp2, sp3])
+        sp1.accepted = sp3
         self.session.commit()
 
         mapper_search = search.get_strategy('MapperSearch')
@@ -979,7 +1006,79 @@ class SearchTests(BaubleTestCase):
 
         s = ("species where genus.family.genera.epithet = 'Ficus'")
         results = list(mapper_search.search(s, self.session))
-        self.assertCountEqual(results, [sp1, sp2])
+        self.assertCountEqual(results, [sp1, sp2, sp3])
+
+        import warnings
+        # possible: SAWarning: SELECT statement has a cartesian product between
+        # FROM element(s) "species" and FROM element "species_1"
+        with warnings.catch_warnings(record=True) as warns:
+            warnings.simplefilter("always")
+            results = list(mapper_search.search(
+                "species where sp = 'virens' and _accepted.species.sp"
+                " = 'sp'", self.session))
+            self.assertEqual(results, [sp1])
+            self.assertEqual(warns, [])
+            warnings.resetwarnings()
+
+    def test_complex_query(self):
+        """Something with multiple joins, and, or, parethesis, not, between, a
+        filter, in, between and a hybrid property
+
+        Tests that parsing and query formation happens as expected in complex
+        queries.
+        """
+        from bauble.plugins.plants.family import Family
+        from bauble.plugins.plants.genus import Genus, GenusSynonym
+        from bauble.plugins.plants.species import Species
+        from bauble.plugins.garden.accession import Accession
+        from bauble.plugins.garden.plant import Plant
+        from bauble.plugins.garden.location import Location
+        g2 = Genus(family=self.family, genus='genus2')
+        f1 = Family(epithet='Moraceae')
+        g3 = Genus(family=f1, genus='Ficus')
+        g4 = Genus(family=f1, genus='Artocarpus')
+        sp1 = Species(genus=g3, epithet='virens')
+        sp2 = Species(genus=g4, epithet='heterophyllus')
+        sp3 = Species(sp="sp", genus=g3)
+        ac = Accession(species=sp2, code='1979.0001', quantity_recvd=10)
+        a2 = Accession(species=sp1, code='1979.0002', quantity_recvd=5)
+        lc = Location(name='loc1', code='loc1')
+        lc2 = Location(name='loc2', code='loc2')
+        pp = Plant(accession=ac, code='01', location=lc, quantity=1)
+        p2 = Plant(accession=ac, code='02', location=lc2, quantity=1)
+        self.session.add_all([g2, g3, g4, f1, sp1, sp2, sp3, ac, a2, lc, lc2,
+                              pp, p2])
+        self.session.commit()
+
+        mapper_search = search.get_strategy('MapperSearch')
+        self.assertTrue(isinstance(mapper_search, search.MapperSearch))
+
+        s = ("species where active is True and not "
+             "(accessions[_created > -1].quantity_recvd in 5, 6 or "
+             "accessions.plants.location.code = 'loc2') and id "
+             "BETWEEN 1 and 20")
+        results = list(mapper_search.search(s, self.session))
+        for i in results:
+            print(i)
+        self.assertCountEqual(results, [sp3])
+
+        s = ("species where active is True and not "
+             "(accessions[_created > -1].quantity_recvd in 7, 6 or "
+             "accessions.plants.location.code = 'loc1') and id "
+             "BETWEEN 0 and 1")
+        results = list(mapper_search.search(s, self.session))
+        for i in results:
+            print(i)
+        self.assertCountEqual(results, [sp1])
+
+        s = ("species where active is False and not "
+             "(accessions[_created > -1].quantity_recvd in 7, 6 or "
+             "accessions.plants.location.code = 'loc1') and id "
+             "BETWEEN 0 and 1")
+        results = list(mapper_search.search(s, self.session))
+        for i in results:
+            print(i)
+        self.assertCountEqual(results, [])
 
 
 class InOperatorSearch(BaubleTestCase):

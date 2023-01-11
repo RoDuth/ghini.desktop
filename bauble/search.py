@@ -135,7 +135,7 @@ OPERATIONS = {
 }
 
 
-def create_joins(query, cls, steps):
+def create_joins(query, cls, steps, aliased=False):
     """Given a starting query, class and steps add the appropriate join()
     clauses to the query.  Returns the query and the last class in the joins.
     """
@@ -144,7 +144,7 @@ def create_joins(query, cls, steps):
         if hasattr(cls, step):
             joinee = get_related_class(cls, step)
 
-            if joinee in to_join:
+            if joinee in to_join or aliased:
                 from sqlalchemy.orm import aliased
                 joinee = aliased(joinee)
                 query = query.join(
@@ -166,7 +166,7 @@ class NoneToken:
     def __repr__(self):
         return '(None<NoneType>)'
 
-    def express(self):  # pylint: disable=no-self-use
+    def express(self):
         return None
 
 
@@ -177,7 +177,7 @@ class EmptyToken:
     def __repr__(self):
         return 'Empty'
 
-    def express(self):  # pylint: disable=no-self-use
+    def express(self):
         return set()
 
     def __eq__(self, other):
@@ -245,6 +245,9 @@ class IdentifierAction:
         if len(self.steps) == 0:
             # identifier is an attribute of the table being queried
             cls = env.domain
+        elif env.joined_cls:
+            # joins have already been applied due to AND clause
+            cls = env.joined_cls
         else:
             # identifier is an attribute of a joined table
             query, cls = create_joins(query, env.domain, self.steps)
@@ -281,7 +284,12 @@ class FilteredIdentifierAction:
         query = env.session.query(env.domain)
         # identifier is an attribute of a joined table
 
-        query, cls = create_joins(query, env.domain, self.steps)
+        if env.joined_cls:
+            # joins have already been applied due to AND clause
+            cls = env.joined_cls
+        else:
+            query, cls = create_joins(query, env.domain, self.steps,
+                                      aliased=True)
 
         attr = getattr(cls, self.filter_attr)
 
@@ -328,8 +336,9 @@ class IdentExpression:
         query = query.filter(clause(self.operands[1].express()))
         return query
 
-    def needs_join(self, env):
-        return [self.operands[0].needs_join(env)]
+    def needs_join(self, _env):
+        # Its not here but in operands[0] that the join should be created.
+        return []
 
 
 class ElementSetExpression(IdentExpression):
@@ -476,11 +485,27 @@ class SearchAndAction(BinaryLogical):
     name = 'AND'
 
     def evaluate(self, env):
+        # need to create joins here then add in the whereclause, for a
+        # SearchNotAction no whereclause will be returned, instead an except_
+        # will be available, containing relevent joins.
         query = self.operands[0].evaluate(env)
-        for i in self.operands[1:]:
-            if (joins := i.needs_join(env)[0]):
-                query, __ = create_joins(query, env.domain, joins)
-            query = query.filter(i.evaluate(env).whereclause)
+        for operand in self.operands[1:]:
+            if (isinstance(operand, IdentExpression) and
+                    (joins := operand.operands[0].needs_join(env))):
+                query, cls = create_joins(query, env.domain, joins)
+                # let the operand know how to formulate the whereclause
+                env.joined_cls = cls
+
+            where = operand.evaluate(env).whereclause
+
+            # either add the whereclause or except_
+            if where is not None:
+                # IdentExpression or FilteredIdentifierAction
+                query = query.filter(where)
+            elif hasattr(operand, 'except_') and operand.except_:
+                # SearchNotAction
+                query = query.except_(operand.except_)
+
         return query
 
 
@@ -489,20 +514,25 @@ class SearchOrAction(BinaryLogical):
 
     def evaluate(self, env):
         query = self.operands[0].evaluate(env)
-        for i in self.operands[1:]:
-            query = query.union(i.evaluate(env))
+        for operand in self.operands[1:]:
+            query = query.union(operand.evaluate(env))
         return query
 
 
 class SearchNotAction(UnaryLogical):
     name = 'NOT'
 
+    def __init__(self, tokens):
+        super().__init__(tokens)
+        self.except_ = None
+
     def evaluate(self, env):
         query = env.session.query(env.domain)
-        for steps in env.domains:
+        for steps in self.operand.needs_join(env):
             if steps:
                 query, __ = create_joins(query, env.domain, steps)
-        query = query.except_(self.operand.evaluate(env))
+        self.except_ = self.operand.evaluate(env)
+        query = query.except_(self.except_)
         return query
 
 
@@ -524,8 +554,8 @@ class QueryAction:
     def __init__(self, tokens):
         self.domain = tokens[0]
         self.filter = tokens[1][0]
-        self.domains = None
         self.session = None
+        self.joined_cls = None
 
     def __repr__(self):
         return f"SELECT * FROM {self.domain} WHERE {self.filter}"
@@ -548,7 +578,6 @@ class QueryAction:
         self.domain = search_strategy.domains[self.domain][0]
 
         if search_strategy.session is not None:
-            self.domains = self.filter.needs_join(self)
             self.session = search_strategy.session
             query = self.filter.evaluate(self)
 
@@ -866,7 +895,7 @@ class SearchStrategy(ABC):
     def use(text):
         ...
 
-    def search(self, text, session=None):
+    def search(self, text, session):
         """
         :param text: the search string
         :param session: the session to use for the search
