@@ -750,7 +750,7 @@ class GenericEditorView:
         logger.debug('%s::cleanup', self.__class__.__name__)
         self.disconnect_all()
         if self.root_widget_name:
-            self.get_window().destroy()
+            GLib.idle_add(self.get_window().destroy)
 
 
 class MockDialog:

@@ -18,7 +18,7 @@
             <property name="can-focus">True</property>
             <property name="layout-style">end</property>
             <child>
-              <object class="GtkButton" id="button10">
+              <object class="GtkButton" id="loc_cancel_button">
                 <property name="label" translatable="yes">Cancel</property>
                 <property name="visible">True</property>
                 <property name="can-focus">True</property>
@@ -447,7 +447,7 @@
       </object>
     </child>
     <action-widgets>
-      <action-widget response="-6">button10</action-widget>
+      <action-widget response="-6">loc_cancel_button</action-widget>
       <action-widget response="-5">loc_ok_button</action-widget>
       <action-widget response="11">loc_ok_and_add_button</action-widget>
       <action-widget response="22">loc_next_button</action-widget>
