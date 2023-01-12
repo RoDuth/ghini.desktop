@@ -765,9 +765,12 @@ class TestHistoryView(BaubleTestCase):
 
     @mock.patch('bauble.view.HistoryView.get_selected_value')
     def test_on_copy_values(self, mock_get_selected):
+        geojson = {'type': 'Point', 'coordinate': [1, 2]}
         from datetime import datetime
-        values = {'id': 1, 'genus_id': 10, 'note': 'test note',
-                  '_created': None, '_last_updated': None}
+        vals = {'id': 1, 'genus_id': 10, 'note': 'test note',
+                '_created': None, '_last_updated': None}
+        values = dict(vals)
+        values['geojson'] = geojson
 
         mock_hist_item = mock.Mock(
             timestamp=datetime.today(),
@@ -782,14 +785,14 @@ class TestHistoryView(BaubleTestCase):
         hist_view = HistoryView()
         import json
         self.assertEqual(hist_view.on_copy_values(None, None),
-                         json.dumps(values))
+                         json.dumps(vals))
 
     @mock.patch('bauble.view.HistoryView.get_selected_value')
     def test_on_copy_geojson(self, mock_get_selected):
         from datetime import datetime
         geojson = {'type': 'Point', 'coordinate': [1, 2]}
         values = {'id': 1, 'name': 'name data', '_created': None,
-                  '_last_updated': None}
+                  '_last_updated': None, 'geojson': geojson}
 
         mock_hist_item = mock.Mock(
             timestamp=datetime.today(),

@@ -1814,21 +1814,26 @@ class HistoryView(pluginmgr.View, Gtk.Box):
 
     def on_copy_values(self, _action, _param):
         if selected := self.get_selected_value():
-            string = json.dumps(selected.values)
+            values = dict(selected.values)
+            if values.get('geojson'):
+                del values['geojson']
+            string = json.dumps(values)
             if bauble.gui:
                 bauble.gui.get_display_clipboard().set_text(string, -1)
             else:
                 # for testing
                 return string
+        return None
 
     def on_copy_geojson(self, _action, _param):
         if selected := self.get_selected_value():
-            string = json.dumps(selected.geojson)
+            string = json.dumps(selected.values.get('geojson'))
             if bauble.gui:
                 bauble.gui.get_display_clipboard().set_text(string, -1)
             else:
                 # for testing
                 return string
+        return None
 
     @classmethod
     def add_translation_query(cls, table_name, domain, query):
