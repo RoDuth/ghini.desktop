@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- Generated with glade 3.38.2 -->
+<!-- Generated with glade 3.40.0 -->
 <interface>
   <requires lib="gtk+" version="3.24"/>
   <object class="GtkWindow" id="family_window">
@@ -101,7 +101,7 @@
                   </packing>
                 </child>
                 <child>
-                  <object class="GtkEventBox" id="f_eventbox1">
+                  <object class="GtkEventBox">
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
                     <child>
@@ -119,7 +119,7 @@
                   </packing>
                 </child>
                 <child>
-                  <object class="GtkEventBox" id="f_eventbox2">
+                  <object class="GtkEventBox">
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
                     <child>
@@ -137,7 +137,7 @@
                   </packing>
                 </child>
                 <child>
-                  <object class="GtkEventBox" id="f_eventbox3">
+                  <object class="GtkEventBox">
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
                     <child>
@@ -155,7 +155,7 @@
                   </packing>
                 </child>
                 <child>
-                  <object class="GtkEventBox" id="f_eventbox4">
+                  <object class="GtkEventBox">
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
                     <child>
@@ -262,7 +262,7 @@
                   </packing>
                 </child>
                 <child>
-                  <object class="GtkEventBox" id="g_eventbox1">
+                  <object class="GtkEventBox">
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
                     <property name="visible-window">False</property>
@@ -347,7 +347,7 @@
                   </packing>
                 </child>
                 <child>
-                  <object class="GtkEventBox" id="g_eventbox2">
+                  <object class="GtkEventBox">
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
                     <child>
@@ -365,7 +365,7 @@
                   </packing>
                 </child>
                 <child>
-                  <object class="GtkEventBox" id="g_eventbox3">
+                  <object class="GtkEventBox">
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
                     <child>
@@ -383,7 +383,7 @@
                   </packing>
                 </child>
                 <child>
-                  <object class="GtkEventBox" id="g_eventbox4">
+                  <object class="GtkEventBox">
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
                     <child>
@@ -482,7 +482,7 @@
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
                     <child>
-                      <object class="GtkEventBox" id="sp_gen_ebx">
+                      <object class="GtkEventBox">
                         <property name="visible">True</property>
                         <property name="can-focus">False</property>
                         <property name="visible-window">False</property>
@@ -506,7 +506,6 @@
                       <object class="GtkLabel" id="sp_epithet_data">
                         <property name="visible">True</property>
                         <property name="can-focus">False</property>
-                        <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
                         <property name="margin-top">5</property>
                         <property name="margin-bottom">5</property>
                         <property name="label">--</property>
@@ -528,7 +527,7 @@
                   </packing>
                 </child>
                 <child>
-                  <object class="GtkEventBox" id="sp_fam_ebx">
+                  <object class="GtkEventBox">
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
                     <property name="visible-window">False</property>
@@ -563,7 +562,7 @@
                 <property name="row-spacing">8</property>
                 <property name="column-spacing">15</property>
                 <child>
-                  <object class="GtkEventBox" id="s_eventbox2">
+                  <object class="GtkEventBox">
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
                     <child>
@@ -581,7 +580,7 @@
                   </packing>
                 </child>
                 <child>
-                  <object class="GtkEventBox" id="s_eventbox3">
+                  <object class="GtkEventBox">
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
                     <child>

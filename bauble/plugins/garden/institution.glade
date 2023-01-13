@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- Generated with glade 3.38.2 -->
+<!-- Generated with glade 3.40.0 -->
 <interface>
   <requires lib="gtk+" version="3.24"/>
   <object class="GtkTextBuffer" id="inst_addr_tb">
@@ -7,24 +7,21 @@
   </object>
   <object class="GtkDialog" id="inst_dialog">
     <property name="can-focus">False</property>
-    <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
-    <property name="resizable">False</property>
     <property name="border-width">5</property>
     <property name="title" translatable="yes">Institution Editor</property>
+    <property name="resizable">False</property>
     <property name="window-position">center-on-parent</property>
     <property name="type-hint">dialog</property>
     <child internal-child="vbox">
       <object class="GtkBox">
         <property name="visible">True</property>
         <property name="can-focus">False</property>
-        <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
         <property name="orientation">vertical</property>
         <property name="spacing">2</property>
         <child internal-child="action_area">
-          <object class="GtkButtonBox" id="dialog-action_area3">
+          <object class="GtkButtonBox">
             <property name="visible">True</property>
             <property name="can-focus">False</property>
-            <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
             <property name="layout-style">end</property>
             <child>
               <object class="GtkButton" id="inst_ok">
@@ -32,7 +29,6 @@
                 <property name="visible">True</property>
                 <property name="can-focus">True</property>
                 <property name="receives-default">True</property>
-                <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
                 <property name="tooltip-text" translatable="yes">save and close</property>
               </object>
               <packing>
@@ -51,14 +47,13 @@
         </child>
         <child>
           <object class="GtkBox">
-            <property name="orientation">vertical</property>
             <property name="visible">True</property>
             <property name="can-focus">False</property>
-            <property name="spacing">0</property>
+            <property name="orientation">vertical</property>
             <child>
               <object class="GtkBox" id="message_box_parent">
                 <property name="visible">True</property>
-                <property name="can_focus">False</property>
+                <property name="can-focus">False</property>
                 <child>
                   <placeholder/>
                 </child>
@@ -80,7 +75,6 @@
                   <object class="GtkLabel">
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
-                    <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
                     <property name="label" translatable="yes">Institution Name *</property>
                     <property name="use-markup">True</property>
                     <property name="xalign">0</property>
@@ -94,7 +88,6 @@
                   <object class="GtkEntry" id="inst_name">
                     <property name="visible">True</property>
                     <property name="can-focus">True</property>
-                    <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
                     <property name="invisible-char">●</property>
                     <property name="primary-icon-activatable">False</property>
                     <property name="secondary-icon-activatable">False</property>
@@ -109,7 +102,6 @@
                   <object class="GtkLabel">
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
-                    <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
                     <property name="label" translatable="yes">Abbreviation</property>
                     <property name="use-markup">True</property>
                     <property name="xalign">0</property>
@@ -123,7 +115,6 @@
                   <object class="GtkEntry" id="inst_abbr">
                     <property name="visible">True</property>
                     <property name="can-focus">True</property>
-                    <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
                     <property name="invisible-char">●</property>
                     <property name="primary-icon-activatable">False</property>
                     <property name="secondary-icon-activatable">False</property>
@@ -138,7 +129,6 @@
                   <object class="GtkLabel">
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
-                    <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
                     <property name="label" translatable="yes">Institutional code</property>
                     <property name="use-markup">True</property>
                     <property name="xalign">0</property>
@@ -152,7 +142,6 @@
                   <object class="GtkEntry" id="inst_code">
                     <property name="visible">True</property>
                     <property name="can-focus">True</property>
-                    <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
                     <property name="invisible-char">●</property>
                     <property name="primary-icon-activatable">False</property>
                     <property name="secondary-icon-activatable">False</property>
@@ -167,7 +156,6 @@
                   <object class="GtkLabel">
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
-                    <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
                     <property name="label" translatable="yes">Contact name</property>
                     <property name="use-markup">True</property>
                     <property name="xalign">0</property>
@@ -181,7 +169,6 @@
                   <object class="GtkEntry" id="inst_contact">
                     <property name="visible">True</property>
                     <property name="can-focus">True</property>
-                    <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
                     <property name="invisible-char">●</property>
                     <property name="primary-icon-activatable">False</property>
                     <property name="secondary-icon-activatable">False</property>
@@ -196,7 +183,6 @@
                   <object class="GtkLabel">
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
-                    <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
                     <property name="label" translatable="yes">Technical contact</property>
                     <property name="use-markup">True</property>
                     <property name="xalign">0</property>
@@ -210,7 +196,6 @@
                   <object class="GtkEntry" id="inst_tech">
                     <property name="visible">True</property>
                     <property name="can-focus">True</property>
-                    <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
                     <property name="invisible-char">●</property>
                     <property name="primary-icon-activatable">False</property>
                     <property name="secondary-icon-activatable">False</property>
@@ -225,7 +210,6 @@
                   <object class="GtkLabel">
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
-                    <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
                     <property name="label" translatable="yes">Email</property>
                     <property name="use-markup">True</property>
                     <property name="xalign">0</property>
@@ -239,7 +223,6 @@
                   <object class="GtkEntry" id="inst_email">
                     <property name="visible">True</property>
                     <property name="can-focus">True</property>
-                    <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
                     <property name="invisible-char">●</property>
                     <property name="width-chars">32</property>
                     <property name="primary-icon-activatable">False</property>
@@ -255,7 +238,6 @@
                   <object class="GtkLabel">
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
-                    <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
                     <property name="label" translatable="yes">Telephone</property>
                     <property name="use-markup">True</property>
                     <property name="xalign">0</property>
@@ -269,7 +251,6 @@
                   <object class="GtkLabel">
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
-                    <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
                     <property name="label" translatable="yes">Fax</property>
                     <property name="use-markup">True</property>
                     <property name="xalign">0</property>
@@ -283,7 +264,6 @@
                   <object class="GtkEntry" id="inst_tel">
                     <property name="visible">True</property>
                     <property name="can-focus">True</property>
-                    <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
                     <property name="invisible-char">●</property>
                     <property name="width-chars">24</property>
                     <property name="primary-icon-activatable">False</property>
@@ -299,7 +279,6 @@
                   <object class="GtkEntry" id="inst_fax">
                     <property name="visible">True</property>
                     <property name="can-focus">True</property>
-                    <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
                     <property name="invisible-char">●</property>
                     <property name="primary-icon-activatable">False</property>
                     <property name="secondary-icon-activatable">False</property>
@@ -314,7 +293,6 @@
                   <object class="GtkLabel">
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
-                    <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
                     <property name="label" translatable="yes">Address</property>
                     <property name="use-markup">True</property>
                     <property name="xalign">0</property>
@@ -335,7 +313,6 @@
                       <object class="GtkTextView" id="inst_addr">
                         <property name="visible">True</property>
                         <property name="can-focus">True</property>
-                        <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
                         <property name="border-width">1</property>
                         <property name="buffer">inst_addr_tb</property>
                       </object>
@@ -406,7 +383,6 @@
               <object class="GtkEntry" id="inst_geo_latitude">
                 <property name="visible">True</property>
                 <property name="can-focus">True</property>
-                <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
                 <property name="primary-icon-activatable">False</property>
                 <property name="secondary-icon-activatable">False</property>
                 <signal name="changed" handler="on_text_entry_changed" swapped="no"/>
@@ -434,7 +410,6 @@
               <object class="GtkEntry" id="inst_geo_longitude">
                 <property name="visible">True</property>
                 <property name="can-focus">True</property>
-                <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
                 <property name="primary-icon-activatable">False</property>
                 <property name="secondary-icon-activatable">False</property>
                 <signal name="changed" handler="on_text_entry_changed" swapped="no"/>
@@ -449,7 +424,6 @@
               <object class="GtkLabel">
                 <property name="visible">True</property>
                 <property name="can-focus">False</property>
-                <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
                 <property name="label" translatable="yes">Diameter</property>
                 <property name="use-markup">True</property>
                 <property name="xalign">0</property>
@@ -464,7 +438,6 @@
               <object class="GtkEntry" id="inst_geo_diameter">
                 <property name="visible">True</property>
                 <property name="can-focus">True</property>
-                <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
                 <property name="primary-icon-activatable">False</property>
                 <property name="secondary-icon-activatable">False</property>
                 <signal name="changed" handler="on_text_entry_changed" swapped="no"/>

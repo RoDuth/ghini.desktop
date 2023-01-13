@@ -13,7 +13,7 @@
         <property name="can-focus">True</property>
         <property name="orientation">vertical</property>
         <child internal-child="action_area">
-          <object class="GtkButtonBox" id="dialog-action_area4">
+          <object class="GtkButtonBox">
             <property name="visible">True</property>
             <property name="can-focus">True</property>
             <property name="layout-style">end</property>
@@ -272,13 +272,13 @@
                           </packing>
                         </child>
                         <child>
-                          <object class="GtkButtonBox" id="dialog-action_area1">
+                          <object class="GtkButtonBox">
                             <property name="visible">True</property>
                             <property name="can-focus">True</property>
                             <property name="layout-style">end</property>
                             <child>
                               <object class="GtkButton" id="loc_merge_button">
-                                <property name="label">Merge</property>
+                                <property name="label" translatable="yes">Merge</property>
                                 <property name="visible">True</property>
                                 <property name="can-focus">False</property>
                                 <property name="can-default">True</property>

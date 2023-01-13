@@ -19,14 +19,14 @@
 """
 The XSL report generator module.
 
-This module takes a list of objects, get all the plants from the objects,
-converts them to the ABCD XML format, transforms the ABCD data to an XSL
-formatting stylesheet and uses FOP to convert the stylesheet to an a document.
+This module takes a list of objects, gets all the species, accessions or plants
+from these objects, converts them to the ABCD XML format, transforms the ABCD
+data to an XSL formatting stylesheet and uses FOP to convert this stylesheet to
+a document (PDF, PostScript, etc.).
 """
 import sys
 import os
 import subprocess
-import tempfile
 from pathlib import Path
 from operator import attrgetter
 

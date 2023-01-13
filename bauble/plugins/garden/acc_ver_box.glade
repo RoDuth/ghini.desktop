@@ -252,7 +252,7 @@
                   </packing>
                 </child>
                 <child>
-                  <object class="GtkBox" id="hbox16">
+                  <object class="GtkBox">
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
                     <child>

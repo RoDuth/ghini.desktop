@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- Generated with glade 3.38.2 -->
+<!-- Generated with glade 3.40.0 -->
 <interface>
   <requires lib="gtk+" version="3.24"/>
   <object class="GtkListStore" id="liststore">
@@ -41,10 +41,10 @@
               <object class="GtkTreeSelection"/>
             </child>
             <child>
-              <object class="GtkTreeViewColumn" id="history_treeviewcolumn0">
+              <object class="GtkTreeViewColumn">
                 <property name="title" translatable="yes">Timestamp</property>
                 <child>
-                  <object class="GtkCellRendererText" id="history_cellrenderertext0"/>
+                  <object class="GtkCellRendererText"/>
                   <attributes>
                     <attribute name="text">1</attribute>
                   </attributes>
@@ -52,10 +52,10 @@
               </object>
             </child>
             <child>
-              <object class="GtkTreeViewColumn" id="history_treeviewcolumn1">
+              <object class="GtkTreeViewColumn">
                 <property name="title" translatable="yes">Operation</property>
                 <child>
-                  <object class="GtkCellRendererText" id="history_cellrenderertext1"/>
+                  <object class="GtkCellRendererText"/>
                   <attributes>
                     <attribute name="text">2</attribute>
                   </attributes>
@@ -63,10 +63,10 @@
               </object>
             </child>
             <child>
-              <object class="GtkTreeViewColumn" id="history_treeviewcolumn2">
+              <object class="GtkTreeViewColumn">
                 <property name="title" translatable="yes">User</property>
                 <child>
-                  <object class="GtkCellRendererText" id="history_cellrenderertext2"/>
+                  <object class="GtkCellRendererText"/>
                   <attributes>
                     <attribute name="text">3</attribute>
                   </attributes>
@@ -74,10 +74,10 @@
               </object>
             </child>
             <child>
-              <object class="GtkTreeViewColumn" id="history_treeviewcolumn3">
+              <object class="GtkTreeViewColumn">
                 <property name="title" translatable="yes">Table Name</property>
                 <child>
-                  <object class="GtkCellRendererText" id="history_cellrenderertext3"/>
+                  <object class="GtkCellRendererText"/>
                   <attributes>
                     <attribute name="text">4</attribute>
                   </attributes>
@@ -85,10 +85,10 @@
               </object>
             </child>
             <child>
-              <object class="GtkTreeViewColumn" id="history_treeviewcolumn4">
+              <object class="GtkTreeViewColumn">
                 <property name="title" translatable="yes">Values</property>
                 <child>
-                  <object class="GtkCellRendererText" id="history_cellrenderertext4"/>
+                  <object class="GtkCellRendererText"/>
                   <attributes>
                     <attribute name="text">5</attribute>
                   </attributes>
@@ -96,10 +96,10 @@
               </object>
             </child>
             <child>
-              <object class="GtkTreeViewColumn" id="history_treeviewcolumn5">
+              <object class="GtkTreeViewColumn">
                 <property name="title" translatable="yes">GeoJSON</property>
                 <child>
-                  <object class="GtkCellRendererText" id="history_cellrenderertext5"/>
+                  <object class="GtkCellRendererText"/>
                   <attributes>
                     <attribute name="text">6</attribute>
                   </attributes>

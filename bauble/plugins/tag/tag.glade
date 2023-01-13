@@ -336,7 +336,6 @@
               <object class="GtkFrame">
                 <property name="visible">True</property>
                 <property name="can-focus">False</property>
-                <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
                 <property name="label-xalign">0</property>
                 <property name="shadow-type">none</property>
                 <child>
@@ -369,7 +368,6 @@
                   <object class="GtkLabel">
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
-                    <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
                     <property name="label" translatable="yes">Item(s)</property>
                     <attributes>
                       <attribute name="weight" value="bold"/>
@@ -386,7 +384,6 @@
               <object class="GtkFrame">
                 <property name="visible">True</property>
                 <property name="can-focus">False</property>
-                <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
                 <property name="label-xalign">0</property>
                 <property name="shadow-type">none</property>
                 <child>
@@ -412,7 +409,6 @@
                   <object class="GtkLabel">
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
-                    <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
                     <property name="label" translatable="yes">Tags</property>
                     <attributes>
                       <attribute name="weight" value="bold"/>
@@ -447,14 +443,14 @@
       <column type="gchararray"/>
     </columns>
   </object>
-  <object class="GtkWindow" id="taginfo_parent">
+  <object class="GtkWindow">
     <property name="can-focus">False</property>
     <child>
       <object class="GtkScrolledWindow" id="taginfo_scrolledwindow">
         <property name="visible">True</property>
         <property name="can-focus">True</property>
         <child>
-          <object class="GtkTreeView" id="taginfo_trv">
+          <object class="GtkTreeView">
             <property name="visible">True</property>
             <property name="can-focus">True</property>
             <property name="model">taginfo_lsto</property>
@@ -465,8 +461,8 @@
               <object class="GtkTreeSelection"/>
             </child>
             <child>
-              <object class="GtkTreeViewColumn" id="name_col">
-                <property name="title">Name</property>
+              <object class="GtkTreeViewColumn">
+                <property name="title" translatable="yes">Name</property>
                 <child>
                   <object class="GtkCellRendererText" id="name_cell">
                     <property name="xalign">0</property>
@@ -479,8 +475,8 @@
               </object>
             </child>
             <child>
-              <object class="GtkTreeViewColumn" id="text_col">
-                <property name="title">Note</property>
+              <object class="GtkTreeViewColumn">
+                <property name="title" translatable="yes">Note</property>
                 <child>
                   <object class="GtkCellRendererText" id="text_cell">
                     <property name="xalign">0</property>

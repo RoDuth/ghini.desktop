@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- Generated with glade 3.38.2 -->
+<!-- Generated with glade 3.40.0 -->
 <interface>
   <requires lib="gtk+" version="3.24"/>
   <object class="GtkWindow" id="general_window">
@@ -20,12 +20,10 @@
               <object class="GtkBox" id="acc_code_box">
                 <property name="visible">True</property>
                 <property name="can-focus">False</property>
-                <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
                 <child>
                   <object class="GtkLabel" id="acc_code_data">
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
-                    <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
                     <property name="ypad">5</property>
                     <property name="label">--</property>
                     <property name="use-markup">True</property>
@@ -45,15 +43,13 @@
               </packing>
             </child>
             <child>
-              <object class="GtkEventBox" id="eventbox1">
+              <object class="GtkEventBox">
                 <property name="visible">True</property>
                 <property name="can-focus">False</property>
-                <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
                 <child>
                   <object class="GtkLabel" id="name_data">
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
-                    <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
                     <property name="label">--</property>
                     <property name="use-markup">True</property>
                     <property name="xalign">0</property>
@@ -98,7 +94,7 @@
               </packing>
             </child>
             <child>
-              <object class="GtkEventBox" id="gw_eventbox2">
+              <object class="GtkEventBox">
                 <property name="visible">True</property>
                 <property name="can-focus">False</property>
                 <child>
@@ -401,38 +397,6 @@
       </object>
     </child>
   </object>
-  <object class="GtkWindow" id="notes_window">
-    <property name="can-focus">False</property>
-    <property name="title">window1</property>
-    <child>
-      <object class="GtkBox" id="notes_box">
-        <property name="visible">True</property>
-        <property name="can-focus">False</property>
-        <property name="orientation">vertical</property>
-        <child>
-          <object class="GtkScrolledWindow" id="notes_sw">
-            <property name="can-focus">True</property>
-            <property name="border-width">5</property>
-            <property name="shadow-type">in</property>
-            <child>
-              <object class="GtkTextView" id="notes_data">
-                <property name="visible">True</property>
-                <property name="can-focus">True</property>
-                <property name="editable">False</property>
-                <property name="wrap-mode">word</property>
-                <property name="cursor-visible">False</property>
-              </object>
-            </child>
-          </object>
-          <packing>
-            <property name="expand">True</property>
-            <property name="fill">True</property>
-            <property name="position">0</property>
-          </packing>
-        </child>
-      </object>
-    </child>
-  </object>
   <object class="GtkWindow" id="source_window">
     <property name="can-focus">False</property>
     <child>
@@ -465,7 +429,7 @@
               </packing>
             </child>
             <child>
-              <object class="GtkEventBox" id="source_name_eventbox">
+              <object class="GtkEventBox">
                 <property name="visible">True</property>
                 <property name="can-focus">False</property>
                 <child>

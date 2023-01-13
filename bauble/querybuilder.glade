@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- Generated with glade 3.38.2 -->
+<!-- Generated with glade 3.40.0 -->
 <interface>
   <requires lib="gtk+" version="3.24"/>
   <object class="GtkListStore" id="domain_liststore">
@@ -20,7 +20,7 @@
         <property name="orientation">vertical</property>
         <property name="spacing">2</property>
         <child internal-child="action_area">
-          <object class="GtkButtonBox" id="dialog-action_area1">
+          <object class="GtkButtonBox">
             <property name="visible">True</property>
             <property name="can-focus">False</property>
             <property name="layout-style">end</property>
@@ -42,9 +42,9 @@
                 <property name="label" translatable="yes">OK</property>
                 <property name="visible">True</property>
                 <property name="can-focus">True</property>
-                <property name="receives-default">True</property>
                 <property name="can-default">True</property>
                 <property name="has-default">True</property>
+                <property name="receives-default">True</property>
               </object>
               <packing>
                 <property name="expand">False</property>
@@ -69,7 +69,7 @@
                 <property name="visible">True</property>
                 <property name="can-focus">False</property>
                 <child>
-                  <object class="GtkFrame" id="frame1">
+                  <object class="GtkFrame">
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
                     <property name="label-xalign">0</property>
@@ -83,7 +83,7 @@
                         <property name="entry-text-column">0</property>
                         <signal name="changed" handler="on_domain_combo_changed" swapped="no"/>
                         <child>
-                          <object class="GtkCellRendererText" id="domain_combo_cell_1"/>
+                          <object class="GtkCellRendererText"/>
                           <attributes>
                             <attribute name="text">0</attribute>
                           </attributes>
@@ -108,10 +108,9 @@
                   </packing>
                 </child>
                 <child>
-                  <object class="GtkEventBox" id="help_eventbox">
+                  <object class="GtkEventBox">
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
-                    <property name="events"/>
                     <child>
                       <object class="GtkLabel" id="help_label">
                         <property name="visible">True</property>
@@ -140,7 +139,7 @@
               </packing>
             </child>
             <child>
-              <object class="GtkFrame" id="frame2">
+              <object class="GtkFrame">
                 <property name="visible">True</property>
                 <property name="can-focus">False</property>
                 <property name="label-xalign">0</property>
