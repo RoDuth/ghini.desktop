@@ -1,4 +1,4 @@
-# Copyright (c) 2021-2022 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright (c) 2021-2023 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -17,14 +17,16 @@
 """
 Common helpers useful for spatial data.
 """
-from pathlib import Path
-import sqlite3
 import os
 import logging
 logger = logging.getLogger(__name__)
 from pyproj import Transformer, ProjError
+from sqlalchemy import Table, Column, Text, CheckConstraint, select
 
 from bauble.paths import main_is_frozen, main_dir, appdata_dir
+from bauble.meta import confirm_default
+from bauble import db
+from bauble import btypes
 
 if main_is_frozen():
     import pyproj
@@ -71,7 +73,6 @@ def transform(geometry, in_crs=DEFAULT_IN_PROJ, out_crs=None, always_xy=False):
     """
 
     if out_crs is None:
-        from bauble.meta import confirm_default
         # system projection - saved to BaubleMeta
         # The first time any transformation is attempted ensure we have a
         # system CRS string, let the user have the opportunity to select a
@@ -124,51 +125,40 @@ def transform(geometry, in_crs=DEFAULT_IN_PROJ, out_crs=None, always_xy=False):
     return geometry_out
 
 
+prj_crs = Table('prj_crs',
+                db.metadata,
+                Column('prj_text',
+                       Text,
+                       CheckConstraint("length(prj_text) >= 12"),
+                       nullable=False,
+                       unique=True),
+                Column('proj_crs',
+                       Text,
+                       CheckConstraint("length(proj_crs) >= 4"),
+                       nullable=False),
+                Column('always_xy', btypes.Boolean, default=False))
+
+
+def install_default_prjs():
+    from bauble.paths import lib_dir
+    from bauble.plugins.imex.csv_ import CSVRestore
+    # prj_crs.drop(bind=db.engine, checkfirst=True)
+    prj_crs.drop(bind=db.engine)
+    path = os.path.join(lib_dir(), "utils", "prj_crs.csv")
+    csv = CSVRestore()
+    csv.start([path], metadata=db.metadata, force=True)
+
+
 class ProjDB:
     """Database of settings appropriate for .prj file strings.
 
-    Provide a very basic interface to the sqlite3 file database used to store
+    Provide a very basic interface to the prj_crs table to store
     pyproj.crs.CRS() parameter strings that match a .prj file string.
 
     Only one CRS string per .prj file string is allowed.  But you can have
     multiple .prj strings for the one CRS string.  The CRS strings should be
     acceptable pyproj.crs.CRS string parameters.
     """
-
-    def __init__(self, db_path=None):
-        """
-        :param db_path: path to the sqlite database.  If not supplied will be
-            set to PRJ_CRS_PATH
-        """
-        if db_path is None:
-            if ':memory:' in PRJ_CRS_PATH:
-                db_path = PRJ_CRS_PATH
-            else:
-                db_path = Path(PRJ_CRS_PATH)
-
-        # Copy the default to appdata on first load.
-        try:
-            default_prj_crs = Path(__file__).resolve().parent / 'prj_crs.db'
-            if not db_path.exists():
-                from shutil import copy2
-                copy2(default_prj_crs, db_path)
-                logger.debug('copying prj_crs.db to %s', db_path)
-        except AttributeError:
-            logger.debug('copy %s failed likely :memory:?', db_path)
-
-        # NOTE pylint won't load C extensions like connect
-        self.con = sqlite3.connect(db_path)   # pylint: disable=no-member
-        cur = self.con.cursor()
-        cur.execute(
-            """
-            CREATE TABLE IF NOT EXISTS proj (
-                prj_text TEXT NOT NULL UNIQUE CHECK(length(prj_text) >= 12),
-                proj_crs TEXT NOT NULL CHECK(length(proj_crs) >= 4),
-                always_xy INTEGER
-            )
-            """
-        )
-        self.con.commit()
 
     def get_crs(self, prj):
         """
@@ -180,10 +170,9 @@ class ProjDB:
 
         :return: the matching CRS() parameter string for prj
         """
-        cur = self.con.cursor()
-        crs = cur.execute('SELECT proj_crs FROM proj WHERE prj_text=?',
-                          (prj,)).fetchone()
-        return crs[0] if crs else None
+        stmt = select(prj_crs.c.proj_crs).where(prj_crs.c.prj_text == prj)
+        with db.engine.begin() as conn:
+            return conn.execute(stmt).scalar()
 
     def get_always_xy(self, prj):
         """
@@ -194,14 +183,14 @@ class ProjDB:
 
         :return: the matching CRS() parameter string for prj
         """
-        cur = self.con.cursor()
-        axy = cur.execute('SELECT always_xy FROM proj WHERE prj_text=?',
-                          (prj,)).fetchone()
-        return bool(axy[0]) if axy else True
+        stmt = select(prj_crs.c.always_xy).where(prj_crs.c.prj_text == prj)
+        with db.engine.begin() as conn:
+            result = conn.execute(stmt).scalar()
+        return True if result is None else result
 
     def get_prj(self, crs):
         """
-        Given a pyproj.crs.CRS paramater string return the first .prj file
+        Given a pyproj.crs.CRS parameter string return the first .prj file
         string from the database.
         This may not always be the best choice but in most situations will
         suffice.
@@ -210,10 +199,9 @@ class ProjDB:
 
         :return: the first matching .prj file string for the crs.
         """
-        cur = self.con.cursor()
-        prj = cur.execute('SELECT prj_text FROM proj WHERE proj_crs=?',
-                          (crs,)).fetchone()
-        return prj[0] if prj else None
+        stmt = select(prj_crs.c.prj_text).where(prj_crs.c.proj_crs == crs)
+        with db.engine.begin() as conn:
+            return conn.execute(stmt).scalar()
 
     def add(self, prj=None, crs=None, axy=True):
         """
@@ -224,10 +212,12 @@ class ProjDB:
         :param crs: as used with pyproj.crs.CRS()
         :param axy: always_xy as used with pyproj.crs.CRS()
         """
-        cur = self.con.cursor()
-        cur.execute(('INSERT INTO proj (prj_text, proj_crs, always_xy) VALUES '
-                     '(?, ?, ?)'), (prj, crs, int(axy)))
-        self.con.commit()
+        # TODO check string length is > minimum (4, 12)
+        stmt = prj_crs.insert().values(prj_text=prj,
+                                       proj_crs=crs,
+                                       always_xy=axy)
+        with db.engine.begin() as conn:
+            conn.execute(stmt)
 
     def set_crs(self, prj=None, crs=None):
         """
@@ -236,10 +226,11 @@ class ProjDB:
         :param prj: string from a .prj file
         :param crs: string as used with pyproj.crs.CRS()
         """
-        cur = self.con.cursor()
-        cur.execute('UPDATE proj SET proj_crs=? WHERE prj_text=?',
-                    (crs, prj))
-        self.con.commit()
+        stmt = (prj_crs.update()
+                .where(prj_crs.c.prj_text == prj)
+                .values(proj_crs=crs))
+        with db.engine.begin() as conn:
+            conn.execute(stmt)
 
     def set_always_xy(self, prj=None, axy=True):
         """
@@ -248,10 +239,11 @@ class ProjDB:
         :param prj: string from a .prj file
         :param axy: always_xy parameter value as used with pyproj.crs.CRS()
         """
-        cur = self.con.cursor()
-        cur.execute('UPDATE proj SET always_xy=? WHERE prj_text=?',
-                    (int(axy), prj))
-        self.con.commit()
+        stmt = (prj_crs.update()
+                .where(prj_crs.c.prj_text == prj)
+                .values(always_xy=axy))
+        with db.engine.begin() as conn:
+            conn.execute(stmt)
 
 
 class KMLMapCallbackFunctor:

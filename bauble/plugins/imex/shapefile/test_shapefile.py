@@ -1,4 +1,4 @@
-# Copyright (c) 2021-2022 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright (c) 2021-2023 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -522,6 +522,13 @@ class ShapefileTestCase(BaubleTestCase):
 
     def setUp(self):
         super().setUp()
+
+        # start with blank data (i.e. remove default data added by db.create)
+        from bauble.utils.geo import prj_crs
+        from bauble import db
+        prj_crs.drop(bind=db.engine)
+        prj_crs.create(bind=db.engine)
+
         get_default('system_proj_string', DEFAULT_SYS_PROJ)
         self.temp_dir = TemporaryDirectory()
         from . import PLANT_SHAPEFILE_PREFS, LOCATION_SHAPEFILE_PREFS
@@ -880,7 +887,7 @@ class ShapefileExportTestsEmptyDB(ShapefileTestCase):
         get_default('system_proj_string', DEFAULT_SYS_PROJ)
         # temp_dir
         self.exporter = ShapefileExporter(
-            view=MockView(), proj_db=ProjDB(db_path=':memory:'), open_=False
+            view=MockView(), proj_db=ProjDB(), open_=False
         )
         self.exporter.proj_db.add(prj=prj_str_4326, crs='epsg:4326')
 
@@ -947,7 +954,7 @@ class ShapefileExportTests(ShapefileTestCase):
                                     family = fam.get('family')
             self.taxa_to_acc[acc.get('id')] = (family, genus, species)
         self.exporter = ShapefileExporter(
-            view=MockView(), proj_db=ProjDB(db_path=':memory:'), open_=False)
+            view=MockView(), proj_db=ProjDB(), open_=False)
 
     def test_exports_all_locations(self):
         exporter = self.exporter
@@ -1613,7 +1620,7 @@ class ShapefileExportTests(ShapefileTestCase):
         with mock.patch('bauble.gui',
                         new_callable=mock.PropertyMock(return_value=mock_gui)):
             exporter = ShapefileExporter(
-                view=MockView(), proj_db=ProjDB(db_path=':memory:'),
+                view=MockView(), proj_db=ProjDB(),
                 open_=False)
 
         self.assertTrue(
@@ -1852,7 +1859,7 @@ class ShapefileImportEmptyDBTests(ShapefileTestCase):
         get_default('system_proj_string', DEFAULT_SYS_PROJ)
         # somewhere to create test shapefiles
         self.importer = ShapefileImporter(view=MockView(),
-                                          proj_db=ProjDB(db_path=':memory:'))
+                                          proj_db=ProjDB())
 
     def test_add_or_update_all_location_records_succeeds(self):
         importer = self.importer
@@ -1985,7 +1992,7 @@ class ShapefileImportTests(ShapefileTestCase):
 
         # importer
         self.importer = ShapefileImporter(view=MockView(),
-                                          proj_db=ProjDB(db_path=':memory:'))
+                                          proj_db=ProjDB())
         # note widgets is a mock.Mock
         self.importer.presenter.view.widgets.input_filename = 'input_filename'
 

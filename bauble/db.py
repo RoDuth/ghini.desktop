@@ -389,17 +389,13 @@ def create(import_defaults=True):
          .execute(name=meta.CREATED_KEY,
                   value=str(datetime.datetime.now(tz=tzlocal())))
          .close())
-    except GeneratorExit as e:
+    except (GeneratorExit, Exception) as e:
         # this is here in case the main windows is closed in the middle
         # of a task
         # UPDATE 2009.06.18: i'm not sure if this is still relevant since we
         # switched the task system to use fibra...but it doesn't hurt
         # having it here until we can make sure
-        logger.warning('bauble.db.create(): %s', e)
-        transaction.rollback()
-        raise
-    except Exception as e:
-        logger.warning('bauble.db.create(): %s', e)
+        logger.warning('bauble.db.create(): %s(%s)', type(e).__name__, e)
         transaction.rollback()
         raise
     else:
@@ -411,17 +407,21 @@ def create(import_defaults=True):
     transaction = connection.begin()
     try:
         pluginmgr.install('all', import_defaults, force=True)
-    except GeneratorExit as e:
-        # this is here in case the main windows is closed in the middle
-        # of a task
-        # UPDATE 2009.06.18: i'm not sure if this is still relevant since we
-        # switched the task system to use fibra...but it doesn't hurt
-        # having it here until we can make sure
-        logger.warning('bauble.db.create(): %s', e)
+    except (GeneratorExit, Exception) as e:
+        logger.warning('bauble.db.create(): %s(%s)', type(e).__name__, e)
         transaction.rollback()
         raise
-    except Exception as e:
-        logger.warning('bauble.db.create(): %s', e)
+    else:
+        transaction.commit()
+    finally:
+        connection.close()
+
+    connection = engine.connect()
+    transaction = connection.begin()
+    try:
+        utils.geo.install_default_prjs()
+    except (GeneratorExit, Exception) as e:
+        logger.warning('bauble.db.create(): %s(%s)', type(e).__name__, e)
         transaction.rollback()
         raise
     else:

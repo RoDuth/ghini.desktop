@@ -1,5 +1,5 @@
 # pylint: disable=missing-module-docstring
-# Copyright (c) 2021 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright (c) 2021-2023 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -15,11 +15,11 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
+from unittest import mock
 
-from sqlite3 import IntegrityError  # pylint: disable=no-name-in-module
-from unittest import TestCase
 from bauble.test import BaubleTestCase
-from bauble.utils.geo import transform, ProjDB
+from bauble.utils.geo import transform, ProjDB, prj_crs
+from bauble import db
 
 # test data - avoiding tuples as they end up lists in the database anyway
 epsg3857_point = {'type': 'Point',
@@ -80,34 +80,56 @@ proj_db_data = [('PROJCS["test1"]', 'test:1', True),
                 ('PROJCS["test3"]', 'test:3', False)]
 
 
-class TestProjDB(TestCase):
+class TestProjDBDefaults(BaubleTestCase):
+    def test_defualts_added_on_db_creation(self):
+        proj_db = ProjDB()
+        from pathlib import Path
+        from bauble.paths import lib_dir
+        from ast import literal_eval
+        prj_crs_csv = Path(lib_dir(), 'utils', 'prj_crs.csv')
+        with prj_crs_csv.open(encoding='utf-8') as f:
+            import csv
+            reader = csv.DictReader(f)
+            for line in reader:
+                self.assertEqual(line.get('proj_crs'),
+                                 proj_db.get_crs(line.get('prj_text')))
+                self.assertEqual(literal_eval(line.get('always_xy')),
+                                 proj_db.get_always_xy(line.get('prj_text')))
+
+
+class TestProjDB(BaubleTestCase):
 
     def setUp(self):
-        self.proj_db = ProjDB(db_path=':memory:')
+        super().setUp()
+        # start with blank data (i.e. remove default data added by db.create)
+        prj_crs.drop(bind=db.engine)
+        prj_crs.create(bind=db.engine)
+        self.proj_db = ProjDB()
         for i in proj_db_data:
             self.proj_db.add(prj=i[0], crs=i[1], axy=i[2])
 
     def test_add_data(self):
         # test data added in setup has been added
-        cur = self.proj_db.con.cursor()
-        result = cur.execute('SELECT * FROM proj;')
+        stmt = prj_crs.select()
+        with db.engine.begin() as conn:
+            result = conn.execute(stmt).all()
         self.assertEqual(list(result), proj_db_data)
 
     def test_cant_add_prj_entry_twice(self):
         self.proj_db.add(prj='PROJCS["test4"]', crs='test:4')
-        with self.assertRaises(IntegrityError):
+        with self.assertRaises(Exception):
             self.proj_db.add(prj='PROJCS["test4"]', crs='test:5')
 
     def test_cant_add_null_crs_or_prj(self):
-        with self.assertRaises(IntegrityError):
+        with self.assertRaises(Exception):
             self.proj_db.add(prj='PROJCS["test6"]', crs=None)
-        with self.assertRaises(IntegrityError):
+        with self.assertRaises(Exception):
             self.proj_db.add(prj=None, crs='test:6')
 
     def test_cant_add_too_short_crs_or_prj(self):
-        with self.assertRaises(IntegrityError):
+        with self.assertRaises(Exception):
             self.proj_db.add(prj='PROJCS["test6"]', crs='tst')
-        with self.assertRaises(IntegrityError):
+        with self.assertRaises(Exception):
             self.proj_db.add(prj='PROJCS[]', crs='test:6')
 
     def test_get_crs(self):
@@ -168,22 +190,16 @@ class TestProjDB(TestCase):
 
 class GlobalFunctionsTests(BaubleTestCase):
 
-    def test_transform_raises_error_if_no_sys_crs(self):
-        from bauble import meta
+    @mock.patch('bauble.utils.geo.confirm_default')
+    def test_transform_raises_error_if_no_sys_crs(self, mock_conf_def):
         from bauble.meta import get_default
         from bauble.error import MetaTableError
-        _orig_confirm_default = meta.confirm_default
 
-        def mock_confirm_default(name, value, msg):
-            return None
-
-        meta.confirm_default = mock_confirm_default
+        mock_conf_def.return_value = None
 
         self.assertIsNone(get_default('system_proj_string'))
         data = epsg3857_point
         self.assertRaises(MetaTableError, transform, data)
-
-        meta.confirm_default = _orig_confirm_default
 
     def test_transform(self):
 
