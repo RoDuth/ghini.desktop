@@ -452,7 +452,6 @@ class PlantTests(GardenTestCase):
                  .one())
         editor.model.location = loc2a
         editor.model.quantity = 3
-        editor.compute_plant_split_changes()
         update_gui()
         editor.handle_response(Gtk.ResponseType.OK)
         editor.presenter.cleanup()
@@ -472,18 +471,18 @@ class PlantTests(GardenTestCase):
             self.assertTrue(result)
             mock_dialog.assert_called()
 
-            qry = self.session.query(Plant).filter_by(accession=self.accession)
-            match = qry.filter_by(code='11').all()
-            self.assertEqual(match, [])
-            splt = qry.filter_by(quantity=3).all()
-            self.assertEqual(len(splt), 1)
-            # test that the parent_plant entry in the change is nullified
-            # rather than deleting the whole change.  (which would lose the
-            # planted entry and all data with it.)
-            self.assertTrue(splt[0].planted)
-            self.assertTrue(splt[0].planted.from_location)
-            self.assertTrue(splt[0].planted.to_location)
-            self.assertFalse(splt[0].planted.parent_plant)
+        qry = self.session.query(Plant).filter_by(accession=self.accession)
+        match = qry.filter_by(code='11').all()
+        self.assertEqual(match, [])
+        splt = qry.filter_by(quantity=3).all()
+        self.assertEqual(len(splt), 1)
+        # test that the parent_plant entry in the change is nullified
+        # rather than deleting the whole change.  (which would lose the
+        # planted entry and all data with it.)
+        self.assertTrue(splt[0].planted)
+        self.assertTrue(splt[0].planted.from_location)
+        self.assertTrue(splt[0].planted.to_location)
+        self.assertFalse(splt[0].planted.parent_plant)
 
     def test_bulk_branch(self):
         # create a plant with sufficient quantity

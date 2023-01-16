@@ -17,8 +17,12 @@
 """
 Global hooks, etc. for pytest.
 """
+import sys
 import shutil
 from bauble import paths
+
+# don't cache .pyc files (can cause failures on second etc. run)
+sys.dont_write_bytecode = True
 
 
 def pytest_sessionfinish(session, exitstatus):
