@@ -69,7 +69,10 @@ class Application(Gtk.Application):
         # bail early if no connection
         if open_exc is False:
             return
-        self._post_loop(open_exc)
+
+        if not self._post_loop(open_exc):
+            self.quit()
+            return
 
         logger.info('This version installed on: %s; '
                     'This version installed at: %s; '
@@ -183,6 +186,7 @@ class Application(Gtk.Application):
                                                      traceback.format_exc(),
                                                      Gtk.MessageType.ERROR)
                         logger.error("%s(%s)", type(e).__name__, e)
+                        return False
             else:
                 pluginmgr.init()
         except Exception as e:   # pylint: disable=broad-except
@@ -190,7 +194,9 @@ class Application(Gtk.Application):
                            type(e).__name__, e)
             msg = utils.xml_safe(f'{type(e).__name__}({e})')
             utils.message_dialog(msg, Gtk.MessageType.WARNING)
+            return False
         bauble.gui.get_view().update()
+        return True
 
     def on_activate(self, *_args, **_kwargs):
         # second
