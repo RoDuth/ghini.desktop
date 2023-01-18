@@ -116,7 +116,7 @@ def bump_py_file(filename, varname='version'):
     bump python files
     """
 
-    reg = r"^(%s\s*=\s*(?:\'|\")).*((?:\'|\").*%s.*)$" % (varname, bump_tag)
+    reg = r"^(\s*%s\s*=\s*(?:\'|\")).*((?:\'|\").*%s.*)$" % (varname, bump_tag)
     bump_file(filename, reg)
 
 
@@ -129,6 +129,7 @@ def bump_desktop_file(filename):
 
 
 # bump and grind
+bump_py_file(os.path.join(root_of_clone(), 'setup.py'))
 bump_py_file(os.path.join(root_of_clone(), 'bauble/version.py'))
 bump_py_file(os.path.join(root_of_clone(), 'doc/conf.py'), 'release')
 bump_desktop_file(os.path.join(root_of_clone(), 'data/ghini.desktop'))
@@ -154,7 +155,8 @@ print(('git commit -m "bumping_to_%s" '
        'packages/builddeb.sh '
        'scripts/build-multiuser.nsi '
        'scripts/build-multiuser-fop.nsi '
-       '.appveyor.yml'
+       '.appveyor.yml '
+       'setup.py'
        % version))
 print()
 print('after appveyor creates the release, you can get the version tag with:')
