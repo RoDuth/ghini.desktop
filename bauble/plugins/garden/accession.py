@@ -380,16 +380,15 @@ recvd_type_values = {
     'BUDC': _('Bud cutting'),
     'BUDD': _('Budded'),
     'BULB': _('Bulb'),
+    'BBIL': _('Bulbil'),
     'CLUM': _('Clump'),
     'CORM': _('Corm'),
     'DIVI': _('Division'),
+    'FLAS': _('Flask seed or spore'),
+    'FLAT': _('Flask tissue culture'),
     'GRAF': _('Graft'),
     'GRFS': _('Grafted standard'),
     'LAYE': _('Layer'),
-    'FLAS': _('Flask seed or spore'),
-    'FLAT': _('Flask tissue culture'),
-    'SEED': _('Seed'),
-    'SEDL': _('Seedling'),
     'PLTP': _('Plant punnett or plug'),
     'PLNT': _('Plant tubestock'),
     'PLTS': _('Plant potted (sml)'),
@@ -397,20 +396,22 @@ recvd_type_values = {
     'PLTL': _('Plant potted (lrg)'),
     'PLTX': _('Plant ex-ground'),
     'PLXA': _('Plant advanced ex-Ground'),
+    'PLTO': _('Plant other'),
     'PSBU': _('Pseudobulb'),
-    'RCUT': _('Rooted cutting'),
     'RHIZ': _('Rhizome'),
+    'RCUT': _('Rooted cutting'),
     'ROOC': _('Root cutting'),
+    'SCKR': _('Root sucker'),
     'ROOT': _('Root'),
+    'SEED': _('Seed'),
+    'SEDL': _('Seedling'),
     'SCIO': _('Scion'),
     'SPOR': _('Spore'),
     'SPRL': _('Sporeling'),
     'TUBE': _('Tuber'),
     'UNKN': _('Unknown'),
     'URCU': _('Unrooted cutting'),
-    'BBIL': _('Bulbil'),
     'VEGS': _('Vegetative spreading'),
-    'SCKR': _('Root sucker'),
     None: ''
 }
 
@@ -984,6 +985,10 @@ class AccessionEditorView(editor.GenericEditorView):
         self.init_translatable_combo('acc_recvd_type_comboentry',
                                      recvd_type_values)
 
+        completion = (self.widgets.acc_recvd_type_comboentry
+                      .get_child().get_completion())
+        completion.set_match_func(self.acc_recvd_type_match_func)
+
         adjustment = self.widgets.source_sw.get_vadjustment()
         adjustment.props.value = 0.0
         self.widgets.source_sw.set_vadjustment(adjustment)
@@ -1021,6 +1026,15 @@ class AccessionEditorView(editor.GenericEditorView):
         for word in words:
             if word.lower().startswith(key.lower()):
                 return True
+        return False
+
+    @staticmethod
+    def acc_recvd_type_match_func(completion, key, treeiter):
+        model = completion.get_model()
+        value = model[treeiter][1]
+        # allows completion via any matching part
+        if key.lower() in str(value).lower():
+            return True
         return False
 
 
