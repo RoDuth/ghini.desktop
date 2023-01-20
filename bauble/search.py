@@ -220,6 +220,7 @@ class StringToken(ValueABC):
 class NumericToken(ValueABC):
     def __init__(self, token):  # pylint: disable=super-init-not-called
         self.value = float(token[0])  # store the float value
+        self.raw_value = token[0]  # ValueListAction.invoke: use the raw value
 
     def __repr__(self):
         return str(self.value)
@@ -758,8 +759,14 @@ class ValueListAction:
 
         result = set()
         for cls, columns in search_strategy.properties.items():
-            column_cross_value = [(c, v) for c in columns
-                                  for v in self.express()]
+            column_cross_value = []
+            for column in columns:
+                for value in self.values:
+                    if value.value and hasattr(value.value, 'raw_value'):
+                        value = value.value.raw_value
+                    else:
+                        value = value.express()
+                    column_cross_value.append((column, value))
 
             table = class_mapper(cls)
             query = (search_strategy.session.query(cls)
