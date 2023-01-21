@@ -32,7 +32,7 @@ a = Analysis(['ghini'],
              binaries=[],
              datas=[
                  ('../LICENSE', 'share/ghini'),
-                 ('../bauble/utils/prj_crs.db', 'bauble/utils'),
+                 ('../bauble/utils/prj_crs.csv', 'bauble/utils'),
                  ('../bauble/images/*', 'bauble/images'),
                  ('../bauble/plugins/plants/default/*.csv',
                   'bauble/plugins/plants/default'),
