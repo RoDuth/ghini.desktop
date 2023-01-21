@@ -1038,9 +1038,24 @@ class VernacularNamePresenter(editor.GenericEditorPresenter):
                 cell.set_property('foreground', 'blue')
             else:
                 cell.set_property('foreground', None)
+
         cell = self.view.widgets.vn_lang_cell
         self.view.widgets.vn_lang_column.set_cell_data_func(cell,
                                                             _lang_data_func)
+
+        lang_store = Gtk.ListStore(str)
+        for lang, in self.session.query(VernacularName.language).distinct():
+            if lang:
+                lang_store.append([lang])
+
+        lang_completion = Gtk.EntryCompletion(model=lang_store)
+        lang_completion.set_text_column(0)
+
+        def _lang_edit_start(_cell_renderer, editable, _path):
+            print('adding completion')
+            editable.set_completion(lang_completion)
+
+        cell.connect('editing-started', _lang_edit_start)
         self.view.connect(cell, 'edited', self.on_cell_edited, 'language')
 
         def _default_data_func(_column, cell, model, itr, _data):
