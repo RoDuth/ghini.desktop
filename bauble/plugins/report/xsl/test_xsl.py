@@ -386,19 +386,20 @@ class FOPTests(XSLTestCase):
             _fop.update()
             mock_init.assert_not_called()
 
-    @mock.patch('bauble.plugins.report.xsl.Path.glob')
-    @mock.patch('bauble.plugins.report.xsl.Path.__truediv__')
-    @mock.patch('bauble.plugins.report.xsl.Path.exists', return_value=True)
-    def test_set_fop_command_internal_fop_and_jre(self, _mock_exists, mock_div,
-                                                  mock_glob):
-        mock_path = Path('test')
-        mock_glob.return_value = [mock_path]
-        mock_div.return_value = mock_path
+    @mock.patch('bauble.paths.root_dir')
+    def test_set_fop_command_internal_fop_and_jre(self, mock_path):
+        mock_cmd = mock.Mock()
+        mock_cmd.exists.return_value = True
+        mock_root = mock.MagicMock()
+        mock_path.return_value = mock_root
+        mock_root.glob.return_value = [mock_cmd]
+        mock_root.__truediv__.return_value = mock_cmd
+        mock_root.exists.return_value = True
         prefs.prefs[USE_EXTERNAL_FOP_PREF] = False
         _fop.update()
         self.assertFalse(_fop.external_fop_pref)
-        self.assertEqual(_fop.fop, 'test')
-        self.assertEqual(_fop.java, 'test')
+        self.assertEqual(_fop.fop, str(mock_cmd))
+        self.assertEqual(_fop.java, str(mock_cmd))
 
     @mock.patch.dict(os.environ, {"PATH": "test"})
     @mock.patch('bauble.plugins.report.xsl.Path.is_file', return_value=True)

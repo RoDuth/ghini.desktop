@@ -85,6 +85,7 @@ class FOP:
     def init(self):
         # if pref doesn't exist assume False
         self.external_fop_pref = prefs.prefs.get(USE_EXTERNAL_FOP_PREF, False)
+        logger.debug('external_fop_pref: %s', self.external_fop_pref)
         self.set_fop_command()
         if not self.external_fop_pref:
             self.set_fop_classpath()
