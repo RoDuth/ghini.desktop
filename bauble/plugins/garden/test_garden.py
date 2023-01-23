@@ -409,12 +409,12 @@ class PlantTests(GardenTestCase):
                       location=self.location, quantity=10)
         loc2a = Location(name='site2a', code='2a')
         self.session.add_all([plant, loc2a])
-        # self.session.flush()
         self.session.commit()
         editor = PlantEditor(model=plant, branch_mode=True)
-        loc2a = object_session(
-            editor.model).query(
-                Location).filter(Location.code == '2a').one()
+        loc2a = (object_session(editor.model)
+                 .query(Location)
+                 .filter(Location.code == '2a')
+                 .one())
         editor.model.location = loc2a
         update_gui()
         editor.model.quantity = 3
@@ -439,7 +439,7 @@ class PlantTests(GardenTestCase):
         editor.presenter.cleanup()
         del editor
 
-    def test_branch_then_delete_parent(self):
+    def test_branch_and_then_delete_parent(self):
         plant = Plant(accession=self.accession, code='11',
                       location=self.location, quantity=10)
         loc2a = Location(name='site2a', code='2a')
