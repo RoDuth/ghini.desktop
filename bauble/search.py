@@ -693,8 +693,14 @@ class DomainExpressionAction:
             def condition(col):
                 return mapper.c[col].oper(self.cond)
 
-        ors = [condition(col)(i) for i in self.values.express() for
-               col in properties]
+        ors = []
+        for column in properties:
+            for value in self.values.values:
+                if value.value and hasattr(value.value, 'raw_value'):
+                    value = value.value.raw_value
+                else:
+                    value = value.express()
+            ors.append(condition(column)(value))
         query = query.filter(or_(*ors))
 
         return query
