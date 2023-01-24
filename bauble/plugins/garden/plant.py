@@ -94,27 +94,27 @@ def branch_callback(plants):
 
 def remove_callback(plants):
     p_str = ', '.join([str(p) for p in plants])
-    msg = _("Are you sure you want to remove the following plants?\n\n{}\n\n"
+    msg = _("Are you sure you want to remove the following plants?\n\n%s\n\n"
             "<small>Note that deleting a plant can destroy related data.  If "
             "the plant has died set its quantity to zero rather than delete "
-            "it.</small>").format(utils.xml_safe(p_str))
+            "it.</small>") % utils.xml_safe(p_str)
     if not utils.yes_no_dialog(msg):
         return False
 
     session = object_session(plants[0])
     for plant in plants:
         if plant.branches:
-            msg = _("{0} has plant(s) split from it.  Removing this plant "
+            msg = _("%s has plant(s) split from it.  Removing this plant "
                     "will destroy their link back.  Are you sure you want to "
-                    "want to delete {0}?").format(utils.xml_safe(p_str))
+                    "want to delete it?") % utils.xml_safe(plant)
             if not utils.yes_no_dialog(msg):
                 plants.remove(plant)
                 continue
         if plant.propagations:
-            msg = _("{0} has propagations.  Removing this plant will destroy "
+            msg = _("%s has propagations.  Removing this plant will destroy "
                     "these propagations and possibly the source data for any "
                     "accessions created from them.  Are you sure you want to "
-                    "want to delete {0}?").format(utils.xml_safe(p_str))
+                    "want to delete it?") % utils.xml_safe(plant)
             if not utils.yes_no_dialog(msg):
                 plants.remove(plant)
                 continue
@@ -124,7 +124,7 @@ def remove_callback(plants):
         session.commit()
     except Exception as e:  # pylint: disable=broad-except
         msg = _('Could not delete.\n\n%s') % utils.xml_safe(e)
-        logger.debug(msg)
+        logger.debug("remove_callback - (%s(%s)", type(e).__name__, e)
         utils.message_details_dialog(msg, traceback.format_exc(),
                                      Gtk.MessageType.ERROR)
         session.rollback()

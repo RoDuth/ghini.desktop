@@ -56,7 +56,12 @@ TEXT_DOMAIN = 'ghini-%s' % '.'.join(version_tuple[0:2])
 
 langs = []
 # Check the default locale
-lang_code, encoding = locale.getdefaultlocale()
+try:
+    # Python >= 3.11
+    lang_code, encoding = locale.getlocale()
+except AttributeError:
+    lang_code, encoding = locale.getdefaultlocale()
+
 if lang_code:
     # If we have a default, it's the first in the list
     langs = [lang_code]

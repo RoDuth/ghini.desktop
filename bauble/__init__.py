@@ -33,7 +33,6 @@ import gi
 gi.require_version("Gtk", "3.0")
 
 from bauble import paths
-from bauble import error as err
 from bauble.version import version
 version_tuple = tuple(version.split('.'))
 release_date = datetime.utcfromtimestamp(0)

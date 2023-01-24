@@ -36,12 +36,11 @@ from gi.repository import Gtk
 
 import sqlalchemy as sa
 from sqlalchemy import event
-from sqlalchemy.orm import class_mapper, object_session
+from sqlalchemy.orm import (class_mapper,
+                            object_session,
+                            declarative_base,
+                            DeclarativeMeta)
 from sqlalchemy.orm.attributes import get_history
-from sqlalchemy.ext.declarative import declarative_base, DeclarativeMeta
-# sqla >1.4 i think will be:
-# from sqlalchemy.orm import class_mapper, declarative_base
-# from sqlalchemy.ext.decl_api import DeclarativeMeta
 
 from bauble import utils
 from bauble import btypes as types
@@ -261,7 +260,7 @@ class History(HistoryBase):
 
     @classmethod
     def revert_to(cls, id_):
-        """Rever history to the history line with id."""
+        """Revert history to the history line with id."""
         logger.debug('reverting to id: %s', id_)
         session = Session()
         rows = (session.query(cls)
@@ -588,7 +587,7 @@ def make_note_class(name, compute_serializable_fields, as_dict=None,
                        sa.Integer,
                        sa.ForeignKey(name.lower() + '.id'),
                        nullable=False),
-                   name.lower(): sa.orm.relation(
+                   name.lower(): sa.orm.relationship(
                        name,
                        uselist=False,
                        backref=sa.orm.backref(cls_type + 's',

@@ -55,8 +55,7 @@ from .species_model import (Species,
                             compare_rank)
 
 
-def generic_sp_get_completions(session: Session,
-                               text: str) -> Query:
+def generic_sp_get_completions(session: Session, text: str) -> Query:
     """A generic species get_completion.
 
     intended used is by supplying the local session via `functools.partial`
@@ -74,11 +73,11 @@ def generic_sp_get_completions(session: Session,
     except AttributeError:
         pass
     from bauble.utils import ilike
-    query = query.filter(
-        and_(Species.genus_id == Genus.id,
-             or_(ilike(Genus.genus, f'%{text}%'),
-                 ilike(Genus.genus, f'%{genus}%')))
-    ).order_by(Species.sp)
+    query = (query
+             .filter(and_(Species.genus_id == Genus.id,
+                          or_(ilike(Genus.genus, f'%{text}%'),
+                              ilike(Genus.genus, f'%{genus}%'))))
+             .order_by(Species.sp))
     return query
 
 
@@ -1021,11 +1020,13 @@ class VernacularNamePresenter(editor.GenericEditorPresenter):
         def _name_data_func(_column, cell, model, treeiter, _data):
             val = model[treeiter][0]
             cell.set_property('text', val.name)
-            # just added so change the background color to indicate it's new
-            if val.id is None:  # hasn't been committed
+            # change the foreground color to indicate it's new and hasn't been
+            # committed
+            if val.id is None:
                 cell.set_property('foreground', 'blue')
             else:
                 cell.set_property('foreground', None)
+
         cell = self.view.widgets.vn_name_cell
         self.view.widgets.vn_name_column.set_cell_data_func(cell,
                                                             _name_data_func)

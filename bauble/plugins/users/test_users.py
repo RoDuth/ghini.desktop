@@ -46,7 +46,9 @@ def test_duplicate_ids():
 class UsersTests(BaubleTestCase):
 
     # Commented out as interferes in other tests e.g.  db.metadata.tables in
-    # test_imes.XMLExporterTests finds this table also.
+    # test_imex.XMLExporterTests finds this table also.
+    # Most likely because it is a class attribute (and not garbage collected)
+    # rather than an instance in each tests scope.
 
     # table = Table('test_users', db.metadata,
     #               Column('id', Integer, Sequence('test_users_id_seq'),
