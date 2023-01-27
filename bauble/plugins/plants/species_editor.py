@@ -563,6 +563,10 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
 
     def refresh_sensitivity(self):
         has_parts = any([self.model.sp,
+                         self.model.infrasp1_rank == 'cv.',
+                         self.model.infrasp2_rank == 'cv.',
+                         self.model.infrasp3_rank == 'cv.',
+                         self.model.infrasp4_rank == 'cv.',
                          self.model.infrasp1,
                          self.model.infrasp2,
                          self.model.infrasp3,
