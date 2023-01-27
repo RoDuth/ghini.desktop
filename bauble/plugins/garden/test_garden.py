@@ -40,6 +40,7 @@ from bauble.meta import BaubleMeta
 from . import get_plant_completions
 from .accession import (Accession,
                         AccessionEditor,
+                        AccessionEditorView,
                         AccessionNote,
                         Voucher,
                         SourcePresenter,
@@ -2228,6 +2229,38 @@ class CollectionTests(GardenTestCase):
             ('2001.0002 - <small>Echinocactus grusonii</small>',
              'Collection at some location'))
 
+    def test_split_lat_long(self):
+        view = AccessionEditorView()
+        CollectionPresenter(unittest.mock.MagicMock(),
+                            Collection(),
+                            view,
+                            self.session)
+        # dms
+        value = "27°28'55\"S 152°58'24.2\"E"
+        view.widgets.lon_entry.set_text(value)
+        update_gui()
+        self.assertEqual(view.widgets.lat_entry.get_text(), value.split()[0])
+        self.assertEqual(view.widgets.lon_entry.get_text(), value.split()[1])
+        # dec
+        value = "27.481950, -152.973379"
+        view.widgets.lat_entry.set_text(value)
+        update_gui()
+        self.assertEqual(view.widgets.lat_entry.get_text(),
+                         value.split(', ')[0])
+        self.assertEqual(view.widgets.lon_entry.get_text(),
+                         value.split(', ')[1])
+        # dms should not split
+        value = "27°28' 152°58'"
+        view.widgets.lon_entry.set_text(value)
+        update_gui()
+        self.assertEqual(view.widgets.lon_entry.get_text(), value)
+
+        # dec should not split
+        value = "27., 152."
+        view.widgets.lat_entry.set_text(value)
+        update_gui()
+        self.assertEqual(view.widgets.lat_entry.get_text(), value)
+
 
 class InstitutionTests(GardenTestCase):
 
@@ -2405,9 +2438,9 @@ class DMSConversionTests(unittest.TestCase):
 
     def test_parse_lat_lon(self):
         parse = CollectionPresenter._parse_lat_lon
-        for data, dec in parse_lat_lon_data:
+        for data, dec_val in parse_lat_lon_data:
             result = parse(*data)
-            self.assertTrue(result == dec, '%s: %s == %s' % (data, result, dec))
+            self.assertEqual(result, dec_val)
 
 
 class FromAndToDictTest(GardenTestCase):

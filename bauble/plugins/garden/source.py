@@ -93,11 +93,21 @@ map_kml_callback = KMLMapCallbackFunctor(
                     str(Path(__file__).resolve().parent / 'collection.kml'))
 )
 
-lat_re = re.compile(r"[SN]{0,1}[ ]{0,1}([0-9]{1,3})°\s*([0-9]{1,2})'\s*"
-                    r"([0-9]{1,2}\.*[0-9]*)\"")
+lat_long_re = re.compile(
+    r"([SN]?[ ]?[0-9]{1,3}°\s*[0-9]{1,2}'\s*[0-9]{1,2}\.*[0-9]*\"[SN]?|"
+    r"[-]?\d+\.\d+)"
+    r"[, ]{1}[ ]?"
+    r"([EW]?[ ]?[0-9]{1,3}°\s*[0-9]{1,2}'\s*[0-9]{1,2}\.*[0-9]*\"[EW]?|"
+    r"[-]?\d+\.\d+)"
+)
 
-long_re = re.compile(r"[EW]{0,1}[ ]{0,1}([0-9]{1,3})°\s*([0-9]{1,2})'\s*"
-                     r"([0-9]{1,2}\.*[0-9]*)\"")
+lat_re = re.compile(
+    r"[SN]?[ ]?([0-9]{1,3})°\s*([0-9]{1,2})'\s*([0-9]{1,2}\.*[0-9]*)\""
+)
+
+long_re = re.compile(
+    r"[EW]?[ ]?([0-9]{1,3})°\s*([0-9]{1,2})'\s*([0-9]{1,2}\.*[0-9]*)\""
+)
 
 
 def map_callback(_action, _values):
@@ -555,7 +565,6 @@ class CollectionPresenter(editor.ChildPresenter):
         degress decimal
         """
 
-        import re
         from decimal import Decimal
         from bauble.plugins.garden.accession import dms_to_decimal
         parts = re.split(':| ', text.strip())
@@ -590,14 +599,21 @@ class CollectionPresenter(editor.ChildPresenter):
             return 'W'
         raise ValueError(_('East/West radio buttons in a confused state'))
 
+    def _split_lat_long(self, lat, long):
+        self.view.widgets.lat_entry.set_text(lat)
+        self.view.widgets.lon_entry.set_text(long)
+
     def on_lat_entry_changed(self, entry):
         """set the latitude value from text"""
         from .accession import latitude_to_dms
         text = entry.get_text()
+        if match := lat_long_re.match(text):
+            self._split_lat_long(*match.groups())
+            return
         latitude = None
         dms_string = ''
         try:
-            if text != '' and text is not None:
+            if text.strip() != '' and text is not None:
                 north_radio = self.view.widgets.north_radio
                 north_radio.handler_block(self.north_toggle_signal_id)
                 if text[0] in ['-', 'S'] or text[-1] == 'S':
@@ -612,8 +628,10 @@ class CollectionPresenter(editor.ChildPresenter):
                 latitude = CollectionPresenter._parse_lat_lon(direction, text)
                 direct, degs, mins, secs = latitude_to_dms(latitude)
                 dms_string = f'{direct} {degs}°{mins}\'{secs}"'
-        except Exception:
-            logger.debug(traceback.format_exc())
+        except (ArithmeticError,
+                ValueError,
+                bauble.error.CheckConditionError) as e:
+            logger.debug("%s(%s)", type(e).__name__, e)
             self.add_problem(self.PROBLEM_BAD_LATITUDE,
                              self.view.widgets.lat_entry)
         else:
@@ -629,10 +647,13 @@ class CollectionPresenter(editor.ChildPresenter):
     def on_lon_entry_changed(self, entry):
         from .accession import longitude_to_dms
         text = entry.get_text()
+        if match := lat_long_re.match(text):
+            self._split_lat_long(*match.groups())
+            return
         longitude = None
         dms_string = ''
         try:
-            if text != '' and text is not None:
+            if text.strip() != '' and text is not None:
                 east_radio = self.view.widgets.east_radio
                 east_radio.handler_block(self.east_toggle_signal_id)
                 if text[0] in ['-', 'W'] or text[-1] == 'W':
@@ -647,8 +668,10 @@ class CollectionPresenter(editor.ChildPresenter):
                 longitude = CollectionPresenter._parse_lat_lon(direction, text)
                 direct, degs, mins, secs = longitude_to_dms(longitude)
                 dms_string = f'{direct} {degs}°{mins}\'{secs}"'
-        except Exception:
-            logger.debug(traceback.format_exc())
+        except (ArithmeticError,
+                ValueError,
+                bauble.error.CheckConditionError) as e:
+            logger.debug("%s(%s)", type(e).__name__, e)
             self.add_problem(self.PROBLEM_BAD_LONGITUDE,
                              self.view.widgets.lon_entry)
         else:
