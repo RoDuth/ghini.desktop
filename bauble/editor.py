@@ -227,8 +227,13 @@ class GenericEditorView:
     def update(self):
         pass
 
-    def run_file_chooser_dialog(self, text, parent, action, last_folder,
-                                target):
+    def run_file_chooser_dialog(self,
+                                text,
+                                parent,
+                                action,
+                                last_folder,
+                                target,
+                                suffix):
         """create and run FileChooser, then write result in target
 
         This is just a bit more than a wrapper for
@@ -241,10 +246,12 @@ class GenericEditorView:
         :param last_folder: the folder to open the window at.
         :param target: the Entry widget or its name as a string that has it
             value set to the selected filename.
+        :param suffix: an extension as a str (e.g. '.csv'). Used as a file
+            filter.
         """
         target = self.__get_widget(target)
         utils.run_file_chooser_dialog(text, parent, action, last_folder,
-                                      target)
+                                      target, suffix)
 
     @staticmethod
     def run_entry_dialog(title, parent, buttons, visible=True, **kwargs):
@@ -830,8 +837,8 @@ class MockView:
         self.invoked_detailed.append((self.invoked[-1], args))
 
     def run_file_chooser_dialog(self, text, parent, action, last_folder,
-                                target):
-        args = [text, parent, action, last_folder, target]
+                                target, suffix=None):
+        args = [text, parent, action, last_folder, target, suffix]
         self.invoked.append('run_file_chooser_dialog')
         self.invoked_detailed.append((self.invoked[-1], args))
         try:

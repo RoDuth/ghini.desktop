@@ -28,6 +28,7 @@ from collections.abc import Iterable
 from collections import UserDict
 from functools import wraps
 from typing import Any, Union
+from pathlib import Path
 import time
 import datetime
 import os
@@ -1781,7 +1782,12 @@ def get_user_display_name():
     return fname
 
 
-def run_file_chooser_dialog(text, parent, action, last_folder, target):
+def run_file_chooser_dialog(text,
+                            parent,
+                            action,
+                            last_folder,
+                            target,
+                            suffix=None):
     """Create and run a FileChooserNative, then write result in target entry
     widget.
 
@@ -1794,8 +1800,13 @@ def run_file_chooser_dialog(text, parent, action, last_folder, target):
     :param action: a Gtk.FileChooserAction value.
     :param last_folder: the folder to open the window at.
     :param target: widget that has it value set to the selected filename.
+    :param suffix: an extension as a str (e.g. '.csv'). Used as a file filter.
     """
     chooser = Gtk.FileChooserNative.new(text, parent, action)
+    if suffix:
+        filter_ = Gtk.FileFilter.new()
+        filter_.add_pattern('*' + suffix)
+        chooser.add_filter(filter_)
 
     try:
         if last_folder:
@@ -1803,6 +1814,8 @@ def run_file_chooser_dialog(text, parent, action, last_folder, target):
         if chooser.run() == Gtk.ResponseType.ACCEPT:
             filename = chooser.get_filename()
             if filename:
+                if suffix:
+                    filename = str(Path(filename).with_suffix(suffix))
                 target.set_text(filename)
                 target.set_position(len(filename))
     except Exception as e:  # pylint: disable=broad-except
@@ -1822,7 +1835,6 @@ def copy_tree(src_dir, dest_dir, suffixes=None, over_write=False):
         None if all files should be copied
     :param over_write: wether to overwrite existing files or not.
     """
-    from pathlib import Path
     from shutil import copy
     if isinstance(src_dir, str):
         src_dir = Path(src_dir)
@@ -1913,7 +1925,6 @@ def timed_cache(size=200, secs=2.0):
 def get_temp_path():
     """Returns a pathlib.Path instance pointed at a temporary file."""
     import tempfile
-    from pathlib import Path
     handle, name = tempfile.mkstemp()
     os.close(handle)
     return Path(name)

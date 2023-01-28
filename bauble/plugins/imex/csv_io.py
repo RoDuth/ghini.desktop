@@ -99,7 +99,8 @@ class CSVExportDialogPresenter(GenericEditorPresenter):
             None,
             Gtk.FileChooserAction.SAVE,
             self.last_folder,
-            'out_filename_entry'
+            'out_filename_entry',
+            '.csv'
         )
         self.refresh_sensitivity()
 
@@ -423,7 +424,8 @@ class CSVImportDialogPresenter(GenericEditorPresenter):
             None,
             Gtk.FileChooserAction.OPEN,
             self.last_folder,
-            'in_filename_entry'
+            'in_filename_entry',
+            '.csv'
         )
         self.refresh_sensitivity()
 

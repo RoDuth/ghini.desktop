@@ -714,7 +714,8 @@ class ShapefileImportDialogPresenter(GenericEditorPresenter):
             None,
             Gtk.FileChooserAction.OPEN,
             self.last_folder,
-            'input_filename'
+            'input_filename',
+            '.zip'
         )
         self.refresh_sensitivity()
 
