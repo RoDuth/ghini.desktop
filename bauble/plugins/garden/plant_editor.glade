@@ -284,6 +284,7 @@
                           <object class="GtkBox" id="plant_loc_hbox">
                             <property name="visible">True</property>
                             <property name="can-focus">False</property>
+                            <property name="hexpand">True</property>
                             <property name="spacing">6</property>
                             <child>
                               <object class="GtkComboBox" id="plant_loc_comboentry">
