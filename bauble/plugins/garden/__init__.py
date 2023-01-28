@@ -58,17 +58,14 @@ from .plant import (PlantEditor,
                     Plant,
                     PlantSearch,
                     PlantInfoBox,
-                    plant_context_menu,
-                    plant_delimiter_key,
-                    default_plant_delimiter)
+                    plant_context_menu)
 from .source import (Source,
                      create_source_detail,
                      SourceDetail,
                      SourceDetailInfoBox,
                      source_detail_context_menu,
                      Collection,
-                     collection_context_menu,
-                     collection_context_menu_callback)
+                     collection_context_menu)
 from .institution import (Institution,
                           InstitutionCommand,
                           InstitutionTool,
@@ -206,8 +203,6 @@ class GardenPlugin(pluginmgr.Plugin):
         institution = Institution()
         if bauble.gui is not None and not institution.name:
             start_institution_editor()
-
-        SearchView.context_menu_callbacks.add(collection_context_menu_callback)
 
         note_query = '{table} where notes.id = {obj_id}'
         HistoryView.add_translation_query('accession_note', 'accession',

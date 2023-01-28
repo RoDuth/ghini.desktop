@@ -15,10 +15,10 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
-from unittest import mock
+from unittest import mock, TestCase
 
 from bauble.test import BaubleTestCase
-from bauble.utils.geo import transform, ProjDB, prj_crs
+from bauble.utils.geo import transform, ProjDB, prj_crs, KMLMapCallbackFunctor
 from bauble import db
 
 # test data - avoiding tuples as they end up lists in the database anyway
@@ -312,3 +312,48 @@ class GlobalFunctionsTests(BaubleTestCase):
         get_default('system_proj_string', DEFAULT_SYS_PROJ)
         # junk data returns none
         self.assertIsNone(transform('hjkl'))
+
+
+class TestKMLMapCallbackFunctor(TestCase):
+    @mock.patch('bauble.utils.message_dialog')
+    @mock.patch('bauble.utils.geo.Template')
+    def test_fails_single(self, mock_template, mock_dialog):
+        call_back = KMLMapCallbackFunctor(None)
+        mock_template_instance = mock_template.return_value
+        mock_template_instance.render.side_effect = ValueError('test')
+        with self.assertLogs(level='DEBUG') as logs:
+            call_back([None])
+        self.assertIn('None: test', logs.output[0])
+        mock_dialog.assert_called()
+
+    @mock.patch('bauble.utils.message_dialog')
+    @mock.patch('bauble.utils.geo.Template')
+    def test_fails_multiple(self, mock_template, mock_dialog):
+        call_back = KMLMapCallbackFunctor(None)
+        mock_template_instance = mock_template.return_value
+        mock_template_instance.render.side_effect = ValueError('test')
+        with self.assertLogs(level='DEBUG') as logs:
+            call_back([None, None, None])
+        self.assertTrue(all('None: test' in i for i in logs.output))
+        mock_dialog.assert_called()
+
+    @mock.patch('bauble.utils.desktop.open')
+    @mock.patch('bauble.utils.geo.Template')
+    def test_suceeds_single(self, mock_template, mock_open):
+        call_back = KMLMapCallbackFunctor(None)
+        mock_template_instance = mock_template.return_value
+        mock_template_instance.render.return_value = b"test"
+        with self.assertNoLogs(level='DEBUG'):
+            call_back([None])
+        mock_open.assert_called()
+
+    @mock.patch('bauble.utils.desktop.open')
+    @mock.patch('bauble.utils.geo.Template')
+    def test_suceeds_multiple(self, mock_template, mock_open):
+        call_back = KMLMapCallbackFunctor(None)
+        mock_template_instance = mock_template.return_value
+        mock_template_instance.render.return_value = b"test"
+        with self.assertNoLogs(level='DEBUG'):
+            call_back([None, None, None])
+        mock_open.assert_called()
+

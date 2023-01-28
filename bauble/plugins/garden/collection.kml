@@ -5,46 +5,56 @@ from bauble import prefs
 date_frmt = prefs.prefs.get(prefs.date_format_pref)
 %>\
 <?xml version="1.0" encoding="UTF-8"?>
+<%
+  collection = value
+  if type(value).__name__ == 'Accession':
+    if value.source and value.source.collection:
+      collection = value.source.collection
+    else:
+      raise ValueError("Accession has not collection record")
+  if not (collection.latitude and collection.longitude):
+    raise ValueError("Can't find anything to map for the current selection")
+%>\
 <kml xmlns="http://www.opengis.net/kml/2.2" xmlns:gx="http://www.google.com/kml/ext/2.2">
   <Document>
-  <name>${xml_safe(value.source.accession)}</name>
+  <name>${xml_safe(collection.source.accession)}</name>
     <visibility>1</visibility>
     <Placemark>
-      <name>${value.source.accession.species_str()}</name>
+      <name>${collection.source.accession.species_str()}</name>
       <description><![CDATA[
         <table>
           <tr>
             <td>ACESSION:</td>
-            <td>${xml_safe(value.source.accession)}</td>
+            <td>${xml_safe(collection.source.accession)}</td>
           </tr>
-          % if value.collector:
+          % if collection.collector:
           <tr>
             <td>COLLECTOR:</td>
-            <td>${xml_safe(value.collector)}</td>
+            <td>${xml_safe(collection.collector)}</td>
           </tr>
           % endif
-          % if value.collectors_code:
+          % if collection.collectors_code:
           <tr>
             <td>COLLECTORS CODE:</td>
-            <td>${xml_safe(value.collectors_code)}</td>
+            <td>${xml_safe(collection.collectors_code)}</td>
           </tr>
           % endif
-          % if value.date:
+          % if collection.date:
           <tr>
             <td>DATE:</td>
-            <td>${value.date.strftime(date_frmt)}</td>
+            <td>${collection.date.strftime(date_frmt)}</td>
           </tr>
           % endif
-          % if value.locale:
+          % if collection.locale:
           <tr>
             <td>LOCALE:</td>
-            <td>${xml_safe(value.locale)}</td>
+            <td>${xml_safe(collection.locale)}</td>
           </tr>
           % endif
-          % if value.habitat:
+          % if collection.habitat:
           <tr>
             <td>HABITAT:</td>
-            <td>${xml_safe(value.habitat)}</td>
+            <td>${xml_safe(collection.habitat)}</td>
           </tr>
           % endif
         </table>
@@ -53,7 +63,7 @@ date_frmt = prefs.prefs.get(prefs.date_format_pref)
       <visibility>1</visibility>
       <Point>
         <coordinates>
-          ${value.longitude}, ${value.latitude}
+          ${collection.longitude}, ${collection.latitude}
         </coordinates>
       </Point>
     </Placemark>

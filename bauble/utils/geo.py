@@ -20,9 +20,14 @@ Common helpers useful for spatial data.
 import os
 import logging
 logger = logging.getLogger(__name__)
+
+import tempfile
+from mako.template import Template
 from pyproj import Transformer, ProjError
 from sqlalchemy import Table, Column, Text, CheckConstraint, select
 
+import bauble
+from bauble import utils
 from bauble.paths import main_is_frozen, main_dir, appdata_dir
 from bauble.meta import confirm_default
 from bauble import db
@@ -255,20 +260,30 @@ class KMLMapCallbackFunctor:
         self.filename = filename
 
     def __call__(self, values):
-        import tempfile
-        from mako.template import Template
-        from bauble import utils
         template = Template(filename=self.filename,
                             input_encoding='utf-8',
                             output_encoding='utf-8')
+
         count = 0
         for value in values:
-            if hasattr(value, 'geojson') and not value.geojson:
-                continue
             file_handle, filename = tempfile.mkstemp(suffix='.kml')
-            out = template.render(value=value)
-            os.write(file_handle, out)
-            os.close(file_handle)
+
+            try:
+                out = template.render(value=value)
+                os.write(file_handle, out)
+            except ValueError as e:
+                # at least provides some feedback from last failure
+                if bauble.gui:
+                    statusbar = bauble.gui.widgets.statusbar
+                    sb_context_id = statusbar.get_context_id('show.map')
+                    statusbar.pop(sb_context_id)
+                    statusbar.push(sb_context_id, f"{value} - {e}")
+                # NOTE log used in test
+                logger.debug("%s: %s", value, e)
+                continue
+            finally:
+                os.close(file_handle)
+
             count += 1
             try:
                 utils.desktop.open(filename)
@@ -278,5 +293,6 @@ class KMLMapCallbackFunctor:
                     filename
                 )
                 break
+
         if count == 0:
-            utils.message_dialog(_('No map data for selected items.'))
+            utils.message_dialog(_('No map data for selected item(s).'))

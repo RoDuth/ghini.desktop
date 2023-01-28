@@ -59,6 +59,7 @@ from bauble import paths
 from bauble import prefs
 from bauble import btypes as types
 from bauble import utils
+from bauble.utils.geo import KMLMapCallbackFunctor
 from bauble.view import (InfoBox,
                          InfoExpander,
                          LinksExpander,
@@ -77,7 +78,8 @@ from .source import (SourceDetail,
                      Collection,
                      CollectionPresenter,
                      PropagationChooserPresenter,
-                     source_type_values)
+                     source_type_values,
+                     COLLECTION_KML_MAP_PREF)
 # TODO: underneath the species entry create a label that shows information
 # about the family of the genus of the species selected as well as more
 # info about the genus so we know exactly what plant is being selected
@@ -219,20 +221,36 @@ def remove_callback(accessions):
     return True
 
 
-edit_action = Action('acc_edit', _('_Edit'),
+map_kml_callback = KMLMapCallbackFunctor(
+    prefs.prefs.get(COLLECTION_KML_MAP_PREF,
+                    str(Path(__file__).resolve().parent / 'collection.kml'))
+)
+
+
+edit_action = Action('acc_edit',
+                     _('_Edit'),
                      callback=edit_callback,
                      accelerator='<ctrl>e')
 
-add_plant_action = Action('acc_add', _('_Add Plants'),
+add_plant_action = Action('acc_add',
+                          _('_Add Plants'),
                           callback=add_plants_callback,
                           accelerator='<ctrl>k')
 
-remove_action = Action('acc_remove', _('_Delete'),
+remove_action = Action('acc_remove',
+                       _('_Delete'),
                        callback=remove_callback,
                        accelerator='<ctrl>Delete', multiselect=True)
 
+collection_map_action = Action('collection_map',
+                               _('Show collection site in _map'),
+                               callback=map_kml_callback,
+                               accelerator='<ctrl>m',
+                               multiselect=True)
 
-acc_context_menu = [edit_action, add_plant_action, remove_action]
+
+acc_context_menu = [edit_action, add_plant_action, remove_action,
+                    collection_map_action]
 
 
 ver_level_descriptions = {

@@ -78,7 +78,7 @@ if value.geojson and sys_crs:
   try:
     rang
   except NameError:
-    raise Exception("Can't find anything to map for the current selection")
+    raise ValueError("Can't find anything to map for the current selection")
 %>\
       <longitude>${lng}</longitude>
       <latitude>${lat}</latitude>

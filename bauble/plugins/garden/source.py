@@ -70,6 +70,14 @@ def collection_remove_callback(coll):
     return remove_callback([coll[0].source.accession])
 
 
+COLLECTION_KML_MAP_PREF = 'kml_templates.collection'
+"""pref for path to a custom mako kml template."""
+
+map_kml_callback = KMLMapCallbackFunctor(
+    prefs.prefs.get(COLLECTION_KML_MAP_PREF,
+                    str(Path(__file__).resolve().parent / 'collection.kml'))
+)
+
 collection_edit_action = Action('collection_edit', _('_Edit'),
                                 callback=collection_edit_callback,
                                 accelerator='<ctrl>e')
@@ -82,16 +90,14 @@ collection_remove_action = Action('collection_remove', _('_Delete'),
                                   callback=collection_remove_callback,
                                   accelerator='<ctrl>Delete')
 
+collection_map_action = Action('collection_map',
+                               _('Show in _map'),
+                               callback=map_kml_callback,
+                               accelerator='<ctrl>m',
+                               multiselect=True)
+
 collection_context_menu = [collection_edit_action, collection_add_plant_action,
-                           collection_remove_action]
-
-PLANT_KML_MAP_PREFS = 'kml_templates.collection'
-"""pref for path to a custom mako kml template."""
-
-map_kml_callback = KMLMapCallbackFunctor(
-    prefs.prefs.get(PLANT_KML_MAP_PREFS,
-                    str(Path(__file__).resolve().parent / 'collection.kml'))
-)
+                           collection_remove_action, collection_map_action]
 
 lat_long_re = re.compile(
     r"([SN]?[ ]?[0-9]{1,3}°\s*[0-9]{1,2}'\s*[0-9]{1,2}\.*[0-9]*\"[SN]?|"
@@ -108,34 +114,6 @@ lat_re = re.compile(
 long_re = re.compile(
     r"[EW]?[ ]?([0-9]{1,3})°\s*([0-9]{1,2})'\s*([0-9]{1,2}\.*[0-9]*)\""
 )
-
-
-def map_callback(_action, _values):
-    view = bauble.gui.get_view()
-    values = view.get_selected_values()
-    map_kml_callback(values)
-
-
-def collection_context_menu_callback(selected):
-    action_name = 'collection_map'
-    # Only add actions if they have not already been added...  Adding here
-    # to wait for bauble.gui.
-    if not bauble.gui.lookup_action(action_name):
-
-        bauble.gui.add_action(action_name, map_callback)
-
-    if any(not isinstance(i, Collection) for i in selected):
-        return None
-
-    if all(i.latitude and i.longitude for i in selected):
-
-        section = Gio.Menu()
-        tag_item = Gio.MenuItem.new(_('Show in _map'),
-                                    f'win.{action_name}')
-        section.append_item(tag_item)
-
-        return section
-    return None
 
 
 class Source(db.Base):

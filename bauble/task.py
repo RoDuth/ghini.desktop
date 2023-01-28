@@ -150,7 +150,7 @@ def set_message(msg):
     global _context_id
     if not _context_id:
         _context_id = bauble.gui.widgets.statusbar.get_context_id('__task')
-        logger.info("new context id: %s" % _context_id)
+        logger.info("new context id: %s", _context_id)
     msg_id = bauble.gui.widgets.statusbar.push(_context_id, msg)
     __message_ids.append(msg_id)
     return msg_id
@@ -163,6 +163,5 @@ def clear_messages():
     if bauble.gui is None or bauble.gui.widgets is None \
             or bauble.gui.widgets.statusbar is None:
         return
-    global _context_id, __message_ids
     for mid in __message_ids:
         bauble.gui.widgets.statusbar.remove(_context_id, mid)
