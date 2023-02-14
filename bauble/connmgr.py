@@ -495,7 +495,7 @@ class ConnMgrPresenter(GenericEditorPresenter):
         """Show a dialog with and entry and return the value entered."""
         passwd = self.view.run_entry_dialog(
             _("Enter your password"),
-            self.view.get_window(),
+            None,
             ('OK', Gtk.ResponseType.ACCEPT),
             visible=False,
             modal=True,
