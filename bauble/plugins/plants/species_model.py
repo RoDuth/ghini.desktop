@@ -34,7 +34,8 @@ from sqlalchemy import (Column,
                         ForeignKey,
                         UnicodeText,
                         UniqueConstraint,
-                        func)
+                        func,
+                        literal)
 from sqlalchemy.orm import relationship, backref, object_session
 from sqlalchemy.orm import synonym as sa_synonym
 from sqlalchemy.ext.hybrid import hybrid_property
@@ -901,9 +902,9 @@ class Species(db.Base, db.Serializable, db.WithNotes):
         cls = self.__class__.accessions.prop.mapper.class_
         from sqlalchemy import exists
         session = object_session(self)
-        return session.query(
-            exists().where(cls.species_id == self.id)
-        ).scalar()
+        return bool(session.query(literal(True))
+                    .filter(exists().where(cls.species_id == self.id))
+                    .scalar())
 
     def count_children(self):
         cls = self.__class__.accessions.prop.mapper.class_

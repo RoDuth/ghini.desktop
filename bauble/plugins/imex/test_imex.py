@@ -26,6 +26,7 @@ import shutil
 import tempfile
 import json
 from datetime import datetime
+from dateutil.parser import parse as date_parse
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
@@ -287,7 +288,7 @@ class CSVTests(ImexTestCase):
         if db.engine.name == 'postgresql':
             stmt = "SELECT nextval('family_id_seq')"
             nextval = conn.execute(stmt).fetchone()[0]
-        elif db.engine.name == 'sqlite':
+        elif db.engine.name in ('sqlite', 'mssql'):
             # max(id) isn't really safe in production use but is ok for a test
             stmt = "SELECT max(id) from family;"
             nextval = conn.execute(stmt).fetchone()[0] + 1
@@ -307,9 +308,8 @@ class CSVTests(ImexTestCase):
         """
         Test importing a row with None doesn't inherit from previous row.
         """
-        query = self.session.query(Genus)
-        self.assertTrue(query[1].author != query[0].author,
-                        (query[1].author, query[0].author))
+        query = self.session.query(Genus).all()
+        self.assertNotEqual(query[1].author, query[0].author)
 
     def test_export_none_is_empty(self):
         """
@@ -354,7 +354,7 @@ class CSVTests2(ImexTestCase):
         if db.engine.name == 'postgresql':
             stmt = "SELECT nextval('family_id_seq')"
             nextval = conn.execute(stmt).fetchone()[0]
-        elif db.engine.name == 'sqlite':
+        elif db.engine.name in ('sqlite', 'mssql'):
             # max(id) isn't really safe in production use but is ok for a test
             stmt = "SELECT max(id) from family;"
             nextval = conn.execute(stmt).fetchone()[0] + 1
@@ -1764,36 +1764,40 @@ class GenericExporterTests(BaubleTestCase):
         garden_test.setUp_data()
 
     def test_get_item_value_gets_datetime_datetime_type(self):
-        datetime_fmat = prefs.prefs.get(prefs.datetime_format_pref)
         item = Plant(code='3', accession_id=1, location_id=1, quantity=10)
         self.session.add(item)
         self.session.commit()
-        now = datetime.now().strftime(datetime_fmat)
+        now = datetime.now().timestamp()
         val = GenericExporter.get_item_value('planted.date', item)
-        # accuracy is seconds, chance of a mismatch should be uncommon
-        self.assertEqual(val, now)
+        # accuracy is seconds
+        val = date_parse(val).timestamp()
+        self.assertAlmostEqual(val, now, delta=1)
 
     def test_get_item_value_gets_date_type(self):
-        date_fmat = prefs.prefs.get(prefs.date_format_pref)
         item = Accession(code='2020.4',
                          species_id=1,
                          date_accd=datetime.now())
         self.session.add(item)
         self.session.commit()
-        now = datetime.now().strftime(date_fmat)
+        now = (datetime.now()
+               .replace(hour=0, minute=0, second=0, microsecond=0)
+               .timestamp())
         val = GenericExporter.get_item_value('date_accd', item)
-        # accuracy is seconds, chance of a mismatch should be very uncommon
-        self.assertEqual(val, now)
+        # accuracy is a day - i.e. very rarely this could spill over from one
+        # day to the next
+        val = date_parse(val).timestamp()
+        secs_in_day = 86400
+        self.assertAlmostEqual(val, now, delta=secs_in_day)
 
     def test_get_item_value_gets_datetime_type(self):
-        datetime_fmat = prefs.prefs.get(prefs.datetime_format_pref)
         item = Plant(code='3', accession_id=1, location_id=1, quantity=10)
         self.session.add(item)
         self.session.commit()
-        now = datetime.now().strftime(datetime_fmat)
+        now = datetime.now().timestamp()
         val = GenericExporter.get_item_value('_created', item)
-        # accuracy is seconds, chance of a mismatch should be uncommon
-        self.assertEqual(val, now)
+        # accuracy is seconds
+        val = date_parse(val).timestamp()
+        self.assertAlmostEqual(val, now, delta=1)
 
     def test_get_item_value_gets_path(self):
         item = self.session.query(Plant).get(1)

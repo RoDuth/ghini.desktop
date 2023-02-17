@@ -52,7 +52,9 @@ def is_package_name(name):
         return False
 
 
-DBS = [('sqlite3', 'SQLite'), ('psycopg2', 'PostgreSQL')]
+DBS = [('sqlite3', 'SQLite'),
+       ('psycopg2', 'PostgreSQL'),
+       ('pyodbc', 'MSSQL')]
 #     ('mysql', 'MySQL'),
 #     ('pyodbc', 'MS SQL Server'),
 #     ('cx_Oracle', 'Oracle'),

@@ -43,7 +43,8 @@ from sqlalchemy import (ForeignKey,
                         Integer,
                         UnicodeText,
                         func,
-                        exists)
+                        exists,
+                        literal)
 from sqlalchemy.orm import relationship, validates, backref
 from sqlalchemy.orm.session import object_session
 from sqlalchemy.exc import DBAPIError
@@ -872,9 +873,9 @@ class Accession(db.Base, db.Serializable, db.WithNotes):
     def has_children(self):
         cls = self.__class__.plants.prop.mapper.class_
         session = object_session(self)
-        return session.query(
-            exists().where(cls.accession_id == self.id)
-        ).scalar()
+        return bool(session.query(literal(True))
+                    .filter(exists().where(cls.accession_id == self.id))
+                    .scalar())
 
     def count_children(self):
         cls = self.__class__.plants.prop.mapper.class_

@@ -16,9 +16,10 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
-#
-# test_bauble.py
-#
+
+"""
+Tests for the main bauble module.
+"""
 import datetime
 import os
 import time
@@ -29,16 +30,11 @@ logger.setLevel(logging.DEBUG)
 
 from sqlalchemy import Column, Integer
 
-import unittest
 import bauble
-import bauble.db as db
+from bauble import db
 from bauble.btypes import Enum, EnumError
 from bauble.test import BaubleTestCase, check_dupids
-import bauble.meta as meta
-
-"""
-Tests for the main bauble module.
-"""
+from bauble import meta
 
 
 class EnumTests(BaubleTestCase):
@@ -46,7 +42,7 @@ class EnumTests(BaubleTestCase):
     table = None
 
     def setUp(self):
-        BaubleTestCase.setUp(self)
+        super().setUp()
         if self.__class__.table is None:
             class Test(db.Base):
                 __tablename__ = 'test_enum_type'

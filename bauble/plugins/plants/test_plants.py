@@ -36,7 +36,8 @@ from bauble import prefs
 from bauble.test import (BaubleTestCase,
                          check_dupids,
                          mockfunc,
-                         update_gui)
+                         update_gui,
+                         wait_on_threads)
 from . import SplashInfoBox
 from .species import (Species,
                       VernacularName,
@@ -3072,7 +3073,7 @@ class SplashInfoBoxTests(BaubleTestCase):
     def test_update_sensitise_exclude_inactive(self, _mock_gui):
         splash = SplashInfoBox()
         splash.update()
-        # wait_on_threads()
+        wait_on_threads()
         for widget in [splash.splash_nplttot,
                        splash.splash_npltnot,
                        splash.splash_nacctot,
@@ -3083,7 +3084,7 @@ class SplashInfoBoxTests(BaubleTestCase):
 
         prefs.prefs[prefs.exclude_inactive_pref] = True
         splash.update()
-        # wait_on_threads()
+        wait_on_threads()
         for widget in [splash.splash_nplttot,
                        splash.splash_npltnot,
                        splash.splash_nacctot,

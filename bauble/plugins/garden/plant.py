@@ -304,10 +304,24 @@ class PlantSearch(SearchStrategy):
                 acc_code, plant_code = value.rsplit(delimiter, 1)
                 vals.append((acc_code, plant_code))
             logger.debug('"in" PlantSearch vals: %s', vals)
-            query = (session.query(Plant)
-                     .join(Accession)
-                     .filter(tuple_(Accession.code, Plant.code)
-                     .in_(vals)))
+            if db.engine.name == 'mssql':
+                from sqlalchemy import String
+                from sqlalchemy.sql import exists, values, column
+                sql_vals = values(
+                    column('acc_code', String),
+                    column('plt_code', String)
+                ).data(vals).alias('val')
+                query = (session.query(Plant)
+                         .join(Accession)
+                         .filter(exists()
+                                 .where(Accession.code == sql_vals.c.acc_code,
+                                        Plant.code == sql_vals.c.plt_code)))
+            else:
+                # sqlite, postgresql
+                query = (session.query(Plant)
+                         .join(Accession)
+                         .filter(tuple_(Accession.code, Plant.code)
+                         .in_(vals)))
 
         if prefs.prefs.get(prefs.exclude_inactive_pref):
             query = query.filter(Plant.active.is_(True))
@@ -732,8 +746,8 @@ class Plant(db.Base, db.Serializable, db.WithNotes):
     @active.expression
     def active(cls):
         # pylint: disable=no-self-argument
-        from sqlalchemy.sql.expression import case, cast
-        return cast(cls.quantity > 0, types.Boolean)
+        from sqlalchemy.sql.expression import cast, case
+        return cast(case([(cls.quantity > 0, 1)], else_=0), types.Boolean)
 
     def __str__(self):
         return f'{self.accession}{self.delimiter}{self.code}'

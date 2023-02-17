@@ -412,12 +412,13 @@ class AggregatedExpression(IdentExpression):
         def clause(val):
             return self.operation(function(attr), val)
 
-        # group by main ID
+        # group by - all columns MSSQL
         # apply having
         main_table = query.column_descriptions[0]['type']
-        mta = getattr(main_table, 'id')
-        logger.debug('filtering on %s(%s)', type(mta), mta)
-        result = query.group_by(mta).having(clause(self.operands[1].express()))
+        all_cols = [getattr(main_table, c) for c in
+                    main_table.__table__.c.keys()]
+        result = (query.group_by(*all_cols)
+                  .having(clause(self.operands[1].express())))
         return result
 
 

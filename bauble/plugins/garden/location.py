@@ -28,7 +28,7 @@ logger = logging.getLogger(__name__)
 
 from gi.repository import Gtk
 
-from sqlalchemy import Column, Unicode, UnicodeText
+from sqlalchemy import Column, Unicode, UnicodeText, literal
 from sqlalchemy.orm import relationship, backref, validates, deferred
 from sqlalchemy.orm.session import object_session
 from sqlalchemy.exc import DBAPIError
@@ -228,9 +228,9 @@ class Location(db.Base, db.Serializable, db.WithNotes):
         cls = self.__class__.plants.prop.mapper.class_
         from sqlalchemy import exists
         session = object_session(self)
-        return session.query(
-            exists().where(cls.location_id == self.id)
-        ).scalar()
+        return bool(session.query(literal(True))
+                    .filter(exists().where(cls.location_id == self.id))
+                    .scalar())
 
     def count_children(self):
         cls = self.__class__.plants.prop.mapper.class_

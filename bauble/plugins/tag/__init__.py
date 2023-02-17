@@ -37,7 +37,8 @@ from sqlalchemy import (Column,
                         UnicodeText,
                         Integer,
                         String,
-                        ForeignKey)
+                        ForeignKey,
+                        literal)
 from sqlalchemy.orm import relationship
 from sqlalchemy.orm.exc import DetachedInstanceError
 from sqlalchemy import and_
@@ -693,9 +694,9 @@ class Tag(db.Base):
     def has_children(self):
         from sqlalchemy import exists
         session = object_session(self)
-        return session.query(
-            exists().where(TaggedObj.tag_id == self.id)
-        ).scalar()
+        return bool(session.query(literal(True))
+                    .filter(exists().where(TaggedObj.tag_id == self.id))
+                    .scalar())
 
     def count_children(self):
         session = object_session(self)

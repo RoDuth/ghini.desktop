@@ -17,6 +17,7 @@ for:
 
   install:
     - brew install pygobject3 gtk+3 adwaita-icon-theme openjdk
+    - brew install unixodbc
 
   build_script:
     - . ~/venv3.10/bin/activate
@@ -25,6 +26,7 @@ for:
     - scripts/get_fop.sh
     - pip install --upgrade pip
     - pip install psycopg2-binary
+    - pip install pyodbc
     - pip install .
     - pip install pyinstaller
     - pyinstaller --clean --noconfirm scripts/ghini_fop.spec
@@ -55,6 +57,7 @@ for:
     - bash -lc "python --version"
     - bash -lc "python -m pip install --upgrade pip"
     - bash -lc "SETUPTOOLS_USE_DISTUTILS=stdlib pip install pyproj==3.3.1"
+    # - bash -lc "SETUPTOOLS_USE_DISTUTILS=stdlib pip install pyodbc"
 
   build_script:
     - bash -lc "pip install ."

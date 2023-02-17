@@ -17,7 +17,7 @@
 # along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
 
 import os
-from unittest import mock, TestCase
+from unittest import mock
 from pathlib import Path
 
 from gi.repository import Gtk, Gdk, Gio
@@ -32,33 +32,39 @@ from bauble.view import (AppendThousandRows,
                          _substr_tmpl,
                          select_in_search_results,
                          PICTURESSCROLLER_WIDTH_PREF)
-from bauble.test import (BaubleTestCase, update_gui, get_setUp_data_funcs,
-                         wait_on_threads)
-from bauble import db, utils, search, prefs, pluginmgr, meta
+from bauble.test import (BaubleTestCase,
+                         update_gui,
+                         get_setUp_data_funcs,
+                         wait_on_threads,
+                         uri)
+from bauble import db, utils, search, prefs, pluginmgr
 
 # pylint: disable=too-few-public-methods
 
 
-class TestMultiprocCounter(TestCase):
+class TestMultiprocCounter(BaubleTestCase):
     def setUp(self):
-        # for the sake of multiprocessng, setUp here creates a temp file
-        # database and populates it
-        from tempfile import mkstemp
-        self.db_handle, self.temp_db = mkstemp(suffix='.db', text=True)
-        self.uri = f'sqlite:///{self.temp_db}'
-        db.open_conn(self.uri, verify=False, show_error_dialogs=False)
-        self.handle, self.temp = mkstemp(suffix='.cfg', text=True)
-        # reason not to use `from bauble.prefs import prefs`
-        prefs.default_prefs_file = self.temp
-        prefs.prefs = prefs._prefs(filename=self.temp)
-        prefs.prefs.init()
-        prefs.prefs[prefs.web_proxy_prefs] = 'use_requests_without_proxies'
-        pluginmgr.plugins = {}
-        pluginmgr.load()
-        db.create(import_defaults=False)
-        pluginmgr.install('all', False, force=True)
-        pluginmgr.init()
-        db.create(import_defaults=False)
+        if ':memory:' in uri:
+            # for the sake of multiprocessing, create a temp file database and
+            # populate it rather than use an in memory database
+            from tempfile import mkstemp
+            self.db_handle, self.temp_db = mkstemp(suffix='.db', text=True)
+            self.uri = f'sqlite:///{self.temp_db}'
+            db.open_conn(self.uri, verify=False, show_error_dialogs=False)
+            self.handle, self.temp = mkstemp(suffix='.cfg', text=True)
+            # reason not to use `from bauble.prefs import prefs`
+            prefs.default_prefs_file = self.temp
+            prefs.prefs = prefs._prefs(filename=self.temp)
+            prefs.prefs.init()
+            prefs.prefs[prefs.web_proxy_prefs] = 'use_requests_without_proxies'
+            pluginmgr.plugins = {}
+            pluginmgr.load()
+            db.create(import_defaults=False)
+            pluginmgr.install('all', False, force=True)
+            pluginmgr.init()
+        else:
+            super().setUp()
+            self.uri = uri
 
         # add some data
         for func in get_setUp_data_funcs():
@@ -66,12 +72,15 @@ class TestMultiprocCounter(TestCase):
         self.session = db.Session()
 
     def tearDown(self):
-        self.session.close()
-        os.close(self.db_handle)
-        os.remove(self.temp_db)
-        os.close(self.handle)
-        os.remove(self.temp)
-        db.engine.dispose()
+        if ':memory:' in uri:
+            self.session.close()
+            os.close(self.db_handle)
+            os.remove(self.temp_db)
+            os.close(self.handle)
+            os.remove(self.temp)
+            db.engine.dispose()
+        else:
+            super().tearDown()
 
     def test_multiproc_counter_all_domains(self):
         # tests that relationships don't fail in the process
@@ -762,6 +771,7 @@ class TestHistoryView(BaubleTestCase):
         hist_view.on_revert_to_history(None, None)
         mock_dialog.assert_called()
         self.assertEqual(self.session.query(note_cls).count(), remainder)
+        wait_on_threads()
 
     @mock.patch('bauble.view.HistoryView.get_selected_value')
     def test_on_copy_values(self, mock_get_selected):

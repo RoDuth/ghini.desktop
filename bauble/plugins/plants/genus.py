@@ -30,8 +30,14 @@ logger = logging.getLogger(__name__)
 
 from gi.repository import Gtk  # noqa
 
-from sqlalchemy import (Column, Unicode, Integer, ForeignKey, String,
-                        UniqueConstraint, and_)
+from sqlalchemy import (Column,
+                        Unicode,
+                        Integer,
+                        ForeignKey,
+                        String,
+                        UniqueConstraint,
+                        and_,
+                        literal)
 from sqlalchemy.orm import relationship, backref
 from sqlalchemy.orm import synonym as sa_synonym
 from sqlalchemy.orm.session import object_session
@@ -405,7 +411,9 @@ class Genus(db.Base, db.Serializable, db.WithNotes):
         cls = self.__class__.species.prop.mapper.class_
         from sqlalchemy import exists
         session = object_session(self)
-        return session.query(exists().where(cls.genus_id == self.id)).scalar()
+        return bool(session.query(literal(True))
+                    .filter(exists().where(cls.genus_id == self.id))
+                    .scalar())
 
     def count_children(self):
         cls = self.__class__.species.prop.mapper.class_

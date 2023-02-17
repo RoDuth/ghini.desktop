@@ -39,7 +39,8 @@ from sqlalchemy import (Column,
                         Integer,
                         ForeignKey,
                         Float,
-                        UnicodeText)
+                        UnicodeText,
+                        literal)
 from sqlalchemy.orm import relationship, backref
 from sqlalchemy.orm.session import object_session
 
@@ -976,9 +977,9 @@ class SourceDetail(db.Base, db.Serializable):
     def has_children(self):
         from sqlalchemy import exists
         session = object_session(self)
-        return session.query(
-            exists().where(Source.source_detail_id == self.id)
-        ).scalar()
+        return bool(session.query(literal(True))
+                    .filter(exists().where(Source.source_detail_id == self.id))
+                    .scalar())
 
     def count_children(self):
         session = object_session(self)

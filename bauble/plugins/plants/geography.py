@@ -37,7 +37,8 @@ from sqlalchemy import (select,
                         String,
                         Integer,
                         ForeignKey,
-                        and_)
+                        and_,
+                        literal)
 from sqlalchemy.orm import object_session, relationship, backref, deferred
 
 from bauble import db, utils
@@ -241,9 +242,10 @@ class Geography(db.Base):
             parent_ids = [i[0] for i in child_id]
             ids.update(parent_ids)
 
-        return session.query(
-            exists().where(SpeciesDistribution.geography_id.in_(ids))
-        ).scalar()
+        return bool(session.query(literal(True))
+                    .filter(exists()
+                            .where(SpeciesDistribution.geography_id.in_(ids)))
+                    .scalar())
 
     def count_children(self):
         # Much more expensive than other models

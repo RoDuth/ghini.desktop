@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 import tempfile
 from mako.template import Template
 from pyproj import Transformer, ProjError
-from sqlalchemy import Table, Column, Text, CheckConstraint, select
+from sqlalchemy import Table, Column, String, select
 
 import bauble
 from bauble import utils
@@ -32,6 +32,7 @@ from bauble.paths import main_is_frozen, main_dir, appdata_dir
 from bauble.meta import confirm_default
 from bauble import db
 from bauble import btypes
+from bauble.error import check
 
 if main_is_frozen():
     import pyproj
@@ -133,13 +134,11 @@ def transform(geometry, in_crs=DEFAULT_IN_PROJ, out_crs=None, always_xy=False):
 prj_crs = Table('prj_crs',
                 db.metadata,
                 Column('prj_text',
-                       Text,
-                       CheckConstraint("length(prj_text) >= 12"),
+                       String(length=2048),
                        nullable=False,
                        unique=True),
                 Column('proj_crs',
-                       Text,
-                       CheckConstraint("length(proj_crs) >= 4"),
+                       String(length=64),
                        nullable=False),
                 Column('always_xy', btypes.Boolean, default=False))
 
@@ -217,7 +216,10 @@ class ProjDB:
         :param crs: as used with pyproj.crs.CRS()
         :param axy: always_xy as used with pyproj.crs.CRS()
         """
-        # TODO check string length is > minimum (4, 12)
+        check(prj is not None, 'prj is None')
+        check(crs is not None, 'crs is None')
+        check(len(prj) >= 12, 'prj string too short')
+        check(len(crs) >= 4, 'crs string too short')
         stmt = prj_crs.insert().values(prj_text=prj,
                                        proj_crs=crs,
                                        always_xy=axy)

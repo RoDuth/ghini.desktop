@@ -230,10 +230,23 @@ class JSON(types.TypeDecorator):
 
 
 class Boolean(types.TypeDecorator):
-    """A Boolean type that allows True/False as strings."""
+    """A Boolean type that allows True/False as strings.
+
+    For compatibility with MSSQL converts is_() to = and is_not() to !="""
     impl = types.Boolean
 
     cache_ok = True
+
+    class comparator_factory(types.Boolean.Comparator):
+        # pylint: disable=invalid-name
+
+        def is_(self, other):
+            """override is_"""
+            return self.op("=")(other)
+
+        def is_not(self, other):
+            """override is_not"""
+            return self.op("!=")(other)
 
     def process_bind_param(self, value, dialect):
         if not isinstance(value, str):
