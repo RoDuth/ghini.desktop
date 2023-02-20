@@ -65,6 +65,7 @@ a = Analysis(['ghini'],
                  'shapefile',
                  'polylabel',
                  'pyproj',
+                 'pyodbc',
              ],   # noqa
              hookspath=[],
              hooksconfig={"gi": {

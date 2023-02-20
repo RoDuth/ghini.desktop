@@ -56,7 +56,6 @@ DBS = [('sqlite3', 'SQLite'),
        ('psycopg2', 'PostgreSQL'),
        ('pyodbc', 'MSSQL')]
 #     ('mysql', 'MySQL'),
-#     ('pyodbc', 'MS SQL Server'),
 #     ('cx_Oracle', 'Oracle'),
 
 WORKING_DBTYPES = [second for first, second in DBS]
