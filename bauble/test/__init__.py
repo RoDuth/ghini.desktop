@@ -178,4 +178,4 @@ def get_setUp_data_funcs():
             funcs.append(func)
         except Exception:
             pass
-    return funcs
+    return sorted(funcs, key=lambda func: func.order)

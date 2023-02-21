@@ -269,6 +269,9 @@ def setUp_data():
             utils.reset_sequence(col)
 
 
+setUp_data.order = 0
+
+
 class DuplicateIdsGlade(TestCase):
     def test_duplicate_ids(self):
         """

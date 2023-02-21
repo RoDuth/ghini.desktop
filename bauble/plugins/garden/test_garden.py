@@ -195,6 +195,9 @@ def setUp_data():
     inst.write()
 
 
+setUp_data.order = 1
+
+
 # TODO: if we ever get a GUI tester then do the following
 # test all possible combinations of entering data into the accession editor
 # 1. new accession without source

@@ -67,6 +67,9 @@ def setUp_data():
             utils.reset_sequence(col)
 
 
+setUp_data.order = 2
+
+
 def test_duplicate_ids():
     """
     Test for duplicate ids for all .glade files in the tag plugin.
