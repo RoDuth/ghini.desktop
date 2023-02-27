@@ -195,8 +195,114 @@ class CSVRestore:
                              '"%s"') % ORIG_SUFFIX)
                     if utils.yes_no_dialog(msg):
                         bauble.task.queue(self.pics_upgrader(filenames))
+                        bauble.task.queue(self.genus_upgrader(filenames))
+                        bauble.task.queue(self.species_upgrader(filenames))
 
         bauble.task.queue(self.run(filenames, metadata, force))
+
+    @staticmethod
+    def species_upgrader(filenames):
+        """Upgrade genus file"""
+        import re
+        reg = re.compile(r'.*species\.(csv|txt)$')
+        sp_file = [i for i in filenames if reg.match(i)]
+
+        # bail early
+        if not sp_file:
+            return
+
+        sp_file = sp_file[0]
+        original = sp_file + ORIG_SUFFIX
+
+        msg = _('adding genus hybrid flag: ')
+        logger.debug('upgrading %s', sp_file)
+        bauble.task.set_message(msg + sp_file)
+
+        with open(sp_file, 'r', encoding='utf-8', newline='') as f:
+            num_lines = len(f.readlines())
+
+        if num_lines <= 1:
+            logger.debug('%s contains no table data skip translation',
+                         sp_file)
+            return
+
+        os.rename(sp_file, original)
+        five_percent = int(num_lines / 20) or 1
+
+        with (open(original, 'r', encoding='utf-8', newline='') as old,
+              open(sp_file, 'w', encoding='utf-8', newline='') as new):
+            in_file = csv.DictReader(old)
+            fieldnames = in_file.fieldnames
+            out_file = csv.DictWriter(new, fieldnames=fieldnames)
+            out_file.writeheader()
+            for count, line in enumerate(in_file):
+                hybrid = line.get('hybrid')
+                line['hybrid'] = None
+                if hybrid == 'True':
+                    line['hybrid'] = '×'
+                out_file.writerow(line)
+                if count % five_percent == 0:
+                    pb_set_fraction(count / num_lines)
+                    yield
+
+    @staticmethod
+    def genus_upgrader(filenames):
+        """Upgrade genus file"""
+        import re
+        reg = re.compile(r'.*genus\.(csv|txt)$')
+        genus_file = [i for i in filenames if reg.match(i)]
+
+        # bail early
+        if not genus_file:
+            return
+
+        genus_file = genus_file[0]
+        original = genus_file + ORIG_SUFFIX
+
+        msg = _('adding genus hybrid flag: ')
+        logger.debug('upgrading %s', genus_file)
+        bauble.task.set_message(msg + genus_file)
+
+        with open(genus_file, 'r', encoding='utf-8', newline='') as f:
+            num_lines = len(f.readlines())
+
+        with open(genus_file, 'r', encoding='utf-8', newline='') as f:
+            reader = csv.DictReader(f)
+            fieldnames = reader.fieldnames.copy()
+
+        if num_lines <= 1:
+            logger.debug('%s contains no table data skip translation',
+                         genus_file)
+            return
+
+        if 'hybrid' in fieldnames:
+            logger.debug('%s contains hybrid data skip translation',
+                         genus_file)
+            return
+
+        os.rename(genus_file, original)
+        five_percent = int(num_lines / 20) or 1
+
+        with (open(original, 'r', encoding='utf-8', newline='') as old,
+              open(genus_file, 'w', encoding='utf-8', newline='') as new):
+            in_file = csv.DictReader(old)
+            fieldnames = in_file.fieldnames
+            fieldnames.append('hybrid')
+            out_file = csv.DictWriter(new, fieldnames=fieldnames)
+            out_file.writeheader()
+            for count, line in enumerate(in_file):
+                epithet = line.get('genus')
+                line['hybrid'] = None
+                if epithet.startswith('+ '):
+                    line['hybrid'] = '+'
+                    line['genus'] = epithet[2:]
+                elif epithet.startswith('x '):
+                    line['hybrid'] = '×'
+                    line['genus'] = epithet[2:]
+                out_file.writerow(line)
+                if count % five_percent == 0:
+                    pb_set_fraction(count / num_lines)
+                    yield
 
     @staticmethod
     def pics_upgrader(filenames):

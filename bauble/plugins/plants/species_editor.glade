@@ -245,13 +245,10 @@
                               </packing>
                             </child>
                             <child>
-                              <object class="GtkCheckButton" id="sp_hybrid_check">
+                              <object class="GtkComboBox" id="sp_hybrid_combo">
                                 <property name="visible">True</property>
                                 <property name="can-focus">True</property>
-                                <property name="receives-default">False</property>
                                 <property name="halign">start</property>
-                                <property name="draw-indicator">True</property>
-                                <signal name="toggled" handler="on_check_toggled" swapped="no"/>
                               </object>
                               <packing>
                                 <property name="left-attach">1</property>

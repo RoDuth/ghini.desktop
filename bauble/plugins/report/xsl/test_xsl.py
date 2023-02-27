@@ -428,9 +428,6 @@ class FOPTests(XSLTestCase):
 
 
 class GlobalFunctionsTests(XSLTestCase):
-    FOP_PATH = 'test/fop'
-    if sys.platform == 'win32':
-        FOP_PATH = 'test/fop.bat'
 
     def setUp(self):
         super().setUp()

@@ -16,19 +16,7 @@
 ##
 <%
 from bauble.plugins.report import get_species_pertinent_to
-%>Generic Hybrid Symbol,Generic Epithet,Specific Hybrid Symbol,Specific Epithet,Infraspecific Rank,Infraspecific Epithet,Cultivar Epithet
-% for v in get_species_pertinent_to(values):
-<%
-    genus = v.genus.genus
-    genus_hybrid_marker = ''
-    if genus[0] in ['×', 'x']:
-        genus_hybrid_marker = 'H'
-        genus = genus[1:].strip()
-    species_epithet = v.sp or ''
-    if species_epithet.startswith('sp.'):
-        species_epithet = ''
-    sp_hybrid_marker = ''
-    if v.hybrid:
-        sp_hybrid_marker = 'H'
-%>${genus_hybrid_marker},${genus},${sp_hybrid_marker},${species_epithet},${v.infraspecific_rank or ''},${v.infraspecific_epithet or ''},${v.cultivar_epithet or ''}
+%>Generic Hybrid Symbol,Generic Epithet,Specific Hybrid Symbol,Specific Epithet,Infraspecific Rank,Infraspecific Epithet,Cultivar Epithet,Hide Taxon
+% for sp in get_species_pertinent_to(values):
+${sp.genus.hybrid or ''},${sp.genus.epithet or ''},${sp.hybrid or ''},${sp.epithet or ''},${sp.infraspecific_rank or ''},${sp.infraspecific_epithet or ''},${sp.cultivar_epithet or ''},${'N' if any(p.private for p in sp.accessions) else 'Y'}
 % endfor

@@ -172,6 +172,7 @@ class Genus(db.Base, db.Serializable, db.WithNotes):
     link_keys = ['accepted']
 
     # columns
+    hybrid = Column(types.Enum(values=['×', '+', None]), default=None)
     genus = Column(String(64), nullable=False, index=True)
     epithet = sa_synonym('genus')
 
@@ -254,12 +255,7 @@ class Genus(db.Base, db.Serializable, db.WithNotes):
 
     def search_view_markup_pair(self):
         """provide the two lines describing object for SearchView row."""
-        citation = self.markup(authors=True)
-        authorship_text = utils.xml_safe(self.author)
-        if authorship_text:
-            citation = citation.replace(
-                authorship_text,
-                f'<span weight="light">{authorship_text}</span>')
+        citation = self.markup(authors=True, for_search_view=True)
         return citation, utils.xml_safe(self.family)
 
     @property
@@ -271,27 +267,6 @@ class Genus(db.Base, db.Serializable, db.WithNotes):
         if not cites_notes:
             return self.family.cites
         return cites_notes[0]
-
-    @property
-    def hybrid_epithet(self):
-        """strip the leading char if it is an hybrid marker"""
-        if self.genus[0] in ['x', '×']:
-            return self.genus[1:]
-        if self.genus[0] in ['+', '➕']:
-            return self.genus[1:]
-        return self.genus
-
-    @property
-    def hybrid_marker(self):
-        """Intergeneric Hybrid Flag (ITF2)"""
-        if self.genus[0] in ['x', '×']:
-            return '×'
-        if self.genus[0] in ['+', '➕']:
-            return '+'
-        if self.genus.find('×') > 0:
-            # the genus field contains a formula
-            return 'H'
-        return ''
 
     @property
     def accepted(self):
@@ -337,25 +312,30 @@ class Genus(db.Base, db.Serializable, db.WithNotes):
     def str(genus, author=False):
         if genus.genus is None:
             return ''
-        if not author or genus.author is None:
-            return ' '.join([s for s in [genus.genus, genus.qualifier]
-                             if s not in ('', None)])
-        return ' '.join(
-            [s for s in [genus.genus, genus.qualifier,
-                         utils.xml_safe(genus.author)]
-             if s not in ('', None)])
+        parts = [genus.hybrid,
+                 genus.genus,
+                 genus.qualifier]
+        if author and genus.author:
+            parts.append(utils.xml_safe(genus.author))
+        return ' '.join([s for s in parts if s not in ('', None)]).strip()
 
-    def markup(self, authors=False):
+    def markup(self, authors=False, for_search_view=False):
         escape = utils.xml_safe
+        string = ''
+        if self.hybrid:
+            string += self.hybrid + ' '
         if self.genus.isupper():
-            gen = escape(self.genus)
+            string += escape(self.genus)
         else:
-            gen = f'<i>{escape(self.genus).replace("x ", "</i>×<i>")}</i>'
+            string += f'<i>{escape(self.genus)}</i>'
         if self.qualifier:
-            gen += ' ' + self.qualifier
+            string += ' ' + self.qualifier
         if authors and self.author:
-            gen += ' ' + escape(self.author)
-        return gen
+            author = escape(self.author)
+            if for_search_view:
+                author = '<span weight="light">' + author + '</span>'
+            string += ' ' + author
+        return string
 
     def as_dict(self, recurse=True):
         result = db.Serializable.as_dict(self)
@@ -482,7 +462,9 @@ class GenusEditorView(editor.GenericEditorView):
         'gen_ok_and_add_button': _('Save your changes and add a '
                                    'species to this genus.'),
         'gen_next_button': _('Save your changes and add another '
-                             'genus.')
+                             'genus.'),
+        'gen_hybrid_combo': _('Genus hybrid flag, a named hybrid ("x") or a '
+                              'graft chimaera ("+")'),
     }
 
     def __init__(self, parent=None):
@@ -534,6 +516,7 @@ class GenusEditorView(editor.GenericEditorView):
 class GenusEditorPresenter(editor.GenericEditorPresenter):
 
     widget_to_field_map = {'gen_family_entry': 'family',
+                           'gen_hybrid_combo': 'hybrid',
                            'gen_genus_entry': 'genus',
                            'gen_author_entry': 'author'}
 
@@ -547,6 +530,7 @@ class GenusEditorPresenter(editor.GenericEditorPresenter):
 
         # initialize widgets
         self.synonyms_presenter = SynonymsPresenter(self)
+        self.init_enum_combo('gen_hybrid_combo', 'hybrid')
         self.refresh_view()  # put model values in view
 
         # connect signals
@@ -603,6 +587,8 @@ class GenusEditorPresenter(editor.GenericEditorPresenter):
         self.assign_completions_handler('gen_family_entry',
                                         fam_get_completions,
                                         on_select=on_select)
+        self.assign_simple_handler('gen_hybrid_combo', 'hybrid',
+                                   editor.StringOrNoneValidator())
         self.assign_simple_handler('gen_genus_entry', 'genus',
                                    editor.StringOrNoneValidator())
         self.assign_simple_handler('gen_author_entry', 'author',

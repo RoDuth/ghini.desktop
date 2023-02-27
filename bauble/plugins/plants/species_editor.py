@@ -187,7 +187,7 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
     widget_to_field_map = {'sp_genus_entry': 'genus',
                            'sp_species_entry': 'sp',
                            'sp_author_entry': 'sp_author',
-                           'sp_hybrid_check': 'hybrid',
+                           'sp_hybrid_combo': 'hybrid',
                            'sp_cvgroup_entry': 'cv_group',
                            'sp_spqual_combo': 'sp_qual',
                            'sp_awards_entry': 'awards',
@@ -225,6 +225,7 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
             self, 'pictures', pictures_parent)
 
         self.init_enum_combo('sp_spqual_combo', 'sp_qual')
+        self.init_enum_combo('sp_hybrid_combo', 'hybrid')
 
         combo = self.view.widgets.sp_habit_comboentry
         model = Gtk.ListStore(str, object)
@@ -257,6 +258,8 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
         self.assign_simple_handler('sp_cvgroup_entry', 'cv_group',
                                    editor.StringOrNoneValidator())
         self.assign_simple_handler('sp_spqual_combo', 'sp_qual',
+                                   editor.StringOrNoneValidator())
+        self.assign_simple_handler('sp_hybrid_combo', 'hybrid',
                                    editor.StringOrNoneValidator())
         self.assign_simple_handler('sp_label_dist_entry', 'label_distribution',
                                    editor.StringOrNoneValidator())
@@ -328,8 +331,7 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
             # if inserted data matches found, just say so.
             if (self.model.sp == found['Species'] and
                     self.model.sp_author == found['Authorship'] and
-                    self.model.hybrid == (
-                        found['Species hybrid marker'] == '×')):
+                    self.model.hybrid == found['Species hybrid marker']):
                 msg_box_msg = _('your data finely matches ThePlantList.org')
             else:
                 cit = (f'<i>{found_s["Genus"]}</i> '
@@ -350,7 +352,7 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
                                             found['Authorship'])
                         self.set_model_attr(
                             'hybrid',
-                            found['Species hybrid marker'] == '×')
+                            found['Species hybrid marker'])
                         self.refresh_view()
                         self.refresh_fullname_label()
 
@@ -387,8 +389,6 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
                     def on_response_accepted(_button, response):
                         self.view.remove_box(box2)
                         if response:
-                            hybrid = (accepted['Species hybrid marker'] ==
-                                      Species.hybrid_char)
                             self.model.accepted = (
                                 Species.retrieve_or_create(
                                     self.session, {
@@ -399,7 +399,9 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
                                         'ht-epithet': accepted['Genus'],
                                         'epithet': accepted['Species'],
                                         'author': accepted['Authorship'],
-                                        'hybrid': hybrid
+                                        'hybrid': accepted[
+                                            'Species hybrid marker'
+                                        ]
                                     }
                                 )
                             )
@@ -592,12 +594,11 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
         widgets = ['sp_species_entry',
                    'sp_author_entry',
                    'sp_cvgroup_entry',
-                   'sp_spqual_combo']
+                   'sp_spqual_combo',
+                   'sp_hybrid_combo']
 
         for widget_name in widgets:
             self.view.connect_after(widget_name, 'changed', refresh)
-
-        self.view.connect_after('sp_hybrid_check', 'toggled', refresh)
 
     def refresh_fullname_label(self, widget=None):
         """set the value of sp_fullname_label to either '--' if there
@@ -1057,7 +1058,6 @@ class VernacularNamePresenter(editor.GenericEditorPresenter):
         lang_completion.set_text_column(0)
 
         def _lang_edit_start(_cell_renderer, editable, _path):
-            print('adding completion')
             editable.set_completion(lang_completion)
 
         cell.connect('editing-started', _lang_edit_start)
@@ -1255,7 +1255,8 @@ class SpeciesEditorView(editor.GenericEditorView):
                               'for adding provisional or descriptors names '
                               'etc..)'),
         'sp_author_entry': _('Species author'),
-        'sp_hybrid_check': _('Species hybrid flag'),
+        'sp_hybrid_combo': _('Species hybrid flag, a named hybrid ("x") or a '
+                             'graft chimaera ("+")'),
         'sp_cvgroup_entry': _('Cultivar group'),
         'sp_spqual_combo': _('Species qualifier'),
         'sp_dist_frame': _('Species distribution'),
@@ -1434,14 +1435,6 @@ class SpeciesEditor(editor.GenericModelViewPresenterEditor):
         return True
 
     def commit_changes(self):
-        # if self.model.sp or cv_group is empty and
-        # self.model.infrasp_rank=='cv.' and self.model.infrasp
-        # then show a dialog saying we can't commit and return
-
-        # if self.model.hybrid is None and self.model.infrasp_rank is None:
-        #     self.model.infrasp = None
-        #     self.model.infrasp_author = None
-        #     self.model.cv_group = None
 
         # remove incomplete vernacular names
         for vernacular in self.model.vernacular_names:

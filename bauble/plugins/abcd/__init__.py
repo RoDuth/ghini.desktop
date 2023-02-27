@@ -220,7 +220,7 @@ class SpeciesABCDAdapter(ABCDAdapter):
         return utils.xml_safe(sp_str)
 
     def get_genusormonomial(self):
-        return utils.xml_safe(str(self.species.genus))
+        return self.species.genus.epithet
 
     def get_firstepithet(self):
         species = self.species.sp
@@ -264,8 +264,10 @@ class SpeciesABCDAdapter(ABCDAdapter):
         return ''
 
     def get_hybridflag(self):
-        if self.species.hybrid is True:
-            return utils.xml_safe(str(self.species.hybrid_char))
+        if self.species.genus.hybrid:
+            return self.species.genus.hybrid, '1'
+        if self.species.hybrid:
+            return self.species.hybrid, '2'
         return None
 
     def get_informalnamestring(self):
@@ -597,8 +599,10 @@ class ABCDCreator:
                 abcd_element(botanical, 'Rank',
                              text=obj.get_infraspecificrank())
             if obj.get_hybridflag():
+                text, insertionpoint = obj.get_hybridflag()
                 abcd_element(botanical, 'HybridFlag',
-                             text=obj.get_hybridflag())
+                             text=text,
+                             attrib={'insertionpoint': insertionpoint})
             author_team = obj.get_authorteam()
             if author_team is not None:
                 abcd_element(botanical, 'AuthorTeam', text=author_team)

@@ -206,7 +206,7 @@ class Species(db.Base, db.Serializable, db.WithNotes):
     epithet = sa_synonym('sp')
     sp2 = Column(Unicode(64), index=True)  # in case hybrid=True
     sp_author = Column(Unicode(128))
-    hybrid = Column(types.Boolean, default=False)
+    hybrid = Column(types.Enum(values=['×', '+', None]), default=None)
     sp_qual = Column(types.Enum(values=['agg.', 's. lat.', 's. str.', None]),
                      default=None)
     cv_group = Column(Unicode(50))
@@ -279,8 +279,6 @@ class Species(db.Base, db.Serializable, db.WithNotes):
     flower_color = relationship('Color', uselist=False, backref='species')
 
     # hardiness_zone = Column(Unicode(4))
-
-    hybrid_char = '×'
 
     awards = Column(UnicodeText)
 
@@ -554,10 +552,6 @@ class Species(db.Base, db.Serializable, db.WithNotes):
         if cul:
             self.cultivar_epithet = cul
 
-    def __str__(self):
-        'return the default string representation for self.'
-        return self.str()
-
     @hybrid_property
     def default_vernacular_name(self):
         if self._default_vernacular_name is None:
@@ -626,6 +620,10 @@ class Species(db.Base, db.Serializable, db.WithNotes):
         """
         return self.str(authors, markup=True, genus=genus,
                         for_search_view=for_search_view)
+
+    def __str__(self):
+        """return the default string representation for self."""
+        return self.str()
 
     def str(self, authors=False, markup=False, remove_zws=True, genus=True,
             qualification=None, for_search_view=False):
@@ -712,7 +710,7 @@ class Species(db.Base, db.Serializable, db.WithNotes):
                                  dict(group=self.cv_group))
 
         # create the binomial part
-        binomial = [genus, self.hybrid and self.hybrid_char, sp, author]
+        binomial = [genus, self.hybrid, sp, author]
 
         # create the tail, ie: anything to add on to the end
         tail = []
@@ -744,8 +742,6 @@ class Species(db.Base, db.Serializable, db.WithNotes):
 
         parts = chain(binomial, infrasp_parts, tail)
         string = utils.nstr(' '.join(i for i in parts if i))
-        if self.hybrid:
-            string = string.replace(f'{self.hybrid_char} ', self.hybrid_char)
         return string
 
     @hybrid_property

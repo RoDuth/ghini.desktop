@@ -74,6 +74,8 @@ family_test_data = (
     {'id': 2, 'family': 'Leguminosae', 'qualifier': 's. str.'},
     {'id': 3, 'family': 'Polypodiaceae'},
     {'id': 4, 'family': 'Solanaceae'},
+    {'id': 5, 'family': 'Rosaceae'},
+    {'id': 6, 'family': 'Arecaceae'},
 )
 
 family_note_test_data = (
@@ -88,6 +90,8 @@ genus_test_data = (
     {'id': 5, 'genus': 'Paphiopedilum', 'family_id': 1},
     {'id': 6, 'genus': 'Laelia', 'family_id': 1},
     {'id': 7, 'genus': 'Brugmansia', 'family_id': 4},
+    {'id': 8, 'hybrid': '+', 'genus': 'Crataegomespilus', 'family_id': 5},
+    {'id': 9, 'hybrid': '×', 'genus': 'Butyagrus', 'family_id': 6},
 )
 
 genus_note_test_data = (
@@ -104,7 +108,7 @@ species_test_data = (
     {'id': 3, 'sp': 'precatorius', 'genus_id': 3,
      'sp_author': 'L.'},
     {'id': 4, 'sp': 'alapense', 'genus_id': 4,
-     'hybrid': True, 'sp_author': 'F\xe9e'},
+     'hybrid': '×', 'sp_author': 'F\xe9e'},
     {'id': 5, 'sp': 'cochleata', 'genus_id': 2,
      'sp_author': '(L.) Lem\xe9e',
      'infrasp1_rank': 'var.', 'infrasp1': 'cochleata'},
@@ -118,10 +122,10 @@ species_test_data = (
      'infrasp1_rank': 'cv.', 'infrasp1': 'Hot Rio Nights',
      'cv_group': 'SomethingRidiculous'},
     {'id': 9, 'sp': 'generalis', 'genus_id': 1,
-     'hybrid': True,
+     'hybrid': '×',
      'infrasp1_rank': 'cv.', 'infrasp1': 'Red'},
     {'id': 10, 'sp': 'generalis', 'genus_id': 1,
-     'hybrid': True, 'sp_author': 'L.',
+     'hybrid': '×', 'sp_author': 'L.',
      'infrasp1_rank': 'cv.', 'infrasp1': 'Red',
      'cv_group': 'SomeGroup'},
     {'id': 11, 'sp': 'generalis', 'genus_id': 1,
@@ -153,6 +157,8 @@ species_test_data = (
      'infrasp1_rank': 'cv.', 'infrasp1': 'Buonanotte'},
     {'id': 24, 'sp': '', 'genus_id': 1, 'sp_author': '',
      'infrasp1_rank': None, 'infrasp1': 'sp'},
+    {'id': 25, 'sp': 'dardarii', 'genus_id': 8},
+    {'id': 26, 'sp': 'nabonnandii', 'genus_id': 9},
 )
 
 species_note_test_data = (
@@ -171,40 +177,43 @@ species_str_map = {
     1: 'Maxillaria variabilis',
     2: 'Encyclia cochleata',
     3: 'Abrus precatorius',
-    4: 'Campyloneurum %salapense' % Species.hybrid_char,
+    4: 'Campyloneurum × alapense',
     5: 'Encyclia cochleata var. cochleata',
     6: "Encyclia cochleata 'Black Night'",
     7: 'Abrus precatorius SomethingRidiculous Group',
     8: "Abrus precatorius (SomethingRidiculous Group) 'Hot Rio Nights'",
-    9: "Maxillaria %sgeneralis 'Red'" % Species.hybrid_char,
-    10: ("Maxillaria %sgeneralis (SomeGroup Group) 'Red'"
-         % Species.hybrid_char),
+    9: "Maxillaria × generalis 'Red'",
+    10: "Maxillaria × generalis (SomeGroup Group) 'Red'",
     11: "Maxillaria generalis agg.",
     12: "Maxillaria SomeGroup Group",
     13: "Maxillaria 'Red'",
     14: "Maxillaria 'Red & Blue'",
     15: "Encyclia cochleata subsp. cochleata var. cochleata 'Black'",
-    16: "Maxillaria test subsp. test SomeGroup Group"
+    16: "Maxillaria test subsp. test SomeGroup Group",
+    25: "+ Crataegomespilus dardarii",
+    26: "× Butyagrus nabonnandii",
 }
 
 species_markup_map = {
     1: '<i>Maxillaria</i> <i>variabilis</i>',
     2: '<i>Encyclia</i> <i>cochleata</i>',
     3: '<i>Abrus</i> <i>precatorius</i>',
-    4: '<i>Campyloneurum</i> %s<i>alapense</i>' % Species.hybrid_char,
+    4: '<i>Campyloneurum</i> × <i>alapense</i>',
     5: '<i>Encyclia</i> <i>cochleata</i> var. <i>cochleata</i>',
     6: '<i>Encyclia</i> <i>cochleata</i> \'Black Night\'',
     12: "<i>Maxillaria</i> SomeGroup Group",
     14: "<i>Maxillaria</i> 'Red &amp; Blue'",
     15: ("<i>Encyclia</i> <i>cochleata</i> subsp. <i>"
          "cochleata</i> var. <i>cochleata</i> 'Black'"),
+    25: "+ <i>Crataegomespilus</i> <i>dardarii</i>",
+    26: "× <i>Butyagrus</i> <i>nabonnandii</i>",
 }
 
 species_str_authors_map = {
     1: 'Maxillaria variabilis Bateman ex Lindl.',
     2: 'Encyclia cochleata (L.) Lem\xe9e',
     3: 'Abrus precatorius L.',
-    4: 'Campyloneurum %salapense F\xe9e' % Species.hybrid_char,
+    4: 'Campyloneurum × alapense F\xe9e',
     5: 'Encyclia cochleata (L.) Lem\xe9e var. cochleata',
     6: 'Encyclia cochleata (L.) Lem\xe9e \'Black Night\'',
     7: 'Abrus precatorius L. SomethingRidiculous Group',
@@ -217,7 +226,7 @@ species_markup_authors_map = {
     1: '<i>Maxillaria</i> <i>variabilis</i> Bateman ex Lindl.',
     2: '<i>Encyclia</i> <i>cochleata</i> (L.) Lem\xe9e',
     3: '<i>Abrus</i> <i>precatorius</i> L.',
-    4: '<i>Campyloneurum</i> %s<i>alapense</i> F\xe9e' % Species.hybrid_char,
+    4: '<i>Campyloneurum</i> × <i>alapense</i> F\xe9e',
     5: '<i>Encyclia</i> <i>cochleata</i> (L.) Lem\xe9e var. <i>cochleata</i>',
     6: '<i>Encyclia</i> <i>cochleata</i> (L.) Lem\xe9e \'Black Night\''}
 
@@ -432,7 +441,7 @@ class FamilyTests(PlantTestCase):
 
     def test_remove_callback_no_genera_no_confirm(self):
         # T_0
-        f5 = Family(family='Arecaceae')
+        f5 = Family(family='Araucariaceae')
         self.session.add(f5)
         self.session.flush()
         self.invoked = []
@@ -452,10 +461,10 @@ class FamilyTests(PlantTestCase):
         self.assertFalse('message_details_dialog' in
                          [f for (f, m) in self.invoked])
         self.assertTrue(('yes_no_dialog', 'Are you sure you want to '
-                         'remove the following families <i>Arecaceae</i>?')
+                         'remove the following families <i>Araucariaceae</i>?')
                         in self.invoked)
         self.assertEqual(result, None)
-        q = self.session.query(Family).filter_by(family="Arecaceae")
+        q = self.session.query(Family).filter_by(family="Araucariaceae")
         matching = q.all()
         self.assertEqual(matching, [f5])
         utils.yes_no_dialog = orig_yes_no_dialog
@@ -463,7 +472,7 @@ class FamilyTests(PlantTestCase):
 
     def test_remove_callback_no_genera_confirm(self):
         # T_0
-        f5 = Family(family='Arecaceae')
+        f5 = Family(family='Araucariaceae')
         self.session.add(f5)
         self.session.flush()
         self.invoked = []
@@ -484,11 +493,11 @@ class FamilyTests(PlantTestCase):
         self.assertFalse('message_details_dialog' in
                          [f for (f, m) in self.invoked])
         self.assertTrue(('yes_no_dialog', 'Are you sure you want to '
-                         'remove the following families <i>Arecaceae</i>?')
+                         'remove the following families <i>Araucariaceae</i>?')
                         in self.invoked)
 
         self.assertEqual(result, True)
-        q = self.session.query(Family).filter_by(family="Arecaceae")
+        q = self.session.query(Family).filter_by(family="Araucariaceae")
         matching = q.all()
         self.assertEqual(matching, [])
         utils.yes_no_dialog = orig_yes_no_dialog
@@ -496,8 +505,8 @@ class FamilyTests(PlantTestCase):
 
     def test_remove_callback_with_genera_cant_cascade(self):
         # T_0
-        f5 = Family(family='Arecaceae')
-        gf5 = Genus(family=f5, genus='Areca')
+        f5 = Family(family='Araucariaceae')
+        gf5 = Genus(family=f5, genus='Araucaria')
         self.session.add_all([f5, gf5])
         self.session.flush()
         self.invoked = []
@@ -521,13 +530,13 @@ class FamilyTests(PlantTestCase):
         self.assertFalse('message_details_dialog' in
                          [f for (f, m) in self.invoked])
         self.assertTrue(('message_dialog',
-                         'The family <i>Arecaceae</i> has 1 genera.\n\nYou '
+                         'The family <i>Araucariaceae</i> has 1 genera.\n\nYou '
                          'cannot remove a family with genera.')
                         in self.invoked)
-        q = self.session.query(Family).filter_by(family="Arecaceae")
+        q = self.session.query(Family).filter_by(family="Araucariaceae")
         matching = q.all()
         self.assertEqual(matching, [f5])
-        q = self.session.query(Genus).filter_by(genus="Areca")
+        q = self.session.query(Genus).filter_by(genus="Araucaria")
         matching = q.all()
         self.assertEqual(matching, [gf5])
         utils.yes_no_dialog = orig_yes_no_dialog
@@ -1869,7 +1878,13 @@ class FromAndToDictTest(PlantTestCase):
         sol = Family.retrieve_or_create(
             self.session, {'rank': 'family',
                            'epithet': 'Solanaceae'})
-        self.assertEqual(set(all_families), set([orc, pol, leg, sol]))
+        ros = Family.retrieve_or_create(
+            self.session, {'rank': 'family',
+                           'epithet': 'Rosaceae'})
+        are = Family.retrieve_or_create(
+            self.session, {'rank': 'family',
+                           'epithet': 'Arecaceae'})
+        self.assertEqual(set(all_families), set([orc, pol, leg, sol, ros, are]))
 
     def test_grabbing_same_params_same_output_existing(self):
         orc1 = Family.retrieve_or_create(
@@ -1955,7 +1970,7 @@ class FromAndToDict_create_update_test(PlantTestCase):
         obj = Family.retrieve_or_create(
             self.session, {'object': 'taxon',
                            'rank': 'familia',
-                           'epithet': 'Arecaceae'},
+                           'epithet': 'Araucariaceae'},
             create=False)
         self.assertEqual(obj, None)
 
@@ -2149,55 +2164,6 @@ class CitesStatus_test(PlantTestCase):
                            'epithet': 'grandiflora'},
             create=False, update=False)
         self.assertEqual(obj.cites, 'II')
-
-
-class GenusHybridMarker_test(PlantTestCase):
-
-    def test_intergeneric_hybrid_not_hybrid(self):
-        gen = Genus.retrieve_or_create(
-            self.session, {'ht-rank': 'family',
-                           'ht-epithet': 'Orchidaceae',
-                           'rank': 'genus',
-                           'epithet': 'Cattleya'})
-        self.assertEqual(gen.hybrid_marker, '')
-        self.assertEqual(gen.hybrid_epithet, 'Cattleya')
-
-    def test_intergeneric_hybrid_mult(self):
-        gen = Genus.retrieve_or_create(
-            self.session, {'ht-rank': 'family',
-                           'ht-epithet': 'Orchidaceae',
-                           'rank': 'genus',
-                           'epithet': '×Brassocattleya'})
-        self.assertEqual(gen.hybrid_marker, '×')
-        self.assertEqual(gen.hybrid_epithet, 'Brassocattleya')
-
-    def test_intergeneric_hybrid_x_becomes_mult(self):
-        gen = Genus.retrieve_or_create(
-            self.session, {'ht-rank': 'family',
-                           'ht-epithet': 'Orchidaceae',
-                           'rank': 'genus',
-                           'epithet': 'xVascostylis'})
-        self.assertEqual(gen.hybrid_marker, '×')
-        self.assertEqual(gen.hybrid_epithet, 'Vascostylis')
-
-    def test_hybrid_formula_H(self):
-        gen = Genus.retrieve_or_create(
-            self.session, {'ht-rank': 'family',
-                           'ht-epithet': 'Orchidaceae',
-                           'rank': 'genus',
-                           'epithet': 'Miltonia × Odontoglossum × Cochlioda'})
-        self.assertEqual(gen.hybrid_marker, 'H')
-        self.assertEqual(gen.hybrid_epithet,
-                         'Miltonia × Odontoglossum × Cochlioda')
-
-    def test_intergeneric_graft_hybrid_plus(self):
-        gen = Genus.retrieve_or_create(
-            self.session, {'ht-rank': 'family',
-                           'ht-epithet': 'Rosaceae',
-                           'rank': 'genus',
-                           'epithet': '+Crataegomespilus'})
-        self.assertEqual(gen.hybrid_marker, '+')
-        self.assertEqual(gen.hybrid_epithet, 'Crataegomespilus')
 
 
 class SpeciesInfraspecificProp(PlantTestCase):
@@ -2880,7 +2846,7 @@ class RetrieveTests(PlantTestCase):
         keys = {
             'species.genus': 'Campyloneurum',
             'species.sp': 'alapense',
-            'species.hybrid': True,
+            'species.hybrid': '×',
         }
         vname = VernacularName.retrieve(self.session, keys)
         logs = self.handler.messages['bauble.plugins.plants.species_model']

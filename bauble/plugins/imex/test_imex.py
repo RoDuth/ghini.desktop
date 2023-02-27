@@ -494,15 +494,15 @@ class JSONExportTests(BaubleTestCase):
              "object": "taxon", "rank": "genus"},
             {"author": "", "epithet": "Panisea", "ht-epithet": "Orchidaceae",
              "ht-rank": "familia", "object": "taxon", "rank": "genus"},
-            {'ht-epithet': 'Calopogon', 'hybrid': False, 'object': 'taxon',
+            {'ht-epithet': 'Calopogon', 'object': 'taxon',
              'ht-rank': 'genus', 'rank': 'species', 'epithet': 'tuberosus'},
-            {'ht-epithet': 'Panisea', 'hybrid': False, 'object': 'taxon',
+            {'ht-epithet': 'Panisea', 'object': 'taxon',
              'ht-rank': 'genus', 'rank': 'species', 'epithet': 'albiflora',
              'sp_author': '(Ridl.) Seidenf.'},
-            {'ht-epithet': 'Panisea', 'hybrid': False, 'object': 'taxon',
+            {'ht-epithet': 'Panisea', 'object': 'taxon',
              'ht-rank': 'genus', 'rank': 'species', 'epithet': 'distelidia',
              'sp_author': 'I.D.Lund'},
-            {'ht-epithet': 'Panisea', 'hybrid': False, 'object': 'taxon',
+            {'ht-epithet': 'Panisea', 'object': 'taxon',
              'ht-rank': 'genus', 'rank': 'species', 'epithet': 'zeylanica',
              'sp_author': '(Hook.f.) Aver.'},
             {"code": "2015.0001", "object": "accession", "private": False,
@@ -587,7 +587,6 @@ class JSONExportTests(BaubleTestCase):
         self.assertEqual(result[0]['epithet'], 'tuberosus')
         self.assertEqual(result[0]['ht-rank'], 'genus')
         self.assertEqual(result[0]['ht-epithet'], 'Calopogon')
-        self.assertEqual(result[0]['hybrid'], False)
 
     def test_export_single_species_with_notes(self):
         selection = self.session.query(
@@ -607,7 +606,7 @@ class JSONExportTests(BaubleTestCase):
             result = json.load(f)
         self.assertEqual(len(result), 2)
         self.assertEqual(result[0],
-                         {'ht-epithet': 'Calopogon', 'hybrid': False,
+                         {'ht-epithet': 'Calopogon',
                           'object': 'taxon', 'ht-rank': 'genus',
                           'rank': 'species', 'epithet': 'tuberosus'})
         date_dict = result[1]['date']
@@ -637,7 +636,7 @@ class JSONExportTests(BaubleTestCase):
             result = json.load(f)
         self.assertEqual(len(result), 2)
         self.assertEqual(result[0],
-                         {'ht-epithet': 'Calopogon', 'hybrid': False,
+                         {'ht-epithet': 'Calopogon',
                           'object': 'taxon', 'ht-rank': 'genus',
                           'rank': 'species', 'epithet': 'tuberosus'})
         self.assertEqual(result[1],
@@ -872,7 +871,7 @@ class JSONImportTests(BaubleTestCase):
         json_string = (
             '[{"ht-epithet": "Calopogon", "epithet": "pallidus", "author": '
             '"Chapm.", "rank": "Species", "ht-rank": "Genus", "hybrid": '
-            'false},  {"object": "species_note", "species": "Calopogon '
+            'null},  {"object": "species_note", "species": "Calopogon '
             'pallidus", "category": "<coords>", "note": "{lat: 8.5, lon: -80}"'
             '}]'
         )
@@ -892,7 +891,7 @@ class JSONImportTests(BaubleTestCase):
         json_string = (
             '[{"ht-epithet": "Calopogon", "epithet": "pallidus", "author": '
             '"Chapm.", "rank": "Species", "ht-rank": "Genus", "hybrid": '
-            'false}, {"object": "species_note", "species": "Calopogon '
+            'null}, {"object": "species_note", "species": "Calopogon '
             'pallidus", "category": "[x]", "note": "1"}, {"object": '
             '"species_note", "species": "Calopogon pallidus", "category": '
             '"[x]", "note": "1"}, {"object": "species_note", "species": '
@@ -921,7 +920,7 @@ class JSONImportTests(BaubleTestCase):
         json_string = (
             '[{"ht-epithet": "Calopogon", "epithet": "pallidus", "author": '
             '"Chapm.", "rank": "Species", "ht-rank": "Genus", "hybrid": '
-            'false}, '
+            'null}, '
             '{"object": "species_picture", "species": "Calopogon pallidus", '
             '"category": "leaf", "picture": "a"}, '
             '{"object": "species_picture", "species": "Calopogon pallidus", '
@@ -943,7 +942,7 @@ class JSONImportTests(BaubleTestCase):
         json_string = (
             '[{"ht-epithet": "Calopogon", "epithet": "pallidus", "author": '
             '"Chapm.", "rank": "Species", "ht-rank": "Genus", "hybrid": '
-            'false}, {"object": "species_note", "species": "Calopogon '
+            'null}, {"object": "species_note", "species": "Calopogon '
             'pallidus", "category": "<price>", "note": "8"}, {"object": '
             '"species_note", "species": "Calopogon pallidus", "category": '
             '"<price>", "note": "10"}]')
@@ -964,7 +963,7 @@ class JSONImportTests(BaubleTestCase):
         json_string = (
             '[{"ht-epithet": "Calopogon", "epithet": "pallidus", "author": '
             '"Chapm.", "rank": "Species", "ht-rank": "Genus", "hybrid": '
-            'false}, {"object": "species_note", "species": "Calopogon '
+            'null}, {"object": "species_note", "species": "Calopogon '
             'pallidus", "category": "<coords>", "note": "{lat: 8.5, lon: '
             '-80}", "date": {"__class__": "datetime", "millis": 1234567890}}]'
         )
@@ -986,7 +985,7 @@ class JSONImportTests(BaubleTestCase):
         "importing existing taxon updates it"
         json_string = (
             '[{"rank": "Species", "epithet": "tuberosus", "ht-rank"'
-            ': "Genus", "ht-epithet": "Calopogon", "hybrid": false, "author"'
+            ': "Genus", "ht-epithet": "Calopogon", "hybrid": null, "author"'
             ': "Britton et al."}]'
         )
         with open(self.temp_path, "w") as f:
@@ -1029,7 +1028,7 @@ class JSONImportTests(BaubleTestCase):
                                                 {'ht-epithet': "Calopogon",
                                                  'epithet': "tuberosus"}).id
         json_string = '[{"rank": "Species", "epithet": "tuberosus", '\
-            '"ht-rank": "Genus", "ht-epithet": "Calopogon", "hybrid": false, '\
+            '"ht-rank": "Genus", "ht-epithet": "Calopogon", "hybrid": null, '\
             '"id": 8}]'
         with open(self.temp_path, "w") as f:
             f.write(json_string)
@@ -1807,9 +1806,9 @@ class GenericExporterTests(BaubleTestCase):
         self.assertEqual(val, 'Orchidaceae')
 
     def test_get_item_value_gets_boolean(self):
-        item = self.session.query(Species).get(1)
-        val = GenericExporter.get_item_value('hybrid', item)
-        self.assertEqual(val, 'False')
+        item = self.session.query(Accession).get(1)
+        val = GenericExporter.get_item_value('private', item)
+        self.assertEqual(val, 'True')
 
     def test_get_item_record_w_notes(self):
         item = self.session.query(Species).get(1)
