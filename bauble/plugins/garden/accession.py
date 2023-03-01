@@ -1094,6 +1094,9 @@ class VoucherPresenter(editor.GenericEditorPresenter):
                 model.append([voucher])
         treeview.set_model(model)
 
+        self.view.connect(treeview, 'cursor-changed',
+                          self.on_tree_cursor_changed)
+
         # initialize parent vouchers treeview
         treeview = self.view.widgets.parent_voucher_treeview
         utils.clear_model(treeview)
@@ -1102,6 +1105,16 @@ class VoucherPresenter(editor.GenericEditorPresenter):
             if voucher.parent_material:
                 model.append([voucher])
         treeview.set_model(model)
+
+        self.view.connect(treeview, 'cursor-changed',
+                          self.on_tree_cursor_changed, True)
+
+    def on_tree_cursor_changed(self, tree, parent=False):
+        if parent:
+            button = self.view.widgets.parent_voucher_remove_button
+        else:
+            button = self.view.widgets.voucher_remove_button
+        button.set_sensitive(len(tree.get_model()) > 0)
 
     @staticmethod
     def _voucher_data_func(_column, cell, model, treeiter, prop):

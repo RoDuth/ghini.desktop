@@ -1089,8 +1089,10 @@ class VernacularNamePresenter(editor.GenericEditorPresenter):
         self.view.connect(self.treeview, 'cursor-changed',
                           self.on_tree_cursor_changed)
 
-    def on_tree_cursor_changed(self, _tree):
-        self.view.widgets.sp_vern_remove_button.set_sensitive(True)
+    def on_tree_cursor_changed(self, tree):
+        self.view.widgets.sp_vern_remove_button.set_sensitive(
+            len(tree.get_model()) > 0
+        )
 
     def refresh_view(self):
         tree_model = self.treeview.get_model()
@@ -1187,8 +1189,10 @@ class SynonymsPresenter(editor.GenericEditorPresenter):
         self.view.connect(self.treeview, 'cursor-changed',
                           self.on_tree_cursor_changed)
 
-    def on_tree_cursor_changed(self, _tree):
-        self.view.widgets.sp_syn_remove_button.set_sensitive(True)
+    def on_tree_cursor_changed(self, tree):
+        self.view.widgets.sp_syn_remove_button.set_sensitive(
+            len(tree.get_model()) > 0
+        )
 
     def refresh_view(self):
         """doesn't do anything"""
