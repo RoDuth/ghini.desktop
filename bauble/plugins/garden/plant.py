@@ -220,8 +220,8 @@ class PlantSearch(SearchStrategy):
             return 'only'
         return 'exclude'
 
-    def search(self, text, session): \
-            # pylint: disable=too-many-branches,too-many-locals
+    def search(self, text, session):
+        # pylint: disable=too-many-branches,too-many-locals,too-many-statements
         """domain search for plants, only returns a result if appropriate
         string is supplied.  Searches a combination of Accession.code,
         delimiter and Plant.code.
@@ -260,8 +260,10 @@ class PlantSearch(SearchStrategy):
 
         if operator in ['=', '==', '!=', '<>']:
             if value == '*':
+                if operator in ['!=', '<>']:
+                    return []
                 logger.debug('"star" PlantSearch, returning all plants')
-                return session.query(Plant).all()
+                return session.query(Plant)
             if delimiter not in value:
                 logger.debug("delimiter not found, can't split the code")
                 return []

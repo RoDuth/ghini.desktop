@@ -677,6 +677,8 @@ class DomainExpressionAction:
 
         # select all objects from the domain
         if self.values == '*':
+            if self.cond in ('!=', '<>'):
+                return []
             return query
 
         mapper = class_mapper(cls)
@@ -692,7 +694,7 @@ class DomainExpressionAction:
                 return lambda val: mapper.c[col] == utils.nstr(val)
         else:
             def condition(col):
-                return mapper.c[col].oper(self.cond)
+                return mapper.c[col].op(self.cond)
 
         ors = []
         for column in properties:
@@ -826,7 +828,7 @@ class SearchParser:  # pylint: disable=too-few-public-methods
     star_value = Literal('*')
     domain_values = (value_list.copy())('domain_values')
     domain_expression = (
-        (domain + equals + star_value + stringEnd) |
+        (domain + binop + star_value + stringEnd) |
         (domain + binop + domain_values + stringEnd)
     ).set_parse_action(DomainExpressionAction)('domain_expression')
 
