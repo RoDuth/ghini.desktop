@@ -52,10 +52,14 @@ This is the default CRS used database wide internally.  This is used only once
 when setting the 'system_proj_string' in the meta table on the first call.
 """
 
-PRJ_CRS_PATH = os.path.join(appdata_dir(), 'prj_crs.db')
-"""
-The default directory for the database file.
-"""
+CRS_MSG = _('Set a system wide Coordinate Reference System string, this '
+            'can only be set once.\n\n"epsg:4326" is a safe default (WGS '
+            '84 as used in GPS) but you may have a different preference.'
+            '\n\nIf using a novel CRS you may also need to populate the '
+            'internal database with a .prj file string or '
+            'importing/exporting shapefile data with that CRS may fail.'
+            '\n\nThis is most easily done by using the shapefile import '
+            'tool and providing a shapefile in the desired CRS.')
 
 
 # pylint: disable=too-many-locals
@@ -83,15 +87,9 @@ def transform(geometry, in_crs=DEFAULT_IN_PROJ, out_crs=None, always_xy=False):
         # The first time any transformation is attempted ensure we have a
         # system CRS string, let the user have the opportunity to select a
         # different preference if they desire
-        msg = _('Set a system wide Coordinate Reference System string, this '
-                'can only be set once.\n\n"epsg:4326" is a safe default (WGS '
-                '84 as used in GPS) but you may have a different preference.'
-                '\n\nIf using a novel CRS you may also need to populate the '
-                'internal database with a .prj file string or '
-                'importing/exporting shapefile data with that CRS may fail.'
-                '\n\nThis is most easily done by using the shapefile import '
-                'tool and providing a shapefile in the desired CRS.')
-        sys_crs = confirm_default('system_proj_string', DEFAULT_SYS_PROJ, msg)
+        sys_crs = confirm_default('system_proj_string',
+                                  DEFAULT_SYS_PROJ,
+                                  CRS_MSG)
         if sys_crs:
             out_crs = sys_crs.value
         else:

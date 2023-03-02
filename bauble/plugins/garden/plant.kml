@@ -2,9 +2,9 @@
 <%!
 from polylabel import polylabel
 from bauble.utils import xml_safe
-from bauble.utils.geo import transform
-from bauble.meta import get_default
-sys_crs = get_default('system_proj_string')
+from bauble.utils.geo import transform, DEFAULT_SYS_PROJ, CRS_MSG
+from bauble.meta import confirm_default
+sys_crs = confirm_default('system_proj_string', DEFAULT_SYS_PROJ, CRS_MSG)
 %>\
 <%
 def json_to_kml_point(coords):
