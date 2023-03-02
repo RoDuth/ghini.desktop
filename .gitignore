@@ -48,3 +48,5 @@ pot
 /fop*/
 /jre/
 Thumbs.db
+\#*.glade\#
+.mypy_cache

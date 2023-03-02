@@ -41,13 +41,15 @@ class Enum(types.TypeDecorator):
 
     cache_ok = False
 
-    def __init__(self, values, empty_to_none=False, strict=True,
-                 translations=None, **kwargs):
+    def __init__(self,
+                 values,
+                 empty_to_none=False,
+                 translations=None,
+                 **kwargs):
         """
         :param values: A list of valid values for column.
         :param empty_to_none: Treat the empty string '' as None.  None
             must be in the values list in order to set empty_to_none=True.
-        :param strict:
         :param translations: A dictionary of values->translation
         """
         if translations is None:
@@ -75,7 +77,6 @@ class Enum(types.TypeDecorator):
                               'None is not in the values lists'))
 
         self.values = values[:]
-        self.strict = strict
         self.empty_to_none = empty_to_none
         # the length of the string/unicode column should be the
         # longest string in values
@@ -94,7 +95,7 @@ class Enum(types.TypeDecorator):
         return value
 
     def copy(self, **_kwargs):
-        return Enum(self.values, self.empty_to_none, self.strict)
+        return Enum(self.values, self.empty_to_none)
 
 
 def get_date(string: str) -> datetime:

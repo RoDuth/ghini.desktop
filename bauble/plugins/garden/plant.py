@@ -260,7 +260,7 @@ class PlantSearch(SearchStrategy):
 
         if operator in ['=', '==', '!=', '<>']:
             if value == '*':
-                if operator in ['!=', '<>']:
+                if operator in ('!=', '<>'):
                     return []
                 logger.debug('"star" PlantSearch, returning all plants')
                 return session.query(Plant)

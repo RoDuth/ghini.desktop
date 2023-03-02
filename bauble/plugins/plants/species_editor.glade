@@ -845,7 +845,7 @@
                                 <property name="can-focus">False</property>
                                 <property name="spacing">5</property>
                                 <child>
-                                  <object class="GtkLabel" id="vn_frame_label">
+                                  <object class="GtkLabel">
                                     <property name="visible">True</property>
                                     <property name="can-focus">False</property>
                                     <property name="label" translatable="yes">Vernacular names</property>

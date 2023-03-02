@@ -296,7 +296,7 @@ class GardenPlugin(pluginmgr.Plugin):
             view.update()
 
 
-def init_location_comboentry(presenter, combo, on_select, required=True):
+def init_location_comboentry(presenter, combo, on_select):
     """A comboentry that allows the location to be entered.
 
     Requires more custom setup than view.attach_completion and
@@ -367,7 +367,7 @@ def init_location_comboentry(presenter, combo, on_select, required=True):
         logger.debug('on_entry_changed(%s, %s)', entry, presenter)
         text = str(entry.props.text)
 
-        if not text and not required:
+        if not text:
             presenter.remove_problem(PROBLEM, entry)
             on_select(None)
             return None
