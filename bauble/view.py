@@ -1044,6 +1044,10 @@ class SearchView(pluginmgr.View, Gtk.Box):
         logger.debug('SearchView::on_selection_changed')
         # grab values once
         selected_values = self.get_selected_values()
+        # bail early if failed search
+        if selected_values and isinstance(selected_values[0], str):
+            logger.debug('cannot update from str object')
+            return
         # update all forward-looking info boxes
         self.update_infobox(selected_values)
         # update all backward-looking info boxes
@@ -1515,7 +1519,7 @@ class SearchView(pluginmgr.View, Gtk.Box):
             return False
 
         selected = self.get_selected_values()
-        if not selected:
+        if not selected or isinstance(selected[0], str):
             return True
 
         menu_model = Gio.Menu()
