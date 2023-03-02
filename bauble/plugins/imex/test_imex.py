@@ -1761,6 +1761,12 @@ class GenericExporterTests(BaubleTestCase):
         super().setUp()
         plants_test.setUp_data()
         garden_test.setUp_data()
+        dayfirst = prefs.prefs[prefs.parse_dayfirst_pref]
+        yearfirst = prefs.prefs[prefs.parse_yearfirst_pref]
+        from functools import partial
+        self.date_parse = partial(date_parse,
+                                  dayfirst=dayfirst,
+                                  yearfirst=yearfirst)
 
     def test_get_item_value_gets_datetime_datetime_type(self):
         item = Plant(code='3', accession_id=1, location_id=1, quantity=10)
@@ -1769,7 +1775,7 @@ class GenericExporterTests(BaubleTestCase):
         now = datetime.now().timestamp()
         val = GenericExporter.get_item_value('planted.date', item)
         # accuracy is seconds
-        val = date_parse(val).timestamp()
+        val = self.date_parse(val).timestamp()
         self.assertAlmostEqual(val, now, delta=1)
 
     def test_get_item_value_gets_date_type(self):
@@ -1784,7 +1790,7 @@ class GenericExporterTests(BaubleTestCase):
         val = GenericExporter.get_item_value('date_accd', item)
         # accuracy is a day - i.e. very rarely this could spill over from one
         # day to the next
-        val = date_parse(val).timestamp()
+        val = self.date_parse(val).timestamp()
         secs_in_day = 86400
         self.assertAlmostEqual(val, now, delta=secs_in_day)
 
@@ -1795,7 +1801,7 @@ class GenericExporterTests(BaubleTestCase):
         now = datetime.now().timestamp()
         val = GenericExporter.get_item_value('_created', item)
         # accuracy is seconds
-        val = date_parse(val).timestamp()
+        val = self.date_parse(val).timestamp()
         self.assertAlmostEqual(val, now, delta=1)
 
     def test_get_item_value_gets_path(self):
