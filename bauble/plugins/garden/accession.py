@@ -34,7 +34,7 @@ from pathlib import Path
 import logging
 logger = logging.getLogger(__name__)
 
-from gi.repository import Gtk
+from gi.repository import Gtk, Gio
 
 from gi.repository import Pango
 from sqlalchemy import (ForeignKey,
@@ -45,7 +45,7 @@ from sqlalchemy import (ForeignKey,
                         func,
                         exists,
                         literal)
-from sqlalchemy.orm import relationship, validates, backref
+from sqlalchemy.orm import relationship, validates, backref, object_mapper
 from sqlalchemy.orm.session import object_session
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.hybrid import hybrid_property
@@ -358,6 +358,17 @@ class Voucher(db.Base):  # pylint: disable=too-few-public-methods
                              back_populates='vouchers')
 
 
+class IntendedLocation(db.Base):  # pylint: disable=too-few-public-methods
+    __tablename__ = 'intended_location'
+    quantity = Column(Integer, autoincrement=False)
+    date = Column(types.Date, default=func.now())
+    planted = Column(types.Boolean, default=False)
+    location_id = Column(Integer, ForeignKey('location.id'), nullable=False)
+    location = relationship('Location')
+    accession_id = Column(Integer, ForeignKey('accession.id'), nullable=False)
+    accession = relationship('Accession')
+
+
 # ITF2 - E.1; Provenance Type Flag; Transfer code: prot
 prov_type_values = [
     ('Wild', _('Accession of wild source')),  # W
@@ -598,6 +609,9 @@ class Accession(db.Base, db.Serializable, db.WithNotes):
 
     species_id = Column(Integer, ForeignKey('species.id'), nullable=False)
 
+    purchase_price = Column(Integer)
+    price_unit = Column(Unicode(9))
+    supplied_name = Column(Unicode)
     # use backref not back_populates here to avoid InvalidRequestError in
     # view.multiproc_counter
     species = relationship('Species', uselist=False,
@@ -605,15 +619,9 @@ class Accession(db.Base, db.Serializable, db.WithNotes):
                                            cascade='all, delete-orphan'))
 
     # intended location
-    intended_location_id = Column(Integer, ForeignKey('location.id'))
-    intended_location = relationship(
-        'Location', primaryjoin='Accession.intended_location_id==Location.id'
-    )
-
-    intended2_location_id = Column(Integer, ForeignKey('location.id'))
-    intended2_location = relationship(
-        'Location', primaryjoin='Accession.intended2_location_id==Location.id'
-    )
+    intended_locations = relationship('IntendedLocation',
+                                      cascade='all, delete-orphan',
+                                      back_populates='accession')
 
     source = relationship('Source', uselist=False,
                           cascade='all, delete-orphan',
@@ -640,7 +648,7 @@ class Accession(db.Base, db.Serializable, db.WithNotes):
         return None
 
     @validates('code')
-    def validate_stripping(self, _key, value):  # pylint: disable=no-self-use
+    def validate_stripping(self, _key, value):
         if value is None:
             return None
         return value.strip()
@@ -923,15 +931,11 @@ class AccessionEditorView(editor.GenericEditorView):
             'The type of the accessioned material.'),
         'acc_quantity_recvd_entry': _('The amount of plant material at the '
                                       'time it was accessioned.'),
-        'intended_loc_comboentry': _('The intended location for plant '
-                                     'material being accessioned.'),
-        'intended2_loc_comboentry': _('The intended location for plant '
-                                      'material being accessioned.'),
-        'intended_loc_create_plant_checkbutton': _(
-            'Immediately create a plant at this location, using all plant '
-            'material.'
-        ),
-
+        'intended_loc_treeview': _('The intended locations for plant material '
+                                   'being accessioned.  Prior to planting out '
+                                   'record your intentions here, including '
+                                   'where, how many and when you intend to '
+                                   'plant.'),
         'acc_prov_combo': _('The origin or source of this accession.'),
         'acc_wild_prov_combo': _('The wild status is used to clarify the '
                                  'provenance of wild source only.\n\n'
@@ -953,7 +957,6 @@ class AccessionEditorView(editor.GenericEditorView):
                                    'plant to this accession.'),
         'acc_next_button': _('Save your changes and add another '
                              'accession.'),
-
         'sources_code_entry': _("ITF2 - E7 - Donor's Accession Identifier - "
                                 "donacc"),
         'acc_code_format_comboentry': _('Set the format for the Accession ID '
@@ -968,7 +971,12 @@ class AccessionEditorView(editor.GenericEditorView):
         'source_type_combo': _('Select a type to filter by or leave blank to '
                                'select by name only.\n"Contacts (General)" '
                                'filters out Expedtions and Garden '
-                               'Propagation.')
+                               'Propagation.'),
+        'acc_supplied_name_entry': _('The full name of the taxon as it was '
+                                     'supplied verbatim.\nMost useful when '
+                                     'this does not match the accepted name.'),
+        'acc_price_entry': _('Provides a slot to record the intial purchase '
+                             'price of the accession.'),
     }
 
     def __init__(self, parent=None):
@@ -1057,6 +1065,281 @@ class AccessionEditorView(editor.GenericEditorView):
         return False
 
 
+INTENDED_ACTIONGRP_NAME = 'intended_locations'
+
+
+class IntendedLocationPresenter(editor.GenericEditorPresenter):
+
+    def __init__(self, parent, model, view, session):
+        super().__init__(model, view, session=session, connect_signals=False)
+        self.parent_ref = weakref.ref(parent)
+        self._dirty = False
+        self.view.connect('int_loc_add_button', 'clicked', self.on_add_clicked)
+        self.view.connect('int_loc_remove_button', 'clicked',
+                          self.on_remove_clicked)
+
+        self.setup_column('int_loc_loc_column', 'int_loc_loc_cell', 'location')
+        self.setup_column('int_loc_qty_column', 'int_loc_qty_cell', 'quantity')
+        self.setup_column('int_loc_date_column', 'int_loc_date_cell', 'date')
+        self.setup_column('int_loc_pltd_column',
+                          'int_loc_pltd_cell',
+                          'planted')
+        self.view.connect('int_loc_date_cell',
+                          'edited',
+                          self.on_date_cell_edited)
+        self.view.connect('int_loc_pltd_cell',
+                          'toggled',
+                          self.on_planted_toggled)
+        self.view.connect('int_loc_loc_cell',
+                          'editing-started',
+                          self.on_loc_editing_started)
+        self.view.connect('int_loc_qty_cell',
+                          'edited',
+                          self.on_qty_cell_edited)
+
+        treeview = self.view.widgets.intended_loc_treeview
+        model = Gtk.ListStore(object)
+        for row in self.model.intended_locations:
+            model.append([row])
+        treeview.set_model(model)
+
+        self.context_menu = None
+        self.init_menu()
+
+        self.view.connect(treeview, 'cursor-changed',
+                          self.on_tree_cursor_changed)
+        self.view.connect(treeview, 'button-release-event',
+                          self.on_button_release)
+        view_selection = (self.view.widgets
+                          .intended_loc_treeview.get_selection())
+        view_selection.connect('changed', self.on_selection_changed)
+
+    def on_loc_editing_started(self, _renderer, combo, path):
+        treemodel = self.view.widgets.intended_loc_treeview.get_model()
+        intended = treemodel[path][0]
+
+        def on_location_select(location):
+            if not location or intended.location == location:
+                return
+            intended.location = location
+            logger.debug('location %s selected', intended)
+            self.refresh(intended)
+
+        from . import init_location_comboentry
+        init_location_comboentry(self, combo, on_location_select)
+
+    def on_tree_cursor_changed(self, tree):
+        """Enable the remove button when an existing item is selected"""
+        button = self.view.widgets.int_loc_remove_button
+        button.set_sensitive(len(tree.get_model()) > 0)
+
+    @staticmethod
+    def _cell_data_func(_column, cell, model, treeiter, prop):
+        # Could possibly adjust this to use utils.default_cell_data_func?
+        intended = model[treeiter][0]
+        if isinstance(cell, Gtk.CellRendererToggle):
+            cell.set_active(getattr(intended, prop))
+            return
+        if prop == 'date':
+            frmt = prefs.prefs[prefs.date_format_pref]
+            val = intended.date.strftime(frmt) if intended.date else ''
+        else:
+            val = str(getattr(intended, prop) or '')
+        cell.set_property('text', val)
+
+    def setup_column(self, column, cell, prop):
+        column = self.view.widgets[column]
+        cell = self.view.widgets[cell]
+        # avoid warnings
+        column.clear_attributes(cell)
+        column.set_cell_data_func(cell, self._cell_data_func, prop)
+
+    def is_dirty(self):
+        return self._dirty
+
+    def on_planted_toggled(self, cell, path):
+        treemodel = self.view.widgets.intended_loc_treeview.get_model()
+        intended = treemodel[path][0]
+        # NOTE that cell.get_active() is the value at the time is is toggled,
+        # setting the value of planted (thanks to the cell_data_func) is what
+        # actually changes the displayed value - after this function call.
+        value = not cell.get_active()
+        # redundant?
+        if intended.planted == value:
+            return
+        intended.planted = value
+        self.view.widgets.intended_loc_treeview.get_selection().emit('changed')
+        self.refresh(intended)
+
+    def on_date_cell_edited(self, _cell, path, new_text):
+        treemodel = self.view.widgets.intended_loc_treeview.get_model()
+        intended = treemodel[path][0]
+        val = types.Date().process_bind_param(new_text, None)
+        if intended.date == val:
+            return
+        intended.date = val
+        self.refresh(intended)
+
+    def on_qty_cell_edited(self, _cell, path, new_text):
+        treemodel = self.view.widgets.intended_loc_treeview.get_model()
+        intended = treemodel[path][0]
+        if intended.quantity == new_text or int(new_text or 0) < 1:
+            return
+        intended.quantity = int(new_text)
+        self.refresh(intended)
+
+    def on_remove_clicked(self, _button):
+        treeview = self.view.widgets.intended_loc_treeview
+        model, treeiter = treeview.get_selection().get_selected()
+        intended = model[treeiter][0]
+        if intended not in self.session.new:
+            self._dirty = True
+            self.parent_ref().refresh_sensitivity()
+        self.model.intended_locations.remove(intended)
+        model.remove(treeiter)
+
+    def on_add_clicked(self, _button):
+        treeview = self.view.widgets.intended_loc_treeview
+        intended = IntendedLocation()
+        intended.date = datetime.date.today()
+        intended.quantity = 1
+        self.model.intended_locations.append(intended)
+        model = treeview.get_model()
+        treeiter = model.insert(0, [intended])
+        path = model.get_path(treeiter)
+        column = treeview.get_column(0)
+        treeview.set_cursor(path, column, start_editing=True)
+
+    def refresh(self, intended):
+        self._dirty = False
+        if (int(intended.quantity or 0) > 0 and intended.location and
+                intended.date):
+            self._dirty = True
+        self.parent_ref().refresh_sensitivity()
+
+    def on_map_kml_show(self, *_args):
+        import tempfile
+        from mako.template import Template
+        from .location import LOC_KML_MAP_PREFS
+        kml_template = prefs.prefs.get(
+            LOC_KML_MAP_PREFS,
+            str(Path(__file__).resolve().parent / 'loc.kml')
+        )
+        template = Template(filename=kml_template,
+                            input_encoding='utf-8',
+                            output_encoding='utf-8')
+        file_handle, filename = tempfile.mkstemp(suffix='.kml')
+
+        treeview = self.view.widgets.intended_loc_treeview
+        model, treeiter = treeview.get_selection().get_selected()
+        intended = model[treeiter][0]
+        out = template.render(value=intended.location)
+        os.write(file_handle, out)
+        os.close(file_handle)
+        try:
+            utils.desktop.open(filename)
+        except OSError:
+            self.view.run_message_dialog(
+                _('Could not open the kml file. You can open the file '
+                  'manually at %s') % filename
+            )
+
+    def on_add_plant(self, *_args):
+        treeview = self.view.widgets.intended_loc_treeview
+        model, treeiter = treeview.get_selection().get_selected()
+        if not treeiter:
+            return
+
+        if self.model in self.session.new:
+            msg = _("You need to commit this accession to the database before "
+                    "adding plants from intended locations.  Do you wish to "
+                    "commit this accession in its current state first?")
+            if not utils.yes_no_dialog(msg):
+                return
+            self.session.commit()
+
+        intended = model[treeiter][0]
+        # using a temporary session and refreshing from the database prevents
+        # attaching to the accession here and possibly committing changes twice
+        session = db.Session()
+        acc = session.merge(self.model)
+        session.refresh(acc)
+        loc = session.merge(intended.location)
+        session.refresh(loc)
+        plt_editor = PlantEditor(
+            model=Plant(accession=acc,
+                        location=loc,
+                        quantity=int(intended.quantity))
+        )
+
+        session.close()
+        if plt_editor.start():
+            intended.planted = True
+            (self.view.widgets.intended_loc_treeview
+             .get_selection().emit('changed'))
+            self.refresh(intended)
+
+    def init_menu(self):
+        """Initialise the treeview context menu.
+
+        Create the ActionGroup and Menu, attach the Menu to the TreeView widget
+        and insert the ActionGroup.  The action group should be removed on
+        cleanup for the editor to be garbage collected.
+        """
+        menu = Gio.Menu()
+        action_group = Gio.SimpleActionGroup()
+        menu_items = (
+            (_('Show in map'), 'show', self.on_map_kml_show),
+            (_('Add planting'), 'plant', self.on_add_plant),
+        )
+        for label, name, handler in menu_items:
+            action = Gio.SimpleAction.new(name, None)
+            action.connect("activate", handler)
+            action_group.add_action(action)
+            menu_item = Gio.MenuItem.new(label,
+                                         f'{INTENDED_ACTIONGRP_NAME}.{name}')
+            menu.append_item(menu_item)
+        self.context_menu = Gtk.Menu.new_from_model(menu)
+        tree_view = self.view.widgets.intended_loc_treeview
+        self.context_menu.attach_to_widget(tree_view)
+
+        tree_view.insert_action_group(INTENDED_ACTIONGRP_NAME, action_group)
+
+    def remove_action_group(self):
+        """Remove the action group from TreeView widget.
+
+        Called when the window is closed to facilitate garbage collection
+        """
+        tree_view = self.view.widgets.intended_loc_treeview
+        tree_view.insert_action_group(INTENDED_ACTIONGRP_NAME, None)
+
+    # staticmethod for garbage collection
+    @staticmethod
+    def on_selection_changed(tree_selection):
+        """When the selection changes enable/disable appropriate menu items"""
+        model, treeiter = tree_selection.get_selected()
+        if treeiter:
+            intended = model[treeiter][0]
+            action_group = (tree_selection.get_tree_view()
+                            .get_action_group(INTENDED_ACTIONGRP_NAME))
+            plant_action = action_group.lookup_action('plant')
+            plant_action.set_enabled(not intended.planted)
+            map_action = action_group.lookup_action('show')
+            if intended.location:
+                map_action.set_enabled(bool(intended.location.geojson))
+
+    def on_button_release(self, _view, event):
+        if event.button != 3:
+            return False
+
+        self.context_menu.popup_at_pointer(event)
+        return True
+
+    def cleanup(self):
+        self.remove_action_group()
+        super().cleanup()
+
+
 class VoucherPresenter(editor.GenericEditorPresenter):
 
     def __init__(self, parent, model, view, session):
@@ -1114,7 +1397,7 @@ class VoucherPresenter(editor.GenericEditorPresenter):
             button = self.view.widgets.parent_voucher_remove_button
         else:
             button = self.view.widgets.voucher_remove_button
-        button.set_sensitive(len(tree.get_model()) > 0)
+        button.set_sensitive(len(tree.get_model() or []) > 0)
 
     @staticmethod
     def _voucher_data_func(_column, cell, model, treeiter, prop):
@@ -1896,13 +2179,11 @@ class AccessionEditorPresenter(editor.GenericEditorPresenter):
         'acc_date_recvd_entry': 'date_recvd',
         'acc_recvd_type_comboentry': 'recvd_type',
         'acc_quantity_recvd_entry': 'quantity_recvd',
-        'intended_loc_comboentry': 'intended_location',
-        'intended2_loc_comboentry': 'intended2_location',
         'acc_prov_combo': 'prov_type',
         'acc_wild_prov_combo': 'wild_prov_status',
         'acc_species_entry': 'species',
         'acc_private_check': 'private',
-        'intended_loc_create_plant_checkbutton': 'create_plant',
+        'acc_supplied_name_entry': 'supplied_name'
     }
 
     PROBLEM_DUPLICATE_ACCESSION = f'duplicate_accession:{random()}'
@@ -1918,7 +2199,6 @@ class AccessionEditorPresenter(editor.GenericEditorPresenter):
         self._dirty = False
         self.session = object_session(model)
         self._original_code = self.model.code
-        model.create_plant = False
 
         # set the default code and add it to the top of the code formats
         self.populate_code_formats(model.code or '')
@@ -1935,6 +2215,9 @@ class AccessionEditorPresenter(editor.GenericEditorPresenter):
                                                   self.session)
         self.source_presenter = SourcePresenter(self, self.model, self.view,
                                                 self.session)
+        self.intended_locations_presenter = IntendedLocationPresenter(
+            self, self.model, self.view, self.session
+        )
 
         notes_parent = self.view.widgets.notes_parent_box
         notes_parent.foreach(notes_parent.remove)
@@ -1953,15 +2236,6 @@ class AccessionEditorPresenter(editor.GenericEditorPresenter):
         # refresh_view fires signal handlers for any connected widgets.
         # the 'initializing' field tells our callbacks not to react.
         # ComboBoxes need a model, to receive values.
-
-        from . import init_location_comboentry
-
-        init_location_comboentry(
-            self, self.view.widgets.intended_loc_comboentry,
-            partial(self.on_loc_select, 'intended_location'), required=False)
-        init_location_comboentry(
-            self, self.view.widgets.intended2_loc_comboentry,
-            partial(self.on_loc_select, 'intended2_location'), required=False)
 
         # put model values in view before any handlers are connected
         self.refresh_view(initializing=True)
@@ -2007,19 +2281,31 @@ class AccessionEditorPresenter(editor.GenericEditorPresenter):
             utils.set_widget_value(self.view.widgets.acc_date_accd_entry,
                                    date_str)
 
+        mapper = object_mapper(self.model)
+        values = utils.get_distinct_values(mapper.c['price_unit'],
+                                           self.session)
+        utils.setup_text_combobox(
+            self.view.widgets.acc_price_units_combo, values
+        )
+        self.view.widget_set_value(self.view.widgets.acc_price_units_combo,
+                                   self.model.price_unit or '')
+        self.view.connect('acc_price_units_combo',
+                          'changed',
+                          self.on_price_unit_combo_changed)
         self.view.connect(
-            self.view.widgets.intended_loc_add_button,
-            'clicked',
-            self.on_loc_button_clicked,
-            self.view.widgets.intended_loc_comboentry,
-            'intended_location')
-
-        self.view.connect(
-            self.view.widgets.intended2_loc_add_button,
-            'clicked',
-            self.on_loc_button_clicked,
-            self.view.widgets.intended2_loc_comboentry,
-            'intended2_location')
+            self.view.widgets.acc_price_units_combo.get_child(),
+            'changed',
+            self.on_price_unit_entry_changed
+        )
+        # Using int to represent currency as cents so we need to convert,
+        # this could possibly be set per institution in bauble.meta?
+        self.view.widget_set_value(
+            self.view.widgets.acc_price_entry,
+            self.model.purchase_price / 100 if self.model.purchase_price else 0
+        )
+        self.view.connect('acc_price_entry',
+                          'changed',
+                          self.on_price_entry_changed)
 
         # add a taxon implies setting the acc_species_entry
         self.view.connect(
@@ -2030,29 +2316,42 @@ class AccessionEditorPresenter(editor.GenericEditorPresenter):
         )
 
         self.has_plants = len(model.plants) > 0
-        view.widget_set_sensitive('intended_loc_create_plant_checkbutton',
-                                  not self.has_plants)
 
         self.assign_simple_handler(
             'acc_quantity_recvd_entry', 'quantity_recvd')
-        self.view.connect_after(
-            'acc_quantity_recvd_entry', 'changed',
-            self.refresh_create_plant_checkbutton_sensitivity)
         self.assign_simple_handler('acc_id_qual_combo', 'id_qual',
                                    editor.StringOrNoneValidator())
         self.assign_simple_handler('acc_private_check', 'private')
 
         self.refresh_sensitivity()
-        self.refresh_create_plant_checkbutton_sensitivity()
 
         if self.model not in self.session.new:
             self.view.widgets.acc_ok_and_add_button.set_sensitive(True)
 
-    def on_loc_select(self, field_name, value):
-        if self.initializing:
-            return
-        self.set_model_attr(field_name, value)
-        self.refresh_create_plant_checkbutton_sensitivity()
+    def on_price_entry_changed(self, entry):
+        # Convert to cents on save
+        text = entry.get_text()
+        if text == '':
+            self.set_model_attr('purchase_price', None)
+        else:
+            self.set_model_attr('purchase_price', float(text) * 100)
+
+    @staticmethod
+    def on_price_unit_combo_changed(combo, *_args):
+        """Sets the text on the entry.
+
+        The model value is set in the entry "changed" handler.
+        """
+        treeiter = combo.get_active_iter()
+        if treeiter is not None:
+            text = utils.nstr(combo.get_model()[treeiter][0])
+            combo.get_child().set_text(text)
+
+    def on_price_unit_entry_changed(self, entry, *_args):
+        value = utils.nstr(entry.get_text())
+        if not value:
+            value = None
+        self.set_model_attr('price_unit', value)
 
     def on_id_qual_rank_changed(self, combo, *_args):
         itr = combo.get_active_iter()
@@ -2066,18 +2365,6 @@ class AccessionEditorPresenter(editor.GenericEditorPresenter):
         # ensure we refresh_sensitivity
         super().on_date_entry_changed(entry, prop)
         self.refresh_sensitivity()
-
-    def refresh_create_plant_checkbutton_sensitivity(self, *_args):
-        if self.has_plants:
-            self.view.widget_set_sensitive(
-                'intended_loc_create_plant_checkbutton', False)
-            return
-        location_chosen = bool(self.model.intended_location)
-        has_quantity = (bool(int(self.model.quantity_recvd)) if
-                        self.model.quantity_recvd else False)
-        self.view.widget_set_sensitive(
-            'intended_loc_create_plant_checkbutton',
-            has_quantity and location_chosen)
 
     def on_species_select(self, value, do_set=True):
         logger.debug('on select: %s', value)
@@ -2247,21 +2534,12 @@ class AccessionEditorPresenter(editor.GenericEditorPresenter):
         combo.set_model(model)
         combo.set_active_iter(active)
 
-    def on_loc_button_clicked(self, button, target_widget, target_field):
-        logger.debug('on_loc_button_clicked %s, %s, %s, %s', self, button,
-                     target_widget, target_field)
-        from .location import LocationEditor
-        loc_editor = LocationEditor(parent=self.view.get_window())
-        if loc_editor.start():
-            location = loc_editor.presenter.model
-            self.session.add(location)
-            self.remove_problem(None, target_widget)
-            self.view.widget_set_value(target_widget, location)
-            self.set_model_attr(target_field, location)
-
     def is_dirty(self):
-        presenters = [self.ver_presenter, self.voucher_presenter,
-                      self.notes_presenter, self.source_presenter]
+        presenters = [self.ver_presenter,
+                      self.voucher_presenter,
+                      self.notes_presenter,
+                      self.source_presenter,
+                      self.intended_locations_presenter]
         dirty_kids = [p.is_dirty() for p in presenters]
         return self._dirty or True in dirty_kids
 
@@ -2422,7 +2700,9 @@ class AccessionEditorPresenter(editor.GenericEditorPresenter):
                      not self.problems and
                      not self.source_presenter.all_problems() and
                      not self.ver_presenter.problems and
-                     not self.voucher_presenter.problems)
+                     not self.voucher_presenter.problems and
+                     not self.intended_locations_presenter.problems)
+
         self.view.set_accept_buttons_sensitive(sensitive)
 
     def refresh_view(self, initializing=False):
@@ -2465,6 +2745,7 @@ class AccessionEditorPresenter(editor.GenericEditorPresenter):
             widget.destroy()
         self.ver_presenter.cleanup()
         self.voucher_presenter.cleanup()
+        self.intended_locations_presenter.cleanup()
         self.source_presenter.cleanup()
         self.notes_presenter.cleanup()
 
@@ -2617,21 +2898,6 @@ class AccessionEditor(editor.GenericModelViewPresenterEditor):
         if self.model.id_qual is None:
             self.model.id_qual_rank = None
 
-        # should we also add a plant for this accession?
-        if self.model.create_plant:
-            logger.debug('creating plant for new accession')
-            accession = self.model
-            location = accession.intended_location
-            plant = Plant(
-                accession=accession,
-                code='1',
-                quantity=accession.quantity_recvd,
-                location=location,
-                acc_type=accession_type_to_plant_material.get(
-                    self.model.recvd_type)
-            )
-            self.session.add(plant)
-
         return super().commit_changes()
 
 
@@ -2706,15 +2972,10 @@ class GeneralAccessionExpander(InfoExpander):
             icon = 'dialog-password-symbolic'
         self.widgets.private_image.set_from_icon_name(icon, image_size)
 
-        loc_map = (('intended_loc_data', 'intended_location'),
-                   ('intended2_loc_data', 'intended2_location'))
-
-        for label, attr in loc_map:
-            location = getattr(row, attr)
-            location_str = ''
-            if location:
-                location_str = str(location)
-            self.widget_set_value(label, location_str)
+        locations_str = '\n'.join(
+            f'{i.location} : {i.quantity}' for i in row.intended_locations
+        )
+        self.widget_set_value('intended_loc_data', locations_str)
 
         from ..plants.species import on_taxa_clicked
 

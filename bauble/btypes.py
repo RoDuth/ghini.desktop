@@ -150,9 +150,12 @@ class DateTime(types.TypeDecorator):
             # try parsing as iso8601 first
             result = date_parser.isoparse(value)
         except ValueError:
-            result = date_parser.parse(
-                value, dayfirst=DateTime._dayfirst,
-                yearfirst=DateTime._yearfirst)
+            try:
+                result = date_parser.parse(value,
+                                           dayfirst=DateTime._dayfirst,
+                                           yearfirst=DateTime._yearfirst)
+            except ValueError:
+                return None
         return result.astimezone(tz=timezone.utc)
 
     def process_result_value(self, value, dialect):
@@ -202,8 +205,12 @@ class Date(types.TypeDecorator):
             # try parsing as iso8601 first
             result = date_parser.isoparse(value)
         except ValueError:
-            result = date_parser.parse(value, dayfirst=Date._dayfirst,
-                                       yearfirst=Date._yearfirst)
+            try:
+                result = date_parser.parse(value,
+                                           dayfirst=Date._dayfirst,
+                                           yearfirst=Date._yearfirst)
+            except ValueError:
+                return None
         return result.date()
 
 

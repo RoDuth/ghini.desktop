@@ -179,6 +179,9 @@ class Location(db.Base, db.Serializable, db.WithNotes):
 
     # relations
     plants = relationship('Plant', backref=backref('location', uselist=False))
+    intended_accessions = relationship('IntendedLocation',
+                                       cascade='all, delete-orphan',
+                                       back_populates='location')
 
     retrieve_cols = ['id', 'code']
 

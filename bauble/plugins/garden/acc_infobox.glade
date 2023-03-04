@@ -71,7 +71,7 @@
           </packing>
         </child>
         <child>
-          <!-- n-columns=2 n-rows=12 -->
+          <!-- n-columns=2 n-rows=11 -->
           <object class="GtkGrid" id="acc_general_table">
             <property name="visible">True</property>
             <property name="can-focus">False</property>
@@ -81,7 +81,7 @@
               <object class="GtkLabel" id="plants_label">
                 <property name="visible">True</property>
                 <property name="can-focus">False</property>
-                <property name="label" translatable="yes">Plant Groups:</property>
+                <property name="label" translatable="yes">Plant groups:</property>
                 <property name="use-markup">True</property>
                 <property name="xalign">1</property>
                 <attributes>
@@ -306,9 +306,10 @@
               <object class="GtkLabel">
                 <property name="visible">True</property>
                 <property name="can-focus">False</property>
-                <property name="label" translatable="yes">Intended Location:</property>
+                <property name="label" translatable="yes">Intended locations:</property>
                 <property name="use-markup">True</property>
                 <property name="xalign">1</property>
+                <property name="yalign">0</property>
                 <attributes>
                   <attribute name="weight" value="bold"/>
                 </attributes>
@@ -331,38 +332,10 @@
               </packing>
             </child>
             <child>
-              <object class="GtkLabel">
-                <property name="visible">True</property>
-                <property name="can-focus">False</property>
-                <property name="label" translatable="yes">Intended Location 2:</property>
-                <property name="use-markup">True</property>
-                <property name="xalign">1</property>
-                <attributes>
-                  <attribute name="weight" value="bold"/>
-                </attributes>
-              </object>
-              <packing>
-                <property name="left-attach">0</property>
-                <property name="top-attach">10</property>
-              </packing>
-            </child>
-            <child>
-              <object class="GtkLabel" id="intended2_loc_data">
-                <property name="visible">True</property>
-                <property name="can-focus">False</property>
-                <property name="label">--</property>
-                <property name="xalign">0</property>
-              </object>
-              <packing>
-                <property name="left-attach">1</property>
-                <property name="top-attach">10</property>
-              </packing>
-            </child>
-            <child>
               <object class="GtkLabel" id="living_plants_label">
                 <property name="visible">True</property>
                 <property name="can-focus">False</property>
-                <property name="label" translatable="yes">Living Plants:</property>
+                <property name="label" translatable="yes">Living plants:</property>
                 <property name="use-markup">True</property>
                 <property name="xalign">1</property>
                 <property name="yalign">0</property>
@@ -372,7 +345,7 @@
               </object>
               <packing>
                 <property name="left-attach">0</property>
-                <property name="top-attach">11</property>
+                <property name="top-attach">10</property>
               </packing>
             </child>
             <child>
@@ -384,7 +357,7 @@
               </object>
               <packing>
                 <property name="left-attach">1</property>
-                <property name="top-attach">11</property>
+                <property name="top-attach">10</property>
               </packing>
             </child>
           </object>

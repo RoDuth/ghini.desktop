@@ -40,10 +40,14 @@ from bauble.meta import BaubleMeta
 from . import get_plant_completions
 from .accession import (Accession,
                         AccessionEditor,
+                        AccessionEditorPresenter,
                         AccessionEditorView,
                         AccessionNote,
                         Voucher,
                         SourcePresenter,
+                        IntendedLocationPresenter,
+                        IntendedLocation,
+                        INTENDED_ACTIONGRP_NAME,
                         Verification,
                         dms_to_decimal,
                         latitude_to_dms,
@@ -1730,6 +1734,65 @@ class AccessionTests(GardenTestCase):
         editor.presenter.cleanup()
         del editor
 
+    def test_accession_editor_purchase_price_entry_change(self):
+        sp = self.session.query(Species).first()
+        acc = Accession(code='2023', species=sp)
+        self.session.add(acc)
+        # commit so the presenter can use the object_session
+        self.session.commit()
+        presenter = AccessionEditorPresenter(acc,
+                                             AccessionEditorView())
+        mock_entry = unittest.mock.Mock()
+        # saves as cents
+        mock_entry.get_text.return_value = '1.00'
+        presenter.on_price_entry_changed(mock_entry)
+        self.assertEqual(acc.purchase_price, 100)
+        # set none
+        mock_entry.get_text.return_value = ''
+        presenter.on_price_entry_changed(mock_entry)
+        self.assertIsNone(acc.purchase_price)
+        presenter.cleanup()
+        del presenter
+
+    def test_accession_editor_price_unit_entry_change(self):
+        sp = self.session.query(Species).first()
+        acc = Accession(code='2023', species=sp)
+        self.session.add(acc)
+        # commit so the presenter can use the object_session
+        self.session.commit()
+        presenter = AccessionEditorPresenter(acc,
+                                             AccessionEditorView())
+        mock_entry = unittest.mock.Mock()
+        # set value
+        mock_entry.get_text.return_value = 'AU$'
+        presenter.on_price_unit_entry_changed(mock_entry)
+        self.assertEqual(acc.price_unit, 'AU$')
+        # unset value
+        mock_entry.get_text.return_value = ''
+        presenter.on_price_unit_entry_changed(mock_entry)
+        self.assertIsNone(acc.price_unit)
+        presenter.cleanup()
+        del presenter
+
+    def test_accession_editor_price_unit_combo_change(self):
+        sp = self.session.query(Species).first()
+        acc = Accession(code='2023', species=sp)
+        self.session.add(acc)
+        # commit so the presenter can use the object_session
+        self.session.commit()
+        presenter = AccessionEditorPresenter(acc,
+                                             AccessionEditorView())
+        mock_combo = unittest.mock.Mock()
+        mock_entry = unittest.mock.MagicMock()
+        mock_combo.get_child.return_value = mock_entry
+        # set value
+        mock_combo.get_active_iter.return_value = 0
+        mock_combo.get_model.return_value = [['AU$']]
+        presenter.on_price_unit_combo_changed(mock_combo)
+        self.assertEqual(mock_entry.set_text.call_args.args[0], 'AU$')
+        presenter.cleanup()
+        del presenter
+
     @unittest.mock.patch('bauble.editor.GenericEditorView.start')
     def test_editor_doesnt_leak(self, mock_start):
         mock_start.return_value = Gtk.ResponseType.OK
@@ -2018,16 +2081,606 @@ class AccessionTests(GardenTestCase):
         self.assertEqual(len(acc.top_level_count()[(8, 'Sources')]), 0)
 
 
+class IntendedLocationsTests(GardenTestCase):
+
+    @staticmethod
+    def set_combo_from_value(combo, value):
+        model = combo.props.model
+        matches = utils.search_tree_model(model, value)
+        if len(matches) == 0:
+            raise ValueError(f'could not find value in combo: {value}')
+        combo.set_active_iter(matches[0])
+        combo.emit('changed')
+
+    def test_intended_locations_cascades_delete_accession(self):
+        sp = self.session.query(Species).first()
+        acc = Accession(code='2023', species=sp)
+        loc1 = Location(code='LOC1')
+        int_loc = IntendedLocation(quantity=1,
+                                   location=loc1,
+                                   date=datetime.datetime.now().date())
+        acc.intended_locations.append(int_loc)
+        self.session.add_all([acc, loc1])
+        self.session.commit()
+        self.assertEqual(self.session.query(IntendedLocation).count(), 1)
+        # intended_locations are removed if accession is removed.
+        self.session.delete(acc)
+        self.session.commit()
+        self.assertFalse(self.session.query(IntendedLocation).all())
+
+    def test_delete_intended_locations_doesnt_cascade_to_loc_acc(self):
+        sp = self.session.query(Species).first()
+        acc = Accession(code='2023', species=sp)
+        loc1 = Location(code='LOC1')
+        int_loc = IntendedLocation(quantity=1,
+                                   location=loc1,
+                                   date=datetime.datetime.now().date())
+        acc.intended_locations.append(int_loc)
+        self.session.add_all([acc, loc1])
+        self.session.commit()
+        # accession is not removed if intended_location is removed.
+        self.session.delete(int_loc)
+        self.session.commit()
+        self.assertEqual(acc, self.session.query(Accession).get(acc.id))
+        self.assertEqual(loc1, self.session.query(Location).get(loc1.id))
+
+    def test_intended_locations_cascades_delete_location(self):
+        sp = self.session.query(Species).first()
+        acc = Accession(code='2023', species=sp)
+        loc1 = Location(code='LOC1')
+        int_loc = IntendedLocation(quantity=1,
+                                   location=loc1,
+                                   date=datetime.datetime.now().date())
+        acc.intended_locations.append(int_loc)
+        self.session.add_all([acc, loc1])
+        self.session.commit()
+        self.assertEqual(self.session.query(IntendedLocation).count(), 1)
+        # intended_locations are removed if location is removed.
+        self.session.delete(loc1)
+        self.session.commit()
+        self.assertFalse(self.session.query(IntendedLocation).all())
+
+    def test_refresh_sets_dirty_true_when_all_fields_full(self):
+        presenter = IntendedLocationPresenter(unittest.mock.MagicMock(),
+                                              Accession(),
+                                              AccessionEditorView(),
+                                              self.session)
+        presenter.refresh(unittest.mock.Mock(quantity=1,
+                                             location=Location(),
+                                             date=datetime.datetime.now()))
+        self.assertTrue(presenter.is_dirty())
+
+    def test_refresh_sets_dirty_false_when_location_missing(self):
+        presenter = IntendedLocationPresenter(unittest.mock.MagicMock(),
+                                              Accession(),
+                                              AccessionEditorView(),
+                                              self.session)
+        presenter.refresh(unittest.mock.Mock(quantity=1,
+                                             location=None,
+                                             date=datetime.datetime.now()))
+        self.assertFalse(presenter.is_dirty())
+        presenter.cleanup()
+
+    def test_refresh_sets_dirty_false_when_date_missing(self):
+        presenter = IntendedLocationPresenter(unittest.mock.MagicMock(),
+                                              Accession(),
+                                              AccessionEditorView(),
+                                              self.session)
+        presenter.refresh(unittest.mock.Mock(quantity=1,
+                                             location=Location(),
+                                             date=None))
+        self.assertFalse(presenter.is_dirty())
+        presenter.cleanup()
+
+    def test_refresh_sets_dirty_false_when_qty_missing_or_0(self):
+        presenter = IntendedLocationPresenter(unittest.mock.MagicMock(),
+                                              Accession(),
+                                              AccessionEditorView(),
+                                              self.session)
+        presenter.refresh(unittest.mock.Mock(quantity=None,
+                                             location=Location(),
+                                             date=datetime.datetime.now()))
+        self.assertFalse(presenter.is_dirty())
+        presenter.refresh(unittest.mock.Mock(quantity=0,
+                                             location=Location(),
+                                             date=datetime.datetime.now()))
+        self.assertFalse(presenter.is_dirty())
+        presenter.cleanup()
+
+    def test_cell_data_func(self):
+        presenter = IntendedLocationPresenter(unittest.mock.MagicMock(),
+                                              Accession(),
+                                              AccessionEditorView(),
+                                              self.session)
+
+        cell = Gtk.CellRendererText()
+        # plain text
+        # pylint: disable=no-member,protected-access
+        mock_obj = unittest.mock.Mock(prop='test')
+        presenter._cell_data_func(None, cell, [[mock_obj]], 0, 'prop')
+        self.assertEqual(cell.props.text, 'test')
+        # date
+        date = datetime.datetime.now().date()
+        mock_obj = unittest.mock.Mock(date=date)
+        presenter._cell_data_func(None, cell, [[mock_obj]], 0, 'date')
+        frmt = prefs.prefs[prefs.date_format_pref]
+        self.assertEqual(cell.props.text, date.strftime(frmt))
+        # empty date
+        date = None
+        mock_obj = unittest.mock.Mock(date=date)
+        presenter._cell_data_func(None, cell, [[mock_obj]], 0, 'date')
+        frmt = prefs.prefs[prefs.date_format_pref]
+        self.assertEqual(cell.props.text, '')
+        # toggle
+        cell = Gtk.CellRendererToggle()
+        self.assertFalse(cell.get_active())
+        mock_obj = unittest.mock.Mock(prop=True)
+        presenter._cell_data_func(None, cell, [[mock_obj]], 0, 'prop')
+        self.assertTrue(cell.get_active())
+
+        presenter.cleanup()
+
+    def test_refresh_only_called_when_value_changes_loc(self):
+        sp = self.session.query(Species).first()
+        acc = Accession(code='2023', species=sp)
+        loc1 = Location(code='LOC1')
+        loc2 = Location(code='LOC2')
+        acc.intended_locations.append(
+            IntendedLocation(quantity=1,
+                             location=loc1,
+                             date=datetime.datetime.now().date())
+        )
+        self.session.add_all([acc, loc1, loc2])
+        self.session.commit()
+        mock_parent = unittest.mock.MagicMock()
+        presenter = IntendedLocationPresenter(mock_parent,
+                                              acc,
+                                              AccessionEditorView(),
+                                              self.session)
+        combo = Gtk.ComboBox.new_with_entry()
+        presenter.on_loc_editing_started(None, combo, Gtk.TreePath.new_first())
+        mockrefresh = unittest.mock.Mock()
+        presenter.refresh = mockrefresh
+        # no change
+        self.set_combo_from_value(combo, loc1)
+        mockrefresh.assert_not_called()
+        # changed
+        self.set_combo_from_value(combo, loc2)
+        mockrefresh.assert_called()
+        presenter.cleanup()
+
+    def test_refresh_only_called_when_value_changes_qty(self):
+        acc = Accession()
+        loc1 = Location(code='LOC1')
+        loc2 = Location(code='LOC2')
+        acc.intended_locations.append(
+            IntendedLocation(quantity=1,
+                             location=loc1,
+                             date=datetime.datetime.now())
+        )
+        self.session.add_all([acc, loc1, loc2])
+        presenter = IntendedLocationPresenter(unittest.mock.MagicMock(),
+                                              acc,
+                                              AccessionEditorView(),
+                                              self.session)
+        mockrefresh = unittest.mock.Mock()
+        presenter.refresh = mockrefresh
+
+        # not callled
+        presenter.on_qty_cell_edited(None, Gtk.TreePath.new_first(), 1)
+        mockrefresh.assert_not_called()
+        presenter.on_qty_cell_edited(None, Gtk.TreePath.new_first(), 0)
+        mockrefresh.assert_not_called()
+        presenter.on_qty_cell_edited(None, Gtk.TreePath.new_first(), None)
+        mockrefresh.assert_not_called()
+
+        # called
+        presenter.on_qty_cell_edited(None, Gtk.TreePath.new_first(), 10)
+        mockrefresh.assert_called()
+        presenter.cleanup()
+
+    def test_refresh_only_called_when_value_changes_planted(self):
+        acc = Accession()
+        loc1 = Location(code='LOC1')
+        loc2 = Location(code='LOC2')
+        acc.intended_locations.append(
+            IntendedLocation(quantity=1,
+                             location=loc1,
+                             date=datetime.datetime.now(),
+                             planted=False)
+        )
+        self.session.add_all([acc, loc1, loc2])
+        presenter = IntendedLocationPresenter(unittest.mock.MagicMock(),
+                                              acc,
+                                              AccessionEditorView(),
+                                              self.session)
+        mockrefresh = unittest.mock.Mock()
+        presenter.refresh = mockrefresh
+
+        # not callled
+        mockcell = unittest.mock.Mock()
+        mockcell.get_active.return_value = True
+        presenter.on_planted_toggled(mockcell, Gtk.TreePath.new_first())
+        mockrefresh.assert_not_called()
+
+        # called
+        mockcell.get_active.return_value = False
+        presenter.on_planted_toggled(mockcell, Gtk.TreePath.new_first())
+        mockrefresh.assert_called()
+        presenter.cleanup()
+
+    def test_refresh_only_called_when_value_changes_date(self):
+        acc = Accession()
+        loc1 = Location(code='LOC1')
+        loc2 = Location(code='LOC2')
+        date = datetime.datetime.now().date()
+        acc.intended_locations.append(
+            IntendedLocation(quantity=1,
+                             location=loc1,
+                             date=date,
+                             planted=False)
+        )
+        self.session.add_all([acc, loc1, loc2])
+        presenter = IntendedLocationPresenter(unittest.mock.MagicMock(),
+                                              acc,
+                                              AccessionEditorView(),
+                                              self.session)
+        mockrefresh = unittest.mock.Mock()
+        presenter.refresh = mockrefresh
+
+        # not callled - iso parse should work here
+        presenter.on_date_cell_edited(None, Gtk.TreePath.new_first(),
+                                      str(date))
+        mockrefresh.assert_not_called()
+
+        # called
+        presenter.on_date_cell_edited(None, Gtk.TreePath.new_first(),
+                                      '10/10/2023')
+        mockrefresh.assert_called()
+        presenter.cleanup()
+
+    def test_context_menu_add_plant_only_available_when_planted_false(self):
+        acc = Accession()
+        loc1 = Location(code='LOC1')
+        loc2 = Location(code='LOC2')
+        date = datetime.datetime.now().date()
+        int_loc = IntendedLocation(quantity=1,
+                                   location=loc1,
+                                   date=date,
+                                   planted=False)
+        acc.intended_locations.append(int_loc)
+        self.session.add_all([acc, loc1, loc2])
+        presenter = IntendedLocationPresenter(unittest.mock.MagicMock(),
+                                              acc,
+                                              AccessionEditorView(),
+                                              self.session)
+
+        treeview = presenter.view.widgets.intended_loc_treeview
+        action_group = treeview.get_action_group(INTENDED_ACTIONGRP_NAME)
+        plant_action = action_group.lookup_action('plant')
+
+        tree_selection = treeview.get_selection()
+        # set the cursor
+        treeview.set_cursor(Gtk.TreePath.new_first())
+
+        presenter.on_selection_changed(tree_selection)
+        self.assertTrue(plant_action.get_enabled())
+
+        int_loc.planted = True
+        presenter.on_selection_changed(tree_selection)
+        self.assertFalse(plant_action.get_enabled())
+
+        presenter.cleanup()
+
+    def test_context_menu_show_map_only_available_when_geojson(self):
+        acc = Accession()
+        loc1 = Location(code='LOC1')
+        loc2 = Location(code='LOC2')
+        date = datetime.datetime.now().date()
+        int_loc = IntendedLocation(quantity=1,
+                                   location=loc1,
+                                   date=date,
+                                   planted=False)
+        acc.intended_locations.append(int_loc)
+        self.session.add_all([acc, loc1, loc2])
+        presenter = IntendedLocationPresenter(unittest.mock.MagicMock(),
+                                              acc,
+                                              AccessionEditorView(),
+                                              self.session)
+
+        treeview = presenter.view.widgets.intended_loc_treeview
+        action_group = treeview.get_action_group(INTENDED_ACTIONGRP_NAME)
+        map_action = action_group.lookup_action('show')
+
+        tree_selection = treeview.get_selection()
+        # set the cursor
+        treeview.set_cursor(Gtk.TreePath.new_first())
+
+        presenter.on_selection_changed(tree_selection)
+        self.assertFalse(map_action.get_enabled())
+
+        loc1.geojson = {'test': 'test'}
+        presenter.on_selection_changed(tree_selection)
+        self.assertTrue(map_action.get_enabled())
+
+        presenter.cleanup()
+
+    def test_button_release_returns_false_unless_button_3(self):
+        presenter = IntendedLocationPresenter(unittest.mock.MagicMock(),
+                                              Accession(),
+                                              AccessionEditorView(),
+                                              self.session)
+
+        mockmenu = unittest.mock.MagicMock()
+        presenter.context_menu = mockmenu
+        mockevent = unittest.mock.Mock(button=1)
+        self.assertFalse(presenter.on_button_release(None, mockevent))
+        mockmenu.popup_at_pointer.assert_not_called()
+
+        mockevent = unittest.mock.Mock(button=3)
+        self.assertTrue(presenter.on_button_release(None, mockevent))
+        mockmenu.popup_at_pointer.assert_called()
+
+        presenter.cleanup()
+
+    @unittest.mock.patch('bauble.utils.desktop.open')
+    def test_on_map_kml_show_produces_file(self, mock_open):
+        acc = Accession()
+        loc1 = Location(code='LOC1', geojson={'test': 'test'})
+        loc2 = Location(code='LOC2')
+        acc.intended_locations.append(
+            IntendedLocation(quantity=1,
+                             location=loc1,
+                             date=datetime.datetime.now(),
+                             planted=False)
+        )
+        self.session.add_all([acc, loc1, loc2])
+        presenter = IntendedLocationPresenter(unittest.mock.MagicMock(),
+                                              acc,
+                                              AccessionEditorView(),
+                                              self.session)
+        presenter.view.widgets.intended_loc_treeview.set_cursor(
+            Gtk.TreePath.new_first()
+        )
+        template_str = "${value}"
+        template = utils.get_temp_path()
+        with template.open('w', encoding='utf-8') as f:
+            f.write(template_str)
+        from .location import LOC_KML_MAP_PREFS
+        prefs.prefs[LOC_KML_MAP_PREFS] = str(template)
+
+        presenter.on_map_kml_show()
+        with open(mock_open.call_args.args[0], encoding='utf-8') as f:
+            self.assertEqual(str(loc1), f.read())
+
+        presenter.cleanup()
+
+    @unittest.mock.patch('bauble.utils.yes_no_dialog')
+    @unittest.mock.patch('bauble.plugins.garden.accession.PlantEditor')
+    def test_on_add_plant_asks_to_commit(self, mockeditor, mock_dialog):
+        sp = self.session.query(Species).first()
+        acc = Accession(code='2023', species=sp)
+        loc1 = Location(code='LOC1')
+        loc2 = Location(code='LOC2')
+        acc.intended_locations.append(
+            IntendedLocation(quantity=1,
+                             location=loc1,
+                             date=datetime.datetime.now(),
+                             planted=False)
+        )
+        self.session.add_all([acc, loc1, loc2])
+        mock_parent = unittest.mock.MagicMock()
+        presenter = IntendedLocationPresenter(mock_parent,
+                                              acc,
+                                              AccessionEditorView(),
+                                              self.session)
+        # nothing selected should bail
+        presenter.on_add_plant()
+        mockeditor.assert_not_called()
+
+        # select something
+        presenter.view.widgets.intended_loc_treeview.set_cursor(
+            Gtk.TreePath.new_first()
+        )
+        mock_dialog.return_value = False
+
+        # dialog should ask to commit
+        presenter.on_add_plant()
+        mockeditor.assert_not_called()
+        mock_dialog.assert_called()
+
+        # commit and reset mock
+        self.session.commit()
+        mock_dialog.reset_mock()
+
+        # should not ask to commit just open PlantEditor
+        presenter.on_add_plant()
+        mockeditor.assert_called()
+        mock_dialog.assert_not_called()
+
+        presenter.cleanup()
+
+    @unittest.mock.patch('bauble.plugins.garden.accession.PlantEditor')
+    def test_on_add_plant_can_add_plants_without_effecting_current(self,
+                                                                   mockeditor):
+        sp = self.session.query(Species).first()
+        acc = Accession(code='2023', species=sp)
+        loc1 = Location(code='LOC1')
+        loc2 = Location(code='LOC2')
+        int_loc = IntendedLocation(quantity=1,
+                                   location=loc1,
+                                   date=datetime.datetime.now(),
+                                   planted=False)
+        acc.intended_locations.append(int_loc)
+        self.session.add_all([acc, loc1, loc2])
+        self.session.commit()
+
+        mock_parent = unittest.mock.MagicMock()
+        presenter = IntendedLocationPresenter(mock_parent,
+                                              acc,
+                                              AccessionEditorView(),
+                                              self.session)
+        # select something
+        presenter.view.widgets.intended_loc_treeview.set_cursor(
+            Gtk.TreePath.new_first()
+        )
+        mockeditor.start.return_value = True
+
+        # add the NEW plant
+        presenter.on_add_plant()
+
+        # grab the model supplied to PlantEditor and treat it as it would be in
+        # the editor when OK selected NOTE a bit dodgy! Emulating the presenter
+        # ...But it does prove that the supplied object is not associated to
+        # it's original session.
+        model = mockeditor.call_args.kwargs['model']
+        model.code = '1'    # next available value
+        session = db.Session()
+        session.merge(model)
+        session.commit()
+        session.close()
+
+        # at this point the only thing that should be in the original sessions
+        # dirty is the IntendedLocation (as it is now planted=True)
+        self.assertNotIn(sp, self.session.dirty)
+        self.assertNotIn(acc, self.session.dirty)
+        self.assertNotIn(loc1, self.session.dirty)
+        self.assertNotIn(loc2, self.session.dirty)
+        # the intended location has changed
+        self.assertIn(int_loc, self.session.dirty)
+        self.assertTrue(int_loc.planted)
+        # nothing NEW in the original session
+        self.assertFalse(self.session.new)
+
+        presenter.cleanup()
+
+    def test_on_tree_cursor_changed(self):
+        # test the remove button is enabled appropriately
+        presenter = IntendedLocationPresenter(unittest.mock.MagicMock(),
+                                              Accession(),
+                                              AccessionEditorView(),
+                                              self.session)
+        button = presenter.view.widgets.int_loc_remove_button
+        mock_treee_view = unittest.mock.Mock()
+        # sets insensitive
+        mock_treee_view.get_model.return_value = []
+        presenter.on_tree_cursor_changed(mock_treee_view)
+        self.assertFalse(button.get_sensitive())
+        # sets sensitive
+        mock_treee_view.get_model.return_value = [1]
+        presenter.on_tree_cursor_changed(mock_treee_view)
+        self.assertTrue(button.get_sensitive())
+
+        presenter.cleanup()
+
+    def test_on_add_clicked_adds(self):
+        # test a new IntendedLocation is added
+        acc = Accession()
+        loc1 = Location(code='LOC1')
+        self.session.add_all([acc, loc1])
+        presenter = IntendedLocationPresenter(unittest.mock.MagicMock(),
+                                              acc,
+                                              AccessionEditorView(),
+                                              self.session)
+        # no intended_locations yet
+        self.assertFalse(acc.intended_locations)
+
+        presenter.on_add_clicked(None)
+        # one added
+        self.assertEqual(len(acc.intended_locations), 1)
+        # with date and quantity set
+        self.assertEqual(acc.intended_locations[0].quantity, 1)
+        self.assertEqual(acc.intended_locations[0].date,
+                         datetime.datetime.now().date())
+        # treeview is selected and ready for input
+        treeview = presenter.view.widgets.intended_loc_treeview
+        self.assertTrue(all(treeview.get_cursor()))
+
+        presenter.cleanup()
+
+    def test_on_remove_clicked_removes(self):
+        sp = self.session.query(Species).first()
+        acc = Accession(code='2023', species=sp)
+        loc1 = Location(code='LOC1')
+        acc.intended_locations.append(
+            IntendedLocation(quantity=1,
+                             location=loc1,
+                             date=datetime.datetime.now(),
+                             planted=False)
+        )
+        presenter = IntendedLocationPresenter(unittest.mock.MagicMock(),
+                                              acc,
+                                              AccessionEditorView(),
+                                              self.session)
+        # has one intended_location
+        self.assertEqual(len(acc.intended_locations), 1)
+        # set the cursor
+        treeview = presenter.view.widgets.intended_loc_treeview
+        treeview.set_cursor(Gtk.TreePath.new_first())
+        presenter.on_remove_clicked(None)
+
+        # has no intended_locations
+        self.assertFalse(acc.intended_locations)
+
+        presenter.cleanup()
+
+    def test_on_remove_clicked_removes_sets_dirty_old_only(self):
+        sp = self.session.query(Species).first()
+        acc = Accession(code='2023', species=sp)
+        loc1 = Location(code='LOC1')
+        loc2 = Location(code='LOC2')
+        # need to commit the locations before committing the accession later
+        self.session.add_all([loc1, loc2])
+        self.session.commit()
+        acc.intended_locations.append(
+            IntendedLocation(quantity=1,
+                             location=loc1,
+                             date=datetime.datetime.now(),
+                             planted=False)
+        )
+        mock_parent = unittest.mock.MagicMock()
+        presenter = IntendedLocationPresenter(mock_parent,
+                                              acc,
+                                              AccessionEditorView(),
+                                              self.session)
+        # has one intended_location
+        self.assertEqual(len(acc.intended_locations), 1)
+        # set the cursor
+        treeview = presenter.view.widgets.intended_loc_treeview
+        treeview.set_cursor(Gtk.TreePath.new_first())
+        presenter.on_remove_clicked(None)
+
+        # has no intended_locations
+        self.assertFalse(acc.intended_locations)
+        # was new doesn't set dirty
+        self.assertFalse(presenter.is_dirty())
+
+        # commit an intended_location
+        int_loc = IntendedLocation(quantity=1,
+                                   location=loc2,
+                                   date=datetime.datetime.now(),
+                                   planted=False)
+        acc.intended_locations.append(int_loc)
+        self.session.add(acc)
+        self.session.commit()
+        # has one intended_location
+        self.assertEqual(len(acc.intended_locations), 1)
+        # add it to the treeview
+        model = treeview.get_model()
+        model.insert(0, [int_loc])
+        treeview.set_cursor(Gtk.TreePath.new_first())
+        self.assertFalse(presenter.is_dirty())
+        # click remove
+        presenter.on_remove_clicked(None)
+
+        # has no intended_locations
+        self.assertFalse(acc.intended_locations)
+        # was old does set dirty
+        self.assertTrue(presenter.is_dirty())
+        presenter.cleanup()
+
+
 class VerificationTests(GardenTestCase):
-
-    def __init__(self, *args):
-        super().__init__(*args)
-
-    def setUp(self):
-        super().setUp()
-
-    def tearDown(self):
-        super().tearDown()
 
     def test_verifications(self):
         acc = self.create(Accession, species=self.species, code='1')
@@ -2047,15 +2700,6 @@ class VerificationTests(GardenTestCase):
 
 
 class LocationTests(GardenTestCase):
-
-    def __init__(self, *args):
-        super().__init__(*args)
-
-    def setUp(self):
-        super().setUp()
-
-    def tearDown(self):
-        super().tearDown()
 
     def test_location_editor(self):
         loc = self.create(Location, name='some site', code='STE')

@@ -201,6 +201,11 @@ class BaubleTests(BaubleTestCase):
         ret = dtime.process_bind_param(now, None)
         self.assertEqual(ret, now)
 
+        # with junk text returns none
+        text = 'some random text'
+        ret = dtime.process_bind_param(text, None)
+        self.assertIsNone(ret)
+
     def test_bool_type(self):
         string = 'True'
         boolean = bauble.btypes.Boolean()
