@@ -731,10 +731,10 @@ class Plant(db.Base, db.Serializable, db.WithNotes):
                 'this change (that used the previous plant delimiter) will '
                 'not change, you may need to do this manually.')
         delimeter = meta.set_value(plant_delimiter_key,
-                                   default_plant_delimiter,
+                                   cls.get_delimiter(),
                                    msg)
         if delimeter:
-            cls._delimiter = delimeter.value
+            cls._delimiter = delimeter[0].value
         return cls._delimiter
 
     @property
