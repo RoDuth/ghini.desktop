@@ -623,7 +623,8 @@ class TestSearchView(BaubleTestCase):
         )
         mock_callback.assert_not_called()
 
-    def test_on_view_button_release_3_returns_true(self):
+    @mock.patch('bauble.view.Gtk.Menu.popup_at_pointer')
+    def test_on_view_button_release_3_returns_true(self, mock_popup):
         for func in get_setUp_data_funcs():
             func()
         search_view = self.search_view
@@ -643,6 +644,7 @@ class TestSearchView(BaubleTestCase):
             search_view.on_view_button_release(results_view, event)
         )
         mock_callback.assert_called()
+        mock_popup.assert_called()
 
 
 class TestHistoryView(BaubleTestCase):
