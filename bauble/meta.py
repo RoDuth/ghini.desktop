@@ -95,8 +95,15 @@ def confirm_default(name, default, msg, parent=None):
     return current_default
 
 
-def set_value(name, default, msg, parent=None):
+def set_value(names, defaults, msg, parent=None):
     """Allow the user to change the value of a BaubleMeta object at any time.
+
+    :param names: a string or list, if provided as a list of names allows
+        setting multiple values.
+    :param defaults: a string or list, if names is a list this should be a
+        corresponding list in the same order and same length.
+    :param msg: the message to display in the dialog.
+    :param parent: the parent window
     """
     meta = None
     from gi.repository import Gtk  # noqa
@@ -107,32 +114,46 @@ def set_value(name, default, msg, parent=None):
                                          parent=parent,
                                          resizable=False)
     box = dialog.get_message_area()
-    frame = Gtk.Frame(shadow_type=Gtk.ShadowType.NONE)
-    label = Gtk.Label(justify=Gtk.Justification.LEFT)
-    label.set_markup(f"<b>{name}:</b>")
-    frame.set_label_widget(label)
-    entry = Gtk.Entry()
-    entry.set_text(default)
-    frame.add(entry)
-    box.add(frame)
+    if isinstance(names, str):
+        names = [names]
+        defaults = [defaults]
+    entry_map = {}
+    for name, default in zip(names, defaults):
+        frame = Gtk.Frame(shadow_type=Gtk.ShadowType.NONE)
+        label = Gtk.Label(justify=Gtk.Justification.LEFT)
+        label.set_markup(f"<b>{name}:</b>")
+        frame.set_label_widget(label)
+        entry = Gtk.Entry()
+        entry_map[name] = entry
+        entry.set_text(default)
+        frame.add(entry)
+        box.add(frame)
     dialog.resize(1, 1)
     dialog.show_all()
     response = dialog.run()
+    metas = []
     if response == Gtk.ResponseType.OK:
         session = db.Session()
-        meta = session.query(BaubleMeta).filter_by(name=name).first()
-        meta = meta or BaubleMeta(name=name)
-        meta.value = entry.get_text()
-        session.add(meta)
-        session.commit()
-        # load the properties to avoid DetachedInstanceError
-        # pylint: disable=pointless-statement
-        meta.name
-        meta.value
+        for name, entry in entry_map.items():
+            value = entry.get_text()
+            if not value:
+                continue
+            meta = session.query(BaubleMeta).filter_by(name=name).first()
+            meta = meta or BaubleMeta(name=name)
+            meta.value = value
+            session.add(meta)
+            session.commit()
+            metas.append(meta)
+        for meta in metas:
+            # load the properties to avoid DetachedInstanceError
+            # pylint: disable=pointless-statement
+            meta.name
+            meta.value
+
         session.close()
 
     dialog.destroy()
-    return meta
+    return metas
 
 
 class BaubleMeta(db.Base):

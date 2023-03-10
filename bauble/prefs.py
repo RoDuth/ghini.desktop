@@ -114,9 +114,31 @@ is NOT saved to the config file.
 Values: True, False
 """
 
+root_directory_pref = 'bauble.root_directory'
+"""
+The preferences key for the default directory root
+"""
+
+document_path_pref = 'bauble.documents_path'
+"""
+The preferences key for the name of the documents subdirectory
+"""
+
+picture_path_pref = 'bauble.pictures_path'
+"""
+The preferences key for the name of the documents subdirectory
+"""
+
+document_root_pref = 'bauble.document_root'
+"""
+The preferences key for the default documents root, This is generated from the
+root_directory_pref.
+"""
+
 picture_root_pref = 'bauble.picture_root'
 """
-The preferences key for the default pictures root
+The preferences key for the default pictures root, This is generated from the
+root_directory_pref.
 """
 
 units_pref = 'bauble.units'
@@ -215,7 +237,7 @@ class _prefs(UserDict):
 
         # set some defaults if they don't exist (not added using update_prefs
         # because they are added even if the section already exists)
-        defaults = [(picture_root_pref, ''),
+        defaults = [(root_directory_pref, ''),
                     (date_format_pref, '%d-%m-%Y'),
                     (time_format_pref, '%I:%M:%S %p'),
                     (units_pref, 'metric'),
@@ -245,6 +267,63 @@ class _prefs(UserDict):
         # could provide an option for the seperator?
         fmat = f'{self.get(date_format_pref)} {self.get(time_format_pref)}'
         return fmat
+
+    @property
+    def root_directory(self):
+        section, option = self._parse_key(root_directory_pref)
+        if (self.config.has_section(section) and
+                self.config.has_option(section, option)):
+            root = self.config.get(section, option)
+            if root:
+                return root
+        meta_path = bauble.meta.get_default(root_directory_pref.split('.')[1])
+        return meta_path.value if meta_path else ''
+
+    @property
+    def document_root(self):
+        return os.path.join(self[root_directory_pref],
+                            self[document_path_pref])
+
+    @property
+    def documents_path(self):
+        section, option = self._parse_key(document_path_pref)
+        if (self.config.has_section(section) and
+                self.config.has_option(section, option)):
+            path = self.config.get(section, option)
+            if path:
+                return path
+        meta_path = bauble.meta.get_default(document_path_pref.split('.')[1])
+        return meta_path.value if meta_path else 'documents'
+
+    @documents_path.setter
+    def documents_path(self, path):
+        if path != self[document_path_pref]:
+            if os.path.exists(self.document_root):
+                os.rename(self.document_root,
+                          os.path.join(self.root_directory, path))
+
+    @property
+    def picture_root(self):
+        return os.path.join(self[root_directory_pref],
+                            self[picture_path_pref])
+
+    @property
+    def pictures_path(self):
+        section, option = self._parse_key(picture_path_pref)
+        if (self.config.has_section(section) and
+                self.config.has_option(section, option)):
+            path = self.config.get(section, option)
+            if path:
+                return path
+        meta_path = bauble.meta.get_default(picture_path_pref.split('.')[1])
+        return meta_path.value if meta_path else 'pictures'
+
+    @pictures_path.setter
+    def pictures_path(self, path):
+        if path != self[picture_path_pref]:
+            if os.path.exists(self.picture_root):
+                os.rename(self.picture_root,
+                          os.path.join(self.root_directory, path))
 
     def add_default(self, key, value):
         if key not in self:
@@ -279,6 +358,16 @@ class _prefs(UserDict):
             return self.yearfirst
         if key == datetime_format_pref:
             return self.datetime_format
+        if key == root_directory_pref:
+            return self.root_directory
+        if key == document_root_pref:
+            return self.document_root
+        if key == document_path_pref:
+            return self.documents_path
+        if key == picture_root_pref:
+            return self.picture_root
+        if key == picture_path_pref:
+            return self.pictures_path
 
         section, option = self._parse_key(key)
         # this doesn't allow None values for preferences
@@ -322,6 +411,10 @@ class _prefs(UserDict):
                 yield option, self.get(f'{section}.{option}')
 
     def __setitem__(self, key, value):
+        if key == document_path_pref:
+            self.documents_path = value
+        if key == picture_path_pref:
+            self.pictures_path = value
         section, option = self._parse_key(key)
         if not self.config.has_section(section):
             self.config.add_section(section)
@@ -377,6 +470,37 @@ def update_prefs(conf_file):
     prefs.save()
 
 
+def set_global_root(*_args):
+    """Ask user to set the global root directory in the BaubleMeta table."""
+    # NOTE this would require the user to first remove prefs for documents_path
+    # and pictures_path if set.  Also, it would be up to the user to move the
+    # pictures and documents root if they rename them.
+    msg = _('Set a global root directory that can be used by not setting the '
+            '"Root directory" option in the connection manager (user can '
+            'still override).'
+            '\n\nSetting pictures_path and documents_path allows setting the '
+            'subdirectory names used for these.')
+    names = [root_directory_pref.split('.')[1],
+             picture_path_pref.split('.')[1],
+             document_path_pref.split('.')[1]]
+    from bauble.connmgr import make_absolute, check_create_paths
+    defaults = [make_absolute(prefs.get(root_directory_pref)),
+                prefs.get(picture_path_pref),
+                prefs.get(document_path_pref)]
+    from bauble import meta
+    meta_paths = meta.set_value(names, defaults, msg)
+    if meta_paths:
+        check_create_paths(meta_paths[0].value)
+
+
+def post_gui():
+    """Do any setup that requires bauble.gui to be set first."""
+    bauble.gui.add_action("set_global_root", set_global_root)
+
+    item = Gio.MenuItem.new(_('Set global directory'), 'win.set_global_root')
+    bauble.gui.options_menu.append_item(item)
+
+
 @Gtk.Template(filename=str(Path(paths.lib_dir(), 'prefs_view.ui')))
 class PrefsView(pluginmgr.View, Gtk.Box):
     """The PrefsView displays the values in the plugin registry and displays
@@ -396,27 +520,27 @@ class PrefsView(pluginmgr.View, Gtk.Box):
         logger.debug('PrefsView::__init__')
         super().__init__()
         self.button_press_id = None
+        self.init_menu()
 
-    def on_button_press_event(self, widget, event):
+    def init_menu(self):
+        action_group_name = 'prefs_view'
+        action_group = Gio.SimpleActionGroup()
+        action = Gio.SimpleAction.new('insert', None)
+        action.connect('activate', self.on_prefs_insert_activate)
+        action_group.add_action(action)
+        item = Gio.MenuItem.new(_('_Insert'),
+                                f'{action_group_name}.insert')
+        menu_model = Gio.Menu()
+        menu_model.append_item(item)
+        self.context_menu = Gtk.Menu.new_from_model(menu_model)
+        self.context_menu.attach_to_widget(self.prefs_tv)
+        self.prefs_tv.insert_action_group(action_group_name, action_group)
+
+    def on_button_press_event(self, _widget, event):
         logger.debug('event.button %s', event.button)
         if event.button == 3:
 
-            action_name = 'prefs_insert'
-
-            if bauble.gui and not bauble.gui.lookup_action(action_name):
-                action = Gio.SimpleAction.new(action_name, None)
-                bauble.gui.window.add_action(action)
-                action.connect('activate', self.on_prefs_insert_activate)
-
-            item = Gio.MenuItem.new(_('_Insert'),
-                                    f'win.{action_name}')
-            menu_model = Gio.Menu()
-            menu_model.insert_item(0, item)
-            menu = Gtk.Menu.new_from_model(menu_model)
-            menu.attach_to_widget(widget)
-            logger.debug('attaching menu to %s', widget)
-
-            menu.popup_at_pointer(event)
+            self.context_menu.popup_at_pointer(event)
 
     def on_prefs_insert_activate(self, _action, _param):
         try:
@@ -505,7 +629,7 @@ class PrefsView(pluginmgr.View, Gtk.Box):
             new_val = new_text
 
         if isinstance(new_val, str):
-            if key.endswith('picture_root') and not Path(new_val).exists():
+            if key.endswith('root_directory') and not Path(new_val).exists():
                 new_val = ''
 
         new_val_type = type(new_val).__name__

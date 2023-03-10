@@ -182,6 +182,44 @@ def make_absolute(path):
     return path
 
 
+def check_create_paths(directory):
+    """Given a root directory, check and create the documents and pictures
+    directories.
+
+    :return: tuple - bool = False if any errors, error msg str
+    """
+    # if it's a file, things are not OK
+    root = make_absolute(directory)
+    docs = os.path.join(root, prefs.prefs.get(prefs.document_path_pref))
+    pics = os.path.join(root, prefs.prefs.get(prefs.picture_path_pref))
+    thumbs = os.path.join(pics, 'thumbs')
+    # root should exist as a directory
+    msg = ''
+    valid = [True]
+    if root:
+        for path, name in ((root, _('Root directory')),
+                           (docs, _('Documents directory')),
+                           (pics, _('Pictures directory')),):
+            if os.path.exists(path):
+                if not os.path.isdir(path):
+                    valid.append(False)
+                    msg += name + _(" name occupied by non directory.\n")
+            else:
+                os.mkdir(path)
+
+        if os.path.exists(pics) and os.path.isdir(pics):
+            if os.path.exists(thumbs):
+                if not os.path.isdir(thumbs):
+                    valid.append(False)
+                    msg += _("Thumbs directory name occupied by non "
+                             "directory")
+            else:
+                os.mkdir(thumbs)
+    valid = all(valid)
+
+    return valid, msg
+
+
 class ConnMgrPresenter(GenericEditorPresenter):
     """The main class that starts the connection manager GUI.
 
@@ -199,8 +237,8 @@ class ConnMgrPresenter(GenericEditorPresenter):
         'port_entry': 'port',
         'user_entry': 'user',
         'passwd_chkbx': 'passwd',
-        'pictureroot2_entry': 'pictureroot',
-        'pictureroot_entry': 'pictureroot',
+        'rootdir2_entry': 'rootdir',
+        'rootdir_entry': 'rootdir',
     }
 
     view_accept_buttons = ['cancel_button', 'connect_button']
@@ -211,7 +249,7 @@ class ConnMgrPresenter(GenericEditorPresenter):
         self.host = None
         self.port = None
         self.user = None
-        self.pictureroot = None
+        self.rootdir = None
         self.connection_name = None
         self.ignore = None
         self.prev_connection_name = None
@@ -268,25 +306,26 @@ class ConnMgrPresenter(GenericEditorPresenter):
             last_folder=last_folder, target='file_entry')
         self.replace_leading_appdata('file_entry')
 
-    def on_pictureroot_btnbrowse_clicked(self, *_args):
-        previously = self.view.widget_get_value('pictureroot_entry')
+    def on_rootdir_btnbrowse_clicked(self, *_args):
+        previously = self.view.widget_get_value('rootdir_entry')
         last_folder = self.get_parent_folder(previously)
         self.view.run_file_chooser_dialog(
             _("Choose a file…"),
             None,
             action=Gtk.FileChooserAction.CREATE_FOLDER,
-            last_folder=last_folder, target='pictureroot_entry')
-        self.replace_leading_appdata('pictureroot_entry')
+            last_folder=last_folder,
+            target='rootdir_entry')
+        self.replace_leading_appdata('rootdir_entry')
 
-    def on_pictureroot2_btnbrowse_clicked(self, *_args):
-        previously = self.view.widget_get_value('pictureroot2_entry')
+    def on_rootdir2_btnbrowse_clicked(self, *_args):
+        previously = self.view.widget_get_value('rootdir2_entry')
         last_folder = self.get_parent_folder(previously)
         self.view.run_file_chooser_dialog(
             _("Choose a file…"),
             None,
             action=Gtk.FileChooserAction.CREATE_FOLDER,
-            last_folder=last_folder, target='pictureroot2_entry')
-        self.replace_leading_appdata('pictureroot2_entry')
+            last_folder=last_folder, target='rootdir2_entry')
+        self.replace_leading_appdata('rootdir2_entry')
 
     def replace_leading_appdata(self, entry):
         value = self.view.widget_get_value(entry)
@@ -330,9 +369,9 @@ class ConnMgrPresenter(GenericEditorPresenter):
     def refresh_entries_sensitive(self):
         sensitive = not self.use_defaults
         self.view.widget_set_sensitive('file_entry', sensitive)
-        self.view.widget_set_sensitive('pictureroot_entry', sensitive)
+        self.view.widget_set_sensitive('rootdir_entry', sensitive)
         self.view.widget_set_sensitive('file_btnbrowse', sensitive)
-        self.view.widget_set_sensitive('pictureroot_btnbrowse', sensitive)
+        self.view.widget_set_sensitive('rootdirectory_btnbrowse', sensitive)
 
     def on_dialog_response(self, dialog, response):
         """The dialog's response signal handler."""
@@ -342,9 +381,10 @@ class ConnMgrPresenter(GenericEditorPresenter):
             if not valid:
                 self.view.run_message_dialog(msg, Gtk.MessageType.ERROR)
             if valid:
-                # ghini grabs pictures location from global setting
-                prefs.prefs[prefs.picture_root_pref] = make_absolute(
-                    settings['pictures'])
+                # grab directory location from global setting
+                prefs.prefs[prefs.root_directory_pref] = make_absolute(
+                    settings['directory']
+                )
                 self.save_current_to_prefs()
         elif response in (Gtk.ResponseType.CANCEL,
                           Gtk.ResponseType.DELETE_EVENT):
@@ -449,8 +489,8 @@ class ConnMgrPresenter(GenericEditorPresenter):
         self.view.widgets.type_combo.set_sensitive(True)
 
         conn_dict = self.connections
-        if self.prev_connection_name is not None and \
-                self.prev_connection_name in self.connection_names:
+        if (self.prev_connection_name is not None and
+                self.prev_connection_name in self.connection_names):
             # we are leaving some valid settings
             if self.prev_connection_name not in conn_dict:
                 msg = _("Do you want to save %s?") % self.prev_connection_name
@@ -489,8 +529,8 @@ class ConnMgrPresenter(GenericEditorPresenter):
         self.prev_connection_name = self.connection_name
 
         self.replace_leading_appdata('file_entry')
-        self.replace_leading_appdata('pictureroot_entry')
-        self.replace_leading_appdata('pictureroot2_entry')
+        self.replace_leading_appdata('rootdir_entry')
+        self.replace_leading_appdata('rootdir2_entry')
 
     def get_passwd(self):
         """Show a dialog with and entry and return the value entered."""
@@ -543,7 +583,7 @@ class ConnMgrPresenter(GenericEditorPresenter):
             return False, _("Please choose a name for this connection")
         valid = True
         msg = None
-        # first check connection parameters, then pictures path
+        # first check connection parameters, then directory path
         if params['type'] == 'SQLite':
             filename = make_absolute(params['file'])
             if not os.path.exists(filename):
@@ -581,24 +621,9 @@ class ConnMgrPresenter(GenericEditorPresenter):
                         ) % "\n".join(missing_fields)
         if not valid:
             return valid, msg
-        # now check the params['pictures']
-        # if it's a file, things are not OK
-        root = make_absolute(params['pictures'])
-        thumbs = os.path.join(root, 'thumbs')
-        # root should exist as a directory
-        if os.path.exists(root):
-            if not os.path.isdir(root):
-                valid = False
-                msg = _("Pictures root name occupied by non directory.")
-            elif os.path.exists(thumbs):
-                if not os.path.isdir(thumbs):
-                    valid = False
-                    msg = _("Thumbnails name occupied by non directory.")
-        else:
-            os.mkdir(root)
-        # root should contain the thumbs directory
-        if valid and not os.path.exists(thumbs):
-            os.mkdir(thumbs)
+        # now check the params['directory']
+        valid, msg = check_create_paths(params['directory'])
+
         return valid, msg
 
     def get_params(self, new=None):
@@ -609,18 +634,17 @@ class ConnMgrPresenter(GenericEditorPresenter):
             if self.use_defaults is True:
                 name = new or self.connection_name
                 self.filename = os.path.join('.', name + '.db')
-                self.pictureroot = os.path.join('.', name)
+                self.rootdir = os.path.join('.', name)
             result = {'file': self.filename,
                       'default': self.use_defaults,
-                      'pictures': self.pictureroot}
+                      'directory': self.rootdir}
         else:
             result = {'db': self.database,
                       'host': self.host,
                       'port': self.port,
                       'user': self.user,
-                      'pictures': self.pictureroot,
-                      'passwd': self.passwd,
-                      }
+                      'directory': self.rootdir,
+                      'passwd': self.passwd}
         result['type'] = self.dbtype
         return result
 
@@ -631,13 +655,13 @@ class ConnMgrPresenter(GenericEditorPresenter):
         if self.dbtype == 'SQLite':
             self.filename = params['file']
             self.use_defaults = params['default']
-            self.pictureroot = params.get('pictures', '')
+            self.rootdir = params.get('directory', '')
         else:
             self.database = params['db']
             self.host = params['host']
             self.port = params.get('port')
             self.user = params['user']
-            self.pictureroot = params.get('pictures', '')
+            self.rootdir = params.get('directory', '')
             self.passwd = params['passwd']
         self.refresh_view()
 
@@ -645,10 +669,20 @@ class ConnMgrPresenter(GenericEditorPresenter):
 def start_connection_manager():
     """activate connection manager and return connection name and uri"""
     glade_path = os.path.join(paths.lib_dir(), "connmgr.glade")
+    tooltips = {
+        'rootdir2_entry': _('Set a directory to store file data in.  If left '
+                            'blank you can set a global directory in the '
+                            'datbase via the options menu.'),
+        'rootdir_entry': _('Set a directory to store file data in.  If left '
+                           'blank you can set a global directory in the '
+                           'datbase via the options menu.')
+    }
     view = GenericEditorView(
         glade_path,
         parent=None,
-        root_widget_name='main_dialog')
+        root_widget_name='main_dialog',
+        tooltips=tooltips
+    )
 
     con_mgr = ConnMgrPresenter(view)
     result = con_mgr.start()

@@ -477,7 +477,7 @@ class GlobalFuncsTests(BaubleTestCase):
         for i, out in enumerate(utils.read_in_chunks(mock_file, 3)):
             self.assertEqual(data[i * 3: (i + 1) * 3], out)
 
-    def test_copy_picture_with_thumbnail(self):
+    def test_copy_picture_with_thumbnail_wo_basename(self):
         import filecmp
         from PIL import Image
         img = Image.new('CMYK', size=(2000, 2000), color=(155, 0, 0))
@@ -485,12 +485,52 @@ class GlobalFuncsTests(BaubleTestCase):
         temp_img_path = str(Path(temp_source.name, 'test.jpg'))
         img.save(temp_img_path, format='JPEG')
         with TemporaryDirectory() as temp_dir:
-            thumbs_dir = Path(temp_dir, 'thumbs')
-            os.mkdir(thumbs_dir)
-            prefs.prefs[prefs.picture_root_pref] = temp_dir
+            thumbs_dir = Path(temp_dir, 'pictures', 'thumbs')
+            os.makedirs(thumbs_dir)
+            prefs.prefs[prefs.root_directory_pref] = temp_dir
             out = utils.copy_picture_with_thumbnail(temp_img_path)
-            filecmp.cmp(temp_img_path, str(Path(temp_dir, 'test.jpg')))
+            filecmp.cmp(temp_img_path,
+                        str(Path(temp_dir, 'pictures', 'test.jpg')))
             self.assertIsNotNone(thumbs_dir / 'test.jpg')
+        temp_source.cleanup()
+        self.assertEqual(len(out), 10464)
+
+    def test_copy_picture_with_thumbnail_w_basename(self):
+        import filecmp
+        from PIL import Image
+        img = Image.new('CMYK', size=(2000, 2000), color=(155, 0, 0))
+        temp_source = TemporaryDirectory()
+        temp_img_path = str(Path(temp_source.name, 'test.jpg'))
+        img.save(temp_img_path, format='JPEG')
+        path, basename = os.path.split(temp_img_path)
+        with TemporaryDirectory() as temp_dir:
+            thumbs_dir = Path(temp_dir, 'pictures', 'thumbs')
+            os.makedirs(thumbs_dir)
+            prefs.prefs[prefs.root_directory_pref] = temp_dir
+            out = utils.copy_picture_with_thumbnail(path, basename)
+            filecmp.cmp(temp_img_path,
+                        str(Path(temp_dir, 'pictures', 'test.jpg')))
+            self.assertIsNotNone(thumbs_dir / 'test.jpg')
+        temp_source.cleanup()
+        self.assertEqual(len(out), 10464)
+
+    def test_copy_picture_with_thumbnail_w_basename_rename(self):
+        import filecmp
+        from PIL import Image
+        img = Image.new('CMYK', size=(2000, 2000), color=(155, 0, 0))
+        temp_source = TemporaryDirectory()
+        temp_img_path = str(Path(temp_source.name, 'test.jpg'))
+        img.save(temp_img_path, format='JPEG')
+        path, basename = os.path.split(temp_img_path)
+        rename = 'test123.jpg'
+        with TemporaryDirectory() as temp_dir:
+            thumbs_dir = Path(temp_dir, 'pictures', 'thumbs')
+            os.makedirs(thumbs_dir)
+            prefs.prefs[prefs.root_directory_pref] = temp_dir
+            out = utils.copy_picture_with_thumbnail(path, basename, rename)
+            filecmp.cmp(temp_img_path,
+                        str(Path(temp_dir, 'pictures', rename)))
+            self.assertIsNotNone(thumbs_dir / rename)
         temp_source.cleanup()
         self.assertEqual(len(out), 10464)
 

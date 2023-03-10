@@ -306,7 +306,7 @@ Click on &lt;b&gt;Add&lt;/b&gt; to create a new connection.</property>
                                     <property name="visible">True</property>
                                     <property name="can-focus">False</property>
                                     <property name="halign">end</property>
-                                    <property name="label" translatable="yes">Pictures root:</property>
+                                    <property name="label" translatable="yes">Root directory:</property>
                                     <property name="xalign">0</property>
                                   </object>
                                   <packing>
@@ -320,7 +320,7 @@ Click on &lt;b&gt;Add&lt;/b&gt; to create a new connection.</property>
                                     <property name="can-focus">False</property>
                                     <property name="hexpand">True</property>
                                     <child>
-                                      <object class="GtkEntry" id="pictureroot_entry">
+                                      <object class="GtkEntry" id="rootdir_entry">
                                         <property name="visible">True</property>
                                         <property name="can-focus">True</property>
                                         <property name="hexpand">True</property>
@@ -336,12 +336,12 @@ Click on &lt;b&gt;Add&lt;/b&gt; to create a new connection.</property>
                                       </packing>
                                     </child>
                                     <child>
-                                      <object class="GtkButton" id="pictureroot_btnbrowse">
+                                      <object class="GtkButton" id="rootdirectory_btnbrowse">
                                         <property name="visible">True</property>
                                         <property name="can-focus">True</property>
                                         <property name="receives-default">True</property>
-                                        <signal name="activate" handler="on_pictureroot_btnbrowse_clicked" swapped="no"/>
-                                        <signal name="clicked" handler="on_pictureroot_btnbrowse_clicked" swapped="no"/>
+                                        <signal name="activate" handler="on_rootdir_btnbrowse_clicked" swapped="no"/>
+                                        <signal name="clicked" handler="on_rootdir_btnbrowse_clicked" swapped="no"/>
                                         <child>
                                           <object class="GtkImage">
                                             <property name="visible">True</property>
@@ -516,7 +516,7 @@ Click on &lt;b&gt;Add&lt;/b&gt; to create a new connection.</property>
                                     <property name="visible">True</property>
                                     <property name="can-focus">False</property>
                                     <property name="halign">end</property>
-                                    <property name="label" translatable="yes">Pictures root:</property>
+                                    <property name="label" translatable="yes">Root directory:</property>
                                     <property name="xalign">0</property>
                                   </object>
                                   <packing>
@@ -530,7 +530,7 @@ Click on &lt;b&gt;Add&lt;/b&gt; to create a new connection.</property>
                                     <property name="can-focus">False</property>
                                     <property name="hexpand">True</property>
                                     <child>
-                                      <object class="GtkEntry" id="pictureroot2_entry">
+                                      <object class="GtkEntry" id="rootdir2_entry">
                                         <property name="visible">True</property>
                                         <property name="can-focus">True</property>
                                         <property name="hexpand">True</property>
@@ -546,12 +546,12 @@ Click on &lt;b&gt;Add&lt;/b&gt; to create a new connection.</property>
                                       </packing>
                                     </child>
                                     <child>
-                                      <object class="GtkButton" id="pictureroot2_btnbrowse">
+                                      <object class="GtkButton" id="rootdirectory2_btnbrowse">
                                         <property name="visible">True</property>
                                         <property name="can-focus">True</property>
                                         <property name="receives-default">True</property>
-                                        <signal name="activate" handler="on_pictureroot2_btnbrowse_clicked" swapped="no"/>
-                                        <signal name="clicked" handler="on_pictureroot2_btnbrowse_clicked" swapped="no"/>
+                                        <signal name="activate" handler="on_rootdir2_btnbrowse_clicked" swapped="no"/>
+                                        <signal name="clicked" handler="on_rootdir2_btnbrowse_clicked" swapped="no"/>
                                         <child>
                                           <object class="GtkImage">
                                             <property name="visible">True</property>

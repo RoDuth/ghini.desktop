@@ -116,32 +116,29 @@
       <action-widget response="1">codes_ok_button</action-widget>
     </action-widgets>
   </object>
+  <object class="GtkAdjustment" id="acc_price_adj">
+    <property name="upper">1000000000</property>
+    <property name="step-increment">1</property>
+    <property name="page-increment">10</property>
+  </object>
+  <object class="GtkAdjustment" id="acc_quantity_adj">
+    <property name="lower">1</property>
+    <property name="upper">1000000000</property>
+    <property name="step-increment">1</property>
+    <property name="page-increment">10</property>
+  </object>
   <object class="GtkAdjustment" id="alt_accuracy">
-    <property name="lower">0</property>
     <property name="upper">10000</property>
     <property name="step-increment">1</property>
     <property name="page-increment">10</property>
   </object>
   <object class="GtkAdjustment" id="geo_accuracy">
-    <property name="lower">0</property>
     <property name="upper">10000</property>
     <property name="step-increment">1</property>
     <property name="page-increment">10</property>
   </object>
   <object class="GtkListStore" id="int_loc_liststore"/>
   <object class="GtkAdjustment" id="int_loc_qty_adj">
-    <property name="lower">1</property>
-    <property name="upper">1000000000</property>
-    <property name="step-increment">1</property>
-    <property name="page-increment">10</property>
-  </object>
-  <object class="GtkAdjustment" id="acc_price_adj">
-    <property name="lower">0</property>
-    <property name="upper">1000000000</property>
-    <property name="step-increment">1</property>
-    <property name="page-increment">10</property>
-  </object>
-  <object class="GtkAdjustment" id="acc_quantity_adj">
     <property name="lower">1</property>
     <property name="upper">1000000000</property>
     <property name="step-increment">1</property>
@@ -2776,6 +2773,30 @@
                   </object>
                   <packing>
                     <property name="position">5</property>
+                    <property name="tab-fill">False</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkBox" id="document_parent_box">
+                    <property name="visible">True</property>
+                    <property name="can-focus">False</property>
+                    <property name="orientation">vertical</property>
+                    <child>
+                      <placeholder/>
+                    </child>
+                  </object>
+                  <packing>
+                    <property name="position">6</property>
+                  </packing>
+                </child>
+                <child type="tab">
+                  <object class="GtkLabel">
+                    <property name="visible">True</property>
+                    <property name="can-focus">False</property>
+                    <property name="label" translatable="yes">Documents</property>
+                  </object>
+                  <packing>
+                    <property name="position">6</property>
                     <property name="tab-fill">False</property>
                   </packing>
                 </child>

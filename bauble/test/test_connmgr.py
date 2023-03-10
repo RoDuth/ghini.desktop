@@ -22,6 +22,7 @@ import os
 # import SkipTest otherwise! and commented out because of FlyCheck.
 from unittest import SkipTest, mock
 from pathlib import Path
+from tempfile import mkdtemp
 
 import gi
 gi.require_version("Gtk", "3.0")
@@ -34,7 +35,8 @@ from bauble.test import BaubleTestCase, check_dupids
 from bauble.connmgr import (ConnMgrPresenter,
                             check_new_release,
                             retrieve_latest_release_data,
-                            notify_new_release)
+                            notify_new_release,
+                            check_create_paths)
 from bauble.editor import MockView, MockDialog
 
 RESPONSE_OK = Gtk.ResponseType.OK
@@ -77,7 +79,7 @@ class ConnMgrPresenterTests(BaubleTestCase):
                                 'type_combo': []})
         prefs.prefs[bauble.conn_list_pref] = {
             'nugkui': {'default': True,
-                       'pictures': 'nugkui',
+                       'directory': 'nugkui',
                        'type': 'SQLite',
                        'file': 'nugkui.db'}}
         presenter = ConnMgrPresenter(view)
@@ -99,7 +101,7 @@ class ConnMgrPresenterTests(BaubleTestCase):
                                 'type_combo': []})
         prefs.prefs[bauble.conn_list_pref] = {
             'nugkui': {'default': True,
-                       'pictures': 'nugkui',
+                       'directory': 'nugkui',
                        'type': 'SQLite',
                        'file': 'nugkui.db'}}
         presenter = ConnMgrPresenter(view)
@@ -116,7 +118,7 @@ class ConnMgrPresenterTests(BaubleTestCase):
                                 'type_combo': []})
         prefs.prefs[bauble.conn_list_pref] = {
             'nugkui': {'default': True,
-                       'pictures': 'nugkui',
+                       'directory': 'nugkui',
                        'type': 'SQLite',
                        'file': 'nugkui.db'}}
         presenter = ConnMgrPresenter(view)
@@ -133,11 +135,11 @@ class ConnMgrPresenterTests(BaubleTestCase):
                                 'type_combo': []})
         prefs.prefs[bauble.conn_list_pref] = {
             'nugkui': {'default': True,
-                       'pictures': 'nugkui',
+                       'directory': 'nugkui',
                        'type': 'SQLite',
                        'file': 'nugkui.db'},
             'btuu': {'default': False,
-                     'pictures': 'btuu',
+                     'directory': 'btuu',
                      'type': 'SQLite',
                      'file': 'btuu.db'}}
         prefs.prefs[bauble.conn_default_pref] = 'nugkui'
@@ -152,11 +154,11 @@ class ConnMgrPresenterTests(BaubleTestCase):
                                 'type_combo': []})
         prefs.prefs[bauble.conn_list_pref] = {
             'nugkui': {'default': True,
-                       'pictures': 'nugkui',
+                       'directory': 'nugkui',
                        'type': 'SQLite',
                        'file': 'nugkui.db'},
             'btuu': {'default': False,
-                     'pictures': 'btuu',
+                     'directory': 'btuu',
                      'type': 'SQLite',
                      'file': 'btuu.db'}}
         prefs.prefs[bauble.conn_default_pref] = 'bruu'
@@ -171,11 +173,11 @@ class ConnMgrPresenterTests(BaubleTestCase):
                                 'type_combo': []})
         prefs.prefs[bauble.conn_list_pref] = {
             'nugkui': {'default': True,
-                       'pictures': 'nugkui',
+                       'directory': 'nugkui',
                        'type': 'SQLite',
                        'file': 'nugkui.db'},
             'btuu': {'default': True,
-                     'pictures': 'btuu',
+                     'directory': 'btuu',
                      'type': 'SQLite',
                      'file': 'btuu.db'}}
         presenter = ConnMgrPresenter(view)
@@ -192,7 +194,7 @@ class ConnMgrPresenterTests(BaubleTestCase):
                                 'type_combo': []})
         prefs.prefs[bauble.conn_list_pref] = {
             'nugkui': {'default': True,
-                       'pictures': 'nugkui',
+                       'directory': 'nugkui',
                        'type': 'SQLite',
                        'file': 'nugkui.db'}}
         prefs.prefs[bauble.conn_default_pref] = 'nugkui'
@@ -208,7 +210,7 @@ class ConnMgrPresenterTests(BaubleTestCase):
                                 'type_combo': []})
         prefs.prefs[bauble.conn_list_pref] = {
             'quisquis': {'passwd': False,
-                         'pictures': '',
+                         'directory': '',
                          'db': 'quisquis',
                          'host': 'localhost',
                          'user': 'pg',
@@ -230,7 +232,7 @@ class ConnMgrPresenterTests(BaubleTestCase):
                                 'type_combo': []})
         prefs.prefs[bauble.conn_list_pref] = {
             'quisquis': {'passwd': False,
-                         'pictures': '',
+                         'directory': '',
                          'db': 'quisquis',
                          'host': 'localhost',
                          'user': 'pg',
@@ -253,11 +255,11 @@ class ConnMgrPresenterTests(BaubleTestCase):
         prefs.prefs[bauble.conn_default_pref] = 'nugkui'
         prefs.prefs[bauble.conn_list_pref] = {
             'nugkui': {'default': True,
-                       'pictures': 'nugkui',
+                       'directory': 'nugkui',
                        'type': 'SQLite',
                        'file': 'nugkui.db'},
             'quisquis': {'passwd': False,
-                         'pictures': '',
+                         'directory': '',
                          'db': 'quisquis',
                          'host': 'localhost',
                          'user': 'pg',
@@ -274,11 +276,11 @@ class ConnMgrPresenterTests(BaubleTestCase):
         prefs.prefs[bauble.conn_list_pref] = {
             'nugkui': {'type': 'SQLite',
                        'default': True,
-                       'pictures': 'nugkui',
+                       'directory': 'nugkui',
                        'file': 'nugkui.db'},
             'quisquis': {'type': 'PostgreSQL',
                          'passwd': False,
-                         'pictures': '',
+                         'directory': '',
                          'db': 'quisquis',
                          'host': 'localhost',
                          'user': 'pg'}}
@@ -308,7 +310,7 @@ class ConnMgrPresenterTests(BaubleTestCase):
         prefs.prefs[bauble.conn_list_pref] = {
             'nugkui': {'type': 'SQLite',
                        'default': True,
-                       'pictures': 'nugkui',
+                       'directory': 'nugkui',
                        'file': 'nugkui.db'},
             }
         presenter = ConnMgrPresenter(view)
@@ -324,7 +326,7 @@ class ConnMgrPresenterTests(BaubleTestCase):
         prefs.prefs[bauble.conn_list_pref] = {
             'quisquis': {'type': 'PostgreSQL',
                          'passwd': False,
-                         'pictures': '/tmp/',
+                         'directory': '/tmp/',
                          'db': 'quisquis',
                          'host': 'localhost',
                          'user': 'pg'}}
@@ -347,7 +349,7 @@ class ConnMgrPresenterTests(BaubleTestCase):
         sqlite_params = {'type': 'SQLite',
                          'default': False,
                          'file': '/tmp/test.db',
-                         'pictures': '/tmp/'}
+                         'directory': '/tmp/'}
         params = copy.copy(sqlite_params)
         valid, message = presenter.check_parameters_valid(params)
         self.assertTrue(valid)
@@ -364,12 +366,12 @@ class ConnMgrPresenterTests(BaubleTestCase):
         params = {'type': 'SQLite',
                   'default': False,
                   'file': '/tmp/test.db',
-                  'pictures': '/tmp/'}
+                  'directory': '/tmp/'}
         self.assertEqual(presenter.parameters_to_uri(params),
                           'sqlite:////tmp/test.db')
         params = {'type': 'PostgreSQL',
                   'passwd': False,
-                  'pictures': '/tmp/',
+                  'directory': '/tmp/',
                   'db': 'quisquis',
                   'host': 'localhost',
                   'user': 'pg'}
@@ -377,7 +379,7 @@ class ConnMgrPresenterTests(BaubleTestCase):
                           'postgresql://pg@localhost/quisquis')
         params = {'type': 'PostgreSQL',
                   'passwd': True,
-                  'pictures': '/tmp/',
+                  'directory': '/tmp/',
                   'db': 'quisquis',
                   'host': 'localhost',
                   'user': 'pg'}
@@ -386,7 +388,7 @@ class ConnMgrPresenterTests(BaubleTestCase):
                           'postgresql://pg:secret@localhost/quisquis')
         params = {'type': 'PostgreSQL',
                   'passwd': False,
-                  'pictures': '/tmp/',
+                  'directory': '/tmp/',
                   'port': '9876',
                   'db': 'quisquis',
                   'host': 'localhost',
@@ -395,7 +397,7 @@ class ConnMgrPresenterTests(BaubleTestCase):
                           'postgresql://pg@localhost:9876/quisquis')
         params = {'type': 'PostgreSQL',
                   'passwd': True,
-                  'pictures': '/tmp/',
+                  'directory': '/tmp/',
                   'port': '9876',
                   'db': 'quisquis',
                   'host': 'localhost',
@@ -405,7 +407,7 @@ class ConnMgrPresenterTests(BaubleTestCase):
                           'postgresql://pg:secret@localhost:9876/quisquis')
         params = {'type': 'PostgreSQL',
                   'passwd': False,
-                  'pictures': '/tmp/',
+                  'directory': '/tmp/',
                   'options': ['is_this_possible=no',
                               'why_do_we_test=because'],
                   'db': 'quisquis',
@@ -422,7 +424,7 @@ class ConnMgrPresenterTests(BaubleTestCase):
         prefs.prefs[bauble.conn_list_pref] = {
             'quisquis': {'type': 'PostgreSQL',
                          'passwd': False,
-                         'pictures': '/tmp/',
+                         'directory': '/tmp/',
                          'db': 'quisquis',
                          'host': 'localhost',
                          'user': 'pg'}}
@@ -477,7 +479,7 @@ class AddConnectionTests(BaubleTestCase):
                                 'type_combo': []})
         prefs.prefs[bauble.conn_list_pref] = {
             'nugkui': {'default': True,
-                       'pictures': 'nugkui',
+                       'directory': 'nugkui',
                        'type': 'SQLite',
                        'file': 'nugkui.db'}}
         prefs.prefs[bauble.conn_default_pref] = 'nugkui'
@@ -512,9 +514,9 @@ class AddConnectionTests(BaubleTestCase):
                                 'type_combo': []})
         presenter = ConnMgrPresenter(view)
         path = str(Path(paths.appdata_dir(), 'test/this'))
-        presenter.view.widget_set_value('pictureroot_entry', path)
-        presenter.replace_leading_appdata('pictureroot_entry')
-        self.assertEqual(presenter.view.widget_get_value('pictureroot_entry'),
+        presenter.view.widget_set_value('rootdir_entry', path)
+        presenter.replace_leading_appdata('rootdir_entry')
+        self.assertEqual(presenter.view.widget_get_value('rootdir_entry'),
                          './test/this')
 
 
@@ -659,6 +661,29 @@ class GlobalFunctionsTests(BaubleTestCase):
             logs.records[0].getMessage()
         )
 
+    def test_check_create_paths(self):
+        temp_dir = mkdtemp()
+        valid, msg = check_create_paths(temp_dir)
+        self.assertTrue(valid)
+        self.assertFalse(msg)
+        self.assertTrue(os.path.isdir(os.path.join(temp_dir, 'pictures')))
+        self.assertTrue(
+            os.path.isdir(os.path.join(temp_dir, 'pictures', 'thumbs'))
+        )
+        self.assertTrue(os.path.isdir(os.path.join(temp_dir, 'documents')))
+        temp_dir = mkdtemp()
+        Path(temp_dir, 'documents').touch()
+        Path(temp_dir, 'pictures').mkdir()
+        Path(temp_dir, 'pictures', 'thumbs').touch()
+        valid, msg = check_create_paths(temp_dir)
+        self.assertFalse(valid)
+        self.assertTrue(msg)
+        self.assertTrue(os.path.isdir(os.path.join(temp_dir, 'pictures')))
+        self.assertFalse(
+            os.path.isdir(os.path.join(temp_dir, 'pictures', 'thumbs'))
+        )
+        self.assertFalse(os.path.isdir(os.path.join(temp_dir, 'documents')))
+
 
 class ButtonBrowseButtons(BaubleTestCase):
     def test_file_chosen(self):
@@ -679,41 +704,41 @@ class ButtonBrowseButtons(BaubleTestCase):
         presenter.on_file_btnbrowse_clicked()
         self.assertEqual(presenter.filename, 'previously')
 
-    def test_pictureroot_chosen(self):
+    def test_rootdir_chosen(self):
         view = MockView(combos={'name_combo': [],
                                 'type_combo': []})
         view.reply_file_chooser_dialog.append('chosen')
         presenter = ConnMgrPresenter(view)
-        presenter.on_pictureroot_btnbrowse_clicked()
-        presenter.on_text_entry_changed('pictureroot_entry')
-        self.assertEqual(presenter.pictureroot, 'chosen')
+        presenter.on_rootdir_btnbrowse_clicked()
+        presenter.on_text_entry_changed('rootdir_entry')
+        self.assertEqual(presenter.rootdir, 'chosen')
 
-    def test_pictureroot_not_chosen(self):
+    def test_rootdir_not_chosen(self):
         view = MockView(combos={'name_combo': [],
                                 'type_combo': []})
         view.reply_file_chooser_dialog = []
         presenter = ConnMgrPresenter(view)
-        presenter.pictureroot = 'previously'
-        presenter.on_pictureroot_btnbrowse_clicked()
-        self.assertEqual(presenter.pictureroot, 'previously')
+        presenter.rootdir = 'previously'
+        presenter.on_rootdir_btnbrowse_clicked()
+        self.assertEqual(presenter.rootdir, 'previously')
 
-    def test_pictureroot2_chosen(self):
+    def test_rootdir2_chosen(self):
         view = MockView(combos={'name_combo': [],
                                 'type_combo': []})
         view.reply_file_chooser_dialog.append('chosen')
         presenter = ConnMgrPresenter(view)
-        presenter.on_pictureroot2_btnbrowse_clicked()
-        presenter.on_text_entry_changed('pictureroot2_entry')
-        self.assertEqual(presenter.pictureroot, 'chosen')
+        presenter.on_rootdir2_btnbrowse_clicked()
+        presenter.on_text_entry_changed('rootdir2_entry')
+        self.assertEqual(presenter.rootdir, 'chosen')
 
-    def test_pictureroot2_not_chosen(self):
+    def test_rootdir2_not_chosen(self):
         view = MockView(combos={'name_combo': [],
                                 'type_combo': []})
         view.reply_file_chooser_dialog = []
         presenter = ConnMgrPresenter(view)
-        presenter.pictureroot = 'previously'
-        presenter.on_pictureroot2_btnbrowse_clicked()
-        self.assertEqual(presenter.pictureroot, 'previously')
+        presenter.rootdir = 'previously'
+        presenter.on_rootdir2_btnbrowse_clicked()
+        self.assertEqual(presenter.rootdir, 'previously')
 
 
 class OnDialogResponseTests(BaubleTestCase):
@@ -732,11 +757,11 @@ class OnDialogResponseTests(BaubleTestCase):
                                 'type_combo': []})
         prefs.prefs[bauble.conn_list_pref] = {
             'nugkui': {'default': False,
-                       'pictures': '/tmp/nugkui',
+                       'directory': '/tmp/nugkui',
                        'type': 'SQLite',
                        'file': '/tmp/nugkui.db'}}
         prefs.prefs[bauble.conn_default_pref] = 'nugkui'
-        prefs.prefs[prefs.picture_root_pref] = '/tmp'
+        prefs.prefs[prefs.root_directory_pref] = '/tmp'
         view.reply_file_chooser_dialog = []
         presenter = ConnMgrPresenter(view)
         dialog = MockDialog()
@@ -744,7 +769,8 @@ class OnDialogResponseTests(BaubleTestCase):
         presenter.on_dialog_response(dialog, RESPONSE_OK)
         self.assertFalse('run_message_dialog' in view.invoked)
         self.assertTrue(dialog.hidden)
-        self.assertEqual(prefs.prefs[prefs.picture_root_pref], '/tmp/nugkui')
+        self.assertEqual(prefs.prefs[prefs.picture_root_pref],
+                         '/tmp/nugkui/pictures')
 
     def test_on_dialog_response_cancel(self):
         view = MockView(combos={'name_combo': [],
@@ -762,7 +788,7 @@ class OnDialogResponseTests(BaubleTestCase):
                                 'type_combo': []})
         prefs.prefs[bauble.conn_list_pref] = {
             'nugkui': {'default': False,
-                       'pictures': '/tmp/nugkui',
+                       'directory': '/tmp/nugkui',
                        'type': 'SQLite',
                        'file': '/tmp/nugkui.db'}}
         prefs.prefs[bauble.conn_default_pref] = 'nugkui'
@@ -812,10 +838,10 @@ class OnDialogResponseTests(BaubleTestCase):
                                 'type_combo': []})
         prefs.prefs[bauble.conn_list_pref] = {
             'nugkui': {'default': False,
-                       'pictures': path,
+                       'directory': path,
                        'type': 'SQLite',
                        'file': path + '.db'}}
-        (prefs.prefs[prefs.picture_root_pref],
+        (prefs.prefs[prefs.root_directory_pref],
          prefs.prefs[bauble.conn_default_pref],
          ) = os.path.split(path)
         view.reply_file_chooser_dialog = []
@@ -829,7 +855,9 @@ class OnDialogResponseTests(BaubleTestCase):
         # check existence of pictures folder
         self.assertTrue(os.path.isdir(path))
         # check existence of thumbnails folder
-        self.assertTrue(os.path.isdir(os.path.join(path, 'thumbs')))
+        self.assertTrue(
+            os.path.isdir(os.path.join(path, 'pictures', 'thumbs'))
+        )
 
     def test_on_dialog_response_ok_creates_picture_folders_no_exist(self):
         # make sure thumbnails and pictures folder do not exist.
@@ -842,7 +870,7 @@ class OnDialogResponseTests(BaubleTestCase):
                                 'type_combo': []})
         prefs.prefs[bauble.conn_list_pref] = {
             'nugkui': {'default': False,
-                       'pictures': path,
+                       'directory': path,
                        'type': 'SQLite',
                        'file': path + '.db'}}
         (prefs.prefs[prefs.picture_root_pref],
@@ -858,7 +886,9 @@ class OnDialogResponseTests(BaubleTestCase):
         # check existence of pictures folder
         self.assertTrue(os.path.isdir(path))
         # check existence of thumbnails folder
-        self.assertTrue(os.path.isdir(os.path.join(path, 'thumbs')))
+        self.assertTrue(
+            os.path.isdir(os.path.join(path, 'pictures', 'thumbs'))
+        )
 
     def test_on_dialog_response_ok_creates_picture_folders_occupied(self):
         # make sure thumbnails and pictures folder already exist as files

@@ -519,7 +519,7 @@ def verify_connection(new_engine, show_error_dialogs=False):
 
 
 def make_note_class(name, compute_serializable_fields, as_dict=None,
-                    retrieve=None, cls_type='note'):
+                    retrieve=None, cls_type='note', extra_columns=None):
     """Dynamically create a related table class of the notes type.
 
     Current use is for notes and pictures tables."""
@@ -574,32 +574,34 @@ def make_note_class(name, compute_serializable_fields, as_dict=None,
     as_dict = as_dict or as_dict_default
     retrieve = retrieve or retrieve_default
 
-    result = type(class_name, (Base, Serializable),
-                  {'__tablename__': table_name,
+    obj_dict = {'__tablename__': table_name,
 
-                   'date': sa.Column(types.Date, default=sa.func.now(),
-                                     nullable=False),
-                   'user': sa.Column(sa.Unicode(64),
-                                     default=utils.get_user_display_name()),
-                   'category': sa.Column(sa.Unicode(32)),
-                   cls_type: sa.Column(sa.UnicodeText, nullable=False),
-                   name.lower() + '_id': sa.Column(
-                       sa.Integer,
-                       sa.ForeignKey(name.lower() + '.id'),
-                       nullable=False),
-                   name.lower(): sa.orm.relationship(
-                       name,
-                       uselist=False,
-                       backref=sa.orm.backref(cls_type + 's',
-                                              cascade='all, delete-orphan')),
-                   'retrieve': classmethod(retrieve),
-                   'retrieve_or_create': classmethod(retrieve_or_create),
-                   'compute_serializable_fields':
-                   classmethod(compute_serializable_fields),
-                   'is_defined': is_defined,
-                   'as_dict': as_dict,
-                   }
-                  )
+                'date': sa.Column(types.Date, default=sa.func.now(),
+                                  nullable=False),
+                'user': sa.Column(sa.Unicode(64),
+                                  default=utils.get_user_display_name()),
+                'category': sa.Column(sa.Unicode(32)),
+                cls_type: sa.Column(sa.UnicodeText, nullable=False),
+                name.lower() + '_id': sa.Column(
+                    sa.Integer,
+                    sa.ForeignKey(name.lower() + '.id'),
+                    nullable=False),
+                name.lower(): sa.orm.relationship(
+                    name,
+                    uselist=False,
+                    backref=sa.orm.backref(cls_type + 's',
+                                           cascade='all, delete-orphan')),
+                'retrieve': classmethod(retrieve),
+                'retrieve_or_create': classmethod(retrieve_or_create),
+                'compute_serializable_fields':
+                classmethod(compute_serializable_fields),
+                'is_defined': is_defined,
+                'as_dict': as_dict}
+
+    if extra_columns:
+        obj_dict.update(extra_columns)
+
+    result = type(class_name, (Base, Serializable), obj_dict)
     return result
 
 

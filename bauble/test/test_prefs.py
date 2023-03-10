@@ -18,8 +18,8 @@
 # along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
 import os
 
-from unittest import mock, SkipTest
-from tempfile import mkstemp
+from unittest import mock
+from tempfile import mkstemp, mkdtemp
 import logging
 logger = logging.getLogger(__name__)
 
@@ -28,6 +28,7 @@ from gi.repository import Gtk
 from bauble.test import BaubleTestCase
 from bauble import prefs
 from bauble import version_tuple
+from bauble.meta import BaubleMeta
 
 
 class PreferencesTests(BaubleTestCase):
@@ -45,11 +46,11 @@ class PreferencesTests(BaubleTestCase):
         p = prefs._prefs(pname)
         p.init()
         self.assertTrue(prefs.config_version_pref in p)
-        self.assertTrue(prefs.picture_root_pref in p)
+        self.assertTrue(prefs.root_directory_pref in p)
         self.assertTrue(prefs.date_format_pref in p)
         self.assertTrue(prefs.units_pref in p)
         self.assertEqual(p[prefs.config_version_pref], version_tuple[:2])
-        self.assertEqual(p[prefs.picture_root_pref], '')
+        self.assertEqual(p[prefs.root_directory_pref], '')
         self.assertEqual(p[prefs.date_format_pref], '%d-%m-%Y')
         self.assertEqual(p[prefs.time_format_pref], '%I:%M:%S %p')
         self.assertEqual(p[prefs.units_pref], 'metric')
@@ -187,6 +188,65 @@ class PreferencesTests(BaubleTestCase):
         del prefs.prefs['nonexistent_section.option']
         self.assertFalse(prefs.prefs.has_section('nonexistent_section'))
 
+    def test_generated_picture_root(self):
+        temp_dir = mkdtemp()
+        prefs.prefs[prefs.root_directory_pref] = temp_dir
+        prefs.prefs[prefs.picture_path_pref] = 'ata'
+        self.assertEqual(prefs.prefs.get(prefs.picture_root_pref),
+                         os.path.join(temp_dir, 'ata'))
+
+    def test_picture_path_change_moves_directory(self):
+        temp_dir = mkdtemp()
+        prefs.prefs[prefs.root_directory_pref] = temp_dir
+        os.makedirs(os.path.join(temp_dir, 'pictures', 'thumbs'))
+        from pathlib import Path
+        Path(temp_dir, 'pictures', 'test.jpg').touch()
+        Path(temp_dir, 'pictures', 'thumbs', 'test.jpg').touch()
+        self.assertTrue(
+            os.path.isfile(os.path.join(temp_dir, 'pictures', 'test.jpg'))
+        )
+        prefs.prefs[prefs.picture_path_pref] = 'Biller'
+        self.assertTrue(
+            os.path.isfile(os.path.join(temp_dir, 'Biller', 'test.jpg'))
+        )
+        self.assertTrue(
+            os.path.isdir(os.path.join(temp_dir, 'Biller', 'thumbs'))
+        )
+
+    def test_generated_document_root(self):
+        temp_dir = mkdtemp()
+        prefs.prefs[prefs.root_directory_pref] = temp_dir
+        prefs.prefs[prefs.document_path_pref] = 'documentos'
+        self.assertEqual(prefs.prefs.get(prefs.document_root_pref),
+                         os.path.join(temp_dir, 'documentos'))
+
+    def test_document_path_change_moves_directory(self):
+        temp_dir = mkdtemp()
+        prefs.prefs[prefs.root_directory_pref] = temp_dir
+        os.mkdir(os.path.join(temp_dir, 'documents'))
+        from pathlib import Path
+        Path(temp_dir, 'documents', 'test.txt').touch()
+        self.assertTrue(
+            os.path.isfile(os.path.join(temp_dir, 'documents', 'test.txt'))
+        )
+        prefs.prefs[prefs.document_path_pref] = 'documentos'
+        self.assertTrue(
+            os.path.isfile(os.path.join(temp_dir, 'documentos', 'test.txt'))
+        )
+
+    def test_global_root_returns_as_pref_if_pref_not_set(self):
+        temp_dir = mkdtemp()
+        self.session.add(BaubleMeta(name='root_directory', value=temp_dir))
+        self.session.add(BaubleMeta(name='documents_path', value='tuhinga'))
+        self.session.add(BaubleMeta(name='pictures_path', value='фотографії'))
+        self.session.commit()
+        del prefs.prefs[prefs.root_directory_pref]
+        self.assertEqual(prefs.prefs[prefs.root_directory_pref], temp_dir)
+        self.assertEqual(prefs.prefs[prefs.document_root_pref],
+                         os.path.join(temp_dir, 'tuhinga'))
+        self.assertEqual(prefs.prefs[prefs.picture_root_pref],
+                         os.path.join(temp_dir, 'фотографії'))
+
 
 class PrefsViewTests(BaubleTestCase):
 
@@ -196,15 +256,7 @@ class PrefsViewTests(BaubleTestCase):
         prefs_view.update()
         self.assertTrue(len(prefs_view.prefs_ls) > 8)
 
-    @mock.patch('bauble.prefs.Gtk.MessageDialog.run',
-                return_value=Gtk.ResponseType.OK)
-    def test_on_button_press_event_adds_menu_can_active(self, mock_dialog):
-        raise SkipTest('needs rewrite re: switching from Gtk.Menu to Gio.Menu')
-        # NOTE causes a deprecation warning re Gtk.Menu.popup_for_device,
-        # Gtk.Action.create_menu_item
-        # also:
-        # Gdk-CRITICAL **: ... gdk_window_get_device_position_double:
-        # assertion 'GDK_IS_WINDOW (window)' failed
+    def test_on_button_press_event_popup_only_button3(self):
         from datetime import datetime
         prefs_view = prefs.PrefsView()
         prefs_view.update()
@@ -212,24 +264,32 @@ class PrefsViewTests(BaubleTestCase):
         prefs_tv = prefs_view.prefs_tv
         mock_event = mock.Mock(button=3, time=datetime.now().timestamp())
 
-        with mock.patch('bauble.prefs.Gtk.Menu.append') as mock_append:
+        with mock.patch('bauble.prefs.Gtk.Menu.popup_at_pointer') as mock_popup:
             prefs_view.on_button_press_event(prefs_tv, mock_event)
 
-            mock_append.assert_called()
+            mock_popup.assert_called()
 
         selection = Gtk.TreePath.new_first()
         prefs_tv.get_selection().select_path(selection)
 
-        with mock.patch('bauble.prefs.Gtk.Menu.append') as mock_append:
+        mock_event = mock.Mock(button=1, time=datetime.now().timestamp())
+
+        with mock.patch('bauble.prefs.Gtk.Menu.popup_at_pointer') as mock_popup:
             prefs_view.on_button_press_event(prefs_tv, mock_event)
 
-            mock_append.assert_called()
-            mock_append.call_args.args[0].activate()
-            mock_dialog.assert_called()
-        log_str = f'model: {prefs_view.prefs_ls} tree_path: [<Gtk.TreePath obj'
-        self.assertTrue(
-            [i for i in self.handler.messages['bauble.prefs']['debug'] if
-             i.startswith(log_str)])
+            mock_popup.assert_not_called()
+
+    @mock.patch('bauble.prefs.Gtk.MessageDialog.run',
+                return_value=Gtk.ResponseType.OK)
+    def test_on_prefs_insert_activated_starts_dialog(self, mock_dialog):
+        prefs_view = prefs.PrefsView()
+        prefs_view.update()
+
+        prefs_tv = prefs_view.prefs_tv
+        selection = Gtk.TreePath.new_first()
+        prefs_tv.get_selection().select_path(selection)
+        prefs_view.on_prefs_insert_activate(None, None)
+        mock_dialog.assert_called()
 
     def test_on_prefs_edit_toggled(self):
         from bauble import utils
@@ -283,8 +343,8 @@ class PrefsViewTests(BaubleTestCase):
         prefs_view.on_prefs_edited(None, path, 'False')
         self.assertFalse(prefs.prefs[key])
 
-        # picture root does not accept non existing path
-        key = prefs.picture_root_pref
+        # root directory does not accept non existing path
+        key = prefs.root_directory_pref
         orig = prefs.prefs[key]
         path = [i.path for i in prefs_view.prefs_ls if i[0] == key][0]
         prefs_view.on_prefs_edited(None, path, 'xxrandomstringxx')
@@ -350,3 +410,21 @@ class PrefsViewTests(BaubleTestCase):
         # restore
         prefs_view.on_prefs_restore_clicked(None)
         self.assertIsNone(prefs.prefs['bauble.test.option'])
+
+
+class GlobalFunctionsTests(BaubleTestCase):
+    @mock.patch('bauble.utils.create_message_dialog')
+    def test_set_global_root_creates_directories(self, mock_create):
+        temp_dir = mkdtemp()
+        prefs.prefs[prefs.root_directory_pref] = temp_dir
+        mock_dialog = mock.Mock()
+        mock_dialog.run.return_value = Gtk.ResponseType.OK
+        mock_create.return_value = mock_dialog
+        prefs.set_global_root()
+        mock_dialog.run.assert_called()
+        mock_create.assert_called()
+        self.assertTrue(os.path.isdir(os.path.join(temp_dir, 'pictures')))
+        self.assertTrue(
+            os.path.isdir(os.path.join(temp_dir, 'pictures', 'thumbs'))
+        )
+        self.assertTrue(os.path.isdir(os.path.join(temp_dir, 'documents')))

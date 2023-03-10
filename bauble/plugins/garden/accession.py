@@ -505,6 +505,11 @@ def compute_serializable_fields(_cls, session, keys):
 
 
 AccessionNote = db.make_note_class('Accession', compute_serializable_fields)
+AccessionDocument = db.make_note_class('Accession',
+                                       compute_serializable_fields,
+                                       cls_type='document',
+                                       extra_columns={'note':
+                                                      Column(UnicodeText)})
 
 
 class Accession(db.Base, db.Serializable, db.WithNotes):
@@ -2218,6 +2223,11 @@ class AccessionEditorPresenter(editor.GenericEditorPresenter):
         self.intended_locations_presenter = IntendedLocationPresenter(
             self, self.model, self.view, self.session
         )
+        documents_parent = self.view.widgets.document_parent_box
+        documents_parent.foreach(documents_parent.remove)
+        self.documents_presenter = editor.DocumentsPresenter(self,
+                                                             'documents',
+                                                             documents_parent)
 
         notes_parent = self.view.widgets.notes_parent_box
         notes_parent.foreach(notes_parent.remove)
@@ -2538,6 +2548,7 @@ class AccessionEditorPresenter(editor.GenericEditorPresenter):
         presenters = [self.ver_presenter,
                       self.voucher_presenter,
                       self.notes_presenter,
+                      self.documents_presenter,
                       self.source_presenter,
                       self.intended_locations_presenter]
         dirty_kids = [p.is_dirty() for p in presenters]

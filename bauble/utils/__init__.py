@@ -102,7 +102,7 @@ class Cache:
         return value
 
 
-def copy_picture_with_thumbnail(path, basename=None):
+def copy_picture_with_thumbnail(path, basename=None, rename=None):
     """copy file from path to picture_root, and make thumbnail, preserving name
 
     return base64 representation of thumbnail
@@ -118,10 +118,15 @@ def copy_picture_with_thumbnail(path, basename=None):
     else:
         filename = os.path.join(path, basename)
     if not filename.startswith(prefs.prefs[prefs.picture_root_pref]):
-        shutil.copy(filename, prefs.prefs[prefs.picture_root_pref])
+        if rename:
+            destination = os.path.join(prefs.prefs[prefs.picture_root_pref],
+                                       rename)
+            shutil.copy(filename, destination)
+        else:
+            shutil.copy(filename, prefs.prefs[prefs.picture_root_pref])
     # make thumbnail in thumbs subdirectory
     full_dest_path = os.path.join(prefs.prefs[prefs.picture_root_pref],
-                                  'thumbs', basename)
+                                  'thumbs', rename or basename)
     result = ""
     try:
         img = Image.open(filename)

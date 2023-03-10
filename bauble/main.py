@@ -65,6 +65,8 @@ class Application(Gtk.Application):
         open_exc = self._get_connection()
         self._load_plugins()
         bauble.gui = GUI()
+        # add any prefs menus etc.
+        prefs.post_gui()
         bauble.gui.show()
         # bail early if no connection
         if open_exc is False:

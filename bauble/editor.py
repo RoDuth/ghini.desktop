@@ -233,7 +233,7 @@ class GenericEditorView:
                                 action,
                                 last_folder,
                                 target,
-                                suffix):
+                                suffix=None):
         """create and run FileChooser, then write result in target
 
         This is just a bit more than a wrapper for
@@ -2103,8 +2103,49 @@ class NoteBox(GenericNoteBox, Gtk.Box):
         self.set_model_attr('note', value)
 
 
+class NoteBoxMenuBtnMixin:
+
+    MENU_ACTIONGRP_NAME = 'document_box'
+    ROOT_PREF_KEY = prefs.document_root_pref
+
+    def init_menu(self):
+        """Initialise the treeview context menu.
+
+        Create the ActionGroup and Menu, attach the Menu to the TreeView widget
+        and insert the ActionGroup.
+        """
+        menu = Gio.Menu()
+        action_group = Gio.SimpleActionGroup()
+        menu_items = (
+            (_('Open file'), 'open', self.on_file_open_clicked),
+            (_('Copy file name'), 'copy', self.on_copy_filename),
+        )
+        for label, name, handler in menu_items:
+            action = Gio.SimpleAction.new(name, None)
+            action.connect("activate", handler)
+            action_group.add_action(action)
+            menu_item = Gio.MenuItem.new(label,
+                                         f'{self.MENU_ACTIONGRP_NAME}.{name}')
+            menu.append_item(menu_item)
+
+        self.file_menu_btn.set_menu_model(menu)
+
+        self.file_menu_btn.insert_action_group(self.MENU_ACTIONGRP_NAME,
+                                               action_group)
+
+    def on_file_open_clicked(self, *_args):
+        file = os.path.join(prefs.prefs[self.ROOT_PREF_KEY],
+                            self.file_entry.get_text())
+        utils.desktop.open(file)
+
+    def on_copy_filename(self, *_args):
+        if bauble.gui:
+            clipboard = bauble.gui.get_display_clipboard()
+            clipboard.set_text(self.file_entry.get_text(), -1)
+
+
 @Gtk.Template(filename=str(Path(paths.lib_dir(), 'picture_box.ui')))
-class PictureBox(GenericNoteBox, Gtk.Box):
+class PictureBox(GenericNoteBox, NoteBoxMenuBtnMixin, Gtk.Box):
 
     __gtype_name__ = 'PictureBox'
 
@@ -2118,10 +2159,14 @@ class PictureBox(GenericNoteBox, Gtk.Box):
     file_btnbrowse = Gtk.Template.Child()
     file_entry = Gtk.Template.Child()
     picture_box = Gtk.Template.Child()
+    file_menu_btn = Gtk.Template.Child()
 
     last_folder = str(Path.home())
 
     note_attr = 'picture'
+
+    MENU_ACTIONGRP_NAME = 'picture_box'
+    ROOT_PREF_KEY = prefs.picture_root_pref
 
     def __init__(self, presenter, model=None):
         super().__init__(presenter, model)
@@ -2130,6 +2175,8 @@ class PictureBox(GenericNoteBox, Gtk.Box):
         self._txt_sid = self.file_entry.connect("changed",
                                                 self.on_text_entry_changed)
         self.file_btnbrowse.connect('clicked', self.on_file_btnbrowse_clicked)
+
+        self.init_menu()
 
     def set_content(self, text):
         text = text or ''
@@ -2239,17 +2286,40 @@ class PictureBox(GenericNoteBox, Gtk.Box):
             filename = file_chooser_dialog.get_filename()
             if filename:
                 # remember chosen location for next time
-                PictureBox.last_folder, basename = os.path.split(str(filename))
+                self.__class__.last_folder, basename = os.path.split(filename)
                 logger.debug('new current folder is: %s', self.last_folder)
                 # copy file to picture_root_dir (if not yet there),
-                # also receiving thumbnail base64
-                utils.copy_picture_with_thumbnail(self.last_folder, basename)
-                # append thumbnail base64 to content string
-                # see: 59375047 intended to store a base64 thumbnail in the
-                # database Currently not working, not fully investigated.
-                # basename = basename + "|data:image/jpeg;base64," + str(thumb)
-                # store basename in note field and fire callbacks.
-                self.file_entry.set_text(basename)
+                # check if the file already exists.
+                if os.path.isfile(
+                        os.path.join(prefs.prefs[prefs.picture_root_pref],
+                                     basename)
+                ):
+                    msg = _(
+                        'A file with that name already exists, select "Yes" '
+                        'and the name will be appended with a unique '
+                        'identifier, if you wish to change the name '
+                        'yourself select "No" to stop here so you can rename '
+                        'it before returning.'
+                    )
+                    # for testing
+                    parent = None
+                    if self.presenter.parent_ref().view:
+                        parent = self.presenter.parent_ref().view.get_window()
+                    if utils.yes_no_dialog(msg, parent=parent):
+                        name, ext = os.path.splitext(basename)
+                        tstamp = datetime.datetime.now().strftime('%Y%m%d%M%S')
+                        rename = name + '_' + tstamp + ext
+                        utils.copy_picture_with_thumbnail(self.last_folder,
+                                                          basename,
+                                                          rename)
+                        self.file_entry.set_text(rename)
+                else:
+                    utils.copy_picture_with_thumbnail(self.last_folder,
+                                                      basename)
+                    # append thumbnail base64 to content string
+                    # see: 59375047 intended to store a base64 thumbnail in the
+                    # database Currently not working, not fully investigated.
+                    self.file_entry.set_text(basename)
         except Exception as e:   # pylint: disable=broad-except
             logger.warning("unhandled exception: (%s)%s", type(e).__name__, e)
         file_chooser_dialog.destroy()
@@ -2259,11 +2329,168 @@ class PictureBox(GenericNoteBox, Gtk.Box):
         self.set_content(widget.get_text())
 
 
-# TODO: create a separate class for browsing notes in a treeview
-# structure
+@Gtk.Template(filename=str(Path(paths.lib_dir(), 'document_box.ui')))
+class DocumentBox(GenericNoteBox, NoteBoxMenuBtnMixin, Gtk.Box):
 
-# TODO: add an "editable" property to the NotesPresenter and if it is
-# True then show the add/remove buttons
+    __gtype_name__ = 'DocumentBox'
+
+    note_expander = Gtk.Template.Child()
+    category_comboentry = Gtk.Template.Child()
+    date_entry = Gtk.Template.Child()
+    date_button = Gtk.Template.Child()
+    user_entry = Gtk.Template.Child()
+    notes_remove_button = Gtk.Template.Child()
+    file_set_box = Gtk.Template.Child()
+    file_btnbrowse = Gtk.Template.Child()
+    file_entry = Gtk.Template.Child()
+    file_menu_btn = Gtk.Template.Child()
+    note_textview = Gtk.Template.Child()
+
+    last_folder = str(Path.home())
+
+    note_attr = 'document'
+
+    def __init__(self, presenter, model=None):
+        super().__init__(presenter, model)
+        self.set_note_content(self.model.note)
+
+        self.presenter._dirty = False
+
+        self._txt_sid = self.file_entry.connect("changed",
+                                                self.on_text_entry_changed)
+        self.file_btnbrowse.connect('clicked', self.on_file_btnbrowse_clicked)
+
+        self.init_menu()
+
+    def set_content(self, text):
+        text = text or ''
+        # because _txt_id can't be defined before calling super.. need to check
+        # it exists here, first run of this it won't be.
+        if hasattr(self, '_txt_sid'):
+            self.file_entry.handler_block(self._txt_sid)
+        self.file_entry.set_text(text)
+        if hasattr(self, '_txt_sid'):
+            self.file_entry.handler_unblock(self._txt_sid)
+        # NOTE text param here is the filename or URL as a string
+        if text.startswith('http://') or text.startswith('https://'):
+            self.file_btnbrowse.set_sensitive(False)
+            return
+        filename = os.path.join(prefs.prefs[prefs.document_root_pref],
+                                text)
+        if os.path.isfile(filename):
+            self.file_set_box.set_sensitive(False)
+            self.file_menu_btn.set_sensitive(True)
+
+    def set_note_content(self, text):
+        buff = Gtk.TextBuffer()
+        self.note_textview.set_buffer(buff)
+        utils.set_widget_value(self.note_textview,
+                               text or '')
+        if not text:
+            self.presenter.add_problem(
+                self.presenter.PROBLEM_EMPTY, self.note_textview)
+        buff.connect('changed', self.on_note_buffer_changed,
+                     self.note_textview)
+
+    def on_note_buffer_changed(self, buff, widget, *_args):
+        value = utils.nstr(buff.props.text)
+        if not value:  # if value == ''
+            value = None
+            self.presenter.add_problem(self.presenter.PROBLEM_EMPTY, widget)
+        else:
+            self.presenter.remove_problem(self.presenter.PROBLEM_EMPTY, widget)
+        self.set_model_attr('note', value)
+
+    def on_notes_remove_button(self, _button, *_args):
+        text = self.model.document or ''
+        filename = os.path.join(prefs.prefs[prefs.document_root_pref],
+                                text)
+        if os.path.isfile(filename):
+            # for testing
+            parent = None
+            if self.presenter.parent_ref().view:
+                parent = self.presenter.parent_ref().view.get_window()
+            msg = (_('File %s exist, would you like to delete?') % text)
+
+            # check if file exists in other documents first...
+            tables = [table for name, table in db.metadata.tables.items() if
+                      name.endswith('_document')]
+            for table in tables:
+
+                others = (self.session.query(table)
+                          .filter(table.c.document == self.model.document))
+
+                if self.model.__tablename__ == table.name:
+                    others = others.filter(table.c.id != self.model.id)
+
+                others = others.count()
+
+                if others:
+                    msg += (_(' %s other documents(s) of type %s exist using '
+                              'the same file, ') % (others, table.name))
+            if utils.yes_no_dialog(msg, parent=parent, yes_delay=0.5):
+                try:
+                    if os.path.isfile(filename):
+                        os.remove(filename)
+                except Exception as e:
+                    logger.debug('%s(%s)', type(e).__name__, e)
+                    utils.create_message_details_dialog(
+                        _('Error removing file...  File in use?'),
+                        parent=parent,
+                        details=e,
+                    )
+                    return
+        super().on_notes_remove_button(_button, *_args)
+
+    def on_file_btnbrowse_clicked(self, _widget):
+        file_chooser_dialog = Gtk.FileChooserNative()
+        try:
+            logger.debug('about to set current folder - %s', self.last_folder)
+            file_chooser_dialog.set_current_folder(self.last_folder)
+            file_chooser_dialog.run()
+            filename = file_chooser_dialog.get_filename()
+            if filename:
+                # remember chosen location for next time
+                self.__class__.last_folder, basename = os.path.split(filename)
+                logger.debug('new current folder is: %s', self.last_folder)
+                # check if the file already exists.
+                if os.path.isfile(
+                        os.path.join(prefs.prefs[prefs.document_root_pref],
+                                     basename)
+                ):
+                    msg = _(
+                        'A file with that name already exists, select "Yes" '
+                        'and the name will be appended with a unique '
+                        'identifier, if you wish to change the name '
+                        'yourself select "No" to stop here so you can rename '
+                        'it before returning.'
+                    )
+                    # for testing
+                    parent = None
+                    if self.presenter.parent_ref().view:
+                        parent = self.presenter.parent_ref().view.get_window()
+                    if utils.yes_no_dialog(msg, parent=parent):
+                        name, ext = os.path.splitext(basename)
+                        tstamp = datetime.datetime.now().strftime('%Y%m%d%M%S')
+                        basename = name + '_' + tstamp + ext
+                    else:
+                        file_chooser_dialog.destroy()
+                        return
+
+                destination = os.path.join(
+                    prefs.prefs[prefs.document_root_pref], basename
+                )
+
+                import shutil
+                shutil.copy(filename, destination)
+                self.file_entry.set_text(basename)
+        except Exception as e:   # pylint: disable=broad-except
+            logger.warning("unhandled exception: (%s)%s", type(e).__name__, e)
+        file_chooser_dialog.destroy()
+
+    def on_text_entry_changed(self, widget):
+        self.set_model_attr('document', widget.get_text())
+        self.set_content(widget.get_text())
 
 
 class NotesPresenter(GenericEditorPresenter):
@@ -2312,8 +2539,9 @@ class NotesPresenter(GenericEditorPresenter):
         self.box.show_all()
 
     def cleanup(self):
-        # garbage collect (esp. the on_add_button_clicked signal handler)
-        self.widgets.notes_editor_box.destroy()
+        # garbage collect (esp. the on_add_button_clicked signal handler),
+        # idle_add avoids double-linked list warning
+        GLib.idle_add(self.widgets.notes_editor_box.destroy)
         super().cleanup()
 
     def on_add_button_clicked(self, _button):
@@ -2343,6 +2571,22 @@ class PicturesPresenter(NotesPresenter):
     """
 
     ContentBox = PictureBox
+
+    def __init__(self, presenter, notes_property, parent_container):
+        super().__init__(presenter, notes_property, parent_container)
+
+        notes = self.box.get_children()
+        if notes:
+            notes[0].set_expanded(False)  # expand none
+
+
+class DocumentsPresenter(NotesPresenter):
+    """Documents are very similar to notes.
+
+    This class works just the same as the NotesPresenter
+    """
+
+    ContentBox = DocumentBox
 
     def __init__(self, presenter, notes_property, parent_container):
         super().__init__(presenter, notes_property, parent_container)

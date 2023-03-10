@@ -934,7 +934,7 @@ class TestPicturesScroller(BaubleTestCase):
         picture_scroller = PicturesScroller(parent=paned)
         mock_event = mock.Mock(button=1, type=Gdk.EventType._2BUTTON_PRESS)
         picture_scroller.on_button_press(None, mock_event, 'test.jpg')
-        mock_open.assert_called_with(Path('test.jpg'))
+        mock_open.assert_called_with(Path('pictures/test.jpg'))
 
 
 class GlobalFunctionsTests(BaubleTestCase):
