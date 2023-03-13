@@ -223,32 +223,67 @@ class History(HistoryBase):
     user = sa.Column(types.TruncatedString(64))
     timestamp = sa.Column(types.DateTime, nullable=False)
 
+    @staticmethod
+    def _val(val):
+        if isinstance(val, (datetime.datetime, datetime.date)):
+            return str(val)
+        return val
+
     @classmethod
     def add(cls, operation, mapper, connection, instance):
-        """Add a new entry to the history table."""
+        """Add a new entry to the history table.
+
+        NOTE: if you wish connection.execute changes to be recorded in the
+        History table (i.e. within event.listens_for) you will need to add them
+        yourself via the `event_add` method.
+        """
         user = current_user()
         # XXX logging here can cause test_get_create_or_update to fail when run
         # seperately to the whole test suite (??)
         # logger.debug('adding history, operation: %s instance: %s', operation,
         #              instance)
 
-        def _val(val):
-            if isinstance(val, (datetime.datetime, datetime.date)):
-                return str(val)
-            return val
-
         row = {}
         for column in mapper.local_table.c:
 
             if operation == 'update':
                 history = get_history(instance, column.name)
-                sum_ = [_val(i) for i in history.sum()]
+                sum_ = [cls._val(i) for i in history.sum()]
                 if history.has_changes():
                     row[column.name] = sum_
                     continue
 
-            val = _val(getattr(instance, column.name))
+            val = cls._val(getattr(instance, column.name))
             row[column.name] = val
+        table = cls.__table__
+        stmt = table.insert(dict(table_name=mapper.local_table.name,
+                                 table_id=instance.id,
+                                 values=row,
+                                 operation=operation,
+                                 user=user,
+                                 timestamp=datetime.datetime.utcnow()))
+        connection.execute(stmt)
+
+    @classmethod
+    def event_add(cls, operation, mapper, connection, instance, **kwargs):
+        """Add an extra entry to the history table.
+
+        This version accepts the instance in its state before changes with any
+        changes provided as kwargs.  Intended for use in `event.listens_for`
+        where a change has been made via `connection.execute` and hence not
+        triggered the usual history event handlers.
+        """
+        user = current_user()
+
+        row = {}
+        for column in mapper.local_table.c:
+
+            if operation == 'update' and column.name in kwargs:
+                row[column.name] = [kwargs[column.name],
+                                    getattr(instance, column.name)]
+                continue
+
+            row[column.name] = cls._val(getattr(instance, column.name))
         table = cls.__table__
         stmt = table.insert(dict(table_name=mapper.local_table.name,
                                  table_id=instance.id,

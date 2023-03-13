@@ -411,13 +411,12 @@ class PictureBoxTests(BaubleTestCase):
                 if not getattr(self.parent_model, col.name):
                     setattr(self.parent_model, col.name, '456')
 
-        count = 0
+        # get a different note class
         for klass in search.MapperSearch.get_domain_classes().values():
             if (hasattr(klass, 'pictures') and
                     hasattr(klass.pictures, 'mapper')):
-                count += 1
-                if count == 2:
-                    note_cls = klass.pictures.mapper.class_
+                note_cls = klass.pictures.mapper.class_
+                if type(self.model) is not note_cls:
                     parent_model = klass()
                     model2 = note_cls(picture=img_name)
                     parent_model.pictures.append(model2)

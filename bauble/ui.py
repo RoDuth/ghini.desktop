@@ -89,7 +89,7 @@ class SimpleSearchBox(Gtk.Frame):
         condition = self.cond_combo.get_active_text()
         text = entry.get_text()
         if text != '*':
-            text = f"'{text}'"
+            text = repr(text)
         search_str = f"{self.short_domain} {condition} {text}"
         if bauble.gui:
             bauble.gui.send_command(search_str)
@@ -102,8 +102,8 @@ class SimpleSearchBox(Gtk.Frame):
         if domain:
             self.domain, self.columns = mapper_search.domains[domain]
             self.short_domain = min(
-                [min((k, v), key=len) for k, v in
-                 mapper_search.shorthand.items() if v == domain],
+                (min((k, v), key=len) for k, v in
+                 mapper_search.shorthand.items() if v == domain),
                 key=len
             )
             self.completion_getter = mapper_search.completion_funcs.get(domain)
@@ -363,6 +363,12 @@ class GUI:
         combo.grab_focus()
 
     def add_action(self, name, handler, value=None, param_type=None):
+        """Used to add a basic SimpleAction to the window.
+
+        If you require anything more complex i.e. one that is stateful, do not
+        use this method.  Instead create and attach the action to the window
+        yourself.
+        """
         action = Gio.SimpleAction.new(name, param_type)
         if value:
             action.connect('activate', handler, value)

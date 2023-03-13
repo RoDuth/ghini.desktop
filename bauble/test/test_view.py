@@ -138,8 +138,8 @@ class TestSearchView(BaubleTestCase):
     def test_row_meta_populates_with_all_domains(self):
         search_view = self.search_view
         self.assertEqual(
-            list(search_view.row_meta.keys()),
-            list(search.MapperSearch.get_domain_classes().values())
+            set(search_view.row_meta.keys()),
+            set(search.MapperSearch.get_domain_classes().values())
         )
 
     def test_all_domains_w_children_has_children_returns_correct(self):

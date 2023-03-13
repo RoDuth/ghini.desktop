@@ -35,11 +35,12 @@ from sqlalchemy import (Column,
                         UnicodeText,
                         UniqueConstraint,
                         func,
-                        literal)
+                        literal,
+                        event)
 from sqlalchemy.orm import relationship, backref, object_session
 from sqlalchemy.orm import synonym as sa_synonym
 from sqlalchemy.ext.hybrid import hybrid_property
-from sqlalchemy.sql.expression import select, case, cast
+from sqlalchemy.sql.expression import select, case, cast, and_
 from bauble import db
 from bauble import error
 from bauble import utils
@@ -277,6 +278,8 @@ class Species(db.Base, db.Serializable, db.WithNotes):
 
     flower_color_id = Column(Integer, ForeignKey('color.id'), default=None)
     flower_color = relationship('Color', uselist=False, backref='species')
+
+    full_name = Column(Unicode(512), index=True)
 
     # hardiness_zone = Column(Unicode(4))
 
@@ -560,9 +563,7 @@ class Species(db.Base, db.Serializable, db.WithNotes):
 
     @default_vernacular_name.expression
     def default_vernacular_name(cls):
-        # pylint: disable=no-self-argument,no-self-use
-        from sqlalchemy.sql.expression import select, and_
-        # pylint: disable=no-member
+        # pylint: disable=no-self-argument
         return (
             select([VernacularName.name])
             .where(and_(
@@ -848,6 +849,8 @@ class Species(db.Base, db.Serializable, db.WithNotes):
                       col[0] != '_' and
                       getattr(self, col) is not None and
                       not col.endswith('_id'))
+        if result.get('full_name'):
+            del result['full_name']
         result['object'] = 'taxon'
         result['rank'] = 'species'
         result['epithet'] = self.sp
@@ -910,6 +913,42 @@ class Species(db.Base, db.Serializable, db.WithNotes):
         if prefs.prefs.get(prefs.exclude_inactive_pref):
             query = query.filter(cls.active.is_(True))
         return query.count()
+
+
+# Listen for changes and update the full_name string
+@event.listens_for(Species, 'before_update')
+def species_before_update(_mapper, _connection, target):
+    target.full_name = str(target)
+
+
+@event.listens_for(Species, 'before_insert')
+def species_before_insert(_mapper, _connection, target):
+    target.full_name = str(target)
+
+
+def update_all_full_names_task():
+    """Task to update all the species full names.
+
+    Yields occassionally to update the progress bar
+    """
+    from bauble import pb_set_fraction
+    session = db.Session()
+    query = session.query(Species)
+    count = query.count()
+    five_percent = int(count / 20) or 1
+    for done, sp in enumerate(session.query(Species)):
+        sp.full_name = str(sp)
+        if done % five_percent == 0:
+            session.commit()
+            pb_set_fraction(done / count)
+            yield
+    session.close()
+
+
+def update_all_full_names_handler(*_args):
+    """Handler to update all the species full names."""
+    from bauble.task import queue
+    queue(update_all_full_names_task())
 
 
 def as_dict(self):

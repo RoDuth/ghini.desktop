@@ -200,6 +200,10 @@ class CSVRestore:
 
         bauble.task.queue(self.run(filenames, metadata, force))
 
+        # always update the species full_name
+        from bauble.plugins.plants import species_model
+        bauble.task.queue(species_model.update_all_full_names_task())
+
     @staticmethod
     def species_upgrader(filenames):
         """Upgrade genus file"""

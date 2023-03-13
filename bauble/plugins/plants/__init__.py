@@ -64,7 +64,7 @@ from .species import (Species,
                       VernacularName,
                       VernacularNameInfoBox,
                       vernname_context_menu)
-from .species_model import SpeciesPicture
+from .species_model import SpeciesPicture, update_all_full_names_handler
 from .geography import (Geography,
                         get_species_in_geography,
                         GeographyInfoBox,
@@ -426,6 +426,13 @@ class PlantsPlugin(pluginmgr.Plugin):
                                     'win.accepted_toggled')
             bauble.gui.options_menu.append_item(item)
 
+            bauble.gui.add_action("update_full_name",
+                                  update_all_full_names_handler)
+
+            item = Gio.MenuItem.new(_('Update all species full names'),
+                                    'win.update_full_name')
+            bauble.gui.options_menu.append_item(item)
+
             def prefs_ls_changed(model, path, _itr):
                 key, _repr_str, _type_str = model[path]
                 if key == prefs.return_accepted_pref:
@@ -470,6 +477,10 @@ class PlantsPlugin(pluginmgr.Plugin):
         mapper_search.add_meta(('species', 'sp'), Species,
                                ['sp', 'sp2', 'infrasp1', 'infrasp2',
                                 'infrasp3', 'infrasp4'])
+        # full_name search
+        mapper_search.add_meta(('species_full_name', 'taxon'),
+                               Species,
+                               ['full_name'])
         SearchView.row_meta[Species].set(
             children=partial(db.get_active_children,
                              partial(db.natsort, 'accessions')),

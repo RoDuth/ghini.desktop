@@ -50,6 +50,8 @@ from .species_editor import (species_to_string_matcher,
                              species_match_func,
                              generic_sp_get_completions)
 from .species_model import _remove_zws as remove_zws
+from .species_model import (update_all_full_names_task,
+                            update_all_full_names_handler)
 from .family import Family, FamilySynonym, FamilyEditor, FamilyNote
 from .genus import Genus, GenusSynonym, GenusEditor, GenusNote
 from .geography import Geography, get_species_in_geography, geography_importer
@@ -3061,3 +3063,153 @@ class SplashInfoBoxTests(BaubleTestCase):
                        splash.splash_nspctot,
                        splash.splash_nspcnot]:
             self.assertFalse(widget.get_parent().get_sensitive())
+
+
+class SpeciesFullNameTests(PlantTestCase):
+    def test_full_name_is_created_on_species_insert(self):
+        gen = self.session.query(Genus).first()
+        sp = Species(genus=gen, sp='sp. nov.')
+        self.assertFalse(sp.full_name)
+        self.session.add(sp)
+        self.session.commit()
+        self.assertEqual(sp.full_name, str(sp))
+        hist_query = (self.session.query(db.History.values)
+                      .filter(db.History.table_name == 'species')
+                      .filter(db.History.table_id == sp.id))
+        hist_entry = [entry for entry in hist_query if
+                      entry[0]['full_name'] == str(sp)]
+        self.assertEqual(len(hist_entry), 1)
+
+    def test_full_name_is_created_on_all_insert(self):
+        fam = Family(epithet='Fabaceae')
+        gen = Genus(epithet='Acacia', family=fam)
+        sp = Species(genus=gen,
+                     sp='dealbata',
+                     infrasp1_rank='subsp.',
+                     infrasp1='dealbata')
+        self.assertFalse(sp.full_name)
+        self.session.add(sp)
+        self.session.commit()
+        self.assertEqual(sp.full_name, 'Acacia dealbata subsp. dealbata')
+        hist_query = (self.session.query(db.History.values)
+                      .filter(db.History.table_name == 'species')
+                      .filter(db.History.table_id == sp.id))
+        hist_entry = [entry for entry in hist_query if
+                      entry[0]['full_name'] == str(sp)]
+        self.assertEqual(len(hist_entry), 1)
+
+    def test_full_name_updated_on_species_update(self):
+        # check update any epithet, infrasp or ranks, group, cv, etc.
+        # Epithet
+        sp = self.session.query(Species).get(1)
+        sp.epithet = 'sophronitis'
+        self.session.add(sp)
+        self.session.commit()
+        self.assertEqual(sp.full_name, str(sp))
+        # infrasp
+        sp.infrasp1_rank = 'var.'
+        sp.infrasp1 = 'sophronitis'
+        self.session.add(sp)
+        self.session.commit()
+        self.assertEqual(sp.full_name, str(sp))
+        # group
+        sp.group = 'Test'
+        self.session.add(sp)
+        self.session.commit()
+        self.assertEqual(sp.full_name, str(sp))
+        # cv
+        start = sp.full_name
+        sp.cultivar_epithet = 'Red'
+        self.session.add(sp)
+        self.session.commit()
+        self.assertEqual(sp.full_name, str(sp))
+        hist_query = (self.session.query(db.History.values)
+                      .filter(db.History.table_name == 'species')
+                      .filter(db.History.table_id == 1))
+        hist_entry = [entry for entry in hist_query if
+                      entry[0]['full_name'] == [str(sp), start]]
+        self.assertEqual(len(hist_entry), 1)
+
+    def test_full_name_updated_on_genus_update(self):
+        # check epithet, hybrid, etc.
+        # new genus
+        fam = self.session.query(Family).get(1)
+        gen = Genus(epithet='Ornithidium', family=fam)
+        sp = self.session.query(Species).get(1)
+        sp.genus = gen
+        self.session.add(gen)
+        self.session.commit()
+        self.assertEqual(sp.full_name, str(sp))
+        # update genus name
+        sp.genus.epithet = 'Anguloa'
+        self.session.add(sp)
+        self.session.commit()
+        self.assertEqual(gen.epithet, 'Anguloa')
+        self.assertEqual(sp.full_name, str(sp))
+        hist_query = (self.session.query(db.History.values)
+                      .filter(db.History.table_name == 'species')
+                      .filter(db.History.table_id == 1))
+        hist_entry = [entry for entry in hist_query if
+                      entry[0]['full_name'] ==
+                      ['Anguloa variabilis', 'Ornithidium variabilis']]
+        self.assertEqual(len(hist_entry), 1)
+        # update genus hybrid
+        sp.genus.hybrid = '×'
+        self.session.add(sp)
+        self.session.commit()
+        self.assertEqual(sp.full_name, str(sp))
+        hist_query = (self.session.query(db.History.values)
+                      .filter(db.History.table_name == 'species')
+                      .filter(db.History.table_id == 1))
+        hist_entry = [entry for entry in hist_query if
+                      entry[0]['full_name'] ==
+                      ['× Anguloa variabilis', 'Anguloa variabilis']]
+        self.assertEqual(len(hist_entry), 1)
+
+    def test_full_name_updated_on_genus_and_sp_update(self):
+        # change to another existing genus
+        sp = self.session.query(Species).get(1)
+        start = sp.full_name
+        gen = self.session.query(Genus).get(sp.genus_id + 1)
+        sp.genus = gen
+        sp.epither = 'test_new'
+        self.session.add(sp)
+        self.session.commit()
+        self.assertEqual(sp.full_name, str(sp))
+        self.assertNotEqual(sp.full_name, start)
+        hist_query = (self.session.query(db.History.values)
+                      .filter(db.History.table_name == 'species')
+                      .filter(db.History.table_id == 1))
+        hist_entry = [entry for entry in hist_query if
+                      entry[0]['full_name'] == [str(sp), start]]
+        self.assertEqual(len(hist_entry), 1)
+
+    def test_full_name_no_change_no_update_no_history(self):
+        # set full_names (test data is added not triggering event.listens_for)
+        list(update_all_full_names_task())
+        hist_query = (self.session.query(db.History.values)
+                      .filter(db.History.table_name == 'species')
+                      .filter(db.History.table_id == 1))
+        start_count = hist_query.count()
+        sp = self.session.query(Species).get(1)
+        start = sp.full_name
+        sp.epithet = 'variabilis'
+        self.session.add(sp)
+        self.session.commit()
+        self.assertEqual(sp.full_name, str(sp))
+        self.assertEqual(sp.full_name, start)
+        end_count = hist_query.count()
+        self.assertEqual(start_count, end_count)
+
+    def test_update_all_full_names_handler(self):
+        hist_query = (self.session.query(db.History.values)
+                      .filter(db.History.table_name == 'species'))
+        start_count = hist_query.count()
+        update_all_full_names_handler()
+        sp_query = self.session.query(Species)
+        for sp in sp_query:
+            if sp.id in species_str_map:
+                self.assertEqual(sp.full_name, species_str_map.get(sp.id))
+        end_count = hist_query.count()
+        # one history entry per species
+        self.assertEqual(end_count, start_count + sp_query.count())

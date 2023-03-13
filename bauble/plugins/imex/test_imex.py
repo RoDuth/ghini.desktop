@@ -26,9 +26,10 @@ import shutil
 import tempfile
 import json
 from datetime import datetime
-from dateutil.parser import parse as date_parse
+from unittest import skip
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from dateutil.parser import parse as date_parse
 
 from sqlalchemy import Column, Integer
 
@@ -49,6 +50,7 @@ from bauble.plugins.garden import (Accession,
                                    Plant,
                                    SourceDetail,
                                    Source)
+from bauble.plugins.garden.accession import Voucher
 import bauble.plugins.garden.test_garden as garden_test
 import bauble.plugins.plants.test_plants as plants_test
 from bauble.test import BaubleTestCase, get_setUp_data_funcs
@@ -166,38 +168,33 @@ class CSVTests(ImexTestCase):
         importer.start([filename], force=True)
 
     def test_import_bool_column(self):
-        class BoolTest(db.Base):
-            __tablename__ = 'bool_test'
-            id = Column(Integer, primary_key=True)
-            col1 = Column(Boolean, default=False)
-        table = BoolTest.__table__
-        table.create(bind=db.engine)
-        data = [{'id': 1, 'col1': 'True'},
-                {'id': 2, 'col1': 'False'},
-                {'id': 3, 'col1': ''},
-                ]
-        filename = os.path.join(self.path, 'bool_test.csv')
+        sp = self.session.query(Species).get(1)
+        self.session.add(Accession(species=sp, code='2023.0001'))
+        self.session.commit()
+        data = [
+            {'herbarium': 'BRI', 'code': '1234', 'accession_id': 1,
+             'parent_material': 'True'},
+            {'herbarium': 'SYD', 'code': '4321', 'accession_id': 1,
+             'parent_material': 'False'}
+        ]
+        filename = os.path.join(self.path, 'voucher.csv')
         f = open(filename, 'w', encoding='utf-8', newline='')
         format = {'delimiter': ',', 'quoting': QUOTE_STYLE,
                   'quotechar': QUOTE_CHAR}
         fields = list(data[0].keys())
-        f.write('%s\n' % ','.join(fields))
-        f.flush()
         writer = csv.DictWriter(f, fields, **format)
+        writer.writeheader()
         writer.writerows(data)
         f.flush()
         f.close()
         importer = CSVTestImporter()
         importer.start([filename], force=True)
 
-        t = self.session.query(BoolTest).get(1)
-        self.assertTrue(t.col1 is True)
+        voucher = self.session.query(Voucher).get(1)
+        self.assertTrue(voucher.parent_material)
 
-        t = self.session.query(BoolTest).get(2)
-        self.assertTrue(t.col1 is False)
-
-        t = self.session.query(BoolTest).get(3)
-        self.assertTrue(t.col1 is False)
+        voucher = self.session.query(Voucher).get(2)
+        self.assertFalse(voucher.parent_material)
 
     def test_with_open_connection(self):
         """
@@ -619,9 +616,10 @@ class JSONExportTests(BaubleTestCase):
         self.assertEqual(set(date_dict.keys()), set(['millis', '__class__']))
 
     def test_export_single_species_with_vernacular_name(self):
-        selection = self.session.query(
-            Species).filter(Species.sp == 'tuberosus').join(
-            Genus).filter(Genus.genus == "Calopogon").all()
+        selection = (self.session.query(Species)
+                     .filter(Species.sp == 'tuberosus')
+                     .join(Genus)
+                     .filter(Genus.genus == "Calopogon").all())
         vn = VernacularName(language="it", name='orchidea')
         selection[0].vernacular_names.append(vn)
         self.session.add(vn)
@@ -990,17 +988,21 @@ class JSONImportTests(BaubleTestCase):
         )
         with open(self.temp_path, "w") as f:
             f.write(json_string)
-        previously = Species.retrieve_or_create(
-            self.session, {'ht-epithet': "Calopogon",
-                           'epithet': "tuberosus"})
+        previously = (self.session.query(Species)
+                      .join(Genus)
+                      .filter(Genus.epithet == "Calopogon")
+                      .filter(Species.epithet == "tuberosus")
+                      .first())
         self.assertEqual(previously.sp_author, None)
         importer = JSONImporter(MockView())
         importer.filename = self.temp_path
         importer.on_btnok_clicked(None)
         self.session.commit()
-        afterwards = Species.retrieve_or_create(
-            self.session, {'ht-epithet': "Calopogon",
-                           'epithet': "tuberosus"})
+        afterwards = (self.session.query(Species)
+                      .join(Genus)
+                      .filter(Genus.epithet == "Calopogon")
+                      .filter(Species.epithet == "tuberosus")
+                      .first())
         self.assertEqual(afterwards.sp_author, "Britton et al.")
 
     def test_import_ignores_id_new(self):
@@ -1024,9 +1026,11 @@ class JSONImportTests(BaubleTestCase):
 
     def test_import_ignores_id_updating(self):
         "importing taxon disregards id value if present (updating taxon)."
-        previously = Species.retrieve_or_create(self.session,
-                                                {'ht-epithet': "Calopogon",
-                                                 'epithet': "tuberosus"}).id
+        previously = (self.session.query(Species.id)
+                      .join(Genus)
+                      .filter(Genus.epithet == "Calopogon")
+                      .filter(Species.epithet == "tuberosus")
+                      .first())
         json_string = '[{"rank": "Species", "epithet": "tuberosus", '\
             '"ht-rank": "Genus", "ht-epithet": "Calopogon", "hybrid": null, '\
             '"id": 8}]'
@@ -1037,10 +1041,12 @@ class JSONImportTests(BaubleTestCase):
         importer.on_btnok_clicked(None)
 
         self.session.commit()
-        afterwards = Species.retrieve_or_create(self.session,
-                                                {'ht-epithet': "Calopogon",
-                                                 'epithet': "tuberosus"}).id
-        self.assertEqual(previously, afterwards)
+        afterwards = (self.session.query(Species.id)
+                      .join(Genus)
+                      .filter(Genus.epithet == "Calopogon")
+                      .filter(Species.epithet == "tuberosus")
+                      .first())
+        self.assertEqual(previously[0], afterwards[0])
 
     def test_import_species_to_new_genus_fails(self):
         "importing new species referring to non existing genus logs a warning."

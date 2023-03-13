@@ -37,8 +37,10 @@ from sqlalchemy import (Column,
                         String,
                         UniqueConstraint,
                         and_,
-                        literal)
-from sqlalchemy.orm import relationship, backref
+                        literal,
+                        event,
+                        update)
+from sqlalchemy.orm import relationship, backref, object_mapper
 from sqlalchemy.orm import synonym as sa_synonym
 from sqlalchemy.orm.session import object_session
 from sqlalchemy.exc import DBAPIError
@@ -402,6 +404,28 @@ class Genus(db.Base, db.Serializable, db.WithNotes):
         if prefs.prefs.get(prefs.exclude_inactive_pref):
             query = query.filter(cls.active.is_(True))
         return query.count()
+
+
+# Listen for changes and update the full_name string
+@event.listens_for(Genus, 'before_update')
+def genus_before_update(_mapper, connection, target):
+    for sp in target.species:
+        session = object_session(sp)
+        if sp in session.new or sp in session.dirty:
+            # skip species that will trigger their own full name update
+            return
+        if sp.full_name != str(sp):
+            vals = {'full_name': str(sp)}
+            sp_table = Species.__table__
+            connection.execute(update(sp_table)
+                               .where(sp_table.c.id == sp.id)
+                               .values(vals))
+            # update history because above does not trigger history
+            db.History.event_add('update',
+                                 object_mapper(sp),
+                                 connection,
+                                 sp,
+                                 **vals)
 
 
 def compute_serializable_fields(_cls, session, keys):
@@ -829,8 +853,8 @@ class GenusEditor(editor.GenericModelViewPresenterEditor):
         if response == self.RESPONSE_NEXT:
             self.presenter.cleanup()
             model = Genus(family=self.model.family)
-            editor = GenusEditor(model=model, parent=self.parent)
-            more_committed = editor.start()
+            gen_editor = GenusEditor(model=model, parent=self.parent)
+            more_committed = gen_editor.start()
         elif response == self.RESPONSE_OK_AND_ADD:
             sp = Species(genus=self.model)
             more_committed = edit_species(model=sp, parent_view=self.parent)

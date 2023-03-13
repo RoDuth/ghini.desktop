@@ -1205,7 +1205,8 @@ class BinomialSearchTests(BaubleTestCase):
 
         s = 'ixora coccinea'  # matches Ixora, I.coccinea, P.coccinea
         results = list(mapper_search.search(s, self.session))
-        self.assertCountEqual(results, [self.ixora, self.ic, self.pc])
+        expected = [sp for sp in self.ixora.species] + [self.ixora, self.pc]
+        self.assertCountEqual(results, expected)
 
     def test_sp_cultivar_also_matches(self):
         mapper_search = search.get_strategy('MapperSearch')
