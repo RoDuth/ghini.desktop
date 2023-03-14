@@ -634,6 +634,11 @@ class PlantTests(GardenTestCase):
         self.assertIsNone(self.plant.death)
 
     def test_living_plant_planted(self):
+        # plant added in setUp should create a plant_change and history entry
+        hist_query = (self.session.query(db.History)
+                      .filter(db.History.table_name == 'plant_change'))
+        start_count = hist_query.count()
+        self.assertEqual(start_count, 1)
         plant = Plant(accession=self.accession, location=self.location,
                       code='11', quantity=1)
         change = PlantChange()
@@ -649,20 +654,33 @@ class PlantTests(GardenTestCase):
         self.session.refresh(plant)
         self.assertIsNotNone(plant.planted)
         self.assertEqual(plant.planted.reason, 'PLTD')
+        self.assertEqual(hist_query.count(), start_count + 1)
+        for entry in hist_query:
+            # check that a date entry exists for all history entries,
+            # particularly for those added in plant_after_insert (setUp commits
+            # self.plant without a change so one is created in
+            # plant_after_insert along with a history entry)
+            self.assertIsNotNone(entry.values['date'])
 
     def test_living_plant_planted_reason_only(self):
+        hist_query = (self.session.query(db.History)
+                      .filter(db.History.table_name == 'plant_change'))
+        start_count = hist_query.count()
+        self.assertEqual(start_count, 1)
         plant = Plant(accession=self.accession, location=self.location,
                       code='11', quantity=1)
         change = PlantChange()
         change.reason = 'PLTD'
         plant.changes.append(change)
         self.session.add_all([plant, change])
-        self.session.flush()
+        self.session.commit()
         self.session.refresh(plant)
         self.assertIsNotNone(plant.planted)
         self.assertEqual(plant.planted.to_location, plant.location)
         self.assertEqual(plant.planted.reason, 'PLTD')
         self.assertEqual(plant.planted.quantity, plant.quantity)
+        # test the correct amount of history entries are added
+        self.assertEqual(hist_query.count(), start_count + 1)
 
     def test_living_plant_always_has_planted(self):
         # this is generated in event.listen
@@ -714,17 +732,31 @@ class PlantTests(GardenTestCase):
         self.assertEqual(self.plant.death.reason, 'DEAD')
 
     def test_setting_quantity_location_produces_2_changes(self):
+        hist_query = (self.session.query(db.History)
+                      .filter(db.History.table_name == 'plant_change'))
+        start_count = hist_query.count()
         loc2a = Location(name='site2a', code='2a')
         self.session.add(loc2a)
         self.session.commit()
         self.assertEqual(len(self.plant.changes), 1)
         self.plant.quantity = 10
         self.plant.location = loc2a
-        self.session.flush()
+        self.session.commit()
         self.session.refresh(self.plant)
         self.assertEqual(len(self.plant.changes), 3)
+        # test the correct amount of history entries are added
+        self.assertEqual(hist_query.count(), start_count + 2)
+        for entry in hist_query:
+            # check that a date entry exists for all history entries,
+            # particularly for those added in plant_after_insert/after_update.
+            # if no date is supplied the created history entry needs to be
+            # generated
+            self.assertIsNotNone(entry.values['date'])
 
     def test_setting_quantity_location_w_date_reason_produces_2_changes(self):
+        hist_query = (self.session.query(db.History)
+                      .filter(db.History.table_name == 'plant_change'))
+        start_count = hist_query.count()
         date = '02-12-2020'
         loc2a = Location(name='site2a', code='2a')
         self.session.add(loc2a)
@@ -743,6 +775,14 @@ class PlantTests(GardenTestCase):
         for chg in self.plant.changes[1:]:
             self.assertEqual(chg.reason, 'ERRO')
             self.assertEqual(chg.date.strftime('%d-%m-%Y'), date)
+        # test the correct amount of history entries are added
+        self.assertEqual(hist_query.count(), start_count + 2)
+        for entry in hist_query:
+            # check that a date entry exists for all history entries,
+            # particularly for those added in plant_after_insert (setUp commits
+            # self.plant without a change so one is created in
+            # plant_after_insert along with a history entry)
+            self.assertIsNotNone(entry.values['date'])
 
     def test_plant_from_dict(self):
         p = Plant.retrieve_or_create(

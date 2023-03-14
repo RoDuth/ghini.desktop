@@ -27,6 +27,7 @@ import os
 import traceback
 from random import random
 from pathlib import Path
+from datetime import datetime
 
 import logging
 logger = logging.getLogger(__name__)
@@ -916,9 +917,19 @@ def plant_after_update(_mapper, connection, target):  \
             to_update = None
         else:
             logger.debug("creating new change with %s", values)
-            connection.execute(
+            result = connection.execute(
                 PlantChange.__table__.insert().values(values)
             )
+            # add a history entry to the database, new_change created here is
+            # throw away
+            if date is None:
+                values['date'] = str(datetime.now())
+            new_change = PlantChange(**values,
+                                     id=result.inserted_primary_key[0])
+            db.History.event_add('insert',
+                                 object_mapper(new_change),
+                                 connection,
+                                 new_change)
 
 
 @event.listens_for(Plant, 'after_insert')
@@ -938,14 +949,24 @@ def plant_after_insert(_mapper, connection, target):
                 change.to_location_id = target.location_id
             return
 
+    # get here for imports etc. editor should always supply a change
     logger.debug("new plant adding a change")
     plant_changes_table = PlantChange.__table__
-    connection.execute(
-        plant_changes_table.insert().values(
-            plant_id=target.id,
-            quantity=target.quantity,
-            to_location_id=target.location_id
-        ))
+
+    values = {'plant_id': target.id,
+              'quantity': target.quantity,
+              'to_location_id': target.location_id,
+              'date': str(datetime.now())}
+    result = connection.execute(plant_changes_table.insert().values(values))
+
+    # add a history entry to the database, new_change created here is throw
+    # away
+    new_change = PlantChange(**values,
+                             id=result.inserted_primary_key[0])
+    db.History.event_add('insert',
+                         object_mapper(new_change),
+                         connection,
+                         new_change)
 
 
 class PlantEditorView(GenericEditorView):
