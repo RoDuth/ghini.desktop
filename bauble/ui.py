@@ -538,8 +538,8 @@ class GUI:
         index to index parameter
         """
         if index < 0 or index > self.history_size:
-            raise ValueError(_('history size must be greater than zero and '
-                               'less than the history size'))
+            raise ValueError(_('index must be greater than zero and less than '
+                               'the history size'))
         history = prefs.prefs.get(self.entry_history_pref, [])
         if text in history:
             history.remove(text)
@@ -608,7 +608,9 @@ class GUI:
                 action.set_enabled(False)
             display = Gdk.Display.get_default()
             cursor = Gdk.Cursor.new_from_name(display, name)
-            self.window.get_property('window').set_cursor(cursor)
+            window = self.window.get_property('window')
+            if window:
+                window.set_cursor(cursor)
         else:
             for action in self.disable_on_busy_actions:
                 action.set_enabled(True)
@@ -684,7 +686,7 @@ class GUI:
         return self.menubar
 
     def remove_menu(self, position):
-        """remove all the menus items from a menu"""
+        """remove a menu from the menubar"""
         self.menubar.remove(position)
 
     def add_menu(self, name, menu, from_end=1):
@@ -930,15 +932,15 @@ class GUI:
         desktop.open('http://github.com/RoDuth/ghini.desktop/',
                      dialog_on_error=True)
 
-    @staticmethod
-    def on_help_menu_web_wiki(_action, _param):
-        desktop.open('http://ghini.github.io/',
-                     dialog_on_error=True)
+    # @staticmethod
+    # def on_help_menu_web_wiki(_action, _param):
+    #     desktop.open('http://ghini.github.io/',
+    #                  dialog_on_error=True)
 
-    @staticmethod
-    def on_help_menu_web_forum(_action, _param):
-        desktop.open('https://groups.google.com/forum/#!forum/bauble',
-                     dialog_on_error=True)
+    # @staticmethod
+    # def on_help_menu_web_forum(_action, _param):
+    #     desktop.open('https://groups.google.com/forum/#!forum/bauble',
+    #                  dialog_on_error=True)
 
     def on_help_menu_about(self, _action, _param):
         about = Gtk.AboutDialog(transient_for=self.window)
@@ -976,7 +978,7 @@ class GUI:
         if bauble.task.running():
             msg = _('Would you like to cancel the current tasks?')
             if not utils.yes_no_dialog(msg):
-                # stop other handlers for being invoked for this event
+                # stop other handlers from being invoked for this event
                 return True
             bauble.task.kill()
             msg = _('Close Ghini?')

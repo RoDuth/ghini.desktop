@@ -111,6 +111,7 @@ class BaubleTestCase(unittest.TestCase):
     def setUp(self):
         assert uri is not None, "The database URI is not set"
         bauble.db.engine = None
+        bauble.conn_name = None
         try:
             poolclass = None
             if uri.startswith('sqlite'):

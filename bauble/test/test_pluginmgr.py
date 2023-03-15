@@ -344,6 +344,9 @@ class PluginRegistryTests(BaubleTestCase):
         # test that adding works
         PluginRegistry.add(p)
         self.assertTrue(PluginRegistry.exists(p))
+        # test all
+        self.assertIn(p.__class__.__name__,
+                      [p.name for p in PluginRegistry.all(self.session)])
 
         # test that removing works
         PluginRegistry.remove(p)

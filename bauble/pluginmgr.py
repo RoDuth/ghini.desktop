@@ -136,9 +136,7 @@ def load(path=None):
         logger.debug('No plugins found at path: %s', path)
 
     for plugin in found:
-        # issue #27: should we include the module name of the plugin to
-        # allow for plugin namespaces or just assume that the plugin class
-        # name is unique?
+        # plugin should be unique
         if isinstance(plugin, type):
             plugins[plugin.__name__] = plugin
             logger.debug("registering plugin %s: %s", plugin.__name__, plugin)
