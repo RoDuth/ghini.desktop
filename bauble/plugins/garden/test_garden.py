@@ -2918,10 +2918,10 @@ class CollectionTests(GardenTestCase):
 
     def test_split_lat_long(self):
         view = AccessionEditorView()
-        CollectionPresenter(unittest.mock.MagicMock(),
-                            Collection(),
-                            view,
-                            self.session)
+        presenter = CollectionPresenter(unittest.mock.MagicMock(),
+                                        Collection(),
+                                        view,
+                                        self.session)
         # dms
         value = "27°28'55\"S 152°58'24.2\"E"
         view.widgets.lon_entry.set_text(value)
@@ -2947,6 +2947,131 @@ class CollectionTests(GardenTestCase):
         view.widgets.lat_entry.set_text(value)
         update_gui()
         self.assertEqual(view.widgets.lat_entry.get_text(), value)
+        presenter.cleanup()
+
+    def test_on_east_west_radio_toggled(self):
+        view = AccessionEditorView()
+        presenter = CollectionPresenter(unittest.mock.MagicMock(),
+                                        Collection(),
+                                        view,
+                                        self.session)
+
+        # blank
+        view.widgets.lon_entry.set_text('')
+        view.widgets.east_radio.set_active(True)
+        self.assertEqual(view.widgets.lon_entry.get_text(), '')
+        # NOTE set the west radio button active, setting east False won't work
+        view.widgets.west_radio.set_active(True)
+        self.assertEqual(view.widgets.lon_entry.get_text(), '')
+
+        # dec
+        view.widgets.lon_entry.set_text('12.345')
+        view.widgets.west_radio.set_active(True)
+        self.assertEqual(view.widgets.lon_entry.get_text(), '-12.345')
+        view.widgets.east_radio.set_active(True)
+        self.assertEqual(view.widgets.lon_entry.get_text(), '12.345')
+
+        # dms
+        view.widgets.lon_entry.set_text("152°58'24.2\"")
+        view.widgets.west_radio.set_active(True)
+        self.assertEqual(view.widgets.lon_entry.get_text(), "152°58'24.2\"W")
+        view.widgets.east_radio.set_active(True)
+        self.assertEqual(view.widgets.lon_entry.get_text(), "152°58'24.2\"E")
+        view.widgets.west_radio.set_active(True)
+        self.assertEqual(view.widgets.lon_entry.get_text(), "152°58'24.2\"W")
+
+        # dms 2
+        view.widgets.lon_entry.set_text("E 152°58'24.2\"")
+        view.widgets.west_radio.set_active(True)
+        self.assertEqual(view.widgets.lon_entry.get_text(), "W 152°58'24.2\"")
+        view.widgets.east_radio.set_active(True)
+        self.assertEqual(view.widgets.lon_entry.get_text(), "E 152°58'24.2\"")
+
+        # junk
+        view.widgets.lon_entry.set_text('abcd')
+        view.widgets.east_radio.set_active(True)
+        self.assertEqual(view.widgets.lon_entry.get_text(), 'abcd')
+        view.widgets.west_radio.set_active(True)
+        self.assertEqual(view.widgets.lon_entry.get_text(), 'abcd')
+        presenter.cleanup()
+
+    def test_on_north_south_radio_toggled(self):
+        view = AccessionEditorView()
+        presenter = CollectionPresenter(unittest.mock.MagicMock(),
+                                        Collection(),
+                                        view,
+                                        self.session)
+
+        # blank
+        view.widgets.lat_entry.set_text('')
+        view.widgets.north_radio.set_active(True)
+        self.assertEqual(view.widgets.lat_entry.get_text(), '')
+        # NOTE set the west radio button active, setting east False won't work
+        view.widgets.south_radio.set_active(True)
+        self.assertEqual(view.widgets.lat_entry.get_text(), '')
+
+        # dec
+        view.widgets.lat_entry.set_text('12.345')
+        view.widgets.south_radio.set_active(True)
+        self.assertEqual(view.widgets.lat_entry.get_text(), '-12.345')
+        view.widgets.north_radio.set_active(True)
+        self.assertEqual(view.widgets.lat_entry.get_text(), '12.345')
+
+        # dms
+        view.widgets.lat_entry.set_text("152°58'24.2\"")
+        view.widgets.south_radio.set_active(True)
+        self.assertEqual(view.widgets.lat_entry.get_text(), "152°58'24.2\"S")
+        view.widgets.north_radio.set_active(True)
+        self.assertEqual(view.widgets.lat_entry.get_text(), "152°58'24.2\"N")
+        view.widgets.south_radio.set_active(True)
+        self.assertEqual(view.widgets.lat_entry.get_text(), "152°58'24.2\"S")
+
+        # dms 2
+        view.widgets.lat_entry.set_text("S 152°58'24.2\"")
+        view.widgets.north_radio.set_active(True)
+        self.assertEqual(view.widgets.lat_entry.get_text(), "N 152°58'24.2\"")
+        view.widgets.south_radio.set_active(True)
+        self.assertEqual(view.widgets.lat_entry.get_text(), "S 152°58'24.2\"")
+
+        # junk
+        view.widgets.lat_entry.set_text('abcd')
+        view.widgets.north_radio.set_active(True)
+        self.assertEqual(view.widgets.lat_entry.get_text(), 'abcd')
+        view.widgets.south_radio.set_active(True)
+        self.assertEqual(view.widgets.lat_entry.get_text(), 'abcd')
+        presenter.cleanup()
+
+    def test_set_region(self):
+        view = AccessionEditorView()
+        model = Collection()
+        mock_parent = unittest.mock.MagicMock()
+        presenter = CollectionPresenter(mock_parent,
+                                        model,
+                                        view,
+                                        self.session)
+        geo = self.session.query(Geography).get(5)
+        mock_var = unittest.mock.Mock()
+        mock_var.unpack.return_value = 5
+        presenter.set_region(None, mock_var)
+        self.assertEqual(model.region, geo)
+        presenter.cleanup()
+
+    def test_refresh_view_w_lat_long(self):
+        view = AccessionEditorView()
+        model = Collection(latitude=12.345, longitude=12.345)
+        presenter = CollectionPresenter(unittest.mock.MagicMock(),
+                                        model,
+                                        view,
+                                        self.session)
+        presenter.refresh_view()
+        self.assertTrue(view.widgets.north_radio.get_active())
+        self.assertTrue(view.widgets.east_radio.get_active())
+        model.latitude = -12.345
+        model.longitude = -12.345
+        presenter.refresh_view()
+        self.assertFalse(view.widgets.north_radio.get_active())
+        self.assertFalse(view.widgets.east_radio.get_active())
+        presenter.cleanup()
 
 
 class InstitutionTests(GardenTestCase):

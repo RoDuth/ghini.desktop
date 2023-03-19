@@ -32,7 +32,6 @@ import logging
 logger = logging.getLogger(__name__)
 
 from gi.repository import Gtk
-from gi.repository import Gio
 
 from sqlalchemy import (Column,
                         Unicode,
@@ -460,11 +459,8 @@ class CollectionPresenter(editor.ChildPresenter):
         return self._dirty
 
     def refresh_view(self):
+        super().refresh_view()
         from .accession import latitude_to_dms, longitude_to_dms
-        for widget, field in self.widget_to_field_map.items():
-            value = getattr(self.model, field)
-            logger.debug('%s, %s, %s', widget, field, value)
-            self.view.widget_set_value(widget, value)
 
         latitude = self.model.latitude
         if latitude is not None:
@@ -502,41 +498,75 @@ class CollectionPresenter(editor.ChildPresenter):
     def on_east_west_radio_toggled(self, _widget):
         direction = self._get_lon_direction()
         entry = self.view.widgets.lon_entry
-        lon_text = entry.get_text()
+        lon_text = entry.get_text().strip()
         if lon_text == '':
             return
         try:
             # make sure that the first part of the string is a number before
             # toggling
-            float(lon_text.split(' ')[0])
+            float(re.split(' |°', lon_text.strip('WE '))[0])
         except (TypeError, ValueError) as e:
             logger.debug("%s(%s)", type(e).__name__, e)
             return
 
-        if direction == 'W' and lon_text[0] != '-':
-            entry.set_text(f'-{lon_text}')
-        elif direction == 'E' and lon_text[0] == '-':
-            entry.set_text(lon_text[1:])
+        if direction == 'W':
+            if long_re.match(lon_text):
+                if lon_text[0] == 'E':
+                    entry.set_text(f'W{lon_text[1:]}')
+                elif lon_text[-1] == 'E':
+                    entry.set_text(f'{lon_text[:-1]}W')
+                else:
+                    entry.set_text(f'{lon_text}W')
+            elif lon_text[0] != '-':
+                entry.set_text(f'-{lon_text}')
+        elif direction == 'E':
+            if long_re.match(lon_text):
+                if lon_text[0] == 'W':
+                    entry.set_text(f'E{lon_text[1:]}')
+                elif lon_text[-1] == 'W':
+                    entry.set_text(f'{lon_text[:-1]}E')
+                else:
+                    # just in case
+                    entry.set_text(f'{lon_text}E')
+            elif lon_text[0] == '-':
+                entry.set_text(lon_text[1:])
 
     def on_north_south_radio_toggled(self, _widget):
         direction = self._get_lat_direction()
         entry = self.view.widgets.lat_entry
-        lat_text = entry.get_text()
+        lat_text = entry.get_text().strip()
         if lat_text == '':
             return
 
         try:
             # make sure that the first part of the string is a number before
             # toggling
-            float(lat_text.split(' ')[0])
+            float(re.split(' |°', lat_text.strip('SN '))[0])
         except (TypeError, ValueError) as e:
             logger.debug("%s(%s)", type(e).__name__, e)
             return
 
-        if direction == 'S' and lat_text[0] != '-':
-            entry.set_text(f'-{lat_text}')
-        elif direction == 'N' and lat_text[0] == '-':
-            entry.set_text(lat_text[1:])
+        if direction == 'S':
+            if lat_re.match(lat_text):
+                if lat_text[0] == 'N':
+                    entry.set_text(f'S{lat_text[1:]}')
+                elif lat_text[-1] == 'N':
+                    entry.set_text(f'{lat_text[:-1]}S')
+                else:
+                    entry.set_text(f'{lat_text}S')
+            elif lat_text[0] != '-':
+                entry.set_text(f'-{lat_text}')
+        elif direction == 'N':
+            if lat_re.match(lat_text):
+                if lat_text[0] == 'S':
+                    entry.set_text(f'N{lat_text[1:]}')
+                elif lat_text[-1] == 'S':
+                    entry.set_text(f'{lat_text[:-1]}N')
+                else:
+                    # just in case
+                    entry.set_text(f'{lat_text}N')
+            elif lat_text[0] == '-':
+                entry.set_text(lat_text[1:])
 
     @staticmethod
     def _parse_lat_lon(direction, text):
@@ -604,7 +634,7 @@ class CollectionPresenter(editor.ChildPresenter):
                 if match := lat_re.match(text):
                     text = ' '.join(match.groups())
 
-                latitude = CollectionPresenter._parse_lat_lon(direction, text)
+                latitude = self._parse_lat_lon(direction, text)
                 direct, degs, mins, secs = latitude_to_dms(latitude)
                 dms_string = f'{direct} {degs}°{mins}\'{secs}"'
         except (ArithmeticError,
@@ -644,7 +674,7 @@ class CollectionPresenter(editor.ChildPresenter):
                 if match := long_re.match(text):
                     text = ' '.join(match.groups())
 
-                longitude = CollectionPresenter._parse_lat_lon(direction, text)
+                longitude = self._parse_lat_lon(direction, text)
                 direct, degs, mins, secs = longitude_to_dms(longitude)
                 dms_string = f'{direct} {degs}°{mins}\'{secs}"'
         except (ArithmeticError,
