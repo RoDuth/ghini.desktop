@@ -1810,10 +1810,15 @@ class SourcePresenter(editor.GenericEditorPresenter):
         if self.model.source:
             self.source = self.model.source
             self.view.widgets.sources_code_entry.set_text(
-                self.source.sources_code or '')
+                self.source.sources_code or ''
+            )
+            self.view.widgets.source_notes_textbuffer.set_text(
+                self.source.notes or ''
+            )
         else:
             self.source = Source()
             self.view.widgets.sources_code_entry.set_text('')
+            self.view.widgets.source_notes_textbuffer.set_text('')
 
         if self.source.collection:
             self.collection = self.source.collection
@@ -1850,6 +1855,8 @@ class SourcePresenter(editor.GenericEditorPresenter):
 
         self.view.connect('sources_code_entry', 'changed',
                           self.on_sources_code_changed)
+        self.view.connect('source_notes_textbuffer', 'changed',
+                          self.on_source_notes_changed)
 
         self.view.connect('source_coll_add_button', 'clicked',
                           self.on_coll_add_button_clicked)
@@ -1887,6 +1894,17 @@ class SourcePresenter(editor.GenericEditorPresenter):
             self.source.sources_code = text
         else:
             self.source.sources_code = None
+        self._dirty = True
+        self.refresh_sensitivity()
+
+    def on_source_notes_changed(self, widget, *_args):
+        text = widget.get_text(widget.get_start_iter(),
+                               widget.get_end_iter(),
+                               False)
+        if text.strip():
+            self.source.notes = text
+        else:
+            self.source.notes = None
         self._dirty = True
         self.refresh_sensitivity()
 

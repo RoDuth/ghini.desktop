@@ -1470,6 +1470,173 @@ class SourceTests(GardenTestCase):
         self.assertTrue(self.session.query(Propagation).get(plant_prop_id))
 
 
+class SourcePresenterTests(GardenTestCase):
+    # NOTE some tests also in AcccessionTests
+
+    def test_on_sources_code_changed(self):
+        view = AccessionEditorView()
+        model = Source()
+        presenter = SourcePresenter(unittest.mock.MagicMock(),
+                                    Accession(source=model),
+                                    view,
+                                    self.session)
+
+        view.widgets.sources_code_entry.set_text('')
+        self.assertIsNone(model.sources_code)
+        view.widgets.sources_code_entry.set_text('ABC123')
+        self.assertEqual(model.sources_code, 'ABC123')
+        presenter.cleanup()
+
+    def test_on_source_note_changed(self):
+        view = AccessionEditorView()
+        model = Source()
+        presenter = SourcePresenter(unittest.mock.MagicMock(),
+                                    Accession(source=model),
+                                    view,
+                                    self.session)
+
+        view.widgets.source_notes_textbuffer.set_text('')
+        self.assertIsNone(model.notes)
+        view.widgets.source_notes_textbuffer.set_text('Test note text.')
+        self.assertEqual(model.notes, 'Test note text.')
+        presenter.cleanup()
+
+    def test_on_type_filter_changed(self):
+        view = AccessionEditorView()
+        model = Source()
+        presenter = SourcePresenter(unittest.mock.MagicMock(),
+                                    Accession(source=model),
+                                    view,
+                                    self.session)
+
+        self.assertFalse(view.widgets.source_garden_prop_box.get_visible())
+        utils.set_widget_value(view.widgets.source_type_combo,
+                               'garden_prop')
+        combo = view.widgets.acc_source_comboentry
+        self.assertEqual(len(combo.get_model()), 2)
+        self.assertTrue(view.widgets.source_garden_prop_box.get_visible())
+        utils.set_widget_value(view.widgets.source_type_combo,
+                               'contact')
+        self.assertEqual(len(combo.get_model()), len(source_detail_data) + 1)
+        self.assertFalse(view.widgets.source_garden_prop_box.get_visible())
+        presenter.cleanup()
+
+    def test_on_coll_add_remove_clicked(self):
+        view = AccessionEditorView()
+        model = Source()
+        presenter = SourcePresenter(unittest.mock.MagicMock(),
+                                    Accession(source=model),
+                                    view,
+                                    self.session)
+
+        self.assertIsNone(model.collection)
+        self.assertTrue(view.widgets.source_coll_add_button.get_sensitive())
+        self.assertFalse(view.widgets.source_coll_remove_button.get_sensitive())
+        self.assertFalse(view.widgets.source_coll_expander.get_sensitive())
+
+        # add
+        view.widgets.source_coll_add_button.clicked()
+        self.assertIsNotNone(model.collection)
+        self.assertFalse(view.widgets.source_coll_add_button.get_sensitive())
+        self.assertTrue(view.widgets.source_coll_remove_button.get_sensitive())
+        self.assertTrue(view.widgets.source_coll_expander.get_sensitive())
+
+        # remove
+        view.widgets.source_coll_remove_button.clicked()
+        self.assertIsNone(model.collection)
+        self.assertTrue(view.widgets.source_coll_add_button.get_sensitive())
+        self.assertFalse(view.widgets.source_coll_remove_button.get_sensitive())
+        self.assertFalse(view.widgets.source_coll_expander.get_sensitive())
+        presenter.cleanup()
+
+    def test_on_prop_add_remove_clicked(self):
+        view = AccessionEditorView()
+        model = Source()
+        presenter = SourcePresenter(unittest.mock.MagicMock(),
+                                    Accession(source=model),
+                                    view,
+                                    self.session)
+
+        self.assertIsNone(model.propagation)
+        self.assertTrue(view.widgets.source_prop_add_button.get_sensitive())
+        self.assertFalse(view.widgets.source_prop_remove_button.get_sensitive())
+        self.assertFalse(view.widgets.source_prop_expander.get_sensitive())
+
+        # add
+        view.widgets.source_prop_add_button.clicked()
+        self.assertIsNotNone(model.propagation)
+        self.assertFalse(view.widgets.source_prop_add_button.get_sensitive())
+        self.assertTrue(view.widgets.source_prop_remove_button.get_sensitive())
+        self.assertTrue(view.widgets.source_prop_expander.get_sensitive())
+
+        # remove
+        view.widgets.source_prop_remove_button.clicked()
+        self.assertIsNone(model.propagation)
+        self.assertTrue(view.widgets.source_prop_add_button.get_sensitive())
+        self.assertFalse(view.widgets.source_prop_remove_button.get_sensitive())
+        self.assertFalse(view.widgets.source_prop_expander.get_sensitive())
+        presenter.cleanup()
+
+    @unittest.mock.patch(
+        'bauble.plugins.garden.accession.SourceDetailPresenter'
+    )
+    def test_on_new_source_button_clicked(self, mock_presenter):
+        # set the type, mock the SourceDetailPresenter, get the source suplied
+        # to it, adjust its name then return from start
+        view = AccessionEditorView()
+        model = Source()
+        presenter = SourcePresenter(unittest.mock.MagicMock(),
+                                    Accession(source=model),
+                                    view,
+                                    self.session)
+        utils.set_widget_value(view.widgets.source_type_combo,
+                               'Commercial')
+
+        def mock_start():
+            source = mock_presenter.call_args_list[1][0][0]
+            source.name = 'Test'
+            source.source_type = 'Commercial'
+            return Gtk.ResponseType.OK
+
+        mock_presenter().start = mock_start
+
+        view.widgets.new_source_button.clicked()
+        # assert that the selected value is selected in the
+        # acc_source_comboentry
+        combo = view.widgets.acc_source_comboentry
+        treeiter = combo.get_active_iter()
+        active = combo.get_model()[treeiter][0]
+
+        self.assertEqual(active.name, 'Test')
+        self.assertEqual(mock_presenter.call_args.kwargs['source_types'],
+                         ['Commercial'])
+        presenter.cleanup()
+
+    def test_source_match_func(self):
+        view = AccessionEditorView()
+        model = Source()
+        presenter = SourcePresenter(unittest.mock.MagicMock(),
+                                    Accession(source=model),
+                                    view,
+                                    self.session)
+
+        mock_completion = unittest.mock.Mock()
+        mock_completion.get_model.return_value = [['test nursery name']]
+        self.assertTrue(
+            presenter.source_match_func(mock_completion, 'test', 0)
+        )
+        self.assertTrue(
+            presenter.source_match_func(mock_completion, 'nursery', 0)
+        )
+        self.assertTrue(
+            presenter.source_match_func(mock_completion, 'name', 0)
+        )
+        self.assertFalse(
+            presenter.source_match_func(mock_completion, 'xyz', 0)
+        )
+        presenter.cleanup()
+
+
 class AccessionQualifiedTaxon(GardenTestCase):
 
     def __init__(self, *args):
