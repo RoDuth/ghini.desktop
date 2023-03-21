@@ -40,7 +40,7 @@ from sqlalchemy import (Column,
 from sqlalchemy.orm import relationship, backref, object_session
 from sqlalchemy.orm import synonym as sa_synonym
 from sqlalchemy.ext.hybrid import hybrid_property
-from sqlalchemy.sql.expression import select, case, cast, and_
+from sqlalchemy.sql.expression import select, case, cast, and_, text
 from bauble import db
 from bauble import error
 from bauble import utils
@@ -416,10 +416,9 @@ class Species(db.Base, db.Serializable, db.WithNotes):
 
     @infraspecific_rank.expression
     def infraspecific_rank(cls):
-        # pylint: disable=no-self-argument,no-self-use
+        # pylint: disable=no-self-argument
         # use the last epithet that is not 'cv'. available (the user should be
         # keeping their infraspecific parts in order)
-        from sqlalchemy.sql.expression import case
         return (
             case([
                 (cls.infrasp4_rank != 'cv.', cls.infrasp4_rank),
@@ -436,9 +435,8 @@ class Species(db.Base, db.Serializable, db.WithNotes):
 
     @infraspecific_epithet.expression
     def infraspecific_epithet(cls):
-        # pylint: disable=no-self-argument,no-self-use
+        # pylint: disable=no-self-argument
         # use the last epithet that is not 'cv'.
-        from sqlalchemy.sql.expression import case
         return (
             case([
                 (cls.infrasp4_rank != 'cv.', cls.infrasp4),
@@ -467,8 +465,7 @@ class Species(db.Base, db.Serializable, db.WithNotes):
         return ''
 
     @cultivar_epithet.expression
-    def cultivar_epithet(cls):  # pylint: disable=no-self-argument,no-self-use
-        from sqlalchemy.sql.expression import case
+    def cultivar_epithet(cls):  # pylint: disable=no-self-argument
         return (
             case([
                 (cls.infrasp4_rank == 'cv.', cls.infrasp4),
@@ -511,8 +508,7 @@ class Species(db.Base, db.Serializable, db.WithNotes):
 
     @infraspecific_parts.expression
     def infraspecific_parts(cls):
-        # pylint: disable=no-self-argument,no-self-use
-        from sqlalchemy.sql.expression import case, text, cast
+        # pylint: disable=no-self-argument
         from sqlalchemy.types import String
         return case([
             (cls.infrasp4_rank != 'cv.', cast(

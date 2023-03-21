@@ -1123,7 +1123,7 @@ class GenericEditorPresenter:
         for radio button groups, we have several widgets all referring
         to the same model attribute.
         """
-        for widget, attr in list(self.widget_to_field_map.items()):
+        for widget, attr in self.widget_to_field_map.items():
             value = getattr(self.model, attr)
             value = value if value is not None else ''
             self.view.widget_set_value(widget, value)
@@ -1213,7 +1213,7 @@ class GenericEditorPresenter:
 
         if value is None:
             value = widget.get_text(*widget.get_bounds(), False)
-        logger.debug("on_text_entry_changed(%s, %s) - %s -> %s", widget, attr,
+        logger.debug("on_textbuffer_changed(%s, %s) - %s -> %s", widget, attr,
                      getattr(self.model, attr), value)
         self.__set_model_attr(attr, value)
 
@@ -1240,7 +1240,7 @@ class GenericEditorPresenter:
             value = 0
         try:
             value = int(value)
-            logger.debug("on_text_entry_changed(%s, %s) - %s → %s", widget,
+            logger.debug("on_numeric_entry_changed(%s, %s) - %s → %s", widget,
                          attr, getattr(self.model, attr), value)
             self.__set_model_attr(attr, value)
         except Exception:

@@ -320,6 +320,8 @@ class History(HistoryBase):
                     stmt = (table.update()
                             .where(table.c.id == row.table_id)
                             .values(**values))
+                logger.debug('history revert values: %s', row.values)
+                logger.debug('%s history revert stmt: %s', row.operation, stmt)
                 connection.execute(stmt)
                 table = cls.__table__
                 stmt = table.delete().where(table.c.id == row.id)

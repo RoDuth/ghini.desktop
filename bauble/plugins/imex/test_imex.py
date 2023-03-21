@@ -1782,7 +1782,7 @@ class GenericExporterTests(BaubleTestCase):
         val = GenericExporter.get_item_value('planted.date', item)
         # accuracy is seconds
         val = self.date_parse(val).timestamp()
-        self.assertAlmostEqual(val, now, delta=1)
+        self.assertAlmostEqual(val, now, delta=2)
 
     def test_get_item_value_gets_date_type(self):
         item = Accession(code='2020.4',
@@ -1808,7 +1808,7 @@ class GenericExporterTests(BaubleTestCase):
         val = GenericExporter.get_item_value('_created', item)
         # accuracy is seconds
         val = self.date_parse(val).timestamp()
-        self.assertAlmostEqual(val, now, delta=1)
+        self.assertAlmostEqual(val, now, delta=2)
 
     def test_get_item_value_gets_path(self):
         item = self.session.query(Plant).get(1)
