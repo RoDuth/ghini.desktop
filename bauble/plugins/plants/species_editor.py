@@ -352,7 +352,7 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
                                             found['Authorship'])
                         self.set_model_attr(
                             'hybrid',
-                            found['Species hybrid marker'])
+                            found['Species hybrid marker'] or None)
                         self.refresh_view()
                         self.refresh_fullname_label()
 
@@ -401,7 +401,7 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
                                         'author': accepted['Authorship'],
                                         'hybrid': accepted[
                                             'Species hybrid marker'
-                                        ]
+                                        ] or None
                                     }
                                 )
                             )
