@@ -195,7 +195,7 @@ def edit_callback():
 
 class StoredQueryEditorTool(pluginmgr.Tool):
     # pylint: disable=too-few-public-methods
-    label = _('Edit stored queries')
+    label = _('Edit Stored Queries')
 
     @classmethod
     def start(cls):

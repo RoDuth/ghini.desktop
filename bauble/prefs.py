@@ -497,7 +497,7 @@ def post_gui():
     """Do any setup that requires bauble.gui to be set first."""
     bauble.gui.add_action("set_global_root", set_global_root)
 
-    item = Gio.MenuItem.new(_('Set global directory'), 'win.set_global_root')
+    item = Gio.MenuItem.new(_('Set Global Directory'), 'win.set_global_root')
     bauble.gui.options_menu.append_item(item)
 
 

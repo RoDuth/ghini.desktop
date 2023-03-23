@@ -429,7 +429,7 @@ class PlantsPlugin(pluginmgr.Plugin):
             bauble.gui.add_action("update_full_name",
                                   update_all_full_names_handler)
 
-            item = Gio.MenuItem.new(_('Update all species full names'),
+            item = Gio.MenuItem.new(_('Update All Species Full Names'),
                                     'win.update_full_name')
             bauble.gui.options_menu.append_item(item)
 

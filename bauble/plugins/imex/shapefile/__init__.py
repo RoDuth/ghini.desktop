@@ -41,7 +41,7 @@ Options: search_by, fields.
 class ShapefileImportTool(pluginmgr.Tool):
 
     category = _('Import')
-    label = _('shapefile')
+    label = _('Shapefile')
 
     @classmethod
     def start(cls):
@@ -59,7 +59,7 @@ class ShapefileImportTool(pluginmgr.Tool):
 class ShapefileExportTool(pluginmgr.Tool):
 
     category = _('Export')
-    label = _('shapefile')
+    label = _('Shapefile')
 
     @classmethod
     def start(cls):
