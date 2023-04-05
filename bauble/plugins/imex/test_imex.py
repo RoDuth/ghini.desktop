@@ -1,6 +1,6 @@
 # Copyright 2004-2010 Brett Adams
 # Copyright 2015 Mario Frasca <mario@anche.no>.
-# Copyright 2021-2022 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright 2021-2023 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -492,16 +492,17 @@ class JSONExportTests(BaubleTestCase):
             {"author": "", "epithet": "Panisea", "ht-epithet": "Orchidaceae",
              "ht-rank": "familia", "object": "taxon", "rank": "genus"},
             {'ht-epithet': 'Calopogon', 'object': 'taxon',
-             'ht-rank': 'genus', 'rank': 'species', 'epithet': 'tuberosus'},
+             'ht-rank': 'genus', 'rank': 'species', 'epithet': 'tuberosus',
+             'pbr_protected': False},
             {'ht-epithet': 'Panisea', 'object': 'taxon',
              'ht-rank': 'genus', 'rank': 'species', 'epithet': 'albiflora',
-             'sp_author': '(Ridl.) Seidenf.'},
+             'sp_author': '(Ridl.) Seidenf.', 'pbr_protected': False},
             {'ht-epithet': 'Panisea', 'object': 'taxon',
              'ht-rank': 'genus', 'rank': 'species', 'epithet': 'distelidia',
-             'sp_author': 'I.D.Lund'},
+             'sp_author': 'I.D.Lund', 'pbr_protected': False},
             {'ht-epithet': 'Panisea', 'object': 'taxon',
              'ht-rank': 'genus', 'rank': 'species', 'epithet': 'zeylanica',
-             'sp_author': '(Hook.f.) Aver.'},
+             'sp_author': '(Hook.f.) Aver.', 'pbr_protected': False},
             {"code": "2015.0001", "object": "accession", "private": False,
              "species": "Calopogon tuberosus"},
             {"code": "2015.0002", "object": "accession", "private": False,
@@ -603,7 +604,7 @@ class JSONExportTests(BaubleTestCase):
             result = json.load(f)
         self.assertEqual(len(result), 2)
         self.assertEqual(result[0],
-                         {'ht-epithet': 'Calopogon',
+                         {'ht-epithet': 'Calopogon', 'pbr_protected': False,
                           'object': 'taxon', 'ht-rank': 'genus',
                           'rank': 'species', 'epithet': 'tuberosus'})
         date_dict = result[1]['date']
@@ -634,7 +635,7 @@ class JSONExportTests(BaubleTestCase):
             result = json.load(f)
         self.assertEqual(len(result), 2)
         self.assertEqual(result[0],
-                         {'ht-epithet': 'Calopogon',
+                         {'ht-epithet': 'Calopogon', 'pbr_protected': False,
                           'object': 'taxon', 'ht-rank': 'genus',
                           'rank': 'species', 'epithet': 'tuberosus'})
         self.assertEqual(result[1],

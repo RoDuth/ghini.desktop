@@ -80,7 +80,6 @@ infrasp_rank_values = {'subsp.': _('subsp.'),
                        'subvar.': _('subvar'),
                        'f.': _('f.'),
                        'subf.': _('subf.'),
-                       'cv.': _('cv.'),
                        None: ''}
 
 
@@ -108,7 +107,6 @@ compare_rank = {
     'subvar.': 100,
     'f.': 110,
     'subf.': 120,
-    'cv.': 130
 }
 
 
@@ -118,7 +116,6 @@ class Species(db.Base, db.Serializable, db.WithNotes):
 
     :Columns:
         *sp*:
-        *sp2*:
         *sp_author*:
 
         *hybrid*:
@@ -142,6 +139,9 @@ class Species(db.Base, db.Serializable, db.WithNotes):
 
         *cv_group*:
         *trade_name*:
+        *trademark_symbol*:
+        *grex*:
+        *pbr_protected*:
 
         *sp_qual*:
             Species qualifier
@@ -168,15 +168,11 @@ class Species(db.Base, db.Serializable, db.WithNotes):
         *synonyms*:
 
         *distribution*:
-
-    :Constraints:
-        The combination of sp, sp_author, hybrid, sp_qual,
-        cv_group, trade_name, genus_id
     """
     __tablename__ = 'species'
 
     # for internal use when importing records, accounts for the lack of
-    # UniqueConstraints and the complex of hybrid_properties etc.
+    # UniqueConstraint and the complex of hybrid_properties etc.
     uniq_props = [
         'genus',
         'genus_id',
@@ -205,13 +201,15 @@ class Species(db.Base, db.Serializable, db.WithNotes):
     # columns
     sp = Column(Unicode(128), index=True)
     epithet = sa_synonym('sp')
-    sp2 = Column(Unicode(64), index=True)  # in case hybrid=True
     sp_author = Column(Unicode(128))
     hybrid = Column(types.Enum(values=['×', '+', None]), default=None)
     sp_qual = Column(types.Enum(values=['agg.', 's. lat.', 's. str.', None]),
                      default=None)
     cv_group = Column(Unicode(50))
     trade_name = Column(Unicode(64))
+    trademark_symbol = Column(Unicode(4))
+    grex = Column(Unicode(64))
+    pbr_protected = Column(types.Boolean, default=False)
 
     infrasp1 = Column(Unicode(64))
     infrasp1_rank = Column(types.Enum(values=list(infrasp_rank_values.keys()),
@@ -233,11 +231,12 @@ class Species(db.Base, db.Serializable, db.WithNotes):
                                       translations=infrasp_rank_values))
     infrasp4_author = Column(Unicode(64))
 
+    cultivar_epithet = Column(Unicode(64))
+
     genus_id = Column(Integer, ForeignKey('genus.id'), nullable=False)
     # the Species.genus property is defined as backref in Genus.species
 
     label_distribution = Column(UnicodeText)
-    bc_distribution = Column(UnicodeText)
 
     # relations
     synonyms = association_proxy('_synonyms', 'synonym')
@@ -421,10 +420,10 @@ class Species(db.Base, db.Serializable, db.WithNotes):
         # keeping their infraspecific parts in order)
         return (
             case([
-                (cls.infrasp4_rank != 'cv.', cls.infrasp4_rank),
-                (cls.infrasp3_rank != 'cv.', cls.infrasp3_rank),
-                (cls.infrasp2_rank != 'cv.', cls.infrasp2_rank),
-                (cls.infrasp1_rank != 'cv.', cls.infrasp1_rank),
+                (cls.infrasp4_rank.is_not(None), cls.infrasp4_rank),
+                (cls.infrasp3_rank.is_not(None), cls.infrasp3_rank),
+                (cls.infrasp2_rank.is_not(None), cls.infrasp2_rank),
+                (cls.infrasp1_rank.is_not(None), cls.infrasp1_rank),
             ])
             .label('infraspecific_rank')
         )
@@ -439,10 +438,10 @@ class Species(db.Base, db.Serializable, db.WithNotes):
         # use the last epithet that is not 'cv'.
         return (
             case([
-                (cls.infrasp4_rank != 'cv.', cls.infrasp4),
-                (cls.infrasp3_rank != 'cv.', cls.infrasp3),
-                (cls.infrasp2_rank != 'cv.', cls.infrasp2),
-                (cls.infrasp1_rank != 'cv.', cls.infrasp1),
+                (cls.infrasp4_rank.is_not(None), cls.infrasp4),
+                (cls.infrasp3_rank.is_not(None), cls.infrasp3),
+                (cls.infrasp2_rank.is_not(None), cls.infrasp2),
+                (cls.infrasp1_rank.is_not(None), cls.infrasp1),
             ])
             .label('infraspecific_epithet')
         )
@@ -450,48 +449,6 @@ class Species(db.Base, db.Serializable, db.WithNotes):
     @property
     def infraspecific_author(self):
         return self.__lowest_infraspecific()[2] or ''
-
-    @hybrid_property
-    def cultivar_epithet(self):
-        infrasp = ((self.infrasp1_rank, self.infrasp1),
-                   (self.infrasp2_rank, self.infrasp2),
-                   (self.infrasp3_rank, self.infrasp3),
-                   (self.infrasp4_rank, self.infrasp4))
-        for rank, epithet in infrasp:
-            if rank == 'cv.':
-                if epithet:
-                    return epithet
-                return rank
-        return ''
-
-    @cultivar_epithet.expression
-    def cultivar_epithet(cls):  # pylint: disable=no-self-argument
-        return (
-            case([
-                (cls.infrasp4_rank == 'cv.', cls.infrasp4),
-                (cls.infrasp3_rank == 'cv.', cls.infrasp3),
-                (cls.infrasp2_rank == 'cv.', cls.infrasp2),
-                (cls.infrasp1_rank == 'cv.', cls.infrasp1),
-            ])
-            .label('cultivar_epithet')
-        )
-
-    @cultivar_epithet.setter
-    def cultivar_epithet(self, value):
-        infrasp = ((self.infrasp1_rank, self.infrasp1),
-                   (self.infrasp2_rank, self.infrasp2),
-                   (self.infrasp3_rank, self.infrasp3),
-                   (self.infrasp4_rank, self.infrasp4))
-        for i, (rank, _epithet) in enumerate(infrasp):
-            if rank in ['cv.', None]:
-                if value:
-                    if value == 'cv.':
-                        value = None
-                    self.set_infrasp(i + 1, 'cv.', value)
-                    value = None  # only set once
-                else:
-                    self.set_infrasp(i + 1, None, None)
-                    return
 
     @hybrid_property
     def infraspecific_parts(self):
@@ -511,19 +468,19 @@ class Species(db.Base, db.Serializable, db.WithNotes):
         # pylint: disable=no-self-argument
         from sqlalchemy.types import String
         return case([
-            (cls.infrasp4_rank != 'cv.', cast(
+            (cls.infrasp4_rank.is_not(None), cast(
                 cls.infrasp1_rank + text("' '") + cls.infrasp1 + text("' '") +
                 cls.infrasp2_rank + text("' '") + cls.infrasp2 + text("' '") +
                 cls.infrasp3_rank + text("' '") + cls.infrasp3 + text("' '") +
                 cls.infrasp4_rank + text("' '") + cls.infrasp4, String)),
-            (cls.infrasp3_rank != 'cv.', cast(
+            (cls.infrasp3_rank.is_not(None), cast(
                 cls.infrasp1_rank + text("' '") + cls.infrasp1 + text("' '") +
                 cls.infrasp2_rank + text("' '") + cls.infrasp2 + text("' '") +
                 cls.infrasp3_rank + text("' '") + cls.infrasp3, String)),
-            (cls.infrasp2_rank != 'cv.', cast(
+            (cls.infrasp2_rank.is_not(None), cast(
                 cls.infrasp1_rank + text("' '") + cls.infrasp1 + text("' '") +
                 cls.infrasp2_rank + text("' '") + cls.infrasp2, String)),
-            (cls.infrasp1_rank != 'cv.', cast(
+            (cls.infrasp1_rank.is_not(None), cast(
                 cls.infrasp1_rank + text("' '") + cls.infrasp1, String)),
         ]).label('infraspecific_parts')
 
@@ -534,22 +491,12 @@ class Species(db.Base, db.Serializable, db.WithNotes):
             parts = list(zip(parts[0::2], parts[1::2]))
         else:
             parts = []
-        cul = None
-        infrasp = ((self.infrasp1_rank, self.infrasp1),
-                   (self.infrasp2_rank, self.infrasp2),
-                   (self.infrasp3_rank, self.infrasp3),
-                   (self.infrasp4_rank, self.infrasp4))
-        for i, (rank, epithet) in enumerate(infrasp):
-            if rank == 'cv.':
-                # keep cultivar to add back in.
-                cul = epithet if epithet else 'cv.'
+        for i in range(4):
             if i < len(parts):
                 self.set_infrasp(i + 1, *parts[i])
             else:
                 # set remainder to null
                 self.set_infrasp(i + 1, None, None)
-        if cul:
-            self.cultivar_epithet = cul
 
     @hybrid_property
     def default_vernacular_name(self):
@@ -638,32 +585,43 @@ class Species(db.Base, db.Serializable, db.WithNotes):
         """
         session = False
         from sqlalchemy import inspect
+
+        qual_rank, qualifier = qualification if qualification else (None, None)
+
+        if qualifier == 'incorrect':
+            qual_rank = None
+
         if inspect(self).detached:
             session = db.Session()
             session.enable_relationship_loading(self)
         if genus is True:
+            genus = ''
+            if qual_rank == 'genus':
+                genus = qualifier + ' '
             if markup:
-                genus = self.genus.markup()
+                genus += self.genus.markup()
             else:
-                genus = str(self.genus)
+                genus += str(self.genus)
         else:
             genus = ''
         if session:
             session.close()
+
         if self.sp and not remove_zws:
             sp = '\u200b' + self.sp  # prepend with zero_width_space
         else:
             sp = self.sp
-        sp2 = self.sp2
+
         if markup:
             escape = utils.xml_safe
             italicize = utils.markup_italics
             if sp is not None:
                 sp = italicize(escape(sp))
-            if sp2 is not None:
-                sp2 = italicize(escape(sp2))
         else:
             italicize = escape = lambda x: x
+
+        if qual_rank == 'sp':
+            sp = qualifier + ' ' + sp
 
         author = None
         if authors and self.sp_author:
@@ -681,64 +639,95 @@ class Species(db.Base, db.Serializable, db.WithNotes):
                     self.infrasp4_author))
 
         infrasp_parts = []
-        group_added = False
-        for rank, epithet, iauthor in infrasp:
-            if rank == 'cv.' and epithet:
-                if self.cv_group and not group_added:
-                    group_added = True
-                    infrasp_parts.append(_("(%(group)s Group)") %
-                                         dict(group=self.cv_group))
-                infrasp_parts.append(f"'{escape(epithet)}'")
-            else:
-                if rank:
-                    infrasp_parts.append(rank)
-                if epithet and rank:
-                    infrasp_parts.append(italicize(epithet))
-                elif epithet:
-                    infrasp_parts.append(escape(epithet))
+        for level, (rank, epithet, iauthor) in enumerate(infrasp, 1):
+            if qual_rank == f'infrasp{level}' and any([rank, epithet]):
+                infrasp_parts.append(qualifier)
+            if rank:
+                infrasp_parts.append(rank)
+            if epithet and rank:
+                infrasp_parts.append(italicize(epithet))
+            elif epithet:
+                infrasp_parts.append(escape(epithet))
 
             if authors and iauthor:
                 iauthor = escape(iauthor)
                 if for_search_view:
                     iauthor = '<span weight="light">' + iauthor + '</span>'
                 infrasp_parts.append(iauthor)
-        if self.cv_group and not group_added:
-            infrasp_parts.append(_("%(group)s Group") %
-                                 dict(group=self.cv_group))
+
+        if self.grex:
+            infrasp_parts.append(self.grex)
+
+        if self.cv_group:
+            if self.cultivar_epithet:
+                infrasp_parts.append(_("(%(group)s Group)") %
+                                     dict(group=self.cv_group))
+            else:
+                infrasp_parts.append(_("%(group)s Group") %
+                                     dict(group=self.cv_group))
+
+        if self.cultivar_epithet and qual_rank == 'cv':
+            infrasp_parts.append(qualifier)
+
+        if self.cultivar_epithet == 'cv.':
+            infrasp_parts.append('cv.')
+        elif self.cultivar_epithet:
+            infrasp_parts.append(f"'{escape(self.cultivar_epithet)}'")
+
+        if self.pbr_protected:
+            if markup:
+                # would like to use <sup> here but get
+                # Pango-WARNING **: Leftover font scales
+                infrasp_parts.append(
+                    '<span size="xx-small">(PBR)</span>'
+                )
+            else:
+                infrasp_parts.append('(PBR)')
+
+        def _small_caps(txt):
+            # using <span variant="smallcaps"> pango can have trouble finding
+            # the right fonts in macos at least  This approach achieves
+            # acceptable results without having concerns about the font.
+            result = ''
+            small = False
+            for i in txt:
+                if i.isupper():
+                    if small:
+                        result += '</small>'
+                        small = False
+                    result += i
+                else:
+                    if not small:
+                        result += '<small>'
+                        small = True
+                    result += i.upper()
+
+            if small:
+                result += '</small>'
+
+            return result
+
+        if self.trade_name:
+            trade_name = escape(self.trade_name)
+            if markup:
+                infrasp_parts.append(_small_caps(trade_name) +
+                                     (self.trademark_symbol or ''))
+            else:
+                infrasp_parts.append(trade_name.upper() +
+                                     (self.trademark_symbol or ''))
 
         # create the binomial part
         binomial = [genus, self.hybrid, sp, author]
 
         # create the tail, ie: anything to add on to the end
         tail = []
+        if not qual_rank and qualifier:
+            tail.append(f'({qualifier})')
         if self.sp_qual:
-            tail = [self.sp_qual]
-
-        if qualification is not None:
-            rank, qual = qualification
-            if qual in ['incorrect']:
-                rank = None
-            if rank == 'sp':
-                binomial.insert(2, qual)
-            elif not rank:
-                binomial[2] += ' (' + qual + ')'
-            elif rank == 'genus':
-                binomial.insert(0, qual)
-            elif rank == 'infrasp':
-                if infrasp_parts:
-                    infrasp_parts.insert(0, qual)
-            else:
-                for rnk, eptht, _a in infrasp:
-                    if rnk == 'cv.':
-                        eptht = f"'{eptht}'"
-                    if rank == rnk:
-                        pos = infrasp_parts.index(eptht)
-                        infrasp_parts.insert(pos, qual)
-                    else:
-                        logger.info('cannot find specified rank %s', eptht)
+            tail.append(self.sp_qual)
 
         parts = chain(binomial, infrasp_parts, tail)
-        string = utils.nstr(' '.join(i for i in parts if i))
+        string = ' '.join(i for i in parts if i)
         return string
 
     @hybrid_property

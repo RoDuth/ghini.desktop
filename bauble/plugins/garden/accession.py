@@ -2540,19 +2540,24 @@ class AccessionEditorPresenter(editor.GenericEditorPresenter):
         if self.model.id_qual_rank == 'genus':
             active = itr
 
-        itr = model.append([str(species.sp), 'sp'])
-        if self.model.id_qual_rank == 'sp':
-            active = itr
+        if species.sp:
+            itr = model.append([str(species.sp), 'sp'])
+            if self.model.id_qual_rank == 'sp':
+                active = itr
 
-        infrasp_parts = []
-        for level in (1, 2, 3, 4):
+        for level in range(1, 5):
             infrasp = [s for s in species.get_infrasp(level) if s is not None]
             if infrasp:
-                infrasp_parts.append(' '.join(infrasp))
-        if infrasp_parts:
-            itr = model.append([' '.join(infrasp_parts), 'infrasp'])
+                infrasp_parts = ' '.join(infrasp)
+                infrasp_rank = f'infrasp{level}'
+                itr = model.append((infrasp_parts, infrasp_rank))
 
-            if self.model.id_qual_rank == 'infrasp':
+                if self.model.id_qual_rank == infrasp_rank:
+                    active = itr
+
+        if species.cultivar_epithet:
+            itr = model.append([species.cultivar_epithet, 'cv'])
+            if self.model.id_qual_rank == 'cv':
                 active = itr
 
         # add None only if no active (NOTE default set in refresh_sensitivity)
@@ -2642,7 +2647,8 @@ class AccessionEditorPresenter(editor.GenericEditorPresenter):
             wild_prov_combo.set_sensitive(prov_sensitive)
             self.view.widgets.acc_wild_prov_combo.set_sensitive(prov_sensitive)
 
-        if self.model.id_qual and not self.model.id_qual_rank:
+        if (self.model.id_qual not in (None, 'incorrect') and
+                not self.model.id_qual_rank):
             self.add_problem(self.PROBLEM_ID_QUAL_RANK_REQUIRED,
                              self.view.widgets.acc_id_qual_rank_combo)
         elif not self.model.id_qual or (self.model.id_qual_rank and
@@ -2710,7 +2716,9 @@ class AccessionEditorPresenter(editor.GenericEditorPresenter):
         to the current values in the model.
         """
         self.refresh_fullname_label()
-        if self.model.species and self.model.id_qual:
+        if (self.model.species and
+                self.model.id_qual and
+                not self.model.id_qual == 'incorrect'):
             self.view.widgets.acc_id_qual_rank_combo.set_sensitive(True)
             if self.model.id_qual and not self.model.id_qual_rank:
                 # set default

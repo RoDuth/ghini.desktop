@@ -78,6 +78,7 @@ family_test_data = (
     {'id': 4, 'family': 'Solanaceae'},
     {'id': 5, 'family': 'Rosaceae'},
     {'id': 6, 'family': 'Arecaceae'},
+    {'id': 7, 'family': 'Poaceae'},
 )
 
 family_note_test_data = (
@@ -94,6 +95,7 @@ genus_test_data = (
     {'id': 7, 'genus': 'Brugmansia', 'family_id': 4},
     {'id': 8, 'hybrid': '+', 'genus': 'Crataegomespilus', 'family_id': 5},
     {'id': 9, 'hybrid': '×', 'genus': 'Butyagrus', 'family_id': 6},
+    {'id': 10, 'genus': 'Cynodon', 'family_id': 7},
 )
 
 genus_note_test_data = (
@@ -116,35 +118,34 @@ species_test_data = (
      'infrasp1_rank': 'var.', 'infrasp1': 'cochleata'},
     {'id': 6, 'sp': 'cochleata', 'genus_id': 2,
      'sp_author': '(L.) Lem\xe9e',
-     'infrasp1_rank': 'cv.', 'infrasp1': 'Black Night'},
+     'cultivar_epithet': 'Black Night'},
     {'id': 7, 'sp': 'precatorius', 'genus_id': 3,
      'sp_author': 'L.', 'cv_group': 'SomethingRidiculous'},
     {'id': 8, 'sp': 'precatorius', 'genus_id': 3,
      'sp_author': 'L.',
-     'infrasp1_rank': 'cv.', 'infrasp1': 'Hot Rio Nights',
+     'cultivar_epithet': 'Hot Rio Nights',
      'cv_group': 'SomethingRidiculous'},
     {'id': 9, 'sp': 'generalis', 'genus_id': 1,
      'hybrid': '×',
-     'infrasp1_rank': 'cv.', 'infrasp1': 'Red'},
+     'cultivar_epithet': 'Red'},
     {'id': 10, 'sp': 'generalis', 'genus_id': 1,
      'hybrid': '×', 'sp_author': 'L.',
-     'infrasp1_rank': 'cv.', 'infrasp1': 'Red',
+     'cultivar_epithet': 'Red',
      'cv_group': 'SomeGroup'},
     {'id': 11, 'sp': 'generalis', 'genus_id': 1,
      'sp_qual': 'agg.'},
     {'id': 12, 'genus_id': 1, 'cv_group': 'SomeGroup'},
     {'id': 13, 'genus_id': 1,
-     'infrasp1_rank': 'cv.', 'infrasp1': 'Red'},
+     'cultivar_epithet': 'Red'},
     {'id': 14, 'genus_id': 1,
-     'infrasp1_rank': 'cv.', 'infrasp1': 'Red & Blue'},
+     'cultivar_epithet': 'Red & Blue'},
     {'id': 15, 'sp': 'cochleata', 'genus_id': 2,
      'sp_author': 'L.',
      'infrasp1_rank': 'subsp.', 'infrasp1': 'cochleata',
      'infrasp1_author': 'L.',
      'infrasp2_rank': 'var.', 'infrasp2': 'cochleata',
      'infrasp2_author': 'L.',
-     'infrasp3_rank': 'cv.', 'infrasp3': 'Black',
-     'infrasp3_author': 'L.'},
+     'cultivar_epithet': 'Black'},
     {'id': 16, 'genus_id': 1, 'sp': 'test',
      'infrasp1_rank': 'subsp.', 'infrasp1': 'test',
      'cv_group': 'SomeGroup'},
@@ -154,13 +155,21 @@ species_test_data = (
     {'id': 20, 'genus_id': 2, 'sp': 'fragrans', 'author': 'Dressler'},
     {'id': 21, 'genus_id': 7, 'sp': 'arborea', 'author': 'Lagerh.'},
     {'id': 22, 'sp': '', 'genus_id': 1, 'sp_author': '',
-     'infrasp1_rank': 'cv.', 'infrasp1': 'Layla Saida'},
+     'cultivar_epithet': 'Layla Saida'},
     {'id': 23, 'sp': '', 'genus_id': 1, 'sp_author': '',
-     'infrasp1_rank': 'cv.', 'infrasp1': 'Buonanotte'},
+     'cultivar_epithet': 'Buonanotte'},
     {'id': 24, 'sp': '', 'genus_id': 1, 'sp_author': '',
      'infrasp1_rank': None, 'infrasp1': 'sp'},
     {'id': 25, 'sp': 'dardarii', 'genus_id': 8},
     {'id': 26, 'sp': 'nabonnandii', 'genus_id': 9},
+    {'id': 27, 'sp': 'dactylon × transvaalensis', 'genus_id': 10,
+     'cultivar_epithet': 'DT-1', 'pbr_protected': True, 'trade_name': 'TifTuf',
+     'trademark_symbol': '™'},
+    {'id': 28, 'sp': 'precatorius', 'genus_id': 3,
+     'infrasp1_rank': 'subsp.', 'infrasp1': 'africanus',
+     'infrasp1_author': 'Verdc.'},
+    {'id': 29, 'genus_id': 5, 'cultivar_epithet': 'Springwater',
+     'grex': 'Jim Kie'}
 )
 
 species_note_test_data = (
@@ -194,6 +203,9 @@ species_str_map = {
     16: "Maxillaria test subsp. test SomeGroup Group",
     25: "+ Crataegomespilus dardarii",
     26: "× Butyagrus nabonnandii",
+    27: "Cynodon dactylon × transvaalensis 'DT-1' (PBR) TIFTUF™",
+    28: "Abrus precatorius subsp. africanus",
+    29: "Paphiopedilum Jim Kie 'Springwater'",
 }
 
 species_markup_map = {
@@ -209,6 +221,10 @@ species_markup_map = {
          "cochleata</i> var. <i>cochleata</i> 'Black'"),
     25: "+ <i>Crataegomespilus</i> <i>dardarii</i>",
     26: "× <i>Butyagrus</i> <i>nabonnandii</i>",
+    27: ("<i>Cynodon</i> <i>dactylon</i> × <i>transvaalensis</i> 'DT-1' "
+         "<span size=\"xx-small\">(PBR)</span> "
+         "T<small>IF</small>T<small>UF</small>™"),
+    29: "<i>Paphiopedilum</i> Jim Kie 'Springwater'",
 }
 
 species_str_authors_map = {
@@ -221,7 +237,8 @@ species_str_authors_map = {
     7: 'Abrus precatorius L. SomethingRidiculous Group',
     8: "Abrus precatorius L. (SomethingRidiculous Group) 'Hot Rio Nights'",
     15: ("Encyclia cochleata L. subsp. "
-         "cochleata L. var. cochleata L. 'Black' L."),
+         "cochleata L. var. cochleata L. 'Black'"),
+    28: "Abrus precatorius subsp. africanus Verdc.",
 }
 
 species_markup_authors_map = {
@@ -231,6 +248,13 @@ species_markup_authors_map = {
     4: '<i>Campyloneurum</i> × <i>alapense</i> F\xe9e',
     5: '<i>Encyclia</i> <i>cochleata</i> (L.) Lem\xe9e var. <i>cochleata</i>',
     6: '<i>Encyclia</i> <i>cochleata</i> (L.) Lem\xe9e \'Black Night\''}
+
+species_searchview_markup_map = {
+    1: ('<i>Maxillaria</i> <i>variabilis</i> <span weight="light">Bateman ex '
+        'Lindl.</span>'),
+    28: ('<i>Abrus</i> <i>precatorius</i> subsp. <i>africanus</i> '
+         '<span weight="light">Verdc.</span>'),
+}
 
 sp_synonym_test_data = ({'id': 1, 'synonym_id': 1, 'species_id': 2},
                         )
@@ -1200,6 +1224,13 @@ class SpeciesTests(PlantTestCase):
             spstr = get_sp_str(sid, markup=True, authors=True)
             self.assertEqual(remove_zws(spstr), expect)
 
+        for sid, expect in species_searchview_markup_map.items():
+            spstr = get_sp_str(sid,
+                               markup=True,
+                               authors=True,
+                               for_search_view=True)
+            self.assertEqual(remove_zws(spstr), expect)
+
     def test_lexicographic_order__unspecified_precedes_specified(self):
         def get_sp_str(id, **kwargs):
             return self.session.query(Species).get(id).str(**kwargs)
@@ -1886,7 +1917,11 @@ class FromAndToDictTest(PlantTestCase):
         are = Family.retrieve_or_create(
             self.session, {'rank': 'family',
                            'epithet': 'Arecaceae'})
-        self.assertEqual(set(all_families), set([orc, pol, leg, sol, ros, are]))
+        poa = Family.retrieve_or_create(
+            self.session, {'rank': 'family',
+                           'epithet': 'Poaceae'})
+        self.assertEqual(set(all_families),
+                         {orc, pol, leg, sol, ros, are, poa})
 
     def test_grabbing_same_params_same_output_existing(self):
         orc1 = Family.retrieve_or_create(
@@ -2170,18 +2205,6 @@ class CitesStatus_test(PlantTestCase):
 
 class SpeciesInfraspecificProp(PlantTestCase):
 
-    def test_cultivar_epithet_1(self):
-        obj = self.session.query(Species).get(1)
-        obj.infrasp1 = 'Eva Weigner'
-        obj.infrasp1_rank = 'cv.'
-        self.assertEqual(obj.cultivar_epithet, 'Eva Weigner')
-
-    def test_cultivar_epithet_2(self):
-        obj = self.session.query(Species).get(1)
-        obj.infrasp2 = 'Eva Weigner'
-        obj.infrasp2_rank = 'cv.'
-        self.assertEqual(obj.cultivar_epithet, 'Eva Weigner')
-
     def include_cinnamomum_camphora(self):
         '''\
 Lauraceae,,Cinnamomum,,"camphora",,"","(L.) J.Presl"
@@ -2232,8 +2255,7 @@ Lauraceae,,Cinnamomum,,"camphora",var.,"nominale","Hats. & Hayata"
                       sp='triacanthos',
                       infrasp1_rank='var.',
                       infrasp1='inermis',
-                      infrasp2='Sunburst',
-                      infrasp2_rank='cv.')
+                      cultivar_epithet='Sunburst')
         self.assertEqual(obj.infraspecific_rank, 'var.')
         self.assertEqual(obj.infraspecific_epithet, 'inermis')
         self.assertEqual(obj.infraspecific_author, '')
@@ -2245,8 +2267,7 @@ Lauraceae,,Cinnamomum,,"camphora",var.,"nominale","Hats. & Hayata"
                       sp='triacanthos',
                       infrasp2_rank='var.',
                       infrasp2='inermis',
-                      infrasp1='Sunburst',
-                      infrasp1_rank='cv.')
+                      cultivar_epithet='Sunburst')
         self.assertEqual(obj.infraspecific_rank, 'var.')
         self.assertEqual(obj.infraspecific_epithet, 'inermis')
         self.assertEqual(obj.infraspecific_author, '')
@@ -2278,13 +2299,13 @@ Lauraceae,,Cinnamomum,,"camphora",var.,"nominale","Hats. & Hayata"
         self.assertEqual(subvar.infraspecific_rank, 'subvar.')
         self.assertEqual(subvar.infraspecific_epithet, 'brevifolia')
         self.assertEqual(subvar.infraspecific_author, '')
-        self.assertEqual(subvar.cultivar_epithet, '')
+        self.assertIsNone(subf.cultivar_epithet)
         self.assertEqual(subf.infraspecific_rank, 'subf.')
         self.assertEqual(subf.infraspecific_epithet, 'surculosa')
         self.assertEqual(subf.infraspecific_author, '')
-        self.assertEqual(subf.cultivar_epithet, '')
-        "Saxifraga aizoon var. aizoon subvar. brevifolia f. multicaulis "
-        "cv. 'Bellissima'"
+        self.assertIsNone(subf.cultivar_epithet)
+        # Saxifraga aizoon var. aizoon subvar. brevifolia f. multicaulis
+        # cv. 'Bellissima'
         cv = Species(genus=genus,
                      sp='aizoon',
                      infrasp4_rank='var.',
@@ -2293,8 +2314,7 @@ Lauraceae,,Cinnamomum,,"camphora",var.,"nominale","Hats. & Hayata"
                      infrasp1='brevifolia',
                      infrasp3_rank='f.',
                      infrasp3='multicaulis',
-                     infrasp2_rank='cv.',
-                     infrasp2='Bellissima',
+                     cultivar_epithet='Bellissima',
                      )
         self.assertEqual(cv.infraspecific_rank, 'f.')
         self.assertEqual(cv.infraspecific_epithet, 'multicaulis')
@@ -2302,6 +2322,7 @@ Lauraceae,,Cinnamomum,,"camphora",var.,"nominale","Hats. & Hayata"
         self.assertEqual(cv.cultivar_epithet, 'Bellissima')
 
     def test_infraspecific_hybrid_properties(self):
+        # NOTE some of this and similar test are no longer relevant
         family = Family(family='family')
         genus = Genus(family=family, genus='genus')
         sp = Species(genus=genus, sp='sp')
@@ -2327,18 +2348,9 @@ Lauraceae,,Cinnamomum,,"camphora",var.,"nominale","Hats. & Hayata"
         self.assertEqual(sp.infrasp1, parts.split()[1])
         self.assertEqual(sp.infrasp2_rank, parts.split()[2])
         self.assertEqual(sp.infrasp2, parts.split()[3])
-        self.assertEqual(sp.infrasp3_rank, 'cv.')
-        self.assertEqual(sp.infrasp3, cul)
         self.assertEqual(sp.cultivar_epithet, cul)
-        # test if we remove the infraspecific parts the cultivar remains (and
-        # is moved to the first position)
+        # test if we remove the infraspecific parts removes all parts
         sp.infraspecific_parts = None
-        self.session.commit()
-        self.assertEqual(sp.infrasp1_rank, 'cv.')
-        self.assertEqual(sp.infrasp1, cul)
-        self.assertEqual(sp.cultivar_epithet, cul)
-        # test removing cultivar_epithet with no other parts removes everything
-        sp.cultivar_epithet = None
         self.session.commit()
         self.assertIsNone(sp.infrasp1_rank)
         self.assertIsNone(sp.infrasp1)
@@ -2366,13 +2378,11 @@ Lauraceae,,Cinnamomum,,"camphora",var.,"nominale","Hats. & Hayata"
         self.assertEqual(sp.infrasp1, parts.split()[1])
         self.assertEqual(sp.infrasp2_rank, parts.split()[2])
         self.assertEqual(sp.infrasp2, parts.split()[3])
-        self.assertEqual(sp.infrasp3_rank, 'cv.')
+        self.assertEqual(sp.cultivar_epithet, cul)
         self.assertIsNone(sp.infrasp3)
         # test removing parts leaves cv in correct place
         sp.infraspecific_parts = None
         self.session.commit()
-        self.assertEqual(sp.infrasp1_rank, 'cv.')
-        self.assertIsNone(sp.infrasp1)
         self.assertEqual(sp.cultivar_epithet, cul)
 
     def test_infraspecific_hybrid_properties_wo_cv(self):
@@ -2443,7 +2453,9 @@ class SpeciesProperties_test(PlantTestCase):
                            'note': 'EX'},
             create=False, update=True)
         self.assertEqual(obj.note, 'EX')
-class AttributesStoredInNotes(PlantTestCase):
+
+
+class AttributesStoredInNotesTests(PlantTestCase):
 
     def setUp(self):
         super().setUp()
@@ -2584,7 +2596,7 @@ class GlobalFunctionsTest(PlantTestCase):
         sp3 = Species(genus=gen2, sp='viminalis',
                       cultivar_epithet='Captain Cook')
         sp4 = Species(genus=gen2, sp='viminalis',
-                      infrasp1_rank='cv.')
+                      cultivar_epithet='cv.')
         sp5 = Species(genus=gen2, sp='sp. Carnarvon NP (M.B.Thomas 115)')
         sp6 = Species(genus=gen1, sp='wilsonii',
                       infraspecific_parts='subsp. cryptophlebium')
@@ -2733,8 +2745,7 @@ class RetrieveTests(PlantTestCase):
             'species.infrasp1': 'cochleata',
             'species.infrasp2_rank': 'var.',
             'species.infrasp2': 'cochleata',
-            'species.infrasp3_rank': 'cv.',
-            'species.infrasp3': 'Black',
+            'species.cultivar_epithet': 'Black',
         }
         vname = VernacularName.retrieve(self.session, keys)
         self.assertEqual(vname.id, 5)
@@ -2863,12 +2874,11 @@ class RetrieveTests(PlantTestCase):
             'infrasp1': 'cochleata',
             'infrasp2_rank': 'var.',
             'infrasp2': 'cochleata',
-            'infrasp3_rank': 'cv.',
-            'infrasp3': 'Black',
+            'cultivar_epithet': 'Black',
         }
         sp = Species.retrieve(self.session, keys)
         self.assertEqual(sp.id, 15)
-        # using hybrid properties
+        # using hybrid property infrasp_parts
         keys = {
             'epithet': 'cochleata',
             'genus.epithet': 'Encyclia',

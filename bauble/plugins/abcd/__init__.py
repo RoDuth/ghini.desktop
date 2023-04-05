@@ -1,6 +1,6 @@
 # Copyright (c) 2005,2006,2007,2008,2009 Brett Adams <brett@belizebotanic.org>
 # Copyright (c) 2012-2016 Mario Frasca <mario@anche.no>
-# Copyright (c) 2016-2022 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright (c) 2016-2023 Ross Demuth <rossdemuth123@gmail.com>
 # Copyright 2017 Jardín Botánico de Quito
 #
 # This file is part of ghini.desktop.
@@ -373,7 +373,14 @@ class AccessionABCDAdapter(SpeciesABCDAdapter):
         idqrank = self.accession.id_qual_rank
         if idqrank is None:
             return None
-        return {'genus': '1', 'sp': '2', 'infrasp': '3'}.get(idqrank, '1')
+        # as only the last infraspecific part is used always set to 3 for
+        # infraspecifics
+        return {'genus': '1',
+                'sp': '2',
+                'infrasp1': '3',
+                'infrasp2': '3',
+                'infrasp3': '3',
+                'infrasp4': '3'}.get(idqrank, '1')
 
     def get_datelastedited(self):
         return utils.xml_safe(self.accession._last_updated.isoformat())

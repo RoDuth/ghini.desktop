@@ -1216,7 +1216,7 @@ class BinomialSearchTests(BaubleTestCase):
         from bauble.plugins.plants.genus import Genus
         g3 = self.session.query(Genus).filter(Genus.genus == 'Ixora').one()
         sp5 = Species(sp="coccinea", genus=g3,
-                      infrasp1_rank='cv.', infrasp1='Nora Grant')
+                      cultivar_epithet='Nora Grant')
         self.session.add_all([sp5])
         self.session.commit()
         s = 'Ixora coccinea'  # matches I.coccinea and Nora Grant

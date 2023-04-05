@@ -491,12 +491,10 @@ class ExpressionRow:
             self.value_widget.set_text(str(val))
 
     # TODO what to do with synonyms?  Could leave out sp, genus, family and
-    # use epithet only?  sp2, bc_distribution, infrasp1,2,3,4 etc.?
+    # use epithet only?
     @staticmethod
     def column_filter(prop):
         if hasattr(prop, 'key'):
-            if prop.key in ['bc_distribution', 'sp2']:
-                return False
             # skip any id fields (e.g. genus_id) as they are available via the
             # related id property (e.g. species.genus_id == species.genus.id)
             if prop.key.endswith('_id'):

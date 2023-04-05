@@ -1,6 +1,6 @@
 # Copyright 2008-2010 Brett Adams
 # Copyright 2012-2015 Mario Frasca <mario@anche.no>.
-# Copyright 2016-2022 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright 2016-2023 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -33,7 +33,7 @@ from gi.repository import Gtk
 from gi.repository import Gio
 from gi.repository import GLib
 
-from sqlalchemy.orm.session import object_session, Session
+from sqlalchemy.orm.session import object_session, Session, object_mapper
 from sqlalchemy.orm.query import Query
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy import and_, or_
@@ -188,7 +188,12 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
                            'sp_species_entry': 'sp',
                            'sp_author_entry': 'sp_author',
                            'sp_hybrid_combo': 'hybrid',
+                           'sp_grex_entry': 'grex',
                            'sp_cvgroup_entry': 'cv_group',
+                           'sp_cvepithet_entry': 'cultivar_epithet',
+                           'sp_tradename_entry': 'trade_name',
+                           'sp_trademark_combo': 'trademark_symbol',
+                           'sp_pbr_checkbtn': 'pbr_protected',
                            'sp_spqual_combo': 'sp_qual',
                            'sp_awards_entry': 'awards',
                            'sp_label_dist_entry': 'label_distribution',
@@ -237,6 +242,15 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
         combo.get_child().connect('changed', self.on_habit_entry_changed,
                                   combo)
 
+        mapper = object_mapper(self.model)
+        values = utils.get_distinct_values(mapper.c['trademark_symbol'],
+                                           self.session)
+        # make sure the obvious defaults exist
+        values = set(values + ['', '™', '®'])
+        combo = self.view.widgets.sp_trademark_combo
+        utils.setup_text_combobox(combo, values)
+        utils.set_widget_value(combo, self.model.trademark_symbol or '')
+
         # set the model values in the widgets
         self.refresh_view()
 
@@ -252,10 +266,21 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
         self.view.connect('sp_species_button', "clicked",
                           self.on_sp_species_button_clicked)
 
+        self.view.connect('expand_cv_btn', "clicked",
+                          self.on_expand_cv_button_clicked)
+
         self.assign_completions_handler('sp_genus_entry',
                                         self.gen_get_completions,
                                         on_select=self.gen_on_select)
+        self.assign_simple_handler('sp_grex_entry', 'grex',
+                                   editor.StringOrNoneValidator())
         self.assign_simple_handler('sp_cvgroup_entry', 'cv_group',
+                                   editor.StringOrNoneValidator())
+        self.assign_simple_handler('sp_cvepithet_entry', 'cultivar_epithet',
+                                   editor.StringOrNoneValidator())
+        self.assign_simple_handler('sp_tradename_entry', 'trade_name',
+                                   editor.StringOrNoneValidator())
+        self.assign_simple_handler('sp_trademark_combo', 'trademark_symbol',
                                    editor.StringOrNoneValidator())
         self.assign_simple_handler('sp_spqual_combo', 'sp_qual',
                                    editor.StringOrNoneValidator())
@@ -269,6 +294,20 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
         self.refresh_sensitivity()
         if self.model not in self.session.new:
             self.view.widgets.sp_ok_and_add_button.set_sensitive(True)
+        if any(getattr(self.model, i) for i in ('cv_group',
+                                                'trade_name',
+                                                'trademark_symbol',
+                                                'grex')):
+            self.view.widgets.expand_cv_btn.emit('clicked')
+
+    def on_expand_cv_button_clicked(self, *_args):
+        extras_grid = self.view.widgets.cv_extras_grid
+        visible = not extras_grid.get_visible()
+        icon = self.view.widgets.expand_btn_icon
+        icon.set_from_icon_name({False: 'pan-end-symbolic',
+                                 True: 'pan-start-symbolic'}[visible],
+                                Gtk.IconSize.BUTTON)
+        extras_grid.set_visible(visible)
 
     def capture_start_sp(self, model):
         self.start_sp_dict = None
@@ -281,6 +320,11 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
                 'sp_author': model.sp_author,
                 'sp_qual': model.sp_qual,
                 'cv_group': model.cv_group,
+                'grex': model.grex,
+                'cultivar_epithet': model.cultivar_epithet,
+                'trade_name': model.trade_name,
+                'trademark_symbol': model.trademark_symbol,
+                'pbr_protected': model.pbr_protected,
                 'infrasp1': model.infrasp1,
                 'infrasp1_rank': model.infrasp1_rank,
                 'infrasp1_author': model.infrasp1_author,
@@ -565,10 +609,9 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
 
     def refresh_sensitivity(self):
         has_parts = any([self.model.sp,
-                         self.model.infrasp1_rank == 'cv.',
-                         self.model.infrasp2_rank == 'cv.',
-                         self.model.infrasp3_rank == 'cv.',
-                         self.model.infrasp4_rank == 'cv.',
+                         self.model.cultivar_epithet,
+                         self.model.grex,
+                         self.model.cv_group,
                          self.model.infrasp1,
                          self.model.infrasp2,
                          self.model.infrasp3,
@@ -588,17 +631,24 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
         """
         self.refresh_fullname_label()
 
-        def refresh(*args):
-            self.refresh_fullname_label(*args)
-
         widgets = ['sp_species_entry',
                    'sp_author_entry',
+                   'sp_grex_entry',
                    'sp_cvgroup_entry',
+                   'sp_cvepithet_entry',
+                   'sp_tradename_entry',
+                   'sp_trademark_combo',
                    'sp_spqual_combo',
                    'sp_hybrid_combo']
 
         for widget_name in widgets:
-            self.view.connect_after(widget_name, 'changed', refresh)
+            self.view.connect_after(widget_name,
+                                    'changed',
+                                    self.refresh_fullname_label)
+
+        self.view.connect_after('sp_pbr_checkbtn',
+                                'toggled',
+                                self.refresh_fullname_label)
 
     def refresh_fullname_label(self, widget=None):
         """set the value of sp_fullname_label to either '--' if there
@@ -1261,7 +1311,13 @@ class SpeciesEditorView(editor.GenericEditorView):
         'sp_author_entry': _('Species author'),
         'sp_hybrid_combo': _('Species hybrid flag, a named hybrid ("x") or a '
                              'graft chimaera ("+")'),
+        'sp_grex_entry': _('Intended for Orchidaceae cultivars only.'),
         'sp_cvgroup_entry': _('Cultivar group'),
+        'sp_cvepithet_entry': _('Cultivar name without quotes. Use "cv." to '
+                                'to specify an unknown cultivar'),
+        'sp_tradename_entry': _('The trade name - if different from the '
+                                'cultivar name'),
+        'expand_cv_btn': _('Show/hide extra parts.'),
         'sp_spqual_combo': _('Species qualifier'),
         'sp_dist_frame': _('Species distribution'),
         'sp_vern_frame': _('Vernacular names'),

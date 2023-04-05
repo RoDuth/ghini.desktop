@@ -86,6 +86,8 @@ accession_test_data = (
     {'id': 3, 'code': '2020.1', 'species_id': 1, 'source_type': 'Collection'},
     {'id': 4, 'code': '2020.2', 'species_id': 2, 'source_type': 'Individual'},
     {'id': 5, 'code': '2022.1', 'species_id': 3, 'source_type': 'Individual'},
+    {'id': 6, 'code': '2022.2', 'species_id': 3, 'id_qual': '?',
+     'id_qual_rank': 'sp'},
 )
 
 plant_test_data = (
@@ -1585,7 +1587,8 @@ class SourcePresenterTests(GardenTestCase):
         # to it, adjust its name then return from start
         view = AccessionEditorView()
         model = Source()
-        presenter = SourcePresenter(unittest.mock.MagicMock(),
+        mock_acc_editor_presenter = unittest.mock.MagicMock()
+        presenter = SourcePresenter(mock_acc_editor_presenter,
                                     Accession(source=model),
                                     view,
                                     self.session)
@@ -1676,7 +1679,7 @@ class AccessionQualifiedTaxon(GardenTestCase):
 
     def test_species_str_with_qualification_too_deep(self):
         self.ac1.id_qual = '?'
-        self.ac1.id_qual_rank = 'infrasp'
+        self.ac1.id_qual_rank = 'infrasp1'
         s = '<i>Echinocactus</i> <i>grusonii</i>'
         sp_str = self.ac1.species_str(markup=True)
         self.assertEqual(remove_zws(sp_str), s)
@@ -1685,7 +1688,7 @@ class AccessionQualifiedTaxon(GardenTestCase):
         self.assertEqual(sp_str, s)
 
         self.ac1.id_qual = 'cf.'
-        self.ac1.id_qual_rank = 'infrasp'
+        self.ac1.id_qual_rank = 'infrasp1'
         s = 'Echinocactus grusonii'
         sp_str = self.ac1.species_str()
         self.assertEqual(remove_zws(sp_str), s)
@@ -1710,7 +1713,7 @@ class AccessionQualifiedTaxon(GardenTestCase):
         self.assertEqual(remove_zws(sp_str), s)
 
         self.ac2.id_qual = 'aff.'
-        self.ac2.id_qual_rank = 'infrasp'
+        self.ac2.id_qual_rank = 'infrasp1'
         s = '<i>Echinocactus</i> <i>grusonii</i> aff. var. <i>albispinus</i>'
         sp_str = self.ac2.species_str(markup=True)
         self.assertEqual(remove_zws(sp_str), s)
@@ -1734,21 +1737,18 @@ class AccessionQualifiedTaxon(GardenTestCase):
         self.assertEqual(remove_zws(sp_str), s)
 
         ## add cultivar to species and refer to it as cf.
-        self.ac1.species.set_infrasp(1, 'cv.', 'Cultivar')
+        self.ac1.species.cultivar_epithet = 'Cultivar'
         self.ac1.id_qual = 'cf.'
-        self.ac1.id_qual_rank = 'infrasp'
+        self.ac1.id_qual_rank = 'cv'
         s = "Echinocactus grusonii cf. 'Cultivar'"
         sp_str = self.ac1.species_str()
         self.assertEqual(remove_zws(sp_str), s)
 
     def test_species_str_qualification_appended(self):
         # previously, if the id_qual is set but the id_qual_rank isn't then
-        # we would get an error. now we just log a warning and append it
-        #
-        # self.ac1.id_qual = 'aff.'
-        # self.ac1.id_qual_rank = None
-        # self.assertRaises(CheckConditionError, self.ac1.species_str)
-
+        # we would get an error.
+        # NOTE handy for not breaking imports etc. but the entry will be set to
+        # genus level when opened in the editor (user can then select)
         self.ac1.id_qual = None
         self.ac1.id_qual = '?'
         s = 'Echinocactus grusonii (?)'
@@ -1771,17 +1771,17 @@ class AccessionQualifiedTaxon(GardenTestCase):
 
     def test_species_str_be_specific_in_infraspecific(self):
         'be specific qualifying infraspecific identification - still unused'
-        ## add  to species with variety and refer to it as cf.
-        self.sp3.set_infrasp(2, 'cv.', 'Cultivar')
+        ## add cv to species with variety and refer to it as cf.
+        self.sp3.cultivar_epithet = 'Cultivar'
         self.ac2.id_qual = 'cf.'
-        self.ac2.id_qual_rank = 'cv.'
+        self.ac2.id_qual_rank = 'cv'
         s = "Echinocactus grusonii var. albispinus cf. 'Cultivar'"
         sp_str = self.ac2.species_str()
         self.assertEqual(remove_zws(sp_str), s)
 
         self.ac2.id_qual = 'cf.'
-        self.ac2.id_qual_rank = 'var.'
-        s = "Echinocactus grusonii var. cf. albispinus 'Cultivar'"
+        self.ac2.id_qual_rank = 'infrasp1'
+        s = "Echinocactus grusonii cf. var. albispinus 'Cultivar'"
         sp_str = self.ac2.species_str()
         self.assertEqual(remove_zws(sp_str), s)
 
@@ -1792,19 +1792,19 @@ class AccessionQualifiedTaxon(GardenTestCase):
         self.sp3.set_infrasp(2, 'subvar.', 'brevifolia')
         self.sp3.set_infrasp(3, 'f.', 'multicaulis')
         self.ac2.id_qual = 'cf.'
-        self.ac2.id_qual_rank = 'f.'
+        self.ac2.id_qual_rank = 'infrasp3'
         #s = u"Echinocactus grusonii f. cf. multicaulis"
         sp_str = self.ac2.species_str()
         #self.assertEquals(remove_zws(sp_str), s)
-        self.assertTrue(sp_str.endswith("f. cf. multicaulis"))
+        self.assertTrue(sp_str.endswith("cf. f. multicaulis"))
 
         self.sp3.set_infrasp(4, 'subf.', 'surculosa')
         self.ac2.id_qual = 'cf.'
-        self.ac2.id_qual_rank = 'subf.'
+        self.ac2.id_qual_rank = 'infrasp4'
         #s = u"Echinocactus grusonii subf. cf. surculosa"
         sp_str = self.ac2.species_str()
         #self.assertEquals(remove_zws(sp_str), s)
-        self.assertTrue(sp_str.endswith("subf. cf. surculosa"))
+        self.assertTrue(sp_str.endswith("cf. subf. surculosa"))
 
 
 class AccessionTests(GardenTestCase):

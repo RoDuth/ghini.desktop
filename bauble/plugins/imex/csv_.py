@@ -156,6 +156,7 @@ class CSVRestore:
 
         if bauble_meta and not force:
             with open(bauble_meta[0], 'r', encoding='utf-8', newline='') as f:
+                upgraders = {}
                 in_file = csv.DictReader(f)
                 version = None
                 for line in in_file:
@@ -179,12 +180,13 @@ class CSVRestore:
                                      i.endswith('geography.txt')]
                         if geography:
                             filenames.remove(geography[0])
-                            bauble.task.queue(
-                                self.set_geo_translator(geography[0]))
-                            bauble.task.queue(
-                                self.geo_upgrader(change_lst))
-                        bauble.task.queue(self.acc_upgrader(filenames))
-                        bauble.task.queue(self.changes_upgrader(filenames))
+                            upgraders['geo_trans'] = (self.set_geo_translator,
+                                                      geography[0])
+                            upgraders['geography'] = (self.geo_upgrader,
+                                                      change_lst)
+                        upgraders['accession'] = (self.acc_upgrader, filenames)
+                        upgraders['changes'] = (self.changes_upgrader,
+                                                filenames)
 
                 if version < '1.3.0-b3':
                     msg = (_('You are importing data from a version prior '
@@ -194,9 +196,20 @@ class CSVRestore:
                              'original files will be saved with an appended '
                              '"%s"') % ORIG_SUFFIX)
                     if utils.yes_no_dialog(msg):
-                        bauble.task.queue(self.pics_upgrader(filenames))
-                        bauble.task.queue(self.genus_upgrader(filenames))
-                        bauble.task.queue(self.species_upgrader(filenames))
+                        upgraders['accession'] = (self.pics_upgrader,
+                                                  filenames)
+                        upgraders['genus'] = (self.genus_upgrader,
+                                              filenames)
+                        upgraders['species'] = (self.species_upgrader,
+                                                filenames)
+                        upgraders['pictures'] = (self.pics_upgrader,
+                                                 filenames)
+                        upgraders['accession'] = (self.acc_upgrader,
+                                                  filenames)
+
+                for upgrader, *args in upgraders.values():
+                    logger.debug('running %s', upgrader.__name__)
+                    bauble.task.queue(upgrader(*args))
 
         bauble.task.queue(self.run(filenames, metadata, force))
 
@@ -237,6 +250,8 @@ class CSVRestore:
               open(sp_file, 'w', encoding='utf-8', newline='') as new):
             in_file = csv.DictReader(old)
             fieldnames = in_file.fieldnames
+            if 'cultivar_epithet' not in fieldnames:
+                fieldnames.append('cultivar_epithet')
             out_file = csv.DictWriter(new, fieldnames=fieldnames)
             out_file.writeheader()
             for count, line in enumerate(in_file):
@@ -244,6 +259,15 @@ class CSVRestore:
                 line['hybrid'] = None
                 if hybrid == 'True':
                     line['hybrid'] = '×'
+
+                for i in range(1, 5):
+                    infra_rank = line.get(f'infrasp{i}_rank')
+                    infra_epithet = line.get(f'infrasp{i}')
+                    if infra_rank == 'cv.':
+                        line[f'infrasp{i}_rank'] = None
+                        line[f'infrasp{i}'] = None
+                        line['cultivar_epithet'] = infra_epithet or 'cv.'
+
                 out_file.writerow(line)
                 if count % five_percent == 0:
                     pb_set_fraction(count / num_lines)
@@ -414,6 +438,9 @@ class CSVRestore:
                 prov_type = line.get('prov_type')
                 if prov_type in depr_prov_type:
                     line['prov_type'] = None
+                id_qual_rank = line.get('id_qual_rank')
+                if id_qual_rank == 'infrasp':
+                    line['prov_type'] = 'infrasp1'
                 out_file.writerow(line)
                 if count % five_percent == 0:
                     pb_set_fraction(count / num_lines)

@@ -475,8 +475,14 @@ class PlantsPlugin(pluginmgr.Plugin):
 
         search.add_strategy(SynonymSearch)
         mapper_search.add_meta(('species', 'sp'), Species,
-                               ['sp', 'sp2', 'infrasp1', 'infrasp2',
-                                'infrasp3', 'infrasp4'])
+                               ['sp',
+                                'infrasp1',
+                                'infrasp2',
+                                'infrasp3',
+                                'infrasp4',
+                                'cultivar_epithet',
+                                'trade_name',
+                                'grex'])
         # full_name search
         mapper_search.add_meta(('species_full_name', 'taxon'),
                                Species,
