@@ -40,7 +40,7 @@ from sqlalchemy import (Column,
 from sqlalchemy.orm import relationship, backref, object_session
 from sqlalchemy.orm import synonym as sa_synonym
 from sqlalchemy.ext.hybrid import hybrid_property
-from sqlalchemy.sql.expression import select, case, cast, and_, text
+from sqlalchemy.sql.expression import select, case, cast, and_, text, or_
 from bauble import db
 from bauble import error
 from bauble import utils
@@ -758,14 +758,12 @@ class Species(db.Base, db.Serializable, db.WithNotes):
         # pylint: disable=no-self-argument
         acc_cls = cls.accessions.prop.mapper.class_
         plt_cls = acc_cls.plants.prop.mapper.class_
-        inactive = (select([cls.id])
-                    .outerjoin(acc_cls)
-                    .where(acc_cls.id.is_not(None))
-                    .join(plt_cls)
-                    .group_by(cls.id)
-                    .having(func.sum(plt_cls.quantity) == 0)
-                    .scalar_subquery())
-        return cast(case([(cls.id.in_(inactive), 0)], else_=1),
+        active = (select([cls.id])
+                  .outerjoin(acc_cls)
+                  .outerjoin(plt_cls)
+                  .where(or_(plt_cls.id.is_(None), plt_cls.quantity > 0))
+                  .scalar_subquery())
+        return cast(case([(cls.id.in_(active), 1)], else_=0),
                     types.Boolean)
 
     @property

@@ -154,7 +154,7 @@ class TestSearchView(BaubleTestCase):
                 kids = search_view.row_meta[cls].get_children(obj)
                 has_kids = bool(kids)
                 self.assertEqual(obj.has_children(), has_kids,
-                                 f'{obj}: {kids}')
+                                 f'{obj}: {[str(i) for i in kids]}')
 
     def test_all_domains_w_children_count_children_returns_correct(self):
         search_view = self.search_view
@@ -168,7 +168,7 @@ class TestSearchView(BaubleTestCase):
                 kids = search_view.row_meta[cls].get_children(obj)
                 kids_count = len(kids)
                 self.assertEqual(obj.count_children(), kids_count,
-                                 f'{obj}: {kids}')
+                                 f'{obj}: {[str(i) for i in kids]}')
 
     def test_all_domains_w_children_count_children_returns_active(self):
         prefs.prefs[prefs.exclude_inactive_pref] = True
@@ -184,7 +184,7 @@ class TestSearchView(BaubleTestCase):
                 kids = search_view.row_meta[cls].get_children(obj)
                 kids_count = len(kids)
                 self.assertEqual(obj.count_children(), kids_count,
-                                 f'{obj}: {kids}')
+                                 f'{obj}: {[str(i) for i in kids]}')
 
     def test_bottom_info_populates_with_note_and_tag(self):
         search_view = self.search_view
