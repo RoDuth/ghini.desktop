@@ -18,5 +18,5 @@
 from bauble.plugins.report import get_species_pertinent_to
 %>Generic Hybrid Symbol,Generic Epithet,Specific Hybrid Symbol,Specific Epithet,Infraspecific Rank,Infraspecific Epithet,Cultivar Epithet,Hide Taxon
 % for sp in get_species_pertinent_to(values):
-${sp.genus.hybrid or ''},${sp.genus.epithet or ''},${sp.hybrid or ''},${sp.epithet or ''},${sp.infraspecific_rank or ''},${sp.infraspecific_epithet or ''},${sp.cultivar_epithet or ''},${'N' if any(p.private for p in sp.accessions) else 'Y'}
+${sp.genus.hybrid or ''},${sp.genus.epithet or ''},${sp.hybrid or ''},${sp.epithet or ''},${sp.infraspecific_rank or ''},${sp.infraspecific_epithet or ''},${sp.cultivar_epithet or ''},${'Y' if any(p.private for p in sp.accessions) else 'N'}
 % endfor
