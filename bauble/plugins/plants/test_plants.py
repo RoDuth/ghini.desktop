@@ -48,10 +48,14 @@ from .species import (Species,
                       SpeciesNote)
 from .species_editor import (species_to_string_matcher,
                              species_match_func,
-                             generic_sp_get_completions)
+                             generic_sp_get_completions,
+                             SpeciesEntry,
+                             InfraspPresenter,
+                             InfraspRow)
 from .species_model import _remove_zws as remove_zws
 from .species_model import (update_all_full_names_task,
-                            update_all_full_names_handler)
+                            update_all_full_names_handler,
+                            infrasp_rank_values)
 from .family import Family, FamilySynonym, FamilyEditor, FamilyNote
 from .genus import Genus, GenusSynonym, GenusEditor, GenusNote
 from .geography import Geography, get_species_in_geography, geography_importer
@@ -2509,6 +2513,213 @@ class ConservationStatus_test(PlantTestCase):
                .filter(Species.epithet == 'fragrans')
                .one())
         self.assertEqual(obj.conservation, 'LC')
+
+
+class SpeciesEntryTests(TestCase):
+    def test_spaces_not_allowed_on_init(self):
+        entry = SpeciesEntry()
+        self.assertFalse(entry.species_space)
+        # like pasting
+        string = 'test1 test2'
+        entry.set_text(string)
+        self.assertEqual(entry.get_text(), string.replace(' ', ''))
+
+        # like typing
+        self.assertEqual(entry.insert_text('s', 0), 1)
+        self.assertEqual(entry.insert_text(' ', 1), 1)
+
+    def test_dont_allow_capitalised(self):
+        entry = SpeciesEntry()
+        # like pasting
+        entry.set_text('Test')
+        self.assertEqual(entry.get_text(), 'test')
+
+        # like typing at the start
+        self.assertEqual(entry.insert_text('T', 0), 1)
+        self.assertEqual(entry.get_text(), 'ttest')
+
+    def test_allow_spaces_for_hybrids(self):
+        entry = SpeciesEntry()
+        # like pasting
+        hybrid = 'test1 × test2'
+        entry.set_text(hybrid)
+        self.assertEqual(entry.get_text(), hybrid)
+
+        # like typing
+        self.assertEqual(entry.insert_text('*', len(hybrid)), len(hybrid) + 3)
+        self.assertEqual(entry.get_text(), hybrid + ' × ')
+
+    def test_allow_spaces_for_sp_nov(self):
+        entry = SpeciesEntry()
+        # like pasting
+        nov = 'sp. nov.'
+        entry.set_text(nov)
+        self.assertEqual(entry.get_text(), nov)
+
+        # like typing
+        entry = SpeciesEntry()
+        self.assertEqual(entry.insert_text('s', 0), 1)
+        self.assertEqual(entry.insert_text('p', 1), 2)
+        self.assertEqual(entry.insert_text('.', 2), 3)
+        self.assertEqual(entry.insert_text(' ', 3), 4)
+        self.assertEqual(entry.insert_text('n', 4), 5)
+        self.assertEqual(entry.insert_text('o', 5), 6)
+        self.assertEqual(entry.insert_text('v', 6), 7)
+        self.assertEqual(entry.insert_text('.', 7), 8)
+        self.assertEqual(entry.get_text(), nov)
+
+    def test_allow_spaces_for_provisional(self):
+        # very similar to above but tests that capitals remain
+        entry = SpeciesEntry()
+        # like pasting
+        prov = 'sp. (Ormeau L.H.Bird AQ435851)'
+        entry.set_text(prov)
+        self.assertEqual(entry.get_text(), prov)
+
+    def test_allow_spaces_for_descriptive(self):
+        entry = SpeciesEntry()
+        # like pasting
+        prov = 'banksii (White Form)'
+        entry.set_text(prov)
+        self.assertEqual(entry.get_text(), prov)
+
+        # like typing
+        entry = SpeciesEntry()
+        self.assertEqual(entry.insert_text('t', 0), 1)
+        self.assertEqual(entry.insert_text('(', 1), 3)   # inserts space
+        self.assertEqual(entry.insert_text('T', 3), 4)
+        self.assertEqual(entry.get_text(), 't (T')
+
+
+class InfraspPresenterTests(TestCase):
+    def test_init_with_model_no_infras_doesnt_populate(self):
+        mock_model = mock.Mock()
+        mock_model.get_infrasp.return_value = (None, None, None)
+        mock_parent = mock.Mock()
+        mock_parent.view = mock.Mock()
+        mock_parent.view.widgets.infrasp_grid.get_children.return_value = []
+        mock_parent.model = mock_model
+        presenter = InfraspPresenter(mock_parent)
+        self.assertEqual(presenter.table_rows, [])
+        del presenter
+
+    def test_init_with_model_w_infras_does_populate(self):
+        mock_model = mock.Mock()
+        mock_model.get_infrasp = lambda x: (
+            list(infrasp_rank_values.keys())[x],
+            f'test{x}',
+            None
+        )
+        mock_parent = mock.Mock()
+        mock_parent.view = mock.Mock()
+        mock_parent.view.widgets.infrasp_grid.get_children.return_value = [
+            'fake_widget1', 'fake_widget2', 'fake_widget3'
+        ]
+        mock_parent.model = mock_model
+        presenter = InfraspPresenter(mock_parent)
+        mock_parent.view.widgets.remove_parent.assert_called()
+        self.assertEqual(len(presenter.table_rows), 4)
+        del presenter
+
+    def test_clear_rows(self):
+        mock_model = mock.Mock()
+        mock_model.get_infrasp = lambda x: (
+            list(infrasp_rank_values.keys())[x],
+            f'test{x}',
+            None
+        ) if x < 5 else (None, None, None)
+        mock_parent = mock.Mock()
+        mock_parent.view = mock.Mock()
+        mock_parent.view.widgets.infrasp_grid.get_children.return_value = []
+        mock_parent.model = mock_model
+        presenter = InfraspPresenter(mock_parent)
+        self.assertEqual(len(presenter.table_rows), 4)
+        presenter.clear_rows()
+        self.assertEqual(len(presenter.table_rows), 0, presenter.table_rows)
+        del presenter
+
+    def test_infrarow_set_model_attr(self):
+        mock_presenter = mock.Mock()
+        mock_presenter.model = sp = Species()
+        row = InfraspRow(mock_presenter, 1)
+        row.set_model_attr('epithet', 'test')
+        self.assertEqual(sp.infrasp1, 'test')
+        self.assertTrue(mock_presenter._dirty)
+        del row
+
+    def test_infrarow_on_epithet_entry_changed(self):
+        mock_presenter = mock.Mock()
+        mock_presenter.model = sp = Species()
+        row = InfraspRow(mock_presenter, 1)
+        self.assertEqual(sp.infrasp1, None)
+        mock_entry = mock.Mock()
+        mock_entry.get_text.return_value = 'testname'
+        row.on_epithet_entry_changed(mock_entry)
+        self.assertEqual(sp.infrasp1, 'testname')
+        self.assertTrue(mock_presenter._dirty)
+        del row
+
+    def test_infrarow_on_author_entry_changed(self):
+        mock_presenter = mock.Mock()
+        mock_presenter.model = sp = Species()
+        row = InfraspRow(mock_presenter, 1)
+        self.assertEqual(sp.infrasp1_author, None)
+        mock_entry = mock.Mock()
+        mock_entry.get_text.return_value = 'testname'
+        row.on_author_entry_changed(mock_entry)
+        self.assertEqual(sp.infrasp1_author, 'testname')
+        self.assertTrue(mock_presenter._dirty)
+        del row
+
+    def test_infrarow_on_rank_combo_changed(self):
+        mock_presenter = mock.Mock()
+        mock_presenter.model = sp = Species()
+        mock_presenter.table_rows = []
+        row = InfraspRow(mock_presenter, 1)
+        self.assertEqual(sp.infrasp1_rank, None)
+        mock_combo = mock.Mock()
+        mock_combo.get_model.return_value = [['var.']]
+        mock_combo.get_active_iter.return_value = 0
+        row.on_rank_combo_changed(mock_combo)
+        self.assertEqual(sp.infrasp1_rank, 'var.')
+        self.assertTrue(mock_presenter._dirty)
+        del row
+
+    def test_infrarow_on_remove_button_clicked(self):
+        mock_model = mock.Mock()
+        mock_model.get_infrasp = lambda x: (
+            list(infrasp_rank_values.keys())[x],
+            f'test{x}',
+            None
+        ) if x < 5 else (None, None, None)
+        mock_parent = mock.Mock()
+        mock_parent.view = mock.Mock()
+        mock_parent.view.widgets.infrasp_grid.get_children.return_value = []
+        mock_parent.model = mock_model
+        presenter = InfraspPresenter(mock_parent)
+        self.assertEqual(len(presenter.table_rows), 4)
+        presenter.table_rows[0].on_remove_button_clicked(None)
+        self.assertEqual(len(presenter.table_rows), 3)
+        presenter.table_rows[0].on_remove_button_clicked(None)
+        self.assertEqual(len(presenter.table_rows), 2)
+        for i, row in enumerate(presenter.table_rows):
+            self.assertEqual(row.level, i + 1)
+        del presenter
+
+    def test_refresh_rank_combo(self):
+        mock_presenter = mock.Mock()
+        mock_presenter.model = sp = Species(infrasp1_rank='var.')
+        mock_presenter.table_rows = []
+        row = InfraspRow(mock_presenter, 2)
+        self.assertEqual(sp.infrasp1_rank, 'var.')
+        sp.infrasp1_rank = 'f.'
+        row.refresh_rank_combo()
+        self.assertEqual(sp.infrasp1_rank, 'f.')
+        mock_presenter.view.init_translatable_combo.assert_called()
+        args = mock_presenter.view.init_translatable_combo.call_args.args
+        self.assertEqual(args[1], {'subf.': 'subf.', None: ''}, args)
+        self.assertTrue(mock_presenter._dirty)
+        del row
 
 
 from bauble.editor import GenericModelViewPresenterEditor, MockView

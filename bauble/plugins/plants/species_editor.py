@@ -158,6 +158,10 @@ class SpeciesEntry(Gtk.Entry, Gtk.Editable):
                            text[:4] == 'sp. ')):
             self.species_space = True
 
+        # discourage capitalising species names
+        if position == 0 and text:
+            text = ''.join([text[0].lower(), *text[1:]])
+
         if '*' in text:
             self.species_space = True
             text = text.replace('*', " × ")
@@ -755,15 +759,11 @@ class InfraspRow:
         rank, epithet, author = self.species.get_infrasp(self.level)
         self.new = all(i is None for i in [rank, epithet, author])
 
-        # rank combo
         self.rank_combo = Gtk.ComboBox()
-        self.presenter.view.init_translatable_combo(
-            self.rank_combo,
-            infrasp_rank_values,
-            key=lambda x: compare_rank.get(str(x[0])))
-        utils.set_widget_value(self.rank_combo, rank)
-        presenter.view.connect(self.rank_combo, 'changed',
-                               self.on_rank_combo_changed)
+        self.refresh_rank_combo()
+
+        self._rank_sid = self.rank_combo.connect('changed',
+                                                 self.on_rank_combo_changed)
         grid.attach(self.rank_combo, 0, level, 1, 1)
 
         # epithet entry
@@ -789,6 +789,36 @@ class InfraspRow:
         grid.attach(self.remove_button, 3, level, 1, 1)
         grid.show_all()
 
+    def refresh_rank_combo(self, block=False):
+        rank = self.species.get_infrasp(self.level)[0]
+        try:
+            prior_rank = self.species.get_infrasp(self.level - 1)[0]
+        except KeyError:
+            prior_rank = False
+
+        if prior_rank is not False:
+            if not prior_rank:
+                rank_values = {None: ''}
+            else:
+                current_rank = compare_rank.get(prior_rank, 150)
+                rank_values = {k: v for k, v in infrasp_rank_values.items() if
+                               compare_rank.get(k, 150) > current_rank}
+            if rank not in rank_values:
+                rank = None
+        else:
+            rank_values = infrasp_rank_values
+
+        self.presenter.view.init_translatable_combo(
+            self.rank_combo,
+            rank_values,
+            key=lambda x: compare_rank.get(str(x[0]))
+        )
+        if block:
+            self.rank_combo.handler_block(self._rank_sid)
+        utils.set_widget_value(self.rank_combo, rank)
+        if block:
+            self.rank_combo.handler_unblock(self._rank_sid)
+
     def on_remove_button_clicked(self, _widget):
         # remove the widgets
         grid = self.presenter.view.widgets.infrasp_grid
@@ -797,19 +827,26 @@ class InfraspRow:
         # remove the infrasp from the species and reset the levels
         # on the remaining infrasp that have a higher level than
         # the one being deleted
-        grid.remove(self.rank_combo)
-        grid.remove(self.epithet_entry)
-        grid.remove(self.author_entry)
-        grid.remove(self.remove_button)
+        grid.remove_row(self.level)
 
         self.set_model_attr('rank', None)
         self.set_model_attr('epithet', None)
         self.set_model_attr('author', None)
 
-        # move all the infrasp values up a level
-        for i in range(self.level + 1, 5):
-            rank, epithet, author = self.species.get_infrasp(i)
+        table_len = len(self.presenter.table_rows)
+
+        # move all the infrasp values up a level and set the last None
+        for i in range(self.level + 1, 6):
+            try:
+                rank, epithet, author = self.species.get_infrasp(i)
+            except KeyError:
+                rank = epithet = author = None
             self.species.set_infrasp(i - 1, rank, epithet, author)
+            if i <= table_len:
+                self.presenter.table_rows[i - 1].level = i - 1
+                self.presenter.table_rows[i - 1].refresh_rank_combo(block=True)
+
+        self.presenter.table_rows.remove(self)
 
         if self.new:
             self.presenter._dirty = dirty
@@ -826,7 +863,7 @@ class InfraspRow:
         self.presenter.parent_ref().refresh_sensitivity()
 
     def on_rank_combo_changed(self, combo):
-        logger.info("on_rank_combo_changed)")
+        logger.info("on_rank_combo_changed")
         model = combo.get_model()
         itr = combo.get_active_iter()
         value = model[itr][0]
@@ -834,17 +871,20 @@ class InfraspRow:
             self.set_model_attr('rank', utils.nstr(model[itr][0]))
         else:
             self.set_model_attr('rank', None)
+        table_len = len(self.presenter.table_rows)
+        if self.level < table_len:
+            self.presenter.table_rows[self.level].refresh_rank_combo()
 
     def on_epithet_entry_changed(self, entry):
         logger.info("on_epithet_entry_changed")
-        value = utils.nstr(entry.props.text)
+        value = utils.nstr(entry.get_text())
         if not value:  # if None or ''
             value = None
         self.set_model_attr('epithet', value)
 
     def on_author_entry_changed(self, entry):
         logger.info("on_author_entry_changed")
-        value = utils.nstr(entry.props.text)
+        value = utils.nstr(entry.get_text())
         if not value:  # if None or ''
             value = None
         self.set_model_attr('author', value)
@@ -861,7 +901,6 @@ class InfraspPresenter(editor.GenericEditorPresenter):
         self._dirty = False
         self.view.connect('add_infrasp_button', "clicked", self.append_infrasp)
 
-        # will table.resize() remove the children??
         for item in self.view.widgets.infrasp_grid.get_children():
             if not isinstance(item, Gtk.Label):
                 self.view.widgets.remove_parent(item)
@@ -877,16 +916,18 @@ class InfraspPresenter(editor.GenericEditorPresenter):
 
     def append_infrasp(self, _widget):
         level = len(self.table_rows) + 1
-        row = InfraspRow(self, level)
-        self.table_rows.append(row)
-        if level >= 4:
-            self.view.widgets.add_infrasp_button.props.sensitive = False
-        return row
+        if level == 1 or self.model.get_infrasp(level - 1)[0]:
+            row = InfraspRow(self, level)
+            self.table_rows.append(row)
+            if level >= 4:
+                self.view.widgets.add_infrasp_button.set_sensitive(False)
+            return row
+        return None
 
     def clear_rows(self):
         """Clear all the infraspecific rows if any exist"""
         if self.table_rows:
-            for row in self.table_rows:
+            for row in self.table_rows.copy():
                 row.on_remove_button_clicked(None)
 
 
@@ -1302,12 +1343,12 @@ class SpeciesEditorView(editor.GenericEditorView):
 
     _tooltips = {
         'sp_genus_entry': _('Genus'),
-        'sp_species_entry': _('Species epithet (to include a hybrid formula '
-                              'typing a "*" (asterisk) will insert a cross '
-                              'symbol and allow spaces in the entry.  '
-                              'Similarly typing "sp." or "(" will allow '
-                              'for adding provisional or descriptors names '
-                              'etc..)'),
+        'sp_species_entry': _('Species epithet should not be capitilised (to '
+                              'include a hybrid formula typing a "*" '
+                              '(asterisk) will insert a cross symbol and '
+                              'allow spaces in the entry.  Similarly typing '
+                              '"sp." or "(" will allow for adding provisional '
+                              'or descriptors names etc..)'),
         'sp_author_entry': _('Species author'),
         'sp_hybrid_combo': _('Species hybrid flag, a named hybrid ("x") or a '
                              'graft chimaera ("+")'),
@@ -1340,7 +1381,9 @@ class SpeciesEditorView(editor.GenericEditorView):
         'sp_next_button': _('Save your changes and add another '
                             'species '),
         'add_syn_chkbox': _('Create a copy of the previous taxonomic name and '
-                            'attach it as a synonym of this species.')
+                            'attach it as a synonym of this species.'),
+        'infrasp_grid': _('Infraspecific parts should be added in order of '
+                          'rank. i.e. as they apear in the drop down.')
     }
 
     def __init__(self, parent=None):
