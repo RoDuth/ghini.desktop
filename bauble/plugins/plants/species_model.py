@@ -55,8 +55,7 @@ def _remove_zws(string):
 
 
 class VNList(list):
-    """
-    A Collection class for Species.vernacular_names
+    """A Collection class for Species.vernacular_names
 
     This makes it possible to automatically remove a
     default_vernacular_name if the vernacular_name is removed from the

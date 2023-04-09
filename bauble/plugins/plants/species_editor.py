@@ -23,7 +23,6 @@ Species table definition
 import os
 import traceback
 import weakref
-from functools import partial
 from random import random
 
 import logging
@@ -40,11 +39,10 @@ from sqlalchemy import and_, or_
 from sqlalchemy import inspect as sa_inspect
 
 import bauble
-from bauble import prefs
 from bauble import utils
 from bauble import paths
 from bauble import editor
-from .geography import GeographyMenu
+from .geography import GeographyMenu, Geography
 from .genus import Genus, GenusSynonym
 from .species_model import (Species,
                             SpeciesDistribution,
@@ -344,13 +342,6 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
             }
             self.start_sp_markup = model.str(markup=True, authors=True)
 
-    def gen_get_completions(self, text):
-        query = (self.session.query(Genus)
-                 .filter(utils.ilike(Genus.genus, f'%{text}%'))
-                 .order_by(Genus.genus)
-                 .limit(80))
-        return query
-
     def sp_species_tpl_callback(self, found, accepted):
         # both found and accepted are dictionaries, their keys here
         # relevant: 'Species hybrid marker', 'Species', 'Authorship',
@@ -494,6 +485,13 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
         self.view.add_box(box0)
         if event is not None:
             return False
+
+    def gen_get_completions(self, text):
+        query = (self.session.query(Genus)
+                 .filter(utils.ilike(Genus.genus, f'%{text}%'))
+                 .order_by(Genus.genus)
+                 .limit(80))
+        return query
 
     # called when a genus is selected from the genus completions
     def gen_on_select(self, value):
@@ -676,48 +674,50 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
             self.view.widgets.add_syn_chkbox.set_active(False)
 
         if self.model.genus is not None:
-            def _warn_double_ups():
-                genus = self.model.genus
-                epithet = (self.view.widget_get_value('sp_species_entry') or
-                           None)
-                infrasp = self.model.infraspecific_epithet or None
-                cultivar = self.model.cultivar_epithet or None
-                omonym = self.session.query(Species).filter(
-                    Species.genus == genus,
-                    Species.sp == epithet,
-                    Species.infraspecific_epithet == infrasp,
-                    Species.cultivar_epithet == cultivar
-                ).first()
-                logger.debug("looking for %s %s, found %s", genus, epithet,
-                             omonym)
-                if omonym in [None, self.model]:
-                    # should not warn, so check warning and remove
-                    if self.omonym_box is not None:
-                        self.view.remove_box(self.omonym_box)
-                        self.omonym_box = None
-                elif self.omonym_box is None:  # should warn, but not twice
-                    msg = (_("This taxon name is already in your collection"
-                             ", as %s.\n\n"
-                             "Are you sure you want to insert it again?") %
-                           omonym.str(authors=True, markup=True))
+            GLib.idle_add(self._warn_double_ups)
 
-                    def on_response(_button, response):
-                        self.view.remove_box(self.omonym_box)
-                        self.omonym_box = None
-                        if response:
-                            logger.warning('yes')
-                        else:
-                            # set all infrasp_parts to None
-                            self.infrasp_presenter.clear_rows()
-                            self.view.widget_set_value('sp_species_entry', '')
+    def _warn_double_ups(self):
+        genus = self.model.genus
+        epithet = (self.view.widget_get_value('sp_species_entry') or
+                   None)
+        infrasp = self.model.infraspecific_epithet or None
+        cultivar = self.model.cultivar_epithet or None
+        omonym = self.session.query(Species).filter(
+            Species.genus == genus,
+            Species.sp == epithet,
+            Species.infraspecific_epithet == infrasp,
+            Species.cultivar_epithet == cultivar,
+            Species.grex == self.model.grex,
+            Species.cv_group == self.model.cv_group,
+        ).first()
+        logger.debug("looking for %s, found %s", self.model, omonym)
+        if omonym in [None, self.model]:
+            # should not warn, so check warning and remove
+            if self.omonym_box is not None:
+                self.view.remove_box(self.omonym_box)
+                self.omonym_box = None
+        elif self.omonym_box is None:  # should warn, but not twice
+            msg = (_("This taxon name is already in your collection"
+                     ", as %s.\n\n"
+                     "Are you sure you want to insert it again?") %
+                   omonym.str(authors=True, markup=True))
 
-                    box = self.omonym_box = (
-                        self.view.add_message_box(utils.MESSAGE_BOX_YESNO))
-                    box.message = msg
-                    box.on_response = on_response
-                    box.show()
-                    self.view.add_box(box)
-            GLib.idle_add(_warn_double_ups)
+            def on_response(_button, response):
+                self.view.remove_box(self.omonym_box)
+                self.omonym_box = None
+                if response:
+                    logger.warning('yes')
+                else:
+                    # set all infrasp_parts to None
+                    self.infrasp_presenter.clear_rows()
+                    self.view.widget_set_value('sp_species_entry', '')
+
+            box = self.omonym_box = (
+                self.view.add_message_box(utils.MESSAGE_BOX_YESNO))
+            box.message = msg
+            box.on_response = on_response
+            box.show()
+            self.view.add_box(box)
 
     def cleanup(self):
         super().cleanup()
@@ -986,6 +986,7 @@ class DistributionPresenter(editor.GenericEditorPresenter):
     def on_remove_button_pressed(self, _button, event):
         # clear the menu first
         self.remove_menu_model.remove_all()
+        # populate the menu
         for dist in self.model.distribution:
             # NOTE can't use dist.id as dist may not have been committed yet.
             item = Gio.MenuItem.new(
@@ -997,7 +998,7 @@ class DistributionPresenter(editor.GenericEditorPresenter):
 
     def on_activate_add_menu_item(self, _action, geo_id):
         geo_id = int(geo_id.unpack())
-        from bauble.plugins.plants.geography import Geography
+
         geo = self.session.query(Geography).get(geo_id)
         # check that this geography isn't already in the distributions
         if geo in [d.geography for d in self.model.distribution]:
@@ -1073,6 +1074,8 @@ class VernacularNamePresenter(editor.GenericEditorPresenter):
 
         treemodel.remove(treemodel.get_iter(path))
         self.model.vernacular_names.remove(vernacular)
+        if self.model.default_vernacular_name == vernacular:
+            del self.model.default_vernacular_name
         utils.delete_or_expunge(vernacular)
         if not self.model.default_vernacular_name:
             # if there is only one value in the tree then set it as the
@@ -1103,6 +1106,27 @@ class VernacularNamePresenter(editor.GenericEditorPresenter):
         self._dirty = True
         self.parent_ref().refresh_sensitivity()
 
+    @staticmethod
+    def generic_data_func(_column, cell, model, treeiter, attr):
+        val = model[treeiter][0]
+        cell.set_property('text', getattr(val, attr))
+        # change the foreground color to indicate it's new and hasn't been
+        # committed
+        if val.id is None:  # hasn't been committed
+            cell.set_property('foreground', 'blue')
+        else:
+            cell.set_property('foreground', None)
+
+    def default_data_func(self, _column, cell, model, itr, _data):
+        val = model[itr][0]
+        try:
+            cell.set_property('active',
+                              val == self.model.default_vernacular_name)
+            return
+        except AttributeError as e:
+            logger.debug("AttributeError %s", e)
+        cell.set_property('active', False)
+
     def init_treeview(self, model):
         """Initialized the list of vernacular names.
 
@@ -1113,32 +1137,16 @@ class VernacularNamePresenter(editor.GenericEditorPresenter):
         if not isinstance(self.treeview, Gtk.TreeView):
             return
 
-        def _name_data_func(_column, cell, model, treeiter, _data):
-            val = model[treeiter][0]
-            cell.set_property('text', val.name)
-            # change the foreground color to indicate it's new and hasn't been
-            # committed
-            if val.id is None:
-                cell.set_property('foreground', 'blue')
-            else:
-                cell.set_property('foreground', None)
-
         cell = self.view.widgets.vn_name_cell
-        self.view.widgets.vn_name_column.set_cell_data_func(cell,
-                                                            _name_data_func)
+        self.view.widgets.vn_name_column.set_cell_data_func(
+            cell, self.generic_data_func, 'name'
+        )
         self.view.connect(cell, 'edited', self.on_cell_edited, 'name')
 
-        def _lang_data_func(_column, cell, model, treeiter, _data):
-            val = model[treeiter][0]
-            cell.set_property('text', val.language)
-            if val.id is None:  # hasn't been committed
-                cell.set_property('foreground', 'blue')
-            else:
-                cell.set_property('foreground', None)
-
         cell = self.view.widgets.vn_lang_cell
-        self.view.widgets.vn_lang_column.set_cell_data_func(cell,
-                                                            _lang_data_func)
+        self.view.widgets.vn_lang_column.set_cell_data_func(
+            cell, self.generic_data_func, 'language'
+        )
 
         lang_store = Gtk.ListStore(str)
         for lang, in self.session.query(VernacularName.language).distinct():
@@ -1154,19 +1162,10 @@ class VernacularNamePresenter(editor.GenericEditorPresenter):
         cell.connect('editing-started', _lang_edit_start)
         self.view.connect(cell, 'edited', self.on_cell_edited, 'language')
 
-        def _default_data_func(_column, cell, model, itr, _data):
-            val = model[itr][0]
-            try:
-                cell.set_property('active',
-                                  val == self.model.default_vernacular_name)
-                return
-            except AttributeError as e:
-                logger.debug("AttributeError %s", e)
-            cell.set_property('active', False)
-
         cell = self.view.widgets.vn_default_cell
         self.view.widgets.vn_default_column.set_cell_data_func(
-            cell, _default_data_func)
+            cell, self.default_data_func
+        )
         self.view.connect(cell, 'toggled', self.on_default_toggled)
 
         utils.clear_model(self.treeview)
@@ -1199,8 +1198,6 @@ class VernacularNamePresenter(editor.GenericEditorPresenter):
             self.model.default_vernacular_name = value
             self._dirty = True
             self.parent_ref().refresh_sensitivity()
-        elif default_vernacular_name is None:
-            return
 
 
 class SynonymsPresenter(editor.GenericEditorPresenter):
@@ -1217,34 +1214,13 @@ class SynonymsPresenter(editor.GenericEditorPresenter):
         self.view.widgets.sp_syn_entry.props.text = ''
         self.init_treeview()
 
-        def on_select(value):
-            sensitive = True
-            if value is None:
-                sensitive = False
-            self.view.widgets.sp_syn_add_button.set_sensitive(sensitive)
-            self._selected = value
-
-        sp_get_completions = partial(generic_sp_get_completions,
-                                     self.session)
-
-        # Skip current synonyms, self and already added synonyms
-        def get_completions(text):
-            result = sp_get_completions(text)
-            ids = [i[0] for i in self.session.query(SpeciesSynonym.synonym_id)]
-            for syn in self.model._synonyms:
-                if syn.synonym and (id_ := syn.synonym.id) not in ids:
-                    ids.append(id_)
-            if (id_ := self.model.id):
-                ids.append(id_)
-            return result.filter(Species.id.notin_(ids))
-
         self.assign_completions_handler(
             'sp_syn_entry',
-            get_completions,
-            on_select=on_select,
-            comparer=lambda l, s: species_to_string_matcher(l[0], s)
+            self.get_completions,
+            on_select=self.on_select,
+            comparer=lambda row, s: species_to_string_matcher(row[0], s)
         )
-        on_select(None)  # set to default state
+        self.on_select(None)  # set to default state
 
         self._selected = None
         self.view.connect('sp_syn_add_button', 'clicked',
@@ -1252,6 +1228,24 @@ class SynonymsPresenter(editor.GenericEditorPresenter):
         self.view.connect('sp_syn_remove_button', 'clicked',
                           self.on_remove_button_clicked)
         self._dirty = False
+
+    def on_select(self, value):
+        sensitive = True
+        if value is None:
+            sensitive = False
+        self.view.widgets.sp_syn_add_button.set_sensitive(sensitive)
+        self._selected = value
+
+    def get_completions(self, text):
+        # Skip current synonyms, self and already added synonyms
+        result = generic_sp_get_completions(self.session, text)
+        ids = [i[0] for i in self.session.query(SpeciesSynonym.synonym_id)]
+        for syn in self.model._synonyms:
+            if syn.synonym and (id_ := syn.synonym.id) not in ids:
+                ids.append(id_)
+        if (id_ := self.model.id):
+            ids.append(id_)
+        return result.filter(Species.id.notin_(ids))
 
     def is_dirty(self):
         return self._dirty
@@ -1337,10 +1331,6 @@ class SynonymsPresenter(editor.GenericEditorPresenter):
 
 class SpeciesEditorView(editor.GenericEditorView):
 
-    expanders_pref_map = {}
-    # {'sp_infra_expander': 'editor.species.infra.expanded',
-    # 'sp_meta_expander': 'editor.species.meta.expanded'}
-
     _tooltips = {
         'sp_genus_entry': _('Genus'),
         'sp_species_entry': _('Species epithet should not be capitilised (to '
@@ -1402,7 +1392,6 @@ class SpeciesEditorView(editor.GenericEditorView):
                                match_func=species_match_func)
         self.set_accept_buttons_sensitive(False)
         self.widgets.notebook.set_current_page(0)
-        self.restore_state()
         self.boxes = set()
 
     def get_window(self):
@@ -1435,17 +1424,6 @@ class SpeciesEditorView(editor.GenericEditorView):
     def genus_completion_cell_data_func(_column, renderer, model, treeiter):
         gen = model[treeiter][0]
         renderer.set_property('text', f'{gen} ({gen.family})')
-
-    def save_state(self):
-        """save the current state of the gui to the preferences."""
-        for expander, pref in self.expanders_pref_map.items():
-            prefs.prefs[pref] = self.widgets[expander].get_expanded()
-
-    def restore_state(self):
-        """restore the state of the gui from the preferences."""
-        for expander, pref in self.expanders_pref_map.items():
-            expanded = prefs.prefs.get(pref, True)
-            self.widgets[expander].set_expanded(expanded)
 
 
 class SpeciesEditor(editor.GenericModelViewPresenterEditor):
@@ -1559,7 +1537,6 @@ class SpeciesEditor(editor.GenericModelViewPresenterEditor):
 
         while True:
             response = self.presenter.start()
-            self.presenter.view.save_state()
             if self.handle_response(response):
                 break
 

@@ -25,6 +25,7 @@ logging.basicConfig()
 # logging.getLogger('sqlalchemy.engine').setLevel(logging.INFO)
 
 import os
+from datetime import datetime
 from unittest import TestCase, skip, mock
 from functools import partial
 
@@ -49,9 +50,15 @@ from .species import (Species,
 from .species_editor import (species_to_string_matcher,
                              species_match_func,
                              generic_sp_get_completions,
+                             species_cell_data_func,
                              SpeciesEntry,
+                             DistributionPresenter,
+                             VernacularNamePresenter,
+                             SynonymsPresenter,
                              InfraspPresenter,
-                             InfraspRow)
+                             InfraspRow,
+                             SpeciesEditorPresenter,
+                             SpeciesEditorView)
 from .species_model import _remove_zws as remove_zws
 from .species_model import (update_all_full_names_task,
                             update_all_full_names_handler,
@@ -1169,38 +1176,6 @@ class GenusSynonymyTests(PlantTestCase):
 
 
 class SpeciesTests(PlantTestCase):
-
-    @mock.patch('bauble.editor.GenericEditorView.start')
-    def test_editor_doesnt_leak(self, mock_start):
-        from gi.repository import Gtk
-        mock_start.return_value = Gtk.ResponseType.OK
-        from bauble import paths
-        default_path = os.path.join(paths.lib_dir(), "plugins", "plants",
-                                    "default")
-        from bauble.plugins.imex.csv_ import CSVRestore
-        importer = CSVRestore()
-        importer.start([os.path.join(default_path, 'habit.csv')], force=True)
-        from bauble.task import queue
-        queue(geography_importer())
-
-        f = Family(family='family')
-        g2 = Genus(genus='genus2', family=f)
-        g = Genus(genus='genus', family=f)
-        g2.synonyms.append(g)
-        self.session.add(f)
-        self.session.commit()
-        g.notes
-        sp = Species(genus=g, sp='sp')
-        editor = SpeciesEditor(model=sp)
-        # edit_species(model=Species(genus=g, sp='sp'))
-        update_gui()  # This is needed to check genus.
-        editor.start()
-        del editor
-        update_gui()
-        self.assertEqual(utils.gc_objects_by_type('SpeciesEditor'), [])
-        self.assertEqual(utils.gc_objects_by_type('SpeciesEditorPresenter'),
-                         [])
-        self.assertEqual(utils.gc_objects_by_type('SpeciesEditorView'), [])
 
     def test_str(self):
         """
@@ -2591,6 +2566,377 @@ class SpeciesEntryTests(TestCase):
         self.assertEqual(entry.get_text(), 't (T')
 
 
+class SpeciesEditorTests(BaubleTestCase):
+
+    @mock.patch('bauble.editor.GenericEditorView.start')
+    def test_editor_doesnt_leak(self, mock_start):
+        from gi.repository import Gtk
+        mock_start.return_value = Gtk.ResponseType.OK
+        from bauble import paths
+        default_path = os.path.join(paths.lib_dir(), "plugins", "plants",
+                                    "default")
+        from bauble.plugins.imex.csv_ import CSVRestore
+        importer = CSVRestore()
+        importer.start([os.path.join(default_path, 'habit.csv')], force=True)
+        from bauble.task import queue
+        queue(geography_importer())
+
+        fam = Family(family='family')
+        gen2 = Genus(genus='genus2', family=fam)
+        gen = Genus(genus='genus', family=fam)
+        gen2.synonyms.append(gen)
+        self.session.add(fam)
+        self.session.commit()
+        sp = Species(genus=gen, sp='sp')
+        editor = SpeciesEditor(model=sp)
+        # edit_species(model=Species(genus=gen, sp='sp'))
+        update_gui()
+        editor.start()
+        del editor
+        update_gui()
+        self.assertEqual(utils.gc_objects_by_type('SpeciesEditor'), [])
+        self.assertEqual(utils.gc_objects_by_type('SpeciesEditorPresenter'),
+                         [])
+        self.assertEqual(utils.gc_objects_by_type('SpeciesEditorView'), [])
+
+    @mock.patch('bauble.utils.message_dialog')
+    def test_start_bails_if_no_genera(self, mock_dialog):
+        editor = SpeciesEditor(model=Species())
+        update_gui()
+        self.assertIsNone(editor.start())
+        del editor
+        update_gui()
+        mock_dialog.assert_called()
+
+    def test_commit_changes_removes_incomplete_vernacular_names(self):
+        fam = Family(family='family')
+        gen = Genus(genus='genus', family=fam)
+        sp = Species(genus=gen, sp='sp')
+        self.assertEqual(len(sp.vernacular_names), 0)
+        vern = VernacularName(name='')
+        sp.default_vernacular_name = vern
+        self.session.add_all([gen, fam, sp, vern])
+        self.session.commit()
+        self.assertEqual(len(sp.vernacular_names), 1)
+
+        editor = SpeciesEditor(model=sp)
+        update_gui()
+        editor.commit_changes()
+        self.session.refresh(sp)
+        self.assertEqual(len(sp.vernacular_names), 0)
+        editor.presenter.cleanup()
+        editor.session.close()
+        del editor
+        update_gui()
+
+    def test_commit_changes_add_syn_chkbox_adds_previous_as_syn(self):
+        fam = Family(family='family')
+        gen = Genus(genus='genus', family=fam)
+        sp = Species(genus=gen, sp='sp')
+        self.session.add_all([gen, fam, sp])
+        self.session.commit()
+
+        editor = SpeciesEditor(model=sp)
+        editor.presenter.view.widgets.sp_species_entry.set_text('species2')
+        editor.presenter.view.widgets.add_syn_chkbox.set_active(True)
+        update_gui()
+        editor.commit_changes()
+        self.session.refresh(sp)
+        self.assertEqual(sp._synonyms[0].synonym.sp, 'sp')
+        self.assertEqual(sp._synonyms[0].synonym.genus, gen)
+        editor.presenter.cleanup()
+        editor.session.close()
+        del editor
+        update_gui()
+
+    @mock.patch('bauble.utils.yes_no_dialog')
+    @mock.patch('bauble.editor.GenericEditorView.start')
+    def test_handle_response_rolls_back_on_cancel(self, mock_start, mock_dlog):
+        mock_dlog.return_value = True
+        from gi.repository import Gtk
+        mock_start.return_value = Gtk.ResponseType.CANCEL
+        fam = Family(family='family')
+        gen = Genus(genus='genus', family=fam)
+        sp = Species(genus=gen, sp='sp')
+        self.session.add(fam, sp)
+        self.session.commit()
+        editor = SpeciesEditor(model=sp)
+        editor.presenter.view.widgets.sp_species_entry.set_text('species2')
+        update_gui()
+        committed = editor.start()
+        self.assertEqual(len(committed), 0)
+        self.session.expire_all()
+        self.assertEqual(sp.sp, 'sp')
+
+        del editor
+        update_gui()
+        self.assertEqual(utils.gc_objects_by_type('SpeciesEditor'), [])
+        self.assertEqual(utils.gc_objects_by_type('SpeciesEditorPresenter'),
+                         [])
+        self.assertEqual(utils.gc_objects_by_type('SpeciesEditorView'), [])
+
+    @mock.patch('bauble.editor.GenericEditorView.start')
+    def test_handle_response_adds_to_committed(self, mock_start):
+        # set the editor dirty then send the response and check it commits and
+        # stores returns the model in _committed
+        from gi.repository import Gtk
+        mock_start.return_value = Gtk.ResponseType.OK
+        fam = Family(family='family')
+        gen = Genus(genus='genus', family=fam)
+        sp = Species(genus=gen, sp='sp')
+        self.session.add(fam, sp)
+        self.session.commit()
+        editor = SpeciesEditor(model=sp)
+        editor.presenter.view.widgets.sp_species_entry.set_text('species2')
+        update_gui()
+        committed = editor.start()
+        committed1 = self.session.merge(committed[0])
+        self.assertEqual(len(committed), 1)
+        self.session.expire_all()
+        self.assertEqual(committed1.id, sp.id)
+
+        del editor
+        update_gui()
+        self.assertEqual(utils.gc_objects_by_type('SpeciesEditor'), [])
+        self.assertEqual(utils.gc_objects_by_type('SpeciesEditorPresenter'),
+                         [])
+        self.assertEqual(utils.gc_objects_by_type('SpeciesEditorView'), [])
+
+    def test_genus_match_func(self):
+        mock_completion = mock.Mock()
+        mock_completion.get_model.return_value = [[Genus(epithet='Test')]]
+        result = SpeciesEditorView.genus_match_func(mock_completion, 'Tes', 0)
+        self.assertTrue(result)
+
+        mock_completion.get_model.return_value = [[Genus(epithet='Test',
+                                                         hybrid='+')]]
+        result = SpeciesEditorView.genus_match_func(mock_completion, 'Tes', 0)
+        self.assertTrue(result)
+
+        result = SpeciesEditorView.genus_match_func(mock_completion, '+', 0)
+        self.assertTrue(result)
+
+        result = SpeciesEditorView.genus_match_func(mock_completion, 'tes', 0)
+        self.assertTrue(result)
+
+        result = SpeciesEditorView.genus_match_func(mock_completion, 'abc', 0)
+        self.assertFalse(result)
+
+    def test_genus_completion_cell_data_func(self):
+        mock_renderer = mock.Mock()
+        mock_model = [[
+            Genus(epithet='Test', family=Family(epithet='Testaceae'))
+        ]]
+
+        SpeciesEditorView.genus_completion_cell_data_func(None,
+                                                          mock_renderer,
+                                                          mock_model,
+                                                          0)
+        mock_renderer.set_property.assert_called_with('text',
+                                                      'Test (Testaceae)')
+
+
+class SpeciesEditorPresenterTests(PlantTestCase):
+
+    def test_gen_get_completions(self):
+        sp = Species()
+        self.session.add(sp)
+        presenter = SpeciesEditorPresenter(sp, SpeciesEditorView())
+        result = presenter.gen_get_completions('Cy')
+        self.assertEqual([str(i) for i in result], ['Cynodon', 'Encyclia'])
+        del presenter
+
+    def test_sp_species_tpl_callback(self):
+        fam = Family(family='Family')
+        gen = Genus(genus='Genus', family=fam)
+        sp = Species(genus=gen, sp='sp')
+        self.session.add(sp)
+        view = SpeciesEditorView()
+        presenter = SpeciesEditorPresenter(sp, view)
+
+        presenter.sp_species_tpl_callback(None, None)
+        self.assertEqual([i.message for i in presenter.species_check_messages],
+                         ['No match found on ThePlantList.org'])
+        presenter.species_check_messages = []
+
+        presenter.sp_species_tpl_callback({'Species': 'sp',
+                                           'Authorship': None,
+                                           'Species hybrid marker': None},
+                                          None)
+        self.assertEqual([i.message for i in presenter.species_check_messages],
+                         ['your data finely matches ThePlantList.org'])
+        presenter.species_check_messages = []
+
+        presenter.sp_species_tpl_callback({'Family': 'Family',
+                                           'Genus': 'Genus',
+                                           'Species': 'better_name',
+                                           'Authorship': None,
+                                           'Species hybrid marker': None},
+                                          None)
+        self.assertEqual(len(presenter.species_check_messages), 1)
+        self.assertIn('is the closest match for your data',
+                      presenter.species_check_messages[0].message)
+        self.assertIn('better_name',
+                      presenter.species_check_messages[0].message)
+        presenter.species_check_messages = []
+
+        presenter.sp_species_tpl_callback({'Family': 'Family',
+                                           'Genus': 'Genus',
+                                           'Species': 'better_name',
+                                           'Authorship': None,
+                                           'Species hybrid marker': None},
+                                          None)
+        self.assertEqual(len(presenter.species_check_messages), 1)
+        self.assertIn('is the closest match for your data',
+                      presenter.species_check_messages[0].message)
+        self.assertIn('better_name',
+                      presenter.species_check_messages[0].message)
+        presenter.species_check_messages = []
+
+        presenter.sp_species_tpl_callback({'Family': 'Family',
+                                           'Genus': 'Genus',
+                                           'Species': 'better_name',
+                                           'Authorship': None,
+                                           'Species hybrid marker': None},
+                                          {'Family': 'Family',
+                                           'Genus': 'Genus',
+                                           'Species': 'even_better_name',
+                                           'Authorship': 'Somone',
+                                           'Species hybrid marker': None})
+        self.assertEqual(len(presenter.species_check_messages), 2)
+        self.assertIn('is the closest match for your data',
+                      presenter.species_check_messages[0].message)
+        self.assertIn('better_name',
+                      presenter.species_check_messages[0].message)
+        self.assertIn('is the accepted taxon for your data',
+                      presenter.species_check_messages[1].message)
+        self.assertIn('even_better_name',
+                      presenter.species_check_messages[1].message)
+        presenter.species_check_messages = []
+
+        del presenter
+
+    @mock.patch('bauble.plugins.plants.ask_tpl.AskTPL')
+    def test_on_species_button_clicked(self, mock_tpl):
+        sp = Species()
+        self.session.add(sp)
+        view = SpeciesEditorView()
+        presenter = SpeciesEditorPresenter(sp, view)
+        presenter.on_sp_species_button_clicked(None)
+        self.assertEqual(len(presenter.species_check_messages), 0)
+        self.assertEqual(len(view.boxes), 1)
+        self.assertIn('querying the plant list', list(view.boxes)[0].message)
+        del presenter
+
+    def test_on_expand_cv_button_clicked(self):
+        sp = Species()
+        self.session.add(sp)
+        view = SpeciesEditorView()
+        presenter = SpeciesEditorPresenter(sp, view)
+
+        presenter.on_expand_cv_button_clicked()
+        icon = view.widgets.expand_btn_icon.get_icon_name()[0]
+        self.assertEqual('pan-start-symbolic', icon)
+        self.assertTrue(view.widgets.cv_extras_grid.get_visible())
+
+        presenter.on_expand_cv_button_clicked()
+        icon = view.widgets.expand_btn_icon.get_icon_name()[0]
+        self.assertEqual('pan-end-symbolic', icon)
+        self.assertFalse(view.widgets.cv_extras_grid.get_visible())
+
+        del presenter
+
+    def test_on_entry_changed_clear_boxes(self):
+        sp = Species()
+        self.session.add(sp)
+        view = SpeciesEditorView()
+        presenter = SpeciesEditorPresenter(sp, view)
+        box = view.add_message_box(utils.MESSAGE_BOX_INFO)
+        presenter.species_check_messages.append(box)
+
+        presenter.on_entry_changed_clear_boxes(None)
+        self.assertEqual(len(presenter.species_check_messages), 0)
+
+        del presenter
+
+    def test_on_habit_entry_changed(self):
+        # Also on_habit_comboentry_changed
+        from bauble.plugins.imex.csv_ import CSVRestore
+        importer = CSVRestore()
+        from bauble import paths
+        default_path = os.path.join(paths.lib_dir(), "plugins", "plants",
+                                    "default")
+        importer.start([os.path.join(default_path, 'habit.csv')], force=True)
+
+        sp = Species()
+        self.session.add(sp)
+        view = SpeciesEditorView()
+        presenter = SpeciesEditorPresenter(sp, view)
+
+        combo = view.widgets.sp_habit_comboentry
+        self.assertEqual(combo.get_active(), -1)
+
+        from gi.repository import Gtk
+        entry = Gtk.Entry()
+
+        entry.set_text('Tre')
+        presenter.on_habit_entry_changed(entry, combo)
+        self.assertEqual(combo.get_active(), -1)
+
+        entry.set_text('Tree (TRE)')
+        presenter.on_habit_entry_changed(entry, combo)
+        self.assertEqual(combo.get_active(), 34)
+
+        del presenter
+
+    def test_refresh_fullname_label(self):
+        # toggles prev_sp_box visibility
+        # sets sp_fullname_label to markup
+        sp = (self.session.query(Species)
+              .filter(Species.grex == 'Jim Kie',
+                      Species.cultivar_epithet == 'Springwater')
+              .first())
+        view = SpeciesEditorView()
+        presenter = SpeciesEditorPresenter(sp, view)
+
+        sp.grex = 'Test Grex'  # should not trigger change on the label yet
+        self.assertEqual(view.widgets.sp_fullname_label.get_label(),
+                         "<i>Paphiopedilum</i> Jim Kie 'Springwater'")
+        self.assertFalse(view.widgets.prev_sp_box.get_visible())
+
+        presenter.refresh_fullname_label()
+        self.assertEqual(view.widgets.sp_fullname_label.get_label(),
+                         "<i>Paphiopedilum</i> Test Grex 'Springwater'")
+        self.assertTrue(view.widgets.prev_sp_box.get_visible())
+
+        del presenter
+
+    def test_warn_double_ups(self):
+        fam = Family(family='Family')
+        gen = Genus(genus='Genus', family=fam)
+        self.session.add_all([fam, gen])
+        self.session.commit()
+        sp = Species(genus=gen, sp='sp')
+        self.session.add(sp)
+
+        view = SpeciesEditorView()
+        presenter = SpeciesEditorPresenter(sp, view)
+
+        presenter._warn_double_ups()
+        self.assertIsNone(presenter.omonym_box)
+
+        maxillaria = (self.session.query(Genus)
+                      .filter(Genus.genus == 'Maxillaria')
+                      .first())
+        sp.genus = maxillaria
+        view.widget_set_value('sp_species_entry', 'variabilis')
+
+        presenter._warn_double_ups()
+        self.assertIsNotNone(presenter.omonym_box)
+
+        del presenter
+
+
 class InfraspPresenterTests(TestCase):
     def test_init_with_model_no_infras_doesnt_populate(self):
         mock_model = mock.Mock()
@@ -2722,40 +3068,463 @@ class InfraspPresenterTests(TestCase):
         del row
 
 
-from bauble.editor import GenericModelViewPresenterEditor, MockView
+class DistributionPresenterTests(PlantTestCase):
+
+    def setUp(self):
+        super().setUp()
+        from bauble.task import queue
+        queue(geography_importer())
+        self.session.commit()
+
+    def test_on_remove_button_pressed(self):
+        qld = (self.session.query(Geography)
+               .filter(Geography.tdwg_code == 'QLD')
+               .one())
+        nsw = (self.session.query(Geography)
+               .filter(Geography.tdwg_code == 'NSW')
+               .one())
+
+        qld_dist = SpeciesDistribution(geography=qld)
+        nsw_dist = SpeciesDistribution(geography=nsw)
+        fam = Family(family='family')
+        gen = Genus(genus='genus', family=fam)
+        sp = Species(genus=gen, sp='sp')
+        sp.distribution.append(qld_dist)
+        sp.distribution.append(nsw_dist)
+        self.session.add(sp)
+        self.session.commit()
+
+        mock_parent = mock.Mock()
+        mock_parent.view = SpeciesEditorView()
+        mock_parent.model = sp
+        mock_parent.session = self.session
+
+        presenter = DistributionPresenter(mock_parent)
+        presenter.remove_menu_model = mock.Mock()
+        presenter.remove_menu = mock.Mock()
+
+        mock_event = mock.Mock(button=1, time=datetime.now().timestamp())
+        presenter.on_remove_button_pressed(None, mock_event)
+
+        self.assertEqual(presenter.remove_menu_model.append_item.call_count, 2)
+        self.assertEqual(presenter.remove_menu.popup_at_pointer.call_count, 1)
+
+        del presenter
+
+    def test_on_activate_add_menu_item(self):
+        qld = (self.session.query(Geography)
+               .filter(Geography.tdwg_code == 'QLD')
+               .one())
+
+        fam = Family(family='family')
+        gen = Genus(genus='genus', family=fam)
+        sp = Species(genus=gen, sp='sp')
+        self.session.add(sp)
+        self.session.commit()
+
+        mock_parent = mock.Mock()
+        mock_parent.view = SpeciesEditorView()
+        mock_parent.model = sp
+        mock_parent.session = self.session
+
+        presenter = DistributionPresenter(mock_parent)
+        mock_geo = mock.Mock()
+        mock_geo.unpack.return_value = qld.id
+        presenter.on_activate_add_menu_item(None, mock_geo)
+        self.assertEqual([dist.geography for dist in sp.distribution], [qld])
+
+        del presenter
+
+    def test_on_activate_remove_menu_item(self):
+        qld = (self.session.query(Geography)
+               .filter(Geography.tdwg_code == 'QLD')
+               .one())
+        nsw = (self.session.query(Geography)
+               .filter(Geography.tdwg_code == 'NSW')
+               .one())
+
+        qld_dist = SpeciesDistribution(geography=qld)
+        nsw_dist = SpeciesDistribution(geography=nsw)
+        fam = Family(family='family')
+        gen = Genus(genus='genus', family=fam)
+        sp = Species(genus=gen, sp='sp')
+        sp.distribution.append(qld_dist)
+        sp.distribution.append(nsw_dist)
+        self.session.add(sp)
+        self.session.commit()
+
+        mock_parent = mock.Mock()
+        mock_parent.view = SpeciesEditorView()
+        mock_parent.model = sp
+        mock_parent.session = self.session
+
+        presenter = DistributionPresenter(mock_parent)
+        mock_geo = mock.Mock()
+        mock_geo.unpack.return_value = qld.id
+        presenter.on_activate_remove_menu_item(None, mock_geo)
+        self.assertEqual([dist.geography for dist in sp.distribution], [nsw])
+
+        del presenter
 
 
-class PresenterTest(PlantTestCase):
-    def test_canreeditobject(self):
-        species = (self.session.query(Species)
-                   .join(Genus)
-                   .filter(Genus.epithet == 'Paphiopedilum')
-                   .filter(Species.epithet == 'adductum')
-                   .one())
-        presenter = GenericModelViewPresenterEditor(species, MockView())
-        species.author = 'wrong'
-        presenter.commit_changes()
-        species.author = 'Asher'
-        presenter.commit_changes()
+class VernacularNamePresenterTests(PlantTestCase):
+    def test_on_add_button_clicked(self):
+        mock_parent = mock.Mock()
+        mock_parent.view = SpeciesEditorView()
+        fam = Family(family='family')
+        gen = Genus(genus='genus', family=fam)
+        sp = Species(genus=gen, sp='sp')
+        mock_parent.model = sp
+        mock_parent.session = self.session
 
-    @skip('not implimented')
-    def test_cantinsertsametwice(self):
-        'while binomial name in view matches database item, warn user'
+        presenter = VernacularNamePresenter(mock_parent)
+        self.assertEqual(sp.vernacular_names, [])
+        self.assertIsNone(sp.default_vernacular_name)
 
-        from .species_editor import SpeciesEditorPresenter
-        model = (self.session.query(Species)
-                 .join(Genus)
-                 .filter(Genus.epithet == 'Laelia')
-                 .filter(Species.epithet == 'lobata')
-                 .one())
-        presenter = SpeciesEditorPresenter(model, MockView())
-        presenter.on_text_entry_changed('sp_species_entry', 'grandiflora')
+        presenter.on_add_button_clicked(None)
 
-    @skip('not implimented')
-    def test_cantinsertsametwice_warnonce(self):
-        'while binomial name in view matches database item, warn user'
+        self.assertEqual(len(sp.vernacular_names), 1)
+        self.assertIsNotNone(sp.default_vernacular_name)
 
-        pass
+        del presenter
+
+    def test_on_remove_button_clicked_new(self):
+        mock_parent = mock.Mock()
+        mock_parent.view = SpeciesEditorView()
+        fam = Family(family='family')
+        gen = Genus(genus='genus', family=fam)
+        sp = Species(genus=gen, sp='sp')
+        self.session.add(sp)
+        self.session.commit()
+        mock_parent.model = sp
+        mock_parent.session = self.session
+
+        presenter = VernacularNamePresenter(mock_parent)
+        self.assertEqual(sp.vernacular_names, [])
+        self.assertIsNone(sp.default_vernacular_name)
+
+        # new VernacularName (not committed)
+        presenter.on_add_button_clicked(None)
+
+        self.assertEqual(len(sp.vernacular_names), 1)
+        self.assertIsNotNone(sp.default_vernacular_name)
+
+        presenter.on_remove_button_clicked(None)
+
+        self.session.commit()
+
+        self.assertEqual(sp.vernacular_names, [])
+        self.assertIsNone(sp.default_vernacular_name)
+
+        del presenter
+
+    @mock.patch('bauble.utils.yes_no_dialog')
+    def test_on_remove_button_clicked_existing(self, mock_dlog):
+        mock_dlog.return_value = True
+        mock_parent = mock.Mock()
+        mock_parent.view = SpeciesEditorView()
+        fam = Family(family='family')
+        gen = Genus(genus='genus', family=fam)
+        sp = Species(genus=gen, sp='sp')
+        self.session.add(sp)
+        name = VernacularName(name='Test Name', language='EN')
+        sp.vernacular_names.append(name)
+        sp.default_vernacular_name = name
+        self.session.commit()
+        mock_parent.model = sp
+        mock_parent.session = self.session
+
+        presenter = VernacularNamePresenter(mock_parent)
+        presenter.treeview.set_cursor(0)
+
+        # existing VernacularName
+        self.assertEqual(len(sp.vernacular_names), 1)
+        self.assertIsNotNone(sp.default_vernacular_name)
+
+        presenter.on_remove_button_clicked(None)
+
+        self.session.commit()
+
+        self.assertEqual(sp.vernacular_names, [])
+        self.assertIsNone(sp.default_vernacular_name)
+        self.assertTrue(presenter.is_dirty())
+
+        del presenter
+
+    def test_on_default_toggled(self):
+        mock_parent = mock.Mock()
+        mock_parent.view = SpeciesEditorView()
+        fam = Family(family='family')
+        gen = Genus(genus='genus', family=fam)
+        sp = Species(genus=gen, sp='sp')
+        self.session.add(sp)
+        name = VernacularName(name='Test Name', language='EN')
+        sp.vernacular_names.append(name)
+        sp.default_vernacular_name = name
+        name2 = VernacularName(name='Another Name', language='XY')
+        sp.vernacular_names.append(name2)
+        self.session.commit()
+        mock_parent.model = sp
+        mock_parent.session = self.session
+
+        presenter = VernacularNamePresenter(mock_parent)
+        presenter.treeview.set_cursor(0)
+
+        self.assertEqual(len(sp.vernacular_names), 2)
+        self.assertEqual(sp.default_vernacular_name, name)
+
+        mock_cell = mock.Mock()
+        mock_cell.get_active.return_value = False
+        mock_path = 1
+        presenter.on_default_toggled(mock_cell, mock_path)
+
+        self.assertEqual(sp.default_vernacular_name, name2)
+
+        # switch back
+        mock_path = 0
+        presenter.on_default_toggled(mock_cell, mock_path)
+
+        self.assertEqual(sp.default_vernacular_name, name)
+
+        self.assertEqual(len(sp.vernacular_names), 2)
+        self.assertTrue(presenter.is_dirty())
+
+        del presenter
+
+    def test_on_cell_edited(self):
+        mock_parent = mock.Mock()
+        mock_parent.view = SpeciesEditorView()
+        fam = Family(family='family')
+        gen = Genus(genus='genus', family=fam)
+        sp = Species(genus=gen, sp='sp')
+        self.session.add(sp)
+        name = VernacularName(name='Test Name', language='EN')
+        sp.vernacular_names.append(name)
+        sp.default_vernacular_name = name
+        self.session.commit()
+        mock_parent.model = sp
+        mock_parent.session = self.session
+
+        presenter = VernacularNamePresenter(mock_parent)
+        presenter.treeview.set_cursor(0)
+
+        self.assertEqual(len(sp.vernacular_names), 1)
+        self.assertEqual(sp.default_vernacular_name, name)
+
+        presenter.on_cell_edited(None, 0, 'New name', 'name')
+        presenter.on_cell_edited(None, 0, 'XYZ', 'language')
+
+        self.assertEqual(sp.default_vernacular_name.name, 'New name')
+        self.assertEqual(sp.default_vernacular_name.language, 'XYZ')
+        self.assertTrue(presenter.is_dirty())
+
+        del presenter
+
+    def test_generic_data_func(self):
+        mock_parent = mock.Mock()
+        mock_parent.view = SpeciesEditorView()
+        fam = Family(family='family')
+        gen = Genus(genus='genus', family=fam)
+        sp = Species(genus=gen, sp='sp')
+        self.session.add(sp)
+        name = VernacularName(name='Test Name', language='EN')
+        sp.vernacular_names.append(name)
+        sp.default_vernacular_name = name
+        self.session.commit()
+        name2 = VernacularName(name='Another Name', language='XY')
+        sp.vernacular_names.append(name2)
+        mock_parent.model = sp
+        mock_parent.session = self.session
+
+        presenter = VernacularNamePresenter(mock_parent)
+
+        mock_cell = mock.Mock()
+        mock_model = [[name]]
+
+        # with existing vernacular
+        presenter.generic_data_func(None, mock_cell, mock_model, 0, 'name')
+        self.assertIn(('text', name.name),
+                      [i.args for i in mock_cell.set_property.call_args_list])
+        self.assertIn(('foreground', None),
+                      [i.args for i in mock_cell.set_property.call_args_list])
+
+        mock_cell.reset_mock()
+        presenter.generic_data_func(None, mock_cell, mock_model, 0, 'language')
+        self.assertIn(('text', name.language),
+                      [i.args for i in mock_cell.set_property.call_args_list])
+        self.assertIn(('foreground', None),
+                      [i.args for i in mock_cell.set_property.call_args_list])
+
+        # with new vernacular
+        mock_cell.reset_mock()
+        mock_model = [[name2]]
+        print(name2.id)
+        presenter.generic_data_func(None, mock_cell, mock_model, 0, 'name')
+        self.assertIn(('text', name2.name),
+                      [i.args for i in mock_cell.set_property.call_args_list])
+        self.assertIn(('foreground', 'blue'),
+                      [i.args for i in mock_cell.set_property.call_args_list])
+
+        del presenter
+
+    def test_default_data_func(self):
+        mock_parent = mock.Mock()
+        mock_parent.view = SpeciesEditorView()
+        fam = Family(family='family')
+        gen = Genus(genus='genus', family=fam)
+        sp = Species(genus=gen, sp='sp')
+        self.session.add(sp)
+        name = VernacularName(name='Test Name', language='EN')
+        sp.vernacular_names.append(name)
+        sp.default_vernacular_name = name
+        self.session.commit()
+        name2 = VernacularName(name='Another Name', language='XY')
+        sp.vernacular_names.append(name2)
+        mock_parent.model = sp
+        mock_parent.session = self.session
+
+        presenter = VernacularNamePresenter(mock_parent)
+
+        mock_cell = mock.Mock()
+        mock_model = [[name]]
+
+        presenter.default_data_func(None, mock_cell, mock_model, 0, None)
+
+        self.assertIn(('active', True),
+                      [i.args for i in mock_cell.set_property.call_args_list])
+
+        mock_model = [[name2]]
+
+        presenter.default_data_func(None, mock_cell, mock_model, 0, None)
+
+        self.assertIn(('active', False),
+                      [i.args for i in mock_cell.set_property.call_args_list])
+
+        del presenter
+
+    @mock.patch('bauble.utils.message_dialog')
+    def test_refresh_view_set_default_when_none(self, mock_dialog):
+        mock_parent = mock.Mock()
+        mock_parent.view = SpeciesEditorView()
+        fam = Family(family='family')
+        gen = Genus(genus='genus', family=fam)
+        sp = Species(genus=gen, sp='sp')
+        self.session.add(sp)
+        name = VernacularName(name='Test Name', language='EN')
+        sp.vernacular_names.append(name)
+        self.session.commit()
+        mock_parent.model = sp
+        mock_parent.session = self.session
+
+        presenter = VernacularNamePresenter(mock_parent)
+
+        self.assertIsNone(sp.default_vernacular_name)
+
+        presenter.refresh_view()
+
+        self.assertEqual(sp.default_vernacular_name, name)
+        self.assertTrue(presenter.is_dirty())
+
+        del presenter
+
+
+class SynonymsPresenterTests(PlantTestCase):
+    def test_on_select(self):
+        mock_parent = mock.Mock()
+        view = SpeciesEditorView()
+        mock_parent.view = view
+        sp = self.session.query(Species).get(2)
+        mock_parent.model = sp
+        mock_parent.session = self.session
+        presenter = SynonymsPresenter(mock_parent)
+
+        self.assertIsNone(presenter._selected)
+        self.assertFalse(view.widgets.sp_syn_add_button.get_sensitive())
+
+        syn = self.session.query(Species).get(4)
+        presenter.on_select(syn)
+
+        self.assertTrue(view.widgets.sp_syn_add_button.get_sensitive())
+        self.assertEqual(presenter._selected, syn)
+
+        presenter.on_select(None)
+        self.assertIsNone(presenter._selected)
+        self.assertFalse(view.widgets.sp_syn_add_button.get_sensitive())
+
+        del presenter
+
+    def test_get_completions(self):
+        mock_parent = mock.Mock()
+        view = SpeciesEditorView()
+        mock_parent.view = view
+        sp = self.session.query(Species).get(2)
+        start_syns = sp.synonyms
+        mock_parent.model = sp
+        mock_parent.session = self.session
+        presenter = SynonymsPresenter(mock_parent)
+        self.assertEqual([i.id for i in start_syns], [1])
+
+        # skips self
+        result = presenter.get_completions(str(sp)[:3])
+        self.assertNotIn(sp, result)
+
+        # skips current
+        result = presenter.get_completions(str(start_syns[0])[:3])
+        self.assertNotIn(start_syns[0], result)
+
+        del presenter
+
+    def test_on_add_button_clicked(self):
+        # adds _selected to synonyms, adds all _selected's synonyms, empties
+        # the entry, resets _selected to None, add button to insensitive and
+        # sets presenter dirty
+        mock_parent = mock.Mock()
+        view = SpeciesEditorView()
+        mock_parent.view = view
+        sp = self.session.query(Species).get(4)
+        start_syns = sp.synonyms
+        mock_parent.model = sp
+        mock_parent.session = self.session
+        presenter = SynonymsPresenter(mock_parent)
+        self.assertEqual(start_syns, [])
+        sp_w_syns = self.session.query(Species).get(2)
+        existing_syn = sp_w_syns.synonyms[0]
+        # just checking it is only the one
+        self.assertEqual(sp_w_syns.synonyms, [existing_syn])
+
+        view.widgets.sp_syn_entry.set_text(str(sp_w_syns))
+        presenter.on_select(sp_w_syns)
+        self.assertEqual(sp_w_syns, presenter._selected)
+
+        presenter.on_add_button_clicked(None)
+
+        self.assertEqual(sp.synonyms, [sp_w_syns, existing_syn])
+        self.assertFalse(sp_w_syns.synonyms)
+        self.assertFalse(view.widgets.sp_syn_entry.get_text())
+        self.assertIsNone(presenter._selected)
+        self.assertTrue(presenter.is_dirty())
+        self.assertFalse(view.widgets.sp_syn_add_button.get_sensitive())
+
+        del presenter
+
+    @mock.patch('bauble.utils.yes_no_dialog')
+    def test_on_remove_button_clicker(self, mock_dialog):
+        mock_dialog.return_value = True
+        mock_parent = mock.Mock()
+        view = SpeciesEditorView()
+        mock_parent.view = view
+        sp = self.session.query(Species).get(2)
+        mock_parent.model = sp
+        mock_parent.session = self.session
+        presenter = SynonymsPresenter(mock_parent)
+        view.widgets.sp_syn_treeview.set_cursor(0)
+
+        presenter.on_remove_button_clicked(None)
+
+        self.assertFalse(sp.synonyms)
+        self.assertTrue(presenter.is_dirty())
+
+        del presenter
 
 
 class GlobalFunctionsTest(PlantTestCase):
@@ -2837,6 +3606,21 @@ class GlobalFunctionsTest(PlantTestCase):
             sp6, 'Syz wilsonii subsp. cry'))
         self.assertFalse(species_to_string_matcher(
             sp6, 'Syz wilsonii subsp. wil'))
+
+    def test_species_cell_data_func(self):
+        family = Family(family='Myrtaceae')
+        gen = Genus(family=family, genus='Syzygium')
+        sp = Species(genus=gen, sp='australe')
+        self.session.add(sp)
+        self.session.commit()
+        mock_renderer = mock.Mock()
+        mock_model = [[sp]]
+
+        species_cell_data_func(None, mock_renderer, mock_model, 0)
+
+        mock_renderer.set_property.assert_called_with(
+            'text', 'Syzygium australe (Myrtaceae)'
+        )
 
 
 class BaubleSearchSearchTest(BaubleTestCase):

@@ -109,7 +109,6 @@ class SimpleSearchBox(Gtk.Frame):
             self.completion_getter = mapper_search.completion_funcs.get(domain)
 
     def on_entry_changed(self, entry):
-        from bauble.utils import ilike
         text = entry.get_text()
         completion = entry.get_completion()
         key_length = completion.get_minimum_key_length()
@@ -124,8 +123,8 @@ class SimpleSearchBox(Gtk.Frame):
         else:
             for column in self.columns:
                 vals = (session.query(getattr(self.domain, column))
-                        .filter(ilike(getattr(self.domain, column),
-                                      f'{text}%%'))
+                        .filter(utils.ilike(getattr(self.domain, column),
+                                            f'{text}%%'))
                         .distinct()
                         .limit(10))
                 for val in vals:
