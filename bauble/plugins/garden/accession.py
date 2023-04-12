@@ -2692,9 +2692,9 @@ class AccessionEditorPresenter(editor.GenericEditorPresenter):
             if prop:
                 # pylint: disable=protected-access
                 if prop.prop_type == 'Seed':
-                    prop_model = prop._seed
+                    prop_model = prop.seed
                 elif prop.prop_type == 'UnrootedCutting':
-                    prop_model = prop._cutting
+                    prop_model = prop.cutting
                 elif prop.prop_type == 'Other':
                     return True
                 else:

@@ -69,16 +69,20 @@ class Propagation(db.Base):
     notes = Column(UnicodeText)
     date = Column(types.Date)
 
-    _cutting = relationship(
+    cutting = relationship(
         'PropCutting',
         primaryjoin='Propagation.id==PropCutting.propagation_id',
-        cascade='all,delete-orphan', uselist=False,
-        backref=backref('propagation', uselist=False))
-    _seed = relationship(
+        cascade='all,delete-orphan',
+        uselist=False,
+        backref=backref('propagation', uselist=False)
+    )
+    seed = relationship(
         'PropSeed',
         primaryjoin='Propagation.id==PropSeed.propagation_id',
-        cascade='all,delete-orphan', uselist=False,
-        backref=backref('propagation', uselist=False))
+        cascade='all,delete-orphan',
+        uselist=False,
+        backref=backref('propagation', uselist=False)
+    )
 
     @property
     def accessions(self):
@@ -101,14 +105,14 @@ class Propagation(db.Base):
         quantity = None
         incomplete = True
         if self.prop_type == 'UnrootedCutting':
-            incomplete = self._cutting is None  # cutting without fields
-            if not incomplete and self._cutting.rooted:
-                quantity = sum(i.quantity for i in self._cutting.rooted if
+            incomplete = self.cutting is None  # cutting without fields
+            if not incomplete and self.cutting.rooted:
+                quantity = sum(i.quantity for i in self.cutting.rooted if
                                i.quantity)
         elif self.prop_type == 'Seed':
-            incomplete = self._seed is None  # seed without fields
+            incomplete = self.seed is None  # seed without fields
             if not incomplete:
-                quantity = self._seed.nseedlings
+                quantity = self.seed.nseedlings
         if incomplete:
             return 1  # let user grab one at a time, in any case
         if quantity is None:
@@ -147,7 +151,7 @@ class Propagation(db.Base):
             return ';'.join(accession_codes)
 
         if self.prop_type == 'UnrootedCutting':
-            cutting = self._cutting
+            cutting = self.cutting
             values.append(_('Cutting'))
             if cutting.cutting_type is not None:
                 values.append(
@@ -196,7 +200,7 @@ class Propagation(db.Base):
             if cutting.rooted_pct:
                 values.append(_('Rooted: %s%%') % cutting.rooted_pct)
         elif self.prop_type == 'Seed':
-            seed = self._seed
+            seed = self.seed
             values.append(_('Seed'))
             if seed.pretreatment:
                 values.append(_('Pretreatment') + f': {seed.pretreatment}')
@@ -235,20 +239,20 @@ class Propagation(db.Base):
 
     def clean(self):
         if self.prop_type == 'UnrootedCutting':
-            utils.delete_or_expunge(self._seed)
-            self._seed = None
-            if not self._cutting.bottom_heat_temp:
-                self._cutting.bottom_heat_unit = None
-            if not self._cutting.length:
-                self._cutting.length_unit = None
+            utils.delete_or_expunge(self.seed)
+            self.seed = None
+            if not self.cutting.bottom_heat_temp:
+                self.cutting.bottom_heat_unit = None
+            if not self.cutting.length:
+                self.cutting.length_unit = None
         elif self.prop_type == 'Seed':
-            utils.delete_or_expunge(self._cutting)
-            self._cutting = None
+            utils.delete_or_expunge(self.cutting)
+            self.cutting = None
         else:
-            utils.delete_or_expunge(self._seed)
-            utils.delete_or_expunge(self._cutting)
-            self._seed = None
-            self._cutting = None
+            utils.delete_or_expunge(self.seed)
+            utils.delete_or_expunge(self.cutting)
+            self.seed = None
+            self.cutting = None
 
 
 class PropCuttingRooted(db.Base):
@@ -574,11 +578,11 @@ class CuttingPresenter(editor.GenericEditorPresenter):
 
         # instance is initialized with a Propagation instance as model, but
         # that's just the common parts.  This instance takes care of the
-        # _cutting part of the propagation
+        # cutting part of the propagation
         self.propagation = self.model
-        if not self.propagation._cutting:
-            self.propagation._cutting = PropCutting()
-        self.model = self.model._cutting
+        if not self.propagation.cutting:
+            self.propagation.cutting = PropCutting()
+        self.model = self.model.cutting
 
         self.init_combos()
 
@@ -771,9 +775,9 @@ class SeedPresenter(editor.GenericEditorPresenter):
         self.parent_ref = weakref.ref(parent)
 
         self.propagation = self.model
-        if not self.propagation._seed:
-            self.propagation._seed = PropSeed()
-        self.model = self.model._seed
+        if not self.propagation.seed:
+            self.propagation.seed = PropSeed()
+        self.model = self.model.seed
 
         # TODO: if % germinated is not entered and nseeds and #
         # germinated are then automatically calculate the % germinated
@@ -1044,9 +1048,9 @@ class PropagationEditorPresenter(PropagationPresenter):
         model = None
         if object_session(self.model):
             if self.model.prop_type == 'UnrootedCutting':
-                model = self.model._cutting
+                model = self.model.cutting
             elif self.model.prop_type == 'Seed':
-                model = self.model._seed
+                model = self.model.seed
 
         if model:
             invalid = utils.get_invalid_columns(

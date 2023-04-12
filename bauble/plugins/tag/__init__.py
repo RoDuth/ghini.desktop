@@ -553,8 +553,8 @@ class Tag(db.Base):
     description = Column(UnicodeText)
 
     # relations
-    _objects = relationship('TaggedObj', cascade='all, delete-orphan',
-                            backref='tag')
+    objects_ = relationship('TaggedObj', cascade='all, delete-orphan',
+                           backref='tag')
 
     __my_own_timestamp = None
     __last_objects = None
@@ -636,7 +636,7 @@ class Tag(db.Base):
             return []
 
         items = []
-        for obj in self._objects:
+        for obj in self.objects_:
             if result := _get_tagged_object_pair(obj):
                 mapper, obj_id = result
                 rec = session.query(mapper).filter_by(id=obj_id).first()
@@ -779,7 +779,7 @@ def untag_objects(name, objs):
                     "objects %s - %s", type(e).__name__, e)
         return
     objs = set((_classname(y), y.id) for y in objs)
-    for item in tag._objects:
+    for item in tag.objects_:
         if (item.obj_class, item.obj_id) not in objs:
             continue
         obj = session.query(TaggedObj).filter_by(id=item.id).one()
@@ -827,7 +827,7 @@ def get_tag_ids(objs):
 
     """
     session = object_session(objs[0])
-    tag_id_query = session.query(Tag.id).join('_objects')
+    tag_id_query = session.query(Tag.id).join('objects_')
     starting_now = True
     s_all = set()
     s_some = set()
@@ -979,7 +979,7 @@ class TagPlugin(pluginmgr.Plugin):
             tags_menu_manager.reset()
 
         HistoryView.add_translation_query(
-            'tagged_obj', 'tag', '{table} where _objects.id = {obj_id}'
+            'tagged_obj', 'tag', '{table} where objects_.id = {obj_id}'
         )
 
     @staticmethod

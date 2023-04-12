@@ -241,26 +241,26 @@ class GardenPlugin(pluginmgr.Plugin):
         HistoryView.add_translation_query(
             'prop_seed',
             'accession',
-            ('{table} where source.plant_propagation._seed.id = {obj_id} or '
-             'source.propagation._seed.id = {obj_id}')
+            ('{table} where source.plant_propagation.seed.id = {obj_id} or '
+             'source.propagation.seed.id = {obj_id}')
         )
         HistoryView.add_translation_query(
             'prop_cutting',
             'accession',
-            ('{table} where source.plant_propagation._cutting.id = {obj_id} '
-             'or source.propagation._cutting.id = {obj_id}')
+            ('{table} where source.plant_propagation.cutting.id = {obj_id} '
+             'or source.propagation.cutting.id = {obj_id}')
         )
         HistoryView.add_translation_query(
             'prop_cutting',
             'accession',
-            ('{table} where source.plant_propagation._cutting.id = {obj_id} '
-             'or source.propagation._cutting.id = {obj_id}')
+            ('{table} where source.plant_propagation.cutting.id = {obj_id} '
+             'or source.propagation.cutting.id = {obj_id}')
         )
         HistoryView.add_translation_query(
             'prop_cutting_rooted',
             'accession',
-            ('{table} where source.plant_propagation._cutting.rooted.id = '
-             '{obj_id} or source.propagation._cutting.rooted.id = {obj_id}')
+            ('{table} where source.plant_propagation.cutting.rooted.id = '
+             '{obj_id} or source.propagation.cutting.rooted.id = {obj_id}')
         )
         if bauble.gui and not cls.options_menu_set:
             cls.options_menu_set = True

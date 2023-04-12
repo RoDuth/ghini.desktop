@@ -1130,15 +1130,15 @@ class PropagationTests(GardenTestCase):
         self.session.add(rooted)
         self.session.commit()
 
-        self.assertTrue(rooted in prop._cutting.rooted)
+        self.assertTrue(rooted in prop.cutting.rooted)
 
         rooted_id = rooted.id
         cutting_id = cutting.id
         self.assertTrue(rooted_id, 'no prop_rooted.id')
 
-        # setting the _cutting property on Propagation should cause
+        # setting the cutting property on Propagation should cause
         # the cutting and its rooted children to be deleted
-        prop._cutting = None
+        prop.cutting = None
         self.session.commit()
         self.assertTrue(not self.session.query(PropCutting).get(cutting_id))
         self.assertTrue(not self.session.query(PropCuttingRooted).get(rooted_id))
@@ -1162,11 +1162,11 @@ class PropagationTests(GardenTestCase):
         seed.propagation = prop
         self.session.commit()
 
-        self.assertTrue(seed == prop._seed)
+        self.assertTrue(seed == prop.seed)
         seed_id = seed.id
 
         # this should cause the cutting and its rooted children to be deleted
-        prop._seed = None
+        prop.seed = None
         self.session.commit()
         self.assertTrue(not self.session.query(PropSeed).get(seed_id))
 
@@ -1194,7 +1194,7 @@ class PropagationTests(GardenTestCase):
         s.expire(model)
         self.assertTrue(model.prop_type == 'UnrootedCutting')
         for attr, value in default_cutting_values.items():
-            v = getattr(model._cutting, attr)
+            v = getattr(model.cutting, attr)
             self.assertTrue(v == value, '%s = %s(%s)' % (attr, value, v))
         editor.session.close()
 
@@ -1235,7 +1235,7 @@ class PropagationTests(GardenTestCase):
         self.assertTrue(propagation.prop_type == 'Seed')
         # make sure the each value in default_seed_values matches the model
         for attr, expected in default_seed_values.items():
-            v = getattr(propagation._seed, attr)
+            v = getattr(propagation.seed, attr)
             if isinstance(v, datetime.date):
                 format = prefs.prefs[prefs.date_format_pref]
                 v = v.strftime(format)
@@ -1255,7 +1255,7 @@ class PropagationTests(GardenTestCase):
                       quantity=1)
         propagation = Propagation(**default_propagation_values)
         propagation.prop_type = 'Seed'
-        propagation._seed = PropSeed(**default_seed_values)
+        propagation.seed = PropSeed(**default_seed_values)
         plant.propagations.append(propagation)
 
         editor = PropagationEditor(model=propagation)
@@ -1385,7 +1385,7 @@ class SourceTests(GardenTestCase):
         cutting.propagation = source.propagation
         self.session.commit()
         prop_id = source.propagation.id
-        cutting_id = source.propagation._cutting.id
+        cutting_id = source.propagation.cutting.id
         self.assertTrue(prop_id)
         self.assertTrue(cutting_id)
         # make sure the propagation gets cleaned up when we set the
@@ -1407,7 +1407,7 @@ class SourceTests(GardenTestCase):
         seed.propagation = source.propagation
         self.session.commit()
         prop_id = source.propagation.id
-        seed_id = source.propagation._seed.id
+        seed_id = source.propagation.seed.id
         self.assertTrue(prop_id)
         self.assertTrue(seed_id)
         # make sure the propagation gets cleaned up when we set the
@@ -1852,7 +1852,7 @@ class AccessionTests(GardenTestCase):
                            date=datetime.datetime.utcnow())
         seed = PropSeed(nseeds=10, date_sown='11-01-2021', nseedlings=9,
                         germ_date='21-02-2021')
-        prop._seed = seed
+        prop.seed = seed
         plant.propagations.append(prop)
         # commit all the above to the database
         self.session.commit()
