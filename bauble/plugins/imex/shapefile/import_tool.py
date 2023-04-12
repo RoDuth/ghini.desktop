@@ -330,7 +330,7 @@ class ShapefileImportSettingsBox(Gtk.ScrolledWindow):
                 self.grid.attach(prop_button, PATH, row, 1, 1)
 
     @staticmethod
-    def relation_filter(prop):
+    def relation_filter(key, prop):
         # Avoid offering many relationships
         try:
             if prop.prop.uselist:
@@ -338,7 +338,7 @@ class ShapefileImportSettingsBox(Gtk.ScrolledWindow):
         except AttributeError:
             pass
         # force users to use the hybrid property
-        if prop.key == '_default_vernacular_name':
+        if key == '_default_vernacular_name':
             return False
         return True
 

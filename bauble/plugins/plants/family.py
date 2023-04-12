@@ -36,7 +36,8 @@ from sqlalchemy import (Column,
                         and_,
                         UniqueConstraint,
                         String,
-                        literal)
+                        literal,
+                        CheckConstraint)
 from sqlalchemy.orm import relationship, validates
 from sqlalchemy.orm import synonym as sa_synonym
 from sqlalchemy.orm.session import object_session
@@ -159,21 +160,23 @@ class Family(db.Base, db.Serializable, db.WithNotes):
 
     # relations
     # `genera` relation is defined outside of `Family` class definition
-    synonyms = association_proxy('_synonyms', 'synonym')
+    synonyms = association_proxy(
+        '_synonyms', 'synonym', creator=lambda fam: FamilySynonym(synonym=fam)
+    )
     _synonyms = relationship('FamilySynonym',
                              primaryjoin='Family.id==FamilySynonym.family_id',
                              cascade='all, delete-orphan',
                              uselist=True,
                              backref='family')
 
-    # this is a dummy relation, it is only here to make cascading work
-    # correctly and to ensure that all synonyms related to this family
-    # get deleted if this family gets deleted
     _accepted = relationship('FamilySynonym',
                              primaryjoin='Family.id==FamilySynonym.synonym_id',
                              cascade='all, delete-orphan',
-                             uselist=True,
+                             uselist=False,
                              backref='synonym')
+    accepted = association_proxy(
+        '_accepted', 'family', creator=lambda fam: FamilySynonym(family=fam)
+    )
 
     retrieve_cols = ['id', 'epithet', 'family']
     genera = relationship('Genus',
@@ -215,43 +218,6 @@ class Family(db.Base, db.Serializable, db.WithNotes):
             return db.Base.__repr__(family)
         return ' '.join([s for s in [
             family.family, family.qualifier] if s not in (None, '')])
-
-    @property
-    def accepted(self):
-        """Name that should be used if name of self should be rejected"""
-        session = object_session(self)
-        if not session:
-            logger.warning('family:accepted - object not in session')
-            return None
-        syn = session.query(FamilySynonym).filter(
-            FamilySynonym.synonym_id == self.id).first()
-        accepted = syn and syn.family
-        return accepted
-
-    @accepted.setter
-    def accepted(self, value):
-        'Name that should be used if name of self should be rejected'
-        assert isinstance(value, self.__class__)
-        if self in value.synonyms:
-            return
-        # remove any previous `accepted` link
-        session = object_session(self)
-        if not session:
-            logger.warning('family:accepted.setter - object not in session')
-            return
-        previous_synonymy_link = (session.query(FamilySynonym)
-                                  .filter(FamilySynonym.synonym_id == self.id)
-                                  .first())
-        if previous_synonymy_link:
-            accepted = (
-                session.query(Family)
-                .filter(Family.id == previous_synonymy_link.family_id)
-                .one()
-            )
-            accepted.synonyms.remove(self)
-        session.flush()
-        if value != self:
-            value.synonyms.append(self)
 
     def as_dict(self, recurse=True):
         result = db.Serializable.as_dict(self)
@@ -336,17 +302,12 @@ class FamilySynonym(db.Base):
         *family*:
     """
     __tablename__ = 'family_synonym'
+    __table_args__ = (CheckConstraint("family_id != synonym_id"),)
 
     # columns
     family_id = Column(Integer, ForeignKey('family.id'), nullable=False)
     synonym_id = Column(Integer, ForeignKey('family.id'), nullable=False,
                         unique=True)
-
-    def __init__(self, synonym=None, **kwargs):
-        # it is necessary that the first argument here be synonym for
-        # the Family.synonyms association_proxy to work
-        self.synonym = synonym
-        super().__init__(**kwargs)
 
     def __str__(self):
         return Family.str(self.synonym)

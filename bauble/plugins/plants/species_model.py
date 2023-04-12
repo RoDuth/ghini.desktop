@@ -36,7 +36,8 @@ from sqlalchemy import (Column,
                         UniqueConstraint,
                         func,
                         literal,
-                        event)
+                        event,
+                        CheckConstraint)
 from sqlalchemy.orm import relationship, backref, object_session
 from sqlalchemy.orm import synonym as sa_synonym
 from sqlalchemy.ext.hybrid import hybrid_property
@@ -238,7 +239,9 @@ class Species(db.Base, db.Serializable, db.WithNotes):
     label_distribution = Column(UnicodeText)
 
     # relations
-    synonyms = association_proxy('_synonyms', 'synonym')
+    synonyms = association_proxy(
+        '_synonyms', 'synonym', creator=lambda sp: SpeciesSynonym(synonym=sp)
+    )
     _synonyms = relationship(
         'SpeciesSynonym',
         primaryjoin='Species.id==SpeciesSynonym.species_id',
@@ -246,15 +249,16 @@ class Species(db.Base, db.Serializable, db.WithNotes):
         uselist=True,
         backref='species')
 
-    # this is a dummy relation, it is only here to make cascading work
-    # correctly and to ensure that all synonyms related to this genus
-    # get deleted if this genus gets deleted
+    # make cascading work
     _accepted = relationship(
         'SpeciesSynonym',
         primaryjoin='Species.id==SpeciesSynonym.synonym_id',
         cascade='all, delete-orphan',
-        uselist=True,
+        uselist=False,
         backref='synonym'
+    )
+    accepted = association_proxy(
+        '_accepted', 'species', creator=lambda sp: SpeciesSynonym(species=sp)
     )
 
     # VernacularName.species gets defined here too.
@@ -754,45 +758,6 @@ class Species(db.Base, db.Serializable, db.WithNotes):
         return cast(case([(cls.id.in_(active), 1)], else_=0),
                     types.Boolean)
 
-    @property
-    def accepted(self):
-        """Name that should be used if name of self should be rejected"""
-        session = object_session(self)
-        if not session:
-            logger.warning('species:accepted - object not in session')
-            return None
-        syn = session.query(SpeciesSynonym).filter(
-            SpeciesSynonym.synonym_id == self.id).first()
-        accepted = syn and syn.species
-        return accepted
-
-    @accepted.setter
-    def accepted(self, value):
-        """Name that should be used if name of self should be rejected"""
-        logger.debug("Accepted taxon: %s %s", type(value), value)
-        assert isinstance(value, self.__class__)
-        if self in value.synonyms:
-            return
-        # remove any previous `accepted` link
-        session = object_session(self)
-        if not session:
-            logger.warning('species:accepted.setter - object not in session')
-            return
-        previous_synonymy_link = (session.query(SpeciesSynonym)
-                                  .filter(SpeciesSynonym.synonym_id == self.id)
-                                  .first())
-        if previous_synonymy_link:
-            accepted = (
-                session.query(Species)
-                .filter(Species.id == previous_synonymy_link.species_id)
-                .one()
-            )
-            accepted.synonyms.remove(self)
-        session.flush()
-        if value != self:
-            value.synonyms.append(self)
-        session.flush()
-
     infrasp_attr = {1: {'rank': 'infrasp1_rank',
                         'epithet': 'infrasp1',
                         'author': 'infrasp1_author'},
@@ -975,18 +940,13 @@ class SpeciesSynonym(db.Base):
     :Table name: species_synonym
     """
     __tablename__ = 'species_synonym'
+    __table_args__ = (CheckConstraint("species_id != synonym_id"),)
 
     # columns
     species_id = Column(Integer, ForeignKey('species.id'),
                         nullable=False)
     synonym_id = Column(Integer, ForeignKey('species.id'),
                         nullable=False, unique=True)
-
-    def __init__(self, synonym=None, **kwargs):
-        # it is necessary that the first argument here be synonym for
-        # the Species.synonyms association_proxy to work
-        self.synonym = synonym
-        super().__init__(**kwargs)
 
     def __str__(self):
         return str(self.synonym)

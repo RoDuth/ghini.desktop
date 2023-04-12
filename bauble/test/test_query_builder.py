@@ -144,8 +144,8 @@ class SchemaMenuTests(BaubleTestCase):
         self.assertTrue(('plant', None) in self.selected)
 
     def test_column_filter(self):
-        def test_filter(prop):
-            if hasattr(prop, 'key') and prop.key == 'code':
+        def test_filter(key, prop):
+            if key == 'code':
                 return False
             return True
 
@@ -157,8 +157,8 @@ class SchemaMenuTests(BaubleTestCase):
                          'key:code should be filtered from schema menu')
 
     def test_relation_filter(self):
-        def test_filter(prop):
-            if hasattr(prop, 'key') and prop.key == 'accession':
+        def test_filter(key, prop):
+            if key == 'accession':
                 return False
             return True
 
@@ -387,6 +387,19 @@ class QueryBuilderTests(BaubleTestCase):
             root_widget_name='main_dialog')
         qb = QueryBuilder(view)
         query = "family where qualifier = 's. lat.'"
+        qb.set_query(query)
+        self.assertTrue(qb.validate())
+        self.assertEqual(qb.get_query(), query)
+
+    def test_not_associationproxy_query(self):
+        import os
+        gladefilepath = os.path.join(paths.lib_dir(), "querybuilder.glade")
+        view = GenericEditorView(
+            gladefilepath,
+            parent=None,
+            root_widget_name='main_dialog')
+        qb = QueryBuilder(view)
+        query = "species where accepted.full_name = 'Melaleuca viminalis'"
         qb.set_query(query)
         self.assertTrue(qb.validate())
         self.assertEqual(qb.get_query(), query)

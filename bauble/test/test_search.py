@@ -1080,6 +1080,15 @@ class SearchTests(BaubleTestCase):
         for i in results:
             print(i)
         self.assertCountEqual(results, [])
+        # include an AssociationProxy
+        sp3.accepted = sp1
+        self.session.commit()
+        s = ("species where accepted.sp = 'virens' and not "
+             "(accessions[_created > -1].quantity_recvd in 5, 6 or "
+             "accessions.plants.location.code = 'loc2') and id "
+             "BETWEEN 1 and 20")
+        results = list(mapper_search.search(s, self.session))
+        self.assertCountEqual(results, [sp3])
 
 
 class InOperatorSearch(BaubleTestCase):

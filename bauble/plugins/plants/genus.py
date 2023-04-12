@@ -39,7 +39,8 @@ from sqlalchemy import (Column,
                         and_,
                         literal,
                         event,
-                        update)
+                        update,
+                        CheckConstraint)
 from sqlalchemy.orm import relationship, backref, object_mapper
 from sqlalchemy.orm import synonym as sa_synonym
 from sqlalchemy.orm.session import object_session
@@ -188,7 +189,9 @@ class Genus(db.Base, db.Serializable, db.WithNotes):
 
     # relations
     # `species` relation is defined outside of `Genus` class definition
-    synonyms = association_proxy('_synonyms', 'synonym')
+    synonyms = association_proxy(
+        '_synonyms', 'synonym', creator=lambda gen: GenusSynonym(synonym=gen)
+    )
     _synonyms = relationship('GenusSynonym',
                              primaryjoin='Genus.id==GenusSynonym.genus_id',
                              cascade='all, delete-orphan',
@@ -201,8 +204,11 @@ class Genus(db.Base, db.Serializable, db.WithNotes):
     _accepted = relationship('GenusSynonym',
                              primaryjoin='Genus.id==GenusSynonym.synonym_id',
                              cascade='all, delete-orphan',
-                             uselist=True,
+                             uselist=False,
                              backref='synonym')
+    accepted = association_proxy(
+        '_accepted', 'genus', creator=lambda gen: GenusSynonym(genus=gen)
+    )
 
     species = relationship('Species', cascade='all, delete-orphan',
                            order_by='Species.sp',
@@ -269,43 +275,6 @@ class Genus(db.Base, db.Serializable, db.WithNotes):
         if not cites_notes:
             return self.family.cites
         return cites_notes[0]
-
-    @property
-    def accepted(self):
-        'Name that should be used if name of self should be rejected'
-        session = object_session(self)
-        if not session:
-            logger.warning('genus:accepted - object not in session')
-            return None
-        syn = session.query(GenusSynonym).filter(
-            GenusSynonym.synonym_id == self.id).first()
-        accepted = syn and syn.genus
-        return accepted
-
-    @accepted.setter
-    def accepted(self, value):
-        'Name that should be used if name of self should be rejected'
-        assert isinstance(value, self.__class__)
-        if self in value.synonyms:
-            return
-        # remove any previous `accepted` link
-        session = object_session(self)
-        if not session:
-            logger.warning('genus:accepted.setter - object not in session')
-            return
-        previous_synonymy_link = (session.query(GenusSynonym)
-                                  .filter(GenusSynonym.synonym_id == self.id)
-                                  .first())
-        if previous_synonymy_link:
-            accepted = (
-                session.query(Genus)
-                .filter(Genus.id == previous_synonymy_link.genus_id)
-                .one()
-            )
-            accepted.synonyms.remove(self)
-        session.flush()
-        if value != self:
-            value.synonyms.append(self)
 
     def __str__(self):
         return Genus.str(self)
@@ -446,6 +415,7 @@ class GenusSynonym(db.Base):
     :Table name: genus_synonym
     """
     __tablename__ = 'genus_synonym'
+    __table_args__ = (CheckConstraint("genus_id != synonym_id"),)
 
     # columns
     genus_id = Column(Integer, ForeignKey('genus.id'), nullable=False)
@@ -453,12 +423,6 @@ class GenusSynonym(db.Base):
     # a genus can only be a synonum of one other genus
     synonym_id = Column(Integer, ForeignKey('genus.id'), nullable=False,
                         unique=True)
-
-    def __init__(self, synonym=None, **kwargs):
-        # it is necessary that the first argument here be synonym for
-        # the Genus.synonyms association_proxy to work
-        self.synonym = synonym
-        super().__init__(**kwargs)
 
     def __str__(self):
         return str(self.synonym)

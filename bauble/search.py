@@ -135,28 +135,40 @@ OPERATIONS = {
 }
 
 
-def create_joins(query, cls, steps, aliased=False):
+def create_joins(query, cls, steps, aliased=False, to_join=None):
     """Given a starting query, class and steps add the appropriate join()
     clauses to the query.  Returns the query and the last class in the joins.
     """
-    to_join = [cls]
-    for step in steps:
-        if hasattr(cls, step):
-            joinee = get_related_class(cls, step)
+    if to_join is None:
+        to_join = [cls]
+    if not steps:
+        return (query, cls)
+    step = steps[0]
+    steps = steps[1:]
 
-            if joinee in to_join or aliased:
-                from sqlalchemy.orm import aliased
-                joinee = aliased(joinee)
-                query = query.join(
-                    getattr(cls, step).of_type(joinee)
-                )
-            else:
-                query = query.join(getattr(cls, step))
-                to_join.append(joinee)
+    if hasattr(cls, step):
+        # AssociationProxy
+        if hasattr(getattr(cls, step), 'value_attr'):
+            new_step = getattr(cls, step).value_attr
+            step = getattr(cls, step).local_attr.key
+            steps.insert(0, new_step)
 
-            cls = joinee
+        joinee = get_related_class(cls, step)
 
-    return (query, cls)
+        if joinee in to_join or aliased:
+            from sqlalchemy.orm import aliased
+            joinee = aliased(joinee)
+            query = query.join(
+                getattr(cls, step).of_type(joinee)
+            )
+        else:
+            query = query.join(getattr(cls, step))
+            # query = query.join(joinee)
+            to_join.append(joinee)
+
+        cls = joinee
+
+    return create_joins(query, cls, steps, aliased, to_join)
 
 
 class NoneToken:

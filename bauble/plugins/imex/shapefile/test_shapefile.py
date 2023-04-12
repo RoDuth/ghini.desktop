@@ -792,8 +792,9 @@ class ExportSettingsBoxTests(ShapefileTestCase):
                                  resize_func=lambda: False,
                                  grid=MockGrid())
 
-        mock_prop = mock.Mock(key='_default_vernacular_name')
-        self.assertFalse(settings_box.relation_filter(mock_prop()))
+        self.assertFalse(settings_box.relation_filter(
+            '_default_vernacular_name', None
+        ))
 
     @mock.patch('bauble.prefs.Gtk.MessageDialog.run',
                 return_value=Gtk.ResponseType.OK)

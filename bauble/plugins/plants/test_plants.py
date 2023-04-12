@@ -608,7 +608,7 @@ class FamilyTests(PlantTestCase):
         self.assertEqual(fam2.accepted.epithet, fam1.epithet)  # just added
         self.assertEqual(fam3.accepted.epithet, fam1.epithet)  # no change
         fam2.accepted = fam4  # (1 3), (4 2)
-        self.session.flush()
+        self.session.commit()
         self.assertEqual([i.epithet for i in fam4.synonyms], [fam2.epithet])
         self.assertEqual([i.epithet for i in fam1.synonyms], [fam3.epithet])
         self.assertEqual(fam1.accepted, None)
@@ -616,10 +616,13 @@ class FamilyTests(PlantTestCase):
         self.assertEqual(fam3.accepted, fam1)
         self.assertEqual(fam4.accepted, None)
         fam2.accepted = fam4  # does not change anything
+        self.session.commit()
         self.assertEqual(fam1.accepted, None)
         self.assertEqual(fam2.accepted, fam4)
         self.assertEqual(fam3.accepted, fam1)
         self.assertEqual(fam4.accepted, None)
+        fam2.accepted = fam2  # cannot be a synonym of itself
+        self.assertRaises(IntegrityError, self.session.commit)
 
     def test_top_level_count_w_plant_qty(self):
         from ..garden import Accession, Plant, Location
@@ -1173,6 +1176,8 @@ class GenusSynonymyTests(PlantTestCase):
         self.assertEqual(gen2.accepted, gen4)
         self.assertEqual(gen3.accepted, gen1)
         self.assertEqual(gen4.accepted, None)
+        gen2.accepted = gen2  # cannot be a synonym of itself
+        self.assertRaises(IntegrityError, self.session.commit)
 
 
 class SpeciesTests(PlantTestCase):
@@ -1351,6 +1356,29 @@ class SpeciesTests(PlantTestCase):
         self.assertEqual(sp.default_vernacular_name.name, 'set hybrid')
         self.assertEqual(sp.default_vernacular_name.language, 'Lang')
 
+    def test_accepted_low_level(self):
+        sp1 = self.session.query(Species).get(2)
+        sp2 = self.session.query(Species).get(3)
+        sp3 = self.session.query(Species).get(4)
+        sp1.accepted = sp2
+        self.session.commit()
+        self.assertEqual(sp1.accepted, sp2)
+        self.assertIn(sp1, sp2.synonyms)
+        sp1.accepted = sp3
+        self.session.commit()
+        self.assertEqual(sp1.accepted, sp3)
+        self.assertIn(sp1, sp3.synonyms)
+        self.assertNotIn(sp1, sp2.synonyms)
+        sp1.accepted = sp1
+        self.assertRaises(IntegrityError, self.session.commit)
+        self.session.rollback()
+        self.assertNotIn(sp1, sp1.synonyms)
+        self.assertEqual(sp1.accepted, sp3)
+        sp1.accepted = None
+        self.session.commit()
+        self.assertIsNone(sp1.accepted)
+        self.assertNotIn(sp1, sp3.synonyms)
+
     def test_synonyms_low_level(self):
         """
         Test the Species.synonyms property
@@ -1387,7 +1415,7 @@ class SpeciesTests(PlantTestCase):
         # test that appending a synonym works using species._synonyms
         sp1 = load_sp(1)
         sp2 = load_sp(2)
-        syn = SpeciesSynonym(sp2)
+        syn = SpeciesSynonym(synonym=sp2)
         sp1._synonyms.append(syn)
         self.session.flush()
         self.assertTrue(synonym_of(1, 2), syn_str(1, 2))
@@ -1403,8 +1431,12 @@ class SpeciesTests(PlantTestCase):
         sp2 = load_sp(2)
         sp1.synonyms.append(sp2)
         sp1.synonyms.remove(sp2)
-        #self.session.flush()
-        self.session.commit()
+        import warnings
+        # SAWarning: Object of type <SpeciesSynonym> not in session, add
+        # operation along 'Species._accepted' will not proceed
+        with warnings.catch_warnings():
+            warnings.simplefilter('ignore')
+            self.session.commit()
         assert sp2 not in sp1.synonyms
 
         # add a species and immediately add the same species

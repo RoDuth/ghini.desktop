@@ -173,7 +173,7 @@ class CSVExportDialogPresenter(GenericEditorPresenter):
         self.refresh_sensitivity()
 
     @staticmethod
-    def relation_filter(prop):
+    def relation_filter(key, prop):
         # dont offer many relationships
         try:
             if prop.prop.uselist:
@@ -181,7 +181,7 @@ class CSVExportDialogPresenter(GenericEditorPresenter):
         except AttributeError:
             pass
         # force users to use the hybrid property
-        if prop.key == '_default_vernacular_name':
+        if key == '_default_vernacular_name':
             return False
         return True
 

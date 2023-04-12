@@ -1,6 +1,6 @@
 # Copyright 2008, 2009, 2010 Brett Adams
 # Copyright 2014-2015 Mario Frasca <mario@anche.no>.
-# Copyright 2021-2022 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright 2021-2023 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -29,6 +29,7 @@ from sqlalchemy import Integer, Float
 from sqlalchemy.orm import class_mapper, RelationshipProperty
 from sqlalchemy.orm.properties import ColumnProperty
 from sqlalchemy.ext.hybrid import hybrid_property
+from sqlalchemy.ext.associationproxy import AssociationProxy
 from sqlalchemy.orm.attributes import InstrumentedAttribute
 from sqlalchemy.exc import InvalidRequestError
 from pyparsing import (Word,
@@ -69,11 +70,12 @@ class SchemaMenu(Gtk.Menu):
     def __init__(self,  # pylint: disable=too-many-arguments
                  mapper,
                  activate_cb=None,
-                 column_filter=lambda p: True,
-                 relation_filter=lambda p: True,
+                 column_filter=lambda k, p: True,
+                 relation_filter=lambda k, p: True,
                  private=False,
                  selectable_relations=False):
         super().__init__()
+        self.mapper = mapper
         self.activate_cb = activate_cb
         self.private = private
         self.relation_filter = relation_filter
@@ -103,35 +105,41 @@ class SchemaMenu(Gtk.Menu):
         """Called when menu items that have submenus are selected."""
         submenu = menuitem.get_submenu()
         if len(submenu.get_children()) == 0:
-            for item in self._get_prop_menuitems(prop.mapper):
+            if isinstance(prop, AssociationProxy):
+                mapper = getattr(
+                    prop.for_class(self.mapper.class_).target_class,
+                    prop.value_attr
+                ).mapper
+            else:
+                mapper = prop.mapper
+            for item in self._get_prop_menuitems(mapper):
                 submenu.append(item)
         submenu.show_all()
 
     def _get_prop_menuitems(self, mapper):
         # Separate properties in column_properties and relation_properties
 
-        column_properties = []
-        relation_properties = []
-        for prop in mapper.all_orm_descriptors:
+        column_properties = {}
+        relation_properties = {}
+        for key, prop in mapper.all_orm_descriptors.items():
             if isinstance(prop, hybrid_property):
-                column_properties.append(prop)
+                column_properties[key] = prop
             elif (isinstance(prop, InstrumentedAttribute) or
                   prop.key in [i.key for i in mapper.synonyms]):
                 i = prop.property
                 if isinstance(i, RelationshipProperty):
-                    relation_properties.append(prop)
+                    relation_properties[key] = prop
                 elif isinstance(i, ColumnProperty):
-                    column_properties.append(prop)
+                    column_properties[key] = prop
+            elif isinstance(prop, AssociationProxy):
+                relation_properties[key] = prop
 
-        def key(prop):
-            key = prop.key if hasattr(prop, 'key') else prop.__name__
-            return key
-
-        column_properties = sorted(
-            column_properties,
-            key=lambda p: (key(p) != 'id', key(p))
-        )
-        relation_properties = sorted(relation_properties, key=key)
+        column_properties = dict(sorted(
+            column_properties.items(),
+            key=lambda p: (p[0] != 'id', p[0])
+        ))
+        relation_properties = dict(sorted(relation_properties.items(),
+                                          key=lambda p: p[0]))
 
         items = []
 
@@ -145,19 +153,19 @@ class SchemaMenu(Gtk.Menu):
             items.append(item)
             items.append(Gtk.SeparatorMenuItem())
 
-        for prop in column_properties:
-            if not self.column_filter(prop):
+        for key, prop in column_properties.items():
+            if not self.column_filter(key, prop):
                 continue
-            item = Gtk.MenuItem(label=key(prop), use_underline=False)
+            item = Gtk.MenuItem(label=key, use_underline=False)
             if hasattr(prop, 'prop'):
                 prop = prop.prop
             item.connect('activate', self.on_activate, prop)
             items.append(item)
 
-        for prop in relation_properties:
-            if not self.relation_filter(prop):
+        for key, prop in relation_properties.items():
+            if not self.relation_filter(key, prop):
                 continue
-            item = Gtk.MenuItem(label=prop.key, use_underline=False)
+            item = Gtk.MenuItem(label=key, use_underline=False)
             submenu = Gtk.Menu()
             item.set_submenu(submenu)
             item.connect('select', self.on_select, prop)
@@ -493,19 +501,18 @@ class ExpressionRow:
     # TODO what to do with synonyms?  Could leave out sp, genus, family and
     # use epithet only?
     @staticmethod
-    def column_filter(prop):
-        if hasattr(prop, 'key'):
-            # skip any id fields (e.g. genus_id) as they are available via the
-            # related id property (e.g. species.genus_id == species.genus.id)
-            if prop.key.endswith('_id'):
-                return False
+    def column_filter(key, _prop):
+        # skip any id fields (e.g. genus_id) as they are available via the
+        # related id property (e.g. species.genus_id == species.genus.id)
+        # Except obj_id from tags
+        if key.endswith('_id') and not key == 'obj_id':
+            return False
         return True
 
     @staticmethod
-    def relation_filter(prop):
-        if hasattr(prop, 'key'):
-            if '__' in prop.key:
-                return False
+    def relation_filter(key, _prop):
+        if key.startswith('_'):
+            return False
         return True
 
     def get_widgets(self):
@@ -854,7 +861,14 @@ class QueryBuilder(GenericEditorPresenter):
             mapper = class_mapper(cls)
             try:
                 for target in steps[:-1]:
-                    mapper = mapper.get_property(target).mapper
+                    if hasattr(proxy := getattr(mapper.class_, target),
+                               'target_collection'):
+                        # AssociationProxy
+                        mapper = (mapper.get_property(proxy.target_collection)
+                                  .mapper)
+                        mapper = mapper.get_property(proxy.value_attr).mapper
+                    else:
+                        mapper = mapper.get_property(target).mapper
                 try:
                     prop = mapper.get_property(steps[-1])
                 except InvalidRequestError:
