@@ -675,8 +675,8 @@ class DomainExpressionAction:
     def invoke(self, search_strategy):
         logger.debug('DomainExpressionAction:invoke')
         try:
-            if self.domain in search_strategy.shorthand:
-                self.domain = search_strategy.shorthand[self.domain]
+            self.domain = search_strategy.shorthand.get(self.domain,
+                                                        self.domain)
             cls, properties = search_strategy.domains[self.domain]
         except KeyError as e:
             raise KeyError(_('Unknown search domain: %s') % self.domain) from e
@@ -997,6 +997,9 @@ class MapperSearch(SearchStrategy):
         example, a record is be selected if any of the fields matches the
         searched value.
 
+        NOTE: get_domain_classes will only return the first entry per class so
+        add the default first.
+
         :param domain: a string, list or tuple of domains that will resolve
                        a search string to cls.  domain act as a shorthand to
                        the class name.
@@ -1023,9 +1026,18 @@ class MapperSearch(SearchStrategy):
 
     @classmethod
     def get_domain_classes(cls):
+        """Returns a dictionary of domains names, as strings, to the classes
+        they point to.
+
+        Only the first domain name per class, as added via add_meta, is
+        returned.
+        """
         domains = {}
+        _classes = set()
         for domain, item in cls.domains.items():
-            domains.setdefault(domain, item[0])
+            if item[0] not in _classes:
+                _classes.add(item[0])
+                domains.setdefault(domain, item[0])
         return domains
 
     def search(self, text, session):
