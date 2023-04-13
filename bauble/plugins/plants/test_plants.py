@@ -3608,7 +3608,7 @@ class SynonymsPresenterTests(PlantTestCase):
         del presenter
 
     @mock.patch('bauble.utils.yes_no_dialog')
-    def test_on_remove_button_clicker(self, mock_dialog):
+    def test_on_remove_button_clicked(self, mock_dialog):
         mock_dialog.return_value = True
         mock_parent = mock.Mock()
         view = SpeciesEditorView()
@@ -3621,10 +3621,43 @@ class SynonymsPresenterTests(PlantTestCase):
 
         presenter.on_remove_button_clicked(None)
 
+        self.session.commit()
+
         self.assertFalse(sp.synonyms)
         self.assertTrue(presenter.is_dirty())
 
         del presenter
+
+    @mock.patch('bauble.utils.yes_no_dialog')
+    def test_on_remove_button_clicked_after_add(self, mock_dialog):
+        # test adding multiple via adding a sp with synonyms then removing
+        # them.  Should not undo the original synonym, or add a synonym here.
+        mock_parent = mock.Mock()
+        view = SpeciesEditorView()
+        mock_parent.view = view
+        sp = self.session.query(Species).get(4)
+        mock_parent.model = sp
+        mock_parent.session = self.session
+        presenter = SynonymsPresenter(mock_parent)
+        sp_w_syns = self.session.query(Species).get(2)
+        existing_syn = sp_w_syns.synonyms[0]
+        view.widgets.sp_syn_entry.set_text(str(sp_w_syns))
+        presenter.on_select(sp_w_syns)
+
+        # add
+        presenter.on_add_button_clicked(None)
+
+        # remove
+        view.widgets.sp_syn_treeview.set_cursor(1)
+        presenter.on_remove_button_clicked(None)
+        view.widgets.sp_syn_treeview.set_cursor(0)
+        presenter.on_remove_button_clicked(None)
+        self.session.commit()
+
+        self.assertFalse(sp.synonyms)
+        self.assertTrue(presenter.is_dirty())
+        self.assertEqual(sp_w_syns.synonyms, [existing_syn])
+        self.assertEqual(existing_syn.accepted, sp_w_syns)
 
 
 class GlobalFunctionsTest(PlantTestCase):

@@ -35,7 +35,7 @@ from gi.repository import Pango
 
 from sqlalchemy.orm.session import object_session, Session, object_mapper
 from sqlalchemy.orm.query import Query
-from sqlalchemy.exc import DBAPIError
+from sqlalchemy.exc import DBAPIError, InvalidRequestError
 from sqlalchemy import and_, or_
 from sqlalchemy import inspect as sa_inspect
 
@@ -1257,6 +1257,13 @@ class SynonymsPresenter(editor.GenericEditorPresenter):
         self.view.widgets.sp_syn_entry.props.text = ''
         self.init_treeview()
 
+        # prevent adding synonyms to synonyms
+        if self.model.accepted:
+            self.view.widgets.sp_syn_entry.set_placeholder_text(
+                _('Already a synonym of %s') % self.model.accepted
+            )
+            self.view.widgets.sp_syn_frame.set_sensitive(False)
+
         self.assign_completions_handler(
             'sp_syn_entry',
             self.get_completions,
@@ -1270,6 +1277,7 @@ class SynonymsPresenter(editor.GenericEditorPresenter):
                           self.on_add_button_clicked)
         self.view.connect('sp_syn_remove_button', 'clicked',
                           self.on_remove_button_clicked)
+        self.additional = []
         self._dirty = False
 
     def on_select(self, value):
@@ -1334,10 +1342,11 @@ class SynonymsPresenter(editor.GenericEditorPresenter):
         this species
         """
         synonyms = []
-        syn = SpeciesSynonym(species=self.model, synonym=self._selected)
+        syn = SpeciesSynonym(synonym=self._selected)
         synonyms.append(syn)
         for syn in self._selected._synonyms:
             synonyms.append(syn)
+            self.additional.append(syn)
         tree_model = self.treeview.get_model()
         for syn in synonyms:
             syn.species = self.model
@@ -1367,7 +1376,15 @@ class SynonymsPresenter(editor.GenericEditorPresenter):
 
         tree_model.remove(tree_model.get_iter(path))
         self.model.synonyms.remove(value.synonym)
-        utils.delete_or_expunge(value)
+        self.session.refresh(value.synonym)
+        if value in self.additional:
+            try:
+                self.session.expunge(value)
+            except InvalidRequestError as e:
+                logger.debug('syn %s > %s (%s)', value, type(e).__name__, e)
+            self.additional.remove(value)
+        elif value in self.session:
+            self.session.delete(value)
         self._dirty = True
         self.parent_ref().refresh_sensitivity()
 
