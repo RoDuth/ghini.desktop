@@ -233,8 +233,7 @@ species_markup_map = {
     25: "+ <i>Crataegomespilus</i> <i>dardarii</i>",
     26: "× <i>Butyagrus</i> <i>nabonnandii</i>",
     27: ("<i>Cynodon</i> <i>dactylon</i> × <i>transvaalensis</i> 'DT-1' "
-         "<span size=\"xx-small\">(PBR)</span> "
-         "T<small>IF</small>T<small>UF</small>™"),
+         "<small>(PBR)</small> T<small>IF</small>T<small>UF</small>™"),
     29: "<i>Paphiopedilum</i> Jim Kie 'Springwater'",
 }
 
@@ -263,6 +262,9 @@ species_markup_authors_map = {
 species_searchview_markup_map = {
     1: ('<i>Maxillaria</i> <i>variabilis</i> <span weight="light">Bateman ex '
         'Lindl.</span>'),
+    27: ("<i>Cynodon</i> <i>dactylon</i> × <i>transvaalensis</i> 'DT-1' "
+         '<span weight="light"><small>(PBR)</small></span> '
+         "T<small>IF</small>T<small>UF</small>™"),
     28: ('<i>Abrus</i> <i>precatorius</i> subsp. <i>africanus</i> '
          '<span weight="light">Verdc.</span>'),
 }
@@ -2924,12 +2926,24 @@ class SpeciesEditorPresenterTests(PlantTestCase):
     def test_refresh_fullname_label(self):
         # toggles prev_sp_box visibility
         # sets sp_fullname_label to markup
+        # resets label_markup if markup has changed
         sp = (self.session.query(Species)
               .filter(Species.grex == 'Jim Kie',
                       Species.cultivar_epithet == 'Springwater')
               .first())
+        sp.label_markup = 'Test markup'
         view = SpeciesEditorView()
         presenter = SpeciesEditorPresenter(sp, view)
+        # on init if a label_markup exists then the label should set and the
+        # expander expand
+        self.assertTrue(
+            presenter.view.widgets.label_markup_expander.get_expanded()
+        )
+        self.assertEqual(presenter.view.widgets.label_markup_label.get_label(),
+                         'Test markup')
+
+        presenter.refresh_fullname_label()  # should not reset label_markup
+        self.assertEqual(sp.label_markup, 'Test markup')
 
         sp.grex = 'Test Grex'  # should not trigger change on the label yet
         self.assertEqual(view.widgets.sp_fullname_label.get_label(),
@@ -2940,6 +2954,7 @@ class SpeciesEditorPresenterTests(PlantTestCase):
         self.assertEqual(view.widgets.sp_fullname_label.get_label(),
                          "<i>Paphiopedilum</i> Test Grex 'Springwater'")
         self.assertTrue(view.widgets.prev_sp_box.get_visible())
+        self.assertIsNone(sp.label_markup)
 
         del presenter
 
@@ -2965,6 +2980,59 @@ class SpeciesEditorPresenterTests(PlantTestCase):
 
         presenter._warn_double_ups()
         self.assertIsNotNone(presenter.omonym_box)
+
+        del presenter
+
+    def test_on_markup_entry_changed(self):
+        sp = (self.session.query(Species)
+              .filter(Species.trade_name == 'TifTuf')
+              .first())
+        view = SpeciesEditorView()
+        presenter = SpeciesEditorPresenter(sp, view)
+
+        markup_entry = presenter.view.widgets.sp_label_markup_entry
+        markup_label = presenter.view.widgets.label_markup_label
+        self.assertEqual(markup_entry.get_name(), 'GtkEntry')
+
+        markup_entry.set_text(sp.markup())
+
+        self.assertIsNone(sp.label_markup)
+        self.assertEqual(markup_entry.get_name(), 'unsaved-entry')
+        self.assertFalse(presenter.has_problems(markup_entry))
+
+        markup_entry.set_text('<><bad<markup')
+
+        self.assertEqual(markup_entry.get_name(), 'GtkEntry')
+        self.assertTrue(presenter.has_problems(markup_entry))
+        self.assertEqual(markup_label.get_text(), '--')
+        self.assertIsNone(sp.label_markup)
+
+        valid_markup = '<i>Some</i> <small>valid markup</small> entry'
+        markup_entry.set_text(valid_markup)
+
+        self.assertEqual(markup_entry.get_name(), 'GtkEntry')
+        self.assertFalse(presenter.has_problems(markup_entry))
+        self.assertEqual(markup_label.get_label(), valid_markup)
+        self.assertEqual(sp.label_markup, valid_markup)
+
+        del presenter
+
+    def test_on_markup_button_clicked(self):
+        sp = (self.session.query(Species)
+              .filter(Species.trade_name == 'TifTuf')
+              .first())
+
+        view = SpeciesEditorView()
+        presenter = SpeciesEditorPresenter(sp, view)
+
+        button = presenter.view.widgets.label_markup_btn
+        markup_entry = presenter.view.widgets.sp_label_markup_entry
+
+        self.assertEqual(markup_entry.get_text(), '')
+
+        button.emit('clicked')
+
+        self.assertEqual(markup_entry.get_text(), sp.markup())
 
         del presenter
 

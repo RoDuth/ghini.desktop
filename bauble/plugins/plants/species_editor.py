@@ -31,6 +31,7 @@ logger = logging.getLogger(__name__)
 from gi.repository import Gtk
 from gi.repository import Gio
 from gi.repository import GLib
+from gi.repository import Pango
 
 from sqlalchemy.orm.session import object_session, Session, object_mapper
 from sqlalchemy.orm.query import Query
@@ -199,10 +200,12 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
                            'sp_spqual_combo': 'sp_qual',
                            'sp_awards_entry': 'awards',
                            'sp_label_dist_entry': 'label_distribution',
+                           'sp_label_markup_entry': 'label_markup',
                            'sp_habit_comboentry': 'habit',
                            }
 
     PROBLEM_UNKOWN_HABIT = f'unknown_source:{random()}'
+    PROBLEM_INVALID_MARKUP = f'invalid_markup:{random()}'
 
     def __init__(self, model, view):
         super().__init__(model, view)
@@ -271,6 +274,12 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
         self.view.connect('expand_cv_btn', "clicked",
                           self.on_expand_cv_button_clicked)
 
+        self.view.connect('label_markup_btn', "clicked",
+                          self.on_markup_button_clicked)
+
+        self.view.connect('sp_label_markup_entry', 'changed',
+                          self.on_markup_entry_changed)
+
         self.assign_completions_handler('sp_genus_entry',
                                         self.gen_get_completions,
                                         on_select=self.gen_on_select)
@@ -301,6 +310,39 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
                                                 'trademark_symbol',
                                                 'grex')):
             self.view.widgets.expand_cv_btn.emit('clicked')
+
+        if self.model.label_markup:
+            self.view.widgets.label_markup_expander.set_expanded(True)
+            self.view.widgets.sp_label_markup_entry.emit('changed')
+
+    def on_markup_entry_changed(self, widget):
+        self.remove_problem(self.PROBLEM_INVALID_MARKUP, widget)
+        value = widget.get_text()
+
+        if value == self.model.markup():
+            widget.set_name('unsaved-entry')
+        else:
+            widget.set_name('GtkEntry')
+
+        if value in (self.model.markup(), ''):
+            value = None
+
+        if value:
+            try:
+                Pango.parse_markup(value, -1, '0')
+                self.view.set_label('label_markup_label', value)
+            except (GLib.Error, TypeError, RuntimeError, UnicodeDecodeError):
+                self.view.set_label('label_markup_label', '--')
+                value = None
+                self.add_problem(self.PROBLEM_INVALID_MARKUP, widget)
+        else:
+            self.view.set_label('label_markup_label', '--')
+
+        self.set_model_attr('label_markup', value)
+
+    def on_markup_button_clicked(self, _widget):
+        self.view.widget_set_value('sp_label_markup_entry',
+                                   self.model.markup())
 
     def on_expand_cv_button_clicked(self, *_args):
         extras_grid = self.view.widgets.cv_extras_grid
@@ -669,6 +711,7 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
             self.view.widgets.prev_sp_box.set_visible(True)
             self.view.set_label('sp_prev_name_label',
                                 self.start_sp_markup + ' (previous name)')
+            self.view.widget_set_value('sp_label_markup_entry', '')
         else:
             self.view.widgets.prev_sp_box.set_visible(False)
             self.view.widgets.add_syn_chkbox.set_active(False)
@@ -1359,9 +1402,16 @@ class SpeciesEditorView(editor.GenericEditorView):
                           '\n(NOTE: blue entries have not been committed to '
                           'the database yet and will be only when OK is '
                           'clicked.)'),
-        'sp_label_dist_entry': _('The distribution string that will be used '
-                                 'on the label.  If this entry is blank then '
-                                 'the species distribution will be used'),
+        'sp_label_dist_entry': _('The distribution as plain text.  Intended '
+                                 'for use on labels and other reports.'),
+        'label_markup_expander': _('Alternative species name markup. Intended '
+                                   'for use on labels and other reports where '
+                                   'the default markup may need to be '
+                                   'abbreviated or otherwise altered. NOTE: '
+                                   'setting this equivalent to the default '
+                                   'will not save (displaying as blue text). '
+                                   'Also, changing any part of the species '
+                                   'name will reset it.'),
         'sp_habit_comboentry': _('The habit of this species'),
         'sp_awards_entry': _('The awards this species have been given'),
         'sp_cancel_button': _('Cancel your changes'),

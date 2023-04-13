@@ -237,6 +237,7 @@ class Species(db.Base, db.Serializable, db.WithNotes):
     # the Species.genus property is defined as backref in Genus.species
 
     label_distribution = Column(UnicodeText)
+    label_markup = Column(UnicodeText)
 
     # relations
     synonyms = association_proxy(
@@ -678,14 +679,14 @@ class Species(db.Base, db.Serializable, db.WithNotes):
             infrasp_parts.append(f"'{escape(self.cultivar_epithet)}'")
 
         if self.pbr_protected:
+            pbr = '(PBR)'
             if markup:
                 # would like to use <sup> here but get
                 # Pango-WARNING **: Leftover font scales
-                infrasp_parts.append(
-                    '<span size="xx-small">(PBR)</span>'
-                )
-            else:
-                infrasp_parts.append('(PBR)')
+                pbr = f'<small>{pbr}</small>'
+            if for_search_view:
+                pbr = f'<span weight="light">{pbr}</span>'
+            infrasp_parts.append(pbr)
 
         def _small_caps(txt):
             # using <span variant="smallcaps"> pango can have trouble finding

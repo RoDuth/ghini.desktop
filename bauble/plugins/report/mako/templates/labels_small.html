@@ -77,7 +77,7 @@
 }
 .code {
     /* border: 1px solid orange; */
-    font: normal normal 12pt serif;    
+    font: normal normal 12pt serif;
     vertical-align: bottom;
     text-align: left;
     white-space: nowrap;
@@ -85,11 +85,11 @@
     height: 2em;
     margin: 3pt 12pt 0 2mm;
     float: left;
-    clear: left; 
+    clear: left;
 }
 .distribution {
     /* border: 1px solid blue; */
-    font: normal normal 11pt serif; 
+    font: normal normal 11pt serif;
     vertical-align: bottom;
     height: 4.5em;
     margin: 0 2mm 0 2em;
@@ -105,7 +105,7 @@
   <div>
     <div class="family">${plant.accession.species.genus.family}</div>
     <div class="name">
-      <div class="species">${plant.accession.species_str(markup=True)}</div>
+      <div class="species">${plant.accession.species.label_markup or plant.accession.species_str(markup=True)}</div>
       <div class="vernacular">${plant.accession.species.default_vernacular_name or '&nbsp;'}</div>
     </div>
     <div class="distribution">${plant.accession.species.distribution_str()}</div>

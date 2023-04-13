@@ -331,11 +331,10 @@ class SpeciesABCDAdapter(ABCDAdapter):
                 unit, 'FullSpeciesName'
             ).text = self.species.str()
 
+            markup = self.species.label_markup or self.species.str(markup=True)
             unit.append(
                 etree.fromstring(
-                    '<FullSpeciesNameMarkup>'
-                    f'{self.species.str(markup=True)}'
-                    '</FullSpeciesNameMarkup>'
+                    f'<FullSpeciesNameMarkup>{markup}</FullSpeciesNameMarkup>'
                 )
             )
 

@@ -237,6 +237,7 @@ class GUI:
         b'.problem {background-color: #FFDCDF;}'
         b'.problem-bg * {background-image: image(#FFDCDF);}'
         b'.err-btn * {color: #FF9999;}'
+        b'#unsaved-entry {color: blue;}'
     )
     Gtk.StyleContext.add_provider_for_screen(
         Gdk.Screen.get_default(), _css,
