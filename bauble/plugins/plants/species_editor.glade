@@ -1188,20 +1188,20 @@
                           </packing>
                         </child>
                         <child>
-                          <object class="GtkFrame" id="sp_syn_frame">
+                          <object class="GtkFrame" id="syn_frame">
                             <property name="width-request">300</property>
                             <property name="visible">True</property>
                             <property name="can-focus">False</property>
                             <property name="label-xalign">0</property>
                             <property name="shadow-type">none</property>
                             <child>
-                              <object class="GtkBox" id="sp_syn_box">
+                              <object class="GtkBox" id="syn_box">
                                 <property name="visible">True</property>
                                 <property name="can-focus">False</property>
                                 <property name="orientation">vertical</property>
                                 <property name="spacing">2</property>
                                 <child>
-                                  <object class="GtkEntry" id="sp_syn_entry">
+                                  <object class="GtkEntry" id="syn_entry">
                                     <property name="visible">True</property>
                                     <property name="can-focus">True</property>
                                     <property name="invisible-char">●</property>
@@ -1225,7 +1225,7 @@
                                         <property name="can-focus">True</property>
                                         <property name="hscrollbar-policy">never</property>
                                         <child>
-                                          <object class="GtkTreeView" id="sp_syn_treeview">
+                                          <object class="GtkTreeView" id="syn_treeview">
                                             <property name="height-request">100</property>
                                             <property name="visible">True</property>
                                             <property name="can-focus">True</property>
@@ -1256,7 +1256,7 @@
                                         <property name="can-focus">False</property>
                                         <property name="orientation">vertical</property>
                                         <child>
-                                          <object class="GtkButton" id="sp_syn_add_button">
+                                          <object class="GtkButton" id="syn_add_button">
                                             <property name="label" translatable="yes">Add</property>
                                             <property name="visible">True</property>
                                             <property name="can-focus">True</property>
@@ -1269,7 +1269,7 @@
                                           </packing>
                                         </child>
                                         <child>
-                                          <object class="GtkButton" id="sp_syn_remove_button">
+                                          <object class="GtkButton" id="syn_remove_button">
                                             <property name="label" translatable="yes">Remove</property>
                                             <property name="visible">True</property>
                                             <property name="sensitive">False</property>

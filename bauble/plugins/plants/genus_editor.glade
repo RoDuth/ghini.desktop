@@ -149,7 +149,7 @@
                     <property name="orientation">vertical</property>
                     <property name="spacing">15</property>
                     <child>
-                      <!-- n-columns=2 n-rows=3 -->
+                      <!-- n-columns=2 n-rows=4 -->
                       <object class="GtkGrid">
                         <property name="visible">True</property>
                         <property name="can-focus">False</property>
@@ -314,14 +314,14 @@
                       </packing>
                     </child>
                     <child>
-                      <object class="GtkFrame" id="gen_syn_frame">
+                      <object class="GtkFrame" id="syn_frame">
                         <property name="visible">True</property>
                         <property name="can-focus">False</property>
                         <property name="vexpand">True</property>
                         <property name="label-xalign">0</property>
                         <property name="shadow-type">none</property>
                         <child>
-                          <object class="GtkBox" id="gen_syn_box">
+                          <object class="GtkBox">
                             <property name="visible">True</property>
                             <property name="can-focus">False</property>
                             <property name="vexpand">True</property>
@@ -333,7 +333,7 @@
                                 <property name="can-focus">False</property>
                                 <property name="valign">start</property>
                                 <child>
-                                  <object class="GtkEntry" id="gen_syn_entry">
+                                  <object class="GtkEntry" id="syn_entry">
                                     <property name="visible">True</property>
                                     <property name="can-focus">True</property>
                                     <property name="valign">start</property>
@@ -341,13 +341,13 @@
                                     <property name="width-chars">25</property>
                                   </object>
                                   <packing>
-                                    <property name="expand">False</property>
-                                    <property name="fill">False</property>
+                                    <property name="expand">True</property>
+                                    <property name="fill">True</property>
                                     <property name="position">0</property>
                                   </packing>
                                 </child>
                                 <child>
-                                  <object class="GtkButton" id="gen_syn_add_button">
+                                  <object class="GtkButton" id="syn_add_button">
                                     <property name="label" translatable="yes">Add</property>
                                     <property name="visible">True</property>
                                     <property name="sensitive">False</property>
@@ -362,7 +362,7 @@
                                   </packing>
                                 </child>
                                 <child>
-                                  <object class="GtkButton" id="gen_syn_remove_button">
+                                  <object class="GtkButton" id="syn_remove_button">
                                     <property name="label" translatable="yes">Remove</property>
                                     <property name="visible">True</property>
                                     <property name="sensitive">False</property>
@@ -391,11 +391,22 @@
                                 <property name="hscrollbar-policy">never</property>
                                 <property name="propagate-natural-height">True</property>
                                 <child>
-                                  <object class="GtkTreeView" id="gen_syn_treeview">
+                                  <object class="GtkTreeView" id="syn_treeview">
                                     <property name="visible">True</property>
                                     <property name="can-focus">True</property>
                                     <property name="vexpand">True</property>
                                     <property name="headers-visible">False</property>
+                                    <child internal-child="selection">
+                                      <object class="GtkTreeSelection"/>
+                                    </child>
+                                    <child>
+                                      <object class="GtkTreeViewColumn" id="syn_column">
+                                        <property name="title">column</property>
+                                        <child>
+                                          <object class="GtkCellRendererText" id="syn_cell"/>
+                                        </child>
+                                      </object>
+                                    </child>
                                   </object>
                                 </child>
                               </object>

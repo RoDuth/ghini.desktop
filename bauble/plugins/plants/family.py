@@ -23,7 +23,6 @@ Family table definition
 
 import os
 import traceback
-import weakref
 
 import logging
 logger = logging.getLogger(__name__)
@@ -33,7 +32,6 @@ from gi.repository import Gtk
 from sqlalchemy import (Column,
                         Integer,
                         ForeignKey,
-                        and_,
                         UniqueConstraint,
                         String,
                         literal,
@@ -324,10 +322,10 @@ class FamilyEditorView(editor.GenericEditorView):
         'fam_qualifier_combo': _('The family qualifier helps to remove '
                                  'ambiguities that might be associated with '
                                  'this family name.'),
-        'fam_syn_frame': _('A list of synonyms for this family.\n\nTo add a '
-                           'synonym enter a family name and select one from '
-                           'the list of completions.  Then click Add to add '
-                           'it to the list of synonyms.'),
+        'syn_frame': _('A list of synonyms for this family.\n\nTo add a '
+                       'synonym enter a family name and select one from '
+                       'the list of completions.  Then click Add to add '
+                       'it to the list of synonyms.'),
         'fam_cancel_button': _('Cancel your changes.'),
         'fam_ok_button': _('Save your changes.'),
         'fam_ok_and_add_button': _('Save your changes and add a '
@@ -341,7 +339,7 @@ class FamilyEditorView(editor.GenericEditorView):
                                 'family_editor.glade')
         super().__init__(filename, parent=parent,
                          root_widget_name='family_dialog')
-        self.attach_completion('fam_syn_entry')
+        self.attach_completion('syn_entry')
         self.set_accept_buttons_sensitive(False)
         self.widgets.notebook.set_current_page(0)
 
@@ -377,7 +375,12 @@ class FamilyEditorPresenter(editor.GenericEditorPresenter):
 
         # initialize widgets
         self.init_enum_combo('fam_qualifier_combo', 'qualifier')
-        self.synonyms_presenter = SynonymsPresenter(self)
+        from . import SynonymsPresenter
+        self.synonyms_presenter = SynonymsPresenter(
+            self, FamilySynonym, None, lambda session, text: (
+                session.query(Family).filter(Family.family.like(f'{text}%%'))
+            )
+        )
         self.refresh_view()  # put model values in view
 
         # connect signals
@@ -417,131 +420,15 @@ class FamilyEditorPresenter(editor.GenericEditorPresenter):
         return (self._dirty or self.synonyms_presenter.is_dirty() or
                 self.notes_presenter.is_dirty())
 
-    def refresh_view(self):
-        for widget, field in self.widget_to_field_map.items():
-            value = getattr(self.model, field)
-            self.view.widget_set_value(widget, value)
+    def __del__(self):
+        # we have to delete the views in the child presenters manually
+        # to avoid the circular reference
+        del self.synonyms_presenter.view
 
     def cleanup(self):
         super().cleanup()
         self.synonyms_presenter.cleanup()
         self.notes_presenter.cleanup()
-
-
-class SynonymsPresenter(editor.GenericEditorPresenter):
-
-    def __init__(self, parent):
-        """
-        :param parent: FamilyEditorPresenter
-        """
-        self.parent_ref = weakref.ref(parent)
-        super().__init__(self.parent_ref().model, self.parent_ref().view)
-        self.session = self.parent_ref().session
-        self.view.widgets.fam_syn_entry.props.text = ''
-        self.init_treeview()
-
-        def fam_get_completions(text):
-            query = self.session.query(Family)
-            return (query.filter(and_(Family.family.like(f'{text}%%'),
-                                      Family.id != self.model.id))
-                    .order_by(Family.family))
-
-        self._selected = None
-
-        def on_select(value):
-            # don't set anything in the model, just set self._selected
-            sensitive = True
-            if value is None:
-                sensitive = False
-            self.view.widgets.fam_syn_add_button.set_sensitive(sensitive)
-            self._selected = value
-        self.assign_completions_handler('fam_syn_entry', fam_get_completions,
-                                        on_select=on_select)
-        self.view.connect('fam_syn_add_button', 'clicked',
-                          self.on_add_button_clicked)
-        self.view.connect('fam_syn_remove_button', 'clicked',
-                          self.on_remove_button_clicked)
-        self._dirty = False
-
-    def is_dirty(self):
-        return self._dirty
-
-    def init_treeview(self):
-        """initialize the Gtk.TreeView"""
-        self.treeview = self.view.widgets.fam_syn_treeview
-        # remove any columns that were setup previous, this became a
-        # problem when we starting reusing the glade files with
-        # utils.BuilderLoader, the right way to do this would be to
-        # create the columns in glade instead of here
-        for col in self.treeview.get_columns():
-            self.treeview.remove_column(col)
-
-        def _syn_data_func(_column, cell, model, itr, _data):
-            v = model[itr][0]
-            cell.set_property('text', str(v))
-            # just added so change the background color to indicate it's new
-            if v.id is None:
-                cell.set_property('foreground', 'blue')
-            else:
-                cell.set_property('foreground', None)
-
-        cell = Gtk.CellRendererText()
-        col = Gtk.TreeViewColumn('Synonym', cell)
-        col.set_cell_data_func(cell, _syn_data_func)
-        self.treeview.append_column(col)
-
-        tree_model = Gtk.ListStore(object)
-        for syn in self.model._synonyms:
-            tree_model.append([syn])
-        self.treeview.set_model(tree_model)
-        self.view.connect(self.treeview, 'cursor-changed',
-                          self.on_tree_cursor_changed)
-
-    def on_tree_cursor_changed(self, tree):
-        path, _column = tree.get_cursor()
-        self.view.widgets.fam_syn_remove_button.set_sensitive(path is not None)
-
-    def refresh_view(self):
-        """Doesn't do anything"""
-        return
-
-    def on_add_button_clicked(self, _button):
-        """adds the synonym from the synonym entry to the list of synonyms for
-        this species
-        """
-        syn = FamilySynonym(family=self.model, synonym=self._selected)
-        tree_model = self.treeview.get_model()
-        tree_model.append([syn])
-        self._selected = None
-        entry = self.view.widgets.fam_syn_entry
-        entry.props.text = ''
-        entry.set_position(-1)
-        self.view.widgets.fam_syn_add_button.set_sensitive(False)
-        self.view.widgets.fam_syn_add_button.set_sensitive(False)
-        self._dirty = True
-        self.parent_ref().refresh_sensitivity()
-
-    def on_remove_button_clicked(self, _button):
-        """removes the currently selected synonym from the list of synonyms for
-        this species
-        """
-        # TODO: maybe we should only ask 'are you sure' if the selected value
-        # is an instance, this means it will be deleted from the database
-        tree = self.view.widgets.fam_syn_treeview
-        path, _col = tree.get_cursor()
-        tree_model = tree.get_model()
-        value = tree_model[tree_model.get_iter(path)][0]
-        syn_str = Family.str(value.synonym)
-        msg = _('Are you sure you want to remove %s as a synonym to the '
-                'current family?\n\n<i>Note: This will not remove the family '
-                '%s from the database.</i>') % (syn_str, syn_str)
-        if utils.yes_no_dialog(msg, parent=self.view.get_window()):
-            tree_model.remove(tree_model.get_iter(path))
-            self.model.synonyms.remove(value.synonym)
-            utils.delete_or_expunge(value)
-            self.session.flush([value])
-            self._dirty = True
-            self.parent_ref().refresh_sensitivity()
 
 
 class FamilyEditor(editor.GenericModelViewPresenterEditor):

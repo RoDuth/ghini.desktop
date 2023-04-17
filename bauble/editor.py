@@ -623,7 +623,7 @@ class GenericEditorView:
     def attach_completion(self, entry,
                           cell_data_func=default_completion_cell_data_func,
                           match_func=default_completion_match_func,
-                          minimum_key_length=2,
+                          minimum_key_length=1,
                           text_column=-1):
         """Attach an entry completion to a Gtk.Entry.
 

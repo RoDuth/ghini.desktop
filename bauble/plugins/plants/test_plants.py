@@ -39,7 +39,7 @@ from bauble.test import (BaubleTestCase,
                          mockfunc,
                          update_gui,
                          wait_on_threads)
-from . import SplashInfoBox
+from . import SplashInfoBox, SynonymsPresenter
 from .species import (Species,
                       VernacularName,
                       SpeciesSynonym,
@@ -54,7 +54,6 @@ from .species_editor import (species_to_string_matcher,
                              SpeciesEntry,
                              DistributionPresenter,
                              VernacularNamePresenter,
-                             SynonymsPresenter,
                              InfraspPresenter,
                              InfraspRow,
                              SpeciesEditorPresenter,
@@ -791,6 +790,7 @@ class GenusTests(PlantTestCase):
         editor = GenusEditor(model=gen)
         editor.start()
         del editor
+        update_gui()
         self.assertEqual(utils.gc_objects_by_type('GenusEditor'),
                          [], 'GenusEditor not deleted')
         self.assertEqual(utils.gc_objects_by_type('GenusEditorPresenter'),
@@ -2627,7 +2627,6 @@ class SpeciesEditorTests(BaubleTestCase):
         update_gui()
         editor.start()
         del editor
-        update_gui()
         self.assertEqual(utils.gc_objects_by_type('SpeciesEditor'), [])
         self.assertEqual(utils.gc_objects_by_type('SpeciesEditorPresenter'),
                          [])
@@ -3536,40 +3535,50 @@ class SynonymsPresenterTests(PlantTestCase):
         sp = self.session.query(Species).get(2)
         mock_parent.model = sp
         mock_parent.session = self.session
-        presenter = SynonymsPresenter(mock_parent)
+        presenter = SynonymsPresenter(
+            mock_parent,
+            SpeciesSynonym,
+            None,
+            generic_sp_get_completions
+        )
 
         self.assertIsNone(presenter._selected)
-        self.assertFalse(view.widgets.sp_syn_add_button.get_sensitive())
+        self.assertFalse(view.widgets.syn_add_button.get_sensitive())
 
         syn = self.session.query(Species).get(4)
         presenter.on_select(syn)
 
-        self.assertTrue(view.widgets.sp_syn_add_button.get_sensitive())
+        self.assertTrue(view.widgets.syn_add_button.get_sensitive())
         self.assertEqual(presenter._selected, syn)
 
         presenter.on_select(None)
         self.assertIsNone(presenter._selected)
-        self.assertFalse(view.widgets.sp_syn_add_button.get_sensitive())
+        self.assertFalse(view.widgets.syn_add_button.get_sensitive())
 
         del presenter
 
-    def test_get_completions(self):
+    def test_syn_get_completions(self):
         mock_parent = mock.Mock()
         view = SpeciesEditorView()
         mock_parent.view = view
         sp = self.session.query(Species).get(2)
-        start_syns = sp.synonyms
         mock_parent.model = sp
         mock_parent.session = self.session
-        presenter = SynonymsPresenter(mock_parent)
+        presenter = SynonymsPresenter(
+            mock_parent,
+            SpeciesSynonym,
+            None,
+            generic_sp_get_completions
+        )
+        start_syns = sp.synonyms
         self.assertEqual([i.id for i in start_syns], [1])
 
         # skips self
-        result = presenter.get_completions(str(sp)[:3])
+        result = presenter.syn_get_completions(str(sp)[:3])
         self.assertNotIn(sp, result)
 
         # skips current
-        result = presenter.get_completions(str(start_syns[0])[:3])
+        result = presenter.syn_get_completions(str(start_syns[0])[:3])
         self.assertNotIn(start_syns[0], result)
 
         del presenter
@@ -3585,14 +3594,19 @@ class SynonymsPresenterTests(PlantTestCase):
         start_syns = sp.synonyms
         mock_parent.model = sp
         mock_parent.session = self.session
-        presenter = SynonymsPresenter(mock_parent)
+        presenter = SynonymsPresenter(
+            mock_parent,
+            SpeciesSynonym,
+            None,
+            generic_sp_get_completions
+        )
         self.assertEqual(start_syns, [])
         sp_w_syns = self.session.query(Species).get(2)
         existing_syn = sp_w_syns.synonyms[0]
         # just checking it is only the one
         self.assertEqual(sp_w_syns.synonyms, [existing_syn])
 
-        view.widgets.sp_syn_entry.set_text(str(sp_w_syns))
+        view.widgets.syn_entry.set_text(str(sp_w_syns))
         presenter.on_select(sp_w_syns)
         self.assertEqual(sp_w_syns, presenter._selected)
 
@@ -3600,10 +3614,10 @@ class SynonymsPresenterTests(PlantTestCase):
 
         self.assertEqual(sp.synonyms, [sp_w_syns, existing_syn])
         self.assertFalse(sp_w_syns.synonyms)
-        self.assertFalse(view.widgets.sp_syn_entry.get_text())
+        self.assertFalse(view.widgets.syn_entry.get_text())
         self.assertIsNone(presenter._selected)
         self.assertTrue(presenter.is_dirty())
-        self.assertFalse(view.widgets.sp_syn_add_button.get_sensitive())
+        self.assertFalse(view.widgets.syn_add_button.get_sensitive())
 
         del presenter
 
@@ -3616,8 +3630,13 @@ class SynonymsPresenterTests(PlantTestCase):
         sp = self.session.query(Species).get(2)
         mock_parent.model = sp
         mock_parent.session = self.session
-        presenter = SynonymsPresenter(mock_parent)
-        view.widgets.sp_syn_treeview.set_cursor(0)
+        presenter = SynonymsPresenter(
+            mock_parent,
+            SpeciesSynonym,
+            None,
+            generic_sp_get_completions
+        )
+        view.widgets.syn_treeview.set_cursor(0)
 
         presenter.on_remove_button_clicked(None)
 
@@ -3638,19 +3657,24 @@ class SynonymsPresenterTests(PlantTestCase):
         sp = self.session.query(Species).get(4)
         mock_parent.model = sp
         mock_parent.session = self.session
-        presenter = SynonymsPresenter(mock_parent)
+        presenter = SynonymsPresenter(
+            mock_parent,
+            SpeciesSynonym,
+            None,
+            generic_sp_get_completions
+        )
         sp_w_syns = self.session.query(Species).get(2)
         existing_syn = sp_w_syns.synonyms[0]
-        view.widgets.sp_syn_entry.set_text(str(sp_w_syns))
+        view.widgets.syn_entry.set_text(str(sp_w_syns))
         presenter.on_select(sp_w_syns)
 
         # add
         presenter.on_add_button_clicked(None)
 
         # remove
-        view.widgets.sp_syn_treeview.set_cursor(1)
+        view.widgets.syn_treeview.set_cursor(1)
         presenter.on_remove_button_clicked(None)
-        view.widgets.sp_syn_treeview.set_cursor(0)
+        view.widgets.syn_treeview.set_cursor(0)
         presenter.on_remove_button_clicked(None)
         self.session.commit()
 

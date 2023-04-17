@@ -219,7 +219,13 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
         self.genus_check_messages = []
         self.init_fullname_widgets()
         self.vern_presenter = VernacularNamePresenter(self)
-        self.synonyms_presenter = SynonymsPresenter(self)
+        from . import SynonymsPresenter
+        self.synonyms_presenter = SynonymsPresenter(
+            self,
+            SpeciesSynonym,
+            lambda row, s: species_to_string_matcher(row[0], s),
+            generic_sp_get_completions
+        )
         self.dist_presenter = DistributionPresenter(self)
         self.infrasp_presenter = InfraspPresenter(self)
 
@@ -1243,152 +1249,6 @@ class VernacularNamePresenter(editor.GenericEditorPresenter):
             self.parent_ref().refresh_sensitivity()
 
 
-class SynonymsPresenter(editor.GenericEditorPresenter):
-
-    PROBLEM_INVALID_SYNONYM = f'invalid_synonym:{random()}'
-
-    def __init__(self, parent):
-        """
-        :param parent: the parent SpeciesEditorPresenter
-        """
-        super().__init__(parent.model, parent.view, session=parent.session,
-                         connect_signals=False)
-        self.parent_ref = weakref.ref(parent)
-        self.view.widgets.sp_syn_entry.props.text = ''
-        self.init_treeview()
-
-        # prevent adding synonyms to synonyms
-        if self.model.accepted:
-            self.view.widgets.sp_syn_entry.set_placeholder_text(
-                _('Already a synonym of %s') % self.model.accepted
-            )
-            self.view.widgets.sp_syn_frame.set_sensitive(False)
-
-        self.assign_completions_handler(
-            'sp_syn_entry',
-            self.get_completions,
-            on_select=self.on_select,
-            comparer=lambda row, s: species_to_string_matcher(row[0], s)
-        )
-        self.on_select(None)  # set to default state
-
-        self._selected = None
-        self.view.connect('sp_syn_add_button', 'clicked',
-                          self.on_add_button_clicked)
-        self.view.connect('sp_syn_remove_button', 'clicked',
-                          self.on_remove_button_clicked)
-        self.additional = []
-        self._dirty = False
-
-    def on_select(self, value):
-        sensitive = True
-        if value is None:
-            sensitive = False
-        self.view.widgets.sp_syn_add_button.set_sensitive(sensitive)
-        self._selected = value
-
-    def get_completions(self, text):
-        # Skip current synonyms, self and already added synonyms
-        result = generic_sp_get_completions(self.session, text)
-        ids = [i[0] for i in self.session.query(SpeciesSynonym.synonym_id)]
-        for syn in self.model._synonyms:
-            if syn.synonym and (id_ := syn.synonym.id) not in ids:
-                ids.append(id_)
-        if (id_ := self.model.id):
-            ids.append(id_)
-        return result.filter(Species.id.notin_(ids))
-
-    def is_dirty(self):
-        return self._dirty
-
-    def init_treeview(self):
-        """initialize the Gtk.TreeView"""
-        self.treeview = self.view.widgets.sp_syn_treeview
-
-        def _syn_data_func(_column, cell, model, treeiter, _data):
-            val = model[treeiter][0]
-            cell.set_property('text', str(val))
-            # background color to indicate it's new
-            if self.session.is_modified(val):
-                cell.set_property('foreground', 'blue')
-            else:
-                cell.set_property('foreground', None)
-
-        col = self.view.widgets.syn_column
-        col.set_cell_data_func(self.view.widgets.syn_cell, _syn_data_func)
-
-        utils.clear_model(self.treeview)
-        tree_model = Gtk.ListStore(object)
-        for syn in self.model._synonyms:
-            tree_model.append([syn])
-        self.treeview.set_model(tree_model)
-        self.view.connect(self.treeview, 'cursor-changed',
-                          self.on_tree_cursor_changed)
-
-    def on_tree_cursor_changed(self, tree):
-        self.view.widgets.sp_syn_remove_button.set_sensitive(
-            len(tree.get_model()) > 0
-        )
-
-    def refresh_view(self):
-        """doesn't do anything"""
-        return
-
-    def on_add_button_clicked(self, _button):
-        """Adds the synonym from the synonym entry to the list of synonyms for
-        this species.
-
-        If the synonym is already considered a synonym, move them all across to
-        this species
-        """
-        synonyms = []
-        syn = SpeciesSynonym(synonym=self._selected)
-        synonyms.append(syn)
-        for syn in self._selected._synonyms:
-            synonyms.append(syn)
-            self.additional.append(syn)
-        tree_model = self.treeview.get_model()
-        for syn in synonyms:
-            syn.species = self.model
-            tree_model.append([syn])
-        self._selected = None
-        entry = self.view.widgets.sp_syn_entry
-        entry.set_text('')
-        entry.set_position(-1)
-        self.view.widgets.sp_syn_add_button.set_sensitive(False)
-        self._dirty = True
-        self.parent_ref().refresh_sensitivity()
-
-    def on_remove_button_clicked(self, _button):
-        """Removes the currently selected synonym from the list of synonyms for
-        this species
-        """
-        tree = self.view.widgets.sp_syn_treeview
-        path, _col = tree.get_cursor()
-        tree_model = tree.get_model()
-        value = tree_model[tree_model.get_iter(path)][0]
-        syn = value.synonym.str(markup=True)
-        msg = _('Are you sure you want to remove %s as a synonym to the '
-                'current species?\n\n<i>Note: This will not remove the '
-                'species %s from the database.</i>') % (syn, syn)
-        if not utils.yes_no_dialog(msg, parent=self.view.get_window()):
-            return
-
-        tree_model.remove(tree_model.get_iter(path))
-        self.model.synonyms.remove(value.synonym)
-        self.session.refresh(value.synonym)
-        if value in self.additional:
-            try:
-                self.session.expunge(value)
-            except InvalidRequestError as e:
-                logger.debug('syn %s > %s (%s)', value, type(e).__name__, e)
-            self.additional.remove(value)
-        elif value in self.session:
-            self.session.delete(value)
-        self._dirty = True
-        self.parent_ref().refresh_sensitivity()
-
-
 class SpeciesEditorView(editor.GenericEditorView):
 
     _tooltips = {
@@ -1412,13 +1272,13 @@ class SpeciesEditorView(editor.GenericEditorView):
         'sp_spqual_combo': _('Species qualifier'),
         'sp_dist_frame': _('Species distribution'),
         'sp_vern_frame': _('Vernacular names'),
-        'sp_syn_frame': _('Species synonyms, only species that are not '
-                          'already synonyms can be selected (can removed them '
-                          'first).  If a species is selected that already has '
-                          'synonyms then all its synonyms will be moved here. '
-                          '\n(NOTE: blue entries have not been committed to '
-                          'the database yet and will be only when OK is '
-                          'clicked.)'),
+        'syn_frame': _('Species synonyms, only species that are not '
+                       'already synonyms can be selected (can removed them '
+                       'first).  If a species is selected that already has '
+                       'synonyms then all its synonyms will be moved here. '
+                       '\n(NOTE: blue entries have not been committed to '
+                       'the database yet and will be only when OK is '
+                       'clicked.)'),
         'sp_label_dist_entry': _('The distribution as plain text.  Intended '
                                  'for use on labels and other reports.'),
         'label_markup_expander': _('Alternative species name markup. Intended '
@@ -1454,7 +1314,7 @@ class SpeciesEditorView(editor.GenericEditorView):
         self.attach_completion('sp_genus_entry',
                                self.genus_completion_cell_data_func,
                                match_func=self.genus_match_func)
-        self.attach_completion('sp_syn_entry',
+        self.attach_completion('syn_entry',
                                cell_data_func=species_cell_data_func,
                                match_func=species_match_func)
         self.set_accept_buttons_sensitive(False)

@@ -23,7 +23,6 @@ Genera table module
 
 import os
 import traceback
-import weakref
 
 import logging
 logger = logging.getLogger(__name__)
@@ -36,7 +35,6 @@ from sqlalchemy import (Column,
                         ForeignKey,
                         String,
                         UniqueConstraint,
-                        and_,
                         literal,
                         event,
                         update,
@@ -425,7 +423,7 @@ class GenusSynonym(db.Base):
                         unique=True)
 
     def __str__(self):
-        return str(self.synonym)
+        return f'{str(self.synonym)} ({self.synonym.family})'
 
 
 # late bindings
@@ -441,7 +439,7 @@ class GenusEditorView(editor.GenericEditorView):
         'gen_genus_entry': _('The genus name'),
         'gen_author_entry': _('The name or abbreviation of the author that '
                               'published this genus'),
-        'gen_syn_frame': _('A list of synonyms for this genus.\n\nTo add a '
+        'syn_frame': _('A list of synonyms for this genus.\n\nTo add a '
                            'synonym enter a genus name and select one from '
                            'the list of completions.  Then click Add to add '
                            'it to the list of synonyms.'),
@@ -461,7 +459,7 @@ class GenusEditorView(editor.GenericEditorView):
                                 'genus_editor.glade')
         super().__init__(filename, parent=parent,
                          root_widget_name='genus_dialog')
-        self.attach_completion('gen_syn_entry', self.syn_cell_data_func)
+        self.attach_completion('syn_entry', self.syn_cell_data_func)
         self.attach_completion('gen_family_entry')
         self.set_accept_buttons_sensitive(False)
         self.widgets.notebook.set_current_page(0)
@@ -516,8 +514,12 @@ class GenusEditorPresenter(editor.GenericEditorPresenter):
         super().__init__(model, view)
         self.session = object_session(model)
 
-        # initialize widgets
-        self.synonyms_presenter = SynonymsPresenter(self)
+        from . import SynonymsPresenter
+        self.synonyms_presenter = SynonymsPresenter(
+            self, GenusSynonym, None, lambda session, text: (
+                session.query(Genus).filter(Genus.genus.like(f'{text}%%'))
+            )
+        )
         self.init_enum_combo('gen_hybrid_combo', 'hybrid')
         self.refresh_view()  # put model values in view
 
@@ -592,6 +594,11 @@ class GenusEditorPresenter(editor.GenericEditorPresenter):
 
         self._dirty = False
 
+    def __del__(self):
+        # we have to delete the views in the child presenters manually
+        # to avoid the circular reference
+        del self.synonyms_presenter.view
+
     def cleanup(self):
         super().cleanup()
         self.synonyms_presenter.cleanup()
@@ -620,132 +627,6 @@ class GenusEditorPresenter(editor.GenericEditorPresenter):
             else:
                 value = getattr(self.model, field)
             self.view.widget_set_value(widget, value)
-
-
-class SynonymsPresenter(editor.GenericEditorPresenter):
-
-    def __init__(self, parent):
-        """
-        :param parent: GenusEditorPreesnter
-        """
-        self.parent_ref = weakref.ref(parent)
-        super().__init__(self.parent_ref().model, self.parent_ref().view)
-        self.session = self.parent_ref().session
-        self.view.widgets.gen_syn_entry.props.text = ''
-        self.init_treeview()
-
-        def gen_get_completions(text):
-            query = self.session.query(Genus)
-            return (query.filter(and_(Genus.genus.like(f'{text}%%'),
-                                      Genus.id != self.model.id))
-                    .order_by(Genus.genus))
-
-        self._selected = None
-
-        def on_select(value):
-            # don't set anything in the model, just set self.selected
-            sensitive = True
-            if value is None:
-                sensitive = False
-            self.view.widgets.gen_syn_add_button.set_sensitive(sensitive)
-            self._selected = value
-
-        self.assign_completions_handler('gen_syn_entry', gen_get_completions,
-                                        on_select=on_select)
-
-        self.view.connect('gen_syn_add_button', 'clicked',
-                          self.on_add_button_clicked)
-        self.view.connect('gen_syn_remove_button', 'clicked',
-                          self.on_remove_button_clicked)
-        self._dirty = False
-
-    def start(self):
-        raise Exception('genus.SynonymsPresenter cannot be started')
-
-    def is_dirty(self):
-        return self._dirty
-
-    def init_treeview(self):
-        """initialize the Gtk.TreeView"""
-        self.treeview = self.view.widgets.gen_syn_treeview
-        # remove any columns that were setup previous, this became a
-        # problem when we starting reusing the glade files with
-        # utils.BuilderLoader, the right way to do this would be to
-        # create the columns in glade instead of here
-        for col in self.treeview.get_columns():
-            self.treeview.remove_column(col)
-
-        def _syn_data_func(_column, cell, model, itr, _data):
-            v = model[itr][0]
-            syn = v.synonym
-            cell.set_property('markup',
-                              f'<i>{Genus.str(syn)}</i> '
-                              f'{utils.xml_safe(syn.author)} '
-                              f'(<small>{Family.str(syn.family)}</small>)')
-            # set background color to indicate it's new
-            if v.id is None:
-                cell.set_property('foreground', 'blue')
-            else:
-                cell.set_property('foreground', None)
-        cell = Gtk.CellRendererText()
-        col = Gtk.TreeViewColumn('Synonym', cell)
-        col.set_cell_data_func(cell, _syn_data_func)
-        self.treeview.append_column(col)
-
-        tree_model = Gtk.ListStore(object)
-        for syn in self.model._synonyms:
-            tree_model.append([syn])
-        self.treeview.set_model(tree_model)
-        self.view.connect(self.treeview, 'cursor-changed',
-                          self.on_tree_cursor_changed)
-
-    def on_tree_cursor_changed(self, tree):
-        path, _column = tree.get_cursor()
-        self.view.widgets.gen_syn_remove_button.set_sensitive(path is not None)
-
-    def refresh_view(self):
-        """
-        doesn't do anything
-        """
-        return
-
-    def on_add_button_clicked(self, _button):
-        """adds the synonym from the synonym entry to the list of synonyms for
-        this species
-        """
-        syn = GenusSynonym(genus=self.model, synonym=self._selected)
-        tree_model = self.treeview.get_model()
-        tree_model.append([syn])
-        self._selected = None
-        entry = self.view.widgets.gen_syn_entry
-        entry.props.text = ''
-        entry.set_position(-1)
-        self.view.widgets.gen_syn_add_button.set_sensitive(False)
-        self.view.widgets.gen_syn_remove_button.set_sensitive(False)
-        self._dirty = True
-        self.parent_ref().refresh_sensitivity()
-
-    def on_remove_button_clicked(self, _button):
-        """removes the currently selected synonym from the list of synonyms for
-        this species
-        """
-        # TODO: maybe we should only ask 'are you sure' if the selected value
-        # is an instance, this means it will be deleted from the database
-        tree = self.view.widgets.gen_syn_treeview
-        path, _col = tree.get_cursor()
-        tree_model = tree.get_model()
-        value = tree_model[tree_model.get_iter(path)][0]
-        syn = Genus.str(value.synonym)
-        msg = _('Are you sure you want to remove %(genus)s as a synonym to '
-                'the current genus?\n\n<i>Note: This will not remove the '
-                'genus from the database.</i>') % {'genus': syn}
-        if utils.yes_no_dialog(msg, parent=self.view.get_window()):
-            tree_model.remove(tree_model.get_iter(path))
-            self.model.synonyms.remove(value.synonym)
-            utils.delete_or_expunge(value)
-            self.session.flush([value])
-            self._dirty = True
-            self.parent_ref().refresh_sensitivity()
 
 
 class GenusEditor(editor.GenericModelViewPresenterEditor):
@@ -843,6 +724,7 @@ class GenusEditor(editor.GenericModelViewPresenterEditor):
             self.presenter.view.save_state()
             if self.handle_response(response):
                 break
+
         self.presenter.cleanup()
         self.session.close()  # cleanup session
         return self._committed
