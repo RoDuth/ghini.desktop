@@ -57,7 +57,8 @@ from .species_model import (Species,
                             SpeciesNote,
                             VernacularName,
                             SpeciesSynonym,
-                            DefaultVernacularName)
+                            DefaultVernacularName,
+                            red_list_values)
 from .genus import Genus, GenusSynonym
 from .family import Family, FamilySynonym
 
@@ -389,6 +390,9 @@ class GeneralSpeciesExpander(InfoExpander):
         self.widget_set_value('sp_awards_data', awards)
 
         self.widget_set_value('sp_cites_data', row.cites or '')
+
+        self.widget_set_value('sp_red_list_data',
+                              red_list_values[row.red_list])
 
         # zone = ''
         # if row.hardiness_zone:

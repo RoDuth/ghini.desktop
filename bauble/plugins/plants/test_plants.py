@@ -2560,18 +2560,6 @@ class AttributesStoredInNotesTests(PlantTestCase):
                          {'k': 'abc', 'l': 'def', 'm': 'xyz'})
 
 
-class ConservationStatus_test(PlantTestCase):
-    "can retrieve the IUCN conservation status as defined in species"
-
-    def test(self):
-        obj = (self.session.query(Species)
-               .join(Genus)
-               .filter(Genus.epithet == 'Encyclia')
-               .filter(Species.epithet == 'fragrans')
-               .one())
-        self.assertEqual(obj.conservation, 'LC')
-
-
 class SpeciesEntryTests(TestCase):
     def test_spaces_not_allowed_on_init(self):
         entry = SpeciesEntry()

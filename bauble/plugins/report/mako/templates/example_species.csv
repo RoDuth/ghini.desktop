@@ -51,5 +51,5 @@ CITES,Condition,Conservation,Groups,Plants,Habit
 % if options.get('authors'):
 ${v.sp_author or ''},\
 % endif
-${cites},${v.condition or ''},${v.conservation or ''},${group_count},${plant_count},${v.habit or ''}
+${cites},${v.condition or ''},${v.red_list or ''},${group_count},${plant_count},${v.habit or ''}
 % endfor

@@ -51,7 +51,8 @@ from .species_model import (Species,
                             SpeciesSynonym,
                             Habit,
                             infrasp_rank_values,
-                            compare_rank)
+                            compare_rank,
+                            red_list_values)
 
 
 def generic_sp_get_completions(session: Session, text: str) -> Query:
@@ -202,7 +203,8 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
                            'sp_label_dist_entry': 'label_distribution',
                            'sp_label_markup_entry': 'label_markup',
                            'sp_habit_comboentry': 'habit',
-                           'cites_combo': '_cites'
+                           'cites_combo': '_cites',
+                           'red_list_combo': 'red_list'
                            }
 
     PROBLEM_UNKOWN_HABIT = f'unknown_source:{random()}'
@@ -244,6 +246,10 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
         self.init_enum_combo('sp_spqual_combo', 'sp_qual')
         self.init_enum_combo('sp_hybrid_combo', 'hybrid')
         self.init_enum_combo('cites_combo', '_cites')
+
+        order = {k: v for v, k in enumerate(red_list_values.keys())}
+        self.view.init_translatable_combo('red_list_combo', red_list_values,
+                                          None, key=lambda v: order[v[0]])
 
         combo = self.view.widgets.sp_habit_comboentry
         model = Gtk.ListStore(str, object)
@@ -310,6 +316,8 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
         self.assign_simple_handler('sp_awards_entry', 'awards',
                                    editor.StringOrNoneValidator())
         self.assign_simple_handler('cites_combo', 'cites',
+                                   editor.StringOrNoneValidator())
+        self.assign_simple_handler('red_list_combo', 'red_list',
                                    editor.StringOrNoneValidator())
 
         self.refresh_sensitivity()

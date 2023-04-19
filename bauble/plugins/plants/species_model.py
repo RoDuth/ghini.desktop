@@ -81,6 +81,18 @@ infrasp_rank_values = {'subsp.': _('subsp.'),
                        'subf.': _('subf.'),
                        None: ''}
 
+red_list_values = {'EX': _('Extinct (EX)'),
+                   'EW': _('Extinct Wild (EW)'),
+                   'RE': _('Regionally Extinct (RE)'),
+                   'CR': _('Critically Endangered (CR)'),
+                   'EN': _('Endangered (EN)'),
+                   'VU': _('Vulnerable (VU)'),
+                   'NT': _('Near Threatened (NT)'),
+                   'LV': _('Least Concern (LC)'),
+                   'DD': _('Data Deficient (DD)'),
+                   'NE': _('Not Evaluated (NE)'),
+                   None: ''}
+
 # TODO: the specific epithet should not be non-nullable but instead
 # make sure that at least one of the specific epithet, cultivar name
 # or cultivar group is specificed
@@ -285,6 +297,8 @@ class Species(db.Base, db.Serializable, db.WithNotes):
     retrieve_cols = uniq_props + ['id', 'genus.genus', 'genus.epithet']
 
     _cites = Column(types.Enum(values=['I', 'II', 'III', None]), default=None)
+    red_list = Column(types.Enum(values=list(red_list_values.keys()),
+                                 translations=red_list_values))
 
     # don't use back_populates, can lead to InvalidRequestError
     # accessions = relationship('Accession', cascade='all, delete-orphan',
@@ -374,29 +388,6 @@ class Species(db.Base, db.Serializable, db.WithNotes):
     @cites.setter
     def cites(self, value):
         self._cites = value
-
-    @property
-    def conservation(self):
-        """the IUCN conservation status of this taxon, or DD
-
-        one of: EX, RE, CR, EN, VU, NT, LC, DD
-        not enforced by the software in v1.0.x
-        """
-
-        # {'EX': _('Extinct (EX)'),
-        #  'EW': _('Extinct Wild (EW)'),
-        #  'RE': _('Regionally Extinct (RE)'),
-        #  'CR': _('Critically Endangered (CR)'),
-        #  'EN': _('Endangered (EN)'),
-        #  'VU': _('Vulnerable (VU)'),
-        #  'NT': _('Near Threatened (NT)'),
-        #  'LV': _('Least Concern (LC)'),
-        #  'DD': _('Data Deficient (DD)'),
-        #  'NE': _('Not Evaluated (NE)')}
-
-        notes = [i.note for i in self.notes
-                 if i.category and i.category.upper() == 'IUCN']
-        return (notes + ['DD'])[0]
 
     @property
     def condition(self):

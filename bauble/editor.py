@@ -1066,7 +1066,7 @@ class GenericEditorPresenter:
 
     def __init__(self,
                  model,
-                 view,
+                 view: GenericEditorView,
                  refresh_view=False,
                  session=None,
                  do_commit=False,
