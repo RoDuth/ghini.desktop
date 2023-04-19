@@ -2227,13 +2227,15 @@ class CitesStatus_test(PlantTestCase):
                     .filter(Genus.family_id == 1)
                     .filter(Genus.id != 5)
                     .filter(Species.id != 18))
-        self.assertEqual([i.id for i in qry.all()], [i.id for i in cites_ii])
+        self.assertCountEqual([i.id for i in qry.all()],
+                              [i.id for i in cites_ii])
 
         qry = self.session.query(Species).filter(Species.cites == 'I')
         cites_i = (self.session.query(Species)
                    .join(Genus)
                    .filter(Genus.id == 5))
-        self.assertEqual([i.id for i in qry.all()], [i.id for i in cites_i])
+        self.assertCountEqual([i.id for i in qry.all()],
+                              [i.id for i in cites_i])
 
     def test_property_setter(self):
         obj = self.session.query(Genus).get(2)
