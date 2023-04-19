@@ -223,15 +223,14 @@ class CSVExporterTests(CSVTestCase):
         exporter = CSVExporter(mock_view, open_=False)
         fields = {
             'domain': 'species', 'sp': 'species', 'field_note': 'Empty',
-            'fam': 'genus.family.epithet', 'CITES': 'Note'
+            'fam': 'genus.family.epithet', 'value': 'Note'
         }
         field_list = fields.copy()
         del field_list['domain']
         exporter.presenter.fields = list(field_list.items())
-        out = [
-            {'domain': 'species', 'sp': 'Laelia lobata', 'field_note': '',
-             'fam': 'Orchidaceae', 'CITES': 'I'},
-        ]
+        out = {'domain': 'species', 'sp': 'Laelia lobata', 'field_note': '',
+               'fam': 'Orchidaceae', 'value': 'high'}
+
         out_file = Path(self.temp_dir.name) / 'test.csv'
         exporter.filename = str(out_file)
         exporter.start()
@@ -240,7 +239,7 @@ class CSVExporterTests(CSVTestCase):
             field_map = next(reader)
             self.assertEqual(field_map, fields)
             rec = next(reader)
-            self.assertEqual(rec, out[0])
+            self.assertEqual(rec, out)
 
     def test_mixed_types_raises(self):
         mock_view = MockView()

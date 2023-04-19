@@ -63,7 +63,12 @@ from .species_model import (update_all_full_names_task,
                             update_all_full_names_handler,
                             infrasp_rank_values)
 from .family import Family, FamilySynonym, FamilyEditor, FamilyNote
-from .genus import Genus, GenusSynonym, GenusEditor, GenusNote
+from .genus import (Genus,
+                    GenusSynonym,
+                    GenusEditor,
+                    GenusNote,
+                    GenusEditorPresenter,
+                    GenusEditorView)
 from .geography import Geography, get_species_in_geography, geography_importer
 
 #
@@ -82,7 +87,7 @@ from .geography import Geography, get_species_in_geography, geography_importer
 
 
 family_test_data = (
-    {'id': 1, 'family': 'Orchidaceae'},
+    {'id': 1, 'family': 'Orchidaceae', 'cites': 'II'},
     {'id': 2, 'family': 'Leguminosae', 'qualifier': 's. str.'},
     {'id': 3, 'family': 'Polypodiaceae'},
     {'id': 4, 'family': 'Solanaceae'},
@@ -92,15 +97,15 @@ family_test_data = (
 )
 
 family_note_test_data = (
-    {'id': 1, 'family_id': 1, 'category': 'CITES', 'note': 'II'},
+    {'id': 1, 'family_id': 1, 'category': 'significance', 'note': 'high'},
 )
 
 genus_test_data = (
-    {'id': 1, 'genus': 'Maxillaria', 'family_id': 1},
+    {'id': 1, 'genus': 'Maxillaria', 'family_id': 1, '_cites': 'II'},
     {'id': 2, 'genus': 'Encyclia', 'family_id': 1},
     {'id': 3, 'genus': 'Abrus', 'family_id': 2},
     {'id': 4, 'genus': 'Campyloneurum', 'family_id': 3},
-    {'id': 5, 'genus': 'Paphiopedilum', 'family_id': 1},
+    {'id': 5, 'genus': 'Paphiopedilum', 'family_id': 1, '_cites': 'I'},
     {'id': 6, 'genus': 'Laelia', 'family_id': 1},
     {'id': 7, 'genus': 'Brugmansia', 'family_id': 4},
     {'id': 8, 'hybrid': '+', 'genus': 'Crataegomespilus', 'family_id': 5},
@@ -109,7 +114,7 @@ genus_test_data = (
 )
 
 genus_note_test_data = (
-    {'id': 1, 'genus_id': 5, 'category': 'CITES', 'note': 'I'},
+    {'id': 1, 'genus_id': 5, 'category': 'value', 'note': 'high'},
     {'id': 2, 'genus_id': 1, 'category': 'URL', 'note':
      'https://en.wikipedia.org/wiki/Maxillaria'},
 )
@@ -160,7 +165,8 @@ species_test_data = (
      'infrasp1_rank': 'subsp.', 'infrasp1': 'test',
      'cv_group': 'SomeGroup'},
     {'id': 17, 'genus_id': 5, 'sp': 'adductum', 'author': 'Asher'},
-    {'id': 18, 'genus_id': 6, 'sp': 'lobata', 'author': 'H.J. Veitch'},
+    {'id': 18, 'genus_id': 6, 'sp': 'lobata', 'author': 'H.J. Veitch',
+     '_cites': 'III'},
     {'id': 19, 'genus_id': 6, 'sp': 'grandiflora', 'author': 'Lindl.'},
     {'id': 20, 'genus_id': 2, 'sp': 'fragrans', 'author': 'Dressler'},
     {'id': 21, 'genus_id': 7, 'sp': 'arborea', 'author': 'Lagerh.'},
@@ -183,7 +189,7 @@ species_test_data = (
 )
 
 species_note_test_data = (
-    {'id': 1, 'species_id': 18, 'category': 'CITES', 'note': 'I'},
+    {'id': 1, 'species_id': 18, 'category': 'value', 'note': 'high'},
     {'id': 2, 'species_id': 20, 'category': 'IUCN', 'note': 'LC'},
     {'id': 3, 'species_id': 18, 'category': '<price>', 'note': '19.50'},
     {'id': 4, 'species_id': 18, 'category': '[list_var]', 'note': 'abc'},
@@ -776,28 +782,6 @@ class GenusTests(PlantTestCase):
         """
         pass
 
-    @mock.patch('bauble.editor.GenericEditorView.start')
-    def test_editor_doesnt_leak(self, mock_start):
-        from gi.repository import Gtk
-        mock_start.return_value = Gtk.ResponseType.OK
-        # loc = self.create(Genus, name=u'some site')
-        fam = Family(family='family')
-        fam2 = Family(family='family2')
-        fam2.synonyms.append(fam)
-        self.session.add_all([fam, fam2])
-        self.session.commit()
-        gen = Genus(genus='some genus')
-        editor = GenusEditor(model=gen)
-        editor.start()
-        del editor
-        update_gui()
-        self.assertEqual(utils.gc_objects_by_type('GenusEditor'),
-                         [], 'GenusEditor not deleted')
-        self.assertEqual(utils.gc_objects_by_type('GenusEditorPresenter'),
-                         [], 'GenusEditorPresenter not deleted')
-        self.assertEqual(utils.gc_objects_by_type('GenusEditorView'),
-                         [], 'GenusEditorView not deleted')
-
     def test_can_use_epithet_field(self):
         family = Family(epithet='family')
         genus = Genus(family=family, genus='genus')
@@ -1057,6 +1041,39 @@ class GenusTests(PlantTestCase):
         self.assertEqual(len(gen.top_level_count()[(7, 'Locations')]), 0)
         self.assertEqual(len(gen.top_level_count()[(8, 'Sources')]), 0)
 
+
+class GenusEditorTests(PlantTestCase):
+    @mock.patch('bauble.editor.GenericEditorView.start')
+    def test_editor_doesnt_leak(self, mock_start):
+        from gi.repository import Gtk
+        mock_start.return_value = Gtk.ResponseType.OK
+        # loc = self.create(Genus, name=u'some site')
+        fam = Family(family='family')
+        fam2 = Family(family='family2')
+        fam2.synonyms.append(fam)
+        self.session.add_all([fam, fam2])
+        self.session.commit()
+        gen = Genus(genus='some genus')
+        editor = GenusEditor(model=gen)
+        editor.start()
+        del editor
+        update_gui()
+        self.assertEqual(utils.gc_objects_by_type('GenusEditor'),
+                         [], 'GenusEditor not deleted')
+        self.assertEqual(utils.gc_objects_by_type('GenusEditorPresenter'),
+                         [], 'GenusEditorPresenter not deleted')
+        self.assertEqual(utils.gc_objects_by_type('GenusEditorView'),
+                         [], 'GenusEditorView not deleted')
+
+    def test_cites_label(self):
+        gen = self.session.query(Genus).get(1)
+        view = GenusEditorView()
+        presenter = GenusEditorPresenter(gen, view)
+        self.assertEqual(view.widgets.cites_label.get_text(), 'Family: II')
+
+        del view
+        presenter.cleanup()
+        del presenter
 
 
 class GenusSynonymyTests(PlantTestCase):
@@ -2175,45 +2192,76 @@ class FromAndToDict_create_update_test(PlantTestCase):
 
 
 class CitesStatus_test(PlantTestCase):
-    "we can retrieve the cites status as defined in family-genus-species"
+    """we can retrieve the cites status as defined in family-genus-species"""
 
-    def test(self):
-        obj = Genus.retrieve_or_create(
-            self.session, {'object': 'taxon',
-                           'rank': 'genus',
-                           'epithet': 'Maxillaria'},
-            create=False, update=False)
+    def test_property(self):
+        # genus CITES set on the genus
+        obj = self.session.query(Genus).get(1)
         self.assertEqual(obj.cites, 'II')
-        obj = Genus.retrieve_or_create(
-            self.session, {'object': 'taxon',
-                           'rank': 'genus',
-                           'epithet': 'Laelia'},
-            create=False, update=False)
+        # genus CITES set on the family
+        obj = self.session.query(Genus).get(6)
         self.assertEqual(obj.cites, 'II')
-        obj = Species.retrieve_or_create(
-            self.session, {'object': 'taxon',
-                           'ht-rank': 'genus',
-                           'ht-epithet': 'Paphiopedilum',
-                           'rank': 'species',
-                           'epithet': 'adductum'},
-            create=False, update=False)
+        # genus CITES set differently on the genus to the family
+        obj = self.session.query(Genus).get(5)
         self.assertEqual(obj.cites, 'I')
-        obj = Species.retrieve_or_create(
-            self.session, {'object': 'taxon',
-                           'ht-rank': 'genus',
-                           'ht-epithet': 'Laelia',
-                           'rank': 'species',
-                           'epithet': 'lobata'},
-            create=False, update=False)
+        # species CITES set differently on the genus to the family
+        obj = self.session.query(Species).get(17)
         self.assertEqual(obj.cites, 'I')
-        obj = Species.retrieve_or_create(
-            self.session, {'object': 'taxon',
-                           'ht-rank': 'genus',
-                           'ht-epithet': 'Laelia',
-                           'rank': 'species',
-                           'epithet': 'grandiflora'},
-            create=False, update=False)
+        # species CITES set differently on the species to the family
+        obj = self.session.query(Species).get(18)
+        self.assertEqual(obj.cites, 'III')
+        # species CITES set on the family
+        obj = self.session.query(Species).get(19)
         self.assertEqual(obj.cites, 'II')
+
+    def test_property_expression(self):
+        qry = self.session.query(Genus).filter(Genus.cites == 'II')
+        self.assertEqual([i.id for i in qry.all()], [1, 2, 6])
+
+        qry = self.session.query(Species).filter(Species.cites == 'III')
+        self.assertEqual([i.id for i in qry.all()], [18])
+
+        qry = self.session.query(Species).filter(Species.cites == 'II')
+        cites_ii = (self.session.query(Species)
+                    .join(Genus)
+                    .filter(Genus.family_id == 1)
+                    .filter(Genus.id != 5)
+                    .filter(Species.id != 18))
+        self.assertEqual([i.id for i in qry.all()], [i.id for i in cites_ii])
+
+        qry = self.session.query(Species).filter(Species.cites == 'I')
+        cites_i = (self.session.query(Species)
+                   .join(Genus)
+                   .filter(Genus.id == 5))
+        self.assertEqual([i.id for i in qry.all()], [i.id for i in cites_i])
+
+    def test_property_setter(self):
+        obj = self.session.query(Genus).get(2)
+        obj.cites = 'II'
+        self.session.commit()
+        self.assertEqual(obj._cites, 'II')
+
+        obj.cites = None
+        self.session.commit()
+        self.assertIsNone(obj._cites)
+
+        obj = self.session.query(Family).get(3)
+        obj.cites = 'III'
+        self.session.commit()
+        self.assertEqual(obj.cites, 'III')
+
+        obj.cites = None
+        self.session.commit()
+        self.assertIsNone(obj.cites)
+
+        obj = self.session.query(Species).get(3)
+        obj.cites = 'I'
+        self.session.commit()
+        self.assertEqual(obj.cites, 'I')
+
+        obj.cites = None
+        self.session.commit()
+        self.assertIsNone(obj._cites)
 
 
 class SpeciesInfraspecificProp(PlantTestCase):
@@ -3032,6 +3080,15 @@ class SpeciesEditorPresenterTests(PlantTestCase):
         button.emit('clicked')
 
         self.assertEqual(markup_entry.get_text(), sp.markup())
+
+        del presenter
+
+    def test_cites_label(self):
+        sp = self.session.query(Species).get(17)
+        view = SpeciesEditorView()
+        presenter = SpeciesEditorPresenter(sp, view)
+        self.assertEqual(view.widgets.cites_label.get_text(),
+                         'Family: II, Genus: I')
 
         del presenter
 

@@ -44,6 +44,8 @@ from sqlalchemy.orm import synonym as sa_synonym
 from sqlalchemy.orm.session import object_session
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.associationproxy import association_proxy
+from sqlalchemy.ext.hybrid import hybrid_property
+from sqlalchemy.sql.expression import select, case
 
 import bauble
 from bauble import db
@@ -214,6 +216,9 @@ class Genus(db.Base, db.Serializable, db.WithNotes):
                                            lazy='subquery',
                                            uselist=False))
     family = relationship('Family', back_populates='genera')
+
+    _cites = Column(types.Enum(values=['I', 'II', 'III', None]), default=None)
+
     retrieve_cols = ['id',
                      'epithet',
                      'genus',
@@ -264,15 +269,29 @@ class Genus(db.Base, db.Serializable, db.WithNotes):
         citation = self.markup(authors=True, for_search_view=True)
         return citation, utils.xml_safe(self.family)
 
-    @property
+    @hybrid_property
     def cites(self):
-        """the cites status of this taxon, or None"""
+        """the cites status of this taxon, or None
 
-        cites_notes = [i.note for i in self.notes
-                       if i.category and i.category.upper() == 'CITES']
-        if not cites_notes:
-            return self.family.cites
-        return cites_notes[0]
+        cites appendix number, one of I, II, or III.
+        """
+        return self._cites or self.family.cites
+
+    @cites.expression
+    def cites(cls):
+        # pylint: disable=no-self-argument,protected-access
+        # subquery required to get the joins in
+        fam_cites = (
+            select([Family.cites])
+            .where(cls.family_id == Family.id)
+            .scalar_subquery()
+        )
+        return case((cls._cites.is_not(None), cls._cites),
+                    else_=fam_cites)
+
+    @cites.setter
+    def cites(self, value):
+        self._cites = value
 
     def __str__(self):
         return Genus.str(self)
@@ -440,9 +459,9 @@ class GenusEditorView(editor.GenericEditorView):
         'gen_author_entry': _('The name or abbreviation of the author that '
                               'published this genus'),
         'syn_frame': _('A list of synonyms for this genus.\n\nTo add a '
-                           'synonym enter a genus name and select one from '
-                           'the list of completions.  Then click Add to add '
-                           'it to the list of synonyms.'),
+                       'synonym enter a genus name and select one from '
+                       'the list of completions.  Then click Add to add '
+                       'it to the list of synonyms.'),
         'gen_cancel_button': _('Cancel your changes.'),
         'gen_ok_button': _('Save your changes.'),
         'gen_ok_and_add_button': _('Save your changes and add a '
@@ -504,7 +523,8 @@ class GenusEditorPresenter(editor.GenericEditorPresenter):
     widget_to_field_map = {'gen_family_entry': 'family',
                            'gen_hybrid_combo': 'hybrid',
                            'gen_genus_entry': 'genus',
-                           'gen_author_entry': 'author'}
+                           'gen_author_entry': 'author',
+                           'cites_combo': '_cites'}
 
     def __init__(self, model, view):
         """
@@ -521,6 +541,7 @@ class GenusEditorPresenter(editor.GenericEditorPresenter):
             )
         )
         self.init_enum_combo('gen_hybrid_combo', 'hybrid')
+        self.init_enum_combo('cites_combo', '_cites')
         self.refresh_view()  # put model values in view
 
         # connect signals
@@ -542,6 +563,7 @@ class GenusEditorPresenter(editor.GenericEditorPresenter):
                 FamilySynonym.synonym_id == value.id).first()
             if not syn:
                 self.set_model_attr('family', value)
+                self.refresh_cites_label()
                 return
             msg = _('The family <b>%(synonym)s</b> is a synonym of '
                     '<b>%(family)s</b>.\n\nWould you like to choose '
@@ -568,6 +590,7 @@ class GenusEditorPresenter(editor.GenericEditorPresenter):
                     # text is set on the entry but it doesn't hurt to
                     # duplicate it here
                     self.set_model_attr('family', syn.family)
+                    self.refresh_cites_label()
 
             box = self.view.add_message_box(utils.MESSAGE_BOX_YESNO)
             box.message = msg
@@ -583,6 +606,9 @@ class GenusEditorPresenter(editor.GenericEditorPresenter):
                                    editor.StringOrNoneValidator())
         self.assign_simple_handler('gen_author_entry', 'author',
                                    editor.StringOrNoneValidator())
+        self.assign_simple_handler('cites_combo', 'cites',
+                                   editor.StringOrNoneValidator())
+        self.refresh_cites_label()
 
         notes_parent = self.view.widgets.notes_parent_box
         notes_parent.foreach(notes_parent.remove)
@@ -593,6 +619,15 @@ class GenusEditorPresenter(editor.GenericEditorPresenter):
             self.view.widgets.gen_ok_and_add_button.set_sensitive(True)
 
         self._dirty = False
+
+    def refresh_cites_label(self, _widget=None):
+        fam_cites = 'N/A'
+        if self.model.family:
+            if val := self.model.family.cites:
+                fam_cites = val
+
+        string = f'Family: {fam_cites}'
+        self.view.set_label('cites_label', string)
 
     def __del__(self):
         # we have to delete the views in the child presenters manually
@@ -751,6 +786,7 @@ class GeneralGenusExpander(InfoExpander):
                               f'<big>{row.markup()}</big> '
                               f'{utils.xml_safe(str(row.author))}',
                               markup=True)
+        self.widget_set_value('gen_cites_data', row.cites or '')
         self.widget_set_value('gen_fam_data',
                               (utils.xml_safe(str(row.family))))
 

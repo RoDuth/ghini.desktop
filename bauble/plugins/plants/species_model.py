@@ -34,7 +34,6 @@ from sqlalchemy import (Column,
                         ForeignKey,
                         UnicodeText,
                         UniqueConstraint,
-                        func,
                         literal,
                         event,
                         CheckConstraint)
@@ -81,12 +80,6 @@ infrasp_rank_values = {'subsp.': _('subsp.'),
                        'f.': _('f.'),
                        'subf.': _('subf.'),
                        None: ''}
-
-
-# TODO: there is a trade_name column but there's no support yet for editing
-# the trade_name or for using the trade_name when building the string
-# for the species, for more information about trade_names see,
-# http://www.hortax.org.uk/gardenplantsnames.html
 
 # TODO: the specific epithet should not be non-nullable but instead
 # make sure that at least one of the specific epithet, cultivar name
@@ -291,6 +284,8 @@ class Species(db.Base, db.Serializable, db.WithNotes):
     # see retrieve classmethod.
     retrieve_cols = uniq_props + ['id', 'genus.genus', 'genus.epithet']
 
+    _cites = Column(types.Enum(values=['I', 'II', 'III', None]), default=None)
+
     # don't use back_populates, can lead to InvalidRequestError
     # accessions = relationship('Accession', cascade='all, delete-orphan',
     #                           back_populates='species')
@@ -347,19 +342,38 @@ class Species(db.Base, db.Serializable, db.WithNotes):
         except Exception:  # pylint: disable=broad-except
             return '...', '...'
 
-    @property
+    @hybrid_property
     def cites(self):
         """the cites status of this taxon, or None
 
         cites appendix number, one of I, II, or III.
-        not enforced by the software in v1.0.x
         """
+        return self._cites or self.genus.cites
 
-        cites_notes = [i.note for i in self.notes
-                       if i.category and i.category.upper() == 'CITES']
-        if not cites_notes:
-            return self.genus.cites
-        return cites_notes[0]
+    @cites.expression
+    def cites(cls):
+        # pylint: disable=no-self-argument,protected-access
+        from .family import Family
+        from .genus import Genus
+        # subqueries required to get the joins in
+        gen_cites = (
+            select([Genus._cites])
+            .where(cls.genus_id == Genus.id)
+            .scalar_subquery()
+        )
+        fam_cites = (
+            select([Family.cites])
+            .where(cls.genus_id == Genus.id)
+            .where(Genus.family_id == Family.id)
+            .scalar_subquery()
+        )
+        return (case((cls._cites.is_not(None), cls._cites),
+                     (gen_cites.is_not(None), gen_cites),
+                     else_=fam_cites))
+
+    @cites.setter
+    def cites(self, value):
+        self._cites = value
 
     @property
     def conservation(self):

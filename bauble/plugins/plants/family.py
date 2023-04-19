@@ -176,11 +176,14 @@ class Family(db.Base, db.Serializable, db.WithNotes):
         '_accepted', 'family', creator=lambda fam: FamilySynonym(family=fam)
     )
 
-    retrieve_cols = ['id', 'epithet', 'family']
     genera = relationship('Genus',
                           order_by='Genus.genus',
                           back_populates='family',
                           cascade='all, delete-orphan')
+
+    cites = Column(types.Enum(values=['I', 'II', 'III', None]), default=None)
+
+    retrieve_cols = ['id', 'epithet', 'family']
 
     @classmethod
     def retrieve(cls, session, keys):
@@ -195,16 +198,6 @@ class Family(db.Base, db.Serializable, db.WithNotes):
         if value is None:
             return None
         return value.strip()
-
-    @property
-    def cites(self):
-        """the cites status of this taxon, or None"""
-
-        cites_notes = [i.note for i in self.notes
-                       if i.category and i.category.upper() == 'CITES']
-        if not cites_notes:
-            return None
-        return cites_notes[0]
 
     def __repr__(self):
         return Family.str(self)
@@ -363,7 +356,8 @@ class FamilyEditorView(editor.GenericEditorView):
 class FamilyEditorPresenter(editor.GenericEditorPresenter):
 
     widget_to_field_map = {'fam_family_entry': 'family',
-                           'fam_qualifier_combo': 'qualifier'}
+                           'fam_qualifier_combo': 'qualifier',
+                           'cites_combo': 'cites'}
 
     def __init__(self, model, view):
         """
@@ -375,6 +369,8 @@ class FamilyEditorPresenter(editor.GenericEditorPresenter):
 
         # initialize widgets
         self.init_enum_combo('fam_qualifier_combo', 'qualifier')
+        self.init_enum_combo('cites_combo', 'cites')
+
         from . import SynonymsPresenter
         self.synonyms_presenter = SynonymsPresenter(
             self, FamilySynonym, None, lambda session, text: (
@@ -388,6 +384,8 @@ class FamilyEditorPresenter(editor.GenericEditorPresenter):
                                    editor.StringOrNoneValidator())
         self.assign_simple_handler('fam_qualifier_combo', 'qualifier',
                                    editor.StringOrEmptyValidator())
+        self.assign_simple_handler('cites_combo', 'cites',
+                                   editor.StringOrNoneValidator())
 
         notes_parent = self.view.widgets.notes_parent_box
         notes_parent.foreach(notes_parent.remove)
@@ -535,6 +533,7 @@ class GeneralFamilyExpander(InfoExpander):
         """
         self.widget_set_value('fam_name_data', f'<big>{row}</big>',
                               markup=True)
+        self.widget_set_value('fam_cites_data', row.cites or '')
         session = object_session(row)
         # get the number of genera
         ngen = session.query(Genus).filter_by(family_id=row.id).count()

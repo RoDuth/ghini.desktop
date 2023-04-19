@@ -35,7 +35,7 @@ from gi.repository import Pango
 
 from sqlalchemy.orm.session import object_session, Session, object_mapper
 from sqlalchemy.orm.query import Query
-from sqlalchemy.exc import DBAPIError, InvalidRequestError
+from sqlalchemy.exc import DBAPIError
 from sqlalchemy import and_, or_
 from sqlalchemy import inspect as sa_inspect
 
@@ -202,6 +202,7 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
                            'sp_label_dist_entry': 'label_distribution',
                            'sp_label_markup_entry': 'label_markup',
                            'sp_habit_comboentry': 'habit',
+                           'cites_combo': '_cites'
                            }
 
     PROBLEM_UNKOWN_HABIT = f'unknown_source:{random()}'
@@ -242,6 +243,7 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
 
         self.init_enum_combo('sp_spqual_combo', 'sp_qual')
         self.init_enum_combo('sp_hybrid_combo', 'hybrid')
+        self.init_enum_combo('cites_combo', '_cites')
 
         combo = self.view.widgets.sp_habit_comboentry
         model = Gtk.ListStore(str, object)
@@ -306,6 +308,8 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
         self.assign_simple_handler('sp_label_dist_entry', 'label_distribution',
                                    editor.StringOrNoneValidator())
         self.assign_simple_handler('sp_awards_entry', 'awards',
+                                   editor.StringOrNoneValidator())
+        self.assign_simple_handler('cites_combo', 'cites',
                                    editor.StringOrNoneValidator())
 
         self.refresh_sensitivity()
@@ -706,6 +710,9 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
         """
         logger.debug("SpeciesEditorPresenter:refresh_fullname_label %s",
                      widget)
+
+        self.refresh_cites_label()
+
         if len(self.problems) > 0 or self.model.genus is None:
             self.view.set_label('sp_fullname_label', '--')
             return
@@ -724,6 +731,20 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
 
         if self.model.genus is not None:
             GLib.idle_add(self._warn_double_ups)
+
+    def refresh_cites_label(self):
+        gen_cites = fam_cites = 'N/A'
+        if self.model.genus:
+            # pylint: disable=protected-access
+            if val := self.model.genus._cites:
+                gen_cites = val
+
+            if self.model.genus.family:
+                if val := self.model.genus.family.cites:
+                    fam_cites = val
+
+        string = f'Family: {fam_cites}, Genus: {gen_cites}'
+        self.view.set_label('cites_label', string)
 
     def _warn_double_ups(self):
         genus = self.model.genus
