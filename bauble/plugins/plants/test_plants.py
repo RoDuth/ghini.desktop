@@ -2822,6 +2822,7 @@ class SpeciesEditorPresenterTests(PlantTestCase):
         gen = Genus(genus='Genus', family=fam)
         sp = Species(genus=gen, sp='sp')
         self.session.add(sp)
+        self.session.commit()
         view = SpeciesEditorView()
         presenter = SpeciesEditorPresenter(sp, view)
 
