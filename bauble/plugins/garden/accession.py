@@ -2297,17 +2297,16 @@ class AccessionEditorPresenter(editor.GenericEditorPresenter):
                                 'acc_date_recvd_button')
 
         # date accessioned
-        self.view.connect('acc_date_accd_entry', 'changed',
-                          self.on_date_entry_changed,
-                          (self.model, 'date_accd'))
-        utils.setup_date_button(self.view, 'acc_date_accd_entry',
-                                'acc_date_accd_button')
-
         if self.model in self.session.new:
             # new accession, set date accessioned to today
             date_str = utils.today_str()
             utils.set_widget_value(self.view.widgets.acc_date_accd_entry,
                                    date_str)
+        self.view.connect('acc_date_accd_entry', 'changed',
+                          self.on_date_entry_changed,
+                          (self.model, 'date_accd'))
+        utils.setup_date_button(self.view, 'acc_date_accd_entry',
+                                'acc_date_accd_button')
 
         mapper = object_mapper(self.model)
         values = utils.get_distinct_values(mapper.c['price_unit'],
@@ -2574,8 +2573,8 @@ class AccessionEditorPresenter(editor.GenericEditorPresenter):
                       self.documents_presenter,
                       self.source_presenter,
                       self.intended_locations_presenter]
-        dirty_kids = [p.is_dirty() for p in presenters]
-        return self._dirty or True in dirty_kids
+
+        return self._dirty or any(p.is_dirty() for p in presenters)
 
     @staticmethod
     def on_recvd_type_comboentry_changed(combo, *_args):
