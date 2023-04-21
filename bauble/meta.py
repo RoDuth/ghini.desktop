@@ -98,10 +98,10 @@ def confirm_default(name, default, msg, parent=None):
 def set_value(names, defaults, msg, parent=None):
     """Allow the user to change the value of a BaubleMeta object at any time.
 
-    :param names: a string or list, if provided as a list of names allows
-        setting multiple values.
-    :param defaults: a string or list, if names is a list this should be a
-        corresponding list in the same order and same length.
+    :param names: a string or iterable, if provided as an iterable of names
+        allows setting multiple values.
+    :param defaults: a string or iterable, if names is a interable this should
+        be a corresponding iterable in the same order and same length.
     :param msg: the message to display in the dialog.
     :param parent: the parent window
     """

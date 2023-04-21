@@ -24,6 +24,7 @@ import os
 import traceback
 import weakref
 from random import random
+from ast import literal_eval
 
 import logging
 logger = logging.getLogger(__name__)
@@ -332,6 +333,35 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
         if self.model.label_markup:
             self.view.widgets.label_markup_expander.set_expanded(True)
             self.view.widgets.sp_label_markup_entry.emit('changed')
+
+        self._setup_custom_field('_sp_custom1')
+        self._setup_custom_field('_sp_custom2')
+
+    def _setup_custom_field(self, column_name):
+        session = bauble.db.Session()
+        custom_meta = (session.query(bauble.meta.BaubleMeta)
+                       .filter(bauble.meta.BaubleMeta.name == column_name)
+                       .first())
+        session.close()
+        # pylint: disable=protected-access
+        if custom_meta:
+            custom_meta = literal_eval(custom_meta.value)
+            display_name = custom_meta.get('display_name')
+            if display_name:
+                label = column_name + '_label'
+                self.view.widget_set_text(label, display_name)
+                self.view.widget_set_visible(label)
+            values = custom_meta.get('values')
+            if values:
+                combo = getattr(self.view.widgets,
+                                column_name + '_combo')
+                utils.setup_text_combobox(combo, values)
+                utils.set_widget_value(combo,
+                                       getattr(self.model, column_name, ''))
+                combo.set_visible(True)
+                self.assign_simple_handler(column_name + '_combo',
+                                           column_name,
+                                           editor.StringOrNoneValidator())
 
     def on_markup_entry_changed(self, widget):
         self.remove_problem(self.PROBLEM_INVALID_MARKUP, widget)

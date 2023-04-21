@@ -24,6 +24,7 @@ Species modules
 
 import os
 import traceback
+from ast import literal_eval
 
 import logging
 logger = logging.getLogger(__name__)
@@ -356,6 +357,27 @@ class GeneralSpeciesExpander(InfoExpander):
         utils.make_label_clickable(self.widgets.sp_nplants_data,
                                    on_nplants_clicked)
 
+        self.custom_columns = set()
+        self._setup_custom_column('_sp_custom1')
+        self._setup_custom_column('_sp_custom2')
+
+    def _setup_custom_column(self, column_name):
+        session = bauble.db.Session()
+        custom_meta = (session.query(bauble.meta.BaubleMeta)
+                       .filter(bauble.meta.BaubleMeta.name == column_name)
+                       .first())
+        session.close()
+        # pylint: disable=protected-access
+        if custom_meta:
+            self.custom_columns.add(column_name)
+            custom_meta = literal_eval(custom_meta.value)
+            display_name = custom_meta.get('display_name')
+            if display_name:
+                label = self.widgets.get(column_name + '_label')
+                label.set_text(display_name + ':')
+                data_label = self.widgets.get(column_name + '_data')
+                utils.unhide_widgets((label, data_label))
+
     def update(self, row):
         """update the expander
 
@@ -458,6 +480,9 @@ class GeneralSpeciesExpander(InfoExpander):
                             .join('accession', 'species')
                             .filter_by(id=row.id).all())
         self.widget_set_value('living_plants_count', living_plants)
+
+        for column in self.custom_columns:
+            self.widget_set_value(column + '_data', getattr(row, column))
 
 
 class SpeciesInfoBox(InfoBox):

@@ -232,7 +232,7 @@ def init(force=False):
             # could overwrite data
             ordered.remove(plugin)
             msg = (_("The %s plugin is listed in the registry "
-                     "but isn't wasn't found in the plugin directory")
+                     "but wasn't found in the plugin directory")
                    % plugin.__class__.__name__)
             logger.warning(msg)
         except Exception as e:

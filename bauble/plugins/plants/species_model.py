@@ -300,6 +300,8 @@ class Species(db.Base, db.Serializable, db.WithNotes):
     red_list = Column(types.Enum(values=list(red_list_values.keys()),
                                  translations=red_list_values))
 
+    _sp_custom1 = Column(Unicode(64))
+    _sp_custom2 = Column(Unicode(64))
     # don't use back_populates, can lead to InvalidRequestError
     # accessions = relationship('Accession', cascade='all, delete-orphan',
     #                           back_populates='species')

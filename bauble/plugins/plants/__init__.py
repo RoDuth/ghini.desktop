@@ -26,6 +26,7 @@ from random import random
 from threading import Thread
 from functools import partial
 from pathlib import Path
+from ast import literal_eval
 
 import logging
 logger = logging.getLogger(__name__)
@@ -261,7 +262,8 @@ class LabelUpdater(Thread):
             # race condition?  Re running seems to always succeed second time
             # around.
             self.run()
-        session.close()
+        finally:
+            session.close()
 
 
 @Gtk.Template(filename=str(Path(__file__).resolve().parent / 'splash_info.ui'))
@@ -602,6 +604,45 @@ class PlantsPlugin(pluginmgr.Plugin):
                                     'win.update_full_name')
             bauble.gui.options_menu.append_item(item)
 
+            msg = _('Setup custom conservation fields.\n\nYou have 2 fields '
+                    'available.  To set them up you need to provide a '
+                    'dictionary that defines the `field_name` as used in '
+                    'searches, reporte, etc., the `display_name` as used in '
+                    'the editor and the `values` as a tuple or list of the '
+                    'values it can accept.\n\n Examples are provided, replace '
+                    'these as needed set them empty to disable.')
+            custom1_default = ("{'field_name': 'nca_status', "
+                               "'display_name': 'NCA Status', 'values': ("
+                               "'Extinct in the wild', "
+                               "'Critically endangered', "
+                               "'Endangered', "
+                               "'Vulnerable', "
+                               "'Near threatened', "
+                               "'Special least concern', "
+                               "'Least concern', "
+                               "''"
+                               ")}")
+            custom2_default = ("{'field_name': 'epbc_status', "
+                               "'display_name': 'EPBC Status', 'values': ("
+                               "'Extinct', "
+                               "'Critically endangered', "
+                               "'Endangered', "
+                               "'Vulnerable', "
+                               "'Conservation dependent', "
+                               "'Not listed', "
+                               "''"
+                               ")}")
+            bauble.gui.add_action("setup_conservation_fields",
+                                  lambda *_args: bauble.meta.set_value(
+                                      ('_sp_custom1', '_sp_custom2'),
+                                      (custom1_default, custom2_default),
+                                      msg)
+                                  )
+
+            item = Gio.MenuItem.new(_('Setup Custom Conservation Fields'),
+                                    'win.setup_conservation_fields')
+            bauble.gui.options_menu.append_item(item)
+
             def prefs_ls_changed(model, path, _itr):
                 key, _repr_str, _type_str = model[path]
                 if key == prefs.return_accepted_pref:
@@ -716,6 +757,33 @@ class PlantsPlugin(pluginmgr.Plugin):
             'species',
             '{table} where distribution.id = {obj_id}'
         )
+        cls.register_custom_column('_sp_custom1')
+        cls.register_custom_column('_sp_custom2')
+
+    @classmethod
+    def register_custom_column(cls, column_name):
+        session = db.Session()
+        custom_meta = (session.query(bauble.meta.BaubleMeta)
+                       .filter(bauble.meta.BaubleMeta.name == column_name)
+                       .first())
+        session.close()
+        # pylint: disable=protected-access
+        if custom_meta:
+            custom_meta = literal_eval(custom_meta.value)
+            field_name = custom_meta['field_name']
+
+            def _get(self):
+                return getattr(self, column_name)
+
+            def _set(self, value):
+                setattr(self, column_name, value)
+
+            def _exp(cls):
+                return getattr(cls, column_name)
+
+            from sqlalchemy.ext.hybrid import hybrid_property
+            setattr(Species, field_name,
+                    hybrid_property(_get, fset=_set, expr=_exp))
 
     @staticmethod
     def on_return_syns_chkbx_toggled(action, value):

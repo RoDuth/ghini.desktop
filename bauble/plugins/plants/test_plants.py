@@ -32,7 +32,7 @@ from functools import partial
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.exc import IntegrityError
 
-from bauble import utils, search, db
+from bauble import utils, search, db, paths
 from bauble import prefs
 from bauble.test import (BaubleTestCase,
                          check_dupids,
@@ -46,7 +46,8 @@ from .species import (Species,
                       SpeciesEditor,
                       DefaultVernacularName,
                       SpeciesDistribution,
-                      SpeciesNote)
+                      SpeciesNote,
+                      GeneralSpeciesExpander)
 from .species_editor import (species_to_string_matcher,
                              species_match_func,
                              generic_sp_get_completions,
@@ -2562,6 +2563,26 @@ class AttributesStoredInNotesTests(PlantTestCase):
                          {'k': 'abc', 'l': 'def', 'm': 'xyz'})
 
 
+class GeneralSpeciesExpanderTests(BaubleTestCase):
+    def test_setup_custom_column(self):
+        from bauble.meta import BaubleMeta
+        meta = BaubleMeta(name='_sp_custom1',
+                          value=("{'field_name': 'nca_status', "
+                                 "'display_name': 'NCA Status', "
+                                 "'values': ('extinct', 'vulnerable')}"))
+        self.session.add(meta)
+        self.session.commit()
+        # effectively also tests PlantsPlugin.register_custom_column
+        from bauble.plugins.plants import PlantsPlugin
+        PlantsPlugin.register_custom_column('_sp_custom1')
+        filename = os.path.join(paths.lib_dir(), 'plugins', 'plants',
+                                'infoboxes.glade')
+        widgets = utils.BuilderWidgets(filename)
+        general = GeneralSpeciesExpander(widgets)
+        general._setup_custom_column('_sp_custom1')
+        self.assertEqual(widgets._sp_custom1_label.get_text(), 'NCA Status:')
+
+
 class SpeciesEntryTests(TestCase):
     def test_spaces_not_allowed_on_init(self):
         entry = SpeciesEntry()
@@ -3080,6 +3101,33 @@ class SpeciesEditorPresenterTests(PlantTestCase):
         presenter = SpeciesEditorPresenter(sp, view)
         self.assertEqual(view.widgets.cites_label.get_text(),
                          'Family: II, Genus: I')
+
+        del presenter
+
+    def test_custom_fields(self):
+        # pylint: disable=protected-access
+        from bauble.meta import BaubleMeta
+        meta = BaubleMeta(name='_sp_custom1',
+                          value=("{'field_name': 'nca_status', "
+                                 "'display_name': 'NCA Status', "
+                                 "'values': ('extinct', 'vulnerable')}"))
+        self.session.add(meta)
+        self.session.commit()
+        # effectively also tests PlantsPlugin.register_custom_column
+        from bauble.plugins.plants import PlantsPlugin
+        PlantsPlugin.register_custom_column('_sp_custom1')
+        sp = self.session.query(Species).get(17)
+        sp.nca_status = 'vulnerable'
+        self.session.commit()
+        self.assertEqual(sp._sp_custom1, 'vulnerable')
+        view = SpeciesEditorView()
+        presenter = SpeciesEditorPresenter(sp, view)
+        self.assertEqual(view.widgets._sp_custom1_label.get_text(),
+                         'NCA Status')
+        self.assertEqual(
+            utils.get_widget_value(view.widgets._sp_custom1_combo),
+            'vulnerable'
+        )
 
         del presenter
 

@@ -20,6 +20,7 @@ import unittest
 from sqlalchemy.orm import class_mapper
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm.attributes import InstrumentedAttribute
+from sqlalchemy.ext.associationproxy import AssociationProxy
 from bauble import paths
 from bauble.query_builder import (BuiltQuery,
                                   QueryBuilder,
@@ -115,15 +116,15 @@ class SchemaMenuTests(BaubleTestCase):
     def test_menu_populates_w_species(self):
         mapper = class_mapper(Species)
         schema_menu = SchemaMenu(mapper, self.menu_activated)
-        for i in class_mapper(Species).all_orm_descriptors:
-            if (isinstance(i, (hybrid_property, InstrumentedAttribute)) or
-                    i.key in [i.key for i in mapper.synonyms]):
-                key = self.key(i)
+        for key, v in class_mapper(Species).all_orm_descriptors.items():
+            if (isinstance(v, (hybrid_property,
+                               InstrumentedAttribute,
+                               AssociationProxy)) or
+                    v.key in [v.key for v in mapper.synonyms]):
                 self.assertTrue(key in [j.get_label() for j in
                                         schema_menu.get_children()],
                                 f'key:{key} not found in schema menu')
             else:
-                key = self.key(i)
                 self.assertFalse(key in [j.get_label() for j in
                                          schema_menu.get_children()],
                                  f'key:{key} should not be in schema menu')
