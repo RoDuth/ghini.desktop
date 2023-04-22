@@ -63,7 +63,12 @@ from .species_model import _remove_zws as remove_zws
 from .species_model import (update_all_full_names_task,
                             update_all_full_names_handler,
                             infrasp_rank_values)
-from .family import Family, FamilySynonym, FamilyEditor, FamilyNote
+from .family import (Family,
+                     FamilySynonym,
+                     FamilyEditor,
+                     FamilyNote,
+                     FamilyEditorView,
+                     FamilyEditorPresenter)
 from .genus import (Genus,
                     GenusSynonym,
                     GenusEditor,
@@ -95,6 +100,9 @@ family_test_data = (
     {'id': 5, 'family': 'Rosaceae'},
     {'id': 6, 'family': 'Arecaceae'},
     {'id': 7, 'family': 'Poaceae'},
+    {'id': 8, 'family': 'Zamiaceae', 'order': 'Cycadales',
+     'suborder': 'Zamiineae'},
+    {'id': 9, 'family': 'Proteaceae'},
 )
 
 family_note_test_data = (
@@ -112,6 +120,10 @@ genus_test_data = (
     {'id': 8, 'hybrid': '+', 'genus': 'Crataegomespilus', 'family_id': 5},
     {'id': 9, 'hybrid': '×', 'genus': 'Butyagrus', 'family_id': 6},
     {'id': 10, 'genus': 'Cynodon', 'family_id': 7},
+    {'id': 11, 'genus': 'Encephalartos', 'family_id': 8,
+     'subfamily': 'Zamioideae', 'tribe': 'Encephalarteae'},
+    {'id': 12, 'genus': 'Banksia', 'family_id': 7,
+     'subfamily': 'Grevilleoideae'},
 )
 
 genus_note_test_data = (
@@ -186,7 +198,8 @@ species_test_data = (
      'infrasp1_rank': 'subsp.', 'infrasp1': 'africanus',
      'infrasp1_author': 'Verdc.'},
     {'id': 29, 'genus_id': 5, 'cultivar_epithet': 'Springwater',
-     'grex': 'Jim Kie'}
+     'grex': 'Jim Kie'},
+    {'id': 30, 'genus_id': 12, 'sp': 'bipinnatifida', 'series': 'Dryandra'},
 )
 
 species_note_test_data = (
@@ -469,21 +482,6 @@ class FamilyTests(PlantTestCase):
         f.qualifier = 's. lat.'
         self.assertTrue(str(f) == 'fam s. lat.')
 
-    @mock.patch('bauble.editor.GenericEditorView.start')
-    def test_editor_doesnt_leak(self, mock_start):
-        from gi.repository import Gtk
-        mock_start.return_value = Gtk.ResponseType.OK
-        fam = Family(family='some family')
-        editor = FamilyEditor(model=fam)
-        editor.start()
-        del editor
-        self.assertEqual(utils.gc_objects_by_type('FamilyEditor'),
-                         [], 'FamilyEditor not deleted')
-        self.assertEqual(utils.gc_objects_by_type('FamilyEditorPresenter'),
-                         [], 'FamilyEditorPresenter not deleted')
-        self.assertEqual(utils.gc_objects_by_type('FamilyEditorView'),
-                         [], 'FamilyEditorView not deleted')
-
     def test_remove_callback_no_genera_no_confirm(self):
         # T_0
         f5 = Family(family='Araucariaceae')
@@ -695,6 +693,42 @@ class FamilyTests(PlantTestCase):
         self.assertEqual(fam.top_level_count()[(6, 'Living plants')], 0)
         self.assertEqual(len(fam.top_level_count()[(7, 'Locations')]), 0)
         self.assertEqual(len(fam.top_level_count()[(8, 'Sources')]), 0)
+
+
+class FamilyEditorTests(PlantTestCase):
+
+    @mock.patch('bauble.editor.GenericEditorView.start')
+    def test_editor_doesnt_leak(self, mock_start):
+        from gi.repository import Gtk
+        mock_start.return_value = Gtk.ResponseType.OK
+        fam = Family(family='some family')
+        editor = FamilyEditor(model=fam)
+        editor.start()
+        del editor
+        self.assertEqual(utils.gc_objects_by_type('FamilyEditor'),
+                         [], 'FamilyEditor not deleted')
+        self.assertEqual(utils.gc_objects_by_type('FamilyEditorPresenter'),
+                         [], 'FamilyEditorPresenter not deleted')
+        self.assertEqual(utils.gc_objects_by_type('FamilyEditorView'),
+                         [], 'FamilyEditorView not deleted')
+
+    def test_suprafamilial_parts(self):
+        gen = self.session.query(Family).get(1)
+        view = FamilyEditorView()
+        presenter = FamilyEditorPresenter(gen, view)
+
+        presenter.cleanup()
+        del presenter
+
+        gen = self.session.query(Family).get(8)
+        view = FamilyEditorView()
+        presenter = FamilyEditorPresenter(gen, view)
+        self.assertTrue(view.widgets.suprafam_expander.get_expanded())
+        self.assertEqual(view.widgets.order_entry.get_text(), 'Cycadales')
+        self.assertEqual(view.widgets.suborder_entry.get_text(), 'Zamiineae')
+
+        presenter.cleanup()
+        del presenter
 
 
 class GenusTests(PlantTestCase):
@@ -1072,10 +1106,27 @@ class GenusEditorTests(PlantTestCase):
         presenter = GenusEditorPresenter(gen, view)
         self.assertEqual(view.widgets.cites_label.get_text(), 'Family: II')
 
-        del view
         presenter.cleanup()
         del presenter
 
+    def test_suprageneric_parts(self):
+        gen = self.session.query(Genus).get(1)
+        view = GenusEditorView()
+        presenter = GenusEditorPresenter(gen, view)
+        self.assertFalse(view.widgets.supragen_expander.get_expanded())
+
+        presenter.cleanup()
+        del presenter
+
+        gen = self.session.query(Genus).get(11)
+        view = GenusEditorView()
+        presenter = GenusEditorPresenter(gen, view)
+        self.assertTrue(view.widgets.supragen_expander.get_expanded())
+        self.assertEqual(view.widgets.subfamily_entry.get_text(), 'Zamioideae')
+        self.assertEqual(view.widgets.tribe_entry.get_text(), 'Encephalarteae')
+
+        presenter.cleanup()
+        del presenter
 
 class GenusSynonymyTests(PlantTestCase):
 
@@ -1951,8 +2002,14 @@ class FromAndToDictTest(PlantTestCase):
         poa = Family.retrieve_or_create(
             self.session, {'rank': 'family',
                            'epithet': 'Poaceae'})
+        zam = Family.retrieve_or_create(
+            self.session, {'rank': 'family',
+                           'epithet': 'Zamiaceae'})
+        prot = Family.retrieve_or_create(
+            self.session, {'rank': 'family',
+                           'epithet': 'Proteaceae'})
         self.assertEqual(set(all_families),
-                         {orc, pol, leg, sol, ros, are, poa})
+                         {orc, pol, leg, sol, ros, are, poa, zam, prot})
 
     def test_grabbing_same_params_same_output_existing(self):
         orc1 = Family.retrieve_or_create(
@@ -3129,6 +3186,24 @@ class SpeciesEditorPresenterTests(PlantTestCase):
             'vulnerable'
         )
 
+        del presenter
+
+    def test_infrageneric_parts(self):
+        gen = self.session.query(Species).get(3)
+        view = SpeciesEditorView()
+        presenter = SpeciesEditorPresenter(gen, view)
+        self.assertFalse(view.widgets.infragen_expander.get_expanded())
+
+        presenter.cleanup()
+        del presenter
+
+        gen = self.session.query(Species).get(30)
+        view = SpeciesEditorView()
+        presenter = SpeciesEditorPresenter(gen, view)
+        self.assertTrue(view.widgets.infragen_expander.get_expanded())
+        self.assertEqual(view.widgets.series_entry.get_text(), 'Dryandra')
+
+        presenter.cleanup()
         del presenter
 
 

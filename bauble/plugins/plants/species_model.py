@@ -197,13 +197,20 @@ class Species(db.Base, db.Serializable, db.WithNotes):
         'infraspecific_parts',
         'infraspecific_epithet',
         'infraspecific_rank',
-        'cultivar_epithet'
+        'cultivar_epithet',
+        'grex'
     ]
 
     rank = 'species'
     link_keys = ['accepted']
 
     # columns
+    subgenus = Column(Unicode(64))
+    section = Column(Unicode(64))
+    subsection = Column(Unicode(64))
+    series = Column(Unicode(64))
+    subseries = Column(Unicode(64))
+
     sp = Column(Unicode(128), index=True)
     epithet = sa_synonym('sp')
     sp_author = Column(Unicode(128))

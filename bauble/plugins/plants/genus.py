@@ -176,11 +176,16 @@ class Genus(db.Base, db.Serializable, db.WithNotes):
 
     # columns
     hybrid = Column(types.Enum(values=['×', '+', None]), default=None)
+
+    subfamily = Column(Unicode(64))
+    tribe = Column(Unicode(64))
+    subtribe = Column(Unicode(64))
+
     genus = Column(String(64), nullable=False, index=True)
     epithet = sa_synonym('genus')
 
     # use '' instead of None so that the constraints will work propertly
-    author = Column(Unicode(255), default='')
+    author = Column(Unicode(128), default='')
 
     qualifier = Column(types.Enum(values=['s. lat.', 's. str', '']),
                        default='')
@@ -524,7 +529,10 @@ class GenusEditorPresenter(editor.GenericEditorPresenter):
                            'gen_hybrid_combo': 'hybrid',
                            'gen_genus_entry': 'genus',
                            'gen_author_entry': 'author',
-                           'cites_combo': '_cites'}
+                           'cites_combo': '_cites',
+                           'subfamily_entry': 'subfamily',
+                           'tribe_entry': 'tribe',
+                           'subtribe_entry': 'subtribe'}
 
     def __init__(self, model, view):
         """
@@ -609,11 +617,22 @@ class GenusEditorPresenter(editor.GenericEditorPresenter):
         self.assign_simple_handler('cites_combo', 'cites',
                                    editor.StringOrNoneValidator())
         self.refresh_cites_label()
+        self.assign_simple_handler('subfamily_entry', 'subfamily',
+                                   editor.StringOrNoneValidator())
+        self.assign_simple_handler('tribe_entry', 'tribe',
+                                   editor.StringOrNoneValidator())
+        self.assign_simple_handler('subtribe_entry', 'subtribe',
+                                   editor.StringOrNoneValidator())
 
         notes_parent = self.view.widgets.notes_parent_box
         notes_parent.foreach(notes_parent.remove)
         self.notes_presenter = editor.NotesPresenter(self, 'notes',
                                                      notes_parent)
+
+        if any(getattr(self.model, i) for i in ('subfamily',
+                                                'tribe',
+                                                'subtribe')):
+            self.view.widget_set_expanded('supragen_expander', True)
 
         if self.model not in self.session.new:
             self.view.widgets.gen_ok_and_add_button.set_sensitive(True)

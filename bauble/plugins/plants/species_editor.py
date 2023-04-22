@@ -205,7 +205,12 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
                            'sp_label_markup_entry': 'label_markup',
                            'sp_habit_comboentry': 'habit',
                            'cites_combo': '_cites',
-                           'red_list_combo': 'red_list'
+                           'red_list_combo': 'red_list',
+                           'subgenus_entry': 'subgenus',
+                           'section_entry': 'section',
+                           'subsection_entry': 'subsection',
+                           'series_entry': 'series',
+                           'subseries_entry': 'subseries',
                            }
 
     PROBLEM_UNKOWN_HABIT = f'unknown_source:{random()}'
@@ -320,18 +325,36 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
                                    editor.StringOrNoneValidator())
         self.assign_simple_handler('red_list_combo', 'red_list',
                                    editor.StringOrNoneValidator())
+        self.assign_simple_handler('subgenus_entry', 'subgenus',
+                                   editor.StringOrNoneValidator())
+        self.assign_simple_handler('section_entry', 'section',
+                                   editor.StringOrNoneValidator())
+        self.assign_simple_handler('subsection_entry', 'subsection',
+                                   editor.StringOrNoneValidator())
+        self.assign_simple_handler('series_entry', 'series',
+                                   editor.StringOrNoneValidator())
+        self.assign_simple_handler('subseries_entry', 'subseries',
+                                   editor.StringOrNoneValidator())
 
         self.refresh_sensitivity()
         if self.model not in self.session.new:
             self.view.widgets.sp_ok_and_add_button.set_sensitive(True)
+
         if any(getattr(self.model, i) for i in ('cv_group',
                                                 'trade_name',
                                                 'trademark_symbol',
                                                 'grex')):
             self.view.widgets.expand_cv_btn.emit('clicked')
 
+        if any(getattr(self.model, i) for i in ('subgenus',
+                                                'section',
+                                                'subsection',
+                                                'series',
+                                                'subseries')):
+            self.view.widget_set_expanded('infragen_expander', True)
+
         if self.model.label_markup:
-            self.view.widgets.label_markup_expander.set_expanded(True)
+            self.view.widget_set_expanded('label_markup_expander', True)
             self.view.widgets.sp_label_markup_entry.emit('changed')
 
         self._setup_custom_field('_sp_custom1')

@@ -484,8 +484,10 @@ class JSONExportTests(BaubleTestCase):
                    if i['object'] == 'taxon' and i['rank'] == 'species']
         self.assertEqual(len(species), 4)
         target = [
-            {"epithet": "Orchidaceae", "object": "taxon", "rank": "familia"},
-            {"epithet": "Myrtaceae", "object": "taxon", "rank": "familia"},
+            {"epithet": "Orchidaceae", "object": "taxon", "rank": "familia",
+             "author": ""},
+            {"epithet": "Myrtaceae", "object": "taxon", "rank": "familia",
+             "author": ""},
             {"author": "R. Br.", "epithet": "Calopogon",
              "ht-epithet": "Orchidaceae", "ht-rank": "familia",
              "object": "taxon", "rank": "genus"},

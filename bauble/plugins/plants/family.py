@@ -34,6 +34,7 @@ from sqlalchemy import (Column,
                         ForeignKey,
                         UniqueConstraint,
                         String,
+                        Unicode,
                         literal,
                         CheckConstraint)
 from sqlalchemy.orm import relationship, validates
@@ -123,6 +124,8 @@ class Family(db.Base, db.Serializable, db.WithNotes):
         *family*:
             The name of the family. Required.
 
+        *author*
+
         *qualifier*:
             The family qualifier.
 
@@ -142,14 +145,20 @@ class Family(db.Base, db.Serializable, db.WithNotes):
         The family table has a unique constraint on family/qualifier.
     """
     __tablename__ = 'family'
-    __table_args__ = (UniqueConstraint('family'), {})
+    __table_args__ = (UniqueConstraint('family', 'author'), {})
 
     rank = 'familia'
     link_keys = ['accepted']
 
     # columns
+    order = Column(Unicode(64))
+    suborder = Column(Unicode(64))
+
     family = Column(String(45), nullable=False, index=True)
     epithet = sa_synonym('family')
+
+    # use '' instead of None so that the constraints will work propertly
+    author = Column(Unicode(128), default='')
 
     # we use the blank string here instead of None so that the
     # contraints will work properly,
@@ -355,7 +364,10 @@ class FamilyEditorView(editor.GenericEditorView):
 
 class FamilyEditorPresenter(editor.GenericEditorPresenter):
 
-    widget_to_field_map = {'fam_family_entry': 'family',
+    widget_to_field_map = {'order_entry': 'order',
+                           'suborder_entry': 'suborder',
+                           'fam_family_entry': 'family',
+                           'author_entry': 'author',
                            'fam_qualifier_combo': 'qualifier',
                            'cites_combo': 'cites'}
 
@@ -380,7 +392,13 @@ class FamilyEditorPresenter(editor.GenericEditorPresenter):
         self.refresh_view()  # put model values in view
 
         # connect signals
+        self.assign_simple_handler('order_entry', 'order',
+                                   editor.StringOrNoneValidator())
+        self.assign_simple_handler('suborder_entry', 'suborder',
+                                   editor.StringOrNoneValidator())
         self.assign_simple_handler('fam_family_entry', 'family',
+                                   editor.StringOrNoneValidator())
+        self.assign_simple_handler('author_entry', 'author',
                                    editor.StringOrNoneValidator())
         self.assign_simple_handler('fam_qualifier_combo', 'qualifier',
                                    editor.StringOrEmptyValidator())
@@ -395,6 +413,9 @@ class FamilyEditorPresenter(editor.GenericEditorPresenter):
 
         if self.model not in self.session.new:
             self.view.widgets.fam_ok_and_add_button.set_sensitive(True)
+
+        if any(getattr(self.model, i) for i in ('order', 'suborder')):
+            self.view.widget_set_expanded('suprafam_expander', True)
 
         # for each widget register a signal handler to be notified when the
         # value in the widget changes, that way we can do things like sensitize
