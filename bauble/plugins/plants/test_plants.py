@@ -1162,18 +1162,6 @@ class GenusSynonymyTests(PlantTestCase):
         self.assertEqual(zy.accepted, bu)
         self.assertEqual(bu.accepted, None)
 
-    def test_synonymy_included_in_as_dict(self):
-        bu = self.session.query(
-            Genus).filter(
-            Genus.genus == 'Bulbophyllum').one()
-        zy = self.session.query(
-            Genus).filter(
-            Genus.genus == 'Zygoglossum').one()
-        self.assertTrue('accepted' not in bu.as_dict())
-        self.assertTrue('accepted' in zy.as_dict())
-        self.assertEqual(zy.as_dict()['accepted'],
-                          bu.as_dict(recurse=False))
-
     def test_define_accepted(self):
         # notice that same test should be also in Species and Family
         bu = self.session.query(
@@ -1975,280 +1963,6 @@ class GeographyTests(PlantTestCase):
                                                   'Western Canada'))
 
 
-class FromAndToDictTest(PlantTestCase):
-    """tests the retrieve_or_create and the as_dict methods
-    """
-
-    def test_can_grab_existing_families(self):
-        all_families = self.session.query(Family).all()
-        orc = Family.retrieve_or_create(
-            self.session, {'rank': 'family',
-                           'epithet': 'Orchidaceae'})
-        leg = Family.retrieve_or_create(
-            self.session, {'rank': 'family',
-                           'epithet': 'Leguminosae'})
-        pol = Family.retrieve_or_create(
-            self.session, {'rank': 'family',
-                           'epithet': 'Polypodiaceae'})
-        sol = Family.retrieve_or_create(
-            self.session, {'rank': 'family',
-                           'epithet': 'Solanaceae'})
-        ros = Family.retrieve_or_create(
-            self.session, {'rank': 'family',
-                           'epithet': 'Rosaceae'})
-        are = Family.retrieve_or_create(
-            self.session, {'rank': 'family',
-                           'epithet': 'Arecaceae'})
-        poa = Family.retrieve_or_create(
-            self.session, {'rank': 'family',
-                           'epithet': 'Poaceae'})
-        zam = Family.retrieve_or_create(
-            self.session, {'rank': 'family',
-                           'epithet': 'Zamiaceae'})
-        prot = Family.retrieve_or_create(
-            self.session, {'rank': 'family',
-                           'epithet': 'Proteaceae'})
-        self.assertEqual(set(all_families),
-                         {orc, pol, leg, sol, ros, are, poa, zam, prot})
-
-    def test_grabbing_same_params_same_output_existing(self):
-        orc1 = Family.retrieve_or_create(
-            self.session, {'rank': 'family',
-                           'epithet': 'Orchidaceae'})
-        orc2 = Family.retrieve_or_create(
-            self.session, {'rank': 'family',
-                           'epithet': 'Orchidaceae'})
-        self.assertTrue(orc1 is orc2)
-
-    def test_can_create_family(self):
-        all_families = self.session.query(Family).all()
-        fab = Family.retrieve_or_create(
-            self.session, {'rank': 'family',
-                           'epithet': 'Fabaceae'})
-        # it's in the session, it wasn't there before.
-        self.assertTrue(fab in self.session)
-        self.assertFalse(fab in all_families)
-        # according to the session, it is in the database
-        ses_families = self.session.query(Family).all()
-        self.assertTrue(fab in ses_families)
-
-    @skip('not implimented')
-    def test_where_can_object_be_found_before_commit(self):  # disabled
-        fab = Family.retrieve_or_create(
-            self.session, {'rank': 'family',
-                           'epithet': 'Fabaceae'})
-        # created in a session, it's not in other sessions
-        other_session = db.Session()
-        db_families = other_session.query(Family).all()
-        fab = Family.retrieve_or_create(
-            other_session, {'rank': 'family',
-                            'epithet': 'Fabaceae'})
-        self.assertFalse(fab in db_families)  # fails, why?
-
-    def test_where_can_object_be_found_after_commit(self):
-        fab = Family.retrieve_or_create(
-            self.session, {'rank': 'family',
-                           'epithet': 'Fabaceae'})
-        # after commit it's in database.
-        self.session.commit()
-        other_session = db.Session()
-        all_families = other_session.query(Family).all()
-        fab = Family.retrieve_or_create(
-            other_session, {'rank': 'family',
-                            'epithet': 'Fabaceae'})
-        self.assertTrue(fab in all_families)
-
-    def test_grabbing_same_params_same_output_new(self):
-        fab1 = Family.retrieve_or_create(
-            self.session, {'rank': 'family',
-                           'epithet': 'Fabaceae'})
-        fab2 = Family.retrieve_or_create(
-            self.session, {'rank': 'family',
-                           'epithet': 'Fabaceae'})
-        self.assertTrue(fab1 is fab2)
-
-    def test_can_grab_existing_genera(self):
-        orc = Family.retrieve_or_create(
-            self.session, {'rank': 'family',
-                           'epithet': 'Orchidaceae'})
-        all_genera_orc = self.session.query(Genus).filter(
-            Genus.family == orc).all()
-        mxl = Genus.retrieve_or_create(
-            self.session, {'ht-rank': 'family',
-                           'ht-epithet': 'Orchidaceae',
-                           'rank': 'genus',
-                           'epithet': 'Maxillaria'})
-        enc = Genus.retrieve_or_create(
-            self.session, {'ht-rank': 'family',
-                           'ht-epithet': 'Orchidaceae',
-                           'rank': 'genus',
-                           'epithet': 'Encyclia'})
-        self.assertTrue(mxl in set(all_genera_orc))
-        self.assertTrue(enc in set(all_genera_orc))
-
-
-class FromAndToDict_create_update_test(PlantTestCase):
-    "test the create and update fields in retrieve_or_create"
-
-    def test_family_nocreate_noupdate_noexisting(self):
-        # do not create if not existing
-        obj = Family.retrieve_or_create(
-            self.session, {'object': 'taxon',
-                           'rank': 'familia',
-                           'epithet': 'Araucariaceae'},
-            create=False)
-        self.assertEqual(obj, None)
-
-    def test_family_nocreate_noupdateeq_existing(self):
-        # retrieve same object, we only give the keys
-        obj = Family.retrieve_or_create(
-            self.session, {'object': 'taxon',
-                           'rank': 'familia',
-                           'epithet': 'Leguminosae'},
-            create=False, update=False)
-        self.assertTrue(obj is not None)
-        self.assertEqual(obj.qualifier, 's. str.')
-
-    def test_family_nocreate_noupdatediff_existing(self):
-        # do not update object with new data
-        obj = Family.retrieve_or_create(
-            self.session, {'object': 'taxon',
-                           'rank': 'familia',
-                           'epithet': 'Leguminosae',
-                           'qualifier': 's. lat.'},
-            create=False, update=False)
-        self.assertEqual(obj.qualifier, 's. str.')
-
-    def test_family_nocreate_updatediff_existing(self):
-        # update object in self.session
-        obj = Family.retrieve_or_create(
-            self.session, {'object': 'taxon',
-                           'rank': 'familia',
-                           'epithet': 'Leguminosae',
-                           'qualifier': 's. lat.'},
-            create=False, update=True)
-        self.assertEqual(obj.qualifier, 's. lat.')
-
-    def test_genus_nocreate_noupdate_noexisting_impossible(self):
-        # do not create if not existing
-        obj = Genus.retrieve_or_create(
-            self.session, {'object': 'taxon',
-                           'rank': 'genus',
-                           'epithet': 'Masdevallia'},
-            create=False)
-        self.assertEqual(obj, None)
-
-    def test_genus_create_noupdate_noexisting_impossible(self):
-        # do not create if not existing
-        obj = Genus.retrieve_or_create(
-            self.session, {'object': 'taxon',
-                           'rank': 'genus',
-                           'epithet': 'Masdevallia'},
-            create=True)
-        self.assertEqual(obj, None)
-
-    def test_genus_nocreate_noupdate_noexisting_possible(self):
-        # do not create if not existing
-        obj = Genus.retrieve_or_create(
-            self.session, {'object': 'taxon',
-                           'rank': 'genus',
-                           'epithet': 'Masdevallia',
-                           'ht-rank': 'familia',
-                           'ht-epithet': 'Orchidaceae'},
-            create=False)
-        self.assertEqual(obj, None)
-
-    def test_genus_nocreate_noupdateeq_existing(self):
-        # retrieve same object, we only give the keys
-        obj = Genus.retrieve_or_create(
-            self.session, {'object': 'taxon',
-                           'rank': 'genus',
-                           'epithet': 'Maxillaria'},
-            create=False, update=False)
-        self.assertTrue(obj is not None)
-        self.assertEqual(obj.author, '')
-
-    def test_genus_nocreate_noupdatediff_existing(self):
-        # do not update object with new data
-        obj = Genus.retrieve_or_create(
-            self.session, {'object': 'taxon',
-                           'rank': 'genus',
-                           'epithet': 'Maxillaria',
-                           'author': 'Schltr.'},
-            create=False, update=False)
-        self.assertTrue(obj is not None)
-        self.assertEqual(obj.author, '')
-
-    def test_genus_nocreate_updatediff_existing(self):
-        # update object in self.session
-        obj = Genus.retrieve_or_create(
-            self.session, {'object': 'taxon',
-                           'rank': 'genus',
-                           'epithet': 'Maxillaria',
-                           'author': 'Schltr.'},
-            create=False, update=True)
-        self.assertTrue(obj is not None)
-        self.assertEqual(obj.author, 'Schltr.')
-
-    def test_vernacular_name_as_dict(self):
-        bra = self.session.query(Species).filter(Species.id == 21).first()
-        vn_bra = self.session.query(VernacularName).filter(
-            VernacularName.language == 'agr',
-            VernacularName.species == bra).all()
-        self.assertEqual(vn_bra[0].as_dict(),
-                          {'object': 'vernacular_name',
-                           'name': 'Toé',
-                           'language': 'agr',
-                           'species': 'Brugmansia arborea'})
-        vn_bra = self.session.query(VernacularName).filter(
-            VernacularName.language == 'es',
-            VernacularName.species == bra).all()
-        self.assertEqual(vn_bra[0].as_dict(),
-                          {'object': 'vernacular_name',
-                           'name': 'Floripondio',
-                           'language': 'es',
-                           'species': 'Brugmansia arborea'})
-
-    def test_vernacular_name_nocreate_noupdate_noexisting(self):
-        # do not create if not existing
-        obj = VernacularName.retrieve_or_create(
-            self.session, {'object': 'vernacular_name',
-                           'language': 'nap',
-                           'species': 'Brugmansia arborea'},
-            create=False)
-        self.assertEqual(obj, None)
-
-    def test_vernacular_name_nocreate_noupdateeq_existing(self):
-        # retrieve same object, we only give the keys
-        obj = VernacularName.retrieve_or_create(
-            self.session, {'object': 'vernacular_name',
-                           'language': 'agr',
-                           'species': 'Brugmansia arborea'},
-            create=False, update=False)
-        self.assertTrue(obj is not None)
-        self.assertEqual(obj.name, 'Toé')
-
-    def test_vernacular_name_nocreate_noupdatediff_existing(self):
-        # do not update object with new data
-        obj = VernacularName.retrieve_or_create(
-            self.session, {'object': 'vernacular_name',
-                           'language': 'agr',
-                           'name': 'wronge',
-                           'species': 'Brugmansia arborea'},
-            create=False, update=False)
-        self.assertEqual(obj.name, 'Toé')
-
-    def test_vernacular_name_nocreate_updatediff_existing(self):
-        # update object in self.session
-        obj = VernacularName.retrieve_or_create(
-            self.session, {'object': 'vernacular_name',
-                           'language': 'agr',
-                           'name': 'wronge',
-                           'species': 'Brugmansia arborea'},
-            create=False, update=True)
-        self.assertEqual(obj.name, 'wronge')
-
-
 class CitesStatus_test(PlantTestCase):
     """we can retrieve the cites status as defined in family-genus-species"""
 
@@ -2531,49 +2245,6 @@ Lauraceae,,Cinnamomum,,"camphora",var.,"nominale","Hats. & Hayata"
         self.assertIsNone(sp.infrasp3)
         self.assertIsNone(sp.infrasp4_rank)
         self.assertIsNone(sp.infrasp4)
-
-
-class SpeciesProperties_test(PlantTestCase):
-    "we can retrieve species_note objects given species and category"
-
-    def test_species_note_nocreate_noupdate_noexisting(self):
-        # do not create if not existing
-        obj = SpeciesNote.retrieve_or_create(
-            self.session, {'object': 'species_note',
-                           'category': 'IUCN',
-                           'species': 'Laelia grandiflora'},
-            create=False)
-        self.assertEqual(obj, None)
-
-    def test_species_note_nocreate_noupdateeq_existing(self):
-        # retrieve same object, we only give the keys
-        obj = SpeciesNote.retrieve_or_create(
-            self.session, {'object': 'species_note',
-                           'category': 'IUCN',
-                           'species': 'Encyclia fragrans'},
-            create=False, update=False)
-        self.assertTrue(obj is not None)
-        self.assertEqual(obj.note, 'LC')
-
-    def test_species_note_nocreate_noupdatediff_existing(self):
-        # do not update object with new data
-        obj = SpeciesNote.retrieve_or_create(
-            self.session, {'object': 'species_note',
-                           'category': 'IUCN',
-                           'species': 'Encyclia fragrans',
-                           'note': 'EX'},
-            create=False, update=False)
-        self.assertEqual(obj.note, 'LC')
-
-    def test_species_note_nocreate_updatediff_existing(self):
-        # update object in self.session
-        obj = SpeciesNote.retrieve_or_create(
-            self.session, {'object': 'species_note',
-                           'category': 'IUCN',
-                           'species': 'Encyclia fragrans',
-                           'note': 'EX'},
-            create=False, update=True)
-        self.assertEqual(obj.note, 'EX')
 
 
 class AttributesStoredInNotesTests(PlantTestCase):
@@ -4305,6 +3976,36 @@ class RetrieveTests(PlantTestCase):
         }
         genus = Genus.retrieve(self.session, keys)
         self.assertIsNone(genus)
+
+    def test_genus_retreive_2_entries_diff_authors(self):
+        eric = Family(family='Ericaceae')
+        g1 = Genus(genus='Azalea', author='L.', family=eric)
+        g2 = Genus(genus='Azalea', author='Gaertn.', family=eric)
+        self.session.add_all([g1, g2])
+        self.session.commit()
+        # fails, not unique
+        keys = {
+            'family': 'Ericaceae',
+            'genus': 'Azalea',
+        }
+        genus = Genus.retrieve(self.session, keys)
+        self.assertIsNone(genus)
+        # with author suceeds
+        keys = {
+            'family': 'Ericaceae',
+            'genus': 'Azalea',
+            'author': 'L.'
+        }
+        genus = Genus.retrieve(self.session, keys)
+        self.assertEqual(genus, g1)
+
+        keys = {
+            'family': 'Ericaceae',
+            'genus': 'Azalea',
+            'author': 'Gaertn.'
+        }
+        genus = Genus.retrieve(self.session, keys)
+        self.assertEqual(genus, g2)
 
     def test_family_retreives(self):
         keys = {

@@ -489,30 +489,14 @@ accession_type_to_plant_material = {
 }
 
 
-def compute_serializable_fields(_cls, session, keys):
-    result = {'accession': None}
-
-    acc_keys = {}
-    acc_keys.update(keys)
-    acc_keys['code'] = keys['accession']
-    accession = Accession.retrieve_or_create(
-        session, acc_keys, create=(
-            'taxon' in acc_keys and 'rank' in acc_keys))
-
-    result['accession'] = accession
-
-    return result
-
-
-AccessionNote = db.make_note_class('Accession', compute_serializable_fields)
+AccessionNote = db.make_note_class('Accession')
 AccessionDocument = db.make_note_class('Accession',
-                                       compute_serializable_fields,
                                        cls_type='document',
                                        extra_columns={'note':
                                                       Column(UnicodeText)})
 
 
-class Accession(db.Base, db.Serializable, db.WithNotes):
+class Accession(db.Base, db.WithNotes):
     """
     :Table name: accession
 
@@ -797,79 +781,6 @@ class Accession(db.Base, db.Serializable, db.WithNotes):
 
     def markup(self):
         return f'{self.code} ({self.species.markup() if self.species else ""})'
-
-    def as_dict(self):
-        result = db.Serializable.as_dict(self)
-        result['species'] = self.species.str(remove_zws=True, authors=False)
-        if self.source and self.source.source_detail:
-            result['contact'] = self.source.source_detail.name
-        return result
-
-    @classmethod
-    def correct_field_names(cls, keys):
-        for internal, exchange in [('species', 'taxon')]:
-            if exchange in keys:
-                keys[internal] = keys[exchange]
-                del keys[exchange]
-
-    @classmethod
-    def compute_serializable_fields(cls, session, keys):
-        logger.debug('compute_serializable_fields(session, %s)', keys)
-        result = {'species': None}
-        keys = dict(keys)  # make copy
-        if 'species' in keys:
-            keys['taxon'] = keys['species']
-            keys['rank'] = 'species'
-        if 'rank' in keys and 'taxon' in keys:
-            # now we must connect the accession to the species it refers to
-            if keys['rank'] == 'species':
-                # this can only handle a binomial it would seem
-                genus_name, epithet = keys['taxon'].split(' ', 1)
-                sp_dict = {'ht-epithet': genus_name,
-                           'epithet': epithet}
-                # NOTE insert the infrasp parts if they are present issue is we
-                # will need an exact match for it to work when trying to match.
-                _parts = {
-                    'genus',
-                    'sp',
-                    'hybrid',
-                    'infrasp1',
-                    'infrasp1_rank',
-                    'infrasp2',
-                    'infrasp2_rank',
-                    'infrasp3',
-                    'infrasp3_rank',
-                    'infrasp4',
-                    'infrasp4_rank'
-                }
-                sp_parts = {key: keys[key] for key in
-                            _parts.intersection(list(keys.keys()))}
-                sp_dict.update(sp_parts)
-                # if have details for the species parts updating with epithet
-                # is likely to just breaks things
-                if any(part in sp_dict for part in _parts):
-                    result['species'] = Species.retrieve_or_create(
-                        session, sp_dict, create=False, update=False)
-                else:
-                    result['species'] = Species.retrieve_or_create(
-                        session, sp_dict, create=False)
-            # NOTE <rd> the rest of this is of no consequence to me as it
-            # refers to attaching an accession to a higher rank (genus or
-            # family) which we never do
-            elif keys['rank'] == 'genus':
-                result['species'] = Species.retrieve_or_create(
-                    session, {'ht-epithet': keys['taxon'],
-                              'epithet': 'sp'})
-            elif keys['rank'] == 'familia':
-                unknown_genus = 'Zzz-' + keys['taxon'][:-1]
-                Genus.retrieve_or_create(
-                    session, {'ht-epithet': keys['taxon'],
-                              'epithet': unknown_genus})
-                result['species'] = Species.retrieve_or_create(
-                    session, {'ht-epithet': unknown_genus,
-                              'epithet': 'sp'})
-            logger.debug('compute_serializable_fields results = %s', result)
-        return result
 
     def top_level_count(self):
         source = self.source.source_detail if self.source else None

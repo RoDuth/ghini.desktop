@@ -116,7 +116,7 @@ remove_action = Action('family_remove', _('_Delete'),
 family_context_menu = [edit_action, add_species_action, remove_action]
 
 
-class Family(db.Base, db.Serializable, db.WithNotes):
+class Family(db.Base, db.WithNotes):
     """
     :Table name: family
 
@@ -219,24 +219,6 @@ class Family(db.Base, db.Serializable, db.WithNotes):
         return ' '.join([s for s in [
             family.family, family.qualifier] if s not in (None, '')])
 
-    def as_dict(self, recurse=True):
-        result = db.Serializable.as_dict(self)
-        del result['family']
-        del result['qualifier']
-        result['object'] = 'taxon'
-        result['rank'] = self.rank
-        result['epithet'] = self.family
-        if recurse and self.accepted is not None:
-            result['accepted'] = self.accepted.as_dict(recurse=False)
-        return result
-
-    @classmethod
-    def correct_field_names(cls, keys):
-        for internal, exchange in [('family', 'epithet')]:
-            if exchange in keys:
-                keys[internal] = keys[exchange]
-                del keys[exchange]
-
     def top_level_count(self):
         genera = set(g for g in self.genera if g.species)
         species = [s for g in genera for s in
@@ -274,17 +256,7 @@ class Family(db.Base, db.Serializable, db.WithNotes):
 Familia = Family
 
 
-def compute_serializable_fields(_cls, session, keys):
-    result = {'family': None}
-
-    family_keys = {'epithet': keys['family']}
-    result['family'] = Family.retrieve_or_create(
-        session, family_keys, create=False)
-
-    return result
-
-
-FamilyNote = db.make_note_class('Family', compute_serializable_fields)
+FamilyNote = db.make_note_class('Family')
 
 
 class FamilySynonym(db.Base):

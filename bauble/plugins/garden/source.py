@@ -972,7 +972,7 @@ source_detail_context_menu = [source_detail_edit_action,
                               source_detail_remove_action]
 
 
-class SourceDetail(db.Base, db.Serializable):
+class SourceDetail(db.Base):
     __tablename__ = 'source_detail'
 
     # ITF2 - E6 - Donor

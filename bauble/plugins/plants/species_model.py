@@ -115,7 +115,7 @@ compare_rank = {
 }
 
 
-class Species(db.Base, db.Serializable, db.WithNotes):
+class Species(db.Base, db.WithNotes):
     """
     :Table name: species
 
@@ -319,10 +319,7 @@ class Species(db.Base, db.Serializable, db.WithNotes):
         from .genus import Genus
         parts = cls.uniq_props[:]
         parts.remove('genus')
-
-        # NOTE don't include id in json taxon imports (can break tests)
-        if not keys.get('ht-epithet'):
-            parts.append('id')
+        parts.append('id')
 
         sp_parts = {k: v for k, v in keys.items() if k in parts}
 
@@ -330,8 +327,9 @@ class Species(db.Base, db.Serializable, db.WithNotes):
             return None
 
         logger.debug('sp_parts in keys %s', sp_parts)
-        gen = (keys.get('genus') or keys.get('ht-epithet') or
-               keys.get('genus.genus') or keys.get('genus.epithet'))
+        gen = (keys.get('genus') or keys.get('genus.genus') or
+               keys.get('genus.epithet'))
+
         logger.debug('retrieve species with sp_parts %s and genus %s',
                      sp_parts, gen)
 
@@ -804,46 +802,6 @@ class Species(db.Base, db.Serializable, db.WithNotes):
         setattr(self, self.infrasp_attr[level]['epithet'], epithet)
         setattr(self, self.infrasp_attr[level]['author'], author)
 
-    def as_dict(self, recurse=True):
-        result = dict((col, getattr(self, col))
-                      for col in list(self.__table__.columns.keys())
-                      if col not in ['id', 'sp'] and
-                      col[0] != '_' and
-                      getattr(self, col) is not None and
-                      not col.endswith('_id'))
-        if result.get('full_name'):
-            del result['full_name']
-        result['object'] = 'taxon'
-        result['rank'] = 'species'
-        result['epithet'] = self.sp
-        result['ht-rank'] = 'genus'
-        result['ht-epithet'] = self.genus.genus
-        if recurse and self.accepted is not None:
-            result['accepted'] = self.accepted.as_dict(recurse=False)
-        return result
-
-    @classmethod
-    def correct_field_names(cls, keys):
-        for internal, exchange in [('sp_author', 'author'),
-                                   ('sp', 'epithet')]:
-            if exchange in keys:
-                keys[internal] = keys[exchange]
-                del keys[exchange]
-
-    @classmethod
-    def compute_serializable_fields(cls, session, keys):
-        from .genus import Genus
-        result = {'genus': None}
-        # retrieve genus object
-        specifies_family = keys.get('familia')
-        result['genus'] = Genus.retrieve_or_create(
-            session, {'epithet': keys['ht-epithet'],
-                      'ht-epithet': specifies_family},
-            create=(specifies_family is not None))
-        if result['genus'] is None:
-            raise error.NoResultException()
-        return result
-
     def top_level_count(self):
         accessions = db.get_active_children('accessions', self)
         plants = [p for a in accessions for p in
@@ -913,41 +871,8 @@ def update_all_full_names_handler(*_args):
     queue(update_all_full_names_task())
 
 
-def as_dict(self):
-    result = db.Serializable.as_dict(self)
-    result['species'] = self.species.str(self.species, remove_zws=True)
-    return result
-
-
-def compute_serializable_fields(_cls, session, keys):
-    logger.debug('compute_serializable_fields(session, %s)', keys)
-    result = {}
-    genus_name, epithet = keys['species'].split(' ', 1)
-    sp_dict = {'ht-epithet': genus_name,
-               'epithet': epithet}
-    result['species'] = Species.retrieve_or_create(
-        session, sp_dict, create=False)
-    return result
-
-
-def retrieve(cls, session, keys):
-    from .genus import Genus
-    genus, epithet = keys['species'].split(' ', 1)
-    try:
-        return (session.query(cls)
-                .filter(cls.category == keys['category'])
-                .join(Species)
-                .filter(Species.sp == epithet)
-                .join(Genus)
-                .filter(Genus.genus == genus).one())
-    except Exception:
-        return None
-
-
-SpeciesNote = db.make_note_class('Species', compute_serializable_fields,
-                                 as_dict, retrieve)
-SpeciesPicture = db.make_note_class('Species', compute_serializable_fields,
-                                    as_dict, retrieve, cls_type='picture')
+SpeciesNote = db.make_note_class('Species')
+SpeciesPicture = db.make_note_class('Species', cls_type='picture')
 
 
 class SpeciesSynonym(db.Base):
@@ -967,7 +892,7 @@ class SpeciesSynonym(db.Base):
         return str(self.synonym)
 
 
-class VernacularName(db.Base, db.Serializable):
+class VernacularName(db.Base):
     """
     :Table name: vernacular_name
 
@@ -999,27 +924,6 @@ class VernacularName(db.Base, db.Serializable):
 
     @classmethod
     def retrieve(cls, session, keys):
-        # for json imports
-        from .genus import Genus
-        if sp_val := keys.get('species'):
-            g_epithet, s_epithet = sp_val.split(' ', 1)
-            sp = (session.query(Species)
-                  .filter(Species.sp == s_epithet)
-                  .join(Genus)
-                  .filter(Genus.genus == g_epithet)
-                  .first())
-            if sp:
-                from sqlalchemy.exc import SQLAlchemyError
-                try:
-                    # pylint: disable=no-member
-                    return (session.query(cls)
-                            .filter(cls.species == sp,
-                                    cls.language == keys.get('language'))
-                            .one())
-                except SQLAlchemyError:
-                    return None
-
-        # for other imports
         s_parts = cls.sp_retrieve_cols
         sp_keys = {k.removeprefix('species.'): v for k, v in keys.items() if
                    k in s_parts}
@@ -1051,25 +955,6 @@ class VernacularName(db.Base, db.Serializable):
 
     def __str__(self):
         return self.name or ''
-
-    def as_dict(self):
-        result = db.Serializable.as_dict(self)
-        # pylint: disable=no-member
-        result['species'] = self.species.str(self.species, remove_zws=True)
-        return result
-
-    @classmethod
-    def compute_serializable_fields(cls, session, keys):
-        logger.debug('compute_serializable_fields(session, %s)', keys)
-        result = {'species': None}
-        if 'species' in keys:
-            # now we must connect the name to the species it refers to
-            genus_name, epithet = keys['species'].split(' ', 1)
-            sp_dict = {'ht-epithet': genus_name,
-                       'epithet': epithet}
-            result['species'] = Species.retrieve_or_create(
-                session, sp_dict, create=False)
-        return result
 
     @property
     def pictures(self):

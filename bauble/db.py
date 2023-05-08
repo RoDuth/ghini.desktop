@@ -36,8 +36,7 @@ from gi.repository import Gtk
 
 import sqlalchemy as sa
 from sqlalchemy import event
-from sqlalchemy.orm import (class_mapper,
-                            object_session,
+from sqlalchemy.orm import (object_session,
                             declarative_base,
                             DeclarativeMeta)
 from sqlalchemy.orm.attributes import get_history
@@ -555,61 +554,13 @@ def verify_connection(new_engine, show_error_dialogs=False):
     return True
 
 
-def make_note_class(name, compute_serializable_fields, as_dict=None,
-                    retrieve=None, cls_type='note', extra_columns=None):
+def make_note_class(name, cls_type='note', extra_columns=None):
     """Dynamically create a related table class of the notes type.
 
     Current use is for notes and pictures tables."""
 
     class_name = name + cls_type.capitalize()
     table_name = name.lower() + '_' + cls_type
-
-    def is_defined(self):
-        return bool(self.user and self.category and getattr(self, cls_type))
-
-    def is_empty(self):
-        return (not self.user and
-                not self.category and
-                not getattr(self, cls_type))
-
-    def retrieve_or_create(cls, session, keys, create=True, update=True):
-        """return database object corresponding to keys."""
-        category = keys.get('category', '')
-
-        # normally, it's one note per category, but for list values, and for
-        # pictures, we can have more than one.
-        if create and (category.startswith('[') and category.endswith(']')):
-            # dirty trick: making sure it's not going to be found!
-            import uuid
-            keys['category'] = str(uuid.uuid4())[:32]
-        result = super(globals()[class_name], cls
-                       ).retrieve_or_create(session, keys, create, update)
-        keys['category'] = category
-        if result:
-            result.category = category
-        return result
-
-    def retrieve_default(cls, session, keys):
-        qry = session.query(cls)
-        if name.lower() in keys:
-            qry = qry.join(globals()[name]).filter(
-                globals()[name].code == keys[name.lower()])
-        if 'date' in keys:
-            qry = qry.filter(cls.date == keys['date'])
-        if 'category' in keys:
-            qry = qry.filter(cls.category == keys['category'])
-        try:
-            return qry.one()
-        except Exception:
-            return None
-
-    def as_dict_default(self):
-        result = db.Serializable.as_dict(self)
-        result[name.lower()] = getattr(self, name.lower()).code
-        return result
-
-    as_dict = as_dict or as_dict_default
-    retrieve = retrieve or retrieve_default
 
     obj_dict = {'__tablename__': table_name,
 
@@ -627,18 +578,12 @@ def make_note_class(name, compute_serializable_fields, as_dict=None,
                     name,
                     uselist=False,
                     backref=sa.orm.backref(cls_type + 's',
-                                           cascade='all, delete-orphan')),
-                'retrieve': classmethod(retrieve),
-                'retrieve_or_create': classmethod(retrieve_or_create),
-                'compute_serializable_fields':
-                classmethod(compute_serializable_fields),
-                'is_defined': is_defined,
-                'as_dict': as_dict}
+                                           cascade='all, delete-orphan'))}
 
     if extra_columns:
         obj_dict.update(extra_columns)
 
-    result = type(class_name, (Base, Serializable), obj_dict)
+    result = type(class_name, (Base,), obj_dict)
     return result
 
 
@@ -690,153 +635,6 @@ class WithNotes:
         if is_dict:
             return dict(result)
         return result
-
-
-class Serializable:
-    single_cap_re = re.compile('([A-Z])')
-    link_keys = []
-
-    def as_dict(self):
-        result = dict((col, getattr(self, col)) for col in
-                      list(self.__table__.columns.keys()) if col not in
-                      ['id'] and col[0] != '_' and getattr(self, col) is not
-                      None and not col.endswith('_id'))
-        result['object'] = self.single_cap_re.sub(
-            r'_\1', self.__class__.__name__).lower()[1:]
-        return result
-
-    @classmethod
-    def correct_field_names(cls, keys):
-        """correct keys dictionary according to class attributes
-
-        exchange format may use different keys than class attributes
-        """
-
-    @classmethod
-    def compute_serializable_fields(cls, session, keys):
-        """create objects corresponding to keys (class dependent)"""
-        return {}
-
-    @classmethod
-    def retrieve_or_create(cls, session, keys, create=True, update=True):
-        """return database object corresponding to keys"""
-
-        logger.debug('initial value of keys: %s', keys)
-        # first try retrieving
-        is_in_session = cls.retrieve(session, keys)\
-            # pylint: disable=no-member
-        logger.debug('2 value of keys: %s', keys)
-
-        if not create and not is_in_session:
-            logger.debug('not creating from %s; returning None (1)', str(keys))
-            return None
-
-        if is_in_session and not update:
-            logger.debug("returning not updated existing %s", is_in_session)
-            return is_in_session
-
-        try:
-            # some fields are given as text but actually correspond to
-            # different fields and should be associated to objects
-            extradict = cls.compute_serializable_fields(
-                session, keys)
-
-            # what fields must be corrected
-            cls.correct_field_names(keys)
-        except error.NoResultException:
-            if not is_in_session:
-                logger.debug("returning None (2)")
-                return None
-            extradict = {}
-        except Exception as e:  # pylint: disable=broad-except
-            logger.debug("this was unexpected %s", e)
-            raise
-
-        logger.debug('3 value of keys: %s', keys)
-
-        # at this point, resulting object is either in database or not. in
-        # either case, the database is going to be updated.
-
-        # link_keys are python-side properties, not database associations
-        # and have as value objects that are possibly in the database, or
-        # not, but they cannot be used to construct the `self` object.
-        link_values = {}
-        for key in cls.link_keys:
-            if keys.get(key):
-                link_values[key] = keys[key]
-
-        logger.debug("link_values : %s", str(link_values))
-
-        for k in list(keys.keys()):
-            if k not in class_mapper(cls).persist_selectable.c:
-                del keys[k]
-        if 'id' in keys:
-            del keys['id']
-        logger.debug('4 value of keys: %s', keys)
-
-        keys.update(extradict)
-        logger.debug('5 value of keys: %s', keys)
-
-        # early construct object before building links
-        if not is_in_session and create:
-            # completing the task of building the links
-            logger.debug("links? %s, %s", cls.link_keys, list(keys.keys()))
-            for key in cls.link_keys:
-                val = link_values.get(key)
-                if val is None:
-                    continue
-                logger.debug('recursive call to construct_from_dict %s', val)
-                obj = construct_from_dict(session, val)
-                keys[key] = obj
-            logger.debug("going to create new %s with %s", cls, keys)
-            result = cls(**keys)
-            session.add(result)
-
-        # or possibly reuse existing object
-        if is_in_session and update:
-            result = is_in_session
-
-            # completing the task of building the links
-            logger.debug("links? %s, %s", cls.link_keys, list(keys.keys()))
-            for key in cls.link_keys:
-                val = link_values.get(key)
-                if val is None:
-                    continue
-                logger.debug('recursive call to construct_from_dict %s', val)
-                obj = construct_from_dict(session, val)
-                keys[key] = obj
-
-        logger.debug("going to update %s with %s", result, keys)
-        if 'id' in keys:
-            del keys['id']
-        for k, v in list(keys.items()):
-            if isinstance(v, dict):
-                if v.get('__class__') == 'datetime':
-                    msecs = v.get('millis', 0)
-                    v = datetime.datetime(1970, 1, 12)
-                    v = v + datetime.timedelta(0, msecs)
-                else:
-                    v = None
-            if v is not None:
-                setattr(result, k, v)
-        logger.debug('returning updated existing %s', result)
-
-        session.flush()
-
-        logger.debug('returning new %s', result)
-        return result
-
-
-def construct_from_dict(session, obj, create=True, update=True):
-    # get class and remove reference
-    logger.debug("construct_from_dict %s", obj)
-    klass = None
-    if 'object' in obj:
-        klass = class_of_object(obj['object'])
-    if klass is None and 'rank' in obj:
-        klass = globals().get(obj['rank'].capitalize())
-        del obj['rank']
-    return klass.retrieve_or_create(session, obj, create=create, update=update)
 
 
 def class_of_object(obj):

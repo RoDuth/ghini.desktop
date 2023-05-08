@@ -129,23 +129,11 @@ map_action = Action('loc_map',
 loc_context_menu = [edit_action, add_plant_action, remove_action, map_action]
 
 
-def compute_serializable_fields(_cls, session, keys):
-    result = {'location': None}
-
-    location_keys = {'code': keys['location']}
-    result['location'] = Location.retrieve_or_create(
-        session, location_keys, create=False)
-
-    return result
+LocationNote = db.make_note_class('Location')
+LocationPicture = db.make_note_class('Location', cls_type='picture')
 
 
-LocationNote = db.make_note_class('Location', compute_serializable_fields)
-LocationPicture = db.make_note_class('Location',
-                                     compute_serializable_fields,
-                                     cls_type='picture')
-
-
-class Location(db.Base, db.Serializable, db.WithNotes):
+class Location(db.Base, db.WithNotes):
     """
     :Table name: location
 

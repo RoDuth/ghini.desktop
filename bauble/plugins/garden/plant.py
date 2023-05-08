@@ -332,57 +332,8 @@ class PlantSearch(SearchStrategy):
         return query
 
 
-def as_dict(self):
-    result = db.Serializable.as_dict(self)
-    result['plant'] = (self.plant.accession.code +
-                       Plant.get_delimiter() + self.plant.code)
-    return result
-
-
-def retrieve(cls, session, keys):
-    query = session.query(cls)
-    if 'plant' in keys:
-        acc_code, plant_code = keys['plant'].rsplit(
-            Plant.get_delimiter(), 1)
-        query = (query.join(Plant)
-                 .filter(Plant.code == str(plant_code))
-                 .join(Accession)
-                 .filter(Accession.code == str(acc_code)))
-    if 'date' in keys:
-        query = query.filter(cls.date == keys['date'])
-    if 'category' in keys:
-        query = query.filter(cls.category == keys['category'])
-    try:
-        return query.one()
-    except Exception as e:  # pylint: disable=broad-except
-        logger.debug('cant retrieve %s with %s: %s:%s', cls, keys,
-                     type(e).__name__, e)
-        session.rollback()
-        return None
-
-
-def compute_serializable_fields(_cls, session, keys):
-    'plant is given as text, should be object'
-    result = {'plant': None}
-
-    acc_code, plant_code = keys['plant'].rsplit(
-        Plant.get_delimiter(), 1)
-    logger.debug("acc-plant: %s-%s", acc_code, plant_code)
-    query = (session.query(Plant)
-             .filter(Plant.code == str(plant_code))
-             .join(Accession)
-             .filter(Accession.code == str(acc_code)))
-    plant = query.one()
-
-    result['plant'] = plant
-
-    return result
-
-
-PlantNote = db.make_note_class('Plant', compute_serializable_fields,
-                               as_dict, retrieve)
-PlantPicture = db.make_note_class('Plant', compute_serializable_fields,
-                                  as_dict, retrieve, cls_type='picture')
+PlantNote = db.make_note_class('Plant')
+PlantPicture = db.make_note_class('Plant', cls_type='picture')
 
 
 change_reasons = {
@@ -562,7 +513,7 @@ acc_type_values = {'Plant': _('Plant'),
                    None: ''}
 
 
-class Plant(db.Base, db.Serializable, db.WithNotes):
+class Plant(db.Base, db.WithNotes):
     """
     :Table name: plant
 
@@ -785,38 +736,6 @@ class Plant(db.Base, db.Serializable, db.WithNotes):
     def markup(self):
         return (f'{self.accession}{self.delimiter}{self.code} '
                 f'({self.accession.species_str(markup=True)})')
-
-    def as_dict(self):
-        result = db.Serializable.as_dict(self)
-        result['accession'] = self.accession.code
-        result['location'] = self.location.code
-        return result
-
-    @classmethod
-    def compute_serializable_fields(cls, session, keys):
-        result = {'accession': None,
-                  'location': None}
-
-        acc_keys = {}
-        acc_keys.update(keys)
-        acc_keys['code'] = keys['accession']
-        accession = Accession.retrieve_or_create(
-            session, acc_keys, create=(
-                'taxon' in acc_keys and 'rank' in acc_keys))
-
-        loc_keys = {}
-        loc_keys.update(keys)
-        if 'location' in keys:
-            loc_keys['code'] = keys['location']
-            location = Location.retrieve_or_create(
-                session, loc_keys)
-        else:
-            location = None
-
-        result['accession'] = accession
-        result['location'] = location
-
-        return result
 
     def top_level_count(self):
         source = self.accession.source and self.accession.source.source_detail
@@ -1600,7 +1519,7 @@ class PlantEditorPresenter(GenericEditorPresenter, PresenterMapMixin):
 def move_quantity_between_plants(from_plant, to_plant, to_plant_change=None):
 
     session = object_session(to_plant)
-    logger.debug('from_plant = %s', from_plant.as_dict())
+    logger.debug('from_plant = %s', from_plant)
     if to_plant_change is None:
         to_plant_change = PlantChange()
         session.add(to_plant_change)

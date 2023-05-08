@@ -535,7 +535,6 @@ class ImexPlugin(pluginmgr.Plugin):
                        CSVBackupCommandHandler,
                        CSVRestoreCommandHandler)
     from .csv_io import CSVExportTool, CSVImportTool
-    from .iojson import JSONImportTool, JSONExportTool
     from .xml import XMLExportTool, XMLExportCommandHandler
     from .shapefile import (ShapefileImportTool,
                             ShapefileExportTool)
@@ -543,8 +542,6 @@ class ImexPlugin(pluginmgr.Plugin):
              CSVBackupTool,
              CSVExportTool,
              CSVImportTool,
-             JSONImportTool,
-             JSONExportTool,
              XMLExportTool,
              ShapefileImportTool,
              ShapefileExportTool]

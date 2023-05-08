@@ -132,7 +132,7 @@ remove_action = Action('genus_remove', _('_Delete'),
 genus_context_menu = [edit_action, add_species_action, remove_action]
 
 
-class Genus(db.Base, db.Serializable, db.WithNotes):
+class Genus(db.Base, db.WithNotes):
     """
     :Table name: genus
 
@@ -227,6 +227,7 @@ class Genus(db.Base, db.Serializable, db.WithNotes):
     retrieve_cols = ['id',
                      'epithet',
                      'genus',
+                     'hybrid',
                      'author',
                      'family',
                      'family.epithet',
@@ -234,39 +235,26 @@ class Genus(db.Base, db.Serializable, db.WithNotes):
 
     @classmethod
     def retrieve(cls, session, keys):
-        # NOTE in json imports the use of the author needs to be delayed.
-        # Allowing for the import to add an author to one without.
-        # TODO why is choosing to include author or not here and not in iojson?
-        parts = ['id', 'epithet', 'genus']
+        parts = ['id', 'epithet', 'genus', 'hybrid', 'author']
 
         gen_parts = {k: v for k, v in keys.items() if k in parts}
 
         if not gen_parts:
             return None
 
-        def get_query(gen_parts):
-            query = session.query(cls).filter_by(**gen_parts)
-            fam = (keys.get('family.epithet') or keys.get('family.family') or
-                   keys.get('family'))
+        query = session.query(cls).filter_by(**gen_parts)
+        fam = (keys.get('family.epithet') or
+               keys.get('family.family') or
+               keys.get('family'))
 
-            if fam:
-                query.join(Family).filter(Family.family == fam)
-
-            return query
+        if fam:
+            query.join(Family).filter(Family.family == fam)
 
         from sqlalchemy.orm.exc import MultipleResultsFound
-        query = get_query(gen_parts)
         try:
             return query.one_or_none()
         except MultipleResultsFound:
-            if not keys.get('author'):
-                return None
-
-        author = keys.get('author')
-        if author:
-            gen_parts['author'] = author
-            query = get_query(gen_parts)
-            return query.one_or_none()
+            return None
         return None
 
     def search_view_markup_pair(self):
@@ -330,39 +318,6 @@ class Genus(db.Base, db.Serializable, db.WithNotes):
             string += ' ' + author
         return string
 
-    def as_dict(self, recurse=True):
-        result = db.Serializable.as_dict(self)
-        del result['genus']
-        del result['qualifier']
-        result['object'] = 'taxon'
-        result['rank'] = 'genus'
-        result['epithet'] = self.genus
-        result['ht-rank'] = 'familia'
-        result['ht-epithet'] = self.family.family
-        if recurse and self.accepted is not None:
-            result['accepted'] = self.accepted.as_dict(recurse=False)
-        return result
-
-    @classmethod
-    def correct_field_names(cls, keys):
-        for internal, exchange in [('genus', 'epithet'),
-                                   ('family', 'ht-epithet')]:
-            if exchange in keys:
-                keys[internal] = keys[exchange]
-                del keys[exchange]
-
-    @classmethod
-    def compute_serializable_fields(cls, session, keys):
-        result = {'family': None}
-        # retrieve family object
-        if keys.get('ht-epithet'):
-            result['family'] = Family.retrieve_or_create(
-                session, {'epithet': keys['ht-epithet']},
-                create=True)
-        if result['family'] is None:
-            raise error.NoResultException()
-        return result
-
     def top_level_count(self):
         species = db.get_active_children('species', self)
         accessions = [a for s in species for a in
@@ -419,17 +374,7 @@ def genus_before_update(_mapper, connection, target):
                                  **vals)
 
 
-def compute_serializable_fields(_cls, session, keys):
-    result = {'genus': None}
-
-    genus_keys = {'epithet': keys['genus']}
-    result['genus'] = Genus.retrieve_or_create(
-        session, genus_keys, create=False)
-
-    return result
-
-
-GenusNote = db.make_note_class('Genus', compute_serializable_fields)
+GenusNote = db.make_note_class('Genus')
 
 
 class GenusSynonym(db.Base):
