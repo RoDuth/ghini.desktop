@@ -46,6 +46,7 @@ from bauble import paths
 from bauble import editor
 from .geography import GeographyMenu, Geography
 from .genus import Genus, GenusSynonym
+from .family import Family
 from .species_model import (Species,
                             SpeciesDistribution,
                             VernacularName,
@@ -455,17 +456,99 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
             }
             self.start_sp_markup = model.str(markup=True, authors=True)
 
-    def sp_species_tpl_callback(self, found, accepted):
-        # both found and accepted are dictionaries, their keys here
-        # relevant: 'Species hybrid marker', 'Species', 'Authorship',
-        # 'Taxonomic status in TPL'.
+    def _get_taxon(self, parts, species=None):
+        msg = None
+        gen_hybrid = parts['Genus hybrid marker'] or None
+        from sqlalchemy.orm.exc import MultipleResultsFound
+        try:
+            genus = (self.session.query(Genus)
+                     .join(Family)
+                     .filter(Family.epithet == parts['Family'])
+                     .filter(Genus.epithet == parts['Genus'])
+                     .filter(Genus.hybrid == gen_hybrid)
+                     .one_or_none())
+        except MultipleResultsFound:
+            return None, _('Could not resolve the genus, you have '
+                           'multiple matches.')
 
-        # we can provide the user the option to accept spellings
-        # corrections in 'Species', the full value of 'Authorship', and
-        # full acceptedy links. it's TWO boxes that we might show. or
-        # one if nothing matches.
+        if not genus:
+            try:
+                family = (
+                    self.session.query(Family)
+                    .filter(Family.epithet == parts['Family'])
+                    .one_or_none()
+                )
+            except MultipleResultsFound:
+                return None, _('Could not resolve the family, you have '
+                               'multiple matches.')
+
+            try:
+                genus = (self.session.query(Genus)
+                         .filter(Genus.epithet == parts['Genus'])
+                         .filter(Genus.hybrid == gen_hybrid)
+                         .one_or_none())
+                if not genus:
+                    # missing hybrid marker
+                    genus = (self.session.query(Genus)
+                             .filter(Genus.epithet == parts['Genus'])
+                             .one_or_none())
+            except MultipleResultsFound:
+                return None, _('Could not resolve the genus, you have '
+                               'multiple matches.')
+
+            if not family:
+                family = Family(epithet=parts['Family'])
+
+            if genus and genus.family != family:
+                genus.family = family
+                msg = _('The family of the genus has been changed '
+                        'affecting all species of this genera,\nsaving '
+                        'now will make this permanent.\n')
+
+            if not genus:
+                genus = Genus(epithet=parts['Genus'])
+                msg = _('An entirely new genus has been generated.  If you '
+                        'would rather rename the existing genus\nor create it '
+                        'yourself cancel now.')
+
+            genus.hybrid = gen_hybrid
+            genus.family = family
+
+        if not species:
+            query = (self.session.query(Species)
+                     .filter(Species.sp == parts['Species'])
+                     .filter(Species.infraspecific_rank ==
+                             (parts['Infraspecific rank'] or None))
+                     .filter(Species.infraspecific_epithet ==
+                             (parts['Infraspecific epithet'] or None)))
+
+            if genus and genus.id:
+                query = query.filter(Species.genus == genus)
+
+            species = query.first()
+
+        if not species:
+            species = Species()
+            msg = _('An entirely new species has been generated.')
+
+        species.genus = genus
+        species.hybrid = parts['Species hybrid marker'] or None
+        species.sp = parts['Species']
+        species.infrasp1_rank = parts['Infraspecific rank'] or None
+        species.infrasp1 = parts['Infraspecific epithet'] or None
+
+        if parts['Infraspecific rank']:
+            species.infrasp1_author = parts['Authorship']
+        else:
+            species.sp_author = parts['Authorship']
+
+        return species, msg
+
+    def sp_species_tpl_callback(self, found, accepted):
+        # both found and accepted are dictionaries
 
         self.view.close_boxes()
+
         if found:
             found = dict((k, utils.nstr(v)) for k, v in found.items())
             found_s = dict((k, utils.xml_safe(utils.nstr(v))) for k, v in
@@ -475,65 +558,102 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
                             accepted.items())
             accepted_s = dict((k, utils.xml_safe(utils.nstr(v))) for
                               k, v in accepted.items())
-
         msg_box_msg = _('No match found on ThePlantList.org')
 
         if not (found is None and accepted is None):
 
-            # if inserted data matches found, just say so.
-            if (self.model.sp == found['Species'] and
-                    self.model.sp_author == found['Authorship'] and
-                    self.model.hybrid == found['Species hybrid marker']):
+            def _is_match(model, vals):
+                if not model or not vals:
+                    return False
+
+                author_level = 'sp_author'
+                if vals['Infraspecific epithet']:
+                    author_level = 'infraspecific_author'
+
+                return (
+                    model.genus.family.epithet == vals['Family'] and
+                    model.genus.epithet == vals['Genus'] and
+                    model.sp == vals['Species'] and
+                    model.infraspecific_rank == vals['Infraspecific rank'] and
+                    model.infraspecific_epithet ==
+                    vals['Infraspecific epithet'] and
+                    getattr(model, author_level) == vals['Authorship'] and
+                    model.hybrid == (vals['Species hybrid marker'] or None) and
+                    model.genus.hybrid == (vals['Genus hybrid marker'] or None)
+                )
+
+            if (_is_match(self.model, found) and
+                    (accepted is None or
+                     _is_match(self.model.accepted, accepted))):
                 msg_box_msg = _('your data finely matches ThePlantList.org')
             else:
-                cit = (f'<i>{found_s["Genus"]}</i> '
-                       f'{found_s["Species hybrid marker"]}'
-                       f'<i>{found_s["Species"]}</i> '
-                       f'{found_s["Authorship"]} ({found_s["Family"]})')
-                msg = _('%s is the closest match for your data.\n'
-                        'Do you want to accept it?') % cit
-                box = self.view.add_message_box(utils.MESSAGE_BOX_YESNO)
-                box1 = box
-                box.message = msg
-
-                def on_response_found(_button, response):
-                    self.view.remove_box(box1)
-                    if response:
-                        self.set_model_attr('sp', found['Species'])
-                        self.set_model_attr('sp_author',
-                                            found['Authorship'])
-                        self.set_model_attr(
-                            'hybrid',
-                            found['Species hybrid marker'] or None)
-                        self.refresh_view()
-                        self.refresh_fullname_label()
-
-                box.on_response = on_response_found
-                box.show()
-                self.view.add_box(box)
-                self.species_check_messages.append(box)
-                msg_box_msg = None
-
-            if self.model.accepted is None and accepted is not None:
-                # TODO why not handle infrspecific?
-                if not accepted:  # infraspecific synonym, can't handle
-                    msg = _('closest match is a synonym of something at '
-                            'infraspecific rank, which I cannot handle.')
-                    box = self.view.add_message_box(utils.MESSAGE_BOX_INFO)
-                    box2 = box
+                if not _is_match(self.model, found):
+                    msg_box_msg = None
+                    infrasp = ''
+                    if found_s['Infraspecific epithet']:
+                        infrasp = (
+                            f' {found_s["Infraspecific rank"]} '
+                            f'<i>{found_s["Infraspecific epithet"]}</i> '
+                        )
+                    cit = (f'{found_s["Genus hybrid marker"]}'
+                           f'<i>{found_s["Genus"]}</i> '
+                           f'{found_s["Species hybrid marker"]}'
+                           f'<i>{found_s["Species"]}</i> '
+                           f'{infrasp}'
+                           f'{found_s["Authorship"]} '
+                           f'({found_s["Family"]})')
+                    msg = _('%s is the closest match for your data.\n'
+                            'Do you want to accept it?') % cit
+                    box = self.view.add_message_box(utils.MESSAGE_BOX_YESNO)
+                    box1 = box
                     box.message = msg
 
-                    def on_response_accepted(_button, _response):
-                        self.view.remove_box(box2)
-                else:
+                    def on_response_found(_button, response):
+                        self.view.remove_box(box1)
+                        if response:
+                            model, msg = self._get_taxon(found, self.model)
+                            if model:
+                                self._dirty = True
+                            self.infrasp_presenter.refresh_rows()
+                            self.refresh_view()
+                            self.refresh_fullname_label()
+                            self.refresh_sensitivity()
+
+                            if msg:
+                                box0 = self.view.add_message_box(
+                                    utils.MESSAGE_BOX_INFO
+                                )
+                                box0.message = msg
+                                box0.on_response = (lambda b, r:
+                                                    self.view.remove_box(box0))
+                                box0.show()
+                                self.view.add_box(box0)
+                                self.species_check_messages.append(box0)
+
+                    box.on_response = on_response_found
+                    box.show()
+                    self.view.add_box(box)
+                    self.species_check_messages.append(box)
+
+                if accepted and not _is_match(self.model.accepted, accepted):
+                    msg_box_msg = None
                     # synonym is at rank species, this is fine
-                    cit = (f'<i>{accepted_s["Genus"]}</i> '
+                    infrasp = ''
+                    if accepted_s['Infraspecific epithet']:
+                        infrasp = (
+                            f' {accepted_s["Infraspecific rank"]} '
+                            f'<i>{accepted_s["Infraspecific epithet"]}</i> '
+                        )
+                    cit = (f'{accepted_s["Genus hybrid marker"]}'
+                           f'<i>{accepted_s["Genus"]}</i> '
                            f'{accepted_s["Species hybrid marker"]}'
                            f'<i>{accepted_s["Species"]}</i> '
+                           f'{infrasp}'
                            f'{accepted_s["Authorship"]} '
                            f'({accepted_s["Family"]})')
                     msg = _('%s is the accepted taxon for your data.\n'
-                            'Do you want to add it?') % cit
+                            'Do you want to add it and transfer any '
+                            'acessions to it?') % cit
                     box = self.view.add_message_box(utils.MESSAGE_BOX_YESNO)
                     box2 = box
                     box.message = msg
@@ -541,30 +661,31 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
                     def on_response_accepted(_button, response):
                         self.view.remove_box(box2)
                         if response:
-                            self.model.accepted = (
-                                Species.retrieve_or_create(
-                                    self.session, {
-                                        'object': 'taxon',
-                                        'rank': 'species',
-                                        'ht-rank': 'genus',
-                                        'familia': accepted['Family'],
-                                        'ht-epithet': accepted['Genus'],
-                                        'epithet': accepted['Species'],
-                                        'author': accepted['Authorship'],
-                                        'hybrid': accepted[
-                                            'Species hybrid marker'
-                                        ] or None
-                                    }
-                                )
-                            )
+                            model, msg = self._get_taxon(accepted)
+                            if model and model is not self.model:
+                                self.model.accepted = model
+                                for acc in self.model.accessions.copy():
+                                    acc.species = model
+                            self._dirty = True
+                            self.refresh_sensitivity()
                             self.refresh_view()
                             self.refresh_fullname_label()
 
-                box.on_response = on_response_accepted
-                box.show()
-                self.view.add_box(box)
-                self.species_check_messages.append(box)
-                msg_box_msg = None
+                            if msg:
+                                box0 = self.view.add_message_box(
+                                    utils.MESSAGE_BOX_INFO
+                                )
+                                box0.message = msg
+                                box0.on_response = (lambda b, r:
+                                                    self.view.remove_box(box0))
+                                box0.show()
+                                self.view.add_box(box0)
+                                self.species_check_messages.append(box0)
+
+                    box.on_response = on_response_accepted
+                    box.show()
+                    self.view.add_box(box)
+                    self.species_check_messages.append(box)
 
         if msg_box_msg is not None:
             box0 = self.view.add_message_box(utils.MESSAGE_BOX_INFO)
@@ -583,7 +704,7 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
             kid = self.species_check_messages.pop()
             self.view.widgets.remove_parent(kid)
 
-        binomial = f'{self.model.genus} {self.model.sp}'
+        binomial = str(self.model)
         # we need a longer timeout for the first time at least when using
         # pypac to get the proxy configuration
         logger.debug('calling AskTpl with binomial=%s', binomial)
@@ -604,6 +725,10 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
                  .filter(utils.ilike(Genus.genus, f'%{text}%'))
                  .order_by(Genus.genus)
                  .limit(80))
+        if self.model.genus in self.session.new:
+            # e.g. after on_sp_species_button_clicked has caused a new genus to
+            # be added.
+            return query.all() + [self.model.genus]
         return query
 
     # called when a genus is selected from the genus completions
@@ -822,6 +947,7 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
             Species.cv_group == self.model.cv_group,
         ).first()
         logger.debug("looking for %s, found %s", self.model, omonym)
+
         if omonym in [None, self.model]:
             # should not warn, so check warning and remove
             if self.omonym_box is not None:
@@ -865,10 +991,7 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
 
     def refresh_view(self):
         for widget, field in self.widget_to_field_map.items():
-            if field == 'genus_id':
-                value = self.model.genus
-            else:
-                value = getattr(self.model, field)
+            value = getattr(self.model, field)
             logger.debug('%s, %s, %s(%s)', widget, field, type(value), value)
             self.view.widget_set_value(widget, value)
 
@@ -1035,8 +1158,11 @@ class InfraspPresenter(editor.GenericEditorPresenter):
         for item in self.view.widgets.infrasp_grid.get_children():
             if not isinstance(item, Gtk.Label):
                 self.view.widgets.remove_parent(item)
-
         self.table_rows = []
+        self.refresh_rows()
+
+    def refresh_rows(self):
+        self.clear_rows()
         for index in range(1, 5):
             infrasp = self.model.get_infrasp(index)
             if infrasp != (None, None, None):
@@ -1045,7 +1171,7 @@ class InfraspPresenter(editor.GenericEditorPresenter):
     def is_dirty(self):
         return self._dirty
 
-    def append_infrasp(self, _widget):
+    def append_infrasp(self, _widget=None):
         level = len(self.table_rows) + 1
         if level == 1 or self.model.get_infrasp(level - 1)[0]:
             row = InfraspRow(self, level)
@@ -1057,9 +1183,8 @@ class InfraspPresenter(editor.GenericEditorPresenter):
 
     def clear_rows(self):
         """Clear all the infraspecific rows if any exist"""
-        if self.table_rows:
-            for row in self.table_rows.copy():
-                row.on_remove_button_clicked(None)
+        for row in self.table_rows.copy():
+            row.on_remove_button_clicked(None)
 
 
 class DistributionPresenter(editor.GenericEditorPresenter):

@@ -2566,7 +2566,7 @@ class SpeciesEditorPresenterTests(PlantTestCase):
         self.assertEqual([str(i) for i in result], ['Cynodon', 'Encyclia'])
         del presenter
 
-    def test_sp_species_tpl_callback(self):
+    def test_sp_species_tpl_callback_not_found(self):
         fam = Family(family='Family')
         gen = Genus(genus='Genus', family=fam)
         sp = Species(genus=gen, sp='sp')
@@ -2578,21 +2578,47 @@ class SpeciesEditorPresenterTests(PlantTestCase):
         presenter.sp_species_tpl_callback(None, None)
         self.assertEqual([i.message for i in presenter.species_check_messages],
                          ['No match found on ThePlantList.org'])
-        presenter.species_check_messages = []
+        del presenter
 
-        presenter.sp_species_tpl_callback({'Species': 'sp',
-                                           'Authorship': None,
-                                           'Species hybrid marker': None},
+    def test_sp_species_tpl_callback_match(self):
+        fam = Family(family='Family')
+        gen = Genus(genus='Genus', family=fam)
+        sp = Species(genus=gen, sp='sp')
+        self.session.add(sp)
+        self.session.commit()
+        view = SpeciesEditorView()
+        presenter = SpeciesEditorPresenter(sp, view)
+
+        presenter.sp_species_tpl_callback({'Family': 'Family',
+                                           'Genus hybrid marker': '',
+                                           'Genus': 'Genus',
+                                           'Species hybrid marker': '',
+                                           'Species': 'sp',
+                                           'Infraspecific rank': '',
+                                           'Infraspecific epithet': '',
+                                           'Authorship': None},
                                           None)
         self.assertEqual([i.message for i in presenter.species_check_messages],
                          ['your data finely matches ThePlantList.org'])
-        presenter.species_check_messages = []
+        del presenter
+
+    def test_sp_species_tpl_callback_found(self):
+        fam = Family(family='Family')
+        gen = Genus(genus='Genus', family=fam)
+        sp = Species(genus=gen, sp='sp')
+        self.session.add(sp)
+        self.session.commit()
+        view = SpeciesEditorView()
+        presenter = SpeciesEditorPresenter(sp, view)
 
         presenter.sp_species_tpl_callback({'Family': 'Family',
+                                           'Genus hybrid marker': '',
                                            'Genus': 'Genus',
+                                           'Species hybrid marker': '',
                                            'Species': 'better_name',
-                                           'Authorship': None,
-                                           'Species hybrid marker': None},
+                                           'Infraspecific rank': '',
+                                           'Infraspecific epithet': '',
+                                           'Authorship': None},
                                           None)
         self.assertEqual(len(presenter.species_check_messages), 1)
         self.assertIn('is the closest match for your data',
@@ -2601,29 +2627,48 @@ class SpeciesEditorPresenterTests(PlantTestCase):
                       presenter.species_check_messages[0].message)
         presenter.species_check_messages = []
 
+        # second run same result
         presenter.sp_species_tpl_callback({'Family': 'Family',
+                                           'Genus hybrid marker': '',
                                            'Genus': 'Genus',
+                                           'Species hybrid marker': '',
                                            'Species': 'better_name',
-                                           'Authorship': None,
-                                           'Species hybrid marker': None},
+                                           'Infraspecific rank': 'var.',
+                                           'Infraspecific epithet': 'better',
+                                           'Authorship': None},
                                           None)
         self.assertEqual(len(presenter.species_check_messages), 1)
         self.assertIn('is the closest match for your data',
                       presenter.species_check_messages[0].message)
         self.assertIn('better_name',
                       presenter.species_check_messages[0].message)
-        presenter.species_check_messages = []
+        del presenter
+
+    def test_sp_species_tpl_callback_found_accepted(self):
+        fam = Family(family='Family')
+        gen = Genus(genus='Genus', family=fam)
+        sp = Species(genus=gen, sp='sp')
+        self.session.add(sp)
+        self.session.commit()
+        view = SpeciesEditorView()
+        presenter = SpeciesEditorPresenter(sp, view)
 
         presenter.sp_species_tpl_callback({'Family': 'Family',
+                                           'Genus hybrid marker': '',
                                            'Genus': 'Genus',
+                                           'Species hybrid marker': '',
                                            'Species': 'better_name',
-                                           'Authorship': None,
-                                           'Species hybrid marker': None},
+                                           'Infraspecific rank': '',
+                                           'Infraspecific epithet': '',
+                                           'Authorship': None},
                                           {'Family': 'Family',
+                                           'Genus hybrid marker': '',
                                            'Genus': 'Genus',
+                                           'Species hybrid marker': '',
                                            'Species': 'even_better_name',
-                                           'Authorship': 'Somone',
-                                           'Species hybrid marker': None})
+                                           'Infraspecific rank': '',
+                                           'Infraspecific epithet': '',
+                                           'Authorship': 'Somone'})
         self.assertEqual(len(presenter.species_check_messages), 2)
         self.assertIn('is the closest match for your data',
                       presenter.species_check_messages[0].message)
@@ -2633,12 +2678,318 @@ class SpeciesEditorPresenterTests(PlantTestCase):
                       presenter.species_check_messages[1].message)
         self.assertIn('even_better_name',
                       presenter.species_check_messages[1].message)
-        presenter.species_check_messages = []
+        del presenter
 
+    def test_sp_species_tpl_callback_found_accepted_on_response(self):
+        fam = Family(family='Family')
+        gen = Genus(genus='Genus', family=fam)
+        sp = Species(genus=gen, sp='sp')
+        from ..garden import Accession
+        acc = Accession(species=sp, code='1')
+        self.session.add_all([sp, acc])
+        self.session.commit()
+        view = SpeciesEditorView()
+        presenter = SpeciesEditorPresenter(sp, view)
+
+        presenter.sp_species_tpl_callback({'Family': 'Family',
+                                           'Genus hybrid marker': '',
+                                           'Genus': 'Genus',
+                                           'Species hybrid marker': '',
+                                           'Species': 'better_name',
+                                           'Infraspecific rank': '',
+                                           'Infraspecific epithet': '',
+                                           'Authorship': None},
+                                          {'Family': 'Family2',
+                                           'Genus hybrid marker': '+',
+                                           'Genus': 'Genus2',
+                                           'Species hybrid marker': '+',
+                                           'Species': 'even_better_name',
+                                           'Infraspecific rank': 'subsp.',
+                                           'Infraspecific epithet': 'best',
+                                           'Authorship': 'Somone'})
+        self.assertEqual(len(presenter.species_check_messages), 2)
+        self.assertIn('is the closest match for your data',
+                      presenter.species_check_messages[0].message)
+        self.assertIn('better_name',
+                      presenter.species_check_messages[0].message)
+        self.assertIn('is the accepted taxon for your data',
+                      presenter.species_check_messages[1].message)
+        self.assertIn('even_better_name',
+                      presenter.species_check_messages[1].message)
+
+        for box in presenter.species_check_messages.copy():
+            box.yes_button.emit('clicked')
+            update_gui()
+
+        presenter.session.commit()
+        del presenter
+
+        self.session.expire_all()
+        self.assertEqual(sp.sp, 'better_name')
+        self.assertEqual(sp.genus, gen)
+        self.assertEqual(sp.accepted.sp, 'even_better_name')
+        self.assertEqual(sp.accepted.hybrid, '+')
+        self.assertEqual(sp.accepted.genus.family.epithet, 'Family2')
+        self.assertEqual(sp.accepted.genus.epithet, 'Genus2')
+        self.assertEqual(sp.accepted.genus.hybrid, '+')
+        # accession moved over
+        self.assertEqual(acc.species.sp, 'even_better_name')
+
+    def test_sp_species_tpl_callback_unresolved_family(self):
+        fam = Family(family='Family')
+        fam2a = Family(family='Family2', author='someone')
+        fam2b = Family(family='Family2', author='someoneelse')
+        gen = Genus(genus='Genus', family=fam)
+        gen2 = Genus(genus='Genus2', family=fam2a, author='L.')
+        sp = Species(genus=gen, sp='sp')
+        from ..garden import Accession
+        acc = Accession(species=sp, code='1')
+        self.session.add_all([sp, acc, gen2, fam2a, fam2b])
+        self.session.commit()
+        view = SpeciesEditorView()
+        presenter = SpeciesEditorPresenter(sp, view)
+
+        presenter.sp_species_tpl_callback({'Family': 'Family',
+                                           'Genus hybrid marker': '',
+                                           'Genus': 'Genus',
+                                           'Species hybrid marker': '',
+                                           'Species': 'better_name',
+                                           'Infraspecific rank': '',
+                                           'Infraspecific epithet': '',
+                                           'Authorship': None},
+                                          {'Family': 'Family2',
+                                           'Genus hybrid marker': '+',
+                                           'Genus': 'Genus2',
+                                           'Species hybrid marker': '+',
+                                           'Species': 'even_better_name',
+                                           'Infraspecific rank': 'subsp.',
+                                           'Infraspecific epithet': 'best',
+                                           'Authorship': 'Somone'})
+        self.assertEqual(len(presenter.species_check_messages), 2)
+        self.assertIn('is the closest match for your data',
+                      presenter.species_check_messages[0].message)
+        self.assertIn('better_name',
+                      presenter.species_check_messages[0].message)
+        self.assertIn('is the accepted taxon for your data',
+                      presenter.species_check_messages[1].message)
+        self.assertIn('even_better_name',
+                      presenter.species_check_messages[1].message)
+
+        for box in presenter.species_check_messages.copy():
+            box.yes_button.emit('clicked')
+            update_gui()
+
+        presenter.session.commit()
+
+        self.session.expire_all()
+        self.assertEqual(sp.sp, 'better_name')
+        self.assertEqual(sp.genus, gen)
+        self.assertIsNone(sp.accepted)
+        update_gui()
+        self.assertIn('Could not resolve the family',
+                      presenter.species_check_messages[0].message)
+        del presenter
+
+    def test_sp_species_tpl_callback_changed_family(self):
+        fam = Family(family='Family')
+        fam2 = Family(family='Family2', author='someone')
+        gen = Genus(genus='Genus', family=fam)
+        sp = Species(genus=gen, sp='better_name')
+        from ..garden import Accession
+        acc = Accession(species=sp, code='1')
+        self.session.add_all([sp, acc, fam2])
+        self.session.commit()
+        view = SpeciesEditorView()
+        presenter = SpeciesEditorPresenter(sp, view)
+
+        presenter.sp_species_tpl_callback({'Family': 'Family',
+                                           'Genus hybrid marker': '',
+                                           'Genus': 'Genus',
+                                           'Species hybrid marker': '',
+                                           'Species': 'better_name',
+                                           'Infraspecific rank': '',
+                                           'Infraspecific epithet': '',
+                                           'Authorship': None},
+                                          {'Family': 'Family2',
+                                           'Genus hybrid marker': '',
+                                           'Genus': 'Genus',
+                                           'Species hybrid marker': '',
+                                           'Species': 'better_name',
+                                           'Infraspecific rank': '',
+                                           'Infraspecific epithet': '',
+                                           'Authorship': None})
+        self.assertEqual(len(presenter.species_check_messages), 1)
+        self.assertIn('is the accepted taxon for your data',
+                      presenter.species_check_messages[0].message)
+
+        presenter.species_check_messages[0].yes_button.emit('clicked')
+
+        update_gui()
+
+        presenter.session.commit()
+
+        self.session.expire_all()
+        self.assertEqual(sp.sp, 'better_name')
+        self.assertEqual(sp.genus, gen)
+        self.assertEqual(sp.genus.family, fam2)
+        update_gui()
+        self.assertIn('The family of the genus has been changed',
+                      presenter.species_check_messages[1].message)
+        del presenter
+
+    def test_sp_species_tpl_callback_unresolved_genus(self):
+        fam = Family(family='Family')
+        fam2 = Family(family='Family2')
+        gen = Genus(genus='Genus', family=fam)
+        gen2a = Genus(genus='Genus2', family=fam2, author='L.')
+        gen2b = Genus(genus='Genus2', family=fam2, author='Someoneelse')
+        sp = Species(genus=gen, sp='sp')
+        from ..garden import Accession
+        acc = Accession(species=sp, code='1')
+        self.session.add_all([sp, acc, gen2a, gen2b])
+        self.session.commit()
+        view = SpeciesEditorView()
+        presenter = SpeciesEditorPresenter(sp, view)
+
+        presenter.sp_species_tpl_callback({'Family': 'Family',
+                                           'Genus hybrid marker': '',
+                                           'Genus': 'Genus',
+                                           'Species hybrid marker': '',
+                                           'Species': 'better_name',
+                                           'Infraspecific rank': '',
+                                           'Infraspecific epithet': '',
+                                           'Authorship': None},
+                                          {'Family': 'Family2',
+                                           'Genus hybrid marker': '+',
+                                           'Genus': 'Genus2',
+                                           'Species hybrid marker': '+',
+                                           'Species': 'even_better_name',
+                                           'Infraspecific rank': 'subsp.',
+                                           'Infraspecific epithet': 'best',
+                                           'Authorship': 'Somone'})
+        self.assertEqual(len(presenter.species_check_messages), 2)
+        self.assertIn('is the closest match for your data',
+                      presenter.species_check_messages[0].message)
+        self.assertIn('better_name',
+                      presenter.species_check_messages[0].message)
+        self.assertIn('is the accepted taxon for your data',
+                      presenter.species_check_messages[1].message)
+        self.assertIn('even_better_name',
+                      presenter.species_check_messages[1].message)
+
+        for box in presenter.species_check_messages.copy():
+            box.yes_button.emit('clicked')
+            update_gui()
+
+        presenter.session.commit()
+
+        self.session.expire_all()
+        self.assertEqual(sp.sp, 'better_name')
+        self.assertEqual(sp.genus, gen)
+        self.assertIsNone(sp.accepted)
+        update_gui()
+        self.assertIn('Could not resolve the genus',
+                      presenter.species_check_messages[0].message)
+        del presenter
+
+    def test_sp_species_tpl_callback_new_genus(self):
+        fam = Family(family='Family')
+        gen = Genus(genus='Genus', family=fam)
+        sp = Species(genus=gen, sp='right_name')
+        self.session.add(sp)
+        self.session.commit()
+        # id_ = sp.id
+        view = SpeciesEditorView()
+        presenter = SpeciesEditorPresenter(sp, view)
+
+        presenter.sp_species_tpl_callback({'Family': 'Family',
+                                           'Genus hybrid marker': '',
+                                           'Genus': 'Genus2',
+                                           'Species hybrid marker': '',
+                                           'Species': 'right_name',
+                                           'Infraspecific rank': '',
+                                           'Infraspecific epithet': '',
+                                           'Authorship': None},
+                                          {})
+        self.assertEqual(len(presenter.species_check_messages), 1)
+        self.assertIn('is the closest match for your data',
+                      presenter.species_check_messages[0].message)
+        self.assertIn('right_name',
+                      presenter.species_check_messages[0].message)
+        self.assertIn('Genus2',
+                      presenter.species_check_messages[0].message)
+
+        presenter.species_check_messages[0].yes_button.emit('clicked')
+
+        update_gui()
+
+        presenter.session.commit()
+
+        self.assertEqual(presenter.model, sp)
+
+        self.assertEqual(sp.sp, 'right_name')
+        self.assertEqual(sp.genus.epithet, 'Genus2')
+        self.assertEqual(sp.genus.family, fam)
+        update_gui()
+        self.assertIn('An entirely new genus has been generated.',
+                      presenter.species_check_messages[0].message)
+        del presenter
+
+    def test_sp_species_tpl_callback_new_species(self):
+        fam = Family(family='Family')
+        fam2 = Family(family='Family2', author='someone')
+        gen = Genus(genus='Genus', family=fam)
+        sp = Species(genus=gen, sp='not_right_name')
+        from ..garden import Accession
+        acc = Accession(species=sp, code='1')
+        self.session.add_all([sp, acc, fam2])
+        self.session.commit()
+        view = SpeciesEditorView()
+        presenter = SpeciesEditorPresenter(sp, view)
+
+        presenter.sp_species_tpl_callback({'Family': 'Family',
+                                           'Genus hybrid marker': '',
+                                           'Genus': 'Genus',
+                                           'Species hybrid marker': '',
+                                           'Species': 'right_name',
+                                           'Infraspecific rank': '',
+                                           'Infraspecific epithet': '',
+                                           'Authorship': None},
+                                          {'Family': 'Family2',
+                                           'Genus hybrid marker': '',
+                                           'Genus': 'Genus',
+                                           'Species hybrid marker': '',
+                                           'Species': 'even_better_name',
+                                           'Infraspecific rank': 'var.',
+                                           'Infraspecific epithet': 'best',
+                                           'Authorship': 'L.'})
+        self.assertEqual(len(presenter.species_check_messages), 2)
+        self.assertIn('is the closest match for your data',
+                      presenter.species_check_messages[0].message)
+        self.assertIn('right_name',
+                      presenter.species_check_messages[0].message)
+        self.assertIn('is the accepted taxon for your data',
+                      presenter.species_check_messages[1].message)
+        self.assertIn('even_better_name',
+                      presenter.species_check_messages[1].message)
+
+        for box in presenter.species_check_messages.copy():
+            box.yes_button.emit('clicked')
+            update_gui()
+
+        presenter.session.commit()
+
+        self.session.expire_all()
+        self.assertEqual(sp.sp, 'right_name')
+        self.assertEqual(sp.genus, gen)
+        self.assertEqual(sp.genus.family, fam2)
+        update_gui()
+        self.assertIn('An entirely new species has been generated.',
+                      presenter.species_check_messages[0].message)
         del presenter
 
     @mock.patch('bauble.plugins.plants.ask_tpl.AskTPL')
-    def test_on_species_button_clicked(self, mock_tpl):
+    def test_on_species_button_clicked(self, _mock_tpl):
         sp = Species()
         self.session.add(sp)
         view = SpeciesEditorView()
@@ -2752,6 +3103,7 @@ class SpeciesEditorPresenterTests(PlantTestCase):
         self.session.commit()
         sp = Species(genus=gen, sp='sp')
         self.session.add(sp)
+        self.session.commit()
 
         view = SpeciesEditorView()
         presenter = SpeciesEditorPresenter(sp, view)

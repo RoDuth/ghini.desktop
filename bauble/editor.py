@@ -334,6 +334,7 @@ class GenericEditorView:
             self.boxes.remove(box)
             self.widgets.remove_parent(box)
             box.destroy()
+            self.get_window().resize(1, 1)
         else:
             logger.debug('box to be removed is not there')
 

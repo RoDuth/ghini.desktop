@@ -80,7 +80,7 @@ class AskTPL(threading.Thread):
             result = [row for row in csv.reader(str(k) for k in l if k)]
             header = result[0]
             result = result[1:]
-            return [dict(list(zip(header, k))) for k in result if k[7] == '']
+            return [dict(list(zip(header, k))) for k in result]
 
         class ShouldStopNow(Exception):
             pass
@@ -100,10 +100,23 @@ class AskTPL(threading.Thread):
                 raise ShouldStopNow('after first query')
             if len(candidates) > 1:
                 for item in candidates:
-                    g, s = item['Genus'], item['Species']
-                    seq = difflib.SequenceMatcher(a=self.binomial,
-                                                  b='%s %s' % (g, s))
-                    item['_score_'] = seq.ratio()
+                    if item['Taxonomic status in TPL'] == 'Unresolved':
+                        item['_score_'] = 0.1
+                    else:
+                        infrasp = ''
+                        if item['Infraspecific epithet']:
+                            infrasp = (
+                                f' {item["Infraspecific rank"]} '
+                                f'{item["Infraspecific epithet"]} '
+                            )
+                        string = (f'{item["Genus hybrid marker"]}'
+                                  f'{item["Genus"]} '
+                                  f'{item["Species hybrid marker"]}'
+                                  f'{item["Species"]}'
+                                  f'{infrasp}')
+                        seq = difflib.SequenceMatcher(a=self.binomial,
+                                                      b=string)
+                        item['_score_'] = seq.ratio()
 
                 # put 'Accepted' last
                 order = {'Accepted': 3, 'Synonym': 2, 'Unresolved': 1}
@@ -127,12 +140,6 @@ class AskTPL(threading.Thread):
                 logger.debug("ask_tpl on the Accepted ID returns %s", accepted)
                 if accepted:
                     accepted = accepted[0]
-                else:
-                    logger.debug(
-                        "taxon %s %s (%s) is marked as synonym. "
-                        "accepted form (%s) is at infraspecific rank.",
-                        found['Genus'], found['Species'], found['ID'],
-                        found['Accepted ID'])
                 logger.debug("%s after second query", self.name)
             if self.stopped():
                 raise ShouldStopNow('after second query')
@@ -157,7 +164,7 @@ class AskTPL(threading.Thread):
 def citation(d):
     return ("%(Genus hybrid marker)s%(Genus)s "
             "%(Species hybrid marker)s%(Species)s "
-            # "%(Infraspecific rank)s %(Infraspecific epithet)s "
+            "%(Infraspecific rank)s %(Infraspecific epithet)s "
             "%(Authorship)s (%(Family)s)" % d).replace('   ', ' ')
 
 
