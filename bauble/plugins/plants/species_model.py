@@ -175,6 +175,8 @@ class Species(db.Base, db.WithNotes):
         *distribution*:
     """
     __tablename__ = 'species'
+    __table_args__ = (UniqueConstraint('full_sci_name',
+                                       name='sp_name'), {})
 
     # for internal use when importing records, accounts for the lack of
     # UniqueConstraint and the complex of hybrid_properties etc.
@@ -295,6 +297,7 @@ class Species(db.Base, db.WithNotes):
     flower_color = relationship('Color', uselist=False, backref='species')
 
     full_name = Column(Unicode(512), index=True)
+    full_sci_name = Column(Unicode(512), index=True)
 
     # hardiness_zone = Column(Unicode(4))
 
@@ -839,11 +842,13 @@ class Species(db.Base, db.WithNotes):
 @event.listens_for(Species, 'before_update')
 def species_before_update(_mapper, _connection, target):
     target.full_name = str(target)
+    target.full_sci_name = target.str(authors=True)
 
 
 @event.listens_for(Species, 'before_insert')
 def species_before_insert(_mapper, _connection, target):
     target.full_name = str(target)
+    target.full_sci_name = target.str(authors=True)
 
 
 def update_all_full_names_task():
@@ -858,6 +863,7 @@ def update_all_full_names_task():
     five_percent = int(count / 20) or 1
     for done, sp in enumerate(session.query(Species)):
         sp.full_name = str(sp)
+        sp.full_sci_name = sp.str(authors=True)
         if done % five_percent == 0:
             session.commit()
             pb_set_fraction(done / count)

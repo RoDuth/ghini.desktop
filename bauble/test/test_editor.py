@@ -347,15 +347,18 @@ class PictureBoxTests(BaubleTestCase):
         img_full_path = os.path.join(paths.lib_dir(), 'images', img_name)
         copy2(img_full_path, os.path.join(temp, 'pictures'))
 
+        from sqlalchemy import Unicode
         # create fake data and add a second model of different type with same
         # img.  Commit the lot.
         self.model.picture = img_name
         for col in self.parent_model.__table__.columns:
-            if not col.nullable:
+            if not col.nullable and col.name != 'id':
                 if col.name.endswith('_id'):
                     setattr(self.parent_model, col.name, 1)
                 if not getattr(self.parent_model, col.name):
                     setattr(self.parent_model, col.name, '123')
+            elif isinstance(col.type, Unicode):
+                setattr(self.parent_model, col.name, '987')
 
         note_cls = type(self.model)
         parent_model = type(self.parent_model)()
@@ -364,11 +367,13 @@ class PictureBoxTests(BaubleTestCase):
         self.session.add(model2)
 
         for col in parent_model.__table__.columns:
-            if not col.nullable:
+            if not col.nullable and col.name != 'id':
                 if col.name.endswith('_id'):
                     setattr(parent_model, col.name, 1)
                 if not getattr(parent_model, col.name):
                     setattr(parent_model, col.name, '345')
+            elif isinstance(col.type, Unicode):
+                setattr(parent_model, col.name, '567')
 
         self.session.commit()
 
