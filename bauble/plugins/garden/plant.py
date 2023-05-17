@@ -846,7 +846,7 @@ def plant_after_update(_mapper, connection, target):  \
             new_change = PlantChange(**values,
                                      id=result.inserted_primary_key[0])
             db.History.event_add('insert',
-                                 object_mapper(new_change),
+                                 object_mapper(new_change).local_table,
                                  connection,
                                  new_change)
 
@@ -883,7 +883,7 @@ def plant_after_insert(_mapper, connection, target):
     new_change = PlantChange(**values,
                              id=result.inserted_primary_key[0])
     db.History.event_add('insert',
-                         object_mapper(new_change),
+                         object_mapper(new_change).local_table,
                          connection,
                          new_change)
 

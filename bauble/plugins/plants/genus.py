@@ -368,7 +368,7 @@ def genus_before_update(_mapper, connection, target):
                                .values(vals))
             # update history because above does not trigger history
             db.History.event_add('update',
-                                 object_mapper(sp),
+                                 object_mapper(sp).local_table,
                                  connection,
                                  sp,
                                  **vals)

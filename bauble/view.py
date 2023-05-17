@@ -1702,11 +1702,12 @@ class HistoryView(pluginmgr.View, Gtk.Box):
     history_tv = Gtk.Template.Child()
 
     TVC_OBJ = 0
-    TVC_TIMESTAMP = 1
-    TVC_OPERATION = 2
-    TVC_USER = 3
-    TVC_TABLE = 4
-    TVC_USER_FRIENDLY = 5
+    TVC_ID = 1
+    TVC_TIMESTAMP = 2
+    TVC_OPERATION = 3
+    TVC_USER = 4
+    TVC_TABLE = 5
+    TVC_USER_FRIENDLY = 6
 
     queries = {}
 
@@ -1774,6 +1775,7 @@ class HistoryView(pluginmgr.View, Gtk.Box):
         frmt = prefs.prefs.get(prefs.datetime_format_pref)
         self.liststore.append([
             item,
+            str(item.id),
             item.timestamp.strftime(frmt),
             item.operation,
             item.user,

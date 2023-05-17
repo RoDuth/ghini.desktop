@@ -264,7 +264,7 @@ class History(HistoryBase):
         connection.execute(stmt)
 
     @classmethod
-    def event_add(cls, operation, mapper, connection, instance, **kwargs):
+    def event_add(cls, operation, table, connection, instance, **kwargs):
         """Add an extra entry to the history table.
 
         This version accepts the instance in its state before changes with any
@@ -275,7 +275,7 @@ class History(HistoryBase):
         user = current_user()
 
         row = {}
-        for column in mapper.local_table.c:
+        for column in table.c:
 
             if operation == 'update' and column.name in kwargs:
                 row[column.name] = [kwargs[column.name],
@@ -283,13 +283,13 @@ class History(HistoryBase):
                 continue
 
             row[column.name] = cls._val(getattr(instance, column.name))
-        table = cls.__table__
-        stmt = table.insert(dict(table_name=mapper.local_table.name,
-                                 table_id=instance.id,
-                                 values=row,
-                                 operation=operation,
-                                 user=user,
-                                 timestamp=datetime.datetime.utcnow()))
+        history = cls.__table__
+        stmt = history.insert(dict(table_name=table.name,
+                                   table_id=instance.id,
+                                   values=row,
+                                   operation=operation,
+                                   user=user,
+                                   timestamp=datetime.datetime.utcnow()))
         connection.execute(stmt)
 
     @classmethod
@@ -706,17 +706,8 @@ def get_unique_columns(model):
     return uniq_cols
 
 
-def get_create_or_update(session, model, **kwargs):
-    """get, create or update and add to the session an appropriate database
-    entry given its model and some data.
-
-    Intended for use when possibly looking to update values but unsure
-    what those updates are.  It is best to provide something clearly
-    identifying (i.e. a primary key or all unique fields) when updating.
-    Note: when using unique fields and not a primary key it is generally not
-    possible to update any unique fields, a new entry will be created instead.
-    Note: will add related items to the session but not flush or commit
-    anything.
+def get_existing(session, model, **kwargs):
+    """get an appropriate database entry given its model and some data or None.
 
     :param session: instance of db.Session()
     :param model: sqlalchemy table class
@@ -735,7 +726,7 @@ def get_create_or_update(session, model, **kwargs):
     except SQLAlchemyError:
         # any other error (i.e. no result, error in the statement - can occur
         # with new data not flushed yet.)
-        inst = None
+        inst = False
 
     logger.debug("couldn't find matching object just using kwargs")
     # second try using a primary key if one is provided
@@ -760,7 +751,7 @@ def get_create_or_update(session, model, **kwargs):
             except MultipleResultsFound:
                 return None
             except SQLAlchemyError:
-                inst = None
+                inst = False
         else:
             logger.debug("couldn't find unique columns to use.")
 
@@ -777,12 +768,34 @@ def get_create_or_update(session, model, **kwargs):
             except MultipleResultsFound:
                 return None
             except SQLAlchemyError:
-                inst = None
+                inst = False
         else:
             logger.debug("couldn't find uniq_props columns to use.")
 
-    # if none of the above got a result it should be safe to create a new entry
-    if not inst:
+    return inst
+
+
+def get_create_or_update(session, model, **kwargs):
+    """get, create or update and add to the session an appropriate database
+    entry given its model and some data.
+
+    Intended for use when possibly looking to update values but unsure
+    what those updates are.  It is best to provide something clearly
+    identifying (i.e. a primary key or all unique fields) when updating.
+    Note: when using unique fields and not a primary key it is generally not
+    possible to update any unique fields, a new entry will be created instead.
+    Note: will add related items to the session but not flush or commit
+    anything.
+
+    :param session: instance of db.Session()
+    :param model: sqlalchemy table class
+    :param kwargs: database values
+    """
+    inst = get_existing(session, model, **kwargs)
+    if inst is None:
+        return None
+    # if the above got a false result it should be safe to create a new entry
+    if inst is False:
         logger.debug('creating new %s with %s', model, kwargs)
         inst = model(**kwargs)
         session.add(inst)

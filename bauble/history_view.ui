@@ -10,6 +10,8 @@
       <column type="gchararray"/>
       <!-- column-name operation -->
       <column type="gchararray"/>
+      <!-- column-name operation -->
+      <column type="gchararray"/>
       <!-- column-name user -->
       <column type="gchararray"/>
       <!-- column-name table -->
@@ -42,7 +44,7 @@
             </child>
             <child>
               <object class="GtkTreeViewColumn">
-                <property name="title" translatable="yes">Timestamp</property>
+                <property name="title" translatable="yes">ID</property>
                 <child>
                   <object class="GtkCellRendererText"/>
                   <attributes>
@@ -53,7 +55,7 @@
             </child>
             <child>
               <object class="GtkTreeViewColumn">
-                <property name="title" translatable="yes">Operation</property>
+                <property name="title" translatable="yes">Timestamp</property>
                 <child>
                   <object class="GtkCellRendererText"/>
                   <attributes>
@@ -64,7 +66,7 @@
             </child>
             <child>
               <object class="GtkTreeViewColumn">
-                <property name="title" translatable="yes">User</property>
+                <property name="title" translatable="yes">Operation</property>
                 <child>
                   <object class="GtkCellRendererText"/>
                   <attributes>
@@ -75,7 +77,7 @@
             </child>
             <child>
               <object class="GtkTreeViewColumn">
-                <property name="title" translatable="yes">Table Name</property>
+                <property name="title" translatable="yes">User</property>
                 <child>
                   <object class="GtkCellRendererText"/>
                   <attributes>
@@ -86,7 +88,7 @@
             </child>
             <child>
               <object class="GtkTreeViewColumn">
-                <property name="title" translatable="yes">Values</property>
+                <property name="title" translatable="yes">Table Name</property>
                 <child>
                   <object class="GtkCellRendererText"/>
                   <attributes>
@@ -97,11 +99,22 @@
             </child>
             <child>
               <object class="GtkTreeViewColumn">
-                <property name="title" translatable="yes">GeoJSON</property>
+                <property name="title" translatable="yes">Values</property>
                 <child>
                   <object class="GtkCellRendererText"/>
                   <attributes>
                     <attribute name="text">6</attribute>
+                  </attributes>
+                </child>
+              </object>
+            </child>
+            <child>
+              <object class="GtkTreeViewColumn">
+                <property name="title" translatable="yes">GeoJSON</property>
+                <child>
+                  <object class="GtkCellRendererText"/>
+                  <attributes>
+                    <attribute name="text">7</attribute>
                   </attributes>
                 </child>
               </object>
