@@ -868,6 +868,7 @@ def update_all_full_names_task():
             session.commit()
             pb_set_fraction(done / count)
             yield
+    session.commit()
     session.close()
 
 

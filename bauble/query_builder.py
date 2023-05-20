@@ -507,6 +507,8 @@ class ExpressionRow:
         # Except obj_id from tags
         if key.endswith('_id') and not key == 'obj_id':
             return False
+        if key.startswith('_') and key not in ('_last_updated', '_created'):
+            return False
         return True
 
     @staticmethod

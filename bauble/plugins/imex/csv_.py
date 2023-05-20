@@ -129,7 +129,6 @@ class CSVRestore:
     """
 
     def __init__(self):
-        super().__init__()
         self.translator = {}
         self.__error = False   # flag to indicate error on import
         self.__cancel = False  # flag to cancel importing
@@ -147,6 +146,7 @@ class CSVRestore:
 
         if filenames is None:
             filenames = self._get_filenames()
+
         if filenames is None:
             return
 
@@ -735,7 +735,7 @@ class CSVRestore:
 
             deps_names = ', '.join(sorted([deps.name for deps in depends]))
             # drop all of the dependencies together
-            # have added one table since v1.0 and a user may choose to drop
+            # have added tables since v1.0 and a user may choose to drop
             # one or 2 tables (e.g plugin, history)
             if len(filenames) >= len(metadata.tables) - 3:
                 if not force:

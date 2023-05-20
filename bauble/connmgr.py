@@ -672,10 +672,10 @@ def start_connection_manager():
     tooltips = {
         'rootdir2_entry': _('Set a directory to store file data in.  If left '
                             'blank you can set a global directory in the '
-                            'datbase via the options menu.'),
+                            'database via the options menu.'),
         'rootdir_entry': _('Set a directory to store file data in.  If left '
                            'blank you can set a global directory in the '
-                           'datbase via the options menu.')
+                           'database via the options menu.')
     }
     view = GenericEditorView(
         glade_path,
