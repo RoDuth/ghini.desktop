@@ -538,13 +538,15 @@ class ImexPlugin(pluginmgr.Plugin):
     from .xml import XMLExportTool, XMLExportCommandHandler
     from .shapefile import (ShapefileImportTool,
                             ShapefileExportTool)
+    from .clone import DBCloneTool
     tools = [CSVRestoreTool,
              CSVBackupTool,
              CSVExportTool,
              CSVImportTool,
              XMLExportTool,
              ShapefileImportTool,
-             ShapefileExportTool]
+             ShapefileExportTool,
+             DBCloneTool]
     commands = [CSVBackupCommandHandler,
                 CSVRestoreCommandHandler,
                 XMLExportCommandHandler]

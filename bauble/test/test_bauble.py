@@ -193,12 +193,20 @@ class BaubleTests(BaubleTestCase):
         self.assertEqual(ret.astimezone().strftime('%Y-%m-%d %I:%M:%S'),
                          string)
 
-        # datetime objects are returned as is
+        # datetime objects are returned as is if utc
         now = datetime.datetime.now().astimezone(tz=None)
         ret = dtime.process_bind_param(now, None)
         self.assertEqual(ret, now)
         now = datetime.datetime.utcnow()
         ret = dtime.process_bind_param(now, None)
+        self.assertEqual(ret, now)
+
+        # datetime objects in another timezone are converted to utc
+        now = datetime.datetime.now().astimezone(
+            datetime.timezone(datetime.timedelta(hours=9))
+        )
+        ret = dtime.process_bind_param(now, None)
+        self.assertEqual(ret.tzinfo, datetime.timezone.utc)
         self.assertEqual(ret, now)
 
         # with junk text returns none

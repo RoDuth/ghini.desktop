@@ -138,6 +138,9 @@ class DateTime(types.TypeDecorator):
 
     def process_bind_param(self, value, dialect):
         if not isinstance(value, str):
+            if value.tzinfo:
+                # incoming datetime values with a timezone set, convert to utc
+                return value.astimezone(tz=timezone.utc)
             return value
 
         if not self._dayfirst or not self._yearfirst:
