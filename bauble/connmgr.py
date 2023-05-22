@@ -666,7 +666,7 @@ class ConnMgrPresenter(GenericEditorPresenter):
         self.refresh_view()
 
 
-def start_connection_manager():
+def start_connection_manager(msg=None):
     """activate connection manager and return connection name and uri"""
     glade_path = os.path.join(paths.lib_dir(), "connmgr.glade")
     tooltips = {
@@ -683,6 +683,13 @@ def start_connection_manager():
         root_widget_name='main_dialog',
         tooltips=tooltips
     )
+    if msg:
+        view.widgets.image_box.remove(view.widgets.logo_image)
+        label = Gtk.Label()
+        label.set_markup(msg)
+        label.set_margin_top(10)
+        view.widgets.image_box.pack_start(label, True, True, 12)
+        view.widgets.image_box.show_all()
 
     con_mgr = ConnMgrPresenter(view)
     result = con_mgr.start()
