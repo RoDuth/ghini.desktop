@@ -150,8 +150,10 @@ genus_data = [
     {'id': 2, 'genus': 'Eucalyptus', 'family_id': 2},
 ]
 species_data = [
-    {'id': 1, 'sp': 'robusta', 'genus_id': 1},
-    {'id': 2, 'sp': 'major', 'genus_id': 2},
+    {'id': 1, 'sp': 'robusta', 'genus_id': 1,
+     'full_sci_name': 'Grevillea robusta'},
+    {'id': 2, 'sp': 'major', 'genus_id': 2,
+     'full_sci_name': 'Eucalyptus major'},
 ]
 vernacular_data = [
     {'id': 1, 'name': 'Mountain Grey Gum', 'species_id': 2}

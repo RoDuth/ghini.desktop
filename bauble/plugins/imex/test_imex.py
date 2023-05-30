@@ -58,11 +58,15 @@ genus_data = [
     {'id': 1, 'genus': 'Calopogon', 'family_id': 1, 'author': 'R. Br.'},
     {'id': 2, 'genus': 'Panisea', 'family_id': 1}, ]
 species_data = [
-    {'id': 1, 'sp': 'tuberosus', 'genus_id': 1, 'sp_author': None},
+    {'id': 1, 'sp': 'tuberosus', 'genus_id': 1, 'sp_author': None,
+     'full_sci_name': 'Calopogon tuberosus'},
     {'id': 2, 'sp': 'albiflora', 'genus_id': 2,
-     'sp_author': '(Ridl.) Seidenf.'},
-    {'id': 3, 'sp': 'distelidia', 'genus_id': 2, 'sp_author': 'I.D.Lund'},
-    {'id': 4, 'sp': 'zeylanica', 'genus_id': 2, 'sp_author': '(Hook.f.) Aver.'}
+     'sp_author': '(Ridl.) Seidenf.',
+     'full_sci_name': 'Panisea albiflora (Ridl.) Seidenf.'},
+    {'id': 3, 'sp': 'distelidia', 'genus_id': 2, 'sp_author': 'I.D.Lund',
+     'full_sci_name': 'Panisea distelidia I.D.Lund'},
+    {'id': 4, 'sp': 'zeylanica', 'genus_id': 2, 'sp_author': '(Hook.f.) Aver.',
+     'full_sci_name': 'Panisea zeylanica (Hook.f.) Aver.'},
 ]
 accession_data = [
     {'id': 1, 'species_id': 1, 'code': '2015.0001'},
