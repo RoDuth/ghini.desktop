@@ -265,7 +265,13 @@ class History(HistoryBase):
         connection.execute(stmt)
 
     @classmethod
-    def event_add(cls, operation, table, connection, instance, **kwargs):
+    def event_add(cls,
+                  operation,
+                  table,
+                  connection,
+                  instance,
+                  commit_user=None,
+                  **kwargs):
         """Add an extra entry to the history table.
 
         This version accepts the instance in its state before changes with any
@@ -273,21 +279,23 @@ class History(HistoryBase):
         where a change has been made via `connection.execute` and hence not
         triggered the usual history event handlers.
         """
-        user = current_user()
+        user = commit_user or current_user()
 
-        row = {}
+        values = {}
         for column in table.c:
 
             if operation == 'update' and column.name in kwargs:
-                row[column.name] = [kwargs[column.name],
-                                    getattr(instance, column.name)]
+                values[column.name] = [
+                    cls._val(kwargs[column.name]),
+                    cls._val(getattr(instance, column.name))
+                ]
                 continue
 
-            row[column.name] = cls._val(getattr(instance, column.name))
+            values[column.name] = cls._val(getattr(instance, column.name))
         history = cls.__table__
         stmt = history.insert(dict(table_name=table.name,
                                    table_id=instance.id,
-                                   values=row,
+                                   values=values,
                                    operation=operation,
                                    user=user,
                                    timestamp=datetime.datetime.utcnow()))

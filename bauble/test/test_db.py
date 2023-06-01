@@ -17,6 +17,8 @@
 # You should have received a copy of the GNU General Public License
 # along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
 
+from datetime import datetime
+from dateutil import parser
 from unittest import mock
 from sqlalchemy import func
 
@@ -30,6 +32,7 @@ from bauble.plugins.plants.species_model import VernacularName
 from bauble import db
 from bauble import prefs
 from bauble import search
+from bauble import meta
 prefs.testing = True
 
 # db.sqlalchemy_debug(True)
@@ -268,6 +271,46 @@ class HistoryTests(BaubleTestCase):
 
         for note in parent_model.notes:
             self.assertEqual(note.note, 'TEST')
+
+    def test_event_add_insert(self):
+        table = meta.BaubleMeta.__table__
+        instance = meta.get_default('test', 'test value')
+        with db.engine.begin() as connection:
+            db.History.event_add('insert',
+                                 table,
+                                 connection,
+                                 instance,
+                                 commit_user='test user')
+        rows = self.session.query(db.History).all()
+        self.assertEqual(len(rows), 2)
+        self.assertEqual(rows[1].operation, 'insert')
+        self.assertEqual(rows[1].values['name'], 'test')
+        self.assertEqual(rows[1].values['value'], 'test value')
+        self.assertEqual(rows[1].user, 'test user')
+
+    def test_event_add_update(self):
+        table = meta.BaubleMeta.__table__
+        instance = meta.get_default('test', 'test value')
+        with db.engine.begin() as connection:
+            db.History.event_add('update',
+                                 table,
+                                 connection,
+                                 instance,
+                                 _last_updated=datetime.utcnow())
+        rows = self.session.query(db.History).all()
+        self.assertEqual(len(rows), 2)
+        self.assertEqual(rows[1].operation, 'update')
+        self.assertEqual(rows[1].values['name'], 'test')
+        self.assertEqual(rows[1].values['value'], 'test value')
+        # only one update
+        self.assertEqual(
+            len([v for v in rows[1].values.values() if isinstance(v, list)]), 1
+        )
+        # test datetimes don't fail
+        self.assertAlmostEqual(
+            parser.parse((rows[1].values['_last_updated'][0])).timestamp(),
+            datetime.utcnow().timestamp(), delta=1
+        )
 
 
 class GlobalFunctionsTests(BaubleTestCase):
