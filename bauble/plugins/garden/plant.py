@@ -43,6 +43,7 @@ from sqlalchemy.orm.session import object_session
 from sqlalchemy.exc import DBAPIError, OperationalError
 from sqlalchemy.orm.attributes import get_history
 from sqlalchemy.ext.hybrid import hybrid_property
+from sqlalchemy.ext.associationproxy import association_proxy
 
 from pyparsing import (Word, removeQuotes, delimitedList, OneOrMore, oneOf,
                        Literal, printables, stringEnd, quotedString,
@@ -580,11 +581,11 @@ class Plant(db.Base, db.WithNotes):
     # has already been loaded (i.e. infobox)
     geojson = deferred(Column(types.JSON()))
 
-    propagations = relationship('Propagation',
-                                cascade='all, delete-orphan',
-                                single_parent=True,
-                                secondary=PlantPropagation.__table__,
-                                backref=backref('plant', uselist=False))
+    propagations = association_proxy('_plant_prop', 'propagations')
+    _plant_prop = relationship('PlantPropagation',
+                               cascade='all, delete-orphan',
+                               uselist=True,
+                               backref=backref('plant', uselist=False))
 
     # provide a way to search and use the change that recorded either a death
     # or a planting date directly.  This is not fool proof but close enough.

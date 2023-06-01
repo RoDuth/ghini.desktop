@@ -34,6 +34,7 @@ from sqlalchemy import Column, Integer, ForeignKey, UnicodeText
 from sqlalchemy.orm import backref, relationship
 from sqlalchemy.orm.session import object_session
 from sqlalchemy.exc import DBAPIError
+from sqlalchemy.ext.associationproxy import association_proxy
 
 from bauble import db, utils, paths, editor, prefs
 from bauble import btypes as types
@@ -68,6 +69,16 @@ class Propagation(db.Base):
                        nullable=False)
     notes = Column(UnicodeText)
     date = Column(types.Date)
+
+    plant = association_proxy(
+        '_plant_prop',
+        'plant',
+        creator=lambda plant: PlantPropagation(plant=plant)
+    )
+    _plant_prop = relationship('PlantPropagation',
+                               cascade='all, delete-orphan',
+                               uselist=False,
+                               backref=backref('propagations', uselist=False))
 
     cutting = relationship(
         'PropCutting',
@@ -479,10 +490,9 @@ class PropagationTabPresenter(editor.GenericEditorPresenter):
         # TODO: add a * to the propagation label for uncommitted propagations
         prop_type = prop_type_values[propagation.prop_type]
 
-        # hack to format date properly
-        from bauble.btypes import DateTime
-        date = DateTime().process_bind_param(propagation.date, None)
-        date_str = date.strftime(prefs.prefs[prefs.date_format_pref])
+        date_str = propagation.date.strftime(
+            prefs.prefs[prefs.date_format_pref]
+        )
         title = (_('%(prop_type)s on %(prop_date)s') %
                  dict(prop_type=prop_type, prop_date=date_str))
         expander.set_label(title)

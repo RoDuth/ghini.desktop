@@ -262,6 +262,11 @@ class GardenPlugin(pluginmgr.Plugin):
             ('{table} where source.plant_propagation.cutting.rooted.id = '
              '{obj_id} or source.propagation.cutting.rooted.id = {obj_id}')
         )
+        HistoryView.add_translation_query(
+            'plant_prop',
+            'plant',
+            ('{table} where propagations._plant_prop.id = {obj_id}')
+        )
         if bauble.gui and not cls.options_menu_set:
             cls.options_menu_set = True
 
