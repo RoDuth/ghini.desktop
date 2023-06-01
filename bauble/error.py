@@ -73,6 +73,10 @@ class VersionError(DatabaseError):
         self.version = version
 
 
+class SkipRecord(DatabaseError):
+    pass
+
+
 class SQLAlchemyVersionError(BaubleError):
     pass
 

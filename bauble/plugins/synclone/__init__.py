@@ -26,6 +26,9 @@ from bauble import pluginmgr
 class SynClonePlugin(pluginmgr.Plugin):
     # avoid cicular imports
     from .clone import DBCloneTool
-    tools = [DBCloneTool]
+    from .sync import DBSyncTool, DBResolveSyncTool
+    tools = [DBCloneTool,
+             DBSyncTool,
+             DBResolveSyncTool]
 
 plugin = SynClonePlugin
