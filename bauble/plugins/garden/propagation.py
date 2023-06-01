@@ -78,7 +78,7 @@ class Propagation(db.Base):
     _plant_prop = relationship('PlantPropagation',
                                cascade='all, delete-orphan',
                                uselist=False,
-                               backref=backref('propagations', uselist=False))
+                               backref=backref('propagation', uselist=False))
 
     cutting = relationship(
         'PropCutting',

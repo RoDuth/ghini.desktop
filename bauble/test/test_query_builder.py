@@ -100,15 +100,9 @@ class SchemaMenuTests(BaubleTestCase):
     def menu_activated(self, widget, path, prop):
         self.selected.append((path, prop))
 
-    @staticmethod
-    def key(prop):
-        key = prop.key if hasattr(prop, 'key') else prop.__name__
-        return key
-
     def test_menu_populates_w_plants(self):
         schema_menu = SchemaMenu(class_mapper(Plant), self.menu_activated)
-        for i in class_mapper(Plant).all_orm_descriptors:
-            key = self.key(i)
+        for key in class_mapper(Plant).all_orm_descriptors.keys():
             self.assertTrue(key in [j.get_label() for j in
                                     schema_menu.get_children()],
                             f'key:{key} not found in schema menu')
@@ -133,8 +127,7 @@ class SchemaMenuTests(BaubleTestCase):
         schema_menu = SchemaMenu(class_mapper(Plant),
                                  self.menu_activated,
                                  selectable_relations=True)
-        for i in class_mapper(Plant).all_orm_descriptors:
-            key = self.key(i)
+        for key in class_mapper(Plant).all_orm_descriptors.keys():
             self.assertTrue(key in [j.get_label() for j in
                                     schema_menu.get_children()],
                             f'key:{key} not found in schema menu')

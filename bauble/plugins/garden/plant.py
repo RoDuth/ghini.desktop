@@ -581,11 +581,15 @@ class Plant(db.Base, db.WithNotes):
     # has already been loaded (i.e. infobox)
     geojson = deferred(Column(types.JSON()))
 
-    propagations = association_proxy('_plant_prop', 'propagations')
-    _plant_prop = relationship('PlantPropagation',
-                               cascade='all, delete-orphan',
-                               uselist=True,
-                               backref=backref('plant', uselist=False))
+    propagations = association_proxy(
+        '_plant_props',
+        'propagation',
+        creator=lambda prop: PlantPropagation(propagation=prop)
+    )
+    _plant_props = relationship('PlantPropagation',
+                                cascade='all, delete-orphan',
+                                uselist=True,
+                                backref=backref('plant', uselist=False))
 
     # provide a way to search and use the change that recorded either a death
     # or a planting date directly.  This is not fool proof but close enough.
