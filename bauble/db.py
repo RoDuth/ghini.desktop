@@ -38,7 +38,8 @@ import sqlalchemy as sa
 from sqlalchemy import event
 from sqlalchemy.orm import (object_session,
                             declarative_base,
-                            DeclarativeMeta)
+                            DeclarativeMeta,
+                            sessionmaker)
 from sqlalchemy.orm.attributes import get_history
 
 from bauble import utils
@@ -351,14 +352,20 @@ def open_conn(uri, verify=True, show_error_dialogs=False, poolclass=None):
 
     # ** WARNING: this can print your passwd
     # logger.debug('db.open(%s)', uri)
-    from sqlalchemy.orm import sessionmaker
     new_engine = None
 
-    # avoid sqlite thread errors
     connect_args = {}
     if uri.startswith('sqlite'):
         logger.debug('sqlite, setting check_same_thread to False')
+        # avoid sqlite thread errors
         connect_args = {"check_same_thread": False}
+
+        # enforce foreign keys
+        @event.listens_for(sa.engine.Engine, 'connect')
+        def _sqlite_fk_pragma(dbapi_connection, _connection_record):
+            cursor = dbapi_connection.cursor()
+            cursor.execute("PRAGMA foreign_keys=ON;")
+            cursor.close()
 
     new_engine = sa.create_engine(uri,
                                   echo=SQLALCHEMY_DEBUG,
