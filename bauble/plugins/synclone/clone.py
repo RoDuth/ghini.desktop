@@ -38,7 +38,7 @@ import bauble
 from bauble import db
 from bauble import utils
 from bauble import pluginmgr
-import bauble.task
+from bauble import task
 from bauble import pb_set_fraction
 
 
@@ -61,7 +61,8 @@ class DBCloner:
             self.uri = self._get_uri()
 
         if self.uri:
-            bauble.task.queue(self.run())
+            task.clear_messages()
+            task.queue(self.run())
 
     @staticmethod
     def _get_uri() -> None | str:
@@ -133,13 +134,15 @@ class DBCloner:
               self.clone_engine.begin() as clone_conn):
 
             for table in db.metadata.sorted_tables:
+                if table.name == 'to_sync':
+                    continue
                 if self.__cancel:
                     logger.debug('cancelling...')
                     return
 
                 msg = _('Cloning %(table)s table') % {'table': table.name}
                 logger.info(msg)
-                bauble.task.set_message(msg)
+                task.set_message(msg)
                 yield
                 values = []
                 logger.debug('start transaction')

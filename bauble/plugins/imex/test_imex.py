@@ -24,10 +24,8 @@ logger = logging.getLogger(__name__)
 import os
 import shutil
 import tempfile
-from unittest import mock
 from datetime import datetime
 from pathlib import Path
-from tempfile import TemporaryDirectory
 from dateutil.parser import parse as date_parse
 
 import bauble
@@ -42,14 +40,13 @@ from bauble.plugins.garden import (Accession,
 from bauble.plugins.garden.accession import Voucher
 import bauble.plugins.garden.test_garden as garden_test
 import bauble.plugins.plants.test_plants as plants_test
-from bauble.test import BaubleTestCase, get_setUp_data_funcs, uri
+from bauble.test import BaubleTestCase, get_setUp_data_funcs
 from .csv_ import (CSVRestore,
                    CSVBackup,
                    QUOTE_CHAR,
                    QUOTE_STYLE)
 from . import GenericExporter, GenericImporter
 from .xml import XMLExporter
-from .clone import DBCloner
 
 
 family_data = [{'id': 1, 'family': 'Orchidaceae', 'qualifier': None},
@@ -305,8 +302,7 @@ class CSVTests(ImexTestCase):
         """
         species = Species(genus_id=1, sp='sp')
         self.assertTrue(species is not None)
-        from tempfile import mkdtemp
-        temp_path = mkdtemp()
+        temp_path = tempfile.mkdtemp()
         exporter = CSVBackup()
         exporter.start(temp_path)
         f = open(os.path.join(temp_path, 'species.csv'), encoding='utf-8',
@@ -369,7 +365,6 @@ class CSVTests2(ImexTestCase):
 
         # the exporters and importers show logging information, turn it off
         logging.getLogger('bauble.info').setLevel(logging.ERROR)
-        import tempfile
         tempdir = tempfile.mkdtemp()
 
         # export all the testdata
@@ -412,7 +407,7 @@ class XMLExporterTests(BaubleTestCase):
         bauble.conn_name = 'test_xml'
         exporter = XMLExporter()
         exporter.one_file = True
-        with TemporaryDirectory() as temp_dir:
+        with tempfile.TemporaryDirectory() as temp_dir:
             exporter.start(path=temp_dir)
             out = Path(temp_dir, 'test_xml.xml')
             self.assertTrue(out.exists())
@@ -431,7 +426,7 @@ class XMLExporterTests(BaubleTestCase):
         bauble.conn_name = 'test_xml'
         exporter = XMLExporter()
         exporter.one_file = True
-        with TemporaryDirectory() as temp_dir:
+        with tempfile.TemporaryDirectory() as temp_dir:
             exporter.start(path=temp_dir)
             out = Path(temp_dir, 'test_xml.xml')
             self.assertTrue(out.exists())
@@ -447,7 +442,7 @@ class XMLExporterTests(BaubleTestCase):
     def test_export_one_file_per_table(self):
         exporter = XMLExporter()
         exporter.one_file = False
-        with TemporaryDirectory() as temp_dir:
+        with tempfile.TemporaryDirectory() as temp_dir:
             exporter.start(path=temp_dir)
             out_dir = Path(temp_dir)
             files = [i.stem for i in out_dir.glob('*.xml')]
@@ -947,188 +942,3 @@ class GenericExporterTests(BaubleTestCase):
                 .filter(Geography.tdwg_code == '50').one())
         val = GenericExporter.get_item_record(item, {'name': 'name'})
         self.assertEqual(val, {'name': 'Australia'})
-
-
-class DBClonerTests(BaubleTestCase):
-    def add_data(self):
-        # adding data using session ensures history entries
-        fam = Family(epithet='Myrtaceae')
-        gen = Genus(epithet='Syzygium', family=fam)
-        sp = Species(epithet='luehmannii', genus=gen)
-        loc = Location(code='LOC1')
-        acc = Accession(code='2023.0001', species=sp)
-        plt = Plant(code='1', quantity='1', location=loc, accession=acc)
-        self.session.add_all([fam, gen, sp, loc, acc, plt])
-        self.session.commit()
-
-    def test_history_is_not_empty(self):
-        self.add_data()
-        id_ = self.session.query(db.History.id).first()
-        self.assertIsNotNone(id_)
-
-    @mock.patch('bauble.connmgr.start_connection_manager',
-                return_value=(None, 'sqlite:///test.db'))
-    def test_get_uri_succeeds(self, _mock_start_cm):
-        self.assertEqual(DBCloner._get_uri(), 'sqlite:///test.db')
-
-    @mock.patch('bauble.plugins.imex.clone.utils.message_dialog')
-    @mock.patch('bauble.connmgr.start_connection_manager',
-                return_value=(None, uri))
-    def test_get_uri_fails(self, _mock_start_cm, mock_dialog):
-        self.assertIsNone(DBCloner._get_uri())
-        mock_dialog.assert_called()
-
-    def test_clone_engine(self):
-        cloner = DBCloner()
-        cloner.uri = 'sqlite:///test.db'
-        self.assertEqual(str(cloner.clone_engine.url), 'sqlite:///test.db')
-
-    @mock.patch('bauble.plugins.imex.clone.create_engine')
-    def test_clone_engine_mssql_sets_fast_executemany(self, mock_create_eng):
-        # MS SQL Server
-        cloner = DBCloner()
-        ms_uri = ('mssql://ghini:TestPWord@localhost:1434/'
-                  'BBG?driver=ODBC+Driver+17+for+SQL+Server')
-        cloner.uri = ms_uri
-        self.assertIsNotNone(cloner.clone_engine)
-        mock_create_eng.assert_called_with(ms_uri, fast_executemany=True)
-
-    def test_drop_create_tables_creates_tables(self):
-        from sqlalchemy import inspect
-        cloner = DBCloner()
-        cloner.uri = 'sqlite:///:memory:'
-        self.assertEqual(len(inspect(cloner.clone_engine).get_table_names()),
-                         0)
-        cloner.drop_create_tables()
-        self.assertTrue(
-            len(inspect(cloner.clone_engine).get_table_names()) > 20
-        )
-
-    def test_get_line_count(self):
-        self.add_data()
-        # institution, BaubleMeta, History and added in setUp
-        self.assertEqual(DBCloner.get_line_count(), 29)
-
-    @mock.patch('bauble.task.set_message')
-    def test_run(self, mock_set_message):
-        self.add_data()
-        cloner = DBCloner()
-        cloner.uri = 'sqlite:///:memory:'
-        bauble.task.queue(cloner.run())
-        mock_set_message.assert_called()
-        with cloner.clone_engine.begin() as conn:
-            stmt = Family.__table__.select()
-            self.assertEqual(conn.execute(stmt).first().family, 'Myrtaceae')
-            stmt = Genus.__table__.select()
-            self.assertEqual(conn.execute(stmt).first().genus, 'Syzygium')
-            stmt = Location.__table__.select()
-            self.assertEqual(conn.execute(stmt).first().code, 'LOC1')
-            stmt = Accession.__table__.select()
-            self.assertEqual(conn.execute(stmt).first().code, '2023.0001')
-
-    @mock.patch('bauble.task.set_message')
-    def test_run_bulk_insert(self, mock_set_message):
-        for i in range(200):
-            self.session.add(Family(epithet=f'Family{i}'))
-        self.session.commit()
-        cloner = DBCloner()
-        cloner.uri = 'sqlite:///:memory:'
-        with self.assertLogs(level='DEBUG') as logs:
-            bauble.task.queue(cloner.run())
-        self.assertTrue(any('adding 127 rows to clone' in i for i in
-                            logs.output))
-        mock_set_message.assert_called()
-
-    @mock.patch('bauble.task.set_message')
-    def test_start(self, mock_set_message):
-        self.add_data()
-        cloner = DBCloner()
-        cloner.start('sqlite:///:memory:')
-        bauble.task.queue(cloner.run())
-        mock_set_message.assert_called()
-        with cloner.clone_engine.begin() as conn:
-            stmt = Family.__table__.select()
-            self.assertEqual(conn.execute(stmt).first().family, 'Myrtaceae')
-            stmt = Genus.__table__.select()
-            self.assertEqual(conn.execute(stmt).first().genus, 'Syzygium')
-            stmt = Location.__table__.select()
-            self.assertEqual(conn.execute(stmt).first().code, 'LOC1')
-            stmt = Plant.__table__.select()
-            self.assertEqual(conn.execute(stmt).first().code, '1')
-
-    @mock.patch('bauble.task.set_message')
-    def test_datetimes_transfer_correctly(self, mock_set_message):
-        self.add_data()
-        cloner = DBCloner()
-        cloner.uri = 'sqlite:///:memory:'
-        bauble.task.queue(cloner.run())
-        mock_set_message.assert_called()
-
-        with db.engine.begin() as conn:
-            stmt = Accession.__table__.select()
-            self.assertAlmostEqual(
-                conn.execute(stmt).first()._created.timestamp(),
-                datetime.now().timestamp(), delta=2
-            )
-
-        with cloner.clone_engine.begin() as conn:
-            stmt = Accession.__table__.select()
-            self.assertAlmostEqual(
-                conn.execute(stmt).first()._created.timestamp(),
-                datetime.now().timestamp(), delta=2
-            )
-
-    @mock.patch('bauble.task.set_message')
-    def test_record_clone_point(self, _mock_set_message):
-        self.add_data()
-        from sqlalchemy import select
-        cloner = DBCloner()
-        cloner.uri = 'sqlite:///:memory:'
-        cloner.drop_create_tables()
-        # _record_clone_point is called by run.
-        bauble.task.queue(cloner.run())
-        meta_table = bauble.meta.BaubleMeta.__table__
-        stmt = (select(meta_table.c.value)
-                .where(meta_table.c.name == 'clone_history_id'))
-        with cloner.clone_engine.begin() as conn:
-            self.assertEqual(conn.execute(stmt).scalar(), '7')
-        # add an extra history entry and run it again should update not insert
-        hist = db.History.__table__
-        insert = hist.insert().values({'table_name': 'family',
-                                       'table_id': 100,
-                                       'values': {'family': 'Orchidaceae'},
-                                       'operation': 'insert',
-                                       'timestamp': datetime.utcnow()})
-        with cloner.clone_engine.begin() as conn:
-            conn.execute(insert)
-
-        cloner._record_clone_point()
-        with cloner.clone_engine.begin() as conn:
-            self.assertEqual(conn.execute(stmt).scalar(), '8')
-
-    @mock.patch('bauble.task.set_message')
-    def test_record_clone_point_not_set_w_no_history(self, _mock_set_message):
-        from sqlalchemy import select
-        cloner = DBCloner()
-        cloner.uri = 'sqlite:///:memory:'
-        cloner.drop_create_tables()
-        # _record_clone_point is called by run.
-        bauble.task.queue(cloner.run())
-        meta_table = bauble.meta.BaubleMeta.__table__
-        stmt = (select(meta_table.c.value)
-                .where(meta_table.c.name == 'clone_history_id'))
-        with cloner.clone_engine.begin() as conn:
-            self.assertEqual(conn.execute(stmt).scalar(), None)
-        # add an extra history entry and it should set
-        hist = db.History.__table__
-        insert = hist.insert().values({'table_name': 'family',
-                                       'table_id': 100,
-                                       'values': {'family': 'Orchidaceae'},
-                                       'operation': 'insert',
-                                       'timestamp': datetime.utcnow()})
-        with cloner.clone_engine.begin() as conn:
-            conn.execute(insert)
-
-        cloner._record_clone_point()
-        with cloner.clone_engine.begin() as conn:
-            self.assertEqual(conn.execute(stmt).scalar(), '1')

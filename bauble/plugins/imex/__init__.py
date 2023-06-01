@@ -435,9 +435,9 @@ class GenericExporter(ABC):
         task.queue(self._export_task())
         task.set_message('export completed')
 
+    @abstractmethod
     def _export_task(self):
         """Export task, to be implemented in subclasses"""
-        raise NotImplementedError
 
     @staticmethod
     def get_item_value(path, item):
@@ -538,15 +538,13 @@ class ImexPlugin(pluginmgr.Plugin):
     from .xml import XMLExportTool, XMLExportCommandHandler
     from .shapefile import (ShapefileImportTool,
                             ShapefileExportTool)
-    from .clone import DBCloneTool
     tools = [CSVRestoreTool,
              CSVBackupTool,
              CSVExportTool,
              CSVImportTool,
              XMLExportTool,
              ShapefileImportTool,
-             ShapefileExportTool,
-             DBCloneTool]
+             ShapefileExportTool]
     commands = [CSVBackupCommandHandler,
                 CSVRestoreCommandHandler,
                 XMLExportCommandHandler]
