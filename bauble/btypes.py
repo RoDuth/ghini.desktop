@@ -276,4 +276,6 @@ class TruncatedString(types.TypeDecorator):
     cache_ok = True
 
     def process_bind_param(self, value, dialect):
-        return value[:self.impl.length]
+        if value:
+            return value[:self.impl.length]
+        return None
