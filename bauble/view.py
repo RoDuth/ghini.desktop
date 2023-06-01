@@ -43,7 +43,8 @@ from pyparsing import (ParseException,
                        CaselessLiteral,
                        Group,
                        alphas,
-                       Regex)
+                       Regex,
+                       Literal)
 
 from gi.repository import Gtk
 from gi.repository import Gdk
@@ -51,6 +52,7 @@ from gi.repository import Gio
 from gi.repository import GLib
 from gi.repository import Pango
 
+from sqlalchemy import select
 from sqlalchemy.orm import object_session
 from sqlalchemy.orm.exc import ObjectDeletedError, DetachedInstanceError
 import sqlalchemy.exc as saexc
@@ -1655,17 +1657,32 @@ class AppendThousandRows(threading.Thread):
         operator = oneOf('= != < > like contains has')
         numeric_value = Regex(
             r'[-]?\d+(\.\d*)?([eE]\d+)?'
-        ).setParseAction(lambda s, l, t: [float(t[0])])
+        ).setParseAction(lambda s, l, t: [float(t[0])])  # noqa
         value = (quotedString.setParseAction(removeQuotes) |
                  numeric_value |
                  Word(printables))
         and_ = CaselessLiteral("and").suppress()
         identifier = Word(alphas + '_')
         ident_expression = Group(identifier + operator + value)
-        expression = ident_expression + ZeroOrMore(and_ + ident_expression)
+        to_sync = Literal('to_sync')
+        expression = (ZeroOrMore(to_sync) + ZeroOrMore(ident_expression +
+                      ZeroOrMore(and_ + ident_expression)))
 
         filters = []
         for part in expression.parseString(self.arg):
+            if part == 'to_sync':
+                meta_table = bauble.meta.BaubleMeta.__table__
+                with db.engine.begin() as connection:
+                    start = connection.execute(
+                        select(meta_table.c.value)
+                        .where(meta_table.c.name == 'clone_history_id')
+                    ).scalar()
+                if start is not None:
+                    filters.append(db.History.id > start)
+                else:
+                    # show nothing if database doesn't appear to be a clone
+                    filters.append(db.History.id.is_(None))
+                continue
             attr = getattr(db.History, part[0])
             val = part[2]
             operation = search.OPERATIONS.get(part[1])
@@ -1765,10 +1782,15 @@ class HistoryView(pluginmgr.View, Gtk.Box):
         dct = dict(item.values)
         del dct['_created']
         del dct['_last_updated']
+
         geojson = None
         if dct.get('geojson'):
-            del dct['geojson']
             geojson = json.dumps(item.values.get('geojson'))
+        try:
+            del dct['geojson']
+        except KeyError:
+            pass
+
         friendly = ', '.join(f"{k}: {v or repr('')}"
                              for k, v in sorted(list(dct.items()),
                                                 key=self._cmp_items_key))

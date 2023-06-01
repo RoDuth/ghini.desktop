@@ -37,7 +37,7 @@ from bauble.test import (BaubleTestCase,
                          get_setUp_data_funcs,
                          wait_on_threads,
                          uri)
-from bauble import db, utils, search, prefs, pluginmgr
+from bauble import db, utils, search, prefs, pluginmgr, meta
 
 # pylint: disable=too-few-public-methods
 
@@ -879,6 +879,25 @@ class TestHistoryView(BaubleTestCase):
         string = "test = test"
         self.assertRaises(AttributeError,
                           AppendThousandRows(None, string).get_query_filters)
+
+    def test_basic_to_sync_search_is_clone(self):
+        val = meta.get_default('clone_history_id', 5).value
+        string = ("to_sync")
+        result = AppendThousandRows(None, string).get_query_filters()
+        self.assertTrue(result[0].compare(db.History.id > val))
+
+    def test_basic_to_sync_search_not_clone(self):
+        string = ("to_sync")
+        result = AppendThousandRows(None, string).get_query_filters()
+        self.assertTrue(result[0].compare(db.History.id.is_(None)))
+
+    def test_basic_search_query_filters_w_to_sync(self):
+        val = meta.get_default('clone_history_id', 5).value
+        string = ("to_sync table_name = plant and operation = insert")
+        result = AppendThousandRows(None, string).get_query_filters()
+        self.assertTrue(result[0].compare(db.History.id > val))
+        self.assertTrue(result[1].compare(db.History.table_name == 'plant'))
+        self.assertTrue(result[2].compare(db.History.operation == 'insert'))
 
 
 class TestPicturesScroller(BaubleTestCase):
