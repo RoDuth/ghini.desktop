@@ -107,7 +107,7 @@ class SchemaMenu(Gtk.Menu):
         if len(submenu.get_children()) == 0:
             if isinstance(prop, AssociationProxy):
                 mapper = getattr(
-                    prop.for_class(self.mapper.class_).target_class,
+                    prop.for_class(prop._class).target_class,
                     prop.value_attr
                 ).mapper
             else:
@@ -132,6 +132,8 @@ class SchemaMenu(Gtk.Menu):
                 elif isinstance(i, ColumnProperty):
                     column_properties[key] = prop
             elif isinstance(prop, AssociationProxy):
+                # patch in the class so we have it later
+                prop._class = mapper.class_
                 relation_properties[key] = prop
 
         column_properties = dict(sorted(
