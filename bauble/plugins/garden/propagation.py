@@ -490,9 +490,11 @@ class PropagationTabPresenter(editor.GenericEditorPresenter):
         # TODO: add a * to the propagation label for uncommitted propagations
         prop_type = prop_type_values[propagation.prop_type]
 
-        date_str = propagation.date.strftime(
-            prefs.prefs[prefs.date_format_pref]
-        )
+        # hack to format date properly
+        from bauble.btypes import Date
+        date = Date().process_bind_param(propagation.date, None)
+        date_str = date.strftime(prefs.prefs[prefs.date_format_pref])
+
         title = (_('%(prop_type)s on %(prop_date)s') %
                  dict(prop_type=prop_type, prop_date=date_str))
         expander.set_label(title)
