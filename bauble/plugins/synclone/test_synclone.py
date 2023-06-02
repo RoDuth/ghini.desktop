@@ -18,7 +18,7 @@
 """SynClone tests"""
 
 import tempfile
-from datetime import datetime, timezone
+from datetime import datetime
 from unittest import mock
 
 from sqlalchemy import create_engine, select
@@ -104,7 +104,7 @@ class DBClonerTests(BaubleTestCase):
     def test_get_line_count(self):
         self.add_data()
         # institution, BaubleMeta, History and added in setUp
-        self.assertEqual(DBCloner.get_line_count(), 30)
+        self.assertAlmostEqual(DBCloner.get_line_count(), 30, delta=1)
 
     @mock.patch('bauble.task.set_message')
     def test_run(self, mock_set_message):

@@ -113,6 +113,7 @@ class DBCloner:
         """Return the total number of rows in all tables for the current
         database
         """
+        from bauble.pluginmgr import PluginRegistry
         total_lines: int = 0
         for table in db.metadata.tables.values():
             stmt = select(func.count()).select_from(table)
