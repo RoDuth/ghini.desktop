@@ -933,13 +933,13 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
         self.view.set_label('cites_label', string)
 
     def _warn_double_ups(self):
-        genus = self.model.genus
+        genus = self.model.genus.genus
         epithet = (self.view.widget_get_value('sp_species_entry') or
                    None)
         infrasp = self.model.infraspecific_epithet or None
         cultivar = self.model.cultivar_epithet or None
-        omonym = self.session.query(Species).filter(
-            Species.genus == genus,
+        omonym = self.session.query(Species).join(Genus).filter(
+            Genus.genus == genus,
             Species.sp == epithet,
             Species.infraspecific_epithet == infrasp,
             Species.cultivar_epithet == cultivar,
