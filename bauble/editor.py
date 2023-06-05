@@ -1698,7 +1698,6 @@ class GenericEditorPresenter:
         if (self.is_committing_presenter and result in
                 self.committing_results and self._dirty):
             self.commit_changes()
-        self.cleanup()
         return result
 
     def cleanup(self):
