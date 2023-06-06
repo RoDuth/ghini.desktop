@@ -294,6 +294,7 @@
                               <object class="GtkEntry" id="order_entry">
                                 <property name="visible">True</property>
                                 <property name="can-focus">True</property>
+                                <property name="hexpand">True</property>
                               </object>
                               <packing>
                                 <property name="left-attach">1</property>
@@ -304,6 +305,7 @@
                               <object class="GtkEntry" id="suborder_entry">
                                 <property name="visible">True</property>
                                 <property name="can-focus">True</property>
+                                <property name="hexpand">True</property>
                               </object>
                               <packing>
                                 <property name="left-attach">1</property>

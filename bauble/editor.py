@@ -621,7 +621,8 @@ class GenericEditorView:
         window.hide()
         return False
 
-    def attach_completion(self, entry,
+    def attach_completion(self,
+                          entry,
                           cell_data_func=default_completion_cell_data_func,
                           match_func=default_completion_match_func,
                           minimum_key_length=1,
@@ -643,7 +644,7 @@ class GenericEditorView:
           the completion popup
         :param match_func: a function that returns True/False if the
           value from the model should be shown in the completions
-        :param minimum_key_length: default=2
+        :param minimum_key_length: default=1
         :param text_column: the value of the text-column property on the entry,
           default is -1
 
@@ -1542,10 +1543,11 @@ class GenericEditorPresenter:
                              'widget type not supported: %s' % type(widget))
 
     def assign_completions_handler(self,
-                                   widget: Gtk.Entry,
+                                   widget: Gtk.Entry | str,
                                    get_completions: Callable,
                                    on_select: Callable = lambda v: v,
-                                   comparer: Optional[Callable] = None
+                                   comparer: Optional[Callable] = None,
+                                   set_problems: bool = True
                                    ) -> None:
         """Dynamically handle completions on a Gtk.Entry.
 
@@ -1594,7 +1596,7 @@ class GenericEditorPresenter:
         def on_changed(entry, *args):
             """If entry's text is greater than widget's minimum_key_length call
             :func:`add_completions` to reconstruct the widgets model.  Also
-            calls :func:`idle_callback` with the entry's text to add remove
+            calls :func:`_callback` with the entry's text to add remove
             PROBLEM_NOT_FOUND or select an item if appropriate.
 
             :param entry: a Gtk.Entry widget
@@ -1650,7 +1652,7 @@ class GenericEditorPresenter:
                             str(found))
                         on_select(None)
 
-                if (text != '' and not found and
+                if (set_problems and text != '' and not found and
                         (PROBLEM_NOT_FOUND, widget) not in self.problems):
                     self.add_problem(PROBLEM_NOT_FOUND, widget)
                     on_select(None)

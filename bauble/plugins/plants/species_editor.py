@@ -304,6 +304,21 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
         self.assign_completions_handler('sp_genus_entry',
                                         self.gen_get_completions,
                                         on_select=self.gen_on_select)
+        self.assign_completions_handler('subgenus_entry',
+                                        self.subgenus_get_completions,
+                                        set_problems=False)
+        self.assign_completions_handler('section_entry',
+                                        self.section_get_completions,
+                                        set_problems=False)
+        self.assign_completions_handler('subsection_entry',
+                                        self.subsection_get_completions,
+                                        set_problems=False)
+        self.assign_completions_handler('series_entry',
+                                        self.series_get_completions,
+                                        set_problems=False)
+        self.assign_completions_handler('subseries_entry',
+                                        self.subseries_get_completions,
+                                        set_problems=False)
         self.assign_simple_handler('sp_grex_entry', 'grex',
                                    editor.StringOrNoneValidator())
         self.assign_simple_handler('sp_cvgroup_entry', 'cv_group',
@@ -360,6 +375,58 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
 
         self._setup_custom_field('_sp_custom1')
         self._setup_custom_field('_sp_custom2')
+
+    def subgenus_get_completions(self, text):
+        query = self.session.query(Species.subgenus)
+        if self.model.genus and self.model.genus.id:
+            query = query.filter(Species.genus == self.model.genus)
+        return [i[0] for i in query.filter(Species.subgenus.like(f'{text}%%'))]
+
+    def section_get_completions(self, text):
+        query = self.session.query(Species.section)
+        if self.model.genus and self.model.genus.id:
+            query = query.filter(Species.genus == self.model.genus)
+        if self.model.subgenus:
+            query = query.filter(Species.subgenus == self.model.subgenus)
+        return [i[0] for i in query.filter(Species.section.like(f'{text}%%'))]
+
+    def subsection_get_completions(self, text):
+        query = self.session.query(Species.subsection)
+        if self.model.genus and self.model.genus.id:
+            query = query.filter(Species.genus == self.model.genus)
+        if self.model.subgenus:
+            query = query.filter(Species.subgenus == self.model.subgenus)
+        if self.model.section:
+            query = query.filter(Species.section == self.model.section)
+        query = query.filter(Species.subsection.like(f'{text}%%'))
+        return [i[0] for i in query]
+
+    def series_get_completions(self, text):
+        query = self.session.query(Species.series)
+        if self.model.genus and self.model.genus.id:
+            query = query.filter(Species.genus == self.model.genus)
+        if self.model.subgenus:
+            query = query.filter(Species.subgenus == self.model.subgenus)
+        if self.model.section:
+            query = query.filter(Species.section == self.model.section)
+        if self.model.subsection:
+            query = query.filter(Species.subsection == self.model.subsection)
+        return [i[0] for i in query.filter(Species.series.like(f'{text}%%'))]
+
+    def subseries_get_completions(self, text):
+        query = self.session.query(Species.subseries)
+        if self.model.genus and self.model.genus.id:
+            query = query.filter(Species.genus == self.model.genus)
+        if self.model.subgenus:
+            query = query.filter(Species.subgenus == self.model.subgenus)
+        if self.model.section:
+            query = query.filter(Species.section == self.model.section)
+        if self.model.subsection:
+            query = query.filter(Species.subsection == self.model.subsection)
+        if self.model.series:
+            query = query.filter(Species.series == self.model.series)
+        query = query.filter(Species.subseries.like(f'{text}%%'))
+        return [i[0] for i in query]
 
     def _setup_custom_field(self, column_name):
         session = bauble.db.Session()
@@ -1524,6 +1591,11 @@ class SpeciesEditorView(editor.GenericEditorView):
         self.attach_completion('syn_entry',
                                cell_data_func=species_cell_data_func,
                                match_func=species_match_func)
+        self.attach_completion('subgenus_entry')
+        self.attach_completion('section_entry')
+        self.attach_completion('subsection_entry')
+        self.attach_completion('series_entry')
+        self.attach_completion('subseries_entry')
         self.set_accept_buttons_sensitive(False)
         self.widgets.notebook.set_current_page(0)
         self.boxes = set()

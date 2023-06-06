@@ -430,6 +430,9 @@ class GenusEditorView(editor.GenericEditorView):
                          root_widget_name='genus_dialog')
         self.attach_completion('syn_entry', self.syn_cell_data_func)
         self.attach_completion('gen_family_entry')
+        self.attach_completion('subfamily_entry')
+        self.attach_completion('tribe_entry')
+        self.attach_completion('subtribe_entry')
         self.set_accept_buttons_sensitive(False)
         self.widgets.notebook.set_current_page(0)
         self.restore_state()
@@ -553,6 +556,15 @@ class GenusEditorPresenter(editor.GenericEditorPresenter):
         self.assign_completions_handler('gen_family_entry',
                                         fam_get_completions,
                                         on_select=on_select)
+        self.assign_completions_handler('subfamily_entry',
+                                        self.subfam_get_completions,
+                                        set_problems=False)
+        self.assign_completions_handler('tribe_entry',
+                                        self.tribe_get_completions,
+                                        set_problems=False)
+        self.assign_completions_handler('subtribe_entry',
+                                        self.subtribe_get_completions,
+                                        set_problems=False)
         self.assign_simple_handler('gen_hybrid_combo', 'hybrid',
                                    editor.StringOrNoneValidator())
         self.assign_simple_handler('gen_genus_entry', 'genus',
@@ -583,6 +595,30 @@ class GenusEditorPresenter(editor.GenericEditorPresenter):
             self.view.widgets.gen_ok_and_add_button.set_sensitive(True)
 
         self._dirty = False
+
+    def subfam_get_completions(self, text):
+        query = self.session.query(Genus.subfamily)
+        if self.model.family:
+            query = query.filter(Genus.family == self.model.family)
+        return [i[0] for i in query.filter(Genus.subfamily.like(f'{text}%%'))]
+
+    def tribe_get_completions(self, text):
+        query = self.session.query(Genus.tribe)
+        if self.model.family:
+            query = query.filter(Genus.family == self.model.family)
+        if self.model.subfamily:
+            query = query.filter(Genus.subfamily == self.model.subfamily)
+        return [i[0] for i in query.filter(Genus.tribe.like(f'{text}%%'))]
+
+    def subtribe_get_completions(self, text):
+        query = self.session.query(Genus.subtribe)
+        if self.model.family:
+            query = query.filter(Genus.family == self.model.family)
+        if self.model.subfamily:
+            query = query.filter(Genus.subfamily == self.model.subfamily)
+        if self.model.tribe:
+            query = query.filter(Genus.tribe == self.model.tribe)
+        return [i[0] for i in query.filter(Genus.subtribe.like(f'{text}%%'))]
 
     def refresh_cites_label(self, _widget=None):
         fam_cites = 'N/A'

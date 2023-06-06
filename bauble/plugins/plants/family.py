@@ -166,7 +166,6 @@ class Family(db.Base, db.WithNotes):
                        default='')
 
     # relations
-    # `genera` relation is defined outside of `Family` class definition
     synonyms = association_proxy(
         '_synonyms', 'synonym', creator=lambda fam: FamilySynonym(synonym=fam)
     )
@@ -314,6 +313,8 @@ class FamilyEditorView(editor.GenericEditorView):
         super().__init__(filename, parent=parent,
                          root_widget_name='family_dialog')
         self.attach_completion('syn_entry')
+        self.attach_completion('order_entry')
+        self.attach_completion('suborder_entry')
         self.set_accept_buttons_sensitive(False)
         self.widgets.notebook.set_current_page(0)
 
@@ -363,6 +364,12 @@ class FamilyEditorPresenter(editor.GenericEditorPresenter):
         )
         self.refresh_view()  # put model values in view
 
+        self.assign_completions_handler('order_entry',
+                                        self.order_get_completions,
+                                        set_problems=False)
+        self.assign_completions_handler('suborder_entry',
+                                        self.suborder_get_completions,
+                                        set_problems=False)
         # connect signals
         self.assign_simple_handler('order_entry', 'order',
                                    editor.StringOrNoneValidator())
@@ -393,6 +400,17 @@ class FamilyEditorPresenter(editor.GenericEditorPresenter):
         # value in the widget changes, that way we can do things like sensitize
         # the ok button
         self._dirty = False
+
+    def order_get_completions(self, text):
+        query = (self.session.query(Family.order)
+                 .filter(Family.order.like(f'{text}%%')))
+        return [i[0] for i in query]
+
+    def suborder_get_completions(self, text):
+        query = self.session.query(Family.suborder)
+        if self.model.order:
+            query = query.filter(Family.order == self.model.order)
+        return [i[0] for i in query.filter(Family.suborder.like(f'{text}%%'))]
 
     def refresh_sensitivity(self):
         # TODO: check widgets for problems

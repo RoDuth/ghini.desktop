@@ -403,6 +403,7 @@
                                   <object class="GtkEntry" id="subfamily_entry">
                                     <property name="visible">True</property>
                                     <property name="can-focus">True</property>
+                                    <property name="hexpand">True</property>
                                   </object>
                                   <packing>
                                     <property name="left-attach">1</property>
@@ -413,6 +414,7 @@
                                   <object class="GtkEntry" id="tribe_entry">
                                     <property name="visible">True</property>
                                     <property name="can-focus">True</property>
+                                    <property name="hexpand">True</property>
                                   </object>
                                   <packing>
                                     <property name="left-attach">1</property>
@@ -423,6 +425,7 @@
                                   <object class="GtkEntry" id="subtribe_entry">
                                     <property name="visible">True</property>
                                     <property name="can-focus">True</property>
+                                    <property name="hexpand">True</property>
                                   </object>
                                   <packing>
                                     <property name="left-attach">1</property>

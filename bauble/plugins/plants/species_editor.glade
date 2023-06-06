@@ -427,6 +427,7 @@
                                       <object class="GtkEntry" id="subgenus_entry">
                                         <property name="visible">True</property>
                                         <property name="can-focus">True</property>
+                                        <property name="hexpand">True</property>
                                       </object>
                                       <packing>
                                         <property name="left-attach">1</property>
@@ -437,6 +438,7 @@
                                       <object class="GtkEntry" id="section_entry">
                                         <property name="visible">True</property>
                                         <property name="can-focus">True</property>
+                                        <property name="hexpand">True</property>
                                       </object>
                                       <packing>
                                         <property name="left-attach">1</property>
@@ -447,6 +449,7 @@
                                       <object class="GtkEntry" id="subsection_entry">
                                         <property name="visible">True</property>
                                         <property name="can-focus">True</property>
+                                        <property name="hexpand">True</property>
                                       </object>
                                       <packing>
                                         <property name="left-attach">1</property>
@@ -457,6 +460,7 @@
                                       <object class="GtkEntry" id="series_entry">
                                         <property name="visible">True</property>
                                         <property name="can-focus">True</property>
+                                        <property name="hexpand">True</property>
                                       </object>
                                       <packing>
                                         <property name="left-attach">1</property>
@@ -467,6 +471,7 @@
                                       <object class="GtkEntry" id="subseries_entry">
                                         <property name="visible">True</property>
                                         <property name="can-focus">True</property>
+                                        <property name="hexpand">True</property>
                                       </object>
                                       <packing>
                                         <property name="left-attach">1</property>
