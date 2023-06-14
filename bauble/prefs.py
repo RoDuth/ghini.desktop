@@ -49,6 +49,7 @@ from bauble import db
 from bauble import paths
 from bauble import pluginmgr
 from bauble import utils
+from bauble import meta
 
 testing = os.environ.get('BAUBLE_TEST')  # set this to True when testing
 
@@ -268,6 +269,18 @@ class _prefs(UserDict):
         fmat = f'{self.get(date_format_pref)} {self.get(time_format_pref)}'
         return fmat
 
+    @staticmethod
+    def _get_meta_value_or_default(name, default):
+        """Returns the value from BaubleMeta if available else the default
+
+        NOTE: If the database is not yet connected (i.e. connmgr) returns
+        default.
+        """
+        if db.Session:
+            meta_obj = meta.get_default(name)
+            return meta_obj.value if meta_obj else default
+        return default
+
     @property
     def root_directory(self):
         section, option = self._parse_key(root_directory_pref)
@@ -276,8 +289,9 @@ class _prefs(UserDict):
             root = self.config.get(section, option)
             if root:
                 return root
-        meta_path = bauble.meta.get_default(root_directory_pref.split('.')[1])
-        return meta_path.value if meta_path else ''
+        return self._get_meta_value_or_default(
+            root_directory_pref.split('.')[1], ''
+        )
 
     @property
     def document_root(self):
@@ -292,8 +306,9 @@ class _prefs(UserDict):
             path = self.config.get(section, option)
             if path:
                 return path
-        meta_path = bauble.meta.get_default(document_path_pref.split('.')[1])
-        return meta_path.value if meta_path else 'documents'
+        return self._get_meta_value_or_default(
+            document_path_pref.split('.')[1], 'documents'
+        )
 
     @documents_path.setter
     def documents_path(self, path):
@@ -315,8 +330,9 @@ class _prefs(UserDict):
             path = self.config.get(section, option)
             if path:
                 return path
-        meta_path = bauble.meta.get_default(picture_path_pref.split('.')[1])
-        return meta_path.value if meta_path else 'pictures'
+        return self._get_meta_value_or_default(
+            picture_path_pref.split('.')[1], 'pictures'
+        )
 
     @pictures_path.setter
     def pictures_path(self, path):
@@ -487,7 +503,6 @@ def set_global_root(*_args):
     defaults = [make_absolute(prefs.get(root_directory_pref)),
                 prefs.get(picture_path_pref),
                 prefs.get(document_path_pref)]
-    from bauble import meta
     meta_paths = meta.set_value(names, defaults, msg)
     if meta_paths:
         check_create_paths(meta_paths[0].value)
