@@ -85,4 +85,4 @@ deploy:
     secure: GO6caimCl/NMwv4nYvi9uAF5l7gNNXZB4BVhqONLyzA5OHaw+ui1847EDJjnodLG
   draft: false
   prerelease: false
-  force_update: false
+  force_update: true
