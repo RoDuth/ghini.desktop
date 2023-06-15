@@ -340,7 +340,7 @@ class DBSyncTests(BaubleTestCase):
                                    datetime.now().timestamp(),
                                    delta=1)
 
-    def test_sync_row_updates_ids_from_id_map(self):
+    def test_sync_row_updates_ids_from_id_map_insert(self):
         # insert
         data = {'batch_number': 1,
                 'table_name': 'genus',
@@ -362,6 +362,31 @@ class DBSyncTests(BaubleTestCase):
             row = SyncRow({'family': {10: 2}}, first, conn)
             self.assertEqual(row.values.get('family_id'), 2)
 
+    def test_sync_row_updates_ids_from_id_map_insert_tag(self):
+        # insert tag
+        data = {'batch_number': 1,
+                'table_name': 'tagged_obj',
+                'table_id': 1,
+                'values': {
+                    'id': 1,
+                    'obj_id': 10,
+                    'obj_class': 'bauble.plugins.plants.species_model.Species',
+                    'tag_id': 1,
+                    '_last_updated': 0},
+                'operation': 'insert',
+                'user': 'test',
+                'timestamp': datetime(2023, 1, 1)}
+
+        to_sync = ToSync.__table__
+        in_stmt = to_sync.insert(data)
+        out_stmt = select(to_sync)
+        with db.engine.begin() as conn:
+            conn.execute(in_stmt)
+            first = conn.execute(out_stmt).first()
+            row = SyncRow({'species': {10: 3}}, first, conn)
+            self.assertEqual(row.values.get('obj_id'), 3)
+
+    def test_sync_row_updates_ids_from_id_map_update(self):
         # update
         data = {'batch_number': 1,
                 'table_name': 'genus',

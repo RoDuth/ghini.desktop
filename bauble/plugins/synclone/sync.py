@@ -24,6 +24,7 @@
 """
 Sync changes from a previously cloned database.
 """
+import importlib
 import json
 from datetime import datetime
 from pathlib import Path
@@ -163,6 +164,12 @@ class SyncRow:
 
                     if foreign_key:
                         tablename = foreign_key.column.table.name
+                    elif (k == 'obj_id' and
+                          (obj_class := values.get('obj_class'))):
+                        # TaggedObj
+                        module_str, class_str = obj_class.rsplit('.', 1)
+                        module = importlib.import_module(module_str)
+                        tablename = getattr(module, class_str).__tablename__
                     else:
                         continue
 
