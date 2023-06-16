@@ -54,6 +54,7 @@ from bauble import command_handler
 from bauble import task
 import bauble
 from .clone import DBCloner
+from ..tag import tags_menu_manager
 
 RESPONSE_QUIT = 1
 RESPONSE_SKIP = 2
@@ -424,6 +425,8 @@ class DBSyncroniser:
         except error.DatabaseError:
             pass
         task.set_message(_('sync complete'))
+        if bauble.gui:
+            tags_menu_manager.reset()
         return self.failed
 
 
