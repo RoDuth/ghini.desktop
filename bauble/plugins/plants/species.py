@@ -62,6 +62,7 @@ from .species_model import (Species,
                             red_list_values)
 from .genus import Genus, GenusSynonym
 from .family import Family, FamilySynonym
+from .geography import map_kml_callback
 
 # imported by clients of this modules
 __all__ = [
@@ -142,7 +143,13 @@ remove_action = Action('species_remove', _('_Delete'),
                        callback=remove_callback,
                        accelerator='<ctrl>Delete', multiselect=True)
 
-species_context_menu = [edit_action, remove_action]
+distribution_map_action = Action('acc_dist_map',
+                                 _('Show distribution in _map'),
+                                 callback=map_kml_callback,
+                                 accelerator='<ctrl>m',
+                                 multiselect=True)
+
+species_context_menu = [edit_action, remove_action, distribution_map_action]
 
 vernname_context_menu = [edit_action]
 

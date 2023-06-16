@@ -2,19 +2,6 @@
 <%!
 from bauble.utils import xml_safe
 %>\
-<%
-if value.geojson:
-    polygon = multi = None
-    multi_poly = []
-    json = value.geojson
-    if json.get('type') == 'Polygon':
-        coords = json.get('coordinates')[0]
-        polygon = ' '.join([str(f'{i[0]},{i[1]},0') for i in coords])
-    elif json.get('type') == 'MultiPolygon':
-        multi = json.get('coordinates')
-        for part in multi:
-            multi_poly.append(' '.join([str(f'{i[0]},{i[1]},0') for i in part[0]]))
-%>\
 ##
 <%def name="poly_block(polygon)">
         <Polygon>
@@ -44,37 +31,60 @@ if value.geojson:
       </MultiGeometry>
 </%def>\
 <?xml version="1.0" encoding="UTF-8"?>
+<%
+ geos = [value]
+ if type(value).__name__ == 'Species':
+   if value.distribution and value.distribution[0].geography:
+     geos = [v.geography for v in value.distribution]
+   else:
+     raise ValueError("Species has no distributions recorded")
+%>\
 <kml xmlns="http://www.opengis.net/kml/2.2" xmlns:gx="http://www.google.com/kml/ext/2.2">
   <Document>
     <name>${xml_safe(value)}</name>
     <visibility>1</visibility>
+    % for val in geos:
     <Placemark>
-      <name>${value.name}</name>
+      <name>${val.name}</name>
       <description><![CDATA[
         <table>
           <tr>
             <td>WGSRPD Level:</td>
-            <td>${['Continent', 'Region', 'Area', 'Unit'][value.tdwg_level - 1]}</td>
+            <td>${['Continent', 'Region', 'Area', 'Unit'][val.tdwg_level - 1]}</td>
           </tr>
           <tr>
             <td>WGSRPD Code:</td>
-            <td>${value.tdwg_code}</td>
+            <td>${val.tdwg_code}</td>
           </tr>
-          % if value.iso_code:
+          % if val.iso_code:
           <tr>
             <td>ISO Code:</td>
-            <td>${value.iso_code}</td>
+            <td>${val.iso_code}</td>
           </tr>
           % endif
         </table>
           ]]>
       </description>
       <visibility>1</visibility>
+<%
+if val.geojson:
+    polygon = multi = None
+    multi_poly = []
+    json = val.geojson
+    if json.get('type') == 'Polygon':
+        coords = json.get('coordinates')[0]
+        polygon = ' '.join([str(f'{i[0]},{i[1]},0') for i in coords])
+    elif json.get('type') == 'MultiPolygon':
+        multi = json.get('coordinates')
+        for part in multi:
+            multi_poly.append(' '.join([str(f'{i[0]},{i[1]},0') for i in part[0]]))
+%>\
 % if multi:
     ${multipoly_block(multi_poly)}
 % else:
     ${poly_block(polygon)}
 % endif
     </Placemark>
+    % endfor
   </Document>
 </kml>
