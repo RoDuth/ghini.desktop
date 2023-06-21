@@ -1644,7 +1644,7 @@ class AppendThousandRows(threading.Thread):
 
     def cancel_callback(self):
         row = [None]
-        row += ['---'] * 6
+        row += ['---'] * 7
         row[4] = '** ' + _('interrupted') + ' **'
         self.view.liststore.append(row)
 
