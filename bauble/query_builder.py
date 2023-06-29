@@ -719,8 +719,7 @@ class QueryBuilder(GenericEditorPresenter):
                 "        <tt>plant where planted.date on 11/05/2021</tt>\n"
                 "Return plants that where planted on the 11/05/2021.\n\n"
                 "<b>days from today (e.g. -10)</b> - best used with the "
-                "<b>&gt;</b> or <b>&lt;</b> condition (note: these will "
-                "become typed in the search entry - e.g. |datetime|-10|)\n"
+                "<b>&gt;</b> or <b>&lt;</b> condition\n"
                 "        <tt>plant where planted.date > -10</tt>\n"
                 "Return plants that where planted in the last 10 days.\n"
                 )
