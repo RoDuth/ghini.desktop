@@ -737,7 +737,7 @@ class CSVRestore:
             # drop all of the dependencies together
             # have added tables since v1.0 and a user may choose to drop
             # one or 2 tables (e.g plugin, history)
-            if len(filenames) >= len(metadata.tables) - 3:
+            if len(filenames) >= len(metadata.tables) - 4:
                 if not force:
                     msg = _('It appears you are attempting a full restore. To '
                             'do this requires deleting all data.\n\n'
