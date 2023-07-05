@@ -372,6 +372,8 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
         if self.model.label_markup:
             self.view.widget_set_expanded('label_markup_expander', True)
             self.view.widgets.sp_label_markup_entry.emit('changed')
+            # Don't dirty the presenter
+            self._dirty = False
 
         self._setup_custom_field('_sp_custom1')
         self._setup_custom_field('_sp_custom2')
