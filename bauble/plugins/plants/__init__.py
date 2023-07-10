@@ -607,7 +607,7 @@ class PlantsPlugin(pluginmgr.Plugin):
             msg = _('Setup custom conservation fields.\n\nYou have 2 fields '
                     'available.  To set them up you need to provide a '
                     'dictionary that defines the `field_name` as used in '
-                    'searches, reporte, etc., the `display_name` as used in '
+                    'searches, reports, etc., the `display_name` as used in '
                     'the editor and the `values` as a tuple or list of the '
                     'values it can accept.\n\n Examples are provided, replace '
                     'these as needed set them empty to disable.')

@@ -1392,6 +1392,8 @@ class VerificationBox(Gtk.Box):
     expander_label = Gtk.Template.Child()
     ver_expander = Gtk.Template.Child()
 
+    PROBLEM_REQUIRED_FIELD = f'required_field:{random()}'
+
     def __init__(self, parent, model):
         super().__init__()
         check(not model or isinstance(model, Verification))
@@ -1419,8 +1421,7 @@ class VerificationBox(Gtk.Box):
 
         self.presenter().view.connect(self.date_entry,
                                       'changed',
-                                      self.presenter().on_date_entry_changed,
-                                      (self.model, 'date'))
+                                      self.on_date_entry_changed)
 
         # reference entry
         if self.model.reference:
@@ -1512,11 +1513,25 @@ class VerificationBox(Gtk.Box):
         descr = model[treeiter][1]
         cell.set_property('markup', f'<b>{level}</b>  :  {descr}')
 
+    def on_date_entry_changed(self, entry):
+        self.presenter().on_date_entry_changed(entry, (self.model, 'date'))
+        # if the verification isn't yet associated with an accession
+        # then set the accession otherwise validate will not work as expected
+        if not self.model.accession:
+            self.model.accession = self.presenter().model
+            logger.debug('set model accession to %s', self.model.accession)
+
+        self.set_problems()
+        self.update_label()
+        self.presenter().parent_ref().refresh_sensitivity()
+
     def on_sp_select(self, value, attr='species'):
         # only set attr if is a species, i.e. not str (Avoids the first 2
         # letters prior to the completions handler kicking in.)
         if isinstance(value, Species):
             self.set_model_attr(attr, value)
+        else:
+            self.set_model_attr(attr, None)
 
     def on_copy_to_taxon_general_clicked(self, _button):
         """Copy the selected verification's 'new taxon' into the parent
@@ -1591,12 +1606,8 @@ class VerificationBox(Gtk.Box):
             # When we create a new verification box we set today's date
             # in the GtkEntry but not in the model so the presenter
             # doesn't appear dirty.  Now that the user is setting
-            # something, we trigger the 'changed' signal on the 'date'
-            # entry as well, by first clearing the entry then setting it
-            # to its intended value.
-            tmp = self.date_entry.get_text()
-            self.date_entry.set_text('')
-            self.date_entry.set_text(tmp)
+            # something, trigger the 'changed' signal on the date_entry
+            self.date_entry.emit('changed')
         # if the verification isn't yet associated with an accession
         # then set the accession when we start changing values, this way
         # we can setup a dummy verification in the interface
@@ -1605,8 +1616,28 @@ class VerificationBox(Gtk.Box):
             logger.debug('set model accession to %s', self.model.accession)
             # self.presenter().model.verifications.append(self.model)
         self.presenter()._dirty = True
+        self.set_problems()
         self.update_label()
         self.presenter().parent_ref().refresh_sensitivity()
+
+    def set_problems(self):
+        self.presenter().remove_problem(self.PROBLEM_REQUIRED_FIELD)
+        if self.model.accession:
+            if not self.model.species:
+                self.presenter().add_problem(self.PROBLEM_REQUIRED_FIELD,
+                                             self.new_taxon_entry)
+            if not self.model.prev_species:
+                self.presenter().add_problem(self.PROBLEM_REQUIRED_FIELD,
+                                             self.prev_taxon_entry)
+            if not self.model.verifier:
+                self.presenter().add_problem(self.PROBLEM_REQUIRED_FIELD,
+                                             self.verifier_entry)
+            if self.model.level is None:
+                self.presenter().add_problem(self.PROBLEM_REQUIRED_FIELD,
+                                             self.level_combo)
+            if not self.model.date:
+                self.presenter().add_problem(self.PROBLEM_REQUIRED_FIELD,
+                                             self.date_entry)
 
     def update_label(self):
         parts = []
@@ -1618,7 +1649,17 @@ class VerificationBox(Gtk.Box):
             sp_markup = self.model.species.markup()
         if self.model.verifier:
             parts.append(_('by %(verifier)s'))
-        label = ' '.join(parts) % dict(date=self.model.date,
+        date = self.model.date
+
+        try:
+            # if date is datetime we want the string.
+            date = self.model.date.strftime(
+                prefs.prefs.get(prefs.date_format_pref)
+            )
+        except AttributeError:
+            pass
+
+        label = ' '.join(parts) % dict(date=date,
                                        species=sp_markup,
                                        verifier=self.model.verifier)
         self.expander_label.set_markup(label)
