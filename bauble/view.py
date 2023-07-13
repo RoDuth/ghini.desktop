@@ -848,7 +848,7 @@ class SearchView(pluginmgr.View, Gtk.Box):
         """
         glade_name = str(Path(paths.lib_dir(), 'notes_page.glade'))
         widgets = utils.BuilderWidgets(glade_name)
-        page = widgets['notes_scrolledwindow']
+        page = widgets.notes_scrolledwindow
         # create the label object
         label = Gtk.Label(label='Notes')
         self.bottom_notebook.append_page(page, label)
@@ -858,7 +858,7 @@ class SearchView(pluginmgr.View, Gtk.Box):
 
         self.bottom_info[Note] = {
             'fields_used': ['date', 'user', 'category', 'note'],
-            'tree': page.get_children()[0],
+            'tree': widgets.notes_treeview,
             'label': label,
             'name': _('Notes'),
             'sorter': sorter,
@@ -944,8 +944,15 @@ class SearchView(pluginmgr.View, Gtk.Box):
                 label.set_label(f'<b>{bottom_info["name"]}</b>')
                 sorter = bottom_info.get('sorter', reversed)
                 for obj in sorter(objs):
-                    model.append([str(getattr(obj, k) or '')
-                                  for k in bottom_info['fields_used']])
+                    values = []
+                    for k in bottom_info['fields_used']:
+                        if k == 'date' and (date := getattr(obj, k)):
+                            values.append(date.strftime(
+                                prefs.prefs.get(prefs.date_format_pref)
+                            ))
+                        else:
+                            values.append(getattr(obj, k) or '')
+                    model.append(values)
         self.bottom_notebook.show()
 
     def update_infobox(self, selected_values):
