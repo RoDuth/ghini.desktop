@@ -4,6 +4,7 @@
 from pathlib import Path
 from tld.defaults import NAMES_LOCAL_PATH_PARENT
 import pyproj
+import tldextract
 import bauble
 
 # this returns CWD.  Call script from repo root.
@@ -46,7 +47,9 @@ a = Analysis(['ghini'],
                   'bauble/plugins/report/mako/templates'),
                  ('../bauble/plugins/report/xsl/stylesheets',
                   'bauble/plugins/report/xsl/stylesheets'),
-                 (pyproj.datadir.get_data_dir(), 'share/proj')
+                 (pyproj.datadir.get_data_dir(), 'share/proj'),
+                 (str(Path(tldextract.__file__).parent / '.tld_set_snapshot'),
+                  'tldextract/')
              ] + glade_files + tld_names + configs,  # noqa
              hiddenimports=[
                  'sqlalchemy.dialects.sqlite',
