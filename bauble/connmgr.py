@@ -217,6 +217,7 @@ def check_create_paths(directory):
             else:
                 os.mkdir(thumbs)
     valid = all(valid)
+    logger.debug('check_create_paths: valid=%s; msg=%s', valid, msg)
 
     return valid, msg
 
@@ -456,6 +457,7 @@ class ConnMgrPresenter(GenericEditorPresenter):
         """add current named params to saved connections"""
         if self.connection_name is None:
             return
+        logger.debug('save current to prefs')
         if bauble.conn_list_pref not in prefs.prefs:
             prefs.prefs[bauble.conn_list_pref] = {}
         params = copy.copy(self.get_params())

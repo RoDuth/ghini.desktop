@@ -42,7 +42,29 @@ installation_date = datetime.now()
 import bauble.i18n
 
 logger = logging.getLogger(__name__)
+
+# setup logging early
+# temp set DEBUG until startup sets according to prefs
+logger.setLevel(logging.DEBUG)
 consoleLevel = logging.WARNING
+
+if not os.path.exists(paths.appdata_dir()):
+    os.makedirs(paths.appdata_dir())
+log_file = os.path.join(paths.appdata_dir(), 'bauble.log')
+formatter = logging.Formatter(
+    '%(asctime)s - %(name)s:%(lineno)d - %(levelname)s - %(thread)d '
+    '- %(message)s')
+file_handler = logging.FileHandler(log_file, 'w+', 'utf-8')
+file_handler.setFormatter(formatter)
+logging.getLogger().addHandler(file_handler)
+file_handler.setLevel(logging.DEBUG)
+
+if not paths.main_is_frozen():
+    console_handler = logging.StreamHandler()
+    logging.getLogger().addHandler(console_handler)
+    console_handler.setFormatter(formatter)
+
+    console_handler.setLevel(consoleLevel)
 
 
 def warn_with_traceback(message, category, filename, lineno, file=None,

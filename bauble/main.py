@@ -37,7 +37,6 @@ from bauble.connmgr import start_connection_manager
 from .ui import GUI
 
 logger = logging.getLogger(__name__)
-consoleLevel = logging.WARNING
 
 
 class Application(Gtk.Application):
@@ -49,13 +48,13 @@ class Application(Gtk.Application):
     def do_startup(self, *args, **kwargs):
         # first
         Gtk.Application.do_startup(self, *args, **kwargs)
-        if not os.path.exists(paths.appdata_dir()):
-            os.makedirs(paths.appdata_dir())
-        self._setup_logging()
+
         # initialise prefs
         prefs.prefs.init()
 
         # set the logging level to debug level per module as listed in prefs
+        # reset to WARNING (set DEBUG in bauble.__init__ to capture early)
+        bauble.logger.setLevel(logging.WARNING)
         for handler in prefs.prefs.get(prefs.debug_logging_prefs, []):
             logging.getLogger(handler).setLevel(logging.DEBUG)
 
@@ -70,6 +69,7 @@ class Application(Gtk.Application):
         bauble.gui.show()
         # bail early if no connection
         if open_exc is False:
+            logger.debug('bailing early, no connection')
             return
 
         if not self._post_loop(open_exc):
@@ -98,6 +98,7 @@ class Application(Gtk.Application):
         while True:
             if not uri or not conn_name:
                 conn_name, uri = start_connection_manager()
+                logger.debug('conn_name = %s')
                 if conn_name is None:
                     self.quit()
                     return False
@@ -125,6 +126,7 @@ class Application(Gtk.Application):
                 logger.debug("%s(%s)", type(e).__name__, e)
                 open_exc = e
             except Exception as e:  # pylint: disable=broad-except
+                logger.debug("%s(%s)", type(e).__name__, e)
                 msg = _("Could not open connection.\n\n%s") % e
                 utils.message_details_dialog(msg, traceback.format_exc(),
                                              Gtk.MessageType.ERROR)
@@ -145,26 +147,8 @@ class Application(Gtk.Application):
         pluginmgr.register_command(DefaultCommandHandler)
 
     @staticmethod
-    def _setup_logging():
-        # add console root handler and file root handler, set logging levels
-        filename = os.path.join(paths.appdata_dir(), 'bauble.log')
-        formatter = logging.Formatter(
-            '%(asctime)s - %(name)s:%(lineno)d - %(levelname)s - %(thread)d '
-            '- %(message)s')
-        file_handler = logging.FileHandler(filename, 'w+', 'utf-8')
-        file_handler.setFormatter(formatter)
-        logging.getLogger().addHandler(file_handler)
-        file_handler.setLevel(logging.DEBUG)
-
-        if not paths.main_is_frozen():
-            console_handler = logging.StreamHandler()
-            logging.getLogger().addHandler(console_handler)
-            console_handler.setFormatter(formatter)
-
-            console_handler.setLevel(consoleLevel)
-
-    @staticmethod
     def _post_loop(open_exc):
+        logger.debug('entering _post_loop')
         try:
             if isinstance(open_exc, err.DatabaseError):
                 msg = _('Would you like to create a new Ghini database at '
@@ -237,6 +221,7 @@ class Application(Gtk.Application):
             self.set_menubar(bauble.gui.menubar)
 
     def do_shutdown(self, *args, **kwargs):
+        logger.debug('Application shutdown')
         prefs.prefs.save()
         import shutil
         # delete global tempdir

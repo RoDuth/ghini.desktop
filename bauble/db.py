@@ -497,18 +497,21 @@ def verify_connection(new_engine, show_error_dialogs=False):
     if show_error_dialogs:
         try:
             return verify_connection(new_engine, False)
-        except error.EmptyDatabaseError:
+        except error.EmptyDatabaseError as e:
+            logger.info('%s(%s)', type(e).__name__, e)
             msg = _('The database you have connected to is empty.')
             utils.message_dialog(msg, Gtk.MessageType.ERROR)
             raise
-        except error.MetaTableError:
+        except error.MetaTableError as e:
+            logger.info('%s(%s)', type(e).__name__, e)
             msg = _('The database you have connected to does not have the '
                     'bauble meta table.  This usually means that the database '
                     'is either corrupt or it was created with an old version '
                     'of Ghini')
             utils.message_dialog(msg, Gtk.MessageType.ERROR)
             raise
-        except error.TimestampError:
+        except error.TimestampError as e:
+            logger.info('%s(%s)', type(e).__name__, e)
             msg = _('The database you have connected to does not have a '
                     'timestamp for when it was created. This usually means '
                     'that there was a problem when you created the '
@@ -517,6 +520,7 @@ def verify_connection(new_engine, show_error_dialogs=False):
             utils.message_dialog(msg, Gtk.MessageType.ERROR)
             raise
         except error.VersionError as e:
+            logger.info('%s(%s)', type(e).__name__, e)
             msg = (_('You are using Ghini version %(version)s while the '
                      'database you have connected to was created with '
                      'version %(db_version)s\n\nSome things might not work as '

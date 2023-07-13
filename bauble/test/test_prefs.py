@@ -17,6 +17,7 @@
 # You should have received a copy of the GNU General Public License
 # along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
 import os
+from pathlib import Path
 
 from unittest import mock
 from tempfile import mkstemp, mkdtemp
@@ -199,7 +200,6 @@ class PreferencesTests(BaubleTestCase):
         temp_dir = mkdtemp()
         prefs.prefs[prefs.root_directory_pref] = temp_dir
         os.makedirs(os.path.join(temp_dir, 'pictures', 'thumbs'))
-        from pathlib import Path
         Path(temp_dir, 'pictures', 'test.jpg').touch()
         Path(temp_dir, 'pictures', 'thumbs', 'test.jpg').touch()
         self.assertTrue(
@@ -224,7 +224,6 @@ class PreferencesTests(BaubleTestCase):
         temp_dir = mkdtemp()
         prefs.prefs[prefs.root_directory_pref] = temp_dir
         os.mkdir(os.path.join(temp_dir, 'documents'))
-        from pathlib import Path
         Path(temp_dir, 'documents', 'test.txt').touch()
         self.assertTrue(
             os.path.isfile(os.path.join(temp_dir, 'documents', 'test.txt'))
@@ -246,6 +245,57 @@ class PreferencesTests(BaubleTestCase):
                          os.path.join(temp_dir, 'tuhinga'))
         self.assertEqual(prefs.prefs[prefs.picture_root_pref],
                          os.path.join(temp_dir, 'фотографії'))
+
+    def test_init_corrupt_file_creates_a_copy(self):
+        handle, pname = mkstemp()
+        glob = str(Path(pname).name + '*')
+        # create junk data
+        with open(pname, 'w', encoding='utf-8') as f:
+            f.writelines(['kjdsfiuoewndfaj', '[[]]hh[sad]', '1234*&^%$BSJDKH'])
+        self.assertEqual(len(list(Path(pname).parent.glob(glob))), 1)
+        p = prefs._prefs(pname)
+        p.init()
+        self.assertEqual(len(list(Path(pname).parent.glob(glob))), 2)
+        os.close(handle)
+
+    def test_init_corrupt_file_overwrites(self):
+        handle, pname = mkstemp()
+        name = str(Path(pname).name)
+        # create junk data
+        junk_lines = ['kjdsfiuoewndfaj\n', '[[]]hh[sad]\n', '1234*&^%$BSJH\n']
+        with open(pname, 'w', encoding='utf-8') as f:
+            f.writelines(junk_lines)
+        p = prefs._prefs(pname)
+        p.init()
+        self.assertEqual(len(list(Path(pname).parent.glob(name + '*'))), 2)
+        corrupt = list(Path(pname).parent.glob(name + 'CRPT*'))[0]
+        with corrupt.open('r', encoding='utf-8') as f:
+            lines = f.readlines()
+        self.assertEqual(len(lines), 3)
+        self.assertListEqual(lines, junk_lines)
+
+        p.save(force=True)
+        with Path(pname).open('r', encoding='utf-8') as f:
+            lines = f.readlines()
+
+        self.assertGreater(len(lines), 3)
+        for line in (
+            prefs.root_directory_pref.rsplit('.', 1)[1] + ' = \n',
+            prefs.date_format_pref.rsplit('.', 1)[1] + ' = %d-%m-%Y\n',
+            prefs.time_format_pref.rsplit('.', 1)[1] + ' = %I:%M:%S %p\n',
+            prefs.units_pref.rsplit('.', 1)[1] + ' = metric\n',
+            prefs.debug_logging_prefs.rsplit('.', 1)[1] + " = ['bauble']\n"
+        ):
+            self.assertIn(line, lines)
+
+        for line in junk_lines:
+            self.assertNotIn(line, lines)
+
+        # just to be certain we have overwritten
+        for line in lines:
+            self.assertNotIn(line, junk_lines)
+
+        os.close(handle)
 
 
 class PrefsViewTests(BaubleTestCase):

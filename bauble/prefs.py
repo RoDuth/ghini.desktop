@@ -32,11 +32,13 @@ Can also access the preference keys e.g. ::
 """
 
 
+from datetime import datetime
+from shutil import copy2
 import os
 from collections import UserDict
 from pathlib import Path
 from ast import literal_eval
-from configparser import ConfigParser
+from configparser import ConfigParser, Error
 
 import logging
 logger = logging.getLogger(__name__)
@@ -212,24 +214,40 @@ class _prefs(UserDict):
     def __init__(self, filename=default_prefs_file):
         super().__init__()
         self._filename = filename
-        logger.debug('init prefs with filename: %s', filename)
         self.config = None
 
     def init(self):
         """initialize the preferences, should only be called from app.main"""
         # create directory tree of filename if it doesn't yet exist
+        logger.debug('init prefs with filename: %s', self._filename)
         head, _tail = os.path.split(self._filename)
         if not os.path.exists(head):
             os.makedirs(head)
 
-        self.config = ConfigParser(interpolation=None)
+        self.config = ConfigParser(interpolation=None, strict=False)
 
         # set the version if the file doesn't exist
         if not os.path.exists(self._filename):
             self[config_version_pref] = config_version
+            logger.debug('filename does not exist: %s', self._filename)
         else:
-            self.config.read(self._filename)
+            logger.debug('reading config from %s', self._filename)
+            try:
+                self.config.read(self._filename)
+            except Error as e:
+                logger.warning('reading config raised: %s(%s)',
+                               type(e).__name__, e)
+                # keep a copy and keep logging at debug level if reading config
+                # fails
+                try:
+                    tstamp = datetime.now().strftime('%Y%m%d%M%S')
+                    copy2(self._filename, self._filename + 'CRPT' + tstamp)
+                except Exception as e:  # pylint: disable=broad-except
+                    logger.debug('try copy corrupt config failed: %s(%s)',
+                                 type(e).__name__, e)
+                self[debug_logging_prefs] = ['bauble']
         version = self[config_version_pref]
+
         if version is None:
             logger.warning('%s has no config version pref', self._filename)
             logger.warning('setting the config version to %s.%s',
@@ -245,6 +263,7 @@ class _prefs(UserDict):
                     (debug_logging_prefs, [])]
 
         for key, value in defaults:
+            logger.debug('setting default %s = %s', key, value)
             self.add_default(key, value)
 
     @property
@@ -288,6 +307,7 @@ class _prefs(UserDict):
                 self.config.has_option(section, option)):
             root = self.config.get(section, option)
             if root:
+                logger.debug('root_directory = %s', root)
                 return root
         return self._get_meta_value_or_default(
             root_directory_pref.split('.')[1], ''
@@ -350,6 +370,7 @@ class _prefs(UserDict):
         """
         # make a new instance and reread the file into it.
         self.config = ConfigParser(interpolation=None)
+        logger.debug('reload config from %s', self._filename)
         self.config.read(self._filename)
 
     @staticmethod
@@ -447,6 +468,8 @@ class _prefs(UserDict):
         return self.config.has_section(section)
 
     def save(self, force=False):
+        logger.debug('saving prefs')
+        logger.debug('prefs sections = %s', self.config.sections())
         if testing and not force:
             return
         try:
@@ -662,12 +685,10 @@ class PrefsView(pluginmgr.View, Gtk.Box):
     @Gtk.Template.Callback()
     @staticmethod
     def on_prefs_backup_clicked(_widget):
-        from shutil import copy2
         copy2(default_prefs_file, default_prefs_file + 'BAK')
 
     @Gtk.Template.Callback()
     def on_prefs_restore_clicked(self, _widget):
-        from shutil import copy2
         # pylint: disable=using-constant-test
         if Path(default_prefs_file + 'BAK').exists():
             copy2(default_prefs_file + 'BAK', default_prefs_file)
