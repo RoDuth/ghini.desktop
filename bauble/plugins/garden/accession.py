@@ -81,6 +81,7 @@ from .source import (SourceDetail,
                      PropagationChooserPresenter,
                      source_type_values,
                      COLLECTION_KML_MAP_PREF)
+
 # TODO: underneath the species entry create a label that shows information
 # about the family of the genus of the species selected as well as more
 # info about the genus so we know exactly what plant is being selected
@@ -2891,7 +2892,6 @@ class AccessionEditor(editor.GenericModelViewPresenterEditor):
 
 # import at the bottom to avoid circular dependencies
 # pylint: disable=wrong-import-order
-from ..plants.genus import Genus
 from ..plants.species_model import Species, SpeciesSynonym
 
 

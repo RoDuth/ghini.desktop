@@ -77,7 +77,7 @@ for:
     - bash -lc "pytest -sv"
 
 deploy:
-  release: 'v1.3.1' # :bump
+  release: 'v1.3.2' # :bump
   skip_tags: true
   description: 'From previous versions, create a csv backup before upgrading, upgrade to this version, then restore the backup.'
   provider: GitHub

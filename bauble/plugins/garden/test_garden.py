@@ -3408,6 +3408,7 @@ class DMSConversionTests(unittest.TestCase):
             result = parse(*data)
             self.assertEqual(result, dec_val)
 
+
 from bauble.plugins.garden import PlantSearch
 from bauble import search
 
