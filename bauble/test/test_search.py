@@ -974,7 +974,7 @@ class SearchTests(BaubleTestCase):
         from bauble.plugins.plants.geography import geography_importer
         [_ for _ in geography_importer()]
         from bauble.plugins.plants.family import Family
-        from bauble.plugins.plants.genus import Genus, GenusSynonym
+        from bauble.plugins.plants.genus import Genus
         from bauble.plugins.plants.species import Species
         g2 = Genus(family=self.family, genus='genus2')
         self.genus.accepted = g2
@@ -1029,9 +1029,10 @@ class SearchTests(BaubleTestCase):
         queries.
         """
         from bauble.plugins.plants.family import Family
-        from bauble.plugins.plants.genus import Genus, GenusSynonym
+        from bauble.plugins.plants.genus import Genus
         from bauble.plugins.plants.species import Species
         from bauble.plugins.garden.accession import Accession
+        from bauble.plugins.garden.source import SourceDetail, Source
         from bauble.plugins.garden.plant import Plant
         from bauble.plugins.garden.location import Location
         g2 = Genus(family=self.family, genus='genus2')
@@ -1043,12 +1044,17 @@ class SearchTests(BaubleTestCase):
         sp3 = Species(sp="sp", genus=g3)
         ac = Accession(species=sp2, code='1979.0001', quantity_recvd=10)
         a2 = Accession(species=sp1, code='1979.0002', quantity_recvd=5)
+        sd = SourceDetail(source_type='Individual', name='Jade Green')
+        ac3 = Accession(species=sp2, code='2023.0003', quantity_recvd=10,
+                        source=Source(source_detail=sd))
         lc = Location(name='loc1', code='loc1')
         lc2 = Location(name='loc2', code='loc2')
+        lc3 = Location(name='Zone One', code='zone1')
         pp = Plant(accession=ac, code='01', location=lc, quantity=1)
         p2 = Plant(accession=ac, code='02', location=lc2, quantity=1)
+        plt3 = Plant(accession=ac3, code='02', location=lc3, quantity=1)
         self.session.add_all([g2, g3, g4, f1, sp1, sp2, sp3, ac, a2, lc, lc2,
-                              pp, p2])
+                              pp, p2, plt3])
         self.session.commit()
 
         mapper_search = search.get_strategy('MapperSearch')
@@ -1089,6 +1095,15 @@ class SearchTests(BaubleTestCase):
              "BETWEEN 1 and 20")
         results = list(mapper_search.search(s, self.session))
         self.assertCountEqual(results, [sp3])
+
+        # and and not query
+        s = ("accession where code like '2023%' and source.source_detail.name "
+             "contains 'Green' and not plants.location.code contains 'loc'")
+        results = list(mapper_search.search(s, self.session))
+        for i in results:
+            print(i)
+        self.assertCountEqual(results, [ac3])
+
 
 
 class InOperatorSearch(BaubleTestCase):

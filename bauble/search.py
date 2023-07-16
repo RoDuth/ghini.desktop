@@ -261,9 +261,11 @@ class IdentifierAction:
         elif env.joined_cls:
             # joins have already been applied due to AND clause
             cls = env.joined_cls
+            logger.debug('joined_cls = %s', cls)
         else:
             # identifier is an attribute of a joined table
             query, cls = create_joins(query, env.domain, self.steps)
+            logger.debug('create_joins cls = %s', cls)
 
         attr = getattr(cls, self.leaf)
         logger.debug('IdentifierToken for %s, %s evaluates to %s', cls,
@@ -509,6 +511,8 @@ class SearchAndAction(BinaryLogical):
                 query, cls = create_joins(query, env.domain, joins)
                 # let the operand know how to formulate the whereclause
                 env.joined_cls = cls
+            else:
+                env.joined_cls = None
 
             where = operand.evaluate(env).whereclause
 
