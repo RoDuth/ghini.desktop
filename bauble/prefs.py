@@ -249,9 +249,9 @@ class _prefs(UserDict):
         version = self[config_version_pref]
 
         if version is None:
-            logger.warning('%s has no config version pref', self._filename)
-            logger.warning('setting the config version to %s.%s',
-                           config_version[0], config_version[1])
+            logger.debug('%s has no config version pref', self._filename)
+            logger.debug('setting the config version to %s.%s',
+                         config_version[0], config_version[1])
             self[config_version_pref] = config_version
 
         # set some defaults if they don't exist (not added using update_prefs
@@ -263,7 +263,6 @@ class _prefs(UserDict):
                     (debug_logging_prefs, [])]
 
         for key, value in defaults:
-            logger.debug('setting default %s = %s', key, value)
             self.add_default(key, value)
 
     @property
@@ -363,6 +362,7 @@ class _prefs(UserDict):
 
     def add_default(self, key, value):
         if key not in self:
+            logger.debug('setting default %s = %s', key, value)
             self[key] = value
 
     def reload(self):
