@@ -2255,6 +2255,7 @@ class AccessionEditorPresenter(editor.GenericEditorPresenter):
             date_str = utils.today_str()
             utils.set_widget_value(self.view.widgets.acc_date_accd_entry,
                                    date_str)
+            self.model.date_accd = date_str
         self.view.connect('acc_date_accd_entry', 'changed',
                           self.on_date_entry_changed,
                           (self.model, 'date_accd'))
