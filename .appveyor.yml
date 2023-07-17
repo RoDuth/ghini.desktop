@@ -9,6 +9,8 @@ branches:
   only:
     - ghini-1.3-bbg
 
+skip_tags: true
+
 for:
 -
   matrix:
@@ -78,8 +80,7 @@ for:
 
 deploy:
   release: 'v1.3.2' # :bump
-  skip_tags: true
-  description: 'From previous versions, create a csv backup before upgrading, upgrade to this version, then restore the backup.'
+  description: ''
   provider: GitHub
   auth_token:
     secure: GO6caimCl/NMwv4nYvi9uAF5l7gNNXZB4BVhqONLyzA5OHaw+ui1847EDJjnodLG
