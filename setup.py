@@ -71,7 +71,7 @@ setup(
                       "pyparsing==3.0.9",
                       "pypac==0.16.0",
                       "pyshp==2.3.1",
-                      "pyproj==3.3.1",
+                      "pyproj",
                       "python-polylabel==0.6",
                       'python-dateutil==2.8.2'],
     extras_require={'docs': ['sphinx==1.7.9']},
