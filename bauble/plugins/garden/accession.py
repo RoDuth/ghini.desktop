@@ -2373,17 +2373,14 @@ class AccessionEditorPresenter(editor.GenericEditorPresenter):
             self.view.widgets.remove_parent(box)
             box.destroy()
             if response:
-                completion = (self.view.widgets.acc_species_entry
-                              .get_completion())
-                utils.clear_model(completion)
-                model = Gtk.ListStore(object)
-                model.append([syn.species])
-                completion.set_model(model)
+                # trigger signal handler to setup completions
+                self.view.widgets.acc_species_entry.set_text(str(syn.species))
+                # set the model directly incase of multiple matches
+                self.set_model_attr('species', syn.species)
+                self.refresh_view()
                 # remove id_qualifiers
                 utils.set_widget_value(self.view.widgets.acc_id_qual_combo,
                                        None)
-                # triggers this signal handler to set the model
-                self.view.widgets.acc_species_entry.set_text(str(syn.species))
 
         box = self.view.add_message_box(utils.MESSAGE_BOX_YESNO)
         box.message = msg
