@@ -231,6 +231,11 @@ class _prefs(UserDict):
             self[config_version_pref] = config_version
             logger.debug('filename does not exist: %s', self._filename)
         else:
+            try:
+                copy2(self._filename, self._filename + '_PREV')
+            except Exception as e:  # pylint: disable=broad-except
+                logger.debug('try copy previous config failed: %s(%s)',
+                             type(e).__name__, e)
             logger.debug('reading config from %s', self._filename)
             try:
                 self.config.read(self._filename)
@@ -369,7 +374,7 @@ class _prefs(UserDict):
         """Update the current preferences to any external changes in the file,
         """
         # make a new instance and reread the file into it.
-        self.config = ConfigParser(interpolation=None)
+        self.config = ConfigParser(interpolation=None, strict=False)
         logger.debug('reload config from %s', self._filename)
         self.config.read(self._filename)
 

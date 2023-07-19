@@ -27,6 +27,7 @@ import os
 import sys
 import traceback
 from datetime import datetime
+from shutil import copy2
 import warnings
 
 import gi
@@ -51,6 +52,11 @@ consoleLevel = logging.WARNING
 if not os.path.exists(paths.appdata_dir()):
     os.makedirs(paths.appdata_dir())
 log_file = os.path.join(paths.appdata_dir(), 'bauble.log')
+if os.path.exists(log_file):
+    try:
+        copy2(log_file, log_file + '_PREV')
+    except Exception as e:  # pylint: disable=broad-except
+        print('Copying previous log file failed: %s(%s)', type(e).__name__, e)
 formatter = logging.Formatter(
     '%(asctime)s - %(name)s:%(lineno)d - %(levelname)s - %(thread)d '
     '- %(message)s')
