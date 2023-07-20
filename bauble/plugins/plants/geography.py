@@ -102,9 +102,8 @@ def get_species_in_geography(geo):
 class GeographyMenu(Gio.Menu):
     ACTION_NAME = 'geography_activated'
 
-    def __init__(self, callback):
+    def __init__(self):
         super().__init__()
-        self.callback = callback
         geography_table = Geography.__table__
         self.geos = select([geography_table.c.id,
                             geography_table.c.name,
@@ -114,7 +113,7 @@ class GeographyMenu(Gio.Menu):
 
     @classmethod
     def new_menu(cls, callback, button):
-        menu = cls(callback)
+        menu = cls()
         menu.attach_action_group(callback, button)
 
         return Gtk.Menu.new_from_model(menu)
@@ -139,9 +138,7 @@ class GeographyMenu(Gio.Menu):
     def build_menu(self, geo_id, name):
         if next_level := self.geos_hash.get(geo_id):
             submenu = Gio.Menu()
-            item = Gio.MenuItem.new(
-                name, f'geo.{self.ACTION_NAME}::{geo_id}'
-            )
+            item = Gio.MenuItem.new(name, f'geo.{self.ACTION_NAME}::{geo_id}')
             submenu.append_item(item)
             section = Gio.Menu()
             submenu.append_section(None, section)
@@ -153,9 +150,7 @@ class GeographyMenu(Gio.Menu):
                     section.append_submenu(name_, item)
             return submenu
 
-        item = Gio.MenuItem.new(
-            name, f'geo.{self.ACTION_NAME}::{geo_id}'
-        )
+        item = Gio.MenuItem.new(name, f'geo.{self.ACTION_NAME}::{geo_id}')
         return item
 
     def populate(self):

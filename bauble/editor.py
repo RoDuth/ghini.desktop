@@ -2111,10 +2111,10 @@ class NoteBoxMenuBtnMixin:
     ROOT_PREF_KEY = prefs.document_root_pref
 
     def init_menu(self):
-        """Initialise the treeview context menu.
+        """Initialise the menu button context menu.
 
-        Create the ActionGroup and Menu, attach the Menu to the TreeView widget
-        and insert the ActionGroup.
+        Create the ActionGroup and Menu, set the MenuButton menu model to the
+        Menu and insert the ActionGroup.
         """
         menu = Gio.Menu()
         action_group = Gio.SimpleActionGroup()
