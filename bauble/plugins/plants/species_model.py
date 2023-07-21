@@ -875,7 +875,15 @@ def update_all_full_names_task():
 def update_all_full_names_handler(*_args):
     """Handler to update all the species full names."""
     from bauble.task import queue
-    queue(update_all_full_names_task())
+    from gi.repository import Gtk
+    import traceback
+    try:
+        queue(update_all_full_names_task())
+    except Exception as e:  # pylint: disable=broad-except
+        utils.message_details_dialog(utils.xml_safe(str(e)),
+                                     traceback.format_exc(),
+                                     Gtk.MessageType.ERROR)
+        logger.debug(traceback.format_exc())
 
 
 SpeciesNote = db.make_note_class('Species')
