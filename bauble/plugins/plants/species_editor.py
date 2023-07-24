@@ -44,7 +44,7 @@ import bauble
 from bauble import utils
 from bauble import paths
 from bauble import editor
-from .geography import GeographyMenu, Geography
+from .geography import GeographyMenu, Geography, consolidate_geographies
 from .genus import Genus, GenusSynonym
 from .family import Family
 from .species_model import (Species,
@@ -1258,6 +1258,8 @@ class InfraspPresenter(editor.GenericEditorPresenter):
 
 class DistributionPresenter(editor.GenericEditorPresenter):
 
+    MENU_ACTIONGRP_NAME = 'distribution_menu_btn'
+
     def __init__(self, parent):
         """
         :param parent: the parent SpeciesEditorPresenter
@@ -1266,6 +1268,8 @@ class DistributionPresenter(editor.GenericEditorPresenter):
                          connect_signals=False)
         self.parent_ref = weakref.ref(parent)
         self._dirty = False
+
+        self.init_menu_btn()
 
         self.remove_menu_model = Gio.Menu()
         action = Gio.SimpleAction.new('geography_remove',
@@ -1295,6 +1299,140 @@ class DistributionPresenter(editor.GenericEditorPresenter):
         )
         self.geo_menu.attach_to_widget(add_button)
         add_button.set_sensitive(True)
+
+    def init_menu_btn(self) -> None:
+        """Initialise the distribution menu button.
+
+        Create the ActionGroup and Menu, set the MenuButton menu model to the
+        Menu and insert the ActionGroup.
+        """
+        menu = Gio.Menu()
+        action_group = Gio.SimpleActionGroup()
+        menu_items = (
+            (_('Clear all'), 'clear', self.on_clear_all),
+            (_('Consolidate'), 'consolidate', self.on_consolidate),
+            (_('Paste - append'), 'append', self.on_paste_append),
+            (_('Paste - replace all'), 'replace', self.on_paste_replace),
+            (_('Copy'), 'copy', self.on_copy),
+        )
+        for label, name, handler in menu_items:
+            action = Gio.SimpleAction.new(name, None)
+            action.connect("activate", handler)
+            action_group.add_action(action)
+            menu_item = Gio.MenuItem.new(label,
+                                         f'{self.MENU_ACTIONGRP_NAME}.{name}')
+            menu.append_item(menu_item)
+
+        menu_btn = self.view.widgets.sp_dist_menu_btn
+
+        menu_btn.set_menu_model(menu)
+
+        menu_btn.insert_action_group(self.MENU_ACTIONGRP_NAME, action_group)
+
+    def on_clear_all(self, *_args) -> None:
+        """Clear all distributions."""
+        self.model.distribution = []
+
+        self._dirty = True
+        self.refresh_view()
+        self.parent_ref().refresh_sensitivity()
+
+    def append_dists_from_text(self, text: str) -> None:
+        """Given a string of comma seperated names, attempt to match the names
+        to WGSRPD units and append them to the current distributions.
+
+        If any errors resolving names let the user know and return.
+        """
+        geo_names = [i.strip() for i in text.strip().split(',')]
+
+        levels_counter = {}
+        name_map = {}
+        unresolved = set()
+
+        # get the full names first - low hanging fruit
+        geos = (self.session.query(Geography)
+                .filter(Geography.name.in_(geo_names)))
+
+        for geo in geos:
+            name_map.setdefault(geo.name, []).append(geo)
+            val = levels_counter.get(geo.tdwg_level, 0) + 1
+            levels_counter[geo.tdwg_level] = val
+
+        # then the abbreviated
+        for name in geo_names:
+            if not name:
+                unresolved.add(name)
+            elif name not in name_map:
+                geos = (self.session.query(Geography)
+                        .filter(Geography.name.like(f'{name}%')))
+                if not geos.all():
+                    unresolved.add(name)
+                for geo in geos:
+                    name_map.setdefault(geo.name, []).append(geo)
+                    val = levels_counter.get(geo.tdwg_level, 0) + 1
+                    levels_counter[geo.tdwg_level] = val
+
+        if unresolved:
+            msg = _('Could not resolve "%s"') % ', '.join(unresolved)
+            utils.message_dialog(msg,
+                                 Gtk.MessageType.ERROR,
+                                 parent=self.parent_ref().view.get_window())
+            logger.debug(msg)
+            return
+
+        geos = set()
+        for geo_list in name_map.values():
+            # heuristic choice: highest level or most common level
+            if len(geo_list) > 1:
+                if len(set(levels_counter.values())) == 1:
+                    geo_list = [sorted(geo_list,
+                                       key=lambda i: i.tdwg_level,
+                                       reverse=True)[0]]
+                else:
+                    geo_list = [sorted(
+                        geo_list,
+                        key=lambda i: levels_counter[i.tdwg_level],
+                        reverse=True
+                    )[0]]
+            geos.add(geo_list[0])
+
+        for geo in sorted(geos, key=lambda i: i.name):
+            dist = SpeciesDistribution(geography=geo)
+            self.model.distribution.append(dist)
+
+        self._dirty = True
+        self.refresh_view()
+        self.parent_ref().refresh_sensitivity()
+
+    def on_consolidate(self, *_args) -> None:
+        geos = [i.geography for i in self.model.distribution]
+        dists = []
+
+        for geo in sorted(consolidate_geographies(geos), key=lambda i: i.name):
+            dist = SpeciesDistribution(geography=geo)
+            dists.append(dist)
+
+        self.model.distribution = dists
+        self._dirty = True
+        self.refresh_view()
+        self.parent_ref().refresh_sensitivity()
+
+    def on_paste_append(self, *_args) -> None:
+        if bauble.gui:
+            text = bauble.gui.get_display_clipboard().wait_for_text()
+            self.append_dists_from_text(text)
+
+    def on_paste_replace(self, *_args) -> None:
+        self.model.distribution = []
+        if bauble.gui:
+            text = bauble.gui.get_display_clipboard().wait_for_text()
+            self.append_dists_from_text(text)
+
+    def on_copy(self, *_args) -> None:
+        if bauble.gui:
+            clipboard = bauble.gui.get_display_clipboard()
+            txt = ', '.join([str(d) for d in self.model.distribution])
+            clipboard.set_text(txt, -1)
 
     def cleanup(self):
         super().cleanup()
@@ -1546,7 +1684,11 @@ class SpeciesEditorView(editor.GenericEditorView):
                                 'cultivar name'),
         'expand_cv_btn': _('Show/hide extra parts.'),
         'sp_spqual_combo': _('Species qualifier'),
-        'sp_dist_frame': _('Species distribution'),
+        'sp_dist_add_button': _('Add a WGSRPD distribution unit'),
+        'sp_dist_remove_button': _('Remove a WGSRPD distribution unit'),
+        'sp_dist_menu_btn': _('Extra distribution actions menu.  (Consolidate '
+                              'attempts to replace children levels with a '
+                              'parent level if all its children exist.)'),
         'sp_vern_frame': _('Vernacular names'),
         'syn_frame': _('Species synonyms, only species that are not '
                        'already synonyms can be selected (can removed them '

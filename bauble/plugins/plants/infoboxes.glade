@@ -906,6 +906,7 @@
                     <property name="label" translatable="yes">Distribution:</property>
                     <property name="use-markup">True</property>
                     <property name="xalign">1</property>
+                    <property name="yalign">0</property>
                     <attributes>
                       <attribute name="weight" value="bold"/>
                     </attributes>
@@ -936,6 +937,7 @@
                     <property name="label" translatable="yes">Distribution for label:</property>
                     <property name="use-markup">True</property>
                     <property name="xalign">1</property>
+                    <property name="yalign">0</property>
                     <attributes>
                       <attribute name="weight" value="bold"/>
                     </attributes>

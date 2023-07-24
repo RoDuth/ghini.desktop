@@ -3659,6 +3659,262 @@ class DistributionPresenterTests(PlantTestCase):
 
         del presenter
 
+    def test_on_clear_all(self):
+        qld = (self.session.query(Geography)
+               .filter(Geography.tdwg_code == 'QLD')
+               .one())
+        nsw = (self.session.query(Geography)
+               .filter(Geography.tdwg_code == 'NSW')
+               .one())
+
+        qld_dist = SpeciesDistribution(geography=qld)
+        nsw_dist = SpeciesDistribution(geography=nsw)
+        fam = Family(family='family')
+        gen = Genus(genus='genus', family=fam)
+        sp = Species(genus=gen, sp='sp')
+        sp.distribution.append(qld_dist)
+        sp.distribution.append(nsw_dist)
+        self.session.add(sp)
+        self.session.commit()
+
+        mock_parent = mock.Mock()
+        mock_parent.view = SpeciesEditorView()
+        mock_parent.model = sp
+        mock_parent.session = self.session
+
+        presenter = DistributionPresenter(mock_parent)
+        presenter.on_clear_all()
+        self.assertEqual(sp.distribution, [])
+
+        del presenter
+
+    @mock.patch('bauble.utils.message_dialog')
+    def test_append_dists_from_clipboard_text(self, mock_dialog):
+        # haven't split these up as setUp is slow
+        fam = Family(family='family')
+        gen = Genus(genus='genus', family=fam)
+        sp = Species(genus=gen, sp='sp')
+        self.session.add(sp)
+        self.session.commit()
+
+        mock_parent = mock.Mock()
+        mock_parent.view = SpeciesEditorView()
+        mock_parent.model = sp
+        mock_parent.session = self.session
+
+        presenter = DistributionPresenter(mock_parent)
+        # empty str
+        txt = ''
+        presenter.append_dists_from_text(txt)
+        self.assertCountEqual(sp.distribution, [])
+        # junk data (i.e. a mistake)
+        txt = 'XYZ'
+        presenter.append_dists_from_text(txt)
+        self.assertCountEqual(sp.distribution, [])
+        mock_dialog.assert_called()
+        mock_dialog.reset_mock()
+
+        txt = '<asdf,KJ\nFDkjdsaiwj, <>,{[,127|8.9h\\dafn'
+        presenter.append_dists_from_text(txt)
+        self.assertCountEqual(sp.distribution, [])
+        mock_dialog.assert_called()
+        mock_dialog.reset_mock()
+        # test data that almost matches but is a little wrong
+        txt = 'New Zealand, Lord Howe i., XYZ'
+        presenter.append_dists_from_text(txt)
+        self.assertCountEqual(sp.distribution, [])
+        mock_dialog.assert_called()
+        mock_dialog.reset_mock()
+        # test an empty list
+        txt = ','
+        presenter.append_dists_from_text(txt)
+        self.assertCountEqual(sp.distribution, [])
+        mock_dialog.assert_called()
+        mock_dialog.reset_mock()
+        # test an empty list
+        txt = ','
+        presenter.append_dists_from_text(txt)
+        self.assertCountEqual(sp.distribution, [])
+        mock_dialog.assert_called()
+        mock_dialog.reset_mock()
+        # test a single list
+        txt = 'Australia'
+        presenter.append_dists_from_text(txt)
+        self.assertCountEqual(
+            [i.geography for i in sp.distribution],
+            [self.session.query(Geography).get(38)]
+        )
+        mock_dialog.assert_not_called()
+        mock_dialog.reset_mock()
+        sp.distribution = []
+        # test ambiguous (more than one level, should select highest)
+        txt = 'Queensland'
+        presenter.append_dists_from_text(txt)
+        self.assertCountEqual(
+            [i.geography for i in sp.distribution],
+            [self.session.query(Geography).get(695)]
+        )
+        mock_dialog.assert_not_called()
+        mock_dialog.reset_mock()
+        sp.distribution = []
+        # test ambiguous item in list with all others lower level
+        txt = ('Queensland, New South Wales, Victoria, South Australia, '
+               'Tasmania, Norfolk Is.')
+        presenter.append_dists_from_text(txt)
+        result = (self.session.query(Geography)
+                  .filter(Geography.id.in_((330, 296, 407, 359, 378, 286))))
+        self.assertCountEqual(
+            [i.geography for i in sp.distribution],
+            result.all()
+        )
+        mock_dialog.assert_not_called()
+        mock_dialog.reset_mock()
+        sp.distribution = []
+        # test abreviated to 12 chars
+        txt = 'New South Wa, Victoria, South Austra, Tasmania, Norfolk Is.'
+        presenter.append_dists_from_text(txt)
+        result = (self.session.query(Geography)
+                  .filter(Geography.id.in_((296, 407, 359, 378, 286))))
+        self.assertCountEqual(
+            [i.geography for i in sp.distribution],
+            result.all(),
+            [i.id for i in [i.geography for i in sp.distribution]]
+        )
+        mock_dialog.assert_not_called()
+
+        del presenter
+
+    @mock.patch('bauble.gui')
+    def test_on_consolidate(self, mock_gui):
+        from gi.repository import Gtk
+        mock_gui.window = Gtk.Window()
+        fam = Family(family='family')
+        gen = Genus(genus='genus', family=fam)
+        sp = Species(genus=gen, sp='sp')
+        lv2s = (self.session.query(Geography.id)
+                .filter(Geography.tdwg_level == 2)
+                .filter(Geography.parent_id.in_([1, 5])))
+        lv3 = (self.session.query(Geography)
+               .filter(Geography.tdwg_level == 3)
+               .filter(Geography.parent_id.in_(lv2s)))
+        for i in lv3:
+            sp.distribution.append(SpeciesDistribution(geography=i))
+        self.session.add(sp)
+        self.session.commit()
+
+        mock_parent = mock.Mock()
+        mock_parent.view = SpeciesEditorView()
+        mock_parent.model = sp
+        mock_parent.session = self.session
+
+        presenter = DistributionPresenter(mock_parent)
+        result = (self.session.query(Geography)
+                  .filter(Geography.id.in_([1, 5])).all())
+        presenter.on_consolidate()
+        self.assertCountEqual(result, [i.geography for i in sp.distribution])
+
+        del presenter
+
+    @mock.patch('bauble.gui')
+    def test_on_paste_append(self, mock_gui):
+        from gi.repository import Gtk
+        mock_gui.window = Gtk.Window()
+        mock_clipboard = mock.Mock()
+        mock_clipboard.wait_for_text.return_value = "Tasmania, Queensland"
+        mock_gui.get_display_clipboard.return_value = mock_clipboard
+        nsw = (self.session.query(Geography)
+               .filter(Geography.tdwg_code == 'NSW')
+               .one())
+
+        nsw_dist = SpeciesDistribution(geography=nsw)
+        fam = Family(family='family')
+        gen = Genus(genus='genus', family=fam)
+        sp = Species(genus=gen, sp='sp')
+        sp.distribution.append(nsw_dist)
+        self.session.add(sp)
+        self.session.commit()
+
+        mock_parent = mock.Mock()
+        mock_parent.view = SpeciesEditorView()
+        mock_parent.model = sp
+        mock_parent.session = self.session
+
+        presenter = DistributionPresenter(mock_parent)
+        presenter.on_paste_append()
+        result = (self.session.query(Geography)
+                  .filter(Geography.id.in_([296, 330, 378])).all())
+        self.assertCountEqual(result, [i.geography for i in sp.distribution])
+
+        del presenter
+
+    @mock.patch('bauble.gui')
+    def test_on_paste_replace(self, mock_gui):
+        from gi.repository import Gtk
+        mock_gui.window = Gtk.Window()
+        mock_clipboard = mock.Mock()
+        mock_clipboard.wait_for_text.return_value = "Tasmania, Queensland"
+        mock_gui.get_display_clipboard.return_value = mock_clipboard
+        nsw = (self.session.query(Geography)
+               .filter(Geography.tdwg_code == 'NSW')
+               .one())
+
+        nsw_dist = SpeciesDistribution(geography=nsw)
+        fam = Family(family='family')
+        gen = Genus(genus='genus', family=fam)
+        sp = Species(genus=gen, sp='sp')
+        sp.distribution.append(nsw_dist)
+        self.session.add(sp)
+        self.session.commit()
+
+        mock_parent = mock.Mock()
+        mock_parent.view = SpeciesEditorView()
+        mock_parent.model = sp
+        mock_parent.session = self.session
+
+        presenter = DistributionPresenter(mock_parent)
+        presenter.on_paste_replace()
+        result = (self.session.query(Geography)
+                  .filter(Geography.id.in_([330, 378])).all())
+        self.assertCountEqual(result, [i.geography for i in sp.distribution])
+
+        del presenter
+
+    @mock.patch('bauble.gui')
+    def test_on_copy(self, mock_gui):
+        from gi.repository import Gtk
+        mock_gui.window = Gtk.Window()
+        mock_clipboard = mock.Mock()
+        mock_gui.get_display_clipboard.return_value = mock_clipboard
+        qld = (self.session.query(Geography)
+               .filter(Geography.tdwg_code == 'QLD')
+               .one())
+        nsw = (self.session.query(Geography)
+               .filter(Geography.tdwg_code == 'NSW')
+               .one())
+
+        qld_dist = SpeciesDistribution(geography=qld)
+        nsw_dist = SpeciesDistribution(geography=nsw)
+        fam = Family(family='family')
+        gen = Genus(genus='genus', family=fam)
+        sp = Species(genus=gen, sp='sp')
+        sp.distribution.append(qld_dist)
+        sp.distribution.append(nsw_dist)
+        self.session.add(sp)
+        self.session.commit()
+
+        mock_parent = mock.Mock()
+        mock_parent.view = SpeciesEditorView()
+        mock_parent.model = sp
+        mock_parent.session = self.session
+
+        presenter = DistributionPresenter(mock_parent)
+        presenter.on_copy()
+        mock_clipboard.set_text.assert_called_with(
+            'Queensland, New South Wales', -1
+        )
+
+        del presenter
+
 
 class VernacularNamePresenterTests(PlantTestCase):
     def test_on_add_button_clicked(self):
