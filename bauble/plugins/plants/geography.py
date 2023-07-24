@@ -38,8 +38,13 @@ from sqlalchemy import (select,
                         Integer,
                         ForeignKey,
                         and_,
-                        literal)
-from sqlalchemy.orm import object_session, relationship, backref, deferred
+                        literal,
+                        exists)
+from sqlalchemy.orm import (object_session,
+                            relationship,
+                            backref,
+                            deferred,
+                            aliased)
 
 from bauble import db, utils
 from bauble import prefs
@@ -76,24 +81,11 @@ def get_species_in_geography(geo):
     if not session:
         ValueError('geography is not in a session')
 
-    # get all the geography children under geo
     from .species_model import SpeciesDistribution, Species
-    # get the children of geo
-    geo_table = geo.__table__
     master_ids = set([geo.id])
-    # populate master_ids with all the geography ids that represent
-    # the children of particular geography id
+    master_ids.update(geo.get_children_ids())
+    master_ids.update(geo.get_parent_ids())
 
-    def get_geography_children(parent_id):
-        stmt = select([geo_table.c.id], geo_table.c.parent_id == parent_id)
-        kids = [r[0] for r in db.engine.execute(stmt).fetchall()]
-        for kid in kids:
-            grand_kids = get_geography_children(kid)
-            master_ids.update(grand_kids)
-        return kids
-
-    geokids = get_geography_children(geo.id)
-    master_ids.update(geokids)
     query = (session.query(Species).join(SpeciesDistribution)
              .filter(SpeciesDistribution.geography_id.in_(master_ids)))
     return query.all()
@@ -224,34 +216,59 @@ class Geography(db.Base):
     def __str__(self):
         return str(self.name)
 
-    def has_children(self):
-        # has this geography or any of it children got SpeciesDistribution
-        # Much more expensive than other models
-        from sqlalchemy import exists
+    def get_parent_ids(self) -> set[int]:
+        session = object_session(self)
+        cte = (session.query(Geography.parent_id)
+               .filter(Geography.id == self.id).cte(recursive=True))
+        child = aliased(cte)
+        query = (session.query(Geography.parent_id)
+                 .join(child,
+                       Geography.id == child.c.parent_id))
+        query = (cte.union(query))
+        query = (session.query(Geography.id)
+                 .join(query, Geography.id == query.c.parent_id))
+        ids = {i[0] for i in query}
+        return ids
+
+    def get_children_ids(self) -> set[int]:
+        session = object_session(self)
+        cte = (session.query(Geography.id)
+               .filter(Geography.id == self.id).cte(recursive=True))
+        parent = aliased(cte)
+        query = cte.union(
+            session.query(Geography.id)
+            .join(parent, Geography.parent_id == parent.c.id)
+        )
+        query = (session.query(Geography.id)
+                 .join(query, Geography.parent_id == query.c.id))
+        ids = {i[0] for i in query}
+        return ids
+
+    def has_children(self) -> bool:
+        """Has this geography or any of it children or parents got a
+        SpeciesDistribution
+        """
         from .species_model import SpeciesDistribution
         session = object_session(self)
+        # more expensive than other models
         ids = {self.id}
-        parent_ids = [self.id]
-        while child_id := (session.query(Geography.id)
-                           .filter(Geography.parent_id.in_(parent_ids)).all()):
-            parent_ids = [i[0] for i in child_id]
-            ids.update(parent_ids)
+
+        ids.update(self.get_parent_ids())
+        ids.update(self.get_children_ids())
 
         return bool(session.query(literal(True))
                     .filter(exists()
                             .where(SpeciesDistribution.geography_id.in_(ids)))
                     .scalar())
 
-    def count_children(self):
+    def count_children(self) -> int:
         # Much more expensive than other models
         from .species_model import SpeciesDistribution
         session = object_session(self)
         ids = {self.id}
-        parent_ids = [self.id]
-        while child_id := (session.query(Geography.id)
-                           .filter(Geography.parent_id.in_(parent_ids)).all()):
-            parent_ids = [i[0] for i in child_id]
-            ids.update(parent_ids)
+
+        ids.update(self.get_parent_ids())
+        ids.update(self.get_children_ids())
 
         query = (session.query(SpeciesDistribution.species_id)
                  .filter(SpeciesDistribution.geography_id.in_(ids))

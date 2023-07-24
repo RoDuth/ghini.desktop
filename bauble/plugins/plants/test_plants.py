@@ -26,7 +26,7 @@ logging.basicConfig()
 
 import os
 from datetime import datetime
-from unittest import TestCase, skip, mock
+from unittest import TestCase, mock
 from functools import partial
 
 from sqlalchemy.orm.exc import NoResultFound
@@ -2017,9 +2017,11 @@ class GeographyTests(PlantTestCase):
     def test_get_species(self):
         mexico_id = 53
         mexico_central_id = 267
+        puebla_id = 642
         oaxaca_id = 665
         northern_america_id = 7
         western_canada_id = 45
+        british_columbia_id = 102
 
         # create a some species
         sp1 = Species(genus=self.genus, sp='sp1')
@@ -2048,6 +2050,17 @@ class GeographyTests(PlantTestCase):
         species = get_species_in_geography(north_america)
         self.assertTrue([s.id for s in species] == [sp1.id, sp2.id, sp3.id])
 
+        # recorded in parent should show in children
+        british_columbia = (self.session.query(Geography)
+                            .get(british_columbia_id))
+        species = get_species_in_geography(british_columbia)
+        self.assertTrue([s.id for s in species] == [sp3.id])
+
+        puebla = (self.session.query(Geography) .get(puebla_id))
+        species = get_species_in_geography(puebla)
+        self.assertTrue([s.id for s in species] == [sp1.id])
+
+
     def test_species_distribution_str(self):
         # create a some species
         sp1 = Species(genus=self.genus, sp='sp1')
@@ -2058,8 +2071,17 @@ class GeographyTests(PlantTestCase):
         dist = SpeciesDistribution(geography_id=45)
         sp1.distribution.append(dist)
         self.session.flush()
-        self.assertEqual(sp1.distribution_str(), ('Mexico Central, '
-                                                  'Western Canada'))
+        self.assertEqual(sp1.distribution_str(),
+                         'Mexico Central, Western Canada')
+
+    def test_get_children_id_get_parent_id(self):
+        australia = self.session.query(Geography).get(38)
+        self.assertCountEqual(australia.get_children_ids(),
+                              [414, 359, 296, 297, 330, 682, 683, 695, 727,
+                               688, 689, 694, 407, 726, 378, 286])
+        lord_howe = self.session.query(Geography).get(682)
+        self.assertCountEqual(lord_howe.get_parent_ids(),
+                              [286, 38, 5])
 
 
 class CitesStatus_test(PlantTestCase):
