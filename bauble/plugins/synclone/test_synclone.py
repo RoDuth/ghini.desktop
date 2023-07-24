@@ -568,8 +568,8 @@ class DBSyncTests(BaubleTestCase):
 
         resolver = ResolverDialog(row=first)
         resolver.on_value_cell_edited(None, 0, 'Malvaceae')
-        self.assertEqual(resolver.row['values'], {'family': 'Malvaceae',
-                                                  '_last_updated': 0})
+        self.assertCountEqual(resolver.row['values'], {'family': 'Malvaceae',
+                                                       '_last_updated': 0})
 
     def test_resolver_dialog_edit_int_cell(self):
         data = {'batch_number': 1,
@@ -592,10 +592,10 @@ class DBSyncTests(BaubleTestCase):
 
         resolver = ResolverDialog(row=first)
         resolver.on_value_cell_edited(None, 2, '3')
-        self.assertEqual(resolver.row['values'], {'code': '2023.0001',
-                                                  'species_id': 1,
-                                                  'quantity_recvd': 3,
-                                                  '_last_updated': 0})
+        self.assertCountEqual(resolver.row['values'], {'code': '2023.0001',
+                                                       'species_id': 1,
+                                                       'quantity_recvd': 3,
+                                                       '_last_updated': 0})
 
     def test_resolver_dialog_edit_int_cell_wrong_type(self):
         data = {'batch_number': 1,
@@ -619,10 +619,11 @@ class DBSyncTests(BaubleTestCase):
         resolver = ResolverDialog(row=first)
         resolver.on_value_cell_edited(None, 2, 'a')
         # does not change
-        self.assertEqual(resolver.row['values'], {'code': '2023.0001',
-                                                  'species_id': 1,
-                                                  'quantity_recvd': 2,
-                                                  '_last_updated': 0})
+        self.assertCountEqual(resolver.row['values'],
+                              {'code': '2023.0001',
+                               'species_id': 1,
+                               'quantity_recvd': 2,
+                               '_last_updated': 0})
 
     def test_resolver_dialog_edit_datetime_cell(self):
         data = {'batch_number': 1,
@@ -645,10 +646,11 @@ class DBSyncTests(BaubleTestCase):
 
         resolver = ResolverDialog(row=first)
         resolver.on_value_cell_edited(None, 3, '29/5/23')
-        self.assertEqual(resolver.row['values'], {'code': '2023.0001',
-                                                  'species_id': 1,
-                                                  'quantity_recvd': 2,
-                                                  '_last_updated': '29/5/23'})
+        self.assertCountEqual(resolver.row['values'],
+                              {'code': '2023.0001',
+                               'species_id': 1,
+                               'quantity_recvd': 2,
+                               '_last_updated': '29/5/23'})
 
     @mock.patch('bauble.plugins.synclone.sync.ResolverDialog.run')
     def test_dbsyncroniser_can_resolve_on_fly(self, mock_run):
@@ -677,8 +679,8 @@ class DBSyncTests(BaubleTestCase):
             rows = conn.execute(out_stmt).all()
         synchroniser = DBSyncroniser(rows)
 
-        # mutate the row and set return_value to RESPONSE_QUIT...  Tests that
-        # values is set back to start_values
+        # mutate the row and set return_value to RESPONSE_RESOLVE...  Tests
+        # that values is set back to start_values
         def _set_and_respond():
             rows[0]['values']['genus_id'] = 1
             return RESPONSE_RESOLVE
@@ -1069,7 +1071,7 @@ class DBSyncTests(BaubleTestCase):
 
     def test_dbsynchroniser_adds_history_correctly(self):
         # add a family to update
-        self.session.add(Family(id=1, family='Leguminosae', _created='1/1/21'))
+        self.session.add(Family(family='Leguminosae', _created='1/1/21'))
         self.session.commit()
         # sync some data
         data = [

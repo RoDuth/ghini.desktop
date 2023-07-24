@@ -28,7 +28,7 @@ import importlib
 import json
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 import logging
 logger = logging.getLogger(__name__)
@@ -204,7 +204,7 @@ class SyncRow:
             self._set_instance()
         return self._instance
 
-    def _get_statement(self) -> Executable | None:
+    def _get_statement(self) -> Executable | Literal['']:
         """Returns an appropriate sqlalchemy Executable statement for
         synchronising this row, or an empty str if the record is to be skipped.
         """
@@ -244,7 +244,7 @@ class SyncRow:
         return stmt
 
     @property
-    def statement(self) -> Executable | None:
+    def statement(self) -> Executable | Literal['']:
         """An appropriate sqlalchemy statement or '' if the record is to be
         skipped.
         """
@@ -373,49 +373,49 @@ class DBSyncroniser:
             self.failed.append(row.id)
         return response
 
-    def _sync_row(self, row: Row, connection: Connection) -> None:
+    def _sync_row(self, row: Row) -> None:
         """Attempt to sync a row, if user decides to quite raises DatabaseError
         to trigger a rollback"""
         while True:
-            sync_row = SyncRow(self.id_map, row, connection)
-            try:
-                sync_row.sync()
-                # remove if successfull
-                ToSync.remove_row(row, connection)
-                break
-            except error.SkipRecord:
-                self.failed.append(row.id)
-                break
-            except SQLAlchemyError as e:
-                logger.debug('%s(%s)', type(e).__name__, e)
-                msg = utils.xml_safe(
-                    str(e).split('\n', maxsplit=1)[0]
-                )
-                response = self._open_resolver(row, msg)
-                if response == RESPONSE_QUIT:
-                    # raise exceptio to trigger a rollback
-                    raise error.DatabaseError('Sync aborted.')
-                if response in (RESPONSE_SKIP,
-                                RESPONSE_SKIP_RELATED):
+            with db.engine.begin() as connection:
+                sync_row = SyncRow(self.id_map, row, connection)
+                try:
+                    sync_row.sync()
+                    # remove if successfull
+                    ToSync.remove_row(row, connection)
                     break
-                if response == Gtk.ResponseType.DELETE_EVENT:
-                    msg = _('Would you like to abort the sync?')
-                    parent = None
-                    if bauble.gui:
-                        parent = bauble.gui.window
-                    if utils.yes_no_dialog(msg=msg, parent=parent):
+                except error.SkipRecord:
+                    self.failed.append(row.id)
+                    break
+                except SQLAlchemyError as e:
+                    logger.debug('%s(%s)', type(e).__name__, e)
+                    msg = utils.xml_safe(
+                        str(e).split('\n', maxsplit=1)[0]
+                    )
+                    response = self._open_resolver(row, msg)
+                    if response == RESPONSE_QUIT:
+                        # raise exceptio to trigger a rollback
                         raise error.DatabaseError('Sync aborted.')
+                    if response in (RESPONSE_SKIP,
+                                    RESPONSE_SKIP_RELATED):
+                        break
+                    if response == Gtk.ResponseType.DELETE_EVENT:
+                        msg = _('Would you like to abort the sync?')
+                        parent = None
+                        if bauble.gui:
+                            parent = bauble.gui.window
+                        if utils.yes_no_dialog(msg=msg, parent=parent):
+                            raise error.DatabaseError('Sync aborted.')
 
     def _sync_task(self) -> None:
         num_items = len(self.rows)
         five_percent = int(num_items / 20) or 1
 
-        with db.engine.begin() as connection:
-            for done, row in enumerate(reversed(self.rows)):
-                self._sync_row(row, connection)
-                if done % five_percent == 0:
-                    bauble.pb_set_fraction(done / num_items)
-                    yield
+        for done, row in enumerate(reversed(self.rows)):
+            self._sync_row(row)
+            if done % five_percent == 0:
+                bauble.pb_set_fraction(done / num_items)
+                yield
 
     def sync(self) -> list[int]:
         task.clear_messages()
