@@ -75,7 +75,10 @@ from .genus import (Genus,
                     GenusNote,
                     GenusEditorPresenter,
                     GenusEditorView)
-from .geography import Geography, get_species_in_geography, geography_importer
+from .geography import (consolidate_geographies,
+                        Geography,
+                        get_species_in_geography,
+                        geography_importer)
 
 #
 # TODO: things to create tests for
@@ -2082,6 +2085,44 @@ class GeographyTests(PlantTestCase):
         lord_howe = self.session.query(Geography).get(682)
         self.assertCountEqual(lord_howe.get_parent_ids(),
                               [286, 38, 5])
+
+    def test_consolidate_geographies(self):
+        # all level 2 geographies
+        lv2 = (self.session.query(Geography)
+               .filter(Geography.tdwg_level == 2))
+        result = (self.session.query(Geography)
+                  .filter(Geography.tdwg_level == 1).all())
+        self.assertCountEqual(result, consolidate_geographies(lv2))
+        # all level 3 geographies from EUROPE and AUSTRALASIA
+        lv2s = (self.session.query(Geography.id)
+                .filter(Geography.tdwg_level == 2)
+                .filter(Geography.parent_id.in_([1, 5])))
+        lv3 = (self.session.query(Geography)
+               .filter(Geography.tdwg_level == 3)
+               .filter(Geography.parent_id.in_(lv2s)))
+        result = (self.session.query(Geography)
+                  .filter(Geography.id.in_([1, 5])).all())
+        self.assertCountEqual(result, consolidate_geographies(lv3))
+        # all level 4 geographies from Brazil
+        lv3s = (self.session.query(Geography.id)
+                .filter(Geography.tdwg_level == 3)
+                .filter(Geography.parent_id == 58))
+        lv4 = (self.session.query(Geography)
+               .filter(Geography.parent_id.in_(lv3s))
+               .filter(Geography.tdwg_level == 4))
+        result = [self.session.query(Geography).get(58)]
+        self.assertCountEqual(result, consolidate_geographies(lv4))
+        # a combination that ends up in AUSTALIASIA + Paupua New Guinea
+        ids = (39, 688, 689, 286, 297, 330, 359, 378, 407, 414, 691)
+        geos = self.session.query(Geography).filter(Geography.id.in_(ids))
+        result = (self.session.query(Geography)
+                  .filter(Geography.id.in_((691, 5))).all())
+        self.assertCountEqual(result, consolidate_geographies(geos))
+        # AUSTRALASIA and Lord Howe I. should remove Lord Howe
+        ids = (5, 682)
+        geos = self.session.query(Geography).filter(Geography.id.in_(ids))
+        result = [self.session.query(Geography).get(5)]
+        self.assertCountEqual(result, consolidate_geographies(geos))
 
 
 class CitesStatus_test(PlantTestCase):

@@ -21,6 +21,7 @@ The geography module,
 
 World Geographical Scheme for Recording Plant Distributions (WGSRPD)
 """
+from collections.abc import Iterable
 from operator import itemgetter
 from pathlib import Path
 
@@ -331,6 +332,30 @@ class GeographyInfoBox(InfoBox):
     def update(self, row):
         self.general.update(row)
         self.props.update(row)
+
+
+def consolidate_geographies(geo_list: Iterable[Geography]) -> list:
+    """Given a list of geographies, if all child members of a parent exist
+    recursively replace the children with the parent.
+    """
+    parents = set()
+    for geo in geo_list:
+        parents.add(geo.parent)
+
+    result = set()
+    for geo in parents:
+        if geo:
+            if all(i in geo_list for i in geo.children):
+                result.add(geo)
+
+    for geo in geo_list:
+        parent_ids = geo.get_parent_ids()
+        if all(i.id not in parent_ids for i in result):
+            result.add(geo)
+
+    if geo_list == result:
+        return list(result)
+    return consolidate_geographies(result)
 
 
 def geography_importer():
