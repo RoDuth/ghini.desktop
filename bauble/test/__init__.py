@@ -145,6 +145,8 @@ class BaubleTestCase(unittest.TestCase):
         self.handler = MockLoggingHandler()
         logging.getLogger().addHandler(self.handler)
         logging.getLogger().setLevel(logging.DEBUG)
+        # clear meta cache
+        bauble.meta.get_cached_value.clear_cache()
         logger.debug('prefs filename: %s', prefs.prefs._filename)
 
     def tearDown(self):

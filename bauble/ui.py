@@ -508,7 +508,9 @@ class GUI:
     def on_history_pinned_clicked(self, widget, _icon_pos, _event):
         """add or remove a pin search string to the history pins."""
         text = widget.get_text()
-        if not text:
+
+        # bail early if no text or the text is too long
+        if not text or len(text) > 1000:
             return
 
         history_pins = prefs.prefs.get(self.entry_history_pins_pref, [])
@@ -537,6 +539,10 @@ class GUI:
         """add text to history, if text is already in the history then set its
         index to index parameter
         """
+        # bail early if no text or the text is too long
+        if not text or len(text) > 1000:
+            return
+
         if index < 0 or index > self.history_size:
             raise ValueError(_('index must be greater than zero and less than '
                                'the history size'))

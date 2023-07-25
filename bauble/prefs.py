@@ -39,6 +39,7 @@ from collections import UserDict
 from pathlib import Path
 from ast import literal_eval
 from configparser import ConfigParser, Error
+from filelock import FileLock
 
 import logging
 logger = logging.getLogger(__name__)
@@ -214,6 +215,8 @@ class _prefs(UserDict):
     def __init__(self, filename=default_prefs_file):
         super().__init__()
         self._filename = filename
+        self._lock_filename = filename + '.lock'
+        self._lock_timeout = 6
         self.config = None
 
     def init(self):
@@ -237,20 +240,23 @@ class _prefs(UserDict):
                 logger.debug('try copy previous config failed: %s(%s)',
                              type(e).__name__, e)
             logger.debug('reading config from %s', self._filename)
-            try:
-                self.config.read(self._filename)
-            except Error as e:
-                logger.warning('reading config raised: %s(%s)',
-                               type(e).__name__, e)
-                # keep a copy and keep logging at debug level if reading config
-                # fails
+
+            with FileLock(self._lock_filename, timeout=self._lock_timeout):
                 try:
-                    tstamp = datetime.now().strftime('%Y%m%d%M%S')
-                    copy2(self._filename, self._filename + 'CRPT' + tstamp)
-                except Exception as e:  # pylint: disable=broad-except
-                    logger.debug('try copy corrupt config failed: %s(%s)',
-                                 type(e).__name__, e)
-                self[debug_logging_prefs] = ['bauble']
+                    self.config.read(self._filename, encoding='utf-8')
+                except Error as e:
+                    logger.warning('reading config raised: %s(%s)',
+                                   type(e).__name__, e)
+                    # keep a copy and keep logging at debug level if reading
+                    # config fails
+                    try:
+                        tstamp = datetime.now().strftime('%Y%m%d%M%S')
+                        copy2(self._filename, self._filename + 'CRPT' + tstamp)
+                    except Exception as e:  # pylint: disable=broad-except
+                        logger.debug('try copy corrupt config failed: %s(%s)',
+                                     type(e).__name__, e)
+                    self[debug_logging_prefs] = ['bauble']
+
         version = self[config_version_pref]
 
         if version is None:
@@ -300,8 +306,7 @@ class _prefs(UserDict):
         default.
         """
         if db.Session:
-            meta_obj = meta.get_default(name)
-            return meta_obj.value if meta_obj else default
+            return meta.get_cached_value(name) or default
         return default
 
     @property
@@ -376,7 +381,8 @@ class _prefs(UserDict):
         # make a new instance and reread the file into it.
         self.config = ConfigParser(interpolation=None, strict=False)
         logger.debug('reload config from %s', self._filename)
-        self.config.read(self._filename)
+        with FileLock(self._lock_filename, timeout=self._lock_timeout):
+            self.config.read(self._filename, encoding='utf-8')
 
     @staticmethod
     def _parse_key(name):
@@ -416,17 +422,22 @@ class _prefs(UserDict):
         if (not self.config.has_section(section) or
                 not self.config.has_option(section, option)):
             return None
-        i = self.config.get(section, option)
+        item = self.config.get(section, option)
 
-        if i == '':
-            return i
+        # avoid excessively long values
+        if len(item) > 20000:
+            logger.warning('%s appears corrupted - ignoring', key)
+            item = ''
+
+        if item == '':
+            return item
 
         try:
-            i = literal_eval(i)
+            item = literal_eval(item)
         except (ValueError, SyntaxError):
             pass
 
-        return i
+        return item
 
     def __delitem__(self, key):
         section, option = self._parse_key(key)
@@ -453,6 +464,10 @@ class _prefs(UserDict):
                 yield option, self.get(f'{section}.{option}')
 
     def __setitem__(self, key, value):
+        # avoid excessively long values
+        if len(str(value)) > 20000:
+            logger.warning('%s appears corrupt not saving', key)
+            return
         if key == document_path_pref:
             self.documents_path = value
         if key == picture_path_pref:
@@ -477,18 +492,19 @@ class _prefs(UserDict):
         logger.debug('prefs sections = %s', self.config.sections())
         if testing and not force:
             return
-        try:
-            with open(self._filename, "w+", encoding='utf-8') as f:
-                self.config.write(f)
-        except Exception:  # pylint: disable=broad-except
-            msg = (_("Can't save your user preferences. \n\nPlease "
-                     "check the file permissions of your config file:\n %s")
-                   % self._filename)
-            if bauble.gui is not None and bauble.gui.window is not None:
-                utils.message_dialog(msg, typ=Gtk.MessageType.ERROR,
-                                     parent=bauble.gui.window)
-            else:
-                logger.error(msg)
+        with FileLock(self._lock_filename, timeout=self._lock_timeout):
+            try:
+                with open(self._filename, "w+", encoding='utf-8') as f:
+                    self.config.write(f)
+            except Exception:  # pylint: disable=broad-except
+                msg = (_("Can't save your user preferences. \n\nPlease check "
+                         "the file permissions of your config file:\n %s")
+                       % self._filename)
+                if bauble.gui is not None and bauble.gui.window is not None:
+                    utils.message_dialog(msg, typ=Gtk.MessageType.ERROR,
+                                         parent=bauble.gui.window)
+                else:
+                    logger.error(msg)
 
 
 def update_prefs(conf_file):

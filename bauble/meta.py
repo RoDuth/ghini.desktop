@@ -1,5 +1,6 @@
 # Copyright (c) 2005,2006,2007,2008,2009 Brett Adams <brett@belizebotanic.org>
 # Copyright (c) 2012-2015 Mario Frasca <mario@anche.no>
+# Copyright (c) 2020-2023 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -18,7 +19,10 @@
 #
 # meta.py
 #
-from sqlalchemy import Unicode, UnicodeText, Column
+from sqlalchemy import Unicode, UnicodeText, Column, event
+
+import logging
+logger = logging.getLogger(__name__)
 
 from bauble import db
 from bauble import utils
@@ -63,6 +67,17 @@ def get_default(name, default=None, session=None):
     return meta
 
 
+@utils.timed_cache(secs=None)
+def get_cached_value(name):
+    session = db.Session()
+    query = session.query(BaubleMeta)
+    meta = query.filter_by(name=name).first()
+    value = meta.value if meta else None
+    logger.debug('get_cached_value from database: %s=%s', name, value)
+    session.close()
+    return value
+
+
 def confirm_default(name, default, msg, parent=None):
     """Allow the user to confirm the value of a BaubleMeta object the first
     time it is needed.
@@ -105,6 +120,7 @@ def set_value(names, defaults, msg, parent=None):
     :param msg: the message to display in the dialog.
     :param parent: the parent window
     """
+    logger.debug('set_value for %s', names)
     meta = None
     from gi.repository import Gtk  # noqa
     import bauble
@@ -137,11 +153,13 @@ def set_value(names, defaults, msg, parent=None):
         for name, entry in entry_map.items():
             value = entry.get_text()
             if not value:
+                logger.debug('no value for %s', name)
                 continue
             meta = session.query(BaubleMeta).filter_by(name=name).first()
             meta = meta or BaubleMeta(name=name)
             meta.value = value
             session.add(meta)
+            logger.debug('committing %s: %s', name, value)
             session.commit()
             metas.append(meta)
         for meta in metas:
@@ -172,3 +190,12 @@ class BaubleMeta(db.Base):
     __tablename__ = 'bauble'
     name = Column(Unicode(64), unique=True)
     value = Column(UnicodeText)
+
+
+@event.listens_for(BaubleMeta, 'after_insert')
+@event.listens_for(BaubleMeta, 'after_delete')
+@event.listens_for(BaubleMeta, 'after_update')
+def meta_after_execute(*_args):
+    """Clear cache on any commits to BaubleMeta."""
+    logger.debug('clearing meta.get_cache_value cache')
+    get_cached_value.clear_cache()

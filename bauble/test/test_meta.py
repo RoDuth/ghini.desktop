@@ -21,7 +21,7 @@
 from unittest import mock
 from gi.repository import Gtk
 
-from bauble import meta
+from bauble import meta, db
 from bauble.test import BaubleTestCase
 
 
@@ -105,3 +105,30 @@ class MetaTests(BaubleTestCase):
             name=name).first()
         self.assertIsNone(result)
         self.assertIsNone(obj3)
+
+    def test_get_cached_value(self):
+        name = 'test3'
+        value = 'test value'
+        value2 = 'new value'
+
+        self.assertIsNone(meta.get_cached_value(name))
+        obj = meta.BaubleMeta(name=name, value=value)
+        self.session.add(obj)
+        self.session.commit()
+        self.assertEqual(meta.get_cached_value(name), value)
+        # ask for the same value again and the session should not be called
+        with mock.patch('bauble.db.Session') as mock_session:
+            val = meta.get_cached_value(name)
+            mock_session.assert_not_called()
+            self.assertEqual(val, value)
+
+        # change the value and its should ask the session
+        obj.value = value2
+        self.session.commit()
+
+        session = db.Session()
+        with mock.patch('bauble.db.Session') as mock_session:
+            mock_session.return_value = session
+            val = meta.get_cached_value(name)
+            mock_session.assert_called()
+            self.assertEqual(val, value2)

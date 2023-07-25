@@ -29,7 +29,7 @@ from gi.repository import Gtk
 from bauble.test import BaubleTestCase
 from bauble import prefs
 from bauble import version_tuple
-from bauble.meta import BaubleMeta
+from bauble.meta import BaubleMeta, get_cached_value
 
 
 class PreferencesTests(BaubleTestCase):
@@ -255,8 +255,8 @@ class PreferencesTests(BaubleTestCase):
         self.assertEqual(len(list(Path(pname).parent.glob(glob))), 1)
         p = prefs._prefs(pname)
         p.init()
-        # NOTE len = 3 because _prev backup is created also
-        self.assertEqual(len(list(Path(pname).parent.glob(glob))), 3)
+        # NOTE len = 4 because _prev backup and a filelock is created
+        self.assertEqual(len(list(Path(pname).parent.glob(glob))), 4)
         os.close(handle)
 
     def test_init_corrupt_file_overwrites(self):
@@ -268,8 +268,8 @@ class PreferencesTests(BaubleTestCase):
             f.writelines(junk_lines)
         p = prefs._prefs(pname)
         p.init()
-        # NOTE len = 3 because _prev backup is created also
-        self.assertEqual(len(list(Path(pname).parent.glob(name + '*'))), 3)
+        # NOTE len = 4 because _prev backup and a filelock is created
+        self.assertEqual(len(list(Path(pname).parent.glob(name + '*'))), 4)
         corrupt = list(Path(pname).parent.glob(name + 'CRPT*'))[0]
         with corrupt.open('r', encoding='utf-8') as f:
             lines = f.readlines()

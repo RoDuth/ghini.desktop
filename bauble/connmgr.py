@@ -190,9 +190,9 @@ def check_create_paths(directory):
     """
     # if it's a file, things are not OK
     root = make_absolute(directory)
-    logger.debug('root directory = %s', root)
     docs = os.path.join(root, prefs.prefs.get(prefs.document_path_pref))
     pics = os.path.join(root, prefs.prefs.get(prefs.picture_path_pref))
+    logger.debug('root= %s, docs=%s, pics=%s', root, docs, pics)
     thumbs = os.path.join(pics, 'thumbs')
     # root should exist as a directory
     msg = ''

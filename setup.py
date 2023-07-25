@@ -72,6 +72,7 @@ setup(
                       "pypac==0.16.0",
                       "pyshp==2.3.1",
                       "pyproj",
+                      "filelock>=3",
                       "python-polylabel==0.6",
                       'python-dateutil==2.8.2'],
     extras_require={'docs': ['sphinx==1.7.9']},
