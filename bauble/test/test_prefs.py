@@ -17,6 +17,7 @@
 # You should have received a copy of the GNU General Public License
 # along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
 import os
+import sys
 from pathlib import Path
 
 from unittest import mock
@@ -29,7 +30,7 @@ from gi.repository import Gtk
 from bauble.test import BaubleTestCase
 from bauble import prefs
 from bauble import version_tuple
-from bauble.meta import BaubleMeta, get_cached_value
+from bauble.meta import BaubleMeta
 
 
 class PreferencesTests(BaubleTestCase):
@@ -248,6 +249,7 @@ class PreferencesTests(BaubleTestCase):
 
     def test_init_corrupt_file_creates_a_copy(self):
         handle, pname = mkstemp()
+        os.close(handle)
         glob = str(Path(pname).name + '*')
         # create junk data
         with open(pname, 'w', encoding='utf-8') as f:
@@ -255,12 +257,13 @@ class PreferencesTests(BaubleTestCase):
         self.assertEqual(len(list(Path(pname).parent.glob(glob))), 1)
         p = prefs._prefs(pname)
         p.init()
-        # NOTE len = 4 because _prev backup and a filelock is created
-        self.assertEqual(len(list(Path(pname).parent.glob(glob))), 4)
-        os.close(handle)
+        # NOTE includes lock file if not windows (always config, +PREV, +CRPT+)
+        file_count = 3 if sys.platform == 'win32' else 4
+        self.assertEqual(len(list(Path(pname).parent.glob(glob))), file_count)
 
     def test_init_corrupt_file_overwrites(self):
         handle, pname = mkstemp()
+        os.close(handle)
         name = str(Path(pname).name)
         # create junk data
         junk_lines = ['kjdsfiuoewndfaj\n', '[[]]hh[sad]\n', '1234*&^%$BSJH\n']
@@ -268,8 +271,10 @@ class PreferencesTests(BaubleTestCase):
             f.writelines(junk_lines)
         p = prefs._prefs(pname)
         p.init()
-        # NOTE len = 4 because _prev backup and a filelock is created
-        self.assertEqual(len(list(Path(pname).parent.glob(name + '*'))), 4)
+        # NOTE includes lock file if not windows (always config, +PREV, +CRPT+)
+        file_count = 3 if sys.platform == 'win32' else 4
+        self.assertEqual(len(list(Path(pname).parent.glob(name + '*'))),
+                         file_count)
         corrupt = list(Path(pname).parent.glob(name + 'CRPT*'))[0]
         with corrupt.open('r', encoding='utf-8') as f:
             lines = f.readlines()
@@ -296,8 +301,6 @@ class PreferencesTests(BaubleTestCase):
         # just to be certain we have overwritten
         for line in lines:
             self.assertNotIn(line, junk_lines)
-
-        os.close(handle)
 
 
 class PrefsViewTests(BaubleTestCase):
