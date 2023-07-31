@@ -17,6 +17,7 @@
 """
 Test shapefile import/export
 """
+from copy import deepcopy
 
 import logging
 logger = logging.getLogger(__name__)
@@ -33,8 +34,9 @@ from gi.repository import Gtk
 from bauble import utils
 from bauble.test import BaubleTestCase
 from bauble.editor import MockView, MockDialog
-from bauble.utils.geo import ProjDB
-from bauble.meta import get_default
+from bauble.utils.geo import ProjDB, install_default_prjs
+from bauble.meta import get_default, BaubleMeta
+from bauble.error import BaubleError, MetaTableError
 from bauble.utils.geo import DEFAULT_SYS_PROJ
 from bauble.plugins.garden import (Plant,
                                    PlantNote,
@@ -44,7 +46,7 @@ from bauble.plugins.garden import (Plant,
 from bauble.plugins.plants import Family, Genus
 from bauble.plugins.plants.species import (Species, VernacularName,
                                            DefaultVernacularName)
-from bauble.utils.geo import transform
+from bauble.utils.geo import transform, DEFAULT_IN_PROJ
 from .import_tool import ShapefileImporter, ShapefileReader, MATCH, OPTION
 from .export_tool import ShapefileExporter, get_field_properties
 
@@ -114,6 +116,8 @@ epsg3857_poly2 = {
 
 epsg4326_point_xy = {'type': 'Point',
                      'coordinates': [152.97899035780537, -27.477676044133204]}
+epsg4326_point_xy2 = {'type': 'Point',
+                      'coordinates': [153.97899035780537, -27.477676644133204]}
 epsg4326_line_xy = {'type': 'LineString',
                     'coordinates': [[152.97756344999996, -27.477415350999937],
                                     [152.97780253700006, -27.477309303999977]]}
@@ -229,7 +233,7 @@ loc_recs_4326_bulk = [
     {'record':
      {'loc_id': i, 'loc_code': f'bed{i}', 'name': f'garden bed {i}',
       'descript': '', 'field_note': f'note {i}'}, **epsg4326_poly_xy}
-    for i in range(30)
+    for i in range(1, 31)
 ]
 loc_recs_4326_2 = [
     {'record':
@@ -269,6 +273,18 @@ loc_recs_3857 = [
      {'loc_id': 2, 'loc_code': 'APC01', 'name': 'Brigalow Belt',
       'descript': 'Inland plant communities', 'field_note': ''},
      **epsg3857_poly2},
+]
+plt_rec_4326_points = [
+    {'record':
+     {'plt_id': 1, 'accession': '2021001', 'plt_code': '1', 'quantity': 2,
+      'bed': 'QCC01', 'field_note': 'in decline', 'family': 'Proteaceae',
+      'genus': 'Grevillea', 'species': 'robusta', 'infrasp': ''},
+     **epsg4326_point_xy},
+    {'record':
+     {'plt_id': 2, 'accession': '2021002', 'plt_code': '2', 'quantity': 3,
+      'bed': 'APC01', 'field_note': '', 'family': 'Myrtaceae',
+      'genus': 'Eucalyptus', 'species': 'major', 'infrasp': ''},
+     **epsg4326_point_xy2},
 ]
 plt_rec_3857_points = [
     {'record':
@@ -640,7 +656,6 @@ class ExportSettingsBoxTests(ShapefileTestCase):
         self.assertEqual(start_len - 1, len(self.plant_fields))
 
     def test_on_gen_combo_changed(self):
-        from bauble.meta import BaubleMeta
         self.session.add(BaubleMeta(name='inst_geo_latitude',
                                     value='10.001'))
         self.session.add(BaubleMeta(name='inst_geo_longitude',
@@ -696,7 +711,6 @@ class ExportSettingsBoxTests(ShapefileTestCase):
         self.assertEqual('C', result)
 
     def test_on_gen_chkbtn_toggled(self):
-        from bauble.meta import BaubleMeta
         self.session.add(BaubleMeta(name='inst_geo_latitude',
                                     value='10.001'))
         self.session.add(BaubleMeta(name='inst_geo_longitude',
@@ -801,7 +815,6 @@ class ExportSettingsBoxTests(ShapefileTestCase):
     @mock.patch('bauble.prefs.Gtk.MessageDialog.run',
                 return_value=Gtk.ResponseType.OK)
     def test_generated_points_settings_dialog(self, _mock_dialog):
-        from bauble.meta import BaubleMeta
         self.session.add(BaubleMeta(name='inst_geo_latitude',
                                     value='10.001'))
         self.session.add(BaubleMeta(name='inst_geo_longitude',
@@ -840,7 +853,6 @@ class ExportSettingsBoxTests(ShapefileTestCase):
         dialog.destroy()
 
     def test_on_gen_button_clicked(self):
-        from bauble.meta import BaubleMeta
         self.session.add(BaubleMeta(name='inst_geo_latitude',
                                     value='10.001'))
         self.session.add(BaubleMeta(name='inst_geo_longitude',
@@ -911,7 +923,6 @@ class ShapefileExportTestsEmptyDB(ShapefileTestCase):
 class ShapefileExportTests(ShapefileTestCase):
 
     def setUp(self):  # pylint: disable=too-many-locals
-        from copy import deepcopy
         super().setUp()
         get_default('system_proj_string', DEFAULT_SYS_PROJ)
         loc_data = deepcopy(location_data)
@@ -1656,14 +1667,12 @@ class ShapefileExportTests(ShapefileTestCase):
 
     def test_create_prj_file_raises_error_wo_sys_proj(self):
         # set the system projection string to something unusable
-        from bauble.meta import BaubleMeta
         sys_proj = self.session.query(BaubleMeta).filter_by(
             name='system_proj_string').one()
         sys_proj.value = 'badCRS'
         self.session.commit()
         exporter = self.exporter
         shapefile_name = self.temp_dir.name + '/failed_shapefile'
-        from bauble.error import BaubleError, MetaTableError
         with self.assertRaises(BaubleError):
             exporter.create_prj_file(shapefile_name)
         self.session.delete(sys_proj)
@@ -1866,12 +1875,12 @@ class ShapefileImportEmptyDBTests(ShapefileTestCase):
 
     def test_add_or_update_all_location_records_succeeds(self):
         importer = self.importer
-        importer.filename = create_shapefile('test',
-                                             prj_str_4326,
-                                             location_fields,
-                                             loc_recs_4326,
-                                             self.temp_dir.name)
-        importer.shape_reader.filename = importer.filename
+        filename = create_shapefile('test',
+                                    prj_str_4326,
+                                    location_fields,
+                                    loc_recs_4326,
+                                    self.temp_dir.name)
+        importer.shape_readers = [ShapefileReader(filename)]
         importer.option = '4'
         importer.projection = 'epsg:4326'
         importer.run()
@@ -1894,12 +1903,12 @@ class ShapefileImportEmptyDBTests(ShapefileTestCase):
 
     def test_add_or_update_all_bulk_location_records_succeeds(self):
         importer = self.importer
-        importer.filename = create_shapefile('test',
-                                             prj_str_4326,
-                                             location_fields,
-                                             loc_recs_4326_bulk,
-                                             self.temp_dir.name)
-        importer.shape_reader.filename = importer.filename
+        filename = create_shapefile('test',
+                                    prj_str_4326,
+                                    location_fields,
+                                    loc_recs_4326_bulk,
+                                    self.temp_dir.name)
+        importer.shape_readers = [ShapefileReader(filename)]
         importer.option = '4'
         importer.projection = 'epsg:4326'
         importer.run()
@@ -1914,12 +1923,12 @@ class ShapefileImportEmptyDBTests(ShapefileTestCase):
         # entirely sure why.  Cause is usually using something like
         # Plant.get(None)
         importer = self.importer
-        importer.filename = create_shapefile('test',
-                                             prj_str_3857,
-                                             plant_fields,
-                                             plt_rec_3857_points,
-                                             self.temp_dir.name)
-        importer.shape_reader.filename = importer.filename
+        filename = create_shapefile('test',
+                                    prj_str_3857,
+                                    plant_fields,
+                                    plt_rec_3857_points,
+                                    self.temp_dir.name)
+        importer.shape_readers = [ShapefileReader(filename)]
         importer.option = '4'
         importer.projection = 'epsg:3857'
         importer.use_id = True
@@ -1944,12 +1953,12 @@ class ShapefileImportEmptyDBTests(ShapefileTestCase):
 
     def test_add_or_update_all_plant_records_w_wrong_types(self):
         importer = self.importer
-        importer.filename = create_shapefile('test',
-                                             prj_str_3857,
-                                             plant_fields_wrong_types,
-                                             plt_rec_3857_points_wrong_types,
-                                             self.temp_dir.name)
-        importer.shape_reader.filename = importer.filename
+        filename = create_shapefile('test',
+                                    prj_str_3857,
+                                    plant_fields_wrong_types,
+                                    plt_rec_3857_points_wrong_types,
+                                    self.temp_dir.name)
+        importer.shape_readers = [ShapefileReader(filename)]
         importer.option = '4'
         importer.projection = 'epsg:3857'
         importer.use_id = True
@@ -1994,17 +2003,16 @@ class ShapefileImportTests(ShapefileTestCase):
                 utils.reset_sequence(col)
 
         # importer
-        self.importer = ShapefileImporter(view=MockView(),
+        self.importer = ShapefileImporter(view=mock.Mock(),
                                           proj_db=ProjDB())
-        # note widgets is a mock.Mock
-        self.importer.presenter.view.widgets.input_filename = 'input_filename'
 
     def test_add_missing_geo_data_only(self):
         importer = self.importer
-        importer.filename = create_shapefile('test', prj_str_4326,
-                                             location_fields, loc_recs_4326,
-                                             self.temp_dir.name)
-        importer.shape_reader.filename = importer.filename
+        filename = create_shapefile('test',
+                                    prj_str_4326,
+                                    location_fields, loc_recs_4326,
+                                    self.temp_dir.name)
+        importer.shape_readers = [ShapefileReader(filename)]
         importer.option = '0'
         importer.projection = 'epsg:4326'
         # test start
@@ -2026,12 +2034,12 @@ class ShapefileImportTests(ShapefileTestCase):
 
     def test_add_missing_geo_data_only_plants_always_xy_nonsys_crs(self):
         importer = self.importer
-        importer.filename = create_shapefile('test',
-                                             prj_str_3857,
-                                             plant_fields,
-                                             plt_rec_3857_points,
-                                             self.temp_dir.name)
-        importer.shape_reader.filename = importer.filename
+        filename = create_shapefile('test',
+                                    prj_str_3857,
+                                    plant_fields,
+                                    plt_rec_3857_points,
+                                    self.temp_dir.name)
+        importer.shape_readers = [ShapefileReader(filename)]
         importer.option = '0'
         importer.always_xy = True
         importer.projection = 'epsg:3857'
@@ -2056,18 +2064,20 @@ class ShapefileImportTests(ShapefileTestCase):
     def test_add_missing_geo_data_only_doesnt_overwrite_existing(self):
         importer = self.importer
         # import some geojson
-        importer.filename = create_shapefile('test', prj_str_4326,
-                                             location_fields, loc_recs_4326,
-                                             self.temp_dir.name)
-        importer.shape_reader.filename = importer.filename
+        filename = create_shapefile('test',
+                                    prj_str_4326,
+                                    location_fields, loc_recs_4326,
+                                    self.temp_dir.name)
+        importer.shape_readers = [ShapefileReader(filename)]
         importer.option = '0'
         importer.projection = 'epsg:4326'
         importer.run()
         # import different geojson
-        importer.filename = create_shapefile('test', prj_str_4326,
-                                             location_fields, loc_recs_4326_2,
-                                             self.temp_dir.name)
-        importer.shape_reader.filename = importer.filename
+        filename = create_shapefile('test',
+                                    prj_str_4326,
+                                    location_fields, loc_recs_4326_2,
+                                    self.temp_dir.name)
+        importer.shape_readers = [ShapefileReader(filename)]
         importer.run()
         result = self.session.query(Location).all()
         # assert db geojson hasn't changed from first import
@@ -2077,18 +2087,20 @@ class ShapefileImportTests(ShapefileTestCase):
     def test_update_geo_data_only_does_only_overwrite_geojson(self):
         importer = self.importer
         # import some geojson
-        importer.filename = create_shapefile('test', prj_str_4326,
-                                             location_fields, loc_recs_4326,
-                                             self.temp_dir.name)
-        importer.shape_reader.filename = importer.filename
+        filename = create_shapefile('test',
+                                    prj_str_4326,
+                                    location_fields, loc_recs_4326,
+                                    self.temp_dir.name)
+        importer.shape_readers = [ShapefileReader(filename)]
         importer.option = '1'
         importer.projection = 'epsg:4326'
         importer.run()
         # import different geojson
-        importer.filename = create_shapefile('test', prj_str_4326,
-                                             location_fields, loc_recs_4326_2,
-                                             self.temp_dir.name)
-        importer.shape_reader.filename = importer.filename
+        filename = create_shapefile('test',
+                                    prj_str_4326,
+                                    location_fields, loc_recs_4326_2,
+                                    self.temp_dir.name)
+        importer.shape_readers = [ShapefileReader(filename)]
         importer.run()
         result = self.session.query(Location).all()
         # assert len hasn't changed
@@ -2106,12 +2118,12 @@ class ShapefileImportTests(ShapefileTestCase):
     def test_add_or_update_all_data_existing_records(self):
         importer = self.importer
         # import existing records with some changes
-        importer.filename = create_shapefile('test',
-                                             prj_str_4326,
-                                             location_fields,
-                                             loc_recs_4326_diff_name_descript,
-                                             self.temp_dir.name)
-        importer.shape_reader.filename = importer.filename
+        filename = create_shapefile('test',
+                                    prj_str_4326,
+                                    location_fields,
+                                    loc_recs_4326_diff_name_descript,
+                                    self.temp_dir.name)
+        importer.shape_readers = [ShapefileReader(filename)]
         importer.option = '2'
         importer.projection = 'epsg:4326'
         importer.run()
@@ -2139,19 +2151,17 @@ class ShapefileImportTests(ShapefileTestCase):
     def test_add_note_with_category_specified(self):
         # have to trigger the filename change to be get the shape_reader
         importer = self.importer
-        shpf_name = create_shapefile('test',
-                                     prj_str_4326,
-                                     location_fields,
-                                     loc_recs_3857,
-                                     self.temp_dir.name)
-        importer.presenter.view.reply_file_chooser_dialog = [shpf_name]
-        importer.presenter.on_btnbrowse_clicked('button')
-        importer.presenter.on_filename_entry_changed('input_filename')
+        filename = create_shapefile('test',
+                                    prj_str_4326,
+                                    location_fields,
+                                    loc_recs_3857,
+                                    self.temp_dir.name)
+        shape_reader = ShapefileReader(filename)
+        shape_reader.field_map['field_note'] = 'Note[category="damage"]'
+        importer.shape_readers = [shape_reader]
         # import existing records with some changes
         importer.option = '4'
         importer.projection = 'epsg:4326'
-        importer.shape_reader.field_map[
-            'field_note'] = 'Note[category="damage"]'
         importer.run()
         result = self.session.query(Location).all()
         # assert no new records added
@@ -2166,12 +2176,12 @@ class ShapefileImportTests(ShapefileTestCase):
     def test_add_new_records_only(self):
         importer = self.importer
         in_data = loc_recs_4326_diff_name_descript + loc_recs_4326_new_data
-        importer.filename = create_shapefile('test',
-                                             prj_str_4326,
-                                             location_fields,
-                                             in_data,
-                                             self.temp_dir.name)
-        importer.shape_reader.filename = importer.filename
+        filename = create_shapefile('test',
+                                    prj_str_4326,
+                                    location_fields,
+                                    in_data,
+                                    self.temp_dir.name)
+        importer.shape_readers = [ShapefileReader(filename)]
         importer.option = '3'
         importer.projection = 'epsg:4326'
         importer.run()
@@ -2201,12 +2211,12 @@ class ShapefileImportTests(ShapefileTestCase):
     def test_skip_unknown_records(self):
         importer = self.importer
         in_data = loc_recs_4326_diff_name_descript + loc_recs_4326_new_data
-        importer.filename = create_shapefile('test',
-                                             prj_str_4326,
-                                             location_fields,
-                                             in_data,
-                                             self.temp_dir.name)
-        importer.shape_reader.filename = importer.filename
+        filename = create_shapefile('test',
+                                    prj_str_4326,
+                                    location_fields,
+                                    in_data,
+                                    self.temp_dir.name)
+        importer.shape_readers = [ShapefileReader(filename)]
         importer.option = '0'
         importer.projection = 'epsg:4326'
         importer.run()
@@ -2229,12 +2239,12 @@ class ShapefileImportTests(ShapefileTestCase):
     def test_add_or_update_all_records(self):
         importer = self.importer
         in_data = loc_recs_4326_diff_name_descript + loc_recs_4326_new_data
-        importer.filename = create_shapefile('test',
-                                             prj_str_4326,
-                                             location_fields,
-                                             in_data,
-                                             self.temp_dir.name)
-        importer.shape_reader.filename = importer.filename
+        filename = create_shapefile('test',
+                                    prj_str_4326,
+                                    location_fields,
+                                    in_data,
+                                    self.temp_dir.name)
+        importer.shape_readers = [ShapefileReader(filename)]
         importer.option = '4'
         importer.projection = 'epsg:4326'
         importer.run()
@@ -2265,12 +2275,12 @@ class ShapefileImportTests(ShapefileTestCase):
     def test_add_or_update_all_records_commit_every(self):
         importer = self.importer
         in_data = loc_recs_4326_diff_name_descript + loc_recs_4326_new_data
-        importer.filename = create_shapefile('test',
-                                             prj_str_4326,
-                                             location_fields,
-                                             in_data,
-                                             self.temp_dir.name)
-        importer.shape_reader.filename = importer.filename
+        filename = create_shapefile('test',
+                                    prj_str_4326,
+                                    location_fields,
+                                    in_data,
+                                    self.temp_dir.name)
+        importer.shape_readers = [ShapefileReader(filename)]
         importer.option = '4'
         importer.projection = 'epsg:4326'
         # add more coverage
@@ -2302,12 +2312,12 @@ class ShapefileImportTests(ShapefileTestCase):
 
     def test_add_or_update_all_records_plants_nonsys_crs_new_recs(self):
         importer = self.importer
-        importer.filename = create_shapefile('test',
-                                             prj_str_3857,
-                                             plant_fields,
-                                             plt_rec_3857_new_only_lines,
-                                             self.temp_dir.name)
-        importer.shape_reader.filename = importer.filename
+        filename = create_shapefile('test',
+                                    prj_str_3857,
+                                    plant_fields,
+                                    plt_rec_3857_new_only_lines,
+                                    self.temp_dir.name)
+        importer.shape_readers = [ShapefileReader(filename)]
         importer.option = '4'
         importer.projection = 'epsg:3857'
         importer.run()
@@ -2341,12 +2351,12 @@ class ShapefileImportTests(ShapefileTestCase):
         # this could potentially create new species etc. when not needed.
         in_data[0]['record']['vernacular'] = 'Mountain Grey Gum'
         in_data[1]['record']['vernacular'] = 'Silky Oak'
-        importer.filename = create_shapefile('test',
-                                             prj_str_3857,
-                                             plant_fields,
-                                             in_data,
-                                             self.temp_dir.name)
-        importer.shape_reader.filename = importer.filename
+        filename = create_shapefile('test',
+                                    prj_str_3857,
+                                    plant_fields,
+                                    in_data,
+                                    self.temp_dir.name)
+        importer.shape_readers = [ShapefileReader(filename)]
         importer.option = '4'
         importer.projection = 'epsg:3857'
         importer.run()
@@ -2394,12 +2404,12 @@ class ShapefileImportTests(ShapefileTestCase):
         # and also add a language
         in_data[0]['record']['vernacular'] = 'Mountain Grey Gum:EN'
         in_data[1]['record']['vernacular'] = 'Silky Oak:EN'
-        importer.filename = create_shapefile('test',
-                                             prj_str_3857,
-                                             plant_fields,
-                                             in_data,
-                                             self.temp_dir.name)
-        importer.shape_reader.filename = importer.filename
+        filename = create_shapefile('test',
+                                    prj_str_3857,
+                                    plant_fields,
+                                    in_data,
+                                    self.temp_dir.name)
+        importer.shape_readers = [ShapefileReader(filename)]
         importer.option = '4'
         importer.projection = 'epsg:3857'
         importer.run()
@@ -2449,12 +2459,12 @@ class ShapefileImportTests(ShapefileTestCase):
         in_data = plt_rec_3857_points + plt_rec_3857_points_new_complex_sp
         in_data[0]['record']['vernacular'] = 'Test Adding To Existing'
         in_data[1]['record']['vernacular'] = 'Test Changing Existing'
-        importer.filename = create_shapefile('test',
-                                             prj_str_3857,
-                                             plant_fields,
-                                             in_data,
-                                             self.temp_dir.name)
-        importer.shape_reader.filename = importer.filename
+        filename = create_shapefile('test',
+                                    prj_str_3857,
+                                    plant_fields,
+                                    in_data,
+                                    self.temp_dir.name)
+        importer.shape_readers = [ShapefileReader(filename)]
         importer.option = '4'
         importer.projection = 'epsg:3857'
         importer.run()
@@ -2532,12 +2542,12 @@ class ShapefileImportTests(ShapefileTestCase):
                                                                mock_open):
         importer = self.importer
         in_data = plt_rec_3857_points + plt_rec_3857_points_new_some_bad
-        importer.filename = create_shapefile('test',
-                                             prj_str_3857,
-                                             plant_fields,
-                                             in_data,
-                                             self.temp_dir.name)
-        importer.shape_reader.filename = importer.filename
+        filename = create_shapefile('test',
+                                    prj_str_3857,
+                                    plant_fields,
+                                    in_data,
+                                    self.temp_dir.name)
+        importer.shape_readers = [ShapefileReader(filename)]
         importer.option = '4'
         importer.projection = 'epsg:3857'
         importer.run()
@@ -2591,18 +2601,17 @@ class ShapefileImportTests(ShapefileTestCase):
 
         importer = self.importer
         in_data = loc_recs_4326_diff_name_descript + loc_recs_4326_new_data
-        importer.filename = create_shapefile('test',
-                                             prj_str_4326,
-                                             location_fields,
-                                             in_data,
-                                             self.temp_dir.name)
-        importer.shape_reader.filename = importer.filename
+        filename = create_shapefile('test',
+                                    prj_str_4326,
+                                    location_fields,
+                                    in_data,
+                                    self.temp_dir.name)
+        importer.shape_readers = [ShapefileReader(filename)]
         importer.option = '4'
         importer.projection = 'epsg:4326'
         # should fail transforming from 4326 to 3857 without always_xy
         importer.always_xy = False
         # set the system projection string
-        from bauble.meta import BaubleMeta
         sys_proj = self.session.query(BaubleMeta).filter_by(
             name='system_proj_string').one()
         sys_proj.value = 'epsg:3857'
@@ -2625,13 +2634,13 @@ class ShapefileImportTests(ShapefileTestCase):
 
     def test_add_or_update_all_records_plants_nonsys_crs_by_id(self):
         importer = self.importer
-        importer.filename = create_shapefile('test',
-                                             prj_str_3857,
-                                             plant_fields,
-                                             plt_rec_3857_new_data_lines,
-                                             self.temp_dir.name)
-        importer.shape_reader.filename = importer.filename
-        importer.shape_reader.use_id = True
+        filename = create_shapefile('test',
+                                    prj_str_3857,
+                                    plant_fields,
+                                    plt_rec_3857_new_data_lines,
+                                    self.temp_dir.name)
+        importer.shape_readers = [ShapefileReader(filename)]
+        importer.shape_readers[0].use_id = True
         importer.option = '4'
         importer.projection = 'epsg:3857'
         importer.run()
@@ -2676,22 +2685,47 @@ class ShapefileImportTests(ShapefileTestCase):
         self.assertEqual(len(result[2].notes), 0)
         self.assertEqual(len(result[3].notes), 1)
 
-    def test_search_by_is_id(self):
+    @mock.patch('bauble.plugins.imex.shapefile.import_tool.'
+                'ShapefileImportDialogPresenter._get_filenames')
+    def test_search_by_is_code(self, mock_get_filenames):
         importer = self.importer
-        from copy import deepcopy
+        loc_altered = deepcopy(loc_recs_4326)
+        loc_altered[0]['record']['descript'] = 'Test this change'
+        filename = create_shapefile('test_altered', prj_str_4326,
+                                    location_fields, loc_altered,
+                                    self.temp_dir.name)
+        mock_get_filenames.return_value = [filename]
+        importer.presenter.on_btnbrowse_clicked('button')
+        importer.option = '4'
+        importer.shape_readers[0].search_by.add('loc_code')
+        importer.shape_readers[0].search_by.remove('loc_id')
+        importer.projection = 'epsg:4326'
+        importer.run()
+        result = self.session.query(Location).all()
+        # assert len hasn't changed
+        self.assertEqual(len(result), 2)
+        # assert db geojson == the shapfiles
+        self.assertEqual(result[0].geojson, epsg4326_poly_xy)
+        self.assertEqual(result[1].geojson, epsg4326_poly_xy2)
+        # assert other data hasn't changed.  Could be more thorough here.
+        print(result[0].code)
+        self.assertEqual(result[0].description, 'Test this change')
+        self.assertEqual(result[1].code, 'APC01')
+
+    @mock.patch('bauble.plugins.imex.shapefile.import_tool.'
+                'ShapefileImportDialogPresenter._get_filenames')
+    def test_search_by(self, mock_get_filenames):
+        importer = self.importer
         loc_altered = deepcopy(loc_recs_4326)
         loc_altered[0]['record']['loc_code'] = 'XYZ10'
         loc_altered[0]['record']['descript'] = 'Test this change'
-        shpf_name = create_shapefile('test_altered', prj_str_4326,
-                                     location_fields, loc_altered,
-                                     self.temp_dir.name)
-        importer.presenter.view.reply_file_chooser_dialog = [shpf_name]
+        filename = create_shapefile('test_altered', prj_str_4326,
+                                    location_fields, loc_altered,
+                                    self.temp_dir.name)
+        mock_get_filenames.return_value = [filename]
         importer.presenter.on_btnbrowse_clicked('button')
         importer.option = '4'
-        importer.presenter.on_filename_entry_changed('input_filename')
-        importer.shape_reader.search_by.add('loc_id')\
-            # pylint: disable=no-member
-        importer.shape_reader.search_by.remove('loc_code')
+        importer.shape_readers[0].search_by.add('loc_id')
         importer.projection = 'epsg:4326'
         importer.run()
         result = self.session.query(Location).all()
@@ -2707,10 +2741,11 @@ class ShapefileImportTests(ShapefileTestCase):
 
     def test_use_id(self):
         importer = self.importer
-        importer.filename = create_shapefile('test', prj_str_4326,
-                                             location_fields, loc_recs_4326,
-                                             self.temp_dir.name)
-        importer.shape_reader.filename = importer.filename
+        filename = create_shapefile('test',
+                                    prj_str_4326,
+                                    location_fields, loc_recs_4326,
+                                    self.temp_dir.name)
+        importer.shape_readers = [ShapefileReader(filename)]
         importer.option = '0'
         importer.use_id = True
         importer.projection = 'epsg:4326'
@@ -2731,51 +2766,136 @@ class ShapefileImportTests(ShapefileTestCase):
         # bring in the other.
         self.assertEqual(len(result[0].notes), 1)
 
-    def test_on_btnbrowse_clicked(self):
+    @mock.patch('bauble.plugins.imex.shapefile.import_tool.'
+                'ShapefileImportDialogPresenter._get_filenames')
+    def test_on_btnbrowse_clicked(self, mock_get_filenames):
         importer = self.importer
-        shpf_name = create_shapefile('test', prj_str_4326, location_fields,
-                                     loc_recs_4326, self.temp_dir.name)
-        importer.presenter.view.reply_file_chooser_dialog = [shpf_name]
+        shpf_name = create_shapefile('test',
+                                     prj_str_4326,
+                                     location_fields,
+                                     loc_recs_4326,
+                                     self.temp_dir.name)
+
+        mock_get_filenames.return_value = [shpf_name]
         importer.presenter.on_btnbrowse_clicked('button')
-        importer.presenter.on_filename_entry_changed('input_filename')
-        self.assertEqual(importer.filename, shpf_name)
+        self.assertEqual(importer.filename, shpf_name.name)
         self.assertEqual(importer.presenter.last_folder,
                          str(Path(shpf_name).parent))
         self.assertEqual(importer.presenter.proj_db_match,
                          importer.presenter.proj_db.get_crs(prj_str_4326))
-        # this just test that remove was called.
-        self.assertTrue(
-            importer.presenter.view.widgets.imp_settings_expander.remove.called
-        )
+        prob = (importer.presenter.PROBLEM_PROJ_MISMATCH,
+                importer.presenter.view.widgets.filenames_lbl)
+        self.assertNotIn(prob, importer.presenter.problems)
 
-    def test_on_btnbrowse_clicked_matched_crs(self):
+    @mock.patch('bauble.plugins.imex.shapefile.import_tool.'
+                'ShapefileImportDialogPresenter._get_filenames')
+    def test_on_btnbrowse_clicked_multiple(self, mock_get_filenames):
+        importer = self.importer
+        filename = create_shapefile('test',
+                                    prj_str_4326,
+                                    location_fields,
+                                    loc_recs_4326,
+                                    self.temp_dir.name)
+        filename2 = create_shapefile('test2',
+                                     prj_str_4326,
+                                     location_fields,
+                                     loc_recs_4326,
+                                     self.temp_dir.name)
+
+        mock_get_filenames.return_value = [filename, filename2]
+        importer.presenter.on_btnbrowse_clicked('button')
+        self.assertEqual(importer.filename,
+                         f'{filename.name}, {filename2.name}')
+        self.assertEqual(importer.presenter.last_folder,
+                         str(Path(filename).parent))
+        self.assertEqual(importer.presenter.proj_db_match,
+                         importer.presenter.proj_db.get_crs(prj_str_4326))
+        prob = (importer.presenter.PROBLEM_PROJ_MISMATCH,
+                importer.presenter.view.widgets.filenames_lbl)
+        self.assertNotIn(prob, importer.presenter.problems)
+
+    @mock.patch('bauble.plugins.imex.shapefile.import_tool.'
+                'ShapefileImportDialogPresenter._get_filenames')
+    def test_on_btnbrowse_clicked_multi_prj_mismatch(self, mock_get_filenames):
+        importer = self.importer
+        filename = create_shapefile('test',
+                                    prj_str_3857,
+                                    location_fields,
+                                    loc_recs_3857,
+                                    self.temp_dir.name)
+        filename2 = create_shapefile('test2',
+                                     prj_str_4326,
+                                     location_fields,
+                                     loc_recs_4326,
+                                     self.temp_dir.name)
+
+        mock_get_filenames.return_value = [filename, filename2]
+        importer.presenter.on_btnbrowse_clicked('button')
+        self.assertEqual(importer.filename,
+                         f'{filename.name}, {filename2.name}')
+        self.assertEqual(importer.presenter.last_folder,
+                         str(Path(filename).parent))
+        self.assertEqual(importer.presenter.proj_db_match,
+                         importer.presenter.proj_db.get_crs(prj_str_4326))
+        prob = (importer.presenter.PROBLEM_PROJ_MISMATCH,
+                importer.presenter.view.widgets.filenames_lbl)
+        self.assertIn(prob, importer.presenter.problems)
+
+    @mock.patch('bauble.plugins.imex.shapefile.import_tool.'
+                'ShapefileImportDialogPresenter._get_filenames')
+    def test_on_btnbrowse_clicked_multi_unequal(self, mock_get_filenames):
+        importer = self.importer
+        filename = create_shapefile('test',
+                                    prj_str_3857,
+                                    location_fields,
+                                    loc_recs_3857,
+                                    self.temp_dir.name)
+        filename2 = create_shapefile('test2',
+                                     prj_str_3857,
+                                     plant_fields,
+                                     plt_rec_3857_points,
+                                     self.temp_dir.name)
+
+        mock_get_filenames.return_value = [filename, filename2]
+        importer.presenter.on_btnbrowse_clicked('button')
+        self.assertEqual(importer.filename,
+                         f'{filename.name}, {filename2.name}')
+        self.assertEqual(importer.presenter.last_folder,
+                         str(Path(filename).parent))
+        self.assertEqual(importer.presenter.proj_db_match,
+                         importer.presenter.proj_db.get_crs(prj_str_3857))
+        prob = (importer.presenter.PROBLEM_MULTI_NOT_EQUAL,
+                importer.presenter.view.widgets.filenames_lbl)
+        self.assertIn(prob, importer.presenter.problems)
+
+    @mock.patch('bauble.plugins.imex.shapefile.import_tool.'
+                'ShapefileImportDialogPresenter._get_filenames')
+    def test_on_btnbrowse_clicked_matched_crs(self, mock_get_filenames):
         importer = self.importer
         importer.presenter.proj_db.add(prj=prj_str_4326, crs='epsg:4326')
         shpf_name = create_shapefile('test', prj_str_4326, location_fields,
                                      loc_recs_4326, self.temp_dir.name)
-        importer.presenter.view.reply_file_chooser_dialog = [shpf_name]
+        mock_get_filenames.return_value = [shpf_name]
         importer.presenter.on_btnbrowse_clicked('button')
-        importer.presenter.on_filename_entry_changed('input_filename')
-        self.assertIn('widget_set_text', importer.presenter.view.invoked)
-        self.assertIn(('widget_set_text', ('input_projection', 'epsg:4326')),
-                      importer.presenter.view.invoked_detailed)
-        self.assertIn('widget_set_active', importer.presenter.view.invoked)
-        self.assertIn(('widget_set_active', ('cb_always_xy', True)),
-                      importer.presenter.view.invoked_detailed)
-        self.assertEqual(importer.filename, shpf_name)
+        (importer.presenter.view.widget_set_text
+         .assert_called_with('input_projection', 'epsg:4326'))
+        (importer.presenter.view.widget_set_active
+         .assert_called_with('cb_always_xy', True))
+        self.assertEqual(importer.filename, shpf_name.name)
         self.assertEqual(importer.presenter.last_folder,
                          str(Path(shpf_name).parent))
         self.assertEqual(importer.presenter.proj_db_match,
                          importer.presenter.proj_db.get_crs(prj_str_4326))
 
-    def test_on_btnbrowse_clicked_bad_file(self):
+    @mock.patch('bauble.plugins.imex.shapefile.import_tool.'
+                'ShapefileImportDialogPresenter._get_filenames')
+    def test_on_btnbrowse_clicked_bad_file(self, mock_get_filenames):
         importer = self.importer
         importer.presenter.proj_db.add(prj=prj_str_4326, crs='epsg:4326')
         bad_file = Path(f'{self.temp_dir.name}/bad.zip')
         bad_file.touch()
-        importer.presenter.view.reply_file_chooser_dialog = [bad_file]
+        mock_get_filenames.return_value = [bad_file]
         importer.presenter.on_btnbrowse_clicked('button')
-        importer.presenter.on_filename_entry_changed('input_filename')
 
         # Should still store the last folder if it exists and has a zip ext
         self.assertEqual(importer.presenter.last_folder,
@@ -2783,14 +2903,14 @@ class ShapefileImportTests(ShapefileTestCase):
         with TemporaryDirectory() as tmp:
             bad_file = Path(f'{tmp}/bad.csv')
             bad_file.touch()
-            importer.presenter.view.reply_file_chooser_dialog = [bad_file]
+            mock_get_filenames.return_value = [bad_file]
             importer.presenter.on_btnbrowse_clicked('button')
-            importer.presenter.on_filename_entry_changed('input_filename')
             # Should not store the last folder as not a zip file
             self.assertNotEqual(importer.presenter.last_folder,
                                 str(Path(bad_file).parent))
-            self.assertIn((importer.presenter.PROBLEM_NOT_SHAPEFILE,
-                          'input_filename'), importer.presenter.problems)
+            prob = (importer.presenter.PROBLEM_NOT_SHAPEFILE,
+                    importer.presenter.view.widgets.filenames_lbl)
+            self.assertIn(prob, importer.presenter.problems)
 
     def test_on_always_xy_toggled(self):
         importer = self.importer
@@ -2813,29 +2933,29 @@ class ShapefileImportTests(ShapefileTestCase):
         importer = self.importer
         importer.presenter.proj_text = 'epsg:4326'
         # doesn't work, other than return it to its default value
-        importer.presenter.on_projection_changed('input_projection',
-                                                 value='epsg:3857')
+        importer.presenter.view.widget_get_value.return_value = 'epsg:3857'
+        importer.presenter.on_projection_changed('input_projection')
         self.assertEqual(importer.presenter.proj_text, 'epsg:3857')
-        self.assertIn('set_button_label', importer.presenter.view.invoked)
-        self.assertIn(('set_button_label', ('projection_button', 'Add?')),
-                      importer.presenter.view.invoked_detailed)
+        (importer.presenter.view.set_button_label
+         .assert_called_with('projection_button', 'Add?'))
         importer.presenter.proj_db_match = 'epsg:3857'
-        importer.presenter.on_projection_changed('input_projection',
-                                                 value='epsg:3857')
-        self.assertIn(('set_button_label', ('projection_button', 'CORRECT')),
-                      importer.presenter.view.invoked_detailed)
+        importer.presenter.on_projection_changed('input_projection')
+        (importer.presenter.view.set_button_label
+         .assert_called_with('projection_button', 'CORRECT'))
         importer.presenter.proj_db_match = 'epsg:4326'
-        importer.presenter.on_projection_changed('input_projection',
-                                                 value='epsg:3857')
-        self.assertIn(('set_button_label', ('projection_button', 'Change?')),
-                      importer.presenter.view.invoked_detailed)
+        importer.presenter.on_projection_changed('input_projection')
+        (importer.presenter.view.set_button_label
+         .assert_called_with('projection_button', 'Change?'))
 
     def test_on_projection_btn_clicked(self):
         importer = self.importer
         importer.presenter.proj_db.add(prj=prj_str_4326, crs='epsg:4326')
-        shpf_name = create_shapefile('test', prj_str_4326, location_fields,
-                                     loc_recs_4326, self.temp_dir.name)
-        importer.filename = shpf_name
+        filename = create_shapefile('test',
+                                    prj_str_4326,
+                                    location_fields,
+                                    loc_recs_4326,
+                                    self.temp_dir.name)
+        importer.shape_readers = [ShapefileReader(filename)]
         importer.projection = 'epsg:test'
         importer.presenter.proj_text = 'epsg:test'
         importer.presenter.proj_db_match = 'epsg:4326'
@@ -2844,30 +2964,264 @@ class ShapefileImportTests(ShapefileTestCase):
         importer.presenter.on_projection_btn_clicked('projection_button')
         self.assertEqual(importer.presenter.proj_db.get_crs(prj_str_4326),
                          'epsg:test')
-        self.assertIn(('set_button_label', ('projection_button', 'Change?')),
-                      importer.presenter.view.invoked_detailed)
+        (importer.presenter.view.set_button_label
+         .assert_called_with('projection_button', 'Change?'))
         # Test adding a new entry
         prj_str = 'PROJCS["test2"]'
         importer.presenter.prj_string = prj_str
         importer.presenter.proj_text = 'epsg:test2'
         importer.presenter.proj_db_match = None
-        importer.presenter.on_projection_changed('input_projection',
-                                                 value='epsg:test2')
+        importer.presenter.on_projection_changed('input_projection')
         importer.projection = 'epsg:test2'
-        importer.presenter.view.widgets.input_projection = 'input_projection'
+        (importer.presenter.view.set_button_label
+         .assert_called_with('projection_button', 'Add?'))
         importer.presenter.on_projection_btn_clicked('projection_button')
         self.assertEqual(importer.presenter.proj_db.get_crs(prj_str),
                          'epsg:test2')
-        self.assertIn(('set_button_label', ('projection_button', 'Add?')),
-                      importer.presenter.view.invoked_detailed)
 
     def test_on_settings_activate(self):
         # somewhat superfluous
         importer = self.importer
+        filename = create_shapefile('test',
+                                    prj_str_4326,
+                                    location_fields,
+                                    loc_recs_4326,
+                                    self.temp_dir.name)
+        importer.shape_readers = [ShapefileReader(filename)]
         window = importer.presenter.view.get_window()
         importer.presenter.on_settings_activate('imp_settings_expander')
-        importer.presenter.on_filename_entry_changed('input_filename')
-        self.assertEqual(window.get_size(), (1, 1))
+        # this just test that remove was called.
+        (importer.presenter.view.widgets.imp_settings_expander
+         .remove.assert_called())
+        window.resize.assert_called_with(1, 1)
+
+    @mock.patch('gi.repository.Gtk.FileChooserNative.get_filenames')
+    @mock.patch('gi.repository.Gtk.FileChooserNative.run')
+    def test_get_filenames(self, mock_run, mock_get_fnames):
+        mock_run.return_value = Gtk.ResponseType.ACCEPT
+        filenames = ['test1', 'test2']
+        mock_get_fnames.return_value = filenames
+        importer = self.importer
+        self.assertEqual(importer.presenter._get_filenames(), filenames)
+
+    def test_projections_equal(self):
+        # equal
+        importer = self.importer
+        shape_reader1 = ShapefileReader(create_shapefile('test1',
+                                                         prj_str_4326,
+                                                         location_fields,
+                                                         loc_recs_4326,
+                                                         self.temp_dir.name))
+        shape_reader2 = ShapefileReader(create_shapefile('test2',
+                                                         prj_str_4326,
+                                                         location_fields,
+                                                         loc_recs_4326_bulk,
+                                                         self.temp_dir.name))
+        importer.shape_readers = [shape_reader1, shape_reader2]
+        self.assertTrue(importer.presenter._projections_equal())
+        # not equal
+        shape_reader2 = ShapefileReader(create_shapefile('test2',
+                                                         prj_str_3857,
+                                                         location_fields,
+                                                         loc_recs_3857,
+                                                         self.temp_dir.name))
+        importer.shape_readers = [shape_reader1, shape_reader2]
+        self.assertFalse(importer.presenter._projections_equal())
+
+    def test_populate_shape_readers(self):
+        importer = self.importer
+        # one bad
+        bad_filename = f'{self.temp_dir.name}/NO_FILE.junk'
+        good_filename = create_shapefile('test',
+                                         prj_str_4326,
+                                         location_fields,
+                                         loc_recs_4326,
+                                         self.temp_dir.name)
+        result = importer.presenter.populate_shape_readers([bad_filename,
+                                                            good_filename])
+        self.assertEqual(result, [bad_filename])
+        prob = (importer.presenter.PROBLEM_NOT_SHAPEFILE,
+                importer.presenter.view.widgets.filenames_lbl)
+        self.assertIn(prob, importer.presenter.problems)
+        self.assertCountEqual([i.filename for i in importer.shape_readers],
+                              [str(good_filename)])
+        # 2 good
+        filename = create_shapefile('test2',
+                                    prj_str_4326,
+                                    location_fields,
+                                    loc_recs_4326,
+                                    self.temp_dir.name)
+        result = importer.presenter.populate_shape_readers([filename,
+                                                            good_filename])
+        self.assertEqual(result, [])
+        prob = (importer.presenter.PROBLEM_NOT_SHAPEFILE,
+                importer.presenter.view.widgets.filenames_lbl)
+        self.assertNotIn(prob, importer.presenter.problems)
+        self.assertCountEqual([i.filename for i in importer.shape_readers],
+                              [str(filename), str(good_filename)])
+        # 1 good
+        result = importer.presenter.populate_shape_readers([filename])
+        self.assertEqual(result, [])
+        prob = (importer.presenter.PROBLEM_NOT_SHAPEFILE,
+                importer.presenter.view.widgets.filenames_lbl)
+        self.assertNotIn(prob, importer.presenter.problems)
+        self.assertCountEqual([i.filename for i in importer.shape_readers],
+                              [str(filename)])
+
+    def test_set_crs_axy(self):
+        install_default_prjs()
+        importer = self.importer
+        importer.presenter.set_crs_axy()
+        self.assertEqual(importer.presenter.proj_db_match, None)
+        prob = (importer.presenter.PROBLEM_NOT_SHAPEFILE,
+                importer.presenter.view.widgets.filenames_lbl)
+        self.assertIn(prob, importer.presenter.problems)
+        self.assertEqual(importer.presenter.proj_db_match, None)
+        (importer.presenter.view.widget_set_text
+         .assert_called_with('input_projection', DEFAULT_IN_PROJ))
+
+        importer.presenter.prj_string = prj_str_4326
+        importer.presenter.set_crs_axy()
+        self.assertEqual(importer.presenter.proj_db_match, 'epsg:4326')
+        (importer.presenter.view.widget_set_text
+         .assert_called_with('input_projection', 'epsg:4326'))
+        (importer.presenter.view.widget_set_active
+         .assert_called_with('cb_always_xy', False))
+        prob = (importer.presenter.PROBLEM_NOT_SHAPEFILE,
+                importer.presenter.view.widgets.filenames_lbl)
+        self.assertNotIn(prob, importer.presenter.problems)
+
+    def test_import_task_succeeds(self):
+        # single shapefile but with doubleups
+        importer = self.importer
+        importer.option = '4'
+        start = self.session.query(Location).all()
+        filename = create_shapefile('test',
+                                    prj_str_4326,
+                                    location_fields,
+                                    loc_recs_4326,
+                                    self.temp_dir.name)
+        importer.shape_readers = [ShapefileReader(filename)]
+        importer.projection = 'epsg:4326'
+        importer.run()
+        self.session.commit()
+        end = self.session.query(Location).all()
+        self.assertEqual(len(end), len(start))
+
+    def test_import_task_no_type_raises(self):
+        # single shapefile but with doubleups
+        importer = self.importer
+        importer.option = '4'
+        loc_recs = [
+            {'record':
+             {'id': 1,
+              'code': 'QCC01',
+              'lname': 'SE Qld Rainforest',
+              'ldescript': 'Rainforest garden',
+              'field_note': 'storm damaged area'},
+             **epsg4326_poly_xy},
+            {'record':
+             {'id': 2,
+              'code': 'APC01',
+              'lname': 'Brigalow Belt',
+              'ldescript': 'Inland plant communities',
+              'field_note': ''},
+             **epsg4326_poly_xy2},
+        ]
+        fields = [('id', 'N'), ('code', 'C', 24), ('lname', 'C', 126),
+                  ('ldescript', 'C'), ('field_note', 'C', 255)]
+        filename = create_shapefile('test',
+                                    prj_str_4326,
+                                    fields,
+                                    loc_recs,
+                                    self.temp_dir.name)
+        shape_reader = ShapefileReader(filename)
+        shape_reader.type = ''
+        importer.shape_readers = [shape_reader]
+        importer.projection = 'epsg:4326'
+        self.assertRaises(BaubleError, importer.run)
+
+    @mock.patch('bauble.utils.create_yes_no_dialog')
+    def test_import_task_doubleups_skip(self, mock_dialog):
+        # single shapefile but with doubleups
+        mock_dialog().run.return_value = -8
+        importer = self.importer
+        importer.option = '4'
+        start = self.session.query(Location).all()
+        loc_recs = deepcopy(loc_recs_4326)
+        loc_recs[1]['record']['loc_id'] = 1
+        filename = create_shapefile('test',
+                                    prj_str_4326,
+                                    location_fields,
+                                    loc_recs,
+                                    self.temp_dir.name)
+        importer.shape_readers = [ShapefileReader(filename)]
+        importer.projection = 'epsg:4326'
+        importer.run()
+        mock_dialog.assert_called()
+        self.session.commit()
+        end = self.session.query(Location).all()
+        self.assertEqual(len(end), len(start))
+        updated = self.session.query(Location).get(1)
+        self.assertEqual(updated.code, 'QCC01')
+
+    @mock.patch('bauble.utils.create_yes_no_dialog')
+    def test_import_task_doubleups_cancel(self, mock_dialog):
+        mock_dialog().run.return_value = -6
+        importer = self.importer
+        importer.option = '4'
+        start = self.session.query(Location).all()
+        loc_recs = deepcopy(loc_recs_4326)
+        loc_recs[1]['record']['loc_id'] = 1
+        filename = create_shapefile('test',
+                                    prj_str_4326,
+                                    location_fields,
+                                    loc_recs,
+                                    self.temp_dir.name)
+        importer.shape_readers = [ShapefileReader(filename)]
+        importer.projection = 'epsg:4326'
+        self.assertRaises(BaubleError, importer.run)
+        mock_dialog.assert_called()
+        self.session.commit()
+        end = self.session.query(Location).all()
+        self.assertEqual(len(end), len(start))
+        updated = self.session.query(Location).get(1)
+        self.assertEqual(updated.code, 'QCC01')
+
+    @mock.patch('bauble.utils.create_yes_no_dialog')
+    def test_import_task_multi_doubleups_overwrite(self, mock_dialog):
+        # multiple files
+        mock_dialog().run.return_value = -9
+        importer = self.importer
+        importer.option = '4'
+        start = self.session.query(Location).all()
+        filename = create_shapefile('test',
+                                    prj_str_4326,
+                                    location_fields,
+                                    loc_recs_4326,
+                                    self.temp_dir.name)
+        loc_recs = deepcopy(loc_recs_4326)
+        loc_recs[1]['record']['loc_id'] = 1
+        loc_recs[1]['record']['loc_code'] = 'APC02'
+        loc_recs[0]['record']['loc_id'] = 2
+        loc_recs[0]['record']['loc_code'] = 'QCC02'
+        filename2 = create_shapefile('test2',
+                                     prj_str_4326,
+                                     location_fields,
+                                     loc_recs,
+                                     self.temp_dir.name)
+        importer.shape_readers = [ShapefileReader(filename),
+                                  ShapefileReader(filename2)]
+        importer.projection = 'epsg:4326'
+        importer.run()
+        mock_dialog.assert_called()
+        self.session.commit()
+        end = self.session.query(Location).all()
+        self.assertEqual(len(end), len(start))
+        updated1 = self.session.query(Location).get(1)
+        self.assertEqual(updated1.code, 'APC02')
+        updated2 = self.session.query(Location).get(2)
+        self.assertEqual(updated2.code, 'QCC02')
 
 
 class ShapefileReaderTests(ShapefileTestCase):
@@ -2881,7 +3235,7 @@ class ShapefileReaderTests(ShapefileTestCase):
                                     self.temp_dir.name)
         shape_reader = ShapefileReader(filename)
         self.assertEqual(len(shape_reader.search_by), 1)
-        self.assertEqual(shape_reader.search_by, {'loc_code'})
+        self.assertEqual(shape_reader.search_by, {'loc_id'})
 
     def test_search_by_plt_defaults(self):
         in_data = plt_rec_3857_points
@@ -2891,8 +3245,8 @@ class ShapefileReaderTests(ShapefileTestCase):
                                     in_data,
                                     self.temp_dir.name)
         shape_reader = ShapefileReader(filename)
-        self.assertEqual(len(shape_reader.search_by), 2)
-        self.assertEqual(shape_reader.search_by, {'accession', 'plt_code'})
+        self.assertEqual(len(shape_reader.search_by), 1)
+        self.assertEqual(shape_reader.search_by, {'plt_id'})
 
     def test_search_by_add_no_type(self):
         shape_reader = ShapefileReader(None)
@@ -2908,12 +3262,11 @@ class ShapefileReaderTests(ShapefileTestCase):
                                     in_data,
                                     self.temp_dir.name)
         shape_reader = ShapefileReader(filename)
-        self.assertEqual(len(shape_reader.search_by), 2)
-        self.assertEqual(shape_reader.search_by, {'accession', 'plt_code'})
+        self.assertEqual(len(shape_reader.search_by), 1)
+        self.assertEqual(shape_reader.search_by, {'plt_id'})
         shape_reader.search_by.add('test')
-        self.assertEqual(len(shape_reader.search_by), 3)
-        self.assertEqual(shape_reader.search_by,
-                         {'accession', 'plt_code', 'test'})
+        self.assertEqual(len(shape_reader.search_by), 2)
+        self.assertEqual(shape_reader.search_by, {'plt_id', 'test'})
 
     def test_search_by_remove_all_then_add(self):
         in_data = loc_recs_3857
@@ -2924,8 +3277,8 @@ class ShapefileReaderTests(ShapefileTestCase):
                                     self.temp_dir.name)
         shape_reader = ShapefileReader(filename)
         self.assertEqual(len(shape_reader.search_by), 1)
-        self.assertEqual(shape_reader.search_by, {'loc_code'})
-        shape_reader.search_by.remove('loc_code')
+        self.assertEqual(shape_reader.search_by, {'loc_id'})
+        shape_reader.search_by.remove('loc_id')
         # make sure this doesn't reset to defaults
         self.assertEqual(len(shape_reader.search_by), 0)
         self.assertEqual(shape_reader.search_by, set())
@@ -3237,6 +3590,27 @@ class ShapefileReaderTests(ShapefileTestCase):
                                         in_crs='epsg:4326',
                                         out_crs='epsg:4326'),
                               [epsg4326_poly_xy, epsg4326_poly_xy2])
+
+    def test__eq__(self):
+        # equal
+        shape_reader1 = ShapefileReader(create_shapefile('test1',
+                                                         prj_str_4326,
+                                                         location_fields,
+                                                         loc_recs_4326,
+                                                         self.temp_dir.name))
+        shape_reader2 = ShapefileReader(create_shapefile('test2',
+                                                         prj_str_4326,
+                                                         location_fields,
+                                                         loc_recs_4326_bulk,
+                                                         self.temp_dir.name))
+        self.assertEqual(shape_reader1, shape_reader2)
+        # not equal
+        shape_reader2 = ShapefileReader(create_shapefile('test2',
+                                                         prj_str_4326,
+                                                         plant_fields,
+                                                         plt_rec_4326_points,
+                                                         self.temp_dir.name))
+        self.assertNotEqual(shape_reader1, shape_reader2)
 
 
 class GlobalFunctionsTests(ShapefileTestCase):

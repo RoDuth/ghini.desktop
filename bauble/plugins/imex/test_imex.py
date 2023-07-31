@@ -17,6 +17,7 @@
 # You should have received a copy of the GNU General Public License
 # along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
 
+from unittest import mock
 import csv
 import logging
 logger = logging.getLogger(__name__)
@@ -471,6 +472,7 @@ class XMLExporterTests(BaubleTestCase):
 
 
 class BasicImporter(GenericImporter):
+    """Dummy GenericImporter, does nothing"""
 
     def _import_task(self, options):
         pass
@@ -864,6 +866,78 @@ class GenericImporterTests(BaubleTestCase):
         importer.fields = {'accession': 'accession.code', 'plt_code': 'code'}
         item = importer.get_db_item(self.session, record, add=True)
         self.assertFalse(item in self.session)
+
+    @mock.patch('bauble.utils.create_yes_no_dialog')
+    def test_get_db_item_duplicate_yes(self, mock_dialog):
+        mock_dialog().run.return_value = -8
+        for func in get_setUp_data_funcs():
+            func()
+        plt1 = self.session.query(Plant).get(2)
+        self.assertIsNotNone(plt1)
+
+        record = {'accession': str(plt1.accession.code),
+                  'plt_code': str(plt1.code)}
+
+        importer = BasicImporter()
+        importer.domain = Plant
+        importer.search_by.add('accession')
+        importer.search_by.add('plt_code')
+        importer.fields = {'accession': 'accession.code', 'plt_code': 'code'}
+        item = importer.get_db_item(self.session, record, add=True)
+        self.assertTrue(item in self.session)
+        # skip
+        item = importer.get_db_item(self.session, record, add=True)
+        self.assertIsNone(item)
+        mock_dialog.assert_called()
+
+    @mock.patch('bauble.utils.create_yes_no_dialog')
+    def test_get_db_item_duplicate_skip_cancel(self, mock_dialog):
+        mock_dialog().run.return_value = -6
+        for func in get_setUp_data_funcs():
+            func()
+        plt1 = self.session.query(Plant).get(2)
+        self.assertIsNotNone(plt1)
+
+        record = {'accession': str(plt1.accession.code),
+                  'plt_code': str(plt1.code)}
+
+        importer = BasicImporter()
+        importer.domain = Plant
+        importer.search_by.add('accession')
+        importer.search_by.add('plt_code')
+        importer.fields = {'accession': 'accession.code', 'plt_code': 'code'}
+        item = importer.get_db_item(self.session, record, add=True)
+        self.assertTrue(item in self.session)
+        # cancel
+        self.assertRaises(bauble.error.BaubleError,
+                          importer.get_db_item,
+                          self.session,
+                          record,
+                          add=True)
+        mock_dialog.assert_called()
+
+    @mock.patch('bauble.utils.create_yes_no_dialog')
+    def test_get_db_item_duplicate_skip_no(self, mock_dialog):
+        mock_dialog().run.return_value = -9
+        for func in get_setUp_data_funcs():
+            func()
+        plt1 = self.session.query(Plant).get(2)
+        self.assertIsNotNone(plt1)
+
+        record = {'accession': str(plt1.accession.code),
+                  'plt_code': str(plt1.code)}
+
+        importer = BasicImporter()
+        importer.domain = Plant
+        importer.search_by.add('accession')
+        importer.search_by.add('plt_code')
+        importer.fields = {'accession': 'accession.code', 'plt_code': 'code'}
+        item = importer.get_db_item(self.session, record, add=True)
+        self.assertTrue(item in self.session)
+        # overwrite
+        item = importer.get_db_item(self.session, record, add=True)
+        self.assertTrue(item in self.session)
+        mock_dialog.assert_called()
 
 
 class GenericExporterTests(BaubleTestCase):

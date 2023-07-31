@@ -47,7 +47,9 @@ from bauble.editor import GenericEditorView, GenericEditorPresenter
 
 from bauble.utils.geo import DEFAULT_IN_PROJ
 
-from . import LOCATION_SHAPEFILE_PREFS, PLANT_SHAPEFILE_PREFS
+from . import (LOCATION_SHAPEFILE_PREFS,
+               PLANT_SHAPEFILE_PREFS,
+               SHAPEFILE_IGNORE_PREF)
 from .. import GenericImporter
 
 PATH = 4
@@ -56,6 +58,9 @@ MATCH = 5
 """Column position for the match widget."""
 OPTION = 6
 """Column position for the option widget."""
+IGNORED_FIELDS = ('st_length_', 'st_area_sh')
+"""Sensible defaults for shapefile field names to ignore when importing,
+overridden if the SHAPEFILE_IGNORE_PREF pref is set."""
 
 
 class ShapefileReader():
@@ -79,6 +84,25 @@ class ShapefileReader():
         self._type = None
         self._search_by = None
         self._field_map = {}
+
+    def __eq__(self, other):
+        """Override == to check shapefiles are equal in form.
+
+        i.e. Share the same fields, ignoring fields defined in
+        SHAPEFILE_IGNORE_PREF or IGNORED_FIELDS.
+        """
+        other_fields = other.get_fields()
+
+        remainder = []
+        for field in self.get_fields():
+            try:
+                other_fields.remove(field)
+            except ValueError:
+                remainder.append(field)
+        remainder.extend(other_fields)
+        ignored = prefs.prefs.get(SHAPEFILE_IGNORE_PREF, IGNORED_FIELDS)
+        remainder = [i for i in remainder if i[0] not in ignored]
+        return remainder == []
 
     def _guess_type(self):
         """try guess what type (Plant or Location) the record is by checking
@@ -309,8 +333,11 @@ class ShapefileImportSettingsBox(Gtk.ScrolledWindow):
         if self.shape_reader.type == 'location':
             model = Location
         # NOTE can not use enumerate for row here
+        ignored = prefs.prefs.get(SHAPEFILE_IGNORE_PREF, IGNORED_FIELDS)
         row = 0
         for field in self.shape_reader.get_fields():
+            if field[0] in ignored:
+                continue
             # only list fields are needed
             if isinstance(field, list):
                 row += 1
@@ -517,10 +544,11 @@ class ShapefileImporter(GenericImporter):
                           "accession and location must already exist. Some "
                           "fields are read only, e.g. species and family "
                           "epithets are ignored during imports."),
-        'input_filename': _("The full path to the zip file containing "
-                            "the shapefile."),
-        'btn_file_chooser': _("Browse to the zipfile that contains "
-                              "the shapefile and other required files."),
+        'btn_file_chooser': _("Browse to the zipfile(s) that contains "
+                              "the shapefile and other associated files. "
+                              "\nNOTE: If choosing multiple files at once "
+                              "they must all have the same fields and "
+                              "projection."),
         'input_projection': _("The shapefile's projection control parameter, "
                               "can contain any string parameters accepted by "
                               "pyproj.crs.CRS().  An EPSG code is most likely "
@@ -562,83 +590,94 @@ class ShapefileImporter(GenericImporter):
         if proj_db is None:
             proj_db = ProjDB()
         self.presenter = ShapefileImportDialogPresenter(self, view, proj_db)
-        # reader
-        self.shape_reader = ShapefileReader(None)
+        # readers
+        self.shape_readers = []
 
-    def _import_task(self, options): \
-            # pylint: disable=too-many-statements,too-many-branches
+    def _import_task(self, options):
         """The import task.
 
         Yields occasionally to allow the UI to update.
 
         :param options: dict of settings used to decide when/what to add.
         """
-        self.fields = self.shape_reader.field_map
-        self.search_by = self.shape_reader.search_by
-        self.use_id = self.shape_reader.use_id
-        self.replace_notes = self.shape_reader.replace_notes
+        self.fields = self.shape_readers[0].field_map
+        self.search_by = self.shape_readers[0].search_by
+        self.use_id = self.shape_readers[0].use_id
+        self.replace_notes = self.shape_readers[0].replace_notes
         session = db.Session()
         logger.debug('importing %s with option %s', self.filename, self.option)
-        record_count = self.shape_reader.get_records_count()
+        record_count = sum(
+            shrd.get_records_count() for shrd in self.shape_readers
+        )
         five_percent = int(record_count / 20) or 1
         records_added = records_done = 0
-        if self.shape_reader.type == 'plant':
+        if self.shape_readers[0].type == 'plant':
             self.domain = Plant
-        elif self.shape_reader.type == 'location':
+        elif self.shape_readers[0].type == 'location':
             self.domain = Location
         else:
             from bauble.error import BaubleError
             logger.debug('error - no type set')
             raise BaubleError('No "type" set for the records.')
 
-        with self.shape_reader.get_records() as records:
-            for record in records:
-                rec_dict = record.record.as_dict()
-                record_dict = {k: v for k, v in rec_dict.items() if
-                               self.fields.get(k)}
-                self._is_new = False
-                item = self.get_db_item(session,
-                                        record_dict,
-                                        options.get('add_new'))
+        for shape_reader in self.shape_readers:
+            msg = (f'{shape_reader.filename}: {self._total_records} records, '
+                   f'{self._committed} committed, {self._errors} errors')
+            task.set_message(msg)
+            with shape_reader.get_records() as records:
+                for line, record in enumerate(records, start=1):
+                    rec_dict = record.record.as_dict()
+                    record_dict = {k: v for k, v in rec_dict.items() if
+                                   self.fields.get(k)}
+                    self._is_new = False
+                    item = self.get_db_item(session,
+                                            record_dict,
+                                            options.get('add_new'))
 
-                if records_done % five_percent == 0:
-                    pb_set_fraction(records_done / record_count)
-                    msg = (f'{self._total_records} records, '
-                           f'{self._committed} committed, '
-                           f'{self._errors} errors')
-                    task.set_message(msg)
-                    yield
-                records_done += 1
-                if item is None:
-                    continue
-                if item.geojson:
-                    if options.get('update'):
-                        if not self.add_db_geo(session, item, record):
-                            logger.debug('add_db_geo failed')
-                            continue
-                        records_added += 1
-                        if options.get('all_data'):
-                            logger.debug('adding all data')
-                            self.add_db_data(session,
-                                             item,
-                                             record_dict)
-                else:
-                    if self._is_new or options.get('add_geo'):
-                        if not self.add_db_geo(session, item, record):
-                            logger.debug('add_db_geo failed')
-                            continue
-                        records_added += 1
-                        if options.get('all_data'):
-                            logger.debug('adding all data')
-                            self.add_db_data(session,
-                                             item,
-                                             record_dict)
+                    if records_done % five_percent == 0:
+                        pb_set_fraction(records_done / record_count)
+                        msg = (f'{shape_reader.filename}: '
+                               f'{self._total_records} records, '
+                               f'{self._committed} committed, '
+                               f'{self._errors} errors')
+                        task.set_message(msg)
+                        yield
 
-                # commit every record catches errors and avoids losing records.
-                if self.commit_db(session) is False:
-                    # record errored
-                    rec_dict['__line_#'] = self._total_records
-                    self._err_recs.append(rec_dict)
+                    records_done += 1
+
+                    if item is None:
+                        continue
+
+                    if item.geojson:
+                        if options.get('update'):
+                            if not self.add_db_geo(session, item, record):
+                                logger.debug('add_db_geo failed')
+                                continue
+                            records_added += 1
+                            if options.get('all_data'):
+                                logger.debug('adding all data')
+                                self.add_db_data(session,
+                                                 item,
+                                                 record_dict)
+                    else:
+                        if self._is_new or options.get('add_geo'):
+                            if not self.add_db_geo(session, item, record):
+                                logger.debug('add_db_geo failed')
+                                continue
+                            records_added += 1
+                            if options.get('all_data'):
+                                logger.debug('adding all data')
+                                self.add_db_data(session,
+                                                 item,
+                                                 record_dict)
+
+                    # commit every record catches errors and avoids losing
+                    # records.
+                    if self.commit_db(session) is False:
+                        # record errored
+                        rec_dict['__file'] = shape_reader.filename
+                        rec_dict['__line_#'] = line
+                        self._err_recs.append(rec_dict)
 
         session.close()
         if bauble.gui and (view := bauble.gui.get_view()):
@@ -668,12 +707,10 @@ class ShapefileImporter(GenericImporter):
 
 
 class ShapefileImportDialogPresenter(GenericEditorPresenter):
-    """ The presenter for the shapefile import dialog.
-    """
+    """The presenter for the shapefile import dialog."""
 
     widget_to_field_map = {
         'option_combo': 'option',
-        'input_filename': 'filename',
         'input_projection': 'projection',
         'cb_always_xy': 'always_xy',
     }
@@ -682,6 +719,7 @@ class ShapefileImportDialogPresenter(GenericEditorPresenter):
     PROBLEM_NOT_SHAPEFILE = f'no_shapefile:{random()}'
     PROBLEM_NO_PROJ = f'no_proj:{random()}'
     PROBLEM_PROJ_MISMATCH = f'proj_mismatch:{random()}'
+    PROBLEM_MULTI_NOT_EQUAL = f'fields_mismatch:{random()}'
 
     last_folder = str(Path.home())
 
@@ -692,75 +730,142 @@ class ShapefileImportDialogPresenter(GenericEditorPresenter):
         self.proj_text = None
         self.settings_box = None
         self.proj_db = proj_db
-        self.add_problem(self.PROBLEM_EMPTY, self.view.widgets.input_filename)
+        self.add_problem(self.PROBLEM_EMPTY, self.view.widgets.filenames_lbl)
         self.refresh_view()
 
     def refresh_sensitivity(self):
-        sensitive = False
-        self.view.widget_set_sensitive('projection_button', (
+        prj_btn_sensitive = (
             self.has_problems(self.view.widgets.input_projection) and
-            not self.has_problems(self.view.widgets.input_filename)
-        ))
-        if self.is_dirty() and not self.has_problems():
-            sensitive = True
+            not self.has_problems(self.view.widgets.filenames_lbl)
+        )
+        self.view.widget_set_sensitive('projection_button', prj_btn_sensitive)
+        sensitive = self.is_dirty() and not self.has_problems()
         # settings expander
         self.view.widget_set_sensitive('imp_settings_expander', sensitive)
         # accept buttons
         self.view.set_accept_buttons_sensitive(sensitive)
 
-    def on_btnbrowse_clicked(self, _widget):
-        self.view.run_file_chooser_dialog(
-            _("Select a shapefile"),
+    def _get_filenames(self):
+        """Run a filechooser and return the list of selected files."""
+        filechooser = Gtk.FileChooserNative.new(
+            _("Select shapefile(s) to import…"),
             None,
-            Gtk.FileChooserAction.OPEN,
-            self.last_folder,
-            'input_filename',
-            '.zip'
+            Gtk.FileChooserAction.OPEN
         )
+        filter_ = Gtk.FileFilter.new()
+        filter_.add_pattern('*.zip')
+        filechooser.add_filter(filter_)
+        filechooser.set_select_multiple(True)
+        filechooser.set_current_folder(self.last_folder)
+        filenames = []
+        if filechooser.run() == Gtk.ResponseType.ACCEPT:
+            filenames = filechooser.get_filenames()
+        filechooser.destroy()
+        return filenames
+
+    def on_btnbrowse_clicked(self, _widget):
+        self.view.widgets.filenames_lbl.set_text('--')
+        widget = self.view.widgets.filenames_lbl
+        self.remove_problem(None, widget=widget)
+        filenames = self._get_filenames()
+
+        # used only for display
+        self.model.filename = ', '.join(Path(i).name for i in filenames)
+
+        self.view.widgets.filenames_lbl.set_text(
+            '\n'.join(repr(i) for i in filenames)
+        )
+        if self.populate_shape_readers(filenames):
+            self.add_problem(self.PROBLEM_NOT_SHAPEFILE, widget)
+            return
+
+        if self._projections_equal():
+            self.set_crs_axy()
+        else:
+            self.add_problem(self.PROBLEM_PROJ_MISMATCH, widget)
+            return
+
+        all_equal = True
+
+        if len(self.model.shape_readers) != 1:
+            first = self.model.shape_readers[0]
+            all_equal = all(i == first for i in self.model.shape_readers[1:])
+
+        if not all_equal:
+            self.add_problem(self.PROBLEM_MULTI_NOT_EQUAL, widget)
+            return
+
+        self._dirty = True
+
         self.refresh_sensitivity()
 
-    def on_filename_entry_changed(self, widget, value=None):
-        # check we have a valid file and attempt to guess its crs etc.
-        self.remove_problem(self.PROBLEM_NOT_SHAPEFILE)
-        path = Path(self.on_non_empty_text_entry_changed(widget, value))
-        logger.debug('filename changed to %s', str(path))
+    def populate_shape_readers(self, file_names):
+        """Given a list of file names attempt to populate the list of shape
+        readers.
 
-        if path.exists() and path.suffix == '.zip':
-            self.__class__.last_folder = str(path.parent)
-            self.model.shape_reader.filename = str(path)
-            self.prj_string = self.model.shape_reader.get_prj_string()
-            crs = None
-            if self.prj_string:
-                crs = self.proj_db.get_crs(self.prj_string)
-                axy = self.proj_db.get_always_xy(self.prj_string)
+        If any of the files names are not .zip files they are returned."""
+        # check we have a valid file and attempt to guess its crs etc.
+        self.model.shape_readers = []
+        self.remove_problem(self.PROBLEM_NOT_SHAPEFILE)
+        errors = []
+        for file_name in file_names:
+            path = Path(file_name)
+            logger.debug('filename = %s', str(path))
+
+            if path.exists() and path.suffix == '.zip':
+                self.__class__.last_folder = str(path.parent)
+                self.model.shape_readers.append(ShapefileReader(str(path)))
             else:
+                widget = self.view.widgets.filenames_lbl
                 self.add_problem(self.PROBLEM_NOT_SHAPEFILE, widget)
-            if crs:
-                self.proj_db_match = crs
-                # need to change the text for it to trigger a change
-                self.view.widget_set_text('input_projection', '')
-                self.view.widget_set_text('input_projection', crs)
-                self.view.widget_set_active('cb_always_xy', axy)
-            else:
-                self.proj_db_match = None
-                self.view.widget_set_text('input_projection', '')
-                self.view.widget_set_text('input_projection', DEFAULT_IN_PROJ)
+                errors.append(str(path))
+        return errors
+
+    def _projections_equal(self):
+        prj_strings = set()
+        self.prj_string = None
+        for shape_reader in self.model.shape_readers:
+            prj_strings.add(shape_reader.get_prj_string())
+
+        if not len(prj_strings) == 1:
+            return False
+
+        self.prj_string = prj_strings.pop()
+
+        return True
+
+    def set_crs_axy(self):
+        crs = None
+        axy = None
+        widget = self.view.widgets.filenames_lbl
+        self.remove_problem(self.PROBLEM_NOT_SHAPEFILE, widget)
+        logger.debug('set crs axy')
+        if self.prj_string:
+            crs = self.proj_db.get_crs(self.prj_string)
+            axy = self.proj_db.get_always_xy(self.prj_string)
         else:
             self.add_problem(self.PROBLEM_NOT_SHAPEFILE, widget)
+        logger.debug('crs = %s', crs)
+        logger.debug('axy = %s', axy)
+        if crs:
+            self.proj_db_match = crs
+            # need to change the text for it to trigger a change
+            self.view.widget_set_text('input_projection', '')
+            self.view.widget_set_text('input_projection', crs)
+            self.view.widget_set_active('cb_always_xy', axy)
+        else:
+            self.proj_db_match = None
+            self.view.widget_set_text('input_projection', '')
+            self.view.widget_set_text('input_projection', DEFAULT_IN_PROJ)
 
-        self.refresh_sensitivity()
-        self._settings_expander()
-
-    def _settings_expander(self):
-        """
-        Start the settings box
-        """
+    def add_settings_box(self):
+        """Start the settings box"""
         expander = self.view.widgets.imp_settings_expander
         child = expander.get_child()
         if child:
             expander.remove(child)
         self.settings_box = ShapefileImportSettingsBox(
-            shape_reader=self.model.shape_reader
+            shape_reader=self.model.shape_readers[0]
         )
         expander.add(self.settings_box)
         self.settings_box.show_all()
@@ -768,6 +873,10 @@ class ShapefileImportDialogPresenter(GenericEditorPresenter):
 
     def on_settings_activate(self, _widget):
         logger.debug('settings expander toggled')
+        if not self.model.shape_readers:
+            return
+        if not self.settings_box:
+            self.add_settings_box()
         self.view.get_window().resize(1, 1)
 
     def on_always_xy_toggled(self, widget, value=None):
@@ -788,12 +897,15 @@ class ShapefileImportDialogPresenter(GenericEditorPresenter):
         logger.debug('proj changed proj_text = %s, match = %s', self.proj_text,
                      self.proj_db_match)
         if self.proj_text == self.proj_db_match:
+            logger.debug('set projection_button to CORRECT')
             self.view.set_button_label('projection_button', 'CORRECT')
         elif self.proj_db_match:
             self.add_problem(self.PROBLEM_PROJ_MISMATCH, widget)
+            logger.debug('set projection_button to Change?')
             self.view.set_button_label('projection_button', 'Change?')
         else:
             self.add_problem(self.PROBLEM_NO_PROJ, widget)
+            logger.debug('set projection_button to Add?')
             self.view.set_button_label('projection_button', 'Add?')
         self.refresh_sensitivity()
 

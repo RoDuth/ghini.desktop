@@ -35,6 +35,8 @@ from bauble import pluginmgr
 from bauble import prefs
 from bauble import btypes
 from bauble import task
+from bauble import utils
+from bauble import error
 
 # TODO: it might be best to do something like the reporter plugin so
 # that this plugin provides a generic interface for importing and exporting
@@ -64,6 +66,7 @@ class GenericImporter(ABC):   # pylint: disable=too-many-instance-attributes
         self.replace_notes = set()
         self.fields = None
         self.domain = None
+        self.completed = []
         # keepng track
         self._committed = 0
         self._total_records = 0
@@ -85,6 +88,7 @@ class GenericImporter(ABC):   # pylint: disable=too-many-instance-attributes
 
     def run(self):
         """Queues the import task"""
+        self.completed = []
         task.clear_messages()
         task.queue(self._import_task(self.OPTIONS_MAP[int(self.option)]))
         msg = (f'import {self.filename} complete: '
@@ -126,16 +130,41 @@ class GenericImporter(ABC):   # pylint: disable=too-many-instance-attributes
             logger.debug('searching by %s = %s', field, record_field)
             in_dict_mapped[self.fields.get(field)] = record_field
 
-        if in_dict_mapped:
-            if item := self.domain.retrieve(session, in_dict_mapped):
-                return item
+        if in_dict_mapped in self.completed:
+            match_str = ', '.join(
+                f'{k} = {v}' for k, v in in_dict_mapped.items()
+            )
+            logger.debug('duplicate %s', match_str)
+            msg = (_('Appears to be a duplicate record with matching values '
+                     'of: <b>%s</b> \nWould you like to skip this entry?\nOr '
+                     'select Cancel to stop importing any further?')
+                   % utils.xml_safe(match_str))
+            dialog = utils.create_yes_no_dialog(msg)
+            dialog.add_button('Cancel', -6)
+            response = dialog.run()
+            dialog.destroy()
+            if response == -6:
+                logger.debug('cancel')
+                raise error.BaubleError(
+                    msg='You have requested to cancelled further imports...'
+                )
+            if response == -8:
+                logger.debug('skip')
+                return None
 
-        if add and self.domain:
+        item = None
+        if in_dict_mapped:
+            item = self.domain.retrieve(session, in_dict_mapped)
+
+        if not item and add and self.domain:
             logger.debug('new item')
             self._is_new = True
-            return self.domain()  # pylint: disable=not-callable
+            item = self.domain()  # pylint: disable=not-callable
 
-        return None
+        if item:
+            self.completed.append(in_dict_mapped)
+
+        return item
 
     def add_db_data(self, session, item, record):
         """Add column data from the record to the database item.

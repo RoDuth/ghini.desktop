@@ -37,6 +37,9 @@ LOCATION_SHAPEFILE_PREFS = 'shapefile.location'
 Options: search_by, fields.
 """
 
+SHAPEFILE_IGNORE_PREF = 'shapefile.ignore'
+"""Pref for which field names to ignore when importing shapefiles."""
+
 
 class ShapefileImportTool(pluginmgr.Tool):
 
