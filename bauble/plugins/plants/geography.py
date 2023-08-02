@@ -225,7 +225,7 @@ class Geography(db.Base):
         query = (session.query(Geography.parent_id)
                  .join(child,
                        Geography.id == child.c.parent_id))
-        query = (cte.union(query))
+        query = cte.union_all(query)
         query = (session.query(Geography.id)
                  .join(query, Geography.id == query.c.parent_id))
         ids = {i[0] for i in query}
@@ -236,7 +236,7 @@ class Geography(db.Base):
         cte = (session.query(Geography.id)
                .filter(Geography.id == self.id).cte(recursive=True))
         parent = aliased(cte)
-        query = cte.union(
+        query = cte.union_all(
             session.query(Geography.id)
             .join(parent, Geography.parent_id == parent.c.id)
         )
