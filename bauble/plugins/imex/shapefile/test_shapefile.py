@@ -2181,7 +2181,11 @@ class ShapefileImportTests(ShapefileTestCase):
                                     location_fields,
                                     in_data,
                                     self.temp_dir.name)
-        importer.shape_readers = [ShapefileReader(filename)]
+        reader = ShapefileReader(filename)
+        # postgres, either don't search_by id or set use_id True
+        reader.search_by = ['loc_code']
+        # reader.use_id = True
+        importer.shape_readers = [reader]
         importer.option = '3'
         importer.projection = 'epsg:4326'
         importer.run()
@@ -2244,7 +2248,11 @@ class ShapefileImportTests(ShapefileTestCase):
                                     location_fields,
                                     in_data,
                                     self.temp_dir.name)
-        importer.shape_readers = [ShapefileReader(filename)]
+        reader = ShapefileReader(filename)
+        # postgres, either don't search_by id or set use_id True
+        # reader.search_by = ['loc_code']
+        reader.use_id = True
+        importer.shape_readers = [reader]
         importer.option = '4'
         importer.projection = 'epsg:4326'
         importer.run()
@@ -2280,7 +2288,11 @@ class ShapefileImportTests(ShapefileTestCase):
                                     location_fields,
                                     in_data,
                                     self.temp_dir.name)
-        importer.shape_readers = [ShapefileReader(filename)]
+        reader = ShapefileReader(filename)
+        # postgres, either don't search_by id or set use_id True
+        reader.search_by = ['loc_code']
+        # reader.use_id = True
+        importer.shape_readers = [reader]
         importer.option = '4'
         importer.projection = 'epsg:4326'
         # add more coverage
@@ -2464,7 +2476,11 @@ class ShapefileImportTests(ShapefileTestCase):
                                     plant_fields,
                                     in_data,
                                     self.temp_dir.name)
-        importer.shape_readers = [ShapefileReader(filename)]
+        reader = ShapefileReader(filename)
+        # postgres, either don't search_by id or set use_id True
+        # reader.search_by = ['plt_code', 'accession']
+        reader.use_id = True
+        importer.shape_readers = [reader]
         importer.option = '4'
         importer.projection = 'epsg:3857'
         importer.run()
