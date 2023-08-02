@@ -277,7 +277,7 @@ class GardenPlugin(pluginmgr.Plugin):
                 "inactive_toggled",
                 None,
                 GLib.Variant.new_boolean(
-                    prefs.prefs.get(prefs.exclude_inactive_pref, True)
+                    prefs.prefs.get(prefs.exclude_inactive_pref, False)
                 )
             )
             inactive_action.connect("change-state",
