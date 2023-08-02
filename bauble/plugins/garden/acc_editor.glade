@@ -123,7 +123,7 @@
     <property name="page-increment">10</property>
   </object>
   <object class="GtkAdjustment" id="acc_quantity_adj">
-    <property name="lower">1</property>
+    <property name="lower">0</property>
     <property name="upper">1000000000</property>
     <property name="step-increment">1</property>
     <property name="page-increment">10</property>
@@ -140,7 +140,7 @@
   </object>
   <object class="GtkListStore" id="int_loc_liststore"/>
   <object class="GtkAdjustment" id="int_loc_qty_adj">
-    <property name="lower">1</property>
+    <property name="lower">0</property>
     <property name="upper">1000000000</property>
     <property name="step-increment">1</property>
     <property name="page-increment">10</property>
