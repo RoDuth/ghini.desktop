@@ -25,6 +25,7 @@ import itertools
 import json
 from pathlib import Path
 import sys
+import textwrap
 import traceback
 import html
 import threading
@@ -1676,7 +1677,7 @@ class AppendThousandRows(threading.Thread):
                       ZeroOrMore(and_ + ident_expression)))
 
         filters = []
-        for part in expression.parseString(self.arg):
+        for part in expression.parse_string(self.arg, parse_all=True):
             if part == 'to_sync':
                 meta_table = bauble.meta.BaubleMeta.__table__
                 with db.engine.begin() as connection:
@@ -1698,22 +1699,28 @@ class AppendThousandRows(threading.Thread):
         return filters
 
     def run(self):
-        session = db.Session()
-        query = session.query(db.History)
-        if self.arg:
-            query = query.filter(*self.get_query_filters())
-        query = query.order_by(db.History.timestamp.desc())
-        # add rows in small batches
-        offset = 0
-        step = 200
-        count = query.count()
-        while offset < count and not self.__stopped.is_set():
-            rows = query.offset(offset).limit(step).all()
-            GLib.idle_add(self.callback, rows)
-            offset += step
-        session.close()
-        if offset < count:
-            GLib.idle_add(self.cancel_callback)
+        try:
+            session = db.Session()
+            query = session.query(db.History)
+            if self.arg:
+                query = query.filter(*self.get_query_filters())
+            query = query.order_by(db.History.timestamp.desc())
+            # add rows in small batches
+            offset = 0
+            step = 200
+            count = query.count()
+            while offset < count and not self.__stopped.is_set():
+                rows = query.offset(offset).limit(step).all()
+                GLib.idle_add(self.callback, rows)
+                offset += step
+            session.close()
+            if offset < count:
+                GLib.idle_add(self.cancel_callback)
+        except Exception as e:
+            msg = utils.xml_safe(e)
+            details = utils.xml_safe(traceback.format_exc())
+            if bauble.gui:
+                self.view.show_error_box(msg, details)
 
 
 @Gtk.Template(filename=str(Path(paths.lib_dir(), 'history_view.ui')))
@@ -1801,6 +1808,7 @@ class HistoryView(pluginmgr.View, Gtk.Box):
         friendly = ', '.join(f"{k}: {v or repr('')}"
                              for k, v in sorted(list(dct.items()),
                                                 key=self._cmp_items_key))
+        friendly = '\n'.join(textwrap.wrap(friendly, 200))
         frmt = prefs.prefs.get(prefs.datetime_format_pref)
         self.liststore.append([
             item,
@@ -1906,6 +1914,10 @@ class HistoryView(pluginmgr.View, Gtk.Box):
         GLib.idle_add(self.liststore.clear)
         self.last_arg = args[0]
         self.start_thread(AppendThousandRows(self, self.last_arg))
+
+    def show_error_box(self, msg, details):
+        if bauble.gui:
+            bauble.gui.show_error_box(msg, details)
 
 
 class HistoryCommandHandler(pluginmgr.CommandHandler):

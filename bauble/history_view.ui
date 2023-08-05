@@ -6,9 +6,9 @@
     <columns>
       <!-- column-name item -->
       <column type="PyObject"/>
-      <!-- column-name timestamp -->
+      <!-- column-name id -->
       <column type="gchararray"/>
-      <!-- column-name operation -->
+      <!-- column-name timestamp-->
       <column type="gchararray"/>
       <!-- column-name operation -->
       <column type="gchararray"/>
@@ -99,6 +99,7 @@
             </child>
             <child>
               <object class="GtkTreeViewColumn">
+                <property name="resizable">True</property>
                 <property name="title" translatable="yes">Values</property>
                 <child>
                   <object class="GtkCellRendererText"/>
