@@ -499,7 +499,7 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
         self.start_sp_markup = None
         if model not in self.session.new:
             self.start_sp_dict = {
-                'genus_id': model.genus_id,
+                'genus': model.genus,
                 'sp': model.sp,
                 'hybrid': model.hybrid,
                 'sp_author': model.sp_author,

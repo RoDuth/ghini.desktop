@@ -90,6 +90,10 @@ class HistoryTests(BaubleTestCase):
                 .one()
             )
 
+        # NOTE if the model is not refreshed the update will record a single
+        # item list
+        session.refresh(note_model)
+
         # UPDATE
         note_model.note = 'TEST AGAIN'
         session.commit()
@@ -99,7 +103,25 @@ class HistoryTests(BaubleTestCase):
                    .filter(db.History.operation == 'update'))
 
         self.assertEqual(updated.count(), 1)
-        self.assertIn('TEST AGAIN', str(updated.one().values))
+        self.assertIn("['TEST AGAIN',", str(updated.one().values))
+
+        # NOTE if the model is not refreshed the update will record a single
+        # item list
+        session.refresh(note_model)
+
+        # UPDATE AGAIN, no actual change is made
+        note_model.note = 'something else'
+        note_model.note = 'TEST AGAIN'
+        session.commit()
+
+        updated = (self.session.query(db.History)
+                   .filter(db.History.table_name == note_cls.__tablename__)
+                   .filter(db.History.operation == 'update'))
+
+        for i in self.session.query(db.History):
+            print(i.operation, i.table_name, i.table_id, i.values)
+
+        self.assertEqual(updated.count(), 1)
 
         # DELETE
         session.delete(note_model)
@@ -110,7 +132,9 @@ class HistoryTests(BaubleTestCase):
                    .filter(db.History.operation == 'delete'))
 
         self.assertEqual(deleted.count(), 1)
-        self.assertIn('TEST AGAIN', str(updated.one().values))
+        self.assertIn("TEST AGAIN", str(deleted.one().values))
+
+        # self.assertTrue(False)
 
         session.close()
 
@@ -272,6 +296,22 @@ class HistoryTests(BaubleTestCase):
         for note in parent_model.notes:
             self.assertEqual(note.note, 'TEST')
 
+    def test_event_add_delete(self):
+        table = meta.BaubleMeta.__table__
+        instance = meta.get_default('test', 'test value')
+        with db.engine.begin() as connection:
+            db.History.event_add('delete',
+                                 table,
+                                 connection,
+                                 instance,
+                                 commit_user='test user')
+        rows = self.session.query(db.History).all()
+        self.assertEqual(len(rows), 2)
+        self.assertEqual(rows[1].operation, 'delete')
+        self.assertEqual(rows[1].values['name'], 'test')
+        self.assertEqual(rows[1].values['value'], 'test value')
+        self.assertEqual(rows[1].user, 'test user')
+
     def test_event_add_insert(self):
         table = meta.BaubleMeta.__table__
         instance = meta.get_default('test', 'test value')
@@ -311,6 +351,18 @@ class HistoryTests(BaubleTestCase):
             parser.parse((rows[1].values['_last_updated'][0])).timestamp(),
             datetime.utcnow().timestamp(), delta=1
         )
+
+    def test_event_add_update_no_change_doesnt_add(self):
+        table = meta.BaubleMeta.__table__
+        instance = meta.get_default('test', 'test value')
+        with db.engine.begin() as connection:
+            db.History.event_add('update',
+                                 table,
+                                 connection,
+                                 instance)
+        rows = self.session.query(db.History).all()
+        # no kwargs, no update is added
+        self.assertEqual(len(rows), 1)
 
 
 class GlobalFunctionsTests(BaubleTestCase):

@@ -336,9 +336,11 @@ class DBSyncTests(BaubleTestCase):
             first = conn.execute(out_stmt).first()
             row = SyncRow({}, first, conn)
             self.assertIsNone(row.values.get('id'))
-            self.assertAlmostEqual(row.values.get('_last_updated').timestamp(),
-                                   datetime.now().timestamp(),
-                                   delta=1)
+            self.assertAlmostEqual(
+                row.values.get('_last_updated')[0].timestamp(),
+                datetime.now().timestamp(),
+                delta=1
+            )
 
     def test_sync_row_updates_ids_from_id_map_insert(self):
         # insert
@@ -406,7 +408,7 @@ class DBSyncTests(BaubleTestCase):
             conn.execute(in_stmt)
             first = conn.execute(out_stmt).first()
             row = SyncRow({'family': {10: 4}}, first, conn)
-            self.assertEqual(row.values.get('family_id'), 4)
+            self.assertEqual(row.values.get('family_id'), [4, 2])
 
     def test_sync_row_gets_correct_instance(self):
         fam = Family(id=4, family='Sterculiaceae')
@@ -1148,7 +1150,7 @@ class DBSyncTests(BaubleTestCase):
         for row in rows[1:]:  # skip first entry for Leguminosae added at start
             # user is preserved
             self.assertEqual(row.user, 'test')
-            # timetamp accurate
+            # timestamp accurate
             self.assertAlmostEqual(row.timestamp.timestamp(),
                                    datetime.now().timestamp(), delta=2)
             # _last_update == now regardless of value in clones data

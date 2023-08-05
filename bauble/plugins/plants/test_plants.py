@@ -1387,24 +1387,6 @@ class SpeciesTests(PlantTestCase):
         self.assertTrue(get_sp_str(16) > get_sp_str(23))
         self.assertTrue(get_sp_str(16) > get_sp_str(24))
 
-    # def test_dirty_string(self):
-    #     """
-    #     That that the cache on a string is invalidated if the species
-    #     is changed or expired.
-    #     """
-    #     family = Family(family=u'family')
-    #     genus = Genus(family=family, genus=u'genus')
-    #     sp = Species(genus=genus, sp=u'sp')
-    #     self.session.add_all([family, genus, sp])
-    #     self.session.commit()
-
-    #     str1 = Species.str(sp)
-    #     sp.sp = u'sp2'
-    #     self.session.commit()
-    #     self.session.refresh(sp)
-    #     sp = self.session.query(Species).get(sp.id)
-    #     self.assert_(Species.str(sp) != str1)
-
     def test_vernacular_name(self):
         """
         Test the Species.vernacular_name property
@@ -1626,6 +1608,18 @@ class SpeciesTests(PlantTestCase):
         self.session.delete(sp1)
         self.session.commit()
         self.assertTrue(self.session.query(SpeciesSynonym).count() == 0)
+
+    def test_adding_synonym_doesnt_add_sp_history_entry(self):
+        # update all full names so listens_for doesn't make the a change
+        update_all_full_names_handler()
+        sp1 = self.session.query(Species).get(5)
+        sp2 = self.session.query(Species).get(6)
+        hist_start = self.session.query(db.History).count()
+        # this should not update the species
+        sp1.synonyms.append(sp2)
+        self.session.commit()
+        hist_end = self.session.query(db.History).count()
+        self.assertEqual(hist_end, hist_start + 1)
 
     def test_no_synonyms_means_itself_accepted(self):
         def create_tmp_sp(id):

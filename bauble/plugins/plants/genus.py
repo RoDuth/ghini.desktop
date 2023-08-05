@@ -352,7 +352,7 @@ class Genus(db.Base, db.WithNotes):
         return query.count()
 
 
-# Listen for changes and update the full_name string
+# Listen for changes and update the full_name strings
 @event.listens_for(Genus, 'before_update')
 def genus_before_update(_mapper, connection, target):
     for sp in target.species:
@@ -360,8 +360,9 @@ def genus_before_update(_mapper, connection, target):
         if sp in session.new or sp in session.dirty:
             # skip species that will trigger their own full name update
             return
-        if sp.full_name != str(sp):
-            vals = {'full_name': str(sp)}
+        if sp.full_sci_name != sp.str(authors=True):
+            vals = {'full_name': str(sp),
+                    'full_sci_name': sp.str(authors=True)}
             sp_table = Species.__table__
             connection.execute(update(sp_table)
                                .where(sp_table.c.id == sp.id)

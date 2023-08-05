@@ -154,7 +154,11 @@ class SyncRow:
             if values.get('_created') is not None:
                 del values['_created']
             # set _last_updated so update history records get list entries
-            values['_last_updated'] = datetime.now().astimezone(tz=None)
+            if self.row.operation == 'update':
+                values['_last_updated'] = [datetime.now().astimezone(tz=None),
+                                           values['_last_updated']]
+            else:
+                values['_last_updated'] = datetime.now().astimezone(tz=None)
 
             for k, v in values.items():
                 if k.endswith('_id') and v:
@@ -177,7 +181,7 @@ class SyncRow:
                     table_id_map: dict = self.id_map.get(tablename, {})
 
                     if isinstance(v, list):
-                        new_id = table_id_map.get(v[0], v[0])
+                        new_id = [table_id_map.get(i, i) for i in v]
                     else:
                         new_id = table_id_map.get(v, v)
 
@@ -239,7 +243,9 @@ class SyncRow:
             stmt = (table.update()
                     .where(table.c.id == table_id)
                     .values(**update_vals))
-            self._values.update(update_vals)
+            # NOTE if update_vals is emtpy History.event_add will skip adding
+            # an entry as nothing actually changes
+            self._values = update_vals
 
         return stmt
 

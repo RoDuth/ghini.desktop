@@ -237,31 +237,39 @@ class History(HistoryBase):
         History table (i.e. within event.listens_for) you will need to add them
         yourself via the `event_add` method.
         """
-        user = current_user()
         # XXX logging here can cause test_get_create_or_update to fail when run
         # seperately to the whole test suite (??)
         # logger.debug('adding history, operation: %s instance: %s', operation,
         #              instance)
 
         row = {}
+        has_updates = False
         for column in mapper.local_table.c:
 
             if operation == 'update':
                 history = get_history(instance, column.name)
-                sum_ = [cls._val(i) for i in history.sum()]
                 if history.has_changes():
-                    row[column.name] = sum_
+                    row[column.name] = [cls._val(i) for i in history.sum()]
+                    has_updates = True
                     continue
 
             val = cls._val(getattr(instance, column.name))
             row[column.name] = val
+
+        if operation == 'update' and not has_updates:
+            # don't commit if no changes
+            # NOTE adding a species.synonym can cause a pointless species entry
+            logger.debug('%s update appears to contain no changes', instance)
+            return
+
         table = cls.__table__
-        stmt = table.insert(dict(table_name=mapper.local_table.name,
-                                 table_id=instance.id,
-                                 values=row,
-                                 operation=operation,
-                                 user=user,
-                                 timestamp=datetime.datetime.utcnow()))
+        user = current_user()
+        stmt = table.insert({'table_name': mapper.local_table.name,
+                             'table_id': instance.id,
+                             'values': row,
+                             'operation': operation,
+                             'user': user,
+                             'timestamp': datetime.datetime.utcnow()})
         connection.execute(stmt)
 
     @classmethod
@@ -279,6 +287,12 @@ class History(HistoryBase):
         where a change has been made via `connection.execute` and hence not
         triggered the usual history event handlers.
         """
+        if operation == 'update' and not kwargs:
+            # don't commit if no changes
+            # NOTE can result from sync
+            logger.debug('%s update appears to contain no changes', instance)
+            return
+
         user = commit_user or current_user()
 
         values = {}
@@ -293,12 +307,12 @@ class History(HistoryBase):
 
             values[column.name] = cls._val(getattr(instance, column.name))
         history = cls.__table__
-        stmt = history.insert(dict(table_name=table.name,
-                                   table_id=instance.id,
-                                   values=values,
-                                   operation=operation,
-                                   user=user,
-                                   timestamp=datetime.datetime.utcnow()))
+        stmt = history.insert({'table_name': table.name,
+                               'table_id': instance.id,
+                               'values': values,
+                               'operation': operation,
+                               'user': user,
+                               'timestamp': datetime.datetime.utcnow()})
         connection.execute(stmt)
 
     @classmethod
