@@ -1873,10 +1873,13 @@ class SpeciesEditor(editor.GenericModelViewPresenterEditor):
                 self.model.vernacular_names.remove(vernacular)
                 utils.delete_or_expunge(vernacular)
                 del vernacular
+        super().commit_changes()
         if self.presenter.view.widgets.add_syn_chkbox.get_active():
+            # second commit so history is placed last - sync could fail unique
+            # constraint on full_sci_name otherwise
             syn = Species(**self.presenter.start_sp_dict)
             self.model.synonyms.append(syn)
-        super().commit_changes()
+            super().commit_changes()
 
     def start(self):
         if self.session.query(Genus).count() == 0:
