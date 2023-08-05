@@ -155,6 +155,7 @@ class GenericImporter(ABC):   # pylint: disable=too-many-instance-attributes
         item = None
         if in_dict_mapped:
             item = self.domain.retrieve(session, in_dict_mapped)
+            logger.debug('existing item: %s', item)
 
         if not item and add and self.domain:
             logger.debug('new item')

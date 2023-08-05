@@ -547,11 +547,11 @@ def _find_plugins(path):
 
         # if mod.plugin is a function it should return a plugin or list of
         # plugins
-        try:
+        if callable(mod.plugin):
             mod_plugin = mod.plugin()
             logger.debug('module %s contains callable plugin: %s', mod,
                          mod_plugin)
-        except:
+        else:
             mod_plugin = mod.plugin
             logger.debug('module %s contains non callable plugin: %s', mod,
                          mod_plugin)

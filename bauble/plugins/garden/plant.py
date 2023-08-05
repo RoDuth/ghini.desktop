@@ -1684,7 +1684,7 @@ class PlantEditor(GenericModelViewPresenterEditor):
 
             self.session.expunge(self.model)
             super().commit_changes()
-        except:  # noqa  re-raise any other exceptions
+        except Exception:
             self.session.add(self.model)
             raise
         self._committed.extend(plants)

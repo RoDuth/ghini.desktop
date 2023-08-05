@@ -1878,10 +1878,8 @@ class GenericModelViewPresenterEditor:
         objs = list(self.session)
         try:
             self.session.commit()
-            try:
+            if bauble.gui:
                 bauble.gui.get_view().update()
-            except Exception:
-                pass
         except Exception as e:
             logger.warning("can't commit changes: (%s)%s", type(e).__name__, e)
             self.session.rollback()
