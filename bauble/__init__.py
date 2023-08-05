@@ -29,6 +29,7 @@ import traceback
 from datetime import datetime
 from shutil import copy2
 import warnings
+from typing import TYPE_CHECKING
 
 import gi
 gi.require_version("Gtk", "3.0")
@@ -114,8 +115,11 @@ sys.path.append(paths.lib_dir())
 # set SQLAlchemy logging level
 logging.getLogger('sqlalchemy').setLevel(logging.WARNING)
 
-gui = None
-"""bauble.gui is the instance :class:`bauble.ui.GUI`"""
+if TYPE_CHECKING:
+    gui: bauble.ui.GUI | None = None
+    """bauble.gui is the instance :class:`bauble.ui.GUI`"""
+else:
+    gui = None
 
 # default_icon = None
 default_icon = os.path.join(paths.lib_dir(), "images", "icon.png")
