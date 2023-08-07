@@ -639,6 +639,9 @@ class Species(db.Base, db.WithNotes):
         else:
             italicize = escape = lambda x: x
 
+        if self.hybrid:
+            sp = self.hybrid + ' ' + sp
+
         if qual_rank == 'sp':
             sp = qualifier + ' ' + sp
 
@@ -736,7 +739,7 @@ class Species(db.Base, db.WithNotes):
                                      (self.trademark_symbol or ''))
 
         # create the binomial part
-        binomial = [genus, self.hybrid, sp, author]
+        binomial = [genus, sp, author]
 
         # create the tail, ie: anything to add on to the end
         tail = []
