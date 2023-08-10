@@ -366,6 +366,20 @@ class TestSearchView(BaubleTestCase):
                                   search_view.row_meta[klass].infobox)
 
     @mock.patch('bauble.view.SearchView.get_selected_values')
+    def test_on_get_history(self, mock_get_selected):
+        mock_get_selected.return_value = None
+        self.assertIsNone(self.search_view.on_get_history(None, None))
+
+        class MockData:
+            id = 100
+
+        mock_get_selected.return_value = [MockData()]
+        self.assertEqual(
+            self.search_view.on_get_history(None, None),
+            ":history = table_name = mockdata and table_id = 100"
+        )
+
+    @mock.patch('bauble.view.SearchView.get_selected_values')
     def test_on_copy_selected(self, mock_get_selected):
 
         class MockData:

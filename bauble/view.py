@@ -823,6 +823,7 @@ class SearchView(pluginmgr.View, Gtk.Box):
         self.context_menu_cache = {}
         self.infobox_cache = {}
         self.infobox = None
+        self.history_action = None
 
         # keep all the search results in the same session, this should
         # be cleared when we do a new search
@@ -1132,10 +1133,27 @@ class SearchView(pluginmgr.View, Gtk.Box):
             bauble.gui.add_action(copy_selection_action_name,
                                   self.on_copy_selection)
 
-        apply_active_tag_menu_item = Gio.MenuItem.new(
+        copy_selection_menu_item = Gio.MenuItem.new(
             _('Copy Selection'), f'win.{copy_selection_action_name}'
         )
-        self.context_menu_model.append_item(apply_active_tag_menu_item)
+        self.context_menu_model.append_item(copy_selection_menu_item)
+
+        get_history_action_name = 'get_history'
+
+        if bauble.gui:
+            if not bauble.gui.lookup_action(get_history_action_name):
+                self.history_action = bauble.gui.add_action(
+                    get_history_action_name, self.on_get_history
+                )
+            if len(selected_values) == 1:
+                self.history_action.set_enabled(True)
+            else:
+                self.history_action.set_enabled(False)
+
+        get_history_menu_item = Gio.MenuItem.new(
+            _('Show History'), f'win.{get_history_action_name}'
+        )
+        self.context_menu_model.append_item(get_history_menu_item)
 
         for action_name in self.actions.copy():
             if action_name not in current_actions:
@@ -1177,6 +1195,22 @@ class SearchView(pluginmgr.View, Gtk.Box):
             return None
         # NOTE used in testing
         return string
+
+    def on_get_history(self, _action, _param):
+        selected_values = self.get_selected_values()
+        if not selected_values:
+            return None
+
+        selected = selected_values[0]
+        search_str = (
+            f':history = table_name = {type(selected).__name__.lower()} '
+            f'and table_id = {selected.id}')
+
+        if bauble.gui:
+            bauble.gui.send_command(search_str)
+            return None
+        # NOTE used in testing
+        return search_str
 
     def search(self, text):
         """search the database using text"""
