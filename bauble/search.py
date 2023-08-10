@@ -838,8 +838,8 @@ class SearchParser:  # pylint: disable=too-few-public-methods
     domain = Word(alphas, alphas + '_')
     binop = oneOf('= == != <> < <= > >= not like contains has ilike '
                   'icontains ihas is')
-    binop_set = oneOf('in')
-    binop_date = oneOf('on')
+    binop_set = Literal('in')
+    binop_date = Literal('on')
     equals = Literal('=')
     star_value = Literal('*')
     domain_values = (value_list.copy())('domain_values')
