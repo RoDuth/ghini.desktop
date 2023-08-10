@@ -98,13 +98,13 @@ class Enum(types.TypeDecorator):
         return Enum(self.values, self.empty_to_none)
 
 
-def get_date(string: str) -> datetime:
+def get_date(val: str | float) -> datetime:
     offset = None
-    if isinstance(string, float):
-        offset = string
-    elif string.strip().lower() == _('today'):
+    if isinstance(val, float):
+        offset = val
+    elif val.strip().lower() == _('today'):
         offset = 0
-    elif string.strip().lower() == _('yesterday'):
+    elif val.strip().lower() == _('yesterday'):
         offset = -1
     if offset is not None:
         return (datetime.now().replace(
