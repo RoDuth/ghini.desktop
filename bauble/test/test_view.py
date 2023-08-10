@@ -889,6 +889,18 @@ class TestHistoryView(BaubleTestCase):
         self.assertEqual(str(result[0]),
                          str(utils.ilike(db.History.values, '%id')))
 
+    def test_basic_search_query_filters_on_timestamp(self):
+        from sqlalchemy import and_
+        from datetime import timezone, timedelta
+        string = "timestamp on 10/8/23"
+        date_val = search.get_datetime('10/8/23')
+        today = date_val.astimezone(tz=timezone.utc)
+        tomorrow = today + timedelta(1)
+        result = AppendThousandRows(None, string).get_query_filters()
+        self.assertTrue(result[0]
+                        .compare(and_(db.History.timestamp >= today,
+                                      db.History.timestamp < tomorrow)))
+
     def test_basic_search_query_filters_fails(self):
         string = "test = test"
         self.assertRaises(AttributeError,
@@ -896,18 +908,18 @@ class TestHistoryView(BaubleTestCase):
 
     def test_basic_to_sync_search_is_clone(self):
         val = meta.get_default('clone_history_id', 5).value
-        string = ("to_sync")
+        string = "to_sync"
         result = AppendThousandRows(None, string).get_query_filters()
         self.assertTrue(result[0].compare(db.History.id > val))
 
     def test_basic_to_sync_search_not_clone(self):
-        string = ("to_sync")
+        string = "to_sync"
         result = AppendThousandRows(None, string).get_query_filters()
         self.assertTrue(result[0].compare(db.History.id.is_(None)))
 
     def test_basic_search_query_filters_w_to_sync(self):
         val = meta.get_default('clone_history_id', 5).value
-        string = ("to_sync table_name = plant and operation = insert")
+        string = "to_sync and table_name = plant and operation = insert"
         result = AppendThousandRows(None, string).get_query_filters()
         self.assertTrue(result[0].compare(db.History.id > val))
         self.assertTrue(result[1].compare(db.History.table_name == 'plant'))

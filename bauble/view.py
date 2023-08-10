@@ -30,6 +30,7 @@ import traceback
 import html
 import threading
 from collections import UserDict
+from datetime import timedelta, timezone
 
 import logging
 logger = logging.getLogger(__name__)
@@ -53,7 +54,7 @@ from gi.repository import Gio
 from gi.repository import GLib
 from gi.repository import Pango
 
-from sqlalchemy import select
+from sqlalchemy import select, and_
 from sqlalchemy.orm import object_session
 from sqlalchemy.orm.exc import ObjectDeletedError, DetachedInstanceError
 import sqlalchemy.exc as saexc
@@ -1318,11 +1319,10 @@ class SearchView(pluginmgr.View, Gtk.Box):
             logger.debug("on_test_expand_row: %s:%s", type(e).__name__, e)
             logger.debug(traceback.format_exc())
             return True
-        else:
-            self.append_children(model,
-                                 treeiter,
-                                 sorted(kids, key=utils.natsort_key))
-            return False
+        self.append_children(model,
+                             treeiter,
+                             sorted(kids, key=utils.natsort_key))
+        return False
 
     def populate_results(self, results):
         """Adds results to the search view in a task.
@@ -1696,19 +1696,28 @@ class AppendThousandRows(threading.Thread):
     def get_query_filters(self):
         """Parse the string provided in arg and return the equivalent as
         consumed by sqlalchemy query `filter()` method."""
-        operator = oneOf('= != < > like contains has')
+        operator = oneOf('= != < <= > >= like contains has')
+        on_operator = Literal('on')
+        time_stamp_ident = Literal('timestamp')
         numeric_value = Regex(
             r'[-]?\d+(\.\d*)?([eE]\d+)?'
-        ).setParseAction(lambda s, l, t: [float(t[0])])  # noqa
+        ).setParseAction(lambda _s, _l, t: [float(t[0])])
+        date_str = Regex(
+            r'\d{1,4}[/.-]{1}\d{1,2}[/.-]{1}\d{1,4}'
+        ).set_parse_action(lambda _s, _l, t: [str(t[0])])
         value = (quotedString.setParseAction(removeQuotes) |
+                 date_str |
                  numeric_value |
                  Word(printables))
-        and_ = CaselessLiteral("and").suppress()
+        _and = CaselessLiteral("and").suppress()
         identifier = Word(alphas + '_')
-        ident_expression = Group(identifier + operator + value)
+        ident_expression = (Group(identifier + operator + value) |
+                            Group(time_stamp_ident + on_operator + value))
         to_sync = Literal('to_sync')
-        expression = (ZeroOrMore(to_sync) + ZeroOrMore(ident_expression +
-                      ZeroOrMore(and_ + ident_expression)))
+        expression = (
+            (to_sync + ZeroOrMore(_and + ident_expression)) |
+            ZeroOrMore(ident_expression + ZeroOrMore(_and + ident_expression))
+        )
 
         filters = []
         for part in expression.parse_string(self.arg, parse_all=True):
@@ -1725,12 +1734,26 @@ class AppendThousandRows(threading.Thread):
                     # show nothing if database doesn't appear to be a clone
                     filters.append(db.History.id.is_(None))
                 continue
-            attr = getattr(db.History, part[0])
-            val = part[2]
-            operation = search.OPERATIONS.get(part[1])
-            filters.append(operation(attr, val))
+            if part[0] == 'timestamp' and part[1] == 'on':
+                filters.append(self.get_on_timestamp_filter(part))
+            else:
+                attr = getattr(db.History, part[0])
+                val = part[2]
+                operation = search.OPERATIONS.get(part[1])
+                filters.append(operation(attr, val))
 
         return filters
+
+    def get_on_timestamp_filter(self, part):
+        attr = getattr(db.History, part[0])
+        try:
+            val = float(part[2])
+        except ValueError:
+            val = part[2]
+        date_val = search.get_datetime(val)
+        today = date_val.astimezone(tz=timezone.utc)
+        tomorrow = today + timedelta(1)
+        return and_(attr >= today, attr < tomorrow)
 
     def run(self):
         try:
@@ -1754,7 +1777,7 @@ class AppendThousandRows(threading.Thread):
             msg = utils.xml_safe(e)
             details = utils.xml_safe(traceback.format_exc())
             if bauble.gui:
-                self.view.show_error_box(msg, details)
+                GLib.idle_add(self.view.show_error_box, msg, details)
 
 
 @Gtk.Template(filename=str(Path(paths.lib_dir(), 'history_view.ui')))
