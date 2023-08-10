@@ -910,7 +910,7 @@ class GeneralTagExpander(InfoExpander):
             label.set_text(f' {len(obj_ids)} ')
             utils.make_label_clickable(
                 label,
-                lambda l, e, x: bauble.gui.send_command(x),
+                lambda _l, _e, x: bauble.gui.send_command(x),
                 f'{cls.__name__.lower()} where id in {", ".join(obj_ids)}'
             )
 
