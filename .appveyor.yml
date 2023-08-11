@@ -79,11 +79,11 @@ for:
     - bash -lc "pytest -sv"
 
 deploy:
-  release: 'v1.3.2' # :bump
+  release: 'v1.3.3' # :bump
   description: ''
   provider: GitHub
   auth_token:
-    secure: GO6caimCl/NMwv4nYvi9uAF5l7gNNXZB4BVhqONLyzA5OHaw+ui1847EDJjnodLG
+    secure: 1DQsnZ2QkM52hjZfjJbkSJwu/YLvBil97w/vikbLgHblXXLJ3xnFxgfN6eE/AQT8
   draft: false
   prerelease: false
   force_update: true
