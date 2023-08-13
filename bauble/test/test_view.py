@@ -989,6 +989,7 @@ class GlobalFunctionsTests(BaubleTestCase):
         for func in get_setUp_data_funcs():
             func()
         search_view = SearchView()
+        search_view.history_action = mock.Mock()
         search_view.search('genus where id <= 3')
         start = search_view.get_selected_values()
         obj = self.session.query(start[0].__class__).get(3)
@@ -1004,6 +1005,7 @@ class GlobalFunctionsTests(BaubleTestCase):
         for func in get_setUp_data_funcs():
             func()
         search_view = SearchView()
+        search_view.history_action = mock.Mock()
         search_view.search('genus where id <= 3')
         start = search_view.get_selected_values()
         obj = self.session.query(start[0].__class__).get(5)
