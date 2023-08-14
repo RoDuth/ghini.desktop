@@ -21,6 +21,7 @@
 The species database model
 """
 
+import re
 from itertools import chain
 
 import logging
@@ -42,7 +43,6 @@ from sqlalchemy.orm import synonym as sa_synonym
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.sql.expression import select, case, cast, and_, text, or_
 from bauble import db
-from bauble import error
 from bauble import utils
 from bauble import btypes as types
 
@@ -52,6 +52,131 @@ def _remove_zws(string):
     if string:
         return string.replace('\u200b', '')
     return string
+
+
+def _italicize_part(part):
+    """If part is bracketed italicize just the contents of the brackets else
+    the whole part"""
+    if part.startswith('(') and part.endswith(')'):
+        return f'({markup_italics(part[1:-1])})'
+    return markup_italics(part)
+
+
+def _markup_complex_hyb(string):
+    """a helper function that splits a complex hybrid formula into its parts
+    and italicizes the parts.
+
+    :param string: string containing brackets surounding 2 phrases seperated by
+        a cross/multipy symbol
+    """
+    # break apart the name parts
+    prts = string.split("×")
+    len_prts = len(prts)
+    left = right = find = found = 0
+    result = []
+    # put the bracketed parts back together
+    for i, prt in enumerate(prts):
+        prt = prt.strip()
+        if prt.startswith('('):
+            # find is the amount of closing brackets we need to find to capture
+            # the whole group
+            find += (len(prt) - len(prt.lstrip('(')))
+            left = i + 1 if not left else left
+        if prt.endswith(')'):
+            found += (len(prt) - len(prt.rstrip(')')))
+            if found == find:
+                right = i + 1
+        if right:
+            result.append(''.join(
+                j for j in prts[left - 1:right]).strip().replace('  ', ' × '))
+            left = right = find = found = 0
+        elif left == right == find == found == 0:
+            result.append(prt)
+        # what if we hit the end and still haven't found the matching bracket?
+        # Just return what we can.
+        elif i == len_prts - 1:
+            result.append(''.join(j for j in prts[left - 1:])
+                          .strip()
+                          .replace('  ', ' × '))
+
+    # recompile adding the cross symbols back
+    return ' × '.join([_italicize_part(i) for i in result])
+
+
+_RE_SIMPLE_SP = re.compile(r'^[a-z-]+$')
+_RE_SIMPLE_HYB = re.compile('^[a-z-]+( × [a-z-]+)*$')
+_RE_SIMPLE_CV = re.compile("^'[^×\'\"]+'$")
+_RE_SIMPLE_INFRA_HYB = re.compile('^×[a-z-]+$')
+_RE_SIMPLE_PROV = re.compile(r'^sp. \([^×]+\)$')
+_RE_SIMPLE_DESC = re.compile(r'^\([^×]*\)$')
+_RE_COMPLEX_DESC = re.compile(r'^[a-z-]+ \([^×]+\)$')
+_RE_COMPLEX_HYB = re.compile(r'\(.+×.+\)')
+_RE_OTHER_HYB = re.compile('.+ × .+')
+
+
+def markup_italics(string):
+    """Add italics markup to the appropriate parts of a species string.
+
+    :param string: the taxon name as a unicode string
+    """
+    # store the zws to reapply later (if used)
+    if string.startswith('\u200b'):
+        start = '\u200b'
+        string = string.strip('\u200b')
+    else:
+        start = ''
+
+    string = string.strip()
+    result = ''
+    # simple sp.
+    if string == 'sp.':
+        result = f'{string}'
+    # simple species
+    elif _RE_SIMPLE_SP.match(string):
+        result = f'<i>{string}</i>'
+    # simple species hybrids (lowercase words separated by a multiplication
+    # symbol)
+    elif _RE_SIMPLE_HYB.match(string):
+        result = f'<i>{string}</i>'.replace(' × ', '</i> × <i>')
+    # simple cultivar (starts and ends with a ' and can be almost have anything
+    # between (except further quote symbols or multiplication symbols
+    elif _RE_SIMPLE_CV.match(string):
+        result = f'{string}'
+    # simple infraspecific hybrid with nothospecies name
+    elif _RE_SIMPLE_INFRA_HYB.match(string):
+        result = f'{string[0]}<i>{string[1:]}</i>'
+    # simple provisory or descriptor sp.
+    elif _RE_SIMPLE_PROV.match(string):
+        result = f'{string}'
+    # simple descriptor (brackets surrounding anything without a multiplication
+    # symbol)
+    elif _RE_SIMPLE_DESC.match(string):
+        result = f'{string}'
+
+    # recursive parts
+    # species with descriptor (part with only lower letters + space + bracketed
+    # section)
+    elif _RE_COMPLEX_DESC.match(string):
+        result = ' '.join([markup_italics(i) for i in string.split(' ', 1)])
+    # complex hybrids (contains brackets surounding 2 phrases seperated by a
+    # multipy symbol) These need to be reduce to less and less complex hybrids.
+    elif _RE_COMPLEX_HYB.search(string):
+        result = f'{_markup_complex_hyb(string)}'
+    # any other type of hybrid (i.e. cv to species, provisory to cv, etc..) try
+    # breaking it apart and italicizing the parts
+    elif _RE_OTHER_HYB.match(string):
+        parts = [i.strip() for i in string.split(' × ')]
+        result = ' × '.join([markup_italics(i) for i in parts])
+    # anything else with spaces in it. Break them off one by one and try
+    # identify the parts.
+    elif ' ' in string:
+        result = ' '.join([markup_italics(i) for i in string.split(' ', 1)])
+    # lastly, what to do if we just don't know... (infraspecific ranks etc.)
+    else:
+        result = string
+
+    result = result.strip()
+    return start + result
 
 
 class VNList(list):
@@ -633,7 +758,7 @@ class Species(db.Base, db.WithNotes):
 
         if markup:
             escape = utils.xml_safe
-            italicize = utils.markup_italics
+            italicize = markup_italics
             if sp is not None:
                 sp = italicize(escape(sp))
         else:

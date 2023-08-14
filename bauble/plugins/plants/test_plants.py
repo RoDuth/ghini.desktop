@@ -62,7 +62,8 @@ from .species_editor import (species_to_string_matcher,
 from .species_model import _remove_zws as remove_zws
 from .species_model import (update_all_full_names_task,
                             update_all_full_names_handler,
-                            infrasp_rank_values)
+                            infrasp_rank_values,
+                            markup_italics)
 from .family import (Family,
                      FamilySynonym,
                      FamilyEditor,
@@ -1991,6 +1992,173 @@ class SpeciesTests(PlantTestCase):
         self.assertEqual(sp.top_level_count()[(6, 'Living plants')], 0)
         self.assertEqual(len(sp.top_level_count()[(7, 'Locations')]), 0)
         self.assertEqual(len(sp.top_level_count()[(8, 'Sources')]), 0)
+
+
+class MarkupItalicsTests(TestCase):
+    def test_markup_simple(self):
+        self.assertEqual(markup_italics('sp.'), 'sp.')
+        self.assertEqual(
+            markup_italics('viminalis'), '<i>viminalis</i>'
+        )
+        # with ZWS
+        self.assertEqual(
+            markup_italics('\u200bviminalis'),
+            '\u200b<i>viminalis</i>'
+        )
+        self.assertEqual(
+            markup_italics('crista-galli'),
+            '<i>crista-galli</i>'
+        )
+
+    def test_markup_provisory(self):
+        self.assertEqual(
+            markup_italics('sp. (Shute Harbour L.J.Webb+ 7916)'),
+            'sp. (Shute Harbour L.J.Webb+ 7916)'
+        )
+        self.assertEqual(
+            markup_italics('caerulea (Shute Harbour)'),
+            '<i>caerulea</i> (Shute Harbour)'
+        )
+
+    def test_markup_nothospecies(self):
+        self.assertEqual(
+            markup_italics("\xd7 grandiflora"),
+            '\xd7 <i>grandiflora</i>'
+        )
+        self.assertEqual(
+            markup_italics("\xd7grandiflora"),
+            '\xd7<i>grandiflora</i>'
+        )
+
+    def test_markup_species_hybrid(self):
+        self.assertEqual(
+            markup_italics(
+                "lilliputiana \xd7 compacta \xd7 ampullacea"
+            ),
+            '<i>lilliputiana</i> \xd7 <i>compacta</i> \xd7 <i>ampullacea</i>'
+        )
+
+    def test_markup_infraspecific_hybrid(self):
+        self.assertEqual(
+            markup_italics(
+                "wilsonii subsp. cryptophlebium \xd7 wilsonii subsp. wilsonii"
+            ),
+            '<i>wilsonii</i> subsp. <i>cryptophlebium</i> \xd7 '
+            '<i>wilsonii</i> subsp. <i>wilsonii</i>'
+        )
+        # with ZWS
+        self.assertEqual(
+            markup_italics(
+                "\u200bwilsonii subsp. cryptophlebium \xd7 wilsonii subsp. "
+                "wilsonii"
+            ),
+            '\u200b<i>wilsonii</i> subsp. <i>cryptophlebium</i> \xd7 '
+            '<i>wilsonii</i> subsp. <i>wilsonii</i>'
+        )
+
+    def test_markup_species_cv_hybrid(self):
+        self.assertEqual(
+            markup_italics("carolinae \xd7 'Hot Wizz'"),
+            "<i>carolinae</i> \xd7 'Hot Wizz'"
+        )
+
+    def test_markup_complex_hybrid(self):
+        self.assertEqual(
+            markup_italics(
+                "(carolinae \xd7 'Purple Star') \xd7 (compacta \xd7 sp.)"
+            ),
+            "(<i>carolinae</i> \xd7 'Purple Star') \xd7 (<i>compacta</i> "
+            "\xd7 sp.)"
+        )
+
+        self.assertEqual(
+            markup_italics(
+                "(('Gee Whizz' \xd7 'Fireball' \xd7 compacta) \xd7 "
+                "'Purple Star') \xd7 lilliputiana"
+            ),
+            "(('Gee Whizz' \xd7 'Fireball' \xd7 <i>compacta</i>) \xd7 "
+            "'Purple Star') \xd7 <i>lilliputiana</i>"
+        )
+        self.assertEqual(
+            markup_italics(
+                "'Gee Whizz' \xd7 ('Fireball' \xd7 (compacta \xd7 "
+                "'Purple Star')) \xd7 lilliputiana"
+            ),
+            "'Gee Whizz' \xd7 ('Fireball' \xd7 (<i>compacta</i> \xd7 "
+            "'Purple Star')) \xd7 <i>lilliputiana</i>"
+        )
+        self.assertEqual(
+            markup_italics("carolinae 'Tricolor' \xd7 compacta"),
+            "<i>carolinae</i> 'Tricolor' \xd7 <i>compacta</i>"
+        )
+        self.assertEqual(
+            markup_italics('carolinae \xd7 sp. (pink and red)'),
+            '<i>carolinae</i> \xd7 sp. (pink and red)'
+        )
+
+    def test_markup_complex_hybrid_zws(self):
+        self.assertEqual(
+            markup_italics(
+                "\u200b(carolinae \xd7 'Purple Star') \xd7 (compacta "
+                "\xd7 sp.)"
+            ),
+            "\u200b(<i>carolinae</i> \xd7 'Purple Star') \xd7 "
+            "(<i>compacta</i> \xd7 sp.)"
+        )
+        self.assertEqual(
+            markup_italics('\u200bcarolinae \xd7 sp. (pink and red)'),
+            '\u200b<i>carolinae</i> \xd7 sp. (pink and red)'
+        )
+
+    def test_markup_provisory_hybrid(self):
+        self.assertEqual(
+            markup_italics(
+                'sp. \xd7 sp. (South Molle Island J.P.GrestyAQ208995)'
+            ),
+            'sp. \xd7 sp. (South Molle Island J.P.GrestyAQ208995)'
+        )
+
+    def test_markup_nothospecies_hybrid(self):
+        self.assertEqual(
+            markup_italics("gymnocarpa \xd7 \xd7grandiflora"),
+            '<i>gymnocarpa</i> \xd7 \xd7<i>grandiflora</i>'
+        )
+        self.assertEqual(
+            markup_italics("gymnocarpa \xd7 \xd7 grandiflora"),
+            '<i>gymnocarpa</i> \xd7 \xd7 <i>grandiflora</i>'
+        )
+        # with ZWS
+        self.assertEqual(
+            markup_italics("\u200b\xd7 grandiflora"),
+            '\u200b\xd7 <i>grandiflora</i>'
+        )
+
+    def test_markup_junk(self):
+        # check junk doesn't crash
+        self.assertEqual(
+            markup_italics(
+                '\ub0aaN\ua001\U00055483\u01d6\u059e/C\U00103e9aG|\U0010eb876'
+            ),
+            '\ub0aaN\ua001\U00055483\u01d6\u059e/C\U00103e9aG|\U0010eb876'
+        )
+
+    def test_markup_complex_hybrid_mismatched_bracket(self):
+        # check that mismatch brackets can produce something close to a desired
+        # outcome.
+        self.assertEqual(
+            markup_italics(
+                "((carolinae \xd7 'Purple Star') \xd7 (compacta \xd7 sp.)"
+            ),
+            "((<i>carolinae</i> \xd7 'Purple Star') \xd7 (compacta \xd7 sp.)"
+        )
+        self.assertEqual(
+            markup_italics(
+                "(carolinae \xd7 'Purple Star')) \xd7 (lilliputiana \xd7 "
+                "compacta \xd7 sp.)"
+            ),
+            "(<i>carolinae</i> \xd7 'Purple Star')) \xd7 (lilliputiana \xd7 "
+            "<i>compacta</i> \xd7 sp.)"
+        )
 
 
 class GeographyTests(PlantTestCase):
