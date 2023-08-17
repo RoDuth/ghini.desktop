@@ -109,6 +109,8 @@ family_test_data = (
      'suborder': 'Zamiineae'},
     {'id': 9, 'family': 'Proteaceae'},
     {'id': 10, 'family': 'Myrtaceae', 'author': 'Juss.'},
+    {'id': 11, 'family': 'Stangeriaceae', 'order': 'Cycadales',
+     'suborder': 'Zamiineae'},
 )
 
 family_note_test_data = (
@@ -126,13 +128,16 @@ genus_test_data = (
     {'id': 8, 'hybrid': '+', 'genus': 'Crataegomespilus', 'family_id': 5},
     {'id': 9, 'hybrid': '×', 'genus': 'Butyagrus', 'family_id': 6},
     {'id': 10, 'genus': 'Cynodon', 'family_id': 7},
-    {'id': 11, 'genus': 'Encephalartos', 'family_id': 8,
+    {'id': 11, 'genus': 'Macrozamia', 'family_id': 8,
      'subfamily': 'Zamioideae', 'tribe': 'Encephalarteae',
-     'subtribe': 'Encephalartinae'},
+     'subtribe': 'Macrozamiinae'},
     {'id': 12, 'genus': 'Banksia', 'family_id': 7,
      'subfamily': 'Grevilleoideae'},
     {'id': 13, 'genus': 'Eucalyptus', 'family_id': 10},
     {'id': 14, 'genus': 'Epidendrum', 'family_id': 1},
+    {'id': 15, 'genus': 'Lepidozamia', 'family_id': 8,
+     'subfamily': 'Zamioideae', 'tribe': 'Encephalarteae',
+     'subtribe': 'Macrozamiinae'},
 )
 
 genus_note_test_data = (
@@ -248,7 +253,11 @@ species_test_data = (
      'full_sci_name': 'Eucalyptus aspera'},
     {'id': 32, 'genus_id': 14, 'subgenus': 'Epidendrum',
      'section': 'Planifolia', 'subsection': 'Umbellata', 'sp': 'nocturnum',
-     'full_sci_name': 'Epidendrum nocturnum'}
+     'full_sci_name': 'Epidendrum nocturnum'},
+    {'id': 33, 'genus_id': 13, 'subgenus': 'Symphyomyrtus',
+     'section': 'Bisectae', 'subsection': 'Destitutae', 'series': 'Subulatae',
+     'subseries': 'Decussatae', 'sp': 'gillii',
+     'full_sci_name': 'Eucalyptus gillii'},
 )
 
 species_note_test_data = (
@@ -779,7 +788,7 @@ class FamilyEditorTests(PlantTestCase):
         presenter.cleanup()
         del presenter
 
-    def test_suprafamilial_parts_get_completions(self):
+    def test_order_get_completions(self):
         gen = self.session.query(Family).get(8)
         view = FamilyEditorView()
         presenter = FamilyEditorPresenter(gen, view)
@@ -787,6 +796,13 @@ class FamilyEditorTests(PlantTestCase):
         self.assertEqual(presenter.order_get_completions('Cyc'), ['Cycadales'])
         # no match
         self.assertEqual(presenter.order_get_completions('Zam'), [])
+        presenter.cleanup()
+        del presenter
+
+    def test_suborder_get_completions(self):
+        gen = self.session.query(Family).get(8)
+        view = FamilyEditorView()
+        presenter = FamilyEditorPresenter(gen, view)
         # wrong order
         self.assertEqual(presenter.suborder_get_completions('Pol'),
                          [])
@@ -1192,12 +1208,12 @@ class GenusEditorTests(PlantTestCase):
         self.assertEqual(view.widgets.subfamily_entry.get_text(), 'Zamioideae')
         self.assertEqual(view.widgets.tribe_entry.get_text(), 'Encephalarteae')
         self.assertEqual(view.widgets.subtribe_entry.get_text(),
-                         'Encephalartinae')
+                         'Macrozamiinae')
 
         presenter.cleanup()
         del presenter
 
-    def test_suprageneric_parts_get_completions(self):
+    def test_subfam_get_completions(self):
         fam = self.session.query(Family).get(8)
         gen = Genus(family=fam)
         view = GenusEditorView()
@@ -1209,20 +1225,38 @@ class GenusEditorTests(PlantTestCase):
         # right family
         self.assertEqual(presenter.tribe_get_completions('Enc'),
                          ['Encephalarteae'])
-        # wrong subfam
+
+        presenter.cleanup()
+        del presenter
+
+    def test_tribe_get_completions(self):
+        fam = self.session.query(Family).get(8)
+        gen = Genus(family=fam)
+        view = GenusEditorView()
+        presenter = GenusEditorPresenter(gen, view)
+        # wrong subfamily
         gen.subfamily = 'Diooideae'
         self.assertEqual(presenter.tribe_get_completions('Enc'), [])
-        self.assertEqual(presenter.subtribe_get_completions('Enc'), [])
         # right subfamily
         gen.subfamily = 'Zamioideae'
         self.assertEqual(presenter.tribe_get_completions('Enc'),
                          ['Encephalarteae'])
-        self.assertEqual(presenter.subtribe_get_completions('Enc'),
-                         ['Encephalartinae'])
-        # right subfamily, tribe
+
+        presenter.cleanup()
+        del presenter
+
+    def test_subtribe_get_completions(self):
+        fam = self.session.query(Family).get(8)
+        gen = Genus(family=fam)
+        view = GenusEditorView()
+        presenter = GenusEditorPresenter(gen, view)
+        self.assertEqual(presenter.subtribe_get_completions('Enc'), [])
+        self.assertEqual(presenter.subtribe_get_completions('Mac'),
+                         ['Macrozamiinae'])
+        # right tribe
         gen.tribe = 'Encephalarteae'
-        self.assertEqual(presenter.subtribe_get_completions('Enc'),
-                         ['Encephalartinae'])
+        self.assertEqual(presenter.subtribe_get_completions('Mac'),
+                         ['Macrozamiinae'])
         # wrong tribe
         gen.tribe = 'Zamieae'
         self.assertEqual(presenter.subtribe_get_completions('Enc'), [])
@@ -3554,7 +3588,7 @@ class SpeciesEditorPresenterTests(PlantTestCase):
         presenter.cleanup()
         del presenter
 
-    def test_infrageneric_parts_get_completions(self):
+    def test_subgenus_get_completions(self):
         sp = self.session.query(Species).get(31)
         view = SpeciesEditorView()
         presenter = SpeciesEditorPresenter(sp, view)
@@ -3563,24 +3597,52 @@ class SpeciesEditorPresenterTests(PlantTestCase):
         # right genus
         self.assertEqual(presenter.subgenus_get_completions('Sym'),
                          ['Symphyomyrtus'])
+        presenter.cleanup()
+        del presenter
+
+    def test_section_get_completions(self):
+        sp = self.session.query(Species).get(31)
+        view = SpeciesEditorView()
+        presenter = SpeciesEditorPresenter(sp, view)
         # wrong subgenus
         self.assertEqual(presenter.section_get_completions('Pla'),
                          [])
         # right subgenus
         self.assertEqual(presenter.section_get_completions('Bis'),
                          ['Bisectae'])
+        presenter.cleanup()
+        del presenter
+
+    def test_subsection_get_completions(self):
+        sp = self.session.query(Species).get(31)
+        view = SpeciesEditorView()
+        presenter = SpeciesEditorPresenter(sp, view)
         # wrong section
         self.assertEqual(presenter.subsection_get_completions('Um'),
                          [])
         # right section
         self.assertEqual(presenter.subsection_get_completions('Des'),
                          ['Destitutae'])
+        presenter.cleanup()
+        del presenter
+
+    def test_series_get_completions(self):
+        sp = self.session.query(Species).get(31)
+        view = SpeciesEditorView()
+        presenter = SpeciesEditorPresenter(sp, view)
         # wrong subsection
         self.assertEqual(presenter.series_get_completions('Dry'),
                          [])
         # right subsection
         self.assertEqual(presenter.series_get_completions('Sub'),
                          ['Subulatae'])
+        presenter.cleanup()
+        del presenter
+
+    def test_subseries_get_completions(self):
+        sp = self.session.query(Species).get(31)
+        view = SpeciesEditorView()
+        presenter = SpeciesEditorPresenter(sp, view)
         # wrong series
         self.assertEqual(presenter.subseries_get_completions('Dry'),
                          [])

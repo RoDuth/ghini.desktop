@@ -403,14 +403,16 @@ class FamilyEditorPresenter(editor.GenericEditorPresenter):
 
     def order_get_completions(self, text):
         query = (self.session.query(Family.order)
-                 .filter(Family.order.like(f'{text}%%')))
+                 .filter(Family.order.like(f'{text}%%'))
+                 .distinct())
         return [i[0] for i in query]
 
     def suborder_get_completions(self, text):
         query = self.session.query(Family.suborder)
         if self.model.order:
             query = query.filter(Family.order == self.model.order)
-        return [i[0] for i in query.filter(Family.suborder.like(f'{text}%%'))]
+        query = query.filter(Family.suborder.like(f'{text}%%')).distinct()
+        return [i[0] for i in query]
 
     def refresh_sensitivity(self):
         # TODO: check widgets for problems

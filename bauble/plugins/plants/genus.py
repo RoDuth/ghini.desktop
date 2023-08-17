@@ -49,7 +49,6 @@ from sqlalchemy.sql.expression import select, case
 
 import bauble
 from bauble import db
-from bauble import error
 from bauble import pluginmgr
 from bauble import editor
 from bauble import utils
@@ -601,7 +600,8 @@ class GenusEditorPresenter(editor.GenericEditorPresenter):
         query = self.session.query(Genus.subfamily)
         if self.model.family:
             query = query.filter(Genus.family == self.model.family)
-        return [i[0] for i in query.filter(Genus.subfamily.like(f'{text}%%'))]
+        query = query.filter(Genus.subfamily.like(f'{text}%%')).distinct()
+        return [i[0] for i in query]
 
     def tribe_get_completions(self, text):
         query = self.session.query(Genus.tribe)
@@ -609,7 +609,8 @@ class GenusEditorPresenter(editor.GenericEditorPresenter):
             query = query.filter(Genus.family == self.model.family)
         if self.model.subfamily:
             query = query.filter(Genus.subfamily == self.model.subfamily)
-        return [i[0] for i in query.filter(Genus.tribe.like(f'{text}%%'))]
+        query = query.filter(Genus.tribe.like(f'{text}%%')).distinct()
+        return [i[0] for i in query]
 
     def subtribe_get_completions(self, text):
         query = self.session.query(Genus.subtribe)
@@ -619,7 +620,8 @@ class GenusEditorPresenter(editor.GenericEditorPresenter):
             query = query.filter(Genus.subfamily == self.model.subfamily)
         if self.model.tribe:
             query = query.filter(Genus.tribe == self.model.tribe)
-        return [i[0] for i in query.filter(Genus.subtribe.like(f'{text}%%'))]
+        query = query.filter(Genus.subtribe.like(f'{text}%%')).distinct()
+        return [i[0] for i in query]
 
     def refresh_cites_label(self, _widget=None):
         fam_cites = 'N/A'

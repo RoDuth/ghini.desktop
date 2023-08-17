@@ -382,7 +382,8 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
         query = self.session.query(Species.subgenus)
         if self.model.genus and self.model.genus.id:
             query = query.filter(Species.genus == self.model.genus)
-        return [i[0] for i in query.filter(Species.subgenus.like(f'{text}%%'))]
+        query = query.filter(Species.subgenus.like(f'{text}%%')).distinct()
+        return [i[0] for i in query]
 
     def section_get_completions(self, text):
         query = self.session.query(Species.section)
@@ -390,7 +391,8 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
             query = query.filter(Species.genus == self.model.genus)
         if self.model.subgenus:
             query = query.filter(Species.subgenus == self.model.subgenus)
-        return [i[0] for i in query.filter(Species.section.like(f'{text}%%'))]
+        query = query.filter(Species.section.like(f'{text}%%')).distinct()
+        return [i[0] for i in query]
 
     def subsection_get_completions(self, text):
         query = self.session.query(Species.subsection)
@@ -400,7 +402,7 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
             query = query.filter(Species.subgenus == self.model.subgenus)
         if self.model.section:
             query = query.filter(Species.section == self.model.section)
-        query = query.filter(Species.subsection.like(f'{text}%%'))
+        query = query.filter(Species.subsection.like(f'{text}%%')).distinct()
         return [i[0] for i in query]
 
     def series_get_completions(self, text):
@@ -413,7 +415,8 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
             query = query.filter(Species.section == self.model.section)
         if self.model.subsection:
             query = query.filter(Species.subsection == self.model.subsection)
-        return [i[0] for i in query.filter(Species.series.like(f'{text}%%'))]
+        query = query.filter(Species.series.like(f'{text}%%')).distinct()
+        return [i[0] for i in query]
 
     def subseries_get_completions(self, text):
         query = self.session.query(Species.subseries)
@@ -427,7 +430,7 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
             query = query.filter(Species.subsection == self.model.subsection)
         if self.model.series:
             query = query.filter(Species.series == self.model.series)
-        query = query.filter(Species.subseries.like(f'{text}%%'))
+        query = query.filter(Species.subseries.like(f'{text}%%')).distinct()
         return [i[0] for i in query]
 
     def _setup_custom_field(self, column_name):
