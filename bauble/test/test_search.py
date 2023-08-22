@@ -1271,6 +1271,16 @@ class BinomialSearchTests(BaubleTestCase):
         results = list(mapper_search.search(s, self.session))
         self.assertEqual(results, [self.cv2])
 
+    def test_trade_name_search(self):
+        self.cv2.trade_name = 'Test Trade Name'
+        self.session.commit()
+        mapper_search = search.get_strategy('MapperSearch')
+        self.assertTrue(isinstance(mapper_search, search.MapperSearch))
+
+        string = "Ixo 'Test"
+        results = list(mapper_search.search(string, self.session))
+        self.assertEqual(results, [self.cv2])
+
 
 class BuildingSQLStatements(BaubleTestCase):
     import bauble.search

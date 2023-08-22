@@ -651,8 +651,10 @@ class BinomialNameAction:
                          self.cultivar_epithet, self.genus_epithet)
             # pylint: disable=no-member  # re: cultivar_epithet.startswith
             query = (search_strategy.session.query(Species)
-                     .filter(Species.cultivar_epithet
-                             .startswith(self.cultivar_epithet))
+                     .filter(or_(Species.cultivar_epithet
+                                 .startswith(self.cultivar_epithet),
+                                 Species.trade_name
+                                 .startswith(self.cultivar_epithet)))
                      .join(Genus)
                      .filter(Genus.genus.startswith(self.genus_epithet)))
         return query
