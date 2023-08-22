@@ -40,7 +40,7 @@ from bauble import utils
 class MakoFormatterSettingsBox(SettingsBox):
     import re
     pattern = re.compile(r"^## OPTION ([a-z_]*): \("
-                         r"type: ([a-z_]*), "
+                         r"type: ([a-zN_',\[\]]*), "
                          r"default: '(.*)', "
                          r"tooltip: '(.*)'\)$")
 
@@ -59,7 +59,7 @@ class MakoFormatterSettingsBox(SettingsBox):
         self.widgets.file_entry.connect('changed',
                                         self.on_file_entry_changed)
         self.widgets.private_check.connect('toggled',
-                                           self.toggle_option,
+                                           self.toggle_set_option,
                                            'use_private')
         self.defaults = []
 
@@ -153,14 +153,32 @@ class MakoFormatterSettingsBox(SettingsBox):
                 entry.set_text(text)
 
     @staticmethod
-    def set_option(widget, fname):
+    def entry_set_option(widget, fname):
         from bauble.plugins.report import options
         options[fname] = widget.get_text()
 
     @staticmethod
-    def toggle_option(widget, fname):
+    def toggle_set_option(widget, fname):
         from bauble.plugins.report import options
         options[fname] = widget.get_active()
+
+    @staticmethod
+    def combo_set_option(widget, fname):
+        from bauble.plugins.report import options
+        options[fname] = widget.get_active_text()
+
+    @staticmethod
+    def on_option_btnbrowse_clicked(_widget, entry):
+        previously = entry.get_text()
+        if previously:
+            last_folder = str(Path(previously).parent)
+        else:
+            last_folder = str(Path.home())
+        utils.run_file_chooser_dialog(_('Select a file'),
+                                      None,
+                                      Gtk.FileChooserAction.OPEN,
+                                      last_folder,
+                                      entry)
 
     def get_option_widget(self, ftype, fdefault, fname):
         from bauble.plugins.report import options
@@ -169,12 +187,40 @@ class MakoFormatterSettingsBox(SettingsBox):
             options.setdefault(fname, active)
             entry = Gtk.CheckButton()
             entry.set_active(options[fname])
-            entry.connect('toggled', self.toggle_option, fname)
+            entry.connect('toggled', self.toggle_set_option, fname)
             return entry
+
+        if ftype.startswith('enum'):
+            from ast import literal_eval
+            combo = Gtk.ComboBoxText()
+            vals = literal_eval(ftype.removeprefix('enum'))
+            for val in vals:
+                combo.append_text(val)
+            combo.connect('changed', self.combo_set_option, fname)
+            if fdefault:
+                combo.set_active(vals.index(fdefault))
+            options.setdefault(fname, fdefault)
+            return combo
+
+        if ftype == 'file':
+            box = Gtk.Box()
+            image = Gtk.Image.new_from_icon_name('document-open-symbolic',
+                                                 Gtk.IconSize.BUTTON)
+            btn = Gtk.Button()
+            btn.set_image(image)
+            entry = Gtk.Entry()
+            options.setdefault(fname, fdefault)
+            entry.set_text(options[fname])
+            entry.connect('changed', self.entry_set_option, fname)
+            box.pack_start(entry, True, True, 0)
+            box.pack_start(btn, True, True, 0)
+            btn.connect('clicked', self.on_option_btnbrowse_clicked, entry)
+            return box
+
         entry = Gtk.Entry()
         options.setdefault(fname, fdefault)
         entry.set_text(options[fname])
-        entry.connect('changed', self.set_option, fname)
+        entry.connect('changed', self.entry_set_option, fname)
         return entry
 
 

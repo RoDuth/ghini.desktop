@@ -19,7 +19,7 @@
 # along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
 
 import os
-from unittest import mock, TestCase
+from unittest import mock
 from pathlib import Path
 
 from gi.repository import Gtk

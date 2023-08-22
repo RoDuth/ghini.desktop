@@ -21,6 +21,8 @@ from unittest import mock, TestCase
 
 from pathlib import Path
 
+from gi.repository import Gtk
+
 from bauble.test import BaubleTestCase, get_setUp_data_funcs
 from bauble.plugins.garden import Plant, Location
 from bauble.plugins.plants import Family
@@ -158,7 +160,7 @@ class FormatterSettingsBoxTests(TestCase):
         options_box = set_box.widgets.mako_options_box
         # CheckButton
         options_box.get_child_at(1, 0).set_active(False)
-        # CheckButton
+        # entry
         options_box.get_child_at(1, 1).set_text('habit')
         from bauble.plugins.report import options
         self.assertEqual(options.get('authors'), False)
@@ -167,11 +169,102 @@ class FormatterSettingsBoxTests(TestCase):
         self.assertEqual(options.get('authors'), True)
         self.assertEqual(options.get('sort_by'), 'None')
 
-    def test_set_option(self):
+    def test_entry_set_option(self):
         set_box = MakoFormatterSettingsBox()
-        from gi.repository import Gtk
         widget = Gtk.Entry()
         widget.set_text('TEST')
-        set_box.set_option(widget, 'test')
+        set_box.entry_set_option(widget, 'test')
         from bauble.plugins.report import options
         self.assertEqual(options.get('test'), 'TEST')
+
+    def test_toggle_set_option(self):
+        set_box = MakoFormatterSettingsBox()
+        widget = Gtk.CheckButton()
+        widget.set_active(True)
+        set_box.toggle_set_option(widget, 'test')
+        from bauble.plugins.report import options
+        self.assertEqual(options.get('test'), True)
+        widget.set_active(False)
+        set_box.toggle_set_option(widget, 'test')
+        self.assertEqual(options.get('test'), False)
+
+    def test_combo_set_option(self):
+        set_box = MakoFormatterSettingsBox()
+        widget = Gtk.ComboBoxText()
+        for i in range(4):
+            widget.append_text(str(i))
+        widget.set_active(1)
+        set_box.combo_set_option(widget, 'test_combo')
+        from bauble.plugins.report import options
+        self.assertEqual(options.get('test_combo'), '1')
+        widget.set_active(3)
+        set_box.combo_set_option(widget, 'test_combo')
+        self.assertEqual(options.get('test_combo'), '3')
+
+    def test_get_option_widget_enum(self):
+        set_box = MakoFormatterSettingsBox()
+        widget = set_box.get_option_widget("enum['test1','test2']",
+                                           'test2',
+                                           'test_enum')
+        self.assertIsInstance(widget, Gtk.ComboBoxText)
+        self.assertEqual(widget.get_active_text(), 'test2')
+        from bauble.plugins.report import options
+        self.assertEqual(options.get('test_enum'), 'test2')
+        widget.set_active(0)
+        self.assertEqual(options.get('test_enum'), 'test1')
+
+    def test_get_option_widget_file(self):
+        set_box = MakoFormatterSettingsBox()
+        widget = set_box.get_option_widget('file',
+                                           'test2',
+                                           'test_filename')
+        self.assertIsInstance(widget, Gtk.Box)
+        entry, btn = widget.get_children()
+        self.assertIsInstance(entry, Gtk.Entry)
+        self.assertIsInstance(btn, Gtk.Button)
+        self.assertEqual(entry.get_text(), 'test2')
+        from bauble.plugins.report import options
+        self.assertEqual(options.get('test_filename'), 'test2')
+
+    @mock.patch('bauble.utils.Gtk.FileChooserNative')
+    def test_on_option_btnbrowse_click(self, mock_fcn):
+        # TODO see test_xsl test_on_btnbrowse_clicked_no_previous_entry etc.
+        set_box = MakoFormatterSettingsBox()
+        mock_fcn.new.return_value = mock_fcn
+        mock_fcn.run.return_value = Gtk.ResponseType.ACCEPT
+        filename = '/mock/filename.ext'
+        mock_fcn.get_filename.return_value = filename
+        entry = Gtk.Entry()
+        set_box.on_option_btnbrowse_clicked(None, entry)
+        mock_fcn.set_current_folder.assert_called_with(str(Path.home()))
+
+        mock_fcn.new.assert_called_with('Select a file',
+                                        None,
+                                        Gtk.FileChooserAction.OPEN)
+        self.assertEqual(entry.get_text(), filename)
+        set_box.on_option_btnbrowse_clicked(None, entry)
+        mock_fcn.set_current_folder.assert_called_with(
+            str(Path(filename).parent)
+        )
+
+    @mock.patch('bauble.utils.Gtk.FileChooserNative')
+    def test_on_btnbrowse_click(self, mock_fcn):
+        # TODO see test_xsl test_on_btnbrowse_clicked_no_previous_entry etc.
+        set_box = MakoFormatterSettingsBox()
+        mock_fcn.new.return_value = mock_fcn
+        mock_fcn.run.return_value = Gtk.ResponseType.ACCEPT
+        filename = '/mock/filename.ext'
+        mock_fcn.get_filename.return_value = filename
+        entry = set_box.widgets.file_entry
+        set_box.on_btnbrowse_clicked(None)
+        # reports plugin not initialised templates_dir is None and wond call
+        mock_fcn.set_current_folder.assert_not_called()
+
+        mock_fcn.new.assert_called_with('Select a stylesheet',
+                                        None,
+                                        Gtk.FileChooserAction.OPEN)
+        self.assertEqual(entry.get_text(), filename)
+        set_box.on_btnbrowse_clicked(None)
+        mock_fcn.set_current_folder.assert_called_with(
+            str(Path(filename).parent)
+        )
