@@ -60,8 +60,17 @@ from .plant import (Plant,
                     PlantNote,
                     PlantChange,
                     PlantEditor,
+                    PlantEditorView,
+                    PlantEditorPresenter,
                     is_code_unique,
-                    branch_callback)
+                    branch_callback,
+                    acc_to_string_matcher,
+                    change_reasons,
+                    split_reasons,
+                    new_plt_reasons,
+                    transfer_reasons,
+                    added_reasons,
+                    deleted_reasons)
 from .location import Location, LocationEditor
 from .institution import Institution, InstitutionPresenter
 from .propagation import (Propagation,
@@ -87,6 +96,7 @@ accession_test_data = (
     {'id': 5, 'code': '2022.1', 'species_id': 3, 'source_type': 'Individual'},
     {'id': 6, 'code': '2022.2', 'species_id': 3, 'id_qual': '?',
      'id_qual_rank': 'sp'},
+    {'id': 7, 'code': '2022.3', 'species_id': 27},
 )
 
 plant_test_data = (
@@ -884,6 +894,101 @@ class PlantTests(GardenTestCase):
         self.assertEqual(plt.top_level_count()[(6, 'Living plants')], 0)
         self.assertEqual(len(plt.top_level_count()[(7, 'Locations')]), 1)
         self.assertEqual(len(plt.top_level_count()[(8, 'Sources')]), 0)
+
+
+class PlantEditorPresenterTests(GardenTestCase):
+    def test_acc_get_completions(self):
+        acc = self.session.query(Accession).get(7)
+        plant = Plant()
+        self.session.add(plant)
+        presenter = PlantEditorPresenter(plant, PlantEditorView())
+        result = presenter.acc_get_completions('2022.3')
+        self.assertEqual(result.all(), [acc])
+        result = presenter.acc_get_completions('Cynodo')
+        self.assertEqual(result.all(), [acc])
+        result = presenter.acc_get_completions('202 Cynodo')
+        self.assertEqual(result.all(), [acc])
+        result = presenter.acc_get_completions('Cynodo dac')
+        self.assertEqual(result.all(), [acc])
+        result = presenter.acc_get_completions("Cynodo 'DT-1")
+        self.assertEqual(result.all(), [acc])
+        result = presenter.acc_get_completions("Cynodo 'Tif")
+        self.assertEqual(result.all(), [acc])
+        del presenter
+
+    def test_acc_to_string_matcher(self):
+        # not part of the presenter class but is used by it
+        acc = self.session.query(Accession).get(7)
+        self.assertTrue(acc_to_string_matcher(acc, '2022'))
+        self.assertTrue(acc_to_string_matcher(acc, 'Cynodo'))
+        self.assertTrue(acc_to_string_matcher(acc, '20 Cyn'))
+        self.assertTrue(acc_to_string_matcher(acc, 'Cy dac'))
+        self.assertTrue(acc_to_string_matcher(acc, "Cynodo 'D"))
+        self.assertTrue(acc_to_string_matcher(acc, "Cynodo 'Tif"))
+        self.assertFalse(acc_to_string_matcher(acc, '1999'))
+        self.assertFalse(acc_to_string_matcher(acc, "Cyn a"))
+        self.assertFalse(acc_to_string_matcher(acc, "Dyn d"))
+        self.assertFalse(acc_to_string_matcher(acc, "19 Cyn"))
+
+    def test_on_select(self):
+        acc = self.session.query(Accession).get(7)
+        plant = Plant()
+        self.session.add(plant)
+        presenter = PlantEditorPresenter(plant, PlantEditorView())
+        presenter.on_select('string')
+        self.assertIsNone(plant.accession)
+        self.assertEqual(presenter.view.widgets.acc_species_label.get_text(),
+                         '')
+        presenter.on_select(acc)
+        self.assertEqual(plant.accession, acc)
+        self.assertEqual(presenter.view.widgets.acc_species_label.get_text(),
+                         str(acc.species))
+        del presenter
+
+    def test_presenter_discourages_editing_if_qty_zero(self):
+        plant = self.session.query(Plant).get(1)
+        plant.quantity = 0
+        presenter = PlantEditorPresenter(plant, PlantEditorView())
+        self.assertFalse(presenter.view.widgets.notebook.get_sensitive())
+        del presenter
+
+    def test_init_reason_combo(self):
+        plant = self.session.query(Plant).get(1)
+        presenter = PlantEditorPresenter(plant, PlantEditorView())
+        self.assertEqual(presenter.reasons, change_reasons)
+        loc2 = self.session.query(Location).get(2)
+        presenter.model.location = loc2
+        presenter._init_reason_combo()
+        self.assertEqual(presenter.reasons, transfer_reasons)
+        presenter.session.rollback()
+        presenter.model.quantity = 111
+        presenter._init_reason_combo()
+        self.assertEqual(presenter.reasons, added_reasons)
+        presenter.session.rollback()
+        presenter.model.quantity = 0
+        presenter._init_reason_combo()
+        self.assertEqual(presenter.reasons, deleted_reasons)
+
+        del presenter
+
+    @unittest.mock.patch('bauble.plugins.garden.plant.LocationEditor')
+    def test_on_loc_button_clicked(self, mock_editor):
+        loc = self.session.query(Location).first()
+        mock_editor().presenter.model = loc
+        plant = Plant()
+        self.session.add(plant)
+        presenter = PlantEditorPresenter(plant, PlantEditorView())
+        presenter.on_loc_button_clicked(None)
+        mock_editor.assert_called()
+        mock_editor.assert_called_with(parent=presenter.view.get_window())
+        self.assertEqual(plant.location, loc)
+
+        mock_editor.reset_mock()
+        presenter.on_loc_button_clicked(None, cmd='edit')
+        mock_editor.assert_called()
+        mock_editor.assert_called_with(loc, parent=presenter.view.get_window())
+
+        del presenter
 
 
 class PropagationTests(GardenTestCase):

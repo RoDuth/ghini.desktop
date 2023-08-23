@@ -4604,8 +4604,10 @@ class GlobalFunctionsTest(PlantTestCase):
         gen2 = Genus(family=family, genus='Melaleuca')
         sp1 = Species(genus=gen1, sp='australe')
         sp2 = Species(genus=gen2, sp='viminalis')
-        sp3 = Species(genus=gen2, sp='viminalis',
-                      cultivar_epithet='Captain Cook')
+        sp3 = Species(genus=gen2,
+                      sp='viminalis',
+                      cultivar_epithet='Captain Cook',
+                      trade_name='Tradename')
         sp4 = Species(genus=gen2, sp='viminalis',
                       cultivar_epithet='cv.')
         sp5 = Species(genus=gen2, sp='sp. Carnarvon NP (M.B.Thomas 115)')
@@ -4626,6 +4628,9 @@ class GlobalFunctionsTest(PlantTestCase):
         self.assertTrue(species_to_string_matcher(sp3, 'M v'))
         self.assertTrue(species_to_string_matcher(
             sp3, "M viminalis 'Captain Cook'"))
+        self.assertTrue(species_to_string_matcher(sp3, "M 'Cap"))
+        self.assertTrue(species_to_string_matcher(sp3, "M 'Tradename"))
+        self.assertFalse(species_to_string_matcher(sp3, "M 'Rob"))
         self.assertTrue(species_to_string_matcher(sp4, 'Mel viminalis cv.'))
         self.assertTrue(species_to_string_matcher(sp4, 'Mel'))
         self.assertFalse(species_to_string_matcher(sp4, 'Cal vim'))

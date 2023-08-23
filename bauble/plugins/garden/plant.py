@@ -964,12 +964,12 @@ class PlantEditorView(GenericEditorView):
 # could live in accession but is only used here so for now leave here...
 def acc_to_string_matcher(accession: Accession, key: str) -> bool:
     """Helper function to match string or partial string of the pattern
-    'ACCESSIONCODE Genus species' with a Accession
+    'ACCESSIONCODE Genus species' with an Accession.
 
     Allows partial matches (e.g. 'Den d', 'Dendr', 'XX D d' will all match
     'XXX.0001 (Dendrobium discolor)').  Searches are case insensitive.
 
-    :param species: a Accession table entry
+    :param accession: an Accession table entry
     :param key: the string to search with
 
     :return: bool, True if the Species matches the key
@@ -1172,6 +1172,14 @@ class PlantEditorPresenter(GenericEditorPresenter, PresenterMapMixin):
         )
 
     def acc_get_completions(self, text):
+        """Get completions with any of the following combinations:
+            'accession_code',
+            'genus',
+            'accession_code genus'
+            'genus species',
+            'genus cv',
+            'genus trade_name',
+        """
         text = text.lower()
         parts = text.split(' ', 1)
         from ..plants.species_model import Species
@@ -1180,38 +1188,27 @@ class PlantEditorPresenter(GenericEditorPresenter, PresenterMapMixin):
         if len(parts) == 1:
             # try straight accession code search first
             query = (self.session.query(Accession)
-                     .filter(ilike(Accession.code, f'{text}%%'))
+                     .join(Species)
+                     .join(Genus)
+                     .filter(or_(ilike(Genus.epithet, f'{text}%%'),
+                                 ilike(Accession.code, f'{text}%%')))
                      .order_by(Accession.code))
-            if not query.first():
-                # if that fails try the genus
-                query = (self.session.query(Accession)
-                         .join(Species)
-                         .join(Genus)
-                         .filter(ilike(Genus.epithet, f'{text}%%'))
-                         .order_by(Accession.code))
         else:
-            accession = parts[0]
-            genus = parts[1].split(' ')[0]
-            # try the combination of accession code and genus
+            part0 = parts[0]
+            part1 = parts[1].split(' ')[0]
+            partc = part1.strip("'")
             query = (self.session.query(Accession)
                      .join(Species)
                      .join(Genus)
-                     .filter(and_(
-                         ilike(Accession.code, f'{accession}%%'),
-                         ilike(Genus.epithet, f'{genus}%%')))
+                     .filter(or_(
+                         and_(ilike(Accession.code, f'{part0}%%'),
+                              ilike(Genus.epithet, f'{part1}%%')),
+                         and_(ilike(Genus.epithet, f'{part0}%%'),
+                             or_(ilike(Species.epithet, f'{part1}%%'),
+                                 ilike(Species.cultivar_epithet, f'{partc}%%'),
+                                 ilike(Species.trade_name, f'{partc}%%')))
+                     ))
                      .order_by(Accession.code))
-            if not query.first():
-                # if fails try genus species
-                genus = parts[0]
-                species = parts[1].split(' ')[0]
-                query = (self.session.query(Accession)
-                         .join(Species)
-                         .join(Genus)
-                         .filter(and_(
-                             ilike(Genus.epithet, f'{genus}%%'),
-                             ilike(Species.epithet, f'{species}%%')))
-                         .order_by(Accession.code))
-        # limit results, can have a lot, avoid slow down.
         return query.limit(80)
 
     def on_select(self, value):

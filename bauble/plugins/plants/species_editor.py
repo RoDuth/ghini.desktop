@@ -104,9 +104,17 @@ def species_to_string_matcher(species: Species,
         from operator import attrgetter
         species = attrgetter(sp_path)(species)
     comp_gen = str(species.genus.epithet).lower()
-    comp_sp = str(species.str(genus=False)).lower().strip(' ×')
-    if (comp_gen.startswith(key_gen) and comp_sp.startswith(key_sp.strip())):
-        return True
+    comp_sp = species.str(genus=False).lower().strip(' ×')
+    comp_cv = "'" + (species.cultivar_epithet or '').lower()
+    comp_trade = "'" + (species.trade_name or '').lower()
+
+    if comp_gen.startswith(key_gen):
+        if comp_sp.startswith(key_sp.strip()):
+            return True
+        if comp_cv.startswith(key_sp.strip()):
+            return True
+        if comp_trade.startswith(key_sp.strip()):
+            return True
     return False
 
 

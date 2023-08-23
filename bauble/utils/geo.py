@@ -28,7 +28,7 @@ from sqlalchemy import Table, Column, String, select
 
 import bauble
 from bauble import utils
-from bauble.paths import main_is_frozen, main_dir, appdata_dir
+from bauble.paths import main_is_frozen, main_dir
 from bauble.meta import confirm_default
 from bauble import db
 from bauble import btypes
