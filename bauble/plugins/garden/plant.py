@@ -1461,12 +1461,7 @@ class PlantEditorPresenter(GenericEditorPresenter, PresenterMapMixin):
                 self.set_model_attr('location', location)
 
     def refresh_view(self, initializing=False):
-        # TODO: is this really relevant since this editor only creates new
-        # plants?  it also won't work while testing, and removing it while
-        # testing has no impact on test results.
         self.initializing = initializing
-        if prefs.testing:
-            return
         for widget, field in self.widget_to_field_map.items():
             value = getattr(self.model, field)
             self.view.widget_set_value(widget, value)
@@ -1477,8 +1472,14 @@ class PlantEditorPresenter(GenericEditorPresenter, PresenterMapMixin):
                                    index=1)
         self.view.widgets.plant_memorial_check.set_inconsistent(False)
         self.view.widgets.plant_memorial_check.set_active(
-            self.model.memorial is True)
+            self.model.memorial is True
+        )
 
+        self._init_reason_combo()
+
+        self.refresh_sensitivity()
+
+    def _init_reason_combo(self):
         reasons = {}
         default = None
         if self.branch_mode:
@@ -1502,8 +1503,6 @@ class PlantEditorPresenter(GenericEditorPresenter, PresenterMapMixin):
             self.reasons = reasons
             self.view.init_translatable_combo('reason_combo', reasons,
                                               default=default)
-
-        self.refresh_sensitivity()
 
     def cleanup(self):
         super().cleanup()

@@ -42,7 +42,6 @@ from .accession import (Accession,
                         AccessionEditor,
                         AccessionEditorPresenter,
                         AccessionEditorView,
-                        AccessionNote,
                         Voucher,
                         SourcePresenter,
                         IntendedLocationPresenter,
@@ -396,6 +395,30 @@ class PlantTests(GardenTestCase):
         self.assertEqual(utils.gc_objects_by_type('PlantEditorView'),
                          [], 'PlantEditorView not deleted')
 
+    @unittest.mock.patch('bauble.editor.GenericEditorView.start')
+    def test_editor_doesnt_leak_branch_mode(self, mock_start):
+        # garbage collect before start..
+        import gc
+        gc.collect()
+        mock_start.return_value = Gtk.ResponseType.OK
+        loc = Location(name='site1', code='1')
+        plt = Plant(accession=self.accession,
+                    location=loc,
+                    quantity=10,
+                    code='2')
+        self.session.add_all([plt, loc])
+        self.session.commit()
+        self.session.refresh(loc)  # or we get a foreign_keys constraint error
+        editor = PlantEditor(model=plt, branch_mode=True)
+        editor.start()
+        del editor
+        self.assertEqual(utils.gc_objects_by_type('PlantEditor'),
+                         [], 'PlantEditor not deleted')
+        self.assertEqual(utils.gc_objects_by_type('PlantEditorPresenter'),
+                         [], 'PlantEditorPresenter not deleted')
+        self.assertEqual(utils.gc_objects_by_type('PlantEditorView'),
+                         [], 'PlantEditorView not deleted')
+
     def test_remove_callback(self):
         # action
         self.invoked = []
@@ -426,7 +449,6 @@ class PlantTests(GardenTestCase):
                  .filter(Location.code == '2a')
                  .one())
         editor.model.location = loc2a
-        update_gui()
         editor.model.quantity = 3
         editor.compute_plant_split_changes()
 

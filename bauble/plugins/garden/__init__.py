@@ -372,7 +372,8 @@ def init_location_comboentry(presenter, combo, on_select):
     presenter.view.connect(completion, 'match-selected', on_match_select)
 
     def on_entry_changed(entry, presenter):
-        logger.debug('on_entry_changed(%s, %s)', entry, presenter)
+        # NOTE use the str of the presenter or it may not garbage collect
+        logger.debug('on_entry_changed(%s, %s)', entry, str(presenter))
         text = str(entry.props.text)
 
         if not text:
