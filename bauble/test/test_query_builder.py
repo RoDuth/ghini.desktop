@@ -17,6 +17,9 @@
 # along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
 
 import unittest
+
+from gi.repository import Gtk
+
 from sqlalchemy.orm import class_mapper
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm.attributes import InstrumentedAttribute
@@ -25,7 +28,8 @@ from bauble import paths
 from bauble.query_builder import (BuiltQuery,
                                   QueryBuilder,
                                   SchemaMenu,
-                                  parse_typed_value)
+                                  parse_typed_value,
+                                  ExpressionRow)
 from bauble.search import EmptyToken
 from bauble.test import BaubleTestCase
 from bauble.editor import GenericEditorView
@@ -468,6 +472,34 @@ class QueryBuilderTests(BaubleTestCase):
         self.assertEqual(len(qb.expression_rows), 2)
         self.assertEqual(qb.get_query(), "plant where id = 0 or id = 1")
         self.assertTrue(qb.validate())
+
+    def test_custom_colum(self):
+        from bauble.meta import BaubleMeta
+        meta = BaubleMeta(name='_sp_custom1',
+                          value=("{'field_name': 'nca_status', "
+                                 "'display_name': 'NCA Status', "
+                                 "'values': ('extinct', 'vulnerable')}"))
+        self.session.add(meta)
+        self.session.commit()
+        # effectively also tests PlantsPlugin.register_custom_column
+        from bauble.plugins.plants import PlantsPlugin
+        PlantsPlugin.register_custom_column('_sp_custom1')
+        import os
+        gladefilepath = os.path.join(paths.lib_dir(), "querybuilder.glade")
+        view = GenericEditorView(
+            gladefilepath,
+            parent=None,
+            root_widget_name='main_dialog')
+        qb = QueryBuilder(view)
+        query = "species where nca_status = 'extinct'"
+        qb.set_query(query)
+        self.assertEqual(len(qb.expression_rows), 1)
+        self.assertIsInstance(qb.expression_rows[0].value_widget,
+                              Gtk.ComboBoxText)
+        self.assertEqual(qb.expression_rows[0].value_widget.get_active_text(),
+                         'extinct')
+        self.assertTrue(qb.validate())
+        self.assertEqual(qb.get_query(), query)
 
 
 class TestQBP(BaubleTestCase):

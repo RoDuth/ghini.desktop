@@ -41,6 +41,7 @@ import bauble
 from bauble import prefs
 from bauble import db
 from bauble import search
+from bauble.query_builder import ExpressionRow
 
 from bauble.paths import lib_dir
 from bauble import pluginmgr
@@ -759,9 +760,12 @@ class PlantsPlugin(pluginmgr.Plugin):
         )
         cls.register_custom_column('_sp_custom1')
         cls.register_custom_column('_sp_custom2')
+        # make query builder treat active as a boolean (also accounts for
+        # accessions and plants)
+        ExpressionRow.custom_columns['active'] = ('True', 'False')
 
-    @classmethod
-    def register_custom_column(cls, column_name):
+    @staticmethod
+    def register_custom_column(column_name):
         session = db.Session()
         custom_meta = (session.query(bauble.meta.BaubleMeta)
                        .filter(bauble.meta.BaubleMeta.name == column_name)
@@ -771,12 +775,18 @@ class PlantsPlugin(pluginmgr.Plugin):
         if custom_meta:
             custom_meta = literal_eval(custom_meta.value)
             field_name = custom_meta['field_name']
+            field_values = custom_meta['values']
+            # register with ExpressionRow
+            ExpressionRow.custom_columns[field_name] = field_values
 
             def _get(self):
                 return getattr(self, column_name)
 
             def _set(self, value):
-                setattr(self, column_name, value)
+                if value in field_values:
+                    setattr(self, column_name, value)
+                else:
+                    raise AttributeError(f'{value} is not in {field_values}')
 
             def _exp(cls):
                 return getattr(cls, column_name)

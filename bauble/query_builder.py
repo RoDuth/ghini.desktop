@@ -224,6 +224,7 @@ class ExpressionRow:
         'like',
         'contains',
     ]
+    custom_columns = {}
 
     def __init__(self, query_builder, remove_callback, row_number):
         self.proptype = None
@@ -374,15 +375,20 @@ class ExpressionRow:
             self.cond_combo.set_tooltip_text('How to search')
 
         val = utils.get_widget_value(self.value_widget)
-        set_value_widget = self.get_set_value_widget()
+        set_value_widget = self.get_set_value_widget(path)
         set_value_widget(prop, val)
 
         self.grid.attach(self.value_widget, left, top, 1, 1)
         self.grid.show_all()
         self.presenter.validate()
 
-    def get_set_value_widget(self):
+    def get_set_value_widget(self, path):
         logger.debug('proptype = %s', type(self.proptype))
+        column_name = path.rsplit('.', 1)[-1]
+        if column_name in self.custom_columns:
+            from functools import partial
+            return partial(self.set_custom_enum_widget,
+                           self.custom_columns[column_name])
         if isinstance(self.proptype, bauble.btypes.Enum):
             return self.set_enum_widget
         if isinstance(self.proptype, Integer):
@@ -395,6 +401,16 @@ class ExpressionRow:
                                       bauble.btypes.DateTime)):
             return self.set_date_widget
         return self.set_entry_widget
+
+    def set_custom_enum_widget(self, values, _prop, val):
+        self.value_widget = Gtk.ComboBoxText()
+        for value in values:
+            self.value_widget.append_text(value)
+        self.value_widget.set_tooltip_text(
+            'select a value'
+        )
+        self.value_widget.connect('changed', self.on_value_changed)
+        utils.set_widget_value(self.value_widget, val)
 
     def set_enum_widget(self, prop, val):
         self.value_widget = Gtk.ComboBox()
@@ -430,7 +446,7 @@ class ExpressionRow:
             'Number (non decimal) or "None" for no value has been set'
         )
         try:
-            val = int(val)
+            val = int(val or 0)
             self.value_widget.set_value(float(val))
         except ValueError:
             pass

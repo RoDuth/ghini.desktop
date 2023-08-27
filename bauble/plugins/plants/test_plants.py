@@ -2027,6 +2027,34 @@ class SpeciesTests(PlantTestCase):
         self.assertEqual(len(sp.top_level_count()[(7, 'Locations')]), 0)
         self.assertEqual(len(sp.top_level_count()[(8, 'Sources')]), 0)
 
+    def test_custom_column(self):
+        from bauble.meta import BaubleMeta
+        meta = BaubleMeta(name='_sp_custom1',
+                          value=("{'field_name': 'nca_status', "
+                                 "'display_name': 'NCA Status', "
+                                 "'values': ('extinct', 'vulnerable')}"))
+        self.session.add(meta)
+        self.session.commit()
+        # effectively also tests PlantsPlugin.register_custom_column
+        from bauble.plugins.plants import PlantsPlugin
+        PlantsPlugin.register_custom_column('_sp_custom1')
+        sp = self.session.query(Species).first()
+
+        sp.nca_status = 'vulnerable'
+        self.session.commit()
+        self.assertEqual(sp.nca_status, 'vulnerable')
+        # can't set value not in values
+        with self.assertRaises(AttributeError):
+            sp.nca_status = 'test'
+        self.assertEqual(sp.nca_status, 'vulnerable')
+        sp.nca_status = 'extinct'
+        self.session.commit()
+        # test can filter by custom column
+        session = db.Session()
+        qry = session.query(Species).filter(Species.nca_status == 'extinct')
+        self.assertEqual(qry.first().id, sp.id)
+        session.close()
+
 
 class MarkupItalicsTests(TestCase):
     def test_markup_simple(self):
