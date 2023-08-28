@@ -1580,6 +1580,70 @@ class AggregatingFunctions(BaubleTestCase):
             str(results.statement),
             "SELECT * FROM genus WHERE ((count species.id) == 2.0)")
 
+    def test_count_complex_query(self):
+        mapper_search = search.get_strategy('MapperSearch')
+        self.assertTrue(isinstance(mapper_search, search.MapperSearch))
+
+        string = ('genus where species.epithet like za% and '
+                  'count(species.id) > 1')
+        results = list(mapper_search.search(string, self.session))
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0].id, 2)
+
+        from bauble.plugins.plants.geography import Geography
+        from bauble.plugins.plants import Species, SpeciesDistribution
+        geo1 = Geography(name='Test1', tdwg_code='T1', tdwg_level=1)
+        geo2 = Geography(name='Test2', tdwg_code='T2', tdwg_level=1)
+        sp1 = self.session.query(Species).first()
+        sp1.distribution = [SpeciesDistribution(geography=geo1),
+                            SpeciesDistribution(geography=geo2)]
+
+        self.session.commit()
+        string = ("species where count(distribution.id) > 1 and "
+                  "distribution.geography.name = 'Test1'")
+        results = list(mapper_search.search(string, self.session))
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0].id, sp1.id)
+
+        string = ("species where distribution.geography.name = 'Test2' "
+                  "and count(distribution.geography.id) > 1")
+        results = list(mapper_search.search(string, self.session))
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0].id, sp1.id)
+
+        string = ("species where distribution.geography.name = 'Test2' "
+                  "and count(distribution.geography.id) > 1 or id = 2")
+        results = list(mapper_search.search(string, self.session))
+        self.assertEqual(len(results), 2)
+
+    def test_min(self):
+        mapper_search = search.get_strategy('MapperSearch')
+        string = ("genus where min(species.id) = 1")
+        results = list(mapper_search.search(string, self.session))
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0].id, 1)
+
+    def test_max(self):
+        mapper_search = search.get_strategy('MapperSearch')
+        string = ("genus where max(species.id) = 3")
+        results = list(mapper_search.search(string, self.session))
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0].id, 1)
+
+    def test_sum(self):
+        mapper_search = search.get_strategy('MapperSearch')
+        string = ("genus where sum(species.id) = 9")
+        results = list(mapper_search.search(string, self.session))
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0].id, 2)
+
+    def test_multiple_aggregate_funcs(self):
+        mapper_search = search.get_strategy('MapperSearch')
+        string = ("genus where sum(species.id) = 9 and count(species.id) = 2")
+        results = list(mapper_search.search(string, self.session))
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0].id, 2)
+
 
 class BaubleSearchSearchTest(BaubleTestCase):
     def test_search_search_uses_Mapper_Search(self):

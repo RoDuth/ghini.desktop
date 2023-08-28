@@ -26,7 +26,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-from sqlalchemy import or_, and_
+from sqlalchemy import or_, and_, select
 from sqlalchemy.orm import class_mapper, Query
 from pyparsing import (Word,
                        alphas8bit,
@@ -414,6 +414,8 @@ class AggregatedExpression(IdentExpression):
     def __init__(self, tokens):
         super().__init__(tokens)
         logger.debug('AggregatedExpression::__init__(%s)', tokens)
+        self.all_cols = None
+        self.having = None
 
     def evaluate(self, env):
         # operands[0] is the function/identifier pair
@@ -426,14 +428,21 @@ class AggregatedExpression(IdentExpression):
         def clause(val):
             return self.operation(function(attr), val)
 
-        # group by - all columns MSSQL
-        # apply having
         main_table = query.column_descriptions[0]['type']
-        all_cols = [getattr(main_table, c) for c in
-                    main_table.__table__.c.keys()]
-        result = (query.group_by(*all_cols)
-                  .having(clause(self.operands[1].express())))
-        return result
+
+        having = clause(self.operands[1].express())
+        id_ = getattr(main_table, 'id')
+
+        sub_query = (select(id_)
+                     .group_by(id_)
+                     .having(having))
+
+        joins = self.operands[0].needs_join(env)
+        sub_query, __ = create_joins(sub_query, main_table, joins)
+
+        query = query.filter(id_.in_(sub_query))
+
+        return query
 
 
 class BetweenExpressionAction:
@@ -501,6 +510,7 @@ class SearchAndAction(BinaryLogical):
     name = 'AND'
 
     def evaluate(self, env):
+        logger.debug("SearchAndAction::evaluate %s", self)
         # need to create joins here then add in the whereclause, for a
         # SearchNotAction no whereclause will be returned, instead an except_
         # will be available, containing relevent joins.
@@ -570,6 +580,7 @@ class ParenthesisedQuery:
 
 class QueryAction:
     def __init__(self, tokens):
+        logger.debug("QueryAction::__init__(%s)", tokens)
         self.domain = tokens[0]
         self.filter = tokens[1][0]
         self.session = None
@@ -604,8 +615,13 @@ class QueryAction:
 
 class StatementAction:  # pylint: disable=too-few-public-methods
     def __init__(self, tokens):
+        logger.debug("StatementAction::__init__(%s)", tokens)
         self.content = tokens[0]
-        self.invoke = self.content.invoke
+
+    def invoke(self, search_strategy):
+        invoked = self.content.invoke(search_strategy)
+        logger.debug("StatementAction::invoked")
+        return invoked
 
     def __repr__(self):
         return str(self.content)
@@ -738,7 +754,10 @@ class AggregatingAction:
         return f"({self.function} {self.identifier})"
 
     def needs_join(self, env):
-        return [self.identifier.needs_join(env)]
+        joins = self.identifier.needs_join(env)
+        if isinstance(joins, list):
+            return joins
+        return [joins]
 
     def evaluate(self, env):
         """return pair (query, attribute)
@@ -748,6 +767,7 @@ class AggregatingAction:
         aggregated identifier is applied in the HAVING and not in the
         WHERE.
         """
+        logger.debug("AggregatingAction::evaluate %s", self)
 
         return self.identifier.evaluate(env)
 
