@@ -3983,12 +3983,8 @@ class DistributionPresenterTests(PlantTestCase):
         self.assertCountEqual(sp.distribution, [])
         mock_dialog.assert_called()
         mock_dialog.reset_mock()
-        # test an empty list
-        txt = ','
-        presenter.append_dists_from_text(txt)
-        self.assertCountEqual(sp.distribution, [])
-        mock_dialog.assert_called()
-        mock_dialog.reset_mock()
+        # none of the above should have added any distribution
+        self.assertEqual(sp.distribution, [])
         # test a single list
         txt = 'Australia'
         presenter.append_dists_from_text(txt)
@@ -4027,6 +4023,19 @@ class DistributionPresenterTests(PlantTestCase):
         presenter.append_dists_from_text(txt)
         result = (self.session.query(Geography)
                   .filter(Geography.id.in_((296, 407, 359, 378, 286))))
+        self.assertCountEqual(
+            [i.geography for i in sp.distribution],
+            result.all(),
+            [i.id for i in [i.geography for i in sp.distribution]]
+        )
+        mock_dialog.assert_not_called()
+        mock_dialog.reset_mock()
+        sp.distribution = []
+        # test tdwg_codes
+        txt = 'NFK, QLD, NWG-PN, NSW-NS'
+        presenter.append_dists_from_text(txt)
+        result = (self.session.query(Geography)
+                  .filter(Geography.id.in_((286, 330, 691, 689))))
         self.assertCountEqual(
             [i.geography for i in sp.distribution],
             result.all(),
@@ -4162,7 +4171,7 @@ class DistributionPresenterTests(PlantTestCase):
         presenter = DistributionPresenter(mock_parent)
         presenter.on_copy()
         mock_clipboard.set_text.assert_called_with(
-            'Queensland, New South Wales', -1
+            'QLD, NSW', -1
         )
 
         del presenter

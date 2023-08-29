@@ -1016,6 +1016,7 @@
                                 <property name="ypad">3</property>
                                 <property name="label">--</property>
                                 <property name="wrap">True</property>
+                                <property name="selectable">True</property>
                                 <property name="max-width-chars">100</property>
                                 <property name="xalign">0</property>
                               </object>

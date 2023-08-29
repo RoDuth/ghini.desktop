@@ -21,6 +21,7 @@ Species table definition
 """
 
 import os
+import re
 import traceback
 import weakref
 from random import random
@@ -1349,8 +1350,8 @@ class DistributionPresenter(editor.GenericEditorPresenter):
         self.parent_ref().refresh_sensitivity()
 
     def append_dists_from_text(self, text: str) -> None:
-        """Given a string of comma seperated names, attempt to match the names
-        to WGSRPD units and append them to the current distributions.
+        """Given a string of comma seperated names or codes, attempt to match
+        them to WGSRPD units and append them to the current distributions.
 
         If any errors resolving names let the user know and return.
         """
@@ -1360,28 +1361,43 @@ class DistributionPresenter(editor.GenericEditorPresenter):
         name_map = {}
         unresolved = set()
 
-        # get the full names first - low hanging fruit
-        geos = (self.session.query(Geography)
-                .filter(Geography.name.in_(geo_names)))
+        code_re = re.compile(r'^[0-9A-Z-]{1,6}$')
+        # if text contains only tdwg_codes
+        if all(code_re.match(i) for i in geo_names):
+            geos = (self.session.query(Geography)
+                    .filter(Geography.tdwg_code.in_(geo_names)))
 
-        for geo in geos:
-            name_map.setdefault(geo.name, []).append(geo)
-            val = levels_counter.get(geo.tdwg_level, 0) + 1
-            levels_counter[geo.tdwg_level] = val
+            for geo in geos:
+                name_map.setdefault(geo.tdwg_code, []).append(geo)
+                val = levels_counter.get(geo.tdwg_level, 0) + 1
+                levels_counter[geo.tdwg_level] = val
 
-        # then the abbreviated
-        for name in geo_names:
-            if not name:
-                unresolved.add(name)
-            elif name not in name_map:
-                geos = (self.session.query(Geography)
-                        .filter(Geography.name.like(f'{name}%')))
-                if not geos.all():
+            for code in geo_names:
+                if code not in name_map:
+                    unresolved.add(code)
+        else:
+            # get the full names first - low hanging fruit
+            geos = (self.session.query(Geography)
+                    .filter(Geography.name.in_(geo_names)))
+
+            for geo in geos:
+                name_map.setdefault(geo.name, []).append(geo)
+                val = levels_counter.get(geo.tdwg_level, 0) + 1
+                levels_counter[geo.tdwg_level] = val
+
+            # then the abbreviated
+            for name in geo_names:
+                if not name:
                     unresolved.add(name)
-                for geo in geos:
-                    name_map.setdefault(geo.name, []).append(geo)
-                    val = levels_counter.get(geo.tdwg_level, 0) + 1
-                    levels_counter[geo.tdwg_level] = val
+                elif name not in name_map:
+                    geos = (self.session.query(Geography)
+                            .filter(Geography.name.like(f'{name}%')))
+                    if not geos.all():
+                        unresolved.add(name)
+                    for geo in geos:
+                        name_map.setdefault(geo.name, []).append(geo)
+                        val = levels_counter.get(geo.tdwg_level, 0) + 1
+                        levels_counter[geo.tdwg_level] = val
 
         if unresolved:
             msg = _('Could not resolve "%s"') % ', '.join(unresolved)
@@ -1407,9 +1423,12 @@ class DistributionPresenter(editor.GenericEditorPresenter):
                     )[0]]
             geos.add(geo_list[0])
 
+        existing_geos = [dist.geography for dist in self.model.distribution]
+
         for geo in sorted(geos, key=lambda i: i.name):
-            dist = SpeciesDistribution(geography=geo)
-            self.model.distribution.append(dist)
+            if geo not in existing_geos:
+                dist = SpeciesDistribution(geography=geo)
+                self.model.distribution.append(dist)
 
         self._dirty = True
         self.refresh_view()
@@ -1442,7 +1461,8 @@ class DistributionPresenter(editor.GenericEditorPresenter):
     def on_copy(self, *_args) -> None:
         if bauble.gui:
             clipboard = bauble.gui.get_display_clipboard()
-            txt = ', '.join([str(d) for d in self.model.distribution])
+            txt = ', '.join([d.geography.tdwg_code for
+                             d in self.model.distribution])
             clipboard.set_text(txt, -1)
 
     def cleanup(self):
