@@ -31,6 +31,7 @@ from datetime import datetime
 from gi.repository import Gtk
 
 from bauble import prefs
+from bauble import utils
 from bauble.editor import MockView
 from bauble.plugins.plants import Species
 from bauble.plugins.garden import Accession, Location, Plant, PlantNote
@@ -142,6 +143,7 @@ class CSVExporterTests(CSVTestCase):
             rec = next(reader)
             self.assertEqual(rec, out[1])
         self.assertEqual(prefs.prefs.get(f'{CSV_IO_PREFS}.plant'), field_list)
+        exporter.presenter.cleanup()
 
     def test_export_plants_w_notes(self):
         plt = self.session.query(Plant).get(1)
@@ -181,6 +183,7 @@ class CSVExporterTests(CSVTestCase):
             self.assertEqual(field_map, fields)
             rec = next(reader)
             self.assertEqual(rec, out[0])
+        exporter.presenter.cleanup()
 
     def test_export_species(self):
         mock_view = MockView()
@@ -214,6 +217,7 @@ class CSVExporterTests(CSVTestCase):
             rec = next(reader)
             logger.debug(rec)
             self.assertEqual(rec, out[1])
+        exporter.presenter.cleanup()
 
     @mock.patch('bauble.plugins.imex.csv_io.CSVExportDialogPresenter.start',
                 return_value=Gtk.ResponseType.OK)
@@ -276,6 +280,7 @@ class CSVExporterTests(CSVTestCase):
             exporter.presenter.view.values.get('out_filename_entry'),
             str(out_file)
         )
+        exporter.presenter.cleanup()
 
     def test_on_filename_entry_changed(self):
         mock_view = MockView()
@@ -293,6 +298,7 @@ class CSVExporterTests(CSVTestCase):
         self.assertEqual(exporter.filename, str(out_file))
         self.assertEqual(prefs.prefs.get(CSV_EXPORT_DIR_PREF),
                          self.temp_dir.name)
+        exporter.presenter.cleanup()
 
     def test_on_name_entry_changed(self):
         mock_widget = mock.Mock()
@@ -307,6 +313,7 @@ class CSVExporterTests(CSVTestCase):
             exporter.presenter.on_name_entry_changed(mock_widget)
             self.assertEqual(exporter.presenter.fields,
                              [('Test', None), (None, None)])
+        exporter.presenter.cleanup()
 
     def test_on_add_button_clicked(self):
         mock_view = MockView()
@@ -317,6 +324,7 @@ class CSVExporterTests(CSVTestCase):
         exporter.presenter.on_add_button_clicked('button')
         self.assertEqual(exporter.presenter.fields,
                          [(None, None), (None, None)])
+        exporter.presenter.cleanup()
 
     def test_on_remove_button_clicked(self):
         mock_view = MockView()
@@ -329,9 +337,29 @@ class CSVExporterTests(CSVTestCase):
             exporter.presenter.on_remove_button_clicked('button')
             self.assertEqual(exporter.presenter.fields,
                              [(None, None)])
+        exporter.presenter.cleanup()
 
 
 class CSVExporterEditorTests(BaubleTestCase):
+    @mock.patch('bauble.editor.GenericEditorView.start')
+    def test_presenter_doesnt_leak(self, mock_start):
+        import gc
+        gc.collect()
+        from gi.repository import Gtk
+        mock_start.return_value = Gtk.ResponseType.OK
+        from bauble.editor import GenericEditorView
+        view = GenericEditorView(
+            str(Path(__file__).resolve().parent / 'csv_io.glade'),
+            root_widget_name='csv_export_dialog',
+        )
+        mock_model = mock.MagicMock()
+        mock_model.domain.__tablename__ = 'tablename'
+        presenter = CSVExportDialogPresenter(model=mock_model, view=view)
+        presenter.start()
+        presenter.cleanup()
+        del presenter
+        self.assertEqual(utils.gc_objects_by_type('CSVExportDialogPresenter'),
+                         [], 'CSVExportDialogPresenter not deleted')
 
     def test_relation_filter(self):
         Species.synonyms.parent._class = Species

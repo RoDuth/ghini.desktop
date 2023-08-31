@@ -48,7 +48,9 @@ from bauble.plugins.plants.species import (Species, VernacularName,
                                            DefaultVernacularName)
 from bauble.utils.geo import transform, DEFAULT_IN_PROJ
 from .import_tool import ShapefileImporter, ShapefileReader, MATCH, OPTION
-from .export_tool import ShapefileExporter, get_field_properties
+from .export_tool import (ShapefileExporter,
+                          ShapefileExportDialogPresenter,
+                          get_field_properties)
 
 from .import_tool import ShapefileImportSettingsBox as ImpSetBox
 from .export_tool import ShapefileExportSettingsBox as ExpSetBox
@@ -901,6 +903,25 @@ class ExportSettingsBoxTests(ShapefileTestCase):
                         (settings_box.gen_button
                          .get_style_context()
                          .list_classes()))
+
+    @mock.patch('bauble.editor.GenericEditorView.start')
+    def test_presenter_doesnt_leak(self, mock_start):
+        import gc
+        gc.collect()
+        mock_start.return_value = Gtk.ResponseType.OK
+        from bauble.editor import GenericEditorView
+        view = GenericEditorView(
+            str(Path(__file__).resolve().parent / 'shapefile.glade'),
+            root_widget_name='shapefile_export_dialog',
+        )
+        mock_model = mock.MagicMock()
+        mock_model.domain.__tablename__ = 'tablename'
+        presenter = ShapefileExportDialogPresenter(model=mock_model, view=view)
+        presenter.start()
+        presenter.cleanup()
+        del presenter
+        self.assertEqual(utils.gc_objects_by_type('CSVExportDialogPresenter'),
+                         [], 'CSVExportDialogPresenter not deleted')
 
 
 class ShapefileExportTestsEmptyDB(ShapefileTestCase):
