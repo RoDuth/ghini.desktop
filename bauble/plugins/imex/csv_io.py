@@ -29,6 +29,7 @@ logger = logging.getLogger(__name__)
 from gi.repository import Gtk, Gdk
 
 from sqlalchemy.orm import class_mapper
+from sqlalchemy.ext.associationproxy import AssociationProxy
 
 import bauble
 from bauble.utils import desktop, message_dialog
@@ -176,6 +177,8 @@ class CSVExportDialogPresenter(GenericEditorPresenter):
     def relation_filter(key, prop):
         # dont offer many relationships
         try:
+            if isinstance(prop, AssociationProxy):
+                prop = getattr(prop._class, prop.target_collection)
             if prop.prop.uselist:
                 return False
         except AttributeError:

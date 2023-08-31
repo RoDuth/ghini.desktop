@@ -32,6 +32,7 @@ from gi.repository import Gtk, Gdk
 from gi.repository import GLib
 
 from sqlalchemy.orm import class_mapper
+from sqlalchemy.ext.associationproxy import AssociationProxy
 
 from bauble.utils.geo import ProjDB
 from bauble.meta import get_default
@@ -390,6 +391,8 @@ class ShapefileExportSettingsBox(Gtk.ScrolledWindow):
     def relation_filter(key, prop):
         # Avoid offering many relationships
         try:
+            if isinstance(prop, AssociationProxy):
+                prop = getattr(prop._class, prop.target_collection)
             if prop.prop.uselist:
                 return False
         except AttributeError:

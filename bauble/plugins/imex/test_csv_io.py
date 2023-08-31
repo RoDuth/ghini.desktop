@@ -40,6 +40,7 @@ from bauble.test import BaubleTestCase
 from .csv_io import (CSVImporter,
                      CSVExporter,
                      CSVExportTool,
+                     CSVExportDialogPresenter,
                      CSV_IO_PREFS,
                      CSV_EXPORT_DIR_PREF,
                      CSV_IMPORT_DIR_PREF)
@@ -328,6 +329,31 @@ class CSVExporterTests(CSVTestCase):
             exporter.presenter.on_remove_button_clicked('button')
             self.assertEqual(exporter.presenter.fields,
                              [(None, None)])
+
+
+class CSVExporterEditorTests(BaubleTestCase):
+
+    def test_relation_filter(self):
+        Species.synonyms.parent._class = Species
+        Species.accepted.parent._class = Species
+        result = CSVExportDialogPresenter.relation_filter(
+            'test', Species.synonyms.parent
+        )
+        self.assertFalse(result)
+        result = CSVExportDialogPresenter.relation_filter(
+            'test', Species.accepted.parent
+        )
+        self.assertTrue(result)
+        # active should raise AttributeError
+        result = CSVExportDialogPresenter.relation_filter(
+            'test', Species.active
+        )
+        self.assertTrue(result)
+        result = CSVExportDialogPresenter.relation_filter(
+            '_default_vernacular_name', None
+        )
+        self.assertFalse(result)
+
 
 
 class CSVExportToolTests(BaubleTestCase):

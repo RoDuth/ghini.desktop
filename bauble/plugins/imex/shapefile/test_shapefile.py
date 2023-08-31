@@ -802,7 +802,9 @@ class ExportSettingsBoxTests(ShapefileTestCase):
         self.assertEqual(start[3], self.plant_fields[1])
         self.assertEqual(start[4:], self.plant_fields[4:])
 
-    def test_static_funcs(self):
+    def test_relation_filter(self):
+        Species.synonyms.parent._class = Species
+        Species.accepted.parent._class = Species
         settings_box = ExpSetBox(Plant,
                                  fields=self.plant_fields,
                                  resize_func=lambda: False,
@@ -810,6 +812,12 @@ class ExportSettingsBoxTests(ShapefileTestCase):
 
         self.assertFalse(settings_box.relation_filter(
             '_default_vernacular_name', None
+        ))
+        self.assertTrue(settings_box.relation_filter(
+            'test', Species.accepted.parent
+        ))
+        self.assertFalse(settings_box.relation_filter(
+            'test', Species.synonyms.parent
         ))
 
     @mock.patch('bauble.prefs.Gtk.MessageDialog.run',
