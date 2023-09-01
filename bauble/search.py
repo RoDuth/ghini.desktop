@@ -135,12 +135,13 @@ OPERATIONS = {
 }
 
 
-def create_joins(query, cls, steps, aliased=False, to_join=None):
+def create_joins(query, cls, steps, alias=False):
     """Given a starting query, class and steps add the appropriate join()
     clauses to the query.  Returns the query and the last class in the joins.
     """
-    if to_join is None:
-        to_join = [cls]
+    # pylint: disable=protected-access
+    if not hasattr(query, '_to_join'):
+        query._to_join = [cls]
     if not steps:
         return (query, cls)
     step = steps[0]
@@ -155,7 +156,7 @@ def create_joins(query, cls, steps, aliased=False, to_join=None):
 
         joinee = get_related_class(cls, step)
 
-        if joinee in to_join or aliased:
+        if joinee in query._to_join or alias:
             from sqlalchemy.orm import aliased
             joinee = aliased(joinee)
             query = query.join(
@@ -164,11 +165,11 @@ def create_joins(query, cls, steps, aliased=False, to_join=None):
         else:
             query = query.join(getattr(cls, step))
             # query = query.join(joinee)
-            to_join.append(joinee)
+            query._to_join.append(joinee)
 
         cls = joinee
 
-    return create_joins(query, cls, steps, aliased, to_join)
+    return create_joins(query, cls, steps, alias)
 
 
 class NoneToken:
@@ -304,7 +305,7 @@ class FilteredIdentifierAction:
             cls = env.joined_cls
         else:
             query, cls = create_joins(query, env.domain, self.steps,
-                                      aliased=True)
+                                      alias=True)
 
         attr = getattr(cls, self.filter_attr)
 
@@ -516,8 +517,11 @@ class SearchAndAction(BinaryLogical):
         # will be available, containing relevent joins.
         query = self.operands[0].evaluate(env)
         for operand in self.operands[1:]:
-            if (isinstance(operand, IdentExpression) and
+            # NOTE AggregateExpression adds joins, no need to add again
+            if (not isinstance(operand, AggregatedExpression) and
+                    isinstance(operand, IdentExpression) and
                     (joins := operand.operands[0].needs_join(env))):
+
                 query, cls = create_joins(query, env.domain, joins)
                 # let the operand know how to formulate the whereclause
                 env.joined_cls = cls

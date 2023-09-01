@@ -1104,6 +1104,13 @@ class SearchTests(BaubleTestCase):
             print(i)
         self.assertCountEqual(results, [ac3])
 
+        # multiple association_proxy pointing to same table SpeciesSynonym
+        # this is pointless query but still shouldn't error
+        string = ("species where synonyms.id != 0 and "
+                  "accepted.distribution.geography.name = 'Queensland'")
+        results = list(mapper_search.search(string, self.session))
+        # not expecting a result just that it doesn't error
+        self.assertCountEqual(results, [])
 
 
 class InOperatorSearch(BaubleTestCase):
