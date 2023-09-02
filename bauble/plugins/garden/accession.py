@@ -1413,6 +1413,12 @@ class VerificationBox(Gtk.Box):
 
         self.presenter().view.connect(self.verifier_entry, 'changed',
                                       self.on_entry_changed, 'verifier')
+        self.presenter().view.attach_completion(self.verifier_entry)
+        self.presenter().assign_completions_handler(
+            self.verifier_entry,
+            self.verifier_get_completions,
+            set_problems=False
+        )
 
         if self.model.date:
             utils.set_widget_value(self.date_entry, self.model.date)
@@ -1430,6 +1436,12 @@ class VerificationBox(Gtk.Box):
 
         self.presenter().view.connect(self.ref_entry, 'changed',
                                       self.on_entry_changed, 'reference')
+        self.presenter().view.attach_completion(self.ref_entry)
+        self.presenter().assign_completions_handler(
+            self.ref_entry,
+            self.ref_get_completions,
+            set_problems=False
+        )
 
         self.presenter().view.attach_completion(
             self.prev_taxon_entry,
@@ -1508,6 +1520,18 @@ class VerificationBox(Gtk.Box):
 
         self.update_label()
 
+    def ref_get_completions(self, text):
+        query = (self.presenter().session.query(Verification.reference)
+                 .filter(Verification.reference.like(f'{text}%%'))
+                 .distinct())
+        return [i[0] for i in query]
+
+    def verifier_get_completions(self, text):
+        query = (self.presenter().session.query(Verification.verifier)
+                 .filter(Verification.verifier.like(f'{text}%%'))
+                 .distinct())
+        return [i[0] for i in query]
+
     @staticmethod
     def level_cell_data_func(_col, cell, model, treeiter):
         level = model[treeiter][0]
@@ -1516,11 +1540,6 @@ class VerificationBox(Gtk.Box):
 
     def on_date_entry_changed(self, entry):
         self.presenter().on_date_entry_changed(entry, (self.model, 'date'))
-        # if the verification isn't yet associated with an accession
-        # then set the accession otherwise validate will not work as expected
-        if not self.model.accession:
-            self.model.accession = self.presenter().model
-            logger.debug('set model accession to %s', self.model.accession)
 
         self.set_problems()
         self.update_label()
@@ -1584,6 +1603,7 @@ class VerificationBox(Gtk.Box):
         # remove verification from accession
         if self.model.accession:
             self.model.accession.verifications.remove(self.model)
+            logger.debug('removing verification %s', self.model)
         if not self.new:
             self.presenter()._dirty = True
         self.presenter().parent_ref().refresh_sensitivity()

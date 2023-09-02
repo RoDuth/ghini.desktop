@@ -48,6 +48,8 @@ from .accession import (Accession,
                         IntendedLocation,
                         INTENDED_ACTIONGRP_NAME,
                         Verification,
+                        VerificationPresenter,
+                        VerificationBox,
                         dms_to_decimal,
                         latitude_to_dms,
                         longitude_to_dms)
@@ -3015,6 +3017,195 @@ class VerificationTests(GardenTestCase):
         self.session.commit()
         self.assertTrue(ver in acc.verifications)
         self.assertTrue(ver in self.session)
+
+    def test_verifaction_box(self):
+        acc = self.session.query(Accession).get(1)
+        sp = (self.session.query(Species)
+              .filter(Species.id != acc.species.id)
+              .first())
+        ver = Verification(accession=acc)
+        acc.verifications.append(ver)
+        mock_parent = unittest.mock.Mock()
+        presenter = VerificationPresenter(mock_parent,
+                                          acc,
+                                          AccessionEditorView(),
+                                          self.session)
+        ver_box = VerificationBox(presenter, ver)
+        utils.set_widget_value(ver_box.date_entry, '2/9/23')
+        utils.set_widget_value(ver_box.date_entry, '')
+        self.assertTrue(presenter.has_problems(ver_box.date_entry))
+        utils.set_widget_value(ver_box.date_entry, '2/9/23')
+        self.assertTrue(presenter.has_problems(ver_box.verifier_entry))
+        self.assertTrue(presenter.has_problems(ver_box.new_taxon_entry))
+        self.assertTrue(presenter.has_problems(ver_box.prev_taxon_entry))
+        self.assertTrue(presenter.has_problems(ver_box.level_combo))
+        utils.set_widget_value(ver_box.verifier_entry, 'some expert')
+        self.assertFalse(presenter.has_problems(ver_box.verifier_entry))
+        utils.set_widget_value(ver_box.new_taxon_entry, sp.str())
+        ver_box.on_sp_select(sp)
+        self.assertFalse(presenter.has_problems(ver_box.new_taxon_entry))
+        utils.set_widget_value(ver_box.prev_taxon_entry, acc.species.str())
+        ver_box.on_sp_select(acc.species, attr='prev_species')
+        self.assertFalse(presenter.has_problems(ver_box.prev_taxon_entry))
+        utils.set_widget_value(ver_box.level_combo, 1)
+        self.assertFalse(presenter.has_problems(ver_box.level_combo))
+        self.session.commit()
+        from bauble.btypes import Date
+        self.assertEqual(ver.date, Date().process_bind_param('2/9/23', None))
+        self.assertEqual(ver.verifier, 'some expert')
+        self.assertEqual(ver.species, sp)
+        self.assertEqual(ver.prev_species, acc.species)
+        self.assertEqual(ver.level, 1)
+
+    @unittest.mock.patch('bauble.plugins.garden.accession.utils.yes_no_dialog')
+    def test_on_remove_button_clicked(self, mock_dialog):
+        acc = self.session.query(Accession).get(1)
+        sp = (self.session.query(Species)
+              .filter(Species.id != acc.species.id)
+              .first())
+        ver = Verification(verifier='some botanist from an herbarium',
+                           date=datetime.date.today(),
+                           level=1,
+                           species=acc.species,
+                           prev_species=sp)
+        acc.verifications.append(ver)
+        self.session.commit()
+        mock_parent = unittest.mock.Mock()
+        presenter = VerificationPresenter(mock_parent,
+                                          acc,
+                                          AccessionEditorView(),
+                                          self.session)
+        ver_box = VerificationBox(presenter, ver)
+        mock_dialog.return_value = True
+        ver_box.on_remove_button_clicked(None)
+        mock_dialog.assert_called()
+        self.assertEqual(acc.verifications, [])
+
+    @unittest.mock.patch('bauble.plugins.garden.accession.utils.yes_no_dialog')
+    def test_on_remove_button_clicked_user_backout(self, mock_dialog):
+        acc = self.session.query(Accession).get(1)
+        sp = (self.session.query(Species)
+              .filter(Species.id != acc.species.id)
+              .first())
+        ver = Verification(verifier='some botanist from an herbarium',
+                           date=datetime.date.today(),
+                           level=1,
+                           species=acc.species,
+                           prev_species=sp,
+                           notes='some note',
+                           reference='some book')
+        acc.verifications.append(ver)
+        self.session.commit()
+        mock_parent = unittest.mock.Mock()
+        presenter = VerificationPresenter(mock_parent,
+                                          acc,
+                                          AccessionEditorView(),
+                                          self.session)
+        ver_box = VerificationBox(presenter, ver)
+        mock_dialog.return_value = False
+        ver_box.on_remove_button_clicked(None)
+        mock_dialog.assert_called()
+        self.assertEqual(acc.verifications, [ver])
+
+    def test_ref_get_completions(self):
+        acc1 = self.session.query(Accession).get(1)
+        ver1 = Verification(verifier='me',
+                            date=datetime.date.today(),
+                            level=1,
+                            species=acc1.species,
+                            prev_species=acc1.species,
+                            reference='Flora of Queensland')
+        acc1.verifications.append(ver1)
+        acc2 = self.session.query(Accession).get(2)
+        ver2 = Verification(verifier='me',
+                            date=datetime.date.today(),
+                            level=1,
+                            species=acc1.species,
+                            prev_species=acc1.species,
+                            reference='Flora of Queensland')
+        acc2.verifications.append(ver2)
+        self.session.commit()
+        presenter = VerificationPresenter(unittest.mock.Mock(),
+                                          acc1,
+                                          AccessionEditorView(),
+                                          self.session)
+        ver_box = VerificationBox(presenter, ver1)
+        self.assertEqual(ver_box.ref_get_completions('flora'),
+                         [ver1.reference])
+
+    def test_verifier_get_completions(self):
+        acc1 = self.session.query(Accession).get(1)
+        ver1 = Verification(verifier='some botanist from an herbarium',
+                            date=datetime.date.today(),
+                            level=1,
+                            species=acc1.species,
+                            prev_species=acc1.species)
+        acc1.verifications.append(ver1)
+        acc2 = self.session.query(Accession).get(2)
+        ver2 = Verification(verifier='some botanist from an herbarium',
+                            date=datetime.date.today(),
+                            level=1,
+                            species=acc1.species,
+                            prev_species=acc1.species)
+        acc2.verifications.append(ver2)
+        self.session.commit()
+        presenter = VerificationPresenter(unittest.mock.Mock(),
+                                          acc1,
+                                          AccessionEditorView(),
+                                          self.session)
+        ver_box = VerificationBox(presenter, ver1)
+        self.assertEqual(ver_box.verifier_get_completions('some'),
+                         [ver1.verifier])
+
+    @unittest.mock.patch('bauble.plugins.garden.accession.utils.yes_no_dialog')
+    def test_on_copy_to_taxon_general_clicked(self, mock_dialog):
+        acc = self.session.query(Accession).get(1)
+        sp = (self.session.query(Species)
+              .filter(Species.id != acc.species.id)
+              .first())
+        ver = Verification(verifier='some botanist from an herbarium',
+                           date=datetime.date.today(),
+                           level=3,
+                           species=sp,
+                           prev_species=acc.species)
+        acc.verifications.append(ver)
+        self.session.commit()
+        mock_parent = unittest.mock.Mock()
+        mock_parent.model = acc
+        presenter = VerificationPresenter(mock_parent,
+                                          acc,
+                                          AccessionEditorView(),
+                                          self.session)
+        ver_box = VerificationBox(presenter, ver)
+        mock_dialog.return_value = True
+        ver_box.on_copy_to_taxon_general_clicked(None)
+        mock_dialog.assert_called()
+        self.assertEqual(acc.species, sp)
+
+    @unittest.mock.patch('bauble.plugins.garden.accession.utils.yes_no_dialog')
+    def test_on_copy_to_taxon_general_clicked_user_backout(self, mock_dialog):
+        acc = self.session.query(Accession).get(1)
+        sp = (self.session.query(Species)
+              .filter(Species.id != acc.species.id)
+              .first())
+        ver = Verification(verifier='some botanist from an herbarium',
+                           date=datetime.date.today(),
+                           level=3,
+                           species=sp,
+                           prev_species=acc.species)
+        acc.verifications.append(ver)
+        self.session.commit()
+        mock_parent = unittest.mock.Mock()
+        mock_parent.model = acc
+        presenter = VerificationPresenter(mock_parent,
+                                          acc,
+                                          AccessionEditorView(),
+                                          self.session)
+        ver_box = VerificationBox(presenter, ver)
+        mock_dialog.return_value = False
+        ver_box.on_copy_to_taxon_general_clicked(None)
+        mock_dialog.assert_called()
+        self.assertNotEqual(acc.species, sp)
 
 
 class LocationTests(GardenTestCase):
