@@ -687,6 +687,10 @@ class Accession(db.Base, db.WithNotes):
     def search_view_markup_pair(self):
         """provide the two lines describing object for SearchView row."""
         sp_str = self.species_str(markup=True)
+        # unused
+        if not self.plants:
+            return utils.xml_safe(str(self)), sp_str
+        # in use
         if self.active:
             markup = utils.xml_safe(str(self))
             suffix = _("%(1)s plant groups in %(2)s location(s)") % {
@@ -696,13 +700,8 @@ class Accession(db.Base, db.WithNotes):
             suffix = ('<span foreground="#555555" size="small" '
                       f'weight="light"> - {suffix}</span>')
             return markup + suffix, sp_str
-        if self.plants:  # dead
-            color = "#9900ff"
-            markup = (
-                f'<span foreground="{color}">{utils.xml_safe(self)}</span>'
-            )
-        else:  # unused
-            markup = utils.xml_safe(str(self))
+        # dead
+        markup = f'<span foreground="#9900ff">{utils.xml_safe(self)}</span>'
         return markup, sp_str
 
     @property
@@ -1271,10 +1270,14 @@ class VoucherPresenter(editor.GenericEditorPresenter):
         self.view.connect('parent_voucher_remove_button', 'clicked',
                           self.on_remove_clicked, True)
 
-        self.setup_column('voucher_treeview', 'voucher_herb_column',
-                          'voucher_herb_cell', 'herbarium')
-        self.setup_column('voucher_treeview', 'voucher_code_column',
-                          'voucher_code_cell', 'code')
+        self.setup_column('voucher_treeview',
+                          'voucher_herb_column',
+                          'voucher_herb_cell',
+                          'herbarium')
+        self.setup_column('voucher_treeview',
+                          'voucher_code_column',
+                          'voucher_code_cell',
+                          'code')
 
         self.setup_column('parent_voucher_treeview',
                           'parent_voucher_herb_column',

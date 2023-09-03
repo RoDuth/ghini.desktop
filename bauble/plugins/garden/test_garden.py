@@ -50,6 +50,7 @@ from .accession import (Accession,
                         Verification,
                         VerificationPresenter,
                         VerificationBox,
+                        VoucherPresenter,
                         dms_to_decimal,
                         latitude_to_dms,
                         longitude_to_dms)
@@ -68,8 +69,6 @@ from .plant import (Plant,
                     branch_callback,
                     acc_to_string_matcher,
                     change_reasons,
-                    split_reasons,
-                    new_plt_reasons,
                     transfer_reasons,
                     added_reasons,
                     deleted_reasons)
@@ -1442,17 +1441,12 @@ class PropagationTests(GardenTestCase):
 
 class VoucherTests(GardenTestCase):
 
-    def __init__(self, *args):
-        super().__init__(*args)
-
     def setUp(self):
         super().setUp()
-        self.accession = self.create(
-            Accession, species=self.species, code='1')
+        self.accession = self.create(Accession,
+                                     species=self.species,
+                                     code='1')
         self.session.commit()
-
-    def tearDown(self):
-        super().tearDown()
 
     def test_voucher(self):
         """
@@ -1477,6 +1471,101 @@ class VoucherTests(GardenTestCase):
         self.session.commit()
         self.assertTrue(not self.session.query(Voucher).get(voucher_id))
         self.assertTrue(self.session.query(Accession).get(acc_id))
+
+    def test_on_tree_cursor_changed(self):
+        acc = self.session.query(Accession).get(1)
+        mock_parent = unittest.mock.Mock()
+        presenter = VoucherPresenter(mock_parent,
+                                     acc,
+                                     AccessionEditorView(),
+                                     self.session)
+        self.assertEqual(acc.vouchers, [])
+        mock_tree_view = unittest.mock.Mock()
+        # sets insensitive
+        mock_tree_view.get_model.return_value = []
+        presenter.on_tree_cursor_changed(mock_tree_view)
+        button = presenter.view.widgets.voucher_remove_button
+        self.assertFalse(button.get_sensitive())
+        # sets sensitive
+        mock_tree_view.get_model.return_value = [1]
+        presenter.on_tree_cursor_changed(mock_tree_view)
+        self.assertTrue(button.get_sensitive())
+        # parent voucher
+        # sets insensitive
+        mock_tree_view.get_model.return_value = []
+        presenter.on_tree_cursor_changed(mock_tree_view, parent=True)
+        button = presenter.view.widgets.parent_voucher_remove_button
+        self.assertFalse(button.get_sensitive())
+        # sets sensitive
+        mock_tree_view.get_model.return_value = [1]
+        presenter.on_tree_cursor_changed(mock_tree_view, parent=True)
+        self.assertTrue(button.get_sensitive())
+
+        presenter.cleanup()
+
+    def test_on_cell_edited(self):
+        acc = self.session.query(Accession).get(1)
+        voucher = Voucher(herbarium='ABC', code='1234567')
+        voucher.accession = acc
+        self.session.commit()
+        mock_parent = unittest.mock.Mock()
+        presenter = VoucherPresenter(mock_parent,
+                                     acc,
+                                     AccessionEditorView(),
+                                     self.session)
+        self.assertEqual(acc.vouchers, [voucher])
+        presenter.on_cell_edited(None,
+                                 0,
+                                 'BRI',
+                                 ('voucher_treeview', 'herbarium'))
+        self.assertEqual(voucher.herbarium, 'BRI')
+        presenter.on_cell_edited(None,
+                                 0,
+                                 '987654',
+                                 ('voucher_treeview', 'code'))
+        self.assertEqual(voucher.code, '987654')
+
+        presenter.cleanup()
+
+    def test_on_remove_clicked(self):
+        acc = self.session.query(Accession).get(1)
+        voucher = Voucher(herbarium='ABC', code='1234567', accession=acc)
+        voucher_parent = Voucher(herbarium='ABC',
+                                 code='1234567',
+                                 accession=acc,
+                                 parent_material=True)
+        self.session.commit()
+        mock_parent = unittest.mock.Mock()
+        presenter = VoucherPresenter(mock_parent,
+                                     acc,
+                                     AccessionEditorView(),
+                                     self.session)
+        self.assertEqual(acc.vouchers, [voucher, voucher_parent])
+        presenter.view.widgets.parent_voucher_treeview.set_cursor(0)
+        presenter.view.widgets.voucher_treeview.set_cursor(0)
+        presenter.on_remove_clicked(None)
+        self.assertEqual(acc.vouchers, [voucher_parent])
+        presenter.on_remove_clicked(None, parent=True)
+        self.assertEqual(acc.vouchers, [])
+
+        presenter.cleanup()
+
+    def test_on_add_clicked(self):
+        acc = self.session.query(Accession).get(1)
+        mock_parent = unittest.mock.Mock()
+        presenter = VoucherPresenter(mock_parent,
+                                     acc,
+                                     AccessionEditorView(),
+                                     self.session)
+        self.assertEqual(acc.vouchers, [])
+        presenter.view.widgets.parent_voucher_treeview.set_cursor(0)
+        presenter.view.widgets.voucher_treeview.set_cursor(0)
+        presenter.on_add_clicked(None)
+        self.assertEqual(len(acc.vouchers), 1)
+        presenter.on_add_clicked(None, parent=True)
+        self.assertEqual(len(acc.vouchers), 2)
+
+        presenter.cleanup()
 
 
 class SourceTests(GardenTestCase):
@@ -1951,6 +2040,23 @@ class AccessionTests(GardenTestCase):
         acc = Accession(species=self.species, code='1')
         self.session.add(acc)
         self.assertRaises(IntegrityError, self.session.commit)
+
+    def test_search_view_markup_pair(self):
+        acc = self.session.query(Accession).first()
+        self.assertEqual(acc.search_view_markup_pair(),
+                         ('2001.1<span foreground="#555555" size="small" '
+                          'weight="light"> - 1 plant groups in 1 '
+                          'location(s)</span>',
+                          '<i>Maxillaria</i> <i>variabilis</i>'))
+        acc.plants[0].quantity = 0
+        self.assertEqual(acc.search_view_markup_pair(),
+                         ('<span foreground="#9900ff">2001.1</span>',
+                          '<i>Maxillaria</i> <i>variabilis</i>'))
+        acc = Accession(species=self.species, code='2023.1')
+        self.session.add(acc)
+        self.session.commit()
+        self.assertEqual(acc.search_view_markup_pair(),
+                         ('2023.1', '<i>Echinocactus</i> <i>grusonii</i>'))
 
     def test_accession_source_editor(self):
         # create an accession, a location, a plant
