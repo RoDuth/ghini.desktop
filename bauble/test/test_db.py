@@ -18,9 +18,10 @@
 # along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
 
 from datetime import datetime
-from dateutil import parser
 from unittest import mock
-from sqlalchemy import func
+
+from dateutil import parser
+from sqlalchemy import func, create_engine
 
 from bauble.test import BaubleTestCase, get_setUp_data_funcs
 from bauble.plugins.plants.genus import Family, Genus, Species
@@ -30,6 +31,7 @@ from bauble.plugins.garden.location import Location
 from bauble.plugins.plants.species_model import VernacularName
 
 from bauble import db
+from bauble import error
 from bauble import prefs
 from bauble import search
 from bauble import meta
@@ -518,3 +520,117 @@ class GlobalFunctionsTests(BaubleTestCase):
 
         self.assertEqual(db.get_active_children(kids_func, mock_parent),
                          [mock_child1, mock_child2, mock_child3])
+
+    @mock.patch('bauble.db.utils.message_dialog')
+    def test_verify_connection_empty_raises(self, mock_dialog):
+        engine = create_engine('sqlite:///:memory:')
+        self.assertRaises(error.EmptyDatabaseError,
+                          db.verify_connection,
+                          engine)
+        mock_dialog.assert_not_called()
+        # with show dialogs
+        self.assertRaises(error.EmptyDatabaseError,
+                          db.verify_connection,
+                          engine,
+                          show_error_dialogs=True)
+        mock_dialog.assert_called()
+
+    @mock.patch('bauble.db.utils.message_dialog')
+    def test_verify_connection_no_meta_raises(self, mock_dialog):
+        engine = create_engine('sqlite:///:memory:')
+        with engine.connect() as connection:
+            tables = [table for name, table in db.metadata.tables.items() if
+                      not name.endswith('bauble')]
+            db.metadata.create_all(bind=connection, tables=tables)
+        self.assertRaises(error.MetaTableError,
+                          db.verify_connection,
+                          engine)
+        mock_dialog.assert_not_called()
+        # with show dialogs
+        self.assertRaises(error.MetaTableError,
+                          db.verify_connection,
+                          engine,
+                          show_error_dialogs=True)
+        mock_dialog.assert_called()
+
+    @mock.patch('bauble.db.utils.message_dialog')
+    def test_verify_connection_no_timestamp_raises(self, mock_dialog):
+        engine = create_engine('sqlite:///:memory:')
+        with engine.connect() as connection:
+            db.metadata.create_all(bind=connection)
+        self.assertRaises(error.TimestampError,
+                          db.verify_connection,
+                          engine)
+        mock_dialog.assert_not_called()
+        # with show dialogs
+        self.assertRaises(error.TimestampError,
+                          db.verify_connection,
+                          engine,
+                          show_error_dialogs=True)
+        mock_dialog.assert_called()
+
+    @mock.patch('bauble.db.utils.message_dialog')
+    def test_verify_connection_no_version_raises(self, mock_dialog):
+        engine = create_engine('sqlite:///:memory:')
+        meta_table = meta.BaubleMeta.__table__
+        with engine.connect() as connection:
+            db.metadata.create_all(bind=connection)
+            stmt = meta_table.insert().values({'name': meta.CREATED_KEY,
+                                               'value': '4/9/23'})
+            connection.execute(stmt)
+        self.assertRaises(error.VersionError,
+                          db.verify_connection,
+                          engine)
+        mock_dialog.assert_not_called()
+        # with show dialogs
+        self.assertRaises(error.VersionError,
+                          db.verify_connection,
+                          engine,
+                          show_error_dialogs=True)
+        mock_dialog.assert_called()
+
+    @mock.patch('bauble.db.utils.message_dialog')
+    def test_verify_connection_bad_version_raises(self, mock_dialog):
+        engine = create_engine('sqlite:///:memory:')
+        meta_table = meta.BaubleMeta.__table__
+        with engine.connect() as connection:
+            db.metadata.create_all(bind=connection)
+            stmt = meta_table.insert().values({'name': meta.CREATED_KEY,
+                                               'value': '4/9/23'})
+            connection.execute(stmt)
+            stmt = meta_table.insert().values({'name': meta.VERSION_KEY,
+                                               'value': '3'})
+            connection.execute(stmt)
+        self.assertRaises(error.VersionError,
+                          db.verify_connection,
+                          engine)
+        mock_dialog.assert_not_called()
+        # with show dialogs
+        self.assertRaises(error.VersionError,
+                          db.verify_connection,
+                          engine,
+                          show_error_dialogs=True)
+        mock_dialog.assert_called()
+
+    @mock.patch('bauble.db.utils.message_dialog')
+    def test_verify_connection_prior_version_raises(self, mock_dialog):
+        engine = create_engine('sqlite:///:memory:')
+        meta_table = meta.BaubleMeta.__table__
+        with engine.connect() as connection:
+            db.metadata.create_all(bind=connection)
+            stmt = meta_table.insert().values({'name': meta.CREATED_KEY,
+                                               'value': '4/9/23'})
+            connection.execute(stmt)
+            stmt = meta_table.insert().values({'name': meta.VERSION_KEY,
+                                               'value': '0.9.1'})
+            connection.execute(stmt)
+        self.assertRaises(error.VersionError,
+                          db.verify_connection,
+                          engine)
+        mock_dialog.assert_not_called()
+        # with show dialogs
+        self.assertRaises(error.VersionError,
+                          db.verify_connection,
+                          engine,
+                          show_error_dialogs=True)
+        mock_dialog.assert_called()
