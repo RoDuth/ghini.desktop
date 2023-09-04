@@ -17,7 +17,6 @@
 """
 The main application
 """
-import os
 import sys
 import logging
 import traceback

@@ -1359,16 +1359,16 @@ class GenericEditorPresenter:
 
     def remove_problem(self, problem_id, widget=None):
         """Remove problem_id from self.problems and reset the background
-        color of the widget(s) in problem_widgets.
+        color of the widget.
 
         If problem_id is None and problem_widgets is None then method won't do
         anything.
 
         :param problem_id: the problem to remove, if None then remove
-             any problem from the problem_widget(s)
-        :param problem_widgets: a Gtk.Widget instance to remove the problem
-             from, if None then remove all occurrences of problem_id regardless
-             of the widget
+             all problems from the widget
+        :param widget: a Gtk.Widget instance to remove the problem from, if
+             None then remove all occurrences of problem_id regardless of the
+             widget
         """
         logger.debug('remove_problem(%s, %s, %s)', self.__class__.__name__,
                      problem_id, widget)

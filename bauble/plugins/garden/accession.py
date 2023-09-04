@@ -164,8 +164,6 @@ def generic_taxon_add_action(model, view, presenter, top_presenter,
         # add the new taxon to the session and start using it
         presenter.session.add(committed)
         taxon_entry.set_text(f"{committed}")
-        presenter.remove_problem(
-            hash(Gtk.Buildable.get_name(taxon_entry)), None)
         setattr(model, 'species', committed)
         presenter._dirty = True
         top_presenter.refresh_sensitivity()
