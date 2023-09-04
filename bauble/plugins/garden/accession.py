@@ -1286,6 +1286,23 @@ class VoucherPresenter(editor.GenericEditorPresenter):
                           'parent_voucher_code_cell',
                           'code')
 
+        herb_store = Gtk.ListStore(str)
+        for herb, in self.session.query(Voucher.herbarium).distinct():
+            if herb:
+                herb_store.append([herb])
+
+        lang_completion = Gtk.EntryCompletion(model=herb_store)
+        lang_completion.set_text_column(0)
+
+        def _herb_edit_start(_cell_renderer, editable, _path):
+            editable.set_completion(lang_completion)
+
+        cell = self.view.widgets.voucher_herb_cell
+        cell.connect('editing-started', _herb_edit_start)
+
+        cell = self.view.widgets.parent_voucher_herb_cell
+        cell.connect('editing-started', _herb_edit_start)
+
         # intialize vouchers treeview
         treeview = self.view.widgets.voucher_treeview
         utils.clear_model(treeview)
