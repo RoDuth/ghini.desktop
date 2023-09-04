@@ -415,32 +415,31 @@ class AggregatedExpression(IdentExpression):
     def __init__(self, tokens):
         super().__init__(tokens)
         logger.debug('AggregatedExpression::__init__(%s)', tokens)
-        self.all_cols = None
-        self.having = None
 
     def evaluate(self, env):
         # operands[0] is the function/identifier pair
         # operands[1] is the value against which to test
         # operation implements the clause
-        query, attr = self.operands[0].identifier.evaluate(env)
+        query, __ = self.operands[0].identifier.evaluate(env)
         from sqlalchemy.sql import func
         function = getattr(func, self.operands[0].function)
+
+        main_table = query.column_descriptions[0]['type']
+
+        id_ = getattr(main_table, 'id')
+
+        sub_query = select(id_).group_by(id_)
+
+        joins = self.operands[0].needs_join(env)
+        sub_query, cls = create_joins(sub_query, main_table, joins)
+
+        attr = getattr(cls, self.operands[0].identifier.leaf)
 
         def clause(val):
             return self.operation(function(attr), val)
 
-        main_table = query.column_descriptions[0]['type']
-
         having = clause(self.operands[1].express())
-        id_ = getattr(main_table, 'id')
-
-        sub_query = (select(id_)
-                     .group_by(id_)
-                     .having(having))
-
-        joins = self.operands[0].needs_join(env)
-        sub_query, __ = create_joins(sub_query, main_table, joins)
-
+        sub_query = sub_query.having(having)
         query = query.filter(id_.in_(sub_query))
 
         return query
@@ -517,7 +516,7 @@ class SearchAndAction(BinaryLogical):
         # will be available, containing relevent joins.
         query = self.operands[0].evaluate(env)
         for operand in self.operands[1:]:
-            # NOTE AggregateExpression adds joins, no need to add again
+            # NOTE AggregatedExpression adds joins, no need to add again
             if (not isinstance(operand, AggregatedExpression) and
                     isinstance(operand, IdentExpression) and
                     (joins := operand.operands[0].needs_join(env))):

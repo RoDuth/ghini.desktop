@@ -1112,6 +1112,13 @@ class SearchTests(BaubleTestCase):
         # not expecting a result just that it doesn't error
         self.assertCountEqual(results, [])
 
+        # multiple association_proxy pointing to same table SpeciesSynonym...
+        # including an Aggregating function
+        string = ("species where synonyms.id != 0 and "
+                  "count(synonyms.id) > 0")
+        results = list(mapper_search.search(string, self.session))
+        self.assertCountEqual(results, [sp1])
+
 
 class InOperatorSearch(BaubleTestCase):
     def __init__(self, *args):
@@ -1545,6 +1552,7 @@ class AggregatingFunctions(BaubleTestCase):
         g2 = Genus(family=f2, genus='Manilkara')
         sp4 = Species(sp='zapota', genus=g2)
         sp5 = Species(sp='zapotilla', genus=g2)
+        sp5.synonyms.append(sp4)
         g3 = Genus(family=f2, genus='Pouteria')
         sp6 = Species(sp='stipitata', genus=g3)
 
@@ -1650,6 +1658,29 @@ class AggregatingFunctions(BaubleTestCase):
         results = list(mapper_search.search(string, self.session))
         self.assertEqual(len(results), 1)
         self.assertEqual(results[0].id, 2)
+
+    def test_aggregate_funcs_self_reference(self):
+        mapper_search = search.get_strategy('MapperSearch')
+        string = ("species where count(synonyms.id) = 1")
+        results = list(mapper_search.search(string, self.session))
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0].id, 5)
+        mapper_search = search.get_strategy('MapperSearch')
+        string = ("species where count(_synonyms.species.id) = 1")
+        results = list(mapper_search.search(string, self.session))
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0].id, 5)
+        string = ("species where sum(_synonyms.species.id) > 0")
+        results = list(mapper_search.search(string, self.session))
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0].id, 5)
+        string = ("species where max(_synonyms.species.id) > 0")
+        results = list(mapper_search.search(string, self.session))
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0].id, 5)
+        string = ("geography where count(children.id) >17")
+        results = list(mapper_search.search(string, self.session))
+        self.assertEqual(len(results), 0)
 
 
 class BaubleSearchSearchTest(BaubleTestCase):
