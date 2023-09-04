@@ -322,7 +322,7 @@ class SynonymsExpander(InfoExpander):
             self.show_all()
             self.set_sensitive(True)
         elif row.synonyms:
-            for syn in row.synonyms:
+            for syn in sorted(row.synonyms, key=str):
                 # create clickable label that will select the synonym
                 # in the search results
                 box = Gtk.EventBox()

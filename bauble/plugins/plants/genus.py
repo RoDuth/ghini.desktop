@@ -493,7 +493,9 @@ class GenusEditorPresenter(editor.GenericEditorPresenter):
         from . import SynonymsPresenter
         self.synonyms_presenter = SynonymsPresenter(
             self, GenusSynonym, None, lambda session, text: (
-                session.query(Genus).filter(Genus.genus.like(f'{text}%%'))
+                session.query(Genus)
+                .filter(Genus.genus.like(f'{text}%%'))
+                .order_by(Genus.genus)
             )
         )
         self.init_enum_combo('gen_hybrid_combo', 'hybrid')
@@ -906,7 +908,7 @@ class SynonymsExpander(InfoExpander):
             self.show_all()
             self.set_sensitive(True)
         elif row.synonyms:
-            for syn in row.synonyms:
+            for syn in sorted(row.synonyms, key=str):
                 # create clickable label that will select the synonym
                 # in the search results
                 box = Gtk.EventBox()

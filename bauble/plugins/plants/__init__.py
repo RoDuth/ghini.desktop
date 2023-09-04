@@ -179,7 +179,7 @@ class SynonymsPresenter(editor.GenericEditorPresenter):
 
         utils.clear_model(self.treeview)
         tree_model = Gtk.ListStore(object)
-        for syn in self.model._synonyms:
+        for syn in sorted(self.model._synonyms, key=str):
             tree_model.append([syn])
         self.treeview.set_model(tree_model)
         self.view.connect(self.treeview, 'cursor-changed',

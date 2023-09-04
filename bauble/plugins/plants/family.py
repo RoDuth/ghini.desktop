@@ -359,7 +359,9 @@ class FamilyEditorPresenter(editor.GenericEditorPresenter):
         from . import SynonymsPresenter
         self.synonyms_presenter = SynonymsPresenter(
             self, FamilySynonym, None, lambda session, text: (
-                session.query(Family).filter(Family.family.like(f'{text}%%'))
+                session.query(Family)
+                .filter(Family.family.like(f'{text}%%'))
+                .order_by(Family.family)
             )
         )
         self.refresh_view()  # put model values in view
@@ -662,7 +664,7 @@ class SynonymsExpander(InfoExpander):
             self.show_all()
             self.set_sensitive(True)
         elif row.synonyms:
-            for syn in row.synonyms:
+            for syn in sorted(row.synonyms, key=str):
                 # create clickable label that will select the synonym
                 # in the search results
                 box = Gtk.EventBox()
