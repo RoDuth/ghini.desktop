@@ -3123,9 +3123,7 @@ class VerificationTests(GardenTestCase):
 
     def test_verification_box(self):
         acc = self.session.query(Accession).get(1)
-        sp = (self.session.query(Species)
-              .filter(Species.id != acc.species.id)
-              .first())
+        sp = self.session.query(Species).get(5)
         ver = Verification(accession=acc)
         acc.verifications.append(ver)
         mock_parent = unittest.mock.Mock()
