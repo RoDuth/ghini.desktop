@@ -1540,13 +1540,13 @@ class VerificationBox(Gtk.Box):
 
     def ref_get_completions(self, text):
         query = (self.presenter().session.query(Verification.reference)
-                 .filter(Verification.reference.like(f'{text}%%'))
+                 .filter(utils.ilike(Verification.reference, f'%{text}%'))
                  .distinct())
         return [i[0] for i in query]
 
     def verifier_get_completions(self, text):
         query = (self.presenter().session.query(Verification.verifier)
-                 .filter(Verification.verifier.like(f'{text}%%'))
+                 .filter(utils.ilike(Verification.verifier, f'%{text}%'))
                  .distinct())
         return [i[0] for i in query]
 

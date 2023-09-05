@@ -794,6 +794,8 @@ class FamilyEditorTests(PlantTestCase):
         presenter = FamilyEditorPresenter(gen, view)
         # order
         self.assertEqual(presenter.order_get_completions('Cyc'), ['Cycadales'])
+        # case insensitive
+        self.assertEqual(presenter.order_get_completions('cyc'), ['Cycadales'])
         # no match
         self.assertEqual(presenter.order_get_completions('Zam'), [])
         presenter.cleanup()
@@ -808,6 +810,9 @@ class FamilyEditorTests(PlantTestCase):
                          [])
         # right order
         self.assertEqual(presenter.suborder_get_completions('Zam'),
+                         ['Zamiineae'])
+        # case insensitive
+        self.assertEqual(presenter.suborder_get_completions('zam'),
                          ['Zamiineae'])
 
         presenter.cleanup()
@@ -1225,6 +1230,9 @@ class GenusEditorTests(PlantTestCase):
         # right family
         self.assertEqual(presenter.tribe_get_completions('Enc'),
                          ['Encephalarteae'])
+        # case insensitive
+        self.assertEqual(presenter.tribe_get_completions('enc'),
+                         ['Encephalarteae'])
 
         presenter.cleanup()
         del presenter
@@ -1241,6 +1249,9 @@ class GenusEditorTests(PlantTestCase):
         gen.subfamily = 'Zamioideae'
         self.assertEqual(presenter.tribe_get_completions('Enc'),
                          ['Encephalarteae'])
+        # case insensitive
+        self.assertEqual(presenter.tribe_get_completions('enc'),
+                         ['Encephalarteae'])
 
         presenter.cleanup()
         del presenter
@@ -1256,6 +1267,9 @@ class GenusEditorTests(PlantTestCase):
         # right tribe
         gen.tribe = 'Encephalarteae'
         self.assertEqual(presenter.subtribe_get_completions('Mac'),
+                         ['Macrozamiinae'])
+        # case insensitive
+        self.assertEqual(presenter.subtribe_get_completions('mac'),
                          ['Macrozamiinae'])
         # wrong tribe
         gen.tribe = 'Zamieae'
@@ -3625,6 +3639,9 @@ class SpeciesEditorPresenterTests(PlantTestCase):
         # right genus
         self.assertEqual(presenter.subgenus_get_completions('Sym'),
                          ['Symphyomyrtus'])
+        # case insensitive
+        self.assertEqual(presenter.subgenus_get_completions('sym'),
+                         ['Symphyomyrtus'])
         presenter.cleanup()
         del presenter
 
@@ -3637,6 +3654,9 @@ class SpeciesEditorPresenterTests(PlantTestCase):
                          [])
         # right subgenus
         self.assertEqual(presenter.section_get_completions('Bis'),
+                         ['Bisectae'])
+        # case insensitive
+        self.assertEqual(presenter.section_get_completions('bis'),
                          ['Bisectae'])
         presenter.cleanup()
         del presenter
@@ -3651,6 +3671,9 @@ class SpeciesEditorPresenterTests(PlantTestCase):
         # right section
         self.assertEqual(presenter.subsection_get_completions('Des'),
                          ['Destitutae'])
+        # case insensitive
+        self.assertEqual(presenter.subsection_get_completions('des'),
+                         ['Destitutae'])
         presenter.cleanup()
         del presenter
 
@@ -3664,6 +3687,9 @@ class SpeciesEditorPresenterTests(PlantTestCase):
         # right subsection
         self.assertEqual(presenter.series_get_completions('Sub'),
                          ['Subulatae'])
+        # case insensitive
+        self.assertEqual(presenter.series_get_completions('sub'),
+                         ['Subulatae'])
         presenter.cleanup()
         del presenter
 
@@ -3676,6 +3702,9 @@ class SpeciesEditorPresenterTests(PlantTestCase):
                          [])
         # right series
         self.assertEqual(presenter.subseries_get_completions('Dec'),
+                         ['Decussatae'])
+        # case insensitive
+        self.assertEqual(presenter.subseries_get_completions('dec'),
                          ['Decussatae'])
 
         presenter.cleanup()
@@ -4020,6 +4049,19 @@ class DistributionPresenterTests(PlantTestCase):
         sp.distribution = []
         # test abreviated to 12 chars
         txt = 'New South Wa, Victoria, South Austra, Tasmania, Norfolk Is.'
+        presenter.append_dists_from_text(txt)
+        result = (self.session.query(Geography)
+                  .filter(Geography.id.in_((296, 407, 359, 378, 286))))
+        self.assertCountEqual(
+            [i.geography for i in sp.distribution],
+            result.all(),
+            [i.id for i in [i.geography for i in sp.distribution]]
+        )
+        mock_dialog.assert_not_called()
+        mock_dialog.reset_mock()
+        sp.distribution = []
+        # test abreviated to 12 chars lowercase
+        txt = 'new south wa, victoria, south austra, tasmania, norfolk is.'
         presenter.append_dists_from_text(txt)
         result = (self.session.query(Geography)
                   .filter(Geography.id.in_((296, 407, 359, 378, 286))))

@@ -249,9 +249,6 @@ class GardenTestCase(BaubleTestCase):
         self.session.add_all([self.family, self.genus, self.species, self.sp2])
         self.session.commit()
 
-    def tearDown(self):
-        super().tearDown()
-
     def create(self, class_, **kwargs):
         obj = class_(**kwargs)
         self.session.add(obj)
@@ -3124,7 +3121,7 @@ class VerificationTests(GardenTestCase):
         self.assertTrue(ver in acc.verifications)
         self.assertTrue(ver in self.session)
 
-    def test_verifaction_box(self):
+    def test_verification_box(self):
         acc = self.session.query(Accession).get(1)
         sp = (self.session.query(Species)
               .filter(Species.id != acc.species.id)
@@ -3241,14 +3238,14 @@ class VerificationTests(GardenTestCase):
 
     def test_verifier_get_completions(self):
         acc1 = self.session.query(Accession).get(1)
-        ver1 = Verification(verifier='some botanist from an herbarium',
+        ver1 = Verification(verifier='Some botanist from an herbarium',
                             date=datetime.date.today(),
                             level=1,
                             species=acc1.species,
                             prev_species=acc1.species)
         acc1.verifications.append(ver1)
         acc2 = self.session.query(Accession).get(2)
-        ver2 = Verification(verifier='some botanist from an herbarium',
+        ver2 = Verification(verifier='Some botanist from an herbarium',
                             date=datetime.date.today(),
                             level=1,
                             species=acc1.species,

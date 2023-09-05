@@ -505,7 +505,7 @@ class GenusEditorPresenter(editor.GenericEditorPresenter):
         # connect signals
         def fam_get_completions(text):
             query = self.session.query(Family)
-            return (query.filter(Family.family.like(f'{text}%%'))
+            return (query.filter(utils.ilike(Family.family, f'{text}%%'))
                     .order_by(Family.family))
 
         def on_select(value):
@@ -602,7 +602,9 @@ class GenusEditorPresenter(editor.GenericEditorPresenter):
         query = self.session.query(Genus.subfamily)
         if self.model.family:
             query = query.filter(Genus.family == self.model.family)
-        query = query.filter(Genus.subfamily.like(f'{text}%%')).distinct()
+        query = query.filter(
+            utils.ilike(Genus.subfamily, f'{text}%%')
+        ).distinct()
         return [i[0] for i in query]
 
     def tribe_get_completions(self, text):
@@ -611,7 +613,9 @@ class GenusEditorPresenter(editor.GenericEditorPresenter):
             query = query.filter(Genus.family == self.model.family)
         if self.model.subfamily:
             query = query.filter(Genus.subfamily == self.model.subfamily)
-        query = query.filter(Genus.tribe.like(f'{text}%%')).distinct()
+        query = query.filter(
+            utils.ilike(Genus.tribe, f'{text}%%')
+        ).distinct()
         return [i[0] for i in query]
 
     def subtribe_get_completions(self, text):
@@ -622,7 +626,9 @@ class GenusEditorPresenter(editor.GenericEditorPresenter):
             query = query.filter(Genus.subfamily == self.model.subfamily)
         if self.model.tribe:
             query = query.filter(Genus.tribe == self.model.tribe)
-        query = query.filter(Genus.subtribe.like(f'{text}%%')).distinct()
+        query = query.filter(
+            utils.ilike(Genus.subtribe, f'{text}%%')
+        ).distinct()
         return [i[0] for i in query]
 
     def refresh_cites_label(self, _widget=None):

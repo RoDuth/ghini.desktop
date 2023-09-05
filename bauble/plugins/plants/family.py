@@ -360,7 +360,7 @@ class FamilyEditorPresenter(editor.GenericEditorPresenter):
         self.synonyms_presenter = SynonymsPresenter(
             self, FamilySynonym, None, lambda session, text: (
                 session.query(Family)
-                .filter(Family.family.like(f'{text}%%'))
+                .filter(utils.ilike(Family.family, f'{text}%%'))
                 .order_by(Family.family)
             )
         )
@@ -405,7 +405,7 @@ class FamilyEditorPresenter(editor.GenericEditorPresenter):
 
     def order_get_completions(self, text):
         query = (self.session.query(Family.order)
-                 .filter(Family.order.like(f'{text}%%'))
+                 .filter(utils.ilike(Family.order, f'{text}%%'))
                  .distinct())
         return [i[0] for i in query]
 
@@ -413,7 +413,9 @@ class FamilyEditorPresenter(editor.GenericEditorPresenter):
         query = self.session.query(Family.suborder)
         if self.model.order:
             query = query.filter(Family.order == self.model.order)
-        query = query.filter(Family.suborder.like(f'{text}%%')).distinct()
+        query = query.filter(
+            utils.ilike(Family.suborder, f'{text}%%')
+        ).distinct()
         return [i[0] for i in query]
 
     def refresh_sensitivity(self):
