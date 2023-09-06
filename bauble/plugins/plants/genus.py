@@ -39,13 +39,15 @@ from sqlalchemy import (Column,
                         event,
                         update,
                         CheckConstraint)
-from sqlalchemy.orm import relationship, backref, object_mapper
+from sqlalchemy.orm import relationship, backref, object_mapper, Session
 from sqlalchemy.orm import synonym as sa_synonym
 from sqlalchemy.orm.session import object_session
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.sql.expression import select, case
+from sqlalchemy.orm.query import Query
+from sqlalchemy import inspect as sa_inspect
 
 import bauble
 from bauble import db
@@ -395,6 +397,84 @@ class GenusSynonym(db.Base):
         return f'{str(self.synonym)} ({self.synonym.family})'
 
 
+def generic_gen_get_completions(session: Session, text: str) -> Query:
+    """A generic genus get_completion.
+
+    intended use is by supplying the local session via `functools.partial`
+
+    e.g.:
+    `completions = partial(generic_sp_get_completions, self.session)`
+
+    :param session: a local session to use for the query.
+    :param text: a string to search for
+    """
+    query = session.query(Genus)
+    hybrid = ''
+    genus = text.removeprefix('×').removeprefix('+').strip()
+    try:
+        if text[0] in ['×', '+']:
+            hybrid = text[0]
+    except (AttributeError, IndexError):
+        pass
+    query = query.filter(utils.ilike(Genus.genus, f'{genus}%'))
+    if hybrid:
+        query = query.filter(Genus.hybrid == hybrid)
+    return query.order_by(Genus.genus)
+
+
+def genus_to_string_matcher(genus: Genus,
+                            key: str,
+                            gen_path: str = '') -> bool:
+    """Helper function to match string or partial string.
+
+    :param genus: a Genus table entry
+    :param key: the string to search with
+    :param gen_path: optional path for model obects to get to the genus
+
+    :return: bool, True if the genus matches the key
+    """
+    if gen_path:
+        from operator import attrgetter
+        genus = attrgetter(gen_path)(genus)
+    key = key.removeprefix('× ').removeprefix('+ ').lower()
+    return genus.genus.lower().startswith(key)
+
+
+def genus_match_func(completion: Gtk.EntryCompletion,
+                     key: str,
+                     treeiter: int,
+                     gen_path: str = '') -> bool:
+    """match_func that allows partial matches.
+
+    :param completion: the completion to match
+    :param key: lowercase string of the entry text
+    :param treeiter: the row number for the item to match
+    :param gen_path: optional path for model obects to get to the genus
+
+    :return: bool, True if the item at the treeiter matches the key
+    """
+    genus = completion.get_model()[treeiter][0]
+    if not sa_inspect(genus).persistent:
+        return False
+    return genus_to_string_matcher(genus, key, gen_path)
+
+
+def genus_cell_data_func(_column, renderer, model, treeiter):
+    value = model[treeiter][0]
+    author = ''
+    if value.author:
+        author = utils.xml_safe(str(value.author))
+    hybrid = ''
+    if value.hybrid:
+        hybrid = f'{value.hybrid} '
+    # occassionally the session gets lost and can result in
+    # DetachedInstanceErrors. So check first
+    if sa_inspect(value).persistent:
+        renderer.set_property('markup',
+                              f'{hybrid}<i>{value.epithet}</i> {author} '
+                              f'(<small>{Family.str(value.family)}</small>)')
+
+
 # late bindings
 from .family import Family, FamilySynonym
 from .species_model import Species
@@ -428,7 +508,11 @@ class GenusEditorView(editor.GenericEditorView):
                                 'genus_editor.glade')
         super().__init__(filename, parent=parent,
                          root_widget_name='genus_dialog')
-        self.attach_completion('syn_entry', self.syn_cell_data_func)
+
+        self.attach_completion('syn_entry',
+                               cell_data_func=genus_cell_data_func,
+                               match_func=genus_match_func)
+
         self.attach_completion('gen_family_entry')
         self.attach_completion('subfamily_entry')
         self.attach_completion('tribe_entry')
@@ -439,18 +523,6 @@ class GenusEditorView(editor.GenericEditorView):
 
     def get_window(self):
         return self.widgets.genus_dialog
-
-    @staticmethod
-    def syn_cell_data_func(_column, renderer, model, itr):
-        value = model[itr][0]
-        author = None
-        if value.author is None:
-            author = ''
-        else:
-            author = utils.xml_safe(str(value.author))
-        renderer.set_property('markup',
-                              f'<i>{Genus.str(value)}</i> {author} '
-                              f'(<small>{Family.str(value.family)}</small>)')
 
     def save_state(self):
         """save the current state of the gui to the preferences"""
@@ -492,11 +564,10 @@ class GenusEditorPresenter(editor.GenericEditorPresenter):
 
         from . import SynonymsPresenter
         self.synonyms_presenter = SynonymsPresenter(
-            self, GenusSynonym, None, lambda session, text: (
-                session.query(Genus)
-                .filter(Genus.genus.like(f'{text}%%'))
-                .order_by(Genus.genus)
-            )
+            self,
+            GenusSynonym,
+            lambda row, text: genus_to_string_matcher(row[0], text),
+            generic_gen_get_completions
         )
         self.init_enum_combo('gen_hybrid_combo', 'hybrid')
         self.init_enum_combo('cites_combo', '_cites')

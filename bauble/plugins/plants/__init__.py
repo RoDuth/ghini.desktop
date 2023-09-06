@@ -149,7 +149,7 @@ class SynonymsPresenter(editor.GenericEditorPresenter):
                 ids.append(id_)
         if (id_ := self.model.id):
             ids.append(id_)
-        return result.filter(type(self.model).id.notin_(ids))
+        return result.filter(type(self.model).id.notin_(ids)).limit(100)
 
     def on_select(self, value):
         sensitive = True

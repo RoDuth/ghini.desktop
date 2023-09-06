@@ -83,7 +83,9 @@ from ..plants import test_plants as plants_test
 from ..plants.geography import Geography
 from ..plants.family import Family
 from ..plants.genus import Genus
-from ..plants.species_model import Species, SpeciesDistribution
+from ..plants.species_model import (Species,
+                                    SpeciesDistribution,
+                                    update_all_full_names_task)
 from ..plants.species_model import _remove_zws as remove_zws
 
 prefs.testing = True
@@ -3122,6 +3124,7 @@ class VerificationTests(GardenTestCase):
         self.assertTrue(ver in self.session)
 
     def test_verification_box(self):
+        list(update_all_full_names_task())
         acc = self.session.query(Accession).get(1)
         sp = self.session.query(Species).get(5)
         ver = Verification(accession=acc)

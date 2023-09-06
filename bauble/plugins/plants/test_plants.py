@@ -32,6 +32,8 @@ from functools import partial
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.exc import IntegrityError
 
+from gi.repository import Gtk
+
 from bauble import utils, search, db, paths
 from bauble import prefs
 from bauble.test import (BaubleTestCase,
@@ -75,7 +77,11 @@ from .genus import (Genus,
                     GenusEditor,
                     GenusNote,
                     GenusEditorPresenter,
-                    GenusEditorView)
+                    GenusEditorView,
+                    genus_to_string_matcher,
+                    genus_match_func,
+                    generic_gen_get_completions,
+                    genus_cell_data_func)
 from .geography import (consolidate_geographies,
                         Geography,
                         get_species_in_geography,
@@ -126,7 +132,8 @@ genus_test_data = (
     {'id': 6, 'genus': 'Laelia', 'family_id': 1},
     {'id': 7, 'genus': 'Brugmansia', 'family_id': 4},
     {'id': 8, 'hybrid': '+', 'genus': 'Crataegomespilus', 'family_id': 5},
-    {'id': 9, 'hybrid': '×', 'genus': 'Butyagrus', 'family_id': 6},
+    {'id': 9, 'hybrid': '×', 'genus': 'Butyagrus', 'family_id': 6,
+     'author': 'Vorster'},
     {'id': 10, 'genus': 'Cynodon', 'family_id': 7},
     {'id': 11, 'genus': 'Macrozamia', 'family_id': 8,
      'subfamily': 'Zamioideae', 'tribe': 'Encephalarteae',
@@ -230,9 +237,10 @@ species_test_data = (
      'infrasp1_rank': None, 'infrasp1': 'sp',
      'full_sci_name': 'Maxillaria sp'},
     {'id': 25, 'sp': 'dardarii', 'genus_id': 8,
-     'full_sci_name': '+Crataegomespilus dardarii'},
+     'full_sci_name': '+ Crataegomespilus dardarii'},
     {'id': 26, 'sp': 'nabonnandii', 'genus_id': 9,
-     'full_sci_name': '×Butyagrus nabonnandii'},
+     'full_sci_name': '× Butyagrus nabonnandii',
+     'author': '(Prosch.) Vorster'},
     {'id': 27, 'sp': 'dactylon × transvaalensis', 'genus_id': 10,
      'cultivar_epithet': 'DT-1', 'pbr_protected': True, 'trade_name': 'TifTuf',
      'trademark_symbol': '™',
@@ -757,7 +765,6 @@ class FamilyEditorTests(PlantTestCase):
 
     @mock.patch('bauble.editor.GenericEditorView.start')
     def test_editor_doesnt_leak(self, mock_start):
-        from gi.repository import Gtk
         mock_start.return_value = Gtk.ResponseType.OK
         fam = Family(family='some family')
         editor = FamilyEditor(model=fam)
@@ -1168,7 +1175,6 @@ class GenusTests(PlantTestCase):
 class GenusEditorTests(PlantTestCase):
     @mock.patch('bauble.editor.GenericEditorView.start')
     def test_editor_doesnt_leak(self, mock_start):
-        from gi.repository import Gtk
         mock_start.return_value = Gtk.ResponseType.OK
         # loc = self.create(Genus, name=u'some site')
         fam = Family(family='family')
@@ -2791,7 +2797,6 @@ class SpeciesEditorTests(BaubleTestCase):
 
     @mock.patch('bauble.editor.GenericEditorView.start')
     def test_editor_doesnt_leak(self, mock_start):
-        from gi.repository import Gtk
         mock_start.return_value = Gtk.ResponseType.OK
         from bauble import paths
         default_path = os.path.join(paths.lib_dir(), "plugins", "plants",
@@ -2873,7 +2878,6 @@ class SpeciesEditorTests(BaubleTestCase):
     @mock.patch('bauble.editor.GenericEditorView.start')
     def test_handle_response_rolls_back_on_cancel(self, mock_start, mock_dlog):
         mock_dlog.return_value = True
-        from gi.repository import Gtk
         mock_start.return_value = Gtk.ResponseType.CANCEL
         fam = Family(family='family')
         gen = Genus(genus='genus', family=fam)
@@ -2899,7 +2903,6 @@ class SpeciesEditorTests(BaubleTestCase):
     def test_handle_response_adds_to_committed(self, mock_start):
         # set the editor dirty then send the response and check it commits and
         # stores returns the model in _committed
-        from gi.repository import Gtk
         mock_start.return_value = Gtk.ResponseType.OK
         fam = Family(family='family')
         gen = Genus(genus='genus', family=fam)
@@ -2922,39 +2925,6 @@ class SpeciesEditorTests(BaubleTestCase):
                          [])
         self.assertEqual(utils.gc_objects_by_type('SpeciesEditorView'), [])
 
-    def test_genus_match_func(self):
-        mock_completion = mock.Mock()
-        mock_completion.get_model.return_value = [[Genus(epithet='Test')]]
-        result = SpeciesEditorView.genus_match_func(mock_completion, 'Tes', 0)
-        self.assertTrue(result)
-
-        mock_completion.get_model.return_value = [[Genus(epithet='Test',
-                                                         hybrid='+')]]
-        result = SpeciesEditorView.genus_match_func(mock_completion, 'Tes', 0)
-        self.assertTrue(result)
-
-        result = SpeciesEditorView.genus_match_func(mock_completion, '+', 0)
-        self.assertTrue(result)
-
-        result = SpeciesEditorView.genus_match_func(mock_completion, 'tes', 0)
-        self.assertTrue(result)
-
-        result = SpeciesEditorView.genus_match_func(mock_completion, 'abc', 0)
-        self.assertFalse(result)
-
-    def test_genus_completion_cell_data_func(self):
-        mock_renderer = mock.Mock()
-        mock_model = [[
-            Genus(epithet='Test', family=Family(epithet='Testaceae'))
-        ]]
-
-        SpeciesEditorView.genus_completion_cell_data_func(None,
-                                                          mock_renderer,
-                                                          mock_model,
-                                                          0)
-        mock_renderer.set_property.assert_called_with('text',
-                                                      'Test (Testaceae)')
-
 
 class SpeciesEditorPresenterTests(PlantTestCase):
 
@@ -2963,7 +2933,7 @@ class SpeciesEditorPresenterTests(PlantTestCase):
         self.session.add(sp)
         presenter = SpeciesEditorPresenter(sp, SpeciesEditorView())
         result = presenter.gen_get_completions('Cy')
-        self.assertEqual([str(i) for i in result], ['Cynodon', 'Encyclia'])
+        self.assertEqual([str(i) for i in result], ['Cynodon'])
         del presenter
 
     def test_sp_species_tpl_callback_not_found(self):
@@ -3448,7 +3418,6 @@ class SpeciesEditorPresenterTests(PlantTestCase):
         combo = view.widgets.sp_habit_comboentry
         self.assertEqual(combo.get_active(), -1)
 
-        from gi.repository import Gtk
         entry = Gtk.Entry()
 
         entry.set_text('Tre')
@@ -4089,7 +4058,6 @@ class DistributionPresenterTests(PlantTestCase):
 
     @mock.patch('bauble.gui')
     def test_on_consolidate(self, mock_gui):
-        from gi.repository import Gtk
         mock_gui.window = Gtk.Window()
         fam = Family(family='family')
         gen = Genus(genus='genus', family=fam)
@@ -4120,7 +4088,6 @@ class DistributionPresenterTests(PlantTestCase):
 
     @mock.patch('bauble.gui')
     def test_on_paste_append(self, mock_gui):
-        from gi.repository import Gtk
         mock_gui.window = Gtk.Window()
         mock_clipboard = mock.Mock()
         mock_clipboard.wait_for_text.return_value = "Tasmania, Queensland"
@@ -4152,7 +4119,6 @@ class DistributionPresenterTests(PlantTestCase):
 
     @mock.patch('bauble.gui')
     def test_on_paste_replace(self, mock_gui):
-        from gi.repository import Gtk
         mock_gui.window = Gtk.Window()
         mock_clipboard = mock.Mock()
         mock_clipboard.wait_for_text.return_value = "Tasmania, Queensland"
@@ -4184,7 +4150,6 @@ class DistributionPresenterTests(PlantTestCase):
 
     @mock.patch('bauble.gui')
     def test_on_copy(self, mock_gui):
-        from gi.repository import Gtk
         mock_gui.window = Gtk.Window()
         mock_clipboard = mock.Mock()
         mock_gui.get_display_clipboard.return_value = mock_clipboard
@@ -4692,6 +4657,8 @@ class GlobalFunctionsTest(PlantTestCase):
         sp5 = Species(genus=gen2, sp='sp. Carnarvon NP (M.B.Thomas 115)')
         sp6 = Species(genus=gen1, sp='wilsonii',
                       infraspecific_parts='subsp. cryptophlebium')
+        sp7 = self.session.query(Species).get(26)
+        sp9 = self.session.query(Species).get(9)
         self.assertTrue(species_to_string_matcher(sp1, 'S a'))
         self.assertTrue(species_to_string_matcher(sp1, 'Syzyg'))
         self.assertTrue(species_to_string_matcher(sp1, 'Syzygium australe'))
@@ -4721,6 +4688,18 @@ class GlobalFunctionsTest(PlantTestCase):
             sp6, 'Syz wilsonii subsp. cry'))
         self.assertFalse(species_to_string_matcher(
             sp6, 'Syz wilsonii subsp. wil'))
+        self.assertTrue(species_to_string_matcher(sp7,
+                                                  '× Butyagrus nabonnandii'))
+        self.assertTrue(species_to_string_matcher(sp7,
+                                                  'Butyagrus nabonnandii'))
+        self.assertTrue(species_to_string_matcher(sp7, '× Buty'))
+        self.assertTrue(species_to_string_matcher(sp7, '× Buty nab'))
+        self.assertFalse(species_to_string_matcher(sp7, '× Buty o'))
+        self.assertTrue(species_to_string_matcher(sp9,
+                                                  'Maxillaria × generalis'))
+        self.assertTrue(species_to_string_matcher(sp9, 'Maxillaria ×'))
+        self.assertTrue(species_to_string_matcher(sp9, 'Maxil × gen'))
+        self.assertFalse(species_to_string_matcher(sp9, 'Maxil × sen'))
 
     def test_species_cell_data_func(self):
         family = Family(family='Myrtaceae')
@@ -4736,6 +4715,101 @@ class GlobalFunctionsTest(PlantTestCase):
         mock_renderer.set_property.assert_called_with(
             'text', 'Syzygium australe (Myrtaceae)'
         )
+
+
+class GenusCompletionTests(PlantTestCase):
+
+    def test_genus_to_string_matcher(self):
+        gen1 = self.session.query(Genus).get(9)
+        sp = self.session.query(Species).get(26)
+        self.assertTrue(genus_to_string_matcher(gen1, 'Buty'))
+        self.assertTrue(genus_to_string_matcher(gen1, '× Buty'))
+        self.assertFalse(genus_to_string_matcher(gen1, 'Auty'))
+        self.assertFalse(genus_to_string_matcher(gen1, '× Auty'))
+        self.assertFalse(genus_to_string_matcher(sp, '× Auty', 'genus'))
+
+    def test_genus_cell_data_func(self):
+        gen = self.session.query(Genus).get(9)
+        mock_renderer = mock.Mock()
+        mock_model = [[gen]]
+
+        genus_cell_data_func(None, mock_renderer, mock_model, 0)
+
+        mock_renderer.set_property.assert_called_with(
+            'markup', '× <i>Butyagrus</i> Vorster (<small>Arecaceae</small>)'
+        )
+
+        gen = self.session.query(Genus).get(2)
+        mock_renderer = mock.Mock()
+        mock_model = [[gen]]
+
+        genus_cell_data_func(None, mock_renderer, mock_model, 0)
+
+        mock_renderer.set_property.assert_called_with(
+            'markup', '<i>Encyclia</i>  (<small>Orchidaceae</small>)'
+        )
+
+    def test_genus_match_func(self):
+        completion = Gtk.EntryCompletion()
+        completion_model = Gtk.ListStore(object)
+
+        for val in self.session.query(Genus).filter(Genus.id < 11):
+            completion_model.append([val])
+
+        completion.set_model(completion_model)
+
+        key = '× Butyag'
+        self.assertTrue(genus_match_func(completion, key, 8))
+        self.assertFalse(genus_match_func(completion, key, 7))
+        self.assertFalse(genus_match_func(completion, key, 6))
+
+        key = 'Butyag'
+        self.assertTrue(genus_match_func(completion, key, 8))
+        self.assertFalse(genus_match_func(completion, key, 7))
+
+        key = 'Crataegomes'
+        self.assertFalse(genus_match_func(completion, key, 8))
+        self.assertTrue(genus_match_func(completion, key, 7))
+
+        key = '+ Crataegomes'
+        self.assertFalse(genus_match_func(completion, key, 8))
+        self.assertTrue(genus_match_func(completion, key, 7))
+
+        key = 'max'
+        self.assertFalse(genus_match_func(completion, key, 1))
+        self.assertTrue(genus_match_func(completion, key, 0))
+
+    def test_generic_gen_get_completions(self):
+        completion = partial(generic_gen_get_completions, self.session)
+
+        key = 'Max'
+        self.assertCountEqual(completion(key).all(),
+                              [self.session.query(Genus).get(1)])
+
+        key = 'max'
+        self.assertCountEqual(completion(key).all(),
+                              [self.session.query(Genus).get(1)])
+
+        key = 'C'
+        self.assertCountEqual(
+            completion(key).all(),
+            self.session.query(Genus).filter(Genus.id.in_([4, 8, 10])).all()
+        )
+
+        key = '+ Cr'
+        self.assertCountEqual(completion(key).all(),
+                              [self.session.query(Genus).get(8)])
+
+        key = '×'
+        self.assertCountEqual(completion(key).all(),
+                              [self.session.query(Genus).get(9)])
+
+        key = 'Unknown'
+        self.assertEqual(completion(key).all(), [])
+
+        key = ''
+        self.assertEqual(len(completion(key).all()),
+                         len(self.session.query(Genus).all()))
 
 
 class BaubleSearchSearchTest(BaubleTestCase):
@@ -4776,16 +4850,17 @@ class SpeciesCompletionMatchTests(PlantTestCase):
         self.genus = Genus(family=self.family, genus='Syzygium')
         self.sp1 = Species(genus=self.genus, sp='australe')
         self.sp2 = Species(genus=self.genus, sp='luehmannii')
-        self.session.add_all([self.family, self.genus, self.sp1, self.sp2])
-        self.session.commit()
         self.sp3 = Species(genus=self.genus, sp='aqueum')
-        self.session.add_all([self.sp3])
+        self.session.add_all([self.family, self.genus, self.sp1, self.sp2,
+                              self.sp3])
+        self.session.commit()
+        self.sp4 = self.session.query(Species).get(9)
+        self.sp5 = self.session.query(Species).get(25)
         self.session.commit()
 
-        from gi.repository import Gtk
         self.completion = Gtk.EntryCompletion()
         completion_model = Gtk.ListStore(object)
-        for val in [self.sp1, self.sp2, self.sp3]:
+        for val in [self.sp1, self.sp2, self.sp3, self.sp4, self.sp5]:
             completion_model.append([val])
         self.completion.set_model(completion_model)
 
@@ -4804,7 +4879,7 @@ class SpeciesCompletionMatchTests(PlantTestCase):
         # )
 
     def test_full_name(self):
-        key = 'Syzygium australe'.lower()
+        key = 'Syzygium australe'
         self.assertTrue(species_match_func(self.completion, key, 0))
         self.assertFalse(species_match_func(self.completion, key, 1))
         self.assertFalse(species_match_func(self.completion, key, 2))
@@ -4816,7 +4891,7 @@ class SpeciesCompletionMatchTests(PlantTestCase):
         self.assertTrue(species_match_func(self.completion, key, 2))
 
     def test_only_partial_genus(self):
-        key = 'Syzyg'.lower()
+        key = 'Syzyg'
         self.assertTrue(species_match_func(self.completion, key, 0))
         self.assertTrue(species_match_func(self.completion, key, 1))
         self.assertTrue(species_match_func(self.completion, key, 2))
@@ -4827,23 +4902,43 @@ class SpeciesCompletionMatchTests(PlantTestCase):
         self.assertTrue(species_match_func(self.completion, key, 1))
         self.assertFalse(species_match_func(self.completion, key, 2))
 
+    def test_notho_taxa(self):
+        key = 'Maxillaria × generalis'
+        self.assertTrue(species_match_func(self.completion, key, 3))
+        self.assertFalse(species_match_func(self.completion, key, 0))
+        self.assertFalse(species_match_func(self.completion, key, 1))
+        key = '+ Crataegomespilus dardarii'
+        self.assertTrue(species_match_func(self.completion, key, 4))
+        self.assertFalse(species_match_func(self.completion, key, 0))
+        self.assertFalse(species_match_func(self.completion, key, 1))
+
     def test_generic_sp_get_completions(self):
+        list(update_all_full_names_task())
         completion = partial(generic_sp_get_completions, self.session)
         key = 'Syz lu'
         self.assertCountEqual(completion(key).all(),
-                              [self.sp1, self.sp2, self.sp3])
+                              [self.sp2])
         key = 'Syzyg'
-        # [self.sp1, self.sp2, self.sp3]
         self.assertCountEqual(completion(key).all(),
                               [self.sp1, self.sp2, self.sp3])
         key = 'Syzygium australe'
         self.assertCountEqual(completion(key).all(),
-                              [self.sp1, self.sp2, self.sp3])
+                              [self.sp1])
         key = 'Unknown'
         self.assertEqual(completion(key).all(), [])
         key = ''
         self.assertEqual(len(completion(key).all()),
                          len(self.session.query(Species).all()))
+
+        key = 'Maxillaria × general'
+        sp5 = self.session.query(Species).get(10)
+        sp6 = self.session.query(Species).get(11)
+        # self.assertIn(self.sp4, completion(key).all())
+        self.assertCountEqual(completion(key).all(), [self.sp4, sp5, sp6])
+
+        key = '+ Crataegomespilus dardarii'
+        self.assertCountEqual(completion(key).all(),
+                              [self.sp5])
 
 
 class RetrieveTests(PlantTestCase):

@@ -38,7 +38,6 @@ from gi.repository import Pango
 from sqlalchemy.orm.session import object_session, Session, object_mapper
 from sqlalchemy.orm.query import Query
 from sqlalchemy.exc import DBAPIError
-from sqlalchemy import and_, or_
 from sqlalchemy import inspect as sa_inspect
 
 import bauble
@@ -46,7 +45,11 @@ from bauble import utils
 from bauble import paths
 from bauble import editor
 from .geography import GeographyMenu, Geography, consolidate_geographies
-from .genus import Genus, GenusSynonym
+from .genus import (Genus,
+                    GenusSynonym,
+                    generic_gen_get_completions,
+                    genus_match_func,
+                    genus_cell_data_func)
 from .family import Family
 from .species_model import (Species,
                             SpeciesDistribution,
@@ -69,19 +72,31 @@ def generic_sp_get_completions(session: Session, text: str) -> Query:
     :param session: a local session to use for the query.
     :param text: a string to search for
     """
-    query = session.query(Species)
-    genus = ''
+    query = session.query(Species).join(Genus)
+    hybrid = ''
+    epithet = ''
+    genus = text.removeprefix('×').removeprefix('+').strip()
+
     try:
-        genus = text.split(' ')[0]
-    except AttributeError:
+        if text[0] in ['×', '+']:
+            hybrid = text[0]
+    except (AttributeError, IndexError):
         pass
-    from bauble.utils import ilike
-    query = (query
-             .filter(and_(Species.genus_id == Genus.id,
-                          or_(ilike(Genus.genus, f'%{text}%'),
-                              ilike(Genus.genus, f'%{genus}%'))))
-             .order_by(Species.sp))
-    return query
+
+    try:
+        genus, epithet = genus.split(' ', 1)
+        epithet = epithet.strip(' +×')
+    except (AttributeError, ValueError):
+        pass
+
+    query = query.filter(utils.ilike(Genus.genus, f'{genus}%%'))
+    if hybrid:
+        query = query.filter(Genus.hybrid == hybrid)
+    if epithet:
+        # there is a small risk of full_name not existing or being outdated
+        query = query.filter(utils.ilike(Species.full_name,
+                                         f'%{genus}%{epithet}%'))
+    return query.order_by(Genus.genus)
 
 
 def species_to_string_matcher(species: Species,
@@ -99,13 +114,14 @@ def species_to_string_matcher(species: Species,
 
     :return: bool, True if the Species matches the key
     """
-    key = key.lower()
+    key = key.lower().removeprefix('×').removeprefix('+').strip()
     key_gen, key_sp = (key + ' ').split(' ', 1)
+    key_sp = key_sp.removeprefix('×').removeprefix('+').strip()
     if sp_path:
         from operator import attrgetter
         species = attrgetter(sp_path)(species)
     comp_gen = str(species.genus.epithet).lower()
-    comp_sp = species.str(genus=False).lower().strip(' ×')
+    comp_sp = species.str(genus=False).lower().strip(' ×+')
     comp_cv = "'" + (species.cultivar_epithet or '').lower()
     comp_trade = "'" + (species.trade_name or '').lower()
 
@@ -812,10 +828,7 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
             return False
 
     def gen_get_completions(self, text):
-        query = (self.session.query(Genus)
-                 .filter(utils.ilike(Genus.genus, f'%{text}%'))
-                 .order_by(Genus.genus)
-                 .limit(80))
+        query = generic_gen_get_completions(self.session, text)
         if self.model.genus in self.session.new:
             # e.g. after on_sp_species_button_clicked has caused a new genus to
             # be added.
@@ -1771,8 +1784,8 @@ class SpeciesEditorView(editor.GenericEditorView):
         super().__init__(filename, parent=parent,
                          root_widget_name='species_dialog')
         self.attach_completion('sp_genus_entry',
-                               self.genus_completion_cell_data_func,
-                               match_func=self.genus_match_func)
+                               cell_data_func=genus_cell_data_func,
+                               match_func=genus_match_func)
         self.attach_completion('syn_entry',
                                cell_data_func=species_cell_data_func,
                                match_func=species_match_func)
@@ -1791,18 +1804,6 @@ class SpeciesEditorView(editor.GenericEditorView):
         """
         return self.widgets.species_dialog
 
-    @staticmethod
-    def genus_match_func(completion, key, itr):
-        """match against both str(genus) and str(genus.genus) so that we
-        catch the genera with hybrid flags in their name when only
-        entering the genus name
-        """
-        genus = completion.get_model()[itr][0]
-        if (str(genus).lower().startswith(key.lower()) or
-                str(genus.genus).lower().startswith(key.lower())):
-            return True
-        return False
-
     def set_accept_buttons_sensitive(self, sensitive):
         """set the sensitivity of all the accept/ok buttons for the editor
         dialog
@@ -1810,11 +1811,6 @@ class SpeciesEditorView(editor.GenericEditorView):
         self.widgets.sp_ok_button.set_sensitive(sensitive)
         self.widgets.sp_ok_and_add_button.set_sensitive(sensitive)
         self.widgets.sp_next_button.set_sensitive(sensitive)
-
-    @staticmethod
-    def genus_completion_cell_data_func(_column, renderer, model, treeiter):
-        gen = model[treeiter][0]
-        renderer.set_property('text', f'{gen} ({gen.family})')
 
 
 class SpeciesEditor(editor.GenericModelViewPresenterEditor):
