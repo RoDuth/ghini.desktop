@@ -774,6 +774,7 @@ class PlantsPlugin(pluginmgr.Plugin):
                        .filter(bauble.meta.BaubleMeta.name == column_name)
                        .first())
         session.close()
+        column = getattr(Species, column_name)
         # pylint: disable=protected-access
         if custom_meta:
             custom_meta = literal_eval(custom_meta.value)
@@ -797,6 +798,11 @@ class PlantsPlugin(pluginmgr.Plugin):
             from sqlalchemy.ext.hybrid import hybrid_property
             setattr(Species, field_name,
                     hybrid_property(_get, fset=_set, expr=_exp))
+            setattr(column, '_custom_column_name', field_name)
+
+        elif hasattr(column, '_custom_column_name'):
+            delattr(Species, getattr(column, '_custom_column_name'))
+            delattr(column, '_custom_column_name')
 
     @staticmethod
     def on_return_syns_chkbx_toggled(action, value):

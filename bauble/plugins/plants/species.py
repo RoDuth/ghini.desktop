@@ -339,6 +339,8 @@ class SynonymsExpander(InfoExpander):
 
 class GeneralSpeciesExpander(InfoExpander):
     """expander to present general information about a species"""
+    custom_columns = set()
+    current_db = None
 
     def __init__(self, widgets):
         super().__init__(_("General"), widgets)
@@ -364,11 +366,11 @@ class GeneralSpeciesExpander(InfoExpander):
         utils.make_label_clickable(self.widgets.sp_nplants_data,
                                    on_nplants_clicked)
 
-        self.custom_columns = set()
         self._setup_custom_column('_sp_custom1')
         self._setup_custom_column('_sp_custom2')
 
     def _setup_custom_column(self, column_name):
+        self.__class__.current_db = id(db.engine.url)
         session = bauble.db.Session()
         custom_meta = (session.query(bauble.meta.BaubleMeta)
                        .filter(bauble.meta.BaubleMeta.name == column_name)
@@ -376,7 +378,7 @@ class GeneralSpeciesExpander(InfoExpander):
         session.close()
         # pylint: disable=protected-access
         if custom_meta:
-            self.custom_columns.add(column_name)
+            self.__class__.custom_columns.add(column_name)
             custom_meta = literal_eval(custom_meta.value)
             display_name = custom_meta.get('display_name')
             if display_name:
@@ -384,12 +386,23 @@ class GeneralSpeciesExpander(InfoExpander):
                 label.set_text(display_name + ':')
                 data_label = self.widgets.get(column_name + '_data')
                 utils.unhide_widgets((label, data_label))
+        else:
+            for col in self.custom_columns:
+                label = self.widgets.get(col + '_label')
+                data_label = self.widgets.get(col + '_data')
+                utils.hide_widgets((label, data_label))
+            self.__class__.custom_columns = set()
 
     def update(self, row):
         """update the expander
 
         :param row: the row to get the values from
         """
+        # In case of connection change
+        if self.current_db != id(db.engine.url):
+            self._setup_custom_column('_sp_custom1')
+            self._setup_custom_column('_sp_custom2')
+
         self.current_obj = row
         session = object_session(row)
 

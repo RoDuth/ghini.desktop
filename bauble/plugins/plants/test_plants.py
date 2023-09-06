@@ -2058,6 +2058,7 @@ class SpeciesTests(PlantTestCase):
         # effectively also tests PlantsPlugin.register_custom_column
         from bauble.plugins.plants import PlantsPlugin
         PlantsPlugin.register_custom_column('_sp_custom1')
+        self.assertTrue(hasattr(Species, 'nca_status'))
         sp = self.session.query(Species).first()
 
         sp.nca_status = 'vulnerable'
@@ -2074,6 +2075,11 @@ class SpeciesTests(PlantTestCase):
         qry = session.query(Species).filter(Species.nca_status == 'extinct')
         self.assertEqual(qry.first().id, sp.id)
         session.close()
+
+        # reset the connection (similar to opening a new connection, also
+        # reruns register_custom_column etc.)
+        self.setUp()
+        self.assertFalse(hasattr(Species, 'nca_status'))
 
 
 class MarkupItalicsTests(TestCase):
@@ -2706,6 +2712,7 @@ class GeneralSpeciesExpanderTests(BaubleTestCase):
                                  "'values': ('extinct', 'vulnerable')}"))
         self.session.add(meta)
         self.session.commit()
+        sp = self.session.query(Species).get(1)
         # effectively also tests PlantsPlugin.register_custom_column
         from bauble.plugins.plants import PlantsPlugin
         PlantsPlugin.register_custom_column('_sp_custom1')
@@ -2715,6 +2722,26 @@ class GeneralSpeciesExpanderTests(BaubleTestCase):
         general = GeneralSpeciesExpander(widgets)
         general._setup_custom_column('_sp_custom1')
         self.assertEqual(widgets._sp_custom1_label.get_text(), 'NCA Status:')
+        self.assertTrue(widgets._sp_custom1_label.get_visible())
+
+        # change the db connection
+        from sqlalchemy.pool import StaticPool
+        import bauble
+        bauble.db.engine = None
+        bauble.conn_name = None
+        uri = 'sqlite:///:memory:'
+        db.open_conn(uri, verify=False, show_error_dialogs=False,
+                     poolclass=StaticPool)
+        db.create(import_defaults=False)
+        session = db.Session()
+        family = Family(family='family')
+        genus = Genus(family=family, genus='genus')
+        sp = Species(genus=genus, sp='sp')
+        session.add(sp)
+        session.commit()
+        general.update(sp)
+        self.assertFalse(widgets._sp_custom1_label.get_visible())
+        session.close()
 
 
 class SpeciesEntryTests(TestCase):
