@@ -581,7 +581,7 @@ class PlantsPlugin(pluginmgr.Plugin):
     @classmethod
     def init(cls):
 
-        if bauble.gui and not cls.options_menu_set:
+        if not cls.options_menu_set:
             cls.options_menu_set = True
             accptd_action = Gio.SimpleAction.new_stateful(
                 "accepted_toggled",
@@ -592,18 +592,13 @@ class PlantsPlugin(pluginmgr.Plugin):
             )
             accptd_action.connect("change-state",
                                   cls.on_return_syns_chkbx_toggled)
-            bauble.gui.window.add_action(accptd_action)
 
-            item = Gio.MenuItem.new(_('Return Accepted'),
-                                    'win.accepted_toggled')
-            bauble.gui.options_menu.append_item(item)
+            ret_accptd_item = Gio.MenuItem.new(_('Return Accepted'),
+                                               'win.accepted_toggled')
 
-            bauble.gui.add_action("update_full_name",
-                                  update_all_full_names_handler)
-
-            item = Gio.MenuItem.new(_('Update All Species Full Names'),
-                                    'win.update_full_name')
-            bauble.gui.options_menu.append_item(item)
+            full_names_item = Gio.MenuItem.new(
+                _('Update All Species Full Names'), 'win.update_full_name'
+            )
 
             msg = _('Setup custom conservation fields.\n\nYou have 2 fields '
                     'available.  To set them up you need to provide a '
@@ -633,16 +628,11 @@ class PlantsPlugin(pluginmgr.Plugin):
                                "'Not listed', "
                                "''"
                                ")}")
-            bauble.gui.add_action("setup_conservation_fields",
-                                  lambda *_args: bauble.meta.set_value(
-                                      ('_sp_custom1', '_sp_custom2'),
-                                      (custom1_default, custom2_default),
-                                      msg)
-                                  )
 
-            item = Gio.MenuItem.new(_('Setup Custom Conservation Fields'),
-                                    'win.setup_conservation_fields')
-            bauble.gui.options_menu.append_item(item)
+            custom_consv_item = Gio.MenuItem.new(
+                _('Setup Custom Conservation Fields'),
+                'win.setup_conservation_fields'
+            )
 
             def prefs_ls_changed(model, path, _itr):
                 key, _repr_str, _type_str = model[path]
@@ -660,8 +650,21 @@ class PlantsPlugin(pluginmgr.Plugin):
                     cls.prefs_change_handler = obj.prefs_ls.connect(
                         'row-changed', prefs_ls_changed)
 
-            bauble.gui.widgets.view_box.connect('set-focus-child',
-                                                on_view_box_added)
+            if bauble.gui:
+                bauble.gui.window.add_action(accptd_action)
+                bauble.gui.options_menu.append_item(ret_accptd_item)
+                bauble.gui.add_action("update_full_name",
+                                      update_all_full_names_handler)
+                bauble.gui.options_menu.append_item(full_names_item)
+                bauble.gui.add_action("setup_conservation_fields",
+                                      lambda *_args: bauble.meta.set_value(
+                                          ('_sp_custom1', '_sp_custom2'),
+                                          (custom1_default, custom2_default),
+                                          msg)
+                                      )
+                bauble.gui.options_menu.append_item(custom_consv_item)
+                bauble.gui.widgets.view_box.connect('set-focus-child',
+                                                    on_view_box_added)
 
         pluginmgr.provided.update(cls.provides)
         if 'GardenPlugin' in pluginmgr.plugins:

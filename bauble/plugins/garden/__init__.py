@@ -270,7 +270,7 @@ class GardenPlugin(pluginmgr.Plugin):
             'plant',
             ('{table} where propagations._plant_prop.id = {obj_id}')
         )
-        if bauble.gui and not cls.options_menu_set:
+        if not cls.options_menu_set:
             cls.options_menu_set = True
 
             inactive_action = Gio.SimpleAction.new_stateful(
@@ -282,17 +282,19 @@ class GardenPlugin(pluginmgr.Plugin):
             )
             inactive_action.connect("change-state",
                                     cls.on_inactive_toggled)
-            bauble.gui.window.add_action(inactive_action)
 
-            item = Gio.MenuItem.new(_('Exclude Inactive'),
-                                    'win.inactive_toggled')
-            bauble.gui.options_menu.append_item(item)
+            inactive_item = Gio.MenuItem.new(_('Exclude Inactive'),
+                                             'win.inactive_toggled')
 
-            bauble.gui.add_action("set_delimiter", Plant.set_delimiter)
+            delimiter_item = Gio.MenuItem.new(_('Set Global Delimiter'),
+                                              'win.set_delimiter')
 
-            item = Gio.MenuItem.new(_('Set Global Delimiter'),
-                                    'win.set_delimiter')
-            bauble.gui.options_menu.append_item(item)
+            if bauble.gui:
+                bauble.gui.window.add_action(inactive_action)
+                bauble.gui.options_menu.append_item(inactive_item)
+
+                bauble.gui.add_action("set_delimiter", Plant.set_delimiter)
+                bauble.gui.options_menu.append_item(delimiter_item)
 
     @staticmethod
     def on_inactive_toggled(action, value):
