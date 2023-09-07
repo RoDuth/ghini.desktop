@@ -895,8 +895,8 @@ class Species(db.Base, db.WithNotes):
         acc_cls = cls.accessions.prop.mapper.class_
         plt_cls = acc_cls.plants.prop.mapper.class_
         active = (select([cls.id])
-                  .outerjoin(acc_cls)
-                  .outerjoin(plt_cls)
+                  .outerjoin(cls.accessions)
+                  .outerjoin(acc_cls.plants)
                   .where(or_(plt_cls.id.is_(None), plt_cls.quantity > 0))
                   .scalar_subquery())
         return cast(case([(cls.id.in_(active), 1)], else_=0),
