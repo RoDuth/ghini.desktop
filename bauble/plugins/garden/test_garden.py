@@ -3864,11 +3864,11 @@ class PlantSearchTests(BaubleTestCase):
         super().tearDown()
 
     def test_plant_search_directly(self):
-        mapper_search = search.get_strategy('PlantSearch')
-        self.assertTrue(isinstance(mapper_search, PlantSearch))
+        plant_search = search.get_strategy('PlantSearch')
+        self.assertTrue(isinstance(plant_search, PlantSearch))
 
         qry = 'planting = XXXX.1'
-        results = list(mapper_search.search(qry, self.session))
+        results = plant_search.search(qry, self.session)[0].all()
         self.assertEqual(results, [self.plt1])
 
     def test__eq__plant_search(self):

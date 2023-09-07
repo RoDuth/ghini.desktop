@@ -1215,9 +1215,6 @@ class SearchView(pluginmgr.View, Gtk.Box):
 
     def search(self, text):
         """search the database using text"""
-        # set the text in the entry even though in most cases the entry already
-        # has the same text in it, this is in case this method was called from
-        # outside the class so the entry and search results match
         logger.debug('SearchView.search(%s)', text)
         error_msg = None
         error_details_msg = None

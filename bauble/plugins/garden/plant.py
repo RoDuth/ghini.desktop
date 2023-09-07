@@ -215,7 +215,7 @@ def is_code_unique(plant, code):
 class PlantSearch(SearchStrategy):
 
     @staticmethod
-    def use(text):
+    def use(text: str) -> str:
         if (text.startswith('plant') and len(splt := text.split()) > 1 and
                 splt[1] != 'where'):
             logger.debug("reducing strategies to PlantSearch")
@@ -243,7 +243,7 @@ class PlantSearch(SearchStrategy):
                      (domain + in_op + value_list + stringEnd))
 
         if not text.startswith('plant'):
-            # Shouldn't really get here as the filter should take care of it.
+            # Shouldn't really get here as use() filter should take care of it.
             return []
         delimiter = Plant.get_delimiter()
         try:
@@ -265,7 +265,7 @@ class PlantSearch(SearchStrategy):
                 if operator in ('!=', '<>'):
                     return []
                 logger.debug('"star" PlantSearch, returning all plants')
-                return session.query(Plant)
+                return [session.query(Plant)]
             if delimiter not in value:
                 logger.debug("delimiter not found, can't split the code")
                 return []
@@ -327,10 +327,7 @@ class PlantSearch(SearchStrategy):
                          .filter(tuple_(Accession.code, Plant.code)
                          .in_(vals)))
 
-        if prefs.prefs.get(prefs.exclude_inactive_pref):
-            query = query.filter(Plant.active.is_(True))
-
-        return query
+        return [query]
 
 
 PlantNote = db.make_note_class('Plant')

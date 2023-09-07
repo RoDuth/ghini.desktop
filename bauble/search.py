@@ -20,6 +20,7 @@
 Search functionailty.
 """
 
+import typing
 from abc import ABC, abstractmethod
 from datetime import timedelta, timezone
 import logging
@@ -27,7 +28,7 @@ logger = logging.getLogger(__name__)
 
 
 from sqlalchemy import or_, and_, select
-from sqlalchemy.orm import class_mapper, Query
+from sqlalchemy.orm import class_mapper, Query, Session
 from pyparsing import (Word,
                        alphas8bit,
                        removeQuotes,
@@ -63,7 +64,7 @@ result_cache = {}
 repeatedly. MapperSearch results should be available first."""
 
 
-def search(text: str, session: bauble.db.Session) -> list:
+def search(text: str, session: Session) -> list:
     """Given a query string run the appropriate SearchStrategy(s) and return
     the collated results as a list
     """
@@ -76,7 +77,19 @@ def search(text: str, session: bauble.db.Session) -> list:
         logger.debug("applying search strategy %s from module %s",
                      strategy_name, type(strategy).__module__)
         # result_cache - cache the result list not the query
-        result = list(strategy.search(text, session))
+        queries = strategy.search(text, session)
+
+        result = []
+        for query in queries:
+            # NOTE handy print statement for debugging
+            # print('query = ', query)
+            table = query.column_descriptions[0]['type']
+
+            if prefs.prefs.get(prefs.exclude_inactive_pref):
+                if hasattr(table, 'active'):
+                    query = (query.filter(table.active.is_(True)))
+
+            result.extend(query)
 
         result_cache[strategy_name] = result
         results.update(result)
@@ -807,7 +820,7 @@ class ValueListAction:
                 logger.debug('user aborted')
                 return []
 
-        result = set()
+        queries = []
         for cls, columns in search_strategy.properties.items():
             column_cross_value = []
             for column in columns:
@@ -821,9 +834,10 @@ class ValueListAction:
             table = class_mapper(cls)
             query = (search_strategy.session.query(cls)
                      .filter(or_(*[contains(table.c[c], v) for c, v in
-                                   column_cross_value])))
-            result.update(query.all())
-        return result
+                                   column_cross_value]))
+                     .distinct())
+            queries.append(query)
+        return queries
 
 
 wordStart, wordEnd = WordStart(), WordEnd()
@@ -949,16 +963,15 @@ class SearchStrategy(ABC):
 
     @staticmethod
     @abstractmethod
-    def use(text):
-        ...
+    def use(text: str) -> typing.Literal['include', 'exclude', 'only']:
+        """How does this search stratergy apply to the provided text"""
 
-    def search(self, text, session):
+    def search(self, text: str, session: Session) -> list[Query]:
         """
         :param text: the search string
         :param session: the session to use for the search
 
-        Return an iterator that iterates over mapped classes retrieved
-        from the search.
+        :return: A list of queries where query.is_single_entity == True.
         """
         if not session:
             logger.warning('session is None')
@@ -1070,31 +1083,18 @@ class MapperSearch(SearchStrategy):
         return domains
 
     def search(self, text, session):
-        """Returns an interable of database hits for the text search string.
-        """
+        """Returns list of queries for the text search string."""
         super().search(text, session)
         self.session = session
         statement = self.parser.parse_string(text).statement
         logger.debug("statement : %s(%s)", type(statement), statement)
-        results_or_query = statement.invoke(self)
+        queries = statement.invoke(self)
 
-        # NOTE handy print statement for development
-        # if isinstance(results_or_query, Query):
-        #     print(results_or_query)
+        if not isinstance(queries, list):
+            # Not ValueListAction
+            queries = [queries]
 
-        if prefs.prefs.get(prefs.exclude_inactive_pref):
-            # handle within the database when possible
-            if (isinstance(results_or_query, Query) and
-                    results_or_query.is_single_entity):
-                table = results_or_query.column_descriptions[0]['type']
-                if hasattr(table, 'active'):
-                    results_or_query = (results_or_query
-                                        .filter(table.active.is_(True)))
-            else:
-                results_or_query = [i for i in results_or_query if
-                                    getattr(i, 'active', True)]
-
-        return results_or_query
+        return queries
 
 
 # list of search strategies to be tried on each search string

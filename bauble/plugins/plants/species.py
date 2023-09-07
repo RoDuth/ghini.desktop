@@ -219,7 +219,7 @@ class SynonymSearch(search.SearchStrategy):
         ids = self.get_ids(mapper_results)
         if not ids:
             return []
-        results = []
+        queries = []
         for models, id_set in ids.items():
             # vernacular names are a special case.  Only returning if both
             # accepted and synonym have a VernacularName entry.
@@ -243,8 +243,8 @@ class SynonymSearch(search.SearchStrategy):
                 query = query.filter(or_(models[0].active.is_(True),
                                          models[1].synonym.has(active=True)))
 
-            results.extend(query.all())
-        return results
+            queries.append(query)
+        return queries
 
 
 # TODO should these and even the InfoBoxPage be Gtk.Template?
