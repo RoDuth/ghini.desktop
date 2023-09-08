@@ -719,7 +719,9 @@ class PlantsPlugin(pluginmgr.Plugin):
             context_menu=vernname_context_menu
         )
 
-        mapper_search.add_meta(('geography', 'geo'), Geography, ['name'])
+        mapper_search.add_meta(('geography', 'geo'), Geography, ['name',
+                                                                 'tdwg_code',
+                                                                 'iso_code'])
         SearchView.row_meta[Geography].set(
             children=partial(db.get_active_children, get_species_in_geography),
             infobox=GeographyInfoBox,
