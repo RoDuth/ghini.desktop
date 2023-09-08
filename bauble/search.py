@@ -87,7 +87,7 @@ def search(text: str, session: Session) -> list:
 
             if prefs.prefs.get(prefs.exclude_inactive_pref):
                 if hasattr(table, 'active'):
-                    query = (query.filter(table.active.is_(True)))
+                    query = query.filter(table.active.is_(True))
 
             result.extend(query)
 

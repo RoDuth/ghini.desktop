@@ -37,7 +37,7 @@ from bauble.test import BaubleTestCase, update_gui, check_dupids, mockfunc
 from bauble import utils
 from bauble import prefs
 from bauble.meta import BaubleMeta
-from . import get_plant_completions
+from . import get_plant_completions, GardenPlugin, SORT_BY_PREF
 from .accession import (Accession,
                         AccessionEditor,
                         AccessionEditorPresenter,
@@ -4473,3 +4473,43 @@ class RetrieveTests(GardenTestCase):
         }
         col = Collection.retrieve(self.session, keys)
         self.assertIsNone(col)
+
+
+class GlobalActionTests(BaubleTestCase):
+    @unittest.mock.patch('bauble.gui')
+    def test_on_inactive_toggled(self, mock_gui):
+        prefs_view = prefs.PrefsView()
+        prefs_view.update = unittest.mock.Mock()
+        mock_gui.get_view.return_value = prefs_view
+        mock_action = unittest.mock.Mock()
+        mock_variant = unittest.mock.Mock()
+
+        mock_variant.get_boolean.return_value = True
+        GardenPlugin.on_inactive_toggled(mock_action, mock_variant)
+        # prefs_view.update.assert_called()
+        self.assertTrue(prefs.prefs.get(prefs.exclude_inactive_pref))
+
+        mock_gui.get_view.reset_mock()
+        mock_variant.get_boolean.return_value = False
+        GardenPlugin.on_inactive_toggled(mock_action, mock_variant)
+        prefs_view.update.assert_called()
+        self.assertFalse(prefs.prefs.get(prefs.exclude_inactive_pref))
+
+    @unittest.mock.patch('bauble.gui')
+    def test_on_sort_toggled(self, mock_gui):
+        prefs_view = bauble.ui.SearchView()
+        prefs_view.update = unittest.mock.Mock()
+        mock_gui.get_view.return_value = prefs_view
+        mock_action = unittest.mock.Mock()
+        mock_variant = unittest.mock.Mock()
+
+        mock_variant.get_boolean.return_value = True
+        GardenPlugin.on_sort_toggled(mock_action, mock_variant)
+        # prefs_view.update.assert_called()
+        self.assertTrue(prefs.prefs.get(SORT_BY_PREF))
+
+        mock_gui.get_view.reset_mock()
+        mock_variant.get_boolean.return_value = False
+        GardenPlugin.on_sort_toggled(mock_action, mock_variant)
+        prefs_view.update.assert_called()
+        self.assertFalse(prefs.prefs.get(SORT_BY_PREF))

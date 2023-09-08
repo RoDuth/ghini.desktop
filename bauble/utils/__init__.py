@@ -995,7 +995,7 @@ def safe_int(string):
     return 0
 
 
-__natsort_rx = re.compile(r'(\d+(?:\.\d+)?)')
+_NATSORT_RX = re.compile(r'(\d+(?:\.\d+)?)')
 
 
 def natsort_key(obj):
@@ -1008,7 +1008,7 @@ def natsort_key(obj):
     """
 
     item = str(obj)
-    parts = __natsort_rx.split(item)
+    parts = _NATSORT_RX.split(item)
     for part in parts:
         if part and part[0] in '0123456789':
             if '.' in part:

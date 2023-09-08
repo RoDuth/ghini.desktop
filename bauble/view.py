@@ -763,8 +763,13 @@ class SearchView(pluginmgr.View, Gtk.Box):
                 self.infobox = None
                 self.context_menu = None
                 self.actions = []
+                self.sorter = utils.natsort_key
 
-            def set(self, children=None, infobox=None, context_menu=None):
+            def set(self,
+                    children=None,
+                    infobox=None,
+                    context_menu=None,
+                    sorter=None):
                 """Set attributes for the selected meta object.
 
                 :param children: where to find the children for this type, can
@@ -776,6 +781,9 @@ class SearchView(pluginmgr.View, Gtk.Box):
                 self.children = children
                 self.infobox = infobox
                 self.context_menu = context_menu
+                if sorter:
+                    self.sorter = sorter
+
                 self.actions = []
                 if self.context_menu:
                     self.actions = [x for x in self.context_menu if
@@ -1304,6 +1312,7 @@ class SearchView(pluginmgr.View, Gtk.Box):
         self.remove_children(model, treeiter)
         try:
             kids = self.row_meta[type(row)].get_children(row)
+            sorter = self.row_meta[type(kids[0])].sorter
             if len(kids) == 0:
                 return True
         except saexc.InvalidRequestError as e:
@@ -1318,7 +1327,7 @@ class SearchView(pluginmgr.View, Gtk.Box):
             return True
         self.append_children(model,
                              treeiter,
-                             sorted(kids, key=utils.natsort_key))
+                             sorted(kids, key=sorter))
         return False
 
     def populate_results(self, results):
@@ -1361,10 +1370,10 @@ class SearchView(pluginmgr.View, Gtk.Box):
         # sort by type so that groupby works properly
         results = sorted(results, key=lambda x: str(type(x)))
 
-        for _key, group in itertools.groupby(results, key=type):
-            # return groups by type and natural sort each of the
-            # groups by their strings
-            groups.append(sorted(group, key=utils.natsort_key, reverse=True))
+        for cls, group in itertools.groupby(results, key=type):
+            sorter = self.row_meta[cls].sorter
+            # return groups by type and sort each of the groups
+            groups.append(sorted(group, key=sorter, reverse=True))
 
         # sort the groups by type so we more or less always get the
         # results by type in the same order

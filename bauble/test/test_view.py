@@ -234,6 +234,48 @@ class TestSearchView(BaubleTestCase):
         kid = model.get_value(model.get_iter_from_string('0:1'), 0)
         self.assertEqual(kid.genus_id, 1)
 
+    @mock.patch('bauble.view.SearchView.append_children')
+    def test_on_test_expand_row_sort_by_taxon(self, mock_append):
+        for func in get_setUp_data_funcs():
+            func()
+        search_view = self.search_view
+        text = 'source_detail = "Jade Green"'
+        search_view.search(text)
+        model = search_view.results_view.get_model()
+        treeiter = model.get_iter_first()
+        row = model.get_value(treeiter, 0)
+        val = search_view.on_test_expand_row(
+            search_view.results_view,
+            treeiter,
+            Gtk.TreePath.new_first()
+        )
+        self.assertFalse(val)
+
+        # natsort
+        mock_append.assert_called()
+        results = sorted([i.accession for i in row.sources],
+                         key=utils.natsort_key)
+        mock_append.assert_called_with(model,
+                                       treeiter,
+                                       results)
+        mock_append.reset_mock()
+
+        # by taxon
+        prefs.prefs['bauble.search.sort_by_taxon'] = True
+        val = search_view.on_test_expand_row(
+            search_view.results_view,
+            treeiter,
+            Gtk.TreePath.new_first()
+        )
+        self.assertFalse(val)
+        # self.assertTrue(False)
+        results = sorted([i.accession for i in row.sources],
+                         key=lambda obj: str(obj.species))
+        mock_append.assert_called()
+        mock_append.assert_called_with(model,
+                                       treeiter,
+                                       results)
+
     def test_on_test_expand_row_w_no_kids_returns_true_adds_no_kids(self):
         # doesn't propagate
         for func in get_setUp_data_funcs():
