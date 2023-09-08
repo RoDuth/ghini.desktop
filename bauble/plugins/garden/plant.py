@@ -335,33 +335,33 @@ PlantPicture = db.make_note_class('Plant', cls_type='picture')
 
 
 change_reasons = {
-    'PLTD': _('New planting'),
     'NTRL': _('Capture naturalised or original'),
-    'PRIR': _('Unrecorded prior planting'),
-    'ESTM': _('Estimated planting date'),
     'DEAD': _('Dead'),
     'DELE': _('Deleted, yr. dead. unknown'),
     'DNGM': _('Did not germinate'),
     'DISC': _('Discarded'),
-    'DISW': _('Discarded, weedy'),
     'DISN': _('Discarded, seedling in nursery'),
+    'DISW': _('Discarded, weedy'),
     'DIST': _('Distributed elsewhere'),
     'ERRO': _('Error correction'),
+    'ESTM': _('Estimated planting date'),
     'GIVE': _('Given away (specify person)'),
     'HOSP': _('Hospitalised'),
     'LOST': _('Lost, whereabouts unknown'),
+    'PLTD': _('New planting'),
+    'OTHR': _('Other'),
     'QUAR': _('Quarantined'),
+    'SLFS': _('Self seeded'),
     'STOL': _('Stolen'),
     'SUMK': _('Summer Kill'),
+    'TBAC': _('Transferred back'),
     'ASS#': _('Transferred to another acc.no.'),
     'TRAN': _('Transplanted to another area'),
+    'PRIR': _('Unrecorded prior planting'),
     'VAND': _('Vandalised'),
-    'WINK': _('Winter kill'),
-    'WETH': _('Weather or natural event'),
     'VPIP': _('Vegetative propagated (in place)'),
-    'SLFS': _('Self seeded'),
-    'TBAC': _('Transferred back'),
-    'OTHR': _('Other'),
+    'WETH': _('Weather or natural event'),
+    'WINK': _('Winter kill'),
     None: ''
 }
 
@@ -371,15 +371,21 @@ added_reasons = ['TBAC', 'SLFS', 'VPIP']
 transfer_reasons = ['HOSP', 'QUAR', 'TRAN', 'DIST', 'TBAC']
 split_reasons = ['PLTD'] + added_reasons + transfer_reasons + common_reasons
 
+
+def _sort_by_val(dic):
+    return dict(sorted(dic.items(), key=lambda x: x[1]))
+
+
 deleted_reasons = {k: v for k, v in change_reasons.items() if k not in
                    added_reasons + new_plt_reasons}
-new_plt_reasons = {k: v for k, v in change_reasons.items() if k in
-                   new_plt_reasons + common_reasons}
-added_reasons = {k: v for k, v in change_reasons.items() if k in
-                 added_reasons + common_reasons}
-transfer_reasons = {k: v for k, v in change_reasons.items() if k in
-                    transfer_reasons + common_reasons}
-split_reasons = {k: v for k, v in change_reasons.items() if k in split_reasons}
+new_plt_reasons = _sort_by_val({k: v for k, v in change_reasons.items() if k in
+                                new_plt_reasons + common_reasons})
+added_reasons = _sort_by_val({k: v for k, v in change_reasons.items() if k in
+                              added_reasons + common_reasons})
+transfer_reasons = _sort_by_val({k: v for k, v in change_reasons.items() if
+                                 k in transfer_reasons + common_reasons})
+split_reasons = _sort_by_val({k: v for k, v in change_reasons.items() if k in
+                              split_reasons})
 
 
 class PlantChange(db.Base):
