@@ -222,7 +222,7 @@ class ValueABC(ABC):
 
     @abstractmethod
     def __repr__(self):
-        ...
+        """Derived classes should impliment a repr"""
 
     def express(self):
         return self.value
@@ -489,15 +489,14 @@ class UnaryLogical(ABC):
     @property
     @abstractmethod
     def name(self):
-        ...
+        """Derived classes should provide a `name` property."""
 
     @abstractmethod
     def evaluate(self, env):
-        ...
+        """Derived classes should provide an `evaluate` method"""
 
 
 class BinaryLogical(ABC):
-    # abstract base class. `name` is defined in derived classes
     def __init__(self, tokens):
         self.oper = tokens[0][1]
         self.operands = tokens[0][0::2]  # every second object is an operand
@@ -512,11 +511,11 @@ class BinaryLogical(ABC):
     @property
     @abstractmethod
     def name(self):
-        ...
+        """Derived classes should provide a `name` property."""
 
     @abstractmethod
     def evaluate(self, env):
-        ...
+        """Derived classes should provide an `evaluate` method"""
 
 
 class SearchAndAction(BinaryLogical):

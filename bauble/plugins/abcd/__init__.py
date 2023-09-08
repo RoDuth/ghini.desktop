@@ -120,72 +120,64 @@ class ABCDAdapter(ABC):
     @abstractmethod
     def get_unitid(self):
         """Get a value for the UnitID."""
-        ...
 
     @abstractmethod
     def get_family(self):
         """Get a value for the family."""
-        ...
 
     @abstractmethod
     def get_fullscientificnamestring(self, authors=True):
         """Get the full scientific name string."""
-        ...
 
     @abstractmethod
     def get_genusormonomial(self):
         """Get the Genus string."""
-        ...
 
     @abstractmethod
     def get_firstepithet(self):
         """Get the first epithet."""
-        ...
 
     @abstractmethod
     def get_authorteam(self):
-        """Get the Author string."""
-        ...
+        """Get the author string."""
 
     @abstractmethod
     def get_infraspecificauthor(self):
-        ...
+        """Get the infraspecific author string."""
 
     @abstractmethod
     def get_infraspecificrank(self):
-        ...
+        """Get the infraspecific rank"""
 
     @abstractmethod
     def get_infraspecificepithet(self):
-        ...
+        """Get the infraspecific epithet"""
 
     @abstractmethod
     def get_cultivarname(self):
-        ...
+        """Get the cultvar name"""
 
     @abstractmethod
     def get_hybridflag(self):
-        ...
+        """Get the hybrid flag"""
 
     def get_identificationqualifier(self):
-        pass
+        """Get the indentifier qualifier"""
 
     def get_identificationqualifierrank(self):
-        pass
+        """Get the indentifier qualifier's rank"""
 
     @abstractmethod
     def get_informalnamestring(self):
         """Get the common name string."""
-        ...
 
     @abstractmethod
     def extra_elements(self, unit):
         """Add extra non required elements."""
-        ...
 
     @abstractmethod
     def species_markup(self, unit):
-        ...
+        """The species markup"""
 
 
 class SpeciesABCDAdapter(ABCDAdapter):
