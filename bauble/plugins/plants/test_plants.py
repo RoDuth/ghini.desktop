@@ -2078,6 +2078,9 @@ class SpeciesTests(PlantTestCase):
 
         # reset the connection (similar to opening a new connection, also
         # reruns register_custom_column etc.)
+        # tearDown needed to delete temp config file or conftest.py will fail
+        # to cleanup tempfiles at end of tests
+        self.tearDown()
         self.setUp()
         self.assertFalse(hasattr(Species, 'nca_status'))
 
@@ -2725,23 +2728,15 @@ class GeneralSpeciesExpanderTests(BaubleTestCase):
         self.assertTrue(widgets._sp_custom1_label.get_visible())
 
         # change the db connection
-        from sqlalchemy.pool import StaticPool
-        import bauble
-        bauble.db.engine = None
-        bauble.conn_name = None
-        uri = 'sqlite:///:memory:'
-        db.open_conn(uri, verify=False, show_error_dialogs=False,
-                     poolclass=StaticPool)
-        db.create(import_defaults=False)
-        session = db.Session()
+        self.tearDown()
+        self.setUp()
         family = Family(family='family')
         genus = Genus(family=family, genus='genus')
         sp = Species(genus=genus, sp='sp')
-        session.add(sp)
-        session.commit()
+        self.session.add(sp)
+        self.session.commit()
         general.update(sp)
         self.assertFalse(widgets._sp_custom1_label.get_visible())
-        session.close()
 
 
 class SpeciesEntryTests(TestCase):

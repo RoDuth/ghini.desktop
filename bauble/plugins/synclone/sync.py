@@ -758,7 +758,7 @@ class DBSyncTool(pluginmgr.Tool):
 
 class DBResolveSyncTool(pluginmgr.Tool):
     category = _('Sync or clone')
-    label = _('Resolution centre')
+    label = _('Resolution Centre')
 
     @classmethod
     def start(cls) -> None:
