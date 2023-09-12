@@ -39,7 +39,7 @@ from gi.repository import Gio
 from sqlalchemy import Column, Integer, String, select, update, create_engine
 from sqlalchemy import Table
 from sqlalchemy.sql import Executable
-from sqlalchemy.engine import Engine, Row, Connection
+from sqlalchemy.engine import Engine, Row, Connection, make_url, URL
 from sqlalchemy.exc import SQLAlchemyError
 
 from bauble import db
@@ -78,7 +78,7 @@ class ToSync(db.HistoryBase):
     timestamp = Column(types.DateTime, nullable=False)
 
     @classmethod
-    def add_batch_from_uri(cls, uri: str) -> str:
+    def add_batch_from_uri(cls, uri: str | URL) -> str:
         """Grabs the history entries since cloned from the cloned database."""
         logger.debug('adding batch form uri: %s', uri)
         clone_engine: Engine = create_engine(uri)
@@ -457,14 +457,30 @@ class ResolutionCentreView(pluginmgr.View, Gtk.Box):
     TVC_TABLE = 5
     TVC_USER_FRIENDLY = 6
 
-    def __init__(self, uri: None | str = None) -> None:
+    def __init__(self, uri: str | URL | None = None) -> None:
         logger.debug('Starting ResolutionCentreView')
         super().__init__()
-        self.uri = uri
+        self._uri = None
+        if uri:
+            self.uri = uri
         self.last_pos: tuple[Gtk.TreePath | None,
                              Gtk.TreeViewColumn | None,
                              int, int] | None = None
         self.setup_context_menu()
+
+    @property
+    def uri(self) -> URL | None:
+        return self._uri
+
+    @uri.setter
+    def uri(self, uri: str | URL | None) -> None:
+        if uri and isinstance(uri, URL):
+            self._uri = uri
+        elif uri and isinstance(uri, str):
+            self._uri = make_url(uri)
+        else:
+            self._uri = None
+        logger.debug('uri = %s', repr(self._uri))
 
     def setup_context_menu(self) -> None:
         menu_model = Gio.Menu()
@@ -624,7 +640,7 @@ class ResolutionCentreView(pluginmgr.View, Gtk.Box):
             if bauble.gui:
                 parent = bauble.gui.window
             if utils.yes_no_dialog(msg=msg, parent=parent):
-                logger.debug('cloning back to %s', self.uri)
+                logger.debug('cloning back to %s', repr(self.uri))
                 cloner = DBCloner()
                 cloner.start(self.uri)
                 if bauble.gui:
@@ -708,7 +724,7 @@ class ResolutionCentreView(pluginmgr.View, Gtk.Box):
             self.add_row(row)
 
         if batch_num:
-            logger.debug('selectiong batch num: %s', batch_num)
+            logger.debug('selecting batch num: %s', batch_num)
             selection = self.sync_tv.get_selection()
             for row in self.liststore:  # pylint: disable=not-an-iterable
                 if row[self.TVC_BATCH] == batch_num:
@@ -741,11 +757,16 @@ class DBSyncTool(pluginmgr.Tool):
         msg = _('<b>Select a database connection to sync to the contents of\n'
                 'the current database.</b>')
         _name, uri = start_connection_manager(msg)
-        logger.debug('selected uri = %s', uri)
-        if uri is None:
+        if uri:
+            # convert to URL to compare
+            uri = make_url(uri)
+        else:
             return
+        current_uri = db.engine.url
+        logger.debug('selected uri = %s', repr(uri))
+        logger.debug('current uri = %s', repr(current_uri))
 
-        if str(db.engine.url) == uri:
+        if current_uri == uri:
             msg = _('Can not sync from the same database.')
             utils.message_dialog(msg, Gtk.MessageType.ERROR)
             logger.debug('can not sync, uri is same as current')

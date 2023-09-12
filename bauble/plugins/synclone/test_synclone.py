@@ -66,7 +66,7 @@ class DBClonerTests(BaubleTestCase):
     @mock.patch('bauble.connmgr.start_connection_manager',
                 return_value=(None, 'sqlite:///test.db'))
     def test_get_uri_succeeds(self, _mock_start_cm):
-        self.assertEqual(DBCloner._get_uri(), 'sqlite:///test.db')
+        self.assertEqual(str(DBCloner._get_uri()), 'sqlite:///test.db')
 
     @mock.patch('bauble.plugins.synclone.clone.utils.message_dialog')
     @mock.patch('bauble.connmgr.start_connection_manager',
@@ -88,7 +88,7 @@ class DBClonerTests(BaubleTestCase):
                   'BG?driver=ODBC+Driver+17+for+SQL+Server')
         cloner.uri = ms_uri
         self.assertIsNotNone(cloner.clone_engine)
-        mock_create_eng.assert_called_with(ms_uri, fast_executemany=True)
+        mock_create_eng.assert_called_with(cloner.uri, fast_executemany=True)
 
     def test_drop_create_tables_creates_tables(self):
         from sqlalchemy import inspect
@@ -1723,7 +1723,7 @@ class ResolutionCentreViewTests(BaubleTestCase):
         for row in rows:
             view.add_row(row)
         view.update(['2', 'sqlite:///:memory:'])
-        self.assertEqual(view.uri, 'sqlite:///:memory:')
+        self.assertEqual(str(view.uri), 'sqlite:///:memory:')
         self.assertEqual(len(view.liststore), 3)
         self.assertEqual(len(view.get_selected_rows()), 2)
         self.assertTrue(view.remove_selected_btn.get_sensitive())

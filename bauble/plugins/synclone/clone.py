@@ -31,7 +31,7 @@ logger = logging.getLogger(__name__)
 from gi.repository import Gtk
 
 from sqlalchemy import func, select, create_engine
-from sqlalchemy.engine import Engine
+from sqlalchemy.engine import Engine, make_url, URL
 from sqlalchemy.exc import SQLAlchemyError
 
 import bauble
@@ -47,10 +47,10 @@ class DBCloner:
 
     def __init__(self):
         self.__cancel: bool = False
-        self.uri: str | None = None
+        self._uri: URL | None = None
         self._clone_engine: Engine | None = None
 
-    def start(self, uri: str | None = None):
+    def start(self, uri: str | URL | None = None):
         """start the clone process as a task.
 
         :param uri: address to the database to clone to.
@@ -64,16 +64,33 @@ class DBCloner:
             task.clear_messages()
             task.queue(self.run())
 
+    @property
+    def uri(self) -> URL | None:
+        return self._uri
+
+    @uri.setter
+    def uri(self, uri: str | URL | None) -> None:
+        if uri and isinstance(uri, URL):
+            self._uri = uri
+        elif uri and isinstance(uri, str):
+            self._uri = make_url(uri)
+        else:
+            self._uri = None
+        logger.debug('uri = %s', repr(self._uri))
+
     @staticmethod
     def _get_uri() -> None | str:
         """Ask the user for a database connection to clone into."""
         msg = _('<b>Select a database connection to clone the contents of\n'
                 'the current database to.</b>')
-        uri = None
         _name, uri = bauble.connmgr.start_connection_manager(msg)
-        logger.debug('selected uri = %s', uri)
+        if uri:
+            uri = make_url(uri)
+        logger.debug('selected uri = %s', repr(uri))
+        current_uri = db.engine.url
+        logger.debug('current uri = %s', repr(current_uri))
 
-        if str(db.engine.url) == uri:
+        if current_uri == uri:
             msg = _('Can not clone to the same database.')
             utils.message_dialog(msg, Gtk.MessageType.ERROR)
             logger.debug('can not clone, uri is same as current')
@@ -85,7 +102,7 @@ class DBCloner:
     def clone_engine(self) -> Engine:
         """Provides an SQLAlchemy database engine."""
         if not self._clone_engine:
-            if self.uri.startswith('mssql'):
+            if self.uri.get_dialect().name == 'mssql':
                 # mssql fails on large inserts and is slow without
                 # fast_executemany
                 self._clone_engine = create_engine(self.uri,
