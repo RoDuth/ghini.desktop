@@ -634,3 +634,18 @@ class GlobalFunctionsTests(BaubleTestCase):
                           engine,
                           show_error_dialogs=True)
         mock_dialog.assert_called()
+
+    def test_sqlite_fk_pragma_only_sqlite(self):
+        from sqlite3 import Connection
+        mock_connection = mock.Mock(spec=Connection)
+        db._sqlite_fk_pragma(mock_connection, None)
+        mock_connection.cursor.assert_called()
+        mock_connection.cursor().execute.assert_called_with(
+            "PRAGMA foreign_keys=ON;"
+        )
+        mock_connection.cursor().close.assert_called()
+
+        # any other type
+        mock_connection = mock.Mock()
+        db._sqlite_fk_pragma(mock_connection, None)
+        mock_connection.cursor.assert_not_called()

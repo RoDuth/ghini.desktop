@@ -350,6 +350,16 @@ class History(HistoryBase):
                 connection.execute(stmt)
 
 
+@event.listens_for(sa.engine.Engine, 'connect')
+def _sqlite_fk_pragma(dbapi_connection, _connection_record):
+    """Enable foregin_key constraints on sqlite connections."""
+    from sqlite3 import Connection
+    if isinstance(dbapi_connection, Connection):
+        cursor = dbapi_connection.cursor()
+        cursor.execute("PRAGMA foreign_keys=ON;")
+        cursor.close()
+
+
 def open_conn(uri, verify=True, show_error_dialogs=False, poolclass=None):
     """Open a database connection.  This function sets bauble.db.engine to
     the opened engined.
@@ -381,13 +391,6 @@ def open_conn(uri, verify=True, show_error_dialogs=False, poolclass=None):
         logger.debug('sqlite, setting check_same_thread to False')
         # avoid sqlite thread errors
         connect_args = {"check_same_thread": False}
-
-        # enforce foreign keys
-        @event.listens_for(sa.engine.Engine, 'connect')
-        def _sqlite_fk_pragma(dbapi_connection, _connection_record):
-            cursor = dbapi_connection.cursor()
-            cursor.execute("PRAGMA foreign_keys=ON;")
-            cursor.close()
 
     new_engine = sa.create_engine(uri,
                                   echo=SQLALCHEMY_DEBUG,
