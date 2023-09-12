@@ -42,6 +42,10 @@ for:
   matrix:
     only:
       - image: Visual Studio 2019
+
+  init:
+    - net start MSSQL$SQL2019
+
   environment:
     MSYSTEM: MINGW64
     CHERE_INVOKING: 1
@@ -56,13 +60,12 @@ for:
     - bash -lc "python -m pip install --upgrade pip"
     - bash -lc "SETUPTOOLS_USE_DISTUTILS=stdlib pip install git+https://github.com/pyproj4/pyproj.git"
     - bash -lc "SETUPTOOLS_USE_DISTUTILS=stdlib pip install git+https://github.com/RoDuth/pyodbc"
+    - dir %WINDIR%\System32\msodbcsql*.dll
     # - bash -lc "SETUPTOOLS_USE_DISTUTILS=stdlib pip install pyodbc"
 
   build_script:
     - bash -lc "pip install ."
     - bash -lc "pip install pyinstaller"
-    - bash -lc "python -m PyInstaller --clean --noconfirm scripts/ghini.spec"
-    - makensis scripts\build-multiuser.nsi
     - for /f %%i in ('dir "C:\Program Files\OpenJDK\jdk*" /b') do "C:\Program Files"\OpenJDK\%%i\bin\jlink --output jre --add-modules java.base,java.logging,java.desktop,java.xml
     - bash -lc "scripts/get_fop.sh"
     - bash -lc "python -m PyInstaller --clean --noconfirm scripts/ghini_fop.spec"
@@ -72,7 +75,7 @@ for:
     - path: dist/*-setup.exe
 
   test_script:
-    - bash -lc "pytest -sv"
+    - bash -lc "BAUBLE_TEST_DB_URI='mssql://sa:Password12!@localhost:1433/master?driver=ODBC+Driver+17+for+SQL+Server' pytest -sv"
 
 deploy:
   provider: GitHub
