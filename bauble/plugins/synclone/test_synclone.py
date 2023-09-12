@@ -22,6 +22,7 @@ from datetime import datetime
 from unittest import mock
 
 from sqlalchemy import create_engine, select
+from sqlalchemy.engine import make_url
 from gi.repository import Gtk
 
 import bauble
@@ -179,7 +180,7 @@ class DBClonerTests(BaubleTestCase):
     def test_record_clone_point(self, _mock_set_message):
         self.add_data()
         cloner = DBCloner()
-        cloner.uri = 'sqlite:///:memory:'
+        cloner.uri = make_url('sqlite:///:memory:')
         cloner.drop_create_tables()
         # _record_clone_point is called by run.
         bauble.task.queue(cloner.run())
@@ -1545,7 +1546,7 @@ class ResolutionCentreViewTests(BaubleTestCase):
             conn.execute(in_stmt)
             rows = conn.execute(out_stmt).all()
         view = ResolutionCentreView()
-        view.uri = 'sqlite:///:memory:'
+        view.uri = make_url('sqlite:///:memory:')
         self.assertEqual(len(rows), 3)
         for row in rows:
             view.add_row(row)

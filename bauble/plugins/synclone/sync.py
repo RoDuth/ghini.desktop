@@ -461,8 +461,7 @@ class ResolutionCentreView(pluginmgr.View, Gtk.Box):
         logger.debug('Starting ResolutionCentreView')
         super().__init__()
         self._uri = None
-        if uri:
-            self.uri = uri
+        self.uri = uri
         self.last_pos: tuple[Gtk.TreePath | None,
                              Gtk.TreeViewColumn | None,
                              int, int] | None = None
