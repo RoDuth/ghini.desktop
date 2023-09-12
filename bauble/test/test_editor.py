@@ -792,6 +792,32 @@ class MapMixinTests(BaubleTestCase):
         self.assertEqual(self.mixin.model.geojson, self.geojson)
         self.mixin.view.run_message_dialog.assert_called()
 
+    @mock.patch('bauble.gui')
+    def test_on_map_paste_kml(self, mock_gui):
+        from bauble.test.test_utils_geo import kml_point
+        mock_clipboard = mock.Mock()
+        mock_clipboard.wait_for_text.return_value = kml_point
+        mock_gui.get_display_clipboard.return_value = mock_clipboard
+        self.mixin.on_map_paste()
+        self.assertEqual(
+            self.mixin.model.geojson,
+            {"type": "Point",
+             "coordinates": [152.9742036592858, -27.47773096030531]}
+        )
+
+    @mock.patch('bauble.gui')
+    def test_on_map_paste_web_coords(self, mock_gui):
+        mock_clipboard = mock.Mock()
+        mock_clipboard.wait_for_text.return_value = ('-27.47677001137734, '
+                                                     '152.97467501385253')
+        mock_gui.get_display_clipboard.return_value = mock_clipboard
+        self.mixin.on_map_paste()
+        self.assertEqual(
+            self.mixin.model.geojson,
+            {"type": "Point",
+             "coordinates": [152.97467501385253, -27.47677001137734]}
+        )
+
     @mock.patch('bauble.utils.desktop.open')
     def test_on_map_kml_show_produces_file(self, mock_open):
         template_str = "${value}"

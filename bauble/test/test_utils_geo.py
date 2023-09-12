@@ -18,7 +18,12 @@
 from unittest import mock, TestCase
 
 from bauble.test import BaubleTestCase
-from bauble.utils.geo import transform, ProjDB, prj_crs, KMLMapCallbackFunctor
+from bauble.utils.geo import (transform,
+                              ProjDB,
+                              prj_crs,
+                              KMLMapCallbackFunctor,
+                              kml_string_to_geojson,
+                              web_mercator_point_coords_to_geojson)
 from bauble import db
 
 # test data - avoiding tuples as they end up lists in the database anyway
@@ -78,6 +83,166 @@ epsg4326_multipoly = {
 proj_db_data = [('PROJCS["test1"]', 'test:1', True),
                 ('PROJCS["test2"]', 'test:2', False),
                 ('PROJCS["test3"]', 'test:3', False)]
+
+
+kml_point = '''<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2"
+ xmlns:gx="http://www.google.com/kml/ext/2.2"
+ xmlns:kml="http://www.opengis.net/kml/2.2"
+ xmlns:atom="http://www.w3.org/2005/Atom">
+<Document>
+  <name>KmlFile</name>
+  <StyleMap id="m_ylw-pushpin">
+    <Pair>
+      <key>normal</key>
+      <styleUrl>#s_ylw-pushpin</styleUrl>
+    </Pair>
+    <Pair>
+      <key>highlight</key>
+      <styleUrl>#s_ylw-pushpin_hl</styleUrl>
+    </Pair>
+  </StyleMap>
+  <Style id="s_ylw-pushpin">
+    <IconStyle>
+      <scale>1.1</scale>
+      <Icon>
+        <href>http://maps.google.com/mapfiles/kml/pushpin/ylw-pushpin.png</href>
+      </Icon>
+      <hotSpot x="20" y="2" xunits="pixels" yunits="pixels"/>
+    </IconStyle>
+  </Style>
+  <Style id="s_ylw-pushpin_hl">
+    <IconStyle>
+      <scale>1.3</scale>
+      <Icon>
+        <href>http://maps.google.com/mapfiles/kml/pushpin/ylw-pushpin.png</href>
+      </Icon>
+      <hotSpot x="20" y="2" xunits="pixels" yunits="pixels"/>
+    </IconStyle>
+  </Style>
+  <Placemark>
+    <name>Untitled Placemark</name>
+    <LookAt>
+      <longitude>152.9742036592858</longitude>
+      <latitude>-27.47773096030531</latitude>
+      <altitude>0</altitude>
+      <heading>-0.0003665758068030529</heading>
+      <tilt>0</tilt>
+      <range>1335.809291980569</range>
+      <gx:altitudeMode>relativeToSeaFloor</gx:altitudeMode>
+    </LookAt>
+    <styleUrl>#m_ylw-pushpin</styleUrl>
+    <Point>
+      <gx:drawOrder>1</gx:drawOrder>
+      <coordinates>152.9742036592858,-27.47773096030531,0</coordinates>
+    </Point>
+  </Placemark>
+</Document>
+</kml>
+'''
+
+kml_line = '''<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2"
+ xmlns:gx="http://www.google.com/kml/ext/2.2"
+ xmlns:kml="http://www.opengis.net/kml/2.2"
+ xmlns:atom="http://www.w3.org/2005/Atom">
+<Document>
+  <name>KmlFile</name>
+  <StyleMap id="m_ylw-pushpin">
+    <Pair>
+      <key>normal</key>
+      <styleUrl>#s_ylw-pushpin</styleUrl>
+    </Pair>
+    <Pair>
+      <key>highlight</key>
+      <styleUrl>#s_ylw-pushpin_hl</styleUrl>
+    </Pair>
+  </StyleMap>
+  <Style id="s_ylw-pushpin">
+    <IconStyle>
+      <scale>1.1</scale>
+      <Icon>
+        <href>http://maps.google.com/mapfiles/kml/pushpin/ylw-pushpin.png</href>
+      </Icon>
+      <hotSpot x="20" y="2" xunits="pixels" yunits="pixels"/>
+    </IconStyle>
+  </Style>
+  <Style id="s_ylw-pushpin_hl">
+    <IconStyle>
+      <scale>1.3</scale>
+      <Icon>
+        <href>http://maps.google.com/mapfiles/kml/pushpin/ylw-pushpin.png</href>
+      </Icon>
+      <hotSpot x="20" y="2" xunits="pixels" yunits="pixels"/>
+    </IconStyle>
+  </Style>
+  <Placemark>
+    <name>Untitled Path</name>
+    <styleUrl>#m_ylw-pushpin</styleUrl>
+    <LineString>
+      <tessellate>1</tessellate>
+      <coordinates>
+152.97410632,-27.4777376524,0 152.974131,-27.477702,0 152.97415,-27.477706,0
+      </coordinates>
+    </LineString>
+  </Placemark>
+</Document>
+</kml>
+'''
+
+kml_poly = '''<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2"
+ xmlns:gx="http://www.google.com/kml/ext/2.2"
+ xmlns:kml="http://www.opengis.net/kml/2.2"
+ xmlns:atom="http://www.w3.org/2005/Atom">
+<Document>
+  <name>KmlFile</name>
+  <StyleMap id="m_ylw-pushpin">
+    <Pair>
+      <key>normal</key>
+      <styleUrl>#s_ylw-pushpin</styleUrl>
+    </Pair>
+    <Pair>
+      <key>highlight</key>
+      <styleUrl>#s_ylw-pushpin_hl</styleUrl>
+    </Pair>
+  </StyleMap>
+  <Style id="s_ylw-pushpin">
+    <IconStyle>
+      <scale>1.1</scale>
+      <Icon>
+        <href>http://maps.google.com/mapfiles/kml/pushpin/ylw-pushpin.png</href>
+      </Icon>
+      <hotSpot x="20" y="2" xunits="pixels" yunits="pixels"/>
+    </IconStyle>
+  </Style>
+  <Style id="s_ylw-pushpin_hl">
+    <IconStyle>
+      <scale>1.3</scale>
+      <Icon>
+        <href>http://maps.google.com/mapfiles/kml/pushpin/ylw-pushpin.png</href>
+      </Icon>
+      <hotSpot x="20" y="2" xunits="pixels" yunits="pixels"/>
+    </IconStyle>
+  </Style>
+  <Placemark>
+    <name>Untitled Polygon</name>
+    <styleUrl>#m_ylw-pushpin</styleUrl>
+    <Polygon>
+      <tessellate>1</tessellate>
+      <outerBoundaryIs>
+        <LinearRing>
+          <coordinates>
+152.9739,-27.4776,0 152.9739,-27.4777,0 152.9740,-27.4776,0 152.9739,-27.4776,0 
+          </coordinates>
+        </LinearRing>
+      </outerBoundaryIs>
+    </Polygon>
+  </Placemark>
+</Document>
+</kml>
+
+'''
 
 
 class TestProjDBDefaults(BaubleTestCase):
@@ -313,6 +478,52 @@ class GlobalFunctionsTests(BaubleTestCase):
         # junk data returns none
         self.assertIsNone(transform('hjkl'))
 
+    def test_kml_string_to_geojson_point(self):
+        self.assertEqual(
+            kml_string_to_geojson(kml_point),
+            '{"type": "Point", "coordinates": [152.9742036592858, '
+            '-27.47773096030531]}'
+        )
+
+    def test_kml_string_to_geojson_line(self):
+        self.assertEqual(
+            kml_string_to_geojson(kml_line),
+            '{"type": "LineString", "coordinates": [[152.97410632, '
+            '-27.4777376524], [152.974131, -27.477702], '
+            '[152.97415, -27.477706]]}'
+        )
+
+    def test_kml_string_to_geojson_poly(self):
+        self.assertEqual(
+            kml_string_to_geojson(kml_poly),
+            '{"type": "Polygon", "coordinates": [[[152.9739, -27.4776], '
+            '[152.9739, -27.4777], [152.9740, -27.4776], '
+            '[152.9739, -27.4776]]]}'
+        )
+
+    def test_kml_string_to_geojson_junk_returns_string(self):
+        junk_xml = ('<?xml version="1.0" encoding="UTF-8"?>'
+                    '<kml xmlns="http://www.opengis.net/kml/2.2" '
+                    ' xmlns:gx="http://www.google.com/kml/ext/2.2" '
+                    ' xmlns:kml="http://www.opengis.net/kml/2.2" '
+                    ' xmlns:atom="http://www.w3.org/2005/Atom"> '
+                    '<junk>data</junk>'
+                    '</kml>')
+        self.assertEqual(kml_string_to_geojson(junk_xml), junk_xml)
+
+        self.assertEqual(
+            kml_string_to_geojson('JUNK'), 'JUNK'
+        )
+
+    def test_web_mercator_point_coords_to_geojson(self):
+        self.assertEqual(
+            web_mercator_point_coords_to_geojson(
+                '-27.47677001137734, 152.97467501385253'
+            ),
+            '{"type": "Point", "coordinates": [152.97467501385253, '
+            '-27.47677001137734]}'
+        )
+
 
 class TestKMLMapCallbackFunctor(TestCase):
     @mock.patch('bauble.utils.message_dialog')
@@ -356,4 +567,3 @@ class TestKMLMapCallbackFunctor(TestCase):
         with self.assertNoLogs(level='DEBUG'):
             call_back([None, None, None])
         mock_open.assert_called()
-

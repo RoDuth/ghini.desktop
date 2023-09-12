@@ -296,3 +296,52 @@ class KMLMapCallbackFunctor:
 
         if count == 0:
             utils.message_dialog(_('No map data for selected item(s).'))
+
+
+def kml_string_to_geojson(string: str) -> str:
+    """Accepts kml strings as copied from google earth etc. and returns
+    it as a geojson geometry string.
+
+    Assumes the system datum.
+    """
+    from lxml import etree
+    try:
+        kml = etree.fromstring(string.encode('utf-8'))
+        namespaces = {k: v for k, v in kml.nsmap.items() if k}
+    except etree.XMLSyntaxError:
+        return string
+    poly = ('/kml:kml//kml:Placemark/kml:Polygon/kml:outerBoundaryIs/'
+            'kml:LinearRing/kml:coordinates/text()')
+    line = '/kml:kml//kml:Placemark/kml:LineString/kml:coordinates/text()'
+    point = '/kml:kml//kml:Placemark/kml:Point/kml:coordinates/text()'
+
+    if coords := kml.xpath(poly, namespaces=namespaces):
+        result = '{"type": "Polygon", "coordinates": [['
+        for val in coords[0].split():
+            val = val.rsplit(',', 1)[0]
+            result += f"[{val.replace(',', ', ')}], "
+        result = result[:-2] + ']]}'
+        return result
+    if coords := kml.xpath(line, namespaces=namespaces):
+        result = '{"type": "LineString", "coordinates": ['
+        for val in coords[0].split():
+            val = val.rsplit(',', 1)[0]
+            result += f"[{val.replace(',', ', ')}], "
+        result = result[:-2] + ']}'
+        return result
+    if coords := kml.xpath(point, namespaces=namespaces):
+        result = '{"type": "Point", "coordinates": ['
+        result += coords[0].rsplit(',', 1)[0].replace(',', ', ')
+        result += ']}'
+        return result
+    return string
+
+
+def web_mercator_point_coords_to_geojson(string: str) -> str:
+    """Accepts point string coordinates as copied from google maps etc. and
+    returns it as geojson geometry string.
+
+    Assumes the system datum.
+    """
+    x, y = string.split(', ')
+    return f'{{"type": "Point", "coordinates": [{y}, {x}]}}'

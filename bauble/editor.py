@@ -21,6 +21,7 @@ Description: a collection of functions and abstract classes for creating
 editors
 """
 
+import re
 import datetime
 import os
 import weakref
@@ -1742,6 +1743,10 @@ class PresenterMapMixin:
     def on_map_paste(self, *_args):
         if bauble.gui:
             text = bauble.gui.get_display_clipboard().wait_for_text()
+            if re.match(r'-?\d{1,2}\.\d*, -?\d{1,3}\.\d*', text):
+                text = utils.geo.web_mercator_point_coords_to_geojson(text)
+            elif text.startswith('<?xml'):
+                text = utils.geo.kml_string_to_geojson(text)
             try:
                 geojson = json.loads(text)
                 # basic validation...
