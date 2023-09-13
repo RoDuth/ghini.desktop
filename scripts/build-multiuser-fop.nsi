@@ -52,7 +52,7 @@ Name "ghini.desktop"
 !define VERSION "1.3.3" ; :bump
 !define SRC_DIR "..\dist\ghini"
 !define PRODUCT_NAME "ghini.desktop"
-Outfile "..\dist\${PRODUCT_NAME}-${VERSION}-full-setup.exe"
+Outfile "..\dist\${PRODUCT_NAME}-${VERSION}-setup.exe"
 !define PROGEXE "ghini.exe"
 ; !define COMPANY_NAME ""  ; no longer required
 !define LICENSE_FILE "LICENSE"
