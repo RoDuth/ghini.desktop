@@ -3714,7 +3714,7 @@ class InfraspPresenterTests(TestCase):
         self.assertEqual(presenter.table_rows, [])
         del presenter
 
-    def test_init_with_model_w_infras_does_populate(self):
+    def test_init_with_model_w_infrasp_does_populate(self):
         mock_model = mock.Mock()
         mock_model.get_infrasp = lambda x: (
             list(infrasp_rank_values.keys())[x],
@@ -3727,9 +3727,15 @@ class InfraspPresenterTests(TestCase):
             'fake_widget1', 'fake_widget2', 'fake_widget3'
         ]
         mock_parent.model = mock_model
+        # disable 'combo doesn't have a model' warning - makes no difference
+        utils.logger.disabled = True
+
         presenter = InfraspPresenter(mock_parent)
         mock_parent.view.widgets.remove_parent.assert_called()
         self.assertEqual(len(presenter.table_rows), 4)
+
+        utils.logger.disabled = False
+
         del presenter
 
     def test_clear_rows(self):
@@ -3741,18 +3747,28 @@ class InfraspPresenterTests(TestCase):
         ) if x < 5 else (None, None, None)
         mock_parent = mock.Mock()
         mock_parent.view = mock.Mock()
+        # disable 'combo doesn't have a model' warning - makes no difference
+        utils.logger.disabled = True
+
         mock_parent.view.widgets.infrasp_grid.get_children.return_value = []
+        # TODO no init_translatable_combo on view causes log warning.
         mock_parent.model = mock_model
         presenter = InfraspPresenter(mock_parent)
         self.assertEqual(len(presenter.table_rows), 4)
         presenter.clear_rows()
         self.assertEqual(len(presenter.table_rows), 0, presenter.table_rows)
+
+        utils.logger.disabled = False
+
         del presenter
 
     def test_infrarow_set_model_attr(self):
         mock_presenter = mock.Mock()
         mock_presenter.model = sp = Species()
+        # disable 'combo doesn't have a model' warning - makes no difference
+        utils.logger.disabled = True
         row = InfraspRow(mock_presenter, 1)
+        utils.logger.disabled = False
         row.set_model_attr('epithet', 'test')
         self.assertEqual(sp.infrasp1, 'test')
         self.assertTrue(mock_presenter._dirty)
@@ -3761,7 +3777,11 @@ class InfraspPresenterTests(TestCase):
     def test_infrarow_on_epithet_entry_changed(self):
         mock_presenter = mock.Mock()
         mock_presenter.model = sp = Species()
+        # disable 'combo doesn't have a model' warning - makes no difference
+        utils.logger.disabled = True
+
         row = InfraspRow(mock_presenter, 1)
+        utils.logger.disabled = False
         self.assertEqual(sp.infrasp1, None)
         mock_entry = mock.Mock()
         mock_entry.get_text.return_value = 'testname'
@@ -3773,7 +3793,11 @@ class InfraspPresenterTests(TestCase):
     def test_infrarow_on_author_entry_changed(self):
         mock_presenter = mock.Mock()
         mock_presenter.model = sp = Species()
+        # disable 'combo doesn't have a model' warning - makes no difference
+        utils.logger.disabled = True
         row = InfraspRow(mock_presenter, 1)
+        utils.logger.disabled = False
+
         self.assertEqual(sp.infrasp1_author, None)
         mock_entry = mock.Mock()
         mock_entry.get_text.return_value = 'testname'
@@ -3786,7 +3810,11 @@ class InfraspPresenterTests(TestCase):
         mock_presenter = mock.Mock()
         mock_presenter.model = sp = Species()
         mock_presenter.table_rows = []
+        # disable 'combo doesn't have a model' warning - makes no difference
+        utils.logger.disabled = True
         row = InfraspRow(mock_presenter, 1)
+        utils.logger.disabled = False
+
         self.assertEqual(sp.infrasp1_rank, None)
         mock_combo = mock.Mock()
         mock_combo.get_model.return_value = [['var.']]
@@ -3807,12 +3835,18 @@ class InfraspPresenterTests(TestCase):
         mock_parent.view = mock.Mock()
         mock_parent.view.widgets.infrasp_grid.get_children.return_value = []
         mock_parent.model = mock_model
+        # disable 'combo doesn't have a model' warning - makes no difference
+        utils.logger.disabled = True
+
         presenter = InfraspPresenter(mock_parent)
         self.assertEqual(len(presenter.table_rows), 4)
         presenter.table_rows[0].on_remove_button_clicked(None)
         self.assertEqual(len(presenter.table_rows), 3)
         presenter.table_rows[0].on_remove_button_clicked(None)
         self.assertEqual(len(presenter.table_rows), 2)
+
+        utils.logger.disabled = False
+
         for i, row in enumerate(presenter.table_rows):
             self.assertEqual(row.level, i + 1)
         del presenter
@@ -3821,10 +3855,14 @@ class InfraspPresenterTests(TestCase):
         mock_presenter = mock.Mock()
         mock_presenter.model = sp = Species(infrasp1_rank='var.')
         mock_presenter.table_rows = []
+        # disable 'combo doesn't have a model' warning - makes no difference
+        utils.logger.disabled = True
         row = InfraspRow(mock_presenter, 2)
         self.assertEqual(sp.infrasp1_rank, 'var.')
         sp.infrasp1_rank = 'f.'
         row.refresh_rank_combo()
+        utils.logger.disabled = False
+
         self.assertEqual(sp.infrasp1_rank, 'f.')
         mock_presenter.view.init_translatable_combo.assert_called()
         args = mock_presenter.view.init_translatable_combo.call_args.args

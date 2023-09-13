@@ -1166,6 +1166,7 @@ class InfraspRow:
         else:
             rank_values = infrasp_rank_values
 
+        logger.debug('rank values = %s', rank_values)
         self.presenter.view.init_translatable_combo(
             self.rank_combo,
             rank_values,
@@ -1278,6 +1279,7 @@ class InfraspPresenter(editor.GenericEditorPresenter):
     def append_infrasp(self, _widget=None):
         level = len(self.table_rows) + 1
         if level == 1 or self.model.get_infrasp(level - 1)[0]:
+            logger.debug('appending infrasp row %s', level)
             row = InfraspRow(self, level)
             self.table_rows.append(row)
             if level >= 4:
