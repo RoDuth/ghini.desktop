@@ -693,6 +693,22 @@ class Species(db.Base, db.WithNotes):
             utils.delete_or_expunge(self._default_vernacular_name)
             del self._default_vernacular_name
 
+    @hybrid_property
+    def family_name(self):
+        return self.genus.family.epithet
+
+    @family_name.expression
+    def family_name(cls):
+        # pylint: disable=no-self-argument
+        from .genus import Genus
+        from .family import Family
+        return (
+            select([Family.epithet])
+            .where(Genus.id == cls.genus_id)
+            .where(Genus.family_id == Family.id)
+            .label('family_name')
+        )
+
     def distribution_str(self):
         if self.distribution is None:
             return ''

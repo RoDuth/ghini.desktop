@@ -2084,6 +2084,16 @@ class SpeciesTests(PlantTestCase):
         self.setUp()
         self.assertFalse(hasattr(Species, 'nca_status'))
 
+    def test_family_name_hybrid_property(self):
+        # property
+        sp = self.session.query(Species).get(1)
+        self.assertEqual(sp.family_name, 'Orchidaceae')
+        # expression
+        palms = (self.session.query(Species.id)
+                 .filter(Species.family_name == 'Arecaceae'))
+        palm_ids = [i[0] for i in palms]
+        self.assertCountEqual(palm_ids, [26])
+
 
 class MarkupItalicsTests(TestCase):
     def test_markup_simple(self):
