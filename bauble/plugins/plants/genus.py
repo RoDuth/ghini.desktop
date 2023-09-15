@@ -500,6 +500,7 @@ class GenusEditorView(editor.GenericEditorView):
                              'genus.'),
         'gen_hybrid_combo': _('Genus hybrid flag, a named hybrid ("x") or a '
                               'graft chimaera ("+")'),
+        'gen_qualifier_combo': _('Genus qualifier'),
     }
 
     def __init__(self, parent=None):
@@ -547,6 +548,7 @@ class GenusEditorPresenter(editor.GenericEditorPresenter):
 
     widget_to_field_map = {'gen_family_entry': 'family',
                            'gen_hybrid_combo': 'hybrid',
+                           'gen_qualifier_combo': 'qualifier',
                            'gen_genus_entry': 'genus',
                            'gen_author_entry': 'author',
                            'cites_combo': '_cites',
@@ -570,6 +572,7 @@ class GenusEditorPresenter(editor.GenericEditorPresenter):
             generic_gen_get_completions
         )
         self.init_enum_combo('gen_hybrid_combo', 'hybrid')
+        self.init_enum_combo('gen_qualifier_combo', 'qualifier')
         self.init_enum_combo('cites_combo', '_cites')
         self.refresh_view()  # put model values in view
 
@@ -639,6 +642,8 @@ class GenusEditorPresenter(editor.GenericEditorPresenter):
                                         self.subtribe_get_completions,
                                         set_problems=False)
         self.assign_simple_handler('gen_hybrid_combo', 'hybrid',
+                                   editor.StringOrNoneValidator())
+        self.assign_simple_handler('gen_qualifier_combo', 'qualifier',
                                    editor.StringOrNoneValidator())
         self.assign_simple_handler('gen_genus_entry', 'genus',
                                    editor.StringOrNoneValidator())

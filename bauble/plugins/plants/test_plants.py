@@ -443,9 +443,7 @@ class PrefsUpdatedTest(BaubleTestCase):
 
 
 class FamilyTests(PlantTestCase):
-    """
-    Test for Family and FamilySynonym
-    """
+    """Tests for Family and FamilySynonym"""
     def test_cascades(self):
         """
         Test that cascading is set up properly
@@ -547,6 +545,14 @@ class FamilyTests(PlantTestCase):
         self.assertTrue(str(f) == 'fam')
         f.qualifier = 's. lat.'
         self.assertTrue(str(f) == 'fam s. lat.')
+        f.author = 'arthur'
+        self.assertTrue(f.str(f, author=True) == 'fam s. lat. arthur')
+
+    def test_synonym_str(self):
+        fam = Family(family='Fam', qualifier='s. lat.', author='Arthur')
+        new = Family(family='Newname')
+        syn = FamilySynonym(family=new, synonym=fam)
+        self.assertEqual(str(syn), str(fam))
 
     def test_remove_callback_no_genera_no_confirm(self):
         # T_0
@@ -778,16 +784,16 @@ class FamilyEditorTests(PlantTestCase):
                          [], 'FamilyEditorView not deleted')
 
     def test_suprafamilial_parts(self):
-        gen = self.session.query(Family).get(1)
+        fam = self.session.query(Family).get(1)
         view = FamilyEditorView()
-        presenter = FamilyEditorPresenter(gen, view)
+        presenter = FamilyEditorPresenter(fam, view)
 
         presenter.cleanup()
         del presenter
 
-        gen = self.session.query(Family).get(8)
+        fam = self.session.query(Family).get(8)
         view = FamilyEditorView()
-        presenter = FamilyEditorPresenter(gen, view)
+        presenter = FamilyEditorPresenter(fam, view)
         self.assertTrue(view.widgets.suprafam_expander.get_expanded())
         self.assertEqual(view.widgets.order_entry.get_text(), 'Cycadales')
         self.assertEqual(view.widgets.suborder_entry.get_text(), 'Zamiineae')
@@ -796,9 +802,9 @@ class FamilyEditorTests(PlantTestCase):
         del presenter
 
     def test_order_get_completions(self):
-        gen = self.session.query(Family).get(8)
+        fam = self.session.query(Family).get(8)
         view = FamilyEditorView()
-        presenter = FamilyEditorPresenter(gen, view)
+        presenter = FamilyEditorPresenter(fam, view)
         # order
         self.assertEqual(presenter.order_get_completions('Cyc'), ['Cycadales'])
         # case insensitive
@@ -809,9 +815,9 @@ class FamilyEditorTests(PlantTestCase):
         del presenter
 
     def test_suborder_get_completions(self):
-        gen = self.session.query(Family).get(8)
+        fam = self.session.query(Family).get(8)
         view = FamilyEditorView()
-        presenter = FamilyEditorPresenter(gen, view)
+        presenter = FamilyEditorPresenter(fam, view)
         # wrong order
         self.assertEqual(presenter.suborder_get_completions('Pol'),
                          [])
@@ -824,6 +830,16 @@ class FamilyEditorTests(PlantTestCase):
 
         presenter.cleanup()
         del presenter
+
+    def test_set_model_attr(self):
+        fam = self.session.query(Family).get(8)
+        view = FamilyEditorView()
+        self.assertEqual(fam.qualifier, '')
+        presenter = FamilyEditorPresenter(fam, view)
+        self.assertFalse(presenter._dirty)
+        presenter.set_model_attr('qualifier', 's. lat.')
+        self.assertEqual(fam.qualifier, 's. lat.')
+        self.assertTrue(presenter._dirty)
 
 
 class GenusTests(PlantTestCase):

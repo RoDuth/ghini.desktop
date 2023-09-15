@@ -201,7 +201,7 @@ class Family(db.Base, db.WithNotes):
             return session.query(cls).filter_by(**fam_parts).one_or_none()
         return None
 
-    @validates('genus')
+    @validates('family')
     def validate_stripping(self, _key, value):
         if value is None:
             return None
@@ -211,12 +211,14 @@ class Family(db.Base, db.WithNotes):
         return Family.str(self)
 
     @staticmethod
-    def str(family, _qualifier=False, _author=False):
-        # TODO author is not in the model but it really should
+    def str(family, author=False):
         if family.family is None:
             return db.Base.__repr__(family)
-        return ' '.join([s for s in [
-            family.family, family.qualifier] if s not in (None, '')])
+        parts = [family.family,
+                 family.qualifier]
+        if author and family.author:
+            parts.append(utils.xml_safe(family.author))
+        return ' '.join([s for s in parts if s not in (None, '')])
 
     def top_level_count(self):
         genera = set(g for g in self.genera if g.species)
@@ -426,7 +428,6 @@ class FamilyEditorPresenter(editor.GenericEditorPresenter):
             self.view.set_accept_buttons_sensitive(False)
 
     def set_model_attr(self, attr, value, validator=None):
-        # debug('set_model_attr(%s, %s)' % (attr, value))
         super().set_model_attr(attr, value, validator)
         self._dirty = True
         self.refresh_sensitivity()

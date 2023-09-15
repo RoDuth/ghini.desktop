@@ -175,6 +175,7 @@
                       <object class="GtkComboBox" id="fam_qualifier_combo">
                         <property name="visible">True</property>
                         <property name="can-focus">False</property>
+                        <property name="halign">start</property>
                         <property name="hexpand">True</property>
                       </object>
                       <packing>
