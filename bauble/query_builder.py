@@ -51,36 +51,41 @@ from pyparsing import (Word,
 
 import bauble
 from bauble import utils
+from bauble import prefs
 from bauble.editor import GenericEditorPresenter
 from bauble.search import NoneToken, EmptyToken, MapperSearch
 
 
 class SchemaMenu(Gtk.Menu):
-    """
-    SchemaMenu
+    """SchemaMenu, allows drilling down into database columns and relations.
 
-    :param mapper:
-    :param activate_cb:
-    :param column_filter:
-    :param relation_filter:
+    :param mapper: mapper for the root model
+    :param activate_callback: function to call when menu item is activted
+    :param column_filter: function that returns False if a column is not to be
+        included in the menus
+    :param relation_filter: function that returns False if the relation is not
+        to be included in the menu
     :param private: if True include private fields (starting with underscore)
     :param selectable_relations: if True include relations as selectable items
+    :param recurse: if True allow recusing (i.e. species.accessions.species)
     """
 
     def __init__(self,  # pylint: disable=too-many-arguments
                  mapper,
-                 activate_cb=None,
+                 activate_callback=None,
                  column_filter=lambda k, p: True,
                  relation_filter=lambda k, p: True,
                  private=False,
+                 recurse=False,
                  selectable_relations=False):
         super().__init__()
         self.mapper = mapper
-        self.activate_cb = activate_cb
+        self.activate_callback = activate_callback
         self.private = private
         self.relation_filter = relation_filter
         self.column_filter = column_filter
         self.selectable_relations = selectable_relations
+        self.recurse = recurse
         for item in self._get_prop_menuitems(mapper):
             self.append(item)
         self.show_all()
@@ -99,24 +104,31 @@ class SchemaMenu(Gtk.Menu):
         full_path = '.'.join(reversed(path))
         if self.selectable_relations and hasattr(prop, '__table__'):
             full_path = full_path.removesuffix(f'.{prop.__table__.key}')
-        self.activate_cb(menuitem, full_path, prop)
+        self.activate_callback(menuitem, full_path, prop)
 
     def on_select(self, menuitem, prop):
         """Called when menu items that have submenus are selected."""
+        try:
+            current_cls = prop.parent.class_
+        except AttributeError:
+            # pylint: disable=protected-access
+            current_cls = prop._class
+
         submenu = menuitem.get_submenu()
         if len(submenu.get_children()) == 0:
             if isinstance(prop, AssociationProxy):
+                # pylint: disable=protected-access
                 mapper = getattr(
                     prop.for_class(prop._class).target_class,
                     prop.value_attr
                 ).mapper
             else:
                 mapper = prop.mapper
-            for item in self._get_prop_menuitems(mapper):
+            for item in self._get_prop_menuitems(mapper, current_cls):
                 submenu.append(item)
         submenu.show_all()
 
-    def _get_prop_menuitems(self, mapper):
+    def _get_column_and_relation_properties(self, mapper):
         # Separate properties in column_properties and relation_properties
 
         column_properties = {}
@@ -133,6 +145,7 @@ class SchemaMenu(Gtk.Menu):
                     column_properties[key] = prop
             elif isinstance(prop, AssociationProxy):
                 # patch in the class so we have it later
+                # pylint: disable=protected-access
                 prop._class = mapper.class_
                 relation_properties[key] = prop
 
@@ -142,9 +155,14 @@ class SchemaMenu(Gtk.Menu):
         ))
         relation_properties = dict(sorted(relation_properties.items(),
                                           key=lambda p: p[0]))
+        return column_properties, relation_properties
+
+    def _get_prop_menuitems(self, mapper, current_cls=None):
+
+        all_props = self._get_column_and_relation_properties(mapper)
+        column_properties, relation_properties = all_props
 
         items = []
-
         # add the table name to the top of the submenu and allow it to be
         # selected (intended for export selection where you wish to include the
         # string representation of the table)
@@ -167,6 +185,19 @@ class SchemaMenu(Gtk.Menu):
         for key, prop in relation_properties.items():
             if not self.relation_filter(key, prop):
                 continue
+
+            if self.recurse is False:
+                if isinstance(prop, AssociationProxy):
+                    # pylint: disable=protected-access
+                    target_prop = getattr(
+                        prop.for_class(prop._class).target_class,
+                        prop.value_attr
+                    ).prop
+                else:
+                    target_prop = prop.prop
+                if target_prop.mapper.class_ is current_cls:
+                    continue
+
             item = Gtk.MenuItem(label=key, use_underline=False)
             submenu = Gtk.Menu()
             item.set_submenu(submenu)
@@ -196,7 +227,7 @@ def parse_typed_value(value, proptype):
     elif isinstance(proptype, bauble.btypes.Boolean):
         # btypes.Boolean accepts strings and 0, 1
         if value not in ['True', 'False', 1, 0]:
-            value = f'|bool|{value}|'
+            value = 0
     elif isinstance(proptype, Integer):
         value = ''.join([i for i in value if i in '-0123456789.'])
         if value:
@@ -254,10 +285,12 @@ class ExpressionRow:
 
         self.prop_button = Gtk.Button(label=_('Choose a property…'))
 
+        recurse = prefs.prefs.get(prefs.query_builder_recurse, False)
         self.schema_menu = SchemaMenu(self.presenter.mapper,
                                       self.on_schema_menu_activated,
                                       self.column_filter,
-                                      self.relation_filter)
+                                      self.relation_filter,
+                                      recurse=recurse)
         self.prop_button.connect('button-press-event',
                                  self.on_prop_button_clicked,
                                  self.schema_menu)
@@ -516,16 +549,22 @@ class ExpressionRow:
         if val is not None:
             self.value_widget.set_text(str(val))
 
-    # TODO what to do with synonyms?  Could leave out sp, genus, family and
-    # use epithet only?
     @staticmethod
-    def column_filter(key, _prop):
+    def column_filter(key, prop):
         # skip any id fields (e.g. genus_id) as they are available via the
         # related id property (e.g. species.genus_id == species.genus.id)
         # Except obj_id from tags
         if key.endswith('_id') and not key == 'obj_id':
             return False
         if key.startswith('_') and key not in ('_last_updated', '_created'):
+            return False
+        qualname = ''
+        if hasattr(prop, '__qualname__'):
+            qualname = getattr(prop, '__qualname__')
+        else:
+            qualname = str(prop)
+        if (prefs.prefs.get(prefs.query_builder_advanced, False) is False and
+                qualname in prefs.prefs.get(prefs.query_builder_excludes, [])):
             return False
         return True
 
@@ -600,12 +639,12 @@ class BuiltQuery:
     date_type = Regex(r'(\d{4}),[ ]?(\d{1,2}),[ ]?(\d{1,2})')
     true_false = (Literal('True') | Literal('False'))
     unquoted_string = Word(alphanums + alphas8bit + '%.-_*;:')
-    string_value = (quotedString | unquoted_string)
-    value_part = (date_type | numeric_value | true_false)
+    string_value = quotedString | unquoted_string
+    value_part = date_type | numeric_value | true_false
     typed_value = (Literal("|") + Word(alphas) + Literal("|") +
                    value_part + Literal("|")).setParseAction(
-                       lambda s, l, t: t[3])
-    none_token = Literal('None').setParseAction(lambda s, l, t: '<None>')
+                       lambda s, _l, t: t[3])
+    none_token = Literal('None').setParseAction(lambda s, _l, t: '<None>')
     fieldname = Group(delimitedList(Word(alphas + '_', alphanums + '_'), '.'))
     value = (none_token | date_str | numeric_value | string_value |
              typed_value)
@@ -634,6 +673,7 @@ class BuiltQuery:
         if not self.__clauses:
             from dataclasses import dataclass
 
+            # pylint: disable=too-few-public-methods
             @dataclass
             class Clause:
                 not_: str = None
@@ -682,6 +722,15 @@ class QueryBuilder(GenericEditorPresenter):
         self.view.widgets.domain_combo.set_tooltip_text(
             'The type of items returned'
         )
+        self.view.widgets.advanced_switch.set_tooltip_text(
+            'Set on to use advanced menus (includes less commonly queried '
+            'fields).\n\nRESETS QUERY BUILDER.'
+        )
+        self.view.widgets.advanced_switch.set_active(
+            prefs.prefs.get(prefs.query_builder_advanced, False)
+        )
+        self.view.widgets.advanced_switch.connect('state-set',
+                                                  self.on_advanced_set)
 
         table = self.view.widgets.expressions_table
         for child in table.get_children():
@@ -746,20 +795,23 @@ class QueryBuilder(GenericEditorPresenter):
         dialog.run()
         dialog.destroy()
 
-    def on_domain_combo_changed(self, _combo):
-        """Change the search domain.
+    def on_advanced_set(self, _switch, state):
+        prefs.prefs[prefs.query_builder_advanced] = state
+        self.reset_expression_table()
 
-        Resets the expression table, clear the query label and deletes all the
-        expression rows.
-        """
-        try:
-            index = self.view.widgets.domain_combo.get_active()
-        except AttributeError:
-            return
+    def on_domain_combo_changed(self, combo):
+        """Change the search domain."""
+        index = combo.get_active()
         if index == -1:
             return
 
         self.domain = self.view.widgets.domain_liststore[index][0]
+        self.reset_expression_table()
+
+    def reset_expression_table(self):
+        """Resets the expression table, clear the query label and deletes all
+        the expression rows.
+        """
 
         self.view.widgets.query_lbl.set_text('')
         # remove all clauses, they became useless in new domain

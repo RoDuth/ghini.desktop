@@ -209,6 +209,66 @@ exclude_inactive_pref = 'bauble.search.exclude_inactive'
 The preferences key for ignoring inactive (deaccessioned etc.) search results.
 """
 
+query_builder_recurse = 'bauble.query_builder.recurse'
+"""
+The preferences key for allowing recurse in QueryBuilder's SchemaMenu.
+i.e. accessions.species.accessions.species
+"""
+
+query_builder_advanced = 'bauble.query_builder.advanced'
+"""
+The preferences key for displaying QueryBuilder's SchemaMenu in advanced view.
+"""
+
+query_builder_excludes = 'bauble.query_builder.basic_excludes'
+"""
+The preferences key for which columns to exclude from the SchemaMenu in basic
+view.
+"""
+
+# althought these relate to plugins they are only strings and best placed here.
+QB_EXCLUDE_DEFAULTS = ['Genus.genus',
+                       'Genus.subfamily',
+                       'Genus.tribe',
+                       'Genus.subtribe',
+                       'Genus.author',
+                       'Genus.qualifier',
+                       'Family.family',
+                       'Family.order',
+                       'Family.suborder',
+                       'Family.author',
+                       'Family.qualifier',
+                       'Species.active',
+                       'Species.awards',
+                       'Species.cv_group',
+                       'Species.full_sci_name',
+                       'Species.hybrid',
+                       'Species.infrasp1',
+                       'Species.infrasp1_author',
+                       'Species.infrasp1_rank',
+                       'Species.infrasp2',
+                       'Species.infrasp2_author',
+                       'Species.infrasp2_rank',
+                       'Species.infrasp3',
+                       'Species.infrasp3_author',
+                       'Species.infrasp3_rank',
+                       'Species.infrasp4',
+                       'Species.infrasp4_author',
+                       'Species.infrasp4_rank',
+                       'Species.infraspecific_epithet',
+                       'Species.infraspecific_rank',
+                       'Species.label_distribution',
+                       'Species.label_markup',
+                       'Species.trademark_symbol',
+                       'Species.section',
+                       'Species.series',
+                       'Species.sp',
+                       'Species.sp_author',
+                       'Species.sp_qual',
+                       'Species.subgenus',
+                       'Species.subsection',
+                       'Species.subseries']
+
 
 class _prefs(UserDict):
 
@@ -271,7 +331,10 @@ class _prefs(UserDict):
                     (date_format_pref, '%d-%m-%Y'),
                     (time_format_pref, '%I:%M:%S %p'),
                     (units_pref, 'metric'),
-                    (debug_logging_prefs, [])]
+                    (debug_logging_prefs, []),
+                    (query_builder_recurse, False),
+                    (query_builder_advanced, False),
+                    (query_builder_excludes, QB_EXCLUDE_DEFAULTS)]
 
         for key, value in defaults:
             self.add_default(key, value)

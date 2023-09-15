@@ -16,7 +16,8 @@
 # You should have received a copy of the GNU General Public License
 # along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
 
-import unittest
+import os
+from unittest import skip, mock
 
 from gi.repository import Gtk
 
@@ -25,13 +26,13 @@ from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm.attributes import InstrumentedAttribute
 from sqlalchemy.ext.associationproxy import AssociationProxy
 from bauble import paths
+from bauble import prefs
 from bauble.query_builder import (BuiltQuery,
                                   QueryBuilder,
                                   SchemaMenu,
-                                  parse_typed_value,
-                                  ExpressionRow)
+                                  parse_typed_value)
 from bauble.search import EmptyToken
-from bauble.test import BaubleTestCase
+from bauble.test import BaubleTestCase, update_gui
 from bauble.editor import GenericEditorView
 from bauble.plugins.garden.plant import Plant
 from bauble.plugins.plants.species import Species
@@ -205,7 +206,6 @@ class SchemaMenuTests(BaubleTestCase):
 class QueryBuilderTests(BaubleTestCase):
 
     def test_cancreatequerybuilder(self):
-        import os
         gladefilepath = os.path.join(paths.lib_dir(), "querybuilder.glade")
         view = GenericEditorView(
             gladefilepath,
@@ -214,7 +214,6 @@ class QueryBuilderTests(BaubleTestCase):
         QueryBuilder(view)
 
     def test_emptyisinvalid(self):
-        import os
         gladefilepath = os.path.join(paths.lib_dir(), "querybuilder.glade")
         view = GenericEditorView(
             gladefilepath,
@@ -224,7 +223,6 @@ class QueryBuilderTests(BaubleTestCase):
         self.assertFalse(qb.validate())
 
     def test_cansetquery(self):
-        import os
         gladefilepath = os.path.join(paths.lib_dir(), "querybuilder.glade")
         view = GenericEditorView(
             gladefilepath,
@@ -235,7 +233,6 @@ class QueryBuilderTests(BaubleTestCase):
         self.assertEqual(len(qb.expression_rows), 3)
 
     def test_cansetenumquery(self):
-        import os
         gladefilepath = os.path.join(paths.lib_dir(), "querybuilder.glade")
         view = GenericEditorView(
             gladefilepath,
@@ -246,7 +243,6 @@ class QueryBuilderTests(BaubleTestCase):
         self.assertEqual(len(qb.expression_rows), 1)
 
     def test_invalid_domain(self):
-        import os
         gladefilepath = os.path.join(paths.lib_dir(), "querybuilder.glade")
         view = GenericEditorView(
             gladefilepath,
@@ -257,7 +253,6 @@ class QueryBuilderTests(BaubleTestCase):
         self.assertFalse(qb.validate())
 
     def test_invalid_target(self):
-        import os
         gladefilepath = os.path.join(paths.lib_dir(), "querybuilder.glade")
         view = GenericEditorView(
             gladefilepath,
@@ -268,7 +263,6 @@ class QueryBuilderTests(BaubleTestCase):
         self.assertFalse(qb.validate())
 
     def test_invalid_query(self):
-        import os
         gladefilepath = os.path.join(paths.lib_dir(), "querybuilder.glade")
         view = GenericEditorView(
             gladefilepath,
@@ -279,7 +273,6 @@ class QueryBuilderTests(BaubleTestCase):
         self.assertFalse(qb.validate())
 
     def test_empty_query(self):
-        import os
         gladefilepath = os.path.join(paths.lib_dir(), "querybuilder.glade")
         view = GenericEditorView(
             gladefilepath,
@@ -293,7 +286,6 @@ class QueryBuilderTests(BaubleTestCase):
         self.assertEqual(qb.get_query(), "plant where notes = Empty")
 
     def test_none_string_query(self):
-        import os
         gladefilepath = os.path.join(paths.lib_dir(), "querybuilder.glade")
         view = GenericEditorView(
             gladefilepath,
@@ -306,7 +298,6 @@ class QueryBuilderTests(BaubleTestCase):
         self.assertEqual(qb.get_query(), query)
 
     def test_nonetype_query(self):
-        import os
         gladefilepath = os.path.join(paths.lib_dir(), "querybuilder.glade")
         view = GenericEditorView(
             gladefilepath,
@@ -319,7 +310,6 @@ class QueryBuilderTests(BaubleTestCase):
         self.assertEqual(qb.get_query(), query)
 
     def test_boolean_query(self):
-        import os
         gladefilepath = os.path.join(paths.lib_dir(), "querybuilder.glade")
         view = GenericEditorView(
             gladefilepath,
@@ -332,7 +322,6 @@ class QueryBuilderTests(BaubleTestCase):
         self.assertEqual(qb.get_query(), query)
 
     def test_date_query(self):
-        import os
         gladefilepath = os.path.join(paths.lib_dir(), "querybuilder.glade")
         view = GenericEditorView(
             gladefilepath,
@@ -351,7 +340,6 @@ class QueryBuilderTests(BaubleTestCase):
         self.assertEqual(qb.get_query(), query)
 
     def test_int_query(self):
-        import os
         gladefilepath = os.path.join(paths.lib_dir(), "querybuilder.glade")
         view = GenericEditorView(
             gladefilepath,
@@ -364,7 +352,6 @@ class QueryBuilderTests(BaubleTestCase):
         self.assertEqual(qb.get_query(), query)
 
     def test_float_query(self):
-        import os
         gladefilepath = os.path.join(paths.lib_dir(), "querybuilder.glade")
         view = GenericEditorView(
             gladefilepath,
@@ -377,7 +364,6 @@ class QueryBuilderTests(BaubleTestCase):
         self.assertEqual(qb.get_query(), query)
 
     def test_not_translated_enum_query(self):
-        import os
         gladefilepath = os.path.join(paths.lib_dir(), "querybuilder.glade")
         view = GenericEditorView(
             gladefilepath,
@@ -390,7 +376,6 @@ class QueryBuilderTests(BaubleTestCase):
         self.assertEqual(qb.get_query(), query)
 
     def test_not_associationproxy_query(self):
-        import os
         gladefilepath = os.path.join(paths.lib_dir(), "querybuilder.glade")
         view = GenericEditorView(
             gladefilepath,
@@ -403,7 +388,6 @@ class QueryBuilderTests(BaubleTestCase):
         self.assertEqual(qb.get_query(), query)
 
     def test_adding_wildcard_sets_cond_to_like(self):
-        import os
         gladefilepath = os.path.join(paths.lib_dir(), "querybuilder.glade")
         view = GenericEditorView(
             gladefilepath,
@@ -418,7 +402,6 @@ class QueryBuilderTests(BaubleTestCase):
                          'like')
 
     def test_date_searches_add_on_condition(self):
-        import os
         gladefilepath = os.path.join(paths.lib_dir(), "querybuilder.glade")
         view = GenericEditorView(
             gladefilepath,
@@ -441,7 +424,6 @@ class QueryBuilderTests(BaubleTestCase):
         )
 
     def test_adding_date_field_sets_cond_to_on(self):
-        import os
         gladefilepath = os.path.join(paths.lib_dir(), "querybuilder.glade")
         view = GenericEditorView(
             gladefilepath,
@@ -459,7 +441,6 @@ class QueryBuilderTests(BaubleTestCase):
         )
 
     def test_remove_button_removes_row(self):
-        import os
         gladefilepath = os.path.join(paths.lib_dir(), "querybuilder.glade")
         view = GenericEditorView(
             gladefilepath,
@@ -484,7 +465,6 @@ class QueryBuilderTests(BaubleTestCase):
         # effectively also tests PlantsPlugin.register_custom_column
         from bauble.plugins.plants import PlantsPlugin
         PlantsPlugin.register_custom_column('_sp_custom1')
-        import os
         gladefilepath = os.path.join(paths.lib_dir(), "querybuilder.glade")
         view = GenericEditorView(
             gladefilepath,
@@ -500,6 +480,57 @@ class QueryBuilderTests(BaubleTestCase):
                          'extinct')
         self.assertTrue(qb.validate())
         self.assertEqual(qb.get_query(), query)
+
+    def test_on_advanced_set(self):
+        gladefilepath = os.path.join(paths.lib_dir(), "querybuilder.glade")
+        view = GenericEditorView(
+            gladefilepath,
+            parent=None,
+            root_widget_name='main_dialog')
+        qb = QueryBuilder(view)
+        self.assertFalse(prefs.prefs.get(prefs.query_builder_advanced))
+        # set the domain so reset_expression_table has some widgets to remove
+        mock_combo = mock.Mock()
+        mock_combo.get_active.return_value = 2
+        qb.on_domain_combo_changed(mock_combo)
+        qb.on_advanced_set(None, True)
+        self.assertTrue(prefs.prefs.get(prefs.query_builder_advanced))
+
+    @mock.patch('bauble.query_builder.utils.create_message_dialog')
+    def test_on_help_clicked_opens_dialog(self, mock_create_dialog):
+        mock_dialog = mock.Mock()
+        mock_create_dialog.return_value = mock_dialog
+        gladefilepath = os.path.join(paths.lib_dir(), "querybuilder.glade")
+        view = GenericEditorView(
+            gladefilepath,
+            parent=None,
+            root_widget_name='main_dialog')
+        qb = QueryBuilder(view)
+        qb.on_help_clicked(None, None)
+        mock_create_dialog.assert_called()
+        mock_dialog.set_title.assert_called_with('Basic Intro to Queries')
+        mock_dialog.run.assert_called()
+        mock_dialog.destroy.assert_called()
+
+    def test_cleaup(self):
+        gladefilepath = os.path.join(paths.lib_dir(), "querybuilder.glade")
+        view = GenericEditorView(
+            gladefilepath,
+            parent=None,
+            root_widget_name='main_dialog')
+        qb = QueryBuilder(view)
+        self.assertFalse(prefs.prefs.get(prefs.query_builder_advanced))
+        # set the domain so reset_expression_table has some widgets to remove
+        mock_combo = mock.Mock()
+        mock_combo.get_active.return_value = 2
+        qb.on_domain_combo_changed(mock_combo)
+        # a hack I know!
+        destroy_called = []
+        qb.expression_rows[0].schema_menu.connect(
+            'destroy', lambda _w: destroy_called.append(True)
+        )
+        qb.cleanup()
+        self.assertTrue(destroy_called[0])
 
 
 class TestQBP(BaubleTestCase):
@@ -608,7 +639,7 @@ class TestQBP(BaubleTestCase):
         self.assertEqual(query.is_valid, True)
         self.assertEqual(len(query.clauses), 2)
 
-    @unittest.skip('not implimented')
+    @skip('not implimented')
     def test_be_able_to_skip_first_query_if_invalid(self):
         # valid query, but not for the query builder
         # "we can't do that without rewriting the grammar"
