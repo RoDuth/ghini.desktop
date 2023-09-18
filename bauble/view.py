@@ -204,7 +204,7 @@ class PropertiesExpander(InfoExpander):
         table.attach(id_label, 0, 0, 1, 1)
 
         id_event = Gtk.EventBox()
-        self.id_data = Gtk.Label(label='--')
+        self.id_data = Gtk.Label(label='--', selectable=True)
         self.id_data.set_xalign(0)
         self.id_data.set_yalign(0.5)
         id_event.add(self.id_data)
@@ -227,7 +227,7 @@ class PropertiesExpander(InfoExpander):
         created_label.set_use_markup(True)
         created_label.set_xalign(1)
         created_label.set_yalign(0.5)
-        self.created_data = Gtk.Label(label='--')
+        self.created_data = Gtk.Label(label='--', selectable=True)
         self.created_data.set_xalign(0)
         self.created_data.set_yalign(0.5)
         table.attach(created_label, 0, 2, 1, 1)
@@ -238,7 +238,7 @@ class PropertiesExpander(InfoExpander):
         updated_label.set_use_markup(True)
         updated_label.set_xalign(1)
         updated_label.set_yalign(0.5)
-        self.updated_data = Gtk.Label(label='--')
+        self.updated_data = Gtk.Label(label='--', selectable=True)
         self.updated_data.set_xalign(0)
         self.updated_data.set_yalign(0.5)
         table.attach(updated_label, 0, 3, 1, 1)
@@ -256,9 +256,11 @@ class PropertiesExpander(InfoExpander):
         fmat = prefs.prefs.get(prefs.datetime_format_pref)
         # pylint: disable=protected-access
         self.created_data.set_text(
-            row._created.strftime(fmat) if row._created else '')
+            row._created.strftime(fmat) if row._created else ''
+        )
         self.updated_data.set_text(
-            row._last_updated.strftime(fmat) if row._last_updated else '')
+            row._last_updated.strftime(fmat) if row._last_updated else ''
+        )
 
     def on_id_button_press(self, _widget, event):
         """Copy the ID value to clipboard."""
