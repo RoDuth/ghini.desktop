@@ -1005,7 +1005,7 @@ class GenericExporterTests(BaubleTestCase):
         item = self.session.query(Species).get(1)
         val = GenericExporter.get_item_record(item, {'sp': 'species',
                                                      'gen': 'genus.epithet'})
-        self.assertEqual(val, {'sp': 'Maxillaria variabilis',
+        self.assertEqual(val, {'sp': 'Maxillaria s. str variabilis',
                                'gen': 'Maxillaria'})
 
     def test_get_item_record_wo_notes(self):

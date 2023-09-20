@@ -127,7 +127,7 @@ class CSVExporterTests(CSVTestCase):
         exporter.presenter.fields = list(field_list.items())
         out = [
             {'domain': 'plant', 'id': '1', 'plant': '1', 'acc': '2001.1',
-             'species': 'Maxillaria variabilis'},
+             'species': 'Maxillaria s. str variabilis'},
             {'domain': 'plant', 'id': '2', 'plant': '1', 'acc': '2001.2',
              'species': 'Encyclia cochleata'},
         ]
@@ -649,7 +649,7 @@ class CSVImporterTests(CSVTestCase):
         self.assertEqual(updated_plant.quantity, 3)
         # species changed
         self.assertEqual(str(updated_plant.accession.species),
-                         'Maxillaria variabilis var. unipunctata')
+                         'Maxillaria s. str variabilis var. unipunctata')
         # location changed
         self.assertEqual(updated_plant.location.code, 'SE')
         # 2 plants added
@@ -718,7 +718,7 @@ class CSVImporterTests(CSVTestCase):
         self.assertEqual(updated_plant.location.code, 'SE')
         # species changed
         self.assertEqual(str(updated_plant.accession.species),
-                         'Maxillaria variabilis var. unipunctata')
+                         'Maxillaria s. str variabilis var. unipunctata')
         # no plants added
         self.assertEqual(end_plants, start_plants)
         # one new species
@@ -755,7 +755,7 @@ class CSVImporterTests(CSVTestCase):
         self.assertEqual(updated_plant.quantity, 1)
         self.assertEqual(updated_plant.location.code, 'RBW')
         self.assertEqual(str(updated_plant.accession.species),
-                         'Maxillaria variabilis')
+                         'Maxillaria s. str variabilis')
         # no plants added
         self.assertEqual(end_plants, start_plants)
         # no new species

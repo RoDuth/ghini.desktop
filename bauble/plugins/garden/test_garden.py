@@ -78,7 +78,8 @@ from .propagation import (Propagation,
                           PropCuttingRooted,
                           PropCutting,
                           PropSeed,
-                          PropagationEditor)
+                          PropagationEditor,
+                          PlantPropagation)
 from ..plants import test_plants as plants_test
 from ..plants.geography import Geography
 from ..plants.family import Family
@@ -102,11 +103,54 @@ accession_test_data = (
     {'id': 7, 'code': '2022.3', 'species_id': 27},
 )
 
+accession_verification_test_data = (
+    {'accession_id': 1, 'verifier': 'Jade Green',
+     'date': datetime.date(2023, 1, 1), 'level': 2, 'species_id': 2,
+     'prev_species_id': 1, 'notes': 'some notes', 'reference': 'a book'},
+)
+
+accession_voucher_test_data = (
+    {'herbarium': 'BRI', 'code': 'ABC123', 'parent_material': True,
+     'accession_id': 1},
+    {'herbarium': 'BRI', 'code': 'ABC321', 'parent_material': False,
+     'accession_id': 1},
+)
+
 plant_test_data = (
     {'id': 1, 'code': '1', 'accession_id': 1, 'location_id': 1, 'quantity': 1},
     {'id': 2, 'code': '1', 'accession_id': 2, 'location_id': 1, 'quantity': 1},
     {'id': 3, 'code': '2', 'accession_id': 2, 'location_id': 1, 'quantity': 1},
     {'id': 4, 'code': '1', 'accession_id': 5, 'location_id': 1, 'quantity': 0},
+)
+
+plant_change_test_data = (
+    {'id': 1, 'plant_id': 1, 'from_location_id': 2, 'to_location_id': 1,
+     'quantity': 1},
+)
+
+plant_seedprop_test_data = (
+    {'pretreatment': 'Soaked in peroxide solution',
+     'nseeds': 24,
+     'date_sown': datetime.date(2023, 1, 1),
+     'container': 'tray',
+     'location': 'mist tent',
+     'moved_from': 'mist tent',
+     'moved_to': 'hardening table',
+     'media': 'standard mix',
+     'germ_date': datetime.date(2023, 2, 1),
+     'germ_pct': 99,
+     'nseedlings': 23,
+     'date_planted': datetime.date(2023, 2, 8),
+     'propagation_id': 1},
+)
+
+propagation_test_data = (
+    {'id': 1, 'prop_type': 'Seed', 'notes': 'Some note',
+     'date': datetime.date(2023, 1, 1)},
+)
+
+plant_propagation_test_data = (
+    {'id': 1, 'plant_id': 1, 'propagation_id': 1},
 )
 
 location_test_data = (
@@ -115,8 +159,10 @@ location_test_data = (
     {'id': 3, 'name': 'Somewhere Else', 'code': 'SE'},
 )
 
-geography_test_data = [{'id': 1, 'name': 'Somewhere'},
-                       {'id': 2, 'name': 'SomewhereSubArea', 'parent_id': 1}]
+geography_test_data = [
+    {'id': 1, 'name': 'Somewhere', 'tdwg_level': 1},
+    {'id': 2, 'name': 'SomewhereSubArea', 'parent_id': 1, 'tdwg_level': 2}
+]
 
 source_detail_data = (
     {'id': 1, 'name': 'Jade Green', 'source_type': 'Individual'},
@@ -127,13 +173,21 @@ source_test_data = (
     {'id': 2, 'accession_id': 3},
     {'id': 3, 'accession_id': 4, 'source_detail_id': 1},
     {'id': 4, 'accession_id': 5, 'source_detail_id': 1},
+    {'id': 5, 'accession_id': 1, 'source_detail_id': 1, 'sources_code': 'AB1'},
 )
 
 collection_test_data = (
     {'id': 1, 'source_id': 1, 'locale': 'Somewhere',
      'collector': 'Someone', 'collectors_code': '1111', 'geography_id': 1},
     {'id': 2, 'source_id': 2, 'locale': 'Somewhere Else',
-     'collector': 'Someone Else', 'collectors_code': '2222', 'geography_id': 1}
+     'collector': 'Someone Else', 'collectors_code': '2222',
+     'geography_id': 1},
+    {'id': 3, 'source_id': 5, 'locale': 'Somewhere',
+     'date': datetime.date(2011, 11, 25), 'collector': 'me',
+     'collectors_code': '1234', 'geography_id': 1, 'latitude': '89.876',
+     'longitude': '87.654', 'gps_datum': 'WGS 84', 'geo_accy': 10.01,
+     'elevation': 1010.10, 'elevation_accy': 10.10,
+     'habitat': 'Various species', 'notes': 'Some notes'},
 )
 
 # needs to be here (not in test_plants) or will fail in postgresql
@@ -182,9 +236,15 @@ test_data_table_control = (
     (Geography, geography_test_data),
     (SpeciesDistribution, species_distribution_test_data),
     (Accession, accession_test_data),
+    (Verification, accession_verification_test_data),
+    (Voucher, accession_voucher_test_data),
     (SourceDetail, source_detail_data),
     (Source, source_test_data),
     (Plant, plant_test_data),
+    (PlantChange, plant_change_test_data),
+    (Propagation, propagation_test_data),
+    (PropSeed, plant_seedprop_test_data),
+    (PlantPropagation, plant_propagation_test_data),
     (Collection, collection_test_data)
 )
 
@@ -1010,7 +1070,7 @@ class PropagationTests(GardenTestCase):
                 accession=self.accession, location=loc, code=pc, quantity=1))
         self.session.commit()
 
-    def add_propagations(self, propagation_types=[]):
+    def add_propagations(self, propagation_types):
         for i, pt in enumerate(propagation_types):
             prop = Propagation()
             prop.prop_type = pt
@@ -1420,7 +1480,8 @@ class PropagationTests(GardenTestCase):
         # Not sure this really tests much...
         mock_start.return_value = Gtk.ResponseType.OK
         propagation = Propagation()
-        propagation.used_source = [Source(accession_id=1)]
+        acc1 = self.session.query(Accession).first()
+        propagation.used_source = [acc1.source]
         editor = PropagationEditor(model=propagation)
         utils.set_combo_from_value(
             editor.presenter.view.widgets.prop_type_combo, 'Other'
@@ -1472,7 +1533,7 @@ class VoucherTests(GardenTestCase):
         self.assertTrue(self.session.query(Accession).get(acc_id))
 
     def test_on_tree_cursor_changed(self):
-        acc = self.session.query(Accession).get(1)
+        acc = self.session.query(Accession).get(2)
         mock_parent = unittest.mock.Mock()
         presenter = VoucherPresenter(mock_parent,
                                      acc,
@@ -1503,7 +1564,7 @@ class VoucherTests(GardenTestCase):
         presenter.cleanup()
 
     def test_on_cell_edited(self):
-        acc = self.session.query(Accession).get(1)
+        acc = self.session.query(Accession).get(2)
         voucher = Voucher(herbarium='ABC', code='1234567')
         voucher.accession = acc
         self.session.commit()
@@ -1527,7 +1588,7 @@ class VoucherTests(GardenTestCase):
         presenter.cleanup()
 
     def test_on_remove_clicked(self):
-        acc = self.session.query(Accession).get(1)
+        acc = self.session.query(Accession).get(2)
         voucher = Voucher(herbarium='ABC', code='1234567', accession=acc)
         voucher_parent = Voucher(herbarium='ABC',
                                  code='1234567',
@@ -1550,7 +1611,7 @@ class VoucherTests(GardenTestCase):
         presenter.cleanup()
 
     def test_on_add_clicked(self):
-        acc = self.session.query(Accession).get(1)
+        acc = self.session.query(Accession).get(2)
         mock_parent = unittest.mock.Mock()
         presenter = VoucherPresenter(mock_parent,
                                      acc,
@@ -2046,11 +2107,11 @@ class AccessionTests(GardenTestCase):
                          ('2001.1<span foreground="#555555" size="small" '
                           'weight="light"> - 1 plant groups in 1 '
                           'location(s)</span>',
-                          '<i>Maxillaria</i> <i>variabilis</i>'))
+                          '<i>Maxillaria</i> s. str <i>variabilis</i>'))
         acc.plants[0].quantity = 0
         self.assertEqual(acc.search_view_markup_pair(),
                          ('<span foreground="#9900ff">2001.1</span>',
-                          '<i>Maxillaria</i> <i>variabilis</i>'))
+                          '<i>Maxillaria</i> s. str <i>variabilis</i>'))
         acc = Accession(species=self.species, code='2023.1')
         self.session.add(acc)
         self.session.commit()
@@ -2094,11 +2155,9 @@ class AccessionTests(GardenTestCase):
 
         # set the source plant
         widgets.source_prop_plant_entry.props.text = str(plant)
+        widgets.source_prop_plant_entry.emit('changed')
         logger.debug('about to update the gui')
         update_gui()
-        comp = widgets.source_prop_plant_entry.get_completion()
-        comp.emit('match-selected', comp.get_model(),
-                  comp.get_model().get_iter_first())
 
         logger.debug('about to update the gui')
         update_gui()  # ensures idle callback is called
@@ -2107,7 +2166,7 @@ class AccessionTests(GardenTestCase):
         treeview = widgets.source_prop_treeview
         self.assertTrue(treeview.get_model())
 
-        # select the first/only propagation in the treeview
+        # select the first propagation in the treeview
         toggle_cell = widgets.prop_toggle_cell.emit('toggled', 0)
         self.assertTrue(toggle_cell is None)
 
@@ -2118,8 +2177,8 @@ class AccessionTests(GardenTestCase):
 
         # open a separate session and make sure everything committed
         session = db.Session()
-        acc = session.query(Accession).filter_by(code='code')[0]
-        self.assertTrue(acc is not None)
+        acc = session.query(Accession).filter_by(code='code').first()
+        self.assertIsNotNone(acc)
         logger.debug(acc.id)
         parent = session.query(Accession).filter_by(code='parent')[0]
         self.assertTrue(parent is not None)
@@ -3125,7 +3184,7 @@ class VerificationTests(GardenTestCase):
 
     def test_verification_box(self):
         list(update_all_full_names_task())
-        acc = self.session.query(Accession).get(1)
+        acc = self.session.query(Accession).get(2)
         sp = self.session.query(Species).get(5)
         ver = Verification(accession=acc)
         acc.verifications.append(ver)
@@ -3163,7 +3222,7 @@ class VerificationTests(GardenTestCase):
 
     @unittest.mock.patch('bauble.plugins.garden.accession.utils.yes_no_dialog')
     def test_on_remove_button_clicked(self, mock_dialog):
-        acc = self.session.query(Accession).get(1)
+        acc = self.session.query(Accession).get(2)
         sp = (self.session.query(Species)
               .filter(Species.id != acc.species.id)
               .first())
@@ -3187,7 +3246,7 @@ class VerificationTests(GardenTestCase):
 
     @unittest.mock.patch('bauble.plugins.garden.accession.utils.yes_no_dialog')
     def test_on_remove_button_clicked_user_backout(self, mock_dialog):
-        acc = self.session.query(Accession).get(1)
+        acc = self.session.query(Accession).get(2)
         sp = (self.session.query(Species)
               .filter(Species.id != acc.species.id)
               .first())

@@ -117,6 +117,11 @@ family_test_data = (
     {'id': 10, 'family': 'Myrtaceae', 'author': 'Juss.'},
     {'id': 11, 'family': 'Stangeriaceae', 'order': 'Cycadales',
      'suborder': 'Zamiineae'},
+    {'id': 12, 'family': 'Vanillaceae'}
+)
+
+family_synonym_test_data = (
+    {'id': 1, 'family_id': 1, 'synonym_id': 12},
 )
 
 family_note_test_data = (
@@ -124,7 +129,8 @@ family_note_test_data = (
 )
 
 genus_test_data = (
-    {'id': 1, 'genus': 'Maxillaria', 'family_id': 1, '_cites': 'II'},
+    {'id': 1, 'genus': 'Maxillaria', 'family_id': 1, 'author': 'Ruiz & Pav.',
+     'cites': 'II', 'qualifier': 's. str'},
     {'id': 2, 'genus': 'Encyclia', 'family_id': 1},
     {'id': 3, 'genus': 'Abrus', 'family_id': 2},
     {'id': 4, 'genus': 'Campyloneurum', 'family_id': 3},
@@ -281,7 +287,7 @@ species_note_test_data = (
 )
 
 species_str_map = {
-    1: 'Maxillaria variabilis',
+    1: 'Maxillaria s. str variabilis',
     2: 'Encyclia cochleata',
     3: 'Abrus precatorius',
     4: 'Campyloneurum × alapense',
@@ -289,14 +295,14 @@ species_str_map = {
     6: "Encyclia cochleata 'Black Night'",
     7: 'Abrus precatorius SomethingRidiculous Group',
     8: "Abrus precatorius (SomethingRidiculous Group) 'Hot Rio Nights'",
-    9: "Maxillaria × generalis 'Red'",
-    10: "Maxillaria × generalis (SomeGroup Group) 'Red'",
-    11: "Maxillaria generalis agg.",
-    12: "Maxillaria SomeGroup Group",
-    13: "Maxillaria 'Red'",
-    14: "Maxillaria 'Red & Blue'",
+    9: "Maxillaria s. str × generalis 'Red'",
+    10: "Maxillaria s. str × generalis (SomeGroup Group) 'Red'",
+    11: "Maxillaria s. str generalis agg.",
+    12: "Maxillaria s. str SomeGroup Group",
+    13: "Maxillaria s. str 'Red'",
+    14: "Maxillaria s. str 'Red & Blue'",
     15: "Encyclia cochleata subsp. cochleata var. cochleata 'Black'",
-    16: "Maxillaria test subsp. test SomeGroup Group",
+    16: "Maxillaria s. str test subsp. test SomeGroup Group",
     25: "+ Crataegomespilus dardarii",
     26: "× Butyagrus nabonnandii",
     27: "Cynodon dactylon × transvaalensis 'DT-1' (PBR) TIFTUF™",
@@ -305,14 +311,14 @@ species_str_map = {
 }
 
 species_markup_map = {
-    1: '<i>Maxillaria</i> <i>variabilis</i>',
+    1: '<i>Maxillaria</i> s. str <i>variabilis</i>',
     2: '<i>Encyclia</i> <i>cochleata</i>',
     3: '<i>Abrus</i> <i>precatorius</i>',
     4: '<i>Campyloneurum</i> × <i>alapense</i>',
     5: '<i>Encyclia</i> <i>cochleata</i> var. <i>cochleata</i>',
     6: '<i>Encyclia</i> <i>cochleata</i> \'Black Night\'',
-    12: "<i>Maxillaria</i> SomeGroup Group",
-    14: "<i>Maxillaria</i> 'Red &amp; Blue'",
+    12: "<i>Maxillaria</i> s. str SomeGroup Group",
+    14: "<i>Maxillaria</i> s. str 'Red &amp; Blue'",
     15: ("<i>Encyclia</i> <i>cochleata</i> subsp. <i>"
          "cochleata</i> var. <i>cochleata</i> 'Black'"),
     25: "+ <i>Crataegomespilus</i> <i>dardarii</i>",
@@ -323,7 +329,7 @@ species_markup_map = {
 }
 
 species_str_authors_map = {
-    1: 'Maxillaria variabilis Bateman ex Lindl.',
+    1: 'Maxillaria s. str variabilis Bateman ex Lindl.',
     2: 'Encyclia cochleata (L.) Lem\xe9e',
     3: 'Abrus precatorius L.',
     4: 'Campyloneurum × alapense F\xe9e',
@@ -337,7 +343,7 @@ species_str_authors_map = {
 }
 
 species_markup_authors_map = {
-    1: '<i>Maxillaria</i> <i>variabilis</i> Bateman ex Lindl.',
+    1: '<i>Maxillaria</i> s. str <i>variabilis</i> Bateman ex Lindl.',
     2: '<i>Encyclia</i> <i>cochleata</i> (L.) Lem\xe9e',
     3: '<i>Abrus</i> <i>precatorius</i> L.',
     4: '<i>Campyloneurum</i> × <i>alapense</i> F\xe9e',
@@ -345,7 +351,7 @@ species_markup_authors_map = {
     6: '<i>Encyclia</i> <i>cochleata</i> (L.) Lem\xe9e \'Black Night\''}
 
 species_searchview_markup_map = {
-    1: ('<i>Maxillaria</i> <i>variabilis</i> <span weight="light">Bateman ex '
+    1: ('<i>Maxillaria</i> s. str <i>variabilis</i> <span weight="light">Bateman ex '
         'Lindl.</span>'),
     27: ("<i>Cynodon</i> <i>dactylon</i> × <i>transvaalensis</i> 'DT-1' "
          '<span weight="light"><small>(PBR)</small></span> '
@@ -374,6 +380,7 @@ vn_test_data = (
 
 test_data_table_control = (
     (Family, family_test_data),
+    (FamilySynonym, family_synonym_test_data),
     (Genus, genus_test_data),
     (Species, species_test_data),
     (VernacularName, vn_test_data),
@@ -493,16 +500,15 @@ class FamilyTests(PlantTestCase):
         # test that clearing all the synonyms works
         family.synonyms.clear()
         self.session.commit()
-        self.assertTrue(len(family.synonyms) == 0)
-        self.assertTrue(self.session.query(FamilySynonym).count() == 0)
+        self.assertEqual(len(family.synonyms), 0)
 
         # test that deleting a family that is a synonym of another family
-        # deletes all the dangling object s
+        # deletes all the dangling objects
         family.synonyms.append(family2)
         self.session.commit()
         self.session.delete(family2)
         self.session.commit()
-        self.assertTrue(self.session.query(FamilySynonym).count() == 0)
+        self.assertEqual(len(family.synonyms), 0)
 
         # test that deleting the previous synonyms didn't delete the
         # family that it refered to
@@ -516,7 +522,8 @@ class FamilyTests(PlantTestCase):
         self.session.commit()
         self.session.delete(family)
         self.session.commit()
-        self.assertTrue(self.session.query(FamilySynonym).count() == 0)
+        # NOTE there is one synonym added as part of the test_data
+        self.assertEqual(self.session.query(FamilySynonym).count(), 1)
 
     def test_constraints(self):
         """
@@ -4702,8 +4709,8 @@ class GlobalFunctionsTest(PlantTestCase):
                .one())
         first, second = sp1.search_view_markup_pair()
         self.assertTrue(remove_zws(first).startswith(
-            '<i>Maxillaria</i> <i>variabilis</i>'))
-        expect = '<i>Maxillaria</i> <i>variabilis</i> <span weight="light">'\
+            '<i>Maxillaria</i> s. str <i>variabilis</i>'))
+        expect = '<i>Maxillaria</i> s. str <i>variabilis</i> <span weight="light">'\
             'Bateman ex Lindl.</span><span foreground="#555555" size="small" '\
             'weight="light"> - synonym of <i>Encyclia</i> <i>cochleata</i> '\
             '(L.) Lemée</span>'
@@ -4717,7 +4724,7 @@ class GlobalFunctionsTest(PlantTestCase):
         vName = self.session.query(VernacularName).filter_by(id=1).one()
         first, second = vName.search_view_markup_pair()
         self.assertEqual(remove_zws(second),
-                         '<i>Maxillaria</i> <i>variabilis</i>')
+                         '<i>Maxillaria</i> s. str <i>variabilis</i>')
         self.assertEqual(first, 'SomeName')
 
     def test_species_get_kids(self):

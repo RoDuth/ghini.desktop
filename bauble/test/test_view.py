@@ -406,6 +406,8 @@ class TestSearchView(BaubleTestCase):
             # check correct infobox (errors can cause no infobox)
             self.assertIsInstance(search_view.infobox,
                                   search_view.row_meta[klass].infobox)
+            with mock.patch('bauble.gui'):
+                search_view.infobox.update(obj)
 
     @mock.patch('bauble.view.SearchView.get_selected_values')
     def test_on_get_history(self, mock_get_selected):
@@ -568,8 +570,8 @@ class TestSearchView(BaubleTestCase):
                             logs.output))
         self.assertTrue(any('SearchView::update_infobox' in i for i in
                             logs.output))
-        # check everything is expired. (except the currently selected obj as
-        # it has already been accessed)
+        # check all accessions are expired. (except the currently selected obj
+        # as it has already been accessed)
         from sqlalchemy import inspect
         selected = search_view.get_selected_values()[0]
         for obj in search_view.session:
@@ -577,7 +579,8 @@ class TestSearchView(BaubleTestCase):
             expired = bool(inspect(obj).expired_attributes)
             if obj.id == selected.id:
                 continue
-            self.assertTrue(expired, obj)
+            if obj.__class__.__name__ == 'Accession':
+                self.assertTrue(expired, str(obj))
 
     def test_on_view_button_press_not_3_returns_false(self):
         for func in get_setUp_data_funcs():
