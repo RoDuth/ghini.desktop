@@ -4020,9 +4020,6 @@ class PlantSearchTests(BaubleTestCase):
         self.assertCountEqual(results, [self.plt1, self.plt2])
 
 
-from bauble.plugins.garden.location import mergevalues
-
-
 class AccessionGetNextCode(GardenTestCase):
     def test_get_next_code_first_this_year(self):
         this_year = str(datetime.date.today().year)
@@ -4132,27 +4129,6 @@ class AccessionGetNextCode(GardenTestCase):
         self.session.commit()
         self.assertEqual(Accession.get_next_code('%{Y-1}.####')[5:], '0013')
         self.assertEqual(Accession.get_next_code('%Y.####')[5:], '0988')
-
-
-class GlobalFunctionsTests(GardenTestCase):
-
-    def test_mergevalues_equal(self):
-        'if the values are equal, return it'
-        self.assertEqual(mergevalues('1', '1', '%s|%s'), '1')
-
-    def test_mergevalues_conflict(self):
-        'if they conflict, return both'
-        self.assertEqual(mergevalues('2', '1', '%s|%s'), '2|1')
-
-    def test_mergevalues_one_empty(self):
-        'if one is empty, return the non empty one'
-        self.assertEqual(mergevalues('2', None, '%s|%s'), '2')
-        self.assertEqual(mergevalues(None, '2', '%s|%s'), '2')
-        self.assertEqual(mergevalues('2', '', '%s|%s'), '2')
-
-    def test_mergevalues_both_empty(self):
-        'if both are empty, return the empty string'
-        self.assertEqual(mergevalues(None, None, '%s|%s'), '')
 
 
 class SourceDetailTests(GardenTestCase):

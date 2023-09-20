@@ -232,19 +232,6 @@ class Location(db.Base, db.WithNotes):
         return query.count()
 
 
-def mergevalues(value1, value2, formatter):
-    """return the common value
-    """
-
-    if value1 == value2:
-        value = value1 or ''
-    elif value1 and value2:
-        value = formatter % (value1, value2)
-    else:
-        value = value1 or value2 or ''
-    return value
-
-
 class LocationEditorView(GenericEditorView):
 
     _tooltips = {
@@ -319,18 +306,6 @@ class LocationEditorPresenter(GenericEditorPresenter, PresenterMapMixin):
         if self.model not in self.session.new:
             self.view.widgets.loc_ok_and_add_button.set_sensitive(True)
 
-        # the merger danger zone
-        self.merger_candidate = None
-
-        def on_location_select(location):
-            logger.debug('merger candidate: %s', location)
-            self.merger_candidate = location
-
-        from bauble.plugins.garden import init_location_comboentry
-        init_location_comboentry(self, self.view.widgets.loc_merge_comboentry,
-                                 on_location_select)
-        self.view.connect('loc_merge_button', 'clicked',
-                          self.on_loc_merge_button_clicked)
         self.kml_template = prefs.prefs.get(
             LOC_KML_MAP_PREFS,
             str(Path(__file__).resolve().parent / 'loc.kml')
@@ -341,72 +316,6 @@ class LocationEditorPresenter(GenericEditorPresenter, PresenterMapMixin):
         self.notes_presenter.cleanup()
         self.pictures_presenter.cleanup()
         self.remove_map_action_group()
-
-    def on_loc_merge_button_clicked(self, _entry, *_args):
-        entry_widget = self.view.widgets.loc_merge_entry
-        if self.has_problems(entry_widget):
-            logger.warning("'%s' does not identify a valid location",
-                           entry_widget.get_text())
-            return
-        logger.debug('request to merge %s into %s',
-                     self.model, self.merger_candidate)
-
-        dialog = Gtk.MessageDialog(
-            self.view.get_window(), Gtk.DialogFlags.DESTROY_WITH_PARENT,
-            Gtk.MessageType.QUESTION, Gtk.ButtonsType.YES_NO,
-            (_('please confirm merging %(1)s into %(2)s') %
-             {'1': self.model, '2': self.merger_candidate, }))
-        confirm = dialog.run()
-        dialog.destroy()
-
-        if not confirm:
-            return
-
-        # step 0: swap `model` and `merger_candidate` objects: we are going
-        # to keep model and delete merger_candidate.
-        self.model, self.merger_candidate = self.merger_candidate, self.model
-
-        # step 1: update tables plant and plant_changes, by altering all
-        # references to self.merger_candidate into references to self.model.
-        from .plant import Plant, PlantChange
-        for plant in (self.session.query(Plant)
-                      .filter(Plant.location == self.merger_candidate)):
-            plant.location = self.model
-        for plant in (
-                self.session.query(PlantChange)
-                .filter(PlantChange.from_location == self.merger_candidate)
-        ):
-            plant.from_location = self.model
-        for plant in (
-                self.session.query(PlantChange)
-                .filter(PlantChange.to_location == self.merger_candidate)
-        ):
-            plant.to_location = self.model
-
-        # step 2: merge model and merger_candidate  `description` and `name`
-        # fields, mark there's a problem to solve there.
-        self.view.widget_set_value('loc_code_entry',
-                                   getattr(self.model, 'code'))
-
-        buf = self.view.widgets.loc_desc_textview.get_buffer()
-        self.view.widget_set_value(
-            'loc_desc_textview', mergevalues(
-                buf.get_text(*buf.get_bounds()),
-                getattr(self.merger_candidate, 'description'),
-                "%s\n---------\n%s"))
-        self.view.widget_set_value(
-            'loc_name_entry', mergevalues(
-                self.view.widgets.loc_name_entry.get_text(),
-                getattr(self.merger_candidate, 'name'),
-                "%s\n---------\n%s"))
-        # self.add_problem('MERGED', self.view.widgets.loc_desc_textview)
-
-        # step 3: delete self.merger_candidate and clean the entry
-        self.session.delete(self.merger_candidate)
-        self.view.widget_set_value('loc_merge_comboentry', '')
-
-        # step 4: collapse the expander
-        self.view.widgets.danger_zone.set_expanded(False)
 
     def refresh_sensitivity(self):
         sensitive = False
