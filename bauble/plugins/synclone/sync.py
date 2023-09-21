@@ -26,7 +26,6 @@ Sync changes from a previously cloned database.
 """
 import importlib
 import json
-from datetime import datetime
 from pathlib import Path
 from typing import Any, Literal
 
@@ -38,7 +37,7 @@ from gi.repository import Gio
 
 from sqlalchemy import Column, Integer, String, select, update, create_engine
 from sqlalchemy import Table
-from sqlalchemy.sql import Executable
+from sqlalchemy.sql import Executable, func
 from sqlalchemy.engine import Engine, Row, Connection, make_url, URL
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -102,13 +101,13 @@ class ToSync(db.HistoryBase):
         with db.engine.begin() as connection:
 
             for row in rows:
-                stmt = cls.__table__.insert(dict(batch_number=batch_num,
-                                                 table_name=row.table_name,
-                                                 table_id=row.table_id,
-                                                 values=row['values'],
-                                                 operation=row.operation,
-                                                 user=row.user,
-                                                 timestamp=datetime.utcnow()))
+                stmt = cls.__table__.insert({'batch_number': batch_num,
+                                             'table_name': row.table_name,
+                                             'table_id': row.table_id,
+                                             'values': row['values'],
+                                             'operation': row.operation,
+                                             'user': row.user,
+                                             'timestamp': func.now()})
                 connection.execute(stmt)
             # update the batch number
             connection.execute(meta_table.update()
@@ -145,20 +144,14 @@ class SyncRow:
         """Row values as required for generating a statement for the sync and
         for adding to history.
 
-        Note: removes `id` and `_last_updated` so that they get default values.
+        Note: removes `id`, `_created` and `_last_updated` so that they get
+            default values.
         """
         if not self._values:
             values: dict = self.row['values'].copy()
             del values['id']
-            # belt and braces... for testing
-            if values.get('_created') is not None:
-                del values['_created']
-            # set _last_updated so update history records get list entries
-            if self.row.operation == 'update':
-                values['_last_updated'] = [datetime.now().astimezone(tz=None),
-                                           values['_last_updated']]
-            else:
-                values['_last_updated'] = datetime.now().astimezone(tz=None)
+            del values['_created']
+            del values['_last_updated']
 
             for k, v in values.items():
                 if k.endswith('_id') and v:
@@ -212,7 +205,6 @@ class SyncRow:
         """Returns an appropriate sqlalchemy Executable statement for
         synchronising this row, or an empty str if the record is to be skipped.
         """
-        table = db.metadata.tables[self.row.table_name]
         table_id = (self.id_map
                     .get(self.row.table_name, {})
                     .get(self.row.table_id, self.row.table_id))
@@ -227,11 +219,11 @@ class SyncRow:
 
         if self.row.operation == 'insert':
             logger.debug('inserting')
-            stmt = table.insert().values(**self.values)
+            stmt = self.table.insert().values(**self.values)
         elif self.row.operation == 'delete':
             logger.debug('deleting')
             self._set_instance()
-            stmt = table.delete().where(table.c.id == table_id)
+            stmt = self.table.delete().where(self.table.c.id == table_id)
         elif self.row.operation == 'update':
             logger.debug('updating')
             self._set_instance()
@@ -240,8 +232,8 @@ class SyncRow:
                 if isinstance(v, list):
                     update_vals[k] = v[0]
 
-            stmt = (table.update()
-                    .where(table.c.id == table_id)
+            stmt = (self.table.update()
+                    .where(self.table.c.id == table_id)
                     .values(**update_vals))
             # NOTE if update_vals is emtpy History.event_add will skip adding
             # an entry as nothing actually changes
@@ -282,6 +274,15 @@ class SyncRow:
             id_map = self.id_map.setdefault(self.row.table_name, {})
             id_map[self.row.table_id] = id_
             self.table_id = id_
+        elif self.row.operation == 'update':
+            # grab the actual value of _last_updated and replace it in values
+            # to pass to history
+            last_update = self.connection.execute(
+                select(self.table.c._last_updated)
+                .where(self.table.c.id == self.table_id)
+            ).scalar()
+            if last_update != self.instance._last_updated:
+                self._values['_last_updated'] = last_update
 
         self.add_to_history()
 

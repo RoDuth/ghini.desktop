@@ -318,13 +318,14 @@ class DBSyncTests(BaubleTestCase):
         result = self.session.query(ToSync).all()
         self.assertEqual(len(result), 0)
 
-    def test_sync_row_values_removes_id_updates_last_updated(self):
+    def test_sync_row_values_removes_id_last_updated_created(self):
         data = {'batch_number': 1,
                 'table_name': 'family',
                 'table_id': 100,
                 'values': {'id': 100,
                            'family': ['Malvaceae', 'Sterculiaceae'],
-                           '_last_updated': 0},
+                           '_last_updated': 0,
+                           '_created': 0},
                 'operation': 'update',
                 'user': 'test',
                 'timestamp': datetime(2023, 1, 1)}
@@ -337,11 +338,8 @@ class DBSyncTests(BaubleTestCase):
             first = conn.execute(out_stmt).first()
             row = SyncRow({}, first, conn)
             self.assertIsNone(row.values.get('id'))
-            self.assertAlmostEqual(
-                row.values.get('_last_updated')[0].timestamp(),
-                datetime.now().timestamp(),
-                delta=1
-            )
+            self.assertIsNone(row.values.get('_last_updated'))
+            self.assertIsNone(row.values.get('_created'))
 
     def test_sync_row_updates_ids_from_id_map_insert(self):
         # insert
@@ -351,7 +349,8 @@ class DBSyncTests(BaubleTestCase):
                 'values': {'id': 10,
                            'family_id': 10,
                            'genus': 'Sterculia',
-                           '_last_updated': 0},
+                           '_last_updated': 0,
+                           '_created': 0},
                 'operation': 'insert',
                 'user': 'test',
                 'timestamp': datetime(2023, 1, 1)}
@@ -375,7 +374,8 @@ class DBSyncTests(BaubleTestCase):
                     'obj_id': 10,
                     'obj_class': 'bauble.plugins.plants.species_model.Species',
                     'tag_id': 1,
-                    '_last_updated': 0},
+                    '_last_updated': 0,
+                    '_created': 0},
                 'operation': 'insert',
                 'user': 'test',
                 'timestamp': datetime(2023, 1, 1)}
@@ -397,7 +397,8 @@ class DBSyncTests(BaubleTestCase):
                 'values': {'id': 10,
                            'family_id': [10, 2],
                            'genus': 'Sterculia',
-                           '_last_updated': 0},
+                           '_last_updated': 0,
+                           '_created': 0},
                 'operation': 'update',
                 'user': 'test',
                 'timestamp': datetime(2023, 1, 1)}
@@ -421,7 +422,8 @@ class DBSyncTests(BaubleTestCase):
                 'table_id': 10,
                 'values': {'id': 10,
                            'family': ['Malvaceae', 'Sterculiaceae'],
-                           '_last_updated': 0},
+                           '_last_updated': 0,
+                           '_created': 0},
                 'operation': 'update',
                 'user': 'test',
                 'timestamp': datetime(2023, 1, 1)}
@@ -446,7 +448,8 @@ class DBSyncTests(BaubleTestCase):
                 'table_id': 4,
                 'values': {'id': 4,
                            'family': ['Malvaceae', 'Sterculiaceae'],
-                           '_last_updated': 0},
+                           '_last_updated': 0,
+                           '_created': 0},
                 'operation': 'update',
                 'user': 'test',
                 'timestamp': datetime(2023, 1, 1)}
@@ -482,7 +485,8 @@ class DBSyncTests(BaubleTestCase):
                 'table_id': 4,
                 'values': {'id': 4,
                            'family': 'Malvaceae',
-                           '_last_updated': 0},
+                           '_last_updated': 0,
+                           '_created': 0},
                 'operation': 'insert',
                 'user': 'test',
                 'timestamp': datetime(2023, 1, 1)}
@@ -523,7 +527,8 @@ class DBSyncTests(BaubleTestCase):
                 'table_id': 4,
                 'values': {'id': 4,
                            'family': 'Sterculiaceae',
-                           '_last_updated': 0},
+                           '_last_updated': 0,
+                           '_created': 0},
                 'operation': 'delete',
                 'user': 'test',
                 'timestamp': datetime(2023, 1, 1)}
@@ -557,7 +562,8 @@ class DBSyncTests(BaubleTestCase):
                 'table_name': 'family',
                 'table_id': 4,
                 'values': {'family': 'Sterculiaceae',
-                           '_last_updated': 0},
+                           '_last_updated': 0,
+                           '_created': 0},
                 'operation': 'insert',
                 'user': 'test',
                 'timestamp': datetime(2023, 1, 1)}
@@ -571,8 +577,10 @@ class DBSyncTests(BaubleTestCase):
 
         resolver = ResolverDialog(row=first)
         resolver.on_value_cell_edited(None, 0, 'Malvaceae')
-        self.assertCountEqual(resolver.row['values'], {'family': 'Malvaceae',
-                                                       '_last_updated': 0})
+        self.assertCountEqual(resolver.row['values'].items(),
+                              {'family': 'Malvaceae',
+                               '_last_updated': 0,
+                               '_created': 0}.items())
 
     def test_resolver_dialog_edit_int_cell(self):
         data = {'batch_number': 1,
@@ -581,7 +589,8 @@ class DBSyncTests(BaubleTestCase):
                 'values': {'code': '2023.0001',
                            'species_id': 1,
                            'quantity_recvd': 2,
-                           '_last_updated': 0},
+                           '_last_updated': 0,
+                           '_created': 0},
                 'operation': 'insert',
                 'user': 'test',
                 'timestamp': datetime(2023, 1, 1)}
@@ -595,10 +604,12 @@ class DBSyncTests(BaubleTestCase):
 
         resolver = ResolverDialog(row=first)
         resolver.on_value_cell_edited(None, 2, '3')
-        self.assertCountEqual(resolver.row['values'], {'code': '2023.0001',
-                                                       'species_id': 1,
-                                                       'quantity_recvd': 3,
-                                                       '_last_updated': 0})
+        self.assertCountEqual(resolver.row['values'].items(),
+                              {'code': '2023.0001',
+                               'species_id': 1,
+                               'quantity_recvd': 3,
+                               '_last_updated': 0,
+                               '_created': 0}.items())
 
     def test_resolver_dialog_edit_int_cell_wrong_type(self):
         data = {'batch_number': 1,
@@ -607,7 +618,8 @@ class DBSyncTests(BaubleTestCase):
                 'values': {'code': '2023.0001',
                            'species_id': 1,
                            'quantity_recvd': 2,
-                           '_last_updated': 0},
+                           '_last_updated': 0,
+                           '_created': 0},
                 'operation': 'insert',
                 'user': 'test',
                 'timestamp': datetime(2023, 1, 1)}
@@ -622,11 +634,12 @@ class DBSyncTests(BaubleTestCase):
         resolver = ResolverDialog(row=first)
         resolver.on_value_cell_edited(None, 2, 'a')
         # does not change
-        self.assertCountEqual(resolver.row['values'],
+        self.assertCountEqual(resolver.row['values'].items(),
                               {'code': '2023.0001',
                                'species_id': 1,
                                'quantity_recvd': 2,
-                               '_last_updated': 0})
+                               '_last_updated': 0,
+                               '_created': 0}.items())
 
     def test_resolver_dialog_edit_datetime_cell(self):
         data = {'batch_number': 1,
@@ -635,7 +648,8 @@ class DBSyncTests(BaubleTestCase):
                 'values': {'code': '2023.0001',
                            'species_id': 1,
                            'quantity_recvd': 2,
-                           '_last_updated': 0},
+                           '_last_updated': 0,
+                           '_created': 0},
                 'operation': 'insert',
                 'user': 'test',
                 'timestamp': datetime(2023, 1, 1)}
@@ -649,11 +663,12 @@ class DBSyncTests(BaubleTestCase):
 
         resolver = ResolverDialog(row=first)
         resolver.on_value_cell_edited(None, 3, '29/5/23')
-        self.assertCountEqual(resolver.row['values'],
+        self.assertCountEqual(resolver.row['values'].items(),
                               {'code': '2023.0001',
                                'species_id': 1,
                                'quantity_recvd': 2,
-                               '_last_updated': '29/5/23'})
+                               '_last_updated': '29/5/23',
+                               '_created': 0}.items())
 
     @mock.patch('bauble.plugins.synclone.sync.ResolverDialog.run')
     def test_dbsyncroniser_can_resolve_on_fly(self, mock_run):
@@ -669,7 +684,8 @@ class DBSyncTests(BaubleTestCase):
                  'values': {'id': 1,
                             'sp': 'quadrifida',
                             'genus_id': 4,
-                            '_last_updated': '29/5/23'},
+                            '_last_updated': '29/5/23',
+                            '_created': 0},
                  'operation': 'insert',
                  'user': 'test',
                  'timestamp': datetime(2023, 1, 1)}]
@@ -713,7 +729,8 @@ class DBSyncTests(BaubleTestCase):
                             'code': '2023.0001',
                             'species_id': 1,
                             'quantity_recvd': 2,
-                            '_last_updated': '29/5/23'},
+                            '_last_updated': '29/5/23',
+                            '_created': 0},
                  'operation': 'insert',
                  'user': 'test',
                  'timestamp': datetime(2023, 1, 1)},
@@ -723,7 +740,8 @@ class DBSyncTests(BaubleTestCase):
                  'values': {'id': 1,
                             'sp': 'quadrifida',
                             'genus_id': 1,
-                            '_last_updated': '29/5/23'},
+                            '_last_updated': '29/5/23',
+                            '_created': 0},
                  'operation': 'insert',
                  'user': 'test',
                  'timestamp': datetime(2023, 1, 1)}]
@@ -769,7 +787,8 @@ class DBSyncTests(BaubleTestCase):
                             'code': '2023.0001',
                             'species_id': 1,
                             'quantity_recvd': 2,
-                            '_last_updated': '29/5/23'},
+                            '_last_updated': '29/5/23',
+                            '_created': 0},
                  'operation': 'insert',
                  'user': 'test',
                  'timestamp': datetime(2023, 1, 1)},
@@ -779,7 +798,8 @@ class DBSyncTests(BaubleTestCase):
                  'values': {'id': 1,
                             'sp': 'quadrifida',
                             'genus_id': 1,
-                            '_last_updated': '29/5/23'},
+                            '_last_updated': '29/5/23',
+                            '_created': 0},
                  'operation': 'insert',
                  'user': 'test',
                  'timestamp': datetime(2023, 1, 1)}]
@@ -824,7 +844,8 @@ class DBSyncTests(BaubleTestCase):
                  'table_id': 1,
                  'values': {'id': 1,
                             'family': 'Sterculiaceae',
-                            '_last_updated': 0},
+                            '_last_updated': 0,
+                            '_created': 0},
                  'operation': 'insert',
                  'user': 'test',
                  'timestamp': datetime(2023, 1, 1)},
@@ -834,7 +855,8 @@ class DBSyncTests(BaubleTestCase):
                  'values': {'id': 1,
                             'genus': 'Sterculia',
                             'family_id': 1,
-                            '_last_updated': 0},
+                            '_last_updated': 0,
+                            '_created': 0},
                  'operation': 'insert',
                  'user': 'test',
                  'timestamp': datetime(2023, 1, 1)},
@@ -844,7 +866,8 @@ class DBSyncTests(BaubleTestCase):
                  'values': {'id': 1,
                             'sp': 'quadrifida',
                             'genus_id': 1,
-                            '_last_updated': '29/5/23'},
+                            '_last_updated': '29/5/23',
+                            '_created': 0},
                  'operation': 'insert',
                  'user': 'test',
                  'timestamp': datetime(2023, 1, 1)}]
@@ -881,7 +904,8 @@ class DBSyncTests(BaubleTestCase):
                             'code': '2023.0001',
                             'species_id': 1,
                             'quantity_recvd': 2,
-                            '_last_updated': '29/5/23'},
+                            '_last_updated': '29/5/23',
+                            '_created': 0},
                  'operation': 'insert',
                  'user': 'test',
                  'timestamp': datetime(2023, 1, 1)},
@@ -891,7 +915,8 @@ class DBSyncTests(BaubleTestCase):
                  'values': {'id': 1,
                             'sp': 'quadrifida',
                             'genus_id': 1,
-                            '_last_updated': '29/5/23'},
+                            '_last_updated': '29/5/23',
+                            '_created': 0},
                  'operation': 'insert',
                  'user': 'test',
                  'timestamp': datetime(2023, 1, 1)}]
@@ -936,7 +961,8 @@ class DBSyncTests(BaubleTestCase):
                  'table_id': 1,
                  'values': {'id': 1,
                             'sp': 'quadrifida',
-                            '_last_updated': '29/5/23'},
+                            '_last_updated': '29/5/23',
+                            '_created': 0},
                  'operation': 'insert',
                  'user': 'test',
                  'timestamp': datetime(2023, 1, 1)},
@@ -947,7 +973,8 @@ class DBSyncTests(BaubleTestCase):
                             'code': '2023.0001',
                             'species_id': 1,
                             'quantity_recvd': 2,
-                            '_last_updated': '29/5/23'},
+                            '_last_updated': '29/5/23',
+                            '_created': 0},
                  'operation': 'insert',
                  'user': 'test',
                  'timestamp': datetime(2023, 1, 1)}]
@@ -984,7 +1011,8 @@ class DBSyncTests(BaubleTestCase):
                  'table_id': 1,
                  'values': {'id': 1,
                             'family': 'Malvaceae',
-                            '_last_updated': 0},
+                            '_last_updated': 0,
+                            '_created': 0},
                  'operation': 'insert',
                  'user': 'test',
                  'timestamp': datetime(2023, 1, 1)},
@@ -994,7 +1022,8 @@ class DBSyncTests(BaubleTestCase):
                  'values': {'id': 1,
                             'genus': 'Sterculia',
                             'family_id': 1,
-                            '_last_updated': 0},
+                            '_last_updated': 0,
+                            '_created': 0},
                  'operation': 'insert',
                  'user': 'test',
                  'timestamp': datetime(2023, 1, 1)}]
@@ -1022,7 +1051,8 @@ class DBSyncTests(BaubleTestCase):
              'table_id': 1,
              'values': {'id': 1,
                         'family': 'Sterculiaceae',
-                        '_last_updated': 0},
+                        '_last_updated': 0,
+                        '_created': 0},
              'operation': 'insert',
              'user': 'test',
              'timestamp': datetime(2023, 1, 1)},
@@ -1032,7 +1062,8 @@ class DBSyncTests(BaubleTestCase):
              'values': {'id': 1,
                         'genus': 'Sterculia',
                         'family_id': 1,
-                        '_last_updated': 0},
+                        '_last_updated': 0,
+                        '_created': 0},
              'operation': 'insert',
              'user': 'test',
              'timestamp': datetime(2023, 1, 1)},
@@ -1041,7 +1072,8 @@ class DBSyncTests(BaubleTestCase):
              'table_id': 1,
              'values': {'id': 1,
                         'family': ['Malvaceae', 'Sterculiaceae'],
-                        '_last_updated': 0},
+                        '_last_updated': 0,
+                        '_created': 0},
              'operation': 'update',
              'user': 'test',
              'timestamp': datetime(2023, 1, 1)},
@@ -1051,7 +1083,8 @@ class DBSyncTests(BaubleTestCase):
              'values': {'id': 1,
                         'genus': 'Sterculia',
                         'family_id': 1,
-                        '_last_updated': 0},
+                        '_last_updated': 0,
+                        '_created': 0},
              'operation': 'delete',
              'user': 'test',
              'timestamp': datetime(2023, 1, 1)},
@@ -1083,7 +1116,8 @@ class DBSyncTests(BaubleTestCase):
              'table_id': 2,
              'values': {'id': 2,
                         'family': 'Sterculiaceae',
-                        '_last_updated': '1/1/23'},
+                        '_last_updated': '1/1/23',
+                        '_created': 0},
              'operation': 'insert',
              'user': 'test',
              'timestamp': datetime(2023, 1, 1)},
@@ -1093,7 +1127,8 @@ class DBSyncTests(BaubleTestCase):
              'values': {'id': 1,
                         'genus': 'Sterculia',
                         'family_id': 2,
-                        '_last_updated': '1/1/23'},
+                        '_last_updated': '1/1/23',
+                        '_created': 0},
              'operation': 'insert',
              'user': 'test',
              'timestamp': datetime(2023, 1, 1)},
@@ -1155,7 +1190,8 @@ class DBSyncTests(BaubleTestCase):
             self.assertAlmostEqual(row.timestamp.timestamp(),
                                    datetime.now().timestamp(), delta=2)
             # _last_update == now regardless of value in clones data
-            if row.operation == 'update':
+            if (row.operation == 'update' and
+                    isinstance(row['values']['_last_updated'], list)):
                 last_updated = parser.parse(
                     row['values']['_last_updated'][0]
                 ).timestamp()
