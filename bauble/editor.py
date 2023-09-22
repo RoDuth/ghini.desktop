@@ -740,15 +740,11 @@ class GenericEditorView:
         pass
 
     def start(self):
-        # while being ran, the view will invoke callbacks in the presenter
-        # which, in turn, will alter the attributes in the model.
-        # Setting gui busy has same effect as modal but allows disabling menu
-        # items that should only be available when the main window is focused.
         if bauble.gui:
-            bauble.gui.set_busy(True, 'not-allowed')
+            bauble.gui.set_busy_actions(True)
         result = self.get_window().run()
         if bauble.gui:
-            bauble.gui.set_busy(False)
+            bauble.gui.set_busy_actions(False)
         return result
 
     def cleanup(self):

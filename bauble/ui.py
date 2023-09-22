@@ -608,21 +608,22 @@ class GUI:
             return f'Ghini {bauble.version}'
         return f'Ghini {bauble.version} - {bauble.conn_name}'
 
+    def set_busy_actions(self, busy: bool) -> None:
+        for action in self.disable_on_busy_actions:
+            action.set_enabled(not busy)
+
     def set_busy(self, busy, name='wait'):
         if busy:
-            for action in self.disable_on_busy_actions:
-                action.set_enabled(False)
             display = Gdk.Display.get_default()
             cursor = Gdk.Cursor.new_from_name(display, name)
             window = self.window.get_property('window')
             if window:
                 window.set_cursor(cursor)
         else:
-            for action in self.disable_on_busy_actions:
-                action.set_enabled(True)
             window = self.window.get_property('window')
             if window:
                 window.set_cursor(None)
+        self.set_busy_actions(busy)
         self.widgets.main_box.set_sensitive(not busy)
 
     def set_default_view(self):
