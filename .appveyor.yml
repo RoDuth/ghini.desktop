@@ -50,6 +50,8 @@ for:
     MSYSTEM: MINGW64
     CHERE_INVOKING: 1
     PATH: C:\msys64\usr\bin;C:\Program Files (x86)\NSIS\Bin;%PATH%
+    COVERALLS_REPO_TOKEN:
+      secure: dFRyBsYhvG/CAVHHXVL8JVuFWRBuB0zGmiH6W+fQUafSmAsIITs7P7mwOl2y2voK
 
   install:
     - choco install openjdk -y  # NOTE Change PATH to match version
@@ -75,7 +77,10 @@ for:
     - path: dist/*-setup.exe
 
   test_script:
-    - bash -lc "BAUBLE_TEST_DB_URI='mssql://sa:Password12!@localhost:1433/master?driver=ODBC+Driver+17+for+SQL+Server' pytest -sv"
+    - bash -lc "pip install pytest-cov"
+    - bash -lc "pip install coveralls"
+    - bash -lc "BAUBLE_TEST_DB_URI='mssql://sa:Password12!@localhost:1433/master?driver=ODBC+Driver+17+for+SQL+Server' pytest --cov=bauble -sv"
+    - bash -lc "coveralls"
 
 deploy:
   provider: GitHub
