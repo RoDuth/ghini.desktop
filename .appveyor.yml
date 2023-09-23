@@ -26,7 +26,7 @@ for:
     - pip install psycopg2-binary
     - pip install pyodbc
     - pip install .
-    - pip install pyinstaller
+    - pip install pyinstaller==5.13.2
     - pyinstaller --clean --noconfirm scripts/ghini_fop.spec
     - pip install dmgbuild
     - dmgbuild -s scripts/dmgbuild_settings.py "Ghini" Ghini.dmg   # NOTE: last 2 args are required but overidden in dmgbuild_settings.py
@@ -67,7 +67,7 @@ for:
 
   build_script:
     - bash -lc "pip install ."
-    - bash -lc "pip install pyinstaller"
+    - bash -lc "pip install pyinstaller==5.13.2"
     - for /f %%i in ('dir "C:\Program Files\OpenJDK\jdk*" /b') do "C:\Program Files"\OpenJDK\%%i\bin\jlink --output jre --add-modules java.base,java.logging,java.desktop,java.xml
     - bash -lc "scripts/get_fop.sh"
     - bash -lc "python -m PyInstaller --clean --noconfirm scripts/ghini_fop.spec"
