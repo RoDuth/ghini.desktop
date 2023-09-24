@@ -17,8 +17,9 @@
 """
 Global hooks, etc. for pytest.
 """
-import sys
 import shutil
+import sys
+
 from bauble import paths
 
 # don't cache .pyc files (can cause failures on second etc. run)

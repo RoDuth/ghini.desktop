@@ -21,27 +21,28 @@
 Users, permissions, roles etc... postgresql only.
 """
 
+import logging
 from pathlib import Path
 
-import logging
 logger = logging.getLogger(__name__)
 
 from gi.repository import Gtk
-
 from sqlalchemy import Integer
 from sqlalchemy.exc import ProgrammingError
 
 try:
-    from psycopg2.sql import SQL, Literal, Identifier
     from psycopg2 import DatabaseError
+    from psycopg2.sql import SQL
+    from psycopg2.sql import Identifier
+    from psycopg2.sql import Literal
 except ImportError:
     pass
 
-from bauble import editor
-from bauble.error import check
 from bauble import db
+from bauble import editor
 from bauble import pluginmgr
 from bauble import utils
+from bauble.error import check
 
 # WARNING: "roles" are specific to PostgreSQL databases and won't work on other
 # database types

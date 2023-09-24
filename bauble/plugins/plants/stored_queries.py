@@ -21,15 +21,19 @@ stored_queries module, provides a 'Model' that stores queries in the BaubleMeta
 table and a GUI to access them.
 """
 
+import logging
 import os.path
 
-import logging
 logger = logging.getLogger(__name__)
 
 from gi.repository import Pango
 
 import bauble
-from bauble import db, meta, editor, paths, pluginmgr
+from bauble import db
+from bauble import editor
+from bauble import meta
+from bauble import paths
+from bauble import pluginmgr
 
 
 class StoredQueriesModel:

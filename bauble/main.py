@@ -17,22 +17,23 @@
 """
 The main application
 """
-import sys
 import logging
+import sys
 import traceback
 
-from gi.repository import Gtk
-from gi.repository import Gio
 from gi.repository import Gdk
+from gi.repository import Gio
+from gi.repository import Gtk
 
 import bauble
-from bauble import paths
-from bauble import error as err
-from bauble import prefs
-from bauble import pluginmgr
-from bauble import utils
 from bauble import db
+from bauble import error as err
+from bauble import paths
+from bauble import pluginmgr
+from bauble import prefs
+from bauble import utils
 from bauble.connmgr import start_connection_manager
+
 from .ui import GUI
 
 logger = logging.getLogger(__name__)
@@ -223,6 +224,7 @@ class Application(Gtk.Application):
         logger.debug('Application shutdown')
         prefs.prefs.save()
         import shutil
+
         # delete global tempdir
         shutil.rmtree(paths.TEMPDIR)
         Gtk.Application.do_shutdown(self, *args, **kwargs)

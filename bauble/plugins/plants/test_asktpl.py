@@ -19,8 +19,10 @@
 # Description: test for the Plant plugin
 #
 from unittest import mock
-from bauble.test import BaubleTestCase
+
 import requests
+
+from bauble.test import BaubleTestCase
 
 
 def requests_get(x, timeout=None):
@@ -38,7 +40,8 @@ def requests_get(x, timeout=None):
 
 requests.get = requests_get
 
-from .ask_tpl import AskTPL, what_to_do_with_it
+from .ask_tpl import AskTPL
+from .ask_tpl import what_to_do_with_it
 
 
 class TestOne(BaubleTestCase):

@@ -21,7 +21,9 @@ Custom database types.
 """
 # pylint: disable=abstract-method # re TypeDecorator
 
-from datetime import timezone, datetime, timedelta
+from datetime import datetime
+from datetime import timedelta
+from datetime import timezone
 
 import dateutil.parser as date_parser
 from sqlalchemy import types
@@ -145,6 +147,7 @@ class DateTime(types.TypeDecorator):
 
         if not self._dayfirst or not self._yearfirst:
             from bauble import prefs  # avoid circular imports
+
             # pylint: disable=protected-access
             self.__class__._dayfirst = prefs.prefs[prefs.parse_dayfirst_pref]
             self.__class__._yearfirst = prefs.prefs[prefs.parse_yearfirst_pref]
@@ -200,6 +203,7 @@ class Date(types.TypeDecorator):
 
         if not self._dayfirst or not self._yearfirst:
             from bauble import prefs
+
             # pylint: disable=protected-access
             self.__class__._dayfirst = prefs.prefs[prefs.parse_dayfirst_pref]
             self.__class__._yearfirst = prefs.prefs[prefs.parse_yearfirst_pref]

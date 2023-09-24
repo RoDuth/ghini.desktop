@@ -21,71 +21,77 @@
 # Description: test for the Plant plugin
 #
 import logging
+
 logging.basicConfig()
 # logging.getLogger('sqlalchemy.engine').setLevel(logging.INFO)
 
 import os
 from datetime import datetime
-from unittest import TestCase, mock
 from functools import partial
-
-from sqlalchemy.orm.exc import NoResultFound
-from sqlalchemy.exc import IntegrityError
+from unittest import TestCase
+from unittest import mock
 
 from gi.repository import Gtk
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm.exc import NoResultFound
 
-from bauble import utils, search, db, paths
+from bauble import db
+from bauble import paths
 from bauble import prefs
-from bauble.test import (BaubleTestCase,
-                         check_dupids,
-                         mockfunc,
-                         update_gui,
-                         wait_on_threads)
-from . import SplashInfoBox, SynonymsPresenter
-from .species import (Species,
-                      VernacularName,
-                      SpeciesSynonym,
-                      SpeciesEditor,
-                      DefaultVernacularName,
-                      SpeciesDistribution,
-                      SpeciesNote,
-                      GeneralSpeciesExpander)
-from .species_editor import (species_to_string_matcher,
-                             species_match_func,
-                             generic_sp_get_completions,
-                             species_cell_data_func,
-                             SpeciesEntry,
-                             DistributionPresenter,
-                             VernacularNamePresenter,
-                             InfraspPresenter,
-                             InfraspRow,
-                             SpeciesEditorPresenter,
-                             SpeciesEditorView)
+from bauble import search
+from bauble import utils
+from bauble.test import BaubleTestCase
+from bauble.test import check_dupids
+from bauble.test import mockfunc
+from bauble.test import update_gui
+from bauble.test import wait_on_threads
+
+from . import SplashInfoBox
+from . import SynonymsPresenter
+from .family import Family
+from .family import FamilyEditor
+from .family import FamilyEditorPresenter
+from .family import FamilyEditorView
+from .family import FamilyNote
+from .family import FamilySynonym
+from .genus import Genus
+from .genus import GenusEditor
+from .genus import GenusEditorPresenter
+from .genus import GenusEditorView
+from .genus import GenusNote
+from .genus import GenusSynonym
+from .genus import generic_gen_get_completions
+from .genus import genus_cell_data_func
+from .genus import genus_match_func
+from .genus import genus_to_string_matcher
+from .geography import Geography
+from .geography import consolidate_geographies
+from .geography import geography_importer
+from .geography import get_species_in_geography
+from .species import DefaultVernacularName
+from .species import GeneralSpeciesExpander
+from .species import Species
+from .species import SpeciesDistribution
+from .species import SpeciesEditor
+from .species import SpeciesNote
+from .species import SpeciesSynonym
+from .species import VernacularName
+from .species_editor import DistributionPresenter
+from .species_editor import InfraspPresenter
+from .species_editor import InfraspRow
+from .species_editor import SpeciesEditorPresenter
+from .species_editor import SpeciesEditorView
+from .species_editor import SpeciesEntry
+from .species_editor import VernacularNamePresenter
+from .species_editor import generic_sp_get_completions
+from .species_editor import species_cell_data_func
+from .species_editor import species_match_func
+from .species_editor import species_to_string_matcher
 from .species_model import _remove_zws as remove_zws
-from .species_model import (update_all_full_names_task,
-                            update_all_full_names_handler,
-                            infrasp_rank_values,
-                            markup_italics)
-from .family import (Family,
-                     FamilySynonym,
-                     FamilyEditor,
-                     FamilyNote,
-                     FamilyEditorView,
-                     FamilyEditorPresenter)
-from .genus import (Genus,
-                    GenusSynonym,
-                    GenusEditor,
-                    GenusNote,
-                    GenusEditorPresenter,
-                    GenusEditorView,
-                    genus_to_string_matcher,
-                    genus_match_func,
-                    generic_gen_get_completions,
-                    genus_cell_data_func)
-from .geography import (consolidate_geographies,
-                        Geography,
-                        get_species_in_geography,
-                        geography_importer)
+from .species_model import infrasp_rank_values
+from .species_model import markup_italics
+from .species_model import update_all_full_names_handler
+from .species_model import update_all_full_names_task
 
 #
 # TODO: things to create tests for
@@ -417,8 +423,9 @@ class DuplicateIdsGlade(TestCase):
         """
         Test for duplicate ids for all .glade files in the plants plugin.
         """
-        import bauble.plugins.garden as mod
         import glob
+
+        import bauble.plugins.garden as mod
         head, tail = os.path.split(mod.__file__)
         files = glob.glob(os.path.join(head, '*.glade'))
         for f in files:
@@ -710,7 +717,9 @@ class FamilyTests(PlantTestCase):
         self.assertRaises(IntegrityError, self.session.commit)
 
     def test_top_level_count_w_plant_qty(self):
-        from ..garden import Accession, Plant, Location
+        from ..garden import Accession
+        from ..garden import Location
+        from ..garden import Plant
         fam = Family(family='Myrtaceae')
         gen = Genus(epithet='Syzygium', family=fam)
         sp = Species(epithet='australe', genus=gen)
@@ -731,7 +740,9 @@ class FamilyTests(PlantTestCase):
         self.assertEqual(len(fam.top_level_count()[(8, 'Sources')]), 0)
 
     def test_top_level_count_wo_plant_qty(self):
-        from ..garden import Accession, Plant, Location
+        from ..garden import Accession
+        from ..garden import Location
+        from ..garden import Plant
         fam = Family(family='Myrtaceae')
         gen = Genus(epithet='Syzygium', family=fam)
         sp = Species(epithet='australe', genus=gen)
@@ -752,7 +763,9 @@ class FamilyTests(PlantTestCase):
         self.assertEqual(len(fam.top_level_count()[(8, 'Sources')]), 0)
 
     def test_top_level_count_wo_plant_qty_exclude_inactive_set(self):
-        from ..garden import Accession, Plant, Location
+        from ..garden import Accession
+        from ..garden import Location
+        from ..garden import Plant
         fam = Family(family='Myrtaceae')
         gen = Genus(epithet='Syzygium', family=fam)
         sp = Species(epithet='australe', genus=gen)
@@ -1066,7 +1079,9 @@ class GenusTests(PlantTestCase):
         self.assertEqual(gen.count_children(), 1)
 
     def test_count_children_w_plant_w_qty(self):
-        from ..garden import Accession, Plant, Location
+        from ..garden import Accession
+        from ..garden import Location
+        from ..garden import Plant
         fam = Family(family='Myrtaceae')
         gen = Genus(epithet='Syzygium', family=fam)
         sp = Species(epithet='australe', genus=gen)
@@ -1082,7 +1097,9 @@ class GenusTests(PlantTestCase):
 
     def test_count_children_w_plant_w_qty_exclude_inactive_set(self):
         # should be the same as if exclude inactive not set.
-        from ..garden import Accession, Plant, Location
+        from ..garden import Accession
+        from ..garden import Location
+        from ..garden import Plant
         fam = Family(family='Myrtaceae')
         gen = Genus(epithet='Syzygium', family=fam)
         sp = Species(epithet='australe', genus=gen)
@@ -1099,7 +1116,9 @@ class GenusTests(PlantTestCase):
         self.assertEqual(gen.count_children(), 1)
 
     def test_count_children_w_plant_wo_qty(self):
-        from ..garden import Accession, Plant, Location
+        from ..garden import Accession
+        from ..garden import Location
+        from ..garden import Plant
         fam = Family(family='Myrtaceae')
         gen = Genus(epithet='Syzygium', family=fam)
         sp = Species(epithet='australe', genus=gen)
@@ -1114,7 +1133,9 @@ class GenusTests(PlantTestCase):
         self.assertEqual(gen.count_children(), 1)
 
     def test_count_children_w_plant_wo_qty_exclude_inactive_set(self):
-        from ..garden import Accession, Plant, Location
+        from ..garden import Accession
+        from ..garden import Location
+        from ..garden import Plant
         fam = Family(family='Myrtaceae')
         gen = Genus(epithet='Syzygium', family=fam)
         sp = Species(epithet='australe', genus=gen)
@@ -1131,7 +1152,9 @@ class GenusTests(PlantTestCase):
         self.assertEqual(gen.count_children(), 0)
 
     def test_top_level_count_w_plant_qty(self):
-        from ..garden import Accession, Plant, Location
+        from ..garden import Accession
+        from ..garden import Location
+        from ..garden import Plant
         fam = Family(family='Myrtaceae')
         gen = Genus(epithet='Syzygium', family=fam)
         sp = Species(epithet='australe', genus=gen)
@@ -1152,7 +1175,9 @@ class GenusTests(PlantTestCase):
         self.assertEqual(len(gen.top_level_count()[(8, 'Sources')]), 0)
 
     def test_top_level_count_wo_plant_qty(self):
-        from ..garden import Accession, Plant, Location
+        from ..garden import Accession
+        from ..garden import Location
+        from ..garden import Plant
         fam = Family(family='Myrtaceae')
         gen = Genus(epithet='Syzygium', family=fam)
         sp = Species(epithet='australe', genus=gen)
@@ -1173,7 +1198,9 @@ class GenusTests(PlantTestCase):
         self.assertEqual(len(gen.top_level_count()[(8, 'Sources')]), 0)
 
     def test_top_level_count_wo_plant_qty_exclude_inactive_set(self):
-        from ..garden import Accession, Plant, Location
+        from ..garden import Accession
+        from ..garden import Location
+        from ..garden import Plant
         fam = Family(family='Myrtaceae')
         gen = Genus(epithet='Syzygium', family=fam)
         sp = Species(epithet='australe', genus=gen)
@@ -1653,6 +1680,7 @@ class SpeciesTests(PlantTestCase):
         sp1.synonyms.append(sp2)
         sp1.synonyms.remove(sp2)
         import warnings
+
         # SAWarning: Object of type <SpeciesSynonym> not in session, add
         # operation along 'Species._accepted' will not proceed
         with warnings.catch_warnings():
@@ -1824,7 +1852,7 @@ class SpeciesTests(PlantTestCase):
         caricaceae = Family(family='Caricaceae')
         f5 = Genus(epithet='Carica', family=caricaceae)
         sp = Species(epithet='papaya', genus=f5)
-        from bauble.plugins.garden import (Accession)
+        from bauble.plugins.garden import Accession
         acc = Accession(code='0123456', species=sp)
         self.session.add_all([caricaceae, f5, sp, acc])
         self.session.flush()
@@ -1892,7 +1920,9 @@ class SpeciesTests(PlantTestCase):
         self.assertIn(sp, sp_active_in_db)
 
     def test_active_plants_w_qty(self):
-        from ..garden import Accession, Plant, Location
+        from ..garden import Accession
+        from ..garden import Location
+        from ..garden import Plant
         fam = Family(family='Myrtaceae')
         gen = Genus(epithet='Syzygium', family=fam)
         sp = Species(epithet='australe', genus=gen)
@@ -1911,7 +1941,9 @@ class SpeciesTests(PlantTestCase):
         self.assertIn(sp, sp_active_in_db)
 
     def test_active_plants_wo_qty(self):
-        from ..garden import Accession, Plant, Location
+        from ..garden import Accession
+        from ..garden import Location
+        from ..garden import Plant
         fam = Family(family='Myrtaceae')
         gen = Genus(epithet='Syzygium', family=fam)
         sp = Species(epithet='australe', genus=gen)
@@ -1942,7 +1974,9 @@ class SpeciesTests(PlantTestCase):
         self.assertEqual(sp.count_children(), 1)
 
     def test_count_children_w_plant_w_qty(self):
-        from ..garden import Accession, Plant, Location
+        from ..garden import Accession
+        from ..garden import Location
+        from ..garden import Plant
         fam = Family(family='Myrtaceae')
         gen = Genus(epithet='Syzygium', family=fam)
         sp = Species(epithet='australe', genus=gen)
@@ -1958,7 +1992,9 @@ class SpeciesTests(PlantTestCase):
 
     def test_count_children_w_plant_w_qty_exclude_inactive_set(self):
         # should be the same as if exclude inactive not set.
-        from ..garden import Accession, Plant, Location
+        from ..garden import Accession
+        from ..garden import Location
+        from ..garden import Plant
         fam = Family(family='Myrtaceae')
         gen = Genus(epithet='Syzygium', family=fam)
         sp = Species(epithet='australe', genus=gen)
@@ -1975,7 +2011,9 @@ class SpeciesTests(PlantTestCase):
         self.assertEqual(sp.count_children(), 1)
 
     def test_count_children_w_plant_wo_qty(self):
-        from ..garden import Accession, Plant, Location
+        from ..garden import Accession
+        from ..garden import Location
+        from ..garden import Plant
         fam = Family(family='Myrtaceae')
         gen = Genus(epithet='Syzygium', family=fam)
         sp = Species(epithet='australe', genus=gen)
@@ -1990,7 +2028,9 @@ class SpeciesTests(PlantTestCase):
         self.assertEqual(sp.count_children(), 1)
 
     def test_count_children_w_plant_wo_qty_exclude_inactive_set(self):
-        from ..garden import Accession, Plant, Location
+        from ..garden import Accession
+        from ..garden import Location
+        from ..garden import Plant
         fam = Family(family='Myrtaceae')
         gen = Genus(epithet='Syzygium', family=fam)
         sp = Species(epithet='australe', genus=gen)
@@ -2007,7 +2047,9 @@ class SpeciesTests(PlantTestCase):
         self.assertEqual(sp.count_children(), 0)
 
     def test_top_level_count_w_plant_qty(self):
-        from ..garden import Accession, Plant, Location
+        from ..garden import Accession
+        from ..garden import Location
+        from ..garden import Plant
         fam = Family(family='Myrtaceae')
         gen = Genus(epithet='Syzygium', family=fam)
         sp = Species(epithet='australe', genus=gen)
@@ -2028,7 +2070,9 @@ class SpeciesTests(PlantTestCase):
         self.assertEqual(len(sp.top_level_count()[(8, 'Sources')]), 0)
 
     def test_top_level_count_wo_plant_qty(self):
-        from ..garden import Accession, Plant, Location
+        from ..garden import Accession
+        from ..garden import Location
+        from ..garden import Plant
         fam = Family(family='Myrtaceae')
         gen = Genus(epithet='Syzygium', family=fam)
         sp = Species(epithet='australe', genus=gen)
@@ -2049,7 +2093,9 @@ class SpeciesTests(PlantTestCase):
         self.assertEqual(len(sp.top_level_count()[(8, 'Sources')]), 0)
 
     def test_top_level_count_wo_plant_qty_exclude_inactive_set(self):
-        from ..garden import Accession, Plant, Location
+        from ..garden import Accession
+        from ..garden import Location
+        from ..garden import Plant
         fam = Family(family='Myrtaceae')
         gen = Genus(epithet='Syzygium', family=fam)
         sp = Species(epithet='australe', genus=gen)

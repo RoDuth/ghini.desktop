@@ -19,34 +19,39 @@
 """
 Location table definition and related
 """
+import logging
 import os
 import traceback
 from pathlib import Path
 
-import logging
 logger = logging.getLogger(__name__)
 
 from gi.repository import Gtk
-
-from sqlalchemy import Column, Unicode, UnicodeText, literal
-from sqlalchemy.orm import relationship, backref, validates, deferred
-from sqlalchemy.orm.session import object_session
+from sqlalchemy import Column
+from sqlalchemy import Unicode
+from sqlalchemy import UnicodeText
+from sqlalchemy import literal
 from sqlalchemy.exc import DBAPIError
+from sqlalchemy.orm import backref
+from sqlalchemy.orm import deferred
+from sqlalchemy.orm import relationship
+from sqlalchemy.orm import validates
+from sqlalchemy.orm.session import object_session
 
 import bauble
-from bauble import db
 from bauble import btypes as types
-from bauble.editor import (GenericModelViewPresenterEditor,
-                           GenericEditorView,
-                           GenericEditorPresenter,
-                           NotesPresenter,
-                           PicturesPresenter,
-                           StringOrNoneValidator,
-                           PresenterMapMixin)
-from bauble import utils
-from bauble import prefs
-from bauble.utils.geo import KMLMapCallbackFunctor
+from bauble import db
 from bauble import paths
+from bauble import prefs
+from bauble import utils
+from bauble.editor import GenericEditorPresenter
+from bauble.editor import GenericEditorView
+from bauble.editor import GenericModelViewPresenterEditor
+from bauble.editor import NotesPresenter
+from bauble.editor import PicturesPresenter
+from bauble.editor import PresenterMapMixin
+from bauble.editor import StringOrNoneValidator
+from bauble.utils.geo import KMLMapCallbackFunctor
 from bauble.view import Action
 
 
@@ -60,7 +65,8 @@ def add_plants_callback(locations):
     # get added to the accession
     session = db.Session()
     loc = session.merge(locations[0])
-    from bauble.plugins.garden.plant import Plant, PlantEditor
+    from bauble.plugins.garden.plant import Plant
+    from bauble.plugins.garden.plant import PlantEditor
     e = PlantEditor(model=Plant(location=loc))
     session.close()
     return e.start() is not None
@@ -408,7 +414,8 @@ class LocationEditor(GenericModelViewPresenterEditor):
             e = LocationEditor(parent=self.parent)
             more_committed = e.start()
         elif response == self.RESPONSE_OK_AND_ADD:
-            from bauble.plugins.garden.plant import PlantEditor, Plant
+            from bauble.plugins.garden.plant import Plant
+            from bauble.plugins.garden.plant import PlantEditor
             e = PlantEditor(Plant(location=self.model), self.parent)
             more_committed = e.start()
         if more_committed is not None:
@@ -432,10 +439,10 @@ class LocationEditor(GenericModelViewPresenterEditor):
         return self._committed
 
 
-from bauble.view import (InfoBox,
-                         InfoExpander,
-                         PropertiesExpander,
-                         LinksExpander)
+from bauble.view import InfoBox
+from bauble.view import InfoExpander
+from bauble.view import LinksExpander
+from bauble.view import PropertiesExpander
 
 
 class GeneralLocationExpander(InfoExpander):

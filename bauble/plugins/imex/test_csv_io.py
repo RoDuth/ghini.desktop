@@ -18,33 +18,38 @@
 Test csv import/export
 """
 import logging
+
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
 import csv
-from tempfile import TemporaryDirectory
-from pathlib import Path
 from csv import DictWriter
-from unittest import mock
 from datetime import datetime
+from pathlib import Path
+from tempfile import TemporaryDirectory
+from unittest import mock
 
 from gi.repository import Gtk
 
+import bauble.plugins.garden.test_garden as garden_test
+import bauble.plugins.plants.test_plants as plants_test
 from bauble import prefs
 from bauble import utils
 from bauble.editor import MockView
+from bauble.plugins.garden import Accession
+from bauble.plugins.garden import Location
+from bauble.plugins.garden import Plant
+from bauble.plugins.garden import PlantNote
 from bauble.plugins.plants import Species
-from bauble.plugins.garden import Accession, Location, Plant, PlantNote
-import bauble.plugins.garden.test_garden as garden_test
-import bauble.plugins.plants.test_plants as plants_test
 from bauble.test import BaubleTestCase
-from .csv_io import (CSVImporter,
-                     CSVExporter,
-                     CSVExportTool,
-                     CSVExportDialogPresenter,
-                     CSV_IO_PREFS,
-                     CSV_EXPORT_DIR_PREF,
-                     CSV_IMPORT_DIR_PREF)
+
+from .csv_io import CSV_EXPORT_DIR_PREF
+from .csv_io import CSV_IMPORT_DIR_PREF
+from .csv_io import CSV_IO_PREFS
+from .csv_io import CSVExportDialogPresenter
+from .csv_io import CSVExporter
+from .csv_io import CSVExportTool
+from .csv_io import CSVImporter
 
 plant_full_csv_data = [
     {'qty': 'quantity', 'code': 'code', 'acc': 'accession.code',
@@ -955,7 +960,10 @@ class CSVImporterTests(CSVTestCase):
         grid = importer.presenter.grid
         domain_lbl = grid.get_child_at(0, 0)
         self.assertEqual(domain_lbl.get_label(), 'Domain:  <b>location</b>')
-        from .csv_io import NAME, PATH, MATCH, OPTION
+        from .csv_io import MATCH
+        from .csv_io import NAME
+        from .csv_io import OPTION
+        from .csv_io import PATH
         id_chk_btn = grid.get_child_at(MATCH, 3)
         self.assertEqual(id_chk_btn.get_label(), 'match')
         id_import_chk_btn = grid.get_child_at(OPTION, 3)

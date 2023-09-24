@@ -20,31 +20,35 @@
 # ui.py
 #
 
+import logging
 import os
 import traceback
 from pathlib import Path
 
-import logging
 logger = logging.getLogger(__name__)
 
-from gi.repository import Gtk
-from gi.repository import Gio
 from gi.repository import Gdk
-from gi.repository import GLib
 from gi.repository import GdkPixbuf
-from pyparsing import StringStart, Word, alphanums, restOfLine, StringEnd
+from gi.repository import Gio
+from gi.repository import GLib
+from gi.repository import Gtk
+from pyparsing import StringEnd
+from pyparsing import StringStart
+from pyparsing import Word
+from pyparsing import alphanums
+from pyparsing import restOfLine
 
 import bauble
 from bauble import db
 from bauble import paths
 from bauble import pluginmgr
-from bauble.prefs import datetime_format_pref
 from bauble import prefs
-from bauble.query_builder import QueryBuilder
 from bauble import utils
+from bauble.editor import GenericEditorView
+from bauble.prefs import datetime_format_pref
+from bauble.query_builder import QueryBuilder
 from bauble.utils import desktop
 from bauble.view import SearchView
-from bauble.editor import GenericEditorView
 
 
 class SimpleSearchBox(Gtk.Frame):

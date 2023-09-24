@@ -21,30 +21,30 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest import mock
 
-from lxml import etree
 from gi.repository import Gtk
+from lxml import etree
 
 from bauble import paths
 from bauble import prefs
 from bauble.error import BaubleError
-from bauble.test import BaubleTestCase
 from bauble.plugins.garden import test_garden as garden_test
+from bauble.plugins.garden.accession import Accession
 from bauble.plugins.plants import test_plants as plants_test
 from bauble.plugins.plants.species import Species
-from bauble.plugins.garden.accession import Accession
-from . import (_fop,
-               create_abcd_xml,
-               PLANT_SOURCE_TYPE,
-               ACCESSION_SOURCE_TYPE,
-               SPECIES_SOURCE_TYPE,
-               DEFAULT_SOURCE_TYPE,
-               SOURCE_TYPES,
-               FORMATS,
-               USE_EXTERNAL_FOP_PREF,
-               XSLFormatterSettingsBox,
-               XSLFormatterPlugin)
+from bauble.test import BaubleTestCase
 
+from . import ACCESSION_SOURCE_TYPE
+from . import DEFAULT_SOURCE_TYPE
+from . import FORMATS
+from . import PLANT_SOURCE_TYPE
+from . import SOURCE_TYPES
+from . import SPECIES_SOURCE_TYPE
+from . import USE_EXTERNAL_FOP_PREF
 from . import SettingsBox
+from . import XSLFormatterPlugin
+from . import XSLFormatterSettingsBox
+from . import _fop
+from . import create_abcd_xml
 
 
 class XSLTestCase(BaubleTestCase):

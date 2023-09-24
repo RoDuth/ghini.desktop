@@ -25,21 +25,24 @@
 The connection manager provides a GUI for creating and opening
 connections. This is the first thing displayed when Ghini starts.
 """
-import os
-from pathlib import Path
 import copy
-from importlib import import_module
-
 import logging
+import os
+from importlib import import_module
+from pathlib import Path
+
 logger = logging.getLogger(__name__)
 
 import dateutil
-from gi.repository import Gtk  # noqa
 from gi.repository import GdkPixbuf
+from gi.repository import Gtk  # noqa
 
 import bauble
-from bauble import paths, prefs, utils
-from bauble.editor import GenericEditorView, GenericEditorPresenter
+from bauble import paths
+from bauble import prefs
+from bauble import utils
+from bauble.editor import GenericEditorPresenter
+from bauble.editor import GenericEditorView
 
 
 def is_package_name(name):

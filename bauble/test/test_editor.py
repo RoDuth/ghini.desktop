@@ -20,27 +20,28 @@
 # test_bauble.py
 #
 
-import os
 import json
-from unittest import TestCase, mock
+import os
 import tempfile
 from pathlib import Path
 from shutil import copy2
+from unittest import TestCase
+from unittest import mock
 
 from gi.repository import Gtk
 
-from bauble.editor import (GenericEditorView,
-                           NoteBox,
-                           NotesPresenter,
-                           PictureBox,
-                           DocumentBox,
-                           PresenterMapMixin)
 from bauble import paths
-from bauble import utils
-from bauble import search
 from bauble import prefs
-
-from bauble.test import BaubleTestCase, get_setUp_data_funcs
+from bauble import search
+from bauble import utils
+from bauble.editor import DocumentBox
+from bauble.editor import GenericEditorView
+from bauble.editor import NoteBox
+from bauble.editor import NotesPresenter
+from bauble.editor import PictureBox
+from bauble.editor import PresenterMapMixin
+from bauble.test import BaubleTestCase
+from bauble.test import get_setUp_data_funcs
 
 
 class BaubleTests(BaubleTestCase):
@@ -105,8 +106,11 @@ class BaubleTests(BaubleTestCase):
         view.get_window().destroy()
 
 
-from dateutil.parser import parse as parse_date
 import datetime
+
+from dateutil.parser import parse as parse_date
+
+
 class TimeStampParserTests(TestCase):
 
     def test_date_parser_generic(self):
@@ -348,6 +352,7 @@ class PictureBoxTests(BaubleTestCase):
         copy2(img_full_path, os.path.join(temp, 'pictures'))
 
         from sqlalchemy import Unicode
+
         # create fake data and add a second model of different type with same
         # img.  Commit the lot.
         self.model.picture = img_name

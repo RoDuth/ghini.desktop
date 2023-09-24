@@ -19,9 +19,13 @@
 #
 # meta.py
 #
-from sqlalchemy import Unicode, UnicodeText, Column, event
-
 import logging
+
+from sqlalchemy import Column
+from sqlalchemy import Unicode
+from sqlalchemy import UnicodeText
+from sqlalchemy import event
+
 logger = logging.getLogger(__name__)
 
 from bauble import db
@@ -85,6 +89,7 @@ def confirm_default(name, default, msg, parent=None):
     current_default = get_default(name)
     if not current_default:
         from gi.repository import Gtk  # noqa
+
         import bauble
         if bauble.gui:
             parent = bauble.gui.window
@@ -123,6 +128,7 @@ def set_value(names, defaults, msg, parent=None):
     logger.debug('set_value for %s', names)
     meta = None
     from gi.repository import Gtk  # noqa
+
     import bauble
     if bauble.gui:
         parent = bauble.gui.window

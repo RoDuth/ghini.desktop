@@ -23,28 +23,28 @@ Database connection and associated.
 """
 
 import datetime
+import json
+import logging
 import os
 import re
-import json
-from collections.abc import Callable, Iterable
+from collections.abc import Callable
+from collections.abc import Iterable
 from typing import Any
 
-import logging
 logger = logging.getLogger(__name__)
 
-from gi.repository import Gtk
-
 import sqlalchemy as sa
+from gi.repository import Gtk
 from sqlalchemy import event
-from sqlalchemy.orm import (object_session,
-                            declarative_base,
-                            DeclarativeMeta,
-                            sessionmaker)
+from sqlalchemy.orm import DeclarativeMeta
+from sqlalchemy.orm import declarative_base
+from sqlalchemy.orm import object_session
+from sqlalchemy.orm import sessionmaker
 from sqlalchemy.orm.attributes import get_history
 
-from bauble import utils
 from bauble import btypes as types
 from bauble import error
+from bauble import utils
 
 
 def sqlalchemy_debug(verbose):
@@ -553,11 +553,13 @@ def verify_connection(new_engine, show_error_dialogs=False):
         raise error.EmptyDatabaseError()
 
     from bauble import meta
+
     # check that the database we connected to has the bauble meta table
     if not sa.inspect(new_engine).has_table(meta.BaubleMeta.__tablename__):
         raise error.MetaTableError()
 
     from sqlalchemy.orm import sessionmaker
+
     # if we don't close this session before raising an exception then we
     # will probably get deadlocks....i'm not really sure why
     session = sessionmaker(bind=new_engine)()
@@ -749,8 +751,8 @@ def get_existing(session, model, **kwargs):
     :param model: sqlalchemy table class
     :param kwargs: database values
     """
-    from sqlalchemy.orm.exc import MultipleResultsFound
     from sqlalchemy.exc import SQLAlchemyError
+    from sqlalchemy.orm.exc import MultipleResultsFound
     logger.debug('looking for record matching: %s', kwargs)
     # first try using just one
     try:
@@ -869,7 +871,8 @@ class CurrentUserFunctor:
             return None
         if not engine.name.startswith('postgresql'):
             return True
-        from psycopg2.sql import SQL, Literal
+        from psycopg2.sql import SQL
+        from psycopg2.sql import Literal
         conn = engine.raw_connection()
         with conn.cursor() as cur:
             stmt = "SELECT has_database_privilege({role}, {db}, 'CREATE')"

@@ -21,48 +21,51 @@
 Genera table module
 """
 
+import logging
 import os
 import traceback
 
-import logging
 logger = logging.getLogger(__name__)
 
 from gi.repository import Gtk  # noqa
-
-from sqlalchemy import (Column,
-                        Unicode,
-                        Integer,
-                        ForeignKey,
-                        String,
-                        UniqueConstraint,
-                        literal,
-                        event,
-                        update,
-                        CheckConstraint)
-from sqlalchemy.orm import relationship, backref, object_mapper, Session
-from sqlalchemy.orm import synonym as sa_synonym
-from sqlalchemy.orm.session import object_session
+from sqlalchemy import CheckConstraint
+from sqlalchemy import Column
+from sqlalchemy import ForeignKey
+from sqlalchemy import Integer
+from sqlalchemy import String
+from sqlalchemy import Unicode
+from sqlalchemy import UniqueConstraint
+from sqlalchemy import event
+from sqlalchemy import inspect as sa_inspect
+from sqlalchemy import literal
+from sqlalchemy import update
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.ext.hybrid import hybrid_property
-from sqlalchemy.sql.expression import select, case
+from sqlalchemy.orm import Session
+from sqlalchemy.orm import backref
+from sqlalchemy.orm import object_mapper
+from sqlalchemy.orm import relationship
+from sqlalchemy.orm import synonym as sa_synonym
 from sqlalchemy.orm.query import Query
-from sqlalchemy import inspect as sa_inspect
+from sqlalchemy.orm.session import object_session
+from sqlalchemy.sql.expression import case
+from sqlalchemy.sql.expression import select
 
 import bauble
-from bauble import db
-from bauble import pluginmgr
-from bauble import editor
-from bauble import utils
 from bauble import btypes as types
+from bauble import db
+from bauble import editor
 from bauble import paths
+from bauble import pluginmgr
 from bauble import prefs
-from bauble.view import (InfoBox,
-                         InfoExpander,
-                         LinksExpander,
-                         PropertiesExpander,
-                         select_in_search_results,
-                         Action)
+from bauble import utils
+from bauble.view import Action
+from bauble.view import InfoBox
+from bauble.view import InfoExpander
+from bauble.view import LinksExpander
+from bauble.view import PropertiesExpander
+from bauble.view import select_in_search_results
 
 # TODO: warn the user that a duplicate genus name is being entered
 # even if only the author or qualifier is different
@@ -476,9 +479,10 @@ def genus_cell_data_func(_column, renderer, model, treeiter):
 
 
 # late bindings
-from .family import Family, FamilySynonym
-from .species_model import Species
+from .family import Family
+from .family import FamilySynonym
 from .species_editor import edit_species
+from .species_model import Species
 
 
 class GenusEditorView(editor.GenericEditorView):

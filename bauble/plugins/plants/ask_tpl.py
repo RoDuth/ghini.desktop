@@ -16,11 +16,11 @@
 # You should have received a copy of the GNU General Public License
 # along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
 
-import threading
-import difflib
 import csv
-
+import difflib
 import logging
+import threading
+
 logger = logging.getLogger(__name__)
 
 from bauble.utils import get_net_sess

@@ -21,20 +21,23 @@
 Tests for the main bauble module.
 """
 import datetime
+import logging
 import os
 import time
 
-import logging
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
-from sqlalchemy import Column, Integer
+from sqlalchemy import Column
+from sqlalchemy import Integer
 
 import bauble
 from bauble import db
-from bauble.btypes import Enum, EnumError
-from bauble.test import BaubleTestCase, check_dupids
 from bauble import meta
+from bauble.btypes import Enum
+from bauble.btypes import EnumError
+from bauble.test import BaubleTestCase
+from bauble.test import check_dupids
 
 
 class EnumTests(BaubleTestCase):
@@ -157,6 +160,7 @@ class BaubleTests(BaubleTestCase):
         Test bauble.types.DateTime
         """
         from datetime import timezone
+
         from dateutil import parser as date_parse
         dtime = bauble.btypes.DateTime()
 
@@ -286,8 +290,9 @@ class BaubleTests(BaubleTestCase):
         """
         Test for duplicate ids for all .glade files in the bauble module
         """
-        import bauble as mod
         import glob
+
+        import bauble as mod
         head, tail = os.path.split(mod.__file__)
         files = glob.glob(os.path.join(head, '*.glade'))
         for f in files:
@@ -301,9 +306,10 @@ class HistoryTests(BaubleTestCase):
         """
         Test the HistoryMapperExtension
         """
-        from bauble.plugins.plants import Family
         # sleep required for windows tests to succeed due to 16ms resolution
         from time import sleep
+
+        from bauble.plugins.plants import Family
         sleep(0.02)
         f = Family(family='Family')
         self.session.add(f)
@@ -333,8 +339,8 @@ class HistoryTests(BaubleTestCase):
 class MVPTests(BaubleTestCase):
 
     def test_can_programmatically_connect_signals(self):
-        from bauble.editor import (
-            GenericEditorPresenter, GenericEditorView)
+        from bauble.editor import GenericEditorPresenter
+        from bauble.editor import GenericEditorView
 
         class HandlerDefiningPresenter(GenericEditorPresenter):
             def on_tag_desc_textbuffer_changed(self, *args):

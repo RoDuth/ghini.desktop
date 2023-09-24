@@ -20,17 +20,22 @@
 import os
 from functools import partial
 
-from gi.repository import Gtk
 from gi.repository import Gio
+from gi.repository import Gtk
 
 import bauble.plugins.tag as tag_plugin
-from bauble.plugins.plants import Family
-from bauble.plugins.garden import Accession
-from bauble.plugins.tag import Tag, TagEditorPresenter, TagInfoBox, TaggedObj
-from bauble.test import BaubleTestCase, check_dupids, mockfunc
-from bauble.editor import GenericEditorView, MockView
 from bauble import utils
-
+from bauble.editor import GenericEditorView
+from bauble.editor import MockView
+from bauble.plugins.garden import Accession
+from bauble.plugins.plants import Family
+from bauble.plugins.tag import Tag
+from bauble.plugins.tag import TagEditorPresenter
+from bauble.plugins.tag import TaggedObj
+from bauble.plugins.tag import TagInfoBox
+from bauble.test import BaubleTestCase
+from bauble.test import check_dupids
+from bauble.test import mockfunc
 
 tag_test_data = (
     {'id': 1, 'tag': 'test1', 'description': 'empty test tag'},
@@ -74,8 +79,9 @@ def test_duplicate_ids():
     """
     Test for duplicate ids for all .glade files in the tag plugin.
     """
-    import bauble.plugins.tag as mod
     import glob
+
+    import bauble.plugins.tag as mod
     head, tail = os.path.split(mod.__file__)
     files = glob.glob(os.path.join(head, '*.glade'))
     for f in files:

@@ -22,54 +22,55 @@
 The garden plugin
 """
 
-import re
 import logging
+import re
 from random import random
+
 logger = logging.getLogger(__name__)
 
+from gi.repository import Gio
+from gi.repository import GLib
+from gi.repository import Gtk
 from sqlalchemy.orm import object_session
 
-from gi.repository import Gtk
-from gi.repository import GLib
-from gi.repository import Gio
-
 import bauble
-
-from bauble import utils
-from bauble import prefs
 from bauble import db
 from bauble import pluginmgr
-from bauble.view import SearchView, HistoryView
+from bauble import prefs
 from bauble import search
-from .accession import (AccessionEditor,
-                        Accession,
-                        AccessionInfoBox,
-                        AccessionNote,
-                        acc_context_menu,
-                        BAUBLE_ACC_CODE_FORMAT)
-from .location import (LocationEditor,
-                       Location,
-                       LocationNote,
-                       LocationInfoBox,
-                       loc_context_menu)
-from .plant import (PlantEditor,
-                    PlantNote,
-                    PlantPicture,
-                    Plant,
-                    PlantSearch,
-                    PlantInfoBox,
-                    plant_context_menu)
-from .source import (Source,
-                     create_source_detail,
-                     SourceDetail,
-                     SourceDetailInfoBox,
-                     source_detail_context_menu,
-                     Collection,
-                     collection_context_menu)
-from .institution import (Institution,
-                          InstitutionCommand,
-                          InstitutionTool,
-                          start_institution_editor)
+from bauble import utils
+from bauble.view import HistoryView
+from bauble.view import SearchView
+
+from .accession import BAUBLE_ACC_CODE_FORMAT
+from .accession import Accession
+from .accession import AccessionEditor
+from .accession import AccessionInfoBox
+from .accession import AccessionNote
+from .accession import acc_context_menu
+from .institution import Institution
+from .institution import InstitutionCommand
+from .institution import InstitutionTool
+from .institution import start_institution_editor
+from .location import Location
+from .location import LocationEditor
+from .location import LocationInfoBox
+from .location import LocationNote
+from .location import loc_context_menu
+from .plant import Plant
+from .plant import PlantEditor
+from .plant import PlantInfoBox
+from .plant import PlantNote
+from .plant import PlantPicture
+from .plant import PlantSearch
+from .plant import plant_context_menu
+from .source import Collection
+from .source import Source
+from .source import SourceDetail
+from .source import SourceDetailInfoBox
+from .source import collection_context_menu
+from .source import create_source_detail
+from .source import source_detail_context_menu
 
 # other ideas:
 # - cultivation table

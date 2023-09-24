@@ -19,9 +19,11 @@
 Shapefile import export plugins
 """
 import logging
+
 logger = logging.getLogger(__name__)
 
-from gi.repository import Gtk, Gdk  # noqa
+from gi.repository import Gdk  # noqa
+from gi.repository import Gtk
 
 from bauble import pluginmgr
 
@@ -77,6 +79,7 @@ class ShapefileExportTool(pluginmgr.Tool):
         return exporter
 
 
+from .export_tool import ShapefileExporter
+
 # Avoid circular imports (LOCATION_SHAPEFILE_PREFS, PLANT_SHAPEFILE_PREFS)
 from .import_tool import ShapefileImporter
-from .export_tool import ShapefileExporter

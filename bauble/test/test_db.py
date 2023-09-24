@@ -21,20 +21,26 @@ from datetime import datetime
 from unittest import mock
 
 from dateutil import parser
-from sqlalchemy import func, create_engine
-
-from bauble.test import BaubleTestCase, get_setUp_data_funcs
-from bauble.plugins.plants.genus import Family, Genus, Species
-from bauble.plugins.garden.accession import (AccessionNote, Accession, Plant,
-                                             SourceDetail)
-from bauble.plugins.garden.location import Location
-from bauble.plugins.plants.species_model import VernacularName
+from sqlalchemy import create_engine
+from sqlalchemy import func
 
 from bauble import db
 from bauble import error
+from bauble import meta
 from bauble import prefs
 from bauble import search
-from bauble import meta
+from bauble.plugins.garden.accession import Accession
+from bauble.plugins.garden.accession import AccessionNote
+from bauble.plugins.garden.accession import Plant
+from bauble.plugins.garden.accession import SourceDetail
+from bauble.plugins.garden.location import Location
+from bauble.plugins.plants.genus import Family
+from bauble.plugins.plants.genus import Genus
+from bauble.plugins.plants.genus import Species
+from bauble.plugins.plants.species_model import VernacularName
+from bauble.test import BaubleTestCase
+from bauble.test import get_setUp_data_funcs
+
 prefs.testing = True
 
 # db.sqlalchemy_debug(True)

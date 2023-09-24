@@ -18,39 +18,46 @@
 Import data from shapefiles (zip file with all component files).
 """
 
-from zipfile import ZipFile
+import logging
+import weakref
 from pathlib import Path
 from random import random
-import weakref
+from zipfile import ZipFile
 
-import logging
 logger = logging.getLogger(__name__)
 
+from gi.repository import Gtk
 from shapefile import Reader
 from sqlalchemy.orm import class_mapper
 
-from gi.repository import Gtk
+import bauble
+from bauble import db
+from bauble import pb_set_fraction
+from bauble import prefs
+from bauble import task
+from bauble.editor import GenericEditorPresenter
+from bauble.editor import GenericEditorView
 
-from bauble.utils.geo import ProjDB, transform
 # NOTE importing shapefile Reader Writer above wipes out gettext _
 from bauble.i18n import _
-from bauble import prefs
+from bauble.plugins.garden.location import (  # noqa pylint: disable=unused-import
+    Location,
+)
+from bauble.plugins.garden.location import LocationNote
 
-import bauble
-from bauble import db, task, pb_set_fraction
 # NOTE: need to import the Note classes as we may need them.
-from bauble.plugins.garden.plant import Plant, PlantNote  \
-    # noqa pylint: disable=unused-import
-from bauble.plugins.garden.location import Location, LocationNote  \
-    # noqa pylint: disable=unused-import
-from bauble.editor import GenericEditorView, GenericEditorPresenter
-
+from bauble.plugins.garden.plant import (  # noqa pylint: disable=unused-import
+    Plant,
+)
+from bauble.plugins.garden.plant import PlantNote
 from bauble.utils.geo import DEFAULT_IN_PROJ
+from bauble.utils.geo import ProjDB
+from bauble.utils.geo import transform
 
-from . import (LOCATION_SHAPEFILE_PREFS,
-               PLANT_SHAPEFILE_PREFS,
-               SHAPEFILE_IGNORE_PREF)
 from .. import GenericImporter
+from . import LOCATION_SHAPEFILE_PREFS
+from . import PLANT_SHAPEFILE_PREFS
+from . import SHAPEFILE_IGNORE_PREF
 
 PATH = 4
 """Column position for the path widget and attribte"""

@@ -17,16 +17,20 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
-from unittest import mock, TestCase
-
 from pathlib import Path
+from unittest import TestCase
+from unittest import mock
 
 from gi.repository import Gtk
 
-from bauble.test import BaubleTestCase, get_setUp_data_funcs
-from bauble.plugins.garden import Plant, Location
+from bauble.plugins.garden import Location
+from bauble.plugins.garden import Plant
 from bauble.plugins.plants import Family
-from . import MakoFormatterPlugin, MakoFormatterSettingsBox
+from bauble.test import BaubleTestCase
+from bauble.test import get_setUp_data_funcs
+
+from . import MakoFormatterPlugin
+from . import MakoFormatterSettingsBox
 
 
 class FormatterTests(BaubleTestCase):

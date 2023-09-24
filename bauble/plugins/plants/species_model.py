@@ -21,30 +21,37 @@
 The species database model
 """
 
+import logging
 import re
 from itertools import chain
 
-import logging
 logger = logging.getLogger(__name__)
 
+from sqlalchemy import CheckConstraint
+from sqlalchemy import Column
+from sqlalchemy import ForeignKey
+from sqlalchemy import Integer
+from sqlalchemy import Unicode
+from sqlalchemy import UnicodeText
+from sqlalchemy import UniqueConstraint
+from sqlalchemy import event
+from sqlalchemy import literal
 from sqlalchemy.ext.associationproxy import association_proxy
-
-from sqlalchemy import (Column,
-                        Unicode,
-                        Integer,
-                        ForeignKey,
-                        UnicodeText,
-                        UniqueConstraint,
-                        literal,
-                        event,
-                        CheckConstraint)
-from sqlalchemy.orm import relationship, backref, object_session
-from sqlalchemy.orm import synonym as sa_synonym
 from sqlalchemy.ext.hybrid import hybrid_property
-from sqlalchemy.sql.expression import select, case, cast, and_, text, or_
+from sqlalchemy.orm import backref
+from sqlalchemy.orm import object_session
+from sqlalchemy.orm import relationship
+from sqlalchemy.orm import synonym as sa_synonym
+from sqlalchemy.sql.expression import and_
+from sqlalchemy.sql.expression import case
+from sqlalchemy.sql.expression import cast
+from sqlalchemy.sql.expression import or_
+from sqlalchemy.sql.expression import select
+from sqlalchemy.sql.expression import text
+
+from bauble import btypes as types
 from bauble import db
 from bauble import utils
-from bauble import btypes as types
 
 
 def _remove_zws(string):
@@ -504,6 +511,7 @@ class Species(db.Base, db.WithNotes):
         # pylint: disable=no-self-argument,protected-access
         from .family import Family
         from .genus import Genus
+
         # subqueries required to get the joins in
         gen_cites = (
             select([Genus._cites])
@@ -700,8 +708,8 @@ class Species(db.Base, db.WithNotes):
     @family_name.expression
     def family_name(cls):
         # pylint: disable=no-self-argument
-        from .genus import Genus
         from .family import Family
+        from .genus import Genus
         return (
             select([Family.epithet])
             .where(Genus.id == cls.genus_id)
@@ -1018,9 +1026,11 @@ def update_all_full_names_task():
 
 def update_all_full_names_handler(*_args):
     """Handler to update all the species full names."""
-    from bauble.task import queue
-    from gi.repository import Gtk
     import traceback
+
+    from gi.repository import Gtk
+
+    from bauble.task import queue
     try:
         queue(update_all_full_names_task())
     except Exception as e:  # pylint: disable=broad-except

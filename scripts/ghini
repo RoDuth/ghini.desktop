@@ -18,7 +18,6 @@ The entry point script
 """
 
 import sys
-
 from multiprocessing import freeze_support
 
 # TODO WARNING temp monkey patch fix to prevent warnings

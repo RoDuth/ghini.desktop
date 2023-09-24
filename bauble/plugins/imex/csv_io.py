@@ -20,26 +20,31 @@ only.
 """
 
 import csv
+import logging
 from pathlib import Path
 from random import random
 
-import logging
 logger = logging.getLogger(__name__)
 
-from gi.repository import Gtk, Gdk
-
-from sqlalchemy.orm import class_mapper
+from gi.repository import Gdk
+from gi.repository import Gtk
 from sqlalchemy.ext.associationproxy import AssociationProxy
+from sqlalchemy.orm import class_mapper
 
 import bauble
-from bauble.utils import desktop, message_dialog
-from bauble import pluginmgr
 from bauble import db
+from bauble import pb_set_fraction
+from bauble import pluginmgr
 from bauble import prefs
-from bauble import task, pb_set_fraction
+from bauble import task
+from bauble.editor import GenericEditorPresenter
+from bauble.editor import GenericEditorView
 from bauble.search import MapperSearch
-from bauble.editor import GenericEditorView, GenericEditorPresenter
-from . import GenericImporter, GenericExporter
+from bauble.utils import desktop
+from bauble.utils import message_dialog
+
+from . import GenericExporter
+from . import GenericImporter
 
 NAME = 0
 """Column position for the name entry widget and attribte"""

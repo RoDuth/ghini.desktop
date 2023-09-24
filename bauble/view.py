@@ -21,52 +21,53 @@
 Description: the default view
 """
 
+import html
 import itertools
 import json
-from pathlib import Path
+import logging
 import sys
 import textwrap
-import traceback
-import html
 import threading
+import traceback
 from collections import UserDict
-from datetime import timedelta, timezone
+from datetime import timedelta
+from datetime import timezone
+from pathlib import Path
 
-import logging
 logger = logging.getLogger(__name__)
 
-from pyparsing import (ParseException,
-                       oneOf,
-                       quotedString,
-                       removeQuotes,
-                       Word,
-                       ZeroOrMore,
-                       printables,
-                       CaselessLiteral,
-                       Group,
-                       alphas,
-                       Regex,
-                       Literal)
-
-from gi.repository import Gtk
+import sqlalchemy.exc as saexc
 from gi.repository import Gdk
 from gi.repository import Gio
 from gi.repository import GLib
+from gi.repository import Gtk
 from gi.repository import Pango
-
-from sqlalchemy import select, and_
+from pyparsing import CaselessLiteral
+from pyparsing import Group
+from pyparsing import Literal
+from pyparsing import ParseException
+from pyparsing import Regex
+from pyparsing import Word
+from pyparsing import ZeroOrMore
+from pyparsing import alphas
+from pyparsing import oneOf
+from pyparsing import printables
+from pyparsing import quotedString
+from pyparsing import removeQuotes
+from sqlalchemy import and_
+from sqlalchemy import select
 from sqlalchemy.orm import object_session
-from sqlalchemy.orm.exc import ObjectDeletedError, DetachedInstanceError
-import sqlalchemy.exc as saexc
+from sqlalchemy.orm.exc import DetachedInstanceError
+from sqlalchemy.orm.exc import ObjectDeletedError
 
 import bauble
 from bauble import db
-from bauble.error import check
 from bauble import paths
 from bauble import pluginmgr
 from bauble import prefs
 from bauble import search
 from bauble import utils
+from bauble.error import check
 from bauble.utils.web import link_button_factory
 
 # use different formatting template for the result view depending on the
@@ -597,8 +598,8 @@ class CountResultsTask(threading.Thread):
             max_ids = 300
             chunk_size = 100
         if count_fast and len(self.ids) > max_ids:
-            from multiprocessing import get_context
             from functools import partial
+            from multiprocessing import get_context
             proc = partial(multiproc_counter, str(db.engine.url), self.klass)
             processes = None
             # pylint: disable=unidiomatic-typecheck # bool is subclass of int,

@@ -20,19 +20,22 @@ UI tests
 """
 from unittest import mock
 
-from gi.repository import Gtk, Gio
+from gi.repository import Gio
+from gi.repository import Gtk
 
-from bauble.test import (BaubleTestCase,
-                         get_setUp_data_funcs,
-                         update_gui,
-                         wait_on_threads)
-from bauble.ui import SimpleSearchBox, DefaultView, SplashCommandHandler, GUI
-
-from bauble import search
-from bauble import utils
 from bauble import prefs
-from bauble import view
+from bauble import search
 from bauble import task
+from bauble import utils
+from bauble import view
+from bauble.test import BaubleTestCase
+from bauble.test import get_setUp_data_funcs
+from bauble.test import update_gui
+from bauble.test import wait_on_threads
+from bauble.ui import GUI
+from bauble.ui import DefaultView
+from bauble.ui import SimpleSearchBox
+from bauble.ui import SplashCommandHandler
 
 
 class SimpleSearchBoxTest(BaubleTestCase):

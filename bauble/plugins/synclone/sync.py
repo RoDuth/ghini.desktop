@@ -26,34 +26,45 @@ Sync changes from a previously cloned database.
 """
 import importlib
 import json
-from pathlib import Path
-from typing import Any, Literal
-
 import logging
+from pathlib import Path
+from typing import Any
+from typing import Literal
+
 logger = logging.getLogger(__name__)
 
-from gi.repository import Gtk
 from gi.repository import Gio
-
-from sqlalchemy import Column, Integer, String, select, update, create_engine
+from gi.repository import Gtk
+from sqlalchemy import Column
+from sqlalchemy import Integer
+from sqlalchemy import String
 from sqlalchemy import Table
-from sqlalchemy.sql import Executable, func
-from sqlalchemy.engine import Engine, Row, Connection, make_url, URL
+from sqlalchemy import create_engine
+from sqlalchemy import select
+from sqlalchemy import update
+from sqlalchemy.engine import URL
+from sqlalchemy.engine import Connection
+from sqlalchemy.engine import Engine
+from sqlalchemy.engine import Row
+from sqlalchemy.engine import make_url
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.sql import Executable
+from sqlalchemy.sql import func
 
-from bauble import db
-from bauble.connmgr import start_connection_manager
-from bauble import btypes as types
-from bauble import pluginmgr
-from bauble import meta
-from bauble import utils
-from bauble import prefs
-from bauble import error
-from bauble import command_handler
-from bauble import task
 import bauble
-from .clone import DBCloner
+from bauble import btypes as types
+from bauble import command_handler
+from bauble import db
+from bauble import error
+from bauble import meta
+from bauble import pluginmgr
+from bauble import prefs
+from bauble import task
+from bauble import utils
+from bauble.connmgr import start_connection_manager
+
 from ..tag import tags_menu_manager
+from .clone import DBCloner
 
 RESPONSE_QUIT = 1
 RESPONSE_SKIP = 2

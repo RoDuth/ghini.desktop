@@ -21,37 +21,35 @@ Description: a collection of functions and abstract classes for creating
 editors
 """
 
-import re
 import datetime
-import os
-import weakref
 import json
+import logging
+import os
+import re
+import weakref
+from collections.abc import Callable
 from pathlib import Path
 from random import random
 from typing import Optional
-from collections.abc import Callable
 
-import logging
 logger = logging.getLogger(__name__)
 
 import dateutil.parser as date_parser
-
-from gi.repository import Gtk
+from gi.repository import GdkPixbuf
 from gi.repository import Gio
 from gi.repository import GLib
-from gi.repository import GdkPixbuf
-
-from sqlalchemy.orm import object_mapper, object_session
-
+from gi.repository import Gtk
 from lxml import etree
+from sqlalchemy.orm import object_mapper
+from sqlalchemy.orm import object_session
 
 import bauble
 from bauble import db
-from bauble.error import check
 from bauble import paths
 from bauble import prefs
 from bauble import utils
 from bauble.error import CheckConditionError
+from bauble.error import check
 
 # TODO: create a generic date entry that can take a mask for the date format
 # see the date entries for the accession and accession source presenters
@@ -1769,6 +1767,7 @@ class PresenterMapMixin:
 
     def on_map_kml_show(self, *_args):
         import tempfile
+
         from mako.template import Template
         template = Template(filename=self.kml_template,
                             input_encoding='utf-8',

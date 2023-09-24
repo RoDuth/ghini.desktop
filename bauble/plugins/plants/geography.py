@@ -21,43 +21,41 @@ The geography module,
 
 World Geographical Scheme for Recording Plant Distributions (WGSRPD)
 """
+import logging
 from collections.abc import Iterable
 from operator import itemgetter
 from pathlib import Path
 
-import logging
 logger = logging.getLogger(__name__)
 
-from gi.repository import Gtk
 from gi.repository import Gio
 from gi.repository import GLib
+from gi.repository import Gtk
+from sqlalchemy import Column
+from sqlalchemy import ForeignKey
+from sqlalchemy import Integer
+from sqlalchemy import String
+from sqlalchemy import Unicode
+from sqlalchemy import and_
+from sqlalchemy import exists
+from sqlalchemy import literal
+from sqlalchemy import select
+from sqlalchemy.orm import aliased
+from sqlalchemy.orm import backref
+from sqlalchemy.orm import deferred
+from sqlalchemy.orm import object_session
+from sqlalchemy.orm import relationship
 
-from sqlalchemy import (select,
-                        Column,
-                        Unicode,
-                        String,
-                        Integer,
-                        ForeignKey,
-                        and_,
-                        literal,
-                        exists)
-from sqlalchemy.orm import (object_session,
-                            relationship,
-                            backref,
-                            deferred,
-                            aliased)
-
-from bauble import db, utils
-from bauble import prefs
-from bauble.utils.geo import KMLMapCallbackFunctor
 from bauble import btypes as types
-
-from bauble.view import (InfoBox,
-                         InfoExpander,
-                         select_in_search_results,
-                         PropertiesExpander,
-                         Action)
-
+from bauble import db
+from bauble import prefs
+from bauble import utils
+from bauble.utils.geo import KMLMapCallbackFunctor
+from bauble.view import Action
+from bauble.view import InfoBox
+from bauble.view import InfoExpander
+from bauble.view import PropertiesExpander
+from bauble.view import select_in_search_results
 
 GEO_KML_MAP_PREFS = 'kml_templates.geography'
 """pref for path to a custom mako kml template."""
@@ -82,7 +80,8 @@ def get_species_in_geography(geo):
     if not session:
         ValueError('geography is not in a session')
 
-    from .species_model import SpeciesDistribution, Species
+    from .species_model import Species
+    from .species_model import SpeciesDistribution
     master_ids = set([geo.id])
     master_ids.update(geo.get_children_ids())
     master_ids.update(geo.get_parent_ids())
@@ -361,6 +360,7 @@ def consolidate_geographies(geo_list: Iterable[Geography]) -> list:
 def geography_importer():
 
     import json
+
     from bauble import pb_set_fraction
 
     root = Path(__file__).resolve().parent

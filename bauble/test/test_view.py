@@ -17,27 +17,34 @@
 # along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
 
 import os
-from unittest import mock
 from pathlib import Path
+from unittest import mock
 
-from gi.repository import Gtk, Gdk, Gio
+from gi.repository import Gdk
+from gi.repository import Gio
+from gi.repository import Gtk
 
-from bauble.view import (AppendThousandRows,
-                         HistoryView,
-                         PicturesScroller,
-                         SearchView,
-                         Note,
-                         multiproc_counter,
-                         _mainstr_tmpl,
-                         _substr_tmpl,
-                         select_in_search_results,
-                         PICTURESSCROLLER_WIDTH_PREF)
-from bauble.test import (BaubleTestCase,
-                         update_gui,
-                         get_setUp_data_funcs,
-                         wait_on_threads,
-                         uri)
-from bauble import db, utils, search, prefs, pluginmgr, meta
+from bauble import db
+from bauble import meta
+from bauble import pluginmgr
+from bauble import prefs
+from bauble import search
+from bauble import utils
+from bauble.test import BaubleTestCase
+from bauble.test import get_setUp_data_funcs
+from bauble.test import update_gui
+from bauble.test import uri
+from bauble.test import wait_on_threads
+from bauble.view import PICTURESSCROLLER_WIDTH_PREF
+from bauble.view import AppendThousandRows
+from bauble.view import HistoryView
+from bauble.view import Note
+from bauble.view import PicturesScroller
+from bauble.view import SearchView
+from bauble.view import _mainstr_tmpl
+from bauble.view import _substr_tmpl
+from bauble.view import multiproc_counter
+from bauble.view import select_in_search_results
 
 # pylint: disable=too-few-public-methods
 
@@ -92,8 +99,8 @@ class TestMultiprocCounter(BaubleTestCase):
         # - pytest_cov's cleanup_on_sigterm() no matter where its placed
         # - using pool.map over pool.map_async (other than much slower)
         # leaving for now as final result does not seem to be effected
-        from multiprocessing import get_context
         from functools import partial
+        from multiprocessing import get_context
         classes = []
         for klass in search.MapperSearch.get_domain_classes().values():
             if self.session.query(klass).get(1):
@@ -194,7 +201,10 @@ class TestSearchView(BaubleTestCase):
         )
 
     def test_row_meta_get_children(self):
-        from sqlalchemy import Column, Integer, String, ForeignKey
+        from sqlalchemy import Column
+        from sqlalchemy import ForeignKey
+        from sqlalchemy import Integer
+        from sqlalchemy import String
         from sqlalchemy.orm import relationship
 
         class Parent(db.Base):
@@ -935,8 +945,10 @@ class TestHistoryView(BaubleTestCase):
                          str(utils.ilike(db.History.values, '%id')))
 
     def test_basic_search_query_filters_on_timestamp(self):
+        from datetime import timedelta
+        from datetime import timezone
+
         from sqlalchemy import and_
-        from datetime import timezone, timedelta
         string = "timestamp on 10/8/23"
         date_val = search.get_datetime('10/8/23')
         today = date_val.astimezone(tz=timezone.utc)

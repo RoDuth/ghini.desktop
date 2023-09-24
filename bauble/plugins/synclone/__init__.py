@@ -21,8 +21,10 @@ synclone plugin
 Description: plugin to provide cloning and syncing the database
 """
 from bauble import pluginmgr
+
 from .clone import DBCloneTool
-from .sync import DBSyncTool, DBResolveSyncTool
+from .sync import DBResolveSyncTool
+from .sync import DBSyncTool
 
 
 class SynClonePlugin(pluginmgr.Plugin):

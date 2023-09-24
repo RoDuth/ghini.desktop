@@ -19,20 +19,20 @@
 #
 # test_pluginmgr.py
 #
+import logging
 import os
-
 import unittest
 
-import logging
 logger = logging.getLogger(__name__)
 
 import bauble
-from bauble import db
-from bauble.test import BaubleTestCase, uri
 import bauble.pluginmgr as pluginmgr
-from bauble.pluginmgr import PluginRegistry
-from bauble.error import BaubleError
 import bauble.utils as utils
+from bauble import db
+from bauble.error import BaubleError
+from bauble.pluginmgr import PluginRegistry
+from bauble.test import BaubleTestCase
+from bauble.test import uri
 
 
 class A(pluginmgr.Plugin):

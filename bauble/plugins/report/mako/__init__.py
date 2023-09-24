@@ -21,20 +21,20 @@
 The Mako report generator module.
 """
 
+import logging
 import os
 import tempfile
 from pathlib import Path
 
-import logging
 logger = logging.getLogger(__name__)
 
 from gi.repository import Gtk  # noqa
-
 from mako.template import Template
 
 from bauble import paths
-from bauble.plugins.report import FormatterPlugin, SettingsBox
 from bauble import utils
+from bauble.plugins.report import FormatterPlugin
+from bauble.plugins.report import SettingsBox
 
 
 class MakoFormatterSettingsBox(SettingsBox):

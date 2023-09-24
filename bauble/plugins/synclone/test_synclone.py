@@ -21,30 +21,32 @@ import tempfile
 from datetime import datetime
 from unittest import mock
 
-from sqlalchemy import create_engine, select
-from sqlalchemy.engine import make_url
 from gi.repository import Gtk
+from sqlalchemy import create_engine
+from sqlalchemy import select
+from sqlalchemy.engine import make_url
 
 import bauble
 from bauble import db
-from bauble.test import BaubleTestCase, uri
-from bauble.plugins.plants import (Family,
-                                   Genus,
-                                   Species)
-from bauble.plugins.garden import (Accession,
-                                   Location,
-                                   Plant)
+from bauble.plugins.garden import Accession
+from bauble.plugins.garden import Location
+from bauble.plugins.garden import Plant
+from bauble.plugins.plants import Family
+from bauble.plugins.plants import Genus
+from bauble.plugins.plants import Species
+from bauble.test import BaubleTestCase
+from bauble.test import uri
 
 from .clone import DBCloner
-from .sync import (DBSyncroniser,
-                   ToSync,
-                   SyncRow,
-                   ResolverDialog,
-                   ResolutionCentreView,
-                   RESPONSE_SKIP,
-                   RESPONSE_SKIP_RELATED,
-                   RESPONSE_QUIT,
-                   RESPONSE_RESOLVE)
+from .sync import RESPONSE_QUIT
+from .sync import RESPONSE_RESOLVE
+from .sync import RESPONSE_SKIP
+from .sync import RESPONSE_SKIP_RELATED
+from .sync import DBSyncroniser
+from .sync import ResolutionCentreView
+from .sync import ResolverDialog
+from .sync import SyncRow
+from .sync import ToSync
 
 
 class DBClonerTests(BaubleTestCase):

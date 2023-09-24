@@ -22,65 +22,74 @@ accessions module
 """
 
 import datetime
-from decimal import Decimal, ROUND_DOWN
+import logging
 import os
-from random import random
+import re
 import traceback
 import weakref
-import re
-from functools import reduce, partial
+from decimal import ROUND_DOWN
+from decimal import Decimal
+from functools import partial
+from functools import reduce
 from pathlib import Path
+from random import random
 
-import logging
 logger = logging.getLogger(__name__)
 
-from gi.repository import Gtk, Gio
-
+from gi.repository import Gio
+from gi.repository import Gtk
 from gi.repository import Pango
-from sqlalchemy import (ForeignKey,
-                        Column,
-                        Unicode,
-                        Integer,
-                        UnicodeText,
-                        func,
-                        exists,
-                        literal)
-from sqlalchemy.orm import relationship, validates, backref, object_mapper
-from sqlalchemy.orm.session import object_session
+from sqlalchemy import Column
+from sqlalchemy import ForeignKey
+from sqlalchemy import Integer
+from sqlalchemy import Unicode
+from sqlalchemy import UnicodeText
+from sqlalchemy import exists
+from sqlalchemy import func
+from sqlalchemy import literal
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.hybrid import hybrid_property
-from sqlalchemy.sql.expression import select, case, cast
+from sqlalchemy.orm import backref
+from sqlalchemy.orm import object_mapper
+from sqlalchemy.orm import relationship
+from sqlalchemy.orm import validates
+from sqlalchemy.orm.session import object_session
+from sqlalchemy.sql.expression import case
+from sqlalchemy.sql.expression import cast
+from sqlalchemy.sql.expression import select
 
 import bauble
+from bauble import btypes as types
 from bauble import db
 from bauble import editor
 from bauble import meta
-from bauble.error import check
 from bauble import paths
 from bauble import prefs
-from bauble import btypes as types
 from bauble import utils
-from bauble.utils.geo import KMLMapCallbackFunctor
-from bauble.view import (InfoBox,
-                         InfoExpander,
-                         LinksExpander,
-                         PropertiesExpander,
-                         select_in_search_results,
-                         Action)
+from bauble.error import check
 from bauble.utils import safe_int
-from ..plants.species_editor import (species_cell_data_func,
-                                     species_match_func,
-                                     generic_sp_get_completions,
-                                     species_to_string_matcher)
-from .propagation import SourcePropagationPresenter, Propagation
-from .source import (SourceDetail,
-                     SourceDetailPresenter,
-                     Source,
-                     Collection,
-                     CollectionPresenter,
-                     PropagationChooserPresenter,
-                     source_type_values,
-                     COLLECTION_KML_MAP_PREF)
+from bauble.utils.geo import KMLMapCallbackFunctor
+from bauble.view import Action
+from bauble.view import InfoBox
+from bauble.view import InfoExpander
+from bauble.view import LinksExpander
+from bauble.view import PropertiesExpander
+from bauble.view import select_in_search_results
+
+from ..plants.species_editor import generic_sp_get_completions
+from ..plants.species_editor import species_cell_data_func
+from ..plants.species_editor import species_match_func
+from ..plants.species_editor import species_to_string_matcher
+from .propagation import Propagation
+from .propagation import SourcePropagationPresenter
+from .source import COLLECTION_KML_MAP_PREF
+from .source import Collection
+from .source import CollectionPresenter
+from .source import PropagationChooserPresenter
+from .source import Source
+from .source import SourceDetail
+from .source import SourceDetailPresenter
+from .source import source_type_values
 
 # TODO: underneath the species entry create a label that shows information
 # about the family of the genus of the species selected as well as more
@@ -809,7 +818,8 @@ class Accession(db.Base, db.WithNotes):
 
 
 # late import after Accession is defined
-from .plant import Plant, PlantEditor
+from .plant import Plant
+from .plant import PlantEditor
 
 
 class AccessionEditorView(editor.GenericEditorView):
@@ -1133,7 +1143,9 @@ class IntendedLocationPresenter(editor.GenericEditorPresenter):
 
     def on_map_kml_show(self, *_args):
         import tempfile
+
         from mako.template import Template
+
         from .location import LOC_KML_MAP_PREFS
         kml_template = prefs.prefs.get(
             LOC_KML_MAP_PREFS,
@@ -2928,7 +2940,8 @@ class AccessionEditor(editor.GenericModelViewPresenterEditor):
 
 # import at the bottom to avoid circular dependencies
 # pylint: disable=wrong-import-order
-from ..plants.species_model import Species, SpeciesSynonym
+from ..plants.species_model import Species
+from ..plants.species_model import SpeciesSynonym
 
 
 # TODO: i don't think this shows all field of an accession, like the

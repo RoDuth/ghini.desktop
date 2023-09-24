@@ -17,13 +17,15 @@
 #
 
 import logging
+
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
-import re
-import unittest
 import glob
 import os
+import re
+import unittest
+
 
 class PoTests(unittest.TestCase):
     def test_same_keys(self):

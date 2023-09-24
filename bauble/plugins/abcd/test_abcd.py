@@ -21,18 +21,17 @@ Description: test the ABCD (Access to Biological Collection Data) plugin
 """
 import os
 import tempfile
-
 from unittest import mock
 
 from lxml import etree
 
-from bauble import paths
-from bauble.test import BaubleTestCase
-from bauble.plugins import abcd
-# from bauble.plugins.garden import Plant, Accession
-import bauble.plugins.plants.test_plants as plants_test
 import bauble.plugins.garden.test_garden as garden_test
 
+# from bauble.plugins.garden import Plant, Accession
+import bauble.plugins.plants.test_plants as plants_test
+from bauble import paths
+from bauble.plugins import abcd
+from bauble.test import BaubleTestCase
 
 # TODO: the ABCD tests need to be completely reworked
 

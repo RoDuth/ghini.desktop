@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 # pylint: disable=missing-module-docstring,redefined-builtin
 from pathlib import Path
+
 from bauble import version
 
 # Usage:

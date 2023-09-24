@@ -21,39 +21,43 @@ Search functionailty.
 """
 
 import logging
+
 logger = logging.getLogger(__name__)
 
 from gi.repository import Gtk
-
-from sqlalchemy import Integer, Float
-from sqlalchemy.orm import class_mapper, RelationshipProperty
-from sqlalchemy.orm.properties import ColumnProperty
-from sqlalchemy.ext.hybrid import hybrid_property
-from sqlalchemy.ext.associationproxy import AssociationProxy
-from sqlalchemy.orm.attributes import InstrumentedAttribute
+from pyparsing import CaselessLiteral
+from pyparsing import Group
+from pyparsing import Literal
+from pyparsing import Optional
+from pyparsing import ParseException
+from pyparsing import Regex
+from pyparsing import Word
+from pyparsing import WordEnd
+from pyparsing import WordStart
+from pyparsing import ZeroOrMore
+from pyparsing import alphanums
+from pyparsing import alphas
+from pyparsing import alphas8bit
+from pyparsing import delimitedList
+from pyparsing import oneOf
+from pyparsing import quotedString
+from sqlalchemy import Float
+from sqlalchemy import Integer
 from sqlalchemy.exc import InvalidRequestError
-from pyparsing import (Word,
-                       alphas,
-                       alphanums,
-                       delimitedList,
-                       Group,
-                       alphas8bit,
-                       quotedString,
-                       Regex,
-                       oneOf,
-                       CaselessLiteral,
-                       WordStart,
-                       WordEnd,
-                       ZeroOrMore,
-                       Literal,
-                       ParseException,
-                       Optional)
+from sqlalchemy.ext.associationproxy import AssociationProxy
+from sqlalchemy.ext.hybrid import hybrid_property
+from sqlalchemy.orm import RelationshipProperty
+from sqlalchemy.orm import class_mapper
+from sqlalchemy.orm.attributes import InstrumentedAttribute
+from sqlalchemy.orm.properties import ColumnProperty
 
 import bauble
-from bauble import utils
 from bauble import prefs
+from bauble import utils
 from bauble.editor import GenericEditorPresenter
-from bauble.search import NoneToken, EmptyToken, MapperSearch
+from bauble.search import EmptyToken
+from bauble.search import MapperSearch
+from bauble.search import NoneToken
 
 
 class SchemaMenu(Gtk.Menu):

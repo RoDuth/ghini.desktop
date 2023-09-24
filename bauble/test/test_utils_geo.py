@@ -15,16 +15,17 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
-from unittest import mock, TestCase
+from unittest import TestCase
+from unittest import mock
 
-from bauble.test import BaubleTestCase
-from bauble.utils.geo import (transform,
-                              ProjDB,
-                              prj_crs,
-                              KMLMapCallbackFunctor,
-                              kml_string_to_geojson,
-                              web_mercator_point_coords_to_geojson)
 from bauble import db
+from bauble.test import BaubleTestCase
+from bauble.utils.geo import KMLMapCallbackFunctor
+from bauble.utils.geo import ProjDB
+from bauble.utils.geo import kml_string_to_geojson
+from bauble.utils.geo import prj_crs
+from bauble.utils.geo import transform
+from bauble.utils.geo import web_mercator_point_coords_to_geojson
 
 # test data - avoiding tuples as they end up lists in the database anyway
 epsg3857_point = {'type': 'Point',
@@ -248,9 +249,10 @@ kml_poly = '''<?xml version="1.0" encoding="UTF-8"?>
 class TestProjDBDefaults(BaubleTestCase):
     def test_defualts_added_on_db_creation(self):
         proj_db = ProjDB()
-        from pathlib import Path
-        from bauble.paths import lib_dir
         from ast import literal_eval
+        from pathlib import Path
+
+        from bauble.paths import lib_dir
         prj_crs_csv = Path(lib_dir(), 'utils', 'prj_crs.csv')
         with prj_crs_csv.open(encoding='utf-8') as f:
             import csv
@@ -357,8 +359,8 @@ class GlobalFunctionsTests(BaubleTestCase):
 
     @mock.patch('bauble.utils.geo.confirm_default')
     def test_transform_raises_error_if_no_sys_crs(self, mock_conf_def):
-        from bauble.meta import get_default
         from bauble.error import MetaTableError
+        from bauble.meta import get_default
 
         mock_conf_def.return_value = None
 

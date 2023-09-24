@@ -17,27 +17,31 @@
 # along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
 
 import os
-
-# just keeping it here because I am forgetful and I never recall how to
-# import SkipTest otherwise! and commented out because of FlyCheck.
-from unittest import SkipTest, mock
 from pathlib import Path
 from tempfile import mkdtemp
 
+# just keeping it here because I am forgetful and I never recall how to
+# import SkipTest otherwise! and commented out because of FlyCheck.
+from unittest import SkipTest
+from unittest import mock
+
 import gi
+
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk  # noqa
 
 import bauble
 from bauble import paths
 from bauble import prefs
-from bauble.test import BaubleTestCase, check_dupids
-from bauble.connmgr import (ConnMgrPresenter,
-                            check_new_release,
-                            retrieve_latest_release_data,
-                            notify_new_release,
-                            check_create_paths)
-from bauble.editor import MockView, MockDialog
+from bauble.connmgr import ConnMgrPresenter
+from bauble.connmgr import check_create_paths
+from bauble.connmgr import check_new_release
+from bauble.connmgr import notify_new_release
+from bauble.connmgr import retrieve_latest_release_data
+from bauble.editor import MockDialog
+from bauble.editor import MockView
+from bauble.test import BaubleTestCase
+from bauble.test import check_dupids
 
 RESPONSE_OK = Gtk.ResponseType.OK
 RESPONSE_CANCEL = Gtk.ResponseType.CANCEL

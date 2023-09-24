@@ -17,25 +17,27 @@
 # along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
 
 import os
-from unittest import skip, mock
+from unittest import mock
+from unittest import skip
 
 from gi.repository import Gtk
-
-from sqlalchemy.orm import class_mapper
-from sqlalchemy.ext.hybrid import hybrid_property
-from sqlalchemy.orm.attributes import InstrumentedAttribute
 from sqlalchemy.ext.associationproxy import AssociationProxy
+from sqlalchemy.ext.hybrid import hybrid_property
+from sqlalchemy.orm import class_mapper
+from sqlalchemy.orm.attributes import InstrumentedAttribute
+
 from bauble import paths
 from bauble import prefs
-from bauble.query_builder import (BuiltQuery,
-                                  QueryBuilder,
-                                  SchemaMenu,
-                                  parse_typed_value)
-from bauble.search import EmptyToken
-from bauble.test import BaubleTestCase, update_gui
 from bauble.editor import GenericEditorView
 from bauble.plugins.garden.plant import Plant
 from bauble.plugins.plants.species import Species
+from bauble.query_builder import BuiltQuery
+from bauble.query_builder import QueryBuilder
+from bauble.query_builder import SchemaMenu
+from bauble.query_builder import parse_typed_value
+from bauble.search import EmptyToken
+from bauble.test import BaubleTestCase
+from bauble.test import update_gui
 
 
 class ParseTypedValue(BaubleTestCase):
@@ -63,7 +65,8 @@ class ParseTypedValue(BaubleTestCase):
         self.assertIsNone(result.express())
 
     def test_parse_typed_value_date(self):
-        from bauble.btypes import DateTime, Date
+        from bauble.btypes import Date
+        from bauble.btypes import DateTime
         result = parse_typed_value('1-1-20', Date())
         self.assertEqual(result, '1-1-20')
         result = parse_typed_value('1/1/20', Date())

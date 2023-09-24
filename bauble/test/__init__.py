@@ -17,26 +17,27 @@
 # You should have received a copy of the GNU General Public License
 # along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
 
+import logging
+import os
 import sys
 import unittest
-import os
-from tempfile import mkstemp
+
 # from tempfile import NamedTemporaryFile
 from pathlib import Path
+from tempfile import mkstemp
 
-import logging
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
-from sqlalchemy.pool import StaticPool
 from sqlalchemy.orm import close_all_sessions
+from sqlalchemy.pool import StaticPool
 
 import bauble
 from bauble import db
-from bauble.error import BaubleError
+from bauble import paths
 from bauble import pluginmgr
 from bauble import prefs
-from bauble import paths
+from bauble.error import BaubleError
 
 # by default use sqlite memory uri
 uri = 'sqlite:///:memory:'

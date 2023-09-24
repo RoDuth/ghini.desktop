@@ -33,10 +33,11 @@ this module more than once in an application.  It is usually imported
 in :mod:`bauble`
 """
 
+import gettext
+import locale
 import os
 import sys
-import locale
-import gettext
+
 from bauble import paths
 from bauble import version_tuple
 
@@ -98,4 +99,5 @@ lang = gettext.translation(TEXT_DOMAIN, paths.locale_dir(), languages=langs,
 # translatable strings with it) to lang.gettext(), which translates them.
 _ = lang.gettext
 import builtins
+
 builtins._ = lang.gettext

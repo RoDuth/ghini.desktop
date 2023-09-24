@@ -18,22 +18,29 @@
 # along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
 
 import os
-from unittest import TestCase, mock
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from sqlalchemy import Table, Column, Integer, ForeignKey, MetaData, Sequence
-import requests
+from unittest import TestCase
+from unittest import mock
 
 import gi
+import requests
+from sqlalchemy import Column
+from sqlalchemy import ForeignKey
+from sqlalchemy import Integer
+from sqlalchemy import MetaData
+from sqlalchemy import Sequence
+from sqlalchemy import Table
+
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk
 
+from bauble import db
 from bauble import paths
-from bauble import utils
 from bauble import prefs
+from bauble import utils
 from bauble.error import CheckConditionError
 from bauble.test import BaubleTestCase
-from bauble import db
 
 
 class UtilsTest(TestCase):
@@ -306,8 +313,9 @@ class UtilsDBTests(BaubleTestCase):
 
 class CacheTest(TestCase):
     def test_create_store_retrieve(self):
-        from bauble.utils import Cache
         from functools import partial
+
+        from bauble.utils import Cache
         invoked = []
 
         def getter(x):
@@ -323,8 +331,9 @@ class CacheTest(TestCase):
         self.assertEqual(invoked, [1])
 
     def test_respect_size(self):
-        from bauble.utils import Cache
         from functools import partial
+
+        from bauble.utils import Cache
         invoked = []
 
         def getter(x):
@@ -340,8 +349,9 @@ class CacheTest(TestCase):
         self.assertEqual(sorted(cache.storage.keys()), [3, 4])
 
     def test_respect_timing(self):
-        from bauble.utils import Cache
         from functools import partial
+
+        from bauble.utils import Cache
         invoked = []
 
         def getter(x):
@@ -365,8 +375,9 @@ class CacheTest(TestCase):
         self.assertEqual(sorted(cache.storage.keys()), [1, 4])
 
     def test_cache_on_hit(self):
-        from bauble.utils import Cache
         from functools import partial
+
+        from bauble.utils import Cache
         invoked = []
 
         def getter(x):
@@ -479,6 +490,7 @@ class GlobalFuncsTests(BaubleTestCase):
 
     def test_copy_picture_with_thumbnail_wo_basename(self):
         import filecmp
+
         from PIL import Image
         img = Image.new('CMYK', size=(2000, 2000), color=(155, 0, 0))
         temp_source = TemporaryDirectory()
@@ -497,6 +509,7 @@ class GlobalFuncsTests(BaubleTestCase):
 
     def test_copy_picture_with_thumbnail_w_basename(self):
         import filecmp
+
         from PIL import Image
         img = Image.new('CMYK', size=(2000, 2000), color=(155, 0, 0))
         temp_source = TemporaryDirectory()
@@ -516,6 +529,7 @@ class GlobalFuncsTests(BaubleTestCase):
 
     def test_copy_picture_with_thumbnail_w_basename_rename(self):
         import filecmp
+
         from PIL import Image
         img = Image.new('CMYK', size=(2000, 2000), color=(155, 0, 0))
         temp_source = TemporaryDirectory()

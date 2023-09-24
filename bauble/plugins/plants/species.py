@@ -22,47 +22,49 @@
 Species modules
 """
 
+import logging
 import os
 import traceback
 from ast import literal_eval
 
-import logging
 logger = logging.getLogger(__name__)
 
 from gi.repository import Gtk  # noqa
 from gi.repository import Pango
-
-from sqlalchemy.orm.session import object_session
 from sqlalchemy import or_
+from sqlalchemy.orm.session import object_session
 
 import bauble
-from bauble import paths
 from bauble import db
-
+from bauble import paths
 from bauble import pluginmgr
-from bauble import utils
-from bauble.view import (InfoBox,
-                         InfoBoxPage,
-                         InfoExpander,
-                         select_in_search_results)
-from bauble import search
-from bauble.view import PropertiesExpander, Action
-from bauble import view
 from bauble import prefs
-from .species_editor import (SpeciesDistribution,
-                             SpeciesEditorPresenter,
-                             SpeciesEditorView,
-                             SpeciesEditor,
-                             edit_species)
-from .species_model import (Species,
-                            SpeciesNote,
-                            VernacularName,
-                            SpeciesSynonym,
-                            DefaultVernacularName,
-                            red_list_values)
-from .genus import Genus, GenusSynonym
-from .family import Family, FamilySynonym
+from bauble import search
+from bauble import utils
+from bauble import view
+from bauble.view import Action
+from bauble.view import InfoBox
+from bauble.view import InfoBoxPage
+from bauble.view import InfoExpander
+from bauble.view import PropertiesExpander
+from bauble.view import select_in_search_results
+
+from .family import Family
+from .family import FamilySynonym
+from .genus import Genus
+from .genus import GenusSynonym
 from .geography import map_kml_callback
+from .species_editor import SpeciesDistribution
+from .species_editor import SpeciesEditor
+from .species_editor import SpeciesEditorPresenter
+from .species_editor import SpeciesEditorView
+from .species_editor import edit_species
+from .species_model import DefaultVernacularName
+from .species_model import Species
+from .species_model import SpeciesNote
+from .species_model import SpeciesSynonym
+from .species_model import VernacularName
+from .species_model import red_list_values
 
 # imported by clients of this modules
 __all__ = [
@@ -123,7 +125,8 @@ def remove_callback(values):
 
 
 def add_accession_callback(values):
-    from bauble.plugins.garden.accession import Accession, AccessionEditor
+    from bauble.plugins.garden.accession import Accession
+    from bauble.plugins.garden.accession import AccessionEditor
     session = db.Session()
     species = session.merge(values[0])
     if isinstance(species, VernacularName):

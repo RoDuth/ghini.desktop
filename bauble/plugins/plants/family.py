@@ -21,38 +21,43 @@
 Family table definition
 """
 
+import logging
 import os
 import traceback
 
-import logging
 logger = logging.getLogger(__name__)
 
 from gi.repository import Gtk
-
-from sqlalchemy import (Column,
-                        Integer,
-                        ForeignKey,
-                        UniqueConstraint,
-                        String,
-                        Unicode,
-                        literal,
-                        CheckConstraint)
-from sqlalchemy.orm import relationship, validates
-from sqlalchemy.orm import synonym as sa_synonym
-from sqlalchemy.orm.session import object_session
+from sqlalchemy import CheckConstraint
+from sqlalchemy import Column
+from sqlalchemy import ForeignKey
+from sqlalchemy import Integer
+from sqlalchemy import String
+from sqlalchemy import Unicode
+from sqlalchemy import UniqueConstraint
+from sqlalchemy import literal
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.associationproxy import association_proxy
+from sqlalchemy.orm import relationship
+from sqlalchemy.orm import synonym as sa_synonym
+from sqlalchemy.orm import validates
+from sqlalchemy.orm.session import object_session
 
 import bauble
-from bauble import db
-from bauble import pluginmgr
-from bauble import editor
-from bauble import utils
 from bauble import btypes as types
-from bauble import prefs
-from bauble.view import (Action, InfoBox, InfoExpander, PropertiesExpander,
-                         select_in_search_results, LinksExpander)
+from bauble import db
+from bauble import editor
 from bauble import paths
+from bauble import pluginmgr
+from bauble import prefs
+from bauble import utils
+from bauble.view import Action
+from bauble.view import InfoBox
+from bauble.view import InfoExpander
+from bauble.view import LinksExpander
+from bauble.view import PropertiesExpander
+from bauble.view import select_in_search_results
+
 from .species_model import Species
 
 
@@ -287,7 +292,8 @@ class FamilySynonym(db.Base):
 
 
 # avoid circular imports
-from .genus import Genus, GenusEditor
+from .genus import Genus
+from .genus import GenusEditor
 
 
 class FamilyEditorView(editor.GenericEditorView):

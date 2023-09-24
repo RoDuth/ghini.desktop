@@ -20,62 +20,63 @@
 plants plugin
 """
 
+import logging
 import os
 import weakref
-from random import random
-from threading import Thread
+from ast import literal_eval
 from functools import partial
 from pathlib import Path
-from ast import literal_eval
+from random import random
+from threading import Thread
 
-import logging
 logger = logging.getLogger(__name__)
 
-from gi.repository import Gtk
 from gi.repository import Gio
 from gi.repository import GLib
-
+from gi.repository import Gtk
 from sqlalchemy.exc import InvalidRequestError
 
 import bauble
-from bauble import prefs
 from bauble import db
-from bauble import search
-from bauble.query_builder import ExpressionRow
-
-from bauble.paths import lib_dir
-from bauble import pluginmgr
-from bauble import utils
 from bauble import editor
-from bauble.view import SearchView, HistoryView
+from bauble import pluginmgr
+from bauble import prefs
+from bauble import search
+from bauble import utils
+from bauble.paths import lib_dir
+from bauble.query_builder import ExpressionRow
 from bauble.ui import DefaultView
-from .family import (Familia,
-                     Family,
-                     FamilyInfoBox,
-                     FamilyEditor,
-                     FamilyNote,
-                     family_context_menu)
-from .genus import (Genus,
-                    GenusEditor,
-                    GenusInfoBox,
-                    GenusNote,
-                    genus_context_menu)
-from .species import (Species,
-                      SpeciesEditor,
-                      SpeciesInfoBox,
-                      SpeciesNote,
-                      species_context_menu,
-                      add_accession_action,
-                      SynonymSearch,
-                      SpeciesDistribution,
-                      VernacularName,
-                      VernacularNameInfoBox,
-                      vernname_context_menu)
-from .species_model import SpeciesPicture, update_all_full_names_handler
-from .geography import (Geography,
-                        get_species_in_geography,
-                        GeographyInfoBox,
-                        geography_context_menu)
+from bauble.view import HistoryView
+from bauble.view import SearchView
+
+from .family import Familia
+from .family import Family
+from .family import FamilyEditor
+from .family import FamilyInfoBox
+from .family import FamilyNote
+from .family import family_context_menu
+from .genus import Genus
+from .genus import GenusEditor
+from .genus import GenusInfoBox
+from .genus import GenusNote
+from .genus import genus_context_menu
+from .geography import Geography
+from .geography import GeographyInfoBox
+from .geography import geography_context_menu
+from .geography import get_species_in_geography
+from .species import Species
+from .species import SpeciesDistribution
+from .species import SpeciesEditor
+from .species import SpeciesInfoBox
+from .species import SpeciesNote
+from .species import SynonymSearch
+from .species import VernacularName
+from .species import VernacularNameInfoBox
+from .species import add_accession_action
+from .species import species_context_menu
+from .species import vernname_context_menu
+from .species_model import SpeciesPicture
+from .species_model import update_all_full_names_handler
 from .stored_queries import StoredQueryEditorTool
 
 # imported by clients of the module

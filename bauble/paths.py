@@ -22,10 +22,11 @@
 """
 Access to standard paths used by Ghini.
 """
+import logging
 import os
 import sys
 from pathlib import Path
-import logging
+
 logger = logging.getLogger(__name__)
 
 import tempfile
@@ -114,9 +115,9 @@ def appdata_dir():
                             'APPDATA or USERPROFILE variable')
     elif sys.platform == 'darwin':
         # pylint: disable=no-name-in-module
-        from AppKit import (NSSearchPathForDirectoriesInDomains,
-                            NSApplicationSupportDirectory,
-                            NSUserDomainMask)
+        from AppKit import NSApplicationSupportDirectory
+        from AppKit import NSSearchPathForDirectoriesInDomains
+        from AppKit import NSUserDomainMask
         appd = os.path.join(NSSearchPathForDirectoriesInDomains(
             NSApplicationSupportDirectory, NSUserDomainMask, True
         )[0], 'Bauble')
@@ -170,8 +171,8 @@ def templates_dir():
     """
     from . import pluginmgr
     if 'ReportToolPlugin' in pluginmgr.plugins:
-        from .plugins.report.template_downloader import TEMPLATES_ROOT_PREF
         from . import prefs
+        from .plugins.report.template_downloader import TEMPLATES_ROOT_PREF
         return prefs.prefs.get(TEMPLATES_ROOT_PREF,
                                os.path.join(appdata_dir(), 'templates'))
     # no report plugin no templates.

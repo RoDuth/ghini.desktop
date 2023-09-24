@@ -32,27 +32,29 @@ Can also access the preference keys e.g. ::
 """
 
 
-from datetime import datetime
-from shutil import copy2
+import logging
 import os
-from collections import UserDict
-from pathlib import Path
 from ast import literal_eval
-from configparser import ConfigParser, Error
+from collections import UserDict
+from configparser import ConfigParser
+from configparser import Error
+from datetime import datetime
+from pathlib import Path
+from shutil import copy2
+
 from filelock import FileLock
 
-import logging
 logger = logging.getLogger(__name__)
 
-from gi.repository import Gtk
 from gi.repository import Gio
+from gi.repository import Gtk
 
 import bauble
 from bauble import db
+from bauble import meta
 from bauble import paths
 from bauble import pluginmgr
 from bauble import utils
-from bauble import meta
 
 testing = os.environ.get('BAUBLE_TEST')  # set this to True when testing
 
@@ -606,7 +608,8 @@ def set_global_root(*_args):
     names = [root_directory_pref.split('.')[1],
              picture_path_pref.split('.')[1],
              document_path_pref.split('.')[1]]
-    from bauble.connmgr import make_absolute, check_create_paths
+    from bauble.connmgr import check_create_paths
+    from bauble.connmgr import make_absolute
     defaults = [make_absolute(prefs.get(root_directory_pref)),
                 prefs.get(picture_path_pref),
                 prefs.get(document_path_pref)]

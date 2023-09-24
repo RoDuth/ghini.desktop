@@ -21,38 +21,43 @@
 """
 Source and associated tables, etc.
 """
+import logging
 import os
 import re
 import traceback
 import weakref
-from random import random
 from pathlib import Path
+from random import random
 
-import logging
 logger = logging.getLogger(__name__)
 
 from gi.repository import Gtk
-
-from sqlalchemy import (Column,
-                        Unicode,
-                        Integer,
-                        ForeignKey,
-                        Float,
-                        UnicodeText,
-                        literal)
-from sqlalchemy.orm import relationship, backref
+from sqlalchemy import Column
+from sqlalchemy import Float
+from sqlalchemy import ForeignKey
+from sqlalchemy import Integer
+from sqlalchemy import Unicode
+from sqlalchemy import UnicodeText
+from sqlalchemy import literal
+from sqlalchemy.orm import backref
+from sqlalchemy.orm import relationship
 from sqlalchemy.orm.session import object_session
 
 import bauble
+from bauble import btypes as types
 from bauble import db
 from bauble import editor
-from bauble import utils
-from bauble.utils.geo import KMLMapCallbackFunctor
-from bauble import btypes as types
 from bauble import paths
 from bauble import prefs
-from bauble.view import Action, InfoExpander, InfoBox, PropertiesExpander
-from ..plants.geography import Geography, GeographyMenu
+from bauble import utils
+from bauble.utils.geo import KMLMapCallbackFunctor
+from bauble.view import Action
+from bauble.view import InfoBox
+from bauble.view import InfoExpander
+from bauble.view import PropertiesExpander
+
+from ..plants.geography import Geography
+from ..plants.geography import GeographyMenu
 
 
 def collection_edit_callback(coll):
@@ -462,7 +467,8 @@ class CollectionPresenter(editor.ChildPresenter):
 
     def refresh_view(self):
         super().refresh_view()
-        from .accession import latitude_to_dms, longitude_to_dms
+        from .accession import latitude_to_dms
+        from .accession import longitude_to_dms
 
         latitude = self.model.latitude
         if latitude is not None:
@@ -577,6 +583,7 @@ class CollectionPresenter(editor.ChildPresenter):
         """
 
         from decimal import Decimal
+
         from bauble.plugins.garden.accession import dms_to_decimal
         parts = re.split(':| ', text.strip())
         if len(parts) == 1:
@@ -944,7 +951,8 @@ def source_detail_remove_callback(details):
 
 
 def source_detail_add_acc_callback(values):
-    from bauble.plugins.garden.accession import Accession, AccessionEditor
+    from bauble.plugins.garden.accession import Accession
+    from bauble.plugins.garden.accession import AccessionEditor
     session = db.Session()
     source_detail = session.merge(values[0])
     source = Source(source_detail=source_detail)

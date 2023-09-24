@@ -22,34 +22,34 @@
 report plugin.
 """
 
+import logging
 import os
 import traceback
 
-import logging
 logger = logging.getLogger(__name__)
 
-from gi.repository import Gtk
 from gi.repository import GLib
+from gi.repository import Gtk
 
 import bauble
-from bauble.error import BaubleError
-from bauble import prefs
-from bauble import utils
 from bauble import paths
 from bauble import pluginmgr
-from bauble.plugins.plants import (Family,
-                                   Genus,
-                                   Species,
-                                   VernacularName,
-                                   Geography)
-from bauble.plugins.garden import (Accession,
-                                   Plant,
-                                   Location,
-                                   SourceDetail,
-                                   Collection)
+from bauble import prefs
+from bauble import utils
+from bauble.error import BaubleError
+from bauble.plugins.garden import Accession
+from bauble.plugins.garden import Collection
+from bauble.plugins.garden import Location
+from bauble.plugins.garden import Plant
+from bauble.plugins.garden import SourceDetail
+from bauble.plugins.plants import Family
+from bauble.plugins.plants import Genus
+from bauble.plugins.plants import Geography
+from bauble.plugins.plants import Species
+from bauble.plugins.plants import VernacularName
 from bauble.plugins.tag import Tag
-from .template_downloader import TemplateDownloadTool
 
+from .template_downloader import TemplateDownloadTool
 
 # name: formatter_class, formatter_kwargs
 CONFIG_LIST_PREF = 'report.configs'
@@ -829,8 +829,9 @@ class ReportToolPlugin(pluginmgr.Plugin):
 # function
 
 def plugin():
-    from .xsl import XSLFormatterPlugin, _fop
     from .mako import MakoFormatterPlugin
+    from .xsl import XSLFormatterPlugin
+    from .xsl import _fop
     plugins = [ReportToolPlugin, MakoFormatterPlugin]
     if _fop.set_fop_command():
         plugins.append(XSLFormatterPlugin)

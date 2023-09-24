@@ -24,6 +24,7 @@ running tasks still block but allows the GUI to update.
 """
 
 import logging
+
 logger = logging.getLogger(__name__)
 
 from gi.repository import Gtk  # noqa

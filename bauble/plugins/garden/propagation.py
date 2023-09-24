@@ -21,24 +21,30 @@ propagation module
 """
 
 import datetime
-import os
-import weakref
-import traceback
-
 import logging
+import os
+import traceback
+import weakref
+
 logger = logging.getLogger(__name__)
 
 from gi.repository import Gtk  # noqa
-
-from sqlalchemy import Column, Integer, ForeignKey, UnicodeText
-from sqlalchemy.orm import backref, relationship
-from sqlalchemy.orm.session import object_session
+from sqlalchemy import Column
+from sqlalchemy import ForeignKey
+from sqlalchemy import Integer
+from sqlalchemy import UnicodeText
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.associationproxy import association_proxy
+from sqlalchemy.orm import backref
+from sqlalchemy.orm import relationship
+from sqlalchemy.orm.session import object_session
 
-from bauble import db, utils, paths, editor, prefs
 from bauble import btypes as types
-
+from bauble import db
+from bauble import editor
+from bauble import paths
+from bauble import prefs
+from bauble import utils
 
 prop_type_values = {'Seed': _("Seed"),
                     'UnrootedCutting': _('Unrooted cutting'),

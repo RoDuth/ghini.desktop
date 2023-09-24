@@ -24,19 +24,20 @@ Description: plugin to provide importing and exporting
 """
 
 import datetime
-from operator import attrgetter
-from abc import ABC, abstractmethod
-
 import logging
+from abc import ABC
+from abc import abstractmethod
+from operator import attrgetter
+
 logger = logging.getLogger(__name__)
 
+from bauble import btypes
 from bauble import db
+from bauble import error
 from bauble import pluginmgr
 from bauble import prefs
-from bauble import btypes
 from bauble import task
 from bauble import utils
-from bauble import error
 
 # TODO: it might be best to do something like the reporter plugin so
 # that this plugin provides a generic interface for importing and exporting
@@ -562,14 +563,16 @@ class GenericExporter(ABC):
 
 class ImexPlugin(pluginmgr.Plugin):
     # avoid cicular imports
-    from .csv_ import (CSVRestoreTool,
-                       CSVBackupTool,
-                       CSVBackupCommandHandler,
-                       CSVRestoreCommandHandler)
-    from .csv_io import CSVExportTool, CSVImportTool
-    from .xml import XMLExportTool, XMLExportCommandHandler
-    from .shapefile import (ShapefileImportTool,
-                            ShapefileExportTool)
+    from .csv_ import CSVBackupCommandHandler
+    from .csv_ import CSVBackupTool
+    from .csv_ import CSVRestoreCommandHandler
+    from .csv_ import CSVRestoreTool
+    from .csv_io import CSVExportTool
+    from .csv_io import CSVImportTool
+    from .shapefile import ShapefileExportTool
+    from .shapefile import ShapefileImportTool
+    from .xml import XMLExportCommandHandler
+    from .xml import XMLExportTool
     tools = [CSVRestoreTool,
              CSVBackupTool,
              CSVExportTool,

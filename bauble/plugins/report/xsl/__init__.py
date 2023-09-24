@@ -24,30 +24,33 @@ from these objects, converts them to the ABCD XML format, transforms the ABCD
 data to an XSL formatting stylesheet and uses FOP to convert this stylesheet to
 a document (PDF, PostScript, etc.).
 """
-import sys
+import logging
 import os
 import subprocess
-from pathlib import Path
+import sys
 from operator import attrgetter
+from pathlib import Path
 
-import logging
 logger = logging.getLogger(__name__)
 
 from gi.repository import Gtk
-
 from lxml import etree
 
-from bauble import paths, prefs, utils, task
+from bauble import paths
+from bauble import prefs
+from bauble import task
+from bauble import utils
 from bauble.error import BaubleError
-from bauble.plugins.abcd import (SpeciesABCDAdapter,
-                                 AccessionABCDAdapter,
-                                 PlantABCDAdapter,
-                                 ABCDCreator)
-from .. import (get_plants_pertinent_to,
-                get_species_pertinent_to,
-                get_accessions_pertinent_to,
-                FormatterPlugin,
-                SettingsBox)
+from bauble.plugins.abcd import ABCDCreator
+from bauble.plugins.abcd import AccessionABCDAdapter
+from bauble.plugins.abcd import PlantABCDAdapter
+from bauble.plugins.abcd import SpeciesABCDAdapter
+
+from .. import FormatterPlugin
+from .. import SettingsBox
+from .. import get_accessions_pertinent_to
+from .. import get_plants_pertinent_to
+from .. import get_species_pertinent_to
 
 # TODO: need to make sure we can't select the OK button if we haven't selected
 # a value for everything required.

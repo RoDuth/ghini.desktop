@@ -19,18 +19,19 @@
 #
 # test_search.py
 #
+import logging
 import unittest
 
-import logging
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
 from pyparsing import ParseException
 
 from bauble import db
-from bauble import search
 from bauble import prefs
+from bauble import search
 from bauble.test import BaubleTestCase
+
 prefs.testing = True
 
 
@@ -765,10 +766,10 @@ class SearchTests(BaubleTestCase):
         import datetime
         Family = self.Family
         Genus = self.Genus
-        from bauble.plugins.plants.species_model import Species
         from bauble.plugins.garden.accession import Accession
         from bauble.plugins.garden.location import Location
         from bauble.plugins.garden.plant import Plant
+        from bauble.plugins.plants.species_model import Species
         family2 = Family(family='family2')
         g2 = Genus(family=family2, genus='genus2')
         f3 = Family(family='fam3', qualifier='s. lat.')
@@ -945,10 +946,10 @@ class SearchTests(BaubleTestCase):
         import datetime
         Family = self.Family
         Genus = self.Genus
-        from bauble.plugins.plants.species_model import Species
         from bauble.plugins.garden.accession import Accession
         from bauble.plugins.garden.location import Location
         from bauble.plugins.garden.plant import Plant
+        from bauble.plugins.plants.species_model import Species
         family2 = Family(family='family2')
         g2 = Genus(family=family2, genus='genus2')
         f3 = Family(family='fam3', qualifier='s. lat.')
@@ -959,6 +960,7 @@ class SearchTests(BaubleTestCase):
         pp = Plant(accession=ac, code='01', location=lc, quantity=1)
         pp2 = Plant(accession=ac, code='02', location=lc, quantity=1)
         from datetime import timezone
+
         # these will store UTC datetimes relative to local time.  Both should
         # be on the same date locally but will be across 2 dates if the local
         # timezone is anything but +00:00
@@ -1005,8 +1007,9 @@ class SearchTests(BaubleTestCase):
         'use BETWEEN value and value'
         Family = self.Family
         Genus = self.Genus
-        from bauble.plugins.plants.species_model import Species
         from bauble.plugins.garden.accession import Accession
+        from bauble.plugins.plants.species_model import Species
+
         #from bauble.plugins.garden.location import Location
         #from bauble.plugins.garden.plant import Plant
         family2 = Family(family='family2')
@@ -1114,6 +1117,7 @@ class SearchTests(BaubleTestCase):
         self.assertEqual(results, [])
 
         import warnings
+
         # possible: SAWarning: SELECT statement has a cartesian product between
         # FROM element(s) "species" and FROM element "species_1"
         with warnings.catch_warnings(record=True) as warns:
@@ -1174,6 +1178,7 @@ class SearchTests(BaubleTestCase):
         self.assertCountEqual(results, [sp1, sp2, sp3])
 
         import warnings
+
         # possible: SAWarning: SELECT statement has a cartesian product between
         # FROM element(s) "species" and FROM element "species_1"
         with warnings.catch_warnings(record=True) as warns:
@@ -1194,13 +1199,14 @@ class SearchTests(BaubleTestCase):
         Tests that parsing and query formation happens as expected in complex
         queries.
         """
+        from bauble.plugins.garden.accession import Accession
+        from bauble.plugins.garden.location import Location
+        from bauble.plugins.garden.plant import Plant
+        from bauble.plugins.garden.source import Source
+        from bauble.plugins.garden.source import SourceDetail
         from bauble.plugins.plants.family import Family
         from bauble.plugins.plants.genus import Genus
         from bauble.plugins.plants.species import Species
-        from bauble.plugins.garden.accession import Accession
-        from bauble.plugins.garden.source import SourceDetail, Source
-        from bauble.plugins.garden.plant import Plant
-        from bauble.plugins.garden.location import Location
         g2 = Genus(family=self.family, genus='genus2')
         f1 = Family(epithet='Moraceae')
         g3 = Genus(family=f1, genus='Ficus')
@@ -1438,8 +1444,8 @@ class BinomialSearchTests(BaubleTestCase):
         mapper_search = search.get_strategy('MapperSearch')
         self.assertTrue(isinstance(mapper_search, search.MapperSearch))
 
-        from bauble.plugins.plants.species import Species
         from bauble.plugins.plants.genus import Genus
+        from bauble.plugins.plants.species import Species
         g3 = self.session.query(Genus).filter(Genus.genus == 'Ixora').one()
         sp5 = Species(sp="coccinea", genus=g3,
                       cultivar_epithet='Nora Grant')
@@ -1634,7 +1640,8 @@ class FilterThenMatchTests(BaubleTestCase):
         db.engine.execute('delete from family')
         db.engine.execute('delete from genus_note')
         from bauble.plugins.plants.family import Family
-        from bauble.plugins.plants.genus import Genus, GenusNote
+        from bauble.plugins.plants.genus import Genus
+        from bauble.plugins.plants.genus import GenusNote
         self.family = Family(family='family1', qualifier='s. lat.')
         self.genus1 = Genus(family=self.family, genus='genus1')
         self.genus2 = Genus(family=self.family, genus='genus2')
@@ -1766,7 +1773,9 @@ class AggregatingFunctions(BaubleTestCase):
         db.engine.execute('delete from family')
         db.engine.execute('delete from species')
         db.engine.execute('delete from accession')
-        from bauble.plugins.plants import Family, Genus, Species
+        from bauble.plugins.plants import Family
+        from bauble.plugins.plants import Genus
+        from bauble.plugins.plants import Species
         f1 = Family(family='Rutaceae', qualifier='')
         g1 = Genus(family=f1, genus='Citrus')
         sp1 = Species(sp="medica", genus=g1)
@@ -1838,8 +1847,9 @@ class AggregatingFunctions(BaubleTestCase):
         self.assertEqual(len(results), 1)
         self.assertEqual(results[0].id, 2)
 
+        from bauble.plugins.plants import Species
+        from bauble.plugins.plants import SpeciesDistribution
         from bauble.plugins.plants.geography import Geography
-        from bauble.plugins.plants import Species, SpeciesDistribution
         geo1 = Geography(name='Test1', tdwg_code='T1', tdwg_level=1)
         geo2 = Geography(name='Test2', tdwg_code='T2', tdwg_level=1)
         sp1 = self.session.query(Species).first()
@@ -1955,12 +1965,12 @@ class BaubleSearchSearchTest(BaubleTestCase):
                         self.handler.messages['bauble.search']['debug'])
 
     def test_search_exclude_inactive_set(self):
+        from bauble.plugins.garden.accession import Accession
+        from bauble.plugins.garden.location import Location
+        from bauble.plugins.garden.plant import Plant
         from bauble.plugins.plants.family import Family
         from bauble.plugins.plants.genus import Genus
         from bauble.plugins.plants.species import Species
-        from bauble.plugins.garden.accession import Accession
-        from bauble.plugins.garden.plant import Plant
-        from bauble.plugins.garden.location import Location
         fam1 = Family(epithet='Moraceae')
         gen1 = Genus(family=fam1, genus='Ficus')
         gen2 = Genus(family=fam1, genus='Artocarpus')

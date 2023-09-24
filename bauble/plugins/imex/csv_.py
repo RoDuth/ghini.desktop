@@ -24,25 +24,27 @@
 # with the system csv module
 #
 
-import os
 import csv
-import traceback
+import logging
+import os
 import tempfile
+import traceback
 from pathlib import Path
 
-import logging
 logger = logging.getLogger(__name__)
 
 from gi.repository import Gtk  # noqa
-
-from sqlalchemy import ColumnDefault, func, select, inspect
+from sqlalchemy import ColumnDefault
+from sqlalchemy import func
+from sqlalchemy import inspect
+from sqlalchemy import select
 
 import bauble
-from bauble import db
-from bauble import utils
-from bauble import pluginmgr
 import bauble.task
+from bauble import db
 from bauble import pb_set_fraction
+from bauble import pluginmgr
+from bauble import utils
 
 # TODO: i've also had a problem with bad insert statements, e.g. importing a
 # geography table after creating a new database and it doesn't use the

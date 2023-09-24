@@ -23,52 +23,76 @@
 Defines the plant table and handled editing plants
 """
 
+import logging
 import os
 import traceback
-from random import random
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
+from random import random
 
-import logging
 logger = logging.getLogger(__name__)
 
 from gi.repository import Gtk
-
-from sqlalchemy import or_, and_, func, event, tuple_, not_
-from sqlalchemy import (ForeignKey, Column, Unicode, Integer, UnicodeText,
-                        UniqueConstraint)
-from sqlalchemy.orm import (relationship, backref, object_mapper, validates,
-                            deferred)
-from sqlalchemy.orm.session import object_session
-from sqlalchemy.exc import DBAPIError, OperationalError
-from sqlalchemy.orm.attributes import get_history
-from sqlalchemy.ext.hybrid import hybrid_property
+from pyparsing import Literal
+from pyparsing import OneOrMore
+from pyparsing import ParseException
+from pyparsing import Word
+from pyparsing import delimitedList
+from pyparsing import oneOf
+from pyparsing import printables
+from pyparsing import quotedString
+from pyparsing import removeQuotes
+from pyparsing import stringEnd
+from sqlalchemy import Column
+from sqlalchemy import ForeignKey
+from sqlalchemy import Integer
+from sqlalchemy import Unicode
+from sqlalchemy import UnicodeText
+from sqlalchemy import UniqueConstraint
+from sqlalchemy import and_
+from sqlalchemy import event
+from sqlalchemy import func
+from sqlalchemy import not_
+from sqlalchemy import or_
+from sqlalchemy import tuple_
+from sqlalchemy.exc import DBAPIError
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.ext.associationproxy import association_proxy
+from sqlalchemy.ext.hybrid import hybrid_property
+from sqlalchemy.orm import backref
+from sqlalchemy.orm import deferred
+from sqlalchemy.orm import object_mapper
+from sqlalchemy.orm import relationship
+from sqlalchemy.orm import validates
+from sqlalchemy.orm.attributes import get_history
+from sqlalchemy.orm.session import object_session
 
-from pyparsing import (Word, removeQuotes, delimitedList, OneOrMore, oneOf,
-                       Literal, printables, stringEnd, quotedString,
-                       ParseException)
-
+from bauble import btypes as types
 from bauble import db
-from bauble.error import CheckConditionError
-from bauble.editor import (GenericEditorView,
-                           GenericEditorPresenter,
-                           GenericModelViewPresenterEditor,
-                           NotesPresenter,
-                           PicturesPresenter,
-                           PresenterMapMixin)
 from bauble import meta
 from bauble import paths
 from bauble import prefs
-from bauble.search import SearchStrategy
-from bauble import btypes as types
 from bauble import utils
+from bauble.editor import GenericEditorPresenter
+from bauble.editor import GenericEditorView
+from bauble.editor import GenericModelViewPresenterEditor
+from bauble.editor import NotesPresenter
+from bauble.editor import PicturesPresenter
+from bauble.editor import PresenterMapMixin
+from bauble.error import CheckConditionError
+from bauble.search import SearchStrategy
 from bauble.utils.geo import KMLMapCallbackFunctor
-from bauble.view import (InfoBox, InfoExpander, PropertiesExpander,
-                         LinksExpander, select_in_search_results, Action)
-from .location import Location, LocationEditor
-from .propagation import PlantPropagation
+from bauble.view import Action
+from bauble.view import InfoBox
+from bauble.view import InfoExpander
+from bauble.view import LinksExpander
+from bauble.view import PropertiesExpander
+from bauble.view import select_in_search_results
+
 from .accession import Accession
+from .location import Location
+from .location import LocationEditor
+from .propagation import PlantPropagation
 
 # TODO: might be worthwhile to have a label or textview next to the
 # location combo that shows the description of the currently selected
@@ -310,7 +334,9 @@ class PlantSearch(SearchStrategy):
             logger.debug('"in" PlantSearch vals: %s', vals)
             if db.engine.name == 'mssql':
                 from sqlalchemy import String
-                from sqlalchemy.sql import exists, values, column
+                from sqlalchemy.sql import column
+                from sqlalchemy.sql import exists
+                from sqlalchemy.sql import values
                 sql_vals = values(
                     column('acc_code', String),
                     column('plt_code', String)
@@ -708,7 +734,8 @@ class Plant(db.Base, db.WithNotes):
     @active.expression
     def active(cls):
         # pylint: disable=no-self-argument
-        from sqlalchemy.sql.expression import cast, case
+        from sqlalchemy.sql.expression import case
+        from sqlalchemy.sql.expression import cast
         return cast(case([(cls.quantity > 0, 1)], else_=0), types.Boolean)
 
     def __str__(self):
@@ -1185,9 +1212,10 @@ class PlantEditorPresenter(GenericEditorPresenter, PresenterMapMixin):
         """
         text = text.lower()
         parts = text.split(' ', 1)
-        from ..plants.species_model import Species
-        from ..plants.genus import Genus
         from bauble.utils import ilike
+
+        from ..plants.genus import Genus
+        from ..plants.species_model import Species
         if len(parts) == 1:
             # try straight accession code search first
             query = (self.session.query(Accession)

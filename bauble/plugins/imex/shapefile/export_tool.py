@@ -18,39 +18,47 @@
 Export data to shapefiles (zip file with all component files).
 """
 
-from zipfile import ZipFile
-from pathlib import Path
-from tempfile import TemporaryDirectory
-from random import random
-
 import logging
+from pathlib import Path
+from random import random
+from tempfile import TemporaryDirectory
+from zipfile import ZipFile
+
 logger = logging.getLogger(__name__)
 
-from shapefile import Writer
-
-from gi.repository import Gtk, Gdk
+from gi.repository import Gdk
 from gi.repository import GLib
-
-from sqlalchemy.orm import class_mapper
+from gi.repository import Gtk
+from shapefile import Writer
 from sqlalchemy.ext.associationproxy import AssociationProxy
-
-from bauble.utils.geo import ProjDB
-from bauble.meta import get_default
-# NOTE importing shapefile Writer above wipes out gettext _
-from bauble.i18n import _
-from bauble import prefs
+from sqlalchemy.orm import class_mapper
 
 import bauble
-from bauble import db, task, pb_set_fraction
-# NOTE: need to import the Note classes as we may need them.
-from bauble.plugins.garden.plant import Plant, PlantNote  \
-    # noqa pylint: disable=unused-import
-from bauble.plugins.garden.location import Location, LocationNote  \
-    # noqa pylint: disable=unused-import
-from bauble.editor import GenericEditorView, GenericEditorPresenter
+from bauble import db
+from bauble import pb_set_fraction
+from bauble import prefs
+from bauble import task
+from bauble.editor import GenericEditorPresenter
+from bauble.editor import GenericEditorView
 
-from . import LOCATION_SHAPEFILE_PREFS, PLANT_SHAPEFILE_PREFS
+# NOTE importing shapefile Writer above wipes out gettext _
+from bauble.i18n import _
+from bauble.meta import get_default
+from bauble.plugins.garden.location import (  # noqa pylint: disable=unused-import
+    Location,
+)
+from bauble.plugins.garden.location import LocationNote
+
+# NOTE: need to import the Note classes as we may need them.
+from bauble.plugins.garden.plant import (  # noqa pylint: disable=unused-import
+    Plant,
+)
+from bauble.plugins.garden.plant import PlantNote
+from bauble.utils.geo import ProjDB
+
 from .. import GenericExporter
+from . import LOCATION_SHAPEFILE_PREFS
+from . import PLANT_SHAPEFILE_PREFS
 
 NAME = 0
 TYPE = 1
@@ -494,6 +502,7 @@ class ShapefileExportDialogPresenter(GenericEditorPresenter):
     def __init__(self, model, view):
         super().__init__(model=model, view=view, session=False)
         from bauble.view import SearchView
+
         # bauble.gui is None when testing
         main_view = None if bauble.gui is None else bauble.gui.get_view()
         if (not isinstance(main_view, SearchView) or

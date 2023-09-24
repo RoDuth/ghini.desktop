@@ -17,9 +17,10 @@
 # You should have received a copy of the GNU General Public License
 # along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
 
-from unittest import mock
 import csv
 import logging
+from unittest import mock
+
 logger = logging.getLogger(__name__)
 
 import os
@@ -27,28 +28,31 @@ import shutil
 import tempfile
 from datetime import datetime
 from pathlib import Path
+
 from dateutil.parser import parse as date_parse
 
 import bauble
-from bauble import db
-from bauble import prefs
-from bauble.plugins.plants import (Family,
-                                   Genus,
-                                   Species)
-from bauble.plugins.garden import (Accession,
-                                   Location,
-                                   Plant)
-from bauble.plugins.garden.accession import Voucher
 import bauble.plugins.garden.test_garden as garden_test
 import bauble.plugins.plants.test_plants as plants_test
-from bauble.test import BaubleTestCase, get_setUp_data_funcs
-from .csv_ import (CSVRestore,
-                   CSVBackup,
-                   QUOTE_CHAR,
-                   QUOTE_STYLE)
-from . import GenericExporter, GenericImporter
-from .xml import XMLExporter
+from bauble import db
+from bauble import prefs
+from bauble.plugins.garden import Accession
+from bauble.plugins.garden import Location
+from bauble.plugins.garden import Plant
+from bauble.plugins.garden.accession import Voucher
+from bauble.plugins.plants import Family
+from bauble.plugins.plants import Genus
+from bauble.plugins.plants import Species
+from bauble.test import BaubleTestCase
+from bauble.test import get_setUp_data_funcs
 
+from . import GenericExporter
+from . import GenericImporter
+from .csv_ import QUOTE_CHAR
+from .csv_ import QUOTE_STYLE
+from .csv_ import CSVBackup
+from .csv_ import CSVRestore
+from .xml import XMLExporter
 
 family_data = [{'id': 1, 'family': 'Orchidaceae', 'qualifier': None},
                {'id': 2, 'family': 'Myrtaceae'}]
@@ -1009,8 +1013,8 @@ class GenericExporterTests(BaubleTestCase):
                                'gen': 'Maxillaria'})
 
     def test_get_item_record_wo_notes(self):
-        from bauble.plugins.plants.geography import (Geography,
-                                                     geography_importer)
+        from bauble.plugins.plants.geography import Geography
+        from bauble.plugins.plants.geography import geography_importer
         [_ for _ in geography_importer()]
         item = (self.session.query(Geography)
                 .filter(Geography.tdwg_code == '50').one())

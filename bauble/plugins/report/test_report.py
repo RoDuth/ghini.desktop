@@ -19,46 +19,51 @@
 # along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
 
 import os
-from unittest import mock
 from pathlib import Path
+from unittest import mock
 
 from gi.repository import Gtk
 
 from bauble import prefs
-from bauble.test import BaubleTestCase, check_dupids, update_gui
-from bauble.plugins.plants import (Family,
-                                   Genus,
-                                   Species,
-                                   VernacularName,
-                                   Geography)
-from bauble.plugins.garden import (Accession,
-                                   Plant,
-                                   Location,
-                                   Source,
-                                   SourceDetail,
-                                   Collection)
-from bauble.plugins.tag import tag_objects, Tag
-from .template_downloader import (download_templates,
-                                  set_templates_root_pref,
-                                  update_report_template_prefs,
-                                  TEMPLATES_ROOT_PREF)
-from . import (get_species_pertinent_to,
-               get_accessions_pertinent_to,
-               get_plants_pertinent_to,
-               get_locations_pertinent_to,
-               get_geographies_pertinent_to,
-               ReportToolDialogView,
-               ReportToolDialogPresenter,
-               CONFIG_LIST_PREF,
-               DEFAULT_CONFIG_PREF)
+from bauble.plugins.garden import Accession
+from bauble.plugins.garden import Collection
+from bauble.plugins.garden import Location
+from bauble.plugins.garden import Plant
+from bauble.plugins.garden import Source
+from bauble.plugins.garden import SourceDetail
+from bauble.plugins.plants import Family
+from bauble.plugins.plants import Genus
+from bauble.plugins.plants import Geography
+from bauble.plugins.plants import Species
+from bauble.plugins.plants import VernacularName
+from bauble.plugins.tag import Tag
+from bauble.plugins.tag import tag_objects
+from bauble.test import BaubleTestCase
+from bauble.test import check_dupids
+from bauble.test import update_gui
+
+from . import CONFIG_LIST_PREF
+from . import DEFAULT_CONFIG_PREF
+from . import ReportToolDialogPresenter
+from . import ReportToolDialogView
+from . import get_accessions_pertinent_to
+from . import get_geographies_pertinent_to
+from . import get_locations_pertinent_to
+from . import get_plants_pertinent_to
+from . import get_species_pertinent_to
+from .template_downloader import TEMPLATES_ROOT_PREF
+from .template_downloader import download_templates
+from .template_downloader import set_templates_root_pref
+from .template_downloader import update_report_template_prefs
 
 
 def test_duplicate_ids():
     """
     Test for duplicate ids for all .glade files in the gardens plugin.
     """
-    import bauble.plugins.report as mod
     import glob
+
+    import bauble.plugins.report as mod
     head, _tail = os.path.split(mod.__file__)
     files = []
     files.extend(glob.glob(os.path.join(head, '*.glade')))
@@ -443,8 +448,9 @@ class ReportTests(BaubleTestCase):
         """
         Test getting the geographies from different types
         """
-        from bauble.plugins.plants.geography import geography_importer
         from bauble.plugins.plants import SpeciesDistribution
+        from bauble.plugins.plants.geography import geography_importer
+
         # at least we run it once during a test!
         [i for i in geography_importer()]
         self.assertTrue(len(self.session.query(Geography).all()) > 700)
@@ -530,9 +536,11 @@ class ReportTests(BaubleTestCase):
     def test_get_items_pertinent_to_geographies(self):
         """get geographies from various other items
         """
-        from bauble.plugins.plants.geography import geography_importer
-        from bauble.plugins.plants import SpeciesDistribution
         from collections import deque
+
+        from bauble.plugins.plants import SpeciesDistribution
+        from bauble.plugins.plants.geography import geography_importer
+
         # at least we run it once during a test!
         deque(geography_importer(), maxlen=0)
         self.assertTrue(len(self.session.query(Geography).all()) > 700)
@@ -691,7 +699,8 @@ class TemplateDowloaderTests(BaubleTestCase):
 [report]
 configs = {'species list': ('Mako', {'private': False, 'template': 'species.html'})}
 """
-        from tempfile import mkstemp, mkdtemp
+        from tempfile import mkdtemp
+        from tempfile import mkstemp
         handle, filename = mkstemp(suffix='.cfg')
         os.write(handle, config)
         os.close(handle)
@@ -710,8 +719,8 @@ configs = {'species list': ('Mako', {'private': False, 'template': 'species.html
     @mock.patch('bauble.plugins.report.template_downloader.yes_no_dialog')
     @mock.patch('bauble.plugins.report.template_downloader.get_net_sess')
     def test_download_templates(self, mock_get_sess, mock_dialog):
-        import zipfile
         import io
+        import zipfile
         from tempfile import mkdtemp
         templates_root = mkdtemp()
 

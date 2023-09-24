@@ -22,22 +22,23 @@ XML import/export plugin
 Description: handle import and exporting from a simple XML format
 """
 
+import logging
 import os
 import traceback
 from pathlib import Path
 
-import logging
 logger = logging.getLogger(__name__)
 
 from gi.repository import Gtk  # noqa
 
 import bauble
 from bauble import db
-from bauble import utils
-from bauble import pluginmgr
-from bauble.editor import GenericEditorView, GenericEditorPresenter
-from bauble import task
 from bauble import pb_set_fraction
+from bauble import pluginmgr
+from bauble import task
+from bauble import utils
+from bauble.editor import GenericEditorPresenter
+from bauble.editor import GenericEditorView
 
 
 def element_factory(parent, name, **kwargs):

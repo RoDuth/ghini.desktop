@@ -17,43 +17,54 @@
 """
 Test shapefile import/export
 """
+import logging
 from copy import deepcopy
 
-import logging
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
-from unittest import mock
 from pathlib import Path
-from zipfile import ZipFile
 from tempfile import TemporaryDirectory
-from shapefile import Writer, Reader
+from unittest import mock
+from zipfile import ZipFile
 
 from gi.repository import Gtk
+from shapefile import Reader
+from shapefile import Writer
 
 from bauble import utils
+from bauble.editor import MockDialog
+from bauble.editor import MockView
+from bauble.error import BaubleError
+from bauble.error import MetaTableError
+from bauble.meta import BaubleMeta
+from bauble.meta import get_default
+from bauble.plugins.garden import Accession
+from bauble.plugins.garden import Location
+from bauble.plugins.garden import LocationNote
+from bauble.plugins.garden import Plant
+from bauble.plugins.garden import PlantNote
+from bauble.plugins.plants import Family
+from bauble.plugins.plants import Genus
+from bauble.plugins.plants.species import DefaultVernacularName
+from bauble.plugins.plants.species import Species
+from bauble.plugins.plants.species import VernacularName
 from bauble.test import BaubleTestCase
-from bauble.editor import MockView, MockDialog
-from bauble.utils.geo import ProjDB, install_default_prjs
-from bauble.meta import get_default, BaubleMeta
-from bauble.error import BaubleError, MetaTableError
+from bauble.utils.geo import DEFAULT_IN_PROJ
 from bauble.utils.geo import DEFAULT_SYS_PROJ
-from bauble.plugins.garden import (Plant,
-                                   PlantNote,
-                                   Location,
-                                   LocationNote,
-                                   Accession)
-from bauble.plugins.plants import Family, Genus
-from bauble.plugins.plants.species import (Species, VernacularName,
-                                           DefaultVernacularName)
-from bauble.utils.geo import transform, DEFAULT_IN_PROJ
-from .import_tool import ShapefileImporter, ShapefileReader, MATCH, OPTION
-from .export_tool import (ShapefileExporter,
-                          ShapefileExportDialogPresenter,
-                          get_field_properties)
+from bauble.utils.geo import ProjDB
+from bauble.utils.geo import install_default_prjs
+from bauble.utils.geo import transform
 
-from .import_tool import ShapefileImportSettingsBox as ImpSetBox
+from .export_tool import ShapefileExportDialogPresenter
+from .export_tool import ShapefileExporter
 from .export_tool import ShapefileExportSettingsBox as ExpSetBox
+from .export_tool import get_field_properties
+from .import_tool import MATCH
+from .import_tool import OPTION
+from .import_tool import ShapefileImporter
+from .import_tool import ShapefileImportSettingsBox as ImpSetBox
+from .import_tool import ShapefileReader
 
 
 def get_prj_string_and_num_files_from_zip(zip_file):
@@ -544,15 +555,17 @@ class ShapefileTestCase(BaubleTestCase):
         super().setUp()
 
         # start with blank data (i.e. remove default data added by db.create)
-        from bauble.utils.geo import prj_crs
         from bauble import db
+        from bauble.utils.geo import prj_crs
         prj_crs.drop(bind=db.engine)
         prj_crs.create(bind=db.engine)
 
         get_default('system_proj_string', DEFAULT_SYS_PROJ)
         self.temp_dir = TemporaryDirectory()
-        from . import PLANT_SHAPEFILE_PREFS, LOCATION_SHAPEFILE_PREFS
         from bauble import prefs
+
+        from . import LOCATION_SHAPEFILE_PREFS
+        from . import PLANT_SHAPEFILE_PREFS
         self.plt_fields_prefs = prefs.prefs.get(
             f'{PLANT_SHAPEFILE_PREFS}.fields', {}
         )

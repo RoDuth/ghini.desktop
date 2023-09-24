@@ -20,45 +20,49 @@
 Species table definition
 """
 
+import logging
 import os
 import re
 import traceback
 import weakref
-from random import random
 from ast import literal_eval
+from random import random
 
-import logging
 logger = logging.getLogger(__name__)
 
-from gi.repository import Gtk
 from gi.repository import Gio
 from gi.repository import GLib
+from gi.repository import Gtk
 from gi.repository import Pango
-
-from sqlalchemy.orm.session import object_session, Session, object_mapper
-from sqlalchemy.orm.query import Query
-from sqlalchemy.exc import DBAPIError
 from sqlalchemy import inspect as sa_inspect
+from sqlalchemy.exc import DBAPIError
+from sqlalchemy.orm.query import Query
+from sqlalchemy.orm.session import Session
+from sqlalchemy.orm.session import object_mapper
+from sqlalchemy.orm.session import object_session
 
 import bauble
-from bauble import utils
-from bauble import paths
 from bauble import editor
-from .geography import GeographyMenu, Geography, consolidate_geographies
-from .genus import (Genus,
-                    GenusSynonym,
-                    generic_gen_get_completions,
-                    genus_match_func,
-                    genus_cell_data_func)
+from bauble import paths
+from bauble import utils
+
 from .family import Family
-from .species_model import (Species,
-                            SpeciesDistribution,
-                            VernacularName,
-                            SpeciesSynonym,
-                            Habit,
-                            infrasp_rank_values,
-                            compare_rank,
-                            red_list_values)
+from .genus import Genus
+from .genus import GenusSynonym
+from .genus import generic_gen_get_completions
+from .genus import genus_cell_data_func
+from .genus import genus_match_func
+from .geography import Geography
+from .geography import GeographyMenu
+from .geography import consolidate_geographies
+from .species_model import Habit
+from .species_model import Species
+from .species_model import SpeciesDistribution
+from .species_model import SpeciesSynonym
+from .species_model import VernacularName
+from .species_model import compare_rank
+from .species_model import infrasp_rank_values
+from .species_model import red_list_values
 
 
 def generic_sp_get_completions(session: Session, text: str) -> Query:
@@ -1890,7 +1894,8 @@ class SpeciesEditor(editor.GenericModelViewPresenterEditor):
                                       self.parent)
             more_committed = sp_editor.start()
         elif response == self.RESPONSE_OK_AND_ADD:
-            from ..garden.accession import AccessionEditor, Accession
+            from ..garden.accession import Accession
+            from ..garden.accession import AccessionEditor
             acc_editor = AccessionEditor(Accession(species=self.model),
                                          parent=self.parent)
             more_committed = acc_editor.start()

@@ -18,76 +18,83 @@
 # You should have received a copy of the GNU General Public License
 # along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
 
-import os
 import datetime
+import logging
+import os
 import unittest
 from functools import partial
 
-import logging
 logger = logging.getLogger(__name__)
 
 from gi.repository import Gtk
-
 from sqlalchemy import and_
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import object_session
 
 from bauble import db
-from bauble.test import BaubleTestCase, update_gui, check_dupids, mockfunc
-from bauble import utils
 from bauble import prefs
+from bauble import utils
 from bauble.meta import BaubleMeta
-from . import get_plant_completions, GardenPlugin, SORT_BY_PREF
-from .accession import (Accession,
-                        AccessionEditor,
-                        AccessionEditorPresenter,
-                        AccessionEditorView,
-                        Voucher,
-                        SourcePresenter,
-                        IntendedLocationPresenter,
-                        IntendedLocation,
-                        INTENDED_ACTIONGRP_NAME,
-                        Verification,
-                        VerificationPresenter,
-                        VerificationBox,
-                        VoucherPresenter,
-                        dms_to_decimal,
-                        latitude_to_dms,
-                        longitude_to_dms)
-from .source import (Source,
-                     Collection,
-                     SourceDetail,
-                     CollectionPresenter,
-                     SourceDetailPresenter)
-from .plant import (Plant,
-                    PlantNote,
-                    PlantChange,
-                    PlantEditor,
-                    PlantEditorView,
-                    PlantEditorPresenter,
-                    is_code_unique,
-                    branch_callback,
-                    acc_to_string_matcher,
-                    change_reasons,
-                    transfer_reasons,
-                    added_reasons,
-                    deleted_reasons)
-from .location import Location, LocationEditor
-from .institution import Institution, InstitutionPresenter
-from .propagation import (Propagation,
-                          PropCuttingRooted,
-                          PropCutting,
-                          PropSeed,
-                          PropagationEditor,
-                          PlantPropagation)
+from bauble.test import BaubleTestCase
+from bauble.test import check_dupids
+from bauble.test import mockfunc
+from bauble.test import update_gui
+
 from ..plants import test_plants as plants_test
-from ..plants.geography import Geography
 from ..plants.family import Family
 from ..plants.genus import Genus
-from ..plants.species_model import (Species,
-                                    SpeciesDistribution,
-                                    update_all_full_names_task)
+from ..plants.geography import Geography
+from ..plants.species_model import Species
+from ..plants.species_model import SpeciesDistribution
 from ..plants.species_model import _remove_zws as remove_zws
+from ..plants.species_model import update_all_full_names_task
+from . import SORT_BY_PREF
+from . import GardenPlugin
+from . import get_plant_completions
+from .accession import INTENDED_ACTIONGRP_NAME
+from .accession import Accession
+from .accession import AccessionEditor
+from .accession import AccessionEditorPresenter
+from .accession import AccessionEditorView
+from .accession import IntendedLocation
+from .accession import IntendedLocationPresenter
+from .accession import SourcePresenter
+from .accession import Verification
+from .accession import VerificationBox
+from .accession import VerificationPresenter
+from .accession import Voucher
+from .accession import VoucherPresenter
+from .accession import dms_to_decimal
+from .accession import latitude_to_dms
+from .accession import longitude_to_dms
+from .institution import Institution
+from .institution import InstitutionPresenter
+from .location import Location
+from .location import LocationEditor
+from .plant import Plant
+from .plant import PlantChange
+from .plant import PlantEditor
+from .plant import PlantEditorPresenter
+from .plant import PlantEditorView
+from .plant import PlantNote
+from .plant import acc_to_string_matcher
+from .plant import added_reasons
+from .plant import branch_callback
+from .plant import change_reasons
+from .plant import deleted_reasons
+from .plant import is_code_unique
+from .plant import transfer_reasons
+from .propagation import PlantPropagation
+from .propagation import Propagation
+from .propagation import PropagationEditor
+from .propagation import PropCutting
+from .propagation import PropCuttingRooted
+from .propagation import PropSeed
+from .source import Collection
+from .source import CollectionPresenter
+from .source import Source
+from .source import SourceDetail
+from .source import SourceDetailPresenter
 
 prefs.testing = True
 
@@ -290,8 +297,9 @@ class DuplicateIdsGlade(unittest.TestCase):
         """
         Test for duplicate ids for all .glade files in the gardens plugin.
         """
-        import bauble.plugins.garden as mod
         import glob
+
+        import bauble.plugins.garden as mod
         head, tail = os.path.split(mod.__file__)
         files = glob.glob(os.path.join(head, '*.glade'))
         for f in files:
@@ -3819,6 +3827,7 @@ UTM = 3  # Datum(wgs84/nad83 or nad27), UTM Zone, Easting, Northing
 # 6 +/- 0.08m
 
 from decimal import Decimal
+
 dec = Decimal
 conversion_test_data = (((('N', 17, 21, dec(59)), ('W', 89, 1, 41)),  # dms
                          ((dec(17), dec('21.98333333')), (dec(-89), dec('1.68333333'))),  # deg min_dec
@@ -3890,8 +3899,8 @@ class DMSConversionTests(unittest.TestCase):
             self.assertEqual(result, dec_val)
 
 
-from bauble.plugins.garden import PlantSearch
 from bauble import search
+from bauble.plugins.garden import PlantSearch
 
 
 class PlantSearchTests(BaubleTestCase):

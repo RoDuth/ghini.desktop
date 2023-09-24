@@ -24,22 +24,26 @@
 Clone the current database to another connection.
 """
 
-from typing import Generator
 import logging
+from typing import Generator
+
 logger = logging.getLogger(__name__)
 
 from gi.repository import Gtk
-
-from sqlalchemy import func, select, create_engine
-from sqlalchemy.engine import Engine, make_url, URL
+from sqlalchemy import create_engine
+from sqlalchemy import func
+from sqlalchemy import select
+from sqlalchemy.engine import URL
+from sqlalchemy.engine import Engine
+from sqlalchemy.engine import make_url
 from sqlalchemy.exc import SQLAlchemyError
 
 import bauble
 from bauble import db
-from bauble import utils
+from bauble import pb_set_fraction
 from bauble import pluginmgr
 from bauble import task
-from bauble import pb_set_fraction
+from bauble import utils
 
 
 class DBCloner:

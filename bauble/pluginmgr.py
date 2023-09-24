@@ -35,6 +35,7 @@ installed plugins in to the registry (happens in load())
 """
 
 import logging
+
 logger = logging.getLogger(__name__)
 
 import os
@@ -43,15 +44,16 @@ import traceback
 from pathlib import Path
 
 from gi.repository import Gtk  # noqa
-
-from sqlalchemy import Column, Unicode, select
+from sqlalchemy import Column
+from sqlalchemy import Unicode
+from sqlalchemy import select
 from sqlalchemy.orm.exc import NoResultFound
 
 import bauble
 from bauble import db
-from bauble.error import BaubleError
 from bauble import paths
 from bauble import utils
+from bauble.error import BaubleError
 
 plugins = {}
 commands = {}

@@ -20,41 +20,47 @@
 tag plugin
 """
 
+import logging
 import os
 import traceback
 from importlib import import_module
 
-import logging
 logger = logging.getLogger(__name__)
 
-from gi.repository import Gtk
+from gi.repository import Gdk
 from gi.repository import Gio
 from gi.repository import GLib
-from gi.repository import Gdk
-
-from sqlalchemy import (Column,
-                        Unicode,
-                        UnicodeText,
-                        Integer,
-                        String,
-                        ForeignKey,
-                        literal)
+from gi.repository import Gtk
+from sqlalchemy import Column
+from sqlalchemy import ForeignKey
+from sqlalchemy import Integer
+from sqlalchemy import String
+from sqlalchemy import Unicode
+from sqlalchemy import UnicodeText
+from sqlalchemy import and_
+from sqlalchemy import literal
+from sqlalchemy.exc import DBAPIError
+from sqlalchemy.exc import InvalidRequestError
 from sqlalchemy.orm import relationship
 from sqlalchemy.orm.exc import DetachedInstanceError
-from sqlalchemy import and_
-from sqlalchemy.exc import DBAPIError, InvalidRequestError
 from sqlalchemy.orm.session import object_session
 
 import bauble
-from bauble import db, editor, pluginmgr, paths, search, utils, prefs
-from bauble.view import (InfoBox,
-                         InfoExpander,
-                         SearchView,
-                         HistoryView,
-                         Action,
-                         PropertiesExpander)
-
-from bauble.editor import GenericEditorView, GenericEditorPresenter
+from bauble import db
+from bauble import editor
+from bauble import paths
+from bauble import pluginmgr
+from bauble import prefs
+from bauble import search
+from bauble import utils
+from bauble.editor import GenericEditorPresenter
+from bauble.editor import GenericEditorView
+from bauble.view import Action
+from bauble.view import HistoryView
+from bauble.view import InfoBox
+from bauble.view import InfoExpander
+from bauble.view import PropertiesExpander
+from bauble.view import SearchView
 
 
 class TagsMenuManager:

@@ -24,20 +24,19 @@ Intended for users who will never "look under the hood" of a report template
 and just want a bunch of reliable templates to use.
 """
 
+import logging
 from pathlib import Path
 
-import logging
 logger = logging.getLogger(__name__)
 
 from gi.repository import Gtk  # noqa
-
 from requests import exceptions
 
-from bauble.utils import get_net_sess, yes_no_dialog
 from bauble import pluginmgr  # , task
-
 from bauble import prefs
 from bauble.task import set_message
+from bauble.utils import get_net_sess
+from bauble.utils import yes_no_dialog
 
 CONFIG_LIST_PREF = 'report.configs'
 
@@ -81,8 +80,9 @@ def set_templates_root_pref(path=None):
 def update_report_template_prefs(root, conf_file):
     # Add config to prefs and save it
     if Path(conf_file).exists():
-        from bauble.prefs import _prefs
         from configparser import ConfigParser
+
+        from bauble.prefs import _prefs
         temp_prefs = _prefs(filename=conf_file)
         temp_prefs.config = ConfigParser(interpolation=None)
         temp_prefs.config.read(temp_prefs._filename) \
@@ -122,8 +122,8 @@ def download_templates(root):
         return None
 
     try:
-        from zipfile import ZipFile
         from io import BytesIO
+        from zipfile import ZipFile
         with ZipFile(BytesIO(result.content)) as zipped:
             # the smallest directory is the root directory
             zip_root = min(     # pylint: disable=consider-using-generator

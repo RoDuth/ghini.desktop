@@ -17,22 +17,29 @@
 """
 Common helpers useful for spatial data.
 """
-import os
 import logging
+import os
+
 logger = logging.getLogger(__name__)
 
 import tempfile
+
 from mako.template import Template
-from pyproj import Transformer, ProjError
-from sqlalchemy import Table, Column, String, select
+from pyproj import ProjError
+from pyproj import Transformer
+from sqlalchemy import Column
+from sqlalchemy import String
+from sqlalchemy import Table
+from sqlalchemy import select
 
 import bauble
-from bauble import utils
-from bauble.paths import main_is_frozen, main_dir
-from bauble.meta import confirm_default
-from bauble import db
 from bauble import btypes
+from bauble import db
+from bauble import utils
 from bauble.error import check
+from bauble.meta import confirm_default
+from bauble.paths import main_dir
+from bauble.paths import main_is_frozen
 
 if main_is_frozen():
     import pyproj
@@ -144,6 +151,7 @@ prj_crs = Table('prj_crs',
 def install_default_prjs():
     from bauble.paths import lib_dir
     from bauble.plugins.imex.csv_ import CSVRestore
+
     # prj_crs.drop(bind=db.engine, checkfirst=True)
     prj_crs.drop(bind=db.engine)
     path = os.path.join(lib_dir(), "utils", "prj_crs.csv")

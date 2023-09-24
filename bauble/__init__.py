@@ -26,16 +26,20 @@ import logging
 import os
 import sys
 import traceback
+import warnings
 from datetime import datetime
 from shutil import copy2
-import warnings
 from typing import TYPE_CHECKING
 
+
 import gi
+
+gi.require_version("Gdk", "3.0")
 gi.require_version("Gtk", "3.0")
 
 from bauble import paths
 from bauble.version import version
+
 version_tuple = tuple(version.split('.'))
 release_date = datetime.utcfromtimestamp(0)
 release_version = None
@@ -145,8 +149,9 @@ def command_handler(cmd, arg):
     """
     logger.debug('command_handler cmd: %s arg: "%s"', cmd, arg)
     from gi.repository import Gtk
-    from bauble import utils
+
     from bauble import pluginmgr
+    from bauble import utils
     global last_handler
     handler_cls = None
     try:

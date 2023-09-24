@@ -19,9 +19,11 @@
 # test for bauble.meta
 #
 from unittest import mock
+
 from gi.repository import Gtk
 
-from bauble import meta, db
+from bauble import db
+from bauble import meta
 from bauble.test import BaubleTestCase
 
 

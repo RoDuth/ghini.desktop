@@ -20,44 +20,50 @@
 Search functionailty.
 """
 
-import typing
-from abc import ABC, abstractmethod
-from datetime import timedelta, timezone
 import logging
+import typing
+from abc import ABC
+from abc import abstractmethod
+from datetime import timedelta
+from datetime import timezone
+
 logger = logging.getLogger(__name__)
 
 
-from sqlalchemy import or_, and_, select
-from sqlalchemy.orm import class_mapper, Query, Session
-from pyparsing import (Word,
-                       alphas8bit,
-                       removeQuotes,
-                       delimitedList,
-                       Regex,
-                       ZeroOrMore,
-                       OneOrMore,
-                       oneOf,
-                       alphas,
-                       alphanums,
-                       Group,
-                       Literal,
-                       CaselessLiteral,
-                       WordStart,
-                       WordEnd,
-                       srange,
-                       stringEnd,
-                       Keyword,
-                       quotedString,
-                       infixNotation,
-                       opAssoc,
-                       Forward)
+from pyparsing import CaselessLiteral
+from pyparsing import Forward
+from pyparsing import Group
+from pyparsing import Keyword
+from pyparsing import Literal
+from pyparsing import OneOrMore
+from pyparsing import Regex
+from pyparsing import Word
+from pyparsing import WordEnd
+from pyparsing import WordStart
+from pyparsing import ZeroOrMore
+from pyparsing import alphanums
+from pyparsing import alphas
+from pyparsing import alphas8bit
+from pyparsing import delimitedList
+from pyparsing import infixNotation
+from pyparsing import oneOf
+from pyparsing import opAssoc
+from pyparsing import quotedString
+from pyparsing import removeQuotes
+from pyparsing import srange
+from pyparsing import stringEnd
+from sqlalchemy import and_
+from sqlalchemy import or_
+from sqlalchemy import select
+from sqlalchemy.orm import Query
+from sqlalchemy.orm import Session
+from sqlalchemy.orm import class_mapper
 
 import bauble
+from bauble import prefs
+from bauble import utils
 from bauble.db import get_related_class
 from bauble.error import check
-from bauble import utils
-from bauble import prefs
-
 
 result_cache = {}
 """Cache of search strategy results, can use instead of running the search
@@ -380,6 +386,7 @@ class ElementSetExpression(IdentExpression):
 
 def get_datetime(value):
     from dateutil import parser
+
     from .btypes import get_date
     result = get_date(value)
     if not result:

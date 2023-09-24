@@ -24,25 +24,26 @@
 """
 A common set of utility functions used throughout Ghini.
 """
-from collections.abc import Iterable
-from collections import UserDict
-from functools import wraps
-from typing import Any, Union
-from pathlib import Path
-import time
 import datetime
+import inspect
+import logging
 import os
 import re
-import inspect
 import threading
+import time
+from collections import UserDict
+from collections.abc import Iterable
+from functools import wraps
+from pathlib import Path
+from typing import Any
+from typing import Union
 from xml.sax import saxutils
 
-import logging
 logger = logging.getLogger(__name__)
 
-from gi.repository import Gtk
-from gi.repository import GLib
 from gi.repository import GdkPixbuf
+from gi.repository import GLib
+from gi.repository import Gtk
 
 import bauble
 from bauble.error import check
@@ -107,11 +108,13 @@ def copy_picture_with_thumbnail(path, basename=None, rename=None):
 
     return base64 representation of thumbnail
     """
-    from bauble import prefs
     import base64
     import shutil
-    from PIL import Image
     from io import BytesIO
+
+    from PIL import Image
+
+    from bauble import prefs
     if basename is None:
         filename = path
         path, basename = os.path.split(filename)
@@ -642,6 +645,7 @@ def create_message_dialog(msg, typ=Gtk.MessageType.INFO,
                                        context.get_language())
     width = font_metrics.get_approximate_char_width()
     from gi.repository import Pango
+
     # if the character width is less than 300 pixels then set the
     # message dialog's label to be 300 to avoid tiny dialogs
     if width / Pango.SCALE * len(msg) < 300:
@@ -748,6 +752,7 @@ def create_message_details_dialog(msg, details='', typ=Gtk.MessageType.INFO,
                                        context.get_language())
     width = font_metrics.get_approximate_char_width()
     from gi.repository import Pango
+
     # if the character width is less than 300 pixels then set the
     # message dialog's label to be 300 to avoid tiny dialogs
     if width / Pango.SCALE * len(msg) < 300:
@@ -1050,9 +1055,10 @@ def reset_sequence(column):
     This function only works for PostgreSQL database.  It does nothing
     for other database engines.
     """
-    from bauble import db
-    from sqlalchemy.types import Integer
     from sqlalchemy import schema
+    from sqlalchemy.types import Integer
+
+    from bauble import db
     if not db.engine.name == 'postgresql':
         return
 
@@ -1189,8 +1195,13 @@ def ilike(col, val, engine=None):
 
 def range_builder(text):
     """Return a list of numbers from a string range of the form 1-3,4,5"""
-    from pyparsing import (Word, Group, Suppress, delimitedList, nums,
-                           ParseException, ParseResults)
+    from pyparsing import Group
+    from pyparsing import ParseException
+    from pyparsing import ParseResults
+    from pyparsing import Suppress
+    from pyparsing import Word
+    from pyparsing import delimitedList
+    from pyparsing import nums
     rng = Group(Word(nums) + Suppress('-') + Word(nums))
     range_list = delimitedList(rng | Word(nums))
 
