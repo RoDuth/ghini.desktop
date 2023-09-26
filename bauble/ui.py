@@ -55,12 +55,12 @@ class SimpleSearchBox(Gtk.Frame):
     """Privides a simple search for the splash screen."""
 
     def __init__(self):
-        super().__init__(label=_('Simple Search'))
+        super().__init__(label=_("Simple Search"))
         tooltip = _(
-            'Simple search provides a quick way to access basic expression '
-            'searches with the convenience of auto-completion. For more '
-            'advanced searches the query builder provides a better starting '
-            'point.\n\nTo return all of a domain use = *'
+            "Simple search provides a quick way to access basic expression "
+            "searches with the convenience of auto-completion. For more "
+            "advanced searches the query builder provides a better starting "
+            "point.\n\nTo return all of a domain use = *"
         )
         self.set_tooltip_text(tooltip)
         self.domain = None
@@ -69,10 +69,10 @@ class SimpleSearchBox(Gtk.Frame):
         box = Gtk.Box(margin=10)
         self.add(box)
         self.domain_combo = Gtk.ComboBoxText()
-        self.domain_combo.connect('changed', self.on_domain_combo_changed)
+        self.domain_combo.connect("changed", self.on_domain_combo_changed)
         box.add(self.domain_combo)
         self.cond_combo = Gtk.ComboBoxText()
-        for cond in ['=', 'contains', 'like']:
+        for cond in ["=", "contains", "like"]:
             self.cond_combo.append_text(cond)
         self.cond_combo.set_active(0)
         box.add(self.cond_combo)
@@ -84,15 +84,15 @@ class SimpleSearchBox(Gtk.Frame):
         completion.set_minimum_key_length(2)
         completion.set_popup_completion(True)
         self.entry.set_completion(completion)
-        self.entry.connect('activate', self.on_entry_activated)
-        self.entry.connect('changed', self.on_entry_changed)
+        self.entry.connect("activate", self.on_entry_activated)
+        self.entry.connect("changed", self.on_entry_changed)
         box.add(self.entry)
         self.completion_getter = None
 
     def on_entry_activated(self, entry):
         condition = self.cond_combo.get_active_text()
         text = entry.get_text()
-        if text != '*':
+        if text != "*":
             text = repr(text)
         search_str = f"{self.short_domain} {condition} {text}"
         if bauble.gui:
@@ -100,15 +100,19 @@ class SimpleSearchBox(Gtk.Frame):
 
     def on_domain_combo_changed(self, combo):
         from bauble import search
-        mapper_search = search.get_strategy('MapperSearch')
+
+        mapper_search = search.get_strategy("MapperSearch")
         domain = combo.get_active_text()
         # domain is None when resetting
         if domain:
             self.domain, self.columns = mapper_search.domains[domain]
             self.short_domain = min(
-                (min((k, v), key=len) for k, v in
-                 mapper_search.shorthand.items() if v == domain),
-                key=len
+                (
+                    min((k, v), key=len)
+                    for k, v in mapper_search.shorthand.items()
+                    if v == domain
+                ),
+                key=len,
             )
             self.completion_getter = mapper_search.completion_funcs.get(domain)
 
@@ -126,11 +130,14 @@ class SimpleSearchBox(Gtk.Frame):
                 completion_model.append([val])
         else:
             for column in self.columns:
-                vals = (session.query(getattr(self.domain, column))
-                        .filter(utils.ilike(getattr(self.domain, column),
-                                            f'{text}%%'))
-                        .distinct()
-                        .limit(10))
+                vals = (
+                    session.query(getattr(self.domain, column))
+                    .filter(
+                        utils.ilike(getattr(self.domain, column), f"{text}%%")
+                    )
+                    .distinct()
+                    .limit(10)
+                )
                 for val in vals:
                     completion_model.append([str(val[0])])
         session.close()
@@ -138,13 +145,14 @@ class SimpleSearchBox(Gtk.Frame):
 
     def update(self):
         from bauble import search
-        mapper_search = search.get_strategy('MapperSearch')
+
+        mapper_search = search.get_strategy("MapperSearch")
         self.domain_combo.remove_all()
         for domain in sorted(mapper_search.domains.keys()):
             self.domain_combo.append_text(domain)
         self.domain_combo.set_active(0)
         self.cond_combo.set_active(0)
-        self.entry.set_text('')
+        self.entry.set_text("")
 
 
 class DefaultView(pluginmgr.View, Gtk.Box):
@@ -156,6 +164,7 @@ class DefaultView(pluginmgr.View, Gtk.Box):
     DefaultView is related to the SplashCommandHandler, not to the
     view.DefaultCommandHandler
     """
+
     infoboxclass = None
 
     def __init__(self):
@@ -169,11 +178,13 @@ class DefaultView(pluginmgr.View, Gtk.Box):
         self.hbox.set_hexpand(True)
         self.hbox.set_vexpand(True)
 
-        self.vbox = Gtk.Box(homogeneous=False, spacing=0,
-                            orientation=Gtk.Orientation.VERTICAL)
+        self.vbox = Gtk.Box(
+            homogeneous=False, spacing=0, orientation=Gtk.Orientation.VERTICAL
+        )
         image = Gtk.Image()
-        image.set_from_file(os.path.join(paths.lib_dir(), 'images',
-                                         'bauble_logo.png'))
+        image.set_from_file(
+            os.path.join(paths.lib_dir(), "images", "bauble_logo.png")
+        )
         image.set_valign(Gtk.Align.END)
         self.vbox.pack_start(image, True, True, 10)
         self.search_box = SimpleSearchBox()
@@ -186,30 +197,29 @@ class DefaultView(pluginmgr.View, Gtk.Box):
         self.infobox = None
 
     def update(self, *_args):
-        logger.debug('DefaultView::update')
+        logger.debug("DefaultView::update")
 
         self.search_box.update()
 
         if self.infoboxclass and not self.infobox:
-            logger.debug('DefaultView::update - creating infobox')
-            self.infobox = self.infoboxclass()   # pylint: disable=not-callable
+            logger.debug("DefaultView::update - creating infobox")
+            self.infobox = self.infoboxclass()  # pylint: disable=not-callable
             self.hbox.pack_end(self.infobox, False, False, 8)
             self.infobox.set_vexpand(False)
             self.infobox.set_hexpand(False)
             self.infobox.show()
         if self.infobox:
-            logger.debug('DefaultView::update - updating infobox')
+            logger.debug("DefaultView::update - updating infobox")
             self.infobox.update()
 
 
 class SplashCommandHandler(pluginmgr.CommandHandler):
-
     def __init__(self):
         super().__init__()
         if self.view is None:
-            logger.warning('SplashCommandHandler.view is None, expect trouble')
+            logger.warning("SplashCommandHandler.view is None, expect trouble")
 
-    command = ['home', 'splash']
+    command = ["home", "splash"]
     view = None
 
     def get_view(self):
@@ -222,11 +232,10 @@ class SplashCommandHandler(pluginmgr.CommandHandler):
 
 
 class GUI:
-
-    entry_history_pref = 'bauble.history'
-    history_size_pref = 'bauble.history_size'
-    entry_history_pins_pref = 'bauble.history_pins'
-    history_pins_size_pref = 'bauble.history_pins_size'
+    entry_history_pref = "bauble.history"
+    history_size_pref = "bauble.history_size"
+    entry_history_pins_pref = "bauble.history_pins"
+    history_pins_size_pref = "bauble.history_pins_size"
     window_geometry_pref = "bauble.geometry"
 
     _default_history_size = 26
@@ -235,17 +244,17 @@ class GUI:
     # TODO a global approach to css
     _css = Gtk.CssProvider()
     _css.load_from_data(
-        b'.err-bg * {background-image: image(#FF9999);}'
-        b'.inf-bg * {background-image: image(#B6DAF2);}'
-        b'.click-label {color: blue;}'
-        b'.problem {background-color: #FFDCDF;}'
-        b'.problem-bg * {background-image: image(#FFDCDF);}'
-        b'.err-btn * {color: #FF9999;}'
-        b'#unsaved-entry {color: blue;}'
+        b".err-bg * {background-image: image(#FF9999);}"
+        b".inf-bg * {background-image: image(#B6DAF2);}"
+        b".click-label {color: blue;}"
+        b".problem {background-color: #FFDCDF;}"
+        b".problem-bg * {background-image: image(#FFDCDF);}"
+        b".err-btn * {color: #FF9999;}"
+        b"#unsaved-entry {color: blue;}"
     )
     Gtk.StyleContext.add_provider_for_screen(
-        Gdk.Screen.get_default(), _css,
-        Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
+        Gdk.Screen.get_default(), _css, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
+    )
 
     set_view_callbacks = set()
     """Any callbacks added to this list will be called each time the set_view
@@ -257,14 +266,14 @@ class GUI:
     """
 
     def __init__(self):
-        filename = os.path.join(paths.lib_dir(), 'bauble.glade')
+        filename = os.path.join(paths.lib_dir(), "bauble.glade")
         self.widgets = utils.load_widgets(filename)
         self.window = self.widgets.main_window
         self.window.hide()
         self.previous_view = None
         # default location of LICENSE for about window, if not available will
         # be changed when about is first opened
-        self.lic_path = Path(paths.main_dir(), 'share', 'ghini', 'LICENSE')
+        self.lic_path = Path(paths.main_dir(), "share", "ghini", "LICENSE")
 
         # restore the window size
         geometry = prefs.prefs.get(self.window_geometry_pref)
@@ -272,14 +281,14 @@ class GUI:
             self.window.set_default_size(*geometry)
             self.window.set_position(Gtk.WindowPosition.CENTER)
 
-        self.window.connect('destroy', self.on_destroy)
-        self.window.connect('delete-event', self.on_delete_event)
+        self.window.connect("destroy", self.on_destroy)
+        self.window.connect("delete-event", self.on_delete_event)
         self.window.connect("size_allocate", self.on_resize)
         self.window.set_title(self.title)
         actions = (
-            ('cut', self.on_edit_menu_cut),
-            ('copy', self.on_edit_menu_copy),
-            ('paste', self.on_edit_menu_paste),
+            ("cut", self.on_edit_menu_cut),
+            ("copy", self.on_edit_menu_copy),
+            ("paste", self.on_edit_menu_paste),
         )
 
         for name, handler in actions:
@@ -292,39 +301,43 @@ class GUI:
             pixbuf = GdkPixbuf.Pixbuf.new_from_file(bauble.default_icon)
             self.window.set_icon(pixbuf)
         except Exception:  # pylint: disable=broad-except
-            logger.warning(_('Could not load icon from %s'),
-                           bauble.default_icon)
+            logger.warning(
+                _("Could not load icon from %s"), bauble.default_icon
+            )
             logger.warning(traceback.format_exc())
 
         combo = self.widgets.main_comboentry
-        combo.connect('changed', self.on_main_combo_changed)
+        combo.connect("changed", self.on_main_combo_changed)
         model = Gtk.ListStore(str)
         combo.set_model(model)
         self.widgets.main_comboentry_entry.connect(
-            'icon-press',
-            self.on_history_pinned_clicked
+            "icon-press", self.on_history_pinned_clicked
         )
         self.populate_main_entry()
 
         main_entry = combo.get_child()
-        main_entry.connect('activate', self.on_main_entry_activate)
+        main_entry.connect("activate", self.on_main_entry_activate)
         accel_group = Gtk.AccelGroup()
-        main_entry.add_accelerator("grab-focus", accel_group, ord('L'),
-                                   Gdk.ModifierType.CONTROL_MASK,
-                                   Gtk.AccelFlags.VISIBLE)
+        main_entry.add_accelerator(
+            "grab-focus",
+            accel_group,
+            ord("L"),
+            Gdk.ModifierType.CONTROL_MASK,
+            Gtk.AccelFlags.VISIBLE,
+        )
         self.window.add_accel_group(accel_group)
 
-        self.widgets.home_button.connect(
-            'clicked', self.on_home_clicked)
+        self.widgets.home_button.connect("clicked", self.on_home_clicked)
 
         self.widgets.prev_view_button.connect(
-            'clicked', self.on_prev_view_clicked)
+            "clicked", self.on_prev_view_clicked
+        )
 
-        self.widgets.go_button.connect(
-            'clicked', self.on_go_button_clicked)
+        self.widgets.go_button.connect("clicked", self.on_go_button_clicked)
 
         self.widgets.query_button.connect(
-            'clicked', self.on_query_button_clicked)
+            "clicked", self.on_query_button_clicked
+        )
 
         self.set_default_view()
 
@@ -339,7 +352,7 @@ class GUI:
             if context_id not in self._cids:
                 self._cids.append(context_id)
 
-        statusbar.connect('text-pushed', on_statusbar_push)
+        statusbar.connect("text-pushed", on_statusbar_push)
 
         # remove label from frame
         frame = statusbar.get_children()[0]
@@ -350,8 +363,9 @@ class GUI:
         hbox = Gtk.Box(homogeneous=False, spacing=5)
         frame.add(hbox)
         hbox.pack_start(label, True, True, 0)
-        vbox = Gtk.Box(homogeneous=True, spacing=0,
-                       orientation=Gtk.Orientation.VERTICAL)
+        vbox = Gtk.Box(
+            homogeneous=True, spacing=0, orientation=Gtk.Orientation.VERTICAL
+        )
         hbox.pack_end(vbox, False, True, 15)
         self.progressbar = Gtk.ProgressBar()
         vbox.pack_start(self.progressbar, False, False, 0)
@@ -359,10 +373,11 @@ class GUI:
         vbox.show()
         hbox.show()
 
-        cmd = StringStart() + ':' + Word(
-            alphanums + '-_').setResultsName('cmd')
-        arg = restOfLine.setResultsName('arg')
-        self.cmd_parser = (cmd + StringEnd()) | (cmd + '=' + arg) | arg
+        cmd = (
+            StringStart() + ":" + Word(alphanums + "-_").setResultsName("cmd")
+        )
+        arg = restOfLine.setResultsName("arg")
+        self.cmd_parser = (cmd + StringEnd()) | (cmd + "=" + arg) | arg
 
         combo.grab_focus()
 
@@ -375,9 +390,9 @@ class GUI:
         """
         action = Gio.SimpleAction.new(name, param_type)
         if value:
-            action.connect('activate', handler, value)
+            action.connect("activate", handler, value)
         else:
-            action.connect('activate', handler)
+            action.connect("activate", handler)
         self.window.add_action(action)
         return action
 
@@ -394,30 +409,33 @@ class GUI:
 
     def show_yesno_box(self, msg):
         self.close_message_box()
-        box = utils.add_message_box(self.widgets.msg_box_parent,
-                                    utils.MESSAGE_BOX_YESNO)
+        box = utils.add_message_box(
+            self.widgets.msg_box_parent, utils.MESSAGE_BOX_YESNO
+        )
         box.message = msg
         box.show()
 
     def show_error_box(self, msg, details=None):
         self.close_message_box()
-        box = utils.add_message_box(self.widgets.msg_box_parent,
-                                    utils.MESSAGE_BOX_INFO)
+        box = utils.add_message_box(
+            self.widgets.msg_box_parent, utils.MESSAGE_BOX_INFO
+        )
         box.message = msg
         box.details = details
         # set red background
-        box.get_style_context().add_class('err-bg')
+        box.get_style_context().add_class("err-bg")
 
         box.show()
 
     def show_message_box(self, msg):
         """Show an info message in the message drop down box."""
         self.close_message_box()
-        box = utils.add_message_box(self.widgets.msg_box_parent,
-                                    utils.MESSAGE_BOX_INFO)
+        box = utils.add_message_box(
+            self.widgets.msg_box_parent, utils.MESSAGE_BOX_INFO
+        )
         box.message = msg
         # set a light blue background
-        box.get_style_context().add_class('inf-bg')
+        box.get_style_context().add_class("inf-bg")
 
         box.show()
 
@@ -449,24 +467,31 @@ class GUI:
         history_pins = prefs.prefs.get(self.entry_history_pins_pref, [])
         text = entry.get_text()
         if text in history_pins:
-            entry.set_icon_from_icon_name(Gtk.EntryIconPosition.SECONDARY,
-                                          'starred-symbolic')
-            tooltip = _('Query string is a favourite: click to return it the '
-                        'standard search history.')
+            entry.set_icon_from_icon_name(
+                Gtk.EntryIconPosition.SECONDARY, "starred-symbolic"
+            )
+            tooltip = _(
+                "Query string is a favourite: click to return it the "
+                "standard search history."
+            )
             entry.set_icon_tooltip_text(
-                Gtk.EntryIconPosition.SECONDARY,
-                tooltip)
+                Gtk.EntryIconPosition.SECONDARY, tooltip
+            )
         elif not text:
-            entry.set_icon_from_icon_name(Gtk.EntryIconPosition.SECONDARY,
-                                          None)
+            entry.set_icon_from_icon_name(
+                Gtk.EntryIconPosition.SECONDARY, None
+            )
         else:
-            entry.set_icon_from_icon_name(Gtk.EntryIconPosition.SECONDARY,
-                                          'non-starred-symbolic')
-            tooltip = _('Clip this query string to the top of your search '
-                        'history as a favourite')
+            entry.set_icon_from_icon_name(
+                Gtk.EntryIconPosition.SECONDARY, "non-starred-symbolic"
+            )
+            tooltip = _(
+                "Clip this query string to the top of your search "
+                "history as a favourite"
+            )
             entry.set_icon_tooltip_text(
-                Gtk.EntryIconPosition.SECONDARY,
-                tooltip)
+                Gtk.EntryIconPosition.SECONDARY, tooltip
+            )
 
     def on_main_entry_activate(self, _widget):
         self.widgets.go_button.emit("clicked")
@@ -474,34 +499,34 @@ class GUI:
     @staticmethod
     def on_home_clicked(*_args):
         # Need args here to use from both menu action and button
-        bauble.command_handler('home', None)
+        bauble.command_handler("home", None)
 
     def on_prev_view_clicked(self, *_args):
         # Need args here to use from both menu action and button
-        self.widgets.main_comboentry.get_child().set_text('')
-        self.set_view('previous')
+        self.widgets.main_comboentry.get_child().set_text("")
+        self.set_view("previous")
 
     def on_go_button_clicked(self, _widget):
         self.close_message_box()
         text = self.widgets.main_comboentry.get_child().get_text()
-        if text == '':
+        if text == "":
             return
         self.add_to_history(text)
         tokens = self.cmd_parser.parseString(text)
-        cmd = tokens.get('cmd')
-        arg = tokens.get('arg')
+        cmd = tokens.get("cmd")
+        arg = tokens.get("arg")
 
         bauble.command_handler(cmd, arg)
 
     def on_query_button_clicked(self, _widget):
         gladefilepath = os.path.join(paths.lib_dir(), "querybuilder.glade")
         view = GenericEditorView(
-            gladefilepath,
-            parent=None,
-            root_widget_name='main_dialog')
+            gladefilepath, parent=None, root_widget_name="main_dialog"
+        )
         query_builder = QueryBuilder(view)
         query_builder.set_query(
-            self.widgets.main_comboentry.get_child().get_text())
+            self.widgets.main_comboentry.get_child().get_text()
+        )
         response = query_builder.start()
         if response == Gtk.ResponseType.OK:
             query = query_builder.get_query()
@@ -548,8 +573,12 @@ class GUI:
             return
 
         if index < 0 or index > self.history_size:
-            raise ValueError(_('index must be greater than zero and less than '
-                               'the history size'))
+            raise ValueError(
+                _(
+                    "index must be greater than zero and less than "
+                    "the history size"
+                )
+            )
         history = prefs.prefs.get(self.entry_history_pref, [])
         if text in history:
             history.remove(text)
@@ -572,7 +601,7 @@ class GUI:
         main_combo = self.widgets.main_comboentry
 
         def separate(model, tree_iter):
-            if model.get(tree_iter, 0) == ('--separator--', ):
+            if model.get(tree_iter, 0) == ("--separator--",):
                 return True
             return False
 
@@ -595,36 +624,48 @@ class GUI:
 
         if history_pins is not None:
             for pin in history_pins:
-                logger.debug('adding pin to main entry: %s', pin)
-                model.append([pin, ])
+                logger.debug("adding pin to main entry: %s", pin)
+                model.append(
+                    [
+                        pin,
+                    ]
+                )
                 compl_model.append([pin])
 
-        model.append(['--separator--', ])
+        model.append(
+            [
+                "--separator--",
+            ]
+        )
 
         if history is not None:
             for herstory in history:
-                model.append([herstory, ])
+                model.append(
+                    [
+                        herstory,
+                    ]
+                )
                 compl_model.append([herstory])
 
     @property
     def title(self):
         if bauble.conn_name is None:
-            return f'Ghini {bauble.version}'
-        return f'Ghini {bauble.version} - {bauble.conn_name}'
+            return f"Ghini {bauble.version}"
+        return f"Ghini {bauble.version} - {bauble.conn_name}"
 
     def set_busy_actions(self, busy: bool) -> None:
         for action in self.disable_on_busy_actions:
             action.set_enabled(not busy)
 
-    def set_busy(self, busy, name='wait'):
+    def set_busy(self, busy, name="wait"):
         if busy:
             display = Gdk.Display.get_default()
             cursor = Gdk.Cursor.new_from_name(display, name)
-            window = self.window.get_property('window')
+            window = self.window.get_property("window")
             if window:
                 window.set_cursor(cursor)
         else:
-            window = self.window.get_property('window')
+            window = self.window.get_property("window")
             if window:
                 window.set_cursor(None)
         self.set_busy_actions(busy)
@@ -633,7 +674,7 @@ class GUI:
     def set_default_view(self):
         main_entry = self.widgets.main_comboentry.get_child()
         if main_entry is not None:
-            main_entry.set_text('')
+            main_entry.set_text("")
         SplashCommandHandler.view = DefaultView()
         self.set_view(SplashCommandHandler.view)
         pluginmgr.register_command(SplashCommandHandler)
@@ -643,7 +684,7 @@ class GUI:
 
         :param view: default=None
         """
-        if view == 'previous':
+        if view == "previous":
             view = self.previous_view
             self.previous_view = None
         if view is None:
@@ -684,15 +725,14 @@ class GUI:
         return the menubar
         """
         menu_builder = Gtk.Builder()
-        menu_builder.add_from_file(os.path.join(paths.lib_dir(),
-                                                'bauble.ui'))
+        menu_builder.add_from_file(os.path.join(paths.lib_dir(), "bauble.ui"))
         menu_builder.connect_signals(self)
-        self.menubar = menu_builder.get_object('menubar')
+        self.menubar = menu_builder.get_object("menubar")
 
-        self.insert_menu = menu_builder.get_object('insert_menu')
-        self.edit_context_menu = menu_builder.get_object('edit_context_menu')
-        self.tools_menu = menu_builder.get_object('tools_menu')
-        self.options_menu = menu_builder.get_object('options_menu')
+        self.insert_menu = menu_builder.get_object("insert_menu")
+        self.edit_context_menu = menu_builder.get_object("edit_context_menu")
+        self.tools_menu = menu_builder.get_object("tools_menu")
+        self.options_menu = menu_builder.get_object("options_menu")
 
         return self.menubar
 
@@ -719,12 +759,12 @@ class GUI:
         :param editor: the editor to add to the menu
         :param label: the label for the menu item
         """
-        action_name = f'{label.lower()}_activated'
-        action = self.add_action(action_name,
-                                 self.on_insert_menu_item_activate,
-                                 editor)
+        action_name = f"{label.lower()}_activated"
+        action = self.add_action(
+            action_name, self.on_insert_menu_item_activate, editor
+        )
         self.disable_on_busy_actions.add(action)
-        item = Gio.MenuItem.new(label, f'win.{action_name}')
+        item = Gio.MenuItem.new(label, f"win.{action_name}")
         self.insert_menu.append_item(item)
 
     def build_tools_menu(self):
@@ -734,25 +774,25 @@ class GUI:
         """
         item_num = 0
         self.tools_menu.remove_all()
-        tools = {'__root': []}
+        tools = {"__root": []}
         # categorize the tools into a dict
         for plugin in list(pluginmgr.plugins.values()):
             for tool in plugin.tools:
                 if tool.category is not None:
                     tools.setdefault(tool.category, []).append(tool)
                 else:
-                    tools['__root'].append(tool)
+                    tools["__root"].append(tool)
 
         # add the tools with no category to the root menu
-        root_tools = sorted(tools.pop('__root'), key=lambda tool: tool.label)
+        root_tools = sorted(tools.pop("__root"), key=lambda tool: tool.label)
         for tool in root_tools:
-            action_name = f'tool{item_num}_activated'
+            action_name = f"tool{item_num}_activated"
             item_num += 1
-            action = self.add_action(action_name,
-                                     self.on_tools_menu_item_activate,
-                                     tool)
+            action = self.add_action(
+                action_name, self.on_tools_menu_item_activate, tool
+            )
             self.disable_on_busy_actions.add(action)
-            item = Gio.MenuItem.new(tool.label, f'win.{action_name}')
+            item = Gio.MenuItem.new(tool.label, f"win.{action_name}")
             self.tools_menu.append_item(item)
             if not tool.enabled:
                 item.set_sensitive(False)
@@ -762,13 +802,13 @@ class GUI:
             submenu = Gio.Menu()
             self.tools_menu.append_submenu(category, submenu)
             for tool in sorted(tools[category], key=lambda tool: tool.label):
-                action_name = f'tool{item_num}_activated'
+                action_name = f"tool{item_num}_activated"
                 item_num += 1
-                action = self.add_action(action_name,
-                                         self.on_tools_menu_item_activate,
-                                         tool)
+                action = self.add_action(
+                    action_name, self.on_tools_menu_item_activate, tool
+                )
                 self.disable_on_busy_actions.add(action)
-                item = Gio.MenuItem.new(tool.label, f'win.{action_name}')
+                item = Gio.MenuItem.new(tool.label, f"win.{action_name}")
                 submenu.append_item(item)
                 if not tool.enabled:
                     item.set_sensitive(False)
@@ -779,9 +819,11 @@ class GUI:
         try:
             tool.start()
         except Exception as e:  # pylint: disable=broad-except
-            utils.message_details_dialog(utils.xml_safe(str(e)),
-                                         traceback.format_exc(),
-                                         Gtk.MessageType.ERROR)
+            utils.message_details_dialog(
+                utils.xml_safe(str(e)),
+                traceback.format_exc(),
+                Gtk.MessageType.ERROR,
+            )
             logger.debug(traceback.format_exc())
 
     def on_insert_menu_item_activate(self, _action, _param, editor_cls):
@@ -802,18 +844,21 @@ class GUI:
                 view.results_view.collapse_all()
                 view.expand_to_all_rows(expanded_rows)
         except Exception as e:  # pylint: disable=broad-except
-            utils.message_details_dialog(utils.xml_safe(str(e)),
-                                         traceback.format_exc(),
-                                         Gtk.MessageType.ERROR)
-            logger.error("%s(%s)\n%s", type(e).__name__, e,
-                         traceback.format_exc())
+            utils.message_details_dialog(
+                utils.xml_safe(str(e)),
+                traceback.format_exc(),
+                Gtk.MessageType.ERROR,
+            )
+            logger.error(
+                "%s(%s)\n%s", type(e).__name__, e, traceback.format_exc()
+            )
             return
 
         if editor is None:
             return
 
         presenter_cls = view_cls = None
-        if hasattr(editor, 'presenter'):
+        if hasattr(editor, "presenter"):
             presenter_cls = type(editor.presenter)
             view_cls = type(editor.presenter.view)
 
@@ -823,15 +868,15 @@ class GUI:
         # check for leaks
         obj = utils.gc_objects_by_type(editor_cls)
         if obj != []:
-            logger.warning('%s leaked: %s', editor_cls.__name__, obj)
+            logger.warning("%s leaked: %s", editor_cls.__name__, obj)
 
         if presenter_cls:
             obj = utils.gc_objects_by_type(presenter_cls)
             if obj != []:
-                logger.warning('%s leaked: %s', presenter_cls.__name__, obj)
+                logger.warning("%s leaked: %s", presenter_cls.__name__, obj)
             obj = utils.gc_objects_by_type(view_cls)
             if obj != []:
-                logger.warning('%s leaked: %s', view_cls.__name__, obj)
+                logger.warning("%s leaked: %s", view_cls.__name__, obj)
 
     def on_edit_menu_cut(self, _action, _param):
         self.widgets.main_comboentry.get_child().cut_clipboard()
@@ -844,30 +889,33 @@ class GUI:
 
     @staticmethod
     def on_edit_menu_preferences(_action, _param):
-        bauble.command_handler('prefs', None)
+        bauble.command_handler("prefs", None)
 
     @staticmethod
     def on_edit_menu_history(_action, _param):
-        bauble.command_handler('history', None)
+        bauble.command_handler("history", None)
 
     def on_file_menu_new(self, _action, _param):
-        msg = _("<b>CAUTION! This will wipe all data for the current "
-                "connection</b>\n\n"
-                "If a database already exists at this connection then "
-                "creating a new database will destroy your current data.\n\n"
-                "<i>Are you sure this is what you want to do?</i>")
+        msg = _(
+            "<b>CAUTION! This will wipe all data for the current "
+            "connection</b>\n\n"
+            "If a database already exists at this connection then "
+            "creating a new database will destroy your current data.\n\n"
+            "<i>Are you sure this is what you want to do?</i>"
+        )
 
         if not utils.yes_no_dialog(msg, yes_delay=2):
             return
 
-        bauble.command_handler('home', None)
+        bauble.command_handler("home", None)
         try:
             self.insert_menu.remove_all()
             db.create()
             pluginmgr.init()
         except Exception as e:  # pylint: disable=broad-except
-            msg = (_('Could not create a new database.\n\n%s') %
-                   utils.xml_safe(e))
+            msg = _("Could not create a new database.\n\n%s") % utils.xml_safe(
+                e
+            )
             traceb = utils.xml_safe(traceback.format_exc())
             utils.message_details_dialog(msg, traceb, Gtk.MessageType.ERROR)
             return
@@ -875,6 +923,7 @@ class GUI:
     def on_file_menu_open(self, _action, _param):
         """Open the connection manager."""
         from .connmgr import start_connection_manager
+
         name, uri = start_connection_manager()
         if name is None:
             return
@@ -883,9 +932,10 @@ class GUI:
         try:
             engine = db.open_conn(uri, True, True)
         except Exception as e:  # pylint: disable=broad-except
-            msg = (_("Could not open connection.\n\n%s") % e)
-            utils.message_details_dialog(msg, traceback.format_exc(),
-                                         Gtk.MessageType.ERROR)
+            msg = _("Could not open connection.\n\n%s") % e
+            utils.message_details_dialog(
+                msg, traceback.format_exc(), Gtk.MessageType.ERROR
+            )
             logger.warning(e)
             self.on_file_menu_open(None, None)
 
@@ -907,7 +957,7 @@ class GUI:
         self.insert_menu.remove_all()
         self.statusbar_clear()
         pluginmgr.init()
-        bauble.command_handler('home', None)
+        bauble.command_handler("home", None)
 
     def statusbar_clear(self):
         """Call Gtk.Statusbar.pop() for each context_id that had previously
@@ -924,24 +974,29 @@ class GUI:
 
     @staticmethod
     def on_help_menu_contents(_action, _param):
-        desktop.open('http://ghini.readthedocs.io/en/ghini-1.0-dev/',
-                     dialog_on_error=True)
+        desktop.open(
+            "http://ghini.readthedocs.io/en/ghini-1.0-dev/",
+            dialog_on_error=True,
+        )
 
     @staticmethod
     def on_help_menu_bug(_action, _param):
-        desktop.open('https://github.com/RoDuth/ghini.desktop/issues/new',
-                     dialog_on_error=True)
+        desktop.open(
+            "https://github.com/RoDuth/ghini.desktop/issues/new",
+            dialog_on_error=True,
+        )
 
     @staticmethod
     def on_help_menu_logfile(_action, _param):
-        logger.debug('opening log file from help menu')
-        filename = os.path.join(paths.appdata_dir(), 'bauble.log')
+        logger.debug("opening log file from help menu")
+        filename = os.path.join(paths.appdata_dir(), "bauble.log")
         desktop.open(filename, dialog_on_error=True)
 
     @staticmethod
     def on_help_menu_web_devel(_action, _param):
-        desktop.open('http://github.com/RoDuth/ghini.desktop/',
-                     dialog_on_error=True)
+        desktop.open(
+            "http://github.com/RoDuth/ghini.desktop/", dialog_on_error=True
+        )
 
     # @staticmethod
     # def on_help_menu_web_wiki(_action, _param):
@@ -955,44 +1010,52 @@ class GUI:
 
     def on_help_menu_about(self, _action, _param):
         about = Gtk.AboutDialog(transient_for=self.window)
-        about.set_program_name('Ghini (BBG)')
+        about.set_program_name("Ghini (BBG)")
         about.set_version(bauble.version)
-        about.set_website(_('http://ghini.github.io'))
-        f = os.path.join(paths.lib_dir(), 'images', 'icon.svg')
-        logger.debug('about using icon: %s', f)
+        about.set_website(_("http://ghini.github.io"))
+        f = os.path.join(paths.lib_dir(), "images", "icon.svg")
+        logger.debug("about using icon: %s", f)
         pixbuf = GdkPixbuf.Pixbuf.new_from_file(f)
         about.set_logo(pixbuf)
-        about.set_copyright(_('Copyright © by its contributors.'))
+        about.set_copyright(_("Copyright © by its contributors."))
 
         if not self.lic_path.exists():
             # most likely only when run from source
-            self.lic_path = list(paths.root_dir().glob('**/LICENSE'))[0]
+            self.lic_path = list(paths.root_dir().glob("**/LICENSE"))[0]
 
-        logger.debug('about using license at %s', self.lic_path)
+        logger.debug("about using license at %s", self.lic_path)
 
-        with self.lic_path.open('r', encoding='utf-8') as f:
+        with self.lic_path.open("r", encoding="utf-8") as f:
             lics = f.read()
         about.set_license(lics)  # not translated
-        about.set_comments(_('This version installed on: %s\n'
-                             'Latest published version: %s\n'
-                             'Publication date: %s') % (
-                                 bauble.installation_date.strftime(
-                                     prefs.prefs.get(datetime_format_pref)),
-                                 bauble.release_version,
-                                 bauble.release_date.strftime(
-                                     prefs.prefs.get(datetime_format_pref))))
+        about.set_comments(
+            _(
+                "This version installed on: %s\n"
+                "Latest published version: %s\n"
+                "Publication date: %s"
+            )
+            % (
+                bauble.installation_date.strftime(
+                    prefs.prefs.get(datetime_format_pref)
+                ),
+                bauble.release_version,
+                bauble.release_date.strftime(
+                    prefs.prefs.get(datetime_format_pref)
+                ),
+            )
+        )
         about.run()
         about.destroy()
 
     @staticmethod
     def on_delete_event(_widget, _event):
         if bauble.task.running():
-            msg = _('Would you like to cancel the current tasks?')
+            msg = _("Would you like to cancel the current tasks?")
             if not utils.yes_no_dialog(msg):
                 # stop other handlers from being invoked for this event
                 return True
             bauble.task.kill()
-            msg = _('Close Ghini?')
+            msg = _("Close Ghini?")
             if not utils.yes_no_dialog(msg):
                 # don't close
                 return True

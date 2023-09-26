@@ -68,9 +68,13 @@ from .species_model import red_list_values
 
 # imported by clients of this modules
 __all__ = [
-    'SpeciesDistribution', 'SpeciesEditorPresenter', 'SpeciesEditorView',
-    'SpeciesEditor', 'edit_species', 'DefaultVernacularName',
-    'SpeciesNote'
+    "SpeciesDistribution",
+    "SpeciesEditorPresenter",
+    "SpeciesEditorView",
+    "SpeciesEditor",
+    "edit_species",
+    "DefaultVernacularName",
+    "SpeciesNote",
 ]
 
 # TODO: we need to make sure that this will still work if the
@@ -91,24 +95,29 @@ def remove_callback(values):
     The callback function to remove a species from the species context menu.
     """
     from bauble.plugins.garden.accession import Accession
+
     species = values[0]
     s_lst = []
     session = object_session(species)
     for species in values:
         if isinstance(species, VernacularName):
             species = species.species
-        nacc = session.query(Accession).filter_by(
-            species_id=species.id).count()
+        nacc = (
+            session.query(Accession).filter_by(species_id=species.id).count()
+        )
         safe_str = utils.xml_safe(str(species))
         s_lst.append(safe_str)
         if nacc > 0:
-            msg = (_('The species <i>%(1)s</i> has %(2)s accessions.'
-                     '\n\n') % {'1': safe_str, '2': nacc} +
-                   _('You cannot remove a species with accessions.'))
+            msg = _(
+                "The species <i>%(1)s</i> has %(2)s accessions." "\n\n"
+            ) % {"1": safe_str, "2": nacc} + _(
+                "You cannot remove a species with accessions."
+            )
             utils.message_dialog(msg, typ=Gtk.MessageType.WARNING)
             return False
-    msg = _("Are you sure you want to remove the following species "
-            "<i>%s</i>?") % ', '.join(i for i in s_lst)
+    msg = _(
+        "Are you sure you want to remove the following species <i>%s</i>?"
+    ) % ", ".join(i for i in s_lst)
     if not utils.yes_no_dialog(msg):
         return False
     for species in values:
@@ -117,9 +126,10 @@ def remove_callback(values):
         utils.remove_from_results_view(values)
         session.commit()
     except Exception as e:  # pylint: disable=broad-except
-        msg = _('Could not delete.\n\n%s') % utils.xml_safe(e)
-        utils.message_details_dialog(msg, traceback.format_exc(),
-                                     Gtk.MessageType.ERROR)
+        msg = _("Could not delete.\n\n%s") % utils.xml_safe(e)
+        utils.message_details_dialog(
+            msg, traceback.format_exc(), Gtk.MessageType.ERROR
+        )
         session.rollback()
     return True
 
@@ -127,6 +137,7 @@ def remove_callback(values):
 def add_accession_callback(values):
     from bauble.plugins.garden.accession import Accession
     from bauble.plugins.garden.accession import AccessionEditor
+
     session = db.Session()
     species = session.merge(values[0])
     if isinstance(species, VernacularName):
@@ -136,21 +147,30 @@ def add_accession_callback(values):
     return e.start() is not None
 
 
-edit_action = Action('species_edit', _('_Edit'),
-                     callback=edit_callback,
-                     accelerator='<ctrl>e')
-add_accession_action = Action('species_acc_add', _('_Add accession'),
-                              callback=add_accession_callback,
-                              accelerator='<ctrl>k')
-remove_action = Action('species_remove', _('_Delete'),
-                       callback=remove_callback,
-                       accelerator='<ctrl>Delete', multiselect=True)
+edit_action = Action(
+    "species_edit", _("_Edit"), callback=edit_callback, accelerator="<ctrl>e"
+)
+add_accession_action = Action(
+    "species_acc_add",
+    _("_Add accession"),
+    callback=add_accession_callback,
+    accelerator="<ctrl>k",
+)
+remove_action = Action(
+    "species_remove",
+    _("_Delete"),
+    callback=remove_callback,
+    accelerator="<ctrl>Delete",
+    multiselect=True,
+)
 
-distribution_map_action = Action('acc_dist_map',
-                                 _('Show distribution in _map'),
-                                 callback=map_kml_callback,
-                                 accelerator='<ctrl>m',
-                                 multiselect=True)
+distribution_map_action = Action(
+    "acc_dist_map",
+    _("Show distribution in _map"),
+    callback=map_kml_callback,
+    accelerator="<ctrl>m",
+    multiselect=True,
+)
 
 species_context_menu = [edit_action, remove_action, distribution_map_action]
 
@@ -183,8 +203,8 @@ class SynonymSearch(search.SearchStrategy):
     @staticmethod
     def use(_text):
         if prefs.prefs.get(prefs.return_accepted_pref):
-            return 'include'
-        return 'exclude'
+            return "include"
+        return "exclude"
 
     @staticmethod
     def get_ids(mapper_results):
@@ -216,7 +236,7 @@ class SynonymSearch(search.SearchStrategy):
         if not prefs.prefs.get(prefs.return_accepted_pref):
             # filter should prevent us getting here.
             return []
-        mapper_results = search.result_cache.get('MapperSearch')
+        mapper_results = search.result_cache.get("MapperSearch")
         if not mapper_results:
             return []
         ids = self.get_ids(mapper_results)
@@ -227,24 +247,34 @@ class SynonymSearch(search.SearchStrategy):
             # vernacular names are a special case.  Only returning if both
             # accepted and synonym have a VernacularName entry.
             if models[0] == VernacularName:
-                syn_model_id = getattr(models[1], 'species_id')
-                syn_id = getattr(models[1], 'synonym_id')
-                query = (session.query(models[0])
-                         .join(Species)
-                         .join(SpeciesSynonym, syn_model_id == Species.id)
-                         .filter(syn_id.in_(id_set)))
+                syn_model_id = getattr(models[1], "species_id")
+                syn_id = getattr(models[1], "synonym_id")
+                query = (
+                    session.query(models[0])
+                    .join(Species)
+                    .join(SpeciesSynonym, syn_model_id == Species.id)
+                    .filter(syn_id.in_(id_set))
+                )
             else:
-                id_ = getattr(models[0], 'id')
-                syn_model_id = getattr(models[1],
-                                       models[0].__tablename__ + '_id')
-                syn_id = getattr(models[1], 'synonym_id')
-                query = (session.query(models[0])
-                         .join(models[1], syn_model_id == id_)
-                         .filter(syn_id.in_(id_set)))
-            if (prefs.prefs.get(prefs.exclude_inactive_pref) and
-                    hasattr(models[0], 'active')):
-                query = query.filter(or_(models[0].active.is_(True),
-                                         models[1].synonym.has(active=True)))
+                id_ = getattr(models[0], "id")
+                syn_model_id = getattr(
+                    models[1], models[0].__tablename__ + "_id"
+                )
+                syn_id = getattr(models[1], "synonym_id")
+                query = (
+                    session.query(models[0])
+                    .join(models[1], syn_model_id == id_)
+                    .filter(syn_id.in_(id_set))
+                )
+            if prefs.prefs.get(prefs.exclude_inactive_pref) and hasattr(
+                models[0], "active"
+            ):
+                query = query.filter(
+                    or_(
+                        models[0].active.is_(True),
+                        models[1].synonym.has(active=True),
+                    )
+                )
 
             queries.append(query)
         return queries
@@ -257,7 +287,7 @@ class VernacularExpander(InfoExpander):
     :param widgets:
     """
 
-    EXPANDED_PREF = 'infobox.species_vernacular_expanded'
+    EXPANDED_PREF = "infobox.species_vernacular_expanded"
 
     def __init__(self, widgets):
         super().__init__(_("Vernacular names"), widgets)
@@ -276,21 +306,22 @@ class VernacularExpander(InfoExpander):
             self.unhide_widgets()
             names = []
             for vernacular in row.vernacular_names:
-                if (row.default_vernacular_name is not None and
-                        vernacular == row.default_vernacular_name):
+                if (
+                    row.default_vernacular_name is not None
+                    and vernacular == row.default_vernacular_name
+                ):
                     names.insert(
                         0,
-                        f'{vernacular.name} - {vernacular.language} (default)'
+                        f"{vernacular.name} - {vernacular.language} (default)",
                     )
                 else:
-                    names.append(f'{vernacular.name} - {vernacular.language}')
-            self.widget_set_value('sp_vernacular_data', '\n'.join(names))
+                    names.append(f"{vernacular.name} - {vernacular.language}")
+            self.widget_set_value("sp_vernacular_data", "\n".join(names))
             self.set_sensitive(True)
 
 
 class SynonymsExpander(InfoExpander):
-
-    EXPANDED_PREF = 'infobox.species_synonyms_expanded'
+    EXPANDED_PREF = "infobox.species_synonyms_expanded"
 
     def __init__(self, widgets):
         super().__init__(_("Synonyms"), widgets)
@@ -342,6 +373,7 @@ class SynonymsExpander(InfoExpander):
 
 class GeneralSpeciesExpander(InfoExpander):
     """expander to present general information about a species"""
+
     custom_columns = set()
     current_db = None
 
@@ -356,43 +388,45 @@ class GeneralSpeciesExpander(InfoExpander):
         self.current_obj = None
 
         def on_nacc_clicked(*_args):
-            cmd = f'accession where species.id={self.current_obj.id}'
+            cmd = f"accession where species.id={self.current_obj.id}"
             bauble.gui.send_command(cmd)
 
-        utils.make_label_clickable(self.widgets.sp_nacc_data,
-                                   on_nacc_clicked)
+        utils.make_label_clickable(self.widgets.sp_nacc_data, on_nacc_clicked)
 
         def on_nplants_clicked(*_args):
-            cmd = f'plant where accession.species.id={self.current_obj.id}'
+            cmd = f"plant where accession.species.id={self.current_obj.id}"
             bauble.gui.send_command(cmd)
 
-        utils.make_label_clickable(self.widgets.sp_nplants_data,
-                                   on_nplants_clicked)
+        utils.make_label_clickable(
+            self.widgets.sp_nplants_data, on_nplants_clicked
+        )
 
-        self._setup_custom_column('_sp_custom1')
-        self._setup_custom_column('_sp_custom2')
+        self._setup_custom_column("_sp_custom1")
+        self._setup_custom_column("_sp_custom2")
 
     def _setup_custom_column(self, column_name):
         self.__class__.current_db = id(db.engine.url)
         session = bauble.db.Session()
-        custom_meta = (session.query(bauble.meta.BaubleMeta)
-                       .filter(bauble.meta.BaubleMeta.name == column_name)
-                       .first())
+        custom_meta = (
+            session.query(bauble.meta.BaubleMeta)
+            .filter(bauble.meta.BaubleMeta.name == column_name)
+            .first()
+        )
         session.close()
         # pylint: disable=protected-access
         if custom_meta:
             self.__class__.custom_columns.add(column_name)
             custom_meta = literal_eval(custom_meta.value)
-            display_name = custom_meta.get('display_name')
+            display_name = custom_meta.get("display_name")
             if display_name:
-                label = self.widgets.get(column_name + '_label')
-                label.set_text(display_name + ':')
-                data_label = self.widgets.get(column_name + '_data')
+                label = self.widgets.get(column_name + "_label")
+                label.set_text(display_name + ":")
+                data_label = self.widgets.get(column_name + "_data")
                 utils.unhide_widgets((label, data_label))
         else:
             for col in self.custom_columns:
-                label = self.widgets.get(col + '_label')
-                data_label = self.widgets.get(col + '_data')
+                label = self.widgets.get(col + "_label")
+                data_label = self.widgets.get(col + "_data")
                 utils.hide_widgets((label, data_label))
             self.__class__.custom_columns = set()
 
@@ -403,51 +437,55 @@ class GeneralSpeciesExpander(InfoExpander):
         """
         # In case of connection change
         if self.current_db != id(db.engine.url):
-            self._setup_custom_column('_sp_custom1')
-            self._setup_custom_column('_sp_custom2')
+            self._setup_custom_column("_sp_custom1")
+            self._setup_custom_column("_sp_custom2")
 
         self.current_obj = row
         session = object_session(row)
 
         # Link to family
-        self.widget_set_value('sp_fam_data',
-                              f'<small>({row.genus.family.family})</small>',
-                              markup=True)
-        utils.make_label_clickable(self.widgets.sp_fam_data,
-                                   on_taxa_clicked,
-                                   row.genus.family)
-        genus = row.genus.markup()
-        self.widget_set_value('sp_gen_data',
-                              f'<big>{genus}</big>',
-                              markup=True)
+        self.widget_set_value(
+            "sp_fam_data",
+            f"<small>({row.genus.family.family})</small>",
+            markup=True,
+        )
         utils.make_label_clickable(
-            self.widgets.sp_gen_data, on_taxa_clicked, row.genus)
+            self.widgets.sp_fam_data, on_taxa_clicked, row.genus.family
+        )
+        genus = row.genus.markup()
+        self.widget_set_value(
+            "sp_gen_data", f"<big>{genus}</big>", markup=True
+        )
+        utils.make_label_clickable(
+            self.widgets.sp_gen_data, on_taxa_clicked, row.genus
+        )
         # epithet (full binomial but missing genus)
         self.widget_set_value(
-            'sp_epithet_data',
-            f' <big>{row.markup(authors=True, genus=False)}</big>',
-            markup=True
+            "sp_epithet_data",
+            f" <big>{row.markup(authors=True, genus=False)}</big>",
+            markup=True,
         )
 
-        awards = ''
+        awards = ""
         if row.awards:
             awards = utils.nstr(row.awards)
-        self.widget_set_value('sp_awards_data', awards)
+        self.widget_set_value("sp_awards_data", awards)
 
-        self.widget_set_value('sp_cites_data', row.cites or '')
+        self.widget_set_value("sp_cites_data", row.cites or "")
 
-        self.widget_set_value('sp_red_list_data',
-                              red_list_values[row.red_list])
+        self.widget_set_value(
+            "sp_red_list_data", red_list_values[row.red_list]
+        )
 
         # zone = ''
         # if row.hardiness_zone:
         #     awards = utils.nstr(row.hardiness_zone)
         # self.widget_set_value('sp_hardiness_data', zone)
 
-        habit = ''
+        habit = ""
         if row.habit:
             habit = utils.nstr(row.habit)
-        self.widget_set_value('sp_habit_data', habit)
+        self.widget_set_value("sp_habit_data", habit)
 
         if self.widgets.sp_dist_box.get_children():
             for child in self.widgets.sp_dist_box.get_children():
@@ -461,55 +499,63 @@ class GeneralSpeciesExpander(InfoExpander):
                 event_box.add(label)
                 self.widgets.sp_dist_box.pack_start(event_box, False, False, 0)
 
-                utils.make_label_clickable(label, on_clicked,
-                                           place.geography)
+                utils.make_label_clickable(label, on_clicked, place.geography)
             self.widgets.sp_dist_box.show_all()
 
-        dist = ''
+        dist = ""
         if row.label_distribution:
             dist = row.label_distribution
-        self.widget_set_value('sp_labeldist_data', dist)
+        self.widget_set_value("sp_labeldist_data", dist)
 
         # stop here if not GardenPluin
-        if 'GardenPlugin' not in pluginmgr.plugins:
+        if "GardenPlugin" not in pluginmgr.plugins:
             return
 
         from bauble.plugins.garden.accession import Accession
         from bauble.plugins.garden.plant import Plant
 
-        nacc = (session.query(Accession)
-                .join('species')
-                .filter_by(id=row.id)
-                .count())
-        self.widget_set_value('sp_nacc_data', nacc)
+        nacc = (
+            session.query(Accession)
+            .join("species")
+            .filter_by(id=row.id)
+            .count()
+        )
+        self.widget_set_value("sp_nacc_data", nacc)
 
-        nplants = (session.query(Plant)
-                   .join('accession', 'species')
-                   .filter_by(id=row.id)
-                   .count())
+        nplants = (
+            session.query(Plant)
+            .join("accession", "species")
+            .filter_by(id=row.id)
+            .count()
+        )
         if nplants == 0:
-            self.widget_set_value('sp_nplants_data', nplants)
+            self.widget_set_value("sp_nplants_data", nplants)
         else:
-            nacc_in_plants = (session.query(Plant.accession_id)
-                              .join('accession', 'species')
-                              .filter_by(id=row.id)
-                              .distinct()
-                              .count())
-            self.widget_set_value('sp_nplants_data',
-                                  f'{nplants} in {nacc_in_plants} accessions')
+            nacc_in_plants = (
+                session.query(Plant.accession_id)
+                .join("accession", "species")
+                .filter_by(id=row.id)
+                .distinct()
+                .count()
+            )
+            self.widget_set_value(
+                "sp_nplants_data", f"{nplants} in {nacc_in_plants} accessions"
+            )
 
-        living_plants = sum(i.quantity for i in
-                            session.query(Plant)
-                            .join('accession', 'species')
-                            .filter_by(id=row.id).all())
-        self.widget_set_value('living_plants_count', living_plants)
+        living_plants = sum(
+            i.quantity
+            for i in session.query(Plant)
+            .join("accession", "species")
+            .filter_by(id=row.id)
+            .all()
+        )
+        self.widget_set_value("living_plants_count", living_plants)
 
         for column in self.custom_columns:
-            self.widget_set_value(column + '_data', getattr(row, column))
+            self.widget_set_value(column + "_data", getattr(row, column))
 
 
 class SpeciesInfoBox(InfoBox):
-
     def __init__(self):
         super().__init__()
         page = SpeciesInfoPage()
@@ -523,7 +569,8 @@ class SpeciesInfoPage(InfoBoxPage):
     """general info, fullname, common name, num of accessions and clones,
     distribution
     """
-    SPECIES_WEB_BUTTON_DEFS_PREFS = 'web_button_defs.species'
+
+    SPECIES_WEB_BUTTON_DEFS_PREFS = "web_button_defs.species"
 
     # others to consider: reference, images, redlist status
 
@@ -531,12 +578,13 @@ class SpeciesInfoPage(InfoBoxPage):
         button_defs = []
         buttons = prefs.prefs.itersection(self.SPECIES_WEB_BUTTON_DEFS_PREFS)
         for name, button in buttons:
-            button['name'] = name
+            button["name"] = name
             button_defs.append(button)
 
         super().__init__()
-        filename = os.path.join(paths.lib_dir(), 'plugins', 'plants',
-                                'infoboxes.glade')
+        filename = os.path.join(
+            paths.lib_dir(), "plugins", "plants", "infoboxes.glade"
+        )
         # load the widgets directly instead of using load_widgets()
         # because the caching that load_widgets() does can mess up
         # displaying the SpeciesInfoBox sometimes if you try to show
@@ -549,17 +597,17 @@ class SpeciesInfoPage(InfoBoxPage):
         self.add_expander(self.vernacular)
         self.synonyms = SynonymsExpander(self.widgets)
         self.add_expander(self.synonyms)
-        self.links = view.LinksExpander('notes', links=button_defs)
+        self.links = view.LinksExpander("notes", links=button_defs)
         self.add_expander(self.links)
         self.props = PropertiesExpander()
         self.add_expander(self.props)
-        self.label = _('General')
+        self.label = _("General")
 
-        if 'GardenPlugin' not in pluginmgr.plugins:
-            self.widgets.remove_parent('sp_nacc_label')
-            self.widgets.remove_parent('sp_nacc_data')
-            self.widgets.remove_parent('sp_nplants_label')
-            self.widgets.remove_parent('sp_nplants_data')
+        if "GardenPlugin" not in pluginmgr.plugins:
+            self.widgets.remove_parent("sp_nacc_label")
+            self.widgets.remove_parent("sp_nacc_data")
+            self.widgets.remove_parent("sp_nplants_label")
+            self.widgets.remove_parent("sp_nplants_data")
 
     def update(self, row):
         """
@@ -576,9 +624,9 @@ class SpeciesInfoPage(InfoBoxPage):
 
 # it's easier just to put this here instead of playing around with imports
 class VernacularNameInfoBox(SpeciesInfoBox):
-
     def update(self, row):
-        logger.debug("VernacularNameInfoBox.update %s(%s)",
-                     row.__class__.__name__, row)
+        logger.debug(
+            "VernacularNameInfoBox.update %s(%s)", row.__class__.__name__, row
+        )
         if isinstance(row, VernacularName):
             super().update(row.species)

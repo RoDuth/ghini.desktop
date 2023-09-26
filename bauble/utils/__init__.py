@@ -66,7 +66,7 @@ def chunks(subscriptable, size):
     parts of :param size:.
     """
     for i in range(0, len(subscriptable), size):
-        yield subscriptable[i:i + size]
+        yield subscriptable[i : i + size]
 
 
 class Cache:
@@ -95,8 +95,14 @@ class Cache:
         else:
             if len(self.storage) == self.size:
                 # remove the oldest entry
-                k = min(list(zip(list(self.storage.values()),
-                                 list(self.storage.keys()))))[1]
+                k = min(
+                    list(
+                        zip(
+                            list(self.storage.values()),
+                            list(self.storage.keys()),
+                        )
+                    )
+                )[1]
                 del self.storage[k]
             value = getter()
         self.storage[key] = time.time(), value
@@ -115,6 +121,7 @@ def copy_picture_with_thumbnail(path, basename=None, rename=None):
     from PIL import Image
 
     from bauble import prefs
+
     if basename is None:
         filename = path
         path, basename = os.path.split(filename)
@@ -122,29 +129,34 @@ def copy_picture_with_thumbnail(path, basename=None, rename=None):
         filename = os.path.join(path, basename)
     if not filename.startswith(prefs.prefs[prefs.picture_root_pref]):
         if rename:
-            destination = os.path.join(prefs.prefs[prefs.picture_root_pref],
-                                       rename)
+            destination = os.path.join(
+                prefs.prefs[prefs.picture_root_pref], rename
+            )
             shutil.copy(filename, destination)
         else:
             shutil.copy(filename, prefs.prefs[prefs.picture_root_pref])
     # make thumbnail in thumbs subdirectory
-    full_dest_path = os.path.join(prefs.prefs[prefs.picture_root_pref],
-                                  'thumbs', rename or basename)
+    full_dest_path = os.path.join(
+        prefs.prefs[prefs.picture_root_pref], "thumbs", rename or basename
+    )
     result = ""
     try:
         img = Image.open(filename)
         img.thumbnail((400, 400))
-        logger.debug('copying %s to %s', filename, full_dest_path)
+        logger.debug("copying %s to %s", filename, full_dest_path)
         img.save(full_dest_path)
         output = BytesIO()
-        img.save(output, format='JPEG')
+        img.save(output, format="JPEG")
         im_data = output.getvalue()
         result = base64.b64encode(im_data)
     except IOError as e:
         logger.warning("can't make thumbnail %s", e)
     except Exception as e:  # pylint: disable=broad-except
-        logger.warning("unexpected exception making thumbnail: "
-                       "%s(%s)", type(e).__name__, e)
+        logger.warning(
+            "unexpected exception making thumbnail: %s(%s)",
+            type(e).__name__,
+            e,
+        )
     return result
 
 
@@ -159,12 +171,13 @@ class ImageLoader(threading.Thread):
         if url.find(self.inline_picture_marker) != -1:
             self.reader_function = self.read_base64
             self.url = url
-        elif (url.startswith('http://') or url.startswith('https://')):
+        elif url.startswith("http://") or url.startswith("https://"):
             self.reader_function = self.read_global_url
             self.url = url
         else:
             self.reader_function = self.read_local_url
             from bauble import prefs
+
             pfolder = prefs.prefs.get(prefs.picture_root_pref)
             self.url = os.path.join(pfolder, url)
 
@@ -178,8 +191,7 @@ class ImageLoader(threading.Thread):
         scale = max(scale_x, scale_y, 1)
         x = int(pixbuf.get_width() / scale)
         y = int(pixbuf.get_height() / scale)
-        scaled_buf = pixbuf.scale_simple(x, y,
-                                         GdkPixbuf.InterpType.BILINEAR)
+        scaled_buf = pixbuf.scale_simple(x, y, GdkPixbuf.InterpType.BILINEAR)
         if self.box.get_children():
             image = self.box.get_children()[0]
         else:
@@ -193,9 +205,9 @@ class ImageLoader(threading.Thread):
 
     def run(self):
         try:
-            self.cache.get(self.url,
-                           self.reader_function,
-                           on_hit=self.loader.write)
+            self.cache.get(
+                self.url, self.reader_function, on_hit=self.loader.write
+            )
             self.loader.connect("closed", self.loader_notified)
         except Exception as e:  # pylint: disable=broad-except
             logger.debug("%s(%s) while loading image", type(e).__name__, e)
@@ -203,13 +215,17 @@ class ImageLoader(threading.Thread):
             self.loader.close()
         except GLib.Error as e:
             logger.debug("picture %s caused GLib.GError %s", self.url, e)
-            text = _('picture file %s not found.') % self.url
+            text = _("picture file %s not found.") % self.url
             label = Gtk.Label(wrap=True)
             label.set_text(text)
             self.box.add(label)
         except Exception as e:  # pylint: disable=broad-except
-            logger.warning("picture %s caused Exception %s:%s", self.url,
-                           type(e).__name__, e)
+            logger.warning(
+                "picture %s caused Exception %s:%s",
+                self.url,
+                type(e).__name__,
+                e,
+            )
             label = Gtk.Label(wrap=True)
             label.set_text(f'picture {self.url} error "{e}"')
             self.box.add(label)
@@ -220,13 +236,14 @@ class ImageLoader(threading.Thread):
         thumb64pos = self.url.find(self.inline_picture_marker)
         offset = thumb64pos + len(self.inline_picture_marker)
         import base64
+
         return base64.b64decode(self.url[offset:])
 
     def read_global_url(self):
         self.loader.connect("area-prepared", self.loader_notified)
         # display something to show an image is loading
         label = Gtk.Label()
-        text = '   loading image....'
+        text = "   loading image...."
         label.set_text(text)
         spinner = Gtk.Spinner()
         spinner.start()
@@ -238,7 +255,7 @@ class ImageLoader(threading.Thread):
             response = net_sess.get(self.url, timeout=5)
         except Exception as e:  # pylint: disable=broad-except
             # timeout, failed to get url, malformed url, etc.
-            logger.debug('%s(%s)', type(e).__name__, e)
+            logger.debug("%s(%s)", type(e).__name__, e)
             response = None
         self.box.remove(label)
         self.box.remove(spinner)
@@ -271,18 +288,24 @@ def find_dependent_tables(table, metadata=None):
     # returns all the tables in the metadata even if they aren't
     # dependent on table at all
     from sqlalchemy.sql.util import sort_tables
+
     if metadata is None:
         from bauble import db
+
         metadata = db.metadata
     tables = []
 
     def _impl(tbl2):
         for tbl in metadata.sorted_tables:
             for fkey in tbl.foreign_keys:
-                if (fkey.column.table == tbl2 and tbl not in tables and
-                        tbl is not table):
+                if (
+                    fkey.column.table == tbl2
+                    and tbl not in tables
+                    and tbl is not table
+                ):
                     tables.append(tbl)
                     _impl(tbl)
+
     _impl(table)
     return sort_tables(tables=tables)
 
@@ -303,6 +326,7 @@ class BuilderLoader:
     application from growing if the same UI decription is loaded
     several times.  e.g. everytime you open an editor or infobox
     """
+
     # NOTE: this builder loader is really only used because of a bug
     # in PyGTK where a Gtk.Builder doesn't free some memory so we use
     # this to keep the memory from growing out of control. if the
@@ -338,7 +362,7 @@ class BuilderWidgets(UserDict):
             self.filename = ui
         else:
             self.builder = ui
-            self.filename = f'from object {ui}'
+            self.filename = f"from object {ui}"
 
     def __getitem__(self, name):
         """
@@ -346,20 +370,24 @@ class BuilderWidgets(UserDict):
         """
         widget = self.builder.get_object(name)
         if not widget:
-            raise KeyError(_('no widget named "%s" in glade file: %s') %
-                           (name, self.filename))
+            raise KeyError(
+                _('no widget named "%s" in glade file: %s')
+                % (name, self.filename)
+            )
         return widget
 
     def __getattr__(self, name):
         """
         :param name:
         """
-        if name == '_builder_':
+        if name == "_builder_":
             return self.builder
         widget = self.builder.get_object(name)
         if not widget:
-            raise KeyError(_('no widget named "%s" in glade file: %s') %
-                           (name, self.filename))
+            raise KeyError(
+                _('no widget named "%s" in glade file: %s')
+                % (name, self.filename)
+            )
         return widget
 
     def remove_parent(self, widget):
@@ -453,10 +481,12 @@ def set_combo_from_value(combo, value, cmp=lambda row, value: row[0] == value):
     model = combo.get_model()
     matches = search_tree_model(model, value, cmp)
     if len(matches) == 0:
-        raise ValueError('set_combo_from_value() - could not find value in '
-                         f'combo: {value}')
+        raise ValueError(
+            "set_combo_from_value() - could not find value in "
+            f"combo: {value}"
+        )
     combo.set_active_iter(matches[0])
-    combo.emit('changed')
+    combo.emit("changed")
 
 
 def combo_get_value_iter(combo, value, cmp=lambda row, value: row[0] == value):
@@ -491,8 +521,11 @@ def get_widget_value(widget):
         return nstr(widget.get_text())
     if isinstance(widget, Gtk.TextView):
         textbuffer = widget.get_buffer()
-        return nstr(textbuffer.get_text(textbuffer.get_start_iter(),
-                                        textbuffer.get_end_iter(), False))
+        return nstr(
+            textbuffer.get_text(
+                textbuffer.get_start_iter(), textbuffer.get_end_iter(), False
+            )
+        )
     if isinstance(widget, Gtk.Entry):
         return nstr(widget.get_text())
     if isinstance(widget, Gtk.ComboBox):
@@ -505,14 +538,17 @@ def get_widget_value(widget):
             return None
         value = model[itr][0]
         return value
-    if isinstance(widget,
-                  (Gtk.ToggleButton, Gtk.CheckButton, Gtk.RadioButton)):
+    if isinstance(
+        widget, (Gtk.ToggleButton, Gtk.CheckButton, Gtk.RadioButton)
+    ):
         return widget.get_active()
     if isinstance(widget, Gtk.Button):
         return nstr(widget.props.label)
 
-    raise TypeError('utils.get_widget_value(): Don\'t know how to handle '
-                    f'the widget type {type(widget)} with name {widget.name}')
+    raise TypeError(
+        "utils.get_widget_value(): Don't know how to handle "
+        f"the widget type {type(widget)} with name {widget.name}"
+    )
 
 
 def set_widget_value(widget, value, markup=False, default=None, index=0):
@@ -529,15 +565,18 @@ def set_widget_value(widget, value, markup=False, default=None, index=0):
     """
 
     if value is None:  # set the value from the default
-        if isinstance(widget, (Gtk.Label, Gtk.TextView, Gtk.Entry)) \
-                and default is None:
-            value = ''
+        if (
+            isinstance(widget, (Gtk.Label, Gtk.TextView, Gtk.Entry))
+            and default is None
+        ):
+            value = ""
         else:
             value = default
 
     # assume that if value is a date then we want to display it with
     # the default date format
     from bauble import prefs
+
     if isinstance(value, datetime.date):
         date_format = prefs.prefs[prefs.date_format_pref]
         value = value.strftime(date_format)
@@ -563,29 +602,31 @@ def set_widget_value(widget, value, markup=False, default=None, index=0):
     elif isinstance(widget, Gtk.ComboBox):
         # ComboBox.with_entry
         if widget.get_has_entry():
-            widget.get_child().set_text(str(value or ''))
+            widget.get_child().set_text(str(value or ""))
             return
         # Gtk.ComboBoxText
         if isinstance(widget, Gtk.ComboBoxText):
-            widget.get_child().append_text = value or ''
+            widget.get_child().append_text = value or ""
         # Gtk.ComboBox
         treeiter = None
         if not widget.get_model():
             logger.warning(
                 "utils.set_widget_value(): combo doesn't have a model: %s",
-                Gtk.Buildable.get_name(widget))
+                Gtk.Buildable.get_name(widget),
+            )
         else:
             treeiter = combo_get_value_iter(
-                widget, value, cmp=lambda row, value: row[index] == value)
+                widget, value, cmp=lambda row, value: row[index] == value
+            )
             if treeiter:
                 widget.set_active_iter(treeiter)
             else:
                 widget.set_active(-1)
-    elif isinstance(widget,
-                    (Gtk.ToggleButton, Gtk.CheckButton, Gtk.RadioButton)):
-        if (isinstance(widget, Gtk.CheckButton) and
-                isinstance(value, str)):
-            value = (value == Gtk.Buildable.get_name(widget))
+    elif isinstance(
+        widget, (Gtk.ToggleButton, Gtk.CheckButton, Gtk.RadioButton)
+    ):
+        if isinstance(widget, Gtk.CheckButton) and isinstance(value, str):
+            value = value == Gtk.Buildable.get_name(widget)
         if value is True:
             widget.set_inconsistent(False)
             widget.set_active(True)
@@ -597,20 +638,25 @@ def set_widget_value(widget, value, markup=False, default=None, index=0):
             widget.set_active(False)
     elif isinstance(widget, Gtk.Button):
         if value is None:
-            widget.props.label = ''
+            widget.props.label = ""
         else:
             widget.props.label = nstr(value)
 
     else:
-        raise TypeError('utils.set_widget_value(): Don\'t know how to handle '
-                        f'the widget type {type(widget)} with name '
-                        f'{widget.name}')
+        raise TypeError(
+            "utils.set_widget_value(): Don't know how to handle "
+            f"the widget type {type(widget)} with name "
+            f"{widget.name}"
+        )
 
 
-def create_message_dialog(msg, typ=Gtk.MessageType.INFO,
-                          buttons=Gtk.ButtonsType.OK,
-                          parent=None,
-                          resizable=True):
+def create_message_dialog(
+    msg,
+    typ=Gtk.MessageType.INFO,
+    buttons=Gtk.ButtonsType.OK,
+    parent=None,
+    resizable=True,
+):
     """Create a message dialog.
 
     :param msg: The markup to use for the message. The value should be escaped
@@ -630,26 +676,31 @@ def create_message_dialog(msg, typ=Gtk.MessageType.INFO,
             parent = bauble.gui.window
         except AttributeError:
             parent = None
-    dialog = Gtk.MessageDialog(modal=True, destroy_with_parent=True,
-                               transient_for=parent, message_type=typ,
-                               buttons=buttons)
+    dialog = Gtk.MessageDialog(
+        modal=True,
+        destroy_with_parent=True,
+        transient_for=parent,
+        message_type=typ,
+        buttons=buttons,
+    )
     dialog.set_position(Gtk.WindowPosition.CENTER)
-    dialog.set_title('Ghini')
+    dialog.set_title("Ghini")
     dialog.set_markup(msg)
     if resizable:
-        dialog.set_property('resizable', True)
+        dialog.set_property("resizable", True)
 
     # get the width of a character
     context = dialog.get_pango_context()
-    font_metrics = context.get_metrics(context.get_font_description(),
-                                       context.get_language())
+    font_metrics = context.get_metrics(
+        context.get_font_description(), context.get_language()
+    )
     width = font_metrics.get_approximate_char_width()
     from gi.repository import Pango
 
     # if the character width is less than 300 pixels then set the
     # message dialog's label to be 300 to avoid tiny dialogs
     if width / Pango.SCALE * len(msg) < 300:
-        dialog.set_property('default-width', 300)
+        dialog.set_property("default-width", 300)
 
     if dialog.get_icon() is None:
         try:
@@ -657,13 +708,14 @@ def create_message_dialog(msg, typ=Gtk.MessageType.INFO,
             dialog.set_icon(pixbuf)
         except Exception:
             pass
-    dialog.set_property('skip-taskbar-hint', False)
+    dialog.set_property("skip-taskbar-hint", False)
     dialog.show_all()
     return dialog
 
 
-def message_dialog(msg, typ=Gtk.MessageType.INFO, buttons=Gtk.ButtonsType.OK,
-                   parent=None):
+def message_dialog(
+    msg, typ=Gtk.MessageType.INFO, buttons=Gtk.ButtonsType.OK, parent=None
+):
     """Create a message dialog with :func:`bauble.utils.create_message_dialog`
     and run and destroy it.
 
@@ -682,11 +734,14 @@ def create_yes_no_dialog(msg, parent=None):
             parent = bauble.gui.window
         except Exception:
             parent = None
-    dialog = Gtk.MessageDialog(modal=True, destroy_with_parent=True,
-                               transient_for=parent,
-                               message_type=Gtk.MessageType.QUESTION,
-                               buttons=Gtk.ButtonsType.YES_NO)
-    dialog.set_title('Ghini')
+    dialog = Gtk.MessageDialog(
+        modal=True,
+        destroy_with_parent=True,
+        transient_for=parent,
+        message_type=Gtk.MessageType.QUESTION,
+        buttons=Gtk.ButtonsType.YES_NO,
+    )
+    dialog.set_title("Ghini")
     dialog.set_position(Gtk.WindowPosition.CENTER)
     dialog.set_markup(msg)
     if dialog.get_icon() is None:
@@ -695,7 +750,7 @@ def create_yes_no_dialog(msg, parent=None):
             dialog.set_icon(pixbuf)
         except Exception:
             pass
-        dialog.set_property('skip-taskbar-hint', False)
+        dialog.set_property("skip-taskbar-hint", False)
     dialog.show_all()
     return dialog
 
@@ -715,18 +770,25 @@ def yes_no_dialog(msg, parent=None, yes_delay=-1):
         dialog.set_response_sensitive(Gtk.ResponseType.YES, False)
 
         def on_timeout():
-            if dialog.get_property('visible'):\
-                    # conditional avoids GTK+ warning
+            if dialog.get_property(
+                "visible"
+            ):  # conditional avoids GTK+ warning
                 dialog.set_response_sensitive(Gtk.ResponseType.YES, True)
             return False
+
         GLib.timeout_add(yes_delay * 1000, on_timeout)
     response = dialog.run()
     dialog.destroy()
     return response == Gtk.ResponseType.YES
 
 
-def create_message_details_dialog(msg, details='', typ=Gtk.MessageType.INFO,
-                                  buttons=Gtk.ButtonsType.OK, parent=None):
+def create_message_details_dialog(
+    msg,
+    details="",
+    typ=Gtk.MessageType.INFO,
+    buttons=Gtk.ButtonsType.OK,
+    parent=None,
+):
     """Create a message dialog with a details expander."""
     if parent is None:
         try:  # this might get called before bauble has started
@@ -734,22 +796,25 @@ def create_message_details_dialog(msg, details='', typ=Gtk.MessageType.INFO,
         except AttributeError:
             parent = None
 
-    dialog = Gtk.MessageDialog(modal=True,
-                               destroy_with_parent=True,
-                               transient_for=parent,
-                               message_type=typ,
-                               buttons=buttons)
-    dialog.set_title('Ghini')
+    dialog = Gtk.MessageDialog(
+        modal=True,
+        destroy_with_parent=True,
+        transient_for=parent,
+        message_type=typ,
+        buttons=buttons,
+    )
+    dialog.set_title("Ghini")
     dialog.set_markup(msg)
     # allow resize and copying error messages etc.
-    dialog.set_property('resizable', True)
+    dialog.set_property("resizable", True)
     message_label = dialog.get_message_area().get_children()[0]
     message_label.set_selectable(True)
 
     # get the width of a character
     context = dialog.get_pango_context()
-    font_metrics = context.get_metrics(context.get_font_description(),
-                                       context.get_language())
+    font_metrics = context.get_metrics(
+        context.get_font_description(), context.get_language()
+    )
     width = font_metrics.get_approximate_char_width()
     from gi.repository import Pango
 
@@ -780,14 +845,19 @@ def create_message_details_dialog(msg, details='', typ=Gtk.MessageType.INFO,
             dialog.set_icon(pixbuf)
         except Exception:
             pass
-        dialog.set_property('skip-taskbar-hint', False)
+        dialog.set_property("skip-taskbar-hint", False)
 
     dialog.show_all()
     return dialog
 
 
-def message_details_dialog(msg, details, typ=Gtk.MessageType.INFO,
-                           buttons=Gtk.ButtonsType.OK, parent=None):
+def message_details_dialog(
+    msg,
+    details,
+    typ=Gtk.MessageType.INFO,
+    buttons=Gtk.ButtonsType.OK,
+    parent=None,
+):
     """Create and run a message dialog with a details expander."""
     dialog = create_message_details_dialog(msg, details, typ, buttons, parent)
     response = dialog.run()
@@ -808,7 +878,7 @@ def format_combo_entry_text(combo, path):
     """
     detail = combo.get_model()[path][0]
     if not detail:
-        return ''
+        return ""
     return str(detail)
 
 
@@ -822,7 +892,7 @@ def default_cell_data_func(_column, cell, model, treeiter, str_func=None):
     if str_func is None:
         str_func = str
     obj = model[treeiter][0]
-    cell.set_property('text', str_func(obj))
+    cell.set_property("text", str_func(obj))
 
 
 def setup_text_combobox(combo, values=None, cell_data_func=None):
@@ -849,10 +919,10 @@ def setup_text_combobox(combo, values=None, cell_data_func=None):
     combo.set_model(model)
     renderer = Gtk.CellRendererText()
     combo.pack_start(renderer, True)
-    combo.add_attribute(renderer, 'text', 0)
+    combo.add_attribute(renderer, "text", 0)
 
     if not isinstance(combo, Gtk.ComboBox):
-        logger.debug('not a Gtk.ComboBox')
+        logger.debug("not a Gtk.ComboBox")
         return
 
     if cell_data_func:
@@ -864,7 +934,7 @@ def setup_text_combobox(combo, values=None, cell_data_func=None):
 
     if combo.get_has_entry():
         # add completion using the first column of the model for the text
-        logger.debug('ComboBox has entry')
+        logger.debug("ComboBox has entry")
         entry = combo.get_child()
         completion = Gtk.EntryCompletion()
         entry.set_completion(completion)
@@ -875,7 +945,7 @@ def setup_text_combobox(combo, values=None, cell_data_func=None):
         completion.set_inline_selection(True)
         completion.set_minimum_key_length(2)
 
-        combo.connect('format-entry-text', format_combo_entry_text)
+        combo.connect("format-entry-text", format_combo_entry_text)
 
 
 def today_str(fmat=None):
@@ -884,6 +954,7 @@ def today_str(fmat=None):
     If fmat=None then the format uses the prefs.date_format_pref
     """
     from bauble import prefs
+
     fmat = fmat or prefs.prefs.get(prefs.date_format_pref)
     today = datetime.date.today()
     return today.strftime(fmat)
@@ -901,18 +972,19 @@ def setup_date_button(view, entry, button):
         entry = view.widgets[entry]
     if isinstance(button, str):
         button = view.widgets[button]
-    image = Gtk.Image.new_from_icon_name('x-office-calendar-symbolic',
-                                         Gtk.IconSize.BUTTON)
+    image = Gtk.Image.new_from_icon_name(
+        "x-office-calendar-symbolic", Gtk.IconSize.BUTTON
+    )
     button.set_tooltip_text(_("Today's date"))
     button.set_image(image)
 
     def on_clicked(_widget):
         entry.set_text(today_str())
 
-    if view and hasattr(view, 'connect'):
-        view.connect(button, 'clicked', on_clicked)
+    if view and hasattr(view, "connect"):
+        view.connect(button, "clicked", on_clicked)
     else:
-        button.connect('clicked', on_clicked)
+        button.connect("clicked", on_clicked)
 
 
 def nstr(obj: Any) -> Union[str, None]:
@@ -938,25 +1010,29 @@ def xml_safe_name(obj):
     """
     # make sure we have a unicode string with no spaces or surrounding
     # parentheses
-    uni = str(obj).replace(' ', '_').strip('<{[()]}>')
+    uni = str(obj).replace(" ", "_").strip("<{[()]}>")
     # if nothing is left return '_'
     if not uni:
-        return '_'
+        return "_"
 
-    start_char = (r'[A-Z]|[_]|[a-z]|\xc0-\xd6]|[\xd8-\xf6]|[\xf8-\xff]|'
-                  r'[\u0100-\u02ff]|[\u0370-\u037d]|[\u037f-\u1fff]|'
-                  r'[\u200c-\u200d]|[\u2070-\u218f]|[\u2c00-\u2fef]|'
-                  r'[\u3001-\uD7FF]|[\uF900-\uFDCF]|[\uFDF0-\uFFFD]|')
+    start_char = (
+        r"[A-Z]|[_]|[a-z]|\xc0-\xd6]|[\xd8-\xf6]|[\xf8-\xff]|"
+        r"[\u0100-\u02ff]|[\u0370-\u037d]|[\u037f-\u1fff]|"
+        r"[\u200c-\u200d]|[\u2070-\u218f]|[\u2c00-\u2fef]|"
+        r"[\u3001-\uD7FF]|[\uF900-\uFDCF]|[\uFDF0-\uFFFD]|"
+    )
     # depending on a ucs-2 or ucs-4 build python
-    start_char_ucs4 = start_char + r'[\U00010000-\U000EFFFF]'
-    name_start_char_ucs4 = r'(' + start_char_ucs4 + r')'
-    name_char = (r'(' + start_char_ucs4 +
-                 r'|[-.0-9\xb7\u0337-\u036f\u203f-\u2040])')
+    start_char_ucs4 = start_char + r"[\U00010000-\U000EFFFF]"
+    name_start_char_ucs4 = r"(" + start_char_ucs4 + r")"
+    name_char = (
+        r"(" + start_char_ucs4 + r"|[-.0-9\xb7\u0337-\u036f\u203f-\u2040])"
+    )
 
-    start_char_ucs2 = start_char + r'[\uD800-\uDBFF][\uDC00-\uDFFF]'
-    name_start_char_ucs2 = r'(' + start_char_ucs2 + r')'
-    name_char_ucs2 = (r'(' + start_char_ucs2 +
-                      r'|[-.0-9\xb7\u0337-\u036f\u203f-\u2040])')
+    start_char_ucs2 = start_char + r"[\uD800-\uDBFF][\uDC00-\uDFFF]"
+    name_start_char_ucs2 = r"(" + start_char_ucs2 + r")"
+    name_char_ucs2 = (
+        r"(" + start_char_ucs2 + r"|[-.0-9\xb7\u0337-\u036f\u203f-\u2040])"
+    )
     try:
         first_char = re.match(name_start_char_ucs4, uni[0])
     except re.error:
@@ -967,9 +1043,9 @@ def xml_safe_name(obj):
         start_char = first_char.group()
         uni = uni[1:]
     else:
-        start_char = '_'
+        start_char = "_"
 
-    name_chars = ''.join([i for i in uni if re.match(name_char, i)])
+    name_chars = "".join([i for i in uni if re.match(name_char, i)])
 
     name = start_char + name_chars
 
@@ -991,7 +1067,7 @@ def safe_numeric(string):
 
 
 def safe_int(string):
-    'evaluate the string as an integer, or return zero'
+    "evaluate the string as an integer, or return zero"
 
     try:
         return int(string)
@@ -1000,7 +1076,7 @@ def safe_int(string):
     return 0
 
 
-_NATSORT_RX = re.compile(r'(\d+(?:\.\d+)?)')
+_NATSORT_RX = re.compile(r"(\d+(?:\.\d+)?)")
 
 
 def natsort_key(obj):
@@ -1015,8 +1091,8 @@ def natsort_key(obj):
     item = str(obj)
     parts = _NATSORT_RX.split(item)
     for part in parts:
-        if part and part[0] in '0123456789':
-            if '.' in part:
+        if part and part[0] in "0123456789":
+            if "." in part:
                 numtype = float
             else:
                 numtype = int
@@ -1032,14 +1108,15 @@ def delete_or_expunge(obj):
     session.  If not then session.delete it.
     """
     from sqlalchemy.orm import object_session
+
     session = object_session(obj)
     if session is None:
         return
     if obj not in session.new:
-        logger.debug('delete obj: %s -- %s', obj, repr(obj))
+        logger.debug("delete obj: %s -- %s", obj, repr(obj))
         session.delete(obj)
     else:
-        logger.debug('expunge obj: %s -- %s', obj, repr(obj))
+        logger.debug("expunge obj: %s -- %s", obj, repr(obj))
         session.expunge(obj)
         del obj
 
@@ -1059,18 +1136,27 @@ def reset_sequence(column):
     from sqlalchemy.types import Integer
 
     from bauble import db
-    if not db.engine.name == 'postgresql':
+
+    if not db.engine.name == "postgresql":
         return
 
     sequence_name = None
-    if (hasattr(column, 'default') and
-            isinstance(column.default, schema.Sequence)):
+    if hasattr(column, "default") and isinstance(
+        column.default, schema.Sequence
+    ):
         sequence_name = column.default.name
-    elif ((isinstance(column.type, Integer) and column.autoincrement) and
-          (column.default is None or
-           (isinstance(column.default, schema.Sequence) and
-            column.default.optional)) and len(column.foreign_keys) == 0):
-        sequence_name = f'{column.table.name}_{column.name}_seq'
+    elif (
+        (isinstance(column.type, Integer) and column.autoincrement)
+        and (
+            column.default is None
+            or (
+                isinstance(column.default, schema.Sequence)
+                and column.default.optional
+            )
+        )
+        and len(column.foreign_keys) == 0
+    ):
+        sequence_name = f"{column.table.name}_{column.name}_seq"
     else:
         return
     conn = db.engine.connect()
@@ -1088,12 +1174,15 @@ def reset_sequence(column):
             # set the sequence to nextval()
             stmt = f"SELECT nextval('{sequence_name}');"
         else:
-            stmt = (f"SELECT setval('{sequence_name}', max({column.name})+1) "
-                    f"from {column.table.name};")
+            stmt = (
+                f"SELECT setval('{sequence_name}', max({column.name})+1) "
+                f"from {column.table.name};"
+            )
         conn.execute(stmt)
     except Exception as e:
-        logger.warning('bauble.utils.reset_sequence(): %s(%s)',
-                       type(e).__name__, e)
+        logger.warning(
+            "bauble.utils.reset_sequence(): %s(%s)", type(e).__name__, e
+        )
         trans.rollback()
     else:
         trans.commit()
@@ -1108,8 +1197,10 @@ def generate_on_clicked(call):
 
     :param call: a callable that takes one positional argument
     """
+
     def on_label_clicked(_label, _event, data):
         return call(data)
+
     return on_label_clicked
 
 
@@ -1122,16 +1213,18 @@ def make_label_clickable(label, on_clicked, *args):
     # pylint: disable=protected-access
     eventbox = label.get_parent()
 
-    check(eventbox is not None, 'label must have a parent')
-    check(isinstance(eventbox, Gtk.EventBox),
-          'label must have an Gtk.EventBox as its parent')
+    check(eventbox is not None, "label must have a parent")
+    check(
+        isinstance(eventbox, Gtk.EventBox),
+        "label must have an Gtk.EventBox as its parent",
+    )
     label.__pressed = False
 
     def on_enter_notify(_widget, *_args):
-        label.get_style_context().add_class('click-label')
+        label.get_style_context().add_class("click-label")
 
     def on_leave_notify(_widget, *_args):
-        label.get_style_context().remove_class('click-label')
+        label.get_style_context().remove_class("click-label")
         label.__pressed = False
 
     def on_press(*_args):
@@ -1140,21 +1233,23 @@ def make_label_clickable(label, on_clicked, *args):
     def on_release(_widget, event, *args):
         if label.__pressed:
             label.__pressed = False
-            label.get_style_context().remove_class('click-label')
+            label.get_style_context().remove_class("click-label")
             on_clicked(label, event, *args)
 
     try:
         eventbox.disconnect(label.__on_event)
-        logger.debug('disconnected previous release-event handler')
+        logger.debug("disconnected previous release-event handler")
         label.__on_event = eventbox.connect(
-            'button_release_event', on_release, *args)
+            "button_release_event", on_release, *args
+        )
     except AttributeError:
-        logger.debug('defining handlers')
+        logger.debug("defining handlers")
         label.__on_event = eventbox.connect(
-            'button_release_event', on_release, *args)
-        eventbox.connect('enter_notify_event', on_enter_notify)
-        eventbox.connect('leave_notify_event', on_leave_notify)
-        eventbox.connect('button_press_event', on_press)
+            "button_release_event", on_release, *args
+        )
+        eventbox.connect("enter_notify_event", on_enter_notify)
+        eventbox.connect("leave_notify_event", on_leave_notify)
+        eventbox.connect("button_press_event", on_press)
 
 
 def enum_values_str(col):
@@ -1164,18 +1259,19 @@ def enum_values_str(col):
     return a string with of the values on an enum type join by a comma
     """
     from bauble import db
-    table_name, col_name = col.split('.')
+
+    table_name, col_name = col.split(".")
     # debug('%s.%s' % (table_name, col_name))
     values = db.metadata.tables[table_name].c[col_name].type.values[:]
     if None in values:
-        values[values.index(None)] = '&lt;None&gt;'
-    return ', '.join(values)
+        values[values.index(None)] = "&lt;None&gt;"
+    return ", ".join(values)
 
 
 def which(filename, path=None):
     """Return first occurence of file on the path."""
     if not path:
-        path = os.environ['PATH'].split(os.pathsep)
+        path = os.environ["PATH"].split(os.pathsep)
     for dirname in path:
         candidate = os.path.join(dirname, filename)
         if os.path.isfile(candidate):
@@ -1186,10 +1282,11 @@ def which(filename, path=None):
 def ilike(col, val, engine=None):
     """Return a cross platform ilike function."""
     from sqlalchemy import func
+
     if not engine:
         engine = bauble.db.engine
-    if engine.name == 'postgresql':
-        return col.op('ILIKE')(val)
+    if engine.name == "postgresql":
+        return col.op("ILIKE")(val)
     return func.lower(col).like(func.lower(val))
 
 
@@ -1202,7 +1299,8 @@ def range_builder(text):
     from pyparsing import Word
     from pyparsing import delimitedList
     from pyparsing import nums
-    rng = Group(Word(nums) + Suppress('-') + Word(nums))
+
+    rng = Group(Word(nums) + Suppress("-") + Word(nums))
     range_list = delimitedList(rng | Word(nums))
 
     try:
@@ -1216,7 +1314,7 @@ def range_builder(text):
             # get here if the token is a range
             start = int(rng[0])
             end = int(rng[1]) + 1
-            check(start < end, 'start must be less than end')
+            check(start < end, "start must be less than end")
             values.update(list(range(start, end)))
         else:
             # get here if the token is an integer
@@ -1227,6 +1325,7 @@ def range_builder(text):
 def gc_objects_by_type(tipe):
     """Return a list of objects from the garbage collector by type."""
     import gc
+
     if isinstance(tipe, str):
         return [o for o in gc.get_objects() if type(o).__name__ == tipe]
     if inspect.isclass(tipe):
@@ -1250,6 +1349,7 @@ def debug_gc_decorator(func):
 
     def wrapper(*args, **kwargs):
         import gc
+
         before = {}
         for i in gc.get_objects():
             tipe = type(i)
@@ -1265,9 +1365,9 @@ def debug_gc_decorator(func):
 
         for k, v in after.items():
             if k in before and v - before.get(k, 0) > 0:
-                print(f'{k}, {v - before.get(k)} total: {v}')
+                print(f"{k}, {v - before.get(k)} total: {v}")
             elif k not in before:
-                print(f'NEW: {k}, total: {v}')
+                print(f"NEW: {k}, total: {v}")
 
         return new_val
 
@@ -1276,7 +1376,7 @@ def debug_gc_decorator(func):
 
 def mem(size="rss"):
     """Generalization; memory sizes: rss, rsz, vsz."""
-    return int(os.popen(f'ps -p {os.getpid():d} -o {size} | tail -1').read())
+    return int(os.popen(f"ps -p {os.getpid():d} -o {size} | tail -1").read())
 
 
 # Original topological sort code written by Ofer Faigon (www.bitformation.com)
@@ -1381,6 +1481,7 @@ def topological_sort(items, partial_order):
 
 class GenericMessageBox(Gtk.EventBox):
     """Abstract class for showing a message box at the top of an editor."""
+
     def __init__(self):
         super().__init__()
         self.box = Gtk.Box()
@@ -1397,8 +1498,7 @@ class GenericMessageBox(Gtk.EventBox):
 
 
 class MessageBox(GenericMessageBox):
-    """A MessageBox that can display a message label at the top of an editor.
-    """
+    """A MessageBox that can display a message label at the top of an editor."""
 
     def __init__(self, msg=None, details=None):
         super().__init__()
@@ -1416,13 +1516,15 @@ class MessageBox(GenericMessageBox):
 
         button_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         self.box.pack_start(button_box, False, False, 0)
-        button = Gtk.Button.new_from_icon_name('window-close-symbolic',
-                                               Gtk.IconSize.BUTTON)
+        button = Gtk.Button.new_from_icon_name(
+            "window-close-symbolic", Gtk.IconSize.BUTTON
+        )
         button.set_relief(Gtk.ReliefStyle.NONE)
         button_box.pack_start(button, False, False, 0)
 
-        self.details_expander = Gtk.Expander(label=_('Show details'),
-                                             expanded=False)
+        self.details_expander = Gtk.Expander(
+            label=_("Show details"), expanded=False
+        )
         self.vbox.pack_start(self.details_expander, True, True, 0)
 
         scroll_win = Gtk.ScrolledWindow()
@@ -1438,11 +1540,11 @@ class MessageBox(GenericMessageBox):
         self.details = details
         self.details_expander.add(scroll_win)
 
-        button.connect('clicked', lambda w: self.destroy())
+        button.connect("clicked", lambda w: self.destroy())
 
     @property
     def message(self):
-        return self.buffer.get_property('text')
+        return self.buffer.get_property("text")
 
     @message.setter
     def message(self, msg):
@@ -1452,11 +1554,11 @@ class MessageBox(GenericMessageBox):
         if msg:
             self.buffer.set_text(msg)
         else:
-            self.buffer.set_text('')
+            self.buffer.set_text("")
 
     @property
     def details(self):
-        return self.details_buffer.get_property('text')
+        return self.details_buffer.get_property("text")
 
     @details.setter
     def details(self, msg):
@@ -1465,7 +1567,7 @@ class MessageBox(GenericMessageBox):
             self.details_expander.show()
             self.details_expander.set_no_show_all(False)
         else:
-            self.details_buffer.set_text('')
+            self.details_buffer.set_text("")
             self.details_expander.hide()
             self.details_expander.set_no_show_all(True)
 
@@ -1491,21 +1593,21 @@ class YesNoMessageBox(GenericMessageBox):
 
         button_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         self.box.pack_start(button_box, False, False, 0)
-        self.yes_button = Gtk.Button(label='Yes')
+        self.yes_button = Gtk.Button(label="Yes")
         if on_response:
-            self.yes_button.connect('clicked', on_response, True)
+            self.yes_button.connect("clicked", on_response, True)
         button_box.pack_start(self.yes_button, False, False, 0)
 
         button_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         self.box.pack_start(button_box, False, False, 0)
-        self.no_button = Gtk.Button(label='No')
+        self.no_button = Gtk.Button(label="No")
         if on_response:
-            self.no_button.connect('clicked', on_response, False)
+            self.no_button.connect("clicked", on_response, False)
         button_box.pack_start(self.no_button, False, False, 0)
 
     def _set_on_response(self, func):
-        self.yes_button.connect('clicked', func, True)
-        self.no_button.connect('clicked', func, False)
+        self.yes_button.connect("clicked", func, True)
+        self.no_button.connect("clicked", func, False)
 
     on_response = property(fset=_set_on_response)
 
@@ -1518,7 +1620,7 @@ class YesNoMessageBox(GenericMessageBox):
         if msg:
             self.label.set_markup(msg)
         else:
-            self.label.set_markup('')
+            self.label.set_markup("")
 
 
 MESSAGE_BOX_INFO = 1
@@ -1541,7 +1643,7 @@ def add_message_box(parent, typ=MESSAGE_BOX_INFO):
     elif typ == MESSAGE_BOX_YESNO:
         msg_box = YesNoMessageBox()
     else:
-        raise ValueError(f'unknown message box type: {typ}')
+        raise ValueError(f"unknown message box type: {typ}")
     parent.pack_start(msg_box, True, True, 0)
     return msg_box
 
@@ -1561,7 +1663,7 @@ def get_invalid_columns(obj, ignore_columns=None):
     - ...what else?
     """
     if ignore_columns is None:
-        ignore_columns = ['id']
+        ignore_columns = ["id"]
 
     # TODO: check for invalid enum types
     if not obj:
@@ -1582,7 +1684,7 @@ def get_urls(text):
 
     e.g. [BBG]http://belizebotanic.org
     """
-    rgx = re.compile(r'(?:\[(.+?)\])?((?:(?:http)|(?:https))://\S+)', re.I)
+    rgx = re.compile(r"(?:\[(.+?)\])?((?:(?:http)|(?:https))://\S+)", re.I)
     matches = []
     for match in rgx.finditer(text):
         matches.append(match.groups())
@@ -1615,7 +1717,7 @@ class NetSessionFunctor:
         """return a requests or pypac session for making api calls, depending
         on prefrences.
         """
-        logger.debug('getting a network session')
+        logger.debug("getting a network session")
 
         from bauble import prefs
 
@@ -1623,21 +1725,24 @@ class NetSessionFunctor:
 
         if prefs_proxies:
             from requests import Session
+
             net_sess = Session()
-            logger.debug('using requests directly')
+            logger.debug("using requests directly")
             if isinstance(prefs_proxies, dict):
                 net_sess.proxies = prefs_proxies
-                logger.debug('net_sess proxies manually set to %s',
-                             net_sess.proxies)
+                logger.debug(
+                    "net_sess proxies manually set to %s", net_sess.proxies
+                )
         else:
             from pypac import PACSession
+
             net_sess = PACSession()
             pac = net_sess.get_pac()
-            logger.debug('pac file = %s', pac)
+            logger.debug("pac file = %s", pac)
             if pac is None:
                 # avoid every trying again...
-                val = 'no_pac_file'
-                logger.debug('pref: %s set to %s', prefs.web_proxy_prefs, val)
+                val = "no_pac_file"
+                logger.debug("pref: %s set to %s", prefs.web_proxy_prefs, val)
                 prefs.prefs[prefs.web_proxy_prefs] = val
 
         return net_sess
@@ -1648,7 +1753,8 @@ get_net_sess = NetSessionFunctor()
 
 def get_user_display_name():
     import sys
-    if sys.platform == 'win32':
+
+    if sys.platform == "win32":
         import ctypes
 
         get_user_name_ex = ctypes.windll.secur32.GetUserNameExW
@@ -1662,22 +1768,24 @@ def get_user_display_name():
         fname = str(name_buffer.value)
     else:
         import pwd
+
         fname = str(pwd.getpwuid(os.getuid())[4])
 
     if not fname:
         # fall back to value of $USER
-        fname = (os.getenv('USER') or os.getenv('USERNAME') or
-                 os.getenv('LOGNAME') or os.getenv('LNAME'))
+        fname = (
+            os.getenv("USER")
+            or os.getenv("USERNAME")
+            or os.getenv("LOGNAME")
+            or os.getenv("LNAME")
+        )
 
     return fname
 
 
-def run_file_chooser_dialog(text,
-                            parent,
-                            action,
-                            last_folder,
-                            target,
-                            suffix=None):
+def run_file_chooser_dialog(
+    text, parent, action, last_folder, target, suffix=None
+):
     """Create and run a FileChooserNative, then write result in target entry
     widget.
 
@@ -1695,7 +1803,7 @@ def run_file_chooser_dialog(text,
     chooser = Gtk.FileChooserNative.new(text, parent, action)
     if suffix:
         filter_ = Gtk.FileFilter.new()
-        filter_.add_pattern('*' + suffix)
+        filter_.add_pattern("*" + suffix)
         chooser.add_filter(filter_)
 
     try:
@@ -1709,8 +1817,7 @@ def run_file_chooser_dialog(text,
                 target.set_text(filename)
                 target.set_position(len(filename))
     except Exception as e:  # pylint: disable=broad-except
-        logger.warning("unhandled %s exception: %s",
-                       type(e).__name__, e)
+        logger.warning("unhandled %s exception: %s", type(e).__name__, e)
     chooser.destroy()
 
 
@@ -1726,15 +1833,16 @@ def copy_tree(src_dir, dest_dir, suffixes=None, over_write=False):
     :param over_write: wether to overwrite existing files or not.
     """
     from shutil import copy
+
     if isinstance(src_dir, str):
         src_dir = Path(src_dir)
     if isinstance(dest_dir, str):
         dest_dir = Path(dest_dir)
-    for path in src_dir.glob('**/*.*'):
+    for path in src_dir.glob("**/*.*"):
         if not suffixes or path.suffix in suffixes:
             destination = dest_dir / path.relative_to(src_dir)
             if not destination.parent.exists():
-                logger.debug('creating dir: %s', destination.parent)
+                logger.debug("creating dir: %s", destination.parent)
                 destination.parent.mkdir(parents=True)
             if not destination.exists() or over_write:
                 copy(path, destination)
@@ -1809,12 +1917,14 @@ def timed_cache(size=200, secs=2.0):
         wrapper.set_secs = set_secs
         wrapper.set_size = set_size
         return wrapper
+
     return decoratorating
 
 
 def get_temp_path():
     """Returns a pathlib.Path instance pointed at a temporary file."""
     import tempfile
+
     handle, name = tempfile.mkstemp()
     os.close(handle)
     return Path(name)

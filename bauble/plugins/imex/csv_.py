@@ -64,11 +64,10 @@ csv.field_size_limit(1000000)
 QUOTE_STYLE = csv.QUOTE_MINIMAL
 QUOTE_CHAR = '"'
 
-ORIG_SUFFIX = '_ORIG_'
+ORIG_SUFFIX = "_ORIG_"
 
 
 class UnicodeReader:
-
     def __init__(self, f, dialect=csv.excel, **kwargs):
         self.reader = csv.DictReader(f, dialect=dialect, **kwargs)
 
@@ -76,7 +75,7 @@ class UnicodeReader:
         row = next(self.reader)
         line = {}
         for k, v in row.items():
-            if v == '':
+            if v == "":
                 line[k] = None
             else:
                 line[k] = str(v)
@@ -88,7 +87,6 @@ class UnicodeReader:
 
 
 class UnicodeWriter:
-
     def __init__(self, f, dialect=csv.excel, encoding="utf-8", **kwargs):
         self.writer = csv.writer(f, dialect=dialect, **kwargs)
         self.encoding = encoding
@@ -132,9 +130,9 @@ class CSVRestore:
 
     def __init__(self):
         self.translator = {}
-        self.__error = False   # flag to indicate error on import
+        self.__error = False  # flag to indicate error on import
         self.__cancel = False  # flag to cancel importing
-        self.__pause = False   # flag to pause importing
+        self.__pause = False  # flag to pause importing
 
     def start(self, filenames=None, metadata=None, force=False):
         """start the import process.
@@ -152,78 +150,103 @@ class CSVRestore:
         if filenames is None:
             return
 
-        bauble_meta = [i for i in filenames if
-                       i.endswith('bauble.txt') or
-                       i.endswith('bauble.csv')]
+        bauble_meta = [
+            i
+            for i in filenames
+            if i.endswith("bauble.txt") or i.endswith("bauble.csv")
+        ]
 
         if bauble_meta and not force:
-            with open(bauble_meta[0], 'r', encoding='utf-8', newline='') as f:
+            with open(bauble_meta[0], "r", encoding="utf-8", newline="") as f:
                 upgraders = {}
                 in_file = csv.DictReader(f)
                 version = None
                 for line in in_file:
-                    if line.get('name') == 'version':
-                        version = line.get('value')
-                        logger.debug('importing version %s data', version)
+                    if line.get("name") == "version":
+                        version = line.get("value")
+                        logger.debug("importing version %s data", version)
                         break
 
-                if version < '1.3.0-b':
-                    msg = (_('You are importing data from a version prior '
-                             'to v1.3.0-b?\n\nSome tables have changed '
-                             '\n\nWould you like to transform your data to '
-                             'match the new version? \n\nCopies of the '
-                             'original files will be saved with an appended '
-                             '"%s"') % ORIG_SUFFIX)
+                if version < "1.3.0-b":
+                    msg = (
+                        _(
+                            "You are importing data from a version prior "
+                            "to v1.3.0-b?\n\nSome tables have changed "
+                            "\n\nWould you like to transform your data to "
+                            "match the new version? \n\nCopies of the "
+                            "original files will be saved with an appended "
+                            '"%s"'
+                        )
+                        % ORIG_SUFFIX
+                    )
                     if utils.yes_no_dialog(msg):
-                        change_lst = [i for i in filenames if
-                                      i.endswith('species_distribution.txt') or
-                                      i.endswith('collection.txt')]
-                        geography = [i for i in filenames if
-                                     i.endswith('geography.txt')]
+                        change_lst = [
+                            i
+                            for i in filenames
+                            if i.endswith("species_distribution.txt")
+                            or i.endswith("collection.txt")
+                        ]
+                        geography = [
+                            i for i in filenames if i.endswith("geography.txt")
+                        ]
                         if geography:
                             filenames.remove(geography[0])
-                            upgraders['geo_trans'] = (self.set_geo_translator,
-                                                      geography[0])
-                            upgraders['geography'] = (self.geo_upgrader,
-                                                      change_lst)
-                        upgraders['accession'] = (self.acc_upgrader, filenames)
-                        upgraders['changes'] = (self.changes_upgrader,
-                                                filenames)
+                            upgraders["geo_trans"] = (
+                                self.set_geo_translator,
+                                geography[0],
+                            )
+                            upgraders["geography"] = (
+                                self.geo_upgrader,
+                                change_lst,
+                            )
+                        upgraders["accession"] = (self.acc_upgrader, filenames)
+                        upgraders["changes"] = (
+                            self.changes_upgrader,
+                            filenames,
+                        )
 
-                if version < '1.3.0-b3':
-                    msg = (_('You are importing data from a version prior '
-                             'to v1.3.0-b3?\n\nSome tables have changed '
-                             '\n\nWould you like to transform your data to '
-                             'match the new version? \n\nCopies of the '
-                             'original files will be saved with an appended '
-                             '"%s"') % ORIG_SUFFIX)
+                if version < "1.3.0-b3":
+                    msg = (
+                        _(
+                            "You are importing data from a version prior "
+                            "to v1.3.0-b3?\n\nSome tables have changed "
+                            "\n\nWould you like to transform your data to "
+                            "match the new version? \n\nCopies of the "
+                            "original files will be saved with an appended "
+                            '"%s"'
+                        )
+                        % ORIG_SUFFIX
+                    )
                     if utils.yes_no_dialog(msg):
-                        upgraders['accession'] = (self.pics_upgrader,
-                                                  filenames)
-                        upgraders['genus'] = (self.genus_upgrader,
-                                              filenames)
-                        upgraders['species'] = (self.species_upgrader,
-                                                filenames)
-                        upgraders['pictures'] = (self.pics_upgrader,
-                                                 filenames)
-                        upgraders['accession'] = (self.acc_upgrader,
-                                                  filenames)
+                        upgraders["accession"] = (
+                            self.pics_upgrader,
+                            filenames,
+                        )
+                        upgraders["genus"] = (self.genus_upgrader, filenames)
+                        upgraders["species"] = (
+                            self.species_upgrader,
+                            filenames,
+                        )
+                        upgraders["pictures"] = (self.pics_upgrader, filenames)
+                        upgraders["accession"] = (self.acc_upgrader, filenames)
 
                 for upgrader, *args in upgraders.values():
-                    logger.debug('running %s', upgrader.__name__)
+                    logger.debug("running %s", upgrader.__name__)
                     bauble.task.queue(upgrader(*args))
 
         bauble.task.queue(self.run(filenames, metadata, force))
 
         # always update the species full_name
         from bauble.plugins.plants import species_model
+
         bauble.task.queue(species_model.update_all_full_names_task())
 
     @staticmethod
     def species_upgrader(filenames):
         """Upgrade genus file"""
         import re
-        reg = re.compile(r'.*species\.(csv|txt)$')
+
+        reg = re.compile(r".*species\.(csv|txt)$")
         sp_file = [i for i in filenames if reg.match(i)]
 
         # bail early
@@ -233,42 +256,43 @@ class CSVRestore:
         sp_file = sp_file[0]
         original = sp_file + ORIG_SUFFIX
 
-        msg = _('adding genus hybrid flag: ')
-        logger.debug('upgrading %s', sp_file)
+        msg = _("adding genus hybrid flag: ")
+        logger.debug("upgrading %s", sp_file)
         bauble.task.set_message(msg + sp_file)
 
-        with open(sp_file, 'r', encoding='utf-8', newline='') as f:
+        with open(sp_file, "r", encoding="utf-8", newline="") as f:
             num_lines = len(f.readlines())
 
         if num_lines <= 1:
-            logger.debug('%s contains no table data skip translation',
-                         sp_file)
+            logger.debug("%s contains no table data skip translation", sp_file)
             return
 
         os.rename(sp_file, original)
         five_percent = int(num_lines / 20) or 1
 
-        with (open(original, 'r', encoding='utf-8', newline='') as old,
-              open(sp_file, 'w', encoding='utf-8', newline='') as new):
+        with (
+            open(original, "r", encoding="utf-8", newline="") as old,
+            open(sp_file, "w", encoding="utf-8", newline="") as new,
+        ):
             in_file = csv.DictReader(old)
             fieldnames = in_file.fieldnames
-            if 'cultivar_epithet' not in fieldnames:
-                fieldnames.append('cultivar_epithet')
+            if "cultivar_epithet" not in fieldnames:
+                fieldnames.append("cultivar_epithet")
             out_file = csv.DictWriter(new, fieldnames=fieldnames)
             out_file.writeheader()
             for count, line in enumerate(in_file):
-                hybrid = line.get('hybrid')
-                line['hybrid'] = None
-                if hybrid == 'True':
-                    line['hybrid'] = '×'
+                hybrid = line.get("hybrid")
+                line["hybrid"] = None
+                if hybrid == "True":
+                    line["hybrid"] = "×"
 
                 for i in range(1, 5):
-                    infra_rank = line.get(f'infrasp{i}_rank')
-                    infra_epithet = line.get(f'infrasp{i}')
-                    if infra_rank == 'cv.':
-                        line[f'infrasp{i}_rank'] = None
-                        line[f'infrasp{i}'] = None
-                        line['cultivar_epithet'] = infra_epithet or 'cv.'
+                    infra_rank = line.get(f"infrasp{i}_rank")
+                    infra_epithet = line.get(f"infrasp{i}")
+                    if infra_rank == "cv.":
+                        line[f"infrasp{i}_rank"] = None
+                        line[f"infrasp{i}"] = None
+                        line["cultivar_epithet"] = infra_epithet or "cv."
 
                 out_file.writerow(line)
                 if count % five_percent == 0:
@@ -279,7 +303,8 @@ class CSVRestore:
     def genus_upgrader(filenames):
         """Upgrade genus file"""
         import re
-        reg = re.compile(r'.*genus\.(csv|txt)$')
+
+        reg = re.compile(r".*genus\.(csv|txt)$")
         genus_file = [i for i in filenames if reg.match(i)]
 
         # bail early
@@ -289,46 +314,50 @@ class CSVRestore:
         genus_file = genus_file[0]
         original = genus_file + ORIG_SUFFIX
 
-        msg = _('adding genus hybrid flag: ')
-        logger.debug('upgrading %s', genus_file)
+        msg = _("adding genus hybrid flag: ")
+        logger.debug("upgrading %s", genus_file)
         bauble.task.set_message(msg + genus_file)
 
-        with open(genus_file, 'r', encoding='utf-8', newline='') as f:
+        with open(genus_file, "r", encoding="utf-8", newline="") as f:
             num_lines = len(f.readlines())
 
-        with open(genus_file, 'r', encoding='utf-8', newline='') as f:
+        with open(genus_file, "r", encoding="utf-8", newline="") as f:
             reader = csv.DictReader(f)
             fieldnames = reader.fieldnames.copy()
 
         if num_lines <= 1:
-            logger.debug('%s contains no table data skip translation',
-                         genus_file)
+            logger.debug(
+                "%s contains no table data skip translation", genus_file
+            )
             return
 
-        if 'hybrid' in fieldnames:
-            logger.debug('%s contains hybrid data skip translation',
-                         genus_file)
+        if "hybrid" in fieldnames:
+            logger.debug(
+                "%s contains hybrid data skip translation", genus_file
+            )
             return
 
         os.rename(genus_file, original)
         five_percent = int(num_lines / 20) or 1
 
-        with (open(original, 'r', encoding='utf-8', newline='') as old,
-              open(genus_file, 'w', encoding='utf-8', newline='') as new):
+        with (
+            open(original, "r", encoding="utf-8", newline="") as old,
+            open(genus_file, "w", encoding="utf-8", newline="") as new,
+        ):
             in_file = csv.DictReader(old)
             fieldnames = in_file.fieldnames
-            fieldnames.append('hybrid')
+            fieldnames.append("hybrid")
             out_file = csv.DictWriter(new, fieldnames=fieldnames)
             out_file.writeheader()
             for count, line in enumerate(in_file):
-                epithet = line.get('genus')
-                line['hybrid'] = None
-                if epithet.startswith('+ '):
-                    line['hybrid'] = '+'
-                    line['genus'] = epithet[2:]
-                elif epithet.startswith('x '):
-                    line['hybrid'] = '×'
-                    line['genus'] = epithet[2:]
+                epithet = line.get("genus")
+                line["hybrid"] = None
+                if epithet.startswith("+ "):
+                    line["hybrid"] = "+"
+                    line["genus"] = epithet[2:]
+                elif epithet.startswith("x "):
+                    line["hybrid"] = "×"
+                    line["genus"] = epithet[2:]
                 out_file.writerow(line)
                 if count % five_percent == 0:
                     pb_set_fraction(count / num_lines)
@@ -339,16 +368,17 @@ class CSVRestore:
         import re
 
         def upgrader(filename):
-            with open(filename, 'r', encoding='utf-8', newline='') as f:
+            with open(filename, "r", encoding="utf-8", newline="") as f:
                 num_lines = len(f.readlines())
 
             if num_lines <= 1:
-                logger.debug('%s contains no table data skip translation',
-                             filename)
+                logger.debug(
+                    "%s contains no table data skip translation", filename
+                )
                 return
 
             original = filename + ORIG_SUFFIX
-            pictures = filename.rsplit('note', 1)[0] + 'picture.csv'
+            pictures = filename.rsplit("note", 1)[0] + "picture.csv"
             # mutatable
             filenames.append(pictures)
 
@@ -356,9 +386,11 @@ class CSVRestore:
 
             five_percent = int(num_lines / 20) or 1
 
-            with (open(original, 'r', encoding='utf-8', newline='') as old,
-                  open(filename, 'w', encoding='utf-8', newline='') as new,
-                  open(pictures, 'w', encoding='utf-8', newline='') as pics):
+            with (
+                open(original, "r", encoding="utf-8", newline="") as old,
+                open(filename, "w", encoding="utf-8", newline="") as new,
+                open(pictures, "w", encoding="utf-8", newline="") as pics,
+            ):
                 in_file = csv.DictReader(old)
 
                 fieldnames = in_file.fieldnames.copy()
@@ -366,17 +398,17 @@ class CSVRestore:
                 out_file.writeheader()
 
                 fieldnames = in_file.fieldnames.copy()
-                fieldnames.remove('note')
-                fieldnames.append('picture')
+                fieldnames.remove("note")
+                fieldnames.append("picture")
 
                 out_pics = csv.DictWriter(pics, fieldnames=fieldnames)
                 out_pics.writeheader()
 
                 for count, line in enumerate(in_file):
-                    if line.get('category') == '<picture>':
-                        line['category'] = None
-                        line['picture'] = line.get('note')
-                        del line['note']
+                    if line.get("category") == "<picture>":
+                        line["category"] = None
+                        line["picture"] = line.get("note")
+                        del line["note"]
                         out_pics.writerow(line)
                     else:
                         out_file.writerow(line)
@@ -384,65 +416,70 @@ class CSVRestore:
                         pb_set_fraction(count / num_lines)
                         yield
 
-        reg = re.compile(r'.*(plant|species|location)_note\.(csv|txt)$')
+        reg = re.compile(r".*(plant|species|location)_note\.(csv|txt)$")
         note_filenames = [i for i in filenames if reg.match(i)]
 
         if note_filenames:
             for file in note_filenames:
-                logger.debug('upgrading %s', file)
+                logger.debug("upgrading %s", file)
                 yield from upgrader(file)
 
     @staticmethod
     def acc_upgrader(filenames):
         """Upgrade accession file"""
-        accession_file = [i for i in filenames if i.endswith('accession.txt')]
+        accession_file = [i for i in filenames if i.endswith("accession.txt")]
 
         # bail early
         if not accession_file:
             return
 
-        depr_wild_prov = ['Impound',
-                          'Collection',
-                          'Rescue',
-                          'InsufficientData',
-                          'Unknown']
+        depr_wild_prov = [
+            "Impound",
+            "Collection",
+            "Rescue",
+            "InsufficientData",
+            "Unknown",
+        ]
 
-        depr_prov_type = ['Purchase', 'Unknown']
+        depr_prov_type = ["Purchase", "Unknown"]
 
         accession_file = accession_file[0]
         original = accession_file + ORIG_SUFFIX
 
-        msg = _('removing deprecated provenance entries: ')
-        logger.debug('upgrading %s', accession_file)
+        msg = _("removing deprecated provenance entries: ")
+        logger.debug("upgrading %s", accession_file)
         bauble.task.set_message(msg + accession_file)
 
-        with open(accession_file, 'r', encoding='utf-8', newline='') as f:
+        with open(accession_file, "r", encoding="utf-8", newline="") as f:
             num_lines = len(f.readlines())
 
         if num_lines <= 1:
-            logger.debug('%s contains no table data skip translation',
-                         accession_file)
+            logger.debug(
+                "%s contains no table data skip translation", accession_file
+            )
             return
 
         os.rename(accession_file, original)
         five_percent = int(num_lines / 20) or 1
 
-        with (open(original, 'r', encoding='utf-8', newline='') as old,
-              open(accession_file, 'w', encoding='utf-8', newline='') as new):
+        with (
+            open(original, "r", encoding="utf-8", newline="") as old,
+            open(accession_file, "w", encoding="utf-8", newline="") as new,
+        ):
             in_file = csv.DictReader(old)
             fieldnames = in_file.fieldnames
             out_file = csv.DictWriter(new, fieldnames=fieldnames)
             out_file.writeheader()
             for count, line in enumerate(in_file):
-                wp_status = line.get('wild_prov_status')
+                wp_status = line.get("wild_prov_status")
                 if wp_status in depr_wild_prov:
-                    line['wild_prov_status'] = None
-                prov_type = line.get('prov_type')
+                    line["wild_prov_status"] = None
+                prov_type = line.get("prov_type")
                 if prov_type in depr_prov_type:
-                    line['prov_type'] = None
-                id_qual_rank = line.get('id_qual_rank')
-                if id_qual_rank == 'infrasp':
-                    line['prov_type'] = 'infrasp1'
+                    line["prov_type"] = None
+                id_qual_rank = line.get("id_qual_rank")
+                if id_qual_rank == "infrasp":
+                    line["prov_type"] = "infrasp1"
                 out_file.writerow(line)
                 if count % five_percent == 0:
                     pb_set_fraction(count / num_lines)
@@ -451,45 +488,45 @@ class CSVRestore:
     @staticmethod
     def changes_upgrader(filenames):
         """Upgrade plant_change file"""
-        changes_file = [i for i in filenames if i.endswith('plant_change.txt')]
+        changes_file = [i for i in filenames if i.endswith("plant_change.txt")]
 
         # bail early
         if not changes_file:
             return
 
-        deprecated = ['FOGS',
-                      'PLOP',
-                      'BA40',
-                      'TOTM']
+        deprecated = ["FOGS", "PLOP", "BA40", "TOTM"]
 
         changes_file = changes_file[0]
         original = changes_file + ORIG_SUFFIX
 
-        msg = _('removing deprecated reason entries: ')
-        logger.debug('upgrading %s', changes_file)
+        msg = _("removing deprecated reason entries: ")
+        logger.debug("upgrading %s", changes_file)
         bauble.task.set_message(msg + changes_file)
 
-        with open(changes_file, 'r', encoding='utf-8', newline='') as f:
+        with open(changes_file, "r", encoding="utf-8", newline="") as f:
             num_lines = len(f.readlines())
 
         if num_lines <= 1:
-            logger.debug('%s contains no table data skip translation',
-                         changes_file)
+            logger.debug(
+                "%s contains no table data skip translation", changes_file
+            )
             return
 
         os.rename(changes_file, original)
         five_percent = int(num_lines / 20) or 1
 
-        with (open(original, 'r', encoding='utf-8', newline='') as old,
-              open(changes_file, 'w', encoding='utf-8', newline='') as new):
+        with (
+            open(original, "r", encoding="utf-8", newline="") as old,
+            open(changes_file, "w", encoding="utf-8", newline="") as new,
+        ):
             in_file = csv.DictReader(old)
             fieldnames = in_file.fieldnames
             out_file = csv.DictWriter(new, fieldnames=fieldnames)
             out_file.writeheader()
             for count, line in enumerate(in_file):
-                wps = line.get('reason')
+                wps = line.get("reason")
                 if wps in deprecated:
-                    line['wild_prov_status'] = None
+                    line["wild_prov_status"] = None
                 out_file.writerow(line)
                 if count % five_percent == 0:
                     pb_set_fraction(count / num_lines)
@@ -500,59 +537,61 @@ class CSVRestore:
         for file in change_lst:
             original = file + ORIG_SUFFIX
 
-            msg = _('translating data in: ')
-            logger.debug('translating %s', file)
+            msg = _("translating data in: ")
+            logger.debug("translating %s", file)
             bauble.task.set_message(msg + file)
 
-            with open(file, 'r', encoding='utf-8', newline='') as f:
+            with open(file, "r", encoding="utf-8", newline="") as f:
                 num_lines = len(f.readlines())
 
             if num_lines <= 1:
-                logger.debug('%s contains no table data skip translation',
-                             file)
+                logger.debug(
+                    "%s contains no table data skip translation", file
+                )
                 continue
 
             os.rename(file, original)
             five_percent = int(num_lines / 20) or 1
-            with (open(original, 'r', encoding='utf-8', newline='') as old,
-                  open(file, 'w', encoding='utf-8', newline='') as new):
+            with (
+                open(original, "r", encoding="utf-8", newline="") as old,
+                open(file, "w", encoding="utf-8", newline="") as new,
+            ):
                 in_file = csv.DictReader(old)
                 fieldnames = in_file.fieldnames
                 out_file = csv.DictWriter(new, fieldnames=fieldnames)
                 out_file.writeheader()
                 for count, line in enumerate(in_file):
-                    new_geo_id = self.translator.get(line.get('geography_id'))
+                    new_geo_id = self.translator.get(line.get("geography_id"))
                     # the old system had one entry with no code or parent.
                     if not new_geo_id:
-                        logger.debug('skipping %s', line)
+                        logger.debug("skipping %s", line)
                         continue
-                    line['geography_id'] = new_geo_id
+                    line["geography_id"] = new_geo_id
                     out_file.writerow(line)
                     if count % five_percent == 0:
                         pb_set_fraction(count / num_lines)
                         yield
 
     def set_geo_translator(self, geography: str) -> None:
-        """return a dictionary of old IDs to new IDs for the geography table.
-        """
+        """return a dictionary of old IDs to new IDs for the geography table."""
         from bauble.plugins.plants import Geography
 
-        msg = _('creating translation table')
+        msg = _("creating translation table")
         logger.debug(msg)
         bauble.task.set_message(msg)
 
-        with open(geography, 'r', encoding='utf-8', newline='') as f:
+        with open(geography, "r", encoding="utf-8", newline="") as f:
             num_lines = len(f.readlines())
 
         five_percent = int(num_lines / 20) or 1
         old_geos = {}
-        with open(geography, 'r', encoding='utf-8', newline='') as f:
+        with open(geography, "r", encoding="utf-8", newline="") as f:
             geo = csv.DictReader(f)
             for count, line in enumerate(geo):
-                id_ = line.get('id')
-                code = line.get('tdwg_code').split(',')[0]
-                parent = line.get('parent_id')
-                old_geos[id_] = {'code': code, 'parent': parent}
+                id_ = line.get("id")
+                code = line.get("tdwg_code").split(",")[0]
+                parent = line.get("parent_id")
+                old_geos[id_] = {"code": code, "parent": parent}
                 # update the gui
                 if count % five_percent == 0:
                     fraction = count / num_lines
@@ -564,32 +603,38 @@ class CSVRestore:
         # make sure to get the right count
         num_lines = len(old_geos)
         for count, (id_, codes) in enumerate(old_geos.items()):
-            new = (session.query(Geography)
-                   .filter_by(tdwg_code=codes.get('code'))
-                   .all())
+            new = (
+                session.query(Geography)
+                .filter_by(tdwg_code=codes.get("code"))
+                .all()
+            )
             if not new:
-                parent = old_geos.get(codes.get('parent'))
+                parent = old_geos.get(codes.get("parent"))
                 if not parent:
-                    logger.debug('no parent for %s', codes)
+                    logger.debug("no parent for %s", codes)
                     continue
-                new = (session.query(Geography)
-                       .filter_by(tdwg_code=parent.get('code'))
-                       .all())
+                new = (
+                    session.query(Geography)
+                    .filter_by(tdwg_code=parent.get("code"))
+                    .all()
+                )
             if not new:
-                parent2 = old_geos.get(parent.get('parent'))
+                parent2 = old_geos.get(parent.get("parent"))
                 if not parent2:
-                    logger.debug('no parent for %s', codes)
+                    logger.debug("no parent for %s", codes)
                     continue
-                new = (session.query(Geography)
-                       .filter_by(tdwg_code=parent2.get('code'))
-                       .all())
+                new = (
+                    session.query(Geography)
+                    .filter_by(tdwg_code=parent2.get("code"))
+                    .all()
+                )
             if new:
                 if len(new) == 1:
                     translator[id_] = new[0].id
                 else:
-                    logger.debug('multiples records for %s', codes)
+                    logger.debug("multiples records for %s", codes)
             else:
-                logger.debug('unfound area %s', codes)
+                logger.debug("unfound area %s", codes)
             if count % five_percent == 0:
                 fraction = count / num_lines
                 pb_set_fraction(fraction)
@@ -611,9 +656,10 @@ class CSVRestore:
         foreign_key column and child is usually the column that the
         foreign key points to, e.g ('parent_id', 'id')
         """
-        with open(filename, 'r', encoding='utf-8', newline='') as f:
-            reader = UnicodeReader(f, quotechar=QUOTE_CHAR,
-                                   quoting=QUOTE_STYLE)
+        with open(filename, "r", encoding="utf-8", newline="") as f:
+            reader = UnicodeReader(
+                f, quotechar=QUOTE_CHAR, quoting=QUOTE_STYLE
+            )
 
             # create a dictionary of the lines mapped to the child field
             bychild = {}
@@ -641,12 +687,13 @@ class CSVRestore:
         # _head, name = os.path.split(filename)
         name = Path(filename).name
         filename = Path(tmppath, name)
-        with open(filename, 'w', encoding='utf-8', newline='') as tmpfile:
-            row = ','.join(fields)
+        with open(filename, "w", encoding="utf-8", newline="") as tmpfile:
+            row = ",".join(fields)
             tmpfile.write(f"{row}\n")
             # writer = UnicodeWriter(tmpfile, fields, quotechar=QUOTE_CHAR,
-            writer = csv.DictWriter(tmpfile, fields, quotechar=QUOTE_CHAR,
-                                    quoting=QUOTE_STYLE)
+            writer = csv.DictWriter(
+                tmpfile, fields, quotechar=QUOTE_CHAR, quoting=QUOTE_STYLE
+            )
             writer.writerows(sorted_lines)
         return str(filename)
 
@@ -670,8 +717,9 @@ class CSVRestore:
             connection = metadata.bind.connect()
             transaction = connection.begin()
         except Exception as e:
-            msg = _('Error connecting to database.\n\n{}').format(
-                utils.xml_safe(e))
+            msg = _("Error connecting to database.\n\n{}").format(
+                utils.xml_safe(e)
+            )
             utils.message_dialog(msg, Gtk.MessageType.ERROR)
             return
 
@@ -683,9 +731,11 @@ class CSVRestore:
             # table_name, ext = os.path.splitext(base)
             if table_name in filename_dict:
                 safe = utils.xml_safe
-                msg = _('More than one file given to import into table '
-                        f'<b>{safe(table_name)}</b>: '
-                        f'{safe(filename_dict.get(table_name))}, {safe(f)}')
+                msg = _(
+                    "More than one file given to import into table "
+                    f"<b>{safe(table_name)}</b>: "
+                    f"{safe(filename_dict.get(table_name))}, {safe(f)}"
+                )
                 utils.message_dialog(msg, Gtk.MessageType.ERROR)
                 return
             filename_dict[table_name] = f
@@ -696,11 +746,13 @@ class CSVRestore:
             try:
                 sorted_tables.insert(0, (table, filename_dict.pop(table.name)))
             except KeyError:
-                logger.debug('%s not in list of filenames', table.name)
+                logger.debug("%s not in list of filenames", table.name)
 
         if len(filename_dict) > 0:
-            msg = _('Could not match all filenames to table names.\n\n'
-                    f'{filename_dict}')
+            msg = _(
+                "Could not match all filenames to table names.\n\n"
+                f"{filename_dict}"
+            )
             utils.message_dialog(msg, Gtk.MessageType.ERROR)
             return
 
@@ -708,7 +760,7 @@ class CSVRestore:
         filesizes = {}
         for filename in filenames:
             # get the total number of lines for all the files
-            with open(filename, 'r', encoding='utf-8', newline='') as f:
+            with open(filename, "r", encoding="utf-8", newline="") as f:
                 nlines = len(f.readlines())
 
             filesizes[filename] = nlines
@@ -726,49 +778,54 @@ class CSVRestore:
         insert = None
         depends = set()  # the type will be changed to a [] later
         try:
-            logger.debug('entering try block in csv importer')
+            logger.debug("entering try block in csv importer")
             # get all the dependencies
             for table, filename in sorted_tables:
-                logger.debug('get table dependendencies for table %s',
-                             table.name)
+                logger.debug(
+                    "get table dependendencies for table %s", table.name
+                )
                 deps = utils.find_dependent_tables(table)
                 depends.update(list(deps))
                 del deps
 
-            deps_names = ', '.join(sorted([deps.name for deps in depends]))
+            deps_names = ", ".join(sorted([deps.name for deps in depends]))
             # drop all of the dependencies together
             # have added tables since v1.0 and a user may choose to drop
             # one or 2 tables (e.g plugin, history)
             if len(filenames) >= len(metadata.tables) - 4:
                 if not force:
-                    msg = _('It appears you are attempting a full restore. To '
-                            'do this requires deleting all data.\n\n'
-                            '<b>CAUTION! only proceed if you know what you '
-                            'are doing</b>.\n\nWould you like to continue a '
-                            'full restore?')
+                    msg = _(
+                        "It appears you are attempting a full restore. To "
+                        "do this requires deleting all data.\n\n"
+                        "<b>CAUTION! only proceed if you know what you "
+                        "are doing</b>.\n\nWould you like to continue a "
+                        "full restore?"
+                    )
                     response = utils.yes_no_dialog(msg)
                     if response:
                         force = True
 
             if len(depends) > 0:
                 if not force:
-                    msg = _('In order to import the files the following '
-                            'tables will need to be dropped:'
-                            f'\n\n<b>{deps_names}</b>\n\n'
-                            'Would you like to continue?')
+                    msg = _(
+                        "In order to import the files the following "
+                        "tables will need to be dropped:"
+                        f"\n\n<b>{deps_names}</b>\n\n"
+                        "Would you like to continue?"
+                    )
                     response = utils.yes_no_dialog(msg)
                 else:
                     response = True
 
                 if response and len(depends) > 0:
-                    logger.debug('dropping: %s', deps_names)
+                    logger.debug("dropping: %s", deps_names)
                     metadata.drop_all(bind=connection, tables=depends)
                 else:
                     # user doesn't want to drop dependencies so we just quit
                     return
 
             # commit the dependency drops
-            logger.debug('commit dropped tables')
+            logger.debug("commit dropped tables")
             transaction.commit()
             transaction = connection.begin()
 
@@ -780,8 +837,10 @@ class CSVRestore:
             for table, filename in reversed(sorted_tables):
                 if self.__cancel or self.__error:
                     break
-                msg = (_('importing %(table)s table from %(filename)s') %
-                       {'table': table.name, 'filename': filename})
+                msg = _("importing %(table)s table from %(filename)s") % {
+                    "table": table.name,
+                    "filename": filename,
+                }
                 logger.info(msg)
                 bauble.task.set_message(msg)
                 yield  # allow progress bar update
@@ -790,23 +849,29 @@ class CSVRestore:
                 # could have been dropped whereas table.exists() can
                 # return true for a dropped table if the transaction
                 # hasn't been committed
-                if table in depends or not (inspect(db.engine)
-                                            .has_table(table.name)):
-                    logger.info('%s does not exist. creating.', table.name)
+                if table in depends or not (
+                    inspect(db.engine).has_table(table.name)
+                ):
+                    logger.info("%s does not exist. creating.", table.name)
                     create_table(table)
                 elif table.name not in created_tables and table not in depends:
                     # we get here if the table wasn't previously
                     # dropped because it was a dependency of another
                     # table
                     if not force:
-                        msg = _('The <b>%s</b> table already exists in the '
-                                'database and may contain some data. If a '
-                                'row the import file has the same id as a '
-                                'row in the database then the file will not '
-                                'import correctly.\n\n<i>Would you like to '
-                                'drop the table in the database first. You '
-                                'will lose the data in your database if you '
-                                'do this?</i>') % table.name
+                        msg = (
+                            _(
+                                "The <b>%s</b> table already exists in the "
+                                "database and may contain some data. If a "
+                                "row the import file has the same id as a "
+                                "row in the database then the file will not "
+                                "import correctly.\n\n<i>Would you like to "
+                                "drop the table in the database first. You "
+                                "will lose the data in your database if you "
+                                "do this?</i>"
+                            )
+                            % table.name
+                        )
                         response = utils.yes_no_dialog(msg)
                     else:
                         response = True
@@ -823,21 +888,23 @@ class CSVRestore:
 
                 # do nothing more for empty tables
                 if filesizes[filename] <= 1:
-                    logger.debug('%s contains no table data skipping import',
-                                 filename)
+                    logger.debug(
+                        "%s contains no table data skipping import", filename
+                    )
                     continue
 
                 # open a temporary reader to get the column keys so we
                 # can later precompile our insert statement
-                with open(filename, 'r', encoding='utf-8', newline='') as f:
-                    logger.debug('%s open', filename)
-                    tmp = UnicodeReader(f, quotechar=QUOTE_CHAR,
-                                        quoting=QUOTE_STYLE)
+                with open(filename, "r", encoding="utf-8", newline="") as f:
+                    logger.debug("%s open", filename)
+                    tmp = UnicodeReader(
+                        f, quotechar=QUOTE_CHAR, quoting=QUOTE_STYLE
+                    )
                     next(tmp)
                     csv_columns = set(tmp.reader.fieldnames)
-                    logger.debug('%s columns = %s', filename, csv_columns)
+                    logger.debug("%s columns = %s", filename, csv_columns)
                     del tmp
-                logger.debug('%s closed', filename)
+                logger.debug("%s closed", filename)
 
                 # precompute the defaults...this assumes that the
                 # default function doesn't depend on state after each
@@ -848,18 +915,20 @@ class CSVRestore:
                     if isinstance(column.default, ColumnDefault):
                         defaults[column.name] = column.default.execute()
 
-                logger.debug('column defaults: %s', defaults)
+                logger.debug("column defaults: %s", defaults)
                 # check if there are any foreign keys on the table that refer
                 # to itself, if so create a new file with the lines sorted in
                 # order of dependency so that we don't get errors about
                 # importing values into a foreign_key that don't reference an
                 # existing row
-                self_keys = [f for f in table.foreign_keys if
-                             f.column.table == table]
+                self_keys = [
+                    f for f in table.foreign_keys if f.column.table == table
+                ]
                 if self_keys:
-                    logger.debug('%s requires toposort')
+                    logger.debug("%s requires toposort")
                     key_pairs = [
-                        (x.parent.name, x.column.name) for x in self_keys]
+                        (x.parent.name, x.column.name) for x in self_keys
+                    ]
                     filename = self._toposort_file(filename, key_pairs)
 
                 # the column keys for the insert are a union of the
@@ -867,57 +936,67 @@ class CSVRestore:
                 # defaults
                 column_keys = list(csv_columns.union(list(defaults.keys())))
                 insert = table.insert(bind=connection).compile(
-                    column_keys=column_keys)
+                    column_keys=column_keys
+                )
 
                 def do_insert(values):
-                    logger.debug('do_insert')
+                    logger.debug("do_insert")
                     if values:
-                        logger.debug('executing inserting')
+                        logger.debug("executing inserting")
                         connection.execute(insert, *values)
 
-                with open(filename, 'r', encoding='utf-8', newline='') as f:
+                with open(filename, "r", encoding="utf-8", newline="") as f:
                     values = []
 
-                    reader = UnicodeReader(f, quotechar=QUOTE_CHAR,
-                                           quoting=QUOTE_STYLE)
-                    logger.debug('%s open', filename)
+                    reader = UnicodeReader(
+                        f, quotechar=QUOTE_CHAR, quoting=QUOTE_STYLE
+                    )
+                    logger.debug("%s open", filename)
                     # NOTE: we shouldn't get this far if the file doesn't
                     # have any rows to import but if so there is a chance
                     # that this loop could cause problems
                     for line in reader:
                         while self.__pause:
-                            logger.debug('__pause')
+                            logger.debug("__pause")
                             yield
                         if self.__cancel or self.__error:
-                            logger.debug('breaking: __cancel=%s, __error=%s',
-                                         self.__cancel, self.__error)
+                            logger.debug(
+                                "breaking: __cancel=%s, __error=%s",
+                                self.__cancel,
+                                self.__error,
+                            )
                             break
 
                         # fill in default values and None for "empty"
                         # columns in line
                         for column in list(table.c.keys()):
-                            if (column in defaults and
-                                    (column not in line or
-                                     line[column] in ('', None))):
+                            if column in defaults and (
+                                column not in line
+                                or line[column] in ("", None)
+                            ):
                                 line[column] = defaults[column]
-                            elif column in line and line[column] in ('', None):
+                            elif column in line and line[column] in ("", None):
                                 line[column] = None
                             elif column not in line:
                                 line[column] = None
-                            elif (table.c[column].type.__class__.__name__ ==
-                                  'JSON'):
+                            elif (
+                                table.c[column].type.__class__.__name__
+                                == "JSON"
+                            ):
                                 from ast import literal_eval
+
                                 line[column] = literal_eval(
-                                    line.get(column, 'None')
+                                    line.get(column, "None")
                                 )
-                            elif ((filename.endswith('bauble.csv') or
-                                   filename.endswith('bauble.txt')) and
-                                  line.get(column) == 'version'):
-                                logger.debug('setting version in bauble table')
+                            elif (
+                                filename.endswith("bauble.csv")
+                                or filename.endswith("bauble.txt")
+                            ) and line.get(column) == "version":
+                                logger.debug("setting version in bauble table")
                                 # as this is recreating the database it's more
                                 # accurate to say the current version created
                                 # the data.
-                                line['value'] = bauble.version
+                                line["value"] = bauble.version
                         values.append(line)
                         steps_so_far += 1
                         if steps_so_far % update_every == 0:
@@ -930,8 +1009,11 @@ class CSVRestore:
                             yield
 
                 if self.__error or self.__cancel:
-                    logger.debug('breaking: __cancel=%s, __error=%s',
-                                 self.__cancel, self.__error)
+                    logger.debug(
+                        "breaking: __cancel=%s, __error=%s",
+                        self.__cancel,
+                        self.__error,
+                    )
                     break
 
                 # insert the remainder that were less than update every
@@ -941,11 +1023,16 @@ class CSVRestore:
                 # or Postgres will complain if two tables that are
                 # being imported have a foreign key relationship
                 transaction.commit()
-                logger.debug('%s: %s', table.name,
-                             select([func.count()]).select_from(
-                                 table).execute().fetchone()[0])
+                logger.debug(
+                    "%s: %s",
+                    table.name,
+                    select([func.count()])
+                    .select_from(table)
+                    .execute()
+                    .fetchone()[0],
+                )
                 transaction = connection.begin()
-            logger.debug('creating: %s', deps_names)
+            logger.debug("creating: %s", deps_names)
             # TODO: need to get those tables from depends that need to
             # be created but weren't created already
             metadata.create_all(connection, depends, checkfirst=True)
@@ -975,16 +1062,20 @@ class CSVRestore:
                 col_name = col.name
             except Exception:
                 pass
-            msg = _('Error: Could not set the sequence for column: '
-                    f'{col_name}')
-            utils.message_details_dialog(utils.xml_safe(msg),
-                                         traceback.format_exc(),
-                                         Gtk.MessageType.ERROR)
+            msg = _(
+                "Error: Could not set the sequence for column: " f"{col_name}"
+            )
+            utils.message_details_dialog(
+                utils.xml_safe(msg),
+                traceback.format_exc(),
+                Gtk.MessageType.ERROR,
+            )
 
     @staticmethod
     def _get_filenames():
         filechooser = Gtk.FileChooserNative.new(
-            _("Choose file(s) to import…"), None, Gtk.FileChooserAction.OPEN)
+            _("Choose file(s) to import…"), None, Gtk.FileChooserAction.OPEN
+        )
         filechooser.set_select_multiple(True)
         filechooser.set_current_folder(str(Path.home()))
         filenames = None
@@ -995,12 +1086,13 @@ class CSVRestore:
 
 
 class CSVBackup:
-
     def start(self, path=None):
         if path is None:
             filechooser = Gtk.FileChooserNative.new(
-                _("Select a directory"), None,
-                Gtk.FileChooserAction.CREATE_FOLDER)
+                _("Select a directory"),
+                None,
+                Gtk.FileChooserAction.CREATE_FOLDER,
+            )
             filechooser.set_current_folder(str(Path.home()))
             response = filechooser.run()
             path = filechooser.get_filename()
@@ -1025,30 +1117,34 @@ class CSVBackup:
             ntables += 1
             filename = filename_template % table.name
             if os.path.exists(filename):
-                msg = _('Backup file <b>%(filename)s</b> for '
-                        '<b>%(table)s</b> table already exists.\n\n<i>Would '
-                        'you like to continue?</i>')\
-                    % {'filename': filename, 'table': table.name}
+                msg = _(
+                    "Backup file <b>%(filename)s</b> for "
+                    "<b>%(table)s</b> table already exists.\n\n<i>Would "
+                    "you like to continue?</i>"
+                ) % {"filename": filename, "table": table.name}
                 if not utils.yes_no_dialog(msg):  # if NO: return
                     return
 
         def replace(string):
             if isinstance(string, str):
-                string.replace('\n', '\\n').replace('\r', '\\r')
+                string.replace("\n", "\\n").replace("\r", "\\r")
             return string
 
         def write_csv(filename, rows):
-            with open(filename, 'w', encoding='utf-8', newline='') as f:
-                writer = UnicodeWriter(f, quotechar=QUOTE_CHAR,
-                                       quoting=QUOTE_STYLE)
+            with open(filename, "w", encoding="utf-8", newline="") as f:
+                writer = UnicodeWriter(
+                    f, quotechar=QUOTE_CHAR, quoting=QUOTE_STYLE
+                )
                 writer.writerows(rows)
 
         five_percent = int(ntables / 20) or 1
         for table in db.metadata.sorted_tables:
             filename = filename_template % table.name
             steps_so_far += 1
-            msg = _('exporting %(table)s table to %(filename)s')\
-                % {'table': table.name, 'filename': filename}
+            msg = _("exporting %(table)s table to %(filename)s") % {
+                "table": table.name,
+                "filename": filename,
+            }
             bauble.task.set_message(msg)
             logger.info("exporting %s", table.name)
 
@@ -1075,8 +1171,7 @@ class CSVBackup:
 
 
 class CSVRestoreCommandHandler(pluginmgr.CommandHandler):
-
-    command = 'restore'
+    command = "restore"
 
     def __call__(self, cmd, arg):
         importer = CSVRestore()
@@ -1084,8 +1179,7 @@ class CSVRestoreCommandHandler(pluginmgr.CommandHandler):
 
 
 class CSVBackupCommandHandler(pluginmgr.CommandHandler):
-
-    command = 'backup'
+    command = "backup"
 
     def __call__(self, cmd, arg):
         exporter = CSVBackup()
@@ -1094,8 +1188,8 @@ class CSVBackupCommandHandler(pluginmgr.CommandHandler):
 
 # pylint: disable=too-few-public-methods
 class CSVRestoreTool(pluginmgr.Tool):
-    category = _('Backup')
-    label = _('Restore')
+    category = _("Backup")
+    label = _("Restore")
 
     @classmethod
     def start(cls):
@@ -1103,17 +1197,19 @@ class CSVRestoreTool(pluginmgr.Tool):
         Start the CSV importer.  This tool will also reinitialize the
         plugins after importing.
         """
-        msg = _('Restoring data into this database will destroy or corrupt '
-                'any existing data.\n\n<i>Would you like to continue?</i>')
+        msg = _(
+            "Restoring data into this database will destroy or corrupt "
+            "any existing data.\n\n<i>Would you like to continue?</i>"
+        )
         if utils.yes_no_dialog(msg, yes_delay=2):
             csv_im = CSVRestore()
             csv_im.start()
-            bauble.command_handler('home', None)
+            bauble.command_handler("home", None)
 
 
 class CSVBackupTool(pluginmgr.Tool):
-    category = _('Backup')
-    label = _('Create')
+    category = _("Backup")
+    label = _("Create")
 
     @classmethod
     def start(cls):

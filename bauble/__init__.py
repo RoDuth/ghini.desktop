@@ -40,7 +40,7 @@ gi.require_version("Gtk", "3.0")
 from bauble import paths
 from bauble.version import version
 
-version_tuple = tuple(version.split('.'))
+version_tuple = tuple(version.split("."))
 release_date = datetime.utcfromtimestamp(0)
 release_version = None
 installation_date = datetime.now()
@@ -56,16 +56,17 @@ consoleLevel = logging.WARNING
 
 if not os.path.exists(paths.appdata_dir()):
     os.makedirs(paths.appdata_dir())
-log_file = os.path.join(paths.appdata_dir(), 'bauble.log')
+log_file = os.path.join(paths.appdata_dir(), "bauble.log")
 if os.path.exists(log_file):
     try:
-        copy2(log_file, log_file + '_PREV')
+        copy2(log_file, log_file + "_PREV")
     except Exception as e:  # pylint: disable=broad-except
-        print('Copying previous log file failed: %s(%s)', type(e).__name__, e)
+        print("Copying previous log file failed: %s(%s)", type(e).__name__, e)
 formatter = logging.Formatter(
-    '%(asctime)s - %(name)s:%(lineno)d - %(levelname)s - %(thread)d '
-    '- %(message)s')
-file_handler = logging.FileHandler(log_file, 'w+', 'utf-8')
+    "%(asctime)s - %(name)s:%(lineno)d - %(levelname)s - %(thread)d "
+    "- %(message)s"
+)
+file_handler = logging.FileHandler(log_file, "w+", "utf-8")
 file_handler.setFormatter(formatter)
 logging.getLogger().addHandler(file_handler)
 file_handler.setLevel(logging.DEBUG)
@@ -78,19 +79,21 @@ if not paths.main_is_frozen():
     console_handler.setLevel(consoleLevel)
 
 
-def warn_with_traceback(message, category, filename, lineno, file=None,
-                        line=None):
-    log = file if hasattr(file, 'write') else sys.stderr
+def warn_with_traceback(
+    message, category, filename, lineno, file=None, line=None
+):
+    log = file if hasattr(file, "write") else sys.stderr
     traceback.print_stack(file=log)
-    log.write(warnings.formatwarning(
-        message, category, filename, lineno, line))
+    log.write(
+        warnings.formatwarning(message, category, filename, lineno, line)
+    )
 
 
 # to print a traceback for warnings to stderr set env var:
 # BAUBLE_WARN_TRACE=True
-if os.environ.get('BAUBLE_WARN_TRACE'):
+if os.environ.get("BAUBLE_WARN_TRACE"):
     warnings.showwarning = warn_with_traceback
-    warnings.simplefilter('always')
+    warnings.simplefilter("always")
 
 # to use faulthandler set env var:
 # PYTHONFAULTHANDLER=1
@@ -117,7 +120,7 @@ def pb_set_fraction(fraction):
 sys.path.append(paths.lib_dir())
 
 # set SQLAlchemy logging level
-logging.getLogger('sqlalchemy').setLevel(logging.WARNING)
+logging.getLogger("sqlalchemy").setLevel(logging.WARNING)
 
 if TYPE_CHECKING:
     gui: bauble.ui.GUI | None = None
@@ -152,15 +155,16 @@ def command_handler(cmd, arg):
 
     from bauble import pluginmgr
     from bauble import utils
+
     global last_handler
     handler_cls = None
     try:
         handler_cls = pluginmgr.commands[cmd]
     except KeyError:
         if cmd is None:
-            utils.message_dialog(_('No default handler registered'))
+            utils.message_dialog(_("No default handler registered"))
         else:
-            utils.message_dialog(_('No command handler for %s') % cmd)
+            utils.message_dialog(_("No command handler for %s") % cmd)
             return
 
     if not isinstance(last_handler, handler_cls):
@@ -171,17 +175,17 @@ def command_handler(cmd, arg):
         # remove the accel_group from the window if the previous view
         # had one
         # NOTE this (add/remove accel_group) is no longer required
-        if hasattr(old_view, 'accel_group'):
+        if hasattr(old_view, "accel_group"):
             gui.window.remove_accel_group(old_view.accel_group)
         # add the new view, and its accel_group if it has one
         gui.set_view(handler_view)
-        if hasattr(handler_view, 'accel_group'):
+        if hasattr(handler_view, "accel_group"):
             gui.window.add_accel_group(handler_view.accel_group)
     try:
         last_handler(cmd, arg)
     except Exception as e:
         msg = utils.xml_safe(e)
-        logger.error('bauble.command_handler(): %s', msg)
-        utils.message_details_dialog(msg,
-                                     traceback.format_exc(),
-                                     Gtk.MessageType.ERROR)
+        logger.error("bauble.command_handler(): %s", msg)
+        utils.message_details_dialog(
+            msg, traceback.format_exc(), Gtk.MessageType.ERROR
+        )

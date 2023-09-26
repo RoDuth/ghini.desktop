@@ -49,7 +49,7 @@ class A(pluginmgr.Plugin):
 
 
 class B(pluginmgr.Plugin):
-    depends = ['A']
+    depends = ["A"]
     initialized = False
     installed = False
 
@@ -63,7 +63,7 @@ class B(pluginmgr.Plugin):
 
 
 class C(pluginmgr.Plugin):
-    depends = ['B']
+    depends = ["B"]
     initialized = False
     installed = False
 
@@ -92,7 +92,7 @@ class FailingInitPlugin(pluginmgr.Plugin):
 
 
 class DependsOnFailingInitPlugin(pluginmgr.Plugin):
-    depends = ['FailingInitPlugin']
+    depends = ["FailingInitPlugin"]
     initialized = False
     installed = False
 
@@ -120,7 +120,7 @@ class FailingInstallPlugin(pluginmgr.Plugin):
 
 
 class DependsOnFailingInstallPlugin(pluginmgr.Plugin):
-    depends = ['FailingInstallPlugin']
+    depends = ["FailingInstallPlugin"]
     initialized = False
     installed = False
 
@@ -134,9 +134,9 @@ class DependsOnFailingInstallPlugin(pluginmgr.Plugin):
 
 
 class PluginMgrTests(BaubleTestCase):
-
     def test_install(self):
         """Test importing default data from plugin."""
+
         # this emulates the PlantsPlugin install() method but only
         # imports the family.csv file...if PlantsPlugin.install()
         # changes we should change this method as well
@@ -148,21 +148,25 @@ class PluginMgrTests(BaubleTestCase):
             @classmethod
             def install(cls, import_defaults=True):
                 import bauble.paths as paths
+
                 if not import_defaults:
                     return
-                path = os.path.join(paths.lib_dir(), "plugins", "plants",
-                                    "default")
-                filenames = os.path.join(path, 'family.csv')
+                path = os.path.join(
+                    paths.lib_dir(), "plugins", "plants", "default"
+                )
+                filenames = os.path.join(path, "family.csv")
                 from bauble.plugins.imex.csv_ import CSVRestore
+
                 csv = CSVRestore()
                 try:
-                    csv.start([filenames], metadata=db.metadata,
-                              force=True)
+                    csv.start([filenames], metadata=db.metadata, force=True)
                 except Exception as e:
                     logger.error(e)
                     raise
                 from bauble.plugins.plants import Family
+
                 self.assertEqual(self.session.query(Family).count(), 1387)
+
         pluginmgr.plugins[Dummy.__name__] = Dummy
         pluginmgr.install([Dummy])
 
@@ -179,9 +183,9 @@ class LocalFunctions(unittest.TestCase):
 
     def test_create_dependency_pairs(self):
         a, b, c = A(), B(), C()
-        a.__name__ = 'A'
-        b.__name__ = 'B'
-        c.__name__ = 'C'
+        a.__name__ = "A"
+        b.__name__ = "B"
+        c.__name__ = "C"
         bauble.pluginmgr.plugins[C.__name__] = c
         bauble.pluginmgr.plugins[B.__name__] = b
         bauble.pluginmgr.plugins[A.__name__] = a
@@ -191,18 +195,17 @@ class LocalFunctions(unittest.TestCase):
 
     def test_create_dependency_pairs_missing_base(self):
         a, b, c = A(), B(), C()
-        a.__name__ = 'A'
-        b.__name__ = 'B'
-        c.__name__ = 'C'
+        a.__name__ = "A"
+        b.__name__ = "B"
+        c.__name__ = "C"
         bauble.pluginmgr.plugins[C.__name__] = c
         bauble.pluginmgr.plugins[B.__name__] = b
         dep, unmet = bauble.pluginmgr._create_dependency_pairs([b, c])
         self.assertEqual(dep, [(b, c)])
-        self.assertEqual(unmet, {'B': ['A']})
+        self.assertEqual(unmet, {"B": ["A"]})
 
 
 class StandalonePluginMgrTests(unittest.TestCase):
-
     def setUp(self):
         A.initialized = A.installed = False
         B.initialized = B.installed = False
@@ -248,9 +251,11 @@ class StandalonePluginMgrTests(unittest.TestCase):
         db.open_conn(uri, verify=False)
         db.create(False)
         bauble.pluginmgr.plugins[
-            FailingInitPlugin.__name__] = FailingInitPlugin()
+            FailingInitPlugin.__name__
+        ] = FailingInitPlugin()
         bauble.pluginmgr.plugins[
-            DependsOnFailingInitPlugin.__name__] = DependsOnFailingInitPlugin()
+            DependsOnFailingInitPlugin.__name__
+        ] = DependsOnFailingInitPlugin()
         bauble.pluginmgr.init(force=True)
         self.assertTrue(self.invoked)
         self.assertFalse(DependsOnFailingInitPlugin.initialized)
@@ -262,7 +267,8 @@ class StandalonePluginMgrTests(unittest.TestCase):
         db.open_conn(uri, verify=False)
         db.create(False)
         bauble.pluginmgr.plugins[
-            FailingInstallPlugin.__name__] = FailingInstallPlugin()
+            FailingInstallPlugin.__name__
+        ] = FailingInstallPlugin()
         bauble.pluginmgr.plugins[
             DependsOnFailingInstallPlugin.__name__
         ] = DependsOnFailingInstallPlugin()
@@ -302,7 +308,7 @@ class StandalonePluginMgrTests(unittest.TestCase):
         # reset everything, just to make sure we really test the logic
         C.installed = B.installed = A.installed = False
         ## should try to load the A plugin
-        bauble.pluginmgr.install((pB, ), force=True)
+        bauble.pluginmgr.install((pB,), force=True)
         self.assertTrue(B.installed)
         self.assertTrue(A.installed)
         # self.assertFalse(C.installed)
@@ -325,14 +331,13 @@ class StandalonePluginMgrTests(unittest.TestCase):
         # reset everything, just to make sure we really test the logic
         C.installed = B.installed = A.installed = False
         ## should try to load the A plugin
-        bauble.pluginmgr.install((pC, ), force=True)
+        bauble.pluginmgr.install((pC,), force=True)
         self.assertTrue(C.installed)
         self.assertTrue(B.installed)
         self.assertTrue(A.installed)
 
 
 class PluginRegistryTests(BaubleTestCase):
-
     def test_registry(self):
         """
         Test bauble.pluginmgr.PluginRegistry
@@ -345,8 +350,10 @@ class PluginRegistryTests(BaubleTestCase):
         PluginRegistry.add(p)
         self.assertTrue(PluginRegistry.exists(p))
         # test all
-        self.assertIn(p.__class__.__name__,
-                      [p.name for p in PluginRegistry.all(self.session)])
+        self.assertIn(
+            p.__class__.__name__,
+            [p.name for p in PluginRegistry.all(self.session)],
+        )
 
         # test that removing works
         PluginRegistry.remove(p)

@@ -37,17 +37,17 @@ from bauble import pluginmgr
 
 
 class StoredQueriesModel:
-
     def __init__(self):
-        self.__label = [''] * 11
-        self.__tooltip = [''] * 11
-        self.__query = [''] * 11
+        self.__label = [""] * 11
+        self.__tooltip = [""] * 11
+        self.__query = [""] * 11
         self.__index = 0
         session = db.Session()
-        query = (session.query(meta.BaubleMeta)
-                 .filter(meta.BaubleMeta.name.startswith('stqr_')))
+        query = session.query(meta.BaubleMeta).filter(
+            meta.BaubleMeta.name.startswith("stqr_")
+        )
         for item in query:
-            if item.name[4] != '_':
+            if item.name[4] != "_":
                 continue
             index = int(item.name[5:])
             self[index] = item.value
@@ -55,36 +55,43 @@ class StoredQueriesModel:
         self.page = 1
 
     def __repr__(self):
-        return (f'[p:{self.page:d}; '
-                f'l:{self.__label[1:]}; '
-                f't:{self.__tooltip[1:]}; '
-                f'q:{self.__query[1:]}')
+        return (
+            f"[p:{self.page:d}; "
+            f"l:{self.__label[1:]}; "
+            f"t:{self.__tooltip[1:]}; "
+            f"q:{self.__query[1:]}"
+        )
 
     def save(self):
         session = db.Session()
         for index in range(1, 11):
-            if self.__label[index] == '':
-                item = (session.query(meta.BaubleMeta)
-                        .filter_by(name=f'stqr_{index:02d}')
-                        .first())
+            if self.__label[index] == "":
+                item = (
+                    session.query(meta.BaubleMeta)
+                    .filter_by(name=f"stqr_{index:02d}")
+                    .first()
+                )
                 if item:
                     session.delete(item)
             else:
-                obj = db.get_or_create(session, meta.BaubleMeta,
-                                       name=f'stqr_{index:02d}')
+                obj = db.get_or_create(
+                    session, meta.BaubleMeta, name=f"stqr_{index:02d}"
+                )
                 if obj.value != self[index]:
                     obj.value = self[index]
         session.commit()
         session.close()
 
     def __getitem__(self, index):
-        return (f'{self.__label[index]}:'
-                f'{self.__tooltip[index]}:'
-                f'{self.__query[index]}')
+        return (
+            f"{self.__label[index]}:"
+            f"{self.__tooltip[index]}:"
+            f"{self.__query[index]}"
+        )
 
     def __setitem__(self, index, value):
         self.page = index
-        self.label, self.tooltip, self.query = value.split(':', 2)
+        self.label, self.tooltip, self.query = value.split(":", 2)
 
     def __iter__(self):
         self.__index = 0
@@ -122,31 +129,33 @@ class StoredQueriesModel:
 
 
 class StoredQueriesPresenter(editor.GenericEditorPresenter):
-
     widget_to_field_map = {
-        'stqr_label_entry': 'label',
-        'stqr_tooltip_entry': 'tooltip',
-        'stqr_query_textbuffer': 'query'}
+        "stqr_label_entry": "label",
+        "stqr_tooltip_entry": "tooltip",
+        "stqr_query_textbuffer": "query",
+    }
 
-    weight = {False: Pango.AttrList(),
-              True: Pango.AttrList()}
+    weight = {False: Pango.AttrList(), True: Pango.AttrList()}
 
-    view_accept_buttons = ['stqr_ok_button', ]
+    view_accept_buttons = [
+        "stqr_ok_button",
+    ]
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         for self.model.page in range(1, 11):
-            name = f'stqr_{self.model.page:02d}_label'
-            self.view.widget_set_text(name, self.model.label or _('<empty>'))
+            name = f"stqr_{self.model.page:02d}_label"
+            self.view.widget_set_text(name, self.model.label or _("<empty>"))
         self.model.page = 1
 
     def refresh_toggles(self):
         for i in range(1, 11):
-            bname = f'stqr_{i:02d}_button'
-            lname = f'stqr_{i:02d}_label'
+            bname = f"stqr_{i:02d}_button"
+            lname = f"stqr_{i:02d}_label"
             self.view.widget_set_active(bname, i == self.model.page)
-            self.view.widget_set_attributes(lname,
-                                            self.weight[i == self.model.page])
+            self.view.widget_set_attributes(
+                lname, self.weight[i == self.model.page]
+            )
 
     def refresh_view(self):
         super().refresh_view()
@@ -169,26 +178,27 @@ class StoredQueriesPresenter(editor.GenericEditorPresenter):
 
     def on_label_entry_changed(self, widget, *args):
         self.on_text_entry_changed(widget, *args)
-        page_label_name = f'stqr_{self.model.page:02d}_label'
+        page_label_name = f"stqr_{self.model.page:02d}_label"
         value = self.view.widget_get_text(widget)
-        self.view.widget_set_text(
-            page_label_name, value or _('<empty>'))
+        self.view.widget_set_text(page_label_name, value or _("<empty>"))
 
     def on_stqr_query_textbuffer_changed(self, widget, value=None, _attr=None):
-        return self.on_textbuffer_changed(widget, value, attr='query')
+        return self.on_textbuffer_changed(widget, value, attr="query")
 
 
 def edit_callback():
     session = db.Session()
     view = editor.GenericEditorView(
-        os.path.join(paths.lib_dir(), 'plugins', 'plants',
-                     'stored_queries.glade'),
+        os.path.join(
+            paths.lib_dir(), "plugins", "plants", "stored_queries.glade"
+        ),
         parent=None,
-        root_widget_name='stqr_dialog'
+        root_widget_name="stqr_dialog",
     )
     stored_queries = StoredQueriesModel()
-    presenter = StoredQueriesPresenter(stored_queries, view, session=session,
-                                       refresh_view=True)
+    presenter = StoredQueriesPresenter(
+        stored_queries, view, session=session, refresh_view=True
+    )
     error_state = presenter.start()
     if error_state > 0:
         stored_queries.save()
@@ -199,7 +209,7 @@ def edit_callback():
 
 class StoredQueryEditorTool(pluginmgr.Tool):
     # pylint: disable=too-few-public-methods
-    label = _('Edit Stored Queries')
+    label = _("Edit Stored Queries")
 
     @classmethod
     def start(cls):

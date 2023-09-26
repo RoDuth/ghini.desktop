@@ -40,14 +40,14 @@ from bauble import prefs
 from bauble.error import BaubleError
 
 # by default use sqlite memory uri
-uri = 'sqlite:///:memory:'
+uri = "sqlite:///:memory:"
 # uri = 'postgresql://test:test@localhost/test'
 
 # allow user to overide uri via an envar
 # e.g. to run tests on postgresql:
 # BAUBLE_TEST_DB_URI=postgresql://test:test@localhost/test pytest
-if os.environ.get('BAUBLE_TEST_DB_URI'):
-    uri = os.environ.get('BAUBLE_TEST_DB_URI')
+if os.environ.get("BAUBLE_TEST_DB_URI"):
+    uri = os.environ.get("BAUBLE_TEST_DB_URI")
 
 
 def update_gui():
@@ -55,6 +55,7 @@ def update_gui():
     Flush any GTK Events.  Used for doing GUI testing.
     """
     import gi
+
     gi.require_version("Gtk", "3.0")
     from gi.repository import Gtk
 
@@ -66,6 +67,7 @@ def wait_on_threads():
     """Wait for any still running threads to complete"""
     import threading
     from time import sleep
+
     while threading.active_count() > 1:
         sleep(0.1)
 
@@ -77,11 +79,12 @@ def check_dupids(filename):
     ids = set()
     duplicates = set()
     import lxml.etree as etree
+
     tree = etree.parse(filename)
     for el in tree.getiterator():
-        if el.tag == 'col':
+        if el.tag == "col":
             continue
-        elid = el.get('id')
+        elid = el.get("id")
         if elid not in ids:
             ids.add(elid)
         elif elid and elid not in duplicates:
@@ -98,9 +101,9 @@ class MockLoggingHandler(logging.Handler):
         super().__init__(*args, **kwargs)
 
     def emit(self, record):
-        received = self.messages.setdefault(
-            record.name, {}).setdefault(
-                record.levelname.lower(), [])
+        received = self.messages.setdefault(record.name, {}).setdefault(
+            record.levelname.lower(), []
+        )
         received.append(self.format(record))
 
     def reset(self):
@@ -108,39 +111,42 @@ class MockLoggingHandler(logging.Handler):
 
 
 class BaubleTestCase(unittest.TestCase):
-
     def setUp(self):
         assert uri is not None, "The database URI is not set"
         bauble.db.engine = None
         bauble.conn_name = None
         try:
             poolclass = None
-            if uri.startswith('sqlite'):
+            if uri.startswith("sqlite"):
                 # we know we're connecting to an empty database, use StaticPool
                 # so threads work in memory database.
                 poolclass = StaticPool
-            db.open_conn(uri, verify=False, show_error_dialogs=False,
-                         poolclass=poolclass)
+            db.open_conn(
+                uri,
+                verify=False,
+                show_error_dialogs=False,
+                poolclass=poolclass,
+            )
         except Exception as e:  # pylint: disable=broad-except
             print(e, file=sys.stderr)
         if not bauble.db.engine:
-            raise BaubleError('not connected to a database')
+            raise BaubleError("not connected to a database")
         Path(paths.appdata_dir()).mkdir(parents=True, exist_ok=True)
         bauble.utils.BuilderLoader.builders = {}
         # FAILS test_on_prefs_backup_restore in windows.
         # self.temp_prefs_file = NamedTemporaryFile(suffix='.cfg')
         # self.temp = self.temp_prefs_file.name
-        self.handle, self.temp = mkstemp(suffix='.cfg', text=True)
+        self.handle, self.temp = mkstemp(suffix=".cfg", text=True)
         # reason not to use `from bauble.prefs import prefs`
         prefs.default_prefs_file = self.temp
         prefs.prefs = prefs._prefs(filename=self.temp)
         prefs.prefs.init()
-        prefs.prefs[prefs.web_proxy_prefs] = 'use_requests_without_proxies'
+        prefs.prefs[prefs.web_proxy_prefs] = "use_requests_without_proxies"
         prefs.testing = True
         bauble.pluginmgr.plugins = {}
         pluginmgr.load()
         db.create(import_defaults=False)
-        pluginmgr.install('all', False, force=True)
+        pluginmgr.install("all", False, force=True)
         pluginmgr.init()
         self.session = db.Session()
         self.handler = MockLoggingHandler()
@@ -148,7 +154,7 @@ class BaubleTestCase(unittest.TestCase):
         logging.getLogger().setLevel(logging.DEBUG)
         # clear meta cache
         bauble.meta.get_cached_value.clear_cache()
-        logger.debug('prefs filename: %s', prefs.prefs._filename)
+        logger.debug("prefs filename: %s", prefs.prefs._filename)
 
     def tearDown(self):
         update_gui()
@@ -172,13 +178,14 @@ def mockfunc(msg=None, name=None, caller=None, result=False, *args, **kwargs):
 def get_setUp_data_funcs():
     """Search plugins directory for tests and return setUp_data functions."""
     from importlib import import_module
+
     funcs = []
     root = paths.root_dir()
-    for i in Path(root).glob('bauble/plugins/**/test_*.py'):
-        mod_path = str(i).replace(os.sep, '.')[len(str(root)) + 1:-3]
+    for i in Path(root).glob("bauble/plugins/**/test_*.py"):
+        mod_path = str(i).replace(os.sep, ".")[len(str(root)) + 1 : -3]
         try:
             mod = import_module(mod_path)
-            func = getattr(mod, 'setUp_data')
+            func = getattr(mod, "setUp_data")
             funcs.append(func)
         except Exception:
             pass

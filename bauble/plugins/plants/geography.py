@@ -57,19 +57,22 @@ from bauble.view import InfoExpander
 from bauble.view import PropertiesExpander
 from bauble.view import select_in_search_results
 
-GEO_KML_MAP_PREFS = 'kml_templates.geography'
+GEO_KML_MAP_PREFS = "kml_templates.geography"
 """pref for path to a custom mako kml template."""
 
 map_kml_callback = KMLMapCallbackFunctor(
-    prefs.prefs.get(GEO_KML_MAP_PREFS,
-                    str(Path(__file__).resolve().parent / 'geo.kml'))
+    prefs.prefs.get(
+        GEO_KML_MAP_PREFS, str(Path(__file__).resolve().parent / "geo.kml")
+    )
 )
 
-map_action = Action('geo_map',
-                    _('Show in _map'),
-                    callback=map_kml_callback,
-                    accelerator='<ctrl>m',
-                    multiselect=True)
+map_action = Action(
+    "geo_map",
+    _("Show in _map"),
+    callback=map_kml_callback,
+    accelerator="<ctrl>m",
+    multiselect=True,
+)
 
 geography_context_menu = [map_action]
 
@@ -78,28 +81,40 @@ def get_species_in_geography(geo):
     """Return all the Species that have distribution in geo"""
     session = object_session(geo)
     if not session:
-        ValueError('geography is not in a session')
+        ValueError("geography is not in a session")
 
     from .species_model import Species
     from .species_model import SpeciesDistribution
+
     master_ids = set([geo.id])
     master_ids.update(geo.get_children_ids())
     master_ids.update(geo.get_parent_ids())
 
-    query = (session.query(Species).join(SpeciesDistribution)
-             .filter(SpeciesDistribution.geography_id.in_(master_ids)))
+    query = (
+        session.query(Species)
+        .join(SpeciesDistribution)
+        .filter(SpeciesDistribution.geography_id.in_(master_ids))
+    )
     return query.all()
 
 
 class GeographyMenu(Gio.Menu):
-    ACTION_NAME = 'geography_activated'
+    ACTION_NAME = "geography_activated"
 
     def __init__(self):
         super().__init__()
         geography_table = Geography.__table__
-        self.geos = select([geography_table.c.id,
-                            geography_table.c.name,
-                            geography_table.c.parent_id]).execute().fetchall()
+        self.geos = (
+            select(
+                [
+                    geography_table.c.id,
+                    geography_table.c.name,
+                    geography_table.c.parent_id,
+                ]
+            )
+            .execute()
+            .fetchall()
+        )
         self.geos_hash = {}
         self.populate()
 
@@ -111,11 +126,11 @@ class GeographyMenu(Gio.Menu):
         return Gtk.Menu.new_from_model(menu)
 
     def attach_action_group(self, callback, button):
-        action = Gio.SimpleAction.new(self.ACTION_NAME, GLib.VariantType('s'))
-        action.connect('activate', callback)
+        action = Gio.SimpleAction.new(self.ACTION_NAME, GLib.VariantType("s"))
+        action.connect("activate", callback)
         action_group = Gio.SimpleActionGroup()
         action_group.add_action(action)
-        button.insert_action_group('geo', action_group)
+        button.insert_action_group("geo", action_group)
 
     def get_geos_hash(self):
         geos_hash = {}
@@ -130,7 +145,7 @@ class GeographyMenu(Gio.Menu):
     def build_menu(self, geo_id, name):
         if next_level := self.geos_hash.get(geo_id):
             submenu = Gio.Menu()
-            item = Gio.MenuItem.new(name, f'geo.{self.ACTION_NAME}::{geo_id}')
+            item = Gio.MenuItem.new(name, f"geo.{self.ACTION_NAME}::{geo_id}")
             submenu.append_item(item)
             section = Gio.Menu()
             submenu.append_section(None, section)
@@ -142,7 +157,7 @@ class GeographyMenu(Gio.Menu):
                     section.append_submenu(name_, item)
             return submenu
 
-        item = Gio.MenuItem.new(name, f'geo.{self.ACTION_NAME}::{geo_id}')
+        item = Gio.MenuItem.new(name, f"geo.{self.ACTION_NAME}::{geo_id}")
         return item
 
     def populate(self):
@@ -184,7 +199,8 @@ class Geography(db.Base):
 
     :Constraints:
     """
-    __tablename__ = 'geography'
+
+    __tablename__ = "geography"
 
     # columns
     name = Column(Unicode(255), nullable=False)
@@ -194,16 +210,18 @@ class Geography(db.Base):
     geojson = deferred(Column(types.JSON()))
     # don't use, can lead to InvalidRequestError (Collection unknown)
     # collection = relationship('Collection', back_populates='region')
-    distribution = relationship('SpeciesDistribution',
-                                back_populates='geography')
+    distribution = relationship(
+        "SpeciesDistribution", back_populates="geography"
+    )
 
-    retrieve_cols = ['id', 'tdwg_code']
-    parent_id = Column(Integer, ForeignKey('geography.id'))
-    children = relationship('Geography',
-                            cascade='all',
-                            backref=backref('parent',
-                                            remote_side='Geography.id'),
-                            order_by=[name])
+    retrieve_cols = ["id", "tdwg_code"]
+    parent_id = Column(Integer, ForeignKey("geography.id"))
+    children = relationship(
+        "Geography",
+        cascade="all",
+        backref=backref("parent", remote_side="Geography.id"),
+        order_by=[name],
+    )
 
     @classmethod
     def retrieve(cls, session, keys):
@@ -218,29 +236,38 @@ class Geography(db.Base):
 
     def get_parent_ids(self) -> set[int]:
         session = object_session(self)
-        cte = (session.query(Geography.parent_id)
-               .filter(Geography.id == self.id).cte(recursive=True))
+        cte = (
+            session.query(Geography.parent_id)
+            .filter(Geography.id == self.id)
+            .cte(recursive=True)
+        )
         child = aliased(cte)
-        query = (session.query(Geography.parent_id)
-                 .join(child,
-                       Geography.id == child.c.parent_id))
+        query = session.query(Geography.parent_id).join(
+            child, Geography.id == child.c.parent_id
+        )
         query = cte.union_all(query)
-        query = (session.query(Geography.id)
-                 .join(query, Geography.id == query.c.parent_id))
+        query = session.query(Geography.id).join(
+            query, Geography.id == query.c.parent_id
+        )
         ids = {i[0] for i in query}
         return ids
 
     def get_children_ids(self) -> set[int]:
         session = object_session(self)
-        cte = (session.query(Geography.id)
-               .filter(Geography.id == self.id).cte(recursive=True))
+        cte = (
+            session.query(Geography.id)
+            .filter(Geography.id == self.id)
+            .cte(recursive=True)
+        )
         parent = aliased(cte)
         query = cte.union_all(
-            session.query(Geography.id)
-            .join(parent, Geography.parent_id == parent.c.id)
+            session.query(Geography.id).join(
+                parent, Geography.parent_id == parent.c.id
+            )
         )
-        query = (session.query(Geography.id)
-                 .join(query, Geography.parent_id == query.c.id))
+        query = session.query(Geography.id).join(
+            query, Geography.parent_id == query.c.id
+        )
         ids = {i[0] for i in query}
         return ids
 
@@ -249,6 +276,7 @@ class Geography(db.Base):
         SpeciesDistribution
         """
         from .species_model import SpeciesDistribution
+
         session = object_session(self)
         # more expensive than other models
         ids = {self.id}
@@ -256,23 +284,27 @@ class Geography(db.Base):
         ids.update(self.get_parent_ids())
         ids.update(self.get_children_ids())
 
-        return bool(session.query(literal(True))
-                    .filter(exists()
-                            .where(SpeciesDistribution.geography_id.in_(ids)))
-                    .scalar())
+        return bool(
+            session.query(literal(True))
+            .filter(exists().where(SpeciesDistribution.geography_id.in_(ids)))
+            .scalar()
+        )
 
     def count_children(self) -> int:
         # Much more expensive than other models
         from .species_model import SpeciesDistribution
+
         session = object_session(self)
         ids = {self.id}
 
         ids.update(self.get_parent_ids())
         ids.update(self.get_children_ids())
 
-        query = (session.query(SpeciesDistribution.species_id)
-                 .filter(SpeciesDistribution.geography_id.in_(ids))
-                 .distinct())
+        query = (
+            session.query(SpeciesDistribution.species_id)
+            .filter(SpeciesDistribution.geography_id.in_(ids))
+            .distinct()
+        )
         if prefs.prefs.get(prefs.exclude_inactive_pref):
             cls = SpeciesDistribution.species.prop.mapper.class_
             query = query.join(cls).filter(cls.active.is_(True))
@@ -291,17 +323,18 @@ class GeneralGeographyExpander(InfoExpander):
 
     def update(self, row):
         on_clicked = utils.generate_on_clicked(select_in_search_results)
-        level = ['Continent', 'Region', 'Area', 'Unit'][row.tdwg_level - 1]
-        self.widget_set_value('name_label', row.name)
-        self.widget_set_value('tdwg_level', level)
-        self.widget_set_value('tdwg_code', row.tdwg_code)
-        self.widget_set_value('iso_code', row.iso_code)
-        self.widget_set_value('parent', row.parent or '')
-        shape = row.geojson.get('type', '') if row.geojson else ''
-        self.widget_set_value('geojson_type', shape)
+        level = ["Continent", "Region", "Area", "Unit"][row.tdwg_level - 1]
+        self.widget_set_value("name_label", row.name)
+        self.widget_set_value("tdwg_level", level)
+        self.widget_set_value("tdwg_code", row.tdwg_code)
+        self.widget_set_value("iso_code", row.iso_code)
+        self.widget_set_value("parent", row.parent or "")
+        shape = row.geojson.get("type", "") if row.geojson else ""
+        self.widget_set_value("geojson_type", shape)
         if row.parent:
-            utils.make_label_clickable(self.widgets.parent, on_clicked,
-                                       row.parent)
+            utils.make_label_clickable(
+                self.widgets.parent, on_clicked, row.parent
+            )
         self.widgets.childbox.foreach(self.widgets.childbox.remove)
         for geo in row.children:
             child_lbl = Gtk.Label()
@@ -310,8 +343,7 @@ class GeneralGeographyExpander(InfoExpander):
             eventbox = Gtk.EventBox()
             eventbox.add(child_lbl)
             self.widgets.childbox.pack_start(eventbox, True, True, 0)
-            utils.make_label_clickable(child_lbl, on_clicked,
-                                       geo)
+            utils.make_label_clickable(child_lbl, on_clicked, geo)
         self.widgets.ib_general_grid.show_all()
 
 
@@ -319,9 +351,10 @@ class GeographyInfoBox(InfoBox):
     """
     general info
     """
+
     def __init__(self):
         super().__init__()
-        filename = str(Path(__file__).resolve().parent / 'geo_infobox.glade')
+        filename = str(Path(__file__).resolve().parent / "geo_infobox.glade")
         self.widgets = utils.load_widgets(filename)
         self.general = GeneralGeographyExpander(self.widgets)
         self.add_expander(self.general)
@@ -358,7 +391,6 @@ def consolidate_geographies(geo_list: Iterable[Geography]) -> list:
 
 
 def geography_importer():
-
     import json
 
     from bauble import pb_set_fraction
@@ -370,22 +402,24 @@ def geography_importer():
     lvl3_file = root / "default/wgsrpd/level3.geojson"
     lvl4_file = root / "default/wgsrpd/level4.geojson"
 
-    with lvl1_file.open('r', encoding='utf-8', newline='') as f:
+    with lvl1_file.open("r", encoding="utf-8", newline="") as f:
         geojson_lvl1 = json.load(f)
 
-    with lvl2_file.open('r', encoding='utf-8', newline='') as f:
+    with lvl2_file.open("r", encoding="utf-8", newline="") as f:
         geojson_lvl2 = json.load(f)
 
-    with lvl3_file.open('r', encoding='utf-8', newline='') as f:
+    with lvl3_file.open("r", encoding="utf-8", newline="") as f:
         geojson_lvl3 = json.load(f)
 
-    with lvl4_file.open('r', encoding='utf-8', newline='') as f:
+    with lvl4_file.open("r", encoding="utf-8", newline="") as f:
         geojson_lvl4 = json.load(f)
 
-    total_items = (len(geojson_lvl1.get('features')) +
-                   len(geojson_lvl2.get('features')) +
-                   len(geojson_lvl3.get('features')) +
-                   len(geojson_lvl4.get('features')))
+    total_items = (
+        len(geojson_lvl1.get("features"))
+        + len(geojson_lvl2.get("features"))
+        + len(geojson_lvl3.get("features"))
+        + len(geojson_lvl4.get("features"))
+    )
 
     steps_so_far = 0
     five_percent = int(total_items / 20) or 1
@@ -397,13 +431,13 @@ def geography_importer():
 
     table = Geography.__table__
     with db.engine.begin() as connection:
-        for feature in geojson_lvl1.get('features'):
-            props = feature.get('properties')
+        for feature in geojson_lvl1.get("features"):
+            props = feature.get("properties")
             stmt = table.insert().values(
-                tdwg_code=str(props.get('LEVEL1_COD')),
+                tdwg_code=str(props.get("LEVEL1_COD")),
                 tdwg_level=1,
-                name=props.get('LEVEL1_NAM'),
-                geojson=feature.get('geometry')
+                name=props.get("LEVEL1_NAM"),
+                geojson=feature.get("geometry"),
             )
             connection.execute(stmt)
             steps_so_far += 1
@@ -411,17 +445,17 @@ def geography_importer():
                 update_progressbar(steps_so_far)
                 yield
 
-        for feature in geojson_lvl2.get('features'):
-            props = feature.get('properties')
+        for feature in geojson_lvl2.get("features"):
+            props = feature.get("properties")
             parent = connection.execute(
-                table.select(table.c.tdwg_code == str(props.get('LEVEL1_COD')))
+                table.select(table.c.tdwg_code == str(props.get("LEVEL1_COD")))
             ).first()
             stmt = table.insert().values(
-                tdwg_code=str(props.get('LEVEL2_COD')),
+                tdwg_code=str(props.get("LEVEL2_COD")),
                 tdwg_level=2,
-                name=props.get('LEVEL2_NAM'),
-                geojson=feature.get('geometry'),
-                parent_id=parent.id
+                name=props.get("LEVEL2_NAM"),
+                geojson=feature.get("geometry"),
+                parent_id=parent.id,
             )
             connection.execute(stmt)
             steps_so_far += 1
@@ -429,17 +463,17 @@ def geography_importer():
                 update_progressbar(steps_so_far)
                 yield
 
-        for feature in geojson_lvl3.get('features'):
-            props = feature.get('properties')
+        for feature in geojson_lvl3.get("features"):
+            props = feature.get("properties")
             parent = connection.execute(
-                table.select(table.c.tdwg_code == str(props.get('LEVEL2_COD')))
+                table.select(table.c.tdwg_code == str(props.get("LEVEL2_COD")))
             ).first()
             stmt = table.insert().values(
-                tdwg_code=str(props.get('LEVEL3_COD')),
+                tdwg_code=str(props.get("LEVEL3_COD")),
                 tdwg_level=3,
-                name=props.get('LEVEL3_NAM'),
-                geojson=feature.get('geometry'),
-                parent_id=parent.id
+                name=props.get("LEVEL3_NAM"),
+                geojson=feature.get("geometry"),
+                parent_id=parent.id,
             )
             connection.execute(stmt)
             steps_so_far += 1
@@ -447,9 +481,9 @@ def geography_importer():
                 update_progressbar(steps_so_far)
                 yield
 
-        for feature in geojson_lvl4.get('features'):
-            props = feature.get('properties')
-            if props.get('Level4_2') == 'OO':
+        for feature in geojson_lvl4.get("features"):
+            props = feature.get("properties")
+            if props.get("Level4_2") == "OO":
                 # these are really only place holders and are the same as the
                 # 3rd level elements, which should be used instead.
                 steps_so_far += 1
@@ -458,35 +492,40 @@ def geography_importer():
                     yield
                 continue
             parent = connection.execute(
-                table.select(table.c.tdwg_code == str(props.get('Level3_cod')))
+                table.select(table.c.tdwg_code == str(props.get("Level3_cod")))
             ).first()
             # check for duplicates (e.g. CZE-SL has 2 entries) use the version
             # with the most detail
             existing = connection.execute(
-                table.select(and_(table.c.tdwg_level == 4,
-                             table.c.parent_id == parent.id,
-                             table.c.tdwg_code == str(props.get('Level4_cod')),
-                             table.c.iso_code == props.get('ISO_Code'),
-                             table.c.name == props.get('Level_4_Na')))
+                table.select(
+                    and_(
+                        table.c.tdwg_level == 4,
+                        table.c.parent_id == parent.id,
+                        table.c.tdwg_code == str(props.get("Level4_cod")),
+                        table.c.iso_code == props.get("ISO_Code"),
+                        table.c.name == props.get("Level_4_Na"),
+                    )
+                )
             ).first()
             if existing:
-                logger.debug('found duplicate for: %s', props)
+                logger.debug("found duplicate for: %s", props)
                 # Hacky... but works
-                if (len(str(feature.get('geometry')).split(',')) >
-                        len(str(existing.geojson).split(','))):
-                    logger.debug('removing duplicate')
+                if len(str(feature.get("geometry")).split(",")) > len(
+                    str(existing.geojson).split(",")
+                ):
+                    logger.debug("removing duplicate")
                     stmt = table.delete().where(table.c.id == existing.id)
                     connection.execute(stmt)
                 else:
-                    logger.debug('dropping duplicate')
+                    logger.debug("dropping duplicate")
                     continue
             stmt = table.insert().values(
-                tdwg_code=str(props.get('Level4_cod')),
+                tdwg_code=str(props.get("Level4_cod")),
                 tdwg_level=4,
-                iso_code=props.get('ISO_Code'),
-                name=props.get('Level_4_Na'),
-                geojson=feature.get('geometry'),
-                parent_id=parent.id
+                iso_code=props.get("ISO_Code"),
+                name=props.get("Level_4_Na"),
+                geojson=feature.get("geometry"),
+                parent_id=parent.id,
             )
             connection.execute(stmt)
             steps_so_far += 1

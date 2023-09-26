@@ -61,26 +61,27 @@ from bauble.error import check
 
 def get_users():
     """Return the list of user names."""
-    stmt = 'SELECT rolname FROM pg_roles WHERE rolcanlogin IS TRUE'
+    stmt = "SELECT rolname FROM pg_roles WHERE rolcanlogin IS TRUE"
     return [r[0] for r in db.engine.execute(stmt)]
 
 
 def _create_role(name, password=None, login=False, admin=False):
     conn = db.engine.raw_connection()
     try:
-        stmt = 'CREATE ROLE {name} INHERIT'
+        stmt = "CREATE ROLE {name} INHERIT"
         if login:
-            stmt += ' LOGIN'
+            stmt += " LOGIN"
         if admin:
-            stmt += ' CREATEROLE'
+            stmt += " CREATEROLE"
         if password:
-            stmt += ' WITH PASSWORD {password}'
-        stmt = SQL(stmt).format(name=Identifier(name),
-                                password=Literal(password))
+            stmt += " WITH PASSWORD {password}"
+        stmt = SQL(stmt).format(
+            name=Identifier(name), password=Literal(password)
+        )
         with conn.cursor() as cur:
             cur.execute(stmt)
     except Exception as e:
-        logger.error('users._create_role(): %s(%s)', type(e).__name__, e)
+        logger.error("users._create_role(): %s(%s)", type(e).__name__, e)
         conn.rollback()
         raise
     else:
@@ -95,14 +96,15 @@ def create_user(name, password=None, admin=False):
     conn = db.engine.raw_connection()
     try:
         # allow the new role to connect to the database
-        stmt = 'GRANT CONNECT ON DATABASE {db} TO {name}'
-        stmt = SQL(stmt).format(db=Identifier(db.engine.url.database),
-                                name=Identifier(name))
+        stmt = "GRANT CONNECT ON DATABASE {db} TO {name}"
+        stmt = SQL(stmt).format(
+            db=Identifier(db.engine.url.database), name=Identifier(name)
+        )
         with conn.cursor() as cur:
             cur.execute(stmt)
             logger.debug(stmt.as_string(cur))
     except Exception as e:
-        logger.error('users.create_user(): %s(%s)', type(e).__name__, e)
+        logger.error("users.create_user(): %s(%s)", type(e).__name__, e)
         conn.rollback()
         raise
     else:
@@ -114,7 +116,7 @@ def create_user(name, password=None, admin=False):
 # ####  GROUPS - currently not implemented ...  nor proven ####
 def get_groups():
     """Return the list of group names."""
-    stmt = 'SELECT rolname FROM pg_roles WHERE rolcanlogin IS FALSE'
+    stmt = "SELECT rolname FROM pg_roles WHERE rolcanlogin IS FALSE"
     return [r[0] for r in db.engine.execute(stmt)]
 
 
@@ -130,9 +132,10 @@ def add_member(name, groups=None):
     conn = db.engine.raw_connection()
     try:
         for group in groups:
-            stmt = 'GRANT {group} TO {name}'
-            stmt = SQL(stmt).format(group=Identifier(group),
-                                    name=Identifier(name))
+            stmt = "GRANT {group} TO {name}"
+            stmt = SQL(stmt).format(
+                group=Identifier(group), name=Identifier(name)
+            )
             with conn.cursor() as cur:
                 cur.execute(stmt)
                 logger.debug(stmt.as_string(cur))
@@ -151,9 +154,10 @@ def remove_member(name, groups=None):
     conn = db.engine.raw_connection()
     try:
         for group in groups:
-            stmt = 'REVOKE {group} FROM {name}'
-            stmt = SQL(stmt).format(group=Identifier(group),
-                                    name=Identifier(name))
+            stmt = "REVOKE {group} FROM {name}"
+            stmt = SQL(stmt).format(
+                group=Identifier(group), name=Identifier(name)
+            )
             with conn.cursor() as cur:
                 cur.execute(stmt)
                 logger.debug(stmt.as_string(cur))
@@ -179,12 +183,15 @@ def get_members(group):
         logger.debug(stmt.as_string(cur))
         gid = cur.fetchone()[0]
         # get members with the gid
-        stmt = ('SELECT rolname FROM pg_roles WHERE oid IN (SELECT member '
-                'FROM pg_auth_members WHERE roleid = {gid})')
+        stmt = (
+            "SELECT rolname FROM pg_roles WHERE oid IN (SELECT member "
+            "FROM pg_auth_members WHERE roleid = {gid})"
+        )
         stmt = SQL(stmt).format(group=Literal(gid))
         members = cur.execute(stmt)
     conn.close()
     return [r[0] for r in members]
+
 
 # ### END GROUPS
 
@@ -202,7 +209,7 @@ def drop(role, revoke=False):
             # if set privilege fails then dropping the role will fail
             # because the role will still have dependent users
             set_privilege(role, None)
-        stmt = 'DROP ROLE {role}'
+        stmt = "DROP ROLE {role}"
         stmt = SQL(stmt).format(role=Identifier(role))
 
         with conn.cursor() as cur:
@@ -218,25 +225,44 @@ def drop(role, revoke=False):
         conn.close()
 
 
-_privileges = {'read': ['CONNECT', 'SELECT'],
-               'write': ['CONNECT', 'USAGE', 'SELECT', 'UPDATE', 'INSERT',
-                         'DELETE', 'EXECUTE', 'TRIGGER', 'REFERENCES'],
-               'admin': ['ALL']}
+_privileges = {
+    "read": ["CONNECT", "SELECT"],
+    "write": [
+        "CONNECT",
+        "USAGE",
+        "SELECT",
+        "UPDATE",
+        "INSERT",
+        "DELETE",
+        "EXECUTE",
+        "TRIGGER",
+        "REFERENCES",
+    ],
+    "admin": ["ALL"],
+}
 
-_database_privs = ['CREATE', 'TEMPORARY', 'TEMP']
+_database_privs = ["CREATE", "TEMPORARY", "TEMP"]
 
-_table_privs = ['SELECT', 'INSERT', 'UPDATE', 'DELETE', 'REFERENCES',
-                'TRIGGER', 'ALL']
+_table_privs = [
+    "SELECT",
+    "INSERT",
+    "UPDATE",
+    "DELETE",
+    "REFERENCES",
+    "TRIGGER",
+    "ALL",
+]
 
-_sequence_privs = ['USAGE', 'SELECT', 'UPDATE', 'ALL']
+_sequence_privs = ["USAGE", "SELECT", "UPDATE", "ALL"]
 
 
 def can_connect(role):
     conn = db.engine.raw_connection()
     cur = conn.cursor()
     stmt = "SELECT has_database_privilege({role}, {db}, 'CONNECT')"
-    stmt = SQL(stmt).format(role=Literal(role),
-                            db=Literal(db.engine.url.database))
+    stmt = SQL(stmt).format(
+        role=Literal(role), db=Literal(db.engine.url.database)
+    )
     cur.execute(stmt)
     result = cur.fetchone()[0]
     cur.close()
@@ -258,32 +284,35 @@ def has_privileges(role, privilege):
     # test admin privileges on the database
     # for priv in _database_privs:
     stmt = "SELECT has_database_privilege({role}, {db}, 'CREATE')"
-    stmt = SQL(stmt).format(role=Literal(role),
-                            db=Literal(db.engine.url.database))
+    stmt = SQL(stmt).format(
+        role=Literal(role), db=Literal(db.engine.url.database)
+    )
     cur.execute(stmt)
     result = cur.fetchone()[0]
 
-    if result and privilege != 'admin':
+    if result and privilege != "admin":
         cur.close()
         conn.close()
         return False
-    if not result and privilege == 'admin':
+    if not result and privilege == "admin":
         cur.close()
         conn.close()
         return False
 
-    if privilege == 'admin':
-        privs = set(_table_privs).intersection(_privileges['write'])
+    if privilege == "admin":
+        privs = set(_table_privs).intersection(_privileges["write"])
     else:
         privs = set(_table_privs).intersection(_privileges[privilege])
 
     # test the privileges on the tables and sequences
     for table in db.metadata.sorted_tables:
-        for priv in set(_table_privs).intersection(_privileges['write']):
+        for priv in set(_table_privs).intersection(_privileges["write"]):
             stmt = "SELECT has_table_privilege({role}, {table}, {priv})"
-            stmt = SQL(stmt).format(role=Literal(role),
-                                    table=Literal(table.name),
-                                    priv=Literal(priv))
+            stmt = SQL(stmt).format(
+                role=Literal(role),
+                table=Literal(table.name),
+                priv=Literal(priv),
+            )
             cur.execute(stmt)
             try:
                 result = cur.fetchone()[0]
@@ -305,14 +334,16 @@ def has_privileges(role, privilege):
                 pass
 
     # if admin check that the user can also create roles
-    stmt = ("SELECT rolname FROM pg_roles WHERE rolcreaterole IS TRUE AND "
-            "rolname = {role}")
+    stmt = (
+        "SELECT rolname FROM pg_roles WHERE rolcreaterole IS TRUE AND "
+        "rolname = {role}"
+    )
     stmt = SQL(stmt).format(role=Literal(role))
     cur.execute(stmt)
     result = cur.fetchone()
     cur.close()
     conn.close()
-    if not result and privilege == 'admin':
+    if not result and privilege == "admin":
         return False
 
     return True
@@ -322,10 +353,12 @@ def has_implicit_sequence(column):
     # Tell me if there's an implicit sequence associated to the column, then
     # I assume that the sequence name is <table>_<column>_seq.
     # Simplified based on assuptions valid in ghini
-    return (column.primary_key and
-            column.autoincrement and
-            isinstance(column.type, Integer) and
-            not column.foreign_keys)
+    return (
+        column.primary_key
+        and column.autoincrement
+        and isinstance(column.type, Integer)
+        and not column.foreign_keys
+    )
 
 
 def set_privilege(role, privilege):
@@ -334,8 +367,10 @@ def set_privilege(role, privilege):
     :param role:
     :param privilege:
     """
-    check(privilege in ('read', 'write', 'admin', None),
-          f'invalid privilege: {privilege}')
+    check(
+        privilege in ("read", "write", "admin", None),
+        f"invalid privilege: {privilege}",
+    )
     conn = db.engine.raw_connection()
     cur = conn.cursor()
 
@@ -347,22 +382,25 @@ def set_privilege(role, privilege):
         for table in db.metadata.sorted_tables:
             for col in table.c:
                 if has_implicit_sequence(col):
-                    sequence_name = f'{table.name}_{col.name}_seq'
-                    stmt = 'REVOKE ALL ON SEQUENCE {seq} FROM {role}'
-                    stmt = SQL(stmt).format(seq=Identifier(sequence_name),
-                                            role=Identifier(role))
+                    sequence_name = f"{table.name}_{col.name}_seq"
+                    stmt = "REVOKE ALL ON SEQUENCE {seq} FROM {role}"
+                    stmt = SQL(stmt).format(
+                        seq=Identifier(sequence_name), role=Identifier(role)
+                    )
                     cur.execute(stmt)
-            stmt = 'REVOKE ALL ON TABLE {table_name} FROM {role}'
-            stmt = SQL(stmt).format(table_name=Identifier(table.name),
-                                    role=Identifier(role))
+            stmt = "REVOKE ALL ON TABLE {table_name} FROM {role}"
+            stmt = SQL(stmt).format(
+                table_name=Identifier(table.name), role=Identifier(role)
+            )
             cur.execute(stmt)
 
-        stmt = 'REVOKE ALL ON DATABASE {db} FROM {role}'
-        stmt = SQL(stmt).format(db=Identifier(db.engine.url.database),
-                                role=Identifier(role))
+        stmt = "REVOKE ALL ON DATABASE {db} FROM {role}"
+        stmt = SQL(stmt).format(
+            db=Identifier(db.engine.url.database), role=Identifier(role)
+        )
         cur.execute(stmt)
 
-        stmt = 'ALTER ROLE {role} WITH nocreaterole'
+        stmt = "ALTER ROLE {role} WITH nocreaterole"
         stmt = SQL(stmt).format(role=Identifier(role))
         cur.execute(stmt)
 
@@ -372,12 +410,13 @@ def set_privilege(role, privilege):
             return
 
         # change privileges on the database
-        if privilege == 'admin':
-            stmt = 'GRANT ALL ON DATABASE {db} TO {role} WITH GRANT OPTION'
-            stmt = SQL(stmt).format(db=Identifier(db.engine.url.database),
-                                    role=Identifier(role))
+        if privilege == "admin":
+            stmt = "GRANT ALL ON DATABASE {db} TO {role} WITH GRANT OPTION"
+            stmt = SQL(stmt).format(
+                db=Identifier(db.engine.url.database), role=Identifier(role)
+            )
             cur.execute(stmt)
-            stmt = 'ALTER ROLE {role} WITH CREATEROLE'
+            stmt = "ALTER ROLE {role} WITH CREATEROLE"
             stmt = SQL(stmt).format(role=Identifier(role))
             cur.execute(stmt)
 
@@ -385,31 +424,39 @@ def set_privilege(role, privilege):
         tbl_privs = [x for x in privs if x in _table_privs]
         seq_privs = [x for x in privs if x in _sequence_privs]
         for table in db.metadata.sorted_tables:
-            logger.debug('granting privileges on table %s', table)
+            logger.debug("granting privileges on table %s", table)
             for priv in tbl_privs:
                 # priv should be fine for f-string.
-                stmt = f'GRANT {priv} ON {{table_name}} TO {{role}}'
-                if privilege == 'admin':
-                    stmt += ' WITH GRANT OPTION'
-                stmt = SQL(stmt).format(table_name=Identifier(table.name),
-                                        role=Identifier(role))
+                stmt = f"GRANT {priv} ON {{table_name}} TO {{role}}"
+                if privilege == "admin":
+                    stmt += " WITH GRANT OPTION"
+                stmt = SQL(stmt).format(
+                    table_name=Identifier(table.name), role=Identifier(role)
+                )
                 logger.debug(stmt.as_string(cur))
                 cur.execute(stmt)
             for col in table.c:
                 for priv in seq_privs:
                     if has_implicit_sequence(col):
-                        sequence_name = f'{table.name}_{col.name}_seq'
-                        logger.debug('column %s of table %s has associated '
-                                     'sequence %s', col, table, sequence_name)
-                        stmt = f'GRANT {priv} ON SEQUENCE {{seq}} TO {{role}}'
-                        if privilege == 'admin':
-                            stmt += ' WITH GRANT OPTION'
-                        stmt = SQL(stmt).format(seq=Identifier(sequence_name),
-                                                role=Identifier(role))
+                        sequence_name = f"{table.name}_{col.name}_seq"
+                        logger.debug(
+                            "column %s of table %s has associated "
+                            "sequence %s",
+                            col,
+                            table,
+                            sequence_name,
+                        )
+                        stmt = f"GRANT {priv} ON SEQUENCE {{seq}} TO {{role}}"
+                        if privilege == "admin":
+                            stmt += " WITH GRANT OPTION"
+                        stmt = SQL(stmt).format(
+                            seq=Identifier(sequence_name),
+                            role=Identifier(role),
+                        )
                         logger.debug(stmt.as_string(cur))
                         cur.execute(stmt)
     except Exception as e:
-        logger.error('users.set_privilege(): %s(%s)', type(e).__name__, e)
+        logger.error("users.set_privilege(): %s(%s)", type(e).__name__, e)
         conn.rollback()
         raise
     else:
@@ -435,11 +482,12 @@ def set_password(password, user=None):
     cur = conn.cursor()
     try:
         stmt = "ALTER ROLE {role} WITH ENCRYPTED PASSWORD {password}"
-        stmt = SQL(stmt).format(role=Identifier(user),
-                                password=Literal(password))
+        stmt = SQL(stmt).format(
+            role=Identifier(user), password=Literal(password)
+        )
         cur.execute(stmt)
     except DatabaseError as e:
-        logger.error('users.set_password(): %s(%s)', type(e).__name__, e)
+        logger.error("users.set_password(): %s(%s)", type(e).__name__, e)
         conn.rollback()
     else:
         conn.commit()
@@ -449,28 +497,28 @@ def set_password(password, user=None):
 
 
 class UsersDialogPresenter(editor.GenericEditorPresenter):
+    view_accept_buttons = ["main_ok_button"]
 
-    view_accept_buttons = ['main_ok_button']
+    buttons = {
+        "admin": "admin_button",
+        "write": "write_button",
+        "read": "read_button",
+    }
 
-    buttons = {'admin': 'admin_button',
-               'write': 'write_button',
-               'read': 'read_button'}
-
-    new_user_message = _('Enter a user name')
+    new_user_message = _("Enter a user name")
 
     def __init__(self, view):
         super().__init__(model=None, view=view, session=False)
         self.view.widgets.users_column.set_cell_data_func(
-            self.view.widgets.users_cell_renderer,
-            utils.default_cell_data_func
+            self.view.widgets.users_cell_renderer, utils.default_cell_data_func
         )
         self.view.widgets.filter_check.set_active(True)
 
-        self.view.connect('read_button', 'toggled', self.on_toggled, 'read')
-        self.view.connect('write_button', 'toggled', self.on_toggled, 'write')
-        self.view.connect('admin_button', 'toggled', self.on_toggled, 'admin')
+        self.view.connect("read_button", "toggled", self.on_toggled, "read")
+        self.view.connect("write_button", "toggled", self.on_toggled, "write")
+        self.view.connect("admin_button", "toggled", self.on_toggled, "admin")
 
-        logger.debug('current user is %s', current_user())
+        logger.debug("current user is %s", current_user())
 
     def refresh(self):
         active = self.view.widgets.filter_check.get_active()
@@ -485,9 +533,8 @@ class UsersDialogPresenter(editor.GenericEditorPresenter):
         return None
 
     def on_cursor_changed(self, _tree):
-
         def _set_buttons(mode):
-            logger.debug('%s: %s', role, mode)
+            logger.debug("%s: %s", role, mode)
             if mode:
                 self.view.widgets[self.buttons[mode]].set_active(True)
             else:
@@ -498,12 +545,12 @@ class UsersDialogPresenter(editor.GenericEditorPresenter):
             _set_buttons(None)
             return
 
-        if has_privileges(role, 'admin'):
-            _set_buttons('admin')
-        elif has_privileges(role, 'write'):
-            _set_buttons('write')
-        elif has_privileges(role, 'read'):
-            _set_buttons('read')
+        if has_privileges(role, "admin"):
+            _set_buttons("admin")
+        elif has_privileges(role, "write"):
+            _set_buttons("write")
+        elif has_privileges(role, "read"):
+            _set_buttons("read")
         else:
             _set_buttons(None)
 
@@ -520,7 +567,7 @@ class UsersDialogPresenter(editor.GenericEditorPresenter):
         tree = self.view.widgets.users_tree
         utils.clear_model(tree)
         model = Gtk.ListStore(str)
-        if has_privileges(current_user(), 'admin'):
+        if has_privileges(current_user(), "admin"):
             for user in get_users():
                 if only_bauble and can_connect(user):
                     model.append([user])
@@ -532,29 +579,32 @@ class UsersDialogPresenter(editor.GenericEditorPresenter):
             self.view.widgets.permissions_frame.set_sensitive(False)
         tree.set_model(model)
         if len(model) > 0:
-            tree.set_cursor('0')
+            tree.set_cursor("0")
 
     def on_toggled(self, button, priv=None):
         role = self.get_selected_user()
         active = button.get_active()
         if active and not has_privileges(role, priv):
-            logger.debug('grant %s to %s', priv, role)
+            logger.debug("grant %s to %s", priv, role)
             try:
                 set_privilege(role, priv)
             except DatabaseError as e:
-                utils.message_dialog(str(e), Gtk.MessageType.ERROR,
-                                     parent=self.view.get_window())
+                utils.message_dialog(
+                    str(e),
+                    Gtk.MessageType.ERROR,
+                    parent=self.view.get_window(),
+                )
         return True
 
     def on_add_button_clicked(self, _button, *_args):
         name = self.view.run_entry_dialog(
             _("Enter a user name"),
             self.view.get_window(),
-            buttons=('OK', Gtk.ResponseType.ACCEPT),
+            buttons=("OK", Gtk.ResponseType.ACCEPT),
             modal=True,
-            destroy_with_parent=True
+            destroy_with_parent=True,
         )
-        if name == '':
+        if name == "":
             return
         tree = self.view.widgets.users_tree
         model = tree.get_model()
@@ -564,28 +614,31 @@ class UsersDialogPresenter(editor.GenericEditorPresenter):
         tree.set_cursor(path, column)
         try:
             create_user(name)
-            set_privilege(name, 'read')
+            set_privilege(name, "read")
         except DatabaseError as e:
-            utils.message_dialog(str(e), Gtk.MessageType.ERROR,
-                                 parent=self.view.get_window())
+            utils.message_dialog(
+                str(e), Gtk.MessageType.ERROR, parent=self.view.get_window()
+            )
             model.remove(model.get_iter(path))
         else:
             self.view.widgets.read_button.set_active(True)
 
     def on_remove_button_clicked(self, _button, *_args):
         user = self.get_selected_user()
-        msg = _('Are you sure you want to remove user <b>%(name)s</b>?\n\n'
-                '<i>It is possible that this user could have permissions '
-                'on other databases not related to Ghini.</i>') \
-            % {'name': user}
+        msg = _(
+            "Are you sure you want to remove user <b>%(name)s</b>?\n\n"
+            "<i>It is possible that this user could have permissions "
+            "on other databases not related to Ghini.</i>"
+        ) % {"name": user}
         if not utils.yes_no_dialog(msg):
             return
 
         try:
             drop(user, revoke=True)
         except DatabaseError as e:
-            utils.message_dialog(str(e), Gtk.MessageType.ERROR,
-                                 parent=self.view.get_window())
+            utils.message_dialog(
+                str(e), Gtk.MessageType.ERROR, parent=self.view.get_window()
+            )
         else:
             self.refresh()
 
@@ -593,8 +646,8 @@ class UsersDialogPresenter(editor.GenericEditorPresenter):
         dialog = self.view.widgets.pwd_dialog
         dialog.set_transient_for(self.view.get_window())
 
-        self.view.widgets.pwd_entry1.set_text('')
-        self.view.widgets.pwd_entry2.set_text('')
+        self.view.widgets.pwd_entry1.set_text("")
+        self.view.widgets.pwd_entry2.set_text("")
 
         response = dialog.run()
 
@@ -604,49 +657,63 @@ class UsersDialogPresenter(editor.GenericEditorPresenter):
         dialog.hide()
         if response == Gtk.ResponseType.OK:
             user = self.get_selected_user()
-            if pwd1 == '' or pwd2 == '':
-                msg = _('The password for user <b>%s</b> has not been '
-                        'changed.') % user
-                utils.message_dialog(msg, Gtk.MessageType.WARNING,
-                                     parent=self.view.get_window())
+            if pwd1 == "" or pwd2 == "":
+                msg = (
+                    _(
+                        "The password for user <b>%s</b> has not been "
+                        "changed."
+                    )
+                    % user
+                )
+                utils.message_dialog(
+                    msg, Gtk.MessageType.WARNING, parent=self.view.get_window()
+                )
                 return
             if pwd1 != pwd2:
-                msg = _('The passwords do not match.  The password for '
-                        'user <b>%s</b> has not been changed.') % user
-                utils.message_dialog(msg, Gtk.MessageType.WARNING,
-                                     parent=self.view.get_window())
+                msg = (
+                    _(
+                        "The passwords do not match.  The password for "
+                        "user <b>%s</b> has not been changed."
+                    )
+                    % user
+                )
+                utils.message_dialog(
+                    msg, Gtk.MessageType.WARNING, parent=self.view.get_window()
+                )
                 return
             try:
                 set_password(pwd1, user)
             except DatabaseError as e:
-                utils.message_dialog(str(e), Gtk.MessageType.ERROR,
-                                     parent=self.view.get_window())
+                utils.message_dialog(
+                    str(e),
+                    Gtk.MessageType.ERROR,
+                    parent=self.view.get_window(),
+                )
 
 
 class UsersTool(pluginmgr.Tool):
-
     label = _("Users")
 
     @classmethod
     def start(cls):
         view = editor.GenericEditorView(
-            str(Path(__file__).resolve().parent / 'users.glade'),
-            root_widget_name='main_dialog',
+            str(Path(__file__).resolve().parent / "users.glade"),
+            root_widget_name="main_dialog",
         )
         presenter = UsersDialogPresenter(view)
         presenter.start()
 
 
 class UsersPlugin(pluginmgr.Plugin):
-
     tools = []
 
     @classmethod
     def init(cls):
         # disable the tool if not postgres
-        if db.engine.name != 'postgresql':
+        if db.engine.name != "postgresql":
             del cls.tools[:]
-        elif db.engine.name == 'postgresql' and not cls.tools:
+        elif db.engine.name == "postgresql" and not cls.tools:
             cls.tools.append(UsersTool)
+
 
 plugin = UsersPlugin

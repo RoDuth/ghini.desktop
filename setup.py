@@ -27,63 +27,74 @@ from setuptools import find_packages
 from setuptools import setup
 
 package_data = {
-    '': ['README.rst', 'CHANGES', 'LICENSE'],
-    'bauble': ['*.ui',
-               '*.glade',
-               'images/*.png',
-               'images/*.svg',
-               'images/*.gif',
-               'images/*.ico',
-               'images/*.icns',
-               'images/*.bmp'],
-    'bauble.utils': ['prj_crs.csv'],
-    'bauble.plugins.plants': ['default/*.csv',
-                              'default/wgsrpd/*.geojson',
-                              '*.kml'],
-    'bauble.plugins.garden': ['*.kml'],
-    'bauble.plugins.abcd': ['*.xsd'],
-    'bauble.plugins.report.mako.templates': ['*.csv', '*.html'],
-    'bauble.plugins.report.xsl.stylesheets': ['*.xsl'],
-    'bauble.plugins.report.xsl.stylesheets.label_memorial_example': ['*.png',
-                                                                     '*.svg'],
-    'bauble.plugins.report.xsl.stylesheets.label_example': ['*.png']
+    "": ["README.rst", "CHANGES", "LICENSE"],
+    "bauble": [
+        "*.ui",
+        "*.glade",
+        "images/*.png",
+        "images/*.svg",
+        "images/*.gif",
+        "images/*.ico",
+        "images/*.icns",
+        "images/*.bmp",
+    ],
+    "bauble.utils": ["prj_crs.csv"],
+    "bauble.plugins.plants": [
+        "default/*.csv",
+        "default/wgsrpd/*.geojson",
+        "*.kml",
+    ],
+    "bauble.plugins.garden": ["*.kml"],
+    "bauble.plugins.abcd": ["*.xsd"],
+    "bauble.plugins.report.mako.templates": ["*.csv", "*.html"],
+    "bauble.plugins.report.xsl.stylesheets": ["*.xsl"],
+    "bauble.plugins.report.xsl.stylesheets.label_memorial_example": [
+        "*.png",
+        "*.svg",
+    ],
+    "bauble.plugins.report.xsl.stylesheets.label_example": ["*.png"],
 }
 
-for plugin in find_packages(where='bauble/plugins'):
-    package_data.setdefault(f'bauble.plugins.{plugin}', []).extend(['*.glade',
-                                                                    '*.ui'])
+for plugin in find_packages(where="bauble/plugins"):
+    package_data.setdefault(f"bauble.plugins.{plugin}", []).extend(
+        ["*.glade", "*.ui"]
+    )
 
-with open("README.rst", "r", encoding='utf-8', newline='') as f:
+with open("README.rst", "r", encoding="utf-8", newline="") as f:
     long_description = f.read()
 
 setup(
     name="ghini.desktop",
-    version="1.3.5",   # :bump
+    version="1.3.5",  # :bump
     # scripts=scripts,
     packages=find_packages(),
     # package_dir=all_package_dirs,
     package_data=package_data,
-    install_requires=["SQLAlchemy==1.4.43",
-                      "Pillow",
-                      "lxml",
-                      "tld==0.12.6",
-                      "mako==1.2.3",
-                      "requests",
-                      "pyparsing==3.0.9",
-                      "pypac==0.16.0",
-                      "pyshp==2.3.1",
-                      "pyproj",
-                      "filelock>=3",
-                      "python-polylabel==0.6",
-                      'python-dateutil==2.8.2'],
-    extras_require={'docs': ['sphinx==1.7.9']},
+    install_requires=[
+        "SQLAlchemy==1.4.43",
+        "Pillow",
+        "lxml",
+        "tld==0.12.6",
+        "mako==1.2.3",
+        "requests",
+        "pyparsing==3.0.9",
+        "pypac==0.16.0",
+        "pyshp==2.3.1",
+        "pyproj",
+        "filelock>=3",
+        "python-polylabel==0.6",
+        "python-dateutil==2.8.2",
+    ],
+    extras_require={"docs": ["sphinx==1.7.9"]},
     author="Ross Demuth",
     author_email="rossdemuth123@gmail.com",
-    python_requires='>=3.9.0',
+    python_requires=">=3.9.0",
     description="Ghini: a biodiversity collection manager",
     long_description=long_description,
     license="GPLv2+",
-    keywords=("database biodiversity botanic collection botany "
-              "herbarium arboretum"),
+    keywords=(
+        "database biodiversity botanic collection botany "
+        "herbarium arboretum"
+    ),
     url="http://github.com/RoDuth/ghini.desktop/",
 )

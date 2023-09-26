@@ -35,17 +35,16 @@ from bauble.test import BaubleTestCase
 
 
 class PreferencesTests(BaubleTestCase):
-
     def test_create_does_not_save(self):
-        handle, pname = mkstemp(suffix='.dict')
+        handle, pname = mkstemp(suffix=".dict")
         p = prefs._prefs(pname)
         p.init()
         with open(pname) as f:
-            self.assertEqual(f.read(), '')
+            self.assertEqual(f.read(), "")
         os.close(handle)
 
     def test_assert_initial_values(self):
-        handle, pname = mkstemp(suffix='.dict')
+        handle, pname = mkstemp(suffix=".dict")
         p = prefs._prefs(pname)
         p.init()
         self.assertTrue(prefs.config_version_pref in p)
@@ -53,213 +52,226 @@ class PreferencesTests(BaubleTestCase):
         self.assertTrue(prefs.date_format_pref in p)
         self.assertTrue(prefs.units_pref in p)
         self.assertEqual(p[prefs.config_version_pref], version_tuple[:2])
-        self.assertEqual(p[prefs.root_directory_pref], '')
-        self.assertEqual(p[prefs.date_format_pref], '%d-%m-%Y')
-        self.assertEqual(p[prefs.time_format_pref], '%I:%M:%S %p')
-        self.assertEqual(p[prefs.units_pref], 'metric')
+        self.assertEqual(p[prefs.root_directory_pref], "")
+        self.assertEqual(p[prefs.date_format_pref], "%d-%m-%Y")
+        self.assertEqual(p[prefs.time_format_pref], "%I:%M:%S %p")
+        self.assertEqual(p[prefs.units_pref], "metric")
         # generated
         self.assertEqual(p[prefs.parse_dayfirst_pref], True)
         self.assertEqual(p[prefs.parse_yearfirst_pref], False)
-        self.assertEqual(p[prefs.datetime_format_pref], '%d-%m-%Y %I:%M:%S %p')
+        self.assertEqual(p[prefs.datetime_format_pref], "%d-%m-%Y %I:%M:%S %p")
         os.close(handle)
 
     def test_not_saved_while_testing(self):
         prefs.testing = True
-        handle, pname = mkstemp(suffix='.dict')
+        handle, pname = mkstemp(suffix=".dict")
         p = prefs._prefs(pname)
         p.init()
         p.save()
         with open(pname) as f:
-            self.assertEqual(f.read(), '')
+            self.assertEqual(f.read(), "")
         os.close(handle)
 
     def test_can_force_save(self):
         prefs.testing = True
-        handle, pname = mkstemp(suffix='.dict')
+        handle, pname = mkstemp(suffix=".dict")
         p = prefs._prefs(pname)
         p.init()
         p.save(force=True)
         with open(pname) as f:
-            self.assertFalse(f.read() == '')
+            self.assertFalse(f.read() == "")
         os.close(handle)
 
     def test_get_does_not_store_values(self):
-        handle, pname = mkstemp(suffix='.dict')
+        handle, pname = mkstemp(suffix=".dict")
         p = prefs._prefs(pname)
         p.init()
-        self.assertFalse('not_there_yet.1' in p)
-        self.assertIsNone(p['not_there_yet.1'])
-        self.assertEqual(p.get('not_there_yet.2', 33), 33)
-        self.assertIsNone(p.get('not_there_yet.3', None))
-        self.assertFalse('not_there_yet.1' in p)
-        self.assertFalse('not_there_yet.2' in p)
-        self.assertFalse('not_there_yet.3' in p)
-        self.assertFalse('not_there_yet.4' in p)
+        self.assertFalse("not_there_yet.1" in p)
+        self.assertIsNone(p["not_there_yet.1"])
+        self.assertEqual(p.get("not_there_yet.2", 33), 33)
+        self.assertIsNone(p.get("not_there_yet.3", None))
+        self.assertFalse("not_there_yet.1" in p)
+        self.assertFalse("not_there_yet.2" in p)
+        self.assertFalse("not_there_yet.3" in p)
+        self.assertFalse("not_there_yet.4" in p)
         os.close(handle)
 
     def test_use___setitem___to_store_value_and_create_section(self):
-        handle, pname = mkstemp(suffix='.dict')
+        handle, pname = mkstemp(suffix=".dict")
         p = prefs._prefs(pname)
         p.init()
-        self.assertFalse('test.not_there_yet-1' in p)
-        p['test.not_there_yet-1'] = 'all is a ball'
-        self.assertTrue('test.not_there_yet-1' in p)
-        self.assertEqual(p['test.not_there_yet-1'], 'all is a ball')
-        self.assertEqual(p.get('test.not_there_yet-1', 33), 'all is a ball')
+        self.assertFalse("test.not_there_yet-1" in p)
+        p["test.not_there_yet-1"] = "all is a ball"
+        self.assertTrue("test.not_there_yet-1" in p)
+        self.assertEqual(p["test.not_there_yet-1"], "all is a ball")
+        self.assertEqual(p.get("test.not_there_yet-1", 33), "all is a ball")
         os.close(handle)
 
     def test_most_values_converted_to_string(self):
-        handle, pname = mkstemp(suffix='.dict')
+        handle, pname = mkstemp(suffix=".dict")
         p = prefs._prefs(pname)
         p.init()
-        self.assertFalse('test.not_there_yet-1' in p)
-        p['test.not_there_yet-1'] = 1
-        self.assertTrue('test.not_there_yet-1' in p)
-        self.assertEqual(p['test.not_there_yet-1'], 1)
+        self.assertFalse("test.not_there_yet-1" in p)
+        p["test.not_there_yet-1"] = 1
+        self.assertTrue("test.not_there_yet-1" in p)
+        self.assertEqual(p["test.not_there_yet-1"], 1)
         os.close(handle)
 
     def test_none_stays_none(self):
         # is this really useful?
-        handle, pname = mkstemp(suffix='.dict')
+        handle, pname = mkstemp(suffix=".dict")
         p = prefs._prefs(pname)
         p.init()
-        p['test.not_there_yet-3'] = None
-        self.assertEqual(p['test.not_there_yet-3'], None)
+        p["test.not_there_yet-3"] = None
+        self.assertEqual(p["test.not_there_yet-3"], None)
         os.close(handle)
 
     def test_boolean_values_stay_boolean(self):
-        handle, pname = mkstemp(suffix='.dict')
+        handle, pname = mkstemp(suffix=".dict")
         p = prefs._prefs(pname)
         p.init()
-        self.assertFalse('test.not_there_yet-1' in p)
-        p['test.not_there_yet-1'] = True
-        self.assertEqual(p['test.not_there_yet-1'], True)
-        p['test.not_there_yet-2'] = False
-        self.assertEqual(p['test.not_there_yet-2'], False)
+        self.assertFalse("test.not_there_yet-1" in p)
+        p["test.not_there_yet-1"] = True
+        self.assertEqual(p["test.not_there_yet-1"], True)
+        p["test.not_there_yet-2"] = False
+        self.assertEqual(p["test.not_there_yet-2"], False)
         os.close(handle)
 
     def test_saved_dictionary_like_ini_file(self):
-        handle, pname = mkstemp(suffix='.dict')
+        handle, pname = mkstemp(suffix=".dict")
         p = prefs._prefs(pname)
         p.init()
-        self.assertFalse('test.not_there_yet-1' in p)
-        p['test.not_there_yet-1'] = 1
-        self.assertTrue('test.not_there_yet-1' in p)
+        self.assertFalse("test.not_there_yet-1" in p)
+        p["test.not_there_yet-1"] = 1
+        self.assertTrue("test.not_there_yet-1" in p)
         p.save(force=True)
         with open(pname) as f:
             content = f.read()
-            self.assertTrue(content.index('not_there_yet-1 = 1') > 0)
-            self.assertTrue(content.index('[test]') > 0)
+            self.assertTrue(content.index("not_there_yet-1 = 1") > 0)
+            self.assertTrue(content.index("[test]") > 0)
         os.close(handle)
 
     def test_generated_dayfirst_yearfirst(self):
-        prefs.prefs[prefs.date_format_pref] = '%Y-%m-%d'
+        prefs.prefs[prefs.date_format_pref] = "%Y-%m-%d"
         self.assertTrue(prefs.prefs.get(prefs.parse_yearfirst_pref))
         self.assertFalse(prefs.prefs.get(prefs.parse_dayfirst_pref))
-        prefs.prefs[prefs.date_format_pref] = '%d-%m-%Y'
+        prefs.prefs[prefs.date_format_pref] = "%d-%m-%Y"
         self.assertFalse(prefs.prefs.get(prefs.parse_yearfirst_pref))
         self.assertTrue(prefs.prefs.get(prefs.parse_dayfirst_pref))
 
     def test_generated_datetime_format(self):
-        prefs.prefs[prefs.date_format_pref] = 'date'
-        prefs.prefs[prefs.time_format_pref] = 'time'
-        self.assertEqual(prefs.prefs.get(prefs.datetime_format_pref),
-                         'date time')
+        prefs.prefs[prefs.date_format_pref] = "date"
+        prefs.prefs[prefs.time_format_pref] = "time"
+        self.assertEqual(
+            prefs.prefs.get(prefs.datetime_format_pref), "date time"
+        )
 
     def test_itersection(self):
         for i in range(5):
-            prefs.prefs[f'testsection.option{i}'] = f'value{i}'
+            prefs.prefs[f"testsection.option{i}"] = f"value{i}"
         for i, (option, value) in enumerate(
-                prefs.prefs.itersection('testsection')):
-            self.assertEqual(option, f'option{i}')
-            self.assertEqual(value, f'value{i}')
+            prefs.prefs.itersection("testsection")
+        ):
+            self.assertEqual(option, f"option{i}")
+            self.assertEqual(value, f"value{i}")
 
     def test__delitem__(self):
-        prefs.prefs['testsection.option1'] = 'value1'
-        prefs.prefs['testsection.option2'] = 'value2'
-        self.assertTrue(prefs.prefs.config.has_option('testsection',
-                                                      'option1'))
-        self.assertTrue(prefs.prefs.config.has_option('testsection',
-                                                      'option2'))
-        del prefs.prefs['testsection.option2']
-        self.assertFalse(prefs.prefs.config.has_option('testsection',
-                                                       'option3'))
-        self.assertTrue(prefs.prefs.has_section('testsection'))
-        del prefs.prefs['testsection.option1']
-        self.assertFalse(prefs.prefs.has_section('testsection'))
-        self.assertFalse(prefs.prefs.has_section('nonexistent_section'))
-        del prefs.prefs['nonexistent_section.option']
-        self.assertFalse(prefs.prefs.has_section('nonexistent_section'))
+        prefs.prefs["testsection.option1"] = "value1"
+        prefs.prefs["testsection.option2"] = "value2"
+        self.assertTrue(
+            prefs.prefs.config.has_option("testsection", "option1")
+        )
+        self.assertTrue(
+            prefs.prefs.config.has_option("testsection", "option2")
+        )
+        del prefs.prefs["testsection.option2"]
+        self.assertFalse(
+            prefs.prefs.config.has_option("testsection", "option3")
+        )
+        self.assertTrue(prefs.prefs.has_section("testsection"))
+        del prefs.prefs["testsection.option1"]
+        self.assertFalse(prefs.prefs.has_section("testsection"))
+        self.assertFalse(prefs.prefs.has_section("nonexistent_section"))
+        del prefs.prefs["nonexistent_section.option"]
+        self.assertFalse(prefs.prefs.has_section("nonexistent_section"))
 
     def test_generated_picture_root(self):
         temp_dir = mkdtemp()
         prefs.prefs[prefs.root_directory_pref] = temp_dir
-        prefs.prefs[prefs.picture_path_pref] = 'ata'
-        self.assertEqual(prefs.prefs.get(prefs.picture_root_pref),
-                         os.path.join(temp_dir, 'ata'))
+        prefs.prefs[prefs.picture_path_pref] = "ata"
+        self.assertEqual(
+            prefs.prefs.get(prefs.picture_root_pref),
+            os.path.join(temp_dir, "ata"),
+        )
 
     def test_picture_path_change_moves_directory(self):
         temp_dir = mkdtemp()
         prefs.prefs[prefs.root_directory_pref] = temp_dir
-        os.makedirs(os.path.join(temp_dir, 'pictures', 'thumbs'))
-        Path(temp_dir, 'pictures', 'test.jpg').touch()
-        Path(temp_dir, 'pictures', 'thumbs', 'test.jpg').touch()
+        os.makedirs(os.path.join(temp_dir, "pictures", "thumbs"))
+        Path(temp_dir, "pictures", "test.jpg").touch()
+        Path(temp_dir, "pictures", "thumbs", "test.jpg").touch()
         self.assertTrue(
-            os.path.isfile(os.path.join(temp_dir, 'pictures', 'test.jpg'))
+            os.path.isfile(os.path.join(temp_dir, "pictures", "test.jpg"))
         )
-        prefs.prefs[prefs.picture_path_pref] = 'Biller'
+        prefs.prefs[prefs.picture_path_pref] = "Biller"
         self.assertTrue(
-            os.path.isfile(os.path.join(temp_dir, 'Biller', 'test.jpg'))
+            os.path.isfile(os.path.join(temp_dir, "Biller", "test.jpg"))
         )
         self.assertTrue(
-            os.path.isdir(os.path.join(temp_dir, 'Biller', 'thumbs'))
+            os.path.isdir(os.path.join(temp_dir, "Biller", "thumbs"))
         )
 
     def test_generated_document_root(self):
         temp_dir = mkdtemp()
         prefs.prefs[prefs.root_directory_pref] = temp_dir
-        prefs.prefs[prefs.document_path_pref] = 'documentos'
-        self.assertEqual(prefs.prefs.get(prefs.document_root_pref),
-                         os.path.join(temp_dir, 'documentos'))
+        prefs.prefs[prefs.document_path_pref] = "documentos"
+        self.assertEqual(
+            prefs.prefs.get(prefs.document_root_pref),
+            os.path.join(temp_dir, "documentos"),
+        )
 
     def test_document_path_change_moves_directory(self):
         temp_dir = mkdtemp()
         prefs.prefs[prefs.root_directory_pref] = temp_dir
-        os.mkdir(os.path.join(temp_dir, 'documents'))
-        Path(temp_dir, 'documents', 'test.txt').touch()
+        os.mkdir(os.path.join(temp_dir, "documents"))
+        Path(temp_dir, "documents", "test.txt").touch()
         self.assertTrue(
-            os.path.isfile(os.path.join(temp_dir, 'documents', 'test.txt'))
+            os.path.isfile(os.path.join(temp_dir, "documents", "test.txt"))
         )
-        prefs.prefs[prefs.document_path_pref] = 'documentos'
+        prefs.prefs[prefs.document_path_pref] = "documentos"
         self.assertTrue(
-            os.path.isfile(os.path.join(temp_dir, 'documentos', 'test.txt'))
+            os.path.isfile(os.path.join(temp_dir, "documentos", "test.txt"))
         )
 
     def test_global_root_returns_as_pref_if_pref_not_set(self):
         temp_dir = mkdtemp()
-        self.session.add(BaubleMeta(name='root_directory', value=temp_dir))
-        self.session.add(BaubleMeta(name='documents_path', value='tuhinga'))
-        self.session.add(BaubleMeta(name='pictures_path', value='фотографії'))
+        self.session.add(BaubleMeta(name="root_directory", value=temp_dir))
+        self.session.add(BaubleMeta(name="documents_path", value="tuhinga"))
+        self.session.add(BaubleMeta(name="pictures_path", value="фотографії"))
         self.session.commit()
         del prefs.prefs[prefs.root_directory_pref]
         self.assertEqual(prefs.prefs[prefs.root_directory_pref], temp_dir)
-        self.assertEqual(prefs.prefs[prefs.document_root_pref],
-                         os.path.join(temp_dir, 'tuhinga'))
-        self.assertEqual(prefs.prefs[prefs.picture_root_pref],
-                         os.path.join(temp_dir, 'фотографії'))
+        self.assertEqual(
+            prefs.prefs[prefs.document_root_pref],
+            os.path.join(temp_dir, "tuhinga"),
+        )
+        self.assertEqual(
+            prefs.prefs[prefs.picture_root_pref],
+            os.path.join(temp_dir, "фотографії"),
+        )
 
     def test_init_corrupt_file_creates_a_copy(self):
         handle, pname = mkstemp()
         os.close(handle)
-        glob = str(Path(pname).name + '*')
+        glob = str(Path(pname).name + "*")
         # create junk data
-        with open(pname, 'w', encoding='utf-8') as f:
-            f.writelines(['kjdsfiuoewndfaj', '[[]]hh[sad]', '1234*&^%$BSJDKH'])
+        with open(pname, "w", encoding="utf-8") as f:
+            f.writelines(["kjdsfiuoewndfaj", "[[]]hh[sad]", "1234*&^%$BSJDKH"])
         self.assertEqual(len(list(Path(pname).parent.glob(glob))), 1)
         p = prefs._prefs(pname)
         p.init()
         # NOTE includes lock file if not windows (always config, +PREV, +CRPT+)
-        file_count = 3 if sys.platform == 'win32' else 4
+        file_count = 3 if sys.platform == "win32" else 4
         self.assertEqual(len(list(Path(pname).parent.glob(glob))), file_count)
 
     def test_init_corrupt_file_overwrites(self):
@@ -267,32 +279,33 @@ class PreferencesTests(BaubleTestCase):
         os.close(handle)
         name = str(Path(pname).name)
         # create junk data
-        junk_lines = ['kjdsfiuoewndfaj\n', '[[]]hh[sad]\n', '1234*&^%$BSJH\n']
-        with open(pname, 'w', encoding='utf-8') as f:
+        junk_lines = ["kjdsfiuoewndfaj\n", "[[]]hh[sad]\n", "1234*&^%$BSJH\n"]
+        with open(pname, "w", encoding="utf-8") as f:
             f.writelines(junk_lines)
         p = prefs._prefs(pname)
         p.init()
         # NOTE includes lock file if not windows (always config, +PREV, +CRPT+)
-        file_count = 3 if sys.platform == 'win32' else 4
-        self.assertEqual(len(list(Path(pname).parent.glob(name + '*'))),
-                         file_count)
-        corrupt = list(Path(pname).parent.glob(name + 'CRPT*'))[0]
-        with corrupt.open('r', encoding='utf-8') as f:
+        file_count = 3 if sys.platform == "win32" else 4
+        self.assertEqual(
+            len(list(Path(pname).parent.glob(name + "*"))), file_count
+        )
+        corrupt = list(Path(pname).parent.glob(name + "CRPT*"))[0]
+        with corrupt.open("r", encoding="utf-8") as f:
             lines = f.readlines()
         self.assertEqual(len(lines), 3)
         self.assertListEqual(lines, junk_lines)
 
         p.save(force=True)
-        with Path(pname).open('r', encoding='utf-8') as f:
+        with Path(pname).open("r", encoding="utf-8") as f:
             lines = f.readlines()
 
         self.assertGreater(len(lines), 3)
         for line in (
-            prefs.root_directory_pref.rsplit('.', 1)[1] + ' = \n',
-            prefs.date_format_pref.rsplit('.', 1)[1] + ' = %d-%m-%Y\n',
-            prefs.time_format_pref.rsplit('.', 1)[1] + ' = %I:%M:%S %p\n',
-            prefs.units_pref.rsplit('.', 1)[1] + ' = metric\n',
-            prefs.debug_logging_prefs.rsplit('.', 1)[1] + " = ['bauble']\n"
+            prefs.root_directory_pref.rsplit(".", 1)[1] + " = \n",
+            prefs.date_format_pref.rsplit(".", 1)[1] + " = %d-%m-%Y\n",
+            prefs.time_format_pref.rsplit(".", 1)[1] + " = %I:%M:%S %p\n",
+            prefs.units_pref.rsplit(".", 1)[1] + " = metric\n",
+            prefs.debug_logging_prefs.rsplit(".", 1)[1] + " = ['bauble']\n",
         ):
             self.assertIn(line, lines)
 
@@ -305,7 +318,6 @@ class PreferencesTests(BaubleTestCase):
 
 
 class PrefsViewTests(BaubleTestCase):
-
     def test_prefs_view_starts_updates(self):
         prefs_view = prefs.PrefsView()
         self.assertIsNone(prefs_view.button_press_id)
@@ -314,13 +326,16 @@ class PrefsViewTests(BaubleTestCase):
 
     def test_on_button_press_event_popup_only_button3(self):
         from datetime import datetime
+
         prefs_view = prefs.PrefsView()
         prefs_view.update()
 
         prefs_tv = prefs_view.prefs_tv
         mock_event = mock.Mock(button=3, time=datetime.now().timestamp())
 
-        with mock.patch('bauble.prefs.Gtk.Menu.popup_at_pointer') as mock_popup:
+        with mock.patch(
+            "bauble.prefs.Gtk.Menu.popup_at_pointer"
+        ) as mock_popup:
             prefs_view.on_button_press_event(prefs_tv, mock_event)
 
             mock_popup.assert_called()
@@ -330,13 +345,16 @@ class PrefsViewTests(BaubleTestCase):
 
         mock_event = mock.Mock(button=1, time=datetime.now().timestamp())
 
-        with mock.patch('bauble.prefs.Gtk.Menu.popup_at_pointer') as mock_popup:
+        with mock.patch(
+            "bauble.prefs.Gtk.Menu.popup_at_pointer"
+        ) as mock_popup:
             prefs_view.on_button_press_event(prefs_tv, mock_event)
 
             mock_popup.assert_not_called()
 
-    @mock.patch('bauble.prefs.Gtk.MessageDialog.run',
-                return_value=Gtk.ResponseType.OK)
+    @mock.patch(
+        "bauble.prefs.Gtk.MessageDialog.run", return_value=Gtk.ResponseType.OK
+    )
     def test_on_prefs_insert_activated_starts_dialog(self, mock_dialog):
         prefs_view = prefs.PrefsView()
         prefs_view.update()
@@ -349,12 +367,12 @@ class PrefsViewTests(BaubleTestCase):
 
     def test_on_prefs_edit_toggled(self):
         from bauble import utils
+
         orig_yes_no_dialog = utils.yes_no_dialog
         prefs_view = prefs.PrefsView()
 
         # starts without editing
-        self.assertFalse(
-            prefs_view.prefs_data_renderer.props.editable)
+        self.assertFalse(prefs_view.prefs_data_renderer.props.editable)
         self.assertIsNone(prefs_view.button_press_id)
 
         # toggle editing to True with yes to dialog
@@ -369,8 +387,7 @@ class PrefsViewTests(BaubleTestCase):
         prefs_view.prefs_edit_chkbx.set_active(False)
         prefs_view.on_prefs_edit_toggled(prefs_view.prefs_edit_chkbx)
 
-        self.assertFalse(
-            prefs_view.prefs_data_renderer.props.editable)
+        self.assertFalse(prefs_view.prefs_data_renderer.props.editable)
         self.assertIsNone(prefs_view.button_press_id)
 
         # toggle editing to True with no to dialog
@@ -384,7 +401,7 @@ class PrefsViewTests(BaubleTestCase):
         utils.yes_no_dialog = orig_yes_no_dialog
 
     def test_on_prefs_edited(self):
-        key = 'bauble.keys'
+        key = "bauble.keys"
         prefs.prefs[key] = True
         prefs_view = prefs.PrefsView()
         prefs_view.update()
@@ -392,52 +409,55 @@ class PrefsViewTests(BaubleTestCase):
         self.assertTrue(prefs.prefs[key])
 
         # wrong type
-        prefs_view.on_prefs_edited(None, path, 'xyz')
+        prefs_view.on_prefs_edited(None, path, "xyz")
         self.assertTrue(prefs.prefs[key])
 
         # correct type
-        prefs_view.on_prefs_edited(None, path, 'False')
+        prefs_view.on_prefs_edited(None, path, "False")
         self.assertFalse(prefs.prefs[key])
 
         # root directory does not accept non existing path
         key = prefs.root_directory_pref
         orig = prefs.prefs[key]
         path = [i.path for i in prefs_view.prefs_ls if i[0] == key][0]
-        prefs_view.on_prefs_edited(None, path, 'xxrandomstringxx')
+        prefs_view.on_prefs_edited(None, path, "xxrandomstringxx")
         self.assertEqual(prefs.prefs[key], orig)
 
         # add new entry
-        key = 'bauble.test.option'
+        key = "bauble.test.option"
         self.assertIsNone(prefs.prefs[key])
         tree_iter = prefs_view.prefs_ls.get_iter(path)
-        prefs_view.prefs_ls.insert_after(tree_iter,
-                                         row=[key, '', None])
+        prefs_view.prefs_ls.insert_after(tree_iter, row=[key, "", None])
         path = [i.path for i in prefs_view.prefs_ls if i[0] == key][0]
         prefs_view.on_prefs_edited(None, path, '{"this": "that"}')
         self.assertEqual(prefs.prefs[key], {"this": "that"})
 
         # delete option
         from bauble import utils
+
         orig_yes_no_dialog = utils.yes_no_dialog
         utils.yes_no_dialog = lambda x, parent: True
-        prefs_view.on_prefs_edited(None, path, '')
+        prefs_view.on_prefs_edited(None, path, "")
         self.assertIsNone(prefs.prefs[key])
         utils.yes_no_dialog = orig_yes_no_dialog
 
-    @mock.patch('bauble.prefs.Gtk.MessageDialog.run',
-                return_value=Gtk.ResponseType.OK)
+    @mock.patch(
+        "bauble.prefs.Gtk.MessageDialog.run", return_value=Gtk.ResponseType.OK
+    )
     def test_add_new(self, mock_dialog):
         prefs_view = prefs.PrefsView()
         prefs_view.update()
         path = Gtk.TreePath.new_first()
-        key = 'bauble.test.option'
+        key = "bauble.test.option"
         new_iter = prefs_view.add_new(prefs_view.prefs_ls, path, text=key)
         mock_dialog.assert_called()
         self.assertIsNotNone(new_iter)
-        self.assertTrue(f'adding new pref option {key}' in
-                        self.handler.messages['bauble.prefs']['debug'])
+        self.assertTrue(
+            f"adding new pref option {key}"
+            in self.handler.messages["bauble.prefs"]["debug"]
+        )
 
-    @mock.patch('bauble.prefs.utils.message_dialog')
+    @mock.patch("bauble.prefs.utils.message_dialog")
     def test_on_prefs_backup_restore(self, mock_dialog):
         prefs.prefs.save(force=True)
         prefs_view = prefs.PrefsView()
@@ -445,31 +465,31 @@ class PrefsViewTests(BaubleTestCase):
         # restore no backup
         prefs_view.on_prefs_restore_clicked(None)
         mock_dialog.assert_called()
-        mock_dialog.assert_called_with('No backup found')
+        mock_dialog.assert_called_with("No backup found")
         # create backup and check they are the same
         prefs_view.on_prefs_backup_clicked(None)
-        with open(self.temp, 'r') as f:
+        with open(self.temp, "r") as f:
             start = f.read()
-        with open(self.temp + 'BAK') as f:
+        with open(self.temp + "BAK") as f:
             backup = f.read()
         self.assertEqual(start, backup)
         # save a change and check they differ
-        self.assertIsNone(prefs.prefs['bauble.test.option'])
-        prefs.prefs['bauble.test.option'] = 'test'
-        self.assertIsNotNone(prefs.prefs['bauble.test.option'])
+        self.assertIsNone(prefs.prefs["bauble.test.option"])
+        prefs.prefs["bauble.test.option"] = "test"
+        self.assertIsNotNone(prefs.prefs["bauble.test.option"])
         prefs.prefs.save(force=True)
-        with open(self.temp, 'r') as f:
+        with open(self.temp, "r") as f:
             start = f.read()
-        with open(self.temp + 'BAK') as f:
+        with open(self.temp + "BAK") as f:
             backup = f.read()
         self.assertNotEqual(start, backup)
         # restore
         prefs_view.on_prefs_restore_clicked(None)
-        self.assertIsNone(prefs.prefs['bauble.test.option'])
+        self.assertIsNone(prefs.prefs["bauble.test.option"])
 
 
 class GlobalFunctionsTests(BaubleTestCase):
-    @mock.patch('bauble.utils.create_message_dialog')
+    @mock.patch("bauble.utils.create_message_dialog")
     def test_set_global_root_creates_directories(self, mock_create):
         temp_dir = mkdtemp()
         prefs.prefs[prefs.root_directory_pref] = temp_dir
@@ -479,8 +499,8 @@ class GlobalFunctionsTests(BaubleTestCase):
         prefs.set_global_root()
         mock_dialog.run.assert_called()
         mock_create.assert_called()
-        self.assertTrue(os.path.isdir(os.path.join(temp_dir, 'pictures')))
+        self.assertTrue(os.path.isdir(os.path.join(temp_dir, "pictures")))
         self.assertTrue(
-            os.path.isdir(os.path.join(temp_dir, 'pictures', 'thumbs'))
+            os.path.isdir(os.path.join(temp_dir, "pictures", "thumbs"))
         )
-        self.assertTrue(os.path.isdir(os.path.join(temp_dir, 'documents')))
+        self.assertTrue(os.path.isdir(os.path.join(temp_dir, "documents")))

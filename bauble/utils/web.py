@@ -28,20 +28,19 @@ from bauble.utils import desktop
 
 
 class BaubleLinkButton(Gtk.LinkButton):
-
     _base_uri = "%s"
     _space = "_"
     title = _("Search")
     tooltip = None
     fields = []
-    pt = re.compile(r'%\(([a-z_\.]+)\)s')
+    pt = re.compile(r"%\(([a-z_\.]+)\)s")
 
     def __init__(self):
         super().__init__(uri="", label=self.title)
         self.set_tooltip_text(self.tooltip or self.title)
         self.__class__.fields = self.pt.findall(self._base_uri)
         self.set_halign(Gtk.Align.START)
-        self.connect('activate-link', self.on_link_activated)
+        self.connect("activate-link", self.on_link_activated)
 
     def on_link_activated(self, _button):
         logger.debug("opening link %s", self.get_uri())
@@ -51,17 +50,17 @@ class BaubleLinkButton(Gtk.LinkButton):
     def set_string(self, row):
         if self.fields == []:
             # remove any zws (species string)
-            string = str(row).replace('\u200b', '').replace(' ', self._space)
+            string = str(row).replace("\u200b", "").replace(" ", self._space)
             self.set_uri(self._base_uri % string)
         else:
             values = {}
             for key in self.fields:
                 value = row
-                for step in key.split('.'):
-                    value = getattr(value, step, '-')
-                values[key] = value if value == str(value) else ''
+                for step in key.split("."):
+                    value = getattr(value, step, "-")
+                values[key] = value if value == str(value) else ""
             self.set_uri(self._base_uri % values)
 
 
 def link_button_factory(link):
-    return type(link.get('name', 'LinkButton'), (BaubleLinkButton, ), link)()
+    return type(link.get("name", "LinkButton"), (BaubleLinkButton,), link)()

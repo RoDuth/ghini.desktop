@@ -87,7 +87,7 @@ def _yielding_queue(task):
                 break
         __running = False
     except Exception as e:
-        logger.debug('%s(%s)', type(e).__name__, e)
+        logger.debug("%s(%s)", type(e).__name__, e)
         raise
     finally:
         __running = False
@@ -124,7 +124,7 @@ def queue(task, yielding=False):
                 break
         __running = False
     except Exception as e:
-        logger.debug('%s(%s)', type(e).__name__, e)
+        logger.debug("%s(%s)", type(e).__name__, e)
         raise
     finally:
         __running = False
@@ -150,7 +150,7 @@ def set_message(msg):
         return
     global _context_id
     if not _context_id:
-        _context_id = bauble.gui.widgets.statusbar.get_context_id('__task')
+        _context_id = bauble.gui.widgets.statusbar.get_context_id("__task")
         logger.info("new context id: %s", _context_id)
     msg_id = bauble.gui.widgets.statusbar.push(_context_id, msg)
     __message_ids.append(msg_id)
@@ -161,8 +161,11 @@ def clear_messages():
     """Clear all the messages from the statusbar that were set with
     :func:`bauble.task.set_message`
     """
-    if bauble.gui is None or bauble.gui.widgets is None \
-            or bauble.gui.widgets.statusbar is None:
+    if (
+        bauble.gui is None
+        or bauble.gui.widgets is None
+        or bauble.gui.widgets.statusbar is None
+    ):
         return
     for mid in __message_ids:
         bauble.gui.widgets.statusbar.remove(_context_id, mid)

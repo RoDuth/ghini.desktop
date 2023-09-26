@@ -51,7 +51,7 @@ from bauble import utils
 # missing columns so that all columns will have some value
 
 
-class GenericImporter(ABC):   # pylint: disable=too-many-instance-attributes
+class GenericImporter(ABC):  # pylint: disable=too-many-instance-attributes
     """Generic importer base class.
 
     Impliment `_import_task`
@@ -60,7 +60,7 @@ class GenericImporter(ABC):   # pylint: disable=too-many-instance-attributes
     OPTIONS_MAP = []
 
     def __init__(self):
-        self.option = '0'
+        self.option = "0"
         self.filename = None
         self.use_id = False
         self.search_by = set()
@@ -85,7 +85,7 @@ class GenericImporter(ABC):   # pylint: disable=too-many-instance-attributes
         self.presenter.cleanup()
         if response == -5:  # Gtk.ResponseType.OK - avoid importing Gtk here
             self.run()
-        logger.debug('responded %s', response)
+        logger.debug("responded %s", response)
         return response
 
     def run(self):
@@ -93,19 +93,28 @@ class GenericImporter(ABC):   # pylint: disable=too-many-instance-attributes
         self.completed = []
         task.clear_messages()
         task.queue(self._import_task(self.OPTIONS_MAP[int(self.option)]))
-        msg = (f'import {self.filename} complete: '
-               f'of {self._total_records} records '
-               f'{self._committed} committed, '
-               f'{self._errors} errors encounted')
+        msg = (
+            f"import {self.filename} complete: "
+            f"of {self._total_records} records "
+            f"{self._committed} committed, "
+            f"{self._errors} errors encounted"
+        )
         task.set_message(msg)
         if self._err_recs:
             from bauble import utils
-            msg = _('%s errors encountered, would you like to open a CSV of '
-                    'the these records?') % self._errors
+
+            msg = (
+                _(
+                    "%s errors encountered, would you like to open a CSV of "
+                    "the these records?"
+                )
+                % self._errors
+            )
             if utils.yes_no_dialog(msg):
                 import csv
-                filepath = utils.get_temp_path().with_suffix('.csv')
-                with filepath.open('w', encoding='utf-8-sig', newline='') as f:
+
+                filepath = utils.get_temp_path().with_suffix(".csv")
+                with filepath.open("w", encoding="utf-8-sig", newline="") as f:
                     writer = csv.DictWriter(f, self._err_recs[0].keys())
                     writer.writeheader()
                     writer.writerows(self._err_recs)
@@ -125,42 +134,41 @@ class GenericImporter(ABC):   # pylint: disable=too-many-instance-attributes
         in_dict_mapped = {}
         for field in self.search_by:
             record_field = self.get_value_as_python_type(
-                self.domain,
-                self.fields.get(field),
-                record.get(field)
+                self.domain, self.fields.get(field), record.get(field)
             )
-            logger.debug('searching by %s = %s', field, record_field)
+            logger.debug("searching by %s = %s", field, record_field)
             in_dict_mapped[self.fields.get(field)] = record_field
 
         if in_dict_mapped in self.completed:
-            match_str = ', '.join(
-                f'{k} = {v}' for k, v in in_dict_mapped.items()
+            match_str = ", ".join(
+                f"{k} = {v}" for k, v in in_dict_mapped.items()
             )
-            logger.debug('duplicate %s', match_str)
-            msg = (_('Appears to be a duplicate record with matching values '
-                     'of: <b>%s</b> \nWould you like to skip this entry?\nOr '
-                     'select Cancel to stop importing any further?')
-                   % utils.xml_safe(match_str))
+            logger.debug("duplicate %s", match_str)
+            msg = _(
+                "Appears to be a duplicate record with matching values "
+                "of: <b>%s</b> \nWould you like to skip this entry?\nOr "
+                "select Cancel to stop importing any further?"
+            ) % utils.xml_safe(match_str)
             dialog = utils.create_yes_no_dialog(msg)
-            dialog.add_button('Cancel', -6)
+            dialog.add_button("Cancel", -6)
             response = dialog.run()
             dialog.destroy()
             if response == -6:
-                logger.debug('cancel')
+                logger.debug("cancel")
                 raise error.BaubleError(
-                    msg='You have requested to cancelled further imports...'
+                    msg="You have requested to cancelled further imports..."
                 )
             if response == -8:
-                logger.debug('skip')
+                logger.debug("skip")
                 return None
 
         item = None
         if in_dict_mapped:
             item = self.domain.retrieve(session, in_dict_mapped)
-            logger.debug('existing item: %s', item)
+            logger.debug("existing item: %s", item)
 
         if not item and add and self.domain:
-            logger.debug('new item')
+            logger.debug("new item")
             self._is_new = True
             item = self.domain()  # pylint: disable=not-callable
 
@@ -180,15 +188,15 @@ class GenericImporter(ABC):   # pylint: disable=too-many-instance-attributes
         :param record: record as a dict of column names to values
         """
         out_dict = {}
-        logger.debug('fields = %s', self.fields)
+        logger.debug("fields = %s", self.fields)
         for col, value in record.items():
             if self.fields.get(col) is None:
                 continue
-            if self.fields.get(col).startswith('Note'):
+            if self.fields.get(col).startswith("Note"):
                 note_field = self.fields.get(col)
                 # If the note has supplied a category use it.
-                if note_field.endswith(']') and '[category=' in note_field:
-                    note_category = note_field.split('[category=')[1]
+                if note_field.endswith("]") and "[category=" in note_field:
+                    note_category = note_field.split("[category=")[1]
                     note_category = note_category[:-1].strip('"').strip("'")
                 else:
                     note_category = col
@@ -197,34 +205,36 @@ class GenericImporter(ABC):   # pylint: disable=too-many-instance-attributes
                     continue
                 if note_category in self.replace_notes:
                     for note in item.notes:
-                        logger.debug('deleting note of category: %s',
-                                     note_category)
+                        logger.debug(
+                            "deleting note of category: %s", note_category
+                        )
                         if note.category == note_category:
                             session.delete(note)
                             # safest to commit each delete, should only occur
                             # on existing records, not new ones.
                             session.commit()
-                note_model = (self.domain.__mapper__
-                              .relationships.get('notes').mapper.class_)
+                note_model = self.domain.__mapper__.relationships.get(
+                    "notes"
+                ).mapper.class_
                 note_dict = {
                     self.domain.__name__.lower(): item,
-                    'category': note_category,
-                    'note': note_text
+                    "category": note_category,
+                    "note": note_text,
                 }
                 new_note = note_model(**note_dict)
-                logger.debug('adding_note: %s', note_dict)
+                logger.debug("adding_note: %s", note_dict)
                 session.add(new_note)
-            elif self.fields.get(col) == 'id' and not self.use_id:
+            elif self.fields.get(col) == "id" and not self.use_id:
                 # for new entries skip the id when id has no value or we have
                 # not selected to use it
                 continue
             else:
                 out_dict[self.fields.get(col)] = value
 
-        item = self.add_rec_to_db(session,
-                                  item,
-                                  self.organise_record(out_dict))
-        logger.debug('adding to the session item : %s', item)
+        item = self.add_rec_to_db(
+            session, item, self.organise_record(out_dict)
+        )
+        logger.debug("adding to the session item : %s", item)
         session.add(item)
 
     def commit_db(self, session):
@@ -236,15 +246,16 @@ class GenericImporter(ABC):   # pylint: disable=too-many-instance-attributes
         :return: bool, if errors encountered or not.
         """
         from sqlalchemy.exc import SQLAlchemyError
+
         self._total_records += 1
         if session.dirty or session.new:
             try:
                 session.commit()
                 self._committed += 1
-                logger.debug('committing')
+                logger.debug("committing")
             except (SQLAlchemyError, ValueError) as e:
                 self._errors += 1
-                logger.debug('Commit failed with %s', e)
+                logger.debug("Commit failed with %s", e)
                 session.rollback()
                 return False
         return True
@@ -275,13 +286,13 @@ class GenericImporter(ABC):   # pylint: disable=too-many-instance-attributes
             'quantity': '10'}
         """
         record = {}
-        for k in sorted(rec, key=lambda i: i.count('.'), reverse=True):
+        for k in sorted(rec, key=lambda i: i.count("."), reverse=True):
             # get rid of empty strings
-            record[k] = None if rec[k] == '' else rec[k]
+            record[k] = None if rec[k] == "" else rec[k]
         organised = {}
         for k, v in record.items():
-            if '.' in k:
-                path, atr = k.rsplit('.', 1)
+            if "." in k:
+                path, atr = k.rsplit(".", 1)
                 organised[path] = organised.get(path, {})
                 organised[path][atr] = v
             else:
@@ -297,14 +308,21 @@ class GenericImporter(ABC):   # pylint: disable=too-many-instance-attributes
         """
         try:
             path_type = getattr(model, attr).type
-            if path_type.__class__.__name__ == 'JSON':
+            if path_type.__class__.__name__ == "JSON":
                 from ast import literal_eval
+
                 value = literal_eval(value)
             else:
                 value = path_type.python_type(value)
-        except Exception as e:   # pylint: disable=broad-except
-            logger.debug('convert models: %s type k: %s, v: %s raised %s (%s)',
-                         model, attr, value, type(e).__name__, e)
+        except Exception as e:  # pylint: disable=broad-except
+            logger.debug(
+                "convert models: %s type k: %s, v: %s raised %s (%s)",
+                model,
+                attr,
+                value,
+                type(e).__name__,
+                e,
+            )
             # for anything that doesn't have an obvious python_type a string
             # should work, this includes DateTime, Date and Boolean
             value = str(value)
@@ -314,23 +332,24 @@ class GenericImporter(ABC):   # pylint: disable=too-many-instance-attributes
     def handle_plant_changes(key, value, item):
         """Handle plant changes, especially `planted` and `death`"""
         from bauble.plugins.garden.plant import PlantChange
-        if key == 'planted':
-            if hasattr(item, 'planted') and item.planted:
-                value['id'] = item.planted.id
+
+        if key == "planted":
+            if hasattr(item, "planted") and item.planted:
+                value["id"] = item.planted.id
             else:
                 # should be a new entry. (i.e. item.id is None)
                 # create the change and let the event.listen_for deal
                 # with correcting the values later.
                 # provides a way to add a planted change to data that
                 # has no changes and is not being changed.
-                if not item.changes and not value.get('quantity'):
-                    value['quantity'] = item.quantity
+                if not item.changes and not value.get("quantity"):
+                    value["quantity"] = item.quantity
                 new_change = PlantChange(**value)
                 item.changes.append(new_change)
                 value = None
-        elif key == 'death':
-            if hasattr(item, 'death') and item.death:
-                value['id'] = item.death.id
+        elif key == "death":
+            if hasattr(item, "death") and item.death:
+                value["id"] = item.death.id
             else:
                 # should be a new death entry.
                 # NOTE No guarantee this will become a death change or
@@ -341,8 +360,9 @@ class GenericImporter(ABC):   # pylint: disable=too-many-instance-attributes
         return value
 
     @classmethod
-    def add_rec_to_db(cls, session, item, rec): \
-            # pylint: disable=too-many-locals
+    def add_rec_to_db(
+        cls, session, item, rec
+    ):  # pylint: disable=too-many-locals
         """Add or update the item record in the database including any related
         records.
 
@@ -361,26 +381,26 @@ class GenericImporter(ABC):   # pylint: disable=too-many-instance-attributes
         first, *remainder = rec.items()
         remainder = dict(remainder)
         key, value = first
-        logger.debug('adding key: %s with value: %s', key, value)
+        logger.debug("adding key: %s with value: %s", key, value)
         # related records
         if isinstance(value, dict):
             # after this "value" will be in the session
             # Try convert values to the correct type
             model = db.get_related_class(type(item), key)
             for k, v in value.items():
-                if v is not None and not hasattr(v, '__table__'):
+                if v is not None and not hasattr(v, "__table__"):
                     v = cls.get_value_as_python_type(model, k, v)
                     value[k] = v
 
-            logger.debug('values: %s', value)
-            logger.debug('model tablename: %s', model.__tablename__)
+            logger.debug("values: %s", value)
+            logger.debug("model tablename: %s", model.__tablename__)
 
-            if model.__tablename__ == 'plant_change':
+            if model.__tablename__ == "plant_change":
                 value = cls.handle_plant_changes(key, value, item)
 
             if value:
                 value = db.get_create_or_update(session, model, **value)
-            root, atr = key.rsplit('.', 1) if '.' in key else (None, key)
+            root, atr = key.rsplit(".", 1) if "." in key else (None, key)
             # should block _default_vernacular_name in relation_filter
             # NOTE default vernacular names need to be added directly as they
             # use their own methods,
@@ -398,26 +418,30 @@ class GenericImporter(ABC):   # pylint: disable=too-many-instance-attributes
             # value = VernacularName(...)
             # This will generally work but is not fool proof.  It is preferable
             # to use the hybrid_property default_vernacular_name
-            if (root and root.endswith('._default_vernacular_name') and
-                    atr == 'vernacular_name'):
-                root = root.removesuffix('._default_vernacular_name')
-                atr = 'default_vernacular_name'
+            if (
+                root
+                and root.endswith("._default_vernacular_name")
+                and atr == "vernacular_name"
+            ):
+                root = root.removesuffix("._default_vernacular_name")
+                atr = "default_vernacular_name"
             if remainder.get(root):
                 remainder[root][atr] = value
             # linking 1-1 table
-            elif (root and '.' in root and
-                  remainder.get(root.rsplit('.', 1)[0])):
-                link, atr2 = root.rsplit('.', 1)
+            elif (
+                root and "." in root and remainder.get(root.rsplit(".", 1)[0])
+            ):
+                link, atr2 = root.rsplit(".", 1)
                 try:
-                    link_item = attrgetter(root)(item)    # existing entries
+                    link_item = attrgetter(root)(item)  # existing entries
                 except AttributeError:
                     link_item = db.get_related_class(type(item), root)()
                     session.add(link_item)
                 if link_item:
                     setattr(link_item, atr, value)
-                    logger.debug('adding: %s to %s', atr2, link)
+                    logger.debug("adding: %s to %s", atr2, link)
                     remainder[link][atr2] = link_item
-        elif value is not None and not hasattr(value, '__table__'):
+        elif value is not None and not hasattr(value, "__table__"):
             model = type(item)
             value = cls.get_value_as_python_type(model, key, value)
 
@@ -427,8 +451,11 @@ class GenericImporter(ABC):   # pylint: disable=too-many-instance-attributes
 
         # once all records are accounted for add them to item in reverse
         logger.debug(
-            'setattr on object: %s with name: %s and value: %s (type %s)',
-            item, key, value, type(value)
+            "setattr on object: %s with name: %s and value: %s (type %s)",
+            item,
+            key,
+            value,
+            type(value),
         )
         setattr(item, key, value)
         return item
@@ -456,17 +483,15 @@ class GenericExporter(ABC):
         self.presenter.cleanup()
         if response == -5:  # Gtk.ResponseType.OK - avoid importing Gtk here
             self.run()
-        logger.debug('responded %s', response)
+        logger.debug("responded %s", response)
         return response
 
     def run(self):
         """Queues the export task(s)"""
         task.clear_messages()
-        task.set_message(
-            f'exporting {self.domain.__tablename__} records'
-        )
+        task.set_message(f"exporting {self.domain.__tablename__} records")
         task.queue(self._export_task())
-        task.set_message('export completed')
+        task.set_message("export completed")
 
     @abstractmethod
     def _export_task(self):
@@ -487,14 +512,13 @@ class GenericExporter(ABC):
         try:
             value = attrgetter(path)(item)
             try:
-                if '.' in path:
+                if "." in path:
                     table = db.get_related_class(
-                        item.__table__, path.rsplit('.', 1)[0]
+                        item.__table__, path.rsplit(".", 1)[0]
                     ).__table__
                 else:
                     table = item.__table__
-                column_type = getattr(table.c,
-                                      path.split('.')[-1]).type
+                column_type = getattr(table.c, path.split(".")[-1]).type
             except AttributeError:
                 # path is to a table and not a column
                 column_type = None
@@ -505,9 +529,9 @@ class GenericExporter(ABC):
             # planted.date death.date etc.
             if value and isinstance(value, datetime.datetime):
                 return value.strftime(datetime_fmat)
-            return str(value if value is not None else '')
+            return str(value if value is not None else "")
         except AttributeError:
-            return ''
+            return ""
 
     @staticmethod
     def get_attr_notes(item):
@@ -518,11 +542,12 @@ class GenericExporter(ABC):
             if not category:
                 continue
             import re
-            if match := re.match(r'\{([^\{:]+):(.*)}', category):
+
+            if match := re.match(r"\{([^\{:]+):(.*)}", category):
                 attr_notes.append(match.group(1))
-            elif category.startswith('[') and category.endswith(']'):
+            elif category.startswith("[") and category.endswith("]"):
                 attr_notes.append(category[1:-1])
-            elif category.startswith('<') and category.endswith('>'):
+            elif category.startswith("<") and category.endswith(">"):
                 attr_notes.append(category[1:-1])
         return attr_notes
 
@@ -539,21 +564,21 @@ class GenericExporter(ABC):
         """
         record = {}
         # handle generated attribute notes
-        attr_notes = cls.get_attr_notes(item) if hasattr(item, 'notes') else []
+        attr_notes = cls.get_attr_notes(item) if hasattr(item, "notes") else []
         for name, path in fields.items():
-            if name == 'domain':
+            if name == "domain":
                 record[name] = path
-            elif path == 'Note':
-                value = ''
+            elif path == "Note":
+                value = ""
                 # handle generated attribute notes
                 if hasattr(item, name) and name in attr_notes:
                     value = getattr(item, name)
                 else:
                     value = [n.note for n in item.notes if n.category == name]
-                    value = str(value[-1]) if value else ''
+                    value = str(value[-1]) if value else ""
                 record[name] = str(value)
-            elif path == 'Empty':
-                record[name] = ''
+            elif path == "Empty":
+                record[name] = ""
             elif path == item.__table__.key:
                 record[name] = str(item)
             else:
@@ -573,16 +598,21 @@ class ImexPlugin(pluginmgr.Plugin):
     from .shapefile import ShapefileImportTool
     from .xml import XMLExportCommandHandler
     from .xml import XMLExportTool
-    tools = [CSVRestoreTool,
-             CSVBackupTool,
-             CSVExportTool,
-             CSVImportTool,
-             XMLExportTool,
-             ShapefileImportTool,
-             ShapefileExportTool]
-    commands = [CSVBackupCommandHandler,
-                CSVRestoreCommandHandler,
-                XMLExportCommandHandler]
+
+    tools = [
+        CSVRestoreTool,
+        CSVBackupTool,
+        CSVExportTool,
+        CSVImportTool,
+        XMLExportTool,
+        ShapefileImportTool,
+        ShapefileExportTool,
+    ]
+    commands = [
+        CSVBackupCommandHandler,
+        CSVRestoreCommandHandler,
+        XMLExportCommandHandler,
+    ]
 
 
 plugin = ImexPlugin

@@ -52,7 +52,7 @@ from bauble.plugins.tag import Tag
 from .template_downloader import TemplateDownloadTool
 
 # name: formatter_class, formatter_kwargs
-CONFIG_LIST_PREF = 'report.configs'
+CONFIG_LIST_PREF = "report.configs"
 """
 the preferences key for report configurations.
 
@@ -60,7 +60,7 @@ Value: a dict of names to settings.
 """
 
 # the default report generator to select on start
-DEFAULT_CONFIG_PREF = 'report.current'
+DEFAULT_CONFIG_PREF = "report.current"
 """
 the preferences key the currently selected report.
 """
@@ -73,6 +73,7 @@ options = {}
 def _pertinent_objects_generator(query, order_by):
     """Generator to return results and update progressbar in tasks."""
     from bauble import pb_set_fraction
+
     num_objs = query.distinct().count()
     if order_by:
         query = query.order_by(*order_by)
@@ -83,12 +84,9 @@ def _pertinent_objects_generator(query, order_by):
         yield item
 
 
-def _get_pertinent_objects(cls,
-                           get_query_func,
-                           objs,
-                           session,
-                           as_task=False,
-                           order_by=None):
+def _get_pertinent_objects(
+    cls, get_query_func, objs, session, as_task=False, order_by=None
+):
     """
     :param cls: class of the objects to return
     :param get_query_func:
@@ -100,6 +98,7 @@ def _get_pertinent_objects(cls,
     close_session = False
     if session is None:
         from bauble import db
+
         session = db.Session()
         close_session = True
 
@@ -126,14 +125,16 @@ def _get_pertinent_objects(cls,
             join = klass
     # this ugly hack because query._join_entities is deprecated and the
     # SQL output is predictable
-    if join and (f'JOIN {join.__tablename__}' not in str(query) or has_union):
+    if join and (f"JOIN {join.__tablename__}" not in str(query) or has_union):
         query = query.join(join)
 
     try:
         if as_task:
             from bauble import task
-            return task.queue(_pertinent_objects_generator(query, order_by),
-                              yielding=True)
+
+            return task.queue(
+                _pertinent_objects_generator(query, order_by), yielding=True
+            )
 
         if order_by:
             query = query.order_by(*order_by)
@@ -154,31 +155,37 @@ def get_plant_query(cls, objs, session):
 
     ids = {obj.id for obj in objs}
     if cls is Family:
-        return (query.join('accession', 'species', 'genus', 'family')
-                .filter(Family.id.in_(ids)))
+        return query.join("accession", "species", "genus", "family").filter(
+            Family.id.in_(ids)
+        )
     if cls is Genus:
-        return (query.join('accession', 'species', 'genus')
-                .filter(Genus.id.in_(ids)))
+        return query.join("accession", "species", "genus").filter(
+            Genus.id.in_(ids)
+        )
     if cls is Species:
-        return query.join('accession', 'species').filter(Species.id.in_(ids))
+        return query.join("accession", "species").filter(Species.id.in_(ids))
     if cls is VernacularName:
-        return (query.join('accession', 'species', 'vernacular_names')
-                .filter(VernacularName.id.in_(ids)))
+        return query.join("accession", "species", "vernacular_names").filter(
+            VernacularName.id.in_(ids)
+        )
     if cls is Geography:
-        return (query.join('accession', 'species', 'distribution', 'geography')
-                .filter(Geography.id.in_(ids)))
+        return query.join(
+            "accession", "species", "distribution", "geography"
+        ).filter(Geography.id.in_(ids))
     if cls is Plant:
         return query.filter(Plant.id.in_(ids))
     if cls is Accession:
-        return query.join('accession').filter(Accession.id.in_(ids))
+        return query.join("accession").filter(Accession.id.in_(ids))
     if cls is Collection:
-        return (query.join('accession', 'source', 'collection')
-                .filter(Collection.id.in_(ids)))
+        return query.join("accession", "source", "collection").filter(
+            Collection.id.in_(ids)
+        )
     if cls is Location:
         return query.filter(Plant.location_id.in_(ids))
     if cls is SourceDetail:
-        return (query.join('accession', 'source', 'source_detail')
-                .filter(SourceDetail.id.in_(ids)))
+        return query.join("accession", "source", "source_detail").filter(
+            SourceDetail.id.in_(ids)
+        )
     if cls is Tag:
         plants = get_plants_pertinent_to(
             [i for obj in objs for i in obj.objects], session
@@ -197,8 +204,9 @@ def get_plants_pertinent_to(objs, session=None, as_task=False):
     Return all the plants found in objs.
     """
     order_by = [Accession.code, Plant.code]
-    return _get_pertinent_objects(Plant, get_plant_query, objs, session,
-                                  as_task, order_by=order_by)
+    return _get_pertinent_objects(
+        Plant, get_plant_query, objs, session, as_task, order_by=order_by
+    )
 
 
 def get_accession_query(cls, objs, session):
@@ -210,30 +218,35 @@ def get_accession_query(cls, objs, session):
 
     ids = {obj.id for obj in objs}
     if cls is Family:
-        return (query.join('species', 'genus', 'family')
-                .filter(Family.id.in_(ids)))
+        return query.join("species", "genus", "family").filter(
+            Family.id.in_(ids)
+        )
     if cls is Genus:
-        return query.join('species', 'genus').filter(Genus.id.in_(ids))
+        return query.join("species", "genus").filter(Genus.id.in_(ids))
     if cls is Species:
-        return query.join('species').filter(Species.id.in_(ids))
+        return query.join("species").filter(Species.id.in_(ids))
     if cls is VernacularName:
-        return (query.join('species', 'vernacular_names')
-                .filter(VernacularName.id.in_(ids)))
+        return query.join("species", "vernacular_names").filter(
+            VernacularName.id.in_(ids)
+        )
     if cls is Geography:
-        return (query.join('species', 'distribution', 'geography')
-                .filter(Geography.id.in_(ids)))
+        return query.join("species", "distribution", "geography").filter(
+            Geography.id.in_(ids)
+        )
     if cls is Plant:
-        return query.join('plants').filter(Plant.id.in_(ids))
+        return query.join("plants").filter(Plant.id.in_(ids))
     if cls is Accession:
         return query.filter(Accession.id.in_(ids))
     if cls is Collection:
-        return (query.join('source', 'collection')
-                .filter(Collection.id.in_(ids)))
+        return query.join("source", "collection").filter(
+            Collection.id.in_(ids)
+        )
     if cls is Location:
-        return query.join('plants').filter(Plant.location_id.in_(ids))
+        return query.join("plants").filter(Plant.location_id.in_(ids))
     if cls is SourceDetail:
-        return (query.join('source', 'source_detail')
-                .filter(SourceDetail.id.in_(ids)))
+        return query.join("source", "source_detail").filter(
+            SourceDetail.id.in_(ids)
+        )
     if cls is Tag:
         accessions = get_accessions_pertinent_to(
             [i for obj in objs for i in obj.objects], session
@@ -251,8 +264,14 @@ def get_accessions_pertinent_to(objs, session=None, as_task=False):
 
     Return all the accessions found in objs.
     """
-    return _get_pertinent_objects(Accession, get_accession_query, objs,
-                                  session, as_task, order_by=[Accession.code])
+    return _get_pertinent_objects(
+        Accession,
+        get_accession_query,
+        objs,
+        session,
+        as_task,
+        order_by=[Accession.code],
+    )
 
 
 def get_species_query(cls, objs, session):
@@ -264,29 +283,31 @@ def get_species_query(cls, objs, session):
 
     ids = {obj.id for obj in objs}
     if cls is Family:
-        return (query.join('genus', 'family')
-                .filter(cls.id.in_(ids)))
+        return query.join("genus", "family").filter(cls.id.in_(ids))
     if cls is Genus:
-        return query.join('genus').filter(cls.id.in_(ids))
+        return query.join("genus").filter(cls.id.in_(ids))
     if cls is Species:
         return query.filter(cls.id.in_(ids))
     if cls is VernacularName:
-        return query.join('vernacular_names').filter(cls.id.in_(ids))
+        return query.join("vernacular_names").filter(cls.id.in_(ids))
     if cls is Geography:
-        return query.join('distribution', 'geography').filter(cls.id.in_(ids))
+        return query.join("distribution", "geography").filter(cls.id.in_(ids))
     if cls is Plant:
-        return query.join('accessions', 'plants').filter(cls.id.in_(ids))
+        return query.join("accessions", "plants").filter(cls.id.in_(ids))
     if cls is Accession:
-        return query.join('accessions').filter(cls.id.in_(ids))
+        return query.join("accessions").filter(cls.id.in_(ids))
     if cls is Collection:
-        return (query.join('accessions', 'source', 'collection')
-                .filter(cls.id.in_(ids)))
+        return query.join("accessions", "source", "collection").filter(
+            cls.id.in_(ids)
+        )
     if cls is Location:
-        return (query.join('accessions', 'plants', 'location')
-                .filter(cls.id.in_(ids)))
+        return query.join("accessions", "plants", "location").filter(
+            cls.id.in_(ids)
+        )
     if cls is SourceDetail:
-        return (query.join('accessions', 'source', 'source_detail')
-                .filter(cls.id.in_(ids)))
+        return query.join("accessions", "source", "source_detail").filter(
+            cls.id.in_(ids)
+        )
     if cls is Tag:
         species = get_species_pertinent_to(
             [i for obj in objs for i in obj.objects], session
@@ -304,8 +325,14 @@ def get_species_pertinent_to(objs, session=None, as_task=False):
 
     Return all the species found in objs.
     """
-    return _get_pertinent_objects(Species, get_species_query, objs, session,
-                                  as_task, order_by=[Genus.genus, Species.sp])
+    return _get_pertinent_objects(
+        Species,
+        get_species_query,
+        objs,
+        session,
+        as_task,
+        order_by=[Genus.genus, Species.sp],
+    )
 
 
 def get_location_query(cls, objs, session):
@@ -314,32 +341,37 @@ def get_location_query(cls, objs, session):
     if cls is Location:
         return query.filter(cls.id.in_(ids))
     if cls is Plant:
-        return query.join('plants').filter(cls.id.in_(ids))
+        return query.join("plants").filter(cls.id.in_(ids))
     if cls is Accession:
-        return query.join('plants', 'accession').filter(cls.id.in_(ids))
+        return query.join("plants", "accession").filter(cls.id.in_(ids))
     if cls is Collection:
-        return (query.join('plants', 'accession', 'source', 'collection')
-                .filter(cls.id.in_(ids)))
+        return query.join(
+            "plants", "accession", "source", "collection"
+        ).filter(cls.id.in_(ids))
     if cls is Family:
-        return (query.join('plants', 'accession', 'species', 'genus', 'family')
-                .filter(cls.id.in_(ids)))
+        return query.join(
+            "plants", "accession", "species", "genus", "family"
+        ).filter(cls.id.in_(ids))
     if cls is Genus:
-        return (query.join('plants', 'accession', 'species', 'genus')
-                .filter(cls.id.in_(ids)))
+        return query.join("plants", "accession", "species", "genus").filter(
+            cls.id.in_(ids)
+        )
     if cls is Species:
-        return (query.join('plants', 'accession', 'species')
-                .filter(cls.id.in_(ids)))
+        return query.join("plants", "accession", "species").filter(
+            cls.id.in_(ids)
+        )
     if cls is VernacularName:
-        return (query.join('plants', 'accession', 'species',
-                           'vernacular_names')
-                .filter(cls.id.in_(ids)))
+        return query.join(
+            "plants", "accession", "species", "vernacular_names"
+        ).filter(cls.id.in_(ids))
     if cls is Geography:
-        return (query.join('plants', 'accession', 'species', 'distribution',
-                           'geography')
-                .filter(cls.id.in_(ids)))
+        return query.join(
+            "plants", "accession", "species", "distribution", "geography"
+        ).filter(cls.id.in_(ids))
     if cls is SourceDetail:
-        return (query.join('plants', 'accession', 'source', 'source_detail')
-                .filter(cls.id.in_(ids)))
+        return query.join(
+            "plants", "accession", "source", "source_detail"
+        ).filter(cls.id.in_(ids))
     if cls is Tag:
         locs = get_locations_pertinent_to(
             [i for obj in objs for i in obj.objects], session
@@ -357,8 +389,14 @@ def get_locations_pertinent_to(objs, session=None, as_task=False):
 
     Return all the locations found in objs.
     """
-    return _get_pertinent_objects(Location, get_location_query, objs,
-                                  session, as_task, order_by=[Location.code])
+    return _get_pertinent_objects(
+        Location,
+        get_location_query,
+        objs,
+        session,
+        as_task,
+        order_by=[Location.code],
+    )
 
 
 def get_geography_query(cls, objs, session):
@@ -367,40 +405,46 @@ def get_geography_query(cls, objs, session):
     if cls is Geography:
         return query.filter(cls.id.in_(ids))
     if cls is Plant:
-        return (query.join('distribution', 'species', 'accessions', 'plants')
-                .filter(cls.id.in_(ids)))
+        return query.join(
+            "distribution", "species", "accessions", "plants"
+        ).filter(cls.id.in_(ids))
     # This is the exception, it uses the collection geography entry.
     if cls is Accession:
-        return (query.join('collection', 'source', 'accession')
-                .filter(cls.id.in_(ids)))
+        return query.join("collection", "source", "accession").filter(
+            cls.id.in_(ids)
+        )
     if cls is Collection:
-        return (query.join('collection')
-                .filter(cls.id.in_(ids)))
+        return query.join("collection").filter(cls.id.in_(ids))
     if cls is Family:
-        return (query.join('distribution', 'species', 'genus', 'family')
-                .filter(cls.id.in_(ids)))
+        return query.join("distribution", "species", "genus", "family").filter(
+            cls.id.in_(ids)
+        )
     if cls is Genus:
-        return (query.join('distribution', 'species', 'genus')
-                .filter(cls.id.in_(ids)))
+        return query.join("distribution", "species", "genus").filter(
+            cls.id.in_(ids)
+        )
     if cls is Species:
-        return query.join('distribution', 'species').filter(cls.id.in_(ids))
+        return query.join("distribution", "species").filter(cls.id.in_(ids))
     if cls is Location:
-        return (query.join('distribution', 'species', 'accessions', 'plants',
-                           'location')
-                .filter(cls.id.in_(ids)))
+        return query.join(
+            "distribution", "species", "accessions", "plants", "location"
+        ).filter(cls.id.in_(ids))
     if cls is VernacularName:
-        return (query.join('distribution', 'species', 'vernacular_names')
-                .filter(cls.id.in_(ids)))
+        return query.join(
+            "distribution", "species", "vernacular_names"
+        ).filter(cls.id.in_(ids))
     if cls is SourceDetail:
-        return (query.join('distribution', 'species', 'accessions', 'source',
-                           'source_detail')
-                .filter(cls.id.in_(ids)))
+        return query.join(
+            "distribution", "species", "accessions", "source", "source_detail"
+        ).filter(cls.id.in_(ids))
     if cls is Tag:
         geographies = get_geographies_pertinent_to(
             [i for obj in objs for i in obj.objects], session
         )
         return query.filter(Geography.id.in_([geo.id for geo in geographies]))
     raise BaubleError(_("Can't get Geography from a %s") % cls.__name__)
+
+
 # pylint: enable=too-many-return-statements
 
 
@@ -413,8 +457,14 @@ def get_geographies_pertinent_to(objs, session=None, as_task=False):
 
     Return all the locations found in objs.
     """
-    return _get_pertinent_objects(Geography, get_geography_query, objs,
-                                  session, as_task, order_by=[Geography.name])
+    return _get_pertinent_objects(
+        Geography,
+        get_geography_query,
+        objs,
+        session,
+        as_task,
+        order_by=[Geography.name],
+    )
 
 
 class SettingsBox(Gtk.Box):
@@ -423,6 +473,7 @@ class SettingsBox(Gtk.Box):
     Formatters should implement this interface and return it from the
     formatters's get_report_settings method
     """
+
     def __init__(self):
         super().__init__(orientation=Gtk.Orientation.VERTICAL)
 
@@ -442,7 +493,7 @@ class FormatterPlugin(pluginmgr.Plugin):
     NOTE: the title class attribute must be a unique string
     """
 
-    title = ''
+    title = ""
 
     @staticmethod
     def get_settings_box():
@@ -458,10 +509,10 @@ class FormatterPlugin(pluginmgr.Plugin):
 
 
 class ReportToolDialogView:
-
     def __init__(self):
         self.widgets = utils.load_widgets(
-            os.path.join(paths.lib_dir(), "plugins", "report", 'report.glade'))
+            os.path.join(paths.lib_dir(), "plugins", "report", "report.glade")
+        )
         self.dialog = self.widgets.report_dialog
         self.dialog.set_transient_for(bauble.gui.window)
         self.builder = self.widgets.builder
@@ -469,11 +520,14 @@ class ReportToolDialogView:
         utils.setup_text_combobox(self.widgets.formatter_combo)
 
         self._delete_sid = self.dialog.connect(
-            'delete-event', self.on_dialog_close_or_delete)
+            "delete-event", self.on_dialog_close_or_delete
+        )
         self._close_sid = self.dialog.connect(
-            'close', self.on_dialog_close_or_delete)
+            "close", self.on_dialog_close_or_delete
+        )
         self._response_sid = self.dialog.connect(
-            'response', self.on_dialog_response)
+            "response", self.on_dialog_response
+        )
 
     @staticmethod
     def on_dialog_response(dialog, response):
@@ -511,7 +565,6 @@ class ReportToolDialogView:
 
 
 class ReportToolDialogPresenter:
-
     formatter_class_map = {}  # title->class map
 
     def __init__(self, view):
@@ -521,7 +574,7 @@ class ReportToolDialogPresenter:
 
         self.view.builder.connect_signals(self)
 
-        self.view.set_sensitive('ok_button', False)
+        self.view.set_sensitive("ok_button", False)
 
         # set the names combo to the default, on_names_combo_changes should
         # do the rest of the work
@@ -542,7 +595,7 @@ class ReportToolDialogPresenter:
         """
         combo = self.view.widgets.names_combo
         if combo.get_model() is None:
-            self.view.set_sensitive('details_box', False)
+            self.view.set_sensitive("details_box", False)
             return
         if val is None:
             combo.set_active(-1)
@@ -559,10 +612,10 @@ class ReportToolDialogPresenter:
         combo = self.view.widgets.formatter_combo
         if val is None:
             combo.set_active(-1)
-            combo.emit('changed')
+            combo.emit("changed")
         elif isinstance(val, int):
             combo.set_active(val)
-            combo.emit('changed')
+            combo.emit("changed")
         else:
             utils.combo_set_active_text(combo, val)
 
@@ -576,32 +629,34 @@ class ReportToolDialogPresenter:
         prefs.prefs[CONFIG_LIST_PREF] = formatters
 
     def on_new_button_clicked(self, _button):
-        text = '<b>' + _('Enter a name for the new formatter') + '</b>'
+        text = "<b>" + _("Enter a name for the new formatter") + "</b>"
         dialog = utils.create_message_dialog(
             text,
             buttons=Gtk.ButtonsType.OK_CANCEL,
             parent=self.view.dialog,
-            resizable=False
+            resizable=False,
         )
         content_area_box = dialog.get_content_area()
         content_area_box.set_spacing(10)
         entry_box = Gtk.Box()
         entry = Gtk.Entry()
         dialog.set_response_sensitive(Gtk.ResponseType.OK, False)
-        entry.get_style_context().add_class('problem')
+        entry.get_style_context().add_class("problem")
         names_model = self.view.widgets.names_combo.get_model()
 
         def on_entry_changed(_entry):
             _name = entry.get_text()
-            if _name == '' or (names_model is not None and
-                               utils.tree_model_has(names_model, _name)):
-                entry.get_style_context().add_class('problem')
+            if _name == "" or (
+                names_model is not None
+                and utils.tree_model_has(names_model, _name)
+            ):
+                entry.get_style_context().add_class("problem")
                 dialog.set_response_sensitive(Gtk.ResponseType.OK, False)
             else:
-                entry.get_style_context().remove_class('problem')
+                entry.get_style_context().remove_class("problem")
                 dialog.set_response_sensitive(Gtk.ResponseType.OK, True)
 
-        entry.connect('changed', on_entry_changed)
+        entry.connect("changed", on_entry_changed)
         dialog.set_default_response(Gtk.ResponseType.OK)
         entry.set_activates_default(True)
         entry_box.pack_start(entry, True, True, 15)
@@ -627,12 +682,12 @@ class ReportToolDialogPresenter:
 
     def on_names_combo_changed(self, combo):
         if combo.get_model() is None or combo.get_active() == -1:
-            self.view.set_sensitive('details_box', False)
+            self.view.set_sensitive("details_box", False)
             return
 
         name = combo.get_active_text()
         formatters = prefs.prefs.get(CONFIG_LIST_PREF, {})
-        self.view.set_sensitive('details_box', name is not None)
+        self.view.set_sensitive("details_box", name is not None)
         # set the default to the new name
         prefs.prefs[DEFAULT_CONFIG_PREF] = name
         try:
@@ -640,7 +695,7 @@ class ReportToolDialogPresenter:
         except (KeyError, TypeError) as e:
             logger.debug("%s(%s)", type(e).__name__, e)
             utils.message_dialog(
-                _('%s does not exists in your preferences') % name
+                _("%s does not exists in your preferences") % name
             )
             return
 
@@ -648,24 +703,24 @@ class ReportToolDialogPresenter:
             self.set_formatter_combo(formatter_title)
         except ValueError as e:
             utils.message_dialog(
-                _('%s does not exist, have you edited your preferences?') %
-                name
+                _("%s does not exist, have you edited your preferences?")
+                % name
             )
             logger.debug("%s(%s)", type(e).__name__, e)
             self.set_formatter_combo(-1)
-        self.view.set_sensitive('details_box', True)
+        self.view.set_sensitive("details_box", True)
 
     def on_formatter_combo_changed(self, combo):
         """formatter_combo changed signal handler."""
-        self.view.set_sensitive('ok_button', False)
+        self.view.set_sensitive("ok_button", False)
         GLib.idle_add(self._formatter_combo_changed_idle, combo)
 
     def _formatter_combo_changed_idle(self, combo):
         formatter = combo.get_active_text()
         name = self.view.widgets.names_combo.get_active_text()
-        _formatter_title, settings = (prefs.prefs
-                                      .get(CONFIG_LIST_PREF, {})
-                                      .get(name, (None, None)))
+        _formatter_title, settings = prefs.prefs.get(CONFIG_LIST_PREF, {}).get(
+            name, (None, None)
+        )
         if settings is None:
             return
 
@@ -674,7 +729,7 @@ class ReportToolDialogPresenter:
         for child in expander.get_children():
             expander.remove(child)
 
-        self.view.set_sensitive('ok_button', formatter is not None)
+        self.view.set_sensitive("ok_button", formatter is not None)
         if not formatter:
             self.view.resize()
             return
@@ -690,22 +745,23 @@ class ReportToolDialogPresenter:
         # see formatter_settings_expander_pref
         expander.set_expanded(box is not None)
         self.set_prefs_for(name, formatter, settings)
-        self.view.set_sensitive('ok_button', True)
+        self.view.set_sensitive("ok_button", True)
         self.view.resize()
 
     def init_formatter_combo(self):
         plugins = []
         for plug in pluginmgr.plugins.values():
             if isinstance(plug, FormatterPlugin):
-                logger.debug('recognized %s as a FormatterPlugin', plug)
+                logger.debug("recognized %s as a FormatterPlugin", plug)
                 plugins.append(plug)
             else:
-                logger.debug('discarded %s: not a FormatterPlugin', plug)
+                logger.debug("discarded %s: not a FormatterPlugin", plug)
 
         # should always have at least the default formatter
         if len(plugins) == 0:
-            utils.message_dialog(_('No formatter plugins defined'),
-                                 Gtk.MessageType.WARNING)
+            utils.message_dialog(
+                _("No formatter plugins defined"), Gtk.MessageType.WARNING
+            )
             return
 
         for item in plugins:
@@ -718,7 +774,7 @@ class ReportToolDialogPresenter:
         formatter = prefs.prefs.get(CONFIG_LIST_PREF)
         combo = self.view.widgets.names_combo
         if formatter is None:
-            self.view.set_sensitive('details_box', False)
+            self.view.set_sensitive("details_box", False)
             combo.remove_all()
             return
         try:
@@ -732,8 +788,10 @@ class ReportToolDialogPresenter:
     def init_names_combo(self):
         formatters = prefs.prefs.get(CONFIG_LIST_PREF)
         if not formatters:
-            msg = _('No formatters found. To create a new formatter click '
-                    'the "New" button.')
+            msg = _(
+                "No formatters found. To create a new formatter click "
+                'the "New" button.'
+            )
             utils.message_dialog(msg, parent=self.view.dialog)
             self.view.widgets.names_combo.remove_all()
         self.populate_names_combo()
@@ -755,15 +813,15 @@ class ReportToolDialogPresenter:
             prefs.prefs[DEFAULT_CONFIG_PREF] = current
             self.save_formatter_settings()
             name = self.view.widgets.names_combo.get_active_text()
-            formatter_title, settings = prefs.prefs.get(CONFIG_LIST_PREF,
-                                                        {}).get(name)
+            formatter_title, settings = prefs.prefs.get(
+                CONFIG_LIST_PREF, {}
+            ).get(name)
             formatter = self.formatter_class_map.get(formatter_title)
         self.view.disconnect_all()
         return formatter, settings
 
 
 class ReportToolDialog:  # pylint: disable=too-few-public-methods
-
     def __init__(self):
         self.view = ReportToolDialogView()
         self.presenter = ReportToolDialogPresenter(self.view)
@@ -773,7 +831,6 @@ class ReportToolDialog:  # pylint: disable=too-few-public-methods
 
 
 class ReportTool(pluginmgr.Tool):  # pylint: disable=too-few-public-methods
-
     category = _("Report")
     label = _("Generate Report")
 
@@ -781,17 +838,18 @@ class ReportTool(pluginmgr.Tool):  # pylint: disable=too-few-public-methods
     def start(cls):
         # get the select results from the search view
         from bauble.view import SearchView
+
         view = bauble.gui.get_view()
         if not isinstance(view, SearchView):
-            utils.message_dialog(_('Search for something first.'))
+            utils.message_dialog(_("Search for something first."))
             return
 
         model = view.results_view.get_model()
         if model is None:
-            utils.message_dialog(_('Search for something first.'))
+            utils.message_dialog(_("Search for something first."))
             return
 
-        bauble.gui.set_busy(True, 'not-allowed')
+        bauble.gui.set_busy(True, "not-allowed")
         okay = False
         try:
             while True:
@@ -806,21 +864,24 @@ class ReportTool(pluginmgr.Tool):  # pylint: disable=too-few-public-methods
             logger.debug("%s(%s)", type(e).__name__, e)
             logger.debug(traceback.format_exc())
 
-            utils.message_details_dialog(utils.xml_safe(e),
-                                         traceback.format_exc(),
-                                         Gtk.MessageType.ERROR)
-        except Exception as e:   # pylint: disable=broad-except
+            utils.message_details_dialog(
+                utils.xml_safe(e),
+                traceback.format_exc(),
+                Gtk.MessageType.ERROR,
+            )
+        except Exception as e:  # pylint: disable=broad-except
             logger.debug(traceback.format_exc())
-            utils.message_details_dialog(_('Formatting Error\n\n%s') %
-                                         utils.xml_safe(e),
-                                         traceback.format_exc(),
-                                         Gtk.MessageType.ERROR)
+            utils.message_details_dialog(
+                _("Formatting Error\n\n%s") % utils.xml_safe(e),
+                traceback.format_exc(),
+                Gtk.MessageType.ERROR,
+            )
         bauble.gui.set_busy(False)
         return
 
 
 class ReportToolPlugin(pluginmgr.Plugin):
-    depends = ['PlantsPlugin', 'GardenPlugin', 'TagPlugin']
+    depends = ["PlantsPlugin", "GardenPlugin", "TagPlugin"]
     tools = [ReportTool, TemplateDownloadTool]
 
 
@@ -828,10 +889,12 @@ class ReportToolPlugin(pluginmgr.Plugin):
 # automatically detected, right now they are just returned in the plugin()
 # function
 
+
 def plugin():
     from .mako import MakoFormatterPlugin
     from .xsl import XSLFormatterPlugin
     from .xsl import _fop
+
     plugins = [ReportToolPlugin, MakoFormatterPlugin]
     if _fop.set_fop_command():
         plugins.append(XSLFormatterPlugin)

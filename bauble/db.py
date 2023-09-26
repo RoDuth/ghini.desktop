@@ -49,15 +49,15 @@ from bauble import utils
 
 def sqlalchemy_debug(verbose):
     if verbose:
-        logging.getLogger('sqlalchemy.engine').setLevel(logging.INFO)
-        logging.getLogger('sqlalchemy.orm.unitofwork').setLevel(logging.DEBUG)
+        logging.getLogger("sqlalchemy.engine").setLevel(logging.INFO)
+        logging.getLogger("sqlalchemy.orm.unitofwork").setLevel(logging.DEBUG)
     else:
-        logging.getLogger('sqlalchemy.engine').setLevel(logging.WARN)
-        logging.getLogger('sqlalchemy.orm.unitofwork').setLevel(logging.WARN)
+        logging.getLogger("sqlalchemy.engine").setLevel(logging.WARN)
+        logging.getLogger("sqlalchemy.orm.unitofwork").setLevel(logging.WARN)
 
 
 SQLALCHEMY_DEBUG = False
-if os.environ.get('BAUBLE_SQLA_DEBUG') == 'True':
+if os.environ.get("BAUBLE_SQLA_DEBUG") == "True":
     SQLALCHEMY_DEBUG = True
 
 sqlalchemy_debug(SQLALCHEMY_DEBUG)
@@ -79,7 +79,7 @@ def natsort(attr, obj):
     partial(natsort, 'accessions')(species)
     partial(natsort, 'species.accessions')(vern_name)
     """
-    jumps = attr.split('.')
+    jumps = attr.split(".")
     for atr in jumps:
         obj = getattr(obj, atr)
     return sorted(obj, key=utils.natsort_key)
@@ -89,12 +89,12 @@ def get_active_children(children: Callable | str, obj: Any) -> Iterable:
     """Return only active children of obj if the 'exclude_inactive' pref is
     set True else return all children.
     """
-    children = (children(obj) if callable(children)
-                else getattr(obj, children))
+    children = children(obj) if callable(children) else getattr(obj, children)
     # avoid circular refs
     from bauble import prefs
+
     if prefs.prefs.get(prefs.exclude_inactive_pref):
-        return [i for i in children if getattr(i, 'active', True)]
+        return [i for i in children if getattr(i, "active", True)]
     return children
 
 
@@ -107,21 +107,30 @@ class MapperBase(DeclarativeMeta):
     than to extend it to add more default columns to all the bauble
     tables.
     """
+
     def __init__(cls, classname, bases, dict_):
-        if '__tablename__' in dict_:
-            cls.id = sa.Column('id', sa.Integer, primary_key=True,
-                               autoincrement=True)
-            cls._created = sa.Column('_created', types.DateTime(timezone=True),
-                                     default=sa.func.now())
-            cls._last_updated = sa.Column('_last_updated',
-                                          types.DateTime(timezone=True),
-                                          default=sa.func.now(),
-                                          onupdate=sa.func.now())
-        if 'top_level_count' not in dict_:
+        if "__tablename__" in dict_:
+            cls.id = sa.Column(
+                "id", sa.Integer, primary_key=True, autoincrement=True
+            )
+            cls._created = sa.Column(
+                "_created",
+                types.DateTime(timezone=True),
+                default=sa.func.now(),
+            )
+            cls._last_updated = sa.Column(
+                "_last_updated",
+                types.DateTime(timezone=True),
+                default=sa.func.now(),
+                onupdate=sa.func.now(),
+            )
+        if "top_level_count" not in dict_:
             cls.top_level_count = lambda x: {classname: 1}
-        if 'search_view_markup_pair' not in dict_:
+        if "search_view_markup_pair" not in dict_:
             cls.search_view_markup_pair = lambda x: (
-                utils.xml_safe(str(x)), f'({type(x).__name__})')
+                utils.xml_safe(str(x)),
+                f"({type(x).__name__})",
+            )
 
         super().__init__(classname, bases, dict_)
 
@@ -156,30 +165,31 @@ An instance of :class:`sqlalchemy.ext.declarative.Base`
 """
 
 
-@event.listens_for(Base, 'after_update', propagate=True)
+@event.listens_for(Base, "after_update", propagate=True)
 def after_update(mapper, connection, instance):
-    if object_session(instance).is_modified(instance,
-                                            include_collections=False):
-        History.add('update', mapper, connection, instance)
+    if object_session(instance).is_modified(
+        instance, include_collections=False
+    ):
+        History.add("update", mapper, connection, instance)
 
 
-@event.listens_for(Base, 'after_insert', propagate=True)
+@event.listens_for(Base, "after_insert", propagate=True)
 def after_insert(mapper, connection, instance):
-    History.add('insert', mapper, connection, instance)
+    History.add("insert", mapper, connection, instance)
 
 
-@event.listens_for(Base, 'before_delete', propagate=True)
+@event.listens_for(Base, "before_delete", propagate=True)
 def before_delete(_mapper, _connection, instance):
     # load the deferred column before deleting so it is available after.
     # hasattr is enough to trigger load.
-    hasattr(instance, 'geojson')
+    hasattr(instance, "geojson")
 
 
-@event.listens_for(Base, 'after_delete', propagate=True)
+@event.listens_for(Base, "after_delete", propagate=True)
 def after_delete(mapper, connection, instance):
     # NOTE these delete events do NOT WORK for session.query(...).delete()
     # better to use session.delete(qry_obj)
-    History.add('delete', mapper, connection, instance)
+    History.add("delete", mapper, connection, instance)
 
 
 metadata = Base.metadata
@@ -214,7 +224,8 @@ class History(HistoryBase):
       timestamp: :class:`sqlalchemy.types.DateTime`
         When the change was made.
     """
-    __tablename__ = 'history'
+
+    __tablename__ = "history"
     id = sa.Column(sa.Integer, primary_key=True, autoincrement=True)
     table_name = sa.Column(sa.String(32), nullable=False)
     table_id = sa.Column(sa.Integer, nullable=False, autoincrement=False)
@@ -245,8 +256,7 @@ class History(HistoryBase):
         row = {}
         has_updates = False
         for column in mapper.local_table.c:
-
-            if operation == 'update':
+            if operation == "update":
                 history = get_history(instance, column.name)
                 if history.has_changes():
                     row[column.name] = [cls._val(i) for i in history.sum()]
@@ -256,30 +266,30 @@ class History(HistoryBase):
             val = cls._val(getattr(instance, column.name))
             row[column.name] = val
 
-        if operation == 'update' and not has_updates:
+        if operation == "update" and not has_updates:
             # don't commit if no changes
             # NOTE adding a species.synonym can cause a pointless species entry
-            logger.debug('%s update appears to contain no changes', instance)
+            logger.debug("%s update appears to contain no changes", instance)
             return
 
         table = cls.__table__
         user = current_user()
-        stmt = table.insert({'table_name': mapper.local_table.name,
-                             'table_id': instance.id,
-                             'values': row,
-                             'operation': operation,
-                             'user': user,
-                             'timestamp': datetime.datetime.utcnow()})
+        stmt = table.insert(
+            {
+                "table_name": mapper.local_table.name,
+                "table_id": instance.id,
+                "values": row,
+                "operation": operation,
+                "user": user,
+                "timestamp": datetime.datetime.utcnow(),
+            }
+        )
         connection.execute(stmt)
 
     @classmethod
-    def event_add(cls,
-                  operation,
-                  table,
-                  connection,
-                  instance,
-                  commit_user=None,
-                  **kwargs):
+    def event_add(
+        cls, operation, table, connection, instance, commit_user=None, **kwargs
+    ):
         """Add an extra entry to the history table.
 
         This version accepts the instance in its state before changes with any
@@ -287,73 +297,80 @@ class History(HistoryBase):
         where a change has been made via `connection.execute` and hence not
         triggered the usual history event handlers.
         """
-        if operation == 'update' and not kwargs:
+        if operation == "update" and not kwargs:
             # don't commit if no changes
             # NOTE can result from sync
-            logger.debug('%s update appears to contain no changes', instance)
+            logger.debug("%s update appears to contain no changes", instance)
             return
 
         user = commit_user or current_user()
 
         values = {}
         for column in table.c:
-
-            if operation == 'update' and column.name in kwargs:
+            if operation == "update" and column.name in kwargs:
                 values[column.name] = [
                     cls._val(kwargs[column.name]),
-                    cls._val(getattr(instance, column.name))
+                    cls._val(getattr(instance, column.name)),
                 ]
                 continue
 
             values[column.name] = cls._val(getattr(instance, column.name))
         history = cls.__table__
-        stmt = history.insert({'table_name': table.name,
-                               'table_id': instance.id,
-                               'values': values,
-                               'operation': operation,
-                               'user': user,
-                               'timestamp': datetime.datetime.utcnow()})
+        stmt = history.insert(
+            {
+                "table_name": table.name,
+                "table_id": instance.id,
+                "values": values,
+                "operation": operation,
+                "user": user,
+                "timestamp": datetime.datetime.utcnow(),
+            }
+        )
         connection.execute(stmt)
 
     @classmethod
     def revert_to(cls, id_):
         """Revert history to the history line with id."""
-        logger.debug('reverting to id: %s', id_)
+        logger.debug("reverting to id: %s", id_)
         session = Session()
-        rows = (session.query(cls)
-                .filter(cls.id >= id_)
-                .order_by(cls.id.desc()))
+        rows = session.query(cls).filter(cls.id >= id_).order_by(cls.id.desc())
         session.close()
         with engine.begin() as connection:
             for row in rows:
                 table = metadata.tables[row.table_name]
-                if row.operation == 'insert':
+                if row.operation == "insert":
                     stmt = table.delete().where(table.c.id == row.table_id)
-                elif row.operation == 'delete':
+                elif row.operation == "delete":
                     stmt = table.insert().values(**row.values)
-                elif row.operation == 'update':
+                elif row.operation == "update":
                     # an insert and update in the one flush/commit can create a
                     # scenario where history.sum() stores a single item list
                     # (where the second entry would normally be None.)  Best to
                     # avoid this situation altogether but have including the
                     # len check here as a boots and braces approach
-                    values = {k: v[1] if len(v) == 2 else None for k, v in
-                              row.values.items() if isinstance(v, list)}
-                    stmt = (table.update()
-                            .where(table.c.id == row.table_id)
-                            .values(**values))
-                logger.debug('history revert values: %s', row.values)
-                logger.debug('%s history revert stmt: %s', row.operation, stmt)
+                    values = {
+                        k: v[1] if len(v) == 2 else None
+                        for k, v in row.values.items()
+                        if isinstance(v, list)
+                    }
+                    stmt = (
+                        table.update()
+                        .where(table.c.id == row.table_id)
+                        .values(**values)
+                    )
+                logger.debug("history revert values: %s", row.values)
+                logger.debug("%s history revert stmt: %s", row.operation, stmt)
                 connection.execute(stmt)
                 table = cls.__table__
                 stmt = table.delete().where(table.c.id == row.id)
                 connection.execute(stmt)
 
 
-@event.listens_for(sa.engine.Engine, 'connect')
+@event.listens_for(sa.engine.Engine, "connect")
 def _sqlite_fk_pragma(dbapi_connection, _connection_record):
     """Enable foregin_key constraints on sqlite connections."""
     from sqlite3 import Connection
+
     if isinstance(dbapi_connection, Connection):
         cursor = dbapi_connection.cursor()
         cursor.execute("PRAGMA foreign_keys=ON;")
@@ -387,21 +404,23 @@ def open_conn(uri, verify=True, show_error_dialogs=False, poolclass=None):
     new_engine = None
 
     connect_args = {}
-    if uri.startswith('sqlite'):
-        logger.debug('sqlite, setting check_same_thread to False')
+    if uri.startswith("sqlite"):
+        logger.debug("sqlite, setting check_same_thread to False")
         # avoid sqlite thread errors
         connect_args = {"check_same_thread": False}
 
-    new_engine = sa.create_engine(uri,
-                                  echo=SQLALCHEMY_DEBUG,
-                                  connect_args=connect_args,
-                                  poolclass=poolclass,
-                                  implicit_returning=False)
+    new_engine = sa.create_engine(
+        uri,
+        echo=SQLALCHEMY_DEBUG,
+        connect_args=connect_args,
+        poolclass=poolclass,
+        implicit_returning=False,
+    )
 
     new_engine.connect().close()  # make sure we can connect
 
     def _bind():
-        """bind metadata to engine and create sessionmaker """
+        """bind metadata to engine and create sessionmaker"""
         global Session, engine
         engine = new_engine
         metadata.bind = engine  # make engine implicit for metadata
@@ -431,9 +450,9 @@ def create(import_defaults=True):
 
     """
 
-    logger.debug('entered db.create()')
+    logger.debug("entered db.create()")
     if not engine:
-        raise ValueError('engine is None, not connected to a database')
+        raise ValueError("engine is None, not connected to a database")
     import bauble
     from bauble import meta
     from bauble import pluginmgr
@@ -446,23 +465,28 @@ def create(import_defaults=True):
 
         # fill in the bauble meta table and install all the plugins
         meta_table = meta.BaubleMeta.__table__
-        (meta_table
-         .insert(bind=connection)
-         .execute(name=meta.VERSION_KEY, value=str(bauble.version))
-         .close())
+        (
+            meta_table.insert(bind=connection)
+            .execute(name=meta.VERSION_KEY, value=str(bauble.version))
+            .close()
+        )
         from dateutil.tz import tzlocal
-        (meta_table
-         .insert(bind=connection)
-         .execute(name=meta.CREATED_KEY,
-                  value=str(datetime.datetime.now(tz=tzlocal())))
-         .close())
+
+        (
+            meta_table.insert(bind=connection)
+            .execute(
+                name=meta.CREATED_KEY,
+                value=str(datetime.datetime.now(tz=tzlocal())),
+            )
+            .close()
+        )
     except (GeneratorExit, Exception) as e:
         # this is here in case the main windows is closed in the middle
         # of a task
         # UPDATE 2009.06.18: i'm not sure if this is still relevant since we
         # switched the task system to use fibra...but it doesn't hurt
         # having it here until we can make sure
-        logger.warning('bauble.db.create(): %s(%s)', type(e).__name__, e)
+        logger.warning("bauble.db.create(): %s(%s)", type(e).__name__, e)
         transaction.rollback()
         raise
     else:
@@ -473,9 +497,9 @@ def create(import_defaults=True):
     connection = engine.connect()
     transaction = connection.begin()
     try:
-        pluginmgr.install('all', import_defaults, force=True)
+        pluginmgr.install("all", import_defaults, force=True)
     except (GeneratorExit, Exception) as e:
-        logger.warning('bauble.db.create(): %s(%s)', type(e).__name__, e)
+        logger.warning("bauble.db.create(): %s(%s)", type(e).__name__, e)
         transaction.rollback()
         raise
     else:
@@ -488,7 +512,7 @@ def create(import_defaults=True):
     try:
         utils.geo.install_default_prjs()
     except (GeneratorExit, Exception) as e:
-        logger.warning('bauble.db.create(): %s(%s)', type(e).__name__, e)
+        logger.warning("bauble.db.create(): %s(%s)", type(e).__name__, e)
         transaction.rollback()
         raise
     else:
@@ -509,42 +533,47 @@ def verify_connection(new_engine, show_error_dialogs=False):
         dialogs detailing the error, default=False
     :type show_error_dialogs: bool
     """
-    logger.debug('entered verify_connection(%s)', show_error_dialogs)
+    logger.debug("entered verify_connection(%s)", show_error_dialogs)
     import bauble
+
     if show_error_dialogs:
         try:
             return verify_connection(new_engine, False)
         except error.EmptyDatabaseError as e:
-            logger.info('%s(%s)', type(e).__name__, e)
-            msg = _('The database you have connected to is empty.')
+            logger.info("%s(%s)", type(e).__name__, e)
+            msg = _("The database you have connected to is empty.")
             utils.message_dialog(msg, Gtk.MessageType.ERROR)
             raise
         except error.MetaTableError as e:
-            logger.info('%s(%s)', type(e).__name__, e)
-            msg = _('The database you have connected to does not have the '
-                    'bauble meta table.  This usually means that the database '
-                    'is either corrupt or it was created with an old version '
-                    'of Ghini')
+            logger.info("%s(%s)", type(e).__name__, e)
+            msg = _(
+                "The database you have connected to does not have the "
+                "bauble meta table.  This usually means that the database "
+                "is either corrupt or it was created with an old version "
+                "of Ghini"
+            )
             utils.message_dialog(msg, Gtk.MessageType.ERROR)
             raise
         except error.TimestampError as e:
-            logger.info('%s(%s)', type(e).__name__, e)
-            msg = _('The database you have connected to does not have a '
-                    'timestamp for when it was created. This usually means '
-                    'that there was a problem when you created the '
-                    'database or the database you connected to wasn\'t '
-                    'created with Ghini.')
+            logger.info("%s(%s)", type(e).__name__, e)
+            msg = _(
+                "The database you have connected to does not have a "
+                "timestamp for when it was created. This usually means "
+                "that there was a problem when you created the "
+                "database or the database you connected to wasn't "
+                "created with Ghini."
+            )
             utils.message_dialog(msg, Gtk.MessageType.ERROR)
             raise
         except error.VersionError as e:
-            logger.info('%s(%s)', type(e).__name__, e)
-            msg = (_('You are using Ghini version %(version)s while the '
-                     'database you have connected to was created with '
-                     'version %(db_version)s\n\nSome things might not work as '
-                     'or some of your data may become unexpectedly '
-                     'corrupted.') %
-                   {'version': bauble.version,
-                    'db_version': str(e.version)})
+            logger.info("%s(%s)", type(e).__name__, e)
+            msg = _(
+                "You are using Ghini version %(version)s while the "
+                "database you have connected to was created with "
+                "version %(db_version)s\n\nSome things might not work as "
+                "or some of your data may become unexpectedly "
+                "corrupted."
+            ) % {"version": bauble.version, "db_version": str(e.version)}
             utils.message_dialog(msg, Gtk.MessageType.ERROR)
             raise
 
@@ -579,7 +608,7 @@ def verify_connection(new_engine, show_error_dialogs=False):
         session.close()
         raise error.VersionError(None)
     try:
-        major, minor, _revision = result.value.split('.')
+        major, minor, _revision = result.value.split(".")
     except Exception as e:
         session.close()
         raise error.VersionError(result.value) from e
@@ -592,31 +621,34 @@ def verify_connection(new_engine, show_error_dialogs=False):
     return True
 
 
-def make_note_class(name, cls_type='note', extra_columns=None):
+def make_note_class(name, cls_type="note", extra_columns=None):
     """Dynamically create a related table class of the notes type.
 
     Current use is for notes and pictures tables."""
 
     class_name = name + cls_type.capitalize()
-    table_name = name.lower() + '_' + cls_type
+    table_name = name.lower() + "_" + cls_type
 
-    obj_dict = {'__tablename__': table_name,
-
-                'date': sa.Column(types.Date, default=sa.func.now(),
-                                  nullable=False),
-                'user': sa.Column(sa.Unicode(64),
-                                  default=utils.get_user_display_name()),
-                'category': sa.Column(sa.Unicode(32)),
-                cls_type: sa.Column(sa.UnicodeText, nullable=False),
-                name.lower() + '_id': sa.Column(
-                    sa.Integer,
-                    sa.ForeignKey(name.lower() + '.id'),
-                    nullable=False),
-                name.lower(): sa.orm.relationship(
-                    name,
-                    uselist=False,
-                    backref=sa.orm.backref(cls_type + 's',
-                                           cascade='all, delete-orphan'))}
+    obj_dict = {
+        "__tablename__": table_name,
+        "date": sa.Column(types.Date, default=sa.func.now(), nullable=False),
+        "user": sa.Column(
+            sa.Unicode(64), default=utils.get_user_display_name()
+        ),
+        "category": sa.Column(sa.Unicode(32)),
+        cls_type: sa.Column(sa.UnicodeText, nullable=False),
+        name.lower()
+        + "_id": sa.Column(
+            sa.Integer, sa.ForeignKey(name.lower() + ".id"), nullable=False
+        ),
+        name.lower(): sa.orm.relationship(
+            name,
+            uselist=False,
+            backref=sa.orm.backref(
+                cls_type + "s", cascade="all, delete-orphan"
+            ),
+        ),
+    }
 
     if extra_columns:
         obj_dict.update(extra_columns)
@@ -626,8 +658,7 @@ def make_note_class(name, cls_type='note', extra_columns=None):
 
 
 class WithNotes:
-
-    key_pattern = re.compile(r'{[^:]+:(.*)}')
+    key_pattern = re.compile(r"{[^:]+:(.*)}")
 
     def __getattr__(self, name):
         """retrieve value from corresponding note(s)
@@ -635,7 +666,7 @@ class WithNotes:
         the result can be an atomic value, a list, or a dictionary.
         """
 
-        if name.startswith('_sa'):  # _sa are internal sqlalchemy fields
+        if name.startswith("_sa"):  # _sa are internal sqlalchemy fields
             raise AttributeError(name)
 
         result = []
@@ -643,29 +674,37 @@ class WithNotes:
         for note in self.notes:
             if note.category is None:
                 pass
-            elif note.category == f'[{name}]':
+            elif note.category == f"[{name}]":
                 result.append(note.note)
-            elif (note.category.startswith(f'{{{name}:') and
-                  note.category.endswith('}')):
+            elif note.category.startswith(
+                f"{{{name}:"
+            ) and note.category.endswith("}"):
                 is_dict = True
                 match = self.key_pattern.match(note.category)
                 key = match.group(1)
                 result.append((key, note.note))
-            elif note.category == f'<{name}>':
+            elif note.category == f"<{name}>":
                 try:
                     return json.loads(
-                        re.sub(r'(\w+)[ ]*(?=:)', r'"\g<1>"',
-                               '{' + note.note.replace(';', ',') + '}')
+                        re.sub(
+                            r"(\w+)[ ]*(?=:)",
+                            r'"\g<1>"',
+                            "{" + note.note.replace(";", ",") + "}",
+                        )
                     )
                 except json.JSONDecodeError:
                     pass
                 try:
                     return json.loads(
-                        re.sub(r'(\w+)[ ]*(?=:)', r'"\g<1>"', note.note))
+                        re.sub(r"(\w+)[ ]*(?=:)", r'"\g<1>"', note.note)
+                    )
                 except json.JSONDecodeError as e:
                     logger.debug(
-                        'not parsed %s(%s), returning literal text »%s«',
-                        type(e).__name__, e, note.note)
+                        "not parsed %s(%s), returning literal text »%s«",
+                        type(e).__name__,
+                        e,
+                        note.note,
+                    )
                     return note.note
         if result == []:
             # if nothing was found, do not break the proxy.
@@ -678,10 +717,11 @@ class WithNotes:
 def class_of_object(obj):
     """Which class implements obj."""
 
-    name = ''.join(p.capitalize() for p in obj.split('_'))
+    name = "".join(p.capitalize() for p in obj.split("_"))
     cls = globals().get(name)
     if cls is None:
         from bauble import pluginmgr
+
         cls = pluginmgr.provided.get(name)
     return cls
 
@@ -697,7 +737,7 @@ def get_related_class(model, path):
     """
     if not path:
         return model
-    relation, path = path.split('.', 1) if '.' in path else (path, None)
+    relation, path = path.split(".", 1) if "." in path else (path, None)
     # we have one relationship with a synonym - default_vernacular_name
     if syn := model.__mapper__.synonyms.get(relation):
         relation = syn.name
@@ -723,24 +763,29 @@ def get_unique_columns(model):
     Used by `get_create_or_update`.
     """
     uniq_cols = []
-    if hasattr(model, '__table_args__'):
+    if hasattr(model, "__table_args__"):
         from sqlalchemy import UniqueConstraint
-        uniq_const = [i for i in model.__table_args__ if
-                      isinstance(i, UniqueConstraint)][0]
+
+        uniq_const = [
+            i for i in model.__table_args__ if isinstance(i, UniqueConstraint)
+        ][0]
         uniq_cols = uniq_const.columns.keys()
     # - add any joining columns (i.e. in plant we have accession_id as part
     # of the UniqueConstraint so "accession_id" would also include
     # "accession")
-    uniq_joins = [i[:-3] for i in uniq_cols if i.endswith('_id')]
+    uniq_joins = [i[:-3] for i in uniq_cols if i.endswith("_id")]
     uniq_cols.extend(uniq_joins)
     # - add columns with the unique attribute set
-    uniq_table_cols = [i.key for i in model.__table__.columns if
-                       i.unique and i.key not in uniq_cols]
+    uniq_table_cols = [
+        i.key
+        for i in model.__table__.columns
+        if i.unique and i.key not in uniq_cols
+    ]
     uniq_cols.extend(uniq_table_cols)
     # include epithet - synonym for family and genus
-    if model.__tablename__ in ['family', 'genus']:
-        uniq_cols.append('epithet')
-    logger.debug('unique columns: %s', uniq_cols)
+    if model.__tablename__ in ["family", "genus"]:
+        uniq_cols.append("epithet")
+    logger.debug("unique columns: %s", uniq_cols)
     return uniq_cols
 
 
@@ -753,7 +798,8 @@ def get_existing(session, model, **kwargs):
     """
     from sqlalchemy.exc import SQLAlchemyError
     from sqlalchemy.orm.exc import MultipleResultsFound
-    logger.debug('looking for record matching: %s', kwargs)
+
+    logger.debug("looking for record matching: %s", kwargs)
     # first try using just one
     try:
         inst = session.query(model).filter_by(**kwargs).one()
@@ -771,7 +817,7 @@ def get_existing(session, model, **kwargs):
     if not inst:
         for col in model.__table__.columns:
             if col.primary_key and (pkey := kwargs.get(col.key)):
-                logger.debug('trying using primary key: %s', col.key)
+                logger.debug("trying using primary key: %s", col.key)
                 inst = session.query(model).get(pkey)
 
     # third try using unique fields
@@ -780,11 +826,11 @@ def get_existing(session, model, **kwargs):
         uniq_cols = get_unique_columns(model)
         # get the kwargs that have keys in uniq_cols and try finding a match
         for col in uniq_cols:
-            if (uniq_val := kwargs.get(col)):
+            if uniq_val := kwargs.get(col):
                 unique[col] = uniq_val
         if unique:
             try:
-                logger.debug('trying using unique columns: %s', unique)
+                logger.debug("trying using unique columns: %s", unique)
                 inst = session.query(model).filter_by(**unique).one()
             except MultipleResultsFound:
                 return None
@@ -794,14 +840,14 @@ def get_existing(session, model, **kwargs):
             logger.debug("couldn't find unique columns to use.")
 
     # last try, when available use uniq_props
-    if not inst and hasattr(model, 'uniq_props'):
+    if not inst and hasattr(model, "uniq_props"):
         unique = {}
         for k in kwargs:
             if k in model.uniq_props:
                 unique[k] = kwargs.get(k)
         if unique:
             try:
-                logger.debug('trying using uniq_props columns: %s', unique)
+                logger.debug("trying using uniq_props columns: %s", unique)
                 inst = session.query(model).filter_by(**unique).one()
             except MultipleResultsFound:
                 return None
@@ -834,7 +880,7 @@ def get_create_or_update(session, model, **kwargs):
         return None
     # if the above got a false result it should be safe to create a new entry
     if inst is False:
-        logger.debug('creating new %s with %s', model, kwargs)
+        logger.debug("creating new %s with %s", model, kwargs)
         inst = model(**kwargs)
         session.add(inst)
         return inst
@@ -854,6 +900,7 @@ class CurrentUserFunctor:
     invoke current_user.override(user_name) to set user name.
     invoke current_user.override() to reset.
     """
+
     def __init__(self):
         self.override_value = None
 
@@ -869,37 +916,43 @@ class CurrentUserFunctor:
         # on cancel connmgr main still runs _build_menubar
         if not engine:
             return None
-        if not engine.name.startswith('postgresql'):
+        if not engine.name.startswith("postgresql"):
             return True
         from psycopg2.sql import SQL
         from psycopg2.sql import Literal
+
         conn = engine.raw_connection()
         with conn.cursor() as cur:
             stmt = "SELECT has_database_privilege({role}, {db}, 'CREATE')"
-            stmt = SQL(stmt).format(role=Literal(self()),
-                                    db=Literal(engine.url.database))
+            stmt = SQL(stmt).format(
+                role=Literal(self()), db=Literal(engine.url.database)
+            )
             cur.execute(stmt)
             return cur.fetchone()[0]
 
     def __call__(self):
-        """return current user name: from database, or system """
+        """return current user name: from database, or system"""
         if self.override_value:
             return self.override_value
         user = None
-        if engine.name.startswith('postgresql'):
+        if engine.name.startswith("postgresql"):
             with engine.connect() as conn:
-                result = conn.execute('select current_user;')
+                result = conn.execute("select current_user;")
                 user = result.fetchone()[0]
-        elif engine.name.startswith('mysql'):
+        elif engine.name.startswith("mysql"):
             with engine.connect() as conn:
-                result = conn.execute('select current_user();')
+                result = conn.execute("select current_user();")
                 user = result.fetchone()[0]
-        elif engine.name.startswith('sqlite'):
+        elif engine.name.startswith("sqlite"):
             user = utils.get_user_display_name()
         if not user:
             logger.debug("retrieving user name from system")
-            user = (os.getenv('USER') or os.getenv('USERNAME') or
-                    os.getenv('LOGNAME') or os.getenv('LNAME'))
+            user = (
+                os.getenv("USER")
+                or os.getenv("USERNAME")
+                or os.getenv("LOGNAME")
+                or os.getenv("LNAME")
+            )
 
         return user
 

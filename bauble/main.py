@@ -41,9 +41,11 @@ logger = logging.getLogger(__name__)
 
 class Application(Gtk.Application):
     def __init__(self):
-        super().__init__(application_id='org.gnome.GhiniDesktop',
-                         flags=Gio.ApplicationFlags.FLAGS_NONE)
-        self.connect('activate', self.on_activate)
+        super().__init__(
+            application_id="org.gnome.GhiniDesktop",
+            flags=Gio.ApplicationFlags.FLAGS_NONE,
+        )
+        self.connect("activate", self.on_activate)
 
     def do_startup(self, *args, **kwargs):
         # first
@@ -59,7 +61,7 @@ class Application(Gtk.Application):
             logging.getLogger(handler).setLevel(logging.DEBUG)
 
         # log TEMPDIR
-        logger.debug('tempdir: %s', paths.TEMPDIR)
+        logger.debug("tempdir: %s", paths.TEMPDIR)
 
         open_exc = self._get_connection()
         self._load_plugins()
@@ -69,23 +71,27 @@ class Application(Gtk.Application):
         bauble.gui.show()
         # bail early if no connection
         if open_exc is False:
-            logger.debug('bailing early, no connection')
+            logger.debug("bailing early, no connection")
             return
 
         if not self._post_loop(open_exc):
             self.quit()
             return
 
-        logger.info('This version installed on: %s; '
-                    'This version installed at: %s; '
-                    'Latest published version: %s; '
-                    'Publication date: %s',
-                    bauble.installation_date.strftime(
-                        prefs.prefs.get(prefs.datetime_format_pref)),
-                    __file__,
-                    bauble.release_version,
-                    bauble.release_date.strftime(
-                        prefs.prefs.get(prefs.datetime_format_pref)))
+        logger.info(
+            "This version installed on: %s; "
+            "This version installed at: %s; "
+            "Latest published version: %s; "
+            "Publication date: %s",
+            bauble.installation_date.strftime(
+                prefs.prefs.get(prefs.datetime_format_pref)
+            ),
+            __file__,
+            bauble.release_version,
+            bauble.release_date.strftime(
+                prefs.prefs.get(prefs.datetime_format_pref)
+            ),
+        )
 
         # Keep clipboard contents after application exit
         clip = Gtk.Clipboard.get_default(Gdk.Display.get_default())
@@ -98,7 +104,7 @@ class Application(Gtk.Application):
         while True:
             if not uri or not conn_name:
                 conn_name, uri = start_connection_manager()
-                logger.debug('conn_name = %s')
+                logger.debug("conn_name = %s")
                 if conn_name is None:
                     self.quit()
                     return False
@@ -114,8 +120,12 @@ class Application(Gtk.Application):
                 logger.warning("%s(%s)", type(e).__name__, e)
                 db.open_conn(uri, False)
                 break
-            except (err.EmptyDatabaseError, err.MetaTableError,
-                    err.TimestampError, err.RegistryError) as e:
+            except (
+                err.EmptyDatabaseError,
+                err.MetaTableError,
+                err.TimestampError,
+                err.RegistryError,
+            ) as e:
                 logger.info("%s(%s)", type(e).__name__, e)
                 open_exc = e
                 # reopen without verification so that db.Session and
@@ -128,8 +138,9 @@ class Application(Gtk.Application):
             except Exception as e:  # pylint: disable=broad-except
                 logger.debug("%s(%s)", type(e).__name__, e)
                 msg = _("Could not open connection.\n\n%s") % e
-                utils.message_details_dialog(msg, traceback.format_exc(),
-                                             Gtk.MessageType.ERROR)
+                utils.message_details_dialog(
+                    msg, traceback.format_exc(), Gtk.MessageType.ERROR
+                )
                 uri = None
         return open_exc
 
@@ -144,17 +155,20 @@ class Application(Gtk.Application):
 
         # set the default command handler
         from bauble.view import DefaultCommandHandler
+
         pluginmgr.register_command(DefaultCommandHandler)
 
     @staticmethod
     def _post_loop(open_exc):
-        logger.debug('entering _post_loop')
+        logger.debug("entering _post_loop")
         try:
             if isinstance(open_exc, err.DatabaseError):
-                msg = _('Would you like to create a new Ghini database at '
-                        'the current connection?\n\n<i>Warning: If there is '
-                        'already a database at this connection any existing '
-                        'data will be destroyed!</i>')
+                msg = _(
+                    "Would you like to create a new Ghini database at "
+                    "the current connection?\n\n<i>Warning: If there is "
+                    "already a database at this connection any existing "
+                    "data will be destroyed!</i>"
+                )
                 if utils.yes_no_dialog(msg, yes_delay=2):
                     try:
                         db.create()
@@ -167,18 +181,21 @@ class Application(Gtk.Application):
                         prefs.prefs[
                             bauble.conn_default_pref
                         ] = bauble.conn_name
-                    except Exception as e:   # pylint: disable=broad-except
-                        utils.message_details_dialog(utils.xml_safe(e),
-                                                     traceback.format_exc(),
-                                                     Gtk.MessageType.ERROR)
+                    except Exception as e:  # pylint: disable=broad-except
+                        utils.message_details_dialog(
+                            utils.xml_safe(e),
+                            traceback.format_exc(),
+                            Gtk.MessageType.ERROR,
+                        )
                         logger.error("%s(%s)", type(e).__name__, e)
                         return False
             else:
                 pluginmgr.init()
-        except Exception as e:   # pylint: disable=broad-except
-            logger.warning("%s\n%s(%s)", traceback.format_exc(),
-                           type(e).__name__, e)
-            msg = utils.xml_safe(f'{type(e).__name__}({e})')
+        except Exception as e:  # pylint: disable=broad-except
+            logger.warning(
+                "%s\n%s(%s)", traceback.format_exc(), type(e).__name__, e
+            )
+            msg = utils.xml_safe(f"{type(e).__name__}({e})")
             utils.message_dialog(msg, Gtk.MessageType.WARNING)
             return False
         bauble.gui.get_view().update()
@@ -191,29 +208,29 @@ class Application(Gtk.Application):
 
     def _build_menubar(self):
         actions = (
-            ('open', bauble.gui.on_file_menu_open),
-            ('new', bauble.gui.on_file_menu_new),
-            ('quit', bauble.gui.on_quit),
-            ('preferences', bauble.gui.on_edit_menu_preferences),
-            ('history', bauble.gui.on_edit_menu_history),
-            ('home', bauble.gui.on_home_clicked),
-            ('previous', bauble.gui.on_prev_view_clicked),
-            ('help_contents', bauble.gui.on_help_menu_contents),
-            ('help_bug', bauble.gui.on_help_menu_bug),
-            ('help_log', bauble.gui.on_help_menu_logfile),
-            ('about', bauble.gui.on_help_menu_about),
+            ("open", bauble.gui.on_file_menu_open),
+            ("new", bauble.gui.on_file_menu_new),
+            ("quit", bauble.gui.on_quit),
+            ("preferences", bauble.gui.on_edit_menu_preferences),
+            ("history", bauble.gui.on_edit_menu_history),
+            ("home", bauble.gui.on_home_clicked),
+            ("previous", bauble.gui.on_prev_view_clicked),
+            ("help_contents", bauble.gui.on_help_menu_contents),
+            ("help_bug", bauble.gui.on_help_menu_bug),
+            ("help_log", bauble.gui.on_help_menu_logfile),
+            ("about", bauble.gui.on_help_menu_about),
         )
         for name, handler in actions:
-            if not db.current_user.is_admin and name == 'new':
+            if not db.current_user.is_admin and name == "new":
                 continue
             action = Gio.SimpleAction.new(name, None)
             action.connect("activate", handler)
             self.add_action(action)
-            if name in ['open', 'new']:
+            if name in ["open", "new"]:
                 bauble.gui.disable_on_busy_actions.add(action)
 
         # TODO temp solution to get menubar working for windows/linux
-        if sys.platform in ['win32', 'linux']:
+        if sys.platform in ["win32", "linux"]:
             menu_bar = Gtk.MenuBar.new_from_model(bauble.gui.menubar)
             menu_bar.show_all()
             bauble.gui.widgets.menu_box.pack_start(menu_bar, True, True, 0)
@@ -221,7 +238,7 @@ class Application(Gtk.Application):
             self.set_menubar(bauble.gui.menubar)
 
     def do_shutdown(self, *args, **kwargs):
-        logger.debug('Application shutdown')
+        logger.debug("Application shutdown")
         prefs.prefs.save()
         import shutil
 

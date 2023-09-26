@@ -28,7 +28,6 @@ from bauble.test import BaubleTestCase
 
 
 class MetaTests(BaubleTestCase):
-
     def __init__(self, *args):
         super().__init__(*args)
 
@@ -38,50 +37,51 @@ class MetaTests(BaubleTestCase):
         """
         # test the object isn't created if it doesn't exist and we
         # don't pass a default value
-        name = 'name'
+        name = "name"
         obj = meta.get_default(name)
         self.assertTrue(obj is None)
 
         # test that the obj is created if it doesn't exists and that
         # the default value is set
-        value = 'value'
+        value = "value"
         meta.get_default(name, default=value)
         obj = self.session.query(meta.BaubleMeta).filter_by(name=name).one()
         self.assertTrue(obj.value == value)
 
         # test that the value isn't changed if it already exists
-        value2 = 'value2'
+        value2 = "value2"
         obj = meta.get_default(name, default=value2)
         self.assertTrue(obj.value == value)
 
         # test that if we pass our own session when we are creating a
         # new value that the object is added to the session but not committed
-        obj = meta.get_default('name2', default=value, session=self.session)
+        obj = meta.get_default("name2", default=value, session=self.session)
         self.assertTrue(obj in self.session.new)
 
     def test_confirm_default_with_value(self):
         # when value already exists it is just returned
-        name = 'test'
-        value = 'test value'
+        name = "test"
+        value = "test value"
         obj1 = meta.get_default(name, value)
-        obj2 = meta.confirm_default(name, value, 'test msg')
+        obj2 = meta.confirm_default(name, value, "test msg")
         self.assertEqual(obj1.value, obj2.value)
         self.assertEqual(obj1.name, obj2.name)
 
         # test giving a different value doesn't change it
-        value = 'value2'
-        obj2 = meta.confirm_default(name, value, 'test msg')
+        value = "value2"
+        obj2 = meta.confirm_default(name, value, "test msg")
         self.assertEqual(obj1.value, obj2.value)
         self.assertEqual(obj1.name, obj2.name)
 
-    @mock.patch('bauble.prefs.Gtk.MessageDialog.run',
-                return_value=Gtk.ResponseType.OK)
+    @mock.patch(
+        "bauble.prefs.Gtk.MessageDialog.run", return_value=Gtk.ResponseType.OK
+    )
     def test_confirm_default_no_value_ok(self, mock_dialog):
         # a dialog_box is created, offers the default, contains the message and
         # press OK saves it
-        name = 'test2'
-        value = 'test value'
-        msg = 'test msg2'
+        name = "test2"
+        value = "test value"
+        msg = "test msg2"
         obj3 = meta.confirm_default(name, value, msg)
         mock_dialog.assert_called()
         # self.assertEqual(mock_dialog.msg, msg)
@@ -91,27 +91,30 @@ class MetaTests(BaubleTestCase):
         self.assertEqual(result.value, value)
         self.assertEqual(result.value, obj3.value)
 
-    @mock.patch('bauble.prefs.Gtk.MessageDialog.run',
-                return_value=Gtk.ResponseType.CANCEL)
+    @mock.patch(
+        "bauble.prefs.Gtk.MessageDialog.run",
+        return_value=Gtk.ResponseType.CANCEL,
+    )
     def test_confirm_default_no_value_cancel(self, mock_dialog):
         # a dialog_box is created, offers the default, contains the message and
         # cancelling does not save.
-        name = 'test3'
-        value = 'test value'
-        msg = 'test msg3'
+        name = "test3"
+        value = "test value"
+        msg = "test msg3"
         obj3 = meta.confirm_default(name, value, msg)
         mock_dialog.assert_called()
 
         # test the new value was not added and returned correctly
-        result = self.session.query(meta.BaubleMeta).filter_by(
-            name=name).first()
+        result = (
+            self.session.query(meta.BaubleMeta).filter_by(name=name).first()
+        )
         self.assertIsNone(result)
         self.assertIsNone(obj3)
 
     def test_get_cached_value(self):
-        name = 'test3'
-        value = 'test value'
-        value2 = 'new value'
+        name = "test3"
+        value = "test value"
+        value2 = "new value"
 
         self.assertIsNone(meta.get_cached_value(name))
         obj = meta.BaubleMeta(name=name, value=value)
@@ -119,7 +122,7 @@ class MetaTests(BaubleTestCase):
         self.session.commit()
         self.assertEqual(meta.get_cached_value(name), value)
         # ask for the same value again and the session should not be called
-        with mock.patch('bauble.db.Session') as mock_session:
+        with mock.patch("bauble.db.Session") as mock_session:
             val = meta.get_cached_value(name)
             mock_session.assert_not_called()
             self.assertEqual(val, value)
@@ -129,7 +132,7 @@ class MetaTests(BaubleTestCase):
         self.session.commit()
 
         session = db.Session()
-        with mock.patch('bauble.db.Session') as mock_session:
+        with mock.patch("bauble.db.Session") as mock_session:
             mock_session.return_value = session
             val = meta.get_cached_value(name)
             mock_session.assert_called()

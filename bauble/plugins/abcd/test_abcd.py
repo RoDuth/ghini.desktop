@@ -35,8 +35,8 @@ from bauble.test import BaubleTestCase
 
 # TODO: the ABCD tests need to be completely reworked
 
-class ABCDTestCase(BaubleTestCase):
 
+class ABCDTestCase(BaubleTestCase):
     def __init__(self, *args):
         super().__init__(*args)
 
@@ -45,7 +45,7 @@ class ABCDTestCase(BaubleTestCase):
         plants_test.setUp_data()
         garden_test.setUp_data()
 
-    @mock.patch('bauble.utils.message_dialog')
+    @mock.patch("bauble.utils.message_dialog")
     def test_export(self, mock_dialog):
         """Test the ABCDExporter.  If message_dialog is called fail. i.e.
         validation fails

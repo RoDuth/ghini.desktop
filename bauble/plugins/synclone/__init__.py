@@ -28,8 +28,7 @@ from .sync import DBSyncTool
 
 
 class SynClonePlugin(pluginmgr.Plugin):
-    tools = [DBCloneTool,
-             DBSyncTool,
-             DBResolveSyncTool]
+    tools = [DBCloneTool, DBSyncTool, DBResolveSyncTool]
+
 
 plugin = SynClonePlugin

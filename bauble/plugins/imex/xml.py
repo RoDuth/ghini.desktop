@@ -42,7 +42,7 @@ from bauble.editor import GenericEditorView
 
 
 def element_factory(parent, name, **kwargs):
-    text = kwargs.pop('text', None)
+    text = kwargs.pop("text", None)
     elm = etree.SubElement(parent, name, **kwargs)
     if text is not None:
         elm.text = str(text)
@@ -51,13 +51,13 @@ def element_factory(parent, name, **kwargs):
 
 class XMLImportDialogPresenter(GenericEditorPresenter):
     widget_to_field_map = {
-        'one_file_chkbtn': 'one_file',
-        'filename_entry': 'filename',
+        "one_file_chkbtn": "one_file",
+        "filename_entry": "filename",
     }
 
-    view_accept_buttons = ['exp_button_ok']
+    view_accept_buttons = ["exp_button_ok"]
 
-    PROBLEM_INVALID_FILENAME = 'invalid_filename'
+    PROBLEM_INVALID_FILENAME = "invalid_filename"
 
     last_file = None
 
@@ -72,14 +72,14 @@ class XMLImportDialogPresenter(GenericEditorPresenter):
             None,
             Gtk.FileChooserAction.CREATE_FOLDER,
             str(Path.home()),
-            self.view.widgets.filename_entry
+            self.view.widgets.filename_entry,
         )
 
     def on_filename_entry_changed(self, entry):
         self.remove_problem(self.PROBLEM_INVALID_FILENAME)
         val = self.on_non_empty_text_entry_changed(entry)
         path = Path(val)
-        logger.debug('filename changed to %s', str(path))
+        logger.debug("filename changed to %s", str(path))
 
         if not (path.exists() and path.is_dir()):
             self.add_problem(self.PROBLEM_INVALID_FILENAME, entry)
@@ -95,13 +95,12 @@ class XMLImportDialogPresenter(GenericEditorPresenter):
 
 
 class XMLExporter:
-
     def __init__(self):
         self.filename = None
         self.one_file = True
         view = GenericEditorView(
-            str(Path(__file__).resolve().parent / 'xml.glade'),
-            root_widget_name='xml_export_dialog',
+            str(Path(__file__).resolve().parent / "xml.glade"),
+            root_widget_name="xml_export_dialog",
         )
         self.presenter = XMLImportDialogPresenter(self, view)
 
@@ -118,15 +117,15 @@ class XMLExporter:
         if response == Gtk.ResponseType.OK:
             self.run()
             self.presenter.cleanup()
-        logger.debug('responded %s', response)
+        logger.debug("responded %s", response)
         return response
 
     def run(self):
         """Queues the export task"""
         task.clear_messages()
-        task.set_message('exporting XML')
+        task.set_message("exporting XML")
         task.queue(self._export_task(self.filename, self.one_file))
-        task.set_message('export completed')
+        task.set_message("export completed")
 
     @staticmethod
     def _export_task(path, one_file=True):
@@ -134,34 +133,41 @@ class XMLExporter:
         steps_so_far = 0
         five_percent = int(ntables / 20) or 1
         if one_file:
-            tableset_el = etree.Element('tableset')
+            tableset_el = etree.Element("tableset")
 
         for table_name, table in db.metadata.tables.items():
             steps_so_far += 1
             if not one_file:
-                tableset_el = etree.Element('tableset')
-            logger.info('exporting %s…', table_name)
-            table_el = element_factory(tableset_el, 'table',
-                                       attrib={'name': table_name})
+                tableset_el = etree.Element("tableset")
+            logger.info("exporting %s…", table_name)
+            table_el = element_factory(
+                tableset_el, "table", attrib={"name": table_name}
+            )
             results = table.select().execute().fetchall()
             columns = list(table.c.keys())
             try:
                 for row in results:
-                    row_el = element_factory(table_el, 'row')
+                    row_el = element_factory(table_el, "row")
                     for col in columns:
-                        element_factory(row_el, 'column', attrib={'name': col},
-                                        text=row[col])
+                        element_factory(
+                            row_el,
+                            "column",
+                            attrib={"name": col},
+                            text=row[col],
+                        )
             except ValueError as e:
-                utils.message_details_dialog(utils.xml_safe(e),
-                                             traceback.format_exc(),
-                                             Gtk.MessageType.ERROR)
+                utils.message_details_dialog(
+                    utils.xml_safe(e),
+                    traceback.format_exc(),
+                    Gtk.MessageType.ERROR,
+                )
                 return
             else:
                 if not one_file:
                     tree = etree.ElementTree(tableset_el)
-                    filename = os.path.join(path, f'{table_name}.xml')
-                    logger.debug('writing xml to %s', filename)
-                    tree.write(filename, encoding='utf8', xml_declaration=True)
+                    filename = os.path.join(path, f"{table_name}.xml")
+                    logger.debug("writing xml to %s", filename)
+                    tree.write(filename, encoding="utf8", xml_declaration=True)
 
             if ntables % five_percent == 0:
                 pb_set_fraction(steps_so_far / ntables)
@@ -170,23 +176,25 @@ class XMLExporter:
         if one_file:
             tree = etree.ElementTree(tableset_el)
             # use the database connection name for single file.
-            file = ''.join(c for c in str(bauble.conn_name) if c.isalnum() or c
-                           in ['_', '-'])
-            filename = os.path.join(path, f'{file}.xml')
-            logger.debug('writing xml to %s', filename)
-            tree.write(filename, encoding='utf8', xml_declaration=True)
+            file = "".join(
+                c
+                for c in str(bauble.conn_name)
+                if c.isalnum() or c in ["_", "-"]
+            )
+            filename = os.path.join(path, f"{file}.xml")
+            logger.debug("writing xml to %s", filename)
+            tree.write(filename, encoding="utf8", xml_declaration=True)
 
 
 class XMLExportCommandHandler(pluginmgr.CommandHandler):
-
-    command = 'exxml'
+    command = "exxml"
 
     def __call__(self, cmd, arg):
-        logger.debug('XMLExportCommandHandler(%s)', arg)
+        logger.debug("XMLExportCommandHandler(%s)", arg)
         exporter = XMLExporter()
-        logger.debug('starting')
+        logger.debug("starting")
         exporter.start(arg)
-        logger.debug('started')
+        logger.debug("started")
 
 
 class XMLExportTool(pluginmgr.Tool):
@@ -207,5 +215,7 @@ class XMLImexPlugin(pluginmgr.Plugin):
 try:
     from lxml import etree
 except ImportError:
-    utils.message_dialog('The <i>lxml</i> package is required for the '
-                         'XML Import/Exporter plugin')
+    utils.message_dialog(
+        "The <i>lxml</i> package is required for the "
+        "XML Import/Exporter plugin"
+    )

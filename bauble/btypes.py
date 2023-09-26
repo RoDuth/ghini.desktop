@@ -39,15 +39,14 @@ class Enum(types.TypeDecorator):
     """A database independent Enum type. The value is stored in the
     database as a Unicode string.
     """
+
     impl = types.Unicode
 
     cache_ok = False
 
-    def __init__(self,
-                 values,
-                 empty_to_none=False,
-                 translations=None,
-                 **kwargs):
+    def __init__(
+        self, values, empty_to_none=False, translations=None, **kwargs
+    ):
         """
         :param values: A list of valid values for column.
         :param empty_to_none: Treat the empty string '' as None.  None
@@ -60,14 +59,14 @@ class Enum(types.TypeDecorator):
         # the translations argument, this way if some translations are
         # missing then the translation will be the same as value
         if values is None or len(values) == 0:
-            raise EnumError(_('Enum requires a list of values'))
+            raise EnumError(_("Enum requires a list of values"))
 
         for val in values:
             if val is not None and not isinstance(val, str):
-                raise EnumError(_('Enum requires string values (or None)'))
+                raise EnumError(_("Enum requires string values (or None)"))
 
         if len(values) != len(set(values)):
-            raise EnumError(_('Enum requires the values to be different'))
+            raise EnumError(_("Enum requires the values to be different"))
 
         self.translations = dict((v, v) for v in values)
 
@@ -75,8 +74,12 @@ class Enum(types.TypeDecorator):
             self.translations[key] = value
 
         if empty_to_none and None not in values:
-            raise EnumError(_('You have configured empty_to_none=True but '
-                              'None is not in the values lists'))
+            raise EnumError(
+                _(
+                    "You have configured empty_to_none=True but "
+                    "None is not in the values lists"
+                )
+            )
 
         self.values = values[:]
         self.empty_to_none = empty_to_none
@@ -87,13 +90,15 @@ class Enum(types.TypeDecorator):
 
     def process_bind_param(self, value, dialect):
         """Process the value going into the database."""
-        if self.empty_to_none and value == '':
+        if self.empty_to_none and value == "":
             value = None
-        if value is None and None not in self.values and '' in self.values:
-            value = ''
+        if value is None and None not in self.values and "" in self.values:
+            value = ""
         if value not in self.values:
-            raise EnumError(_('"%(value)s" not in Enum.values: %(all_values)s'
-                              ) % dict(value=value, all_values=self.values))
+            raise EnumError(
+                _('"%(value)s" not in Enum.values: %(all_values)s')
+                % dict(value=value, all_values=self.values)
+            )
         return value
 
     def copy(self, **_kwargs):
@@ -104,14 +109,14 @@ def get_date(val: str | float) -> datetime:
     offset = None
     if isinstance(val, float):
         offset = val
-    elif val.strip().lower() == _('today'):
+    elif val.strip().lower() == _("today"):
         offset = 0
-    elif val.strip().lower() == _('yesterday'):
+    elif val.strip().lower() == _("yesterday"):
         offset = -1
     if offset is not None:
-        return (datetime.now().replace(
+        return datetime.now().replace(
             hour=0, minute=0, second=0, microsecond=0
-        ) + timedelta(offset))
+        ) + timedelta(offset)
     return None
 
 
@@ -119,6 +124,7 @@ class DateTime(types.TypeDecorator):
     """A DateTime type that allows strings and tries to always return local
     time.
     """
+
     impl = types.DateTime
     _dayfirst = None
     _yearfirst = None
@@ -157,9 +163,11 @@ class DateTime(types.TypeDecorator):
             result = date_parser.isoparse(value)
         except ValueError:
             try:
-                result = date_parser.parse(value,
-                                           dayfirst=DateTime._dayfirst,
-                                           yearfirst=DateTime._yearfirst)
+                result = date_parser.parse(
+                    value,
+                    dayfirst=DateTime._dayfirst,
+                    yearfirst=DateTime._yearfirst,
+                )
             except ValueError:
                 return None
         return result.astimezone(tz=timezone.utc)
@@ -178,6 +186,7 @@ class Date(types.TypeDecorator):
     """A Date type that allows Date strings.
 
     NOTE: timezone agnostic."""
+
     impl = types.Date
     _dayfirst = None
     _yearfirst = None
@@ -213,9 +222,9 @@ class Date(types.TypeDecorator):
             result = date_parser.isoparse(value)
         except ValueError:
             try:
-                result = date_parser.parse(value,
-                                           dayfirst=Date._dayfirst,
-                                           yearfirst=Date._yearfirst)
+                result = date_parser.parse(
+                    value, dayfirst=Date._dayfirst, yearfirst=Date._yearfirst
+                )
             except ValueError:
                 return None
         return result.date()
@@ -226,6 +235,7 @@ class JSON(types.TypeDecorator):
 
     Use JSONB for postgresql JSON for all others
     """
+
     impl = types.JSON()
 
     cache_ok = True
@@ -235,8 +245,9 @@ class JSON(types.TypeDecorator):
         # has_any, has_key, etc.. For consistent use the value of impl above
         # sets the available SQL operations regardless of the type used to
         # store the data.
-        if dialect.name == 'postgresql':
+        if dialect.name == "postgresql":
             from sqlalchemy.dialects.postgresql import JSONB
+
             return dialect.type_descriptor(JSONB(none_as_null=True))
         return dialect.type_descriptor(types.JSON(none_as_null=True))
 
@@ -248,6 +259,7 @@ class Boolean(types.TypeDecorator):
     """A Boolean type that allows True/False as strings.
 
     For compatibility with MSSQL converts is_() to = and is_not() to !="""
+
     impl = types.Boolean
 
     cache_ok = True
@@ -266,20 +278,21 @@ class Boolean(types.TypeDecorator):
     def process_bind_param(self, value, dialect):
         if not isinstance(value, str):
             return value
-        if value == 'True':
+        if value == "True":
             return True
-        if value == 'False':
+        if value == "False":
             return False
         return None
 
 
 class TruncatedString(types.TypeDecorator):
     """A String type that truncates anything past its designated length"""
+
     impl = types.String
 
     cache_ok = True
 
     def process_bind_param(self, value, dialect):
         if value:
-            return value[:self.impl.length]
+            return value[: self.impl.length]
         return None

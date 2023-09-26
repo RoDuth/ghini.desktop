@@ -43,30 +43,33 @@ from bauble.paths import main_is_frozen
 
 if main_is_frozen():
     import pyproj
-    pyproj.datadir.set_data_dir(os.path.join(main_dir(), 'share', 'proj'))
+
+    pyproj.datadir.set_data_dir(os.path.join(main_dir(), "share", "proj"))
 
 # EPSG codes are easy to work with and ESRI AGOL data is generally in EPSG:3857
 # recommended sys preference = EPSG:4326 - more common in GPS, KML, etc.
-DEFAULT_IN_PROJ = 'epsg:3857'
+DEFAULT_IN_PROJ = "epsg:3857"
 """
 The default input coordinate reference system (CRS) string - used as a starting
 guess for input data.
 """
 
-DEFAULT_SYS_PROJ = 'epsg:4326'
+DEFAULT_SYS_PROJ = "epsg:4326"
 """
 This is the default CRS used database wide internally.  This is used only once
 when setting the 'system_proj_string' in the meta table on the first call.
 """
 
-CRS_MSG = _('Set a system wide Coordinate Reference System string, this '
-            'can only be set once.\n\n"epsg:4326" is a safe default (WGS '
-            '84 as used in GPS) but you may have a different preference.'
-            '\n\nIf using a novel CRS you may also need to populate the '
-            'internal database with a .prj file string or '
-            'importing/exporting shapefile data with that CRS may fail.'
-            '\n\nThis is most easily done by using the shapefile import '
-            'tool and providing a shapefile in the desired CRS.')
+CRS_MSG = _(
+    "Set a system wide Coordinate Reference System string, this "
+    'can only be set once.\n\n"epsg:4326" is a safe default (WGS '
+    "84 as used in GPS) but you may have a different preference."
+    "\n\nIf using a novel CRS you may also need to populate the "
+    "internal database with a .prj file string or "
+    "importing/exporting shapefile data with that CRS may fail."
+    "\n\nThis is most easily done by using the shapefile import "
+    "tool and providing a shapefile in the desired CRS."
+)
 
 
 # pylint: disable=too-many-locals
@@ -94,58 +97,57 @@ def transform(geometry, in_crs=DEFAULT_IN_PROJ, out_crs=None, always_xy=False):
         # The first time any transformation is attempted ensure we have a
         # system CRS string, let the user have the opportunity to select a
         # different preference if they desire
-        sys_crs = confirm_default('system_proj_string',
-                                  DEFAULT_SYS_PROJ,
-                                  CRS_MSG)
+        sys_crs = confirm_default(
+            "system_proj_string", DEFAULT_SYS_PROJ, CRS_MSG
+        )
         if sys_crs:
             out_crs = sys_crs.value
         else:
             from bauble.error import MetaTableError
-            raise MetaTableError(msg='Cannot proceed without a system CRS.')
+
+            raise MetaTableError(msg="Cannot proceed without a system CRS.")
     try:
         geometry_type = geometry.get("type")
         geometry_out = geometry.copy()
     except AttributeError as e:
-        logger.debug('transform recieved unusable data: %s - %s', geometry, e)
+        logger.debug("transform recieved unusable data: %s - %s", geometry, e)
         return None
     coords = []
     transformer = Transformer.from_crs(in_crs, out_crs, always_xy=always_xy)
-    logger.debug('transform %s >> %s', in_crs, out_crs)
+    logger.debug("transform %s >> %s", in_crs, out_crs)
     try:
-        if geometry_type == 'Polygon':
-            for x, y in geometry.get('coordinates')[0]:
+        if geometry_type == "Polygon":
+            for x, y in geometry.get("coordinates")[0]:
                 coords.append([*transformer.transform(x, y, errcheck=True)])
-            geometry_out['coordinates'] = [coords]
-        elif geometry_type == 'LineString':
-            for x, y in geometry.get('coordinates'):
+            geometry_out["coordinates"] = [coords]
+        elif geometry_type == "LineString":
+            for x, y in geometry.get("coordinates"):
                 coords.append([*transformer.transform(x, y, errcheck=True)])
-            geometry_out['coordinates'] = coords
-        elif geometry_type == 'Point':
-            x, y = geometry.get('coordinates')
-            geometry_out['coordinates'] = [
+            geometry_out["coordinates"] = coords
+        elif geometry_type == "Point":
+            x, y = geometry.get("coordinates")
+            geometry_out["coordinates"] = [
                 *transformer.transform(x, y, errcheck=True)
             ]
         else:
             # avoid anything that doesn't parse
-            logger.debug('transform: unsupported geometry: %s', geometry)
+            logger.debug("transform: unsupported geometry: %s", geometry)
             return None
     except ProjError as e:
-        logger.debug('transform failed for geometry: %s with error: %s',
-                     geometry, e)
+        logger.debug(
+            "transform failed for geometry: %s with error: %s", geometry, e
+        )
         return None
     return geometry_out
 
 
-prj_crs = Table('prj_crs',
-                db.metadata,
-                Column('prj_text',
-                       String(length=2048),
-                       nullable=False,
-                       unique=True),
-                Column('proj_crs',
-                       String(length=64),
-                       nullable=False),
-                Column('always_xy', btypes.Boolean, default=False))
+prj_crs = Table(
+    "prj_crs",
+    db.metadata,
+    Column("prj_text", String(length=2048), nullable=False, unique=True),
+    Column("proj_crs", String(length=64), nullable=False),
+    Column("always_xy", btypes.Boolean, default=False),
+)
 
 
 def install_default_prjs():
@@ -222,13 +224,13 @@ class ProjDB:
         :param crs: as used with pyproj.crs.CRS()
         :param axy: always_xy as used with pyproj.crs.CRS()
         """
-        check(prj is not None, 'prj is None')
-        check(crs is not None, 'crs is None')
-        check(len(prj) >= 12, 'prj string too short')
-        check(len(crs) >= 4, 'crs string too short')
-        stmt = prj_crs.insert().values(prj_text=prj,
-                                       proj_crs=crs,
-                                       always_xy=axy)
+        check(prj is not None, "prj is None")
+        check(crs is not None, "crs is None")
+        check(len(prj) >= 12, "prj string too short")
+        check(len(crs) >= 4, "crs string too short")
+        stmt = prj_crs.insert().values(
+            prj_text=prj, proj_crs=crs, always_xy=axy
+        )
         with db.engine.begin() as conn:
             conn.execute(stmt)
 
@@ -239,9 +241,11 @@ class ProjDB:
         :param prj: string from a .prj file
         :param crs: string as used with pyproj.crs.CRS()
         """
-        stmt = (prj_crs.update()
-                .where(prj_crs.c.prj_text == prj)
-                .values(proj_crs=crs))
+        stmt = (
+            prj_crs.update()
+            .where(prj_crs.c.prj_text == prj)
+            .values(proj_crs=crs)
+        )
         with db.engine.begin() as conn:
             conn.execute(stmt)
 
@@ -252,9 +256,11 @@ class ProjDB:
         :param prj: string from a .prj file
         :param axy: always_xy parameter value as used with pyproj.crs.CRS()
         """
-        stmt = (prj_crs.update()
-                .where(prj_crs.c.prj_text == prj)
-                .values(always_xy=axy))
+        stmt = (
+            prj_crs.update()
+            .where(prj_crs.c.prj_text == prj)
+            .values(always_xy=axy)
+        )
         with db.engine.begin() as conn:
             conn.execute(stmt)
 
@@ -268,13 +274,15 @@ class KMLMapCallbackFunctor:
         self.filename = filename
 
     def __call__(self, values):
-        template = Template(filename=self.filename,
-                            input_encoding='utf-8',
-                            output_encoding='utf-8')
+        template = Template(
+            filename=self.filename,
+            input_encoding="utf-8",
+            output_encoding="utf-8",
+        )
 
         count = 0
         for value in values:
-            file_handle, filename = tempfile.mkstemp(suffix='.kml')
+            file_handle, filename = tempfile.mkstemp(suffix=".kml")
 
             try:
                 out = template.render(value=value)
@@ -283,7 +291,7 @@ class KMLMapCallbackFunctor:
                 # at least provides some feedback from last failure
                 if bauble.gui:
                     statusbar = bauble.gui.widgets.statusbar
-                    sb_context_id = statusbar.get_context_id('show.map')
+                    sb_context_id = statusbar.get_context_id("show.map")
                     statusbar.pop(sb_context_id)
                     statusbar.push(sb_context_id, f"{value} - {e}")
                 # NOTE log used in test
@@ -297,13 +305,13 @@ class KMLMapCallbackFunctor:
                 utils.desktop.open(filename)
             except OSError:
                 utils.message_dialog(
-                    _('Could not open the kml file. It can be found here %s') %
-                    filename
+                    _("Could not open the kml file. It can be found here %s")
+                    % filename
                 )
                 break
 
         if count == 0:
-            utils.message_dialog(_('No map data for selected item(s).'))
+            utils.message_dialog(_("No map data for selected item(s)."))
 
 
 def kml_string_to_geojson(string: str) -> str:
@@ -313,34 +321,37 @@ def kml_string_to_geojson(string: str) -> str:
     Assumes the system datum.
     """
     from lxml import etree
+
     try:
-        kml = etree.fromstring(string.encode('utf-8'))
+        kml = etree.fromstring(string.encode("utf-8"))
         namespaces = {k: v for k, v in kml.nsmap.items() if k}
     except etree.XMLSyntaxError:
         return string
-    poly = ('/kml:kml//kml:Placemark/kml:Polygon/kml:outerBoundaryIs/'
-            'kml:LinearRing/kml:coordinates/text()')
-    line = '/kml:kml//kml:Placemark/kml:LineString/kml:coordinates/text()'
-    point = '/kml:kml//kml:Placemark/kml:Point/kml:coordinates/text()'
+    poly = (
+        "/kml:kml//kml:Placemark/kml:Polygon/kml:outerBoundaryIs/"
+        "kml:LinearRing/kml:coordinates/text()"
+    )
+    line = "/kml:kml//kml:Placemark/kml:LineString/kml:coordinates/text()"
+    point = "/kml:kml//kml:Placemark/kml:Point/kml:coordinates/text()"
 
     if coords := kml.xpath(poly, namespaces=namespaces):
         result = '{"type": "Polygon", "coordinates": [['
         for val in coords[0].split():
-            val = val.rsplit(',', 1)[0]
+            val = val.rsplit(",", 1)[0]
             result += f"[{val.replace(',', ', ')}], "
-        result = result[:-2] + ']]}'
+        result = result[:-2] + "]]}"
         return result
     if coords := kml.xpath(line, namespaces=namespaces):
         result = '{"type": "LineString", "coordinates": ['
         for val in coords[0].split():
-            val = val.rsplit(',', 1)[0]
+            val = val.rsplit(",", 1)[0]
             result += f"[{val.replace(',', ', ')}], "
-        result = result[:-2] + ']}'
+        result = result[:-2] + "]}"
         return result
     if coords := kml.xpath(point, namespaces=namespaces):
         result = '{"type": "Point", "coordinates": ['
-        result += coords[0].rsplit(',', 1)[0].replace(',', ', ')
-        result += ']}'
+        result += coords[0].rsplit(",", 1)[0].replace(",", ", ")
+        result += "]}"
         return result
     return string
 
@@ -351,5 +362,5 @@ def web_mercator_point_coords_to_geojson(string: str) -> str:
 
     Assumes the system datum.
     """
-    x, y = string.split(', ')
+    x, y = string.split(", ")
     return f'{{"type": "Point", "coordinates": [{y}, {x}]}}'

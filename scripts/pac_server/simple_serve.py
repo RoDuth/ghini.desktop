@@ -90,16 +90,17 @@ import socketserver
 HANDLER = http.server.SimpleHTTPRequestHandler
 
 # consider pac files content type
-HANDLER.extensions_map.update({'.pac': 'application/x-ns-proxy-autoconfig'})
+HANDLER.extensions_map.update({".pac": "application/x-ns-proxy-autoconfig"})
 
 
 class SimpleServer(socketserver.TCPServer):
     """
     Simplest way to ensure we make the socket accessible after we ctrl-c.
     """
+
     allow_reuse_address = True
 
 
-server = SimpleServer(('0.0.0.0', 8080), HANDLER)
+server = SimpleServer(("0.0.0.0", 8080), HANDLER)
 
 server.serve_forever()

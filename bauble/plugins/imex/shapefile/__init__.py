@@ -27,26 +27,25 @@ from gi.repository import Gtk
 
 from bauble import pluginmgr
 
-PLANT_SHAPEFILE_PREFS = 'shapefile.plant'
+PLANT_SHAPEFILE_PREFS = "shapefile.plant"
 """Shapefile default prefs section for Plants.
 
 Options: search_by, fields.
 """
 
-LOCATION_SHAPEFILE_PREFS = 'shapefile.location'
+LOCATION_SHAPEFILE_PREFS = "shapefile.location"
 """Shapefile default prefs section for Locations.
 
 Options: search_by, fields.
 """
 
-SHAPEFILE_IGNORE_PREF = 'shapefile.ignore'
+SHAPEFILE_IGNORE_PREF = "shapefile.ignore"
 """Pref for which field names to ignore when importing shapefiles."""
 
 
 class ShapefileImportTool(pluginmgr.Tool):
-
-    category = _('Import')
-    label = _('Shapefile')
+    category = _("Import")
+    label = _("Shapefile")
 
     @classmethod
     def start(cls):
@@ -57,14 +56,13 @@ class ShapefileImportTool(pluginmgr.Tool):
 
         importer = ShapefileImporter()
         importer.start()
-        logger.debug('ShapefileImportTool finished')
+        logger.debug("ShapefileImportTool finished")
         return importer
 
 
 class ShapefileExportTool(pluginmgr.Tool):
-
-    category = _('Export')
-    label = _('Shapefile')
+    category = _("Export")
+    label = _("Shapefile")
 
     @classmethod
     def start(cls):
@@ -75,7 +73,7 @@ class ShapefileExportTool(pluginmgr.Tool):
 
         exporter = ShapefileExporter()
         exporter.start()
-        logger.debug('ShapefileExportTool finished')
+        logger.debug("ShapefileExportTool finished")
         return exporter
 
 

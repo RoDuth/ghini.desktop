@@ -65,7 +65,7 @@ def root_dir():
 def lib_dir():
     """Returns the path of the bauble module."""
     if main_is_frozen():
-        directory = os.path.join(main_dir(), 'bauble')
+        directory = os.path.join(main_dir(), "bauble")
     else:
         directory = os.path.dirname(__file__)
     return os.path.abspath(directory)
@@ -75,28 +75,29 @@ def locale_dir():
     """Returns the root path of the locale files"""
 
     the_installation_directory = installation_dir()
-    directory = os.path.join(the_installation_directory, 'share', 'locale')
+    directory = os.path.join(the_installation_directory, "share", "locale")
     return os.path.abspath(directory)
 
 
 def installation_dir():
     """Returns the root path of the installation target"""
 
-    if sys.platform in ('linux', 'darwin'):
+    if sys.platform in ("linux", "darwin"):
         # installation_dir, relative to this file, is 7 levels up.
         this_file_location = __file__.split(os.path.sep)
         try:
-            index_of_lib = this_file_location.index('lib')
+            index_of_lib = this_file_location.index("lib")
         except ValueError:
             index_of_lib = 0
-        directory = os.path.sep.join(this_file_location[:-index_of_lib - 1])
-    elif sys.platform == 'win32':
+        directory = os.path.sep.join(this_file_location[: -index_of_lib - 1])
+    elif sys.platform == "win32":
         # main_dir is the location of the scripts, which is located in the
         # installation_dir:
         directory = main_dir()
     else:
-        raise NotImplementedError('This platform does not support '
-                                  f'translations: {sys.platform}')
+        raise NotImplementedError(
+            "This platform does not support " f"translations: {sys.platform}"
+        )
     return os.path.abspath(directory)
 
 
@@ -104,38 +105,47 @@ def appdata_dir():
     """Returns the path to where application data and settings are saved."""
     if sys.platform == "win32":
         if is_portable_installation():
-            appd = os.path.join(main_dir(), 'Appdata')
-        elif 'APPDATA' in os.environ:
+            appd = os.path.join(main_dir(), "Appdata")
+        elif "APPDATA" in os.environ:
             appd = os.path.join(os.environ["APPDATA"], "Bauble")
-        elif 'USERPROFILE' in os.environ:
-            appd = os.path.join(os.environ['USERPROFILE'], 'Application Data',
-                                'Bauble')
+        elif "USERPROFILE" in os.environ:
+            appd = os.path.join(
+                os.environ["USERPROFILE"], "Application Data", "Bauble"
+            )
         else:
-            raise Exception('Could not get path for user settings: no '
-                            'APPDATA or USERPROFILE variable')
-    elif sys.platform == 'darwin':
+            raise Exception(
+                "Could not get path for user settings: no "
+                "APPDATA or USERPROFILE variable"
+            )
+    elif sys.platform == "darwin":
         # pylint: disable=no-name-in-module
         from AppKit import NSApplicationSupportDirectory
         from AppKit import NSSearchPathForDirectoriesInDomains
         from AppKit import NSUserDomainMask
-        appd = os.path.join(NSSearchPathForDirectoriesInDomains(
-            NSApplicationSupportDirectory, NSUserDomainMask, True
-        )[0], 'Bauble')
-    elif sys.platform == 'linux':
+
+        appd = os.path.join(
+            NSSearchPathForDirectoriesInDomains(
+                NSApplicationSupportDirectory, NSUserDomainMask, True
+            )[0],
+            "Bauble",
+        )
+    elif sys.platform == "linux":
         # using os.expanduser is more reliable than os.environ['HOME']
         # because if the user runs bauble with sudo then it will
         # return the path of the user that used sudo instead of ~root
         try:
-            appd = os.path.join(os.path.expanduser('~%s' % os.environ['USER']),
-                                '.bauble')
+            appd = os.path.join(
+                os.path.expanduser("~%s" % os.environ["USER"]), ".bauble"
+            )
         except Exception as e:
             raise Exception(
-                'Could not get path for user settings: could not expand $HOME '
+                "Could not get path for user settings: could not expand $HOME "
                 f'for user {os.environ["USER"]}'
             ) from e
     else:
-        raise Exception('Could not get path for user settings: '
-                        'unsupported platform')
+        raise Exception(
+            "Could not get path for user settings: unsupported platform"
+        )
     return os.path.abspath(appd)
 
 
@@ -153,7 +163,7 @@ def is_portable_installation():
     if not main_is_frozen():
         return False
     try:
-        test_file_name = os.path.join(main_dir(), 'Appdata', 'temp.tmp')
+        test_file_name = os.path.join(main_dir(), "Appdata", "temp.tmp")
         with open(test_file_name, "w+") as f:
             f.write("test")
         os.remove(test_file_name)
@@ -170,10 +180,13 @@ def templates_dir():
         templates directory in appdata.
     """
     from . import pluginmgr
-    if 'ReportToolPlugin' in pluginmgr.plugins:
+
+    if "ReportToolPlugin" in pluginmgr.plugins:
         from . import prefs
         from .plugins.report.template_downloader import TEMPLATES_ROOT_PREF
-        return prefs.prefs.get(TEMPLATES_ROOT_PREF,
-                               os.path.join(appdata_dir(), 'templates'))
+
+        return prefs.prefs.get(
+            TEMPLATES_ROOT_PREF, os.path.join(appdata_dir(), "templates")
+        )
     # no report plugin no templates.
     return None

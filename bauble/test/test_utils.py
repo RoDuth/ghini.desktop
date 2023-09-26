@@ -44,46 +44,53 @@ from bauble.test import BaubleTestCase
 
 
 class UtilsTest(TestCase):
-
     def test_topological_sort_total(self):
         self.assertEqual(
-            utils.topological_sort([1, 2, 3], [(2, 1), (3, 2)]), [3, 2, 1])
+            utils.topological_sort([1, 2, 3], [(2, 1), (3, 2)]), [3, 2, 1]
+        )
 
     def test_topological_sort_partial(self):
         self.assertEqual(
-            utils.topological_sort([1, 2, 3, 4], [(2, 1)]), [4, 3, 2, 1])
+            utils.topological_sort([1, 2, 3, 4], [(2, 1)]), [4, 3, 2, 1]
+        )
 
     def test_topological_sort_loop(self):
         self.assertEqual(
-            utils.topological_sort([1, 2], [(2, 1), (1, 2)]), None)
+            utils.topological_sort([1, 2], [(2, 1), (1, 2)]), None
+        )
 
     def test_topological_empty_dependencies(self):
         # list contain same elements, no dependancies so order doesn't matter
         self.assertCountEqual(
-            utils.topological_sort(['a', 'b', 'c'], []), ['c', 'b', 'a'])
+            utils.topological_sort(["a", "b", "c"], []), ["c", "b", "a"]
+        )
 
     def test_topological_full_dependencies(self):
         # list is ordered
         self.assertEqual(
-            utils.topological_sort(['a', 'b', 'c'], [('a', 'b'), ('b', 'c')]),
-            ['a', 'b', 'c'])
+            utils.topological_sort(["a", "b", "c"], [("a", "b"), ("b", "c")]),
+            ["a", "b", "c"],
+        )
 
     def test_topological_partial_dependencies(self):
         # 'e' has no dependencies so comes before or after
         self.assertEqual(
-            utils.topological_sort(['b', 'e'],
-                                   [('a', 'b'), ('b', 'c'), ('b', 'd')]),
-            ['a', 'b', 'd', 'c', 'e'])
+            utils.topological_sort(
+                ["b", "e"], [("a", "b"), ("b", "c"), ("b", "d")]
+            ),
+            ["a", "b", "d", "c", "e"],
+        )
 
     def test_topological_empty_input_full_dependencies(self):
         # could return empty
         self.assertEqual(
-            utils.topological_sort([], [('a', 'b'), ('b', 'c'), ('b', 'd')]),
-            ['a', 'b', 'd', 'c'])
+            utils.topological_sort([], [("a", "b"), ("b", "c"), ("b", "d")]),
+            ["a", "b", "d", "c"],
+        )
 
     def test_create_message_details_dialog(self):
         details = "these are the lines that I want to test\n2nd line\n3rd Line"
-        msg = 'test message'
+        msg = "test message"
 
         dlog = utils.create_message_details_dialog(msg, details)
         self.assertTrue(isinstance(dlog, Gtk.MessageDialog))
@@ -98,8 +105,8 @@ class UtilsTest(TestCase):
         dlog.destroy()
 
     def test_create_message_dialog(self):
-        msg = 'test message'
-        #msg = ' this is a longer message to test that the dialog width is correct.....but what if it keeps going'
+        msg = "test message"
+        # msg = ' this is a longer message to test that the dialog width is correct.....but what if it keeps going'
         dlog = utils.create_message_dialog(msg)
         self.assertTrue(isinstance(dlog, Gtk.MessageDialog))
         msg_label = dlog.get_message_area().get_children()[0]
@@ -119,152 +126,179 @@ class UtilsTest(TestCase):
         # the rows that should be found
         to_find = []
 
-        row = model.append(None, ['1'])
-        model.append(row, ['1.1'])
-        to_find.append(model.append(row, ['something']))
-        model.append(row, ['1.3'])
+        row = model.append(None, ["1"])
+        model.append(row, ["1.1"])
+        to_find.append(model.append(row, ["something"]))
+        model.append(row, ["1.3"])
 
-        row = model.append(None, ['2'])
-        to_find.append(model.append(row, ['something']))
-        model.append(row, ['2.1'])
+        row = model.append(None, ["2"])
+        to_find.append(model.append(row, ["something"]))
+        model.append(row, ["2.1"])
 
-        to_find.append(model.append(None, ['something']))
+        to_find.append(model.append(None, ["something"]))
 
         root = model.get_iter_first()
-        results = utils.search_tree_model(model[root], 'something')
-        self.assertTrue(sorted([model.get_path(r) for r in results]),
-                        sorted(to_find))
+        results = utils.search_tree_model(model[root], "something")
+        self.assertTrue(
+            sorted([model.get_path(r) for r in results]), sorted(to_find)
+        )
 
     def test_xml_safe(self):
         """
         Test bauble.utils.xml_safe
         """
-        class Test():
+
+        class Test:
             def __str__(self):
                 return repr(self)
 
         import re
-        self.assertTrue(re.match('&lt;.*?&gt;', utils.xml_safe(str(Test()))))
-        self.assertEqual(utils.xml_safe('test string'), 'test string')
-        self.assertEqual(utils.xml_safe('test string'), 'test string')
-        self.assertEqual(utils.xml_safe('test< string'), 'test&lt; string')
-        self.assertEqual(utils.xml_safe('test< string'), 'test&lt; string')
+
+        self.assertTrue(re.match("&lt;.*?&gt;", utils.xml_safe(str(Test()))))
+        self.assertEqual(utils.xml_safe("test string"), "test string")
+        self.assertEqual(utils.xml_safe("test string"), "test string")
+        self.assertEqual(utils.xml_safe("test< string"), "test&lt; string")
+        self.assertEqual(utils.xml_safe("test< string"), "test&lt; string")
 
     def test_range_builder(self):
-        """Test bauble.utils.range_builder
-        """
-        self.assertEqual(utils.range_builder('1-3'), [1, 2, 3])
-        self.assertEqual(utils.range_builder('1-3,5-7'),
-                         [1, 2, 3, 5, 6, 7])
-        self.assertEqual(utils.range_builder('1-3,5'), [1, 2, 3, 5])
-        self.assertEqual(utils.range_builder('1-3,5,7-9'),
-                         [1, 2, 3, 5, 7, 8, 9])
-        self.assertEqual(utils.range_builder('1,2,3,4'), [1, 2, 3, 4])
-        self.assertEqual(utils.range_builder('11'), [11])
+        """Test bauble.utils.range_builder"""
+        self.assertEqual(utils.range_builder("1-3"), [1, 2, 3])
+        self.assertEqual(utils.range_builder("1-3,5-7"), [1, 2, 3, 5, 6, 7])
+        self.assertEqual(utils.range_builder("1-3,5"), [1, 2, 3, 5])
+        self.assertEqual(
+            utils.range_builder("1-3,5,7-9"), [1, 2, 3, 5, 7, 8, 9]
+        )
+        self.assertEqual(utils.range_builder("1,2,3,4"), [1, 2, 3, 4])
+        self.assertEqual(utils.range_builder("11"), [11])
 
         # bad range strings
-        self.assertEqual(utils.range_builder('-1'), [])
-        self.assertEqual(utils.range_builder('a-b'), [])
-        self.assertRaises(CheckConditionError, utils.range_builder, '2-1')
+        self.assertEqual(utils.range_builder("-1"), [])
+        self.assertEqual(utils.range_builder("a-b"), [])
+        self.assertRaises(CheckConditionError, utils.range_builder, "2-1")
 
     def test_get_urls(self):
-        text = 'There a link in here: http://bauble.belizebotanic.org'
+        text = "There a link in here: http://bauble.belizebotanic.org"
         urls = utils.get_urls(text)
-        self.assertEqual(urls, [(None, 'http://bauble.belizebotanic.org')],
-                         urls)
+        self.assertEqual(
+            urls, [(None, "http://bauble.belizebotanic.org")], urls
+        )
 
-        text = ('There a link in here: http://bauble.belizebotanic.org '
-                'and some text afterwards.')
+        text = (
+            "There a link in here: http://bauble.belizebotanic.org "
+            "and some text afterwards."
+        )
         urls = utils.get_urls(text)
-        self.assertEqual(urls, [(None, 'http://bauble.belizebotanic.org')],
-                         urls)
+        self.assertEqual(
+            urls, [(None, "http://bauble.belizebotanic.org")], urls
+        )
 
-        text = ('There is a link here: http://bauble.belizebotanic.org and '
-                'here: https://belizebotanic.org and some text afterwards.')
+        text = (
+            "There is a link here: http://bauble.belizebotanic.org and "
+            "here: https://belizebotanic.org and some text afterwards."
+        )
         urls = utils.get_urls(text)
-        self.assertEqual(urls, [(None, 'http://bauble.belizebotanic.org'),
-                                (None, 'https://belizebotanic.org')], urls)
+        self.assertEqual(
+            urls,
+            [
+                (None, "http://bauble.belizebotanic.org"),
+                (None, "https://belizebotanic.org"),
+            ],
+            urls,
+        )
 
-        text = ('There a labeled link in here: '
-                '[BBG]http://bauble.belizebotanic.org and some text after.')
+        text = (
+            "There a labeled link in here: "
+            "[BBG]http://bauble.belizebotanic.org and some text after."
+        )
         urls = utils.get_urls(text)
-        self.assertEqual(urls, [('BBG', 'http://bauble.belizebotanic.org')],
-                         urls)
+        self.assertEqual(
+            urls, [("BBG", "http://bauble.belizebotanic.org")], urls
+        )
 
     def test_copy_tree_w_path(self):
-        src_dir = Path(paths.lib_dir(), "plugins", "report", 'xsl',
-                       'stylesheets')
+        src_dir = Path(
+            paths.lib_dir(), "plugins", "report", "xsl", "stylesheets"
+        )
         dest = TemporaryDirectory()
         dest_dir = Path(dest.name)
         utils.copy_tree(src_dir, dest_dir)
         self.assertEqual(
-            [i.relative_to(src_dir) for i in src_dir.glob('**/*.*')],
-            [i.relative_to(dest_dir) for i in dest_dir.glob('**/*.*')]
+            [i.relative_to(src_dir) for i in src_dir.glob("**/*.*")],
+            [i.relative_to(dest_dir) for i in dest_dir.glob("**/*.*")],
         )
         dest.cleanup()
 
     def test_copy_tree_w_str(self):
-        src_dir = Path(paths.lib_dir(), "plugins", "report", 'xsl',
-                       'stylesheets')
+        src_dir = Path(
+            paths.lib_dir(), "plugins", "report", "xsl", "stylesheets"
+        )
         dest = TemporaryDirectory()
         dest_dir = Path(dest.name)
         utils.copy_tree(str(src_dir), str(dest_dir))
         self.assertEqual(
-            [i.relative_to(src_dir) for i in src_dir.glob('**/*.*')],
-            [i.relative_to(dest_dir) for i in dest_dir.glob('**/*.*')]
+            [i.relative_to(src_dir) for i in src_dir.glob("**/*.*")],
+            [i.relative_to(dest_dir) for i in dest_dir.glob("**/*.*")],
         )
         dest.cleanup()
 
     def test_copy_tree_w_suffixes(self):
-        src_dir = Path(paths.lib_dir(), "plugins", "report", 'xsl',
-                       'stylesheets')
+        src_dir = Path(
+            paths.lib_dir(), "plugins", "report", "xsl", "stylesheets"
+        )
         dest = TemporaryDirectory()
         dest_dir = Path(dest.name)
-        utils.copy_tree(str(src_dir), str(dest_dir), ['.xsl'])
+        utils.copy_tree(str(src_dir), str(dest_dir), [".xsl"])
         self.assertEqual(
-            [i.relative_to(src_dir) for i in src_dir.glob('**/*.xsl')],
-            [i.relative_to(dest_dir) for i in dest_dir.glob('**/*.*')]
+            [i.relative_to(src_dir) for i in src_dir.glob("**/*.xsl")],
+            [i.relative_to(dest_dir) for i in dest_dir.glob("**/*.*")],
         )
         dest.cleanup()
 
     def test_copy_tree_w_over_write(self):
         import filecmp
-        src_dir = Path(paths.lib_dir(), "plugins", "report", 'xsl',
-                       'stylesheets')
+
+        src_dir = Path(
+            paths.lib_dir(), "plugins", "report", "xsl", "stylesheets"
+        )
         dest = TemporaryDirectory()
         dest_dir = Path(dest.name)
-        utils.copy_tree(str(src_dir), str(dest_dir), ['.xsl'])
+        utils.copy_tree(str(src_dir), str(dest_dir), [".xsl"])
         # make a couple of differences and rerun
-        dest_glob = dest_dir.glob('**/*.xsl')
-        with open(next(dest_glob), 'w') as f:
-            f.write('test')
+        dest_glob = dest_dir.glob("**/*.xsl")
+        with open(next(dest_glob), "w") as f:
+            f.write("test")
         os.remove(next(dest_glob))
         os.remove(next(dest_glob))
-        utils.copy_tree(str(src_dir), str(dest_dir), ['.xsl'], True)
+        utils.copy_tree(str(src_dir), str(dest_dir), [".xsl"], True)
         self.assertEqual(
-            [i.relative_to(src_dir) for i in src_dir.glob('**/*.xsl')],
-            [i.relative_to(dest_dir) for i in dest_dir.glob('**/*.*')]
+            [i.relative_to(src_dir) for i in src_dir.glob("**/*.xsl")],
+            [i.relative_to(dest_dir) for i in dest_dir.glob("**/*.*")],
         )
-        self.assertTrue(filecmp.cmp(next(src_dir.glob('**/*.xsl')),
-                                    next(dest_dir.glob('**/*.xsl'))))
+        self.assertTrue(
+            filecmp.cmp(
+                next(src_dir.glob("**/*.xsl")), next(dest_dir.glob("**/*.xsl"))
+            )
+        )
         # make a couple of changes and rerun without overwrite
-        dest_glob = dest_dir.glob('**/*.xsl')
-        with open(next(dest_glob), 'w') as f:
-            f.write('test')
+        dest_glob = dest_dir.glob("**/*.xsl")
+        with open(next(dest_glob), "w") as f:
+            f.write("test")
         os.remove(next(dest_glob))
         os.remove(next(dest_glob))
-        utils.copy_tree(str(src_dir), str(dest_dir), ['.xsl'])
+        utils.copy_tree(str(src_dir), str(dest_dir), [".xsl"])
         self.assertEqual(
-            [i.relative_to(src_dir) for i in src_dir.glob('**/*.xsl')],
-            [i.relative_to(dest_dir) for i in dest_dir.glob('**/*.*')]
+            [i.relative_to(src_dir) for i in src_dir.glob("**/*.xsl")],
+            [i.relative_to(dest_dir) for i in dest_dir.glob("**/*.*")],
         )
-        self.assertFalse(filecmp.cmp(next(src_dir.glob('**/*.xsl')),
-                                     next(dest_dir.glob('**/*.xsl'))))
+        self.assertFalse(
+            filecmp.cmp(
+                next(src_dir.glob("**/*.xsl")), next(dest_dir.glob("**/*.xsl"))
+            )
+        )
         dest.cleanup()
 
 
 class UtilsDBTests(BaubleTestCase):
-
     def test_find_dependent_tables(self):
         """
         Test bauble.utils.find_dependent_tables
@@ -274,25 +308,34 @@ class UtilsDBTests(BaubleTestCase):
         metadata.bind = db.engine
 
         # table1 does't depend on any tables
-        table1 = Table('table1', metadata,
-                       Column('id', Integer, primary_key=True))
+        table1 = Table(
+            "table1", metadata, Column("id", Integer, primary_key=True)
+        )
 
         # table2 depends on table1
-        table2 = Table('table2', metadata,
-                       Column('id', Integer, primary_key=True),
-                       Column('table1', Integer, ForeignKey('table1.id')))
+        table2 = Table(
+            "table2",
+            metadata,
+            Column("id", Integer, primary_key=True),
+            Column("table1", Integer, ForeignKey("table1.id")),
+        )
 
         # table3 depends on table2
-        table3 = Table('table3', metadata,
-                       Column('id', Integer, primary_key=True),
-                       Column('table2', Integer, ForeignKey('table2.id')),
-                       Column('table4', Integer, ForeignKey('table4.id'))
-                       )
+        table3 = Table(
+            "table3",
+            metadata,
+            Column("id", Integer, primary_key=True),
+            Column("table2", Integer, ForeignKey("table2.id")),
+            Column("table4", Integer, ForeignKey("table4.id")),
+        )
 
         # table4 depends on table2
-        table4 = Table('table4', metadata,
-                       Column('id', Integer, primary_key=True),
-                       Column('table2', Integer, ForeignKey('table2.id')))
+        table4 = Table(
+            "table4",
+            metadata,
+            Column("id", Integer, primary_key=True),
+            Column("table2", Integer, ForeignKey("table2.id")),
+        )
 
         # tables that depend on table 1 are 3, 4, 2
         depends = list(utils.find_dependent_tables(table1, metadata))
@@ -316,6 +359,7 @@ class CacheTest(TestCase):
         from functools import partial
 
         from bauble.utils import Cache
+
         invoked = []
 
         def getter(x):
@@ -334,6 +378,7 @@ class CacheTest(TestCase):
         from functools import partial
 
         from bauble.utils import Cache
+
         invoked = []
 
         def getter(x):
@@ -352,6 +397,7 @@ class CacheTest(TestCase):
         from functools import partial
 
         from bauble.utils import Cache
+
         invoked = []
 
         def getter(x):
@@ -360,6 +406,7 @@ class CacheTest(TestCase):
 
         cache = Cache(2)
         from time import sleep
+
         cache.get(1, partial(getter, 1))
         sleep(0.01)
         cache.get(2, partial(getter, 2))
@@ -378,6 +425,7 @@ class CacheTest(TestCase):
         from functools import partial
 
         from bauble.utils import Cache
+
         invoked = []
 
         def getter(x):
@@ -385,6 +433,7 @@ class CacheTest(TestCase):
 
         cache = Cache(2)
         from time import sleep
+
         cache.get(1, partial(getter, 1), on_hit=invoked.append)
         sleep(0.01)
         cache.get(1, partial(getter, 1), on_hit=invoked.append)
@@ -403,7 +452,6 @@ class CacheTest(TestCase):
 
 
 class ResetSequenceTests(BaubleTestCase):
-
     def setUp(self):
         super().setUp()
         self.metadata = MetaData()
@@ -422,11 +470,14 @@ class ResetSequenceTests(BaubleTestCase):
         """
 
         # test that a column without an explicit sequence works
-        table = Table('test_reset_sequence', self.metadata,
-                      Column('id', Integer, primary_key=True))
+        table = Table(
+            "test_reset_sequence",
+            self.metadata,
+            Column("id", Integer, primary_key=True),
+        )
         self.metadata.create_all()
         self.insert = table.insert()  # .compile()
-        db.engine.execute(self.insert, values=[{'id': 1}])
+        db.engine.execute(self.insert, values=[{"id": 1}])
         utils.reset_sequence(table.c.id)
 
     def test_empty_col_sequence(self):
@@ -438,8 +489,11 @@ class ResetSequenceTests(BaubleTestCase):
         """
 
         # test that a column without an explicit sequence works
-        table = Table('test_reset_sequence', self.metadata,
-                      Column('id', Integer, primary_key=True))
+        table = Table(
+            "test_reset_sequence",
+            self.metadata,
+            Column("id", Integer, primary_key=True),
+        )
         self.metadata.create_all()
         # self.insert = table.insert()#.compile()
         # db.engine.execute(self.insert, values=[{'id': 1}])
@@ -448,62 +502,65 @@ class ResetSequenceTests(BaubleTestCase):
 
 class GlobalFuncsTests(BaubleTestCase):
     def test_safe_int_valid(self):
-        self.assertEqual(utils.safe_int('123'), 123)
+        self.assertEqual(utils.safe_int("123"), 123)
 
     def test_safe_int_valid_not(self):
-        self.assertEqual(utils.safe_int('123.2'), 0)
+        self.assertEqual(utils.safe_int("123.2"), 0)
 
     def test_safe_numeric_valid(self):
-        self.assertEqual(utils.safe_numeric('123'), 123)
+        self.assertEqual(utils.safe_numeric("123"), 123)
 
     def test_safe_numeric_valid_decimal(self):
-        self.assertEqual(utils.safe_numeric('123.2'), 123.2)
+        self.assertEqual(utils.safe_numeric("123.2"), 123.2)
 
     def test_safe_numeric_valid_not(self):
-        self.assertEqual(utils.safe_numeric('123a.2'), 0)
+        self.assertEqual(utils.safe_numeric("123a.2"), 0)
 
     def test_xml_safe_name(self):
-        self.assertEqual(utils.xml_safe_name('abc'), 'abc')
-        self.assertEqual(utils.xml_safe_name('a b c'), 'a_b_c')
-        self.assertEqual(utils.xml_safe_name('{[ab]<c>}'), 'abc')
-        self.assertEqual(utils.xml_safe_name(''), '_')
-        self.assertEqual(utils.xml_safe_name(' '), '_')
-        self.assertEqual(utils.xml_safe_name('\u2069\ud8ff'), '_')
-        self.assertEqual(utils.xml_safe_name('123'), '_123')
-        self.assertEqual(utils.xml_safe_name('<:>'), '_')
-        self.assertEqual(utils.xml_safe_name('<picture>'), 'picture')
+        self.assertEqual(utils.xml_safe_name("abc"), "abc")
+        self.assertEqual(utils.xml_safe_name("a b c"), "a_b_c")
+        self.assertEqual(utils.xml_safe_name("{[ab]<c>}"), "abc")
+        self.assertEqual(utils.xml_safe_name(""), "_")
+        self.assertEqual(utils.xml_safe_name(" "), "_")
+        self.assertEqual(utils.xml_safe_name("\u2069\ud8ff"), "_")
+        self.assertEqual(utils.xml_safe_name("123"), "_123")
+        self.assertEqual(utils.xml_safe_name("<:>"), "_")
+        self.assertEqual(utils.xml_safe_name("<picture>"), "picture")
 
     def test_chunks(self):
-        val = 'abcdefghijklmnop'
+        val = "abcdefghijklmnop"
         for i, out in enumerate(utils.chunks(val, 3)):
-            self.assertEqual(val[i * 3: (i + 1) * 3], out)
-        val = ['abd', 'def', 'ghi', 'jkl']
+            self.assertEqual(val[i * 3 : (i + 1) * 3], out)
+        val = ["abd", "def", "ghi", "jkl"]
         for i, out in enumerate(utils.chunks(val, 2)):
-            self.assertEqual(val[i * 2: (i + 1) * 2], out)
+            self.assertEqual(val[i * 2 : (i + 1) * 2], out)
 
     def test_read_in_chunks(self):
         from io import StringIO
-        data = 'abcdefghijklmnopqrstuvwxyz'
+
+        data = "abcdefghijklmnopqrstuvwxyz"
         mock_file = StringIO(data)
         for i, out in enumerate(utils.read_in_chunks(mock_file, 3)):
-            self.assertEqual(data[i * 3: (i + 1) * 3], out)
+            self.assertEqual(data[i * 3 : (i + 1) * 3], out)
 
     def test_copy_picture_with_thumbnail_wo_basename(self):
         import filecmp
 
         from PIL import Image
-        img = Image.new('CMYK', size=(2000, 2000), color=(155, 0, 0))
+
+        img = Image.new("CMYK", size=(2000, 2000), color=(155, 0, 0))
         temp_source = TemporaryDirectory()
-        temp_img_path = str(Path(temp_source.name, 'test.jpg'))
-        img.save(temp_img_path, format='JPEG')
+        temp_img_path = str(Path(temp_source.name, "test.jpg"))
+        img.save(temp_img_path, format="JPEG")
         with TemporaryDirectory() as temp_dir:
-            thumbs_dir = Path(temp_dir, 'pictures', 'thumbs')
+            thumbs_dir = Path(temp_dir, "pictures", "thumbs")
             os.makedirs(thumbs_dir)
             prefs.prefs[prefs.root_directory_pref] = temp_dir
             out = utils.copy_picture_with_thumbnail(temp_img_path)
-            filecmp.cmp(temp_img_path,
-                        str(Path(temp_dir, 'pictures', 'test.jpg')))
-            self.assertIsNotNone(thumbs_dir / 'test.jpg')
+            filecmp.cmp(
+                temp_img_path, str(Path(temp_dir, "pictures", "test.jpg"))
+            )
+            self.assertIsNotNone(thumbs_dir / "test.jpg")
         temp_source.cleanup()
         self.assertEqual(len(out), 10464)
 
@@ -511,19 +568,21 @@ class GlobalFuncsTests(BaubleTestCase):
         import filecmp
 
         from PIL import Image
-        img = Image.new('CMYK', size=(2000, 2000), color=(155, 0, 0))
+
+        img = Image.new("CMYK", size=(2000, 2000), color=(155, 0, 0))
         temp_source = TemporaryDirectory()
-        temp_img_path = str(Path(temp_source.name, 'test.jpg'))
-        img.save(temp_img_path, format='JPEG')
+        temp_img_path = str(Path(temp_source.name, "test.jpg"))
+        img.save(temp_img_path, format="JPEG")
         path, basename = os.path.split(temp_img_path)
         with TemporaryDirectory() as temp_dir:
-            thumbs_dir = Path(temp_dir, 'pictures', 'thumbs')
+            thumbs_dir = Path(temp_dir, "pictures", "thumbs")
             os.makedirs(thumbs_dir)
             prefs.prefs[prefs.root_directory_pref] = temp_dir
             out = utils.copy_picture_with_thumbnail(path, basename)
-            filecmp.cmp(temp_img_path,
-                        str(Path(temp_dir, 'pictures', 'test.jpg')))
-            self.assertIsNotNone(thumbs_dir / 'test.jpg')
+            filecmp.cmp(
+                temp_img_path, str(Path(temp_dir, "pictures", "test.jpg"))
+            )
+            self.assertIsNotNone(thumbs_dir / "test.jpg")
         temp_source.cleanup()
         self.assertEqual(len(out), 10464)
 
@@ -531,19 +590,19 @@ class GlobalFuncsTests(BaubleTestCase):
         import filecmp
 
         from PIL import Image
-        img = Image.new('CMYK', size=(2000, 2000), color=(155, 0, 0))
+
+        img = Image.new("CMYK", size=(2000, 2000), color=(155, 0, 0))
         temp_source = TemporaryDirectory()
-        temp_img_path = str(Path(temp_source.name, 'test.jpg'))
-        img.save(temp_img_path, format='JPEG')
+        temp_img_path = str(Path(temp_source.name, "test.jpg"))
+        img.save(temp_img_path, format="JPEG")
         path, basename = os.path.split(temp_img_path)
-        rename = 'test123.jpg'
+        rename = "test123.jpg"
         with TemporaryDirectory() as temp_dir:
-            thumbs_dir = Path(temp_dir, 'pictures', 'thumbs')
+            thumbs_dir = Path(temp_dir, "pictures", "thumbs")
             os.makedirs(thumbs_dir)
             prefs.prefs[prefs.root_directory_pref] = temp_dir
             out = utils.copy_picture_with_thumbnail(path, basename, rename)
-            filecmp.cmp(temp_img_path,
-                        str(Path(temp_dir, 'pictures', rename)))
+            filecmp.cmp(temp_img_path, str(Path(temp_dir, "pictures", rename)))
             self.assertIsNotNone(thumbs_dir / rename)
         temp_source.cleanup()
         self.assertEqual(len(out), 10464)
@@ -560,20 +619,20 @@ class GlobalFuncsTests(BaubleTestCase):
         try:
             temp_path.unlink()
         except Exception as e:
-            self.fail(f'exception {e} raised trying to delete the file')
+            self.fail(f"exception {e} raised trying to delete the file")
         # test file no longer exists
         self.assertFalse(temp_path.exists())
 
 
 class GetNetSessionTest(BaubleTestCase):
     def test_w_pref_not_dict_returns_requests_session_wo_proxies_(self):
-        prefs.prefs[prefs.web_proxy_prefs] = 'use_requests_without_proxies'
+        prefs.prefs[prefs.web_proxy_prefs] = "use_requests_without_proxies"
         sess = utils.NetSessionFunctor.get_net_sess()
         self.assertIsInstance(sess, requests.Session)
         self.assertFalse(sess.proxies)
 
     def test_get_net_sess_not_called_twice_wo_pacsession(self):
-        prefs.prefs[prefs.web_proxy_prefs] = 'use_requests_without_proxies'
+        prefs.prefs[prefs.web_proxy_prefs] = "use_requests_without_proxies"
         utils.get_net_sess.net_sess = None
         sess = utils.get_net_sess()
         sess2 = utils.get_net_sess()
@@ -586,51 +645,53 @@ class GetNetSessionTest(BaubleTestCase):
     def test_w_pref_dict_returns_requests_session_w_proxies_(self):
         proxies = {
             "https": "http://10.10.10.10/8000",
-            "http": "http://10.10.10.10:8000"
+            "http": "http://10.10.10.10:8000",
         }
         prefs.prefs[prefs.web_proxy_prefs] = proxies
         sess = utils.NetSessionFunctor.get_net_sess()
         self.assertIsInstance(sess, requests.Session)
         self.assertEqual(sess.proxies, proxies)
 
-    @mock.patch('pypac.PACSession')
-    def test_wo_pref_return_pypac_pacsession_if_pac_file(self,
-                                                         mock_pacsession):
+    @mock.patch("pypac.PACSession")
+    def test_wo_pref_return_pypac_pacsession_if_pac_file(
+        self, mock_pacsession
+    ):
         del prefs.prefs[prefs.web_proxy_prefs]
         pac_inst = mock_pacsession.return_value
-        pac_inst.get_pac.return_value = 'test'
+        pac_inst.get_pac.return_value = "test"
         utils.NetSessionFunctor.get_net_sess()
         mock_pacsession.get_pac.called_once()
         self.assertIsNone(prefs.prefs.get(prefs.web_proxy_prefs))
 
-    @mock.patch('pypac.PACSession')
-    def test_wo_pref_return_requests_session_if_no_pac_file(self,
-                                                            mock_pacsession):
+    @mock.patch("pypac.PACSession")
+    def test_wo_pref_return_requests_session_if_no_pac_file(
+        self, mock_pacsession
+    ):
         del prefs.prefs[prefs.web_proxy_prefs]
         pac_inst = mock_pacsession.return_value
         pac_inst.get_pac.return_value = None
         utils.NetSessionFunctor.get_net_sess()
         mock_pacsession.get_pac.called_once()
-        self.assertEqual(prefs.prefs.get(prefs.web_proxy_prefs), 'no_pac_file')
+        self.assertEqual(prefs.prefs.get(prefs.web_proxy_prefs), "no_pac_file")
 
-    @mock.patch('pypac.PACSession')
+    @mock.patch("pypac.PACSession")
     def test_get_net_sess_not_called_twice_wo_pac_file(self, mock_pacsession):
         del prefs.prefs[prefs.web_proxy_prefs]
         utils.get_net_sess.net_sess = None
         pac_inst = mock_pacsession.return_value
         pac_inst.get_pac.return_value = None
         sess = utils.get_net_sess()
-        self.assertEqual(prefs.prefs.get(prefs.web_proxy_prefs), 'no_pac_file')
+        self.assertEqual(prefs.prefs.get(prefs.web_proxy_prefs), "no_pac_file")
         sess2 = utils.get_net_sess()
         mock_pacsession.get_pac.called_once()
         self.assertIs(sess, sess2)
 
-    @mock.patch('pypac.PACSession')
+    @mock.patch("pypac.PACSession")
     def test_get_net_sess_not_called_twice_w_pac_file(self, mock_pacsession):
         del prefs.prefs[prefs.web_proxy_prefs]
         utils.get_net_sess.net_sess = None
         pac_inst = mock_pacsession.return_value
-        pac_inst.get_pac.return_value = 'test'
+        pac_inst.get_pac.return_value = "test"
         sess = utils.get_net_sess()
         self.assertIsNone(prefs.prefs.get(prefs.web_proxy_prefs))
         sess2 = utils.get_net_sess()
@@ -641,163 +702,165 @@ class GetNetSessionTest(BaubleTestCase):
 class TimedCacheTest(TestCase):
     def test_cache_size_one_calls_every_new_param(self):
         mock_func = mock.Mock()
-        mock_func.return_value = 'result'
+        mock_func.return_value = "result"
         decorated = utils.timed_cache(size=1)(mock_func)
         # make 2 calls
-        result = decorated('test')
-        mock_func.assert_called_with('test')
-        self.assertEqual(result, 'result')
-        mock_func.return_value = 'result2'
-        result = decorated('test2')
-        mock_func.assert_called_with('test2')
-        self.assertEqual(result, 'result2')
+        result = decorated("test")
+        mock_func.assert_called_with("test")
+        self.assertEqual(result, "result")
+        mock_func.return_value = "result2"
+        result = decorated("test2")
+        mock_func.assert_called_with("test2")
+        self.assertEqual(result, "result2")
         # make the same 2 calls but with different return values
-        mock_func.return_value = 'result3'
-        result = decorated('test')
-        mock_func.assert_called_with('test')
-        self.assertEqual(result, 'result3')
-        mock_func.return_value = 'result4'
-        result = decorated('test2')
-        mock_func.assert_called_with('test2')
-        self.assertEqual(result, 'result4')
+        mock_func.return_value = "result3"
+        result = decorated("test")
+        mock_func.assert_called_with("test")
+        self.assertEqual(result, "result3")
+        mock_func.return_value = "result4"
+        result = decorated("test2")
+        mock_func.assert_called_with("test2")
+        self.assertEqual(result, "result4")
 
     def test_multipe_identical_calls_do_cache(self):
         mock_func = mock.Mock()
-        mock_func.return_value = 'result'
+        mock_func.return_value = "result"
         decorated = utils.timed_cache(size=10)(mock_func)
-        result = decorated('test')
-        mock_func.assert_called_with('test')
-        self.assertEqual(result, 'result')
+        result = decorated("test")
+        mock_func.assert_called_with("test")
+        self.assertEqual(result, "result")
         for _ in range(10):
-            result = decorated('test')
-            self.assertEqual(result, 'result')
+            result = decorated("test")
+            self.assertEqual(result, "result")
             self.assertEqual(mock_func.call_count, 1)
 
     def test_func_calls_when_cache_overflows(self):
         mock_func = mock.Mock()
-        mock_func.return_value = 'result'
+        mock_func.return_value = "result"
         decorated = utils.timed_cache(size=10)(mock_func)
         for i in range(10):
-            result = decorated(f'test{i}')
-            self.assertEqual(result, 'result')
-            mock_func.assert_called_with(f'test{i}')
+            result = decorated(f"test{i}")
+            self.assertEqual(result, "result")
+            mock_func.assert_called_with(f"test{i}")
 
         self.assertEqual(mock_func.call_count, 10)
         start = mock_func.call_count
 
         # make the same calls and check not called
         for i in range(10):
-            mock_func.return_value = f'result{i}'
-            result = decorated(f'test{i}')
-            self.assertEqual(result, 'result')
+            mock_func.return_value = f"result{i}"
+            result = decorated(f"test{i}")
+            self.assertEqual(result, "result")
 
         # one more overflows
-        mock_func.return_value = 'end'
-        result = decorated('end')
-        self.assertEqual(result, 'end')
+        mock_func.return_value = "end"
+        result = decorated("end")
+        self.assertEqual(result, "end")
 
         end = mock_func.call_count
         self.assertEqual(end, start + 1)
 
     def test_func_calls_again_after_secs(self):
         mock_func = mock.Mock()
-        mock_func.return_value = 'result'
+        mock_func.return_value = "result"
         decorated = utils.timed_cache(size=10, secs=0.2)(mock_func)
         # preload cache
-        mock_func.return_value = 'result'
-        result = decorated('test')
+        mock_func.return_value = "result"
+        result = decorated("test")
         self.assertEqual(mock_func.call_count, 1)
-        self.assertEqual(result, 'result')
+        self.assertEqual(result, "result")
         # make some calls and only 1 mock_func call no value change
         for i in range(5):
-            mock_func.return_value = f'result{i}'
-            result = decorated('test')
+            mock_func.return_value = f"result{i}"
+            result = decorated("test")
             self.assertEqual(mock_func.call_count, 1)
-            self.assertEqual(result, 'result')
+            self.assertEqual(result, "result")
 
         from time import sleep
+
         sleep(0.2)
         # make same call after pause and this time it does call
-        mock_func.return_value = 'end'
-        result = decorated('test')
+        mock_func.return_value = "end"
+        result = decorated("test")
         self.assertEqual(mock_func.call_count, 2)
-        self.assertEqual(result, 'end')
+        self.assertEqual(result, "end")
 
     def test_set_size(self):
         # set size via param to 1 then via set_size and check for overflow
         mock_func = mock.Mock()
-        mock_func.return_value = 'result'
+        mock_func.return_value = "result"
         decorated = utils.timed_cache(size=1, secs=10)(mock_func)
         decorated.set_size(10)
 
         for i in range(10):
-            result = decorated(f'test{i}')
-            self.assertEqual(result, 'result')
-            mock_func.assert_called_with(f'test{i}')
+            result = decorated(f"test{i}")
+            self.assertEqual(result, "result")
+            mock_func.assert_called_with(f"test{i}")
 
         for i in range(10):
-            result = decorated(f'test{i}')
-            self.assertEqual(result, 'result')
-            mock_func.assert_called_with('test9')
+            result = decorated(f"test{i}")
+            self.assertEqual(result, "result")
+            mock_func.assert_called_with("test9")
 
         self.assertEqual(mock_func.call_count, 10)
 
         # one extra cal creates once extra call
-        mock_func.return_value = 'end'
-        result = decorated('end')
-        self.assertEqual(result, 'end')
-        mock_func.assert_called_with('end')
+        mock_func.return_value = "end"
+        result = decorated("end")
+        self.assertEqual(result, "end")
+        mock_func.assert_called_with("end")
 
         self.assertEqual(mock_func.call_count, 11)
 
     def test_set_secs(self):
         mock_func = mock.Mock()
-        mock_func.return_value = 'result'
+        mock_func.return_value = "result"
         decorated = utils.timed_cache(size=10, secs=10.0)(mock_func)
         decorated.set_secs(0.2)
         # preload cache
-        mock_func.return_value = 'result'
-        result = decorated('test')
+        mock_func.return_value = "result"
+        result = decorated("test")
         self.assertEqual(mock_func.call_count, 1)
-        self.assertEqual(result, 'result')
+        self.assertEqual(result, "result")
         # make some calls and only 1 mock_func call no value change
         for i in range(5):
-            mock_func.return_value = f'result{i}'
-            result = decorated('test')
+            mock_func.return_value = f"result{i}"
+            result = decorated("test")
             self.assertEqual(mock_func.call_count, 1)
-            self.assertEqual(result, 'result')
+            self.assertEqual(result, "result")
 
         from time import sleep
+
         sleep(0.2)
         # make same call after pause and this time it does call
-        mock_func.return_value = 'end'
-        result = decorated('test')
+        mock_func.return_value = "end"
+        result = decorated("test")
         self.assertEqual(mock_func.call_count, 2)
-        self.assertEqual(result, 'end')
+        self.assertEqual(result, "end")
 
     def test_clear_cache(self):
         mock_func = mock.Mock()
-        mock_func.return_value = 'result'
+        mock_func.return_value = "result"
         decorated = utils.timed_cache(size=100, secs=10)(mock_func)
         decorated.set_size(10)
 
         for i in range(10):
-            result = decorated(f'test{i}')
-            self.assertEqual(result, 'result')
-            mock_func.assert_called_with(f'test{i}')
+            result = decorated(f"test{i}")
+            self.assertEqual(result, "result")
+            mock_func.assert_called_with(f"test{i}")
 
         for i in range(10):
-            result = decorated(f'test{i}')
-            self.assertEqual(result, 'result')
-            mock_func.assert_called_with('test9')
+            result = decorated(f"test{i}")
+            self.assertEqual(result, "result")
+            mock_func.assert_called_with("test9")
 
         self.assertEqual(mock_func.call_count, 10)
 
         decorated.clear_cache()
         # cache clear does call
-        mock_func.return_value = 'end'
-        result = decorated('test9')
-        self.assertEqual(result, 'end')
-        mock_func.assert_called_with('test9')
+        mock_func.return_value = "end"
+        result = decorated("test9")
+        self.assertEqual(result, "end")
+        mock_func.assert_called_with("test9")
 
         self.assertEqual(mock_func.call_count, 11)

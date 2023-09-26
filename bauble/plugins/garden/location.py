@@ -67,6 +67,7 @@ def add_plants_callback(locations):
     loc = session.merge(locations[0])
     from bauble.plugins.garden.plant import Plant
     from bauble.plugins.garden.plant import PlantEditor
+
     e = PlantEditor(model=Plant(location=loc))
     session.close()
     return e.start() is not None
@@ -78,12 +79,15 @@ def remove_callback(locations):
     for loc in locations:
         loc_lst.append(utils.xml_safe(loc))
         if len(loc.plants) > 0:
-            msg = _('Please remove the plants from <b>%s</b> '
-                    'before deleting it.') % utils.xml_safe(loc)
+            msg = _(
+                "Please remove the plants from <b>%s</b> "
+                "before deleting it."
+            ) % utils.xml_safe(loc)
             utils.message_dialog(msg, typ=Gtk.MessageType.WARNING)
             return False
-    msg = _("Are you sure you want to remove the following locations "
-            "<b>%s</b>?") % ', '.join(i for i in loc_lst)
+    msg = _(
+        "Are you sure you want to remove the following locations <b>%s</b>?"
+    ) % ", ".join(i for i in loc_lst)
     if not utils.yes_no_dialog(msg):
         return False
     session = object_session(loc)
@@ -93,50 +97,57 @@ def remove_callback(locations):
         utils.remove_from_results_view(locations)
         session.commit()
     except Exception as e:  # pylint: disable=broad-except
-        msg = _('Could not delete.\n\n%s') % utils.xml_safe(e)
-        utils.message_details_dialog(msg, traceback.format_exc(),
-                                     Gtk.MessageType.ERROR)
+        msg = _("Could not delete.\n\n%s") % utils.xml_safe(e)
+        utils.message_details_dialog(
+            msg, traceback.format_exc(), Gtk.MessageType.ERROR
+        )
     finally:
         session.rollback()
     return True
 
 
-LOC_KML_MAP_PREFS = 'kml_templates.location'
+LOC_KML_MAP_PREFS = "kml_templates.location"
 """pref for path to a custom mako kml template."""
 
 map_kml_callback = KMLMapCallbackFunctor(
-    prefs.prefs.get(LOC_KML_MAP_PREFS,
-                    str(Path(__file__).resolve().parent / 'loc.kml'))
+    prefs.prefs.get(
+        LOC_KML_MAP_PREFS, str(Path(__file__).resolve().parent / "loc.kml")
+    )
 )
 
 
-edit_action = Action('loc_edit',
-                     _('_Edit'),
-                     callback=edit_callback,
-                     accelerator='<ctrl>e')
+edit_action = Action(
+    "loc_edit", _("_Edit"), callback=edit_callback, accelerator="<ctrl>e"
+)
 
-add_plant_action = Action('loc_add_plant',
-                          _('_Add plants'),
-                          callback=add_plants_callback,
-                          accelerator='<ctrl>k')
+add_plant_action = Action(
+    "loc_add_plant",
+    _("_Add plants"),
+    callback=add_plants_callback,
+    accelerator="<ctrl>k",
+)
 
-remove_action = Action('loc_remove',
-                       _('_Delete'),
-                       callback=remove_callback,
-                       accelerator='<ctrl>Delete',
-                       multiselect=True)
+remove_action = Action(
+    "loc_remove",
+    _("_Delete"),
+    callback=remove_callback,
+    accelerator="<ctrl>Delete",
+    multiselect=True,
+)
 
-map_action = Action('loc_map',
-                    _('Show in _map'),
-                    callback=map_kml_callback,
-                    accelerator='<ctrl>m',
-                    multiselect=True)
+map_action = Action(
+    "loc_map",
+    _("Show in _map"),
+    callback=map_kml_callback,
+    accelerator="<ctrl>m",
+    multiselect=True,
+)
 
 loc_context_menu = [edit_action, add_plant_action, remove_action, map_action]
 
 
-LocationNote = db.make_note_class('Location')
-LocationPicture = db.make_note_class('Location', cls_type='picture')
+LocationNote = db.make_note_class("Location")
+LocationPicture = db.make_note_class("Location", cls_type="picture")
 
 
 class Location(db.Base, db.WithNotes):
@@ -158,7 +169,8 @@ class Location(db.Base, db.WithNotes):
         *plants*:
 
     """
-    __tablename__ = 'location'
+
+    __tablename__ = "location"
 
     # columns
     # refers to beds by unique codes
@@ -172,12 +184,14 @@ class Location(db.Base, db.WithNotes):
     geojson = deferred(Column(types.JSON()))
 
     # relations
-    plants = relationship('Plant', backref=backref('location', uselist=False))
-    intended_accessions = relationship('IntendedLocation',
-                                       cascade='all, delete-orphan',
-                                       back_populates='location')
+    plants = relationship("Plant", backref=backref("location", uselist=False))
+    intended_accessions = relationship(
+        "IntendedLocation",
+        cascade="all, delete-orphan",
+        back_populates="location",
+    )
 
-    retrieve_cols = ['id', 'code']
+    retrieve_cols = ["id", "code"]
 
     @classmethod
     def retrieve(cls, session, keys):
@@ -190,11 +204,13 @@ class Location(db.Base, db.WithNotes):
     def search_view_markup_pair(self):
         """provide the two lines describing object for SearchView row."""
         if self.description is not None:
-            return (utils.xml_safe(str(self)),
-                    utils.xml_safe(str(self.description)))
+            return (
+                utils.xml_safe(str(self)),
+                utils.xml_safe(str(self.description)),
+            )
         return utils.xml_safe(str(self))
 
-    @validates('code', 'name')
+    @validates("code", "name")
     def validate_stripping(self, _key, value):
         if value is None:
             return None
@@ -202,32 +218,39 @@ class Location(db.Base, db.WithNotes):
 
     def __str__(self):
         if self.name:
-            return f'({self.code}) {self.name}'
+            return f"({self.code}) {self.name}"
         return str(self.code)
 
     def top_level_count(self):
-        plants = db.get_active_children('plants', self)
+        plants = db.get_active_children("plants", self)
         accessions = set(p.accession for p in plants)
         species = set(a.species for a in accessions)
         genera = set(s.genus for s in species)
-        return {(1, 'Locations'): 1,
-                (2, 'Plantings'): len(plants),
-                (3, 'Living plants'): sum(p.quantity for p in self.plants),
-                (4, 'Accessions'): set(a.id for a in accessions),
-                (5, 'Species'): set(s.id for s in species),
-                (6, 'Genera'): set(g.id for g in genera),
-                (7, 'Families'): set(g.family.id for g in genera),
-                (8, 'Sources'): set(a.source.source_detail.id for a in
-                                    accessions if a.source and
-                                    a.source.source_detail)}
+        return {
+            (1, "Locations"): 1,
+            (2, "Plantings"): len(plants),
+            (3, "Living plants"): sum(p.quantity for p in self.plants),
+            (4, "Accessions"): set(a.id for a in accessions),
+            (5, "Species"): set(s.id for s in species),
+            (6, "Genera"): set(g.id for g in genera),
+            (7, "Families"): set(g.family.id for g in genera),
+            (8, "Sources"): set(
+                a.source.source_detail.id
+                for a in accessions
+                if a.source and a.source.source_detail
+            ),
+        }
 
     def has_children(self):
         cls = self.__class__.plants.prop.mapper.class_
         from sqlalchemy import exists
+
         session = object_session(self)
-        return bool(session.query(literal(True))
-                    .filter(exists().where(cls.location_id == self.id))
-                    .scalar())
+        return bool(
+            session.query(literal(True))
+            .filter(exists().where(cls.location_id == self.id))
+            .scalar()
+        )
 
     def count_children(self):
         cls = self.__class__.plants.prop.mapper.class_
@@ -239,20 +262,24 @@ class Location(db.Base, db.WithNotes):
 
 
 class LocationEditorView(GenericEditorView):
-
     _tooltips = {
-        'loc_name_entry': _('The name that you will use '
-                            'later to refer to this location.'),
-        'loc_desc_textview': _('Any information that might be relevant to '
-                               'the location such as where it is or what\'s '
-                               'its purpose')
+        "loc_name_entry": _(
+            "The name that you will use later to refer to this location."
+        ),
+        "loc_desc_textview": _(
+            "Any information that might be relevant to "
+            "the location such as where it is or what's "
+            "its purpose"
+        ),
     }
 
     def __init__(self, parent=None):
         super().__init__(
-            os.path.join(paths.lib_dir(),
-                         'plugins', 'garden', 'loc_editor.glade'),
-            parent=parent, root_widget_name='location_dialog'
+            os.path.join(
+                paths.lib_dir(), "plugins", "garden", "loc_editor.glade"
+            ),
+            parent=parent,
+            root_widget_name="location_dialog",
         )
         self.use_ok_and_add = True
         self.set_accept_buttons_sensitive(False)
@@ -276,10 +303,11 @@ class LocationEditorView(GenericEditorView):
 
 
 class LocationEditorPresenter(GenericEditorPresenter, PresenterMapMixin):
-
-    widget_to_field_map = {'loc_name_entry': 'name',
-                           'loc_code_entry': 'code',
-                           'loc_desc_textview': 'description'}
+    widget_to_field_map = {
+        "loc_name_entry": "name",
+        "loc_code_entry": "code",
+        "loc_desc_textview": "description",
+    }
 
     def __init__(self, model, view):
         """
@@ -292,29 +320,32 @@ class LocationEditorPresenter(GenericEditorPresenter, PresenterMapMixin):
 
         notes_parent = self.view.widgets.notes_parent_box
         notes_parent.foreach(notes_parent.remove)
-        self.notes_presenter = NotesPresenter(self, 'notes', notes_parent)
+        self.notes_presenter = NotesPresenter(self, "notes", notes_parent)
         pictures_parent = self.view.widgets.pictures_parent_box
         pictures_parent.foreach(pictures_parent.remove)
-        self.pictures_presenter = PicturesPresenter(self, 'pictures',
-                                                    pictures_parent)
+        self.pictures_presenter = PicturesPresenter(
+            self, "pictures", pictures_parent
+        )
 
         # initialize widgets
         self.refresh_view()  # put model values in view
 
         # connect signals
-        self.assign_simple_handler('loc_name_entry', 'name',
-                                   StringOrNoneValidator())
-        self.assign_simple_handler('loc_code_entry', 'code',
-                                   StringOrNoneValidator())
-        self.assign_simple_handler('loc_desc_textview', 'description',
-                                   StringOrNoneValidator())
+        self.assign_simple_handler(
+            "loc_name_entry", "name", StringOrNoneValidator()
+        )
+        self.assign_simple_handler(
+            "loc_code_entry", "code", StringOrNoneValidator()
+        )
+        self.assign_simple_handler(
+            "loc_desc_textview", "description", StringOrNoneValidator()
+        )
         self.refresh_sensitivity()
         if self.model not in self.session.new:
             self.view.widgets.loc_ok_and_add_button.set_sensitive(True)
 
         self.kml_template = prefs.prefs.get(
-            LOC_KML_MAP_PREFS,
-            str(Path(__file__).resolve().parent / 'loc.kml')
+            LOC_KML_MAP_PREFS, str(Path(__file__).resolve().parent / "loc.kml")
         )
 
     def cleanup(self):
@@ -325,9 +356,10 @@ class LocationEditorPresenter(GenericEditorPresenter, PresenterMapMixin):
 
     def refresh_sensitivity(self):
         sensitive = False
-        ignore = ('id')
-        if (self.is_dirty() and not
-                utils.get_invalid_columns(self.model, ignore_columns=ignore)):
+        ignore = "id"
+        if self.is_dirty() and not utils.get_invalid_columns(
+            self.model, ignore_columns=ignore
+        ):
             sensitive = True
         self.view.set_accept_buttons_sensitive(sensitive)
 
@@ -337,9 +369,11 @@ class LocationEditorPresenter(GenericEditorPresenter, PresenterMapMixin):
         self.refresh_sensitivity()
 
     def is_dirty(self):
-        return (self._dirty or
-                self.notes_presenter.is_dirty() or
-                self.pictures_presenter.is_dirty())
+        return (
+            self._dirty
+            or self.notes_presenter.is_dirty()
+            or self.pictures_presenter.is_dirty()
+        )
 
     def refresh_view(self):
         for widget, field in self.widget_to_field_map.items():
@@ -348,7 +382,6 @@ class LocationEditorPresenter(GenericEditorPresenter, PresenterMapMixin):
 
 
 class LocationEditor(GenericModelViewPresenterEditor):
-
     # these have to correspond to the response values in the view
     RESPONSE_OK_AND_ADD = 11
     RESPONSE_NEXT = 22
@@ -377,31 +410,36 @@ class LocationEditor(GenericModelViewPresenterEditor):
 
     def handle_response(self, response):
         """handle the response from self.presenter.start() in self.start()"""
-        not_ok_msg = 'Are you sure you want to lose your changes?'
+        not_ok_msg = "Are you sure you want to lose your changes?"
         if response == Gtk.ResponseType.OK or response in self.ok_responses:
             try:
                 if self.presenter.is_dirty():
                     self.commit_changes()
                 self._committed.append(self.model)
             except DBAPIError as e:
-                msg = (_('Error committing changes.\n\n%s') %
-                       utils.xml_safe(e.orig))
-                utils.message_details_dialog(msg,
-                                             str(e),
-                                             Gtk.MessageType.ERROR)
+                msg = _("Error committing changes.\n\n%s") % utils.xml_safe(
+                    e.orig
+                )
+                utils.message_details_dialog(
+                    msg, str(e), Gtk.MessageType.ERROR
+                )
                 self.session.rollback()
                 return False
             except Exception as e:
-                msg = (_('Unknown error when committing changes. See the '
-                         'details for more information.\n\n%s') %
-                       utils.xml_safe(e))
-                utils.message_details_dialog(msg, traceback.format_exc(),
-                                             Gtk.MessageType.ERROR)
+                msg = _(
+                    "Unknown error when committing changes. See the "
+                    "details for more information.\n\n%s"
+                ) % utils.xml_safe(e)
+                utils.message_details_dialog(
+                    msg, traceback.format_exc(), Gtk.MessageType.ERROR
+                )
                 self.session.rollback()
                 return False
-        elif (self.presenter.is_dirty() and
-              utils.yes_no_dialog(not_ok_msg) or not
-              self.presenter.is_dirty()):
+        elif (
+            self.presenter.is_dirty()
+            and utils.yes_no_dialog(not_ok_msg)
+            or not self.presenter.is_dirty()
+        ):
             self.session.rollback()
             return True
         else:
@@ -416,6 +454,7 @@ class LocationEditor(GenericModelViewPresenterEditor):
         elif response == self.RESPONSE_OK_AND_ADD:
             from bauble.plugins.garden.plant import Plant
             from bauble.plugins.garden.plant import PlantEditor
+
             e = PlantEditor(Plant(location=self.model), self.parent)
             more_committed = e.start()
         if more_committed is not None:
@@ -427,8 +466,7 @@ class LocationEditor(GenericModelViewPresenterEditor):
         return True
 
     def start(self):
-        """Start the LocationEditor and return the committed Location objects.
-        """
+        """Start the LocationEditor and return the committed Location objects."""
         while True:
             response = self.presenter.start()
             self.presenter.view.save_state()
@@ -459,26 +497,30 @@ class GeneralLocationExpander(InfoExpander):
             cmd = f'plant where location.code="{self.current_obj.code}"'
             bauble.gui.send_command(cmd)
 
-        utils.make_label_clickable(self.widgets.loc_nplants_data,
-                                   on_nplants_clicked)
+        utils.make_label_clickable(
+            self.widgets.loc_nplants_data, on_nplants_clicked
+        )
 
     def update(self, row):
         self.current_obj = row
         from bauble.plugins.garden.plant import Plant
-        self.widget_set_value('loc_name_data',
-                              f'<big>{utils.xml_safe(str(row))}</big>',
-                              markup=True)
+
+        self.widget_set_value(
+            "loc_name_data",
+            f"<big>{utils.xml_safe(str(row))}</big>",
+            markup=True,
+        )
         session = object_session(row)
         nplants = session.query(Plant).filter_by(location_id=row.id).count()
-        self.widget_set_value('loc_nplants_data', nplants)
+        self.widget_set_value("loc_nplants_data", nplants)
         # NOTE don't load geojson from the row or history will always record
         # an unpdate and _last_updated will always chenge when a note is edited
         # (e.g. `shape = row.geojson...`) instead use a temp session
         temp = db.Session()
         geojson = temp.query(Location.geojson).filter_by(id=row.id).scalar()
-        shape = geojson.get('type', '') if geojson else ''
+        shape = geojson.get("type", "") if geojson else ""
         temp.close()
-        self.widget_set_value('geojson_type', shape)
+        self.widget_set_value("geojson_type", shape)
 
 
 class DescriptionExpander(InfoExpander):
@@ -497,7 +539,7 @@ class DescriptionExpander(InfoExpander):
         else:
             self.set_expanded(True)
             self.set_sensitive(True)
-            self.widget_set_value('loc_descr_data', str(row.description))
+            self.widget_set_value("loc_descr_data", str(row.description))
 
 
 class LocationInfoBox(InfoBox):
@@ -505,14 +547,15 @@ class LocationInfoBox(InfoBox):
 
     def __init__(self):
         super().__init__()
-        filename = os.path.join(paths.lib_dir(), "plugins", "garden",
-                                "loc_infobox.glade")
+        filename = os.path.join(
+            paths.lib_dir(), "plugins", "garden", "loc_infobox.glade"
+        )
         self.widgets = utils.load_widgets(filename)
         self.general = GeneralLocationExpander(self.widgets)
         self.add_expander(self.general)
         self.description = DescriptionExpander(self.widgets)
         self.add_expander(self.description)
-        self.links = LinksExpander('notes')
+        self.links = LinksExpander("notes")
         self.add_expander(self.links)
         self.props = PropertiesExpander()
         self.add_expander(self.props)

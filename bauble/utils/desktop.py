@@ -86,8 +86,9 @@ try:
         return opener.pid
 
     def _readfrom(cmd, shell):
-        opener = subprocess.Popen(cmd, shell=shell, stdin=subprocess.PIPE,
-                                  stdout=subprocess.PIPE)
+        opener = subprocess.Popen(
+            cmd, shell=shell, stdin=subprocess.PIPE, stdout=subprocess.PIPE
+        )
         opener.stdin.close()
         return opener.stdout.read()
 
@@ -95,7 +96,6 @@ try:
         opener = subprocess.Popen(cmd, shell=shell)
         opener.wait()
         return opener.returncode == 0
-
 
 except ImportError:
     import popen2
@@ -126,7 +126,6 @@ import subprocess
 
 
 def _is_xfce():
-
     "Return whether XFCE is in use."
 
     # XFCE detection involves testing the output of a program.
@@ -136,8 +135,11 @@ def _is_xfce():
             vars = "DISPLAY=:0.0 "
         else:
             vars = ""
-        return (_readfrom(vars + "xprop -root _DT_SAVE_MODE", shell=1)
-                .strip().endswith(' = "xfce4"'))
+        return (
+            _readfrom(vars + "xprop -root _DT_SAVE_MODE", shell=1)
+            .strip()
+            .endswith(' = "xfce4"')
+        )
 
     except OSError:
         return 0
@@ -147,18 +149,19 @@ def _is_xfce():
 # Introspection functions.
 #
 
-def get_desktop():
 
+def get_desktop():
     """
     Detect the current desktop environment, returning the name of the
     environment. If no environment could be detected, None is returned.
     """
 
-    if "KDE_FULL_SESSION" in os.environ or \
-       "KDE_MULTIHEAD" in os.environ:
+    if "KDE_FULL_SESSION" in os.environ or "KDE_MULTIHEAD" in os.environ:
         return "KDE"
-    elif "GNOME_DESKTOP_SESSION_ID" in os.environ or \
-         "GNOME_KEYRING_SOCKET" in os.environ:
+    elif (
+        "GNOME_DESKTOP_SESSION_ID" in os.environ
+        or "GNOME_KEYRING_SOCKET" in os.environ
+    ):
         return "GNOME"
     elif sys.platform == "darwin":
         return "Mac OS X"
@@ -212,7 +215,6 @@ def use_desktop(desktop):
 
 
 def is_standard():
-
     """
     Return whether the current desktop supports standardised application
     launching.
@@ -223,8 +225,8 @@ def is_standard():
 
 # Activity functions.
 
-def open(url, desktop=None, wait=0.5, dialog_on_error=False):
 
+def open(url, desktop=None, wait=0.5, dialog_on_error=False):
     """
     Open the 'url' in the current desktop's preferred file browser. If the
     optional 'desktop' parameter is specified then attempt to use that
@@ -249,6 +251,7 @@ def open(url, desktop=None, wait=0.5, dialog_on_error=False):
 
     # Decide on the desktop environment in use.
     from bauble import utils
+
     desktop_in_use = use_desktop(desktop)
     cmd = None
     if desktop_in_use == "standard":
@@ -270,7 +273,7 @@ def open(url, desktop=None, wait=0.5, dialog_on_error=False):
 
     if not cmd:
         # can't detect the desktop environment. maybe xdg-open is available.
-        exe = utils.which('xdg-open')
+        exe = utils.which("xdg-open")
         if exe:
             cmd = [exe, url]
 
@@ -279,9 +282,13 @@ def open(url, desktop=None, wait=0.5, dialog_on_error=False):
     try:
         if not cmd:
             # TODO: maybe we should tell the user to define DESKTOP_LAUNCH
-            raise OSError(_("Could not open %(url)s\n\n"
-                             "Unknown desktop environment: %(desktop)s\n\n") \
-                % dict(url=url, desktop=desktop_in_use))
+            raise OSError(
+                _(
+                    "Could not open %(url)s\n\n"
+                    "Unknown desktop environment: %(desktop)s\n\n"
+                )
+                % dict(url=url, desktop=desktop_in_use)
+            )
     except Exception as e:
         if dialog_on_error:
             utils.message_dialog(utils.nstr(e))

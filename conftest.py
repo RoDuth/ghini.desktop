@@ -30,6 +30,6 @@ def pytest_sessionfinish(session, exitstatus):
     # pylint: disable=unused-argument
     """Called after all test have finished."""
     print()
-    print(f'==sessionfinish== removing tempdir at {paths.TEMPDIR}')
+    print(f"==sessionfinish== removing tempdir at {paths.TEMPDIR}")
     # Clean up tempfiles
     shutil.rmtree(paths.TEMPDIR)

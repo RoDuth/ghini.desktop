@@ -28,65 +28,103 @@ from bauble.utils.geo import transform
 from bauble.utils.geo import web_mercator_point_coords_to_geojson
 
 # test data - avoiding tuples as they end up lists in the database anyway
-epsg3857_point = {'type': 'Point',
-                  'coordinates': [17029543.308700003, -3183278.8702000007]}
-epsg3857_line = {'type': 'LineString',
-                 'coordinates': [[17029384.466049697, -3183246.159990889],
-                                 [17029411.0810928, -3183232.853872207]]}
+epsg3857_point = {
+    "type": "Point",
+    "coordinates": [17029543.308700003, -3183278.8702000007],
+}
+epsg3857_line = {
+    "type": "LineString",
+    "coordinates": [
+        [17029384.466049697, -3183246.159990889],
+        [17029411.0810928, -3183232.853872207],
+    ],
+}
 epsg3857_poly = {
-    'type': 'Polygon',
-    'coordinates': [[[17029038.7838, -3183264.1862999983],
-                     [17029058.1867, -3183303.8123999983],
-                     [17029035.357, -3183287.9422000013],
-                     [17029038.7838, -3183264.1862999983]]]
+    "type": "Polygon",
+    "coordinates": [
+        [
+            [17029038.7838, -3183264.1862999983],
+            [17029058.1867, -3183303.8123999983],
+            [17029035.357, -3183287.9422000013],
+            [17029038.7838, -3183264.1862999983],
+        ]
+    ],
 }
 
-epsg4326_point = {'type': 'Point',
-                  'coordinates': [-27.477676044133204, 152.97899035780537]}
-epsg4326_point_xy = {'type': 'Point',
-                     'coordinates': [152.97899035780537, -27.477676044133204]}
-epsg4326_line = {'type': 'LineString',
-                 'coordinates': [[-27.477415350999937, 152.97756344999996],
-                                 [-27.477309303999977, 152.97780253700006]]}
-epsg4326_line_xy = {'type': 'LineString',
-                    'coordinates': [[152.97756344999996, -27.477415350999937],
-                                    [152.97780253700006, -27.477309303999977]]}
+epsg4326_point = {
+    "type": "Point",
+    "coordinates": [-27.477676044133204, 152.97899035780537],
+}
+epsg4326_point_xy = {
+    "type": "Point",
+    "coordinates": [152.97899035780537, -27.477676044133204],
+}
+epsg4326_line = {
+    "type": "LineString",
+    "coordinates": [
+        [-27.477415350999937, 152.97756344999996],
+        [-27.477309303999977, 152.97780253700006],
+    ],
+}
+epsg4326_line_xy = {
+    "type": "LineString",
+    "coordinates": [
+        [152.97756344999996, -27.477415350999937],
+        [152.97780253700006, -27.477309303999977],
+    ],
+}
 epsg4326_poly = {
-    'type': 'Polygon',
-    'coordinates': [[[-27.477559016773604, 152.97445813351644],
-                     [-27.477874827537065, 152.97463243273273],
-                     [-27.477748345857805, 152.9744273500483],
-                     [-27.477559016773604, 152.97445813351644]]]
+    "type": "Polygon",
+    "coordinates": [
+        [
+            [-27.477559016773604, 152.97445813351644],
+            [-27.477874827537065, 152.97463243273273],
+            [-27.477748345857805, 152.9744273500483],
+            [-27.477559016773604, 152.97445813351644],
+        ]
+    ],
 }
 epsg4326_poly_xy = {
-    'type': 'Polygon',
-    'coordinates': [[[152.97445813351644, -27.477559016773604],
-                     [152.97463243273273, -27.477874827537065],
-                     [152.9744273500483, -27.477748345857805],
-                     [152.97445813351644, -27.477559016773604]]]
+    "type": "Polygon",
+    "coordinates": [
+        [
+            [152.97445813351644, -27.477559016773604],
+            [152.97463243273273, -27.477874827537065],
+            [152.9744273500483, -27.477748345857805],
+            [152.97445813351644, -27.477559016773604],
+        ]
+    ],
 }
 epsg4326_multipoly = {
-    'type': 'MultiPolygon',
-    'coordinates': [
-        [[
-            [17028908.311800003, -3183185.5018000007],
-            [17028908.303000003, -3183185.569699999],
-            [17028907.5362, -3183185.664900001],
-            [17028908.311800003, -3183185.5018000007]
-        ]],
-        [[
-            [17028982.7514, -3183316.0643000007],
-            [17028919.9353, -3183259.421599999],
-            [17028908.1211, -3183209.726500001],
-            [17028982.7514, -3183316.0643000007]]]
-    ]}
+    "type": "MultiPolygon",
+    "coordinates": [
+        [
+            [
+                [17028908.311800003, -3183185.5018000007],
+                [17028908.303000003, -3183185.569699999],
+                [17028907.5362, -3183185.664900001],
+                [17028908.311800003, -3183185.5018000007],
+            ]
+        ],
+        [
+            [
+                [17028982.7514, -3183316.0643000007],
+                [17028919.9353, -3183259.421599999],
+                [17028908.1211, -3183209.726500001],
+                [17028982.7514, -3183316.0643000007],
+            ]
+        ],
+    ],
+}
 
-proj_db_data = [('PROJCS["test1"]', 'test:1', True),
-                ('PROJCS["test2"]', 'test:2', False),
-                ('PROJCS["test3"]', 'test:3', False)]
+proj_db_data = [
+    ('PROJCS["test1"]', "test:1", True),
+    ('PROJCS["test2"]', "test:2", False),
+    ('PROJCS["test3"]', "test:3", False),
+]
 
 
-kml_point = '''<?xml version="1.0" encoding="UTF-8"?>
+kml_point = """<?xml version="1.0" encoding="UTF-8"?>
 <kml xmlns="http://www.opengis.net/kml/2.2"
  xmlns:gx="http://www.google.com/kml/ext/2.2"
  xmlns:kml="http://www.opengis.net/kml/2.2"
@@ -140,9 +178,9 @@ kml_point = '''<?xml version="1.0" encoding="UTF-8"?>
   </Placemark>
 </Document>
 </kml>
-'''
+"""
 
-kml_line = '''<?xml version="1.0" encoding="UTF-8"?>
+kml_line = """<?xml version="1.0" encoding="UTF-8"?>
 <kml xmlns="http://www.opengis.net/kml/2.2"
  xmlns:gx="http://www.google.com/kml/ext/2.2"
  xmlns:kml="http://www.opengis.net/kml/2.2"
@@ -189,9 +227,9 @@ kml_line = '''<?xml version="1.0" encoding="UTF-8"?>
   </Placemark>
 </Document>
 </kml>
-'''
+"""
 
-kml_poly = '''<?xml version="1.0" encoding="UTF-8"?>
+kml_poly = """<?xml version="1.0" encoding="UTF-8"?>
 <kml xmlns="http://www.opengis.net/kml/2.2"
  xmlns:gx="http://www.google.com/kml/ext/2.2"
  xmlns:kml="http://www.opengis.net/kml/2.2"
@@ -243,7 +281,7 @@ kml_poly = '''<?xml version="1.0" encoding="UTF-8"?>
 </Document>
 </kml>
 
-'''
+"""
 
 
 class TestProjDBDefaults(BaubleTestCase):
@@ -253,19 +291,23 @@ class TestProjDBDefaults(BaubleTestCase):
         from pathlib import Path
 
         from bauble.paths import lib_dir
-        prj_crs_csv = Path(lib_dir(), 'utils', 'prj_crs.csv')
-        with prj_crs_csv.open(encoding='utf-8') as f:
+
+        prj_crs_csv = Path(lib_dir(), "utils", "prj_crs.csv")
+        with prj_crs_csv.open(encoding="utf-8") as f:
             import csv
+
             reader = csv.DictReader(f)
             for line in reader:
-                self.assertEqual(line.get('proj_crs'),
-                                 proj_db.get_crs(line.get('prj_text')))
-                self.assertEqual(literal_eval(line.get('always_xy')),
-                                 proj_db.get_always_xy(line.get('prj_text')))
+                self.assertEqual(
+                    line.get("proj_crs"), proj_db.get_crs(line.get("prj_text"))
+                )
+                self.assertEqual(
+                    literal_eval(line.get("always_xy")),
+                    proj_db.get_always_xy(line.get("prj_text")),
+                )
 
 
 class TestProjDB(BaubleTestCase):
-
     def setUp(self):
         super().setUp()
         # start with blank data (i.e. remove default data added by db.create)
@@ -283,21 +325,21 @@ class TestProjDB(BaubleTestCase):
         self.assertEqual(list(result), proj_db_data)
 
     def test_cant_add_prj_entry_twice(self):
-        self.proj_db.add(prj='PROJCS["test4"]', crs='test:4')
+        self.proj_db.add(prj='PROJCS["test4"]', crs="test:4")
         with self.assertRaises(Exception):
-            self.proj_db.add(prj='PROJCS["test4"]', crs='test:5')
+            self.proj_db.add(prj='PROJCS["test4"]', crs="test:5")
 
     def test_cant_add_null_crs_or_prj(self):
         with self.assertRaises(Exception):
             self.proj_db.add(prj='PROJCS["test6"]', crs=None)
         with self.assertRaises(Exception):
-            self.proj_db.add(prj=None, crs='test:6')
+            self.proj_db.add(prj=None, crs="test:6")
 
     def test_cant_add_too_short_crs_or_prj(self):
         with self.assertRaises(Exception):
-            self.proj_db.add(prj='PROJCS["test6"]', crs='tst')
+            self.proj_db.add(prj='PROJCS["test6"]', crs="tst")
         with self.assertRaises(Exception):
-            self.proj_db.add(prj='PROJCS[]', crs='test:6')
+            self.proj_db.add(prj="PROJCS[]", crs="test:6")
 
     def test_get_crs(self):
         result = self.proj_db.get_crs(proj_db_data[0][0])
@@ -325,247 +367,262 @@ class TestProjDB(BaubleTestCase):
         self.assertEqual(result, proj_db_data[1][0])
 
     def test_get_unknown_prj_returns_none(self):
-        self.assertIsNone(self.proj_db.get_prj('test:XYZ'))
+        self.assertIsNone(self.proj_db.get_prj("test:XYZ"))
 
     def test_set_crs(self):
         # set it and check it's set then set it back
-        new_crs = 'test:XYZ'
+        new_crs = "test:XYZ"
         self.proj_db.set_crs(prj=proj_db_data[0][0], crs=new_crs)
         self.assertEqual(self.proj_db.get_crs(proj_db_data[0][0]), new_crs)
         self.proj_db.set_crs(prj=proj_db_data[0][0], crs=proj_db_data[0][1])
         self.assertEqual(
-            self.proj_db.get_crs(proj_db_data[0][0]), proj_db_data[0][1])
+            self.proj_db.get_crs(proj_db_data[0][0]), proj_db_data[0][1]
+        )
 
     def test_set_always_xy(self):
         # set it and check it's set then set it back
         new_axy = False
         self.proj_db.set_always_xy(prj=proj_db_data[0][0], axy=new_axy)
         self.assertEqual(
-            self.proj_db.get_always_xy(proj_db_data[0][0]), new_axy)
+            self.proj_db.get_always_xy(proj_db_data[0][0]), new_axy
+        )
         self.proj_db.set_always_xy(
-            prj=proj_db_data[0][0], axy=proj_db_data[0][2])
+            prj=proj_db_data[0][0], axy=proj_db_data[0][2]
+        )
         self.assertEqual(
-            self.proj_db.get_always_xy(proj_db_data[0][0]), proj_db_data[0][2])
+            self.proj_db.get_always_xy(proj_db_data[0][0]), proj_db_data[0][2]
+        )
 
     def test_get_valid_prj_when_multiple_crs(self):
-        data = [('PROJCS["test5"]', 'test:5', None),
-                ('PROJCS["test6"]', 'test:5', None)]
+        data = [
+            ('PROJCS["test5"]', "test:5", None),
+            ('PROJCS["test6"]', "test:5", None),
+        ]
         for i in data:
             self.proj_db.add(prj=i[0], crs=i[1])
         self.assertIn(self.proj_db.get_prj(data[0][1]), [i[0] for i in data])
 
 
 class GlobalFunctionsTests(BaubleTestCase):
-
-    @mock.patch('bauble.utils.geo.confirm_default')
+    @mock.patch("bauble.utils.geo.confirm_default")
     def test_transform_raises_error_if_no_sys_crs(self, mock_conf_def):
         from bauble.error import MetaTableError
         from bauble.meta import get_default
 
         mock_conf_def.return_value = None
 
-        self.assertIsNone(get_default('system_proj_string'))
+        self.assertIsNone(get_default("system_proj_string"))
         data = epsg3857_point
         self.assertRaises(MetaTableError, transform, data)
 
     def test_transform(self):
-
         def coord_diff(a, b):
             return [abs(i[0] - i[1]) for i in zip(a, b)]
 
         def max_diff_point(a, b):
-            diff = max(coord_diff(a.get('coordinates'), b.get('coordinates')))
+            diff = max(coord_diff(a.get("coordinates"), b.get("coordinates")))
             return diff
 
         def max_diff_line(a, b):
-            diff = max(max(coord_diff(i[0], i[1])) for i in zip(
-                a.get('coordinates'), b.get('coordinates')))
+            diff = max(
+                max(coord_diff(i[0], i[1]))
+                for i in zip(a.get("coordinates"), b.get("coordinates"))
+            )
             return diff
 
         def max_diff_poly(a, b):
-            diff = max(max(coord_diff(i[0], i[1])) for i in zip(
-                a.get('coordinates')[0], b.get('coordinates')[0]))
+            diff = max(
+                max(coord_diff(i[0], i[1]))
+                for i in zip(a.get("coordinates")[0], b.get("coordinates")[0])
+            )
             return diff
 
         # epsg:3857 point
         data = epsg3857_point
         # same projection
-        out = transform(data, in_crs='epsg:3857', out_crs='epsg:3857')
+        out = transform(data, in_crs="epsg:3857", out_crs="epsg:3857")
         self.assertEqual(out, data)
         # same projection without supplying in param
-        out = transform(data, out_crs='epsg:3857')
+        out = transform(data, out_crs="epsg:3857")
         self.assertEqual(out, data)
         # same projection always_xy - makes no difference
-        out = transform(data, in_crs='epsg:3857', out_crs='epsg:3857',
-                        always_xy=True)
+        out = transform(
+            data, in_crs="epsg:3857", out_crs="epsg:3857", always_xy=True
+        )
         self.assertEqual(out, data)
         # projected
-        out = transform(data, in_crs='epsg:3857', out_crs='epsg:4326')
+        out = transform(data, in_crs="epsg:3857", out_crs="epsg:4326")
         self.assertLess(max_diff_point(out, epsg4326_point), 0.00000001)
         # projected with always_xy
-        out = transform(data, in_crs='epsg:3857', out_crs='epsg:4326',
-                        always_xy=True)
+        out = transform(
+            data, in_crs="epsg:3857", out_crs="epsg:4326", always_xy=True
+        )
         self.assertLess(max_diff_point(out, epsg4326_point_xy), 0.00000001)
 
         # epsg:3857 line
         data = epsg3857_line
         # same projection
-        out = transform(data, in_crs='epsg:3857', out_crs='epsg:3857')
+        out = transform(data, in_crs="epsg:3857", out_crs="epsg:3857")
         self.assertEqual(out, data)
         # project
-        out = transform(data, in_crs='epsg:3857', out_crs='epsg:4326')
+        out = transform(data, in_crs="epsg:3857", out_crs="epsg:4326")
         self.assertLess(max_diff_line(out, epsg4326_line), 0.00000001)
         # assert we haven't mutated the original
         self.assertNotEqual(data, out)
-        for i, j in zip(data.get('coordinates'), out.get('coordinates')):
+        for i, j in zip(data.get("coordinates"), out.get("coordinates")):
             self.assertGreater(abs(i[0] - j[0]), 10)
             self.assertGreater(abs(i[1] - j[1]), 10)
         # projected with always_xy
-        out = transform(data, in_crs='epsg:3857', out_crs='epsg:4326',
-                        always_xy=True)
+        out = transform(
+            data, in_crs="epsg:3857", out_crs="epsg:4326", always_xy=True
+        )
         self.assertLess(max_diff_line(out, epsg4326_line_xy), 0.00000001)
 
         # epsg:3857 polygon
         data = epsg3857_poly
         # same projection
-        out = transform(data, in_crs='epsg:3857', out_crs='epsg:3857')
+        out = transform(data, in_crs="epsg:3857", out_crs="epsg:3857")
         self.assertEqual(out, data)
         # projected
-        out = transform(data, in_crs='epsg:3857', out_crs='epsg:4326')
+        out = transform(data, in_crs="epsg:3857", out_crs="epsg:4326")
         self.assertLess(max_diff_poly(out, epsg4326_poly), 0.00000001)
         # projected with always_xy
-        out = transform(data, in_crs='epsg:3857', out_crs='epsg:4326',
-                        always_xy=True)
+        out = transform(
+            data, in_crs="epsg:3857", out_crs="epsg:4326", always_xy=True
+        )
         self.assertLess(max_diff_poly(out, epsg4326_poly_xy), 0.00000001)
 
         # epsg:4326 point
         data = epsg4326_point
         # same projection
-        out = transform(data, in_crs='epsg:4326', out_crs='epsg:4326')
+        out = transform(data, in_crs="epsg:4326", out_crs="epsg:4326")
         self.assertEqual(out, data)
         # same projectio always_xy - makes no difference
-        out = transform(data, in_crs='epsg:4326', out_crs='epsg:4326')
+        out = transform(data, in_crs="epsg:4326", out_crs="epsg:4326")
         self.assertEqual(out, data)
         # projected
-        out = transform(data, in_crs='epsg:4326', out_crs='epsg:3857')
+        out = transform(data, in_crs="epsg:4326", out_crs="epsg:3857")
         self.assertLess(max_diff_point(out, epsg3857_point), 0.00000001)
         # projected with always_xy - should be out of bounds and return None
-        out = transform(data, in_crs='epsg:4326', out_crs='epsg:3857',
-                        always_xy=True)
+        out = transform(
+            data, in_crs="epsg:4326", out_crs="epsg:3857", always_xy=True
+        )
         self.assertIsNone(out)
 
         # epsg:4326 point xy
         data = epsg4326_point_xy
         # projected with always_xy - should work
-        out = transform(data, in_crs='epsg:4326', out_crs='epsg:3857',
-                        always_xy=True)
+        out = transform(
+            data, in_crs="epsg:4326", out_crs="epsg:3857", always_xy=True
+        )
         self.assertLess(max_diff_point(out, epsg3857_point), 0.00000001)
 
         # epsg:4326 line
         data = epsg4326_line
         # projected
-        out = transform(data, in_crs='epsg:4326', out_crs='epsg:3857')
+        out = transform(data, in_crs="epsg:4326", out_crs="epsg:3857")
         self.assertLess(max_diff_line(out, epsg3857_line), 0.00000001)
 
         # epsg:4326 unsupported type returns none
         data = epsg4326_multipoly
-        out = transform(data, in_crs='epsg:4326', out_crs='epsg:3857')
+        out = transform(data, in_crs="epsg:4326", out_crs="epsg:3857")
         self.assertIsNone(out)
 
         # need to have default out_crs for this to not hang waiting for the
         # dialog to respond
         from bauble.meta import get_default
         from bauble.utils.geo import DEFAULT_SYS_PROJ
-        get_default('system_proj_string', DEFAULT_SYS_PROJ)
+
+        get_default("system_proj_string", DEFAULT_SYS_PROJ)
         # junk data returns none
-        self.assertIsNone(transform('hjkl'))
+        self.assertIsNone(transform("hjkl"))
 
     def test_kml_string_to_geojson_point(self):
         self.assertEqual(
             kml_string_to_geojson(kml_point),
             '{"type": "Point", "coordinates": [152.9742036592858, '
-            '-27.47773096030531]}'
+            "-27.47773096030531]}",
         )
 
     def test_kml_string_to_geojson_line(self):
         self.assertEqual(
             kml_string_to_geojson(kml_line),
             '{"type": "LineString", "coordinates": [[152.97410632, '
-            '-27.4777376524], [152.974131, -27.477702], '
-            '[152.97415, -27.477706]]}'
+            "-27.4777376524], [152.974131, -27.477702], "
+            "[152.97415, -27.477706]]}",
         )
 
     def test_kml_string_to_geojson_poly(self):
         self.assertEqual(
             kml_string_to_geojson(kml_poly),
             '{"type": "Polygon", "coordinates": [[[152.9739, -27.4776], '
-            '[152.9739, -27.4777], [152.9740, -27.4776], '
-            '[152.9739, -27.4776]]]}'
+            "[152.9739, -27.4777], [152.9740, -27.4776], "
+            "[152.9739, -27.4776]]]}",
         )
 
     def test_kml_string_to_geojson_junk_returns_string(self):
-        junk_xml = ('<?xml version="1.0" encoding="UTF-8"?>'
-                    '<kml xmlns="http://www.opengis.net/kml/2.2" '
-                    ' xmlns:gx="http://www.google.com/kml/ext/2.2" '
-                    ' xmlns:kml="http://www.opengis.net/kml/2.2" '
-                    ' xmlns:atom="http://www.w3.org/2005/Atom"> '
-                    '<junk>data</junk>'
-                    '</kml>')
+        junk_xml = (
+            '<?xml version="1.0" encoding="UTF-8"?>'
+            '<kml xmlns="http://www.opengis.net/kml/2.2" '
+            ' xmlns:gx="http://www.google.com/kml/ext/2.2" '
+            ' xmlns:kml="http://www.opengis.net/kml/2.2" '
+            ' xmlns:atom="http://www.w3.org/2005/Atom"> '
+            "<junk>data</junk>"
+            "</kml>"
+        )
         self.assertEqual(kml_string_to_geojson(junk_xml), junk_xml)
 
-        self.assertEqual(
-            kml_string_to_geojson('JUNK'), 'JUNK'
-        )
+        self.assertEqual(kml_string_to_geojson("JUNK"), "JUNK")
 
     def test_web_mercator_point_coords_to_geojson(self):
         self.assertEqual(
             web_mercator_point_coords_to_geojson(
-                '-27.47677001137734, 152.97467501385253'
+                "-27.47677001137734, 152.97467501385253"
             ),
             '{"type": "Point", "coordinates": [152.97467501385253, '
-            '-27.47677001137734]}'
+            "-27.47677001137734]}",
         )
 
 
 class TestKMLMapCallbackFunctor(TestCase):
-    @mock.patch('bauble.utils.message_dialog')
-    @mock.patch('bauble.utils.geo.Template')
+    @mock.patch("bauble.utils.message_dialog")
+    @mock.patch("bauble.utils.geo.Template")
     def test_fails_single(self, mock_template, mock_dialog):
         call_back = KMLMapCallbackFunctor(None)
         mock_template_instance = mock_template.return_value
-        mock_template_instance.render.side_effect = ValueError('test')
-        with self.assertLogs(level='DEBUG') as logs:
+        mock_template_instance.render.side_effect = ValueError("test")
+        with self.assertLogs(level="DEBUG") as logs:
             call_back([None])
-        self.assertIn('None: test', logs.output[0])
+        self.assertIn("None: test", logs.output[0])
         mock_dialog.assert_called()
 
-    @mock.patch('bauble.utils.message_dialog')
-    @mock.patch('bauble.utils.geo.Template')
+    @mock.patch("bauble.utils.message_dialog")
+    @mock.patch("bauble.utils.geo.Template")
     def test_fails_multiple(self, mock_template, mock_dialog):
         call_back = KMLMapCallbackFunctor(None)
         mock_template_instance = mock_template.return_value
-        mock_template_instance.render.side_effect = ValueError('test')
-        with self.assertLogs(level='DEBUG') as logs:
+        mock_template_instance.render.side_effect = ValueError("test")
+        with self.assertLogs(level="DEBUG") as logs:
             call_back([None, None, None])
-        self.assertTrue(all('None: test' in i for i in logs.output))
+        self.assertTrue(all("None: test" in i for i in logs.output))
         mock_dialog.assert_called()
 
-    @mock.patch('bauble.utils.desktop.open')
-    @mock.patch('bauble.utils.geo.Template')
+    @mock.patch("bauble.utils.desktop.open")
+    @mock.patch("bauble.utils.geo.Template")
     def test_suceeds_single(self, mock_template, mock_open):
         call_back = KMLMapCallbackFunctor(None)
         mock_template_instance = mock_template.return_value
         mock_template_instance.render.return_value = b"test"
-        with self.assertNoLogs(level='DEBUG'):
+        with self.assertNoLogs(level="DEBUG"):
             call_back([None])
         mock_open.assert_called()
 
-    @mock.patch('bauble.utils.desktop.open')
-    @mock.patch('bauble.utils.geo.Template')
+    @mock.patch("bauble.utils.desktop.open")
+    @mock.patch("bauble.utils.geo.Template")
     def test_suceeds_multiple(self, mock_template, mock_open):
         call_back = KMLMapCallbackFunctor(None)
         mock_template_instance = mock_template.return_value
         mock_template_instance.render.return_value = b"test"
-        with self.assertNoLogs(level='DEBUG'):
+        with self.assertNoLogs(level="DEBUG"):
             call_back([None, None, None])
         mock_open.assert_called()

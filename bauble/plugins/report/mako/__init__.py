@@ -39,28 +39,33 @@ from bauble.plugins.report import SettingsBox
 
 class MakoFormatterSettingsBox(SettingsBox):
     import re
-    pattern = re.compile(r"^## OPTION ([a-z_]*): \("
-                         r"type: ([a-zN_',\[\]]*), "
-                         r"default: '(.*)', "
-                         r"tooltip: '(.*)'\)$")
+
+    pattern = re.compile(
+        r"^## OPTION ([a-z_]*): \("
+        r"type: ([a-zN_',\[\]]*), "
+        r"default: '(.*)', "
+        r"tooltip: '(.*)'\)$"
+    )
 
     def __init__(self, *args):
         super().__init__(*args)
         self.widgets = utils.load_widgets(
-            os.path.join(paths.lib_dir(),
-                         "plugins", "report", 'mako', 'gui.glade'))
+            os.path.join(
+                paths.lib_dir(), "plugins", "report", "mako", "gui.glade"
+            )
+        )
         # keep a refefence to settings box so it doesn't get destroyed in
         # remove_parent()
         self.settings_box = self.widgets.settings_box
         self.widgets.remove_parent(self.widgets.settings_box)
         self.pack_start(self.settings_box, True, True, 0)
-        self.widgets.file_btnbrowse.connect('clicked',
-                                            self.on_btnbrowse_clicked)
-        self.widgets.file_entry.connect('changed',
-                                        self.on_file_entry_changed)
-        self.widgets.private_check.connect('toggled',
-                                           self.toggle_set_option,
-                                           'use_private')
+        self.widgets.file_btnbrowse.connect(
+            "clicked", self.on_btnbrowse_clicked
+        )
+        self.widgets.file_entry.connect("changed", self.on_file_entry_changed)
+        self.widgets.private_check.connect(
+            "toggled", self.toggle_set_option, "use_private"
+        )
         self.defaults = []
 
     def on_btnbrowse_clicked(self, _widget):
@@ -69,11 +74,13 @@ class MakoFormatterSettingsBox(SettingsBox):
             last_folder = str(Path(previously).parent)
         else:
             last_folder = paths.templates_dir()
-        utils.run_file_chooser_dialog(_('Select a stylesheet'),
-                                      None,
-                                      Gtk.FileChooserAction.OPEN,
-                                      last_folder,
-                                      self.widgets.file_entry)
+        utils.run_file_chooser_dialog(
+            _("Select a stylesheet"),
+            None,
+            Gtk.FileChooserAction.OPEN,
+            last_folder,
+            self.widgets.file_entry,
+        )
 
     def on_file_entry_changed(self, widget):
         text = widget.get_text()
@@ -81,35 +88,42 @@ class MakoFormatterSettingsBox(SettingsBox):
         utils.hide_widgets([self.widgets.private_check])
         if Path(text).exists():
             self.on_file_set(widget)
-            widget.get_style_context().remove_class('problem')
+            widget.get_style_context().remove_class("problem")
         else:
-            widget.get_style_context().add_class('problem')
+            widget.get_style_context().add_class("problem")
 
     def get_report_settings(self):
-        return {'template': self.widgets.file_entry.get_text(),
-                'private': self.widgets.private_check.get_active()}
+        return {
+            "template": self.widgets.file_entry.get_text(),
+            "private": self.widgets.private_check.get_active(),
+        }
 
     def update(self, settings):
-        if template := settings.get('template'):
+        if template := settings.get("template"):
             self.widgets.file_entry.set_text(template)
             self.widgets.file_entry.set_position(len(template))
-            logger.debug('template = %s', settings['template'])
+            logger.debug("template = %s", settings["template"])
         else:
-            self.widgets.file_entry.set_text('')
+            self.widgets.file_entry.set_text("")
             self.clear_options_box()
-        if 'private' in settings:
-            self.widgets.private_check.set_active(settings['private'])
-            self.widgets.private_check.emit('toggled')
+        if "private" in settings:
+            self.widgets.private_check.set_active(settings["private"])
+            self.widgets.private_check.emit("toggled")
 
     def on_file_set(self, widget):
         self.defaults = []
         # which options does the template accept? (can be None)
         options_box = self.widgets.mako_options_box
         try:
-            with open(widget.get_text(), encoding='utf-8') as f:
+            with open(widget.get_text(), encoding="utf-8") as f:
                 # scan the header filtering lines starting with # OPTION
-                option_lines = [_f for _f in [self.pattern.match(i.strip())
-                                              for i in f.readlines()] if _f]
+                option_lines = [
+                    _f
+                    for _f in [
+                        self.pattern.match(i.strip()) for i in f.readlines()
+                    ]
+                    if _f
+                ]
         except IOError:
             option_lines = []
 
@@ -120,10 +134,10 @@ class MakoFormatterSettingsBox(SettingsBox):
             # use_private most be in the options to enable it but the other
             # values are ignored, it is accessed in the template as a regular
             # option
-            if fname == 'use_private':
+            if fname == "use_private":
                 utils.unhide_widgets([self.widgets.private_check])
                 continue
-            label = Gtk.Label(label=fname.replace('_', ' ') + _(':'))
+            label = Gtk.Label(label=fname.replace("_", " ") + _(":"))
             label.set_halign(Gtk.Align.END)
             label.set_margin_end(5)
             entry = self.get_option_widget(ftype, fdefault, fname)
@@ -134,8 +148,8 @@ class MakoFormatterSettingsBox(SettingsBox):
             options_box.attach(entry, 1, current_row, 1, 1)
             current_row += 1
         if self.defaults:
-            button = Gtk.Button(label=_('Reset to defaults'))
-            button.connect('clicked', self.reset_options)
+            button = Gtk.Button(label=_("Reset to defaults"))
+            button.connect("clicked", self.reset_options)
             options_box.attach(button, 1, current_row, 1, 1)
         options_box.show_all()
 
@@ -148,23 +162,26 @@ class MakoFormatterSettingsBox(SettingsBox):
     def reset_options(self, _widget):
         for entry, text in self.defaults:
             if isinstance(entry, Gtk.CheckButton):
-                entry.set_active(text.lower() in ['1', 'true'])
+                entry.set_active(text.lower() in ["1", "true"])
             else:
                 entry.set_text(text)
 
     @staticmethod
     def entry_set_option(widget, fname):
         from bauble.plugins.report import options
+
         options[fname] = widget.get_text()
 
     @staticmethod
     def toggle_set_option(widget, fname):
         from bauble.plugins.report import options
+
         options[fname] = widget.get_active()
 
     @staticmethod
     def combo_set_option(widget, fname):
         from bauble.plugins.report import options
+
         options[fname] = widget.get_active_text()
 
     @staticmethod
@@ -174,53 +191,58 @@ class MakoFormatterSettingsBox(SettingsBox):
             last_folder = str(Path(previously).parent)
         else:
             last_folder = str(Path.home())
-        utils.run_file_chooser_dialog(_('Select a file'),
-                                      None,
-                                      Gtk.FileChooserAction.OPEN,
-                                      last_folder,
-                                      entry)
+        utils.run_file_chooser_dialog(
+            _("Select a file"),
+            None,
+            Gtk.FileChooserAction.OPEN,
+            last_folder,
+            entry,
+        )
 
     def get_option_widget(self, ftype, fdefault, fname):
         from bauble.plugins.report import options
-        if ftype == 'boolean':
-            active = fdefault.lower() in ['1', 'true']
+
+        if ftype == "boolean":
+            active = fdefault.lower() in ["1", "true"]
             options.setdefault(fname, active)
             entry = Gtk.CheckButton()
             entry.set_active(options[fname])
-            entry.connect('toggled', self.toggle_set_option, fname)
+            entry.connect("toggled", self.toggle_set_option, fname)
             return entry
 
-        if ftype.startswith('enum'):
+        if ftype.startswith("enum"):
             from ast import literal_eval
+
             combo = Gtk.ComboBoxText()
-            vals = literal_eval(ftype.removeprefix('enum'))
+            vals = literal_eval(ftype.removeprefix("enum"))
             for val in vals:
                 combo.append_text(val)
-            combo.connect('changed', self.combo_set_option, fname)
+            combo.connect("changed", self.combo_set_option, fname)
             if fdefault:
                 combo.set_active(vals.index(fdefault))
             options.setdefault(fname, fdefault)
             return combo
 
-        if ftype == 'file':
+        if ftype == "file":
             box = Gtk.Box()
-            image = Gtk.Image.new_from_icon_name('document-open-symbolic',
-                                                 Gtk.IconSize.BUTTON)
+            image = Gtk.Image.new_from_icon_name(
+                "document-open-symbolic", Gtk.IconSize.BUTTON
+            )
             btn = Gtk.Button()
             btn.set_image(image)
             entry = Gtk.Entry()
             options.setdefault(fname, fdefault)
             entry.set_text(options[fname])
-            entry.connect('changed', self.entry_set_option, fname)
+            entry.connect("changed", self.entry_set_option, fname)
             box.pack_start(entry, True, True, 0)
             box.pack_start(btn, True, True, 0)
-            btn.connect('clicked', self.on_option_btnbrowse_clicked, entry)
+            btn.connect("clicked", self.on_option_btnbrowse_clicked, entry)
             return box
 
         entry = Gtk.Entry()
         options.setdefault(fname, fdefault)
         entry.set_text(options[fname])
-        entry.connect('changed', self.entry_set_option, fname)
+        entry.connect("changed", self.entry_set_option, fname)
         return entry
 
 
@@ -235,7 +257,7 @@ class MakoFormatterPlugin(FormatterPlugin):
     accordingly if not.
     """
 
-    title = 'Mako'
+    title = "Mako"
 
     @classmethod
     def install(cls, import_defaults=True):
@@ -250,15 +272,17 @@ class MakoFormatterPlugin(FormatterPlugin):
         """
         cls.install()  # plugins still not versioned...
 
-        src_dir = os.path.join(paths.lib_dir(), "plugins", "report", 'mako',
-                               'templates')
+        src_dir = os.path.join(
+            paths.lib_dir(), "plugins", "report", "mako", "templates"
+        )
 
         # If user has selected a directory to store templates add the examples
         # to it otherwise use appdata
         templates_root = Path(paths.templates_dir(), "ghini_examples", "mako")
 
-        utils.copy_tree(src_dir, templates_root,
-                        ('.csv', '.html', '.svg', '.ps'))
+        utils.copy_tree(
+            src_dir, templates_root, (".csv", ".html", ".svg", ".ps")
+        )
 
     @staticmethod
     def get_settings_box():
@@ -266,14 +290,16 @@ class MakoFormatterPlugin(FormatterPlugin):
 
     @staticmethod
     def format(objs, **kwargs):
-        template_filename = kwargs['template']
+        template_filename = kwargs["template"]
         if not template_filename:
-            msg = _('Please select a template.')
+            msg = _("Please select a template.")
             utils.message_dialog(msg, Gtk.MessageType.WARNING)
             return False
-        template = Template(filename=template_filename,
-                            input_encoding='utf-8',
-                            output_encoding='utf-8')
+        template = Template(
+            filename=template_filename,
+            input_encoding="utf-8",
+            output_encoding="utf-8",
+        )
 
         report = template.render(values=objs)
         # assume the template is the same file type as the output file
@@ -284,9 +310,14 @@ class MakoFormatterPlugin(FormatterPlugin):
         try:
             utils.desktop.open(filename)
         except OSError:
-            utils.message_dialog(_('Could not open the report with the '
-                                   'default program. You can open the '
-                                   'file manually at %s') % filename)
+            utils.message_dialog(
+                _(
+                    "Could not open the report with the "
+                    "default program. You can open the "
+                    "file manually at %s"
+                )
+                % filename
+            )
         return report
 
 

@@ -28,12 +28,11 @@ class BaubleError(Exception):
         if self.msg is None:
             return str(type(self).__name__)
         else:
-            return '%s: %s' % (type(self).__name__, self.msg)
+            return "%s: %s" % (type(self).__name__, self.msg)
         return self.msg
 
 
 class CommitException(Exception):
-
     def __init__(self, exc, row):
         self.row = row  # the model we were trying to commit
         self.exc = exc  # the exception thrown while committing
@@ -67,7 +66,6 @@ class RegistryError(DatabaseError):
 
 
 class VersionError(DatabaseError):
-
     def __init__(self, version):
         super().__init__()
         self.version = version

@@ -72,30 +72,30 @@ from bauble.utils.web import link_button_factory
 
 # use different formatting template for the result view depending on the
 # platform
-_mainstr_tmpl = '<b>%s</b>'
-if sys.platform == 'win32':
-    _substr_tmpl = '%s'
+_mainstr_tmpl = "<b>%s</b>"
+if sys.platform == "win32":
+    _substr_tmpl = "%s"
 else:
-    _substr_tmpl = '<small>%s</small>'
+    _substr_tmpl = "<small>%s</small>"
 
-INFOBOXPAGE_WIDTH_PREF = 'infobox.page_width'
+INFOBOXPAGE_WIDTH_PREF = "infobox.page_width"
 """The preferences key for storing the InfoBoxPage width."""
 
-PICTURESSCROLLER_WIDTH_PREF = 'pictures_scroller.page_width'
+PICTURESSCROLLER_WIDTH_PREF = "pictures_scroller.page_width"
 """The preferences key for storing the pictures_scroller width."""
 
-SEARCH_POLL_SECS_PREF = 'bauble.search.poll_secs'
+SEARCH_POLL_SECS_PREF = "bauble.search.poll_secs"
 """Preference key for how often to poll the database in search view"""
 
-SEARCH_CACHE_SIZE_PREF = 'bauble.search.cache_size'
+SEARCH_CACHE_SIZE_PREF = "bauble.search.cache_size"
 """Preference key for size of search view's has_kids cache"""
 
-SEARCH_REFRESH_PREF = 'bauble.search.refresh'
+SEARCH_REFRESH_PREF = "bauble.search.refresh"
 """Preference key, should search view attempt to refresh from the database
 regularly
 """
 
-SEARCH_COUNT_FAST_PREF = 'bauble.search.count_fast'
+SEARCH_COUNT_FAST_PREF = "bauble.search.count_fast"
 """Set multiprocessing processes on large searches to count top level count,
 
 Values: int (number of processes), bool (use multiprocessing),
@@ -106,12 +106,10 @@ Values: int (number of processes), bool (use multiprocessing),
 class Action:
     # pylint: disable=too-few-public-methods, too-many-arguments
     """SearchView context menu items."""
-    def __init__(self,
-                 name,
-                 label,
-                 callback=None,
-                 accelerator=None,
-                 multiselect=False):
+
+    def __init__(
+        self, name, label, callback=None, accelerator=None, multiselect=False
+    ):
         """
         :param callback: the function to call when the the action is activated,
             if anything that evaluates to True is returned triggers
@@ -129,7 +127,7 @@ class Action:
 
     def connect(self, _action, handler, callback):
         if not self.connected:
-            self.action.connect('activate', handler, callback)
+            self.action.connect("activate", handler, callback)
             self.connected = True
 
 
@@ -165,8 +163,9 @@ class InfoExpander(Gtk.Expander):
 
     def widget_set_value(self, widget_name, value, markup=False, default=None):
         """A shorthand for `bauble.utils.set_widget_value()`"""
-        utils.set_widget_value(self.widgets[widget_name], value,
-                               markup, default)
+        utils.set_widget_value(
+            self.widgets[widget_name], value, markup, default
+        )
 
     def unhide_widgets(self):
         utils.unhide_widgets(self.display_widgets)
@@ -188,11 +187,10 @@ class InfoExpander(Gtk.Expander):
 
 
 class PropertiesExpander(InfoExpander):
-
-    EXPANDED_PREF = 'infobox.generic_properties_expanded'
+    EXPANDED_PREF = "infobox.generic_properties_expanded"
 
     def __init__(self):
-        super().__init__(_('Properties'))
+        super().__init__(_("Properties"))
         table = Gtk.Grid()
         table.set_column_spacing(15)
         table.set_row_spacing(8)
@@ -205,19 +203,19 @@ class PropertiesExpander(InfoExpander):
         table.attach(id_label, 0, 0, 1, 1)
 
         id_event = Gtk.EventBox()
-        self.id_data = Gtk.Label(label='--', selectable=True)
+        self.id_data = Gtk.Label(label="--", selectable=True)
         self.id_data.set_xalign(0)
         self.id_data.set_yalign(0.5)
         id_event.add(self.id_data)
         table.attach(id_event, 1, 0, 1, 1)
-        id_event.connect('button_press_event', self.on_id_button_press)
+        id_event.connect("button_press_event", self.on_id_button_press)
 
         # object type
         type_label = Gtk.Label(label="<b>" + _("Type:") + "</b>")
         type_label.set_use_markup(True)
         type_label.set_xalign(1)
         type_label.set_yalign(0.5)
-        self.type_data = Gtk.Label(label='--')
+        self.type_data = Gtk.Label(label="--")
         self.type_data.set_xalign(0)
         self.type_data.set_yalign(0.5)
         table.attach(type_label, 0, 1, 1, 1)
@@ -228,7 +226,7 @@ class PropertiesExpander(InfoExpander):
         created_label.set_use_markup(True)
         created_label.set_xalign(1)
         created_label.set_yalign(0.5)
-        self.created_data = Gtk.Label(label='--', selectable=True)
+        self.created_data = Gtk.Label(label="--", selectable=True)
         self.created_data.set_xalign(0)
         self.created_data.set_yalign(0.5)
         table.attach(created_label, 0, 2, 1, 1)
@@ -239,7 +237,7 @@ class PropertiesExpander(InfoExpander):
         updated_label.set_use_markup(True)
         updated_label.set_xalign(1)
         updated_label.set_yalign(0.5)
-        self.updated_data = Gtk.Label(label='--', selectable=True)
+        self.updated_data = Gtk.Label(label="--", selectable=True)
         self.updated_data.set_xalign(0)
         self.updated_data.set_yalign(0.5)
         table.attach(updated_label, 0, 3, 1, 1)
@@ -250,17 +248,17 @@ class PropertiesExpander(InfoExpander):
         self.vbox.pack_start(box, expand=False, fill=False, padding=0)
 
     def update(self, row):
-        """"Update the widget in the expander."""
+        """ "Update the widget in the expander."""
         self.set_expanded(prefs.prefs.get(self.EXPANDED_PREF, True))
         self.id_data.set_text(str(row.id))
         self.type_data.set_text(str(type(row).__name__))
         fmat = prefs.prefs.get(prefs.datetime_format_pref)
         # pylint: disable=protected-access
         self.created_data.set_text(
-            row._created.strftime(fmat) if row._created else ''
+            row._created.strftime(fmat) if row._created else ""
         )
         self.updated_data.set_text(
-            row._last_updated.strftime(fmat) if row._last_updated else ''
+            row._last_updated.strftime(fmat) if row._last_updated else ""
         )
 
     def on_id_button_press(self, _widget, event):
@@ -276,8 +274,7 @@ class PropertiesExpander(InfoExpander):
 
 
 class InfoBoxPage(Gtk.ScrolledWindow):
-    """A `Gtk.ScrolledWindow` that contains `bauble.view.InfoExpander` objects.
-    """
+    """A `Gtk.ScrolledWindow` that contains `bauble.view.InfoExpander` objects."""
 
     def __init__(self):
         super().__init__()
@@ -289,7 +286,7 @@ class InfoBoxPage(Gtk.ScrolledWindow):
         self.add(viewport)
         self.expanders = {}
         self.label = None
-        self.connect('size-allocate', self.on_resize)
+        self.connect("size-allocate", self.on_resize)
 
     @staticmethod
     def on_resize(_window, allocation):
@@ -355,13 +352,13 @@ class InfoBox(Gtk.Notebook):
     def __init__(self, tabbed=False):
         super().__init__()
         self.row = None
-        self.set_property('show-border', False)
+        self.set_property("show-border", False)
         if not tabbed:
             page = InfoBoxPage()
             self.insert_page(page, tab_label=None, position=0)
-            self.set_property('show-tabs', False)
+            self.set_property("show-tabs", False)
         self.set_current_page(0)
-        self.connect('switch-page', self.on_switch_page)
+        self.connect("switch-page", self.on_switch_page)
 
     # notebook == self could be a static method and just use the notebook?
     def on_switch_page(self, _notebook, _page, page_num, *_args):
@@ -388,8 +385,7 @@ class InfoBox(Gtk.Notebook):
 
 
 class LinksExpander(InfoExpander):
-
-    EXPANDED_PREF = 'infobox.generic_links_expanded'
+    EXPANDED_PREF = "infobox.generic_links_expanded"
 
     def __init__(self, notes=None, links=None):
         """
@@ -410,8 +406,12 @@ class LinksExpander(InfoExpander):
                 self.link_box.pack_start(btn, False, False, 0)
             except Exception as e:  # pylint: disable=broad-except
                 # broad except, user data.
-                logger.debug('wrong link definition %s, %s(%s)', link,
-                             type(e).__name__, e)
+                logger.debug(
+                    "wrong link definition %s, %s(%s)",
+                    link,
+                    type(e).__name__,
+                    e,
+                )
 
     def update(self, row):
         self.set_expanded(prefs.prefs.get(self.EXPANDED_PREF, True))
@@ -429,8 +429,8 @@ class LinksExpander(InfoExpander):
                         label = url
                     try:
                         link = {
-                            'title': label,
-                            'tooltip': f'from note of category {note.category}'
+                            "title": label,
+                            "tooltip": f"from note of category {note.category}",
                         }
                         button = link_button_factory(link)
                         button.set_uri(url)
@@ -439,8 +439,12 @@ class LinksExpander(InfoExpander):
                         hide = False
                     except Exception as e:  # pylint: disable=broad-except
                         # broad except, user data.
-                        logger.debug('wrong link definition %s, %s(%s)', link,
-                                     type(e).__name__, e)
+                        logger.debug(
+                            "wrong link definition %s, %s(%s)",
+                            link,
+                            type(e).__name__,
+                            e,
+                        )
 
             if separator and self.buttons:
                 sep = Gtk.Separator(margin_start=15, margin_end=15)
@@ -454,13 +458,12 @@ class LinksExpander(InfoExpander):
 
 
 class AddOneDot(threading.Thread):
-
     @staticmethod
     def callback(dotno):
         statusbar = bauble.gui.widgets.statusbar
-        sbcontext_id = statusbar.get_context_id('searchview.nresults')
+        sbcontext_id = statusbar.get_context_id("searchview.nresults")
         statusbar.pop(sbcontext_id)
-        statusbar.push(sbcontext_id, _('counting results') + '.' * dotno)
+        statusbar.push(sbcontext_id, _("counting results") + "." * dotno)
 
     def __init__(self, group=None, **kwargs):
         super().__init__(group=group, target=None, name=None)
@@ -483,14 +486,15 @@ def multiproc_counter(url, klass, ids):
     :param klass: sqlalchemy table class.
     :param ids: a list of id numbers to query.
     """
-    if sys.platform == 'darwin':
+    if sys.platform == "darwin":
         # only on macos
         # TODO need to investigate this further.  Dock icons pop up for every
         # process produced.  The below suppresses the icon AFTER it has already
         # popped up meaning you get a bunch of icons appearing for a
         # around a second and then disappearing.
         import AppKit
-        AppKit.NSApp.setActivationPolicy_(1)   # 2 also works
+
+        AppKit.NSApp.setActivationPolicy_(1)  # 2 also works
     db.open_conn(url)
     # get tables across plugins (e.g. plants - Genus, garden - Accession )
     pluginmgr.load()
@@ -520,6 +524,7 @@ class CountResultsTask(threading.Thread):
     if search is large will deligate the counting task to multiprocessing
     workers.
     """
+
     def __init__(self, klass, ids, dots_thread, group=None):
         super().__init__(group=group, target=None, name=None)
         self.klass = klass
@@ -562,17 +567,19 @@ class CountResultsTask(threading.Thread):
         Cancels dots_thread and logs error
         """
         self.dots_thread.cancel()
-        logger.debug('%s (%s)', type(e).__name__, e)
-        self.set_statusbar(f'{type(e).__name__} error counting results')
+        logger.debug("%s (%s)", type(e).__name__, e)
+        self.set_statusbar(f"{type(e).__name__} error counting results")
 
     def set_statusbar(self, value):
         """Put the results on the statusbar."""
         if bauble.gui:
+
             def sb_call(text):
                 statusbar = bauble.gui.widgets.statusbar
-                sbcontext_id = statusbar.get_context_id('searchview.nresults')
+                sbcontext_id = statusbar.get_context_id("searchview.nresults")
                 statusbar.pop(sbcontext_id)
                 statusbar.push(sbcontext_id, text)
+
             if not self.__cancel:  # check whether caller asks to cancel
                 self.dots_thread.cancel()
                 GLib.idle_add(sb_call, value)
@@ -580,7 +587,7 @@ class CountResultsTask(threading.Thread):
             self.dots_thread.cancel()
             logger.debug("showing text %s", value)
         # NOTE log used in tests
-        logger.debug('counting results class:%s complete', self.klass.__name__)
+        logger.debug("counting results class:%s complete", self.klass.__name__)
 
     def run(self):
         """Runs thread, decide whether to use multiprocessing or not.
@@ -591,7 +598,7 @@ class CountResultsTask(threading.Thread):
         count_fast = prefs.prefs.get(SEARCH_COUNT_FAST_PREF, True)
         # NOTE these figures were arrived at by trial and error on a particular
         # dataset. No guarantee they are ideal in all situations.
-        if self.klass.__name__ in ['Family', 'Location']:
+        if self.klass.__name__ in ["Family", "Location"]:
             max_ids = 30
             chunk_size = 10
         else:
@@ -600,19 +607,23 @@ class CountResultsTask(threading.Thread):
         if count_fast and len(self.ids) > max_ids:
             from functools import partial
             from multiprocessing import get_context
+
             proc = partial(multiproc_counter, str(db.engine.url), self.klass)
             processes = None
             # pylint: disable=unidiomatic-typecheck # bool is subclass of int,
             # isinstance won't work.
             if type(count_fast) is int:
                 processes = count_fast
-            logger.debug('counting results multiprocessing, processes=%s',
-                         processes)
-            with get_context('spawn').Pool(processes) as pool:
-                amap = pool.map_async(proc,
-                                      utils.chunks(self.ids, chunk_size),
-                                      callback=self.callback,
-                                      error_callback=self.error)
+            logger.debug(
+                "counting results multiprocessing, processes=%s", processes
+            )
+            with get_context("spawn").Pool(processes) as pool:
+                amap = pool.map_async(
+                    proc,
+                    utils.chunks(self.ids, chunk_size),
+                    callback=self.callback,
+                    error_callback=self.error,
+                )
                 # keeps the thread alive and allow cancel
                 while not amap.ready():
                     if self.__cancel:  # check whether caller asks to cancel
@@ -650,22 +661,25 @@ class PicturesScroller(Gtk.ScrolledWindow):
         super().__init__()
         parent.add(self)
         parent.show_all()
-        self.pictures_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL,
-                                    can_focus=False,
-                                    spacing=5)
+        self.pictures_box = Gtk.Box(
+            orientation=Gtk.Orientation.VERTICAL, can_focus=False, spacing=5
+        )
         self.add(self.pictures_box)
         self.parent = parent
         self.show()
         # connect to the grandparent to capture parent's values first
-        self.parent.get_parent().connect('destroy', self.on_destroy)
+        self.parent.get_parent().connect("destroy", self.on_destroy)
         self.size_set_flag = False
 
     def on_destroy(self, _widget):
         # calculate the width (pic_pane - infopage) as self won't give values
         # below 46 for some reason, similarly the self size-allocation signal
         # stops at 46.
-        width = (self.parent.get_allocation().width -
-                 self.parent.get_child1().get_allocation().width - 5)
+        width = (
+            self.parent.get_allocation().width
+            - self.parent.get_child1().get_allocation().width
+            - 5
+        )
         prefs.prefs[PICTURESSCROLLER_WIDTH_PREF] = width
 
     def set_selection(self, selection):
@@ -681,25 +695,26 @@ class PicturesScroller(Gtk.ScrolledWindow):
             try:
                 pics = obj.pictures
             except AttributeError:
-                logger.debug('object %s does not know of pictures', obj)
+                logger.debug("object %s does not know of pictures", obj)
                 pics = []
             except DetachedInstanceError:
                 # when session is lost... (e.g. successful search followed by a
                 # failed one)
                 pics = []
             for pic in pics:
-                logger.debug('object %s has picture %s', obj, pic)
+                logger.debug("object %s has picture %s", obj, pic)
                 box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
                 if pic.category:
-                    label = Gtk.Label(label='category: ' + pic.category)
+                    label = Gtk.Label(label="category: " + pic.category)
                     box.add(label)
                 event_box = Gtk.EventBox()
                 pic_box = Gtk.Box()
                 utils.ImageLoader(pic_box, pic.picture).start()
                 event_box.add(pic_box)
                 box.add(event_box)
-                event_box.connect('button-press-event', self.on_button_press,
-                                  pic.picture)
+                event_box.connect(
+                    "button-press-event", self.on_button_press, pic.picture
+                )
                 self.pictures_box.pack_start(box, False, False, 5)
                 self.pictures_box.reorder_child(box, 0)
                 box.show_all()
@@ -720,7 +735,7 @@ class PicturesScroller(Gtk.ScrolledWindow):
             info_width = 0
 
         pane_pos = width - info_width - pics_width - 6
-        logger.debug('setting pane position to %s', pane_pos)
+        logger.debug("setting pane position to %s", pane_pos)
         self.parent.set_position(pane_pos)
 
     @staticmethod
@@ -730,13 +745,13 @@ class PicturesScroller(Gtk.ScrolledWindow):
         # just open it.
         # pylint: disable=protected-access
         if event.button == 1 and event.type == Gdk.EventType._2BUTTON_PRESS:
-            if not (link.startswith('http://') or link.startswith('https://')):
+            if not (link.startswith("http://") or link.startswith("https://")):
                 pic_root = prefs.prefs.get(prefs.picture_root_pref)
                 link = Path(pic_root, link)
             utils.desktop.open(link)
 
 
-@Gtk.Template(filename=str(Path(paths.lib_dir(), 'search_view.ui')))
+@Gtk.Template(filename=str(Path(paths.lib_dir(), "search_view.ui")))
 class SearchView(pluginmgr.View, Gtk.Box):
     """The SearchView is the main view for Ghini.
 
@@ -744,7 +759,7 @@ class SearchView(pluginmgr.View, Gtk.Box):
     the main text entry.
     """
 
-    __gtype_name__ = 'SearchView'
+    __gtype_name__ = "SearchView"
 
     bottom_notebook = Gtk.Template.Child()
     results_view = Gtk.Template.Child()
@@ -760,6 +775,7 @@ class SearchView(pluginmgr.View, Gtk.Box):
         directly via the UserDict `data` attribute. e.g. to use setdefault in
         such a way that doesn't call __getitem__
         """
+
         class Meta:
             def __init__(self):
                 self.children = None
@@ -768,11 +784,13 @@ class SearchView(pluginmgr.View, Gtk.Box):
                 self.actions = []
                 self.sorter = utils.natsort_key
 
-            def set(self,
-                    children=None,
-                    infobox=None,
-                    context_menu=None,
-                    sorter=None):
+            def set(
+                self,
+                children=None,
+                infobox=None,
+                context_menu=None,
+                sorter=None,
+            ):
                 """Set attributes for the selected meta object.
 
                 :param children: where to find the children for this type, can
@@ -789,8 +807,9 @@ class SearchView(pluginmgr.View, Gtk.Box):
 
                 self.actions = []
                 if self.context_menu:
-                    self.actions = [x for x in self.context_menu if
-                                    isinstance(x, Action)]
+                    self.actions = [
+                        x for x in self.context_menu if isinstance(x, Action)
+                    ]
 
             def get_children(self, obj):
                 """
@@ -823,7 +842,7 @@ class SearchView(pluginmgr.View, Gtk.Box):
     """Callbacks called each time the cursor changes"""
 
     def __init__(self):
-        logger.debug('SearchView::__init__')
+        logger.debug("SearchView::__init__")
         super().__init__()
 
         self.create_gui()
@@ -860,25 +879,26 @@ class SearchView(pluginmgr.View, Gtk.Box):
         implemented as a plugin. then notes will be added with the
         generic add_page_to_bottom_notebook.
         """
-        glade_name = str(Path(paths.lib_dir(), 'notes_page.glade'))
+        glade_name = str(Path(paths.lib_dir(), "notes_page.glade"))
         widgets = utils.BuilderWidgets(glade_name)
         page = widgets.notes_scrolledwindow
         # create the label object
-        label = Gtk.Label(label='Notes')
+        label = Gtk.Label(label="Notes")
         self.bottom_notebook.append_page(page, label)
 
         def sorter(notes):
             return sorted(notes, key=lambda note: note.date, reverse=True)
 
         self.bottom_info[Note] = {
-            'fields_used': ['date', 'user', 'category', 'note'],
-            'tree': widgets.notes_treeview,
-            'label': label,
-            'name': _('Notes'),
-            'sorter': sorter,
+            "fields_used": ["date", "user", "category", "note"],
+            "tree": widgets.notes_treeview,
+            "label": label,
+            "name": _("Notes"),
+            "sorter": sorter,
         }
-        widgets.notes_treeview.connect("row-activated",
-                                       self.on_note_row_activated)
+        widgets.notes_treeview.connect(
+            "row-activated", self.on_note_row_activated
+        )
 
     def on_note_row_activated(self, tree, path, _column):
         try:
@@ -888,7 +908,7 @@ class SearchView(pluginmgr.View, Gtk.Box):
             domain = selected.__class__.__name__.lower()
             # retrieve the activated row
             row = tree.get_model()[path]
-            cat = None if row[2] == '' else repr(row[2])
+            cat = None if row[2] == "" else repr(row[2])
             note = repr(row[3])
             # construct the query
             query = f"{domain} where notes[category={cat}].note={note}"
@@ -899,26 +919,25 @@ class SearchView(pluginmgr.View, Gtk.Box):
                 # NOTE used in testing
                 return query
         except Exception as e:
-            logger.debug('on_note_row_actived %s(%s)', type(e).__name__, e)
+            logger.debug("on_note_row_actived %s(%s)", type(e).__name__, e)
         return None
 
     def add_page_to_bottom_notebook(self, bottom_info):
         """add notebook page for a plugin class."""
-        glade_name = bottom_info['glade_name']
+        glade_name = bottom_info["glade_name"]
         widgets = utils.BuilderWidgets(glade_name)
-        page = widgets[bottom_info['page_widget']]
+        page = widgets[bottom_info["page_widget"]]
         # 2: detach it from parent (its container)
         widgets.remove_parent(page)
         # 3: create the label object
-        label = Gtk.Label(label=bottom_info['name'])
+        label = Gtk.Label(label=bottom_info["name"])
         # 4: add the page, non sensitive
         self.bottom_notebook.append_page(page, label)
         # 5: store the values for later use
-        bottom_info['tree'] = page.get_children()[0]
-        if row_activated := bottom_info.get('row_activated'):
-            bottom_info['tree'].connect("row-activated",
-                                        row_activated)
-        bottom_info['label'] = label
+        bottom_info["tree"] = page.get_children()[0]
+        if row_activated := bottom_info.get("row_activated"):
+            bottom_info["tree"].connect("row-activated", row_activated)
+        bottom_info["label"] = label
 
     def update_bottom_notebook(self, selected_values):
         """Update the bottom_notebook from the currently selected row.
@@ -940,32 +959,35 @@ class SearchView(pluginmgr.View, Gtk.Box):
 
         # loop over bottom_info plugin classes (eg: Tag)
         for klass, bottom_info in self.bottom_info.items():
-            if 'label' not in bottom_info:  # late initialization
+            if "label" not in bottom_info:  # late initialization
                 self.add_page_to_bottom_notebook(bottom_info)
-            label = bottom_info['label']
-            if not hasattr(klass, 'attached_to'):
-                logging.warning('class %s does not implement attached_to',
-                                klass)
+            label = bottom_info["label"]
+            if not hasattr(klass, "attached_to"):
+                logging.warning(
+                    "class %s does not implement attached_to", klass
+                )
                 continue
             objs = klass.attached_to(row)
-            model = bottom_info['tree'].get_model()
+            model = bottom_info["tree"].get_model()
             model.clear()
             if not objs or not isinstance(objs, list):
                 label.set_use_markup(False)
-                label.set_label(bottom_info['name'])
+                label.set_label(bottom_info["name"])
             else:
                 label.set_use_markup(True)
                 label.set_label(f'<b>{bottom_info["name"]}</b>')
-                sorter = bottom_info.get('sorter', reversed)
+                sorter = bottom_info.get("sorter", reversed)
                 for obj in sorter(objs):
                     values = []
-                    for k in bottom_info['fields_used']:
-                        if k == 'date' and (date := getattr(obj, k)):
-                            values.append(date.strftime(
-                                prefs.prefs.get(prefs.date_format_pref)
-                            ))
+                    for k in bottom_info["fields_used"]:
+                        if k == "date" and (date := getattr(obj, k)):
+                            values.append(
+                                date.strftime(
+                                    prefs.prefs.get(prefs.date_format_pref)
+                                )
+                            )
                         else:
-                            values.append(getattr(obj, k) or '')
+                            values.append(getattr(obj, k) or "")
                     model.append(values)
         self.bottom_notebook.show()
 
@@ -976,13 +998,13 @@ class SearchView(pluginmgr.View, Gtk.Box):
         """
         # start of update_infobox
         # NOTE log used in tests
-        logger.debug('SearchView::update_infobox')
+        logger.debug("SearchView::update_infobox")
         if not selected_values or not selected_values[0]:
             self.set_infobox_from_row(None)
             return
 
         if object_session(selected_values[0]) is None:
-            logger.debug('cannot populate info box from detached object')
+            logger.debug("cannot populate info box from detached object")
             return
 
         sensitive = len(selected_values) == 1
@@ -992,7 +1014,7 @@ class SearchView(pluginmgr.View, Gtk.Box):
             self.set_infobox_from_row(selected_values[0], sensitive)
         except Exception as e:  # pylint: disable=broad-except
             # if an error occurrs, log it and empty infobox.
-            logger.debug('%s(%s)', type(e).__name__, e)
+            logger.debug("%s(%s)", type(e).__name__, e)
             logger.debug(traceback.format_exc())
             logger.debug(selected_values)
             self.set_infobox_from_row(None)
@@ -1000,11 +1022,13 @@ class SearchView(pluginmgr.View, Gtk.Box):
     def set_infobox_from_row(self, row, sensitive=True):
         """implement the logic for update_infobox"""
 
-        logger.debug('set_infobox_from_row: %s --  %s', row, repr(row))
+        logger.debug("set_infobox_from_row: %s --  %s", row, repr(row))
         # remove the current infobox if there is one and it is not needed
         if row is None:
-            if (self.infobox is not None and
-                    self.infobox.get_parent() == self.info_pane):
+            if (
+                self.infobox is not None
+                and self.infobox.get_parent() == self.info_pane
+            ):
                 self.info_pane.remove(self.infobox)
             return
 
@@ -1016,7 +1040,7 @@ class SearchView(pluginmgr.View, Gtk.Box):
                 width = bauble.gui.window.get_size().width
             info_width = prefs.prefs.get(INFOBOXPAGE_WIDTH_PREF, 300)
             pane_pos = width - info_width - 1
-            logger.debug('setting pane position to %s', pane_pos)
+            logger.debug("setting pane position to %s", pane_pos)
             self.info_pane.set_position(pane_pos)
 
         selected_type = type(row)
@@ -1027,20 +1051,24 @@ class SearchView(pluginmgr.View, Gtk.Box):
             # it might be in cache under different name
             for infobox in self.infobox_cache.values():
                 if isinstance(infobox, self.row_meta[selected_type].infobox):
-                    logger.debug('found same infobox under different name')
+                    logger.debug("found same infobox under different name")
                     new_infobox = infobox
             # otherwise create one and put in the infobox_cache
             if not new_infobox:
-                logger.debug('not found infobox, we make a new one')
+                logger.debug("not found infobox, we make a new one")
                 new_infobox = self.row_meta[selected_type].infobox()
             self.infobox_cache[selected_type] = new_infobox
 
-        logger.debug('created or retrieved infobox %s %s',
-                     type(new_infobox).__name__, new_infobox)
+        logger.debug(
+            "created or retrieved infobox %s %s",
+            type(new_infobox).__name__,
+            new_infobox,
+        )
 
         # remove any old infoboxes connected to the pane
-        if (self.infobox is not None and type(self.infobox) is not
-                type(new_infobox)):
+        if self.infobox is not None and type(self.infobox) is not type(
+            new_infobox
+        ):
             if self.infobox.get_parent() == self.info_pane:
                 self.info_pane.remove(self.infobox)
 
@@ -1064,12 +1092,12 @@ class SearchView(pluginmgr.View, Gtk.Box):
         actions and accelerators depending on the type of the rows selected.
         """
         # NOTE log used in tests
-        logger.debug('SearchView::on_selection_changed')
+        logger.debug("SearchView::on_selection_changed")
         # grab values once
         selected_values = self.get_selected_values()
         # bail early if failed search
         if selected_values and isinstance(selected_values[0], str):
-            logger.debug('cannot update from str object')
+            logger.debug("cannot update from str object")
             return
         # update all forward-looking info boxes
         self.update_infobox(selected_values)
@@ -1088,11 +1116,10 @@ class SearchView(pluginmgr.View, Gtk.Box):
         try:
             values = self.get_selected_values()
             result = call_back(values)
-        except Exception as e:   # pylint: disable=broad-except
+        except Exception as e:  # pylint: disable=broad-except
             msg = utils.xml_safe(str(e))
             trace = utils.xml_safe(traceback.format_exc())
-            utils.message_details_dialog(
-                msg, trace, Gtk.MessageType.ERROR)
+            utils.message_details_dialog(msg, trace, Gtk.MessageType.ERROR)
             logger.warning(traceback.format_exc())
         if result:
             # can lead to update called twice but ensures its called when not
@@ -1122,35 +1149,39 @@ class SearchView(pluginmgr.View, Gtk.Box):
                 self.actions.add(action.name)
                 bauble.gui.window.add_action(action.action)
 
-                action.connect('activate', self.on_action_activate,
-                               action.callback)
+                action.connect(
+                    "activate", self.on_action_activate, action.callback
+                )
                 app = Gio.Application.get_default()
-                app.set_accels_for_action(f'win.{action.name}',
-                                          [action.accelerator])
+                app.set_accels_for_action(
+                    f"win.{action.name}", [action.accelerator]
+                )
 
-            menu_item = Gio.MenuItem.new(action.label,
-                                         f'win.{action.name}')
+            menu_item = Gio.MenuItem.new(action.label, f"win.{action.name}")
             self.context_menu_model.append_item(menu_item)
 
-            if ((len(selected_values) > 1 and action.multiselect) or
-                    len(selected_values) == 1):
+            if (len(selected_values) > 1 and action.multiselect) or len(
+                selected_values
+            ) == 1:
                 action.action.set_enabled(True)
             else:
                 action.action.set_enabled(False)
 
-        copy_selection_action_name = 'copy_selection_strings'
+        copy_selection_action_name = "copy_selection_strings"
 
-        if (bauble.gui and not
-                bauble.gui.lookup_action(copy_selection_action_name)):
-            bauble.gui.add_action(copy_selection_action_name,
-                                  self.on_copy_selection)
+        if bauble.gui and not bauble.gui.lookup_action(
+            copy_selection_action_name
+        ):
+            bauble.gui.add_action(
+                copy_selection_action_name, self.on_copy_selection
+            )
 
         copy_selection_menu_item = Gio.MenuItem.new(
-            _('Copy Selection'), f'win.{copy_selection_action_name}'
+            _("Copy Selection"), f"win.{copy_selection_action_name}"
         )
         self.context_menu_model.append_item(copy_selection_menu_item)
 
-        get_history_action_name = 'get_history'
+        get_history_action_name = "get_history"
 
         if bauble.gui:
             if not bauble.gui.lookup_action(get_history_action_name):
@@ -1163,7 +1194,7 @@ class SearchView(pluginmgr.View, Gtk.Box):
                 self.history_action.set_enabled(False)
 
         get_history_menu_item = Gio.MenuItem.new(
-            _('Show History'), f'win.{get_history_action_name}'
+            _("Show History"), f"win.{get_history_action_name}"
         )
         self.context_menu_model.append_item(get_history_menu_item)
 
@@ -1185,23 +1216,27 @@ class SearchView(pluginmgr.View, Gtk.Box):
 
         out = []
         from mako.template import Template
+
         try:
             for value in selected_values:
                 domain = type(value).__name__.lower()
-                pref_key = f'copy_templates.{domain}'
+                pref_key = f"copy_templates.{domain}"
                 template_str = prefs.prefs.get(
-                    pref_key, '${value}, ${type(value).__name__}'
+                    pref_key, "${value}, ${type(value).__name__}"
                 )
                 template = Template(template_str)
                 out.append(template.render(value=value))
         except Exception as e:  # pylint: disable=broad-except
             logger.debug("%s(%s)", type(e).__name__, e)
-            msg = (_('Copy error.  Check your copy_templates in Preferences?'
-                     '\n\n%s') % utils.xml_safe(str(e)))
-            utils.message_details_dialog(msg, traceback.format_exc(),
-                                         typ=Gtk.MessageType.ERROR)
+            msg = _(
+                "Copy error.  Check your copy_templates in Preferences?"
+                "\n\n%s"
+            ) % utils.xml_safe(str(e))
+            utils.message_details_dialog(
+                msg, traceback.format_exc(), typ=Gtk.MessageType.ERROR
+            )
 
-        string = '\n'.join(out)
+        string = "\n".join(out)
         if bauble.gui:
             bauble.gui.get_display_clipboard().set_text(string, -1)
             return None
@@ -1216,8 +1251,8 @@ class SearchView(pluginmgr.View, Gtk.Box):
         selected = selected_values[0]
         # include timestamp because IDs can get reused in some situations
         search_str = (
-            f':history = table_name = {type(selected).__name__.lower()} '
-            f'and table_id = {selected.id} '
+            f":history = table_name = {type(selected).__name__.lower()} "
+            f"and table_id = {selected.id} "
             f'and timestamp >= "{selected._created}"'
         )
 
@@ -1229,7 +1264,7 @@ class SearchView(pluginmgr.View, Gtk.Box):
 
     def search(self, text):
         """search the database using text"""
-        logger.debug('SearchView.search(%s)', text)
+        logger.debug("SearchView.search(%s)", text)
         error_msg = None
         error_details_msg = None
         # stop whatever it might still be doing
@@ -1240,15 +1275,15 @@ class SearchView(pluginmgr.View, Gtk.Box):
         self.count_kids.clear_cache()  # pylint: disable=no-member
         self.get_markup_pair.clear_cache()  # pylint: disable=no-member
         self.session = db.Session()
-        bold = '<b>%s</b>'
+        bold = "<b>%s</b>"
         results = []
         try:
             results = search.search(text, self.session)
         except ParseException as err:
-            error_msg = _('Error in search string at column %s') % err.column
+            error_msg = _("Error in search string at column %s") % err.column
         except Exception as e:  # pylint: disable=broad-except
             logger.debug(traceback.format_exc())
-            error_msg = _('** Error: %s') % utils.xml_safe(e)
+            error_msg = _("** Error: %s") % utils.xml_safe(e)
             error_details_msg = utils.xml_safe(traceback.format_exc())
 
         if error_msg:
@@ -1262,39 +1297,50 @@ class SearchView(pluginmgr.View, Gtk.Box):
         else:
             # for testing...
             statusbar = Gtk.Statusbar()
-        sbcontext_id = statusbar.get_context_id('searchview.nresults')
+        sbcontext_id = statusbar.get_context_id("searchview.nresults")
         statusbar.pop(sbcontext_id)
         if len(results) == 0:
             model = Gtk.ListStore(str)
             msg = bold % html.escape(
-                _('Could not find anything for search: "%s"') % text)
+                _('Could not find anything for search: "%s"') % text
+            )
             model.append([msg])
             self.results_view.set_model(model)
         else:
-            statusbar.push(sbcontext_id, _("Retrieving %s search "
-                                           "results…") % len(results))
+            statusbar.push(
+                sbcontext_id,
+                _("Retrieving %s search results…") % len(results),
+            )
             if len(results) > 30000:
-                msg = _('This query returned %s results.  It may take a '
-                        'while to display all the data. Are you sure you '
-                        'want to continue?') % len(results)
+                msg = _(
+                    "This query returned %s results.  It may take a "
+                    "while to display all the data. Are you sure you "
+                    "want to continue?"
+                ) % len(results)
                 if not utils.yes_no_dialog(msg):
                     return
             self.populate_results(results)
             statusbar.pop(sbcontext_id)
-            statusbar.push(sbcontext_id, _('counting results'))
+            statusbar.push(sbcontext_id, _("counting results"))
             count_fast = prefs.prefs.get(SEARCH_COUNT_FAST_PREF, True)
             if isinstance(count_fast, str):
-                statusbar.push(sbcontext_id,
-                               _('size of result: %s') % len(results))
+                statusbar.push(
+                    sbcontext_id, _("size of result: %s") % len(results)
+                )
             elif len(set(item.__class__ for item in results)) == 1:
                 dots_thread = self.start_thread(AddOneDot())
-                self.start_thread(CountResultsTask(
-                    results[0].__class__, [i.id for i in results],
-                    dots_thread))
+                self.start_thread(
+                    CountResultsTask(
+                        results[0].__class__,
+                        [i.id for i in results],
+                        dots_thread,
+                    )
+                )
             else:
-                statusbar.push(sbcontext_id,
-                               _('size of non homogeneous result: %s') %
-                               len(results))
+                statusbar.push(
+                    sbcontext_id,
+                    _("size of non homogeneous result: %s") % len(results),
+                )
             self.results_view.set_cursor(0)
 
     @staticmethod
@@ -1331,9 +1377,7 @@ class SearchView(pluginmgr.View, Gtk.Box):
             logger.debug("on_test_expand_row: %s:%s", type(e).__name__, e)
             logger.debug(traceback.format_exc())
             return True
-        self.append_children(model,
-                             treeiter,
-                             sorted(kids, key=sorter))
+        self.append_children(model, treeiter, sorted(kids, key=sorter))
         return False
 
     def populate_results(self, results):
@@ -1366,9 +1410,10 @@ class SearchView(pluginmgr.View, Gtk.Box):
         # model.set_default_sort_func(None)
         # now this seems the only way to remove sorting function (i.e.
         # has_default_sort_func returns false)
-        model.set_sort_column_id(Gtk.TREE_SORTABLE_UNSORTED_SORT_COLUMN_ID,
-                                 Gtk.SortType.ASCENDING)
-        logger.debug('_populate_worker clear model')
+        model.set_sort_column_id(
+            Gtk.TREE_SORTABLE_UNSORTED_SORT_COLUMN_ID, Gtk.SortType.ASCENDING
+        )
+        logger.debug("_populate_worker clear model")
         utils.clear_model(self.results_view)
 
         groups = []
@@ -1397,9 +1442,11 @@ class SearchView(pluginmgr.View, Gtk.Box):
             added.add(obj)
             parent = model.prepend(None, [obj])
             steps_so_far += 1
-            if (not self.refresh and self.row_meta[type(obj)].children is not
-                    None):
-                model.prepend(parent, ['-'])
+            if (
+                not self.refresh
+                and self.row_meta[type(obj)].children is not None
+            ):
+                model.prepend(parent, ["-"])
             if steps_so_far % five_percent == 0:
                 percent = float(steps_so_far) / float(nresults)
                 if 0 < percent < 1.0:
@@ -1420,17 +1467,19 @@ class SearchView(pluginmgr.View, Gtk.Box):
         for kid in kids:
             itr = model.append(parent, [kid])
             if self.refresh:
-                if (self.row_meta[type(kid)].children is not None and
-                        kid.has_children()):
-                    model.append(itr, ['-'])
+                if (
+                    self.row_meta[type(kid)].children is not None
+                    and kid.has_children()
+                ):
+                    model.append(itr, ["-"])
             else:
                 if self.row_meta[type(kid)].children is not None:
-                    model.append(itr, ['-'])
+                    model.append(itr, ["-"])
 
     def remove_row(self, value):
         """Remove a row from the results_view"""
         # NOTE used in testing...
-        logger.info('remove_row called')
+        logger.info("remove_row called")
 
         model = self.results_view.get_model()
         for found in utils.search_tree_model(model, value):
@@ -1470,25 +1519,26 @@ class SearchView(pluginmgr.View, Gtk.Box):
 
         # could not find anything message.
         if isinstance(value, str):
-            cell.set_property('markup', value)
+            cell.set_property("markup", value)
             return
 
         meta = self.row_meta[type(value)]
         try:
             if self.refresh:
-                if (meta.children is not None and self.has_kids(value)):
+                if meta.children is not None and self.has_kids(value):
                     path = model.get_path(treeiter)
                     # check if any items added/removed
                     if self.results_view.row_expanded(path):
-                        if (model.iter_n_children(treeiter) !=
-                                self.count_kids(value)):
-                            logger.debug('cell_data_func: refreshing children')
-                            self.on_test_expand_row(self.results_view,
-                                                    treeiter,
-                                                    path)
+                        if model.iter_n_children(treeiter) != self.count_kids(
+                            value
+                        ):
+                            logger.debug("cell_data_func: refreshing children")
+                            self.on_test_expand_row(
+                                self.results_view, treeiter, path
+                            )
                             self.results_view.expand_to_path(path)
                     elif not model.iter_has_child(treeiter):
-                        model.prepend(treeiter, ['-'])
+                        model.prepend(treeiter, ["-"])
                 else:
                     self.remove_children(model, treeiter)
             rep = self.get_markup_pair(value)
@@ -1496,18 +1546,20 @@ class SearchView(pluginmgr.View, Gtk.Box):
                 main, substr = rep
             except ValueError:
                 main = rep
-                substr = f'({type(value).__name__})'
-            cell.set_property('markup',
-                              f'{_mainstr_tmpl % utils.nstr(main)}\n'
-                              f'{_substr_tmpl % utils.nstr(substr)}')
+                substr = f"({type(value).__name__})"
+            cell.set_property(
+                "markup",
+                f"{_mainstr_tmpl % utils.nstr(main)}\n"
+                f"{_substr_tmpl % utils.nstr(substr)}",
+            )
 
         except (saexc.InvalidRequestError, ObjectDeletedError, TypeError) as e:
-            logger.debug('cell_data_func: (%s)%s', type(e).__name__, e)
+            logger.debug("cell_data_func: (%s)%s", type(e).__name__, e)
 
             GLib.idle_add(self.remove_row, value)
 
         except Exception as e:
-            logger.error('cell_data_func: (%s)%s', type(e).__name__, e)
+            logger.error("cell_data_func: (%s)%s", type(e).__name__, e)
             raise
 
     def get_expanded_rows(self):
@@ -1535,14 +1587,18 @@ class SearchView(pluginmgr.View, Gtk.Box):
         """
         if event.button == 1:
             self.btn_1_timer = (event.time, int(event.x), int(event.y))
-            logger.debug('button 1 timer: %s', self.btn_1_timer)
+            logger.debug("button 1 timer: %s", self.btn_1_timer)
 
-        logger.debug('button press event: %s type: %s button: %s', event,
-                     event.type, event.button)
+        logger.debug(
+            "button press event: %s type: %s button: %s",
+            event,
+            event.type,
+            event.button,
+        )
         if event.button == 3:
             pos = view.get_path_at_pos(int(event.x), int(event.y))
             # NOTE used in test...
-            logger.debug('view button 3 press, pos = %s', pos)
+            logger.debug("view button 3 press, pos = %s", pos)
             # occasionally pos will return None and can't be unpacked
             if not pos:
                 return False
@@ -1559,15 +1615,21 @@ class SearchView(pluginmgr.View, Gtk.Box):
 
         Popup a context menu on the selected row.
         """
-        logger.debug('button release event: %s type: %s button: %s', event,
-                     event.type, event.button)
-        logger.debug('button 1 timer: %s', self.btn_1_timer)
+        logger.debug(
+            "button release event: %s type: %s button: %s",
+            event,
+            event.type,
+            event.button,
+        )
+        logger.debug("button 1 timer: %s", self.btn_1_timer)
 
         # imitate right button on long (> 1 sec) press - targets tablet use
-        if (event.button == 1 and
-                event.time - self.btn_1_timer[0] > 1000 and
-                self.btn_1_timer[1] == int(event.x) and
-                self.btn_1_timer[2] == int(event.y)):
+        if (
+            event.button == 1
+            and event.time - self.btn_1_timer[0] > 1000
+            and self.btn_1_timer[1] == int(event.x)
+            and self.btn_1_timer[2] == int(event.y)
+        ):
             event.button = 3
 
         # if not right click - bail (but allow propagating the event further)
@@ -1599,7 +1661,7 @@ class SearchView(pluginmgr.View, Gtk.Box):
         Infoboxes are update in on_selection_changed which this should trigger.
         """
         # NOTE log used in tests
-        logger.debug('SearchView::update')
+        logger.debug("SearchView::update")
         selection = self.results_view.get_selection()
         model, tree_paths = selection.get_selected_rows()
         ref = None
@@ -1608,8 +1670,11 @@ class SearchView(pluginmgr.View, Gtk.Box):
             # object has been deleted then we won't try to reselect it later
             ref = Gtk.TreeRowReference(model, tree_paths[0])
         except IndexError as e:
-            logger.debug('unable to get ref to selected object: %s(%s)',
-                         type(e).__name__, e)
+            logger.debug(
+                "unable to get ref to selected object: %s(%s)",
+                type(e).__name__,
+                e,
+            )
 
         self.session.expire_all()
         self.has_kids.clear_cache()  # pylint: disable=no-member
@@ -1630,13 +1695,14 @@ class SearchView(pluginmgr.View, Gtk.Box):
     @staticmethod
     def on_view_row_activated(view, path, column):
         """Expand the row on activation."""
-        logger.debug("SearchView::on_view_row_activated %s %s %s", view, path,
-                     column)
+        logger.debug(
+            "SearchView::on_view_row_activated %s %s %s", view, path, column
+        )
         view.expand_row(path, False)
 
     def create_gui(self):
         """Create the interface."""
-        logger.debug('SearchView::create_gui')
+        logger.debug("SearchView::create_gui")
         # create the results view and info box
         self.results_view.set_headers_visible(False)
         # self.results_view.set_rules_hint(True)  # depricated
@@ -1648,7 +1714,7 @@ class SearchView(pluginmgr.View, Gtk.Box):
 
         renderer = Gtk.CellRendererText()
         renderer.set_fixed_height_from_font(2)
-        renderer.set_property('ellipsize', Pango.EllipsizeMode.END)
+        renderer.set_property("ellipsize", Pango.EllipsizeMode.END)
         column = Gtk.TreeViewColumn("Name", renderer)
         column.set_sizing(Gtk.TreeViewColumnSizing.FIXED)
         column.set_cell_data_func(renderer, self.cell_data_func)
@@ -1656,18 +1722,18 @@ class SearchView(pluginmgr.View, Gtk.Box):
 
         # view signals
         results_view_selection = self.results_view.get_selection()
-        results_view_selection.connect('changed', self.on_selection_changed)
+        results_view_selection.connect("changed", self.on_selection_changed)
 
-        self.results_view.connect("test-expand-row",
-                                  self.on_test_expand_row)
+        self.results_view.connect("test-expand-row", self.on_test_expand_row)
 
-        self.results_view.connect("button-press-event",
-                                  self.on_view_button_press)
-        self.results_view.connect("button-release-event",
-                                  self.on_view_button_release)
+        self.results_view.connect(
+            "button-press-event", self.on_view_button_press
+        )
+        self.results_view.connect(
+            "button-release-event", self.on_view_button_release
+        )
 
-        self.results_view.connect("row-activated",
-                                  self.on_view_row_activated)
+        self.results_view.connect("row-activated", self.on_view_row_activated)
 
 
 class Note:
@@ -1685,7 +1751,6 @@ class Note:
 
 
 class AppendThousandRows(threading.Thread):
-
     def __init__(self, view, arg=None, group=None, **kwargs):
         super().__init__(group=group, target=None, name=None)
         self.__stopped = threading.Event()
@@ -1698,8 +1763,8 @@ class AppendThousandRows(threading.Thread):
 
     def cancel_callback(self):
         row = [None]
-        row += ['---'] * 7
-        row[4] = '** ' + _('interrupted') + ' **'
+        row += ["---"] * 7
+        row[4] = "** " + _("interrupted") + " **"
         self.view.liststore.append(row)
 
     def cancel(self):
@@ -1708,37 +1773,40 @@ class AppendThousandRows(threading.Thread):
     def get_query_filters(self):
         """Parse the string provided in arg and return the equivalent as
         consumed by sqlalchemy query `filter()` method."""
-        operator = oneOf('= != < <= > >= like contains has')
-        on_operator = Literal('on')
-        time_stamp_ident = Literal('timestamp')
-        numeric_value = Regex(
-            r'[-]?\d+(\.\d*)?([eE]\d+)?'
-        ).setParseAction(lambda _s, _l, t: [float(t[0])])
-        date_str = Regex(
-            r'\d{1,4}[/.-]{1}\d{1,2}[/.-]{1}\d{1,4}'
-        ).set_parse_action(lambda _s, _l, t: [str(t[0])])
-        value = (quotedString.setParseAction(removeQuotes) |
-                 date_str |
-                 numeric_value |
-                 Word(printables))
-        _and = CaselessLiteral("and").suppress()
-        identifier = Word(alphas + '_')
-        ident_expression = (Group(identifier + operator + value) |
-                            Group(time_stamp_ident + on_operator + value))
-        to_sync = Literal('to_sync')
-        expression = (
-            (to_sync + ZeroOrMore(_and + ident_expression)) |
-            ZeroOrMore(ident_expression + ZeroOrMore(_and + ident_expression))
+        operator = oneOf("= != < <= > >= like contains has")
+        on_operator = Literal("on")
+        time_stamp_ident = Literal("timestamp")
+        numeric_value = Regex(r"[-]?\d+(\.\d*)?([eE]\d+)?").setParseAction(
+            lambda _s, _l, t: [float(t[0])]
         )
+        date_str = Regex(
+            r"\d{1,4}[/.-]{1}\d{1,2}[/.-]{1}\d{1,4}"
+        ).set_parse_action(lambda _s, _l, t: [str(t[0])])
+        value = (
+            quotedString.setParseAction(removeQuotes)
+            | date_str
+            | numeric_value
+            | Word(printables)
+        )
+        _and = CaselessLiteral("and").suppress()
+        identifier = Word(alphas + "_")
+        ident_expression = Group(identifier + operator + value) | Group(
+            time_stamp_ident + on_operator + value
+        )
+        to_sync = Literal("to_sync")
+        expression = (
+            to_sync + ZeroOrMore(_and + ident_expression)
+        ) | ZeroOrMore(ident_expression + ZeroOrMore(_and + ident_expression))
 
         filters = []
         for part in expression.parse_string(self.arg, parse_all=True):
-            if part == 'to_sync':
+            if part == "to_sync":
                 meta_table = bauble.meta.BaubleMeta.__table__
                 with db.engine.begin() as connection:
                     start = connection.execute(
-                        select(meta_table.c.value)
-                        .where(meta_table.c.name == 'clone_history_id')
+                        select(meta_table.c.value).where(
+                            meta_table.c.name == "clone_history_id"
+                        )
                     ).scalar()
                 if start is not None:
                     filters.append(db.History.id > start)
@@ -1746,7 +1814,7 @@ class AppendThousandRows(threading.Thread):
                     # show nothing if database doesn't appear to be a clone
                     filters.append(db.History.id.is_(None))
                 continue
-            if part[0] == 'timestamp' and part[1] == 'on':
+            if part[0] == "timestamp" and part[1] == "on":
                 filters.append(self.get_on_timestamp_filter(part))
             else:
                 attr = getattr(db.History, part[0])
@@ -1792,11 +1860,11 @@ class AppendThousandRows(threading.Thread):
                 GLib.idle_add(self.view.show_error_box, msg, details)
 
 
-@Gtk.Template(filename=str(Path(paths.lib_dir(), 'history_view.ui')))
+@Gtk.Template(filename=str(Path(paths.lib_dir(), "history_view.ui")))
 class HistoryView(pluginmgr.View, Gtk.Box):
     """Show the tables row in the order they were last updated."""
 
-    __gtype_name__ = 'HistoryView'
+    __gtype_name__ = "HistoryView"
 
     liststore = Gtk.Template.Child()
     history_tv = Gtk.Template.Child()
@@ -1812,31 +1880,30 @@ class HistoryView(pluginmgr.View, Gtk.Box):
     queries = {}
 
     def __init__(self):
-        logger.debug('HistoryView::__init__')
+        logger.debug("HistoryView::__init__")
         super().__init__()
 
         # setup context_menu
         menu_model = Gio.Menu()
-        revert_action_name = 'revert_hist_to_selection'
-        copy_values_action_name = 'copy_hist_selection_values'
-        copy_geojson_action_name = 'copy_hist_selection_geojson'
+        revert_action_name = "revert_hist_to_selection"
+        copy_values_action_name = "copy_hist_selection_values"
+        copy_geojson_action_name = "copy_hist_selection_geojson"
 
         if bauble.gui:
-            bauble.gui.add_action(revert_action_name,
-                                  self.on_revert_to_history)
-            bauble.gui.add_action(copy_values_action_name,
-                                  self.on_copy_values)
-            bauble.gui.add_action(copy_geojson_action_name,
-                                  self.on_copy_geojson)
+            bauble.gui.add_action(
+                revert_action_name, self.on_revert_to_history
+            )
+            bauble.gui.add_action(copy_values_action_name, self.on_copy_values)
+            bauble.gui.add_action(
+                copy_geojson_action_name, self.on_copy_geojson
+            )
 
-        revert = Gio.MenuItem.new(
-            _('Revert to'), f'win.{revert_action_name}'
-        )
+        revert = Gio.MenuItem.new(_("Revert to"), f"win.{revert_action_name}")
         copy_values = Gio.MenuItem.new(
-            _('Copy values'), f'win.{copy_values_action_name}'
+            _("Copy values"), f"win.{copy_values_action_name}"
         )
         copy_geojson = Gio.MenuItem.new(
-            _('Copy geojson'), f'win.{copy_geojson_action_name}'
+            _("Copy geojson"), f"win.{copy_geojson_action_name}"
         )
         menu_model.append_item(revert)
         menu_model.append_item(copy_values)
@@ -1853,7 +1920,7 @@ class HistoryView(pluginmgr.View, Gtk.Box):
         values last.
         """
         k, v = val
-        if k == 'id':
+        if k == "id":
             return (0, k)
         if isinstance(v, list):
             return (1, k)
@@ -1863,32 +1930,35 @@ class HistoryView(pluginmgr.View, Gtk.Box):
 
     def add_row(self, item):
         dct = dict(item.values)
-        del dct['_created']
-        del dct['_last_updated']
+        del dct["_created"]
+        del dct["_last_updated"]
 
         geojson = None
-        if dct.get('geojson'):
-            geojson = json.dumps(item.values.get('geojson'))
+        if dct.get("geojson"):
+            geojson = json.dumps(item.values.get("geojson"))
         try:
-            del dct['geojson']
+            del dct["geojson"]
         except KeyError:
             pass
 
-        friendly = ', '.join(f"{k}: {v or repr('')}"
-                             for k, v in sorted(list(dct.items()),
-                                                key=self._cmp_items_key))
-        friendly = '\n'.join(textwrap.wrap(friendly, 200))
+        friendly = ", ".join(
+            f"{k}: {v or repr('')}"
+            for k, v in sorted(list(dct.items()), key=self._cmp_items_key)
+        )
+        friendly = "\n".join(textwrap.wrap(friendly, 200))
         frmt = prefs.prefs.get(prefs.datetime_format_pref)
-        self.liststore.append([
-            item,
-            str(item.id),
-            item.timestamp.strftime(frmt),
-            item.operation,
-            item.user,
-            item.table_name,
-            friendly,
-            geojson,
-        ])
+        self.liststore.append(
+            [
+                item,
+                str(item.id),
+                item.timestamp.strftime(frmt),
+                item.operation,
+                item.user,
+                item.table_name,
+                friendly,
+                geojson,
+            ]
+        )
 
     def get_selected_value(self):
         """Get the selected rows object from column 0."""
@@ -1907,18 +1977,28 @@ class HistoryView(pluginmgr.View, Gtk.Box):
 
     def on_revert_to_history(self, _action, _paramm):
         selected = self.get_selected_value()
-        logger.debug('reverting to selected %s id: %s', selected.table_name,
-                     selected.table_id)
+        logger.debug(
+            "reverting to selected %s id: %s",
+            selected.table_name,
+            selected.table_id,
+        )
 
         session = db.Session()
-        rows = (session.query(db.History)
-                .filter(db.History.id >= selected.id)
-                .count())
+        rows = (
+            session.query(db.History)
+            .filter(db.History.id >= selected.id)
+            .count()
+        )
         session.close()
 
-        msg = (_('<b>CAUTUION: reverting database is permanent.</b>\n\nYou '
-                 'have selected to revert %s changes.\n\nDo you wish to '
-                 'proceed?') % rows)
+        msg = (
+            _(
+                "<b>CAUTUION: reverting database is permanent.</b>\n\nYou "
+                "have selected to revert %s changes.\n\nDo you wish to "
+                "proceed?"
+            )
+            % rows
+        )
         if utils.yes_no_dialog(msg):
             if selected:
                 db.History.revert_to(selected.id)
@@ -1927,8 +2007,8 @@ class HistoryView(pluginmgr.View, Gtk.Box):
     def on_copy_values(self, _action, _param):
         if selected := self.get_selected_value():
             values = dict(selected.values)
-            if values.get('geojson'):
-                del values['geojson']
+            if values.get("geojson"):
+                del values["geojson"]
             string = json.dumps(values)
             if bauble.gui:
                 bauble.gui.get_display_clipboard().set_text(string, -1)
@@ -1939,7 +2019,7 @@ class HistoryView(pluginmgr.View, Gtk.Box):
 
     def on_copy_geojson(self, _action, _param):
         if selected := self.get_selected_value():
-            string = json.dumps(selected.values.get('geojson'))
+            string = json.dumps(selected.values.get("geojson"))
             if bauble.gui:
                 bauble.gui.get_display_clipboard().set_text(string, -1)
             else:
@@ -1965,7 +2045,7 @@ class HistoryView(pluginmgr.View, Gtk.Box):
         obj_id = row[self.TVC_OBJ].table_id
 
         table, query = self.queries.get(
-            table, (table, '{table} where id={obj_id}')
+            table, (table, "{table} where id={obj_id}")
         )
 
         if table in search.MapperSearch.domains:
@@ -1990,8 +2070,7 @@ class HistoryView(pluginmgr.View, Gtk.Box):
 
 
 class HistoryCommandHandler(pluginmgr.CommandHandler):
-
-    command = 'history'
+    command = "history"
     view = None
 
     def get_view(self):
@@ -2013,12 +2092,15 @@ def select_in_search_results(obj):
     :param obj: the object the select
     :return: a Gtk.TreeIter to the selected row
     """
-    check(obj is not None, 'select_in_search_results: arg is None')
+    check(obj is not None, "select_in_search_results: arg is None")
     view = bauble.gui.get_view()
     if not isinstance(view, SearchView):
         return None
-    logger.debug("select_in_search_results %s is in session %s", obj,
-                 obj in view.session)
+    logger.debug(
+        "select_in_search_results %s is in session %s",
+        obj,
+        obj in view.session,
+    )
     model = view.results_view.get_model()
     found = utils.search_tree_model(model, obj)
     row_iter = None
@@ -2026,15 +2108,14 @@ def select_in_search_results(obj):
         row_iter = found[0]
     else:
         row_iter = model.append(None, [obj])
-        model.append(row_iter, ['-'])
+        model.append(row_iter, ["-"])
         # NOTE used in test...
-        logger.debug('%s added to search results', obj)
+        logger.debug("%s added to search results", obj)
     view.results_view.set_cursor(model.get_path(row_iter))
     return row_iter
 
 
 class DefaultCommandHandler(pluginmgr.CommandHandler):
-
     command = [None]
     view = None
 
