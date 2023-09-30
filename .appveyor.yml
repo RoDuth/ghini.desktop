@@ -20,7 +20,8 @@ for:
   build_script:
     - . ~/venv3.11/bin/activate
     - find /usr/local/Cellar/pygobject3 -type d -name site-packages
-    - cp -rf "$(find /usr/local/Cellar/pygobject3 -type d -name site-packages | head -n 1)"/* "$(find $VIRTUAL_ENV -type d -name site-packages)"
+    - export _PY_VER=$(python -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')")
+    - cp -rf "$(find /usr/local/Cellar/pygobject3 -type d -name site-packages | grep --color=never $_PY_VER)"/* "$(find $VIRTUAL_ENV -type d -name site-packages)"
     - /usr/local/opt/openjdk/bin/jlink --output jre --add-modules java.base,java.logging,java.desktop,java.xml
     - scripts/get_fop.sh
     - pip install --upgrade pip
