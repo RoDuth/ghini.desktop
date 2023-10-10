@@ -1364,9 +1364,11 @@ class SearchView(pluginmgr.View, Gtk.Box):
         self.remove_children(model, treeiter)
         try:
             kids = self.row_meta[type(row)].get_children(row)
-            sorter = self.row_meta[type(kids[0])].sorter
             if len(kids) == 0:
                 return True
+            sorter = utils.natsort_key
+            if len({type(i) for i in kids}) == 1:
+                sorter = self.row_meta[type(kids[0])].sorter
         except saexc.InvalidRequestError as e:
             logger.debug("on_test_expand_row: %s:%s", type(e).__name__, e)
             model = self.results_view.get_model()
@@ -1433,13 +1435,13 @@ class SearchView(pluginmgr.View, Gtk.Box):
         five_percent = int(nresults / 20) or 200
         steps_so_far = 0
 
-        # iterate over slice of size "steps", yield after adding each
-        # slice to the model
+        # iterate over slice of size "steps", yield every 5%
         added = set()
         for obj in itertools.chain(*groups):
             if obj in added:  # only add unique object
                 continue
             added.add(obj)
+
             parent = model.prepend(None, [obj])
             steps_so_far += 1
             if (

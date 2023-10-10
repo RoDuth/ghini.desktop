@@ -3188,7 +3188,7 @@ class IntendedLocationsTests(GardenTestCase):
 
         # called
         presenter.on_date_cell_edited(
-            None, Gtk.TreePath.new_first(), "10/10/2023"
+            None, Gtk.TreePath.new_first(), "25/09/2023"
         )
         mockrefresh.assert_called()
         presenter.cleanup()

@@ -151,6 +151,31 @@ class TestSearchView(BaubleTestCase):
             set(search.MapperSearch.get_domain_classes().values()),
         )
 
+    def test_all_domains_w_children_sorter(self):
+        prefs.prefs["bauble.search.sort_by_taxon"] = True
+        search_view = self.search_view
+        for func in get_setUp_data_funcs():
+            func()
+        for cls in search.MapperSearch.get_domain_classes().values():
+            if not SearchView.row_meta[cls].children:
+                continue
+            for obj in self.session.query(cls):
+                kids = search_view.row_meta[cls].get_children(obj)
+                if not kids:
+                    continue
+                kids_count = len(kids)
+                # acount for tags (as in on_test_expand_row)
+                sorter = utils.natsort_key
+                if len({type(i) for i in kids}) == 1:
+                    sorter = search_view.row_meta[type(kids[0])].sorter
+
+                kids_sorted = sorted(kids, key=sorter)
+                kids_sorted_count = len(kids_sorted)
+                self.assertEqual(
+                    kids_sorted_count,
+                    kids_count,
+                )
+
     def test_all_domains_w_children_has_children_returns_correct(self):
         search_view = self.search_view
         for func in get_setUp_data_funcs():
@@ -285,13 +310,24 @@ class TestSearchView(BaubleTestCase):
             search_view.results_view, treeiter, Gtk.TreePath.new_first()
         )
         self.assertFalse(val)
-        # self.assertTrue(False)
         results = sorted(
             [i.accession for i in row.sources],
             key=lambda obj: str(obj.species),
         )
         mock_append.assert_called()
         mock_append.assert_called_with(model, treeiter, results)
+        mock_append.reset_mock()
+
+        # test tag - tags are a special mixed case where sorter doesn't work
+        text = "tag = test2"
+        search_view.search(text)
+        model = search_view.results_view.get_model()
+        treeiter = model.get_iter_first()
+        row = model.get_value(treeiter, 0)
+        val = search_view.on_test_expand_row(
+            search_view.results_view, treeiter, Gtk.TreePath.new_first()
+        )
+        self.assertFalse(val)
 
     def test_on_test_expand_row_w_no_kids_returns_true_adds_no_kids(self):
         # doesn't propagate
