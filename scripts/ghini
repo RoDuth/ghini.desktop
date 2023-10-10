@@ -24,22 +24,21 @@ from multiprocessing import freeze_support
 # START >>>
 from gi.importer import DynamicImporter
 
+if DynamicImporter.load_module:
+    # SEE: https://gitlab.gnome.org/GNOME/pygobject/-/issues/494
+    # these 2 methods must be implimented.
+    def create_module(self, spec):
+        return self.load_module(spec.name)
 
-# SEE: https://gitlab.gnome.org/GNOME/pygobject/-/issues/494
-# these 2 methods must be implimented.
-def create_module(self, spec):
-    return self.load_module(spec.name)
+    def exec_module(_self, _module):
+        return
 
-
-def exec_module(_self, _module):
-    return
-
-
-DynamicImporter.create_module = create_module
-DynamicImporter.exec_module = exec_module
+    DynamicImporter.create_module = create_module
+    DynamicImporter.exec_module = exec_module
 # <<< END
 
 if __name__ == "__main__":
     freeze_support()
     from bauble import main
+
     sys.exit(main.main())
