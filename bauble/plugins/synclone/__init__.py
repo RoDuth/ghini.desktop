@@ -25,10 +25,12 @@ from bauble import pluginmgr
 from .clone import DBCloneTool
 from .sync import DBResolveSyncTool
 from .sync import DBSyncTool
+from .sync import ResolveCommandHandler
 
 
 class SynClonePlugin(pluginmgr.Plugin):
     tools = [DBCloneTool, DBSyncTool, DBResolveSyncTool]
+    commands = [ResolveCommandHandler]
 
 
 plugin = SynClonePlugin

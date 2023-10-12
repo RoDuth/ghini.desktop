@@ -24,6 +24,7 @@ import datetime
 import logging
 import os
 import time
+from unittest import mock
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -57,7 +58,7 @@ class EnumTests(BaubleTestCase):
             self.table.create(bind=db.engine)
 
     def tearDown(self):
-        BaubleTestCase.tearDown(self)
+        super().tearDown()
 
     def test_insert_low_level(self):
         db.engine.execute(self.table.insert(), {"id": 1})
@@ -438,3 +439,31 @@ class MVPTests(BaubleTestCase):
             natural_number_for_dialog_box + 1,
         )
         presenter.on_tag_desc_textbuffer_changed()  # avoid uncounted line!
+
+
+class GlobalFunctionsTests(BaubleTestCase):
+    @mock.patch("bauble.gui")
+    def test_command_handler(self, mock_gui):
+        bauble.command_handler("history", None)
+        mock_gui.get_view.assert_called()
+        from bauble.view import HistoryView
+
+        mock_gui.set_view.assert_called()
+        self.assertIsInstance(mock_gui.set_view.call_args[0][0], HistoryView)
+        mock_gui.reset_mock()
+
+        from bauble.prefs import PrefsView
+
+        bauble.command_handler("prefs", None)
+        # switch
+        mock_gui.set_view.assert_called()
+        self.assertIsInstance(mock_gui.set_view.call_args[0][0], PrefsView)
+
+        with mock.patch("bauble.utils.message_dialog") as mock_dialog:
+            bauble.command_handler(None, None)
+            mock_dialog.assert_called_with("No default handler registered")
+            mock_dialog.reset_mock()
+            bauble.command_handler("NOTaCOMMAND", None)
+            mock_dialog.assert_called_with(
+                "No command handler for NOTaCOMMAND"
+            )

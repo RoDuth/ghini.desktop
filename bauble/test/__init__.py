@@ -89,7 +89,8 @@ def check_dupids(filename):
             ids.add(elid)
         elif elid and elid not in duplicates:
             duplicates.add(elid)
-    logger.warning(duplicates)
+    if duplicates:
+        logger.warning(duplicates)
     return list(duplicates)
 
 
@@ -143,7 +144,7 @@ class BaubleTestCase(unittest.TestCase):
         prefs.prefs.init()
         prefs.prefs[prefs.web_proxy_prefs] = "use_requests_without_proxies"
         prefs.testing = True
-        bauble.pluginmgr.plugins = {}
+        pluginmgr.plugins.clear()
         pluginmgr.load()
         db.create(import_defaults=False)
         pluginmgr.install("all", False, force=True)
@@ -162,7 +163,6 @@ class BaubleTestCase(unittest.TestCase):
         self.session.rollback()
         close_all_sessions()
         db.metadata.drop_all(bind=db.engine)
-        bauble.pluginmgr.commands.clear()
         pluginmgr.plugins.clear()
         os.close(self.handle)
         os.remove(self.temp)

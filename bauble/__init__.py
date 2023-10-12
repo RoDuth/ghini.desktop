@@ -166,7 +166,7 @@ def command_handler(cmd, arg):
             utils.message_dialog(_("No default handler registered"))
         else:
             utils.message_dialog(_("No command handler for %s") % cmd)
-            return
+        return
 
     if not isinstance(last_handler, handler_cls):
         last_handler = handler_cls()

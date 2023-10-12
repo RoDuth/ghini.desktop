@@ -492,8 +492,7 @@ class GUITests(BaubleTestCase):
         search_view = view.SearchView()
         search_view.expand_to_all_rows = mock.Mock()
         gui.set_view(search_view)
-        mock_editor = mock.Mock(spec=type(lambda x: x))
-        mock_editor.__name__ = "test"
+        mock_editor.reset_mock()
         gui.on_insert_menu_item_activate(None, None, mock_editor)
         mock_editor.assert_called_once()
         search_view.expand_to_all_rows.assert_called_once()

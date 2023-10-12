@@ -774,9 +774,6 @@ class ResolveCommandHandler(pluginmgr.CommandHandler):
         self.view.update(arg)
 
 
-pluginmgr.register_command(ResolveCommandHandler)
-
-
 class DBSyncTool(pluginmgr.Tool):
     category = _("Sync or clone")
     label = _("Sync")
