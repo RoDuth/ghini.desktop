@@ -31,7 +31,6 @@ from datetime import datetime
 from shutil import copy2
 from typing import TYPE_CHECKING
 
-
 import gi
 
 gi.require_version("Gdk", "3.0")
@@ -123,7 +122,9 @@ sys.path.append(paths.lib_dir())
 logging.getLogger("sqlalchemy").setLevel(logging.WARNING)
 
 if TYPE_CHECKING:
-    gui: bauble.ui.GUI | None = None
+    from bauble.ui import GUI
+
+    gui: GUI | None = None
     """bauble.gui is the instance :class:`bauble.ui.GUI`"""
 else:
     gui = None
