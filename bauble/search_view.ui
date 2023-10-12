@@ -66,7 +66,42 @@
               </packing>
             </child>
             <child>
-              <placeholder/>
+              <object class="GtkNotebook" id="pic_pane_notebook">
+                <property name="visible">True</property>
+                <property name="can-focus">True</property>
+                <child>
+                  <object class="GtkPaned" id="pics_box">
+                    <property name="visible">True</property>
+                    <property name="can-focus">True</property>
+                    <child>
+                      <placeholder/>
+                    </child>
+                  </object>
+                  <packing>
+                    <property name="position">0</property>
+                  </packing>
+                </child>
+                <child type="tab">
+                  <object class="GtkLabel">
+                    <property name="visible">True</property>
+                    <property name="can-focus">False</property>
+                    <property name="label" translatable="yes">Pictures</property>
+                  </object>
+                  <packing>
+                    <property name="tab-fill">False</property>
+                  </packing>
+                </child>
+                <child>
+                  <placeholder/>
+                </child>
+                <child type="tab">
+                  <placeholder/>
+                </child>
+              </object>
+              <packing>
+                <property name="resize">True</property>
+                <property name="shrink">True</property>
+              </packing>
             </child>
           </object>
           <packing>

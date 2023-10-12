@@ -35,7 +35,8 @@ from bauble.test import get_setUp_data_funcs
 from bauble.test import update_gui
 from bauble.test import uri
 from bauble.test import wait_on_threads
-from bauble.view import PICTURESSCROLLER_WIDTH_PREF
+from bauble.view import PIC_PANE_PAGE_PREF
+from bauble.view import PIC_PANE_WIDTH_PREF
 from bauble.view import AppendThousandRows
 from bauble.view import HistoryView
 from bauble.view import Note
@@ -101,7 +102,7 @@ class TestMultiprocCounter(BaubleTestCase):
         # - using pool.map over pool.map_async (other than much slower)
         # leaving for now as final result does not seem to be effected
         from functools import partial
-        from multiprocessing import get_context
+        from multiprocessing import Pool
 
         classes = []
         for klass in search.MapperSearch.get_domain_classes().values():
@@ -115,7 +116,8 @@ class TestMultiprocCounter(BaubleTestCase):
             pass
         else:
             cleanup_on_sigterm()
-        with get_context("spawn").Pool() as pool:
+
+        with Pool() as pool:
             procs = []
             for klass in classes:
                 func = partial(multiproc_counter, self.uri, klass)
@@ -1066,34 +1068,59 @@ class TestHistoryView(BaubleTestCase):
 
 
 class TestPicturesScroller(BaubleTestCase):
-    def test_on_destroy_records_width(self):
+    def test_on_destroy_records_width_and_selected_page(self):
         window = Gtk.Window()
         window.resize(300, 300)
         box = Gtk.Box()
-        paned = Gtk.Paned()
+        notebook = Gtk.Notebook()
+        pics_box = Gtk.Paned()
+        pic_pane = Gtk.Paned()  # the parent pane, notebook is within
+        notebook.append_page(pics_box, Gtk.Label(label="test"))
         box2 = Gtk.Box()
-        paned.pack1(box2)
-        box.pack_start(paned, True, True, 1)
+        pic_pane.pack1(box2)
+        pic_pane.pack2(notebook)
+        box.pack_start(pic_pane, True, True, 1)
         window.add(box)
-        PicturesScroller(parent=paned)
-        self.assertIsNone(prefs.prefs.get(PICTURESSCROLLER_WIDTH_PREF))
-        paned.set_position(100)
+        PicturesScroller(parent=pics_box, pic_pane=pic_pane)
+        self.assertIsNone(prefs.prefs.get(PIC_PANE_WIDTH_PREF))
+        pic_pane.set_position(100)
+        box3 = Gtk.Box()
+        notebook.append_page(box3, Gtk.Label(label="test2"))
+        notebook.show_all()
+        # NOTE can't set current page until after show_all
+        notebook.set_current_page(1)
         window.show_all()
         window.destroy()
-        self.assertGreater(prefs.prefs.get(PICTURESSCROLLER_WIDTH_PREF), 100)
+        self.assertGreater(prefs.prefs.get(PIC_PANE_WIDTH_PREF), 100)
+        self.assertEqual(prefs.prefs.get(PIC_PANE_PAGE_PREF), 1)
 
-    def test_set_width_sets_parent_pane_position(self):
+    def test_set_width_and_notebook_page(self):
+        prefs.prefs[PIC_PANE_PAGE_PREF] = 1
         window = Gtk.Window()
         window.resize(500, 500)
         box = Gtk.Box()
-        paned = Gtk.Paned()
+        notebook = Gtk.Notebook()
+        pics_box = Gtk.Paned()
+        pic_pane = Gtk.Paned()  # the parent pane, notebook is within
+        notebook.append_page(pics_box, Gtk.Label(label="test"))
         box2 = Gtk.Box()
-        paned.pack1(box2)
-        box.pack_start(paned, True, True, 1)
+        pic_pane.pack1(box2)
+        pic_pane.pack2(notebook)
+        box.pack_start(pic_pane, True, True, 1)
         window.add(box)
-        PicturesScroller(parent=paned).set_width()
+        pic_pane.set_position(100)
+        box3 = Gtk.Box()
+        notebook.append_page(box3, Gtk.Label(label="test2"))
+        notebook.show_all()
+        # NOTE can't set current page until after show_all
+        notebook.set_current_page(1)
+        PicturesScroller(
+            parent=pics_box, pic_pane=pic_pane
+        ).set_width_and_notebook_page()
         # default position if not set
-        self.assertEqual(paned.get_position(), 1000 - 300 - 300 - 6)
+        self.assertEqual(pic_pane.get_position(), 1000 - 300 - 300 - 6)
+        # as set in prefs
+        self.assertEqual(notebook.get_current_page(), 1)
 
     def test_set_selection_adds_children(self):
         box = Gtk.Box()
@@ -1101,7 +1128,7 @@ class TestPicturesScroller(BaubleTestCase):
         box2 = Gtk.Box()
         paned.pack1(box2)
         box.pack_start(paned, True, True, 1)
-        picture_scroller = PicturesScroller(parent=paned)
+        picture_scroller = PicturesScroller(parent=paned, pic_pane=paned)
         self.assertFalse(picture_scroller.pictures_box.get_children())
         picture_scroller.set_selection(
             [
@@ -1119,10 +1146,26 @@ class TestPicturesScroller(BaubleTestCase):
         box2 = Gtk.Box()
         paned.pack1(box2)
         box.pack_start(paned, True, True, 1)
-        picture_scroller = PicturesScroller(parent=paned)
+        picture_scroller = PicturesScroller(parent=paned, pic_pane=paned)
         mock_event = mock.Mock(button=1, type=Gdk.EventType._2BUTTON_PRESS)
         picture_scroller.on_button_press(None, mock_event, "test.jpg")
         mock_open.assert_called_with(Path("pictures/test.jpg"))
+
+    @mock.patch("bauble.gui")
+    def test_hide_restore_pic_pane(self, mock_gui):
+        box = Gtk.Box()
+        paned = Gtk.Paned()
+        box2 = Gtk.Box()
+        paned.pack1(box2)
+        box.pack_start(paned, True, True, 1)
+        picture_scroller = PicturesScroller(parent=paned, pic_pane=paned)
+        self.assertIsNone(picture_scroller.restore_position)
+        picture_scroller._hide_restore_pic_pane([])
+        self.assertIsNotNone(picture_scroller.restore_position)
+        restore_pos = picture_scroller.restore_position
+        picture_scroller._hide_restore_pic_pane([1])
+        self.assertNotEqual(picture_scroller.restore_position, restore_pos)
+        self.assertEqual(picture_scroller.pic_pane.get_position(), restore_pos)
 
 
 class GlobalFunctionsTests(BaubleTestCase):

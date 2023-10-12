@@ -33,6 +33,8 @@ from collections import UserDict
 from datetime import timedelta
 from datetime import timezone
 from pathlib import Path
+from typing import Callable
+from typing import cast
 
 logger = logging.getLogger(__name__)
 
@@ -81,8 +83,11 @@ else:
 INFOBOXPAGE_WIDTH_PREF = "infobox.page_width"
 """The preferences key for storing the InfoBoxPage width."""
 
-PICTURESSCROLLER_WIDTH_PREF = "pictures_scroller.page_width"
-"""The preferences key for storing the pictures_scroller width."""
+PIC_PANE_WIDTH_PREF = "pictures_scroller.page_width"
+"""The preferences key for storing the pictures pane width."""
+
+PIC_PANE_PAGE_PREF = "pictures_scroller.selected_page"
+"""The preferences key for storing the pictures notebook selected page."""
 
 SEARCH_POLL_SECS_PREF = "bauble.search.poll_secs"
 """Preference key for how often to poll the database in search view"""
@@ -137,7 +142,7 @@ class InfoExpander(Gtk.Expander):
     """
 
     # preference for storing the expanded state
-    EXPANDED_PREF = None
+    EXPANDED_PREF = ""
 
     def __init__(self, label, widgets=None):
         """
@@ -274,7 +279,9 @@ class PropertiesExpander(InfoExpander):
 
 
 class InfoBoxPage(Gtk.ScrolledWindow):
-    """A `Gtk.ScrolledWindow` that contains `bauble.view.InfoExpander` objects."""
+    """A `Gtk.ScrolledWindow` that contains `bauble.view.InfoExpander`
+    objects.
+    """
 
     def __init__(self):
         super().__init__()
@@ -480,7 +487,7 @@ class AddOneDot(threading.Thread):
 
 
 def multiproc_counter(url, klass, ids):
-    """multiproccessing worker to get top level count for a group of items.
+    """multiprocessing worker to get top level count for a group of items.
 
     :param url: database url as a string.
     :param klass: sqlalchemy table class.
@@ -656,40 +663,62 @@ class PicturesScroller(Gtk.ScrolledWindow):
     picture to display.
     """
 
-    def __init__(self, parent=None):
+    def __init__(self, parent: Gtk.Paned, pic_pane: Gtk.Paned) -> None:
         logger.debug("entering PicturesScroller.__init__(parent=%s)", parent)
         super().__init__()
         parent.add(self)
-        parent.show_all()
+        self.parent = parent
+        self.pic_pane = pic_pane
+        self.set_width_and_notebook_page()
+        self.restore_position: int | None = prefs.prefs.get(
+            PIC_PANE_WIDTH_PREF
+        )
+        pic_pane.show_all()
         self.pictures_box = Gtk.Box(
             orientation=Gtk.Orientation.VERTICAL, can_focus=False, spacing=5
         )
         self.add(self.pictures_box)
-        self.parent = parent
         self.show()
         # connect to the grandparent to capture parent's values first
-        self.parent.get_parent().connect("destroy", self.on_destroy)
-        self.size_set_flag = False
+        if pic_parent := self.pic_pane.get_parent():
+            pic_parent.connect("destroy", self.on_destroy)
 
-    def on_destroy(self, _widget):
+    def on_destroy(self, _widget) -> None:
         # calculate the width (pic_pane - infopage) as self won't give values
         # below 46 for some reason, similarly the self size-allocation signal
         # stops at 46.
-        width = (
-            self.parent.get_allocation().width
-            - self.parent.get_child1().get_allocation().width
-            - 5
-        )
-        prefs.prefs[PICTURESSCROLLER_WIDTH_PREF] = width
+        width = 0
+        child1 = self.pic_pane.get_child1()
+        if child1:
+            width = (
+                self.pic_pane.get_allocation().width
+                - child1.get_allocation().width
+                - 5
+            )
+        logger.debug("setting PIC_PANE_WIDTH_PREF to %s", width)
+        prefs.prefs[PIC_PANE_WIDTH_PREF] = width
+        if pic_pane_notebook := cast(Gtk.Notebook, self.parent.get_parent()):
+            selected = pic_pane_notebook.get_current_page()
+        logger.debug("setting PIC_PANE_PAGE_PREF to %s", selected)
+        prefs.prefs[PIC_PANE_PAGE_PREF] = selected
+
+    def _hide_restore_pic_pane(self, selection: list) -> None:
+        if selection == []:
+            if bauble.gui:
+                width = bauble.gui.window.get_size().width
+                self.restore_position = self.pic_pane.get_position()
+                self.pic_pane.set_position(width - 6)
+        else:
+            if self.restore_position:
+                self.pic_pane.set_position(self.restore_position)
+            self.restore_position = None
 
     def set_selection(self, selection):
-        # set width once per session
-        if not self.size_set_flag:
-            self.set_width()
-
         logger.debug("PicturesScroller.set_selection(%s)", selection)
         for kid in self.pictures_box.get_children():
             kid.destroy()
+
+        self._hide_restore_pic_pane(selection)
 
         for obj in selection or []:
             try:
@@ -721,13 +750,12 @@ class PicturesScroller(Gtk.ScrolledWindow):
 
         self.pictures_box.show_all()
 
-    def set_width(self):
-        self.size_set_flag = True
+    def set_width_and_notebook_page(self) -> None:
         # for tests when no gui
         width = 1000
         if bauble.gui:
             width = bauble.gui.window.get_size().width
-        pics_width = prefs.prefs.get(PICTURESSCROLLER_WIDTH_PREF, 300)
+        pics_width = prefs.prefs.get(PIC_PANE_WIDTH_PREF, 300)
 
         info_width = prefs.prefs.get(INFOBOXPAGE_WIDTH_PREF, 300)
         # no search results == no infobox
@@ -735,8 +763,13 @@ class PicturesScroller(Gtk.ScrolledWindow):
             info_width = 0
 
         pane_pos = width - info_width - pics_width - 6
-        logger.debug("setting pane position to %s", pane_pos)
-        self.parent.set_position(pane_pos)
+        logger.debug("setting pic_pane position to %s", pane_pos)
+        self.pic_pane.set_position(pane_pos)
+        selected = prefs.prefs.get(PIC_PANE_PAGE_PREF)
+        if selected is not None:
+            notebook = cast(Gtk.Notebook, self.parent.get_parent())
+            if notebook:
+                notebook.set_current_page(selected)
 
     @staticmethod
     def on_button_press(_view, event, link):
@@ -761,10 +794,12 @@ class SearchView(pluginmgr.View, Gtk.Box):
 
     __gtype_name__ = "SearchView"
 
-    bottom_notebook = Gtk.Template.Child()
-    results_view = Gtk.Template.Child()
-    info_pane = Gtk.Template.Child()
-    pic_pane = Gtk.Template.Child()
+    bottom_notebook = cast(Gtk.Notebook, Gtk.Template.Child())
+    results_view = cast(Gtk.TreeView, Gtk.Template.Child())
+    info_pane = cast(Gtk.Paned, Gtk.Template.Child())
+    pic_pane = cast(Gtk.Paned, Gtk.Template.Child())
+    pic_pane_notebook = cast(Gtk.Notebook, Gtk.Template.Child())
+    pics_box = cast(Gtk.Paned, Gtk.Template.Child())
 
     class ViewMeta(UserDict):
         """This class shouldn't need to be instantiated directly.  Access the
@@ -832,14 +867,27 @@ class SearchView(pluginmgr.View, Gtk.Box):
     row_meta = ViewMeta()
     bottom_info = ViewMeta()
 
-    context_menu_callbacks = set()
+    pic_pane_notebook_pages: set[tuple[Gtk.Widget, int, str]] = set()
+    """Widgets added here will be added to the pic_pane_notebook.
+    Items are a tuple - (widget, tab position, tab label)
+    """
+
+    context_menu_callbacks: set[Callable] = set()
     """Callbacks for constructing context menus for selected items.
     Callbacks should recieve a single argument containing the selected items
     and return a single menu section of type Gio.Menu
     """
 
-    cursor_changed_callbacks = set()
+    cursor_changed_callbacks: set[Callable] = set()
     """Callbacks called each time the cursor changes"""
+
+    populate_callbacks: set[Callable] = set()
+    """Callbacks called each time SearchView populates"""
+
+    extra_signals: set[tuple[str, str, Callable]] = set()
+    """Add extra signals here to be setup at init.
+    Items are a tuple - (widget name, signal name, handler)
+    """
 
     def __init__(self):
         logger.debug("SearchView::__init__")
@@ -847,7 +895,12 @@ class SearchView(pluginmgr.View, Gtk.Box):
 
         self.create_gui()
 
-        self.pictures_scroller = PicturesScroller(parent=self.pic_pane)
+        for page in self.pic_pane_notebook_pages:
+            self.add_page_to_pic_pane_notebook(*page)
+
+        self.pictures_scroller = PicturesScroller(
+            parent=self.pics_box, pic_pane=self.pic_pane
+        )
 
         # the context menu cache holds the context menus by type in the results
         # view so that we don't have to rebuild them every time
@@ -871,6 +924,10 @@ class SearchView(pluginmgr.View, Gtk.Box):
             self.has_kids.set_size(cache_size)  # pylint: disable=no-member
         self.refresh = prefs.prefs.get(SEARCH_REFRESH_PREF, True)
         self.btn_1_timer = (0, 0, 0)
+
+        for widget, signal, handler in self.extra_signals:
+            widget = getattr(self, widget)
+            widget.connect(signal, handler)
 
     def add_notes_page_to_bottom_notebook(self):
         """add notebook page for notes
@@ -921,6 +978,20 @@ class SearchView(pluginmgr.View, Gtk.Box):
         except Exception as e:
             logger.debug("on_note_row_actived %s(%s)", type(e).__name__, e)
         return None
+
+    def add_page_to_pic_pane_notebook(
+        self, widget: Gtk.Widget, position: int, label: str
+    ) -> None:
+        """Add a page to the pic_pane notebook.
+
+        :param widget: the Gtk.Widget to place in the page
+        :param position: the tabs position in the notebook
+        :param label: the text to place in the tabs label
+        """
+        if not widget.get_parent():  # for testing don't keep attaching
+            self.pic_pane_notebook.append_page(widget, Gtk.Label(label=label))
+            self.pic_pane_notebook.reorder_child(widget, position)
+            self.pic_pane_notebook.show_all()
 
     def add_page_to_bottom_notebook(self, bottom_info):
         """add notebook page for a plugin class."""
@@ -1040,7 +1111,7 @@ class SearchView(pluginmgr.View, Gtk.Box):
                 width = bauble.gui.window.get_size().width
             info_width = prefs.prefs.get(INFOBOXPAGE_WIDTH_PREF, 300)
             pane_pos = width - info_width - 1
-            logger.debug("setting pane position to %s", pane_pos)
+            logger.debug("setting info_pane position to %s", pane_pos)
             self.info_pane.set_position(pane_pos)
 
         selected_type = type(row)
@@ -1286,12 +1357,16 @@ class SearchView(pluginmgr.View, Gtk.Box):
             error_msg = _("** Error: %s") % utils.xml_safe(e)
             error_details_msg = utils.xml_safe(traceback.format_exc())
 
+        # clear last result
+        for callback in self.populate_callbacks:
+            callback([])
+        utils.clear_model(self.results_view)
+
         if error_msg:
             bauble.gui.show_error_box(error_msg, error_details_msg)
             return
 
         # not error
-        utils.clear_model(self.results_view)
         if bauble.gui:
             statusbar = bauble.gui.widgets.statusbar
         else:
@@ -1400,6 +1475,9 @@ class SearchView(pluginmgr.View, Gtk.Box):
                 except StopIteration:
                     break
 
+        for callback in self.populate_callbacks:
+            callback(results)
+
     def _populate_worker(self, results):
         """Generator function for adding the search results to the
         model.
@@ -1421,9 +1499,9 @@ class SearchView(pluginmgr.View, Gtk.Box):
         groups = []
 
         # sort by type so that groupby works properly
-        results = sorted(results, key=lambda x: str(type(x)))
+        results_sorted = sorted(results, key=lambda x: str(type(x)))
 
-        for cls, group in itertools.groupby(results, key=type):
+        for cls, group in itertools.groupby(results_sorted, key=type):
             sorter = self.row_meta[cls].sorter
             # return groups by type and sort each of the groups
             groups.append(sorted(group, key=sorter, reverse=True))
@@ -1454,6 +1532,7 @@ class SearchView(pluginmgr.View, Gtk.Box):
                 if 0 < percent < 1.0:
                     bauble.gui.progressbar.set_fraction(percent)
                 yield
+
         self.results_view.freeze_child_notify()
         self.results_view.set_model(model)
         self.results_view.thaw_child_notify()
@@ -1660,7 +1739,7 @@ class SearchView(pluginmgr.View, Gtk.Box):
         """Expire all the children in the model, collapse everything, reexpand
         the rows to the previous state where possible.
 
-        Infoboxes are update in on_selection_changed which this should trigger.
+        Infoboxes are updated in on_selection_changed which this should trigger
         """
         # NOTE log used in tests
         logger.debug("SearchView::update")
