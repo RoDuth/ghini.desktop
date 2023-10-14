@@ -45,6 +45,20 @@ class Institution:
     table
     """
 
+    name: str
+    abbreviation: str
+    code: str
+    contact: str
+    technical_contact: str
+    email: str
+    tel: str
+    fax: str
+    address: str
+    geo_latitude: str
+    geo_longitude: str
+    geo_zoom: str
+    uuid: str
+
     __properties = (
         "name",
         "abbreviation",
@@ -57,7 +71,7 @@ class Institution:
         "address",
         "geo_latitude",
         "geo_longitude",
-        "geo_diameter",
+        "geo_zoom",
         "uuid",
     )
 
@@ -88,10 +102,10 @@ class Institution:
             # and do an insert and then catching the exception if it exists
             # and then updating the value is too slow
             if not row:
-                logger.debug("insert: %s = %s" % (prop, value))
+                logger.debug("insert: %s = %s", prop, value)
                 self.table.insert().execute(name=db_prop, value=value)
             else:
-                logger.debug("update: %s = %s" % (prop, value))
+                logger.debug("update: %s = %s", prop, value)
                 self.table.update(self.table.c.name == db_prop).execute(
                     value=value
                 )
@@ -123,10 +137,8 @@ class InstitutionEditorView(GenericEditorView):
         "inst_geo_longitude": _(
             "The longitude of the geographic centre of the garden."
         ),
-        "inst_geo_diameter": _(
-            "An approximation of the garden size: "
-            "the diameter of the smallest circle "
-            "completely containing the garden location."
+        "inst_geo_zoom": _(
+            "The start zoom level for maps that best displays the garden."
         ),
     }
 
@@ -152,7 +164,7 @@ class InstitutionPresenter(editor.GenericEditorPresenter):
         "inst_addr_tb": "address",
         "inst_geo_latitude": "geo_latitude",
         "inst_geo_longitude": "geo_longitude",
-        "inst_geo_diameter": "geo_diameter",
+        "inst_geo_zoom": "geo_zoom",
     }
 
     def __init__(self, model, view):
@@ -192,7 +204,6 @@ class InstitutionPresenter(editor.GenericEditorPresenter):
     def on_email_text_entry_changed(self, widget, value=None):
         value = super().on_text_entry_changed(widget, value)
 
-    # TODO <RD> - remove
     def on_inst_addr_tb_changed(self, widget, value=None, attr=None):
         return self.on_textbuffer_changed(widget, value, attr="address")
 

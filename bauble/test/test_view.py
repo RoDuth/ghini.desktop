@@ -1124,11 +1124,15 @@ class TestPicturesScroller(BaubleTestCase):
 
     def test_set_selection_adds_children(self):
         box = Gtk.Box()
-        paned = Gtk.Paned()
+        notebook = Gtk.Notebook()
+        pics_box = Gtk.Paned()
+        pic_pane = Gtk.Paned()  # the parent pane, notebook is within
+        notebook.append_page(pics_box, Gtk.Label(label="test"))
         box2 = Gtk.Box()
-        paned.pack1(box2)
-        box.pack_start(paned, True, True, 1)
-        picture_scroller = PicturesScroller(parent=paned, pic_pane=paned)
+        pic_pane.pack1(box2)
+        pic_pane.pack2(notebook)
+        box.pack_start(pic_pane, True, True, 1)
+        picture_scroller = PicturesScroller(parent=pics_box, pic_pane=pic_pane)
         self.assertFalse(picture_scroller.pictures_box.get_children())
         picture_scroller.set_selection(
             [
@@ -1142,11 +1146,15 @@ class TestPicturesScroller(BaubleTestCase):
     @mock.patch("bauble.utils.desktop.open")
     def test_on_button_press_opens_picture(self, mock_open):
         box = Gtk.Box()
-        paned = Gtk.Paned()
+        notebook = Gtk.Notebook()
+        pics_box = Gtk.Paned()
+        pic_pane = Gtk.Paned()  # the parent pane, notebook is within
+        notebook.append_page(pics_box, Gtk.Label(label="test"))
         box2 = Gtk.Box()
-        paned.pack1(box2)
-        box.pack_start(paned, True, True, 1)
-        picture_scroller = PicturesScroller(parent=paned, pic_pane=paned)
+        pic_pane.pack1(box2)
+        pic_pane.pack2(notebook)
+        box.pack_start(pic_pane, True, True, 1)
+        picture_scroller = PicturesScroller(parent=pics_box, pic_pane=pic_pane)
         mock_event = mock.Mock(button=1, type=Gdk.EventType._2BUTTON_PRESS)
         picture_scroller.on_button_press(None, mock_event, "test.jpg")
         mock_open.assert_called_with(Path("pictures/test.jpg"))
@@ -1154,11 +1162,15 @@ class TestPicturesScroller(BaubleTestCase):
     @mock.patch("bauble.gui")
     def test_hide_restore_pic_pane(self, mock_gui):
         box = Gtk.Box()
-        paned = Gtk.Paned()
+        notebook = Gtk.Notebook()
+        pics_box = Gtk.Paned()
+        pic_pane = Gtk.Paned()  # the parent pane, notebook is within
+        notebook.append_page(pics_box, Gtk.Label(label="test"))
         box2 = Gtk.Box()
-        paned.pack1(box2)
-        box.pack_start(paned, True, True, 1)
-        picture_scroller = PicturesScroller(parent=paned, pic_pane=paned)
+        pic_pane.pack1(box2)
+        pic_pane.pack2(notebook)
+        box.pack_start(pic_pane, True, True, 1)
+        picture_scroller = PicturesScroller(parent=pics_box, pic_pane=pic_pane)
         self.assertIsNone(picture_scroller.restore_position)
         picture_scroller._hide_restore_pic_pane([])
         self.assertIsNotNone(picture_scroller.restore_position)

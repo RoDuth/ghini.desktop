@@ -2,6 +2,7 @@
 # pylint: disable=undefined-variable,missing-module-docstring
 
 from pathlib import Path
+import sysconfig
 from tld.defaults import NAMES_LOCAL_PATH_PARENT
 import pyproj
 import tldextract
@@ -26,9 +27,31 @@ configs = [(f'{i}/*.cfg', f'{i.relative_to(root)}') for i in
 
 block_cipher = None
 
+binaries = []
+gio_modules = []
+
+if 'mingw' in sysconfig.get_platform():
+    binaries = [
+        ('C:/msys64/mingw64/lib/gio/modules/libgiognomeproxy.dll',
+         'lib/gio/modules'),
+        ('C:/msys64/mingw64/lib/gio/modules/libgiolibproxy.dll',
+         'lib/gio/modules'),
+        ('C:/msys64/mingw64/lib/gio/modules/libgiognutls.dll',
+         'lib/gio/modules'),
+        ('C:/msys64/mingw64/lib/gio/modules/libgioopenssl.dll',
+         'lib/gio/modules'),
+        ('C:/msys64/mingw64/bin/libgnutls-30.dll', '.'),
+        ('C:/msys64/mingw64/bin/libintl-8.dll', '.'),
+        ('C:/msys64/mingw64/bin/libproxy-1.dll', '.'),
+    ]
+    gio_modules = [
+        ('C:/msys64/mingw64/lib/gio/modules/giomodule.cache',
+         'lib/gio/modules'),
+    ]
+
 a = Analysis(['ghini'],
              pathex=[root],
-             binaries=[],
+             binaries=binaries,
              datas=[
                  ('../LICENSE', 'share/ghini'),
                  ('../bauble/utils/prj_crs.csv', 'bauble/utils'),
@@ -50,7 +73,7 @@ a = Analysis(['ghini'],
                  (pyproj.datadir.get_data_dir(), 'share/proj'),
                  (str(Path(tldextract.__file__).parent / '.tld_set_snapshot'),
                   'tldextract/')
-             ] + glade_files + tld_names + configs,  # noqa
+             ] + glade_files + tld_names + configs + gio_modules,  # noqa
              hiddenimports=[
                  'sqlalchemy.dialects.sqlite',
                  'sqlalchemy.dialects.postgresql',
@@ -69,7 +92,7 @@ a = Analysis(['ghini'],
                  'pyproj',
                  'pyodbc',
              ],   # noqa
-             hookspath=[],
+             hookspath=['./scripts/extra-hooks/'],
              hooksconfig={"gi": {
                  "icons": ["Adwaita"],
                  "themes": ["Adwaita"],

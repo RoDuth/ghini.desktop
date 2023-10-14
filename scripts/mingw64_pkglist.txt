@@ -13,4 +13,6 @@ mingw-w64-x86_64-proj
 mingw-w64-x86_64-python-pytest
 mingw-w64-x86_64-python-coverage
 mingw-w64-x86_64-cython
+mingw-w64-x86_64-osm-gps-map
+mingw-w64-x86_64-python-cairo
 git

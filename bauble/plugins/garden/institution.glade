@@ -424,7 +424,7 @@
               <object class="GtkLabel">
                 <property name="visible">True</property>
                 <property name="can-focus">False</property>
-                <property name="label" translatable="yes">Diameter</property>
+                <property name="label" translatable="yes">Map Zoom</property>
                 <property name="use-markup">True</property>
                 <property name="xalign">0</property>
               </object>
@@ -435,15 +435,24 @@
               </packing>
             </child>
             <child>
-              <object class="GtkEntry" id="inst_geo_diameter">
+              <object class="GtkComboBoxText" id="inst_geo_zoom">
                 <property name="visible">True</property>
-                <property name="can-focus">True</property>
-                <property name="primary-icon-activatable">False</property>
-                <property name="secondary-icon-activatable">False</property>
+                <property name="can-focus">False</property>
+                <items>
+                  <item translatable="yes">10</item>
+                  <item translatable="yes">11</item>
+                  <item translatable="yes">12</item>
+                  <item translatable="yes">13</item>
+                  <item translatable="yes">14</item>
+                  <item translatable="yes">15</item>
+                  <item translatable="yes">16</item>
+                  <item translatable="yes">17</item>
+                  <item translatable="yes">18</item>
+                </items>
                 <signal name="changed" handler="on_text_entry_changed" swapped="no"/>
               </object>
               <packing>
-                <property name="expand">True</property>
+                <property name="expand">False</property>
                 <property name="fill">True</property>
                 <property name="position">5</property>
               </packing>

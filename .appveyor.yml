@@ -14,8 +14,7 @@ for:
       - image: macos-monterey
 
   install:
-    - brew install pygobject3 gtk+3 adwaita-icon-theme openjdk
-    - brew install unixodbc
+    - brew install pygobject3 gtk+3 adwaita-icon-theme openjdk osm-gps-map unixodbc
 
   build_script:
     - . ~/venv3.11/bin/activate

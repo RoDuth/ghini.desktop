@@ -23,6 +23,7 @@ The garden plugin
 """
 
 import logging
+import multiprocessing
 import re
 from random import random
 
@@ -64,6 +65,7 @@ from .plant import PlantNote
 from .plant import PlantPicture
 from .plant import PlantSearch
 from .plant import plant_context_menu
+from .plant_map import PlantMap
 from .source import Collection
 from .source import Source
 from .source import SourceDetail
@@ -373,6 +375,31 @@ class GardenPlugin(pluginmgr.Plugin):
                 bauble.gui.add_action("set_delimiter", Plant.set_delimiter)
                 bauble.gui.options_menu.append_item(delimiter_item)
 
+        if not multiprocessing.parent_process():
+            if institution.geo_latitude and institution.geo_longitude:
+                cls.setup_plant_map()
+
+    @staticmethod
+    def setup_plant_map() -> None:
+        plant_map_page = PlantMap(map_is_visible)
+        SearchView.pic_pane_notebook_pages.add((plant_map_page, 0, "Map"))
+        SearchView.extra_signals.add(
+            (
+                "pic_pane_notebook",
+                "switch-page",
+                plant_map_page.populate_map_from_search_view,
+            )
+        )
+        SearchView.extra_signals.add(
+            (
+                "pic_pane",
+                "notify::position",
+                plant_map_page.populate_map_from_search_view,
+            )
+        )
+        SearchView.populate_callbacks.add(plant_map_page.populate_map)
+        SearchView.cursor_changed_callbacks.add(plant_map_page.update_map)
+
     @staticmethod
     def on_inactive_toggled(action, value):
         action.set_state(value)
@@ -388,8 +415,26 @@ class GardenPlugin(pluginmgr.Plugin):
     def on_sort_toggled(action, value):
         action.set_state(value)
         prefs.prefs[SORT_BY_PREF] = value.get_boolean()
-        if isinstance(view := bauble.gui.get_view(), bauble.ui.SearchView):
+        if isinstance(view := bauble.gui.get_view(), SearchView):
             view.update()
+
+
+def map_is_visible() -> bool:
+    """Is the plant map visible.
+
+    May be best used with GLib.idle_add to ensure width and current page are
+    accurate.
+    """
+    if bauble.gui and isinstance(view := bauble.gui.get_view(), SearchView):
+        width = (
+            view.pic_pane.get_allocation().width
+            - view.pic_pane.get_child1().get_allocation().width  # type: ignore
+            - 5
+        )
+        logger.debug("map_is_visble width = %s", width)
+        if width > 100:
+            return view.pic_pane_notebook.get_current_page() == 0
+    return False
 
 
 def init_location_comboentry(presenter, combo, on_select):
