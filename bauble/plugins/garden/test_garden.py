@@ -4986,19 +4986,19 @@ class GlobalActionTests(BaubleTestCase):
 
     @unittest.mock.patch("bauble.gui")
     def test_on_sort_toggled(self, mock_gui):
-        prefs_view = bauble.ui.SearchView()
-        prefs_view.update = unittest.mock.Mock()
-        mock_gui.get_view.return_value = prefs_view
+        search_view = bauble.ui.SearchView()
+        search_view.update = unittest.mock.Mock()
+        mock_gui.get_view.return_value = search_view
         mock_action = unittest.mock.Mock()
         mock_variant = unittest.mock.Mock()
 
         mock_variant.get_boolean.return_value = True
         GardenPlugin.on_sort_toggled(mock_action, mock_variant)
-        # prefs_view.update.assert_called()
+        # search_view.update.assert_called()
         self.assertTrue(prefs.prefs.get(SORT_BY_PREF))
 
         mock_gui.get_view.reset_mock()
         mock_variant.get_boolean.return_value = False
         GardenPlugin.on_sort_toggled(mock_action, mock_variant)
-        prefs_view.update.assert_called()
+        search_view.update.assert_called()
         self.assertFalse(prefs.prefs.get(SORT_BY_PREF))
