@@ -18,14 +18,18 @@
 A map to displays plants.
 """
 import logging
-import os
+
+logger = logging.getLogger(__name__)
+
 import threading
 import time
+from dataclasses import astuple
+from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 from typing import Callable
 from typing import Sequence
-
-logger = logging.getLogger(__name__)
+from typing import cast
 
 import gi
 
@@ -34,15 +38,20 @@ gi.require_version("GdkPixbuf", "2.0")
 
 from gi.repository import Gdk
 from gi.repository import GdkPixbuf
+from gi.repository import Gio
 from gi.repository import GLib
 from gi.repository import Gtk
 from gi.repository import OsmGpsMap  # type: ignore
+from sqlalchemy import event
 
 import bauble
+from bauble import db
 from bauble import paths
 from bauble import prefs
+from bauble.utils import timed_cache
 from bauble.view import SearchView
 
+from .location import Location
 from .plant import Plant
 
 MAP_TILES_PREF_KEY = "garden.plant_map.base_tiles"
@@ -50,9 +59,142 @@ MAP_TILES_PREF_KEY = "garden.plant_map.base_tiles"
 The preferences key for the URI to the source for tiles.
 """
 
+MAP_PLANT_COLOUR_PREF_KEY = "garden.plant_map.plant_colour"
+"""
+The preferences key for the colour of plants on the map that are not selected.
+"""
 
+MAP_PLANT_SELECTED_COLOUR_PREF_KEY = "garden.plant_map.selected_plant_colour"
+"""
+The preferences key for the colour of plants on the map that are selected.
+"""
+
+MAP_LOCATION_COLOUR_PREF_KEY = "garden.plant_map.location_colour"
+"""
+The preferences key for the colour of locations on the map that are not
+selected.
+"""
+
+MAP_LOCATION_SELECTED_COLOUR_PREF_KEY = (
+    "garden.plant_map.selected_location_colour"
+)
+"""
+The preferences key for the colour of locations on the map that are selected.
+"""
+
+
+@dataclass
+class Colour:
+    name: str
+    image: GdkPixbuf.Pixbuf | None
+    rgba: Gdk.RGBA
+
+
+@dataclass
+class BoundingBox:
+    max_lat: float | None
+    min_lat: float | None
+    max_long: float | None
+    min_long: float | None
+
+    def update(self, lats: list[float], longs: list[float]) -> None:
+        if self.max_lat is not None:
+            values = lats + [self.max_lat]
+        else:
+            values = lats
+        self.max_lat = max(values)
+
+        if self.min_lat is not None:
+            values = lats + [self.min_lat]
+        else:
+            values = lats
+        self.min_lat = min(values)
+
+        if self.max_long is not None:
+            values = longs + [self.max_long]
+        else:
+            values = longs
+        self.max_long = max(values)
+
+        if self.min_long is not None:
+            values = longs + [self.min_long]
+        else:
+            values = longs
+        self.min_long = min(values)
+
+    def clear(self) -> None:
+        self.max_lat = None
+        self.min_lat = None
+        self.max_long = None
+        self.min_long = None
+
+
+colours: dict[str, Colour] = {
+    "green": Colour(
+        "green",
+        GdkPixbuf.Pixbuf.new_from_file_at_size(
+            str(Path(paths.lib_dir(), "images", "green_point.png")), 6, 6
+        ),
+        Gdk.RGBA(0.0, 0.56, 0.0, 0.0),
+    ),
+    "yellow": Colour(
+        "yellow",
+        GdkPixbuf.Pixbuf.new_from_file_at_size(
+            str(Path(paths.lib_dir(), "images", "yellow_point.png")), 6, 6
+        ),
+        Gdk.RGBA(1.0, 1.0, 0.0, 0.0),
+    ),
+    "blue": Colour(
+        "blue",
+        GdkPixbuf.Pixbuf.new_from_file_at_size(
+            str(Path(paths.lib_dir(), "images", "blue_point.png")), 6, 6
+        ),
+        Gdk.RGBA(0.0, 0.0, 1.0, 0.0),
+    ),
+    "red": Colour(
+        "red",
+        GdkPixbuf.Pixbuf.new_from_file_at_size(
+            str(Path(paths.lib_dir(), "images", "red_point.png")), 6, 6
+        ),
+        Gdk.RGBA(1.0, 0.0, 0.0, 0.0),
+    ),
+    "black": Colour(
+        "black",
+        GdkPixbuf.Pixbuf.new_from_file_at_size(
+            str(Path(paths.lib_dir(), "images", "black_point.png")), 6, 6
+        ),
+        Gdk.RGBA(0.0, 0.0, 0.0, 0.0),
+    ),
+    "grey": Colour(
+        "grey",
+        GdkPixbuf.Pixbuf.new_from_file_at_size(
+            str(Path(paths.lib_dir(), "images", "grey_point.png")), 6, 6
+        ),
+        Gdk.RGBA(0.5, 0.5, 0.5, 0.0),
+    ),
+    "white": Colour(
+        "white",
+        GdkPixbuf.Pixbuf.new_from_file_at_size(
+            str(Path(paths.lib_dir(), "images", "white_point.png")), 6, 6
+        ),
+        Gdk.RGBA(1.0, 1.0, 1.0, 0.0),
+    ),
+}
+
+
+@Gtk.Template(filename=str(Path(__file__).resolve().parent / "plant_map.ui"))
 class PlantMap(Gtk.Paned):  # pylint: disable=too-many-instance-attributes
     """Widget to display plants in an OsmGpsMap map"""
+
+    __gtype_name__ = "PlantMapPane"
+
+    map_box = cast(Gtk.Box, Gtk.Template.Child())
+    tiles_combo = cast(Gtk.ComboBoxText, Gtk.Template.Child())
+    colour_combo = cast(Gtk.ComboBox, Gtk.Template.Child())
+    selected_colour_combo = cast(Gtk.ComboBox, Gtk.Template.Child())
+    loc_colour_combo = cast(Gtk.ComboBox, Gtk.Template.Child())
+    loc_selected_colour_combo = cast(Gtk.ComboBox, Gtk.Template.Child())
+    colour_liststore = cast(Gtk.ListStore, Gtk.Template.Child())
 
     def __init__(self, is_visible: Callable[[], bool]) -> None:
         super().__init__()
@@ -66,24 +208,19 @@ class PlantMap(Gtk.Paned):  # pylint: disable=too-many-instance-attributes
         )
         self.set_tiles_from_prefs()
 
-        from .institution import Institution
+        self.zoom_to_home()
+        self.map.connect("button_press_event", self.on_button_press)
+        self.map_box.pack_start(self.map, True, True, 0)
 
-        institution = Institution()
-        self.map.set_center_and_zoom(
-            float(institution.geo_latitude or 0),
-            float(institution.geo_longitude or 0),
-            int(institution.geo_zoom or 16),
-        )
-        vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-        vbox.pack_start(self.map, True, True, 0)
-        self.add(vbox)
         self.map_adders = {
             "Point": self.map_add_point,
             "LineString": self.map_add_line,
             "Polygon": self.map_add_poly,
         }
+
         self.map_items: dict[int, Any] = {}
-        self.prior_selection: set[tuple[int, str]] = set()
+        self.selected: set[tuple[str, int, str]] = set()
+        self.selected_bbox = BoundingBox(None, None, None, None)
         self.populate_thread: None | threading.Thread = None
         self.update_thread: None | threading.Thread = None
         self.thread_event = threading.Event()
@@ -93,39 +230,191 @@ class PlantMap(Gtk.Paned):  # pylint: disable=too-many-instance-attributes
         self.populated: bool = False
         self.connect("destroy", self.on_destroy)
 
-        self.map_point_image = os.path.join(
-            paths.lib_dir(), "images", "green_point.png"
-        )
-        self.map_point_selected_image = os.path.join(
-            paths.lib_dir(), "images", "yellow_point.png"
-        )
-        self.map_item_colour = Gdk.RGBA(0.0, 0.56, 0.0, 0.0)
-        self.map_item_selected_colour = Gdk.RGBA(1.0, 1.0, 0.0, 0.0)
+        self.map_plant_colour: Colour
+        self.map_plant_selected_colour: Colour
+        self.map_location_colour: Colour
+        self.map_location_selected_colour: Colour
+        self.set_colours_from_prefs()
+
         self.tile_options = self._get_tiles_option_map()
 
-        settings = self._get_settings_widgets()
-        vbox.pack_start(settings, False, True, 0)
-
-    def _get_settings_widgets(self) -> Gtk.Widget:
-        box = Gtk.Box()
-        expander = Gtk.Expander(label="<b>Map Settings</b>", use_markup=True)
-        expander.add(box)
-        tiles_combo = Gtk.ComboBoxText()
         for k in self.tile_options:
-            tiles_combo.append_text(k)
+            self.tiles_combo.append_text(k)
+
         base_tiles = prefs.prefs.get(MAP_TILES_PREF_KEY, 1)
-        tiles_combo.set_active(
+        self.tiles_combo.set_active(
             list(self.tile_options.values()).index(base_tiles)
         )
-        tiles_combo.connect("changed", self.on_tiles_combo_changed)
-        box.pack_start(tiles_combo, False, True, 5)
-        return expander
 
-    def on_tiles_combo_changed(self, combo) -> None:
+        for colour in colours.values():
+            self.colour_liststore.append([colour, colour.image])
+
+        renderer = Gtk.CellRendererPixbuf()
+
+        for combo in (
+            self.colour_combo,
+            self.selected_colour_combo,
+            self.loc_colour_combo,
+            self.loc_selected_colour_combo,
+        ):
+            combo.pack_start(renderer, False)
+            combo.add_attribute(renderer, "pixbuf", 1)
+
+        self.colour_combo.set_active(
+            list(colours.keys()).index(self.map_plant_colour.name)
+        )
+        self.selected_colour_combo.set_active(
+            list(colours.keys()).index(self.map_plant_selected_colour.name)
+        )
+        self.loc_colour_combo.set_active(
+            list(colours.keys()).index(self.map_location_colour.name)
+        )
+        self.loc_selected_colour_combo.set_active(
+            list(colours.keys()).index(self.map_location_selected_colour.name)
+        )
+
+        self.context_menu: Gtk.Menu
+        self.init_context_menu()
+
+    def add_locations(self) -> None:
+        polygons = get_locations_polys()
+        if polygons:
+            for poly in polygons.values():
+                poly.get_track().set_color(self.map_location_colour.rgba)
+                self.map.polygon_add(poly)
+
+    def on_button_press(self, _map: OsmGpsMap.Map, gevent: Gdk.Event) -> None:
+        if gevent.button == 3:
+            self.context_menu.popup_at_pointer(gevent)
+
+    def init_context_menu(self):
+        menu = Gio.Menu()
+        action_name = "plant_map"
+        action_group = Gio.SimpleActionGroup()
+        menu_items = (
+            (_("Zoom to selected"), "zoom_select", self.on_zoom_to_selected),
+            (_("Zoom to home"), "zoom_home", self.zoom_to_home),
+        )
+
+        for label, name, handler in menu_items:
+            action = Gio.SimpleAction.new(name, None)
+            action.connect("activate", handler)
+            action_group.add_action(action)
+            menu_item = Gio.MenuItem.new(label, f"{action_name}.{name}")
+            menu.append_item(menu_item)
+
+        self.map.insert_action_group(action_name, action_group)
+        self.context_menu = Gtk.Menu.new_from_model(menu)
+        self.context_menu.attach_to_widget(self.map)
+
+    def on_zoom_to_selected(self, *_args) -> None:
+        if self.selected:
+            max_lat, min_lat, max_long, min_long = astuple(self.selected_bbox)
+            self.map.zoom_fit_bbox(max_lat, min_lat, max_long, min_long)
+
+    def zoom_to_home(self, *_args) -> None:
+        from .institution import Institution
+
+        institution = Institution()
+        self.map.set_center_and_zoom(
+            float(institution.geo_latitude or 0),
+            float(institution.geo_longitude or 0),
+            int(institution.geo_zoom or 16),
+        )
+
+    @Gtk.Template.Callback()
+    def on_tiles_combo_changed(self, combo: Gtk.ComboBoxText) -> None:
         text = combo.get_active_text()
         prefs.prefs[MAP_TILES_PREF_KEY] = self.tile_options[text]
         logger.debug("setting base tiles to %s", text)
         self.set_tiles_from_prefs()
+
+    def _set_colour_prefs_from_combo(
+        self, combo: Gtk.ComboBox, pref_key: str
+    ) -> None:
+        tree_iter = combo.get_active_iter()
+        if tree_iter is not None:
+            model = combo.get_model()
+            colour = model[tree_iter][0]
+            if self.map_plant_colour != colour:
+                logger.debug("set item colour to %s", colour.name)
+                prefs.prefs[pref_key] = colour.name
+                self.set_colours_from_prefs()
+                self.reset_item_colour()
+
+    @Gtk.Template.Callback()
+    def on_colour_combo_changed(self, combo: Gtk.ComboBox) -> None:
+        self._set_colour_prefs_from_combo(combo, MAP_PLANT_COLOUR_PREF_KEY)
+
+    @Gtk.Template.Callback()
+    def on_selected_colour_combo_changed(self, combo: Gtk.ComboBox) -> None:
+        self._set_colour_prefs_from_combo(
+            combo, MAP_PLANT_SELECTED_COLOUR_PREF_KEY
+        )
+
+    @Gtk.Template.Callback()
+    def on_loc_colour_combo_changed(self, combo: Gtk.ComboBox) -> None:
+        self._set_colour_prefs_from_combo(combo, MAP_LOCATION_COLOUR_PREF_KEY)
+
+    @Gtk.Template.Callback()
+    def on_loc_selected_colour_combo_changed(
+        self, combo: Gtk.ComboBox
+    ) -> None:
+        self._set_colour_prefs_from_combo(
+            combo, MAP_LOCATION_SELECTED_COLOUR_PREF_KEY
+        )
+
+    def set_colours_from_prefs(self) -> None:
+        colour = prefs.prefs.get(MAP_PLANT_COLOUR_PREF_KEY)
+        if colour not in colours:
+            colour = "green"
+        self.map_plant_colour = colours[colour]
+
+        colour = prefs.prefs.get(MAP_PLANT_SELECTED_COLOUR_PREF_KEY)
+        if colour not in colours:
+            colour = "yellow"
+        self.map_plant_selected_colour = colours[colour]
+
+        colour = prefs.prefs.get(MAP_LOCATION_COLOUR_PREF_KEY)
+        if colour not in colours:
+            colour = "grey"
+        self.map_location_colour = colours[colour]
+
+        colour = prefs.prefs.get(MAP_LOCATION_SELECTED_COLOUR_PREF_KEY)
+        if colour not in colours:
+            colour = "white"
+        self.map_location_selected_colour = colours[colour]
+
+    def reset_item_colour(self) -> None:
+        for item in self.map_items.values():
+            if isinstance(item, OsmGpsMap.MapImage):
+                item.props.pixbuf = self.map_plant_colour.image
+            elif isinstance(item, OsmGpsMap.MapTrack):
+                item.set_color(self.map_plant_colour.rgba)
+            elif isinstance(item, OsmGpsMap.MapPolygon):
+                item.get_track().set_color(self.map_plant_colour.rgba)
+        for item in get_locations_polys().values():
+            item.get_track().set_color(self.map_location_colour.rgba)
+        self.reset_selected_colour()
+
+    def reset_selected_colour(self) -> None:
+        for obj_type, id_, map_type in self.selected:
+            if obj_type == "plt":
+                map_item = self.map_items[id_]
+                if map_type == "Point":
+                    icon = self.map_plant_selected_colour.image
+                    map_item.props.pixbuf = icon
+                if map_type == "LineString":
+                    map_item.set_color(self.map_plant_selected_colour.rgba)
+                if map_type == "Polygon":
+                    map_item.get_track().set_color(
+                        self.map_plant_selected_colour.rgba
+                    )
+            elif obj_type == "loc":
+                map_item = get_locations_polys()[id_]
+                map_item.get_track().set_color(
+                    self.map_location_selected_colour.rgba
+                )
 
     def _get_tiles_option_map(self) -> dict[str, int]:
         options = {}
@@ -150,16 +439,14 @@ class PlantMap(Gtk.Paned):  # pylint: disable=too-many-instance-attributes
     def map_add_point(self, coordinates: list[float], id_: int) -> None:
         if self.glib_events.get(id_):
             long, lat = coordinates
-            icon = GdkPixbuf.Pixbuf.new_from_file_at_size(
-                self.map_point_image, 6, 6
-            )
+            icon = self.map_plant_colour.image
             self.map_items[id_] = self.map.image_add(lat, long, icon)
             del self.glib_events[id_]
 
     def map_add_line(self, coordinates: list[list[float]], id_: int) -> None:
         if self.glib_events.get(id_):
             track = OsmGpsMap.MapTrack()
-            track.set_color(self.map_item_colour)
+            track.set_color(self.map_plant_colour.rgba)
             track.props.alpha = 1.0
             for point in coordinates:
                 point.reverse()
@@ -176,7 +463,7 @@ class PlantMap(Gtk.Paned):  # pylint: disable=too-many-instance-attributes
             track = poly.get_track()
 
             coords = coordinates[0]
-            track.set_color(self.map_item_colour)
+            track.set_color(self.map_plant_colour.rgba)
             track.props.alpha = 1.0
             track.props.line_width = 2
             for point in coords:
@@ -232,8 +519,9 @@ class PlantMap(Gtk.Paned):  # pylint: disable=too-many-instance-attributes
         self.map.image_remove_all()
         self.map.track_remove_all()
         self.map.polygon_remove_all()
+        self.add_locations()
         self.map_items = {}
-        self.prior_selection.clear()
+        self.selected.clear()
         self.populated = False
         if results and self.is_visible():
             logger.debug("populating the map")
@@ -274,22 +562,24 @@ class PlantMap(Gtk.Paned):  # pylint: disable=too-many-instance-attributes
             self.populate_map(objs)
             self.update_map(view.get_selected_values())
 
-    def clear_prior_selection(self) -> None:
+    def clear_selected(self) -> None:
         """Set all items back to default colours"""
         logger.debug("clearing prior map selection")
-        for id_, type_ in self.prior_selection:
-            map_item = self.map_items[id_]
-            if type_ == "Point":
-                icon = GdkPixbuf.Pixbuf.new_from_file_at_size(
-                    self.map_point_image, 6, 6
-                )
-                map_item.props.pixbuf = icon
-            if type_ == "LineString":
-                map_item.set_color(self.map_item_colour)
-            if type_ == "Polygon":
-                map_item.get_track().set_color(self.map_item_colour)
+        for obj_type, id_, type_ in self.selected:
+            if obj_type == "plt":
+                map_item = self.map_items[id_]
+                if type_ == "Point":
+                    icon = self.map_plant_colour.image
+                    map_item.props.pixbuf = icon
+                if type_ == "LineString":
+                    map_item.set_color(self.map_plant_colour.rgba)
+                if type_ == "Polygon":
+                    map_item.get_track().set_color(self.map_plant_colour.rgba)
+            elif obj_type == "loc":
+                map_item = get_locations_polys()[id_]
+                map_item.get_track().set_color(self.map_location_colour.rgba)
 
-        self.prior_selection.clear()
+        self.selected.clear()
 
     def _wait_for_map_to_populate(self) -> None:
         # wait for map to populate
@@ -308,42 +598,115 @@ class PlantMap(Gtk.Paned):  # pylint: disable=too-many-instance-attributes
     def _update_worker(self, selected_values: Sequence) -> None:
         self._wait_for_map_to_populate()
         logger.debug("_update_worker, map populated")
+        lats: list[float] = []
+        longs: list[float] = []
+        self.selected_bbox.clear()
 
         for value in selected_values:
             if self.thread_event.is_set():
                 return
-
-            if not isinstance(value, Plant):
-                continue
 
             geojson = getattr(value, "geojson", None)
 
             if not geojson:
                 continue
 
-            map_item = self.map_items.get(value.id)
-            if map_item:
-                if geojson["type"] == "Point":
-                    icon = GdkPixbuf.Pixbuf.new_from_file_at_size(
-                        self.map_point_selected_image, 8, 8
-                    )
-                    map_item.props.pixbuf = icon
-                elif geojson["type"] == "LineString":
-                    map_item.set_color(self.map_item_selected_colour)
-                if geojson["type"] == "Polygon":
-                    map_item.get_track().set_color(
-                        self.map_item_selected_colour
-                    )
+            if isinstance(value, Plant):
+                self._highlight_plant(value.id, geojson, lats, longs)
+            elif isinstance(value, Location):
+                self._highlight_location(value.id, geojson, lats, longs)
 
-                self.prior_selection.add((value.id, geojson["type"]))
+        if lats and longs:
+            self.selected_bbox.update(lats, longs)
 
         GLib.idle_add(self.map.map_redraw)
 
+    def _highlight_plant(self, id_, geojson, lats, longs) -> None:
+        map_item = self.map_items.get(id_)
+        if map_item:
+            if geojson["type"] == "Point":
+                icon = self.map_plant_selected_colour.image
+                map_item.props.pixbuf = icon
+                lat, long = map_item.get_point().get_degrees()
+                lats.append(lat)
+                longs.append(long)
+            elif geojson["type"] == "LineString":
+                map_item.set_color(self.map_plant_selected_colour.rgba)
+                for point in map_item.get_points():
+                    lat, long = point.get_degrees()
+                    lats.append(lat)
+                    longs.append(long)
+            elif geojson["type"] == "Polygon":
+                map_item.get_track().set_color(
+                    self.map_plant_selected_colour.rgba
+                )
+                for point in map_item.get_track().get_points():
+                    lat, long = point.get_degrees()
+                    lats.append(lat)
+                    longs.append(long)
+            else:
+                return
+
+            self.selected.add(("plt", id_, geojson["type"]))
+
+    def _highlight_location(self, id_, geojson, lats, longs) -> None:
+        map_item = get_locations_polys()[id_]
+        if map_item:
+            if geojson["type"] == "Polygon":
+                map_item.get_track().set_color(
+                    self.map_location_selected_colour.rgba
+                )
+                for point in map_item.get_track().get_points():
+                    lat, long = point.get_degrees()
+                    lats.append(lat)
+                    longs.append(long)
+                self.selected.add(("loc", id_, "Polygon"))
+
     def update_map(self, selected_values: Sequence) -> None:
-        self.clear_prior_selection()
+        self.clear_selected()
         if selected_values and self.is_visible():
             self.update_thread = threading.Thread(
                 target=self._update_worker,
                 args=(selected_values,),
             )
             self.update_thread.start()
+
+
+@timed_cache(size=1000, secs=None)
+def get_locations_polys() -> dict[int, OsmGpsMap.MapPolygon]:
+    if not db.Session:
+        return {}
+
+    colour = prefs.prefs.get(MAP_LOCATION_COLOUR_PREF_KEY)
+    if colour not in colours:
+        colour = "grey"
+    colour = colours[colour]
+
+    session = db.Session()
+    polys = {}
+
+    for loc in session.query(Location).filter(Location.geojson.isnot(None)):
+        if loc.geojson["type"] == "Polygon":
+            poly = OsmGpsMap.MapPolygon.new()
+            track = poly.get_track()
+            coords = loc.geojson["coordinates"][0]
+            track.set_color(colour.rgba)
+            track.props.alpha = 0.7
+            track.props.line_width = 2
+            for point in coords:
+                point.reverse()
+                track.add_point(OsmGpsMap.MapPoint.new_degrees(*point))
+            polys[loc.id] = poly
+
+    session.close()
+
+    if polys:
+        return polys
+    return {}
+
+
+@event.listens_for(Location, "after_update")
+@event.listens_for(Location, "after_insert")
+@event.listens_for(Location, "after_delete")
+def loc_after_event(*_args):
+    get_locations_polys.clear_cache()

@@ -126,7 +126,7 @@ class TestPlantMap(BaubleTestCase):
         plant_map.populate_map(results)
         update_gui()
         self.assertEqual(plant_map.map_items, {})
-        self.assertEqual(plant_map.prior_selection, set())
+        self.assertEqual(plant_map.selected, set())
         self.assertIsNone(plant_map.populate_thread)
 
     def test_populate_map_not_visible(self):
@@ -137,7 +137,7 @@ class TestPlantMap(BaubleTestCase):
         plant_map.populate_map(results)
         update_gui()
         self.assertEqual(plant_map.map_items, {})
-        self.assertEqual(plant_map.prior_selection, set())
+        self.assertEqual(plant_map.selected, set())
         self.assertIsNone(plant_map.populate_thread)
 
     def test_populate_map_no_geojson(self):
@@ -150,7 +150,7 @@ class TestPlantMap(BaubleTestCase):
         plant_map.populate_thread.join()
         update_gui()
         self.assertEqual(plant_map.map_items, {})
-        self.assertEqual(plant_map.prior_selection, set())
+        self.assertEqual(plant_map.selected, set())
         plant_map.destroy()
 
     def test_populate_map_stops_threads(self):
@@ -195,7 +195,7 @@ class TestPlantMap(BaubleTestCase):
         self.assertIsInstance(plant_map.map_items[1], MapImage)
         self.assertIsInstance(plant_map.map_items[2], MapTrack)
         self.assertIsInstance(plant_map.map_items[3], MapPolygon)
-        self.assertEqual(plant_map.prior_selection, set())
+        self.assertEqual(plant_map.selected, set())
         self.assertEqual(plant_map.glib_events, {})
         plant_map.destroy()
 
@@ -218,25 +218,24 @@ class TestPlantMap(BaubleTestCase):
         plant_map.update_thread.join()
         update_gui()
         self.assertEqual(
-            plant_map.prior_selection, {(1, "Point"), (3, "Polygon")}
+            plant_map.selected, {("plt", 1, "Point"), ("plt", 3, "Polygon")}
         )
         # check color changed
         self.assertEqual(
             plant_map.map_items[3].get_track().get_color(),
-            plant_map.map_item_selected_colour,
+            plant_map.map_plant_selected_colour.rbga,
         )
-        # change selection and check it updates (tests clear_prior_selection
-        # also)
+        # change selection and check it updates (tests clear_selected also)
         plant_map.update_map([plt2])
         plant_map.update_thread.join()
         update_gui()
-        self.assertEqual(plant_map.prior_selection, {(2, "LineString")})
+        self.assertEqual(plant_map.selected, {("plt", 2, "LineString")})
         self.assertEqual(
             plant_map.map_items[3].get_track().get_color(),
-            plant_map.map_item_colour,
+            plant_map.map_plant_colour.rbga,
         )
 
-    def test_clear_prior_selection(self):
+    def test_clear_selected(self):
         for func in get_setUp_data_funcs():
             func()
         plt1 = self.session.query(Plant).get(1)
@@ -255,13 +254,13 @@ class TestPlantMap(BaubleTestCase):
         plant_map.update_thread.join()
         update_gui()
         self.assertEqual(
-            plant_map.prior_selection, {(1, "Point"), (3, "Polygon")}
+            plant_map.selected, {("plt", 1, "Point"), ("plt", 3, "Polygon")}
         )
-        plant_map.clear_prior_selection()
-        self.assertEqual(plant_map.prior_selection, set())
+        plant_map.clear_selected()
+        self.assertEqual(plant_map.selected, set())
         self.assertEqual(
             plant_map.map_items[3].get_track().get_color(),
-            plant_map.map_item_colour,
+            plant_map.map_plant_colour.rbga,
         )
 
     def test_populate_map_from_search_view(self):
