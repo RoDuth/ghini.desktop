@@ -489,7 +489,6 @@ class GlobalFunctionsTests(BaubleTestCase):
         self.assertEqual(len(self.session.new), 0)
         self.assertEqual(len(self.session.dirty), 0)
         self.assertEqual(len(self.session.deleted), 0)
-        sp1 = {"epithet": "francisii", "genus": gen1_new}
         sp1_update = {
             "sp": "luehmanii",
             "sp_author": "F.Muell.",
@@ -499,6 +498,36 @@ class GlobalFunctionsTests(BaubleTestCase):
         self.assertEqual(len(self.session.dirty), 1)
         self.assertEqual(sp1_new.sp, "luehmanii")
         self.assertEqual(sp1_new.sp_author, "F.Muell.")
+        self.session.commit()
+
+    def test_get_create_or_update_default_vernacular(self):
+        # test does not cause unique constraint error on commit second time
+        # around (i.e. try to create the default_vernacular twice)
+        fam1 = {"epithet": "Myrtaceae"}
+        fam1_new = db.get_create_or_update(self.session, Family, **fam1)
+        self.assertEqual(len(self.session.new), 1)
+        self.assertTrue(fam1_new in self.session.new)
+        gen1 = {"genus": "Syzygium", "family": fam1_new}
+        gen1_new = db.get_create_or_update(self.session, Genus, **gen1)
+        self.assertTrue(gen1_new in self.session.new)
+        self.assertEqual(len(self.session.new), 2)
+        sp1 = {
+            "epithet": "francisii",
+            "genus": gen1_new,
+            "default_vernacular_name": "Rose Satinash",
+        }
+        sp1_new = db.get_create_or_update(self.session, Species, **sp1)
+        # Species + DefaultVernacularName + VernacularName
+        self.assertEqual(len(self.session.new), 5)
+        self.assertTrue(sp1_new in self.session.new)
+        self.session.commit()
+        sp1 = {
+            "epithet": "francisii",
+            "genus": gen1_new,
+            "default_vernacular_name": "Rose Satinash",
+        }
+        sp1_get = db.get_create_or_update(self.session, Species, **sp1)
+        self.assertEqual(sp1_new, sp1_get)
         self.session.commit()
 
     def test_get_active_children_excludes_inactive_if_pref_set(self):

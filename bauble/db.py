@@ -36,11 +36,13 @@ logger = logging.getLogger(__name__)
 import sqlalchemy as sa
 from gi.repository import Gtk
 from sqlalchemy import event
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import DeclarativeMeta
 from sqlalchemy.orm import declarative_base
 from sqlalchemy.orm import object_session
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.orm.attributes import get_history
+from sqlalchemy.orm.exc import MultipleResultsFound
 
 from bauble import btypes as types
 from bauble import error
@@ -782,7 +784,8 @@ def get_unique_columns(model):
         if i.unique and i.key not in uniq_cols
     ]
     uniq_cols.extend(uniq_table_cols)
-    # include epithet - synonym for family and genus
+    # include epithet for genus and family only (will not work on species as if
+    # it ends up as the only fields searched it could return a bad match)
     if model.__tablename__ in ["family", "genus"]:
         uniq_cols.append("epithet")
     logger.debug("unique columns: %s", uniq_cols)
@@ -790,37 +793,24 @@ def get_unique_columns(model):
 
 
 def get_existing(session, model, **kwargs):
-    """get an appropriate database entry given its model and some data or None.
+    """Get an appropriate database entry given its model and some data or None.
+
+    Does not search for an exact match, you may wish to do so first, i.e.:
+    session.query(model).filter_by(**kwargs).one()
 
     :param session: instance of db.Session()
     :param model: sqlalchemy table class
     :param kwargs: database values
     """
-    from sqlalchemy.exc import SQLAlchemyError
-    from sqlalchemy.orm.exc import MultipleResultsFound
-
     logger.debug("looking for record matching: %s", kwargs)
-    # first try using just one
-    try:
-        inst = session.query(model).filter_by(**kwargs).one()
-        return inst
-    except MultipleResultsFound:
-        # no unique entry found, abort or we risk overwriting the wrong one.
-        return None
-    except SQLAlchemyError:
-        # any other error (i.e. no result, error in the statement - can occur
-        # with new data not flushed yet.)
-        inst = False
+    # try using a primary key if one is provided
+    inst = None
+    for col in model.__table__.columns:
+        if col.primary_key and (pkey := kwargs.get(col.key)):
+            logger.debug("trying using primary key: %s", col.key)
+            inst = session.query(model).get(pkey)
 
-    logger.debug("couldn't find matching object just using kwargs")
-    # second try using a primary key if one is provided
-    if not inst:
-        for col in model.__table__.columns:
-            if col.primary_key and (pkey := kwargs.get(col.key)):
-                logger.debug("trying using primary key: %s", col.key)
-                inst = session.query(model).get(pkey)
-
-    # third try using unique fields
+    # try using unique fields
     if not inst:
         unique = {}
         uniq_cols = get_unique_columns(model)
@@ -875,7 +865,22 @@ def get_create_or_update(session, model, **kwargs):
     :param model: sqlalchemy table class
     :param kwargs: database values
     """
+    # first try to get an exact match and return it immediately if found
+    try:
+        inst = session.query(model).filter_by(**kwargs).one()
+        return inst
+    except MultipleResultsFound:
+        # no unique entry found, abort or we risk overwriting the wrong one.
+        logger.debug("Multiples found using kwargs, aborting")
+        return None
+    except SQLAlchemyError:
+        # any other error (i.e. no result, error in the statement - can occur
+        # with new data not flushed yet.)
+        logger.debug("couldn't find matching object just using kwargs")
+
     inst = get_existing(session, model, **kwargs)
+    logger.debug("get_existing returned: %s", inst)
+
     if inst is None:
         return None
     # if the above got a false result it should be safe to create a new entry
@@ -887,7 +892,9 @@ def get_create_or_update(session, model, **kwargs):
 
     # update the columns values.
     for k, v in kwargs.items():
-        if getattr(inst, k) != v:
+        val = getattr(inst, k)
+        if val != v:
+            logger.debug("updating %s.%s from %s to %s", inst, k, val, v)
             setattr(inst, k, v)
 
     return inst
