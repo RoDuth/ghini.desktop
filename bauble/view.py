@@ -759,7 +759,11 @@ class PicturesScroller(Gtk.ScrolledWindow):
 
         info_width = prefs.prefs.get(INFOBOXPAGE_WIDTH_PREF, 300)
         # no search results == no infobox
-        if bauble.gui and bauble.gui.get_view().infobox is None:
+        if (
+            bauble.gui
+            and isinstance(bauble.gui.get_view(), SearchView)
+            and bauble.gui.get_view().infobox is None
+        ):
             info_width = 0
 
         pane_pos = width - info_width - pics_width - 6

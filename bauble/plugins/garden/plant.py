@@ -196,7 +196,7 @@ remove_action = Action(
 )
 
 map_action = Action(
-    "plant_map",
+    "plant_show_in_map",
     _("Show in _map"),
     callback=map_kml_callback,
     accelerator="<ctrl>m",
