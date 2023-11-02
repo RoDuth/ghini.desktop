@@ -31,6 +31,7 @@ from bauble import db
 from bauble import prefs
 from bauble import search
 from bauble.test import BaubleTestCase
+from bauble.test import get_setUp_data_funcs
 
 prefs.testing = True
 
@@ -1363,6 +1364,67 @@ class SearchTests(BaubleTestCase):
         string = "species where synonyms.id != 0 and count(synonyms.id) > 0"
         results = search.search(string, self.session)
         self.assertCountEqual(results, [sp1])
+
+
+class SearchTests2(BaubleTestCase):
+    def test_complex_query_parenthised(self):
+        for func in get_setUp_data_funcs():
+            func()
+
+        # parenthesised
+        string = "plant where (quantity > 1 or geojson = None) and id > 3"
+        results = search.search(string, self.session)
+        self.assertCountEqual([i.id for i in results], [4, 5])
+        string = "plant where id > 3 and (quantity = 1 or geojson = None) "
+        results = search.search(string, self.session)
+        self.assertCountEqual([i.id for i in results], [4, 5])
+        string = "plant where id > 3 and (quantity = 1 or geojson != None) "
+        results = search.search(string, self.session)
+        self.assertCountEqual([i.id for i in results], [])
+        string = (
+            "plant where accession.species.genus.family.epithet = "
+            "'Leguminosae' and (accession.id_qual = '?' or "
+            "accession.species.epithet = 'sp.')"
+        )
+        results = search.search(string, self.session)
+        self.assertCountEqual([i.id for i in results], [5])
+        string = (
+            "plant where accession.species.family_name = 'Leguminosae' and "
+            "(accession.id_qual = '?' or accession.species.epithet = 'sp.')"
+        )
+        results = search.search(string, self.session)
+        self.assertCountEqual([i.id for i in results], [5])
+        string = (
+            "plant where (accession.id_qual = '?' or "
+            "accession.species.epithet = 'sp.') and "
+            "accession.species.family_name = 'Leguminosae'"
+        )
+        results = search.search(string, self.session)
+        self.assertCountEqual([i.id for i in results], [5])
+        string = (
+            "plant where (accession.id_qual = '?' or "
+            "accession.species.epithet = 'sp.') and "
+            "(accession.species.family_name = 'Arecaceae' or "
+            "accession.species.family_name = 'Leguminosae')"
+        )
+        results = search.search(string, self.session)
+        self.assertCountEqual([i.id for i in results], [5])
+        string = (
+            "plant where (accession.id_qual = '?' or "
+            "accession.species.genus.qualifier = 's. str') and "
+            "(accession.species.family_name = 'Orchidaceae' or "
+            "accession.species.family_name = 'Leguminosae')"
+        )
+        results = search.search(string, self.session)
+        self.assertCountEqual([i.id for i in results], [1, 5])
+        string = (
+            "plant where (accession.id_qual = '?' and "
+            "accession.species.family_name = 'Leguminosae' ) or "
+            "(accession.species.genus.qualifier = 's. str' and "
+            "accession.species.family_name = 'Orchidaceae')"
+        )
+        results = search.search(string, self.session)
+        self.assertCountEqual([i.id for i in results], [1, 5])
 
 
 class InOperatorSearch(BaubleTestCase):

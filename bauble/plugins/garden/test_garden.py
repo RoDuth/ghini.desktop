@@ -148,6 +148,7 @@ plant_test_data = (
     {"id": 2, "code": "1", "accession_id": 2, "location_id": 1, "quantity": 1},
     {"id": 3, "code": "2", "accession_id": 2, "location_id": 1, "quantity": 1},
     {"id": 4, "code": "1", "accession_id": 5, "location_id": 1, "quantity": 0},
+    {"id": 5, "code": "1", "accession_id": 6, "location_id": 1, "quantity": 3},
 )
 
 plant_change_test_data = (

@@ -44,8 +44,8 @@ from pyparsing import ZeroOrMore
 from pyparsing import alphanums
 from pyparsing import alphas
 from pyparsing import alphas8bit
-from pyparsing import delimitedList
-from pyparsing import infixNotation
+from pyparsing import delimited_list
+from pyparsing import infix_notation
 from pyparsing import oneOf
 from pyparsing import opAssoc
 from pyparsing import quotedString
@@ -62,10 +62,11 @@ from sqlalchemy.orm import class_mapper
 import bauble
 from bauble import prefs
 from bauble import utils
+from bauble.db import Base
 from bauble.db import get_related_class
 from bauble.error import check
 
-result_cache = {}
+result_cache: dict[str, list[Query]] = {}
 """Cache of search strategy results, can use instead of running the search
 repeatedly. MapperSearch results should be available first."""
 
@@ -88,15 +89,15 @@ def search(text: str, session: Session) -> list:
         # result_cache - cache the result list not the query
         queries = strategy.search(text, session)
 
-        result = []
+        result: list[Query] = []
         for query in queries:
-            # NOTE handy print statement for debugging
-            # print('query = ', query)
-            table = query.column_descriptions[0]["type"]
-
             if prefs.prefs.get(prefs.exclude_inactive_pref):
+                table = query.column_descriptions[0]["type"]
                 if hasattr(table, "active"):
                     query = query.filter(table.active.is_(True))
+
+            # NOTE handy print statement for debugging
+            # print("QUERY >>>", query)
 
             result.extend(query)
 
@@ -274,24 +275,20 @@ class IdentifierAction:
         joinpoint is the one relative to the attribute, and the attribute
         itself.
         """
-        query = env.session.query(env.domain)
+        logger.debug("%s::evaluate %s", self.__class__.__name__, self)
         if len(self.steps) == 0:
             # identifier is an attribute of the table being queried
             cls = env.domain
-        elif env.joined_cls:
-            # joins have already been applied due to AND clause
-            cls = env.joined_cls
-            logger.debug("joined_cls = %s", cls)
         else:
             # identifier is an attribute of a joined table
-            query, cls = create_joins(query, env.domain, self.steps)
+            env.query, cls = create_joins(env.query, env.domain, self.steps)
             logger.debug("create_joins cls = %s", cls)
 
         attr = getattr(cls, self.leaf)
         logger.debug(
             "IdentifierToken for %s, %s evaluates to %s", cls, self.leaf, attr
         )
-        return (query, attr)
+        return (env.query, attr)
 
     def needs_join(self, _env):
         return self.steps
@@ -319,16 +316,17 @@ class FilteredIdentifierAction:
 
     def evaluate(self, env):
         """return pair (query, attribute)"""
-        query = env.session.query(env.domain)
-        # identifier is an attribute of a joined table
+        logger.debug("%s::evaluate %s", self.__class__.__name__, self)
 
-        if env.joined_cls:
-            # joins have already been applied due to AND clause
-            cls = env.joined_cls
+        if len(self.steps) == 0:
+            # identifier is an attribute of the table being queried
+            cls = env.domain
         else:
-            query, cls = create_joins(
-                query, env.domain, self.steps, alias=True
+            # identifier is an attribute of a joined table
+            env.query, cls = create_joins(
+                env.query, env.domain, self.steps, alias=True
             )
+            logger.debug("create_joins cls = %s", cls)
 
         attr = getattr(cls, self.filter_attr)
 
@@ -336,12 +334,12 @@ class FilteredIdentifierAction:
             return self.operation(attr, val)
 
         logger.debug("filtering on %s(%s)", type(attr), attr)
-        query = query.filter(clause(self.filter_value.express()))
+        env.query = env.query.filter(clause(self.filter_value.express()))
         attr = getattr(cls, self.leaf)
         logger.debug(
             "IdentifierToken for %s, %s evaluates to %s", cls, self.leaf, attr
         )
-        return (query, attr)
+        return (env.query, attr)
 
     def needs_join(self, _env):
         return self.steps
@@ -361,20 +359,23 @@ class IdentExpression:
         return f"({self.operands[0]} {self.oper} {self.operands[1]})"
 
     def evaluate(self, env):
-        query, attr = self.operands[0].evaluate(env)
+        logger.debug("%s::evaluate %s", self.__class__.__name__, self)
+        env.query, attr = self.operands[0].evaluate(env)
         if self.operands[1].express() == set():
             # check against the empty set
             if self.oper in ("is", "=", "=="):
-                return query.filter(~attr.any())
+                env.query = env.query.filter(~attr.any())
+                return env.query
             if self.oper in ("not", "<>", "!="):
-                return query.filter(attr.any())
+                env.query = env.query.filter(attr.any())
+                return env.query
 
         def clause(val):
             return self.operation(attr, val)
 
         logger.debug("filtering on %s(%s)", type(attr), attr)
-        query = query.filter(clause(self.operands[1].express()))
-        return query
+        env.query = env.query.filter(clause(self.operands[1].express()))
+        return env.query
 
     def needs_join(self, _env):
         # Its not here but in operands[0] that the join should be created.
@@ -385,8 +386,10 @@ class ElementSetExpression(IdentExpression):
     # currently only implements `in`
 
     def evaluate(self, env):
-        query, attr = self.operands[0].evaluate(env)
-        return query.filter(attr.in_(self.operands[1].express()))
+        logger.debug("%s::evaluate %s", self.__class__.__name__, self)
+        env.query, attr = self.operands[0].evaluate(env)
+        env.query = env.query.filter(attr.in_(self.operands[1].express()))
+        return env.query
 
 
 def get_datetime(value):
@@ -415,7 +418,8 @@ class DateOnExpression(IdentExpression):
     # implements `on` for date matching
 
     def evaluate(self, env):
-        query, attr = self.operands[0].evaluate(env)
+        logger.debug("%s::evaluate %s", self.__class__.__name__, self)
+        env.query, attr = self.operands[0].evaluate(env)
         date_val = self.operands[1].express()
         if isinstance(date_val, (str, float)):
             date_val = get_datetime(date_val)
@@ -425,9 +429,11 @@ class DateOnExpression(IdentExpression):
             tomorrow = today + timedelta(1)
             logger.debug("today: %s", today)
             logger.debug("tomorrow: %s", tomorrow)
-            return query.filter(and_(attr >= today, attr < tomorrow))
-        # btype.Date - only need the date
-        return query.filter(attr == date_val.date())
+            env.query = env.query.filter(and_(attr >= today, attr < tomorrow))
+        else:
+            # btype.Date - only need the date
+            env.query = env.query.filter(attr == date_val.date())
+        return env.query
 
 
 class AggregatedExpression(IdentExpression):
@@ -443,15 +449,16 @@ class AggregatedExpression(IdentExpression):
         logger.debug("AggregatedExpression::__init__(%s)", tokens)
 
     def evaluate(self, env):
+        logger.debug("%s::evaluate %s", self.__class__.__name__, self)
         # operands[0] is the function/identifier pair
         # operands[1] is the value against which to test
         # operation implements the clause
-        query, __ = self.operands[0].identifier.evaluate(env)
+        env.query, __ = self.operands[0].identifier.evaluate(env)
         from sqlalchemy.sql import func
 
         function = getattr(func, self.operands[0].function)
 
-        main_table = query.column_descriptions[0]["type"]
+        main_table = env.query.column_descriptions[0]["type"]
 
         id_ = getattr(main_table, "id")
 
@@ -467,9 +474,9 @@ class AggregatedExpression(IdentExpression):
 
         having = clause(self.operands[1].express())
         sub_query = sub_query.having(having)
-        query = query.filter(id_.in_(sub_query))
+        env.query = env.query.filter(id_.in_(sub_query))
 
-        return query
+        return env.query
 
 
 class BetweenExpressionAction:
@@ -480,14 +487,16 @@ class BetweenExpressionAction:
         return f"(BETWEEN {' '.join(str(i) for i in self.operands)})"
 
     def evaluate(self, env):
-        query, attr = self.operands[0].evaluate(env)
+        logger.debug("%s::evaluate %s", self.__class__.__name__, self)
+        env.query, attr = self.operands[0].evaluate(env)
 
-        return query.filter(
+        env.query = env.query.filter(
             and_(
                 self.operands[1].express() <= attr,
                 attr <= self.operands[2].express(),
             )
         )
+        return env.query
 
     def needs_join(self, env):
         return [self.operands[0].needs_join(env)]
@@ -496,6 +505,7 @@ class BetweenExpressionAction:
 class UnaryLogical(ABC):
     # abstract base class. `name` is defined in derived classes
     def __init__(self, tokens):
+        logger.debug("%s::__init__(%s)", self.__class__.__name__, tokens)
         self.oper, self.operand = tokens[0]
 
     def __repr__(self):
@@ -516,11 +526,14 @@ class UnaryLogical(ABC):
 
 class BinaryLogical(ABC):
     def __init__(self, tokens):
+        logger.debug("%s::__init__(%s)", self.__class__.__name__, tokens)
         self.oper = tokens[0][1]
         self.operands = tokens[0][0::2]  # every second object is an operand
 
     def __repr__(self):
-        return f"({self.operands[0]} {self.name} {self.operands[1]})"
+        name = f" {self.name} "
+        string = name.join(str(operand) for operand in self.operands)
+        return f"({string})"
 
     def needs_join(self, env):
         return self.operands[0].needs_join(env) + self.operands[1].needs_join(
@@ -541,73 +554,65 @@ class SearchAndAction(BinaryLogical):
     name = "AND"
 
     def evaluate(self, env):
-        logger.debug("SearchAndAction::evaluate %s", self)
-        # need to create joins here then add in the whereclause, for a
-        # SearchNotAction no whereclause will be returned, instead an except_
-        # will be available, containing relevent joins.
-        query = self.operands[0].evaluate(env)
-        for operand in self.operands[1:]:
-            # NOTE AggregatedExpression adds joins, no need to add again
-            if (
-                not isinstance(operand, AggregatedExpression)
-                and isinstance(operand, IdentExpression)
-                and (joins := operand.operands[0].needs_join(env))
-            ):
-                query, cls = create_joins(query, env.domain, joins)
-                # let the operand know how to formulate the whereclause
-                env.joined_cls = cls
-            else:
-                env.joined_cls = None
+        logger.debug("%s::evaluate %s", self.__class__.__name__, self)
+        for operand in self.operands:
+            logger.debug("SearchAndAction::operand %s", operand)
+            logger.debug("SearchAndAction::type(operand) %s", type(operand))
 
-            where = operand.evaluate(env).whereclause
+            env.query = operand.evaluate(env)
 
-            # either add the whereclause or except_
-            if where is not None:
-                # IdentExpression or FilteredIdentifierAction
-                query = query.filter(where)
-            elif hasattr(operand, "except_") and operand.except_:
-                # SearchNotAction
-                query = query.except_(operand.except_)
-
-        return query
+        return env.query
 
 
 class SearchOrAction(BinaryLogical):
     name = "OR"
 
     def evaluate(self, env):
-        query = self.operands[0].evaluate(env)
+        logger.debug("%s::evaluate %s", self.__class__.__name__, self)
+        # capture the env.query prior to adding unions
+        start_env_query = self.operands[0].evaluate(env)
         for operand in self.operands[1:]:
-            query = query.union(operand.evaluate(env))
-        return query
+            # start a new query
+            if isinstance(env.query, Query):
+                env.query = env.session.query(env.domain)
+            else:
+                env.query = select(env.domain.id)
+            start_env_query = start_env_query.union(operand.evaluate(env))
+        env.query = start_env_query
+        return env.query
 
 
 class SearchNotAction(UnaryLogical):
     name = "NOT"
 
-    def __init__(self, tokens):
-        super().__init__(tokens)
-        self.except_ = None
-
     def evaluate(self, env):
-        query = env.session.query(env.domain)
-        for steps in self.operand.needs_join(env):
-            if steps:
-                query, __ = create_joins(query, env.domain, steps)
-        self.except_ = self.operand.evaluate(env)
-        query = query.except_(self.except_)
-        return query
+        logger.debug("%s::evaluate %s", self.__class__.__name__, self)
+        # capture the env.query prior to adding except_
+        start_env_query = env.query
+        env.query = env.session.query(env.domain)
+        env.query = start_env_query.except_(self.operand.evaluate(env))
+        return env.query
 
 
 class ParenthesisedQuery:
     def __init__(self, tokens):
+        logger.debug("%s::__init__(%s)", self.__class__.__name__, tokens)
         self.content = tokens[1]
 
     def __repr__(self):
         return f"({self.content})"
 
     def evaluate(self, env):
-        return self.content.evaluate(env)
+        logger.debug("%s::evaluate %s", self.__class__.__name__, self)
+        logger.debug(
+            "ParenthesisedQuery::type(content) %s", type(self.content)
+        )
+        # capture the env.query prior to constructing select sub_query
+        start_env_query = env.query
+        env.query = select(env.domain.id)
+        sub_query = self.content.evaluate(env)
+        env.query = start_env_query.filter(env.domain.id.in_(sub_query))
+        return env.query
 
     def needs_join(self, env):
         return self.content.needs_join(env)
@@ -615,11 +620,12 @@ class ParenthesisedQuery:
 
 class QueryAction:
     def __init__(self, tokens):
-        logger.debug("QueryAction::__init__(%s)", tokens)
+        logger.debug("%s::__init__(%s)", self.__class__.__name__, tokens)
         self.domain = tokens[0]
         self.filter = tokens[1][0]
         self.session = None
         self.joined_cls = None
+        self.query = None
 
     def __repr__(self):
         return f"SELECT * FROM {self.domain} WHERE {self.filter}"
@@ -634,10 +640,10 @@ class QueryAction:
         """
 
         logger.debug(
-            "QueryAction:invoke - %s(%s) %s(%s)",
-            type(self.domain),
+            "QueryAction:invoke - domain: %s(%s) filter: %s(%s)",
+            type(self.domain).__name__,
             self.domain,
-            type(self.filter),
+            type(self.filter).__name__,
             self.filter,
         )
         check(
@@ -650,19 +656,23 @@ class QueryAction:
 
         if search_strategy.session is not None:
             self.session = search_strategy.session
-            query = self.filter.evaluate(self)
+            self.query = self.session.query(self.domain)
+            self.filter.evaluate(self)  # self becomes env to the filter
 
-        return query
+        return self.query
 
 
 class StatementAction:  # pylint: disable=too-few-public-methods
     def __init__(self, tokens):
-        logger.debug("StatementAction::__init__(%s)", tokens)
+        logger.debug("%s::__init__(%s)", self.__class__.__name__, tokens)
         self.content = tokens[0]
 
     def invoke(self, search_strategy):
         invoked = self.content.invoke(search_strategy)
-        logger.debug("StatementAction::invoked")
+        logger.debug("StatementAction::self %s", self)
+        logger.debug("StatementAction::type(content) %s", type(self.content))
+        # handy if you want to include the SQL in the log file.
+        # logger.debug("StatementAction::invoked %s", invoked)
         return invoked
 
     def __repr__(self):
@@ -743,6 +753,7 @@ class DomainExpressionAction:
     """
 
     def __init__(self, tokens):
+        logger.debug("%s::__init__(%s)", self.__class__.__name__, tokens)
         self.domain = tokens[0]
         self.cond = tokens[1]
         self.values = tokens[2]
@@ -809,7 +820,7 @@ class DomainExpressionAction:
 
 class AggregatingAction:
     def __init__(self, tokens):
-        logger.debug("AggregatingAction::__init__(%s)", tokens)
+        logger.debug("%s::__init__(%s)", self.__class__.__name__, tokens)
         self.function = tokens[0]
         self.identifier = tokens[2]
 
@@ -830,14 +841,14 @@ class AggregatingAction:
         aggregated identifier is applied in the HAVING and not in the
         WHERE.
         """
-        logger.debug("AggregatingAction::evaluate %s", self)
+        logger.debug("%s::evaluate %s", self.__class__.__name__, self)
 
         return self.identifier.evaluate(env)
 
 
 class ValueListAction:
     def __init__(self, tokens):
-        logger.debug("ValueListAction::__init__(%s)", tokens)
+        logger.debug("%s::__init__(%s)", self.__class__.__name__, tokens)
         self.values = tokens[0]
 
     def __repr__(self):
@@ -896,9 +907,6 @@ class ValueListAction:
         return queries
 
 
-wordStart, wordEnd = WordStart(), WordEnd()
-
-
 class SearchParser:  # pylint: disable=too-few-public-methods
     """The parser for bauble.search.MapperSearch"""
 
@@ -927,7 +935,7 @@ class SearchParser:  # pylint: disable=too-few-public-methods
     ).set_parse_action(ValueToken)("value")
 
     value_list = Group(
-        OneOrMore(value) ^ delimitedList(value)
+        OneOrMore(value) ^ delimited_list(value)
     ).set_parse_action(ValueListAction)("value_list")
 
     domain = Word(alphas, alphas + "_")
@@ -955,10 +963,10 @@ class SearchParser:  # pylint: disable=too-few-public-methods
         )
     ).set_parse_action(BinomialNameAction)("binomial_name")
 
-    AND_ = wordStart + (CaselessLiteral("AND") | Literal("&&")) + wordEnd
-    OR_ = wordStart + (CaselessLiteral("OR") | Literal("||")) + wordEnd
-    NOT_ = wordStart + (CaselessLiteral("NOT") | Literal("!")) + wordEnd
-    BETWEEN_ = wordStart + CaselessLiteral("BETWEEN") + wordEnd
+    AND_ = WordStart() + (CaselessLiteral("AND") | Literal("&&")) + WordEnd()
+    OR_ = WordStart() + (CaselessLiteral("OR") | Literal("||")) + WordEnd()
+    NOT_ = WordStart() + (CaselessLiteral("NOT") | Literal("!")) + WordEnd()
+    BETWEEN_ = WordStart() + CaselessLiteral("BETWEEN") + WordEnd()
 
     aggregating_func = (
         Literal("sum") | Literal("min") | Literal("max") | Literal("count")
@@ -1005,7 +1013,7 @@ class SearchParser:  # pylint: disable=too-few-public-methods
         identifier + BETWEEN_ + value + AND_ + value
     ).set_parse_action(BetweenExpressionAction)
     # pylint: disable=expression-not-assigned
-    query_expression << infixNotation(
+    query_expression << infix_notation(
         (ident_expression | between_expression),
         [
             (NOT_, 1, opAssoc.RIGHT, SearchNotAction),
@@ -1036,7 +1044,7 @@ class SearchParser:  # pylint: disable=too-few-public-methods
         and return a pyparsing.ParseResults object that represents the input
         """
 
-        return self.statement.parseString(text)
+        return self.statement.parse_string(text)
 
 
 class SearchStrategy(ABC):
@@ -1050,6 +1058,7 @@ class SearchStrategy(ABC):
     def use(text: str) -> typing.Literal["include", "exclude", "only"]:
         """How does this search stratergy apply to the provided text"""
 
+    @abstractmethod
     def search(self, text: str, session: Session) -> list[Query]:
         """
         :param text: the search string
@@ -1061,6 +1070,7 @@ class SearchStrategy(ABC):
             logger.warning("session is None")
         # NOTE this logger is used in various tests
         logger.debug('SearchStrategy "%s" (%s)', text, self.__class__.__name__)
+        return []
 
 
 def get_strategies(text: str) -> list[SearchStrategy]:
@@ -1075,7 +1085,7 @@ def get_strategies(text: str) -> list[SearchStrategy]:
     :param text: the search string
     """
     all_strategies = _search_strategies.values()
-    selected_strategies = []
+    selected_strategies: list[SearchStrategy] = []
     for strategy in all_strategies:
         if strategy.use(text) == "only":
             logger.debug("filtered strategies %s", strategy)
@@ -1101,11 +1111,11 @@ class MapperSearch(SearchStrategy):
     resolve the domain and identifiers and search for value
     """
 
-    domains = {}
-    shorthand = {}
-    properties = {}
+    domains: dict[str, tuple[Base, list[str]]] = {}
+    shorthand: dict[str, str] = {}
+    properties: dict[Base, list[str]] = {}
     # placed here for simple search convenience.
-    completion_funcs = {}
+    completion_funcs: dict[str, typing.Callable] = {}
 
     def __init__(self):
         super().__init__()
@@ -1159,15 +1169,15 @@ class MapperSearch(SearchStrategy):
         self.properties[cls] = properties
 
     @classmethod
-    def get_domain_classes(cls):
+    def get_domain_classes(cls) -> dict[str, Base]:
         """Returns a dictionary of domains names, as strings, to the classes
         they point to.
 
         Only the first domain name per class, as added via add_meta, is
         returned.
         """
-        domains = {}
-        _classes = set()
+        domains: dict[str, Base] = {}
+        _classes: set[Base] = set()
         for domain, item in cls.domains.items():
             if item[0] not in _classes:
                 _classes.add(item[0])
@@ -1189,15 +1199,17 @@ class MapperSearch(SearchStrategy):
         return queries
 
 
-# list of search strategies to be tried on each search string
-_search_strategies = {"MapperSearch": MapperSearch()}
+# search strategies to be tried on each search string
+_search_strategies: dict[str, SearchStrategy] = {
+    "MapperSearch": MapperSearch()
+}
 
 
-def add_strategy(strategy):
+def add_strategy(strategy: type[SearchStrategy]):
     logger.debug("adding strategy: %s", strategy.__name__)
     obj = strategy()
-    _search_strategies[obj.__class__.__name__] = obj
+    _search_strategies[strategy.__name__] = obj
 
 
 def get_strategy(name):
-    return _search_strategies.get(name, None)
+    return _search_strategies.get(name)
