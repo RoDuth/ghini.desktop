@@ -36,6 +36,8 @@ from pyparsing import Group
 from pyparsing import Keyword
 from pyparsing import Literal
 from pyparsing import OneOrMore
+from pyparsing import OpAssoc
+from pyparsing import ParseException
 from pyparsing import Regex
 from pyparsing import Word
 from pyparsing import WordEnd
@@ -46,12 +48,11 @@ from pyparsing import alphas
 from pyparsing import alphas8bit
 from pyparsing import delimited_list
 from pyparsing import infix_notation
-from pyparsing import oneOf
-from pyparsing import opAssoc
-from pyparsing import quotedString
-from pyparsing import removeQuotes
+from pyparsing import one_of
+from pyparsing import quoted_string
+from pyparsing import remove_quotes
 from pyparsing import srange
-from pyparsing import stringEnd
+from pyparsing import string_end
 from sqlalchemy import and_
 from sqlalchemy import or_
 from sqlalchemy import select
@@ -75,6 +76,7 @@ def search(text: str, session: Session) -> list:
     """Given a query string run the appropriate SearchStrategy(s) and return
     the collated results as a list
     """
+    logger.debug("searching: `%s`", text)
     results = set()
     # clear the cache
     result_cache.clear()
@@ -657,93 +659,13 @@ class QueryAction:
         if search_strategy.session is not None:
             self.session = search_strategy.session
             self.query = self.session.query(self.domain)
-            self.filter.evaluate(self)  # self becomes env to the filter
+            self.filter.evaluate(self)  # self becomes env
 
         return self.query
 
 
-class StatementAction:  # pylint: disable=too-few-public-methods
-    def __init__(self, tokens):
-        logger.debug("%s::__init__(%s)", self.__class__.__name__, tokens)
-        self.content = tokens[0]
-
-    def invoke(self, search_strategy):
-        invoked = self.content.invoke(search_strategy)
-        logger.debug("StatementAction::self %s", self)
-        logger.debug("StatementAction::type(content) %s", type(self.content))
-        # handy if you want to include the SQL in the log file.
-        # logger.debug("StatementAction::invoked %s", invoked)
-        return invoked
-
-    def __repr__(self):
-        return str(self.content)
-
-
-# TODO move this to its own strategy and place it in species.py
-class BinomialNameAction:
-    """created when the parser hits a binomial_name token.
-
-    Partial or complete cultivar names are also matched if started with a '
-
-    Searching using binomial names returns one or more species objects.
-    """
-
-    def __init__(self, tokens):
-        self.genus_epithet = tokens[0]
-        if tokens[1].startswith("'"):
-            self.cultivar_epithet = tokens[1].strip("'")
-            self.species_epithet = None
-        else:
-            self.cultivar_epithet = None
-            self.species_epithet = tokens[1]
-
-    def __repr__(self):
-        if self.species_epithet:
-            return f"{self.genus_epithet} {self.species_epithet}"
-        return f"{self.genus_epithet} {self.cultivar_epithet}"
-
-    def invoke(self, search_strategy):
-        logger.debug("BinomialNameAction:invoke")
-        from bauble.plugins.plants.genus import Genus
-        from bauble.plugins.plants.species import Species
-
-        if self.species_epithet:
-            logger.debug(
-                "binomial search sp: %s, gen: %s",
-                self.species_epithet,
-                self.genus_epithet,
-            )
-            query = (
-                search_strategy.session.query(Species)
-                .filter(Species.sp.startswith(self.species_epithet))
-                .join(Genus)
-                .filter(Genus.genus.startswith(self.genus_epithet))
-            )
-        else:
-            logger.debug(
-                "cultivar search cv: %s, gen: %s",
-                self.cultivar_epithet,
-                self.genus_epithet,
-            )
-            # pylint: disable=no-member  # re: cultivar_epithet.startswith
-            query = (
-                search_strategy.session.query(Species)
-                .filter(
-                    or_(
-                        Species.cultivar_epithet.startswith(
-                            self.cultivar_epithet
-                        ),
-                        Species.trade_name.startswith(self.cultivar_epithet),
-                    )
-                )
-                .join(Genus)
-                .filter(Genus.genus.startswith(self.genus_epithet))
-            )
-        return query
-
-
 class DomainExpressionAction:
-    """created when the parser hits a domain_expression token.
+    """Created when the parser hits a domain_expression token.
 
     Searching using domain expressions is a little more magical than an
     explicit query. you give a domain, a binary_operator and a value,
@@ -920,7 +842,7 @@ class SearchParser:  # pylint: disable=too-few-public-methods
     unquoted_string = Word(alphanums + alphas8bit + "%.-_*;:")
 
     string_value = (
-        quotedString.set_parse_action(removeQuotes) | unquoted_string
+        quoted_string.set_parse_action(remove_quotes) | unquoted_string
     ).set_parse_action(StringToken)
 
     none_token = Literal("None").set_parse_action(NoneToken)
@@ -939,29 +861,15 @@ class SearchParser:  # pylint: disable=too-few-public-methods
     ).set_parse_action(ValueListAction)("value_list")
 
     domain = Word(alphas, alphas + "_")
-    binop = oneOf(
+    binop = one_of(
         "= == != <> < <= > >= not like contains has ilike icontains ihas is"
     )
     binop_set = Literal("in")
     binop_date = Literal("on")
     equals = Literal("=")
-    star_value = Literal("*")
-    domain_values = (value_list.copy())("domain_values")
-    domain_expression = (
-        (domain + binop + star_value + stringEnd)
-        | (domain + binop + domain_values + stringEnd)
-    ).set_parse_action(DomainExpressionAction)("domain_expression")
 
     caps = srange("[A-Z]")
     lowers = caps.lower() + "-"
-    binomial_name = (
-        Word(caps, lowers)
-        + (
-            Word(lowers)
-            | Word("'", caps + lowers + " ") + Literal("'")
-            | Word("'", caps + lowers)
-        )
-    ).set_parse_action(BinomialNameAction)("binomial_name")
 
     AND_ = WordStart() + (CaselessLiteral("AND") | Literal("&&")) + WordEnd()
     OR_ = WordStart() + (CaselessLiteral("OR") | Literal("||")) + WordEnd()
@@ -1016,9 +924,9 @@ class SearchParser:  # pylint: disable=too-few-public-methods
     query_expression << infix_notation(
         (ident_expression | between_expression),
         [
-            (NOT_, 1, opAssoc.RIGHT, SearchNotAction),
-            (AND_, 2, opAssoc.LEFT, SearchAndAction),
-            (OR_, 2, opAssoc.LEFT, SearchOrAction),
+            (NOT_, 1, OpAssoc.RIGHT, SearchNotAction),
+            (AND_, 2, OpAssoc.LEFT, SearchAndAction),
+            (OR_, 2, OpAssoc.LEFT, SearchOrAction),
         ],
     )("filter")
 
@@ -1026,29 +934,25 @@ class SearchParser:  # pylint: disable=too-few-public-methods
         domain
         + Keyword("where", caseless=True).suppress()
         + Group(query_expression)
-        + stringEnd
-    ).set_parse_action(QueryAction)
-
-    statement = (
-        query("query")
-        | domain_expression("domain")
-        | binomial_name("binomial")
-        | value_list("value_list")
-    ).set_parse_action(StatementAction)("statement")
+        + string_end
+    ).set_parse_action(QueryAction)("query")
 
     def parse_string(self, text):
         """request pyparsing object to parse text
 
         `text` can be either a query, or a domain expression, or a list of
-        values. the `self.statement` pyparsing object parses the input text
-        and return a pyparsing.ParseResults object that represents the input
+        values. the `self.query` pyparsing object parses the input text
+        and returns a pyparsing.ParseResults object that represents the input.
         """
 
-        return self.statement.parse_string(text)
+        return self.query.parse_string(text)
 
 
 class SearchStrategy(ABC):
     """interface for adding search strategies to a view."""
+
+    excludes_value_list_search = True
+    """If this search strategy is included do not include ValueListSearch"""
 
     def __init__(self):
         self.session = None
@@ -1087,12 +991,14 @@ def get_strategies(text: str) -> list[SearchStrategy]:
     all_strategies = _search_strategies.values()
     selected_strategies: list[SearchStrategy] = []
     for strategy in all_strategies:
-        if strategy.use(text) == "only":
-            logger.debug("filtered strategies %s", strategy)
+        logger.debug("strategy: %s", strategy)
+        use = strategy.use(text)
+        if use == "only":
+            logger.debug("filtered strategies [%s]", strategy)
             return [strategy]
-        if strategy.use(text) == "include":
+        if use == "include":
             selected_strategies.append(strategy)
-        elif strategy.use(text) == "exclude":
+        elif use == "exclude":
             if strategy in selected_strategies:
                 selected_strategies.remove(strategy)
     logger.debug("filtered strategies %s", selected_strategies)
@@ -1122,8 +1028,11 @@ class MapperSearch(SearchStrategy):
         self.parser = SearchParser()
 
     @staticmethod
-    def use(_text):
-        return "include"
+    def use(text: str) -> typing.Literal["include", "exclude", "only"]:
+        atomised = text.split()
+        if atomised[0] in MapperSearch.domains and atomised[1] == "where":
+            return "include"
+        return "exclude"
 
     def add_meta(self, domain, cls, properties):
         """Add a domain to the search space
@@ -1188,20 +1097,88 @@ class MapperSearch(SearchStrategy):
         """Returns list of queries for the text search string."""
         super().search(text, session)
         self.session = session
-        statement = self.parser.parse_string(text).statement
+        statement = self.parser.parse_string(text).query
+        logger.debug("statement : %s(%s)", type(statement), statement)
+        query = statement.invoke(self)
+
+        return [query]
+
+
+class DomainSearch(MapperSearch):
+    """Supports expression searches of the form:
+        <domain> <exp> <value | value_list>
+
+    resolves the domain and searches specific columns from the mapping
+    """
+
+    value_list = SearchParser.value_list
+    domain = SearchParser.domain
+    binop = SearchParser.binop
+
+    star_value = Literal("*")
+    domain_values = value_list.copy()("domain_values")
+    domain_expression = (domain + binop + star_value + string_end) | (
+        domain + binop + domain_values + string_end
+    ).set_parse_action(DomainExpressionAction)("statement")
+
+    @staticmethod
+    def use(text: str) -> typing.Literal["include", "exclude", "only"]:
+        try:
+            DomainSearch.domain_expression.parse_string(text)
+            logger.debug("including DomainSearch in strategies")
+            return "include"
+        except ParseException:
+            pass
+        return "exclude"
+
+    def search(self, text: str, session: Session) -> list[Query]:
+        """Returns list of queries for the text search string."""
+        super(MapperSearch, self).search(text, session)
+        self.session = session
+        statement = self.domain_expression.parse_string(text).statement
+        logger.debug("statement : %s(%s)", type(statement), statement)
+        query = statement.invoke(self)
+
+        return [query]
+
+
+class ValueListSearch(MapperSearch):
+    """Supports searches that are just list of values.
+
+    Searches all domains and registered columns for values.  Least desirable
+    search.
+    """
+
+    value_list = SearchParser.value_list
+
+    @staticmethod
+    def use(text: str) -> typing.Literal["include", "exclude", "only"]:
+        for strategy in _search_strategies.values():
+            if isinstance(strategy, ValueListSearch):
+                continue
+            if strategy.excludes_value_list_search and strategy.use(text) in (
+                "include",
+                "only",
+            ):
+                return "exclude"
+        return "include"
+
+    def search(self, text, session):
+        """Returns list of queries for the text search string."""
+        super(MapperSearch, self).search(text, session)
+        self.session = session
+        statement = self.value_list.parse_string(text).value_list
         logger.debug("statement : %s(%s)", type(statement), statement)
         queries = statement.invoke(self)
-
-        if not isinstance(queries, list):
-            # Not ValueListAction
-            queries = [queries]
 
         return queries
 
 
 # search strategies to be tried on each search string
 _search_strategies: dict[str, SearchStrategy] = {
-    "MapperSearch": MapperSearch()
+    "MapperSearch": MapperSearch(),
+    "DomainSearch": DomainSearch(),
+    "ValueListSearch": ValueListSearch(),
 }
 
 

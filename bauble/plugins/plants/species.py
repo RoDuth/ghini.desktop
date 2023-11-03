@@ -24,6 +24,7 @@ Species modules
 
 import logging
 import os
+import re
 import traceback
 from ast import literal_eval
 
@@ -31,7 +32,12 @@ logger = logging.getLogger(__name__)
 
 from gi.repository import Gtk  # noqa
 from gi.repository import Pango
+from pyparsing import Literal
+from pyparsing import ParseResults
+from pyparsing import Word
+from pyparsing import srange
 from sqlalchemy import or_
+from sqlalchemy.orm import Query
 from sqlalchemy.orm.session import object_session
 
 import bauble
@@ -188,11 +194,114 @@ def on_taxa_clicked(_label, _event, taxon):
     select_in_search_results(taxon)
 
 
+class BinomialNameAction:
+    """created when the parser hits a binomial_name token.
+
+    Partial or complete cultivar names are also matched if started with a '
+
+    Searching using binomial names returns one or more species objects.
+    """
+
+    def __init__(self, tokens: ParseResults) -> None:
+        logger.debug("%s::__init__(%s)", self.__class__.__name__, tokens)
+        self.genus_epithet: str = tokens[0]
+        self.cultivar_epithet: None | str
+        self.species_epithet: None | str
+        if tokens[1].startswith("'"):
+            self.cultivar_epithet = tokens[1].strip("'")
+            self.species_epithet = None
+        else:
+            self.cultivar_epithet = None
+            self.species_epithet = tokens[1]
+
+    def __repr__(self) -> str:
+        if self.species_epithet:
+            return f"{self.genus_epithet} {self.species_epithet}"
+        return f"{self.genus_epithet} {self.cultivar_epithet}"
+
+    def invoke(self, search_strategy: search.SearchStrategy) -> Query:
+        logger.debug("BinomialNameAction:invoke")
+        query: Query = search_strategy.session.query(Species)
+
+        if self.species_epithet:
+            logger.debug(
+                "binomial search sp: %s, gen: %s",
+                self.species_epithet,
+                self.genus_epithet,
+            )
+            query = (
+                query.filter(Species.sp.startswith(self.species_epithet))
+                .join(Genus)
+                .filter(Genus.genus.startswith(self.genus_epithet))
+            )
+        else:
+            logger.debug(
+                "cultivar search cv: %s, gen: %s",
+                self.cultivar_epithet,
+                self.genus_epithet,
+            )
+            query = (
+                query.filter(
+                    or_(
+                        Species.cultivar_epithet.startswith(
+                            self.cultivar_epithet
+                        ),
+                        Species.trade_name.startswith(self.cultivar_epithet),
+                    )
+                )
+                .join(Genus)
+                .filter(Genus.genus.startswith(self.genus_epithet))
+            )
+        return query
+
+
+class BinomialSearch(search.SearchStrategy):
+    """Return any synonyms for matching taxa.
+
+    'bauble.search.return_accepted' pref toggles this.
+    """
+
+    caps = srange("[A-Z]")
+    lowers = caps.lower() + "-"
+    statement = (
+        Word(caps, lowers)
+        + (
+            Word(lowers)
+            | Word("'", caps + lowers + " ") + Literal("'")
+            | Word("'", caps + lowers)
+        )
+    ).set_parse_action(BinomialNameAction)("statement")
+
+    @staticmethod
+    def use(text):
+        logger.debug("Use called with %s", text)
+        if re.match(
+            "^[A-Z]+[a-z-]* +([a-z]+$|'[A-Za-z-]*$|'[A-Za-z- ]*'$)", text
+        ):
+            logger.debug("including BinomialSearch in strategies")
+            return "include"
+        return "exclude"
+
+    def search(self, text, session):
+        """Search for a synonym for each item in the results and add to the
+        results
+        """
+        super().search(text, session)
+        self.session = session
+        statement = self.statement.parse_string(text).statement
+        logger.debug("statement : %s(%s)", type(statement), statement)
+        query = statement.invoke(self)
+
+        return [query]
+
+
 class SynonymSearch(search.SearchStrategy):
     """Return any synonyms for matching taxa.
 
     'bauble.search.return_accepted' pref toggles this.
     """
+
+    excludes_value_list_search = False
 
     def __init__(self):
         super().__init__()
@@ -203,6 +312,7 @@ class SynonymSearch(search.SearchStrategy):
     @staticmethod
     def use(_text):
         if prefs.prefs.get(prefs.return_accepted_pref):
+            logger.debug("including SynonymSearch in strategies")
             return "include"
         return "exclude"
 

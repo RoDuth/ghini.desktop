@@ -26,6 +26,7 @@ Defines the plant table and handled editing plants
 import logging
 import os
 import traceback
+import typing
 from datetime import datetime
 from pathlib import Path
 from random import random
@@ -37,12 +38,12 @@ from pyparsing import Literal
 from pyparsing import OneOrMore
 from pyparsing import ParseException
 from pyparsing import Word
-from pyparsing import delimitedList
-from pyparsing import oneOf
+from pyparsing import delimited_list
+from pyparsing import one_of
 from pyparsing import printables
-from pyparsing import quotedString
-from pyparsing import removeQuotes
-from pyparsing import stringEnd
+from pyparsing import quoted_string
+from pyparsing import remove_quotes
+from pyparsing import string_end
 from sqlalchemy import Column
 from sqlalchemy import ForeignKey
 from sqlalchemy import Integer
@@ -59,6 +60,8 @@ from sqlalchemy.exc import DBAPIError
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.ext.hybrid import hybrid_property
+from sqlalchemy.orm import Query
+from sqlalchemy.orm import Session
 from sqlalchemy.orm import backref
 from sqlalchemy.orm import deferred
 from sqlalchemy.orm import object_mapper
@@ -224,7 +227,7 @@ def get_next_code(acc):
     nxt = 1
     if codes:
         try:
-            nxt = max([int(code[0]) for code in codes]) + 1
+            nxt = max(int(code[0]) for code in codes) + 1
         except Exception as e:  # pylint: disable=broad-except
             logger.debug(
                 "can't get next plant code %s(%s)", type(e).__name__, e
@@ -267,7 +270,7 @@ def is_code_unique(plant, code):
 
 class PlantSearch(SearchStrategy):
     @staticmethod
-    def use(text: str) -> str:
+    def use(text: str) -> typing.Literal["include", "exclude", "only"]:
         if (
             text.startswith("plant")
             and len(splt := text.split()) > 1
@@ -277,7 +280,7 @@ class PlantSearch(SearchStrategy):
             return "only"
         return "exclude"
 
-    def search(self, text, session):
+    def search(self, text: str, session: Session) -> list[Query]:
         # pylint: disable=too-many-branches,too-many-locals,too-many-statements
         """domain search for plants, only returns a result if appropriate
         string is supplied.  Searches a combination of Accession.code,
@@ -287,48 +290,46 @@ class PlantSearch(SearchStrategy):
         """
         super().search(text, session)
         domain = Literal("planting") | Literal("plant")
-        operator = oneOf("= == != <> like contains has")
-        value = quotedString.setParseAction(removeQuotes) | Word(printables)
-        value_list = OneOrMore(value) | delimitedList(value)
+        operator = one_of("= == != <> like contains has")
+        printable = printables.replace(",", "")
+        value = quoted_string.set_parse_action(remove_quotes) | Word(printable)
+        value_list = delimited_list(value) ^ OneOrMore(value)
         equals = Literal("=")
         star_value = Literal("*")
         in_op = Literal("in")
         statement = (
-            (domain + equals + star_value + stringEnd)
-            | (domain + operator + value + stringEnd)
-            | (domain + in_op + value_list + stringEnd)
+            (domain + equals + star_value + string_end)
+            | (domain + operator + value + string_end)
+            | (domain + in_op + value_list + string_end)
         )
 
-        if not text.startswith("plant"):
-            # Shouldn't really get here as use() filter should take care of it.
-            return []
         delimiter = Plant.get_delimiter()
         try:
-            parsed = statement.parseString(text)
+            parsed = statement.parse_string(text)
             operator = parsed[1]
             values = parsed[2:]
         except ParseException as e:
             logger.debug("PlantSearch %s %s", type(e).__name__, e)
             return []
 
+        val = values[0]
         if operator != "in":
-            value = values[0]
-            acc_code = plant_code = value
-            if delimiter in value:
-                acc_code, plant_code = value.rsplit(delimiter, 1)
+            acc_code = plant_code = val
+            if delimiter in val:
+                acc_code, plant_code = val.rsplit(delimiter, 1)
 
         if operator in ["=", "==", "!=", "<>"]:
-            if value == "*":
+            if val == "*":
                 if operator in ("!=", "<>"):
                     return []
                 logger.debug('"star" PlantSearch, returning all plants')
                 return [session.query(Plant)]
-            if delimiter not in value:
+            if delimiter not in val:
                 logger.debug("delimiter not found, can't split the code")
                 return []
             if operator in ["!=", "<>"]:
                 logger.debug(
-                    '"not equals" PlantSearch accession: %s plant: ' "%s",
+                    '"not equals" PlantSearch accession: %s plant: "%s"',
                     acc_code,
                     plant_code,
                 )
@@ -393,14 +394,14 @@ class PlantSearch(SearchStrategy):
         else:
             # 'in'
             vals = []
-            for value in values:
-                if delimiter not in value:
+            for val in values:
+                if delimiter not in val:
                     logger.debug("delimiter not found, can't split the code")
                     return []
-                acc_code, plant_code = value.rsplit(delimiter, 1)
+                acc_code, plant_code = val.rsplit(delimiter, 1)
                 vals.append((acc_code, plant_code))
             logger.debug('"in" PlantSearch vals: %s', vals)
-            if db.engine.name == "mssql":
+            if db.engine and db.engine.name == "mssql":
                 from sqlalchemy import String
                 from sqlalchemy.sql import column
                 from sqlalchemy.sql import exists

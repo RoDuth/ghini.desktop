@@ -64,6 +64,7 @@ from .geography import Geography
 from .geography import GeographyInfoBox
 from .geography import geography_context_menu
 from .geography import get_species_in_geography
+from .species import BinomialSearch
 from .species import Species
 from .species import SpeciesDistribution
 from .species import SpeciesEditor
@@ -745,6 +746,7 @@ class PlantsPlugin(pluginmgr.Plugin):
             context_menu=genus_context_menu,
         )
 
+        search.add_strategy(BinomialSearch)
         search.add_strategy(SynonymSearch)
         mapper_search.add_meta(
             ("species", "sp"),

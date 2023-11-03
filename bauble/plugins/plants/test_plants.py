@@ -68,6 +68,7 @@ from .geography import Geography
 from .geography import consolidate_geographies
 from .geography import geography_importer
 from .geography import get_species_in_geography
+from .species import BinomialSearch
 from .species import DefaultVernacularName
 from .species import GeneralSpeciesExpander
 from .species import Species
@@ -2742,6 +2743,155 @@ class MarkupItalicsTests(TestCase):
             "(<i>carolinae</i> \xd7 'Purple Star')) \xd7 (lilliputiana \xd7 "
             "<i>compacta</i> \xd7 sp.)",
         )
+
+
+class BinomialSearchTests(BaubleTestCase):
+    def __init__(self, *args):
+        super().__init__(*args)
+
+    def setUp(self):
+        super().setUp()
+        db.engine.execute("delete from genus")
+        db.engine.execute("delete from family")
+        from bauble.plugins.plants.family import Family
+        from bauble.plugins.plants.genus import Genus
+        from bauble.plugins.plants.species import Species
+
+        f1 = Family(family="family1", qualifier="s. lat.")
+        g1 = Genus(family=f1, genus="genus1")
+        f2 = Family(family="family2")
+        g2 = Genus(family=f2, genus="genus2")
+        f3 = Family(family="fam3", qualifier="s. lat.")
+        g3 = Genus(family=f3, genus="Ixora")
+        sp = Species(sp="coccinea", genus=g3)
+        sp2 = Species(sp="peruviana", genus=g3)
+        sp3 = Species(sp="chinensis", genus=g3)
+        self.cv1 = Species(cultivar_epithet="Magnifica", genus=g3)
+        self.cv2 = Species(
+            sp="chinensis", cultivar_epithet="Prince Of Orange", genus=g3
+        )
+        g4 = Genus(family=f3, genus="Pachystachys")
+        sp4 = Species(sp="coccinea", genus=g4)
+        self.session.add_all([f1, f2, g1, g2, f3, g3, sp, sp2, sp3, g4, sp4])
+        self.session.commit()
+        self.ixora, self.ic, self.pc = g3, sp, sp4
+
+    def test_binomial_complete(self):
+        strategy = search.get_strategy("BinomialSearch")
+        self.assertTrue(isinstance(strategy, BinomialSearch))
+
+        s = "Ixora coccinea"  # matches Ixora coccinea
+        results = []
+        for i in strategy.search(s, self.session):
+            results.extend(i)
+        self.assertEqual(results, [self.ic])
+
+    def test_binomial_incomplete(self):
+        strategy = search.get_strategy("BinomialSearch")
+        self.assertTrue(isinstance(strategy, BinomialSearch))
+
+        s = "Ix cocc"  # matches Ixora coccinea
+        results = []
+        for i in strategy.search(s, self.session):
+            results.extend(i)
+        self.assertEqual(results, [self.ic])
+
+    def test_binomial_no_match(self):
+        strategy = search.get_strategy("BinomialSearch")
+        self.assertTrue(isinstance(strategy, BinomialSearch))
+
+        s = "Cosito inesistente"  # matches nothing
+        results = []
+        for i in strategy.search(s, self.session):
+            results.extend(i)
+        self.assertEqual(results, [])
+
+    def test_use(self):
+        strategy = search.get_strategy("BinomialSearch")
+        self.assertTrue(isinstance(strategy, BinomialSearch))
+
+        s = "ixora coccinea"
+        self.assertEqual(strategy.use(s), "exclude")
+
+        s = "i c"
+        self.assertEqual(strategy.use(s), "exclude")
+
+        s = "I "
+        self.assertEqual(strategy.use(s), "exclude")
+
+        s = "I "
+        self.assertEqual(strategy.use(s), "exclude")
+
+        s = "I c"
+        self.assertEqual(strategy.use(s), "only")
+
+        s = "Ixora coccinea"
+        self.assertEqual(strategy.use(s), "only")
+
+        s = "Gre 'Roby"
+        self.assertEqual(strategy.use(s), "only")
+
+        s = "Grevillea 'Robyn Gordon'"
+        self.assertEqual(strategy.use(s), "only")
+
+    def test_sp_cultivar_also_matches(self):
+        strategy = search.get_strategy("BinomialSearch")
+        self.assertTrue(isinstance(strategy, BinomialSearch))
+
+        from bauble.plugins.plants.genus import Genus
+        from bauble.plugins.plants.species import Species
+
+        g3 = self.session.query(Genus).filter(Genus.genus == "Ixora").one()
+        sp5 = Species(sp="coccinea", genus=g3, cultivar_epithet="Nora Grant")
+        self.session.add_all([sp5])
+        self.session.commit()
+        s = "Ixora coccinea"  # matches I.coccinea and Nora Grant
+        results = []
+        for i in strategy.search(s, self.session):
+            results.extend(i)
+        self.assertCountEqual(results, [self.ic, sp5])
+
+    def test_cultivar_no_sp_search(self):
+        strategy = search.get_strategy("BinomialSearch")
+        self.assertTrue(isinstance(strategy, BinomialSearch))
+
+        s = "Ixora 'Mag"
+        results = []
+        for i in strategy.search(s, self.session):
+            results.extend(i)
+        self.assertEqual(results, [self.cv1])
+
+    def test_cultivar_w_sp_search(self):
+        strategy = search.get_strategy("BinomialSearch")
+        self.assertTrue(isinstance(strategy, BinomialSearch))
+
+        s = "Ixo 'Pri"
+        results = []
+        for i in strategy.search(s, self.session):
+            results.extend(i)
+        self.assertEqual(results, [self.cv2])
+
+    def test_full_cultivar_search(self):
+        strategy = search.get_strategy("BinomialSearch")
+        self.assertTrue(isinstance(strategy, BinomialSearch))
+
+        s = "Ixora 'Prince Of Orange'"
+        results = []
+        for i in strategy.search(s, self.session):
+            results.extend(i)
+        self.assertEqual(results, [self.cv2])
+
+    def test_trade_name_search(self):
+        self.cv2.trade_name = "Test Trade Name"
+        self.session.commit()
+        strategy = search.get_strategy("BinomialSearch")
+        self.assertTrue(isinstance(strategy, BinomialSearch))
+
+        s = "Ixo 'Test"
+        results = []
+        for i in strategy.search(s, self.session):
+            results.extend(i)
+        self.assertEqual(results, [self.cv2])
 
 
 class GeographyTests(PlantTestCase):
