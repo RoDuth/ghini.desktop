@@ -2823,16 +2823,16 @@ class BinomialSearchTests(BaubleTestCase):
         self.assertEqual(strategy.use(s), "exclude")
 
         s = "I c"
-        self.assertEqual(strategy.use(s), "only")
+        self.assertEqual(strategy.use(s), "include")
 
         s = "Ixora coccinea"
-        self.assertEqual(strategy.use(s), "only")
+        self.assertEqual(strategy.use(s), "include")
 
         s = "Gre 'Roby"
-        self.assertEqual(strategy.use(s), "only")
+        self.assertEqual(strategy.use(s), "include")
 
         s = "Grevillea 'Robyn Gordon'"
-        self.assertEqual(strategy.use(s), "only")
+        self.assertEqual(strategy.use(s), "include")
 
     def test_sp_cultivar_also_matches(self):
         strategy = search.get_strategy("BinomialSearch")

@@ -4395,7 +4395,7 @@ class PlantSearchTests(BaubleTestCase):
             in self.handler.messages["bauble.search"]["debug"]
         )
         self.assertTrue(
-            "\"in\" PlantSearch vals: [('XXXX', '1'), ('YYYY', '3')]"
+            "\"in\" PlantSearch val_list: [('XXXX', '1'), ('YYYY', '3')]"
             in self.handler.messages["bauble.plugins.garden.plant"]["debug"]
         )
         self.handler.reset()
@@ -4407,7 +4407,7 @@ class PlantSearchTests(BaubleTestCase):
             in self.handler.messages["bauble.search"]["debug"]
         )
         self.assertTrue(
-            "\"in\" PlantSearch vals: [('XXXX', '1'), ('YYYY', '3')]"
+            "\"in\" PlantSearch val_list: [('XXXX', '1'), ('YYYY', '3')]"
             in self.handler.messages["bauble.plugins.garden.plant"]["debug"]
         )
         self.handler.reset()
@@ -4421,7 +4421,7 @@ class PlantSearchTests(BaubleTestCase):
             in self.handler.messages["bauble.search"]["debug"]
         )
         self.assertTrue(
-            '"not equals" PlantSearch accession: XXXX plant: 1'
+            '"not equals" PlantSearch accession: XXXX plant: "1"'
             in self.handler.messages["bauble.plugins.garden.plant"]["debug"]
         )
         self.handler.reset()

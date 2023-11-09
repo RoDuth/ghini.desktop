@@ -26,6 +26,7 @@ import logging
 import os
 import re
 import traceback
+import typing
 from ast import literal_eval
 
 logger = logging.getLogger(__name__)
@@ -38,6 +39,7 @@ from pyparsing import Word
 from pyparsing import srange
 from sqlalchemy import or_
 from sqlalchemy.orm import Query
+from sqlalchemy.orm import Session
 from sqlalchemy.orm.session import object_session
 
 import bauble
@@ -273,7 +275,7 @@ class BinomialSearch(search.SearchStrategy):
     ).set_parse_action(BinomialNameAction)("statement")
 
     @staticmethod
-    def use(text):
+    def use(text: str) -> typing.Literal["include", "exclude", "only"]:
         logger.debug("Use called with %s", text)
         if re.match(
             "^[A-Z]+[a-z-]* +([a-z]+$|'[A-Za-z-]*$|'[A-Za-z- ]*'$)", text
@@ -282,7 +284,7 @@ class BinomialSearch(search.SearchStrategy):
             return "include"
         return "exclude"
 
-    def search(self, text, session):
+    def search(self, text: str, session: Session) -> list[Query]:
         """Search for a synonym for each item in the results and add to the
         results
         """
@@ -303,25 +305,27 @@ class SynonymSearch(search.SearchStrategy):
 
     excludes_value_list_search = False
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         if prefs.return_accepted_pref not in prefs.prefs:
             prefs.prefs[prefs.return_accepted_pref] = True
             prefs.prefs.save()
 
     @staticmethod
-    def use(_text):
+    def use(_text: str) -> typing.Literal["include", "exclude", "only"]:
         if prefs.prefs.get(prefs.return_accepted_pref):
             logger.debug("including SynonymSearch in strategies")
             return "include"
         return "exclude"
 
     @staticmethod
-    def get_ids(mapper_results):
+    def get_ids(
+        results: set[Query],
+    ) -> dict[tuple[type[db.Base], type[db.Base]], set[int]]:
         """Colate IDs and models to search for each result type."""
-        ids = {}
-        for result in mapper_results:
-            models = None
+        ids: dict[tuple[type[db.Base], type[db.Base]], set[int]] = {}
+        for result in results:
+            models: tuple[type[db.Base], type[db.Base]] | None = None
             if isinstance(result, Species):
                 models = (Species, SpeciesSynonym)
                 id_ = result.id
@@ -333,12 +337,12 @@ class SynonymSearch(search.SearchStrategy):
                 id_ = result.id
             elif isinstance(result, VernacularName):
                 models = (VernacularName, SpeciesSynonym)
-                id_ = result.species.id
+                id_ = result.species.id  # type: ignore[attr-defined]
             if models:
                 ids.setdefault(models, set()).add(id_)
         return ids
 
-    def search(self, text, session):
+    def search(self, text: str, session: Session) -> list[Query]:
         """Search for a synonym for each item in the results and add to the
         results
         """
@@ -346,10 +350,12 @@ class SynonymSearch(search.SearchStrategy):
         if not prefs.prefs.get(prefs.return_accepted_pref):
             # filter should prevent us getting here.
             return []
-        mapper_results = search.result_cache.get("MapperSearch")
-        if not mapper_results:
+        results = set()
+        for result in search.result_cache.values():
+            results.update(result)
+        if not results:
             return []
-        ids = self.get_ids(mapper_results)
+        ids = self.get_ids(results)
         if not ids:
             return []
         queries = []
@@ -359,16 +365,17 @@ class SynonymSearch(search.SearchStrategy):
             if models[0] == VernacularName:
                 syn_model_id = getattr(models[1], "species_id")
                 syn_id = getattr(models[1], "synonym_id")
+                # pylint: disable=line-too-long
                 query = (
                     session.query(models[0])
                     .join(Species)
-                    .join(SpeciesSynonym, syn_model_id == Species.id)
+                    .join(SpeciesSynonym, syn_model_id == Species.id)  # type: ignore[attr-defined]  # noqa
                     .filter(syn_id.in_(id_set))
                 )
             else:
                 id_ = getattr(models[0], "id")
                 syn_model_id = getattr(
-                    models[1], models[0].__tablename__ + "_id"
+                    models[1], models[0].__tablename__ + "_id"  # type: ignore[attr-defined]  # noqa
                 )
                 syn_id = getattr(models[1], "synonym_id")
                 query = (
@@ -376,8 +383,10 @@ class SynonymSearch(search.SearchStrategy):
                     .join(models[1], syn_model_id == id_)
                     .filter(syn_id.in_(id_set))
                 )
-            if prefs.prefs.get(prefs.exclude_inactive_pref) and hasattr(
-                models[0], "active"
+            if (
+                prefs.prefs.get(prefs.exclude_inactive_pref)
+                and hasattr(models[0], "active")
+                and hasattr(models[1], "synonym")
             ):
                 query = query.filter(
                     or_(

@@ -105,7 +105,7 @@ class Enum(types.TypeDecorator):
         return Enum(self.values, self.empty_to_none)
 
 
-def get_date(val: str | float) -> datetime:
+def get_date(val: str | float) -> datetime | None:
     offset = None
     if isinstance(val, float):
         offset = val

@@ -21,6 +21,7 @@
 #
 import logging
 import unittest
+from unittest.mock import patch
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -45,67 +46,65 @@ class SearchParserTests(unittest.TestCase):
     def test_query_expression_token_UPPER(self):
         s = "domain where col=value"
         logger.debug(s)
-        parser.query.parseString(s)
+        parser.query.parse_string(s)
 
         s = "domain where relation.col=value"
-        parser.query.parseString(s)
+        parser.query.parse_string(s)
 
         s = "domain where relation.relation.col=value"
-        parser.query.parseString(s)
+        parser.query.parse_string(s)
 
         s = "domain where relation.relation.col=value AND col2=value2"
-        parser.query.parseString(s)
+        parser.query.parse_string(s)
 
     def test_query_expression_token_LOWER(self):
         s = "domain where relation.relation.col=value and col2=value2"
-        parser.query.parseString(s)
-
-    def test_statement_token(self):
-        pass
+        parser.query.parse_string(s)
 
     def test_domain_expression_token(self):
         """
         Test the domain_expression token
         """
+        parser = search.DomainSearch
         # allow dom=val1, val2, val3
         s = "domain=test"
-        expected = "[domain = ['test']]"
-        results = parser.domain_expression.parseString(s, parseAll=True)
-        self.assertEqual(results.getName(), "domain_expression")
+        expected = "[domain = 'test']"
+        results = parser.domain_expression.parse_string(s, parseAll=True)
+        self.assertEqual(results.getName(), "query")
         self.assertEqual(str(results), expected)
 
         s = "domain==test"
-        expected = "[domain == ['test']]"
-        results = parser.domain_expression.parseString(s, parseAll=True)
+        expected = "[domain == 'test']"
+        results = parser.domain_expression.parse_string(s, parseAll=True)
         self.assertEqual(str(results), expected)
 
         s = "domain=*"
         expected = "[domain = *]"
-        results = parser.domain_expression.parseString(s, parseAll=True)
+        results = parser.domain_expression.parse_string(s, parseAll=True)
         self.assertEqual(str(results), expected)
 
-        s = "domain=test1 test2 test3"
-        expected = "[domain = ['test1', 'test2', 'test3']]"
-        results = parser.statement.parseString(s, parseAll=True)
+        s = "domain in test1 test2 test3"
+        expected = "[domain in ['test1', 'test2', 'test3']]"
+        results = parser.domain_expression.parse_string(s, parseAll=True)
         self.assertEqual(str(results), expected)
 
-        s = 'domain=test1 "test2 test3" test4'
-        expected = "[domain = ['test1', 'test2 test3', 'test4']]"
-        results = parser.domain_expression.parseString(s, parseAll=True)
+        s = 'domain in test1 "test2 test3" test4'
+        expected = "[domain in ['test1', 'test2 test3', 'test4']]"
+        results = parser.domain_expression.parse_string(s, parseAll=True)
         self.assertEqual(str(results), expected)
 
-        s = 'domain="test test"'
-        expected = "[domain = ['test test']]"
-        results = parser.domain_expression.parseString(s, parseAll=True)
+        s = 'domain in "test test"'
+        expected = "[domain in ['test test']]"
+        results = parser.domain_expression.parse_string(s, parseAll=True)
         self.assertEqual(str(results), expected)
 
     def test_integer_token(self):
         "recognizes integers or floats as floats"
 
-        results = parser.value.parseString("123")
+        results = parser.value.parse_string("123")
         self.assertEqual(results.getName(), "value")
         self.assertEqual(results.value.express(), 123.0)
-        results = parser.value.parseString("123.1")
+        results = parser.value.parse_string("123.1")
         self.assertEqual(results.value.express(), 123.1)
 
     def test_value_token(self):
@@ -114,28 +113,28 @@ class SearchParserTests(unittest.TestCase):
         strings = ["test", '"test"', "'test'"]
         expected = "test"
         for s in strings:
-            results = parser.value.parseString(s, parseAll=True)
+            results = parser.value.parse_string(s, parseAll=True)
             self.assertEqual(results.getName(), "value")
             self.assertEqual(results.value.express(), expected)
 
         strings = ["123.000", "123.", "123.0"]
         expected = 123.0
         for s in strings:
-            results = parser.value.parseString(s)
+            results = parser.value.parse_string(s)
             self.assertEqual(results.getName(), "value")
             self.assertEqual(results.value.express(), expected)
 
         strings = ['"test1 test2"', "'test1 test2'"]
         expected = "test1 test2"  # this is one string! :)
         for s in strings:
-            results = parser.value.parseString(s, parseAll=True)
+            results = parser.value.parse_string(s, parseAll=True)
             self.assertEqual(results.getName(), "value")
             self.assertEqual(results.value.express(), expected)
 
         strings = ["%.-_*", '"%.-_*"']
         expected = "%.-_*"
         for s in strings:
-            results = parser.value.parseString(s, parseAll=True)
+            results = parser.value.parse_string(s, parseAll=True)
             self.assertEqual(results.getName(), "value")
             self.assertEqual(results.value.express(), expected)
 
@@ -148,41 +147,8 @@ class SearchParserTests(unittest.TestCase):
         ]
         for s in strings:
             self.assertRaises(
-                ParseException, parser.value.parseString, s, parseAll=True
+                ParseException, parser.value.parse_string, s, parseAll=True
             )
-
-    def test_needs_join(self):
-        """check the join steps"""
-        # am not sure this is testing much?
-
-        env = None
-        results = parser.statement.parseString(
-            "plant where accession.species." "id=44"
-        )
-        self.assertEqual(
-            results.statement.content.filter.operands[0].needs_join(env),
-            ["accession", "species"],
-        )
-        results = parser.statement.parseString("plant where accession.id=44")
-        self.assertEqual(
-            results.statement.content.filter.operands[0].needs_join(env),
-            ["accession"],
-        )
-        results = parser.statement.parseString(
-            "plant where accession.id=4 OR accession.species.id=3"
-        )
-        self.assertEqual(
-            results.statement.content.filter.operands[0]
-            .operands[0]
-            .needs_join(env),
-            ["accession"],
-        )
-        self.assertEqual(
-            results.statement.content.filter.operands[1]
-            .operands[0]
-            .needs_join(env),
-            ["accession", "species"],
-        )
 
     def test_value_list_token(self):
         """value_list: should return all values"""
@@ -190,34 +156,37 @@ class SearchParserTests(unittest.TestCase):
         strings = ["test1, test2", '"test1", test2', "test1, 'test2'"]
         expected = [["test1", "test2"]]
         for s in strings:
-            results = parser.value_list.parseString(s, parseAll=True)
+            results = parser.value_list.parse_string(s, parseAll=True)
             self.assertEqual(results.getName(), "value_list")
             self.assertEqual(str(results), str(expected))
 
         strings = ["test", '"test"', "'test'"]
         expected = [["test"]]
         for s in strings:
-            results = parser.value_list.parseString(s, parseAll=True)
+            results = parser.value_list.parse_string(s, parseAll=True)
             self.assertEqual(results.getName(), "value_list")
             self.assertEqual(str(results), str(expected))
 
         strings = ["test1 test2 test3", "\"test1\" test2 'test3'"]
         expected = [["test1", "test2", "test3"]]
         for s in strings:
-            results = parser.value_list.parseString(s, parseAll=True)
+            results = parser.value_list.parse_string(s, parseAll=True)
             self.assertEqual(str(results), str(expected))
 
         strings = ['"test1 test2", test3']
         expected = [["test1 test2", "test3"]]
         for s in strings:
-            results = parser.value_list.parseString(s, parseAll=True)
+            results = parser.value_list.parse_string(s, parseAll=True)
             self.assertEqual(str(results), str(expected))
 
         # these should be invalid
         strings = ['"test', "test'", "'test tes2", "1,2,3 4 5"]
         for s in strings:
             self.assertRaises(
-                ParseException, parser.value_list.parseString, s, parseAll=True
+                ParseException,
+                parser.value_list.parse_string,
+                s,
+                parseAll=True,
             )
 
 
@@ -244,33 +213,65 @@ class SearchTests(BaubleTestCase):
         super().tearDown()
 
     def test_find_correct_strategy_internal(self):
-        "verify the MapperSearch strategy is available (low-level)"
-
         mapper_search = search._search_strategies["MapperSearch"]
         self.assertTrue(isinstance(mapper_search, search.MapperSearch))
 
     def test_find_correct_strategy(self):
-        "verify the MapperSearch strategy is available"
-
         mapper_search = search.get_strategy("MapperSearch")
         self.assertTrue(isinstance(mapper_search, search.MapperSearch))
 
     def test_look_for_wrong_strategy(self):
-        "verify the NotExisting strategy gives None"
-
         mapper_search = search.get_strategy("NotExisting")
-
         self.assertIsNone(mapper_search)
+
+    @patch("bauble.search.utils.yes_no_dialog")
+    def test_search_by_small_values_questions(self, mock_dialog):
+        mock_dialog.return_value = False
+        vl_search = search.get_strategy("ValueListSearch")
+        self.assertTrue(isinstance(vl_search, search.ValueListSearch))
+
+        # single letter
+        string = "f"
+        result = vl_search.search(string, self.session)
+        self.assertEqual(result, [])
+        mock_dialog.assert_called()
+        mock_dialog.reset_mock()
+
+        # too many words
+        string = (
+            "many mostly pointles words that contain more than three letters"
+        )
+        result = vl_search.search(string, self.session)
+        self.assertEqual(result, [])
+        mock_dialog.assert_called()
+        mock_dialog.reset_mock()
+
+        # single letter number plus others
+        string = "3 small words"
+        result = vl_search.search(string, self.session)
+        self.assertEqual(result, [])
+        mock_dialog.assert_called()
+        mock_dialog.reset_mock()
+
+        mock_dialog.return_value = True
+        # single letter number plus others - do search
+        string = "3 fam gen"
+        results = []
+        for i in vl_search.search(string, self.session):
+            results.extend(i)
+        self.assertEqual(len(results), 2)
+        mock_dialog.assert_called()
+        mock_dialog.reset_mock()
 
     def test_search_by_values(self):
         "search by values"
-        mapper_search = search.get_strategy("MapperSearch")
-        self.assertTrue(isinstance(mapper_search, search.MapperSearch))
+        vl_search = search.get_strategy("ValueListSearch")
+        self.assertTrue(isinstance(vl_search, search.ValueListSearch))
 
         # search for family by family name
         s = "family1"
         results = []
-        for i in mapper_search.search(s, self.session):
+        for i in vl_search.search(s, self.session):
             results.extend(i)
         self.assertEqual(len(results), 1)
         f = results[0]
@@ -279,20 +280,20 @@ class SearchTests(BaubleTestCase):
         # search for genus by genus name
         s = "genus1"
         results = []
-        for i in mapper_search.search(s, self.session):
+        for i in vl_search.search(s, self.session):
             results.extend(i)
         self.assertEqual(len(results), 1)
         g = results[0]
         self.assertEqual(g.id, self.genus.id)
 
     def test_search_by_expression_family_eq(self):
-        mapper_search = search.get_strategy("MapperSearch")
-        self.assertTrue(isinstance(mapper_search, search.MapperSearch))
+        domain_search = search.get_strategy("DomainSearch")
+        self.assertTrue(isinstance(domain_search, search.DomainSearch))
 
         # search for family by domain
         s = "fam=family1"
         results = []
-        for i in mapper_search.search(s, self.session):
+        for i in domain_search.search(s, self.session):
             results.extend(i)
         self.assertEqual(len(results), 1)
         f = results[0]
@@ -300,13 +301,13 @@ class SearchTests(BaubleTestCase):
         self.assertEqual(f.id, self.family.id)
 
     def test_search_by_expression_genus_eq_1match(self):
-        mapper_search = search.get_strategy("MapperSearch")
-        self.assertTrue(isinstance(mapper_search, search.MapperSearch))
+        domain_search = search.get_strategy("DomainSearch")
+        self.assertTrue(isinstance(domain_search, search.DomainSearch))
 
         # search for genus by domain
         s = "gen=genus1"
         results = []
-        for i in mapper_search.search(s, self.session):
+        for i in domain_search.search(s, self.session):
             results.extend(i)
         self.assertEqual(len(results), 1)
         g = list(results)[0]
@@ -314,53 +315,119 @@ class SearchTests(BaubleTestCase):
         self.assertEqual(g.id, self.genus.id)
 
     def test_search_by_expression_genus_eq_nomatch(self):
-        mapper_search = search.get_strategy("MapperSearch")
-        self.assertTrue(isinstance(mapper_search, search.MapperSearch))
+        domain_search = search.get_strategy("DomainSearch")
+        self.assertTrue(isinstance(domain_search, search.DomainSearch))
 
         # search for genus by domain
         s = "genus=g"
         results = []
-        for i in mapper_search.search(s, self.session):
+        for i in domain_search.search(s, self.session):
             results.extend(i)
         self.assertEqual(len(results), 0)
 
     def test_search_by_expression_genus_eq_everything(self):
-        mapper_search = search.get_strategy("MapperSearch")
-        self.assertTrue(isinstance(mapper_search, search.MapperSearch))
+        domain_search = search.get_strategy("DomainSearch")
+        self.assertTrue(isinstance(domain_search, search.DomainSearch))
 
         # search for genus by domain
         s = "genus=*"
         results = []
-        for i in mapper_search.search(s, self.session):
+        for i in domain_search.search(s, self.session):
             results.extend(i)
         self.assertEqual(len(results), 1)
 
+    def test_search_by_expression_genus_not_eq_everything(self):
+        domain_search = search.get_strategy("DomainSearch")
+        self.assertTrue(isinstance(domain_search, search.DomainSearch))
+
+        # search for genus by domain
+        s = "genus!=*"
+        results = []
+        for i in domain_search.search(s, self.session):
+            results.extend(i)
+        self.assertEqual(len(results), 0)
+
+    def test_search_by_expression_genus_gt_match(self):
+        domain_search = search.get_strategy("DomainSearch")
+        self.assertTrue(isinstance(domain_search, search.DomainSearch))
+
+        # search for genus by domain
+        s = "genus>g"
+        results = []
+        for i in domain_search.search(s, self.session):
+            results.extend(i)
+        self.assertEqual(len(results), 1)
+
+    def test_search_by_expression_genus_gt_no_match(self):
+        domain_search = search.get_strategy("DomainSearch")
+        self.assertTrue(isinstance(domain_search, search.DomainSearch))
+
+        # search for genus by domain
+        s = "genus>w"
+        results = []
+        for i in domain_search.search(s, self.session):
+            results.extend(i)
+        self.assertEqual(len(results), 0)
+
+    def test_search_by_expression_genus_lt_match(self):
+        domain_search = search.get_strategy("DomainSearch")
+        self.assertTrue(isinstance(domain_search, search.DomainSearch))
+
+        # search for genus by domain
+        s = "genus<h"
+        results = []
+        for i in domain_search.search(s, self.session):
+            results.extend(i)
+        self.assertEqual(len(results), 1)
+
+    def test_search_by_expression_genus_lt_no_match(self):
+        domain_search = search.get_strategy("DomainSearch")
+        self.assertTrue(isinstance(domain_search, search.DomainSearch))
+
+        # search for genus by domain
+        s = "genus<b"
+        results = []
+        for i in domain_search.search(s, self.session):
+            results.extend(i)
+        self.assertEqual(len(results), 0)
+
+    def test_search_by_expression_w_number_no_match_doesnt_fail(self):
+        domain_search = search.get_strategy("DomainSearch")
+        self.assertTrue(isinstance(domain_search, search.DomainSearch))
+
+        # search for genus by domain
+        s = "genus = 1 "
+        results = []
+        for i in domain_search.search(s, self.session):
+            results.extend(i)
+        self.assertEqual(len(results), 0)
+
     def test_search_by_expression_genus_like_nomatch(self):
-        mapper_search = search.get_strategy("MapperSearch")
-        self.assertTrue(isinstance(mapper_search, search.MapperSearch))
+        domain_search = search.get_strategy("DomainSearch")
+        self.assertTrue(isinstance(domain_search, search.DomainSearch))
 
         # search for genus by domain
         s = "genus like gen"
         results = []
-        for i in mapper_search.search(s, self.session):
+        for i in domain_search.search(s, self.session):
             results.extend(i)
         self.assertEqual(len(results), 0)
         # search for genus by domain
         s = "genus like nus%"
         results = []
-        for i in mapper_search.search(s, self.session):
+        for i in domain_search.search(s, self.session):
             results.extend(i)
         self.assertEqual(len(results), 0)
         # search for genus by domain
         s = "genus like %gen"
         results = []
-        for i in mapper_search.search(s, self.session):
+        for i in domain_search.search(s, self.session):
             results.extend(i)
         self.assertEqual(len(results), 0)
 
     def test_search_by_expression_genus_like_contains_eq(self):
-        mapper_search = search.get_strategy("MapperSearch")
-        self.assertTrue(isinstance(mapper_search, search.MapperSearch))
+        domain_search = search.get_strategy("DomainSearch")
+        self.assertTrue(isinstance(domain_search, search.DomainSearch))
         Family = self.Family
         f2 = Family(family="family2")
         f3 = Family(family="afamily3")
@@ -371,45 +438,45 @@ class SearchTests(BaubleTestCase):
         # search for family by domain
         s = "family contains fam"
         results = []
-        for i in mapper_search.search(s, self.session):
+        for i in domain_search.search(s, self.session):
             results.extend(i)
         self.assertEqual(len(results), 4)  # all do
         s = "family like f%"
         results = []
-        for i in mapper_search.search(s, self.session):
+        for i in domain_search.search(s, self.session):
             results.extend(i)
         self.assertEqual(len(results), 3)  # three start by f
         s = "family like af%"
         results = []
-        for i in mapper_search.search(s, self.session):
+        for i in domain_search.search(s, self.session):
             results.extend(i)
         self.assertEqual(len(results), 1)  # one starts by af
         s = "family like fam"
         results = []
-        for i in mapper_search.search(s, self.session):
+        for i in domain_search.search(s, self.session):
             results.extend(i)
         self.assertEqual(len(results), 0)
         s = "family = fam"
         results = []
-        for i in mapper_search.search(s, self.session):
+        for i in domain_search.search(s, self.session):
             results.extend(i)
         self.assertEqual(len(results), 0)
         s = "family = fam4"
         results = []
-        for i in mapper_search.search(s, self.session):
+        for i in domain_search.search(s, self.session):
             results.extend(i)
         self.assertEqual(len(results), 1)  # exact name match
         # MSSQL may not be case sensitive depending on collation settings
-        # results = list(mapper_search.search('family = Fam4', self.session))
+        # results = list(domain_search.search('family = Fam4', self.session))
         # self.assertEqual(len(results), 0)  # = is case sensitive
         s = "family like Fam4"
         results = []
-        for i in mapper_search.search(s, self.session):
+        for i in domain_search.search(s, self.session):
             results.extend(i)
         self.assertEqual(len(results), 1)  # like is case insensitive
         s = "family contains FAM"
         results = []
-        for i in mapper_search.search(s, self.session):
+        for i in domain_search.search(s, self.session):
             results.extend(i)
         self.assertEqual(len(results), 4)  # they case insensitively do
 
@@ -937,6 +1004,13 @@ class SearchTests(BaubleTestCase):
             results.extend(i)
         self.assertEqual(results, [ac])
 
+        # fuzzy parse
+        s = "accession where date_recvd on 'the 21st of November 21`'"
+        results = []
+        for i in mapper_search.search(s, self.session):
+            results.extend(i)
+        self.assertEqual(results, [ac])
+
         s = "accession where date_recvd = 21/11/2021"
         results = []
         for i in mapper_search.search(s, self.session):
@@ -1062,8 +1136,8 @@ class SearchTests(BaubleTestCase):
         f3 = Family(family="fam3", qualifier="s. lat.")
         g3 = Genus(family=f3, genus="Ixora")
         g4 = Genus(family=f3, genus="Schetti")
-        self.session.add_all([family2, g2, f3, g3, g4])
         g4.accepted = g3
+        self.session.add_all([family2, g2, f3, g3, g4])
         self.session.commit()
 
         prefs.prefs["bauble.search.return_accepted"] = True
@@ -1108,12 +1182,12 @@ class SearchTests(BaubleTestCase):
         self.session.add_all([family2, g2, f3, g3, sp, vn])
         self.session.commit()
 
-        mapper_search = search.get_strategy("MapperSearch")
-        self.assertTrue(isinstance(mapper_search, search.MapperSearch))
+        vl_search = search.get_strategy("ValueListSearch")
+        self.assertTrue(isinstance(vl_search, search.ValueListSearch))
 
         s = "rojo"
         results = []
-        for i in mapper_search.search(s, self.session):
+        for i in vl_search.search(s, self.session):
             results.extend(i)
         self.assertEqual(results, [vn])
 
@@ -1312,6 +1386,16 @@ class SearchTests(BaubleTestCase):
         results = search.search(s, self.session)
         self.assertCountEqual(results, [sp1])
 
+        # with filter on aggregating function
+        s = (
+            "species where active is True and not "
+            "(sum(accessions[_created > -1].quantity_recvd) = 13 or "
+            "accessions.plants.location.code = 'loc1') and id "
+            "BETWEEN 0 and 1"
+        )
+        results = search.search(s, self.session)
+        self.assertCountEqual(results, [sp1])
+
         s = (
             "species where active is False and not "
             "(accessions[_created > -1].quantity_recvd in 7, 6 or "
@@ -1365,12 +1449,48 @@ class SearchTests(BaubleTestCase):
         results = search.search(string, self.session)
         self.assertCountEqual(results, [sp1])
 
+        # AND needing joins (NOTE this does not invoke
+        # BinaryLogicalExpression.needs_join)
+        string = (
+            "plant where accession.species.epithet=heterophyllus and "
+            "location.code = loc1"
+        )
+        results = search.search(string, self.session)
+        self.assertCountEqual(results, [pp])
+
 
 class SearchTests2(BaubleTestCase):
-    def test_complex_query_parenthised(self):
+    def setUp(self):
+        super().setUp()
         for func in get_setUp_data_funcs():
             func()
 
+    def test_search_by_expression_in(self):
+        domain_search = search.get_strategy("DomainSearch")
+        self.assertTrue(isinstance(domain_search, search.DomainSearch))
+        string = "genus in Maxillaria, Laelia"
+        results = []
+        for i in domain_search.search(string, self.session):
+            results.extend(i)
+        self.assertEqual(len(results), 2)
+        for i in results:
+            self.assertIn(i.epithet, ["Maxillaria", "Laelia"])
+        # numeric fields
+        string = "acc in 2001.1 2020.2"
+        results = []
+        for i in domain_search.search(string, self.session):
+            results.extend(i)
+        self.assertEqual(len(results), 2)
+        for i in results:
+            self.assertIn(i.code, ["2001.1", "2020.2"])
+        # No result
+        string = "acc in 4001.1 4020.2"
+        results = []
+        for i in domain_search.search(string, self.session):
+            results.extend(i)
+        self.assertEqual(len(results), 0)
+
+    def test_complex_query_parenthised(self):
         # parenthesised
         string = "plant where (quantity > 1 or geojson = None) and id > 3"
         results = search.search(string, self.session)
@@ -1511,7 +1631,7 @@ class BuildingSQLStatements(BaubleTestCase):
         sp = self.SearchParser()
         results = sp.parse_string(text)
         self.assertEqual(
-            str(results.statement),
+            str(results.query),
             "SELECT * FROM species WHERE (species.genus = 'genus1')",
         )
 
@@ -1525,7 +1645,7 @@ class BuildingSQLStatements(BaubleTestCase):
             ".family=name"
         )
         self.assertEqual(
-            str(results.statement),
+            str(results.query),
             "SELECT * FROM species WHERE "
             "((species.genus = 'genus1') OR ((species.sp = 'name'"
             ") AND (species.genus.family.family = 'name')))",
@@ -1538,7 +1658,7 @@ class BuildingSQLStatements(BaubleTestCase):
             "family=name"
         )
         self.assertEqual(
-            str(results.statement),
+            str(results.query),
             "SELECT * FROM species WHERE "
             "((species.genus = 'genus1') OR ((species.sp = 'name'"
             ") AND (species.genus.family.family = 'name')))",
@@ -1550,7 +1670,7 @@ class BuildingSQLStatements(BaubleTestCase):
         sp = self.SearchParser()
         results = sp.parse_string("family where family.genus=genus1")
         self.assertEqual(
-            str(results.statement),
+            str(results.query),
             "SELECT * FROM family WHERE (" "family.genus = 'genus1')",
         )
 
@@ -1560,7 +1680,7 @@ class BuildingSQLStatements(BaubleTestCase):
         sp = self.SearchParser()
         results = sp.parse_string("genus where genus.family=family2")
         self.assertEqual(
-            str(results.statement),
+            str(results.query),
             "SELECT * FROM genus WHERE (" "genus.family = 'family2')",
         )
 
@@ -1570,7 +1690,7 @@ class BuildingSQLStatements(BaubleTestCase):
         sp = self.SearchParser()
         results = sp.parse_string("plant where accession.species.id=113")
         self.assertEqual(
-            str(results.statement),
+            str(results.query),
             "SELECT * FROM plant WHERE (" "accession.species.id = 113.0)",
         )
 
@@ -1582,7 +1702,7 @@ class BuildingSQLStatements(BaubleTestCase):
             "species where NOT species.genus.family." "family=name"
         )
         self.assertEqual(
-            str(results.statement),
+            str(results.query),
             "SELECT * FROM species WHERE "
             "NOT (species.genus.family.family = 'name')",
         )
@@ -1590,7 +1710,7 @@ class BuildingSQLStatements(BaubleTestCase):
             "species where ! species.genus.family.family" "=name"
         )
         self.assertEqual(
-            str(results.statement),
+            str(results.query),
             "SELECT * FROM species WHERE "
             "NOT (species.genus.family.family = 'name')",
         )
@@ -1598,7 +1718,7 @@ class BuildingSQLStatements(BaubleTestCase):
             "species where family=1 OR family=2 AND NOT genus.id=3"
         )
         self.assertEqual(
-            str(results.statement),
+            str(results.query),
             "SELECT * FROM species WHERE "
             "((family = 1.0) OR ((family = 2.0) AND NOT (genus.id"
             " = 3.0)))",
@@ -1612,7 +1732,7 @@ class BuildingSQLStatements(BaubleTestCase):
             "species where not species.genus.family." "family=name"
         )
         self.assertEqual(
-            str(results.statement),
+            str(results.query),
             "SELECT * FROM species WHERE "
             "NOT (species.genus.family.family = 'name')",
         )
@@ -1620,7 +1740,7 @@ class BuildingSQLStatements(BaubleTestCase):
             "species where ! species.genus.family.family" "=name"
         )
         self.assertEqual(
-            str(results.statement),
+            str(results.query),
             "SELECT * FROM species WHERE "
             "NOT (species.genus.family.family = 'name')",
         )
@@ -1628,7 +1748,7 @@ class BuildingSQLStatements(BaubleTestCase):
             "species where family=1 or family=2 and not genus.id=3"
         )
         self.assertEqual(
-            str(results.statement),
+            str(results.query),
             "SELECT * FROM species WHERE "
             "((family = 1.0) OR ((family = 2.0) AND NOT (genus.id"
             " = 3.0)))",
@@ -1640,7 +1760,7 @@ class BuildingSQLStatements(BaubleTestCase):
         sp = self.SearchParser()
         results = sp.parse_string("species where notes.id!=0")
         self.assertEqual(
-            str(results.statement),
+            str(results.query),
             "SELECT * FROM species WHERE (notes.id != 0.0)",
         )
 
@@ -1649,7 +1769,7 @@ class BuildingSQLStatements(BaubleTestCase):
         sp = self.SearchParser()
         results = sp.parse_string("species where id between 0 and 1")
         self.assertEqual(
-            str(results.statement),
+            str(results.query),
             "SELECT * FROM species WHERE (BETWEEN id 0.0 1.0)",
         )
 
@@ -1658,7 +1778,7 @@ class BuildingSQLStatements(BaubleTestCase):
         sp = self.SearchParser()
         results = sp.parse_string("species where step.id between 0 and 1")
         self.assertEqual(
-            str(results.statement),
+            str(results.query),
             "SELECT * FROM species WHERE (BETWEEN step.id 0.0 1.0)",
         )
 
@@ -1669,7 +1789,7 @@ class BuildingSQLStatements(BaubleTestCase):
             "species where step.step.step.step[a=1].id between 0 and 1"
         )
         self.assertEqual(
-            str(results.statement),
+            str(results.query),
             "SELECT * FROM species WHERE (BETWEEN "
             "step.step.step.step[a=1.0].id 0.0 1.0)",
         )
@@ -1897,7 +2017,7 @@ class AggregatingFunctions(BaubleTestCase):
         s = "genus where count(species.id) == 2"
         results = sp.parse_string(s)
         self.assertEqual(
-            str(results.statement),
+            str(results.query),
             "SELECT * FROM genus WHERE ((count species.id) == 2.0)",
         )
 
@@ -1981,6 +2101,15 @@ class AggregatingFunctions(BaubleTestCase):
         self.assertEqual(len(results), 1)
         self.assertEqual(results[0].id, 2)
 
+    def test_sum_w_filter(self):
+        mapper_search = search.get_strategy("MapperSearch")
+        s = "genus where sum(species[epithet=stipitata].id) = 6"
+        results = []
+        for i in mapper_search.search(s, self.session):
+            results.extend(i)
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0].id, 3)
+
     def test_multiple_aggregate_funcs(self):
         mapper_search = search.get_strategy("MapperSearch")
         s = "genus where sum(species.id) = 9 and count(species.id) = 2"
@@ -2025,16 +2154,25 @@ class AggregatingFunctions(BaubleTestCase):
 
 
 class BaubleSearchSearchTest(BaubleTestCase):
-    def test_search_search_uses_Mapper_Search(self):
+    def test_search_search_uses_domain_search(self):
         search.search("genus like %", self.session)
         self.assertTrue(
-            'SearchStrategy "genus like %" (MapperSearch)'
+            'SearchStrategy "genus like %" (DomainSearch)'
+            in self.handler.messages["bauble.search"]["debug"]
+        )
+
+    def test_search_search_uses_value_list_search(self):
+        search.search("12.11.13", self.session)
+        self.assertTrue(
+            'SearchStrategy "12.11.13" (ValueListSearch)'
             in self.handler.messages["bauble.search"]["debug"]
         )
         self.handler.reset()
-        search.search("12.11.13", self.session)
+
+    def test_search_search_uses_mapper_search(self):
+        search.search("genus where id = 1", self.session)
         self.assertTrue(
-            'SearchStrategy "12.11.13" (MapperSearch)'
+            'SearchStrategy "genus where id = 1" (MapperSearch)'
             in self.handler.messages["bauble.search"]["debug"]
         )
         self.handler.reset()

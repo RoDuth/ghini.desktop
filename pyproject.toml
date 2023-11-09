@@ -13,4 +13,6 @@ line-length = 79
 target-version = ['py311']
 
 [tool.mypy]
+warn_redundant_casts = true
+warn_unused_ignores = true
 plugins = "sqlalchemy.ext.mypy.plugin"

@@ -28,6 +28,7 @@ import os
 import traceback
 import typing
 from datetime import datetime
+from functools import lru_cache
 from pathlib import Path
 from random import random
 
@@ -47,6 +48,7 @@ from pyparsing import string_end
 from sqlalchemy import Column
 from sqlalchemy import ForeignKey
 from sqlalchemy import Integer
+from sqlalchemy import String
 from sqlalchemy import Unicode
 from sqlalchemy import UnicodeText
 from sqlalchemy import UniqueConstraint
@@ -69,6 +71,9 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.orm import validates
 from sqlalchemy.orm.attributes import get_history
 from sqlalchemy.orm.session import object_session
+from sqlalchemy.sql import column
+from sqlalchemy.sql import exists
+from sqlalchemy.sql import values
 
 from bauble import btypes as types
 from bauble import db
@@ -269,15 +274,36 @@ def is_code_unique(plant, code):
 
 
 class PlantSearch(SearchStrategy):
+    """Supports searches of the form: `plant operator value`
+
+    This strategy overides DomainSearch as plants are slightly more complex to
+    query.
+    """
+
+    domain = Literal("planting") | Literal("plant")
+    operator = one_of("= == != <> like contains has")
+    printable = printables.replace(",", "")
+    value = quoted_string.set_parse_action(remove_quotes) | Word(printable)
+    value_list = delimited_list(value) ^ OneOrMore(value)
+    equals = Literal("=")
+    star_value = Literal("*")
+    in_op = Literal("in")
+    domain_expression = (
+        domain + equals + star_value + string_end
+        | domain + operator + value + string_end
+        | domain + in_op + value_list + string_end
+    )
+
     @staticmethod
+    @lru_cache(maxsize=8)
     def use(text: str) -> typing.Literal["include", "exclude", "only"]:
-        if (
-            text.startswith("plant")
-            and len(splt := text.split()) > 1
-            and splt[1] != "where"
-        ):
+        # cache the result to avoid calling multiple times...
+        try:
+            PlantSearch.domain_expression.parse_string(text)
             logger.debug("reducing strategies to PlantSearch")
             return "only"
+        except ParseException:
+            pass
         return "exclude"
 
     def search(self, text: str, session: Session) -> list[Query]:
@@ -289,30 +315,17 @@ class PlantSearch(SearchStrategy):
         special search strategy, can't be obtained in MapperSearch
         """
         super().search(text, session)
-        domain = Literal("planting") | Literal("plant")
-        operator = one_of("= == != <> like contains has")
-        printable = printables.replace(",", "")
-        value = quoted_string.set_parse_action(remove_quotes) | Word(printable)
-        value_list = delimited_list(value) ^ OneOrMore(value)
-        equals = Literal("=")
-        star_value = Literal("*")
-        in_op = Literal("in")
-        statement = (
-            (domain + equals + star_value + string_end)
-            | (domain + operator + value + string_end)
-            | (domain + in_op + value_list + string_end)
-        )
 
         delimiter = Plant.get_delimiter()
         try:
-            parsed = statement.parse_string(text)
+            parsed = self.domain_expression.parse_string(text)
             operator = parsed[1]
-            values = parsed[2:]
+            vals = parsed[2:]
         except ParseException as e:
             logger.debug("PlantSearch %s %s", type(e).__name__, e)
             return []
 
-        val = values[0]
+        val = vals[0]
         if operator != "in":
             acc_code = plant_code = val
             if delimiter in val:
@@ -393,25 +406,21 @@ class PlantSearch(SearchStrategy):
             )
         else:
             # 'in'
-            vals = []
-            for val in values:
+            val_list = []
+            for val in vals:
                 if delimiter not in val:
                     logger.debug("delimiter not found, can't split the code")
                     return []
                 acc_code, plant_code = val.rsplit(delimiter, 1)
-                vals.append((acc_code, plant_code))
-            logger.debug('"in" PlantSearch vals: %s', vals)
+                val_list.append((acc_code, plant_code))
+            # used in tests
+            logger.debug('"in" PlantSearch val_list: %s', val_list)
             if db.engine and db.engine.name == "mssql":
-                from sqlalchemy import String
-                from sqlalchemy.sql import column
-                from sqlalchemy.sql import exists
-                from sqlalchemy.sql import values
-
                 sql_vals = (
                     values(
                         column("acc_code", String), column("plt_code", String)
                     )
-                    .data(vals)
+                    .data(val_list)
                     .alias("val")
                 )
                 query = (
@@ -429,7 +438,7 @@ class PlantSearch(SearchStrategy):
                 query = (
                     session.query(Plant)
                     .join(Accession)
-                    .filter(tuple_(Accession.code, Plant.code).in_(vals))
+                    .filter(tuple_(Accession.code, Plant.code).in_(val_list))
                 )
 
         return [query]
