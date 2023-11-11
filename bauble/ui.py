@@ -101,7 +101,7 @@ class SimpleSearchBox(Gtk.Frame):
     def on_domain_combo_changed(self, combo):
         from bauble import search
 
-        mapper_search = search.get_strategy("MapperSearch")
+        mapper_search = search.strategies.get_strategy("MapperSearch")
         domain = combo.get_active_text()
         # domain is None when resetting
         if domain:
@@ -146,7 +146,7 @@ class SimpleSearchBox(Gtk.Frame):
     def update(self):
         from bauble import search
 
-        mapper_search = search.get_strategy("MapperSearch")
+        mapper_search = search.strategies.get_strategy("MapperSearch")
         self.domain_combo.remove_all()
         for domain in sorted(mapper_search.domains.keys()):
             self.domain_combo.append_text(domain)

@@ -1904,7 +1904,7 @@ class AppendThousandRows(threading.Thread):
             else:
                 attr = getattr(db.History, part[0])
                 val = part[2]
-                operation = search.OPERATIONS.get(part[1])
+                operation = search.operations.OPERATIONS.get(part[1])
                 filters.append(operation(attr, val))
 
         return filters
@@ -1915,7 +1915,7 @@ class AppendThousandRows(threading.Thread):
             val = float(part[2])
         except ValueError:
             val = part[2]
-        date_val = search.get_datetime(val)
+        date_val = search.expressions.get_datetime(val)
         today = date_val.astimezone(tz=timezone.utc)
         tomorrow = today + timedelta(1)
         return and_(attr >= today, attr < tomorrow)
@@ -2133,7 +2133,7 @@ class HistoryView(pluginmgr.View, Gtk.Box):
             table, (table, "{table} where id={obj_id}")
         )
 
-        if table in search.MapperSearch.domains:
+        if table in search.strategies.MapperSearch.domains:
             query = query.format(table=table, obj_id=obj_id)
             if bauble.gui:
                 bauble.gui.send_command(query)

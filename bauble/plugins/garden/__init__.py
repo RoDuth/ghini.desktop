@@ -140,7 +140,7 @@ class GardenPlugin(pluginmgr.Plugin):
         pluginmgr.provided.update(cls.provides)
         from bauble.plugins.plants import Species
 
-        mapper_search = search.get_strategy("MapperSearch")
+        mapper_search = search.strategies.get_strategy("MapperSearch")
 
         from functools import partial
 
@@ -172,7 +172,7 @@ class GardenPlugin(pluginmgr.Plugin):
 
         mapper_search.add_meta(("plant", "planting"), Plant, ["code"])
         # special search value strategy
-        search.add_strategy(PlantSearch)
+        search.strategies.add_strategy(PlantSearch)
 
         mapper_search.completion_funcs["plant"] = get_plant_completions
 

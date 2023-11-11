@@ -35,7 +35,7 @@ from bauble.query_builder import BuiltQuery
 from bauble.query_builder import QueryBuilder
 from bauble.query_builder import SchemaMenu
 from bauble.query_builder import parse_typed_value
-from bauble.search import EmptyToken
+from bauble.search.tokens import EmptyToken
 from bauble.test import BaubleTestCase
 
 

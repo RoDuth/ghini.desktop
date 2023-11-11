@@ -39,7 +39,7 @@ from bauble import prefs
 from bauble import task
 from bauble.editor import GenericEditorPresenter
 from bauble.editor import GenericEditorView
-from bauble.search import MapperSearch
+from bauble.search.strategies import MapperSearch
 from bauble.utils import desktop
 from bauble.utils import message_dialog
 

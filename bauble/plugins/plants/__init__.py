@@ -729,7 +729,7 @@ class PlantsPlugin(pluginmgr.Plugin):
             if add_accession_action not in vernname_context_menu:
                 vernname_context_menu.insert(1, add_accession_action)
 
-        mapper_search = search.get_strategy("MapperSearch")
+        mapper_search = search.strategies.get_strategy("MapperSearch")
 
         mapper_search.add_meta(("family", "fam"), Family, ["family"])
         SearchView.row_meta[Family].set(
@@ -746,8 +746,8 @@ class PlantsPlugin(pluginmgr.Plugin):
             context_menu=genus_context_menu,
         )
 
-        search.add_strategy(BinomialSearch)
-        search.add_strategy(SynonymSearch)
+        search.strategies.add_strategy(BinomialSearch)
+        search.strategies.add_strategy(SynonymSearch)
         mapper_search.add_meta(
             ("species", "sp"),
             Species,

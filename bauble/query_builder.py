@@ -55,9 +55,9 @@ import bauble
 from bauble import prefs
 from bauble import utils
 from bauble.editor import GenericEditorPresenter
-from bauble.search import EmptyToken
-from bauble.search import MapperSearch
-from bauble.search import NoneToken
+from bauble.search.strategies import MapperSearch
+from bauble.search.tokens import EmptyToken
+from bauble.search.tokens import NoneToken
 
 
 class SchemaMenu(Gtk.Menu):

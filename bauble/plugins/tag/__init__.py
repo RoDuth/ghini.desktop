@@ -1010,7 +1010,7 @@ class TagPlugin(pluginmgr.Plugin):
         pluginmgr.provided.update(cls.provides)
         from functools import partial
 
-        mapper_search = search.get_strategy("MapperSearch")
+        mapper_search = search.strategies.get_strategy("MapperSearch")
         mapper_search.add_meta(("tag", "tags"), Tag, ["tag"])
         SearchView.row_meta[Tag].set(
             children=partial(

@@ -1,2 +1,9 @@
 [run]
 omit = */test*
+
+[report]
+exclude_lines = 
+    if typing.TYPE_CHECKING:
+    if TYPE_CHECKING:
+    raise NotImplementedError
+    pragma: no cover

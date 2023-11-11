@@ -44,7 +44,7 @@ class SimpleSearchBoxTest(BaubleTestCase):
         self.simplesearch = SimpleSearchBox()
 
     def test_on_domain_combo_changed(self):
-        mapper_search = search.get_strategy("MapperSearch")
+        mapper_search = search.strategies.get_strategy("MapperSearch")
         mock_combo = mock.Mock()
         mock_combo.get_active_text.return_value = "species_full_name"
         self.simplesearch.on_domain_combo_changed(mock_combo)
@@ -58,7 +58,7 @@ class SimpleSearchBoxTest(BaubleTestCase):
     def test_on_entry_changed(self):
         for func in get_setUp_data_funcs():
             func()
-        mapper_search = search.get_strategy("MapperSearch")
+        mapper_search = search.strategies.get_strategy("MapperSearch")
         Species = mapper_search.domains["species"][
             0
         ]  # pylint: disable=invalid-name

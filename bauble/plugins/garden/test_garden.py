@@ -4365,7 +4365,7 @@ class PlantSearchTests(BaubleTestCase):
         super().tearDown()
 
     def test_plant_search_directly(self):
-        plant_search = search.get_strategy("PlantSearch")
+        plant_search = search.strategies.get_strategy("PlantSearch")
         self.assertTrue(isinstance(plant_search, PlantSearch))
 
         qry = "planting = XXXX.1"
@@ -4377,7 +4377,7 @@ class PlantSearchTests(BaubleTestCase):
         results = search.search(qry, self.session)
         self.assertTrue(
             f'SearchStrategy "{qry}" (PlantSearch)'
-            in self.handler.messages["bauble.search"]["debug"]
+            in self.handler.messages["bauble.search.strategies"]["debug"]
         )
         self.assertTrue(
             '"equals" PlantSearch accession: XXXX plant: 1'
@@ -4392,7 +4392,7 @@ class PlantSearchTests(BaubleTestCase):
         results = search.search(qry, self.session)
         self.assertTrue(
             f'SearchStrategy "{qry}" (PlantSearch)'
-            in self.handler.messages["bauble.search"]["debug"]
+            in self.handler.messages["bauble.search.strategies"]["debug"]
         )
         self.assertTrue(
             "\"in\" PlantSearch val_list: [('XXXX', '1'), ('YYYY', '3')]"
@@ -4404,7 +4404,7 @@ class PlantSearchTests(BaubleTestCase):
         results = search.search(qry, self.session)
         self.assertTrue(
             f'SearchStrategy "{qry}" (PlantSearch)'
-            in self.handler.messages["bauble.search"]["debug"]
+            in self.handler.messages["bauble.search.strategies"]["debug"]
         )
         self.assertTrue(
             "\"in\" PlantSearch val_list: [('XXXX', '1'), ('YYYY', '3')]"
@@ -4418,7 +4418,7 @@ class PlantSearchTests(BaubleTestCase):
         results = search.search(qry, self.session)
         self.assertTrue(
             f'SearchStrategy "{qry}" (PlantSearch)'
-            in self.handler.messages["bauble.search"]["debug"]
+            in self.handler.messages["bauble.search.strategies"]["debug"]
         )
         self.assertTrue(
             '"not equals" PlantSearch accession: XXXX plant: "1"'
@@ -4435,7 +4435,7 @@ class PlantSearchTests(BaubleTestCase):
         results = search.search(qry, self.session)
         self.assertTrue(
             f'SearchStrategy "{qry}" (PlantSearch)'
-            in self.handler.messages["bauble.search"]["debug"]
+            in self.handler.messages["bauble.search.strategies"]["debug"]
         )
         self.assertTrue(
             '"star" PlantSearch, returning all plants'
@@ -4451,7 +4451,7 @@ class PlantSearchTests(BaubleTestCase):
         results = search.search(qry, self.session)
         self.assertTrue(
             f'SearchStrategy "{qry}" (PlantSearch)'
-            in self.handler.messages["bauble.search"]["debug"]
+            in self.handler.messages["bauble.search.strategies"]["debug"]
         )
         self.assertTrue(
             '"contains" PlantSearch accession: XX plant: XX'
@@ -4465,7 +4465,7 @@ class PlantSearchTests(BaubleTestCase):
         results = search.search(qry, self.session)
         self.assertTrue(
             f'SearchStrategy "{qry}" (PlantSearch)'
-            in self.handler.messages["bauble.search"]["debug"]
+            in self.handler.messages["bauble.search.strategies"]["debug"]
         )
         self.assertTrue(
             '"like" PlantSearch accession: XX% plant: 1'
@@ -4477,7 +4477,7 @@ class PlantSearchTests(BaubleTestCase):
         results = search.search(qry, self.session)
         self.assertTrue(
             f'SearchStrategy "{qry}" (PlantSearch)'
-            in self.handler.messages["bauble.search"]["debug"]
+            in self.handler.messages["bauble.search.strategies"]["debug"]
         )
         self.assertTrue(
             '"like" PlantSearch accession: XX% plant: %'
@@ -4750,44 +4750,44 @@ class BaubleSearchSearchTest(BaubleTestCase):
         bauble.search.search("genus like %", self.session)
         self.assertFalse(
             'SearchStrategy "genus like %" (PlantSearch)'
-            in self.handler.messages["bauble.search"]["debug"]
+            in self.handler.messages["bauble.search.strategies"]["debug"]
         )
         self.handler.reset()
         bauble.search.search("12.11.13", self.session)
         self.assertFalse(
             'SearchStrategy "12.11.13" (PlantSearch)'
-            in self.handler.messages["bauble.search"]["debug"]
+            in self.handler.messages["bauble.search.strategies"]["debug"]
         )
         self.handler.reset()
         bauble.search.search("So ha", self.session)
         self.assertFalse(
             'SearchStrategy "So ha" (PlantSearch)'
-            in self.handler.messages["bauble.search"]["debug"]
+            in self.handler.messages["bauble.search.strategies"]["debug"]
         )
         self.handler.reset()
         bauble.search.search("plant where id > 1", self.session)
         self.assertFalse(
             'SearchStrategy "So ha" (PlantSearch)'
-            in self.handler.messages["bauble.search"]["debug"]
+            in self.handler.messages["bauble.search.strategies"]["debug"]
         )
 
     def test_search_search_does_use_plant_search(self):
         bauble.search.search("plant like 2021.000%.%", self.session)
         self.assertFalse(
             'SearchStrategy "genus like %" (PlantSearch)'
-            in self.handler.messages["bauble.search"]["debug"]
+            in self.handler.messages["bauble.search.strategies"]["debug"]
         )
         self.handler.reset()
         bauble.search.search("plant = 2000001.1", self.session)
         self.assertFalse(
             'SearchStrategy "12.11.13" (PlantSearch)'
-            in self.handler.messages["bauble.search"]["debug"]
+            in self.handler.messages["bauble.search.strategies"]["debug"]
         )
         self.handler.reset()
         bauble.search.search("plant != 20000001.1", self.session)
         self.assertFalse(
             'SearchStrategy "So ha" (PlantSearch)'
-            in self.handler.messages["bauble.search"]["debug"]
+            in self.handler.messages["bauble.search.strategies"]["debug"]
         )
 
 

@@ -30,6 +30,7 @@ from bauble import pluginmgr
 from bauble import prefs
 from bauble import search
 from bauble import utils
+from bauble.search.strategies import MapperSearch
 from bauble.test import BaubleTestCase
 from bauble.test import get_setUp_data_funcs
 from bauble.test import update_gui
@@ -105,7 +106,7 @@ class TestMultiprocCounter(BaubleTestCase):
         from multiprocessing import Pool
 
         classes = []
-        for klass in search.MapperSearch.get_domain_classes().values():
+        for klass in MapperSearch.get_domain_classes().values():
             if self.session.query(klass).get(1):
                 classes.append(klass)
 
@@ -150,7 +151,7 @@ class TestSearchView(BaubleTestCase):
         search_view = self.search_view
         self.assertEqual(
             set(search_view.row_meta.keys()),
-            set(search.MapperSearch.get_domain_classes().values()),
+            set(MapperSearch.get_domain_classes().values()),
         )
 
     def test_all_domains_w_children_sorter(self):
@@ -158,7 +159,7 @@ class TestSearchView(BaubleTestCase):
         search_view = self.search_view
         for func in get_setUp_data_funcs():
             func()
-        for cls in search.MapperSearch.get_domain_classes().values():
+        for cls in MapperSearch.get_domain_classes().values():
             if not SearchView.row_meta[cls].children:
                 continue
             for obj in self.session.query(cls):
@@ -182,7 +183,7 @@ class TestSearchView(BaubleTestCase):
         search_view = self.search_view
         for func in get_setUp_data_funcs():
             func()
-        for cls in search.MapperSearch.get_domain_classes().values():
+        for cls in MapperSearch.get_domain_classes().values():
             if not SearchView.row_meta[cls].children:
                 continue
             for obj in self.session.query(cls):
@@ -199,7 +200,7 @@ class TestSearchView(BaubleTestCase):
         search_view = self.search_view
         for func in get_setUp_data_funcs():
             func()
-        for cls in search.MapperSearch.get_domain_classes().values():
+        for cls in MapperSearch.get_domain_classes().values():
             if not SearchView.row_meta[cls].children:
                 continue
             for obj in self.session.query(cls):
@@ -218,7 +219,7 @@ class TestSearchView(BaubleTestCase):
         search_view = self.search_view
         for func in get_setUp_data_funcs():
             func()
-        for cls in search.MapperSearch.get_domain_classes().values():
+        for cls in MapperSearch.get_domain_classes().values():
             if not SearchView.row_meta[cls].children:
                 continue
             for obj in self.session.query(cls):
@@ -235,7 +236,7 @@ class TestSearchView(BaubleTestCase):
         search_view = self.search_view
         self.assertEqual(
             list(search_view.bottom_info.keys()),
-            [search.MapperSearch.get_domain_classes()["tag"], Note],
+            [MapperSearch.get_domain_classes()["tag"], Note],
         )
 
     def test_row_meta_get_children(self):
@@ -440,9 +441,9 @@ class TestSearchView(BaubleTestCase):
             if klass.__tablename__ == "tag":
                 continue
             domain = klass.__tablename__
-            if domain not in search.MapperSearch.domains:
+            if domain not in MapperSearch.domains:
                 domain = None
-                for key, val in search.MapperSearch.domains.items():
+                for key, val in MapperSearch.domains.items():
                     if val[0] == klass:
                         domain = key
                         break
@@ -771,7 +772,7 @@ class TestHistoryView(BaubleTestCase):
         self.assertLess(history_count, 5)
 
         # get a notes class and parent model...
-        for klass in search.MapperSearch.get_domain_classes().values():
+        for klass in MapperSearch.get_domain_classes().values():
             if hasattr(klass, "notes") and hasattr(klass.notes, "mapper"):
                 note_cls = klass.notes.mapper.class_
                 parent_model = klass()
@@ -853,7 +854,7 @@ class TestHistoryView(BaubleTestCase):
             setup()
 
         # get a notes class and parent model...
-        for klass in search.MapperSearch.get_domain_classes().values():
+        for klass in MapperSearch.get_domain_classes().values():
             if hasattr(klass, "notes") and hasattr(klass.notes, "mapper"):
                 note_cls = klass.notes.mapper.class_
                 parent_model = klass()
@@ -1028,7 +1029,7 @@ class TestHistoryView(BaubleTestCase):
         from sqlalchemy import and_
 
         string = "timestamp on 10/8/23"
-        date_val = search.get_datetime("10/8/23")
+        date_val = search.expressions.get_datetime("10/8/23")
         today = date_val.astimezone(tz=timezone.utc)
         tomorrow = today + timedelta(1)
         result = AppendThousandRows(None, string).get_query_filters()

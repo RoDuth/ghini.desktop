@@ -88,7 +88,7 @@ from bauble.editor import NotesPresenter
 from bauble.editor import PicturesPresenter
 from bauble.editor import PresenterMapMixin
 from bauble.error import CheckConditionError
-from bauble.search import SearchStrategy
+from bauble.search.strategies import SearchStrategy
 from bauble.utils.geo import KMLMapCallbackFunctor
 from bauble.view import Action
 from bauble.view import InfoBox
@@ -311,8 +311,6 @@ class PlantSearch(SearchStrategy):
         """domain search for plants, only returns a result if appropriate
         string is supplied.  Searches a combination of Accession.code,
         delimiter and Plant.code.
-
-        special search strategy, can't be obtained in MapperSearch
         """
         super().search(text, session)
 

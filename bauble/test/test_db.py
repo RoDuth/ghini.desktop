@@ -38,6 +38,7 @@ from bauble.plugins.plants.genus import Family
 from bauble.plugins.plants.genus import Genus
 from bauble.plugins.plants.genus import Species
 from bauble.plugins.plants.species_model import VernacularName
+from bauble.search.strategies import MapperSearch
 from bauble.test import BaubleTestCase
 from bauble.test import get_setUp_data_funcs
 
@@ -59,7 +60,7 @@ class HistoryTests(BaubleTestCase):
 
         # INSERT
         # get a notes class and parent model...
-        for klass in search.MapperSearch.get_domain_classes().values():
+        for klass in MapperSearch.get_domain_classes().values():
             if hasattr(klass, "notes") and hasattr(klass.notes, "mapper"):
                 note_cls = klass.notes.mapper.class_
                 parent_model = klass()
@@ -156,7 +157,7 @@ class HistoryTests(BaubleTestCase):
             setup()
 
         # get a notes class and parent model...
-        for klass in search.MapperSearch.get_domain_classes().values():
+        for klass in MapperSearch.get_domain_classes().values():
             if hasattr(klass, "notes") and hasattr(klass.notes, "mapper"):
                 note_cls = klass.notes.mapper.class_
                 parent_model = klass()
@@ -190,7 +191,7 @@ class HistoryTests(BaubleTestCase):
             setup()
 
         # get a notes class and parent model...
-        for klass in search.MapperSearch.get_domain_classes().values():
+        for klass in MapperSearch.get_domain_classes().values():
             if hasattr(klass, "notes") and hasattr(klass.notes, "mapper"):
                 note_cls = klass.notes.mapper.class_
                 parent_model = klass()
@@ -255,7 +256,7 @@ class HistoryTests(BaubleTestCase):
             setup()
 
         # get a notes class and parent model...
-        for klass in search.MapperSearch.get_domain_classes().values():
+        for klass in MapperSearch.get_domain_classes().values():
             if hasattr(klass, "notes") and hasattr(klass.notes, "mapper"):
                 note_cls = klass.notes.mapper.class_
                 parent_model = klass()

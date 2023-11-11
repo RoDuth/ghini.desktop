@@ -40,6 +40,7 @@ from bauble.editor import NoteBox
 from bauble.editor import NotesPresenter
 from bauble.editor import PictureBox
 from bauble.editor import PresenterMapMixin
+from bauble.search.strategies import MapperSearch
 from bauble.test import BaubleTestCase
 from bauble.test import get_setUp_data_funcs
 
@@ -161,7 +162,7 @@ class NoteBoxTests(BaubleTestCase):
     def setUp(self):
         super().setUp()
         # get the first note class
-        for klass in search.MapperSearch.get_domain_classes().values():
+        for klass in MapperSearch.get_domain_classes().values():
             if hasattr(klass, "notes") and hasattr(klass.notes, "mapper"):
                 self.parent_model = klass()
                 note_cls = klass.notes.mapper.class_
@@ -231,7 +232,7 @@ class PictureBoxTests(BaubleTestCase):
     def setUp(self):
         super().setUp()
         # get the first picture class
-        for klass in search.MapperSearch.get_domain_classes().values():
+        for klass in MapperSearch.get_domain_classes().values():
             if hasattr(klass, "pictures") and hasattr(
                 klass.pictures, "mapper"
             ):
@@ -430,7 +431,7 @@ class PictureBoxTests(BaubleTestCase):
                     setattr(self.parent_model, col.name, "456")
 
         # get a different note class
-        for klass in search.MapperSearch.get_domain_classes().values():
+        for klass in MapperSearch.get_domain_classes().values():
             if hasattr(klass, "pictures") and hasattr(
                 klass.pictures, "mapper"
             ):
@@ -534,7 +535,7 @@ class DocumentBoxTests(BaubleTestCase):
         self.test_doc = os.path.join(temp, self.doc_name)
         with open(self.test_doc, "w", encoding="utf-8") as f:
             f.write("a line of test text")
-        for klass in search.MapperSearch.get_domain_classes().values():
+        for klass in MapperSearch.get_domain_classes().values():
             if hasattr(klass, "documents") and hasattr(
                 klass.documents, "mapper"
             ):

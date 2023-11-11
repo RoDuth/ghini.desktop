@@ -47,9 +47,11 @@ from bauble import db
 from bauble import paths
 from bauble import pluginmgr
 from bauble import prefs
-from bauble import search
 from bauble import utils
 from bauble import view
+from bauble.search.query_actions import QueryAction
+from bauble.search.search import result_cache
+from bauble.search.strategies import SearchStrategy
 from bauble.view import Action
 from bauble.view import InfoBox
 from bauble.view import InfoBoxPage
@@ -196,12 +198,10 @@ def on_taxa_clicked(_label, _event, taxon):
     select_in_search_results(taxon)
 
 
-class BinomialNameAction:
-    """created when the parser hits a binomial_name token.
+class BinomialNameQueryAction(QueryAction):
+    """Generates species queries searching by `Genus species` partial matches.
 
     Partial or complete cultivar names are also matched if started with a '
-
-    Searching using binomial names returns one or more species objects.
     """
 
     def __init__(self, tokens: ParseResults) -> None:
@@ -221,9 +221,9 @@ class BinomialNameAction:
             return f"{self.genus_epithet} {self.species_epithet}"
         return f"{self.genus_epithet} {self.cultivar_epithet}"
 
-    def invoke(self, search_strategy: search.SearchStrategy) -> Query:
-        logger.debug("BinomialNameAction:invoke")
-        query: Query = search_strategy.session.query(Species)
+    def invoke(self, search_strategy: SearchStrategy) -> list[Query]:
+        logger.debug("BinomialNameQueryAction:invoke")
+        query = search_strategy.session.query(Species)
 
         if self.species_epithet:
             logger.debug(
@@ -254,13 +254,13 @@ class BinomialNameAction:
                 .join(Genus)
                 .filter(Genus.genus.startswith(self.genus_epithet))
             )
-        return query
+        return [query]
 
 
-class BinomialSearch(search.SearchStrategy):
-    """Return any synonyms for matching taxa.
+class BinomialSearch(SearchStrategy):
+    """Supports a query of the form: `<Genus> <species|'Cultivar(')>`
 
-    'bauble.search.return_accepted' pref toggles this.
+    e.g.: `Loma hys`
     """
 
     caps = srange("[A-Z]")
@@ -272,7 +272,7 @@ class BinomialSearch(search.SearchStrategy):
             | Word("'", caps + lowers + " ") + Literal("'")
             | Word("'", caps + lowers)
         )
-    ).set_parse_action(BinomialNameAction)("statement")
+    ).set_parse_action(BinomialNameQueryAction)("statement")
 
     @staticmethod
     def use(text: str) -> typing.Literal["include", "exclude", "only"]:
@@ -292,15 +292,20 @@ class BinomialSearch(search.SearchStrategy):
         self.session = session
         statement = self.statement.parse_string(text).statement
         logger.debug("statement : %s(%s)", type(statement), statement)
-        query = statement.invoke(self)
+        queries = statement.invoke(self)
 
-        return [query]
+        return queries
 
 
-class SynonymSearch(search.SearchStrategy):
-    """Return any synonyms for matching taxa.
+class SynonymSearch(SearchStrategy):
+    """Adds queries that will return the accepted names for any synonyms that
+    previous strategies may have returned.
 
-    'bauble.search.return_accepted' pref toggles this.
+    This strategy should run last as it reuses the results from previous
+    strategies.
+
+    'bauble.search.return_accepted' pref key is used to enable/disable this
+    strategy.
     """
 
     excludes_value_list_search = False
@@ -343,15 +348,17 @@ class SynonymSearch(search.SearchStrategy):
         return ids
 
     def search(self, text: str, session: Session) -> list[Query]:
-        """Search for a synonym for each item in the results and add to the
-        results
+        """Returns queries that will return the accepted names for items
+        currently in results.
+
+        NOTE: the value of text is not used.
         """
         super().search(text, session)
         if not prefs.prefs.get(prefs.return_accepted_pref):
             # filter should prevent us getting here.
             return []
         results = set()
-        for result in search.result_cache.values():
+        for result in result_cache.values():
             results.update(result)
         if not results:
             return []

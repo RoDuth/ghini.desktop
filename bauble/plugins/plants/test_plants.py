@@ -2777,7 +2777,7 @@ class BinomialSearchTests(BaubleTestCase):
         self.ixora, self.ic, self.pc = g3, sp, sp4
 
     def test_binomial_complete(self):
-        strategy = search.get_strategy("BinomialSearch")
+        strategy = search.strategies.get_strategy("BinomialSearch")
         self.assertTrue(isinstance(strategy, BinomialSearch))
 
         s = "Ixora coccinea"  # matches Ixora coccinea
@@ -2787,7 +2787,7 @@ class BinomialSearchTests(BaubleTestCase):
         self.assertEqual(results, [self.ic])
 
     def test_binomial_incomplete(self):
-        strategy = search.get_strategy("BinomialSearch")
+        strategy = search.strategies.get_strategy("BinomialSearch")
         self.assertTrue(isinstance(strategy, BinomialSearch))
 
         s = "Ix cocc"  # matches Ixora coccinea
@@ -2797,7 +2797,7 @@ class BinomialSearchTests(BaubleTestCase):
         self.assertEqual(results, [self.ic])
 
     def test_binomial_no_match(self):
-        strategy = search.get_strategy("BinomialSearch")
+        strategy = search.strategies.get_strategy("BinomialSearch")
         self.assertTrue(isinstance(strategy, BinomialSearch))
 
         s = "Cosito inesistente"  # matches nothing
@@ -2807,7 +2807,7 @@ class BinomialSearchTests(BaubleTestCase):
         self.assertEqual(results, [])
 
     def test_use(self):
-        strategy = search.get_strategy("BinomialSearch")
+        strategy = search.strategies.get_strategy("BinomialSearch")
         self.assertTrue(isinstance(strategy, BinomialSearch))
 
         s = "ixora coccinea"
@@ -2835,7 +2835,7 @@ class BinomialSearchTests(BaubleTestCase):
         self.assertEqual(strategy.use(s), "include")
 
     def test_sp_cultivar_also_matches(self):
-        strategy = search.get_strategy("BinomialSearch")
+        strategy = search.strategies.get_strategy("BinomialSearch")
         self.assertTrue(isinstance(strategy, BinomialSearch))
 
         from bauble.plugins.plants.genus import Genus
@@ -2852,7 +2852,7 @@ class BinomialSearchTests(BaubleTestCase):
         self.assertCountEqual(results, [self.ic, sp5])
 
     def test_cultivar_no_sp_search(self):
-        strategy = search.get_strategy("BinomialSearch")
+        strategy = search.strategies.get_strategy("BinomialSearch")
         self.assertTrue(isinstance(strategy, BinomialSearch))
 
         s = "Ixora 'Mag"
@@ -2862,7 +2862,7 @@ class BinomialSearchTests(BaubleTestCase):
         self.assertEqual(results, [self.cv1])
 
     def test_cultivar_w_sp_search(self):
-        strategy = search.get_strategy("BinomialSearch")
+        strategy = search.strategies.get_strategy("BinomialSearch")
         self.assertTrue(isinstance(strategy, BinomialSearch))
 
         s = "Ixo 'Pri"
@@ -2872,7 +2872,7 @@ class BinomialSearchTests(BaubleTestCase):
         self.assertEqual(results, [self.cv2])
 
     def test_full_cultivar_search(self):
-        strategy = search.get_strategy("BinomialSearch")
+        strategy = search.strategies.get_strategy("BinomialSearch")
         self.assertTrue(isinstance(strategy, BinomialSearch))
 
         s = "Ixora 'Prince Of Orange'"
@@ -2884,7 +2884,7 @@ class BinomialSearchTests(BaubleTestCase):
     def test_trade_name_search(self):
         self.cv2.trade_name = "Test Trade Name"
         self.session.commit()
-        strategy = search.get_strategy("BinomialSearch")
+        strategy = search.strategies.get_strategy("BinomialSearch")
         self.assertTrue(isinstance(strategy, BinomialSearch))
 
         s = "Ixo 'Test"
@@ -5802,19 +5802,19 @@ class BaubleSearchSearchTest(BaubleTestCase):
         search.search("genus like %", self.session)
         self.assertTrue(
             'SearchStrategy "genus like %" (SynonymSearch)'
-            in self.handler.messages["bauble.search"]["debug"]
+            in self.handler.messages["bauble.search.strategies"]["debug"]
         )
         self.handler.reset()
         search.search("12.11.13", self.session)
         self.assertTrue(
             'SearchStrategy "12.11.13" (SynonymSearch)'
-            in self.handler.messages["bauble.search"]["debug"]
+            in self.handler.messages["bauble.search.strategies"]["debug"]
         )
         self.handler.reset()
         search.search("So ha", self.session)
         self.assertTrue(
             'SearchStrategy "So ha" (SynonymSearch)'
-            in self.handler.messages["bauble.search"]["debug"]
+            in self.handler.messages["bauble.search.strategies"]["debug"]
         )
 
     def test_search_search_doesnt_use_synonym_search(self):
@@ -5822,19 +5822,19 @@ class BaubleSearchSearchTest(BaubleTestCase):
         search.search("genus like %", self.session)
         self.assertFalse(
             'SearchStrategy "genus like %" (SynonymSearch)'
-            in self.handler.messages["bauble.search"]["debug"]
+            in self.handler.messages["bauble.search.strategies"]["debug"]
         )
         self.handler.reset()
         search.search("12.11.13", self.session)
         self.assertFalse(
             'SearchStrategy "12.11.13" (SynonymSearch)'
-            in self.handler.messages["bauble.search"]["debug"]
+            in self.handler.messages["bauble.search.strategies"]["debug"]
         )
         self.handler.reset()
         search.search("So ha", self.session)
         self.assertFalse(
             'SearchStrategy "So ha" (SynonymSearch)'
-            in self.handler.messages["bauble.search"]["debug"]
+            in self.handler.messages["bauble.search.strategies"]["debug"]
         )
 
 
