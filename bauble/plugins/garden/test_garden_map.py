@@ -486,10 +486,10 @@ class TestSearchViewMapPresenter(BaubleTestCase):
         presenter.update_thread.join()
         update_gui()
         expected = (
-            -27.477558135986328,
-            -27.477874755859375,
             152.97898864746094,
             152.97442626953125,
+            -27.477558135986328,
+            -27.477874755859375,
         )
         self.assertEqual(astuple(presenter.selected_bbox), expected)
         # change selection to no geojson should clear

@@ -306,7 +306,7 @@ class MapPoly(MapItem):
             return
 
         track = self.poly.get_track()
-        for _ in range(track.n_points()):
+        for __ in range(track.n_points()):
             track.remove_point(0)
 
         for point in self.coordinates[0]:
@@ -316,7 +316,7 @@ class MapPoly(MapItem):
         lats = []
         longs = []
         for point in self.poly.get_track().get_points():
-            long, lat = point.get_degrees()
+            lat, long = point.get_degrees()
             lats.append(lat)
             longs.append(long)
         return lats, longs
@@ -362,7 +362,7 @@ class MapLine(MapItem):
         lats = []
         longs = []
         for point in self.line.get_points():
-            long, lat = point.get_degrees()
+            lat, long = point.get_degrees()
             lats.append(lat)
             longs.append(long)
         return lats, longs
@@ -402,7 +402,7 @@ class MapPoint(MapItem):
     def get_lats_longs(self) -> tuple[list[float], list[float]]:
         lat = long = 0.0  # fall back value as we can not create
         if self.point:
-            long, lat = self.point.get_point().get_degrees()
+            lat, long = self.point.get_point().get_degrees()
         return [lat], [long]
 
 
@@ -1048,7 +1048,7 @@ def setup_garden_map() -> None:
 
 
 def expunge_garden_map() -> None:
-    """Mainly for test, remove the map and any listeners, etc."""
+    """Mainly for tests, remove the map and any listeners, etc."""
     global map_presenter  # pylint: disable=global-statement
 
     if not map_presenter:
