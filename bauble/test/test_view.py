@@ -1092,7 +1092,7 @@ class TestPicturesScroller(BaubleTestCase):
         notebook.set_current_page(1)
         window.show_all()
         window.destroy()
-        self.assertGreater(prefs.prefs.get(PIC_PANE_WIDTH_PREF), 100)
+        self.assertEqual(prefs.prefs.get(PIC_PANE_WIDTH_PREF), 100)
         self.assertEqual(prefs.prefs.get(PIC_PANE_PAGE_PREF), 1)
 
     def test_set_width_and_notebook_page(self):

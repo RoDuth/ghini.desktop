@@ -684,17 +684,7 @@ class PicturesScroller(Gtk.ScrolledWindow):
             pic_parent.connect("destroy", self.on_destroy)
 
     def on_destroy(self, _widget) -> None:
-        # calculate the width (pic_pane - infopage) as self won't give values
-        # below 46 for some reason, similarly the self size-allocation signal
-        # stops at 46.
-        width = 0
-        child1 = self.pic_pane.get_child1()
-        if child1:
-            width = (
-                self.pic_pane.get_allocation().width
-                - child1.get_allocation().width
-                - 5
-            )
+        width = self.pic_pane.get_position()
         logger.debug("setting PIC_PANE_WIDTH_PREF to %s", width)
         prefs.prefs[PIC_PANE_WIDTH_PREF] = width
         if pic_pane_notebook := cast(Gtk.Notebook, self.parent.get_parent()):
@@ -706,12 +696,16 @@ class PicturesScroller(Gtk.ScrolledWindow):
         if selection == []:
             if bauble.gui:
                 width = bauble.gui.window.get_size().width
-                self.restore_position = self.pic_pane.get_position()
+                if self.restore_position is None:
+                    self.restore_position = self.pic_pane.get_position()
                 self.pic_pane.set_position(width - 6)
         else:
             if self.restore_position:
-                self.pic_pane.set_position(self.restore_position)
-            self.restore_position = None
+                GLib.idle_add(
+                    self.pic_pane.set_position, self.restore_position
+                )
+            if selection:
+                self.restore_position = None
 
     def set_selection(self, selection):
         logger.debug("PicturesScroller.set_selection(%s)", selection)
