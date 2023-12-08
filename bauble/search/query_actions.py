@@ -85,7 +85,7 @@ class ExpressionQueryAction(QueryAction["MapperSearch"]):
     def __init__(self, tokens: ParseResults) -> None:
         logger.debug("%s::__init__(%s)", self.__class__.__name__, tokens)
         self.domain = tokens[0]
-        self.filter = tokens[1][0]
+        self.filter = tokens[1]
 
     def __repr__(self) -> str:
         return f"SELECT * FROM {self.domain} WHERE {self.filter}"
@@ -142,13 +142,8 @@ class DomainQueryAction(QueryAction["DomainSearch"]):
 
     def invoke(self, search_strategy: DomainSearch) -> list[Query]:
         logger.debug("DomainQueryAction:invoke")
-        try:
-            self.domain = search_strategy.shorthand.get(
-                self.domain, self.domain
-            )
-            cls, properties = search_strategy.domains[self.domain]
-        except KeyError as e:
-            raise KeyError(f"Unknown search domain: {self.domain}") from e
+        self.domain = search_strategy.shorthand.get(self.domain, self.domain)
+        cls, properties = search_strategy.domains[self.domain]
 
         query = search_strategy.session.query(cls)
 
@@ -158,7 +153,7 @@ class DomainQueryAction(QueryAction["DomainSearch"]):
                 return [query.filter(False)]
             return [query]
 
-        operation = OPERATIONS[self.cond]
+        operation = OPERATIONS[self.cond.lower()]
 
         mapper = class_mapper(cls)
 

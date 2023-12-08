@@ -35,6 +35,8 @@ from random import random
 logger = logging.getLogger(__name__)
 
 from gi.repository import Gtk
+from pyparsing import CaselessKeyword
+from pyparsing import Keyword
 from pyparsing import Literal
 from pyparsing import OneOrMore
 from pyparsing import ParseException
@@ -280,14 +282,14 @@ class PlantSearch(SearchStrategy):
     query.
     """
 
-    domain = Literal("planting") | Literal("plant")
+    domain = Keyword("planting") | Keyword("plant")
     operator = one_of("= == != <> like contains has")
     printable = printables.replace(",", "")
     value = quoted_string.set_parse_action(remove_quotes) | Word(printable)
     value_list = delimited_list(value) ^ OneOrMore(value)
     equals = Literal("=")
     star_value = Literal("*")
-    in_op = Literal("in")
+    in_op = CaselessKeyword("in")
     domain_expression = (
         domain + equals + star_value + string_end
         | domain + operator + value + string_end

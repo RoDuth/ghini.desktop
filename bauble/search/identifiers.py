@@ -169,7 +169,7 @@ class FilteredIdentifierAction(IdentAction):
 
     def __init__(self, tokens: ParseResults) -> None:
         logger.debug("FilteredIdentifierAction::__init__(%s)", tokens)
-        self.steps: list[str] = tokens[0][:-7:2]
+        self.steps: list[str] = tokens[0][0].steps + [tokens[0][0].leaf]
         self.filter_attr: str = tokens[0][-6]
         self.filter_op: str = tokens[0][-5]
         self.filter_value: TokenAction = tokens[0][-4]

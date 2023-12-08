@@ -43,11 +43,13 @@ from abc import ABC
 from abc import abstractmethod
 from functools import lru_cache
 
+from pyparsing import Forward
 from pyparsing import Group
 from pyparsing import Literal
 from pyparsing import OneOrMore
 from pyparsing import ParseException
 from pyparsing import delimited_list
+from pyparsing import one_of
 from pyparsing import string_end
 from sqlalchemy.orm import Query
 from sqlalchemy.orm import Session
@@ -186,17 +188,19 @@ class DomainSearch(SearchStrategy):
     e.g.: `loc=LOC1`
     """
 
-    value = parser.value
-    value_list = parser.value_list
-    domain = parser.domain
+    value_token = parser.value_token
+    value_list_token = parser.value_list_token
+    domains_list: list[str] = []
+    # updated on first call see update_domains
+    domain = Forward()
     binop = parser.binop
     in_op = parser.binop_set
 
     star_value = Literal("*")
-    domain_values = value_list.copy()("domain_values")
+    domain_values = value_list_token.copy()
     domain_expression = (
         domain + binop + star_value + string_end
-        | domain + binop + value + string_end
+        | domain + binop + value_token + string_end
         | domain + in_op + domain_values + string_end
     ).set_parse_action(DomainQueryAction)("query")
 
@@ -204,6 +208,7 @@ class DomainSearch(SearchStrategy):
     @lru_cache(maxsize=8)
     def use(text: str) -> typing.Literal["include", "exclude", "only"]:
         # cache the result to avoid calling multiple times...
+        DomainSearch.update_domains()
         try:
             DomainSearch.domain_expression.parse_string(text)
             logger.debug("including DomainSearch in strategies")
@@ -211,6 +216,17 @@ class DomainSearch(SearchStrategy):
         except ParseException:
             pass
         return "exclude"
+
+    @classmethod
+    def update_domains(cls) -> None:
+        """Update the domain to include all domain names and shorthands
+        accepted by DomainSearch
+        """
+        if not cls.domains_list:
+            cls.domains_list = list(cls.domains.keys())
+            cls.domains_list += list(cls.shorthand.keys())
+            cls.domain <<= one_of(cls.domains_list)
+            logger.debug("updated domains list to %s", cls.domains_list)
 
     def search(self, text: str, session: Session) -> list[Query]:
         """Returns list of queries for the text search string."""
@@ -236,9 +252,9 @@ class ValueListSearch(SearchStrategy):
     e.g.: `LOC1 LOC2 LOC3`
     """
 
-    value = parser.value
+    value_token = parser.value_token
     value_list = Group(
-        OneOrMore(value) ^ delimited_list(value)
+        OneOrMore(value_token) ^ delimited_list(value_token)
     ).set_parse_action(ValueListQueryAction)("query")
 
     @staticmethod

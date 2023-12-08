@@ -41,71 +41,72 @@ prefs.testing = True
 parser = search.parser
 
 
-class SearchParserTests(unittest.TestCase):
+class SearchParserTests(BaubleTestCase):
     error_msg = lambda me, s, v, e: "%s: %s == %s" % (s, v, e)
 
     def test_query_expression_token_UPPER(self):
-        s = "domain where col=value"
+        s = "plant where col=value"
         logger.debug(s)
         parser.query.parse_string(s)
 
-        s = "domain where relation.col=value"
+        s = "plant where relation.col=value"
         parser.query.parse_string(s)
 
-        s = "domain where relation.relation.col=value"
+        s = "plant where relation.relation.col=value"
         parser.query.parse_string(s)
 
-        s = "domain where relation.relation.col=value AND col2=value2"
+        s = "plant where relation.relation.col=value AND col2=value2"
         parser.query.parse_string(s)
 
     def test_query_expression_token_LOWER(self):
-        s = "domain where relation.relation.col=value and col2=value2"
+        s = "plant where relation.relation.col=value and col2=value2"
         parser.query.parse_string(s)
 
     def test_domain_expression_token(self):
         """
         Test the domain_expression token
         """
-        dom_parser = search.strategies.DomainSearch
+        dom_parser = search.strategies.DomainSearch()
+        dom_parser.update_domains()
         # allow dom=val1, val2, val3
-        s = "domain=test"
-        expected = "[domain = 'test']"
+        s = "plant=test"
+        expected = "[plant = 'test']"
         results = dom_parser.domain_expression.parse_string(s, parseAll=True)
         self.assertEqual(results.getName(), "query")
         self.assertEqual(str(results), expected)
 
-        s = "domain==test"
-        expected = "[domain == 'test']"
+        s = "plant==test"
+        expected = "[plant == 'test']"
         results = dom_parser.domain_expression.parse_string(s, parseAll=True)
         self.assertEqual(str(results), expected)
 
-        s = "domain=*"
-        expected = "[domain = *]"
+        s = "plant=*"
+        expected = "[plant = *]"
         results = dom_parser.domain_expression.parse_string(s, parseAll=True)
         self.assertEqual(str(results), expected)
 
-        s = "domain in test1 test2 test3"
-        expected = "[domain in ['test1', 'test2', 'test3']]"
+        s = "plant in test1 test2 test3"
+        expected = "[plant IN ['test1', 'test2', 'test3']]"
         results = dom_parser.domain_expression.parse_string(s, parseAll=True)
         self.assertEqual(str(results), expected)
 
-        s = 'domain in test1 "test2 test3" test4'
-        expected = "[domain in ['test1', 'test2 test3', 'test4']]"
+        s = 'plant in test1 "test2 test3" test4'
+        expected = "[plant IN ['test1', 'test2 test3', 'test4']]"
         results = dom_parser.domain_expression.parse_string(s, parseAll=True)
         self.assertEqual(str(results), expected)
 
-        s = 'domain in "test test"'
-        expected = "[domain in ['test test']]"
+        s = 'plant in "test test"'
+        expected = "[plant IN ['test test']]"
         results = dom_parser.domain_expression.parse_string(s, parseAll=True)
         self.assertEqual(str(results), expected)
 
     def test_integer_token(self):
         "recognizes integers or floats as floats"
 
-        results = parser.value.parse_string("123")
+        results = parser.value_token.parse_string("123")
         self.assertEqual(results.getName(), "value")
         self.assertEqual(results.value.express(), 123.0)
-        results = parser.value.parse_string("123.1")
+        results = parser.value_token.parse_string("123.1")
         self.assertEqual(results.value.express(), 123.1)
 
     def test_value_token(self):
@@ -114,28 +115,28 @@ class SearchParserTests(unittest.TestCase):
         strings = ["test", '"test"', "'test'"]
         expected = "test"
         for s in strings:
-            results = parser.value.parse_string(s, parseAll=True)
+            results = parser.value_token.parse_string(s, parseAll=True)
             self.assertEqual(results.getName(), "value")
             self.assertEqual(results.value.express(), expected)
 
         strings = ["123.000", "123.", "123.0"]
         expected = 123.0
         for s in strings:
-            results = parser.value.parse_string(s)
+            results = parser.value_token.parse_string(s)
             self.assertEqual(results.getName(), "value")
             self.assertEqual(results.value.express(), expected)
 
         strings = ['"test1 test2"', "'test1 test2'"]
         expected = "test1 test2"  # this is one string! :)
         for s in strings:
-            results = parser.value.parse_string(s, parseAll=True)
+            results = parser.value_token.parse_string(s, parseAll=True)
             self.assertEqual(results.getName(), "value")
             self.assertEqual(results.value.express(), expected)
 
         strings = ["%.-_*", '"%.-_*"']
         expected = "%.-_*"
         for s in strings:
-            results = parser.value.parse_string(s, parseAll=True)
+            results = parser.value_token.parse_string(s, parseAll=True)
             self.assertEqual(results.getName(), "value")
             self.assertEqual(results.value.express(), expected)
 
@@ -148,7 +149,10 @@ class SearchParserTests(unittest.TestCase):
         ]
         for s in strings:
             self.assertRaises(
-                ParseException, parser.value.parse_string, s, parseAll=True
+                ParseException,
+                parser.value_token.parse_string,
+                s,
+                parseAll=True,
             )
 
     def test_value_list_token(self):
@@ -157,27 +161,27 @@ class SearchParserTests(unittest.TestCase):
         strings = ["test1, test2", '"test1", test2', "test1, 'test2'"]
         expected = [["test1", "test2"]]
         for s in strings:
-            results = parser.value_list.parse_string(s, parseAll=True)
+            results = parser.value_list_token.parse_string(s, parseAll=True)
             self.assertEqual(results.getName(), "value_list")
             self.assertEqual(str(results), str(expected))
 
         strings = ["test", '"test"', "'test'"]
         expected = [["test"]]
         for s in strings:
-            results = parser.value_list.parse_string(s, parseAll=True)
+            results = parser.value_list_token.parse_string(s, parseAll=True)
             self.assertEqual(results.getName(), "value_list")
             self.assertEqual(str(results), str(expected))
 
         strings = ["test1 test2 test3", "\"test1\" test2 'test3'"]
         expected = [["test1", "test2", "test3"]]
         for s in strings:
-            results = parser.value_list.parse_string(s, parseAll=True)
+            results = parser.value_list_token.parse_string(s, parseAll=True)
             self.assertEqual(str(results), str(expected))
 
         strings = ['"test1 test2", test3']
         expected = [["test1 test2", "test3"]]
         for s in strings:
-            results = parser.value_list.parse_string(s, parseAll=True)
+            results = parser.value_list_token.parse_string(s, parseAll=True)
             self.assertEqual(str(results), str(expected))
 
         # these should be invalid
@@ -185,7 +189,7 @@ class SearchParserTests(unittest.TestCase):
         for s in strings:
             self.assertRaises(
                 ParseException,
-                parser.value_list.parse_string,
+                parser.value_list_token.parse_string,
                 s,
                 parseAll=True,
             )
@@ -1536,7 +1540,9 @@ class SearchTests2(BaubleTestCase):
             isinstance(domain_search, search.strategies.DomainSearch)
         )
         string = "unknown = 2"
-        self.assertRaises(KeyError, domain_search.search, string, self.session)
+        self.assertRaises(
+            ParseException, domain_search.search, string, self.session
+        )
 
     def test_search_by_expression_in(self):
         domain_search = search.strategies.get_strategy("DomainSearch")

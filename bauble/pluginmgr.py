@@ -307,6 +307,8 @@ def init(force=False):
     if bauble.gui is not None:
         bauble.gui.build_tools_menu()
 
+    bauble.search.parser.update_domains()
+
 
 def install(plugins_to_install, import_defaults=True, force=False):
     """

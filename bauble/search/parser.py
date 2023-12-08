@@ -19,21 +19,100 @@
 """
 Search parser
 
-Query syntax described in a pyparsing script.
+MapperSearch query syntax parser described with pyparsing.  Portions can be
+imported and used by other search strategies.
+
+BNF:
+query ::= domain 'WHERE' query_expression
+domain ::= 'family'
+         | 'genus'
+         | 'species'
+         | 'accession'
+         | 'plant'
+         | 'location'
+         | 'vernacular_name'
+         | 'collection'
+         | 'geography'
+         | 'source_detail'
+         | 'tag'
+         ;
+query_expression ::= and_term {or and_term}
+and_term ::= not_term {and not_term}
+not_term ::= not not_term | base_expression
+or ::= 'OR' | '||'
+and ::= 'AND' | '&&'
+not ::= 'NOT' | '!'
+base_expression ::= binary_expression
+                  | in_set_expression
+                  | on_date_expression
+                  | function_expression
+                  | parenthesised_expression
+                  | between_expression
+                  ;
+binary_expression ::= identifier binop value_token
+in_set_expression ::= identifier 'IN' value_list_token
+on_date_expression ::= identifier 'ON' date_value_token
+function_expression ::= aggregating_function
+                        '(' identifier ')'
+                        binop
+                        value_token
+                        ;
+parenthesised_expression ::= '(' query_expression ')'
+between_expression ::= identifier 'BETWEEN' value_token and value_token
+identifier ::= filtered_identifier | unfiltered_identifier
+unfiltered_identifier ::= atomic_identifier {'.' atomic_identifier}
+filtered_identifier ::= unfiltered_identifier
+                        '[' atomic_identifier binop value_token ']'
+                        '.'
+                        atomic_identifier
+                        ;
+atomic_identifier ::= regex:('[_\\da-z]*')
+binop ::= '=='
+        | '='
+        | '!='
+        | '<>'
+        | '<='
+        | '<'
+        | '>='
+        | '>'
+        | 'NOT'
+        | 'LIKE'
+        | 'CONTAINS'
+        | 'HAS'
+        | 'ILIKE'
+        | 'ICONTAINS'
+        | 'IHAS'
+        | 'IS'
+        ;
+value_token ::= date_str_token
+              | numeric_token
+              | 'None'
+              | 'Empty'
+              | string_token
+              ;
+value_list_token ::= value_token {[','] value_token}
+date_value_token ::= date_str_token | numeric_token | string_token
+date_str_token ::= regex:('\\d{1,4}[/.-]{1}\\d{1,2}[/.-]{1}\\d{1,4}')
+numeric_token ::= regex:('[-]?\\d+(\\.\\d*)?([eE]\\d+)?')
+string_token ::= unquoted_string | quoted_string
+quoted_string ::= regex:('([\'"])(.*?)\\1')
+unquoted_string ::= regex:('\\S*')
+aggregating_function ::= 'SUM' | 'MIN' | 'MAX' | 'COUNT'
 """
 
-from pyparsing import CaselessLiteral
+from typing import cast
+
+from pyparsing import CaselessKeyword
 from pyparsing import Forward
 from pyparsing import Group
 from pyparsing import Keyword
 from pyparsing import Literal
 from pyparsing import OneOrMore
 from pyparsing import OpAssoc
+from pyparsing import ParserElement
 from pyparsing import ParseResults
 from pyparsing import Regex
 from pyparsing import Word
-from pyparsing import WordEnd
-from pyparsing import WordStart
 from pyparsing import ZeroOrMore
 from pyparsing import alphanums
 from pyparsing import alphas
@@ -43,7 +122,6 @@ from pyparsing import infix_notation
 from pyparsing import one_of
 from pyparsing import quoted_string
 from pyparsing import remove_quotes
-from pyparsing import srange
 from pyparsing import string_end
 
 from .expressions import AggregatedExpression
@@ -66,105 +144,193 @@ from .tokens import StringToken
 from .tokens import ValueListToken
 from .tokens import ValueToken
 
-date_str = Regex(r"\d{1,4}[/.-]{1}\d{1,2}[/.-]{1}\d{1,4}").set_parse_action(
-    StringToken
-)
-numeric_value = Regex(r"[-]?\d+(\.\d*)?([eE]\d+)?").set_parse_action(
-    NumericToken
+ParserElement.enable_packrat()
+
+date_str_token = (
+    Regex(r"\d{1,4}[/.-]{1}\d{1,2}[/.-]{1}\d{1,4}")
+    .set_parse_action(StringToken)
+    .set_name("date string")
 )
 
-unquoted_string = Word(alphanums + alphas8bit + "%.-_*;:")
+numeric_token = (
+    Regex(r"[-]?\d+(\.\d*)?([eE]\d+)?")
+    .set_parse_action(NumericToken)
+    .set_name("numeric value")
+)
 
-string_value = (
-    quoted_string.set_parse_action(remove_quotes) | unquoted_string
-).set_parse_action(StringToken)
+unquoted_string = Word(alphanums + alphas8bit + "%.-_*;:").set_name(
+    "unquoted string"
+)
+
+quoted_string.set_parse_action(remove_quotes).set_name("quoted string")
+
+string_token = (
+    (quoted_string | unquoted_string)
+    .set_parse_action(StringToken)
+    .set_name("string value")
+)
 
 none_token = Literal("None").set_parse_action(NoneToken)
+
 empty_token = Literal("Empty").set_parse_action(EmptyToken)
 
-value = (
-    date_str
-    | WordStart("0123456789.-e") + numeric_value + WordEnd("0123456789.-e")
-    | none_token
-    | empty_token
-    | string_value
-).set_parse_action(ValueToken)("value")
+value_token = (
+    (date_str_token | numeric_token | none_token | empty_token | string_token)
+    .set_parse_action(ValueToken)
+    .set_name("value")("value")
+)
 
-value_list = Group(OneOrMore(value) ^ delimited_list(value)).set_parse_action(
-    ValueListToken
-)("value_list")
+date_value_token = (
+    (date_str_token | numeric_token | string_token)
+    .set_parse_action(ValueToken)
+    .set_name("date value")("value")
+)
 
-domain = Word(alphas, alphas + "_")
+value_list_token = (
+    Group(
+        OneOrMore(value_token)
+        ^ delimited_list(value_token).set_name("delimited list")
+    )
+    .set_parse_action(ValueListToken)
+    .set_name("value list")("value_list")
+)
+
+# defined after plugins have all initialised
+domain = cast(Forward, Forward().set_name("domain"))
+
 binop = one_of(
-    "= == != <> < <= > >= not like contains has ilike icontains ihas is"
-)
-binop_set = Literal("in")
-binop_date = Literal("on")
+    "= == != <> < <= > >= NOT LIKE CONTAINS HAS ILIKE ICONTAINS IHAS IS",
+    caseless=True,
+).set_name("binary operator")
 
-caps = srange("[A-Z]")
-lowers = caps.lower() + "-"
+binop_set = CaselessKeyword("IN")
 
-AND_ = WordStart() + (CaselessLiteral("AND") | Literal("&&")) + WordEnd()
-OR_ = WordStart() + (CaselessLiteral("OR") | Literal("||")) + WordEnd()
-NOT_ = WordStart() + (CaselessLiteral("NOT") | Literal("!")) + WordEnd()
-BETWEEN_ = WordStart() + CaselessLiteral("BETWEEN") + WordEnd()
+binop_date = CaselessKeyword("ON")
 
-aggregating_func = (
-    Literal("sum") | Literal("min") | Literal("max") | Literal("count")
-)
+and_ = (CaselessKeyword("AND") | Keyword("&&")).set_name("and")
 
-query_expression = Forward()
+or_ = (CaselessKeyword("OR") | Keyword("||")).set_name("or")
 
-atomic_identifier = Word(alphas + "_", alphanums + "_")
-identifier = Group(
-    atomic_identifier
-    + ZeroOrMore("." + atomic_identifier)
-    + "["
-    + atomic_identifier
-    + binop
-    + value
-    + "]"
-    + "."
-    + atomic_identifier
-).set_parse_action(FilteredIdentifierAction) | Group(
-    atomic_identifier + ZeroOrMore("." + atomic_identifier)
-).set_parse_action(
-    IdentifierAction
+not_ = (CaselessKeyword("NOT") | Keyword("!")).set_name("not")
+
+aggregating_function = (
+    CaselessKeyword("sum")
+    | CaselessKeyword("min")
+    | CaselessKeyword("max")
+    | CaselessKeyword("count")
+).set_name("aggregating function")
+
+atomic_identifier = Word(alphas + "_", alphanums + "_").set_name(
+    "atomic identifier"
 )
 
-aggregated = (
-    aggregating_func + Literal("(") + identifier + Literal(")")
-).set_parse_action(AggregatingAction)
-ident_expression = (
-    Group(identifier + binop + value).set_parse_action(IdentExpression)
-    | Group(identifier + binop_set + value_list).set_parse_action(
-        ElementSetExpression
+unfiltered_identifier = (
+    Group(atomic_identifier + ZeroOrMore("." + atomic_identifier))
+    .set_parse_action(IdentifierAction)
+    .set_name("unfiltered identifier")
+)
+
+filtered_identifier = (
+    Group(
+        unfiltered_identifier
+        + "["
+        + atomic_identifier
+        + binop
+        + value_token
+        + "]"
+        + "."
+        + atomic_identifier
     )
-    | Group(identifier + binop_date + value).set_parse_action(DateOnExpression)
-    | Group(aggregated + binop + value).set_parse_action(AggregatedExpression)
-    | (Literal("(") + query_expression + Literal(")")).set_parse_action(
-        ParenthesisedExpression
-    )
+    .set_parse_action(FilteredIdentifierAction)
+    .set_name("filtered identifier")
 )
-between_expression = Group(
-    identifier + BETWEEN_ + value + AND_ + value
-).set_parse_action(BetweenExpression)
-# pylint: disable=expression-not-assigned
-query_expression << infix_notation(
-    (ident_expression | between_expression),
+
+identifier = (filtered_identifier | unfiltered_identifier).set_name(
+    "identifier"
+)
+
+function_call = (
+    (aggregating_function + Literal("(") + identifier + Literal(")"))
+    .set_parse_action(AggregatingAction)
+    .set_name("function call")
+)
+
+query_expression = cast(Forward, Forward().set_name("query expression"))
+
+binary_expression = (
+    Group(identifier + binop + value_token)
+    .set_parse_action(IdentExpression)
+    .set_name("binary expression")
+)
+
+in_set_expression = (
+    Group(identifier + binop_set + value_list_token)
+    .set_parse_action(ElementSetExpression)
+    .set_name("in set expression")
+)
+
+on_date_expression = (
+    Group(identifier + binop_date + date_value_token)
+    .set_parse_action(DateOnExpression)
+    .set_name("on date expression")
+)
+
+function_expression = (
+    Group(function_call + binop + value_token)
+    .set_parse_action(AggregatedExpression)
+    .set_name("function expression")
+)
+
+parenthesised_expression = (
+    (Literal("(") + query_expression + Literal(")"))
+    .set_parse_action(ParenthesisedExpression)
+    .set_name("parenthesised expression")
+)
+
+between_expression = (
+    Group(
+        identifier
+        + CaselessKeyword("BETWEEN")
+        + value_token
+        + and_
+        + value_token
+    )
+    .set_parse_action(BetweenExpression)
+    .set_name("between expression")
+)
+
+base_expression = (
+    Group(
+        binary_expression
+        | in_set_expression
+        | on_date_expression
+        | function_expression
+        | parenthesised_expression
+        | between_expression
+    )
+    .set_parse_action(lambda tokens: tokens[0])
+    .set_name("base expression")
+)
+
+query_expression <<= infix_notation(
+    base_expression,
     [
-        (NOT_, 1, OpAssoc.RIGHT, SearchNotExpression),
-        (AND_, 2, OpAssoc.LEFT, SearchAndExpression),
-        (OR_, 2, OpAssoc.LEFT, SearchOrExpression),
+        (not_, 1, OpAssoc.RIGHT, SearchNotExpression),
+        (and_, 2, OpAssoc.LEFT, SearchAndExpression),
+        (or_, 2, OpAssoc.LEFT, SearchOrExpression),
     ],
-)("filter")
+).set_name("query expression")
 
 query = (
-    domain
-    + Keyword("where", caseless=True).suppress()
-    + Group(query_expression)
-    + string_end
-).set_parse_action(ExpressionQueryAction)("query")
+    (
+        domain
+        + CaselessKeyword("WHERE").suppress()
+        + Group(query_expression).set_parse_action(lambda tokens: tokens[0])
+        + string_end
+    )
+    .set_parse_action(ExpressionQueryAction)
+    .set_name("query")("query")
+)
 
 
 def parse_string(text: str) -> ParseResults:
@@ -173,5 +339,16 @@ def parse_string(text: str) -> ParseResults:
     pyparsing object parses the input text and returns a pyparsing.ParseResults
     object that represents the input.
     """
-
     return query.parse_string(text)
+
+
+def update_domains() -> None:
+    """After all plugins are initialised update the domain names.
+
+    Called from `bauble.pluginmgr.init`
+    """
+    from .strategies import MapperSearch
+
+    domain_values = " ".join(MapperSearch.get_domain_classes().keys())
+    global domain  # pylint: disable=global-statement
+    domain <<= one_of(domain_values.strip()).set_name("domain")

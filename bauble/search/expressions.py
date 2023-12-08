@@ -90,8 +90,10 @@ class IdentExpression(ExpressionAction):
 
         # cfr: SearchParser.binop
         # = == != <> < <= > >= not like contains has ilike icontains ihas is
-        self.operation: typing.Callable | None = OPERATIONS.get(self.oper)
-        # every second object is an operand
+        self.operation: typing.Callable | None = OPERATIONS.get(
+            self.oper.lower()
+        )
+        # every second object is an operand (i.e. an IdentAction)
         self.operands: ParseResults = tokens[0][0::2]
 
     def __repr__(self) -> str:
@@ -100,6 +102,7 @@ class IdentExpression(ExpressionAction):
     def evaluate(self, handler: QueryHandler) -> Query | Select:
         logger.debug("%s::evaluate %s", self.__class__.__name__, self)
         handler.query, attr = self.operands[0].evaluate(handler)
+
         if self.operands[1].express() == set():
             # check against the empty set
             if self.oper in ("is", "=", "=="):
@@ -192,9 +195,7 @@ class AggregatedExpression(IdentExpression):
 
         function = getattr(func, self.operands[0].function)
 
-        main_table = handler.query.column_descriptions[0]["entity"]
-
-        id_ = getattr(main_table, "id")
+        id_ = getattr(handler.domain, "id")
 
         sub_query: Select = select(id_)
         subq_handler = QueryHandler(handler.session, handler.domain, sub_query)
