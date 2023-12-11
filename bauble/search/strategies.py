@@ -58,8 +58,10 @@ from bauble.db import Base
 from bauble.error import check
 
 from . import parser
-from .query_actions import DomainQueryAction
-from .query_actions import ValueListQueryAction
+from .statements import DomainStatement
+from .statements import ValueListStatement
+from .tokens import ValueListToken
+from .tokens import ValueToken
 
 
 class SearchStrategy(ABC):
@@ -154,7 +156,7 @@ class SearchStrategy(ABC):
 
 
 class MapperSearch(SearchStrategy):
-    """Supports a query of the form: `<domain> <where> <expression>`
+    """Supports a query of the form: `<domain> <where> <clause>`
 
     The main search strategy, supports full query syntax:
 
@@ -188,21 +190,42 @@ class DomainSearch(SearchStrategy):
     e.g.: `loc=LOC1`
     """
 
-    value_token = parser.value_token
-    value_list_token = parser.value_list_token
-    domains_list: list[str] = []
     # updated on first call see update_domains
-    domain = Forward()
-    binop = parser.binop
-    in_op = parser.binop_set
+    domains_list: list[str] = []
+    shorthands_list: list[str] = []
+    domain = typing.cast(Forward, Forward().set_name("domain"))
 
-    star_value = Literal("*")
-    domain_values = value_list_token.copy()
-    domain_expression = (
-        domain + binop + star_value + string_end
-        | domain + binop + value_token + string_end
-        | domain + in_op + domain_values + string_end
-    ).set_parse_action(DomainQueryAction)("query")
+    star_token = Literal("*")
+
+    value_token = (
+        (
+            star_token
+            | parser.numeric_token
+            | parser.none_token
+            | parser.string_token
+        )
+        .set_parse_action(ValueToken)
+        .set_name("value")("value")
+    )
+
+    value_list_token = (
+        Group(
+            OneOrMore(parser.value_token)
+            ^ delimited_list(parser.value_token).set_name("delimited list")
+        )
+        .set_parse_action(ValueListToken)
+        .set_name("value list")
+    )
+
+    statement = (
+        (
+            domain + parser.binop + star_token + string_end
+            | domain + parser.binop + value_token + string_end
+            | domain + parser.binop_set + value_list_token + string_end
+        )
+        .set_parse_action(DomainStatement)
+        .set_name("statement")("query")
+    )
 
     @staticmethod
     @lru_cache(maxsize=8)
@@ -210,7 +233,7 @@ class DomainSearch(SearchStrategy):
         # cache the result to avoid calling multiple times...
         DomainSearch.update_domains()
         try:
-            DomainSearch.domain_expression.parse_string(text)
+            DomainSearch.statement.parse_string(text)
             logger.debug("including DomainSearch in strategies")
             return "include"
         except ParseException:
@@ -224,15 +247,18 @@ class DomainSearch(SearchStrategy):
         """
         if not cls.domains_list:
             cls.domains_list = list(cls.domains.keys())
-            cls.domains_list += list(cls.shorthand.keys())
-            cls.domain <<= one_of(cls.domains_list)
+            cls.shorthands_list = list(cls.shorthand.keys())
+            cls.domain <<= (
+                one_of(cls.domains_list).set_name("domains full")
+                | one_of(cls.shorthands_list).set_name("domains shorthand")
+            ).set_name("domain")
             logger.debug("updated domains list to %s", cls.domains_list)
 
     def search(self, text: str, session: Session) -> list[Query]:
         """Returns list of queries for the text search string."""
         super().search(text, session)
         self.session = session
-        result = self.domain_expression.parse_string(text).query
+        result = self.statement.parse_string(text).query
         logger.debug("result : %s(%s)", type(result), result)
         query = result.invoke(self)
 
@@ -252,10 +278,20 @@ class ValueListSearch(SearchStrategy):
     e.g.: `LOC1 LOC2 LOC3`
     """
 
-    value_token = parser.value_token
-    value_list = Group(
-        OneOrMore(value_token) ^ delimited_list(value_token)
-    ).set_parse_action(ValueListQueryAction)("query")
+    value_token = (
+        (parser.numeric_token | parser.none_token | parser.string_token)
+        .set_parse_action(ValueToken)
+        .set_name("value")("value")
+    )
+
+    statement = (
+        Group(
+            OneOrMore(parser.value_token)
+            ^ delimited_list(parser.value_token).set_name("delimited list")
+        )
+        .set_parse_action(ValueListStatement)
+        .set_name("statement")("query")
+    )
 
     @staticmethod
     def use(text: str) -> typing.Literal["include", "exclude", "only"]:
@@ -273,7 +309,7 @@ class ValueListSearch(SearchStrategy):
         """Returns list of queries for the text search string."""
         super().search(text, session)
         self.session = session
-        result = self.value_list.parse_string(text).query
+        result = self.statement.parse_string(text).query
         logger.debug("result : %s(%s)", type(result), result)
         queries = result.invoke(self)
 

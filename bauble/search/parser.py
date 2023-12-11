@@ -23,7 +23,9 @@ MapperSearch query syntax parser described with pyparsing.  Portions can be
 imported and used by other search strategies.
 
 BNF:
-query ::= domain 'WHERE' query_expression
+note - 'Regex' used to approximate terminals
+
+statement ::= domain 'WHERE' query_clause
 domain ::= 'family'
          | 'genus'
          | 'species'
@@ -36,29 +38,26 @@ domain ::= 'family'
          | 'source_detail'
          | 'tag'
          ;
-query_expression ::= and_term {or and_term}
+query_clause ::= or_term
+or_term ::= and_term {or and_term}
 and_term ::= not_term {and not_term}
-not_term ::= not not_term | base_expression
+not_term ::= not not_term | base_clause
 or ::= 'OR' | '||'
 and ::= 'AND' | '&&'
 not ::= 'NOT' | '!'
-base_expression ::= binary_expression
-                  | in_set_expression
-                  | on_date_expression
-                  | function_expression
-                  | parenthesised_expression
-                  | between_expression
-                  ;
-binary_expression ::= identifier binop value_token
-in_set_expression ::= identifier 'IN' value_list_token
-on_date_expression ::= identifier 'ON' date_value_token
-function_expression ::= aggregating_function
-                        '(' identifier ')'
-                        binop
-                        value_token
-                        ;
-parenthesised_expression ::= '(' query_expression ')'
-between_expression ::= identifier 'BETWEEN' value_token and value_token
+base_clause ::= binary_clause
+              | in_set_clause
+              | on_date_clause
+              | function_clause
+              | parenthesised_clause
+              | between_clause
+              ;
+binary_clause ::= identifier binop value_token
+in_set_clause ::= identifier 'IN' value_list_token
+on_date_clause ::= identifier 'ON' date_value_token
+function_clause ::= aggregating_function '(' identifier ')' binop value_token
+parenthesised_clause ::= '(' query_clause ')'
+between_clause ::= identifier 'BETWEEN' value_token and value_token
 identifier ::= filtered_identifier | unfiltered_identifier
 unfiltered_identifier ::= atomic_identifier {'.' atomic_identifier}
 filtered_identifier ::= unfiltered_identifier
@@ -66,7 +65,7 @@ filtered_identifier ::= unfiltered_identifier
                         '.'
                         atomic_identifier
                         ;
-atomic_identifier ::= regex:('[_\\da-z]*')
+atomic_identifier ::= Regex('[_\\da-z]*')
 binop ::= '=='
         | '='
         | '!='
@@ -92,15 +91,13 @@ value_token ::= date_str_token
               ;
 value_list_token ::= value_token {[','] value_token}
 date_value_token ::= date_str_token | numeric_token | string_token
-date_str_token ::= regex:('\\d{1,4}[/.-]{1}\\d{1,2}[/.-]{1}\\d{1,4}')
-numeric_token ::= regex:('[-]?\\d+(\\.\\d*)?([eE]\\d+)?')
+date_str_token ::= Regex('\\d{1,4}[/.-]{1}\\d{1,2}[/.-]{1}\\d{1,4}')
+numeric_token ::= Regex('[-]?\\d+(\\.\\d*)?([eE]\\d+)?')
 string_token ::= unquoted_string | quoted_string
-quoted_string ::= regex:('([\'"])(.*?)\\1')
-unquoted_string ::= regex:('\\S*')
+quoted_string ::= Regex('([\'"])(.*?)\\1')
+unquoted_string ::= Regex('\\S*')
 aggregating_function ::= 'SUM' | 'MIN' | 'MAX' | 'COUNT'
 """
-
-from typing import cast
 
 from pyparsing import CaselessKeyword
 from pyparsing import Forward
@@ -124,19 +121,19 @@ from pyparsing import quoted_string
 from pyparsing import remove_quotes
 from pyparsing import string_end
 
-from .expressions import AggregatedExpression
-from .expressions import BetweenExpression
-from .expressions import DateOnExpression
-from .expressions import ElementSetExpression
-from .expressions import IdentExpression
-from .expressions import ParenthesisedExpression
-from .expressions import SearchAndExpression
-from .expressions import SearchNotExpression
-from .expressions import SearchOrExpression
-from .identifiers import AggregatingAction
-from .identifiers import FilteredIdentifierAction
-from .identifiers import IdentifierAction
-from .query_actions import ExpressionQueryAction
+from .clauses import AndTerm
+from .clauses import BetweenClause
+from .clauses import BinaryClause
+from .clauses import FunctionClause
+from .clauses import InSetClause
+from .clauses import NotTerm
+from .clauses import OnDateClause
+from .clauses import OrTerm
+from .clauses import ParenthesisedClause
+from .identifiers import FilteredIdentifier
+from .identifiers import FunctionIdentifier
+from .identifiers import UnfilteredIdentifier
+from .statements import MapperStatement
 from .tokens import EmptyToken
 from .tokens import NoneToken
 from .tokens import NumericToken
@@ -149,30 +146,30 @@ ParserElement.enable_packrat()
 date_str_token = (
     Regex(r"\d{1,4}[/.-]{1}\d{1,2}[/.-]{1}\d{1,4}")
     .set_parse_action(StringToken)
-    .set_name("date string")
+    .set_name("date string token")
 )
 
 numeric_token = (
     Regex(r"[-]?\d+(\.\d*)?([eE]\d+)?")
     .set_parse_action(NumericToken)
-    .set_name("numeric value")
+    .set_name("numeric token")
 )
 
-unquoted_string = Word(alphanums + alphas8bit + "%.-_*;:").set_name(
-    "unquoted string"
+unquoted_string_token = Word(alphanums + alphas8bit + "%.-_*;:").set_name(
+    "unquoted string token"
 )
 
-quoted_string.set_parse_action(remove_quotes).set_name("quoted string")
+quoted_string.set_parse_action(remove_quotes).set_name("quoted string token")
 
 string_token = (
-    (quoted_string | unquoted_string)
+    (quoted_string | unquoted_string_token)
     .set_parse_action(StringToken)
-    .set_name("string value")
+    .set_name("string token")
 )
 
-none_token = Literal("None").set_parse_action(NoneToken)
+none_token = Keyword("None").set_parse_action(NoneToken)
 
-empty_token = Literal("Empty").set_parse_action(EmptyToken)
+empty_token = Keyword("Empty").set_parse_action(EmptyToken)
 
 value_token = (
     (date_str_token | numeric_token | none_token | empty_token | string_token)
@@ -196,7 +193,7 @@ value_list_token = (
 )
 
 # defined after plugins have all initialised
-domain = cast(Forward, Forward().set_name("domain"))
+domain = Forward()
 
 binop = one_of(
     "= == != <> < <= > >= NOT LIKE CONTAINS HAS ILIKE ICONTAINS IHAS IS",
@@ -226,7 +223,7 @@ atomic_identifier = Word(alphas + "_", alphanums + "_").set_name(
 
 unfiltered_identifier = (
     Group(atomic_identifier + ZeroOrMore("." + atomic_identifier))
-    .set_parse_action(IdentifierAction)
+    .set_parse_action(UnfilteredIdentifier)
     .set_name("unfiltered identifier")
 )
 
@@ -241,7 +238,7 @@ filtered_identifier = (
         + "."
         + atomic_identifier
     )
-    .set_parse_action(FilteredIdentifierAction)
+    .set_parse_action(FilteredIdentifier)
     .set_name("filtered identifier")
 )
 
@@ -249,45 +246,47 @@ identifier = (filtered_identifier | unfiltered_identifier).set_name(
     "identifier"
 )
 
+# An IdentifierAction is used as the parse action here as it only stores the
+# function name and handles the identifier at this point.
 function_call = (
     (aggregating_function + Literal("(") + identifier + Literal(")"))
-    .set_parse_action(AggregatingAction)
+    .set_parse_action(FunctionIdentifier)
     .set_name("function call")
 )
 
-query_expression = cast(Forward, Forward().set_name("query expression"))
+query_clause = Forward()
 
-binary_expression = (
+binary_clause = (
     Group(identifier + binop + value_token)
-    .set_parse_action(IdentExpression)
-    .set_name("binary expression")
+    .set_parse_action(BinaryClause)
+    .set_name("binary clause")
 )
 
-in_set_expression = (
+in_set_clause = (
     Group(identifier + binop_set + value_list_token)
-    .set_parse_action(ElementSetExpression)
-    .set_name("in set expression")
+    .set_parse_action(InSetClause)
+    .set_name("in set clause")
 )
 
-on_date_expression = (
+on_date_clause = (
     Group(identifier + binop_date + date_value_token)
-    .set_parse_action(DateOnExpression)
-    .set_name("on date expression")
+    .set_parse_action(OnDateClause)
+    .set_name("on date clause")
 )
 
-function_expression = (
+function_clause = (
     Group(function_call + binop + value_token)
-    .set_parse_action(AggregatedExpression)
-    .set_name("function expression")
+    .set_parse_action(FunctionClause)
+    .set_name("function clause")
 )
 
-parenthesised_expression = (
-    (Literal("(") + query_expression + Literal(")"))
-    .set_parse_action(ParenthesisedExpression)
-    .set_name("parenthesised expression")
+parenthesised_clause = (
+    (Literal("(") + query_clause + Literal(")"))
+    .set_parse_action(ParenthesisedClause)
+    .set_name("parenthesised clause")
 )
 
-between_expression = (
+between_clause = (
     Group(
         identifier
         + CaselessKeyword("BETWEEN")
@@ -295,41 +294,32 @@ between_expression = (
         + and_
         + value_token
     )
-    .set_parse_action(BetweenExpression)
-    .set_name("between expression")
+    .set_parse_action(BetweenClause)
+    .set_name("between clause")
 )
 
-base_expression = (
-    Group(
-        binary_expression
-        | in_set_expression
-        | on_date_expression
-        | function_expression
-        | parenthesised_expression
-        | between_expression
-    )
-    .set_parse_action(lambda tokens: tokens[0])
-    .set_name("base expression")
-)
+base_clause = (
+    binary_clause
+    | in_set_clause
+    | on_date_clause
+    | function_clause
+    | parenthesised_clause
+    | between_clause
+).set_name("base clause")
 
-query_expression <<= infix_notation(
-    base_expression,
+query_clause <<= infix_notation(
+    base_clause,
     [
-        (not_, 1, OpAssoc.RIGHT, SearchNotExpression),
-        (and_, 2, OpAssoc.LEFT, SearchAndExpression),
-        (or_, 2, OpAssoc.LEFT, SearchOrExpression),
+        (not_, 1, OpAssoc.RIGHT, NotTerm),
+        (and_, 2, OpAssoc.LEFT, AndTerm),
+        (or_, 2, OpAssoc.LEFT, OrTerm),
     ],
-).set_name("query expression")
+).set_name("query clause")
 
-query = (
-    (
-        domain
-        + CaselessKeyword("WHERE").suppress()
-        + Group(query_expression).set_parse_action(lambda tokens: tokens[0])
-        + string_end
-    )
-    .set_parse_action(ExpressionQueryAction)
-    .set_name("query")("query")
+statement = (
+    (domain + CaselessKeyword("WHERE").suppress() + query_clause + string_end)
+    .set_parse_action(MapperStatement)
+    .set_name("statement")("query")
 )
 
 
@@ -339,7 +329,7 @@ def parse_string(text: str) -> ParseResults:
     pyparsing object parses the input text and returns a pyparsing.ParseResults
     object that represents the input.
     """
-    return query.parse_string(text)
+    return statement.parse_string(text)
 
 
 def update_domains() -> None:

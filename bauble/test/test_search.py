@@ -47,57 +47,57 @@ class SearchParserTests(BaubleTestCase):
     def test_query_expression_token_UPPER(self):
         s = "plant where col=value"
         logger.debug(s)
-        parser.query.parse_string(s)
+        parser.statement.parse_string(s)
 
         s = "plant where relation.col=value"
-        parser.query.parse_string(s)
+        parser.statement.parse_string(s)
 
         s = "plant where relation.relation.col=value"
-        parser.query.parse_string(s)
+        parser.statement.parse_string(s)
 
         s = "plant where relation.relation.col=value AND col2=value2"
-        parser.query.parse_string(s)
+        parser.statement.parse_string(s)
 
     def test_query_expression_token_LOWER(self):
         s = "plant where relation.relation.col=value and col2=value2"
-        parser.query.parse_string(s)
+        parser.statement.parse_string(s)
 
-    def test_domain_expression_token(self):
+    def test_domain_statement_token(self):
         """
-        Test the domain_expression token
+        Test the domain_statement token
         """
         dom_parser = search.strategies.DomainSearch()
         dom_parser.update_domains()
         # allow dom=val1, val2, val3
         s = "plant=test"
         expected = "[plant = 'test']"
-        results = dom_parser.domain_expression.parse_string(s, parseAll=True)
+        results = dom_parser.statement.parse_string(s, parseAll=True)
         self.assertEqual(results.getName(), "query")
         self.assertEqual(str(results), expected)
 
         s = "plant==test"
         expected = "[plant == 'test']"
-        results = dom_parser.domain_expression.parse_string(s, parseAll=True)
+        results = dom_parser.statement.parse_string(s, parseAll=True)
         self.assertEqual(str(results), expected)
 
         s = "plant=*"
         expected = "[plant = *]"
-        results = dom_parser.domain_expression.parse_string(s, parseAll=True)
+        results = dom_parser.statement.parse_string(s, parseAll=True)
         self.assertEqual(str(results), expected)
 
         s = "plant in test1 test2 test3"
         expected = "[plant IN ['test1', 'test2', 'test3']]"
-        results = dom_parser.domain_expression.parse_string(s, parseAll=True)
+        results = dom_parser.statement.parse_string(s, parseAll=True)
         self.assertEqual(str(results), expected)
 
         s = 'plant in test1 "test2 test3" test4'
         expected = "[plant IN ['test1', 'test2 test3', 'test4']]"
-        results = dom_parser.domain_expression.parse_string(s, parseAll=True)
+        results = dom_parser.statement.parse_string(s, parseAll=True)
         self.assertEqual(str(results), expected)
 
         s = 'plant in "test test"'
         expected = "[plant IN ['test test']]"
-        results = dom_parser.domain_expression.parse_string(s, parseAll=True)
+        results = dom_parser.statement.parse_string(s, parseAll=True)
         self.assertEqual(str(results), expected)
 
     def test_integer_token(self):
@@ -233,7 +233,7 @@ class SearchTests(BaubleTestCase):
         mapper_search = search.strategies.get_strategy("NotExisting")
         self.assertIsNone(mapper_search)
 
-    @patch("bauble.search.query_actions.utils.yes_no_dialog")
+    @patch("bauble.search.statements.utils.yes_no_dialog")
     def test_search_by_small_values_questions(self, mock_dialog):
         mock_dialog.return_value = False
         vl_search = search.strategies.get_strategy("ValueListSearch")

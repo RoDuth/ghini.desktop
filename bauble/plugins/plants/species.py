@@ -33,8 +33,9 @@ logger = logging.getLogger(__name__)
 
 from gi.repository import Gtk  # noqa
 from gi.repository import Pango
-from pyparsing import Literal
+from pyparsing import Optional
 from pyparsing import ParseResults
+from pyparsing import Regex
 from pyparsing import Word
 from pyparsing import srange
 from sqlalchemy import or_
@@ -49,8 +50,8 @@ from bauble import pluginmgr
 from bauble import prefs
 from bauble import utils
 from bauble import view
-from bauble.search.query_actions import QueryAction
 from bauble.search.search import result_cache
+from bauble.search.statements import StatementAction
 from bauble.search.strategies import SearchStrategy
 from bauble.view import Action
 from bauble.view import InfoBox
@@ -198,7 +199,7 @@ def on_taxa_clicked(_label, _event, taxon):
     select_in_search_results(taxon)
 
 
-class BinomialNameQueryAction(QueryAction):
+class BinomialStatement(StatementAction):
     """Generates species queries searching by `Genus species` partial matches.
 
     Partial or complete cultivar names are also matched if started with a '
@@ -222,7 +223,7 @@ class BinomialNameQueryAction(QueryAction):
         return f"{self.genus_epithet} {self.cultivar_epithet}"
 
     def invoke(self, search_strategy: SearchStrategy) -> list[Query]:
-        logger.debug("BinomialNameQueryAction:invoke")
+        logger.debug("%s::invoke", self.__class__.__name__)
         query = search_strategy.session.query(Species)
 
         if self.species_epithet:
@@ -265,14 +266,16 @@ class BinomialSearch(SearchStrategy):
 
     caps = srange("[A-Z]")
     lowers = caps.lower() + "-"
-    statement = (
-        Word(caps, lowers)
-        + (
-            Word(lowers)
-            | Word("'", caps + lowers + " ") + Literal("'")
-            | Word("'", caps + lowers)
-        )
-    ).set_parse_action(BinomialNameQueryAction)("statement")
+
+    genus = Word(caps, lowers).set_name("Genus epithet or partial epithet")
+    species = Word(lowers).set_name("species epithet or partial epithet")
+    cultivar = (Regex("'[A-Za-z- ]*") + Optional("'")).set_name(
+        "cultivar epithet or partial epithet"
+    )
+
+    statement = (genus + (species | cultivar)).set_parse_action(
+        BinomialStatement
+    )("statement")
 
     @staticmethod
     def use(text: str) -> typing.Literal["include", "exclude", "only"]:

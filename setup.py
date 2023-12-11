@@ -77,7 +77,7 @@ setup(
         "tld==0.12.6",
         "mako==1.2.3",
         "requests",
-        "pyparsing==3.0.9",
+        "pyparsing==3.1.1",
         "pypac==0.16.0",
         "pyshp==2.3.1",
         "pyproj",

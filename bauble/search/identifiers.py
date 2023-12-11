@@ -43,7 +43,7 @@ from sqlalchemy.sql.elements import ColumnElement
 from bauble.db import Base
 from bauble.db import get_related_class
 
-from .expressions import QueryHandler
+from .clauses import QueryHandler
 from .operations import OPERATIONS
 from .tokens import TokenAction
 
@@ -101,7 +101,7 @@ def create_joins(
     return create_joins(query, cls, steps, alias)
 
 
-class IdentAction(ABC):
+class IdentifierAction(ABC):
     """A pyparsing parse action class that refers to a database identifier as
     used in a SQLA ORM query.  i.e. The field to be queried against the value
     of the token.
@@ -125,14 +125,14 @@ class IdentAction(ABC):
         """
 
 
-class IdentifierAction(IdentAction):
+class UnfilteredIdentifier(IdentifierAction):
     """Represents a dot joined identifier to a database model attr.
 
     i.e. ident.ident2.attr
     """
 
     def __init__(self, tokens: ParseResults) -> None:
-        logger.debug("IdentifierAction::__init__(%s)", tokens)
+        logger.debug("%s::__init__(%s)", self.__class__.__name__, tokens)
         self.steps: list[str] = tokens[0][:-2:2]
         self.leaf: str = tokens[0][-1]
 
@@ -160,7 +160,7 @@ class IdentifierAction(IdentAction):
         return (handler.query, attr)
 
 
-class FilteredIdentifierAction(IdentAction):
+class FilteredIdentifier(IdentifierAction):
     """Represents a dot joined identifier to a database model attr that is also
     filtered by a second attr, operator and value .
 
@@ -168,7 +168,7 @@ class FilteredIdentifierAction(IdentAction):
     """
 
     def __init__(self, tokens: ParseResults) -> None:
-        logger.debug("FilteredIdentifierAction::__init__(%s)", tokens)
+        logger.debug("%s::__init__(%s)", self.__class__.__name__, tokens)
         self.steps: list[str] = tokens[0][0].steps + [tokens[0][0].leaf]
         self.filter_attr: str = tokens[0][-6]
         self.filter_op: str = tokens[0][-5]
@@ -213,16 +213,20 @@ class FilteredIdentifierAction(IdentAction):
         return (handler.query, attr)
 
 
-class AggregatingAction(IdentAction):
+class FunctionIdentifier(IdentifierAction):
     """Represents an identifier that is wrapped in a sum, min, max or count
     function.
+
+    Note that while this is the parse action for the function call expression
+    it only atempts to handle the identifier within the functional call, not
+    the whole expression.
 
     i.e. func(IdentifierAction)
     """
 
     def __init__(self, tokens: ParseResults) -> None:
         logger.debug("%s::__init__(%s)", self.__class__.__name__, tokens)
-        self.function = tokens[0]
+        self.function = tokens[0].lower()
         self.identifier: IdentifierAction = tokens[2]
 
     def __repr__(self) -> str:

@@ -17,11 +17,11 @@
 # You should have received a copy of the GNU General Public License
 # along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
 """
-Search query actions
+Search statement parse actions
 
-Query actions are the final parse action called when parsing a string with
-pyparsing expression.  They are used by a search strategy and return a list of
-SQLA queries when invoked.
+Statement actions are the final parse action called when parsing a full
+statement.  They are used by a search strategy and return a list of SQLA
+queries when invoked.
 """
 
 from __future__ import annotations
@@ -43,7 +43,7 @@ from sqlalchemy.sql.elements import BinaryExpression
 from bauble import utils
 from bauble.error import check
 
-from .expressions import QueryHandler
+from .clauses import QueryHandler
 from .operations import OPERATIONS
 from .tokens import ValueListToken
 
@@ -56,7 +56,7 @@ if typing.TYPE_CHECKING:
 StrategyT = typing.TypeVar("StrategyT", bound="SearchStrategy")
 
 
-class QueryAction(ABC, typing.Generic[StrategyT]):
+class StatementAction(ABC, typing.Generic[StrategyT]):
     """A pyparsing parse action class that when `invoke`d produces the final
     SQLA ORM query.
 
@@ -76,8 +76,8 @@ class QueryAction(ABC, typing.Generic[StrategyT]):
         """Produce a query"""
 
 
-class ExpressionQueryAction(QueryAction["MapperSearch"]):
-    """Generates `domain where expression` queries.
+class MapperStatement(StatementAction["MapperSearch"]):
+    """Generates `domain where clause` queries.
 
     The most complex query type.
     """
@@ -121,7 +121,7 @@ class ExpressionQueryAction(QueryAction["MapperSearch"]):
 BinCallable: typing.TypeAlias = typing.Callable[[list | str], BinaryExpression]
 
 
-class DomainQueryAction(QueryAction["DomainSearch"]):
+class DomainStatement(StatementAction["DomainSearch"]):
     """Generates `domain operator value` queries
 
     Searching using domain expressions is a little more magical than an
@@ -177,11 +177,11 @@ class DomainQueryAction(QueryAction["DomainSearch"]):
         return [query]
 
 
-class ValueListQueryAction(QueryAction["ValueListSearch"]):
+class ValueListStatement(StatementAction["ValueListSearch"]):
     """Generates queries when the whole search string is a list of values.
 
     Search with a list of values is the broadest search and searches all the
-    mapper and the properties configured with `MapperSearch.add_meta()`
+    mapper and the properties configured with `SearchStrategy.add_meta()`
     """
 
     def __init__(self, tokens: ParseResults) -> None:

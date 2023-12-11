@@ -17,11 +17,13 @@
 # You should have received a copy of the GNU General Public License
 # along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
 """
-Search expressions
+Search clauses and terms
 
-Search expression are pyparsing parse actions that refers to a database query
-expression. i.e. some logic between a value(s) and an identifier(s) or between
-queries/subqueries.
+Search clauses are pyparsing parse actions that refer to a database query
+condition (the rules by which to search).  i.e. some logic between a value
+and an identifier
+
+Search terms are pyparsing parse actions that joins or inverts clauses.
 """
 
 from __future__ import annotations
@@ -63,8 +65,8 @@ class QueryHandler:
     query: Query | Select
 
 
-class ExpressionAction(ABC):
-    """A pyparsing parse action class that refers to a database expression as
+class ClauseAction(ABC):
+    """A pyparsing parse action class that refers to a database clause as
     used in a SQLA ORM query.  i.e. the criterion to apply.
     """
 
@@ -81,7 +83,7 @@ class ExpressionAction(ABC):
         """Adjusts the query."""
 
 
-class IdentExpression(ExpressionAction):
+class BinaryClause(ClauseAction):
     """Impliments a basic `ident operator value` query."""
 
     def __init__(self, tokens: ParseResults) -> None:
@@ -125,7 +127,7 @@ class IdentExpression(ExpressionAction):
 
 # why is pylint complaining here?
 # pylint: disable=too-few-public-methods
-class ElementSetExpression(IdentExpression):
+class InSetClause(BinaryClause):
     """implements `in` in a `ident in value_list` query."""
 
     def evaluate(self, handler: QueryHandler) -> Query | Select:
@@ -155,7 +157,7 @@ def get_datetime(value: str | float) -> datetime:
     return result.replace(hour=0, minute=0, second=0, microsecond=0)
 
 
-class DateOnExpression(IdentExpression):
+class OnDateClause(BinaryClause):
     """Implements `on` in a `ident on date_str` query."""
 
     def evaluate(self, handler: QueryHandler) -> Query | Select:
@@ -179,7 +181,7 @@ class DateOnExpression(IdentExpression):
         return handler.query
 
 
-class AggregatedExpression(IdentExpression):
+class FunctionClause(BinaryClause):
     """Impliments `func` in a `func(ident) operator value` query.
 
     This looks like `ident operation value`, but the ident is an aggregating
@@ -213,7 +215,7 @@ class AggregatedExpression(IdentExpression):
         return handler.query
 
 
-class BetweenExpression(IdentExpression):
+class BetweenClause(BinaryClause):
     """Implements a `ident BETWEEN value AND value2` query."""
 
     def __repr__(self) -> str:
@@ -232,8 +234,31 @@ class BetweenExpression(IdentExpression):
         return handler.query
 
 
-class BinaryLogicalExpression(IdentExpression):
-    """Parent class for binary search actions."""
+class ParenthesisedClause(ClauseAction):
+    """Implements a `(clause)` query as a subquery."""
+
+    def __init__(self, tokens: ParseResults) -> None:
+        logger.debug("%s::__init__(%s)", self.__class__.__name__, tokens)
+        self.content = tokens[1]
+
+    def __repr__(self) -> str:
+        return f"({self.content})"
+
+    def evaluate(self, handler: QueryHandler) -> Query | Select:
+        logger.debug("%s::evaluate %s", self.__class__.__name__, self)
+        select_ = select(handler.domain.id)  # type: ignore[attr-defined]
+        paren_handler = QueryHandler(handler.session, handler.domain, select_)
+        sub_query = self.content.evaluate(paren_handler)
+        filter_ = handler.domain.id.in_(sub_query)  # type: ignore[attr-defined]  # noqa
+        handler.query = handler.query.filter(filter_)
+        return handler.query
+
+
+# TERMS - terms join or invert clauses
+
+
+class BinaryLogicalTerm(BinaryClause):
+    """Parent class for and/or search actions."""
 
     name = ""
 
@@ -247,8 +272,8 @@ class BinaryLogicalExpression(IdentExpression):
         """Must be implimented in subclasses"""
 
 
-class SearchAndExpression(BinaryLogicalExpression):
-    """Implements a `expression AND expression` query."""
+class AndTerm(BinaryLogicalTerm):
+    """Implements a `clause AND clause` query."""
 
     name = "AND"
 
@@ -262,8 +287,8 @@ class SearchAndExpression(BinaryLogicalExpression):
         return handler.query
 
 
-class SearchOrExpression(BinaryLogicalExpression):
-    """Implements a `expression OR expression` query."""
+class OrTerm(BinaryLogicalTerm):
+    """Implements a `clause OR clause` query."""
 
     name = "OR"
 
@@ -289,8 +314,8 @@ class SearchOrExpression(BinaryLogicalExpression):
 
 
 # pylint: enable=too-few-public-methods
-class SearchNotExpression(ExpressionAction):
-    """Implements a `NOT expression` query."""
+class NotTerm(ClauseAction):
+    """Implements a `NOT clause` query."""
 
     name = "NOT"
 
@@ -308,24 +333,4 @@ class SearchNotExpression(ExpressionAction):
         handler.query = typing.cast(
             Query, handler.query.except_(self.operand.evaluate(not_handler))
         )
-        return handler.query
-
-
-class ParenthesisedExpression(ExpressionAction):
-    """Implements a `(expression)` query as a subquery."""
-
-    def __init__(self, tokens: ParseResults) -> None:
-        logger.debug("%s::__init__(%s)", self.__class__.__name__, tokens)
-        self.content = tokens[1]
-
-    def __repr__(self) -> str:
-        return f"({self.content})"
-
-    def evaluate(self, handler: QueryHandler) -> Query | Select:
-        logger.debug("%s::evaluate %s", self.__class__.__name__, self)
-        select_ = select(handler.domain.id)  # type: ignore[attr-defined]
-        paren_handler = QueryHandler(handler.session, handler.domain, select_)
-        sub_query = self.content.evaluate(paren_handler)
-        filter_ = handler.domain.id.in_(sub_query)  # type: ignore[attr-defined]  # noqa
-        handler.query = handler.query.filter(filter_)
         return handler.query

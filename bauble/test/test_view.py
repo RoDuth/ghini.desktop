@@ -1029,7 +1029,7 @@ class TestHistoryView(BaubleTestCase):
         from sqlalchemy import and_
 
         string = "timestamp on 10/8/23"
-        date_val = search.expressions.get_datetime("10/8/23")
+        date_val = search.clauses.get_datetime("10/8/23")
         today = date_val.astimezone(tz=timezone.utc)
         tomorrow = today + timedelta(1)
         result = AppendThousandRows(None, string).get_query_filters()

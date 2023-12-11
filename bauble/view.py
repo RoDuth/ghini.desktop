@@ -1909,7 +1909,7 @@ class AppendThousandRows(threading.Thread):
             val = float(part[2])
         except ValueError:
             val = part[2]
-        date_val = search.expressions.get_datetime(val)
+        date_val = search.clauses.get_datetime(val)
         today = date_val.astimezone(tz=timezone.utc)
         tomorrow = today + timedelta(1)
         return and_(attr >= today, attr < tomorrow)
