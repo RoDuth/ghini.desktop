@@ -61,7 +61,8 @@ for:
     - bash -lc "pacman --noconfirm --needed -S - < ./scripts/mingw64_pkglist.txt"
     - bash -lc "python --version"
     - bash -lc "python -m pip install --upgrade pip"
-    - bash -lc "SETUPTOOLS_USE_DISTUTILS=stdlib pip install git+https://github.com/pyproj4/pyproj.git"
+    - bash -lc "SETUPTOOLS_USE_DISTUTILS=stdlib pip install pyproj"
+    - bash -lc "SETUPTOOLS_USE_DISTUTILS=stdlib pip install greenlet"
     - bash -lc "SETUPTOOLS_USE_DISTUTILS=stdlib pip install git+https://github.com/RoDuth/pyodbc"
     - dir %WINDIR%\System32\msodbcsql*.dll
     # - bash -lc "SETUPTOOLS_USE_DISTUTILS=stdlib pip install pyodbc"
