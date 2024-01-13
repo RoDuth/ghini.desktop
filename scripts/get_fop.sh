@@ -2,7 +2,7 @@
 
 echo "downloading FOP"
 
-fop_ver="2.7"
+fop_ver="2.9"
 
 fop_name="fop-$fop_ver-bin.tar.gz"
 fop_url="https://www.apache.org/dyn/closer.cgi?filename=/xmlgraphics/fop/binaries/$fop_name&action=download"
@@ -12,7 +12,7 @@ curl -fLo $fop_name "$fop_url"
 fop_sha=$(sha512sum $fop_name | cut -f 1 -d " ")
 
 sha_name="fop-$fop_ver-bin.tar.gz.sha512"
-sha_url="https://www.apache.org/dist/xmlgraphics/fop/binaries/$sha_name"
+sha_url="https://downloads.apache.org/xmlgraphics/fop/binaries//$sha_name"
 
 curl -fLo $sha_name "$sha_url"
 
