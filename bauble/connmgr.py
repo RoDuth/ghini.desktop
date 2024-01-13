@@ -91,18 +91,12 @@ def retrieve_latest_release_data():
     github_releases_uri = (
         "https://api.github.com/repos/RoDuth/ghini.desktop/releases"
     )
+    net_sess = utils.get_net_sess()
     try:
-        from requests import exceptions
-
-        net_sess = utils.get_net_sess()
         response = net_sess.get(github_releases_uri, timeout=5)
         if response.ok:
             return response.json()[0]
         logger.info("error while checking for a new release")
-    except exceptions.Timeout:
-        logger.info("connection timed out while checking for new release")
-    except exceptions.RequestException as e:
-        logger.info("Requests error %s while checking for new release", e)
     except Exception as e:  # pylint: disable=broad-except
         # used in tests
         logger.warning(
@@ -110,6 +104,8 @@ def retrieve_latest_release_data():
             type(e).__name__,
             e,
         )
+    finally:
+        net_sess.close()
     return None
 
 

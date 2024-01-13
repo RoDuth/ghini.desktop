@@ -26,6 +26,7 @@ for:
     - pip install --upgrade pip
     - pip install psycopg2-binary
     - pip install pyodbc
+    - pip install pyobjc-framework-SystemConfiguration
     - pip install .
     - pip install pyinstaller==5.13.2
     - pyinstaller --clean --noconfirm scripts/ghini_fop.spec

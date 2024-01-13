@@ -19,6 +19,7 @@
 Test plant map
 """
 
+import os
 import threading
 from dataclasses import astuple
 from time import sleep
@@ -39,6 +40,8 @@ from bauble import prefs
 from bauble.test import BaubleTestCase
 from bauble.test import get_setUp_data_funcs
 from bauble.test import update_gui
+from bauble.utils import get_net_sess
+from bauble.utils.web import PACFile
 from bauble.view import SearchView
 
 from . import Location
@@ -46,6 +49,7 @@ from . import Plant
 from . import garden_map
 from .garden_map import MAP_LOCATION_COLOUR_PREF_KEY
 from .garden_map import MAP_TILES_PREF_KEY
+from .garden_map import MAP_TILES_PROXY_PREF_KEY
 from .garden_map import BoundingBox
 from .garden_map import GardenMap
 from .garden_map import MapLine
@@ -55,6 +59,7 @@ from .garden_map import SearchViewMapPresenter
 from .garden_map import colours
 from .garden_map import expunge_garden_map
 from .garden_map import get_locations_polys
+from .garden_map import get_map_tile_proxy
 from .garden_map import glib_events
 from .garden_map import map_item_factory
 from .garden_map import setup_garden_map
@@ -1085,3 +1090,54 @@ class GlobalFunctionsTest(BaubleTestCase):
         self.assertEqual(astuple(bbox), (None, None, None, None))
         bbox.update([-2.0, -16.0, -1.0, -5.0], [-2.0, -14.0, -9.1, -1.123])
         self.assertEqual(astuple(bbox), (-1.0, -16.0, -1.123, -14.0))
+
+    def test_get_map_tile_proxy_no_proxy(self):
+        self.assertIsNone(get_map_tile_proxy())
+
+    def test_get_map_tile_proxy_from_pref(self):
+        proxy = "129.0.0.1:8080"
+        prefs.prefs[MAP_TILES_PROXY_PREF_KEY] = proxy
+        self.assertEqual(get_map_tile_proxy(), "http://" + proxy)
+        del prefs.prefs[MAP_TILES_PROXY_PREF_KEY]
+
+    def test_get_map_tile_proxy_from_global_proxy_pref(self):
+        proxy = "10.10.10.10:8080"
+        proxies = {"http": proxy}
+        get_net_sess().proxies = proxies
+        self.assertEqual(get_map_tile_proxy(), "http://" + proxy)
+        get_net_sess().proxies = "no_proxies"
+
+    def test_get_map_tile_proxy_from_envar(self):
+        get_net_sess().proxies = None
+        proxy = "http://127.0.0.1:8080"
+        os.environ["HTTP_PROXY"] = proxy
+        self.assertEqual(get_map_tile_proxy(), proxy)
+        del os.environ["HTTP_PROXY"]
+
+    def test_get_map_tile_proxy_from_pacfile(self):
+        net_sess = get_net_sess()
+        pac_js = """\
+        function FindProxyForURL(url, host)
+        {
+        if (dnsDomainIs(host,"openstreetmap.org"))
+        {
+        return "PROXY 126.0.0.1:8080";
+        }
+        return "DIRECT"
+        }
+        """
+        net_sess.pac_file = PACFile(pac_js)
+        self.assertEqual(get_map_tile_proxy(), "http://126.0.0.1:8080")
+        net_sess.pac_file = None
+
+    def test_get_map_tile_proxy_from_pacfile_direct(self):
+        net_sess = get_net_sess()
+        pac_js = """\
+        function FindProxyForURL(url, host)
+        {
+        return "DIRECT"
+        }
+        """
+        net_sess.pac_file = PACFile(pac_js)
+        self.assertIsNone(get_map_tile_proxy())
+        net_sess.pac_file = None

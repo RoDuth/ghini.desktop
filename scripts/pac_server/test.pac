@@ -20,12 +20,13 @@ isInNet(host, "64.206.157.136", "255.255.255.255"))
 {
 return "DIRECT";
 }
-//
-//Bypass proxy for this server
-//
-if (dnsDomainIs(host, "mail.domain.com"))
+if (dnsDomainIs(host,"api.github.com"))  // used in tests
 {
-return "DIRECT";
+return "PROXY 127.0.0.1:8080";
+}
+if (dnsDomainIs(host,"google.com"))
+{
+return "PROXY 127.0.0.1:8080";
 }
 return "DIRECT";
 }

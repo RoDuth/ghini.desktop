@@ -66,7 +66,7 @@ class TestMultiprocCounter(BaubleTestCase):
             prefs.default_prefs_file = self.temp
             prefs.prefs = prefs._prefs(filename=self.temp)
             prefs.prefs.init()
-            prefs.prefs[prefs.web_proxy_prefs] = "use_requests_without_proxies"
+            prefs.prefs[prefs.web_proxy_prefs] = "no_proxies"
             pluginmgr.plugins = {}
             pluginmgr.load()
             db.create(import_defaults=False)

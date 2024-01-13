@@ -22,6 +22,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 import threading
+import urllib.parse
 from abc import ABC
 from abc import abstractmethod
 from dataclasses import astuple
@@ -50,6 +51,7 @@ import bauble
 from bauble import db
 from bauble import paths
 from bauble import prefs
+from bauble.utils import get_net_sess
 from bauble.utils import timed_cache
 from bauble.view import SearchView
 
@@ -982,6 +984,51 @@ def get_locations_polys() -> dict[int, MapPoly]:
 map_presenter: SearchViewMapPresenter | None = None
 
 
+def get_map_tile_proxy() -> str | None:
+    """Try find an appropriate proxy for map tiles downloads."""
+    proxy = prefs.prefs.get(MAP_TILES_PROXY_PREF_KEY)
+
+    if proxy:
+        if not proxy.startswith("http://"):
+            proxy = "http://" + proxy
+        logger.debug("tile proxy = %s", proxy)
+        return proxy
+
+    tiles = prefs.prefs.get(MAP_TILES_PREF_KEY, 1)
+
+    net_sess = get_net_sess()
+    if net_sess.pac_file:
+        logger.debug("checking pac for proxy")
+        url = OsmGpsMap.Map.source_get_repo_uri(int(tiles))
+        # make the url something that urllib.parse.urlsplit can deal with
+        url = (
+            url.replace("#R", "1")
+            .replace("#X", "1")
+            .replace("#Y", "1")
+            .replace("#Q", "1")
+            .replace("#Z", "1")
+            .replace("#S", "1")
+        )
+        split = urllib.parse.urlsplit(url)
+        logger.debug("Using url: %s, host: %s", url, split.netloc)
+        proxy = net_sess.pac_file.find_proxy_for_url(url, split.netloc)
+        if proxy == "DIRECT":
+            proxy = None
+        elif proxy:
+            proxy = net_sess.pac_file.parse_proxy(proxy)[0]
+    elif val := net_sess.get_proxies():
+        proxy = val.get("http")
+
+    if proxy:
+        proxy = proxy.strip()
+        if not proxy.startswith("http://"):
+            proxy = "http://" + proxy
+
+    logger.debug("tile proxy = %s", proxy)
+
+    return proxy
+
+
 def setup_garden_map() -> None:
     # only set up once...
     logger.debug("setup_garden_map")
@@ -991,7 +1038,11 @@ def setup_garden_map() -> None:
         # NOTE used in test
         logger.debug("map_presenter already setup - aborting")
         return
-    proxy = prefs.prefs.get(MAP_TILES_PROXY_PREF_KEY)
+
+    # NOTE proxy can only be set once per session. If a different proxy is
+    # needed after changing the tiles source you will need to possibly reset
+    # the proxy in prefs (if not using a pac file to determine) and restart
+    proxy = get_map_tile_proxy()
 
     map_ = OsmGpsMap.Map(proxy_uri=proxy)
     map_.layer_add(
@@ -1000,6 +1051,7 @@ def setup_garden_map() -> None:
             show_zoom=True,
         )
     )
+    logger.debug("map cache dir = %s", map_.get_default_cache_directory())
     garden_map = GardenMap(map_)
     map_presenter = SearchViewMapPresenter(garden_map)
 

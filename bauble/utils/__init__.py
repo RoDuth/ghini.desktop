@@ -48,6 +48,8 @@ from gi.repository import Gtk
 import bauble
 from bauble.error import check
 
+from .web import get_net_sess
+
 
 def read_in_chunks(file_object, chunk_size=1024):
     """read a chunk from a stream
@@ -251,17 +253,21 @@ class ImageLoader(threading.Thread):
         self.box.add(spinner)
         self.box.show_all()
         net_sess = get_net_sess()
+        content = ""
         try:
             response = net_sess.get(self.url, timeout=5)
+            content = response.content
         except Exception as e:  # pylint: disable=broad-except
             # timeout, failed to get url, malformed url, etc.
             logger.debug("%s(%s)", type(e).__name__, e)
             response = None
+        finally:
+            net_sess.close()
         self.box.remove(label)
         self.box.remove(spinner)
         if response and response.ok:
-            self.loader.write(response.content)
-            return response.content
+            self.loader.write(content)
+            return content
         return None
 
     def read_local_url(self):
@@ -1689,66 +1695,6 @@ def get_urls(text):
     for match in rgx.finditer(text):
         matches.append(match.groups())
     return matches
-
-
-class NetSessionFunctor:
-    """Functor to return a global network Session.
-
-    Defers creating the Session until first use.  Beware of race conditions if
-    first use is within multiple threads.  Calling early in a single short
-    lived thread (i.e. `connmgr.notify_new_release()`) avoids this problem.
-
-    If proxy settings are set returns requests.Session with proxies set.  If no
-    settings are set tries pypac.PACSession, if no pac file is found sets pref
-    to not try PACSession ever again and always return requests.Session.  The
-    same Session is returned for all future calls in the current instance.
-    """
-
-    def __init__(self):
-        self.net_sess = None
-
-    def __call__(self):
-        if not self.net_sess:
-            self.net_sess = self.get_net_sess()
-        return self.net_sess
-
-    @staticmethod
-    def get_net_sess():
-        """return a requests or pypac session for making api calls, depending
-        on prefrences.
-        """
-        logger.debug("getting a network session")
-
-        from bauble import prefs
-
-        prefs_proxies = prefs.prefs.get(prefs.web_proxy_prefs)
-
-        if prefs_proxies:
-            from requests import Session
-
-            net_sess = Session()
-            logger.debug("using requests directly")
-            if isinstance(prefs_proxies, dict):
-                net_sess.proxies = prefs_proxies
-                logger.debug(
-                    "net_sess proxies manually set to %s", net_sess.proxies
-                )
-        else:
-            from pypac import PACSession
-
-            net_sess = PACSession()
-            pac = net_sess.get_pac()
-            logger.debug("pac file = %s", pac)
-            if pac is None:
-                # avoid every trying again...
-                val = "no_pac_file"
-                logger.debug("pref: %s set to %s", prefs.web_proxy_prefs, val)
-                prefs.prefs[prefs.web_proxy_prefs] = val
-
-        return net_sess
-
-
-get_net_sess = NetSessionFunctor()
 
 
 def get_user_display_name():

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copyright (c) 2019-2021 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright (c) 2019-2024 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -27,13 +27,12 @@ NOT SECURE!!
 
 It will serve everything in the folder you run it from.
 e.g.:
-Put 'http://0.0.0.0:8080/test.html' in your host machine's browser to see the
+Put 'http://0.0.0.0:8081/test.html' in your host machine's browser to see the
 test page.
-In a virtualbox client vm http://10.0.2.2:8080/test.html should see the same.
+In a virtualbox client vm http://10.0.2.2:8081/test.html should see the same.
 """
 
-# Used to manually debug/test ghini is working with pac files via pypac and
-# bauble.utils.get_net_sess()
+# Used to debug/test ghini is working with pac files
 #
 # Example Method (testing a frozen windows install):
 #   1) create a win10 virtual machine in virtualbox, parallels, etc.
@@ -46,51 +45,36 @@ In a virtualbox client vm http://10.0.2.2:8080/test.html should see the same.
 #               Automatic detect settings = on,
 #               Use setup script = on,
 #               # virtualbox
-#               Script address = http://10.0.2.2:8080/test.pac
+#               Script address = http://10.0.2.2:8081/test.pac
 #               # parallels
-#               Script address = http://10.37.129.2:8080/test.pac
+#               Script address = http://10.37.129.2:8081/test.pac
 #            then save and close
 #   2) fire up this script from a terminal in the host machine and leave it
-#   running:
-#       $ cd scripts/pac_server
-#       $ ./simple_serve.py
-#   3) in the win10 VM open ghini.desktop > connect to a DB > open a
-#   species_editor window > click the ask_tpl button (green dot next to
-#   Species field) > close the editor windows down > "help" >
-#   "Open the log-file"
-#   You should see lines that end with:
-#       getting a network session
-#       Failed to get a recognized TLD..... (see below)
-#       pac_file = <pypac.parser.PACFile object at 0x12345678>
-#       net session type = <class 'pypac.api.PACSession'>
-#       net session proxies = {}
-#   you can ignore the WARNING lines from pypac about unrecognised TLD e.g.:
-#       Failed to get a recognized TLD, using fully-qualified hostname
-#           rightmost part as TLD
-#   if they occur as above just prior to getting the pac file.  It is a result
-#   of this this server's "script address".
-#   Back in the host where you executed this script you should see a line like
-#   this for each time ghini is opened and grabs the pac file (ghini should
-#   grab the pac file once each session - in a frozen version this is when you
-#   first open and check for a new installer):
+#   running.  To be complete also pip install proxy.py in another terminal and
+#   run it using proxy --hostname 127.0.0.1 --port 8080
+#   3) in the win10 VM open ghini.desktop then check the logs to see if it
+#   found the pacfile
+#   Back in the terminal running this script you should see some like:
 #       127.0.0.1 - - [23/Nov/2019 20:24:16] "GET /test.pac HTTP/1.1" 200 -
-#   if you don't see these lines and want to check the server is connecting:
-#   In your VM unset the proxy settings above, open a browser and point it at
-#   something like http://10.0.2.2:8080/test.html (virtualbox) or
-#   http://10.37.129.2:8080/test.html (parallels), adjusting the IP address for
-#   your setup, to check you can retrieve the simple test page.  If this is
-#   working and the IP matches your "Script address" setting there is something
-#   wrong in ghini or the proxy configuration etc..
+#   And in the terminal running proxy.py something like this:
+#       ...server.access_log:384 - 127.0.0.1:52139 - CONNECT api.github.com...
 #
 #   Use Ctrl-C to stop this script.
 
 import http.server
 import socketserver
+from pathlib import Path
 
-HANDLER = http.server.SimpleHTTPRequestHandler
+DIRECTORY = Path(__file__).parent.resolve()
+
+
+class Handler(http.server.SimpleHTTPRequestHandler):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, directory=DIRECTORY, **kwargs)
+
 
 # consider pac files content type
-HANDLER.extensions_map.update({".pac": "application/x-ns-proxy-autoconfig"})
+Handler.extensions_map.update({".pac": "application/x-ns-proxy-autoconfig"})
 
 
 class SimpleServer(socketserver.TCPServer):
@@ -101,6 +85,12 @@ class SimpleServer(socketserver.TCPServer):
     allow_reuse_address = True
 
 
-server = SimpleServer(("0.0.0.0", 8080), HANDLER)
+server = SimpleServer(("0.0.0.0", 8081), Handler)
 
-server.serve_forever()
+if __name__ == "__main__":
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
+        print()
+        print("shutting down simple_serve")
+        server.shutdown()

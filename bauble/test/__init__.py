@@ -142,7 +142,7 @@ class BaubleTestCase(unittest.TestCase):
         prefs.default_prefs_file = self.temp
         prefs.prefs = prefs._prefs(filename=self.temp)
         prefs.prefs.init()
-        prefs.prefs[prefs.web_proxy_prefs] = "use_requests_without_proxies"
+        prefs.prefs[prefs.web_proxy_prefs] = "no_proxies"
         prefs.testing = True
         pluginmgr.plugins.clear()
         pluginmgr.load()

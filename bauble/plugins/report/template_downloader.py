@@ -30,7 +30,6 @@ from pathlib import Path
 logger = logging.getLogger(__name__)
 
 from gi.repository import Gtk  # noqa
-from requests import exceptions
 
 from bauble import pluginmgr  # , task
 from bauble import prefs
@@ -41,7 +40,7 @@ from bauble.utils import yes_no_dialog
 CONFIG_LIST_PREF = "report.configs"
 
 TEMPLATES_DEFAULT_URL = (
-    "https://github.com/RoDuth/ghini_report_templates" "/archive/master.zip"
+    "https://github.com/RoDuth/ghini_report_templates/archive/master.zip"
 )
 
 TEMPLATES_URL_PREF = "template_downloader.url"
@@ -88,11 +87,10 @@ def update_report_template_prefs(root, conf_file):
 
         from bauble.prefs import _prefs
 
-        temp_prefs = _prefs(filename=conf_file)
+        temp_prefs = _prefs(filename=str(conf_file))
         temp_prefs.config = ConfigParser(interpolation=None)
-        temp_prefs.config.read(
-            temp_prefs._filename
-        )  # noqa # pylint: disable=protected-access
+        # pylint: disable=protected-access
+        temp_prefs.config.read(temp_prefs._filename)  # noqa
         default_formatters = temp_prefs.get(CONFIG_LIST_PREF, {})
         if default_formatters:
             formatters = prefs.prefs.get(CONFIG_LIST_PREF, {})
@@ -110,52 +108,46 @@ def update_report_template_prefs(root, conf_file):
 
 def download_templates(root):
     # grab the templates zip file
+    net_sess = get_net_sess()
     try:
-        net_sess = get_net_sess()
         url = prefs.prefs.get(TEMPLATES_URL_PREF, TEMPLATES_DEFAULT_URL)
         result = net_sess.get(url, timeout=5)
+        try:
+            from io import BytesIO
+            from zipfile import ZipFile
 
-    except exceptions.Timeout:
-        msg = "connection timed out while getting templates"
-        logger.info(msg)
-        return None
-    except exceptions.RequestException as e:
-        logger.info("Requests error %s while getting templates", e)
-        return None
+            with ZipFile(BytesIO(result.content)) as zipped:
+                # the smallest directory is the root directory
+                zip_root = min(  # pylint: disable=consider-using-generator
+                    [i for i in zipped.namelist() if i.endswith("/")], key=len
+                )
+                zip_root = Path(root, zip_root)
+                if zip_root.exists():
+                    msg = _(
+                        "Delete previous version?\n\n"  # noqa
+                        "Yes keeps local version matching online exactly, "
+                        "but...\n"
+                        "WARNING: if you have added templates to this "
+                        "directory selecting yes will delete them."
+                    )
+                    if yes_no_dialog(msg):
+                        import shutil
+
+                        shutil.rmtree(zip_root)
+                zipped.extractall(root)
+        except Exception as e:  # pylint: disable=broad-except
+            logger.warning(
+                "unhandled %s(%s) extracting templates", type(e).__name__, e
+            )
+            return None
+
     except Exception as e:  # pylint: disable=broad-except
         logger.warning(
             "unhandled %s(%s) getting templates", type(e).__name__, e
         )
         return None
-
-    try:
-        from io import BytesIO
-        from zipfile import ZipFile
-
-        with ZipFile(BytesIO(result.content)) as zipped:
-            # the smallest directory is the root directory
-            zip_root = min(  # pylint: disable=consider-using-generator
-                [i for i in zipped.namelist() if i.endswith("/")], key=len
-            )
-            zip_root = Path(root, zip_root)
-            if zip_root.exists():
-                msg = _(
-                    "Delete previous version?\n\n"  # noqa
-                    "Yes keeps local version matching online exactly, "
-                    "but...\n"
-                    "WARNING: if you have added templates to this "
-                    "directory selecting yes will delete them."
-                )
-                if yes_no_dialog(msg):
-                    import shutil
-
-                    shutil.rmtree(zip_root)
-            zipped.extractall(root)
-    except Exception as e:  # pylint: disable=broad-except
-        logger.warning(
-            "unhandled %s(%s) extracting templates", type(e).__name__, e
-        )
-        return None
+    finally:
+        net_sess.close()
 
     return zip_root
 
@@ -173,10 +165,8 @@ class TemplateDownloadTool(pluginmgr.Tool):
         root = prefs.prefs.get(TEMPLATES_ROOT_PREF, None)
 
         if yes_no_dialog(
-            _(
-                "Download online report templates?\n\nSource: %s?"
-                % prefs.prefs.get(TEMPLATES_URL_PREF, TEMPLATES_DEFAULT_URL)
-            )
+            _("Download online report templates?\n\nSource: %s?")
+            % prefs.prefs.get(TEMPLATES_URL_PREF, TEMPLATES_DEFAULT_URL)
         ):
             dload_root = download_templates(root)
             msg = _("Templates update complete")

@@ -1,11 +1,12 @@
 # vim:ft=python
 # pylint: disable=undefined-variable,missing-module-docstring
 
-from pathlib import Path
 import sysconfig
-from tld.defaults import NAMES_LOCAL_PATH_PARENT
+from pathlib import Path
+
 import pyproj
-import tldextract
+from tld.defaults import NAMES_LOCAL_PATH_PARENT
+
 import bauble
 
 # this returns CWD.  Call script from repo root.
@@ -71,8 +72,6 @@ a = Analysis(['ghini'],
                  ('../bauble/plugins/report/xsl/stylesheets',
                   'bauble/plugins/report/xsl/stylesheets'),
                  (pyproj.datadir.get_data_dir(), 'share/proj'),
-                 (str(Path(tldextract.__file__).parent / '.tld_set_snapshot'),
-                  'tldextract/')
              ] + glade_files + tld_names + configs + gio_modules,  # noqa
              hiddenimports=[
                  'sqlalchemy.dialects.sqlite',

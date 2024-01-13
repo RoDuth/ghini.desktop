@@ -24,12 +24,10 @@ from unittest import TestCase
 from unittest import mock
 
 import gi
-import requests
 from sqlalchemy import Column
 from sqlalchemy import ForeignKey
 from sqlalchemy import Integer
 from sqlalchemy import MetaData
-from sqlalchemy import Sequence
 from sqlalchemy import Table
 
 gi.require_version("Gtk", "3.0")
@@ -354,7 +352,7 @@ class UtilsDBTests(BaubleTestCase):
         self.assertTrue(depends == [table3])
 
 
-class CacheTest(TestCase):
+class CacheTests(TestCase):
     def test_create_store_retrieve(self):
         from functools import partial
 
@@ -622,81 +620,6 @@ class GlobalFuncsTests(BaubleTestCase):
             self.fail(f"exception {e} raised trying to delete the file")
         # test file no longer exists
         self.assertFalse(temp_path.exists())
-
-
-class GetNetSessionTest(BaubleTestCase):
-    def test_w_pref_not_dict_returns_requests_session_wo_proxies_(self):
-        prefs.prefs[prefs.web_proxy_prefs] = "use_requests_without_proxies"
-        sess = utils.NetSessionFunctor.get_net_sess()
-        self.assertIsInstance(sess, requests.Session)
-        self.assertFalse(sess.proxies)
-
-    def test_get_net_sess_not_called_twice_wo_pacsession(self):
-        prefs.prefs[prefs.web_proxy_prefs] = "use_requests_without_proxies"
-        utils.get_net_sess.net_sess = None
-        sess = utils.get_net_sess()
-        sess2 = utils.get_net_sess()
-        self.assertIsInstance(sess, requests.Session)
-        self.assertIsInstance(sess2, requests.Session)
-        self.assertFalse(sess.proxies)
-        self.assertFalse(sess2.proxies)
-        self.assertIs(sess, sess2)
-
-    def test_w_pref_dict_returns_requests_session_w_proxies_(self):
-        proxies = {
-            "https": "http://10.10.10.10/8000",
-            "http": "http://10.10.10.10:8000",
-        }
-        prefs.prefs[prefs.web_proxy_prefs] = proxies
-        sess = utils.NetSessionFunctor.get_net_sess()
-        self.assertIsInstance(sess, requests.Session)
-        self.assertEqual(sess.proxies, proxies)
-
-    @mock.patch("pypac.PACSession")
-    def test_wo_pref_return_pypac_pacsession_if_pac_file(
-        self, mock_pacsession
-    ):
-        del prefs.prefs[prefs.web_proxy_prefs]
-        pac_inst = mock_pacsession.return_value
-        pac_inst.get_pac.return_value = "test"
-        utils.NetSessionFunctor.get_net_sess()
-        mock_pacsession.get_pac.called_once()
-        self.assertIsNone(prefs.prefs.get(prefs.web_proxy_prefs))
-
-    @mock.patch("pypac.PACSession")
-    def test_wo_pref_return_requests_session_if_no_pac_file(
-        self, mock_pacsession
-    ):
-        del prefs.prefs[prefs.web_proxy_prefs]
-        pac_inst = mock_pacsession.return_value
-        pac_inst.get_pac.return_value = None
-        utils.NetSessionFunctor.get_net_sess()
-        mock_pacsession.get_pac.called_once()
-        self.assertEqual(prefs.prefs.get(prefs.web_proxy_prefs), "no_pac_file")
-
-    @mock.patch("pypac.PACSession")
-    def test_get_net_sess_not_called_twice_wo_pac_file(self, mock_pacsession):
-        del prefs.prefs[prefs.web_proxy_prefs]
-        utils.get_net_sess.net_sess = None
-        pac_inst = mock_pacsession.return_value
-        pac_inst.get_pac.return_value = None
-        sess = utils.get_net_sess()
-        self.assertEqual(prefs.prefs.get(prefs.web_proxy_prefs), "no_pac_file")
-        sess2 = utils.get_net_sess()
-        mock_pacsession.get_pac.called_once()
-        self.assertIs(sess, sess2)
-
-    @mock.patch("pypac.PACSession")
-    def test_get_net_sess_not_called_twice_w_pac_file(self, mock_pacsession):
-        del prefs.prefs[prefs.web_proxy_prefs]
-        utils.get_net_sess.net_sess = None
-        pac_inst = mock_pacsession.return_value
-        pac_inst.get_pac.return_value = "test"
-        sess = utils.get_net_sess()
-        self.assertIsNone(prefs.prefs.get(prefs.web_proxy_prefs))
-        sess2 = utils.get_net_sess()
-        mock_pacsession.get_pac.called_once()
-        self.assertIs(sess, sess2)
 
 
 class TimedCacheTest(TestCase):

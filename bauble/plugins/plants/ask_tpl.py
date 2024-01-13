@@ -20,6 +20,7 @@ import csv
 import difflib
 import logging
 import threading
+import urllib.parse
 
 logger = logging.getLogger(__name__)
 
@@ -83,18 +84,20 @@ class AskTPL(threading.Thread):
             net_sess = get_net_sess()
 
             logger.debug("net session type = %s", type(net_sess))
+            query = urllib.parse.urlencode({"q": binomial, "csv": "true"})
 
-            result = net_sess.get(
-                "http://www.theplantlist.org/tpl1.1/search?q="
-                + binomial
-                + "&csv=true",
-                timeout=self.timeout,
-            )
-            logger.debug(result.text)
-            l = result.text[1:].split("\n")
-            result = [row for row in csv.reader(str(k) for k in l if k)]
-            header = result[0]
-            result = result[1:]
+            try:
+                result = net_sess.get(
+                    "http://www.theplantlist.org/tpl1.1/search?" + query,
+                    timeout=self.timeout,
+                )
+                logger.debug(result.content)
+                lines = result.text[1:].split("\n")
+                result = list(csv.reader(str(k) for k in lines if k))
+                header = result[0]
+                result = result[1:]
+            finally:
+                net_sess.close()
             return [dict(list(zip(header, k))) for k in result]
 
         class ShouldStopNow(Exception):

@@ -548,14 +548,14 @@ class GeneralSpeciesExpander(InfoExpander):
             custom_meta = literal_eval(custom_meta.value)
             display_name = custom_meta.get("display_name")
             if display_name:
-                label = self.widgets.get(column_name + "_label")
+                label = self.widgets[column_name + "_label"]
                 label.set_text(display_name + ":")
-                data_label = self.widgets.get(column_name + "_data")
+                data_label = self.widgets[column_name + "_data"]
                 utils.unhide_widgets((label, data_label))
         else:
             for col in self.custom_columns:
-                label = self.widgets.get(col + "_label")
-                data_label = self.widgets.get(col + "_data")
+                label = self.widgets[col + "_label"]
+                data_label = self.widgets[col + "_data"]
                 utils.hide_widgets((label, data_label))
             self.__class__.custom_columns = set()
 

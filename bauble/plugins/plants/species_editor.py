@@ -906,8 +906,8 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
             self.view.widgets.remove_parent(kid)
 
         binomial = str(self.model)
-        # we need a longer timeout for the first time at least when using
-        # pypac to get the proxy configuration
+        # we need a longer timeout for the first time at least when using a
+        # pac file to get the proxy configuration
         logger.debug("calling AskTpl with binomial=%s", binomial)
         AskTPL(
             binomial, self.sp_species_tpl_callback, timeout=7, gui=True

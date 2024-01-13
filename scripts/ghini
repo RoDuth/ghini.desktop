@@ -24,7 +24,7 @@ from multiprocessing import freeze_support
 # START >>>
 from gi.importer import DynamicImporter
 
-if DynamicImporter.load_module:
+if hasattr(DynamicImporter, 'load_module'):
     # SEE: https://gitlab.gnome.org/GNOME/pygobject/-/issues/494
     # these 2 methods must be implimented.
     def create_module(self, spec):

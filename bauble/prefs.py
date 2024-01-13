@@ -187,17 +187,22 @@ Values: a list of modules names e.g.:
 
 web_proxy_prefs = "web.proxies"
 """
-If None then we use pypac to try to find proxy settings.
-To manually set proxies (and use requests over pypac) add something like
+If None then try to use a PAC file to find proxy settings.
+To manually set proxies (and skip PAC file auto-discovery) add something like
 this to your config file:
 
 [web]
 proxies = {"https": "http://10.10.10.10/8000", "http": "http://10.10.10.10:8000"}
 
-To just make sure we use requests over PACSession then use anything other
-than a dict for the value of proxies e.g.:
+To supply the url or file path to a PAC file set to something like:
 
-proxies = "no"
+[web]
+proxies = "PAC_FILE: /full/path/or/url/to/pac_file.pac"
+
+To avoid using proxies all together and always go direct set to a string e.g.:
+
+[web]
+proxies = "no_proxies"
 """  # noqa
 
 return_accepted_pref = "bauble.search.return_accepted"
