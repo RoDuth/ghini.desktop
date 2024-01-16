@@ -1209,18 +1209,25 @@ class PlantEditorPresenterTests(GardenTestCase):
         plant = self.session.query(Plant).get(1)
         presenter = PlantEditorPresenter(plant, PlantEditorView())
         self.assertEqual(presenter.reasons, change_reasons)
+        self.assertFalse(presenter.view.widgets.change_frame.get_sensitive())
         loc2 = self.session.query(Location).get(2)
         presenter.model.location = loc2
         presenter._init_reason_combo()
         self.assertEqual(presenter.reasons, transfer_reasons)
+        self.assertTrue(presenter.view.widgets.change_frame.get_sensitive())
         presenter.session.rollback()
         presenter.model.quantity = 111
         presenter._init_reason_combo()
         self.assertEqual(presenter.reasons, added_reasons)
+        self.assertTrue(presenter.view.widgets.change_frame.get_sensitive())
         presenter.session.rollback()
         presenter.model.quantity = 0
         presenter._init_reason_combo()
         self.assertEqual(presenter.reasons, deleted_reasons)
+        self.assertTrue(presenter.view.widgets.change_frame.get_sensitive())
+        presenter.session.rollback()
+        presenter._init_reason_combo()
+        self.assertFalse(presenter.view.widgets.change_frame.get_sensitive())
 
         del presenter
 

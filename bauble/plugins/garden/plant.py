@@ -1755,6 +1755,7 @@ class PlantEditorPresenter(GenericEditorPresenter, PresenterMapMixin):
         self.refresh_sensitivity()
 
     def _init_reason_combo(self):
+        sensitive = True
         reasons = {}
         default = None
         if self.branch_mode:
@@ -1770,6 +1771,7 @@ class PlantEditorPresenter(GenericEditorPresenter, PresenterMapMixin):
             reasons = deleted_reasons
         else:
             reasons = change_reasons
+            sensitive = False
 
         if self.change.reason in reasons:
             default = self.change.reason
@@ -1779,6 +1781,7 @@ class PlantEditorPresenter(GenericEditorPresenter, PresenterMapMixin):
             self.view.init_translatable_combo(
                 "reason_combo", reasons, default=default
             )
+        self.view.widgets.change_frame.set_sensitive(sensitive)
 
     def cleanup(self):
         super().cleanup()
