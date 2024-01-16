@@ -34,7 +34,7 @@ In a virtualbox client vm http://10.0.2.2:8081/test.html should see the same.
 
 # Used to debug/test ghini is working with pac files
 #
-# Example Method (testing a frozen windows install):
+# Example Manual Test Method (testing a frozen windows install):
 #   1) create a win10 virtual machine in virtualbox, parallels, etc.
 #       1.1) install ghini from a github release ghini.desktop-*-setup.exe
 #       1.2) in %LocalAppData%/Roaming/Bauble/config add:
@@ -45,19 +45,20 @@ In a virtualbox client vm http://10.0.2.2:8081/test.html should see the same.
 #               Automatic detect settings = on,
 #               Use setup script = on,
 #               # virtualbox
-#               Script address = http://10.0.2.2:8081/test.pac
+#               Script address = http://10.0.2.2:8081/test_manual.pac
 #               # parallels
-#               Script address = http://10.37.129.2:8081/test.pac
+#               Script address = http://10.37.129.2:8081/test_manual.pac
 #            then save and close
 #   2) fire up this script from a terminal in the host machine and leave it
-#   running.  To be complete also pip install proxy.py in another terminal and
-#   run it using proxy --hostname 127.0.0.1 --port 8080
+#   running (adjust test.pac if required).  To be complete also
+#   pip install proxy.py in another terminal and run it using proxy --hostname
+#   0.0.0.0 --port 8080
 #   3) in the win10 VM open ghini.desktop then check the logs to see if it
 #   found the pacfile
 #   Back in the terminal running this script you should see some like:
-#       127.0.0.1 - - [23/Nov/2019 20:24:16] "GET /test.pac HTTP/1.1" 200 -
+#       10.37.129.2 - - [23/Nov/2019 20:24:16] "GET /test.pac HTTP/1.1" 200 -
 #   And in the terminal running proxy.py something like this:
-#       ...server.access_log:384 - 127.0.0.1:52139 - CONNECT api.github.com...
+#       ..server.access_log:384 - 10.37.129.2:53729 - CONNECT api.github.com..
 #
 #   Use Ctrl-C to stop this script.
 

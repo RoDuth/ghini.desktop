@@ -70,7 +70,16 @@ file_handler.setFormatter(formatter)
 logging.getLogger().addHandler(file_handler)
 file_handler.setLevel(logging.DEBUG)
 
-if not paths.main_is_frozen():
+if paths.main_is_frozen():
+    import ssl
+
+    if ssl.get_default_verify_paths().cafile is None:
+        # So that urllib works
+        # pylint: disable=protected-access
+        os.environ["SSL_CERT_FILE"] = os.path.join(
+            sys._MEIPASS, "certifi", "cacert.pem"  # type: ignore[attr-defined]
+        )
+else:
     console_handler = logging.StreamHandler()
     logging.getLogger().addHandler(console_handler)
     console_handler.setFormatter(formatter)

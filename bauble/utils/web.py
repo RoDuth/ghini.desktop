@@ -330,6 +330,9 @@ class NetSession:
         try:
             return self.opener.open(url, timeout=timeout)
         except OSError as e:
+            # NOTE to avoid SSL: CERTIFICATE_VERIFY_FAILED in frozen state need
+            # to add SSL_CERT_FILE envvar pointing to certifi's cacert.pem at
+            # program start, see bauble.__init__()
             logger.error("%s(%s)", type(e).__name__, e)
             return None
 
