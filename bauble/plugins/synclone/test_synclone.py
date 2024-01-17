@@ -640,7 +640,8 @@ class DBSyncTests(BaubleTestCase):
             first = conn.execute(out_stmt).first()
 
         resolver = ResolverDialog(row=first)
-        resolver.on_value_cell_edited(None, 0, "Malvaceae")
+        path = list(resolver.row["values"]).index("family")
+        resolver.on_value_cell_edited(None, path, "Malvaceae")
         self.assertCountEqual(
             resolver.row["values"].items(),
             {"family": "Malvaceae", "_last_updated": 0, "_created": 0}.items(),
@@ -671,7 +672,8 @@ class DBSyncTests(BaubleTestCase):
             first = conn.execute(out_stmt).first()
 
         resolver = ResolverDialog(row=first)
-        resolver.on_value_cell_edited(None, 2, "3")
+        path = list(resolver.row["values"]).index("quantity_recvd")
+        resolver.on_value_cell_edited(None, path, "3")
         self.assertCountEqual(
             resolver.row["values"].items(),
             {
@@ -708,7 +710,8 @@ class DBSyncTests(BaubleTestCase):
             first = conn.execute(out_stmt).first()
 
         resolver = ResolverDialog(row=first)
-        resolver.on_value_cell_edited(None, 2, "a")
+        path = list(resolver.row["values"]).index("quantity_recvd")
+        resolver.on_value_cell_edited(None, path, "a")
         # does not change
         self.assertCountEqual(
             resolver.row["values"].items(),
@@ -746,7 +749,8 @@ class DBSyncTests(BaubleTestCase):
             first = conn.execute(out_stmt).first()
 
         resolver = ResolverDialog(row=first)
-        resolver.on_value_cell_edited(None, 3, "29/5/23")
+        path = list(resolver.row["values"]).index("_last_updated")
+        resolver.on_value_cell_edited(None, path, "29/5/23")
         self.assertCountEqual(
             resolver.row["values"].items(),
             {

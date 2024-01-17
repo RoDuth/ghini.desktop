@@ -357,6 +357,7 @@ class ResolverDialog(Gtk.Dialog):
     @Gtk.Template.Callback()
     def on_value_cell_edited(self, _cell, path, new_text) -> None:
         # pylint: disable=unsubscriptable-object
+        logger.debug("value editied path:%s, new_text%s", path, new_text)
         column = self.table.c[self.liststore[path][0]]
         try:
             typ = column.type.python_type
@@ -364,7 +365,8 @@ class ResolverDialog(Gtk.Dialog):
             typ = str
         try:
             self.row["values"][self.liststore[path][0]] = typ(new_text)
-        except ValueError:
+        except ValueError as e:
+            logger.debug("%s(%s)", type(e).__name__, e)
             return
         self._refresh_liststore()
 
