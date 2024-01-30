@@ -1,7 +1,7 @@
 # Copyright 2008-2010 Brett Adams
 # Copyright 2012-2016 Mario Frasca <mario@anche.no>.
 # Copyright 2017 Jardín Botánico de Quito
-# Copyright 2020-2023 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright 2020-2024 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -24,6 +24,7 @@ The Mako report generator module.
 import logging
 import os
 import tempfile
+from ast import literal_eval
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -35,6 +36,7 @@ from bauble import paths
 from bauble import utils
 from bauble.plugins.report import FormatterPlugin
 from bauble.plugins.report import SettingsBox
+from bauble.plugins.report import options
 
 
 class MakoFormatterSettingsBox(SettingsBox):
@@ -64,9 +66,9 @@ class MakoFormatterSettingsBox(SettingsBox):
         )
         self.widgets.file_entry.connect("changed", self.on_file_entry_changed)
         self.widgets.private_check.connect(
-            "toggled", self.toggle_set_option, "use_private"
+            "toggled", self.toggle_set_option, "private"
         )
-        self.defaults = []
+        self.defaults = {}
 
     def on_btnbrowse_clicked(self, _widget):
         previously = self.widgets.file_entry.get_text()
@@ -86,17 +88,15 @@ class MakoFormatterSettingsBox(SettingsBox):
         text = widget.get_text()
         self.clear_options_box()
         utils.hide_widgets([self.widgets.private_check])
-        if Path(text).exists():
+        if Path(text).is_file():
             self.on_file_set(widget)
             widget.get_style_context().remove_class("problem")
+            options["template"] = text
         else:
             widget.get_style_context().add_class("problem")
 
     def get_report_settings(self):
-        return {
-            "template": self.widgets.file_entry.get_text(),
-            "private": self.widgets.private_check.get_active(),
-        }
+        return options
 
     def update(self, settings):
         if template := settings.get("template"):
@@ -110,8 +110,15 @@ class MakoFormatterSettingsBox(SettingsBox):
             self.widgets.private_check.set_active(settings["private"])
             self.widgets.private_check.emit("toggled")
 
+        for key, val in settings.items():
+            if key in ("template", "private"):
+                continue
+            if widget_and_default_val := self.defaults.get(key):
+                widget, __ = widget_and_default_val
+                utils.set_widget_value(widget, val)
+
     def on_file_set(self, widget):
-        self.defaults = []
+        self.defaults.clear()
         # which options does the template accept? (can be None)
         options_box = self.widgets.mako_options_box
         try:
@@ -128,10 +135,11 @@ class MakoFormatterSettingsBox(SettingsBox):
             option_lines = []
 
         option_fields = [i.groups() for i in option_lines]
+
         current_row = 0
         # populate the options box
         for fname, ftype, fdefault, ftooltip in option_fields:
-            # use_private most be in the options to enable it but the other
+            # use_private must be in the options to enable it but the other
             # values are ignored, it is accessed in the template as a regular
             # option
             if fname == "use_private":
@@ -143,7 +151,7 @@ class MakoFormatterSettingsBox(SettingsBox):
             entry = self.get_option_widget(ftype, fdefault, fname)
             entry.set_tooltip_text(ftooltip)
             # entry updates the corresponding item in report.options
-            self.defaults.append((entry, fdefault))
+            self.defaults[fname] = (entry, fdefault)
             options_box.attach(label, 0, current_row, 1, 1)
             options_box.attach(entry, 1, current_row, 1, 1)
             current_row += 1
@@ -154,34 +162,33 @@ class MakoFormatterSettingsBox(SettingsBox):
         options_box.show_all()
 
     def clear_options_box(self):
+        options.clear()
         options_box = self.widgets.mako_options_box
         # empty the options box
         for widget in options_box.get_children():
             options_box.remove(widget)
 
+        dialog = self.get_toplevel()
+        if isinstance(dialog, Gtk.Dialog):
+            dialog.resize(1, 1)
+
     def reset_options(self, _widget):
-        for entry, text in self.defaults:
+        for entry, text in self.defaults.values():
             if isinstance(entry, Gtk.CheckButton):
                 entry.set_active(text.lower() in ["1", "true"])
             else:
-                entry.set_text(text)
+                utils.set_widget_value(entry, text)
 
     @staticmethod
     def entry_set_option(widget, fname):
-        from bauble.plugins.report import options
-
         options[fname] = widget.get_text()
 
     @staticmethod
     def toggle_set_option(widget, fname):
-        from bauble.plugins.report import options
-
         options[fname] = widget.get_active()
 
     @staticmethod
     def combo_set_option(widget, fname):
-        from bauble.plugins.report import options
-
         options[fname] = widget.get_active_text()
 
     @staticmethod
@@ -200,19 +207,15 @@ class MakoFormatterSettingsBox(SettingsBox):
         )
 
     def get_option_widget(self, ftype, fdefault, fname):
-        from bauble.plugins.report import options
-
         if ftype == "boolean":
             active = fdefault.lower() in ["1", "true"]
             options.setdefault(fname, active)
             entry = Gtk.CheckButton()
-            entry.set_active(options[fname])
+            entry.set_active(active)
             entry.connect("toggled", self.toggle_set_option, fname)
             return entry
 
         if ftype.startswith("enum"):
-            from ast import literal_eval
-
             combo = Gtk.ComboBoxText()
             vals = literal_eval(ftype.removeprefix("enum"))
             for val in vals:
@@ -290,7 +293,7 @@ class MakoFormatterPlugin(FormatterPlugin):
 
     @staticmethod
     def format(objs, **kwargs):
-        template_filename = kwargs["template"]
+        template_filename = kwargs.get("template")
         if not template_filename:
             msg = _("Please select a template.")
             utils.message_dialog(msg, Gtk.MessageType.WARNING)

@@ -267,15 +267,15 @@ class XSLFormatterSettingsBox(SettingsBox):
 
         self.widgets.format_combo.set_tooltip_text(
             _(
-                "Select an output format, NOTE: not all formats will work with "
-                "every template. SVG is experimental."
+                "Select an output format, NOTE: not all formats will work "
+                "with every template. SVG is experimental."
             )
         )
         self.widgets.outfile_box.set_tooltip_text(
             _(
                 "Select a file to save to. If not set report will be created "
-                "in a temporary directory and opened in the default viewer, if "
-                "set the directory containing the report will be opened."
+                "in a temporary directory and opened in the default viewer, "
+                "if set the directory containing the report will be opened."
             )
         )
         self.widgets.private_check.set_tooltip_text(
@@ -293,8 +293,9 @@ class XSLFormatterSettingsBox(SettingsBox):
         self.widgets.format_combo.connect(
             "changed", self.on_format_combo_changed
         )
+        self.widgets.file_entry.connect("changed", self.on_file_entry_changed)
 
-        # keep a refefence to settings box so it doesn't get destroyed in
+        # keep a reference to settings box so it doesn't get destroyed in
         # remove_parent()
         self.settings_box = self.widgets.settings_box
         self.widgets.remove_parent(self.widgets.settings_box)
@@ -315,6 +316,13 @@ class XSLFormatterSettingsBox(SettingsBox):
             last_folder,
             self.widgets.file_entry,
         )
+
+    def on_file_entry_changed(self, widget):
+        text = widget.get_text()
+        if Path(text).is_file():
+            widget.get_style_context().remove_class("problem")
+        else:
+            widget.get_style_context().add_class("problem")
 
     def on_out_btnbrowse_clicked(self, _widget):
         if previously := self.widgets.outfile_entry.get_text():
@@ -344,14 +352,18 @@ class XSLFormatterSettingsBox(SettingsBox):
         self.on_out_entry_changed(self.widgets.outfile_entry)
 
     def get_report_settings(self):
-        return {
-            "stylesheet": self.widgets.file_entry.get_text(),
-            "source_type": self.widgets.source_type_combo.get_active_text(),
-            "authors": self.widgets.author_check.get_active(),
-            "private": self.widgets.private_check.get_active(),
-            "out_format": self.widgets.format_combo.get_active_text(),
-            "out_file": self.widgets.outfile_entry.get_text(),
-        }
+        stylesheet = self.widgets.file_entry.get_text()
+        if stylesheet:
+            widgets = self.widgets
+            return {
+                "stylesheet": stylesheet,
+                "source_type": widgets.source_type_combo.get_active_text(),
+                "authors": widgets.author_check.get_active(),
+                "private": widgets.private_check.get_active(),
+                "out_format": widgets.format_combo.get_active_text(),
+                "out_file": widgets.outfile_entry.get_text(),
+            }
+        return {}
 
     def update(self, settings):
         stylesheet = settings.get("stylesheet")

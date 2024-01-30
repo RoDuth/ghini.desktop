@@ -1,7 +1,7 @@
 # Copyright (c) 2005,2006,2007,2008,2009 Brett Adams <brett@belizebotanic.org>
 # Copyright (c) 2012-2017 Mario Frasca <mario@anche.no>
 # Copyright 2017 Jardín Botánico de Quito
-# Copyright (c) 2017-2023 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright (c) 2017-2024 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -44,6 +44,7 @@ from bauble.test import update_gui
 
 from . import CONFIG_LIST_PREF
 from . import DEFAULT_CONFIG_PREF
+from . import SETTINGS_EXPANDED_PREF
 from . import ReportToolDialogPresenter
 from . import ReportToolDialogView
 from . import get_accessions_pertinent_to
@@ -634,6 +635,47 @@ class ReportTests(BaubleTestCase):
         self.assertCountEqual(ids, [1, 2, 3, 4])
 
 
+class ReportToolDialogNoFOPTests(BaubleTestCase):
+    def setUp(self):
+        with mock.patch(
+            "bauble.plugins.report.xsl._fop.set_fop_command",
+            return_value=False,
+        ):
+            super().setUp()
+        prefs.prefs[CONFIG_LIST_PREF] = {
+            "plant csv": (
+                "Mako",
+                {"template": "plants.csv", "private": False},
+            ),
+            "bed csv": ("Mako", {"template": "beds.csv", "private": False}),
+        }
+        prefs.prefs[DEFAULT_CONFIG_PREF] = "plant csv"
+        with (
+            mock.patch("bauble.gui"),
+            mock.patch("bauble.utils.message_dialog"),
+            mock.patch(
+                "bauble.gui.window",
+                new_callable=mock.PropertyMock(return_value=Gtk.Window()),
+            ),
+        ):
+            self.report_view = ReportToolDialogView()
+            self.report_presenter = ReportToolDialogPresenter(self.report_view)
+
+    def tearDown(self):
+        self.report_view.dialog.destroy()
+        super().tearDown()
+
+    def test_formatter_combo_hides(self):
+        frame = self.report_view.widgets.formatter_frame
+        self.assertFalse(frame.get_visible())
+        self.assertTrue(frame.get_no_show_all())
+
+    def test_formatter_combo_forces_mako(self):
+        self.assertEqual(
+            self.report_view.widgets.formatter_combo.get_active_text(), "Mako"
+        )
+
+
 class ReportToolDialogTests(BaubleTestCase):
     def setUp(self):
         with mock.patch(
@@ -663,12 +705,6 @@ class ReportToolDialogTests(BaubleTestCase):
         self.report_view.dialog.destroy()
         super().tearDown()
 
-    def test_set_sensative(self):
-        self.report_view.set_sensitive("ok_button", True)
-        self.assertTrue(self.report_view.widgets.ok_button.get_sensitive())
-        self.report_view.set_sensitive("ok_button", False)
-        self.assertFalse(self.report_view.widgets.ok_button.get_sensitive())
-
     @mock.patch("bauble.utils.message_dialog")
     def test_set_name_combo(self, _mock_dialog):
         self.report_presenter.set_names_combo(0)
@@ -692,29 +728,46 @@ class ReportToolDialogTests(BaubleTestCase):
             self.report_view.widgets.formatter_combo.get_active(), -1
         )
 
+    def test_formatter_combo_does_not_hide(self):
+        frame = self.report_presenter.view.widgets.formatter_frame
+        self.assertTrue(frame.get_visible())
+        self.assertFalse(frame.get_no_show_all())
+
     def test_on_formatter_combo_changed(self):
         prefs.prefs["report.xsl_external_fop"] = False
         name = "bed csv"
         self.report_presenter.set_names_combo(name)
+        self.assertFalse(
+            self.report_view.widgets.settings_expander.get_expanded()
+        )
         self.assertEqual(self.report_view.widgets.names_combo.get_active(), 1)
         self.report_presenter.set_formatter_combo("XSL")
         self.assertEqual(
             self.report_view.widgets.formatter_combo.get_active_text(), "XSL"
         )
         update_gui()
-        formatter, _settings = prefs.prefs.get(CONFIG_LIST_PREF, {}).get(
+        self.report_presenter.save_formatter_settings()
+        formatter, settings = prefs.prefs.get(CONFIG_LIST_PREF, {}).get(
             name, (None, None)
         )
         self.assertEqual(formatter, "XSL")
+        self.assertEqual(settings, {})
+        # now settings are saved as {} test that the settings expander expands
+        self.report_view.widgets.formatter_combo.emit("changed")
+        update_gui()
+        self.assertTrue(
+            self.report_view.widgets.settings_expander.get_expanded()
+        )
         self.report_presenter.set_formatter_combo("Mako")
         self.assertEqual(
             self.report_view.widgets.formatter_combo.get_active_text(), "Mako"
         )
         update_gui()
-        formatter, _settings = prefs.prefs.get(CONFIG_LIST_PREF, {}).get(
+        formatter, settings = prefs.prefs.get(CONFIG_LIST_PREF, {}).get(
             name, (None, None)
         )
         self.assertEqual(formatter, "Mako")
+        self.assertEqual(settings, {})
 
     @mock.patch(
         "bauble.plugins.report.Gtk.Dialog.run",
@@ -724,8 +777,15 @@ class ReportToolDialogTests(BaubleTestCase):
         "bauble.plugins.report.Gtk.Entry.get_text", return_value="species csv"
     )
     def test_on_new_button_clicked(self, _mock_entry, _mock_dialog):
+        self.assertFalse(
+            self.report_view.widgets.settings_expander.get_expanded()
+        )
         self.report_presenter.on_new_button_clicked(None)
+        update_gui()
         self.assertEqual(self.report_view.widgets.names_combo.get_active(), 2)
+        self.assertTrue(
+            self.report_view.widgets.settings_expander.get_expanded()
+        )
 
     def test_on_remove_button_clicked(self):
         self.report_presenter.set_names_combo(0)
@@ -742,6 +802,15 @@ class ReportToolDialogTests(BaubleTestCase):
             name, (None, None)
         )
         self.assertEqual(formatter, "XSL")
+
+    def test_activate_settings_expander_stores_pref(self):
+        self.assertIsNone(prefs.prefs.get(SETTINGS_EXPANDED_PREF))
+        expander = self.report_presenter.view.widgets.settings_expander
+        expander.set_expanded(False)
+        expander.emit("activate")
+        self.assertTrue(prefs.prefs.get(SETTINGS_EXPANDED_PREF))
+        expander.emit("activate")
+        self.assertFalse(prefs.prefs.get(SETTINGS_EXPANDED_PREF))
 
 
 class TemplateDowloaderTests(BaubleTestCase):
