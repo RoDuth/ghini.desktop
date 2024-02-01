@@ -1,4 +1,4 @@
-# Copyright (c) 2021-2022 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright (c) 2021-2024 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -25,6 +25,7 @@ logger.setLevel(logging.DEBUG)
 import csv
 from csv import DictWriter
 from datetime import datetime
+from operator import attrgetter
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest import mock
@@ -40,6 +41,7 @@ from bauble.plugins.garden import Accession
 from bauble.plugins.garden import Location
 from bauble.plugins.garden import Plant
 from bauble.plugins.garden import PlantNote
+from bauble.plugins.plants import Genus
 from bauble.plugins.plants import Species
 from bauble.test import BaubleTestCase
 
@@ -672,6 +674,200 @@ class CSVImporterEmptyDBTests(BaubleTestCase):
         self.assertEqual(end_plants, start_plants + 1)
         # quantity changed and a change was added.
         self.assertEqual(added_plant.quantity, 2)
+
+    def test_add_accession_with_collection_data(self):
+        # test allowing creating 1-1 relations
+        acc = [
+            {
+                "acc_code": "code",
+                "fam": "species.genus.family.epithet",
+                "gen": "species.genus.epithet",
+                "sp": "species.epithet",
+                "date_accd": "date_accd",
+                "recvd": "date_recvd",
+                "prov_type": "prov_type",
+                "prov_status": "wild_prov_status",
+                "qty": "quantity_recvd",
+                "recvd_type": "recvd_type",
+                "source_name": "source.source_detail.name",
+                "source_type": "source.source_detail.source_type",
+                "collector": "source.collection.collector",
+                "date_collected": "source.collection.date",
+                "elevation": "source.collection.elevation",
+                "el_accuracy": "source.collection.elevation_accy",
+                "geo_acc": "source.collection.geo_accy",
+                "habitat": "source.collection.habitat",
+                "locale": "source.collection.locale",
+                "lat": "source.collection.latitude",
+                "long": "source.collection.longitude",
+                "datum": "source.collection.gps_datum",
+                "col_notes": "source.collection.notes",
+            },
+            {
+                "acc_code": "2024.0002",
+                "fam": "Myrtaceae",
+                "gen": "Syzygium",
+                "sp": "australe",
+                "date_accd": "2024-01-31",
+                "recvd": "2024-01-24",
+                "prov_type": "Wild",
+                "prov_status": "WildNative",
+                "qty": "7",
+                "recvd_type": "PLTS",
+                "source_name": "Jade Green",
+                "source_type": "Individual",
+                "collector": "Peter Plant",
+                "date_collected": "2024-01-10",
+                "elevation": "5.0",
+                "el_accuracy": "3.0",
+                "geo_acc": "20.0",
+                "habitat": "forest",
+                "locale": "Mountain road",
+                "lat": "-26.918",
+                "long": "152.911",
+                "datum": "WGS84",
+                "col_notes": "in flower",
+            },
+        ]
+        start_acc = self.session.query(Accession).count()
+        importer = self.importer
+        importer.filename = create_csv(acc, self.temp_dir.name)
+        importer.search_by = ["acc_code"]
+        importer.fields = acc[0]
+        importer.domain = Accession
+        importer.option = "1"
+        importer.run()
+        added_acc = self.session.query(Accession).get(1)
+        end_acc = self.session.query(Accession).count()
+
+        self.assertEqual(end_acc, start_acc + 1)
+
+        for k, v in acc[1].items():
+            logger.debug("assert equal %s = %s", acc[0][k], v)
+            self.assertEqual(str(attrgetter(acc[0][k])(added_acc)), v)
+
+        # self.assertTrue(False)
+
+    def test_add_synonym_species_w_accepted(self):
+        # i.e. we want to import a species and all its synonyms
+        species = [
+            {
+                "fam": "genus.family.epithet",
+                "gen": "genus.epithet",
+                "epithet": "epithet",
+                "accepted_fam": "_accepted.species.genus.family.epithet",
+                "accepted_gen": "_accepted.species.genus.epithet",
+                "accpeted_epithet": "_accepted.species.epithet",
+            },
+            {
+                "fam": "Myrtaceae",
+                "gen": "Acmena",
+                "epithet": "ingens",
+                "accepted_fam": "Myrtaceae",
+                "accepted_gen": "Acmena",
+                "accpeted_epithet": "brachyandra",
+            },
+            {
+                "fam": "Myrtaceae",
+                "gen": "Syzygium",
+                "epithet": "ingens",
+                "accepted_fam": "Myrtaceae",
+                "accepted_gen": "Acmena",
+                "accpeted_epithet": "brachyandra",
+            },
+        ]
+        start_sp = self.session.query(Species).count()
+        importer = self.importer
+        importer.filename = create_csv(species, self.temp_dir.name)
+        importer.search_by = ["fam", "gen", "epithet"]
+        importer.fields = species[0]
+        importer.domain = Species
+        importer.option = "2"
+        importer.run()
+        end_sp = self.session.query(Species).count()
+
+        self.assertEqual(end_sp, start_sp + 3)
+
+        added_sp = (
+            self.session.query(Species)
+            .join(Genus)
+            .filter(Species.epithet == "ingens", Genus.epithet == "Acmena")
+            .one()
+        )
+        for k, v in species[1].items():
+            logger.debug("assert equal %s = %s", species[0][k], v)
+            self.assertEqual(str(attrgetter(species[0][k])(added_sp)), v)
+
+        added_sp = (
+            self.session.query(Species)
+            .join(Genus)
+            .filter(Species.epithet == "ingens", Genus.epithet == "Syzygium")
+            .one()
+        )
+        added_sp = self.session.query(Species).get(3)
+        for k, v in species[2].items():
+            logger.debug("assert equal %s = %s", species[0][k], v)
+            self.assertEqual(str(attrgetter(species[0][k])(added_sp)), v)
+
+    def test_add_synonym_species_w_accepted_association_proxy(self):
+        # i.e. we want to import a species and all its synonyms
+        species = [
+            {
+                "fam": "genus.family.epithet",
+                "gen": "genus.epithet",
+                "epithet": "epithet",
+                "accepted_fam": "accepted.genus.family.epithet",
+                "accepted_gen": "accepted.genus.epithet",
+                "accpeted_epithet": "accepted.epithet",
+            },
+            {
+                "fam": "Myrtaceae",
+                "gen": "Acmena",
+                "epithet": "ingens",
+                "accepted_fam": "Myrtaceae",
+                "accepted_gen": "Acmena",
+                "accpeted_epithet": "brachyandra",
+            },
+            {
+                "fam": "Myrtaceae",
+                "gen": "Syzygium",
+                "epithet": "ingens",
+                "accepted_fam": "Myrtaceae",
+                "accepted_gen": "Acmena",
+                "accpeted_epithet": "brachyandra",
+            },
+        ]
+        start_sp = self.session.query(Species).count()
+        importer = self.importer
+        importer.filename = create_csv(species, self.temp_dir.name)
+        importer.search_by = ["fam", "gen", "epithet"]
+        importer.fields = species[0]
+        importer.domain = Species
+        importer.option = "2"
+        importer.run()
+        end_sp = self.session.query(Species).count()
+
+        self.assertEqual(end_sp, start_sp + 3)
+
+        added_sp = (
+            self.session.query(Species)
+            .join(Genus)
+            .filter(Species.epithet == "ingens", Genus.epithet == "Acmena")
+            .one()
+        )
+        for k, v in species[1].items():
+            logger.debug("assert equal %s = %s", species[0][k], v)
+            self.assertEqual(str(attrgetter(species[0][k])(added_sp)), v)
+
+        added_sp = (
+            self.session.query(Species)
+            .join(Genus)
+            .filter(Species.epithet == "ingens", Genus.epithet == "Syzygium")
+            .one()
+        )
+        for k, v in species[2].items():
+            logger.debug("assert equal %s = %s", species[0][k], v)
+            self.assertEqual(str(attrgetter(species[0][k])(added_sp)), v)
 
 
 class CSVImporterTests(CSVTestCase):

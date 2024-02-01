@@ -695,6 +695,7 @@ class CSVImporter(GenericImporter):
                     records_added += 1
 
                 # commit every record catches errors and avoids losing records.
+                logger.debug("committing")
                 if self.commit_db(session) is False:
                     # record errored
                     rec["__line_#"] = self._total_records

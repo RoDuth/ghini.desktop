@@ -142,7 +142,8 @@ long_re = re.compile(
 
 
 class Source(db.Base):
-    """connected 1-1 to Accession.
+    """connected 1-1 to Accession, links accession to source_detail,
+    collection, propagation.
 
     Source objects have the function to add fields to one Accession.  From
     an Accession, to access the fields added here you obviously still need
@@ -201,6 +202,7 @@ class Source(db.Base):
         primaryjoin="Source.plant_propagation_id==Propagation.id",
         backref=backref("used_source", uselist=True),
     )
+    is_one_to_one = True
 
 
 source_type_values = [
@@ -324,6 +326,9 @@ class Collection(db.Base):
         "source.accession.code",
         "source.accession",
     ]
+    # is 1-1 but not linking, still ok to create in db.get_create_or_update
+    # when multiple are returned
+    is_one_to_one = True
 
     @classmethod
     def retrieve(cls, session, keys):

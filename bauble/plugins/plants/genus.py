@@ -427,6 +427,7 @@ class GenusSynonym(db.Base):
     synonym_id = Column(
         Integer, ForeignKey("genus.id"), nullable=False, unique=True
     )
+    is_one_to_one = True
 
     def __str__(self):
         return f"{str(self.synonym)} ({self.synonym.family})"

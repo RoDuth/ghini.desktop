@@ -318,6 +318,7 @@ class FamilySynonym(db.Base):
     synonym_id = Column(
         Integer, ForeignKey("family.id"), nullable=False, unique=True
     )
+    is_one_to_one = True
 
     def __str__(self):
         return Family.str(self.synonym)

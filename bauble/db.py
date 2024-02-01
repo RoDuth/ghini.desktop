@@ -2,7 +2,7 @@
 # Copyright 2015-2017 Mario Frasca <mario@anche.no>.
 # Copyright 2017 Jardín Botánico de Quito
 # Copyright 2018 Ilja Everilä
-# Copyright 2021-2023 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright 2021-2024 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -737,12 +737,19 @@ def get_related_class(model, path):
 
     :return: sqlalchemy table class
     """
+    logger.debug("get_related_class model: %s, path: %s", model, path)
     if not path:
         return model
     relation, path = path.split(".", 1) if "." in path else (path, None)
-    # we have one relationship with a synonym - default_vernacular_name
+    # synonyms
     if syn := model.__mapper__.synonyms.get(relation):
         relation = syn.name
+    # association_proxy
+    if local_atr := getattr(getattr(model, relation), "local_attr", None):
+        relation = getattr(getattr(model, relation), "value_attr")
+        local_rel = local_atr.key
+        logger.debug("local_rel: %s, relation now: %s", local_rel, relation)
+        model = model.__mapper__.relationships.get(local_rel).mapper.class_
     model = model.__mapper__.relationships.get(relation).mapper.class_
     return get_related_class(model, path)
 
@@ -824,7 +831,8 @@ def get_existing(session, model, **kwargs):
                 inst = session.query(model).filter_by(**unique).one()
             except MultipleResultsFound:
                 return None
-            except SQLAlchemyError:
+            except SQLAlchemyError as e:
+                logger.debug("%s(%s)", type(e).__name__, e)
                 inst = False
         else:
             logger.debug("couldn't find unique columns to use.")
@@ -841,7 +849,8 @@ def get_existing(session, model, **kwargs):
                 inst = session.query(model).filter_by(**unique).one()
             except MultipleResultsFound:
                 return None
-            except SQLAlchemyError:
+            except SQLAlchemyError as e:
+                logger.debug("%s(%s)", type(e).__name__, e)
                 inst = False
         else:
             logger.debug("couldn't find uniq_props columns to use.")
@@ -849,7 +858,7 @@ def get_existing(session, model, **kwargs):
     return inst
 
 
-def get_create_or_update(session, model, **kwargs):
+def get_create_or_update(session, model, create_one_to_one=False, **kwargs):
     """get, create or update and add to the session an appropriate database
     entry given its model and some data.
 
@@ -863,6 +872,8 @@ def get_create_or_update(session, model, **kwargs):
 
     :param session: instance of db.Session()
     :param model: sqlalchemy table class
+    :param create_one_to_one: bool, allow creating when MultipleResultsFound is
+        likely but not likely to be an issue
     :param kwargs: database values
     """
     # first try to get an exact match and return it immediately if found
@@ -871,8 +882,9 @@ def get_create_or_update(session, model, **kwargs):
         return inst
     except MultipleResultsFound:
         # no unique entry found, abort or we risk overwriting the wrong one.
-        logger.debug("Multiples found using kwargs, aborting")
-        return None
+        if not create_one_to_one:
+            logger.debug("Multiples found using kwargs, aborting")
+            return None
     except SQLAlchemyError:
         # any other error (i.e. no result, error in the statement - can occur
         # with new data not flushed yet.)
@@ -880,6 +892,14 @@ def get_create_or_update(session, model, **kwargs):
 
     inst = get_existing(session, model, **kwargs)
     logger.debug("get_existing returned: %s", inst)
+
+    if (
+        inst is None
+        and create_one_to_one
+        and getattr(model, "is_one_to_one", False)
+    ):
+        logger.debug("is_one_to_one = True creating")
+        inst = False
 
     if inst is None:
         return None

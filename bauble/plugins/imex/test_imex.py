@@ -555,7 +555,7 @@ class GenericImporterTests(BaubleTestCase):
 
         obj = Plant()
         self.session.add(obj)
-        out = GenericImporter.add_rec_to_db(self.session, obj, data1)
+        out = BasicImporter().add_rec_to_db(self.session, obj, data1)
         self.assertEqual(obj, out)
         # Committing will reveal issues that only show up at commit
         self.session.commit()
@@ -582,6 +582,10 @@ class GenericImporterTests(BaubleTestCase):
             result[0].accession.species.infrasp1,
             data1.get("accession.species").get("infrasp1"),
         )
+        self.assertEqual(
+            result[0].accession.source.source_detail.name,
+            data1.get("accession.source.source_detail").get("name"),
+        )
 
         data2 = {
             "accession.species.genus.family": {"epithet": "Taccaceae"},
@@ -600,7 +604,7 @@ class GenericImporterTests(BaubleTestCase):
         }
         obj = Plant()
         self.session.add(obj)
-        out = GenericImporter.add_rec_to_db(self.session, obj, data2)
+        out = BasicImporter().add_rec_to_db(self.session, obj, data2)
         self.assertEqual(obj, out)
         self.session.commit()
         result = self.session.query(Plant).all()
@@ -631,7 +635,7 @@ class GenericImporterTests(BaubleTestCase):
         # the previous record (from the last data set)
         obj = result[1]
         self.session.add(obj)
-        out = GenericImporter.add_rec_to_db(self.session, obj, data3)
+        out = BasicImporter().add_rec_to_db(self.session, obj, data3)
         self.assertEqual(obj, out)
         self.session.commit()
         result = self.session.query(Plant).all()
@@ -676,7 +680,7 @@ class GenericImporterTests(BaubleTestCase):
         }
         obj = Plant()
         self.session.add(obj)
-        out = GenericImporter.add_rec_to_db(self.session, obj, data4)
+        out = BasicImporter().add_rec_to_db(self.session, obj, data4)
         self.assertEqual(obj, out)
         # Committing will reveal issues that only show up at commit
         self.session.commit()
@@ -722,7 +726,7 @@ class GenericImporterTests(BaubleTestCase):
 
         obj = Plant()
         self.session.add(obj)
-        out = GenericImporter.add_rec_to_db(self.session, obj, data1)
+        out = BasicImporter().add_rec_to_db(self.session, obj, data1)
         self.assertEqual(obj, out)
         # Committing will reveal issues that only show up at commit
         self.session.commit()
@@ -754,7 +758,7 @@ class GenericImporterTests(BaubleTestCase):
             "code": "1",
             "quantity": 1,
         }
-        out = GenericImporter.add_rec_to_db(self.session, obj, data2)
+        out = BasicImporter().add_rec_to_db(self.session, obj, data2)
         self.assertEqual(obj, out)
         self.session.commit()
         result = self.session.query(Plant).get(1)
@@ -788,7 +792,7 @@ class GenericImporterTests(BaubleTestCase):
 
         obj = Plant()
         self.session.add(obj)
-        out = GenericImporter.add_rec_to_db(self.session, obj, data1)
+        out = BasicImporter().add_rec_to_db(self.session, obj, data1)
         self.assertEqual(obj, out)
         # Committing will reveal issues that only show up at commit
         self.session.commit()
@@ -800,7 +804,7 @@ class GenericImporterTests(BaubleTestCase):
             "code": "1",
             "quantity": 0,
         }
-        out = GenericImporter.add_rec_to_db(self.session, obj, data2)
+        out = BasicImporter().add_rec_to_db(self.session, obj, data2)
         self.assertEqual(obj, out)
         self.session.commit()
         result = self.session.query(Plant).get(1)
@@ -816,7 +820,7 @@ class GenericImporterTests(BaubleTestCase):
             "code": "1",
             "quantity": 0,
         }
-        out = GenericImporter.add_rec_to_db(self.session, obj, data3)
+        out = BasicImporter().add_rec_to_db(self.session, obj, data3)
         self.assertEqual(obj, out)
         self.session.commit()
         result = self.session.query(Plant).get(1)
@@ -850,7 +854,7 @@ class GenericImporterTests(BaubleTestCase):
 
         obj = Plant()
         self.session.add(obj)
-        out = GenericImporter.add_rec_to_db(self.session, obj, data1)
+        out = BasicImporter().add_rec_to_db(self.session, obj, data1)
         self.assertEqual(obj, out)
         # Committing will reveal issues that only show up at commit
         self.session.commit()
@@ -869,7 +873,7 @@ class GenericImporterTests(BaubleTestCase):
 
         obj = Location()
         self.session.add(obj)
-        out = GenericImporter.add_rec_to_db(self.session, obj, data1)
+        out = BasicImporter().add_rec_to_db(self.session, obj, data1)
         self.assertEqual(obj, out)
         # Committing will reveal issues that only show up at commit
         self.session.commit()
@@ -886,7 +890,7 @@ class GenericImporterTests(BaubleTestCase):
             "description": "Rare, threatend and vulnerable species endemic to "
             "the Whitsunday Islands off the Central Queensland Coast.",
         }
-        out = GenericImporter.add_rec_to_db(self.session, obj, data2)
+        out = BasicImporter().add_rec_to_db(self.session, obj, data2)
         self.assertEqual(obj, out)
         # Committing will reveal issues that only show up at commit
         self.session.commit()

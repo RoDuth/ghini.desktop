@@ -1190,6 +1190,7 @@ class SpeciesSynonym(db.Base):
     synonym_id = Column(
         Integer, ForeignKey("species.id"), nullable=False, unique=True
     )
+    is_one_to_one = True
 
     def __str__(self):
         return str(self.synonym)

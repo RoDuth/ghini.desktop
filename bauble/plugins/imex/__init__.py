@@ -1,6 +1,6 @@
 # Copyright 2007 Brett Adams
 # Copyright 2015 Mario Frasca <mario@anche.no>.
-# Copyright 2021-2022 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright 2021-2024 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -76,6 +76,7 @@ class GenericImporter(ABC):  # pylint: disable=too-many-instance-attributes
         self._is_new = False
         # view and presenter
         self.presenter = None
+        self.obj_cache = {}
 
     def start(self):
         """Start the importer UI.  On response run the import task.
@@ -187,6 +188,7 @@ class GenericImporter(ABC):  # pylint: disable=too-many-instance-attributes
         :param item: database table instance
         :param record: record as a dict of column names to values
         """
+        self.obj_cache.clear()
         out_dict = {}
         logger.debug("fields = %s", self.fields)
         for col, value in record.items():
@@ -236,6 +238,7 @@ class GenericImporter(ABC):  # pylint: disable=too-many-instance-attributes
         )
         logger.debug("adding to the session item : %s", item)
         session.add(item)
+        self.obj_cache.clear()
 
     def commit_db(self, session):
         """If session is dirty try committing the changes.
@@ -359,9 +362,31 @@ class GenericImporter(ABC):  # pylint: disable=too-many-instance-attributes
                 value = None
         return value
 
-    @classmethod
+    def memoized_get_create_or_update(
+        self, session, model, create_one_to_one=False, **kwargs
+    ):
+        """Memoizing the result of get_create_or_update allows the same
+        instance to be used multiple time without the need to query repeatedly.
+
+        Most usefull when new instances are returned, avoids needing to flush
+        the session to add in the id etc. or the risk of returning identical
+        new instances when the query fails.
+
+        Make sure to clear or destroy self.obj_cache after all records are
+        committed so they do not stay in memory.
+        """
+        key = (model, tuple(sorted(kwargs.items())))
+        if value := self.obj_cache.get(key):
+            logger.debug("memoized_get_create_or_update returning memoized")
+            return value
+        value = db.get_create_or_update(
+            session, model, create_one_to_one, **kwargs
+        )
+        self.obj_cache[key] = value
+        return value
+
     def add_rec_to_db(
-        cls, session, item, rec
+        self, session, item, rec
     ):  # pylint: disable=too-many-locals
         """Add or update the item record in the database including any related
         records.
@@ -381,7 +406,9 @@ class GenericImporter(ABC):  # pylint: disable=too-many-instance-attributes
         first, *remainder = rec.items()
         remainder = dict(remainder)
         key, value = first
-        logger.debug("adding key: %s with value: %s", key, value)
+        logger.debug(
+            "adding key: %s with value: %s type: %s", key, value, type(value)
+        )
         # related records
         if isinstance(value, dict):
             # after this "value" will be in the session
@@ -389,18 +416,23 @@ class GenericImporter(ABC):  # pylint: disable=too-many-instance-attributes
             model = db.get_related_class(type(item), key)
             for k, v in value.items():
                 if v is not None and not hasattr(v, "__table__"):
-                    v = cls.get_value_as_python_type(model, k, v)
+                    v = self.get_value_as_python_type(model, k, v)
                     value[k] = v
 
             logger.debug("values: %s", value)
             logger.debug("model tablename: %s", model.__tablename__)
 
             if model.__tablename__ == "plant_change":
-                value = cls.handle_plant_changes(key, value, item)
+                value = self.handle_plant_changes(key, value, item)
 
             if value:
-                value = db.get_create_or_update(session, model, **value)
+                value = self.memoized_get_create_or_update(
+                    session, model, create_one_to_one=self._is_new, **value
+                )
             root, atr = key.rsplit(".", 1) if "." in key else (None, key)
+            logger.debug(
+                "root = %s, atr = %s, remainder = %s", root, atr, remainder
+            )
             # should block _default_vernacular_name in relation_filter
             # NOTE default vernacular names need to be added directly as they
             # use their own methods,
@@ -425,39 +457,50 @@ class GenericImporter(ABC):  # pylint: disable=too-many-instance-attributes
             ):
                 root = root.removesuffix("._default_vernacular_name")
                 atr = "default_vernacular_name"
-            if remainder.get(root):
+
+            if root in remainder:
                 remainder[root][atr] = value
-            # linking 1-1 table
-            elif (
-                root and "." in root and remainder.get(root.rsplit(".", 1)[0])
-            ):
+            elif root and "." in root and root.rsplit(".", 1)[0] in remainder:
+                # linking 1-1 table steps away from item
                 link, atr2 = root.rsplit(".", 1)
                 try:
                     link_item = attrgetter(root)(item)  # existing entries
                 except AttributeError:
                     link_item = db.get_related_class(type(item), root)()
                     session.add(link_item)
-                if link_item:
-                    setattr(link_item, atr, value)
-                    logger.debug("adding: %s to %s", atr2, link)
-                    remainder[link][atr2] = link_item
+                setattr(link_item, atr, value)
+                logger.debug("adding: %s to %s", atr2, link)
+                remainder[link][atr2] = link_item
+            elif root and "." not in root and root not in remainder:
+                # linking 1-1 table of item
+                link_item = getattr(item, root)  # existing entries
+                if not link_item:
+                    link_item = db.get_related_class(type(item), root)()
+                logger.debug(
+                    "adding: %s to %s",
+                    type(link_item).__name__,
+                    type(item).__name__,
+                )
+                setattr(link_item, atr, value)
+                setattr(item, root, link_item)
         elif value is not None and not hasattr(value, "__table__"):
             model = type(item)
-            value = cls.get_value_as_python_type(model, key, value)
+            value = self.get_value_as_python_type(model, key, value)
 
         # if there are more records continue to add them
         if len(remainder) > 0:
-            cls.add_rec_to_db(session, item, remainder)
+            self.add_rec_to_db(session, item, remainder)
 
         # once all records are accounted for add them to item in reverse
-        logger.debug(
-            "setattr on object: %s with name: %s and value: %s (type %s)",
-            item,
-            key,
-            value,
-            type(value),
-        )
-        setattr(item, key, value)
+        if not "." in key:
+            logger.debug(
+                "setattr on object: %s with name: %s and value: %s (type %s)",
+                item,
+                key,
+                value,
+                type(value),
+            )
+            setattr(item, key, value)
         return item
 
 
