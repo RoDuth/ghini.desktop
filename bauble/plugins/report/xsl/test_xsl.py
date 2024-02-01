@@ -169,6 +169,28 @@ class XSLFormatterSettingsBoxTests(XSLTestCase):
             },
         )
 
+    def test_get_report_settings_wo_stylesheet(self):
+        settings = self.settings_box.get_report_settings()
+        self.assertEqual(settings, {})
+
+    @mock.patch("bauble.plugins.report.xsl.Path.is_file")
+    def test_on_file_entry_changed_is_file(self, mock_is_file):
+        mock_is_file.return_value = True
+        mock_widget = mock.Mock()
+        mock_widget.get_text.return_value = "test/file.xsl"
+        self.settings_box.on_file_entry_changed(mock_widget)
+        mock_widget.get_style_context().remove_class.assert_called_with(
+            "problem"
+        )
+
+    @mock.patch("bauble.plugins.report.xsl.Path.is_file")
+    def test_on_file_entry_changed_is_not_file(self, mock_is_file):
+        mock_is_file.return_value = False
+        mock_widget = mock.Mock()
+        mock_widget.get_text.return_value = "test/file.xsl"
+        self.settings_box.on_file_entry_changed(mock_widget)
+        mock_widget.get_style_context().add_class.assert_called_with("problem")
+
     def test_get_report_settings_w_values(self):
         # a template should be set
         dummy_dir = "/some/stylesheet/dir"

@@ -1,7 +1,7 @@
 # Copyright (c) 2005,2006,2007,2008,2009 Brett Adams <brett@belizebotanic.org>
 # Copyright (c) 2012-2015 Mario Frasca <mario@anche.no>
 # Copyright 2017 Jardín Botánico de Quito
-# Copyright (c) 2022-2023 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright (c) 2022-2024 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -29,6 +29,7 @@ from bauble.plugins.plants import Family
 from bauble.test import BaubleTestCase
 from bauble.test import get_setUp_data_funcs
 
+from .. import options
 from . import MakoFormatterPlugin
 from . import MakoFormatterSettingsBox
 
@@ -121,6 +122,9 @@ class FormatterTests(BaubleTestCase):
 
 
 class FormatterSettingsBoxTests(TestCase):
+    def setUp(self):
+        options.clear()
+
     def test_on_file_set_no_private_no_options(self):
         set_box = MakoFormatterSettingsBox()
         templates_dir = Path(__file__).parent / "templates"
@@ -157,7 +161,6 @@ class FormatterSettingsBoxTests(TestCase):
         )
         # CheckButton
         self.assertEqual(options_box.get_child_at(1, 1).get_text(), "None")
-        from bauble.plugins.report import options
 
         self.assertEqual(options.get("authors"), True)
         self.assertEqual(options.get("sort_by"), "None")
@@ -174,7 +177,6 @@ class FormatterSettingsBoxTests(TestCase):
         options_box.get_child_at(1, 0).set_active(False)
         # entry
         options_box.get_child_at(1, 1).set_text("habit")
-        from bauble.plugins.report import options
 
         self.assertEqual(options.get("authors"), False)
         self.assertEqual(options.get("sort_by"), "habit")
@@ -187,7 +189,6 @@ class FormatterSettingsBoxTests(TestCase):
         widget = Gtk.Entry()
         widget.set_text("TEST")
         set_box.entry_set_option(widget, "test")
-        from bauble.plugins.report import options
 
         self.assertEqual(options.get("test"), "TEST")
 
@@ -196,7 +197,6 @@ class FormatterSettingsBoxTests(TestCase):
         widget = Gtk.CheckButton()
         widget.set_active(True)
         set_box.toggle_set_option(widget, "test")
-        from bauble.plugins.report import options
 
         self.assertEqual(options.get("test"), True)
         widget.set_active(False)
@@ -210,7 +210,6 @@ class FormatterSettingsBoxTests(TestCase):
             widget.append_text(str(i))
         widget.set_active(1)
         set_box.combo_set_option(widget, "test_combo")
-        from bauble.plugins.report import options
 
         self.assertEqual(options.get("test_combo"), "1")
         widget.set_active(3)
@@ -224,7 +223,6 @@ class FormatterSettingsBoxTests(TestCase):
         )
         self.assertIsInstance(widget, Gtk.ComboBoxText)
         self.assertEqual(widget.get_active_text(), "test2")
-        from bauble.plugins.report import options
 
         self.assertEqual(options.get("test_enum"), "test2")
         widget.set_active(0)
@@ -238,7 +236,6 @@ class FormatterSettingsBoxTests(TestCase):
         self.assertIsInstance(entry, Gtk.Entry)
         self.assertIsInstance(btn, Gtk.Button)
         self.assertEqual(entry.get_text(), "test2")
-        from bauble.plugins.report import options
 
         self.assertEqual(options.get("test_filename"), "test2")
 
@@ -284,3 +281,70 @@ class FormatterSettingsBoxTests(TestCase):
         mock_fcn.set_current_folder.assert_called_with(
             str(Path(filename).parent)
         )
+
+    def test_update_w_private(self):
+        set_box = MakoFormatterSettingsBox()
+        self.assertIsNone(options.get("private"))
+        self.assertFalse(set_box.widgets.private_check.get_active())
+        set_box.update({"private": True})
+        self.assertTrue(set_box.widgets.private_check.get_active())
+        self.assertTrue(options.get("private"))
+        # reset - avoid pollution
+        set_box.update({})
+
+    @mock.patch("bauble.plugins.report.mako.Path.is_file")
+    def test_update_w_template(self, mock_is_file):
+        mock_is_file.return_value = True
+        set_box = MakoFormatterSettingsBox()
+        self.assertIsNone(options.get("template"))
+        self.assertEqual(set_box.widgets.file_entry.get_text(), "")
+        fname = "/test/file/name.html"
+        set_box.update({"template": fname})
+        self.assertEqual(options.get("template"), fname)
+        self.assertEqual(set_box.widgets.file_entry.get_text(), fname)
+        mock_is_file.assert_called()
+        # reset - avoid pollution
+        set_box.update({})
+
+    @mock.patch("bauble.plugins.report.mako.Path.is_file")
+    def test_update_w_template_not_file(self, mock_is_file):
+        mock_is_file.return_value = False
+        set_box = MakoFormatterSettingsBox()
+        self.assertIsNone(options.get("template"))
+        self.assertEqual(set_box.widgets.file_entry.get_text(), "")
+        fname = "/test/file/name.html"
+        set_box.update({"template": fname})
+        self.assertIsNone(options.get("template"))
+        self.assertEqual(set_box.widgets.file_entry.get_text(), fname)
+        mock_is_file.assert_called()
+        # reset - avoid pollution
+        set_box.update({})
+
+    def test_update_w_widget_val(self):
+        set_box = MakoFormatterSettingsBox()
+        widg = Gtk.Entry()
+        set_box.defaults["twidg"] = (widg, "blah")
+        settings = {"twidg": "test value"}
+        set_box.update(settings)
+        self.assertEqual(widg.get_text(), "test value")
+        # reset - avoid pollution
+        set_box.update({})
+
+    def test_get_report_settings_returns_options(self):
+        set_box = MakoFormatterSettingsBox()
+        options["test"] = "this"
+        self.assertEqual(set_box.get_report_settings(), options)
+
+    def test_clear_options_box(self):
+        set_box = MakoFormatterSettingsBox()
+        label = Gtk.Label(label="test")
+        set_box.widgets.mako_options_box.attach(label, 0, 0, 1, 1)
+        options["test"] = "this"
+        mock_dialog = mock.Mock(spec=Gtk.Dialog)
+        set_box.get_toplevel = lambda: mock_dialog
+        set_box.clear_options_box()
+        self.assertEqual(options, {})
+        self.assertEqual(
+            len(set_box.widgets.mako_options_box.get_children()), 0
+        )
+        mock_dialog.resize.assert_called_with(1, 1)

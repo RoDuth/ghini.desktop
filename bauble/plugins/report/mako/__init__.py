@@ -34,9 +34,10 @@ from mako.template import Template
 
 from bauble import paths
 from bauble import utils
-from bauble.plugins.report import FormatterPlugin
-from bauble.plugins.report import SettingsBox
-from bauble.plugins.report import options
+
+from .. import FormatterPlugin
+from .. import SettingsBox
+from .. import options
 
 
 class MakoFormatterSettingsBox(SettingsBox):
@@ -102,7 +103,7 @@ class MakoFormatterSettingsBox(SettingsBox):
         if template := settings.get("template"):
             self.widgets.file_entry.set_text(template)
             self.widgets.file_entry.set_position(len(template))
-            logger.debug("template = %s", settings["template"])
+            logger.debug("template = %s", template)
         else:
             self.widgets.file_entry.set_text("")
             self.clear_options_box()
