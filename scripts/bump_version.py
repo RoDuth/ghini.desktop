@@ -146,12 +146,7 @@ rgx = r"(^  release: \'v).*?\..*?\..*?(\'.*?%s.*?$)" % bump_tag
 bump_file(os.path.join(root_of_clone(), ".appveyor.yml"), rgx)
 
 rgx = r'(^!define VERSION ").*?\..*?\..*?(\".*?%s.*?$)' % bump_tag
-bump_file(os.path.join(root_of_clone(), "scripts/build-multiuser.nsi"), rgx)
-
-rgx = r'(^!define VERSION ").*?\..*?\..*?(\".*?%s.*?$)' % bump_tag
-bump_file(
-    os.path.join(root_of_clone(), "scripts/build-multiuser-fop.nsi"), rgx
-)
+bump_file(os.path.join(root_of_clone(), "scripts/build.nsi"), rgx)
 
 print()
 print(
@@ -161,8 +156,7 @@ print(
         "doc/conf.py "
         "data/ghini.desktop "
         "packages/builddeb.sh "
-        "scripts/build-multiuser.nsi "
-        "scripts/build-multiuser-fop.nsi "
+        "scripts/build.nsi "
         ".appveyor.yml "
         "setup.py" % version
     )

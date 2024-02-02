@@ -1,4 +1,4 @@
-; Copyright (c) 2016-2021 Ross Demuth <rossdemuth123@gmail.com>
+; Copyright (c) 2016-2024 Ross Demuth <rossdemuth123@gmail.com>
 ;
 ; This file is part of ghini.desktop.
 ;
@@ -33,9 +33,8 @@ Unicode true
 ;---
 ; Plugins, required to compile: (included in data\nsis)
 ; -
-; nsExec (included in NSIS v3.0) for executing commands
-; WordFunc.nsh (included in NSIS v3.0) for comparing versions
 ; FileFunc.nsh (included in NSIS v3.0) for command line options
+; LogicLib (included in NSIS v3.0)
 ; MUI2 (included in NSIS v3.0)
 ; UAC (included in NsisMultiUser)
 ; NsisMultiUser (https://github.com/Drizin/NsisMultiUser)
@@ -51,10 +50,12 @@ Unicode true
 Name "ghini.desktop"
 !define VERSION "1.3.5" ; :bump
 !define SRC_DIR "..\dist\ghini"
+!define JRE_SRC_DIR "..\jre"
+!define FOP_SRC_DIR "..\fop-$%fop_ver%"
+
 !define PRODUCT_NAME "ghini.desktop"
 Outfile "..\dist\${PRODUCT_NAME}-${VERSION}-setup.exe"
 !define PROGEXE "ghini.exe"
-; !define COMPANY_NAME ""  ; no longer required
 !define LICENSE_FILE "LICENSE"
 !define README "README.rst"
 !define START_MENU "$SMPROGRAMS\${PRODUCT_NAME}"
@@ -69,17 +70,13 @@ SetCompressor /FINAL /SOLID lzma
 ; default is 8mb, setting to 64mb reduced installer size by 1+mb
 SetCompressorDictSize 64
 
-; Other
-SetDateSave on
-SetDatablockOptimize on
-CRCCheck on
-
 
 ;------------------------------
 ;  SETTINGS
 
 ; Multi User Settings (must come before the NsisMultiUser script)
 !define MULTIUSER_INSTALLMODE_DEFAULT_ALLUSERS 1
+!define MULTIUSER_INSTALLMODE_64_BIT 1
 
 ; Modern User Interface v2 Settings
 !define MUI_ABORTWARNING
@@ -94,31 +91,36 @@ CRCCheck on
 !define MUI_FINISHPAGE_RUN_TEXT "Start ${PRODUCT_NAME}"
 !define MUI_FINISHPAGE_RUN $INSTDIR\${PROGEXE}
 !define MUI_FINISHPAGE_RUN_NOTCHECKED
-!define MUI_FINISHPAGE_LINK "Visit the Ghini home page"
-!define MUI_FINISHPAGE_LINK_LOCATION http://ghini.github.io/
+!define MUI_FINISHPAGE_LINK "Visit the code repository"
+!define MUI_FINISHPAGE_LINK_LOCATION https://github.com/RoDuth/ghini.desktop
 
 
 ;------------------------------
 ;  SCRIPTS
 
-; NsisMultiUser - all settings need to be set before including the NsisMultiUser.nsh header file.
-; thanks to Richard Drizin https://github.com/Drizin/NsisMultiUser
-!include ..\nsis\Include\NsisMultiUser.nsh
-!include ..\nsis\Include\UAC.nsh
+!include NsisMultiUser.nsh
+!include UAC.nsh
 !include MUI2.nsh
-!include WordFunc.nsh
 !include FileFunc.nsh
+!include LogicLib.nsh
 
 
 ;------------------------------
 ;  PAGES
 
 ; Installer
+!insertmacro MULTIUSER_PAGE_INSTALLMODE ; if elevated will not show - install for all users
 !insertmacro MUI_PAGE_LICENSE "${SRC_DIR}\share\ghini\${LICENSE_FILE}"
-!insertmacro MULTIUSER_PAGE_INSTALLMODE
-; this will show the 2 install options, unless it's an elevated inner process
-; (in that case we know we should install for all users)
 !insertmacro MUI_PAGE_DIRECTORY
+!insertmacro MUI_PAGE_COMPONENTS
+!define MUI_PAGE_CUSTOMFUNCTION_PRE SkipFOPLicense
+!define MUI_LICENSEPAGE_TEXT_TOP "Apache FOP License."
+!define MUI_LICENSEPAGE_TEXT_BOTTOM "If you accept the terms of agreement, click I Agree to continue. You must accept the agreement to install the optional Apache FOP component."
+!insertmacro MUI_PAGE_LICENSE "${FOP_SRC_DIR}\${LICENSE_FILE}"
+!define MUI_PAGE_CUSTOMFUNCTION_PRE SkipOpenJDKLicense
+!define MUI_LICENSEPAGE_TEXT_TOP "OpenJDK JRE License."
+!define MUI_LICENSEPAGE_TEXT_BOTTOM "If you accept the terms of agreement, click I Agree to continue. You must accept the agreement to install the optional OpenJDK JRE component."
+!insertmacro MUI_PAGE_LICENSE "${JRE_SRC_DIR}\legal\java.base\${LICENSE_FILE}"
 !insertmacro MUI_PAGE_INSTFILES
 !insertmacro MUI_PAGE_FINISH
 
@@ -141,6 +143,7 @@ CRCCheck on
 
 ; Install Types
 InstType "Base"
+InstType "Full"
 ; Custom is included by default
 
 ;----------------
@@ -148,7 +151,7 @@ InstType "Base"
 
 Section "!Ghini.desktop" SecMain
 
-    SectionIN 1
+    SectionIN RO
 
     ; Install Files
     SetOutPath "$INSTDIR"
@@ -176,6 +179,48 @@ SectionEnd
 
 
 ;------------------------------
+; +Components Group
+
+SectionGroup /e "Extras" SecOPs
+
+;----------------
+; --Apache FOP
+
+Section /o "Apache FOP" SecFOP
+
+    SectionIN 2
+
+    ; Install Files
+    SetOutPath "$INSTDIR\fop"
+    SetOverwrite on
+
+    ; package all files, recursively, preserving attributes
+    ; assume files are in the correct places
+    File /a /r "${FOP_SRC_DIR}\*.*"
+
+SectionEnd
+
+;----------------
+; --OpenJDK java RE
+
+Section /o "OpenJDK JRE" SecJRE
+
+    SectionIN 2
+
+    ; Install Files
+    SetOutPath "$INSTDIR\jre"
+    SetOverwrite on
+
+    ; package all files, recursively, preserving attributes
+    ; assume files are in the correct places
+    File /a /r "${JRE_SRC_DIR}\*.*"
+
+SectionEnd
+
+SectionGroupEnd
+
+
+;------------------------------
 ;  UNINSTALLER SECTIONS
 ;
 ; All section names prefixed by "Un" will be in the uninstaller
@@ -195,6 +240,47 @@ Section "Uninstall" SecUnMain
     RMDir /r "${START_MENU}"
 SectionEnd
 
+; should be the last section
+; hidden section, write install size as the final step
+; Section "-Write Install Size"
+;     !insertmacro MULTIUSER_RegistryAddInstallSizeInfo
+; SectionEnd
+
+
+;------------------------------
+;  SECTION DESCRIPTIONS
+
+; Language Strings
+LangString DESC_SecMain ${LANG_ENGLISH} "Ghini.desktop - biodiversity collection manager - this is the main component \
+                                        (required)"
+LangString DESC_SecOPs ${LANG_ENGLISH} "Optional extras that you may need to get the most out of ghini.desktop."
+LangString DESC_SecFOP ${LANG_ENGLISH} "Apache FOP is required for XSL report templates. (Java RE is required to use)"
+LangString DESC_SecJRE ${LANG_ENGLISH} "A minimal Java RE as required by FOP XSL report formatter.  If you already have \
+                                        java installed you do not need this."
+
+; Initialise Language Strings (must come after the sections)
+!insertmacro MUI_FUNCTION_DESCRIPTION_BEGIN
+  !insertmacro MUI_DESCRIPTION_TEXT ${SecMain} $(DESC_SecMain)
+  !insertmacro MUI_DESCRIPTION_TEXT ${SecOPs} $(DESC_SecOPs)
+  !insertmacro MUI_DESCRIPTION_TEXT ${SecFOP} $(DESC_SecFOP)
+  !insertmacro MUI_DESCRIPTION_TEXT ${SecJRE} $(DESC_SecJRE)
+!insertmacro MUI_FUNCTION_DESCRIPTION_END
+
+
+;------------------------------
+; CUSTOM FUNCTIONS
+
+Function SkipOpenJDKLicense
+    ${IfNot} ${SectionIsSelected} ${SecJRE}
+        Abort ;skip license if JRE not selected
+    ${EndIf}
+FunctionEnd
+
+Function SkipFOPLicense
+    ${IfNot} ${SectionIsSelected} ${SecFOP}
+        Abort ;skip license if FOP not selected
+    ${EndIf}
+FunctionEnd
 
 ;------------------------------
 ;  CALLBACK FUNCTIONS

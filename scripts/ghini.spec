@@ -33,20 +33,20 @@ gio_modules = []
 
 if 'mingw' in sysconfig.get_platform():
     binaries = [
-        ('C:/msys64/mingw64/lib/gio/modules/libgiognomeproxy.dll',
+        ('C:/msys64/ucrt64/lib/gio/modules/libgiognomeproxy.dll',
          'lib/gio/modules'),
-        ('C:/msys64/mingw64/lib/gio/modules/libgiolibproxy.dll',
+        ('C:/msys64/ucrt64/lib/gio/modules/libgiolibproxy.dll',
          'lib/gio/modules'),
-        ('C:/msys64/mingw64/lib/gio/modules/libgiognutls.dll',
+        ('C:/msys64/ucrt64/lib/gio/modules/libgiognutls.dll',
          'lib/gio/modules'),
-        ('C:/msys64/mingw64/lib/gio/modules/libgioopenssl.dll',
+        ('C:/msys64/ucrt64/lib/gio/modules/libgioopenssl.dll',
          'lib/gio/modules'),
-        ('C:/msys64/mingw64/bin/libgnutls-30.dll', '.'),
-        ('C:/msys64/mingw64/bin/libintl-8.dll', '.'),
-        ('C:/msys64/mingw64/bin/libproxy-1.dll', '.'),
+        ('C:/msys64/ucrt64/bin/libgnutls-30.dll', '.'),
+        ('C:/msys64/ucrt64/bin/libintl-8.dll', '.'),
+        ('C:/msys64/ucrt64/bin/libproxy-1.dll', '.'),
     ]
     gio_modules = [
-        ('C:/msys64/mingw64/lib/gio/modules/giomodule.cache',
+        ('C:/msys64/ucrt64/lib/gio/modules/giomodule.cache',
          'lib/gio/modules'),
     ]
 

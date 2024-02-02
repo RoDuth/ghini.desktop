@@ -14,22 +14,20 @@ for:
       - image: macos-monterey
 
   install:
-    - brew install pygobject3 gtk+3 adwaita-icon-theme openjdk osm-gps-map unixodbc
+    - brew install pygobject3 gtk+3 adwaita-icon-theme osm-gps-map unixodbc
 
   build_script:
     - . ~/venv3.11/bin/activate
     - find /usr/local/Cellar/pygobject3 -type d -name site-packages
     - export _PY_VER=$(python -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')")
     - cp -rf "$(find /usr/local/Cellar/pygobject3 -type d -name site-packages | grep --color=never $_PY_VER)"/* "$(find $VIRTUAL_ENV -type d -name site-packages)"
-    - /usr/local/opt/openjdk/bin/jlink --output jre --add-modules java.base,java.logging,java.desktop,java.xml
-    - scripts/get_fop.sh
     - pip install --upgrade pip
     - pip install psycopg2-binary
     - pip install pyodbc
     - pip install pyobjc-framework-SystemConfiguration
     - pip install .
     - pip install pyinstaller==5.13.2
-    - pyinstaller --clean --noconfirm scripts/ghini_fop.spec
+    - pyinstaller --clean --noconfirm scripts/ghini.spec
     - pip install dmgbuild
     - dmgbuild -s scripts/dmgbuild_settings.py "Ghini" Ghini.dmg   # NOTE: last 2 args are required but overidden in dmgbuild_settings.py
 
@@ -49,14 +47,15 @@ for:
     - net start MSSQL$SQL2019
 
   environment:
-    MSYSTEM: MINGW64
+    MSYSTEM: UCRT64
     CHERE_INVOKING: 1
     PATH: C:\msys64\usr\bin;C:\Program Files (x86)\NSIS\Bin;%PATH%
     COVERALLS_REPO_TOKEN:
       secure: dFRyBsYhvG/CAVHHXVL8JVuFWRBuB0zGmiH6W+fQUafSmAsIITs7P7mwOl2y2voK
+    fop_ver: 2.9
 
   install:
-    - choco install openjdk -y  # NOTE Change PATH to match version
+    - choco install openjdk -y
     # - bash -lc "pacman --noconfirm -Syuu"  # NOTE not normally required
     # - bash -lc "pacman --noconfirm -Syuu"  # NOTE not normally required
     - bash -lc "pacman --noconfirm --needed -S - < ./scripts/mingw64_pkglist.txt"
@@ -71,10 +70,10 @@ for:
   build_script:
     - bash -lc "pip install ."
     - bash -lc "pip install pyinstaller==5.13.2"
+    - bash -lc "python -m PyInstaller --clean --noconfirm scripts/ghini.spec"
     - for /f %%i in ('dir "C:\Program Files\OpenJDK\jdk*" /b') do "C:\Program Files"\OpenJDK\%%i\bin\jlink --output jre --add-modules java.base,java.logging,java.desktop,java.xml
     - bash -lc "scripts/get_fop.sh"
-    - bash -lc "python -m PyInstaller --clean --noconfirm scripts/ghini_fop.spec"
-    - makensis scripts\build-multiuser-fop.nsi
+    - makensis scripts\build.nsi
 
   artifacts:
     - path: dist/*-setup.exe

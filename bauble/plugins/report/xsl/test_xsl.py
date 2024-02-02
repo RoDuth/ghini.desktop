@@ -39,7 +39,6 @@ from . import FORMATS
 from . import PLANT_SOURCE_TYPE
 from . import SOURCE_TYPES
 from . import SPECIES_SOURCE_TYPE
-from . import USE_EXTERNAL_FOP_PREF
 from . import SettingsBox
 from . import XSLFormatterPlugin
 from . import XSLFormatterSettingsBox
@@ -300,7 +299,6 @@ class XSLFormatterPluginTests(XSLTestCase):
         super().setUp()
         from bauble import prefs
 
-        prefs.prefs[USE_EXTERNAL_FOP_PREF] = True
         self.formatter = XSLFormatterPlugin()
 
     def test_get_settings_box_returns_settings_box(self):
@@ -418,77 +416,76 @@ class XSLFormatterPluginTests(XSLTestCase):
 
 
 class FOPTests(XSLTestCase):
-    FOP_PATH = "test/fop"
-    if sys.platform == "win32":
-        FOP_PATH = "test/fop.bat"
+    command = "test/command"
 
-    def setUp(self):
-        super().setUp()
-        prefs.prefs[USE_EXTERNAL_FOP_PREF] = True
+    @mock.patch("bauble.plugins.report.xsl.utils.which")
+    def test_set_fop_command_java_fop_exist(self, mock_which):
+        mock_which.return_value = self.command
+        self.assertTrue(_fop.set_fop_command())
+        self.assertEqual(_fop.fop, self.command)
+        self.assertEqual(_fop.java, self.command)
 
-    def test_update_calls_init_w_pref_changed(self):
-        _fop.update()
-        self.assertTrue(_fop.external_fop_pref)
-        with mock.patch("bauble.plugins.report.xsl._fop.init") as mock_init:
-            prefs.prefs[USE_EXTERNAL_FOP_PREF] = False
-            _fop.update()
-            mock_init.assert_called()
-
-    def test_update_not_call_init_w_pref_unchanged(self):
-        _fop.update()
-        self.assertTrue(_fop.external_fop_pref)
-        with mock.patch("bauble.plugins.report.xsl._fop.init") as mock_init:
-            prefs.prefs[USE_EXTERNAL_FOP_PREF] = True
-            _fop.update()
-            mock_init.assert_not_called()
-
-    @mock.patch("bauble.paths.root_dir")
-    def test_set_fop_command_internal_fop_and_jre(self, mock_path):
-        mock_cmd = mock.Mock()
-        mock_cmd.exists.return_value = True
-        mock_root = mock.MagicMock()
-        mock_path.return_value = mock_root
-        mock_root.glob.return_value = [mock_cmd]
-        mock_root.__truediv__.return_value = mock_cmd
-        mock_root.exists.return_value = True
-        prefs.prefs[USE_EXTERNAL_FOP_PREF] = False
-        _fop.update()
-        self.assertFalse(_fop.external_fop_pref)
-        self.assertEqual(_fop.fop, str(mock_cmd))
-        self.assertEqual(_fop.java, str(mock_cmd))
-
-    @mock.patch.dict(os.environ, {"PATH": "test"})
-    @mock.patch("bauble.plugins.report.xsl.Path.is_file", return_value=True)
-    def test_get_fop_path_fop_exists(self, _mock_is_file):
-        _fop.set_fop_command()
-        self.assertEqual(_fop.fop, self.FOP_PATH)
-
-    @mock.patch.dict(os.environ, {"PATH": "test"})
-    @mock.patch("bauble.plugins.report.xsl.Path.is_file", return_value=False)
-    def test_get_fop_path_fop_doesnt_exist(self, _mock_is_file):
-        _fop.set_fop_command()
+    @mock.patch("bauble.plugins.report.xsl.utils.which")
+    def test_set_fop_command_java_fop_dont_exist(self, mock_which):
+        mock_which.return_value = None
+        self.assertFalse(_fop.set_fop_command())
         self.assertIsNone(_fop.fop)
+        self.assertIsNone(_fop.java)
 
-    @mock.patch("bauble.plugins.report.xsl.Path.glob")
-    def test_set_fop_classpath(self, mock_glob):
-        mock_jars = [
-            "build/fop.sandbox.jar",
-            "lib/test.jar",
-            "lib/test2.jar",
-            "build/fop.jar",
+    @mock.patch("bauble.plugins.report.xsl.utils.which")
+    def test_set_fop_command_java_doesnt_exist_fop_exist(self, mock_which):
+        def which_side_effect(cmd, path):
+            if cmd.startswith("java"):
+                return None
+            return self.command
+
+        mock_which.side_effect = which_side_effect
+        self.assertFalse(_fop.set_fop_command())
+        self.assertEqual(_fop.fop, self.command)
+        self.assertIsNone(_fop.java)
+
+    @mock.patch("bauble.plugins.report.xsl.utils.which")
+    def test_set_fop_command_java_exist_fop_doesnt_exist(self, mock_which):
+        def which_side_effect(cmd, path):
+            if cmd.startswith("fop"):
+                return None
+            return self.command
+
+        mock_which.side_effect = which_side_effect
+        self.assertFalse(_fop.set_fop_command())
+        self.assertIsNone(_fop.fop)
+        self.assertEqual(_fop.java, self.command)
+
+    @mock.patch.dict(os.environ, PATH="test_path")
+    @mock.patch("bauble.plugins.report.xsl.utils.which")
+    def test_set_fop_command_java_path_fop_cmd_java_cmd(self, mock_which):
+        mock_which.return_value = self.command
+        path = [
+            str(Path(paths.root_dir()) / "jre/bin"),
+            str(Path(paths.root_dir()) / "fop/fop"),
+            "test_path",
         ]
-        mock_glob.return_value = [Path(i) for i in mock_jars]
-        _fop.fop = "/test_root/{self.FOP_PATH}"
-        _fop.set_fop_classpath()
-        result = "".join(i + os.pathsep for i in mock_jars)
-        result += "".join(i + os.pathsep for i in mock_jars if "build" in i)
-        self.assertEqual(_fop.class_path, result.strip(os.pathsep))
+        with mock.patch("bauble.plugins.report.xsl.sys") as mock_sys:
+            mock_sys.platform = "win32"
+            _fop.set_fop_command()
+            calls = [
+                mock.call("fop.bat", path=path),
+                mock.call("java.exe", path=path),
+            ]
+            mock_which.assert_has_calls(calls)
+        with mock.patch("bauble.plugins.report.xsl.sys") as mock_sys:
+            mock_sys.platform = "not_win32"
+            _fop.set_fop_command()
+            calls = [
+                mock.call("fop", path=path),
+                mock.call("java", path=path),
+            ]
+            mock_which.assert_has_calls(calls)
 
 
 class GlobalFunctionsTests(XSLTestCase):
     def setUp(self):
         super().setUp()
-        prefs.prefs[USE_EXTERNAL_FOP_PREF] = True
         self.temp_path = Path(self.temp_dir.name) / ".testABCDdata.xml"
 
     def test_create_abcd_xml_all_plants(self):

@@ -1,6 +1,6 @@
 # Copyright (c) 2005,2006,2007,2008,2009 Brett Adams <brett@belizebotanic.org>
 # Copyright (c) 2012-2015 Mario Frasca <mario@anche.no>
-# Copyright (c) 2018-2022 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright (c) 2018-2024 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -72,100 +72,50 @@ FORMATS = {
     "SVG": ("-svg", "svg"),
 }
 
-USE_EXTERNAL_FOP_PREF = "report.xsl_external_fop"
-"""
-the preferences key for using the internal fop or not.
-"""
-
 
 class FOP:
-    def __init__(self):
-        self.java = None
-        self.fop = None
-        self.class_path = ""
-        self.external_fop_pref = None
+    def __init__(self) -> None:
+        self.java: str | None = None
+        self.fop: str | None = None
 
-    def init(self):
-        # if pref doesn't exist assume False
-        self.external_fop_pref = prefs.prefs.get(USE_EXTERNAL_FOP_PREF, False)
-        logger.debug("external_fop_pref: %s", self.external_fop_pref)
-        self.set_fop_command()
-        if not self.external_fop_pref:
-            self.set_fop_classpath()
+    def set_fop_command(self) -> bool:
+        """Set values for fop and java.
 
-    def update(self):
-        """Check if the preference has changed and re-init if it has"""
-        # if pref doesn't exist assume False
-        external_fop = prefs.prefs.get(USE_EXTERNAL_FOP_PREF, False)
-        if self.external_fop_pref != external_fop:
-            self.init()
-
-    def set_fop_classpath(self):
-        if not self.fop:
-            return
-        fop_root = Path(self.fop).parent
-        class_path = ""
-        last_jars = ""
-        for jar in fop_root.glob("**/*.jar"):
-            if jar.parent.name == "build":
-                last_jars += str(jar) + os.pathsep
-            class_path += str(jar) + os.pathsep
-        class_path += str(last_jars)
-        self.class_path = class_path.strip(os.pathsep)
-
-    def set_fop_command(self):
-        """Search for fop (and possibly java).
-
-        If USE_EXTERNAL_FOP_PREF is True search PATH only.  Otherwise look for
-        a version of fop (and jre) in the root path first.
+        :return: bool, True if both fop and java commands are found, used to
+            determine if XSLFormatterPlugin is included when the
+            ReportToolPlugin is loaded
         """
         self.java = None
         self.fop = None
-        logger.debug("looking for fop")
         fop_cmd = "fop.bat" if sys.platform == "win32" else "fop"
         java_cmd = "java.exe" if sys.platform == "win32" else "java"
         logger.debug("commands fop: %s, jre: %s", fop_cmd, java_cmd)
-        if not self.external_fop_pref:
-            root = paths.root_dir()
-            logging.debug("searching local dir: %s", str(root))
-            included_fop = None
-            for cmd in root.glob(f"fop*/fop/{fop_cmd}"):
-                # should only be one or None
-                included_fop = cmd
-            if included_fop and included_fop.exists():
-                logger.debug("found FOP : %s", included_fop)
-                self.fop = str(included_fop)
-                included_java = root / f"jre/bin/{java_cmd}"
-                if included_java.exists():
-                    logger.debug("found JRE : %s", included_java)
-                    self.java = str(included_java)
-                    return True
-                return True
 
-        # could use utils.which or shutil.which except the path is not always
-        # as complete as it should be
-        path = os.environ.get("PATH")
+        path = os.environ.get("PATH", "").split(os.pathsep)
+
+        # prepend internal install paths
+        path = [
+            str(Path(paths.root_dir()) / "jre/bin"),
+            str(Path(paths.root_dir()) / "fop/fop"),
+        ] + path
 
         if (
             not prefs.testing
             and sys.platform == "darwin"
             and paths.main_is_frozen()
         ):
-            # add homebrew and macports paths to base Finder launched PATH.
-            path += f"{os.pathsep}/usr/local/bin{os.pathsep}/opt/local/bin"
+            # add homebrew and macports paths
+            path.append("/usr/local/bin")
+            path.append("/opt/local/bin")
 
         logger.debug("PATH = %s", path)
-        if not path:
-            return True
-        for pth in path.split(os.pathsep):
-            candidate = Path(pth, fop_cmd)
-            if candidate.is_file():
-                logger.debug("found FOP on PATH %s", str(candidate))
-                self.fop = str(candidate)
-                self.external_fop_pref = True
-                return True
-        logger.debug("FOP not found")
-        return False
+
+        self.fop = utils.which(fop_cmd, path=path)
+        self.java = utils.which(java_cmd, path=path)
+
+        logger.debug("fop: %s, jre: %s", self.fop, self.java)
+
+        return bool(self.fop) and bool(self.java)
 
 
 _fop = FOP()
@@ -437,8 +387,6 @@ class XSLFormatterPlugin(FormatterPlugin):
             logger.debug(msg)
             return False
 
-        _fop.update()
-
         logger.debug("fop command: %s", _fop.fop)
         if not _fop.fop:
             msg = _(
@@ -467,27 +415,21 @@ class XSLFormatterPlugin(FormatterPlugin):
         if sys.platform == "win32":
             creationflags = subprocess.CREATE_NO_WINDOW
 
-        if _fop.external_fop_pref:
-            fop_cmd = [_fop.fop]
-        else:
-            fop_cmd = [
-                _fop.java,
-                "-classpath",
-                f'"{_fop.class_path}"',
-                "org.apache.fop.cli.Main",
-            ]
-        logger.debug("fop_cmd: %s", fop_cmd)
-
         filename = kwargs.get("out_file") or str(
             utils.get_temp_path().with_suffix(f".{file_ext}")
         )
+
+        env = os.environ.copy()
+        env["JAVACMD"] = _fop.java
+
+        logger.debug("JAVACMD: %s", _fop.java)
 
         # Don't use check so we can log output etc.  Errors will be picked up
         # by the lack of file
         # pylint: disable=subprocess-run-check
         fop_out = subprocess.run(
             [
-                *fop_cmd,
+                _fop.fop,
                 "-xml",
                 xml_filename,
                 "-xsl",
@@ -497,6 +439,7 @@ class XSLFormatterPlugin(FormatterPlugin):
             ],
             capture_output=True,
             creationflags=creationflags,
+            env=env,
         )
 
         os.remove(xml_filename)
