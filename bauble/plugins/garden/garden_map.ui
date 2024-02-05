@@ -10,7 +10,7 @@
       <column type="GdkPixbuf"/>
     </columns>
   </object>
-  <template class="PlantMapPane" parent="GtkPaned">
+  <template class="GardenMapPane" parent="GtkPaned">
     <property name="can-focus">False</property>
     <child>
       <object class="GtkBox">

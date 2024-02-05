@@ -427,7 +427,7 @@ def map_item_factory(obj: Plant | Location, colour: Colour) -> MapItem | None:
 class GardenMap(Gtk.Paned):  # pylint: disable=too-many-instance-attributes
     """Widget to display plants in an OsmGpsMap map"""
 
-    __gtype_name__ = "PlantMapPane"
+    __gtype_name__ = "GardenMapPane"
 
     map_box = cast(Gtk.Box, Gtk.Template.Child())
     tiles_combo = cast(Gtk.ComboBoxText, Gtk.Template.Child())
