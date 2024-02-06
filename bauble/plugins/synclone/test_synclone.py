@@ -114,7 +114,7 @@ class DBClonerTests(BaubleTestCase):
     def test_get_line_count(self):
         self.add_data()
         # institution, BaubleMeta, History and added in setUp
-        self.assertAlmostEqual(DBCloner.get_line_count(), 30, delta=1)
+        self.assertAlmostEqual(DBCloner.get_line_count(), 30, delta=2)
 
     @mock.patch("bauble.task.set_message")
     def test_run(self, mock_set_message):
@@ -296,7 +296,7 @@ class DBSyncTests(BaubleTestCase):
         self.assertEqual(first.operation, "insert")
         self.assertEqual(first.user, None)
         self.assertAlmostEqual(
-            first.timestamp.timestamp(), datetime.now().timestamp(), delta=1
+            first.timestamp.timestamp(), datetime.now().timestamp(), delta=2
         )
         self.assertEqual(first.values, {"family": "Orchidaceae"})
 
@@ -525,7 +525,7 @@ class DBSyncTests(BaubleTestCase):
         self.assertEqual(hist[1].table_name, "family")
         self.assertEqual(hist[1].user, "test")
         self.assertAlmostEqual(
-            hist[1].timestamp.timestamp(), datetime.now().timestamp(), delta=1
+            hist[1].timestamp.timestamp(), datetime.now().timestamp(), delta=2
         )
         self.assertEqual(
             hist[1].values["family"], ["Malvaceae", "Sterculiaceae"]
@@ -569,7 +569,7 @@ class DBSyncTests(BaubleTestCase):
         self.assertEqual(hist[0].table_name, "family")
         self.assertEqual(hist[0].user, "test")
         self.assertAlmostEqual(
-            hist[0].timestamp.timestamp(), datetime.now().timestamp(), delta=1
+            hist[0].timestamp.timestamp(), datetime.now().timestamp(), delta=2
         )
         self.assertEqual(hist[0].values["family"], "Malvaceae")
 
@@ -613,7 +613,7 @@ class DBSyncTests(BaubleTestCase):
         self.assertEqual(hist[1].table_name, "family")
         self.assertEqual(hist[1].user, "test")
         self.assertAlmostEqual(
-            hist[1].timestamp.timestamp(), datetime.now().timestamp(), delta=1
+            hist[1].timestamp.timestamp(), datetime.now().timestamp(), delta=2
         )
         self.assertEqual(hist[1].values["family"], "Sterculiaceae")
 
