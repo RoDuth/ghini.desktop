@@ -38,9 +38,12 @@ from bauble import prefs
 from bauble import utils
 from bauble.editor import MockView
 from bauble.plugins.garden import Accession
+from bauble.plugins.garden import Collection
 from bauble.plugins.garden import Location
 from bauble.plugins.garden import Plant
 from bauble.plugins.garden import PlantNote
+from bauble.plugins.garden import Source
+from bauble.plugins.garden import SourceDetail
 from bauble.plugins.plants import Genus
 from bauble.plugins.plants import Species
 from bauble.test import BaubleTestCase
@@ -730,6 +733,9 @@ class CSVImporterEmptyDBTests(BaubleTestCase):
             },
         ]
         start_acc = self.session.query(Accession).count()
+        start_source = self.session.query(Source).count()
+        start_source_detail = self.session.query(SourceDetail).count()
+        start_collection = self.session.query(Collection).count()
         importer = self.importer
         importer.filename = create_csv(acc, self.temp_dir.name)
         importer.search_by = ["acc_code"]
@@ -737,16 +743,273 @@ class CSVImporterEmptyDBTests(BaubleTestCase):
         importer.domain = Accession
         importer.option = "1"
         importer.run()
-        added_acc = self.session.query(Accession).get(1)
         end_acc = self.session.query(Accession).count()
+        end_source = self.session.query(Source).count()
+        end_source_detail = self.session.query(SourceDetail).count()
+        end_collection = self.session.query(Collection).count()
 
         self.assertEqual(end_acc, start_acc + 1)
+        self.assertEqual(end_source, start_source + 1)
+        self.assertEqual(end_source_detail, start_source_detail + 1)
+        self.assertEqual(end_collection, start_collection + 1)
 
+        added_acc = self.session.query(Accession).get(1)
         for k, v in acc[1].items():
             logger.debug("assert equal %s = %s", acc[0][k], v)
             self.assertEqual(str(attrgetter(acc[0][k])(added_acc)), v)
 
-        # self.assertTrue(False)
+    def test_update_accession_with_collection_data(self):
+        # first add working data (if this fails so should previous test)
+        acc = [
+            {
+                "acc_code": "code",
+                "fam": "species.genus.family.epithet",
+                "gen": "species.genus.epithet",
+                "sp": "species.epithet",
+                "date_accd": "date_accd",
+                "recvd": "date_recvd",
+                "prov_type": "prov_type",
+                "prov_status": "wild_prov_status",
+                "qty": "quantity_recvd",
+                "recvd_type": "recvd_type",
+                "source_name": "source.source_detail.name",
+                "source_type": "source.source_detail.source_type",
+                "collector": "source.collection.collector",
+                "date_collected": "source.collection.date",
+                "elevation": "source.collection.elevation",
+                "el_accuracy": "source.collection.elevation_accy",
+                "geo_acc": "source.collection.geo_accy",
+                "habitat": "source.collection.habitat",
+                "locale": "source.collection.locale",
+                "lat": "source.collection.latitude",
+                "long": "source.collection.longitude",
+                "datum": "source.collection.gps_datum",
+                "col_notes": "source.collection.notes",
+            },
+            {
+                "acc_code": "2024.0002",
+                "fam": "Myrtaceae",
+                "gen": "Syzygium",
+                "sp": "australe",
+                "date_accd": "2024-01-31",
+                "recvd": "2024-01-24",
+                "prov_type": "Wild",
+                "prov_status": "WildNative",
+                "qty": "7",
+                "recvd_type": "PLTS",
+                "source_name": "Jade Green",
+                "source_type": "Individual",
+                "collector": "Peter Plant",
+                "date_collected": "2024-01-10",
+                "elevation": "5.0",
+                "el_accuracy": "3.0",
+                "geo_acc": "20.0",
+                "habitat": "forest",
+                "locale": "Mountain road",
+                "lat": "-26.918",
+                "long": "152.911",
+                "datum": "WGS84",
+                "col_notes": "in flower",
+            },
+        ]
+        start_acc = self.session.query(Accession).count()
+        start_source = self.session.query(Source).count()
+        start_source_detail = self.session.query(SourceDetail).count()
+        start_collection = self.session.query(Collection).count()
+        importer = self.importer
+        importer.filename = create_csv(acc, self.temp_dir.name)
+        importer.search_by = ["acc_code"]
+        importer.fields = acc[0]
+        importer.domain = Accession
+        importer.option = "1"
+        importer.run()
+        # add update the same data (should only update)
+        acc = [
+            {
+                "acc_code": "code",
+                "fam": "species.genus.family.epithet",
+                "gen": "species.genus.epithet",
+                "sp": "species.epithet",
+                "date_accd": "date_accd",
+                "recvd": "date_recvd",
+                "prov_type": "prov_type",
+                "prov_status": "wild_prov_status",
+                "qty": "quantity_recvd",
+                "recvd_type": "recvd_type",
+                "source_name": "source.source_detail.name",
+                "source_type": "source.source_detail.source_type",
+                "collector": "source.collection.collector",
+                "date_collected": "source.collection.date",
+                "elevation": "source.collection.elevation",
+                "el_accuracy": "source.collection.elevation_accy",
+                "geo_acc": "source.collection.geo_accy",
+                "habitat": "source.collection.habitat",
+                "locale": "source.collection.locale",
+                "lat": "source.collection.latitude",
+                "long": "source.collection.longitude",
+                "datum": "source.collection.gps_datum",
+                "col_notes": "source.collection.notes",
+            },
+            {
+                "acc_code": "2024.0002",
+                "fam": "Myrtaceae",
+                "gen": "Syzygium",
+                "sp": "australe",
+                "date_accd": "2024-01-31",
+                "recvd": "2021-01-24",  # updated
+                "prov_type": "Wild",
+                "prov_status": "WildNative",
+                "qty": "9",  # updated
+                "recvd_type": "PLTS",
+                "source_name": "Peter Plant",  # update
+                "source_type": "Individual",
+                "collector": "Jade Green",  # update
+                "date_collected": "2024-01-10",
+                "elevation": "7.0",  # update
+                "el_accuracy": "3.0",
+                "geo_acc": "20.0",
+                "habitat": "rainforest",  # update
+                "locale": "Mountain road",
+                "lat": "-26.918",
+                "long": "152.911",
+                "datum": "WGS84",
+                "col_notes": "in flower",
+            },
+        ]
+        importer = self.importer
+        importer.filename = create_csv(acc, self.temp_dir.name)
+        importer.search_by = ["acc_code"]
+        importer.fields = acc[0]
+        importer.domain = Accession
+        importer.option = "2"  # add/update
+        importer.run()
+
+        end_acc = self.session.query(Accession).count()
+        end_source = self.session.query(Source).count()
+        end_source_detail = self.session.query(SourceDetail).count()
+        end_collection = self.session.query(Collection).count()
+
+        self.assertEqual(end_acc, start_acc + 1)
+        self.assertEqual(end_source, start_source + 1)
+        # do want an extra source_detail added
+        self.assertEqual(end_source_detail, start_source_detail + 2)
+        self.assertEqual(end_collection, start_collection + 1)
+
+        added_acc = self.session.query(Accession).get(1)
+        for k, v in acc[1].items():
+            logger.debug("assert equal %s = %s", acc[0][k], v)
+            self.assertEqual(str(attrgetter(acc[0][k])(added_acc)), v)
+
+    @mock.patch("bauble.utils.desktop.open")
+    @mock.patch(
+        "bauble.utils.Gtk.MessageDialog.run", return_value=Gtk.ResponseType.YES
+    )
+    def test_update_accession_with_unresolved_collection_data(
+        self, mock_dialog, mock_open
+    ):
+        # first add working data (if this fails so should previous test)
+        acc = [
+            {
+                "acc_code": "code",
+                "fam": "species.genus.family.epithet",
+                "gen": "species.genus.epithet",
+                "sp": "species.epithet",
+                "date_accd": "date_accd",
+                "recvd": "date_recvd",
+                "prov_type": "prov_type",
+                "prov_status": "wild_prov_status",
+                "qty": "quantity_recvd",
+                "recvd_type": "recvd_type",
+                "source_name": "source.source_detail.name",
+                "source_type": "source.source_detail.source_type",
+            },
+            {
+                "acc_code": "2024.0002",
+                "fam": "Myrtaceae",
+                "gen": "Syzygium",
+                "sp": "australe",
+                "date_accd": "2024-01-31",
+                "recvd": "2024-01-24",
+                "prov_type": "Wild",
+                "prov_status": "WildNative",
+                "qty": "7",
+                "recvd_type": "PLTS",
+                "source_name": "Jade Green",
+                "source_type": "Individual",
+            },
+        ]
+        start_acc = self.session.query(Accession).count()
+        start_source = self.session.query(Source).count()
+        start_source_detail = self.session.query(SourceDetail).count()
+        start_collection = self.session.query(Collection).count()
+        importer = self.importer
+        importer.filename = create_csv(acc, self.temp_dir.name)
+        importer.search_by = ["acc_code"]
+        importer.fields = acc[0]
+        importer.domain = Accession
+        importer.option = "1"
+        importer.run()
+
+        # add update the same data but with an unresolvable collection entry
+        # should fail at add_db_data stage
+        acc = [
+            {
+                "acc_code": "code",
+                "fam": "species.genus.family.epithet",
+                "gen": "species.genus.epithet",
+                "sp": "species.epithet",
+                "date_accd": "date_accd",
+                "recvd": "date_recvd",
+                "prov_type": "prov_type",
+                "prov_status": "wild_prov_status",
+                "qty": "quantity_recvd",
+                "recvd_type": "recvd_type",
+                "source_name": "source.source_detail.name",
+                "source_type": "source.source_detail.source_type",
+                "collector": "source.collection.collector",
+            },
+            {
+                "acc_code": "2024.0002",
+                "fam": "Myrtaceae",
+                "gen": "Syzygium",
+                "sp": "australe",
+                "date_accd": "2024-01-31",
+                "recvd": "2021-01-24",
+                "prov_type": "Wild",
+                "prov_status": "WildNative",
+                "qty": "9",
+                "recvd_type": "PLTS",
+                "source_name": "Peter Plant",
+            },
+        ]
+        importer = self.importer
+        importer.filename = create_csv(acc, self.temp_dir.name)
+        importer.search_by = ["acc_code"]
+        importer.fields = acc[0]
+        importer.domain = Accession
+        importer.option = "2"  # add/update
+        importer.run()
+
+        end_acc = self.session.query(Accession).count()
+        end_source = self.session.query(Source).count()
+        end_source_detail = self.session.query(SourceDetail).count()
+        end_collection = self.session.query(Collection).count()
+
+        self.assertEqual(end_acc, start_acc + 1)
+        self.assertEqual(end_source, start_source + 1)
+        # do want an extra source_detail added
+        self.assertEqual(end_source_detail, start_source_detail + 1)
+        # no collection should have been added
+        self.assertEqual(end_collection, start_collection)
+
+        mock_dialog.assert_called()
+        mock_open.assert_called()
+        with open(mock_open.call_args.args[0], "r", encoding="utf-8-sig") as f:
+            import csv
+
+            reader = csv.DictReader(f)
+            for record in reader:
+                self.assertEqual(int(record["__line_#"]), 1)
 
     def test_add_synonym_species_w_accepted(self):
         # i.e. we want to import a species and all its synonyms
@@ -868,6 +1131,133 @@ class CSVImporterEmptyDBTests(BaubleTestCase):
         for k, v in species[2].items():
             logger.debug("assert equal %s = %s", species[0][k], v)
             self.assertEqual(str(attrgetter(species[0][k])(added_sp)), v)
+
+    def test_update_synonym_species_w_accepted_association_proxy(self):
+        # first add working data (if this fails so should previous test)
+        species = [
+            {
+                "fam": "genus.family.epithet",
+                "gen": "genus.epithet",
+                "epithet": "epithet",
+                "accepted_fam": "accepted.genus.family.epithet",
+                "accepted_gen": "accepted.genus.epithet",
+                "accpeted_epithet": "accepted.epithet",
+            },
+            {
+                "fam": "Myrtaceae",
+                "gen": "Acmena",
+                "epithet": "ingens",
+                "accepted_fam": "Myrtaceae",
+                "accepted_gen": "Acmena",
+                "accpeted_epithet": "brachyandra",
+            },
+            {
+                "fam": "Myrtaceae",
+                "gen": "Syzygium",
+                "epithet": "ingens",
+                "accepted_fam": "Myrtaceae",
+                "accepted_gen": "Acmena",
+                "accpeted_epithet": "brachyandra",
+            },
+        ]
+        start_sp = self.session.query(Species).count()
+        importer = self.importer
+        importer.filename = create_csv(species, self.temp_dir.name)
+        importer.search_by = ["fam", "gen", "epithet"]
+        importer.fields = species[0]
+        importer.domain = Species
+        importer.option = "2"
+        importer.run()
+        acmena_ingens = (
+            self.session.query(Species)
+            .join(Genus)
+            .filter(Species.epithet == "ingens", Genus.epithet == "Acmena")
+            .one()
+        )
+        syzygium_ingens = (
+            self.session.query(Species)
+            .join(Genus)
+            .filter(Species.epithet == "ingens", Genus.epithet == "Syzygium")
+            .one()
+        )
+        acmena_brachyandra = (
+            self.session.query(Species)
+            .join(Genus)
+            .filter(
+                Species.epithet == "brachyandra", Genus.epithet == "Acmena"
+            )
+            .one()
+        )
+        self.assertEqual(syzygium_ingens.accepted, acmena_brachyandra)
+        self.assertEqual(acmena_ingens.accepted, acmena_brachyandra)
+        # change the accepted to be one of the previously synonym names
+        species = [
+            {
+                "fam": "genus.family.epithet",
+                "gen": "genus.epithet",
+                "epithet": "epithet",
+                "accepted_fam": "accepted.genus.family.epithet",
+                "accepted_gen": "accepted.genus.epithet",
+                "accpeted_epithet": "accepted.epithet",
+            },
+            {
+                "fam": "Myrtaceae",
+                "gen": "Acmena",
+                "epithet": "brachyandra",
+                "accepted_fam": "Myrtaceae",
+                "accepted_gen": "Acmena",
+                "accpeted_epithet": "ingens",
+            },
+            {
+                "fam": "Myrtaceae",
+                "gen": "Syzygium",
+                "epithet": "ingens",
+                "accepted_fam": "Myrtaceae",
+                "accepted_gen": "Acmena",
+                "accpeted_epithet": "ingens",
+            },
+        ]
+        importer.filename = create_csv(species, self.temp_dir.name)
+        importer.search_by = ["fam", "gen", "epithet"]
+        importer.fields = species[0]
+        importer.domain = Species
+        importer.option = "2"
+        importer.run()
+        end_sp = self.session.query(Species).count()
+
+        # should not add any more
+        self.assertEqual(end_sp, start_sp + 3)
+
+        self.session.refresh(acmena_ingens)
+        self.session.refresh(acmena_brachyandra)
+        self.session.refresh(syzygium_ingens)
+
+        added_sp = (
+            self.session.query(Species)
+            .join(Genus)
+            .filter(
+                Species.epithet == "brachyandra", Genus.epithet == "Acmena"
+            )
+            .one()
+        )
+        for k, v in species[1].items():
+            logger.debug("assert equal %s = %s", species[0][k], v)
+            self.assertEqual(str(attrgetter(species[0][k])(added_sp)), v)
+
+        added_sp = (
+            self.session.query(Species)
+            .join(Genus)
+            .filter(Species.epithet == "ingens", Genus.epithet == "Syzygium")
+            .one()
+        )
+        for k, v in species[2].items():
+            logger.debug("assert equal %s = %s", species[0][k], v)
+            self.assertEqual(str(attrgetter(species[0][k])(added_sp)), v)
+
+        # check that epithets haven't changed
+        self.assertEqual(acmena_ingens.epithet, "ingens")
+        self.assertEqual(acmena_brachyandra.epithet, "brachyandra")
+        self.assertEqual(syzygium_ingens.epithet, "ingens")
 
 
 class CSVImporterTests(CSVTestCase):
@@ -1063,7 +1453,6 @@ class CSVImporterTests(CSVTestCase):
         mock_dialog.assert_called()
         mock_open.assert_called()
         with open(mock_open.call_args.args[0], "r", encoding="utf-8-sig") as f:
-            bad = [3, 5]
             import csv
 
             reader = csv.DictReader(f)

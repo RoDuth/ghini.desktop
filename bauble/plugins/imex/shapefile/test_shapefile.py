@@ -1,4 +1,4 @@
-# Copyright (c) 2021-2023 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright (c) 2021-2024 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -32,6 +32,7 @@ from gi.repository import Gtk
 from shapefile import Reader
 from shapefile import Writer
 
+from bauble import prefs
 from bauble import utils
 from bauble.editor import MockDialog
 from bauble.editor import MockView
@@ -56,6 +57,7 @@ from bauble.utils.geo import ProjDB
 from bauble.utils.geo import install_default_prjs
 from bauble.utils.geo import transform
 
+from . import PLANT_SHAPEFILE_PREFS
 from .export_tool import ShapefileExportDialogPresenter
 from .export_tool import ShapefileExporter
 from .export_tool import ShapefileExportSettingsBox as ExpSetBox
@@ -917,7 +919,6 @@ class ShapefileTestCase(BaubleTestCase):
 
         get_default("system_proj_string", DEFAULT_SYS_PROJ)
         self.temp_dir = TemporaryDirectory()
-        from bauble import prefs
 
         from . import LOCATION_SHAPEFILE_PREFS
         from . import PLANT_SHAPEFILE_PREFS
@@ -3005,7 +3006,7 @@ class ShapefileImportTests(ShapefileTestCase):
 
     def test_add_or_update_all_records_plants_vernacular_names(self):
         importer = self.importer
-        in_data = plt_rec_3857_points
+        in_data = deepcopy(plt_rec_3857_points)
         # try create a possible conflict where just wanting to swap the names,
         # this could potentially create new species etc. when not needed.
         in_data[0]["record"]["vernacular"] = "Mountain Grey Gum"
@@ -3060,7 +3061,7 @@ class ShapefileImportTests(ShapefileTestCase):
 
     def test_add_or_update_all_records_plants_vernacular_names_w_lang(self):
         importer = self.importer
-        in_data = plt_rec_3857_points
+        in_data = deepcopy(plt_rec_3857_points)
         # try create a possible conflict where just wanting to swap the names,
         # and also add a language
         in_data[0]["record"]["vernacular"] = "Mountain Grey Gum:EN"
@@ -3120,6 +3121,7 @@ class ShapefileImportTests(ShapefileTestCase):
     def test_add_or_update_all_records_plants_complex_names(self):
         importer = self.importer
         in_data = plt_rec_3857_points + plt_rec_3857_points_new_complex_sp
+        in_data = deepcopy(in_data)
         in_data[0]["record"]["vernacular"] = "Test Adding To Existing"
         in_data[1]["record"]["vernacular"] = "Test Changing Existing"
         filename = create_shapefile(
@@ -3289,6 +3291,101 @@ class ShapefileImportTests(ShapefileTestCase):
         # and that the new entries notes add up
         self.assertEqual(len(result[0].notes), 2)
         self.assertEqual(len(result[2].notes), 0)
+
+    @mock.patch("bauble.utils.desktop.open")
+    @mock.patch(
+        "bauble.utils.Gtk.MessageDialog.run", return_value=Gtk.ResponseType.YES
+    )
+    def test_update_all_records_plants_unresolved_rec_existing_geojson(
+        self, mock_dialog, mock_open
+    ):
+        # this should succeed, add geojson and existing records.
+        importer = self.importer
+        in_data = plt_rec_3857_points
+        filename = create_shapefile(
+            "test", prj_str_3857, plant_fields, in_data, self.temp_dir.name
+        )
+        importer.shape_readers = [ShapefileReader(filename)]
+        importer.option = "1"
+        importer.projection = "epsg:3857"
+        importer.run()
+        mock_dialog.assert_not_called()
+
+        # make a bad record (collection is unresolvable because it doesn't
+        # currently exist and there is too little info to find it by.)
+        # Need something that
+        # TODO how to get this to fail during add_rec_to_db? need an item that
+        # is not already attached (maybe accession.collection?) but not valid
+        # (maybe no locale)
+        new_fields = self.plt_fields_prefs.copy()
+        new_fields["collector"] = "accession.source.collection.collector"
+        prefs.prefs[f"{PLANT_SHAPEFILE_PREFS}.fields"] = new_fields
+
+        new_shp_fields = plant_fields.copy()
+        new_shp_fields.append(("collector", "C", 126))
+
+        in_data = deepcopy(in_data)
+        in_data[0]["record"]["collector"] = "Jade Green"
+
+        filename = create_shapefile(
+            "test", prj_str_3857, new_shp_fields, in_data, self.temp_dir.name
+        )
+        importer.shape_readers = [ShapefileReader(filename)]
+        importer.option = "2"  # add geojson and update data but not add new
+        importer.projection = "epsg:3857"
+        importer.run()
+        mock_dialog.assert_called()
+        mock_open.assert_called()
+        with open(mock_open.call_args.args[0], "r", encoding="utf-8-sig") as f:
+            import csv
+
+            reader = csv.DictReader(f)
+            for record in reader:
+                self.assertIn(int(record["plt_id"]), [1, 2])
+                self.assertIn(int(record["__line_#"]), [1, 2])
+                self.assertTrue(record["__err"].startswith("DatabaseError"))
+
+        prefs.prefs[f"{PLANT_SHAPEFILE_PREFS}.fields"] = self.plt_fields_prefs
+
+    @mock.patch("bauble.utils.desktop.open")
+    @mock.patch(
+        "bauble.utils.Gtk.MessageDialog.run", return_value=Gtk.ResponseType.YES
+    )
+    def test_update_all_records_plants_bad_records_fails_commit(
+        self, mock_dialog, mock_open
+    ):
+        # this should succeed and add geojson
+        importer = self.importer
+        in_data = plt_rec_3857_points
+        filename = create_shapefile(
+            "test", prj_str_3857, plant_fields, in_data, self.temp_dir.name
+        )
+        importer.shape_readers = [ShapefileReader(filename)]
+        importer.option = "2"  # add geojson and update data but not add new
+        importer.projection = "epsg:3857"
+        importer.run()
+        mock_dialog.assert_not_called()
+
+        # make a bad record (no location code, should fail at commit)
+        in_data = deepcopy(in_data)
+        in_data[0]["record"]["bed"] = ""
+
+        filename = create_shapefile(
+            "test", prj_str_3857, plant_fields, in_data, self.temp_dir.name
+        )
+        importer.shape_readers = [ShapefileReader(filename)]
+        importer.option = "2"
+        importer.projection = "epsg:3857"
+        importer.run()
+        mock_dialog.assert_called()
+        mock_open.assert_called()
+        with open(mock_open.call_args.args[0], "r", encoding="utf-8-sig") as f:
+            import csv
+
+            reader = csv.DictReader(f)
+            for record in reader:
+                self.assertEqual(int(record["plt_id"]), 1)
+                self.assertEqual(int(record["__line_#"]), 1)
 
     def test_add_or_update_all_records_failed_transform(self):
         # make sure test update also - add some base data

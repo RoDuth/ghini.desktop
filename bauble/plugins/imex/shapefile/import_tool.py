@@ -1,4 +1,4 @@
-# Copyright (c) 2021-2022 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright (c) 2021-2024 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -718,7 +718,20 @@ class ShapefileImporter(GenericImporter):
                             records_added += 1
                             if options.get("all_data"):
                                 logger.debug("adding all data")
-                                self.add_db_data(session, item, record_dict)
+                                try:
+                                    self.add_db_data(
+                                        session, item, record_dict
+                                    )
+                                except Exception as e:
+                                    logger.debug("%s(%s)", type(e).__name__, e)
+                                    rec_dict["__file"] = shape_reader.filename
+                                    rec_dict["__line_#"] = line
+                                    rec_dict["__err"] = e
+                                    self._err_recs.append(rec_dict)
+                                    self._total_records += 1
+                                    self._errors += 1
+                                    session.rollback()
+                                    continue
                     else:
                         if self._is_new or options.get("add_geo"):
                             if not self.add_db_geo(session, item, record):
@@ -727,14 +740,31 @@ class ShapefileImporter(GenericImporter):
                             records_added += 1
                             if options.get("all_data"):
                                 logger.debug("adding all data")
-                                self.add_db_data(session, item, record_dict)
+                                try:
+                                    self.add_db_data(
+                                        session, item, record_dict
+                                    )
+                                except Exception as e:
+                                    logger.debug("%s(%s)", type(e).__name__, e)
+                                    rec_dict["__file"] = shape_reader.filename
+                                    rec_dict["__line_#"] = line
+                                    rec_dict["__err"] = e
+                                    self._err_recs.append(rec_dict)
+                                    self._total_records += 1
+                                    self._errors += 1
+                                    session.rollback()
+                                    continue
 
                     # commit every record catches errors and avoids losing
                     # records.
-                    if self.commit_db(session) is False:
+                    logger.debug("committing")
+                    try:
+                        self.commit_db(session)
+                    except Exception as e:
                         # record errored
                         rec_dict["__file"] = shape_reader.filename
                         rec_dict["__line_#"] = line
+                        rec_dict["__err"] = e
                         self._err_recs.append(rec_dict)
 
         session.close()

@@ -128,6 +128,8 @@ class GenericImporter(ABC):  # pylint: disable=too-many-instance-attributes
     def get_db_item(self, session, record, add):
         """Get an appropriate database instance to add the record to.
 
+        This is the root (i.e. of the domain) item for the record.
+
         :param session: instance of db.Session()
         :param record: dict of paths to their values
         :param add: bool, whether or not to add new records to the database
@@ -246,7 +248,7 @@ class GenericImporter(ABC):  # pylint: disable=too-many-instance-attributes
         Also increment `_total_records`, `_committed`, `_errors` accordingly.
 
         :param session: an sqlalchemy Session instance
-        :return: bool, if errors encountered or not.
+        :raises: if any errors encountered
         """
         from sqlalchemy.exc import SQLAlchemyError
 
@@ -260,8 +262,7 @@ class GenericImporter(ABC):  # pylint: disable=too-many-instance-attributes
                 self._errors += 1
                 logger.debug("Commit failed with %s", e)
                 session.rollback()
-                return False
-        return True
+                raise
 
     @staticmethod
     def organise_record(rec: dict) -> dict:
@@ -426,9 +427,32 @@ class GenericImporter(ABC):  # pylint: disable=too-many-instance-attributes
                 value = self.handle_plant_changes(key, value, item)
 
             if value:
-                value = self.memoized_get_create_or_update(
+                db_item = None
+                # try get_create_or_update
+                db_item = self.memoized_get_create_or_update(
                     session, model, create_one_to_one=self._is_new, **value
                 )
+                logger.debug("item is now: %s", db_item)
+                # try existing
+                if db_item is None:
+                    try:
+                        logger.debug("try get existing with attrgetter")
+                        db_item = attrgetter(key)(item)  # existing entries
+                        logger.debug("item is now: %s", db_item)
+                        for k, v in value.items():
+                            setattr(db_item, k, v)
+                    except AttributeError as e:
+                        logger.debug("%s(%s)", type(e).__name__, e)
+                # error if not found
+                if db_item is None:
+                    logger.debug("item still None, raising")
+                    raise error.DatabaseError(
+                        "No item could be found or created for record with "
+                        f"value:\n\n{value}\n\nYour import data may have "
+                        "insufficient identifying fields, consider including "
+                        "'id' fields."
+                    )
+                value = db_item
             root, atr = key.rsplit(".", 1) if "." in key else (None, key)
             logger.debug(
                 "root = %s, atr = %s, remainder = %s", root, atr, remainder

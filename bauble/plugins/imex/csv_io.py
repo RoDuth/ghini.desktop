@@ -1,4 +1,4 @@
-# Copyright (c) 2021-2022 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright (c) 2021-2024 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -691,14 +691,26 @@ class CSVImporter(GenericImporter):
 
                 if self._is_new or options.get("update"):
                     logger.debug("adding all data")
-                    self.add_db_data(session, item, record)
+                    try:
+                        self.add_db_data(session, item, record)
+                    except Exception as e:
+                        rec["__line_#"] = self._total_records
+                        rec["__err"] = e
+                        self._err_recs.append(rec)
+                        self._total_records += 1
+                        self._errors += 1
+                        session.rollback()
+                        continue
                     records_added += 1
 
                 # commit every record catches errors and avoids losing records.
                 logger.debug("committing")
-                if self.commit_db(session) is False:
+                try:
+                    self.commit_db(session)
+                except Exception as e:
                     # record errored
                     rec["__line_#"] = self._total_records
+                    rec["__err"] = e
                     self._err_recs.append(rec)
             self.presenter.__class__.last_file = self.filename
 

@@ -1048,6 +1048,45 @@ class GenericImporterTests(BaubleTestCase):
         self.assertTrue(item in self.session)
         mock_dialog.assert_called()
 
+    def test_add_rec_to_db_raised_if_rec_cant_be_found_or_created(self):
+        data1 = {
+            "accession.species._default_vernacular_name.vernacular_name": {
+                "name": "Air Plant"
+            },
+            "accession.species.genus.family": {"family": "Bromeliaceae"},
+            "accession.species.genus": {"genus": "Tillandsia", "author": "L."},
+            "accession.source.source_detail": {
+                "name": "Tropical Garden Foliage"
+            },
+            "accession.species": {
+                "infrasp1_rank": "f.",
+                "infrasp1": "fastigiate",
+                "infrasp1_author": "Koide",
+                "sp": "ionantha",
+                "sp_author": "Planchon",
+            },
+            "location": {"code": ""},  # should fail
+            "accession": {"code": "XXXX000001"},
+            "code": "1",
+            "quantity": 1,
+        }
+
+        start_plants = self.session.query(Plant).count()
+        obj = Plant()
+        self.session.add(obj)
+        self.assertRaises(
+            bauble.error.DatabaseError,
+            BasicImporter().add_rec_to_db,
+            self.session,
+            obj,
+            data1,
+        )
+        # Committing will reveal issues that only show up at commit
+        self.assertRaises(Exception, self.session.commit)
+        self.session.rollback()
+        end_plants = self.session.query(Plant).count()
+        self.assertEqual(start_plants, end_plants)
+
 
 class GenericExporterTests(BaubleTestCase):
     def setUp(self):
