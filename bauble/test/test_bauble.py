@@ -366,6 +366,8 @@ class HistoryTests(BaubleTestCase):
         self.assertEqual(history.operation, "insert")
 
         sleep(0.02)
+        # # NOTE need to refresh to avoid single item list changes
+        self.session.refresh(f)
         f.family = "Family2"
         self.session.commit()
         history = (

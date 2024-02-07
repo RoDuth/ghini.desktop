@@ -1,6 +1,6 @@
 # Copyright 2008-2010 Brett Adams
 # Copyright 2015 Mario Frasca <mario@anche.no>.
-# Copyright 2021-2023 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright 2021-2024 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -21,14 +21,15 @@ from datetime import datetime
 from unittest import mock
 
 from dateutil import parser
+from sqlalchemy import Unicode
 from sqlalchemy import create_engine
 from sqlalchemy import func
 
+from bauble import btypes
 from bauble import db
 from bauble import error
 from bauble import meta
 from bauble import prefs
-from bauble import search
 from bauble.plugins.garden.accession import Accession
 from bauble.plugins.garden.accession import AccessionNote
 from bauble.plugins.garden.accession import Plant
@@ -48,7 +49,7 @@ prefs.testing = True
 
 
 class HistoryTests(BaubleTestCase):
-    def test_history_populates(self):
+    def test_history_add_insert_populates(self):
         for setup in get_setUp_data_funcs():
             setup()
 
@@ -59,24 +60,14 @@ class HistoryTests(BaubleTestCase):
         self.assertLess(history_count1, 5)
 
         # INSERT
-        # get a notes class and parent model...
-        for klass in MapperSearch.get_domain_classes().values():
-            if hasattr(klass, "notes") and hasattr(klass.notes, "mapper"):
-                note_cls = klass.notes.mapper.class_
-                parent_model = klass()
-                break
+        note_cls = AccessionNote
+        parent_model = Accession(species_id=1, code="567")
 
-        # populate parent model with junk data...
-        for col in parent_model.__table__.columns:
-            if not col.nullable:
-                if col.name.endswith("_id"):
-                    setattr(parent_model, col.name, 1)
-                if not getattr(parent_model, col.name):
-                    setattr(parent_model, col.name, "567")
+        date_val = "21.1.24"
 
         # add 5 notes
         for i in range(5):
-            note_model = note_cls(note=f"test{i}")
+            note_model = note_cls(note=f"test{i}", date=date_val)
             parent_model.notes.append(note_model)
         session.add(parent_model)
         session.commit()
@@ -85,35 +76,75 @@ class HistoryTests(BaubleTestCase):
         # 5 notes and 1 parent
         self.assertEqual(history_count2, history_count1 + 5 + 1)
 
-        # test we can retrieve each note record (Note casting to unicode works
-        # in postgres and sqlite)
-        from sqlalchemy import Unicode
-
+        # test we can retrieve each note record (Note casting to unicode)
         for i in range(5):
-            self.assertTrue(
+            note = (
                 self.session.query(db.History)
                 .filter(db.History.table_name == note_cls.__tablename__)
                 .filter(db.History.operation == "insert")
                 .filter(db.History.values.cast(Unicode).contains(f"%test{i}%"))
                 .one()
             )
+            self.assertTrue(note)
+            self.assertEqual(
+                note.values["date"],
+                str(btypes.Date().process_bind_param(date_val, None)),
+            )
+
+    def test_history_add_update_populates(self):
+        for setup in get_setUp_data_funcs():
+            setup()
+
+        session = db.Session()
+        history_count1 = self.session.query(db.History).count()
+        self.assertLess(history_count1, 5)
+
+        date_val = "21.1.24"
+
+        note_model = AccessionNote(note="test note", date=date_val)
+        parent_model = Accession(species_id=1, code="567")
+        parent_model.notes.append(note_model)
+
+        session.add(parent_model)
+        session.commit()
 
         # NOTE if the model is not refreshed the update will record a single
         # item list
         session.refresh(note_model)
 
-        # UPDATE
+        new_date_val = "22/1/22"
         note_model.note = "TEST AGAIN"
+        note_model.date = new_date_val
         session.commit()
 
         updated = (
             self.session.query(db.History)
-            .filter(db.History.table_name == note_cls.__tablename__)
+            .filter(db.History.table_name == "accession_note")
             .filter(db.History.operation == "update")
         )
 
         self.assertEqual(updated.count(), 1)
         self.assertIn("['TEST AGAIN',", str(updated.one().values))
+        self.assertIn(
+            "['2022-01-22', '2024-01-21']", str(updated.one().values)
+        )
+
+    def test_history_add_no_update_doesnt_populate(self):
+        for setup in get_setUp_data_funcs():
+            setup()
+
+        session = db.Session()
+        history_count1 = self.session.query(db.History).count()
+        self.assertLess(history_count1, 5)
+
+        date_val = "21.1.24"
+
+        note_model = AccessionNote(note="test note", date=date_val)
+        parent_model = Accession(species_id=1, code="567")
+        parent_model.notes.append(note_model)
+
+        session.add(parent_model)
+        session.commit()
 
         # NOTE if the model is not refreshed the update will record a single
         # item list
@@ -121,19 +152,38 @@ class HistoryTests(BaubleTestCase):
 
         # UPDATE AGAIN, no actual change is made
         note_model.note = "something else"
-        note_model.note = "TEST AGAIN"
+        note_model.note = "test note"
+        note_model.date = "21/1/24"
         session.commit()
 
         updated = (
             self.session.query(db.History)
-            .filter(db.History.table_name == note_cls.__tablename__)
+            .filter(db.History.table_name == "accession_note")
             .filter(db.History.operation == "update")
         )
 
-        for i in self.session.query(db.History):
-            print(i.operation, i.table_name, i.table_id, i.values)
+        self.assertEqual(updated.count(), 0)
 
-        self.assertEqual(updated.count(), 1)
+    def test_history_add_delete_updates(self):
+        for setup in get_setUp_data_funcs():
+            setup()
+
+        session = db.Session()
+        history_count1 = self.session.query(db.History).count()
+        self.assertLess(history_count1, 5)
+
+        date_val = "21.1.24"
+
+        note_model = AccessionNote(note="test note", date=date_val)
+        parent_model = Accession(species_id=1, code="567")
+        parent_model.notes.append(note_model)
+
+        session.add(parent_model)
+        session.commit()
+
+        # NOTE if the model is not refreshed the update will record a single
+        # item list
+        session.refresh(note_model)
 
         # DELETE
         session.delete(note_model)
@@ -141,14 +191,13 @@ class HistoryTests(BaubleTestCase):
 
         deleted = (
             self.session.query(db.History)
-            .filter(db.History.table_name == note_cls.__tablename__)
+            .filter(db.History.table_name == "accession_note")
             .filter(db.History.operation == "delete")
         )
 
         self.assertEqual(deleted.count(), 1)
-        self.assertIn("TEST AGAIN", str(deleted.one().values))
-
-        # self.assertTrue(False)
+        self.assertIn("test note", str(deleted.one().values))
+        self.assertIn("2024-01-21", str(deleted.one().values))
 
         session.close()
 

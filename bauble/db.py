@@ -237,7 +237,12 @@ class History(HistoryBase):
     timestamp = sa.Column(types.DateTime, nullable=False)
 
     @staticmethod
-    def _val(val):
+    def _val(val, type_):
+        # need to convert string date values to there datetime value first to
+        # ensure the same string format in output (i.e. the string can take
+        # many formats)
+        if isinstance(val, str) and str(type_) in ["DATE", "DATETIME"]:
+            val = type_.process_bind_param(val, None)
         if isinstance(val, (datetime.datetime, datetime.date)):
             return str(val)
         return val
@@ -261,11 +266,19 @@ class History(HistoryBase):
             if operation == "update":
                 history = get_history(instance, column.name)
                 if history.has_changes():
-                    row[column.name] = [cls._val(i) for i in history.sum()]
-                    has_updates = True
+                    values = [cls._val(i, column.type) for i in history.sum()]
+                    # string values on datetimes can return has_changes() when
+                    # they are actually equal
+                    # NOTE just incase let through unrefreshed updates (i.e.
+                    # len(values) == 1) or we get no record at all, this should
+                    # never happen (only happens when committing multiple
+                    # changes in the one session without refreshing)
+                    if len(values) == 1 or len({str(i) for i in values}) > 1:
+                        has_updates = True
+                        row[column.name] = values
                     continue
 
-            val = cls._val(getattr(instance, column.name))
+            val = cls._val(getattr(instance, column.name), column.type)
             row[column.name] = val
 
         if operation == "update" and not has_updates:
@@ -298,6 +311,9 @@ class History(HistoryBase):
         changes provided as kwargs.  Intended for use in `event.listens_for`
         where a change has been made via `connection.execute` and hence not
         triggered the usual history event handlers.
+
+        NOTE: for updates kwarg values are assumed to be actual changes, make
+            sure before using event_add (e.g. datetime entries as strings)
         """
         if operation == "update" and not kwargs:
             # don't commit if no changes
@@ -311,12 +327,14 @@ class History(HistoryBase):
         for column in table.c:
             if operation == "update" and column.name in kwargs:
                 values[column.name] = [
-                    cls._val(kwargs[column.name]),
-                    cls._val(getattr(instance, column.name)),
+                    cls._val(kwargs[column.name], column.type),
+                    cls._val(getattr(instance, column.name), column.type),
                 ]
                 continue
 
-            values[column.name] = cls._val(getattr(instance, column.name))
+            values[column.name] = cls._val(
+                getattr(instance, column.name), column.type
+            )
         history = cls.__table__
         stmt = history.insert(
             {
