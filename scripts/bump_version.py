@@ -151,16 +151,19 @@ bump_file(os.path.join(root_of_clone(), "scripts/build.nsi"), rgx)
 print()
 print(
     (
-        'git commit -m "bumping_to_%s" '
+        f'git commit -m "bumping_to_{version}" '
         "bauble/version.py "
         "doc/conf.py "
         "data/ghini.desktop "
         "packages/builddeb.sh "
         "scripts/build.nsi "
         ".appveyor.yml "
-        "setup.py" % version
+        "setup.py"
     )
 )
+print("git checkout main")
+print("git merge develop")
+print("git push")
 print()
 print("after appveyor creates the release, you can get the version tag with:")
 print("git fetch")
