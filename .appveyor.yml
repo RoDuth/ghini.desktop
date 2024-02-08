@@ -88,7 +88,7 @@ deploy:
   provider: GitHub
   on:
     branch: main
-  release: 'v1.3.5' # :bump
+  release: 'v1.3.6' # :bump
   description: ''
   auth_token:
     secure: 1DQsnZ2QkM52hjZfjJbkSJwu/YLvBil97w/vikbLgHblXXLJ3xnFxgfN6eE/AQT8
