@@ -472,13 +472,15 @@ class TestSearchView(BaubleTestCase):
         mock_get_selected.return_value = None
         self.assertIsNone(self.search_view.on_get_history(None, None))
 
-        mock_data = mock.Mock(id=100, _created="18/09/2023")
+        mock_data = mock.Mock(
+            id=100, _created="18/09/2023", __tablename__="mock_table"
+        )
 
         mock_get_selected.return_value = [mock_data]
         self.assertEqual(
             self.search_view.on_get_history(None, None),
-            ":history = table_name = mock and table_id = 100 and timestamp "
-            '>= "18/09/2023"',
+            ":history = table_name = mock_table and table_id = 100 and "
+            'timestamp >= "18/09/2023"',
         )
 
     @mock.patch("bauble.view.SearchView.get_selected_values")

@@ -1320,7 +1320,7 @@ class SearchView(pluginmgr.View, Gtk.Box):
         selected = selected_values[0]
         # include timestamp because IDs can get reused in some situations
         search_str = (
-            f":history = table_name = {type(selected).__name__.lower()} "
+            f":history = table_name = {selected.__tablename__} "
             f"and table_id = {selected.id} "
             f'and timestamp >= "{selected._created}"'
         )
