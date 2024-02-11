@@ -93,15 +93,8 @@ class TestMultiprocCounter(BaubleTestCase):
             super().tearDown()
 
     def test_multiproc_counter_all_domains(self):
-        # tests that relationships don't fail in the process
-        # NOTE coverage can me a little flaky at times with this test with
-        # occasion: "CoverageWarning: Data file '...' doesn't seem to be a
-        # coverage data file: cannot unpack non-iterable NoneType object"
-        # last .coverage file or so do not combine.
-        # These seem to have no affect:
-        # - pytest_cov's cleanup_on_sigterm() no matter where its placed
-        # - using pool.map over pool.map_async (other than much slower)
-        # leaving for now as final result does not seem to be effected
+        # NOTE for coverage to work need to set
+        # concurency=multiprocessing,thread
         from functools import partial
         from multiprocessing import Pool
 
@@ -111,12 +104,6 @@ class TestMultiprocCounter(BaubleTestCase):
                 classes.append(klass)
 
         results = []
-        try:
-            from pytest_cov.embed import cleanup_on_sigterm
-        except ImportError:
-            pass
-        else:
-            cleanup_on_sigterm()
 
         with Pool() as pool:
             procs = []
@@ -131,6 +118,9 @@ class TestMultiprocCounter(BaubleTestCase):
             for proc in procs:
                 result = proc.get(9.0)
                 results.append(result)
+
+            pool.close()
+            pool.join()
 
         for result in results:
             self.assertEqual(len(result), 1)

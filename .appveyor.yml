@@ -79,9 +79,12 @@ for:
     - path: dist/*-setup.exe
 
   test_script:
-    - bash -lc "pip install pytest-cov"
+    - bash -lc "pip install pytest"
+    - bash -lc "pip install coverage"
     - bash -lc "pip install coveralls"
-    - bash -lc "BAUBLE_TEST_DB_URI='mssql://sa:Password12!@localhost:1433/master?driver=ODBC+Driver+17+for+SQL+Server' pytest --cov=bauble -sv"
+    - bash -lc "BAUBLE_TEST_DB_URI='mssql://sa:Password12!@localhost:1433/master?driver=ODBC+Driver+17+for+SQL+Server' coverage run -m pytest -sv"
+    - bash -lc "coverage combine"
+    - bash -lc "coverage report"
     - bash -lc "coveralls"
 
 deploy:

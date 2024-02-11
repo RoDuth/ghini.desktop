@@ -1,5 +1,7 @@
 [run]
 omit = */test*
+source = bauble
+concurrency = multiprocessing,thread
 
 [report]
 exclude_lines = 
