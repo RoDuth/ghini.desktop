@@ -37,6 +37,7 @@ import bauble.plugins.plants.test_plants as plants_test
 from bauble import db
 from bauble import prefs
 from bauble.plugins.garden import Accession
+from bauble.plugins.garden import Collection
 from bauble.plugins.garden import Location
 from bauble.plugins.garden import Plant
 from bauble.plugins.garden.accession import Voucher
@@ -1170,3 +1171,10 @@ class GenericExporterTests(BaubleTestCase):
         )
         val = GenericExporter.get_item_record(item, {"name": "name"})
         self.assertEqual(val, {"name": "Australia"})
+
+    def test_get_item_record_wo_notes_text_field_does_not_error(self):
+        item = self.session.query(Collection).get(1)
+        val = GenericExporter.get_item_record(
+            item, {"locale": "locale", "collector": "collector"}
+        )
+        self.assertEqual(val, {"locale": "Somewhere", "collector": "Someone"})
