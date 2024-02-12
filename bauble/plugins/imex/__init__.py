@@ -605,7 +605,7 @@ class GenericExporter(ABC):
         """Get a list of names of any attribute notes for an item."""
         attr_notes = []
         for note in item.notes:
-            category = note.category
+            category = getattr(note, "category", None)
             if not category:
                 continue
             import re
@@ -631,7 +631,8 @@ class GenericExporter(ABC):
         """
         record = {}
         # handle generated attribute notes
-        attr_notes = cls.get_attr_notes(item) if hasattr(item, "notes") else []
+        has_notes = hasattr(item, "notes") and isinstance(item.notes, list)
+        attr_notes = cls.get_attr_notes(item) if has_notes else []
         for name, path in fields.items():
             if name == "domain":
                 record[name] = path
