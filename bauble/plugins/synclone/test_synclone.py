@@ -1,4 +1,4 @@
-# Copyright 2023 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright 2023-2024 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -25,9 +25,11 @@ from gi.repository import Gtk
 from sqlalchemy import create_engine
 from sqlalchemy import select
 from sqlalchemy.engine import make_url
+from sqlalchemy.exc import SQLAlchemyError
 
 import bauble
 from bauble import db
+from bauble import error
 from bauble.plugins.garden import Accession
 from bauble.plugins.garden import Location
 from bauble.plugins.garden import Plant
@@ -38,12 +40,16 @@ from bauble.test import BaubleTestCase
 from bauble.test import uri
 
 from .clone import DBCloner
+from .clone import DBCloneTool
 from .sync import RESPONSE_QUIT
 from .sync import RESPONSE_RESOLVE
 from .sync import RESPONSE_SKIP
 from .sync import RESPONSE_SKIP_RELATED
+from .sync import DBResolveSyncTool
 from .sync import DBSyncroniser
+from .sync import DBSyncTool
 from .sync import ResolutionCentreView
+from .sync import ResolveCommandHandler
 from .sync import ResolverDialog
 from .sync import SyncRow
 from .sync import ToSync
@@ -66,6 +72,11 @@ class DBClonerTests(BaubleTestCase):
         id_ = self.session.query(db.History.id).first()
         self.assertIsNotNone(id_)
 
+    def test_uri_setter_none(self):
+        cloner = DBCloner()
+        cloner.uri = None
+        self.assertIsNone(cloner._uri)
+
     @mock.patch(
         "bauble.connmgr.start_connection_manager",
         return_value=(None, "sqlite:///test.db"),
@@ -80,6 +91,17 @@ class DBClonerTests(BaubleTestCase):
     def test_get_uri_fails(self, _mock_start_cm, mock_dialog):
         self.assertIsNone(DBCloner._get_uri())
         mock_dialog.assert_called()
+
+    def test_fails_early_if_no_db_engine(self):
+        orig_engine = db.engine
+        db.engine = None
+        self.assertRaises(error.DatabaseError, DBCloner._get_uri)
+        self.assertRaises(error.DatabaseError, DBCloner.get_line_count)
+        cloner = DBCloner()
+        self.assertRaises(error.DatabaseError, next, cloner.run())
+        self.assertRaises(error.DatabaseError, lambda: DBCloner().clone_engine)
+
+        db.engine = orig_engine
 
     def test_clone_engine(self):
         cloner = DBCloner()
@@ -132,6 +154,20 @@ class DBClonerTests(BaubleTestCase):
             self.assertEqual(conn.execute(stmt).first().code, "LOC1")
             stmt = Accession.__table__.select()
             self.assertEqual(conn.execute(stmt).first().code, "2023.0001")
+        # with error
+        with mock.patch(
+            "sqlalchemy.engine.base.Connection.execute"
+        ) as mock_execute, mock.patch(
+            "bauble.plugins.synclone.clone.DBCloner.drop_create_tables"
+        ), mock.patch(
+            "bauble.plugins.synclone.clone.DBCloner.get_line_count"
+        ), mock.patch(
+            "bauble.plugins.synclone.clone.utils.message_details_dialog"
+        ) as mock_dialog:
+            mock_execute.side_effect = SQLAlchemyError
+            bauble.task.queue(cloner.run())
+            mock_dialog.assert_called()
+            self.assertTrue(cloner._DBCloner__cancel)
 
     @mock.patch("bauble.task.set_message")
     def test_run_bulk_insert(self, mock_set_message):
@@ -147,12 +183,30 @@ class DBClonerTests(BaubleTestCase):
         )
         mock_set_message.assert_called()
 
+    @mock.patch("bauble.connmgr.start_connection_manager")
     @mock.patch("bauble.task.set_message")
-    def test_start(self, mock_set_message):
+    def test_start(self, mock_set_message, mock_start_cm):
+        # without supplying uri
+        temp_dir = tempfile.mkdtemp()
+        clone_uri = f"sqlite:///{temp_dir}/test.db"
+        mock_start_cm.return_value = (None, clone_uri)
         self.add_data()
         cloner = DBCloner()
+        cloner.start()
+        # cloner.start("sqlite:///:memory:")
+        mock_set_message.assert_called()
+        with cloner.clone_engine.begin() as conn:
+            stmt = Family.__table__.select()
+            self.assertEqual(conn.execute(stmt).first().family, "Myrtaceae")
+            stmt = Genus.__table__.select()
+            self.assertEqual(conn.execute(stmt).first().genus, "Syzygium")
+            stmt = Location.__table__.select()
+            self.assertEqual(conn.execute(stmt).first().code, "LOC1")
+            stmt = Plant.__table__.select()
+            self.assertEqual(conn.execute(stmt).first().code, "1")
+        # with supplied uri
+        mock_set_message.reset_mock()
         cloner.start("sqlite:///:memory:")
-        bauble.task.queue(cloner.run())
         mock_set_message.assert_called()
         with cloner.clone_engine.begin() as conn:
             stmt = Family.__table__.select()
@@ -251,8 +305,38 @@ class DBClonerTests(BaubleTestCase):
         with cloner.clone_engine.begin() as conn:
             self.assertEqual(conn.execute(stmt).scalar(), "1")
 
+    @mock.patch("bauble.plugins.synclone.clone.DBCloner")
+    @mock.patch("bauble.plugins.synclone.clone.utils.yes_no_dialog")
+    @mock.patch("bauble.plugins.synclone.clone.bauble.command_handler")
+    def test_db_clone_tool_start(self, mock_handler, mock_dialog, mock_cloner):
+        mock_dialog.return_value = True
+        tool = DBCloneTool()
+        tool.start()
+        mock_handler.assert_called_with("home", None)
+        mock_cloner().start.assert_called()
+        # allows backing out
+        mock_dialog.return_value = False
+        mock_handler.reset_mock()
+        mock_cloner.reset_mock()
+        tool.start()
+        mock_handler.assert_not_called()
+        mock_cloner().start.assert_not_called()
+
 
 class DBSyncTests(BaubleTestCase):
+    def test_fails_early_if_no_db_engine(self):
+        orig_engine = db.engine
+        db.engine = None
+        clone_uri = "sqlite:///test.db"
+        self.assertRaises(
+            error.DatabaseError, ToSync.add_batch_from_uri, clone_uri
+        )
+        row = mock.Mock()
+        self.assertRaises(
+            error.DatabaseError, DBSyncroniser([row])._sync_row, row
+        )
+        db.engine = orig_engine
+
     def add_clone_history(self, clone_engine, history_id, values):
         # add clone_history_id
         meta = bauble.meta.BaubleMeta.__table__
@@ -346,6 +430,30 @@ class DBSyncTests(BaubleTestCase):
         result = self.session.query(ToSync).all()
         self.assertEqual(len(result), 0)
 
+    def test_sync_raises_if_cant_set_instance(self):
+        data = {
+            "batch_number": 1,
+            "table_name": "family",
+            "table_id": 1,
+            "values": {
+                "id": 1,
+            },
+            "operation": "insert",
+            "user": "test",
+            "timestamp": datetime(2024, 2, 17),
+        }
+
+        to_sync = ToSync.__table__
+        in_stmt = to_sync.insert(data)
+        out_stmt = select(to_sync)
+        with db.engine.begin() as conn:
+            conn.execute(in_stmt)
+            first = conn.execute(out_stmt).first()
+            row = SyncRow({}, first, conn)
+            # NOTE calling instance before sync() on an insert. (i.e. before
+            # the instance can exist)
+            self.assertRaises(error.DatabaseError, lambda: row.instance)
+
     def test_sync_row_values_removes_id_last_updated_created(self):
         data = {
             "batch_number": 1,
@@ -372,6 +480,29 @@ class DBSyncTests(BaubleTestCase):
             self.assertIsNone(row.values.get("id"))
             self.assertIsNone(row.values.get("_last_updated"))
             self.assertIsNone(row.values.get("_created"))
+
+    def test_sync_row_values_ignores_non_foreign_key_id(self):
+        # NOTE this should never occur (a ..._id field should always be a
+        # forgeign_key or tag obj_id) but there is an escape in case it ever
+        # does become the case.
+        data = {
+            "values": {
+                "id": 20,
+                "test_id": 1,
+                "_created": 0,
+                "_last_updated": 0,
+            }
+        }
+        row = mock.MagicMock()
+        row.__getitem__.side_effect = data.__getitem__
+        row.table_name = "family"
+        row.table_id = 1
+        with db.engine.begin() as conn:
+            row = SyncRow({"family": {"test_id": 5}}, row, conn)
+            mock_table = mock.Mock()
+            mock_table.c = {"test_id": mock.Mock(foreign_keys=set())}
+            row.table = mock_table
+            self.assertEqual(row.values.get("test_id"), 1)
 
     def test_sync_row_updates_ids_from_id_map_insert(self):
         # insert
@@ -485,10 +616,85 @@ class DBSyncTests(BaubleTestCase):
             self.assertEqual(row.table_id, 4)
             self.assertEqual(row.instance.id, fam.id)
 
-    def test_sync_row_sync_update(self):
+    def test_sync_row_sync_update_no_val_to_update_doesnt_add_history(self):
         fam = Family(id=4, family="Sterculiaceae")
         self.session.add(fam)
         self.session.commit()
+
+        data = {
+            "batch_number": 1,
+            "table_name": "family",
+            "table_id": 4000,
+            "values": {
+                "id": 4000,
+                "family": "Sterculiaceae",
+                "_last_updated": 0,
+                "_created": 0,
+            },
+            "operation": "update",
+            "user": "test",
+            "timestamp": datetime(2023, 1, 1),
+        }
+
+        to_sync = ToSync.__table__
+        in_stmt = to_sync.insert(data)
+        out_stmt = select(to_sync)
+        with db.engine.begin() as conn:
+            conn.execute(in_stmt)
+            first = conn.execute(out_stmt).first()
+            row = SyncRow({}, first, conn)
+            row.sync()
+        self.session.expire(fam)
+        self.assertEqual(fam.family, "Sterculiaceae")
+        # check history entered correctly
+        hist = self.session.query(db.History).all()
+        # just the add not the sync has added history
+        self.assertEqual(len(hist), 1)
+
+    def test_sync_row_sync_update_no_change_doesnt_add_history(self):
+        fam = Family(id=4, family="Sterculiaceae")
+        self.session.add(fam)
+        self.session.commit()
+
+        data = {
+            "batch_number": 1,
+            "table_name": "family",
+            "table_id": 4,
+            "values": {
+                "id": 4,
+                "family": "Sterculiaceae",
+                "_last_updated": 0,
+                "_created": 0,
+            },
+            "operation": "update",
+            "user": "test",
+            "timestamp": datetime(2023, 1, 1),
+        }
+
+        to_sync = ToSync.__table__
+        in_stmt = to_sync.insert(data)
+        out_stmt = select(to_sync)
+        with db.engine.begin() as conn:
+            conn.execute(in_stmt)
+            first = conn.execute(out_stmt).first()
+            row = SyncRow({}, first, conn)
+            self.assertEqual(row.table_id, 4)
+            self.assertEqual(row.instance.id, fam.id)
+            row.sync()
+        self.session.expire(fam)
+        self.assertEqual(fam.family, "Sterculiaceae")
+        # check history entered correctly
+        hist = self.session.query(db.History).all()
+        # just the add not the sync has added history
+        self.assertEqual(len(hist), 1)
+
+    def test_sync_row_sync_update(self):
+        fam = Family(
+            id=4, family="Sterculiaceae", _last_updated=datetime(2023, 1, 1)
+        )
+        self.session.add(fam)
+        self.session.commit()
+        start_date = str(fam._last_updated)
 
         data = {
             "batch_number": 1,
@@ -529,6 +735,11 @@ class DBSyncTests(BaubleTestCase):
         )
         self.assertEqual(
             hist[1].values["family"], ["Malvaceae", "Sterculiaceae"]
+        )
+        # assert that _ast_updated change is recorded
+        self.assertEqual(
+            hist[1].values["_last_updated"],
+            [str(fam._last_updated), start_date],
         )
 
     def test_sync_row_sync_insert(self):
@@ -1162,7 +1373,9 @@ class DBSyncTests(BaubleTestCase):
         self.assertEqual(self.session.query(Species).all(), [])
         self.assertEqual(self.session.query(Accession).all(), [])
 
-    def test_dbsyncroniser_succeeds(self):
+    @mock.patch("bauble.gui")
+    def test_dbsyncroniser_succeeds(self, _mock_gui):
+        # mock bauble.gui just to cover the tags_menu_manager line
         data = [
             {
                 "batch_number": 1,
@@ -1448,9 +1661,141 @@ class DBSyncTests(BaubleTestCase):
 
 
 class ResolutionCentreViewTests(BaubleTestCase):
-    def test_init_creates_context_menu(self):
+    def test_fails_early_if_no_db_engine(self):
+        orig_engine = db.engine
+        db.engine = None
+        view = ResolutionCentreView()
+        self.assertRaises(error.DatabaseError, view.on_resolve_btn_clicked)
+        self.assertRaises(
+            error.DatabaseError, view.on_remove_selected_btn_clicked
+        )
+        self.assertRaises(error.DatabaseError, view.update)
+
+        clone_uri = "sqlite:///test.db"
+        self.assertRaises(
+            error.DatabaseError, ToSync.add_batch_from_uri, clone_uri
+        )
+        row = mock.Mock()
+        self.assertRaises(
+            error.DatabaseError, DBSyncroniser([row])._sync_row, row
+        )
+        db.engine = orig_engine
+
+    def test_get_selected_rows_no_model_no_rows_returns_none(self):
+        # Not sure this is actually useful. (or the right return value)
+        view = ResolutionCentreView()
+        mock_tree_view = mock.Mock()
+        mock_tree_view.get_selection().get_selected_rows.return_value = (
+            None,
+            [],
+        )
+        view.sync_tv = mock_tree_view
+        self.assertIsNone(view.get_selected_rows())
+        mock_tree_view.get_selection().get_selected_rows.return_value = (
+            mock.Mock(),
+            None,
+        )
+        view.sync_tv = mock_tree_view
+        self.assertIsNone(view.get_selected_rows())
+
+    def test_get_selected_rows_none_selected_returns_empty(self):
+        view = ResolutionCentreView()
+        self.assertEqual(view.get_selected_rows(), [])
+
+    @mock.patch("bauble.gui")
+    def test_init_creates_context_menu(self, mock_gui):
         view = ResolutionCentreView()
         self.assertIsNotNone(view.context_menu)
+        add_action_calls = [c.args for c in mock_gui.add_action.call_args_list]
+        self.assertIn(("select_batch", view.on_select_batch), add_action_calls)
+        self.assertIn(
+            ("select_related", view.on_select_related), add_action_calls
+        )
+        self.assertIn(("select_all", view.on_select_all), add_action_calls)
+
+    def test_add_row_populates_liststore(self):
+        # Test friendly drops geojson replaces None with "" and does show False
+        data = [
+            {
+                "batch_number": 1,
+                "table_name": "accession",
+                "table_id": 1,
+                "values": {
+                    "code": "2023.0001",
+                    "species_id": 1,
+                    "quantity_recvd": 2,
+                    "private": False,
+                    "id_qual": None,
+                    "_last_updated": 0,
+                    "_created": 0,
+                },
+                "operation": "insert",
+                "user": "test",
+                "timestamp": datetime(2023, 1, 1),
+            },
+            {
+                "batch_number": 1,
+                "table_name": "location",
+                "table_id": 1,
+                "values": {
+                    "id": 1,
+                    "code": "LOC1",
+                    "description": ["the first location", None],
+                    "geojson": [
+                        {
+                            "type": "Point",
+                            "coordinates": [
+                                152.980,
+                                -27.476,
+                            ],
+                        },
+                        None,
+                    ],
+                    "_last_updated": 0,
+                    "_created": 0,
+                },
+                "operation": "update",
+                "user": "test",
+                "timestamp": datetime(2023, 1, 1),
+            },
+        ]
+        to_sync = ToSync.__table__
+        in_stmt = to_sync.insert(data)
+        out_stmt = select(to_sync).order_by(to_sync.c.id.desc())
+        with db.engine.begin() as conn:
+            conn.execute(in_stmt)
+            rows = conn.execute(out_stmt).all()
+        view = ResolutionCentreView()
+        self.assertEqual(len(rows), 2)
+        for row in rows:  # only one
+            view.add_row(row)
+        frmt = bauble.prefs.prefs.get(bauble.prefs.datetime_format_pref)
+        row1 = view.liststore[0]
+        self.assertEqual(row1[1], "1")
+        self.assertEqual(row1[2], rows[0].timestamp.strftime(frmt))
+        self.assertEqual(row1[3], "update")
+        self.assertEqual(row1[4], "test")
+        self.assertEqual(row1[5], "location")
+        self.assertEqual(
+            row1[6],
+            "id: 1, description: ['the first location', None], code: LOC1",
+        )
+        self.assertEqual(
+            row1[7],
+            '[{"type": "Point", "coordinates": [152.98, -27.476]}, null]',
+        )
+        row2 = view.liststore[1]
+        self.assertEqual(row2[1], "1")
+        self.assertEqual(row2[2], rows[1].timestamp.strftime(frmt))
+        self.assertEqual(row2[3], "insert")
+        self.assertEqual(row2[4], "test")
+        self.assertEqual(row2[5], "accession")
+        self.assertEqual(
+            row2[6],
+            "code: 2023.0001, private: False, quantity_recvd: 2, "
+            "species_id: 1, id_qual: ''",
+        )
+        self.assertIsNone(row2[7])
 
     def test_on_button_press(self):
         view = ResolutionCentreView()
@@ -1463,6 +1808,10 @@ class ResolutionCentreViewTests(BaubleTestCase):
             view.on_button_press(mock_view, mock.Mock(x=0, y=0, button=3))
         )
         mock_view.get_selection().path_is_selected.return_value = False
+        self.assertFalse(
+            view.on_button_press(mock_view, mock.Mock(x=0, y=0, button=3))
+        )
+        mock_view.get_path_at_pos.return_value = None
         self.assertFalse(
             view.on_button_press(mock_view, mock.Mock(x=0, y=0, button=3))
         )
@@ -1597,6 +1946,7 @@ class ResolutionCentreViewTests(BaubleTestCase):
                 "code": "2023.0001",
                 "species_id": 1,
                 "quantity_recvd": 2,
+                "id_qual": None,
                 "_last_updated": 0,
                 "_created": 0,
             },
@@ -1710,9 +2060,13 @@ class ResolutionCentreViewTests(BaubleTestCase):
 
     @mock.patch("bauble.utils.yes_no_dialog")
     @mock.patch("bauble.plugins.synclone.sync.DBCloner")
+    @mock.patch("bauble.plugins.synclone.sync.command_handler")
     def test_on_sync_selected_btn_clicked_succeeds_all(
-        self, mock_cloner, mock_dlog
+        self, mock_handler, mock_cloner, mock_dlog
     ):
+        loc = Location(code="LOC1")
+        self.session.add(loc)
+        self.session.commit()
         mock_dlog.return_value = Gtk.ResponseType.YES
         data = [
             {
@@ -1758,6 +2112,31 @@ class ResolutionCentreViewTests(BaubleTestCase):
                 "user": "test",
                 "timestamp": datetime(2023, 1, 1),
             },
+            {
+                "batch_number": 1,
+                "table_name": "location",
+                "table_id": 1,
+                "values": {
+                    "id": 1,
+                    "code": "LOC1",
+                    "description": ["the first location", None],
+                    "geojson": [
+                        {
+                            "type": "Point",
+                            "coordinates": [
+                                152.980,
+                                -27.476,
+                            ],
+                        },
+                        None,
+                    ],
+                    "_last_updated": 0,
+                    "_created": 0,
+                },
+                "operation": "update",
+                "user": "test",
+                "timestamp": datetime(2023, 1, 1),
+            },
         ]
 
         to_sync = ToSync.__table__
@@ -1768,7 +2147,7 @@ class ResolutionCentreViewTests(BaubleTestCase):
             rows = conn.execute(out_stmt).all()
         view = ResolutionCentreView()
         view.uri = "sqlite:///:memory:"
-        self.assertEqual(len(rows), 3)
+        self.assertEqual(len(rows), 4)
         for row in rows:
             view.add_row(row)
 
@@ -1777,6 +2156,7 @@ class ResolutionCentreViewTests(BaubleTestCase):
 
         mock_dlog.assert_called()
         mock_cloner.assert_called()
+        mock_handler.assert_called_with("home", None)
 
         with db.engine.begin() as conn:
             rows = conn.execute(out_stmt).all()
@@ -1788,12 +2168,20 @@ class ResolutionCentreViewTests(BaubleTestCase):
         self.assertEqual(
             [str(i) for i in self.session.query(Family)], ["Malvaceae"]
         )
+        self.session.refresh(loc)
+        self.assertEqual(
+            loc.geojson,
+            {"type": "Point", "coordinates": [152.980, -27.476]},
+        )
+        self.assertEqual(loc.description, "the first location")
 
     @mock.patch("bauble.utils.yes_no_dialog")
     @mock.patch("bauble.plugins.synclone.sync.DBCloner")
+    @mock.patch("bauble.plugins.synclone.sync.command_handler")
     def test_on_sync_selected_btn_clicked_succeeds_one(
-        self, mock_cloner, mock_dlog
+        self, mock_handler, mock_cloner, mock_dlog
     ):
+        bauble.pluginmgr.register_command(bauble.ui.SplashCommandHandler)
         mock_dlog.return_value = Gtk.ResponseType.YES
         data = [
             {
@@ -1858,6 +2246,7 @@ class ResolutionCentreViewTests(BaubleTestCase):
 
         mock_dlog.assert_called()
         mock_cloner.assert_called()
+        mock_handler.assert_called_with("home", None)
 
         with db.engine.begin() as conn:
             rows = conn.execute(out_stmt).all()
@@ -2062,3 +2451,51 @@ class ResolutionCentreViewTests(BaubleTestCase):
         self.assertTrue(view.remove_selected_btn.get_sensitive())
         self.assertTrue(view.sync_selected_btn.get_sensitive())
         self.assertFalse(view.resolve_btn.get_sensitive())
+
+
+class SyncToolTests(BaubleTestCase):
+    @mock.patch("bauble.plugins.synclone.sync.command_handler")
+    def test_db_resolve_sync_tool(self, mock_handler):
+        DBResolveSyncTool.start()
+        mock_handler.assert_called_with("resolve", None)
+
+    def test_resolve_command_handler(self):
+        handler = ResolveCommandHandler()
+        self.assertIsInstance(handler.get_view(), ResolutionCentreView)
+        mock_view = mock.Mock()
+        ResolveCommandHandler.view = mock_view
+        handler(None, None)
+        mock_view.update.assert_called_with(None)
+
+    @mock.patch("bauble.plugins.synclone.sync.start_connection_manager")
+    @mock.patch("bauble.plugins.synclone.sync.command_handler")
+    def test_db_sync_tool_start_returns_if_no_uri(
+        self, mock_handler, mock_start
+    ):
+        mock_start.return_value = (None, None)
+        tool = DBSyncTool()
+        tool.start()
+        mock_handler.assert_not_called()
+
+    @mock.patch("bauble.plugins.synclone.sync.utils.message_dialog")
+    @mock.patch("bauble.plugins.synclone.sync.start_connection_manager")
+    @mock.patch("bauble.plugins.synclone.sync.command_handler")
+    def test_db_sync_tool_start_returns_notifies_if_same_uri(
+        self, mock_handler, mock_start, mock_dialog
+    ):
+        mock_start.return_value = (None, db.engine.url)
+        tool = DBSyncTool()
+        tool.start()
+        mock_dialog.assert_called()
+        mock_handler.assert_not_called()
+
+    @mock.patch("bauble.plugins.synclone.sync.ToSync")
+    @mock.patch("bauble.plugins.synclone.sync.start_connection_manager")
+    @mock.patch("bauble.plugins.synclone.sync.command_handler")
+    def test_db_sync_tool_start(self, mock_handler, mock_start, mock_tosync):
+        uri = "sqlite:///test.db"
+        mock_tosync.add_batch_from_uri.return_value = 1
+        mock_start.return_value = (None, uri)
+        tool = DBSyncTool()
+        tool.start()
+        mock_handler.assert_called_with("resolve", [1, make_url(uri)])

@@ -44,6 +44,8 @@ from bauble import utils
 from bauble.editor import GenericEditorPresenter
 from bauble.editor import GenericEditorView
 
+first_run = True
+
 
 def is_package_name(name):
     """True if name identifies a package and it can be imported"""
@@ -297,7 +299,8 @@ class ConnMgrPresenter(GenericEditorPresenter):
 
         set_installation_date()
         logger.debug("checking for new version")
-        if not prefs.testing:
+        global first_run
+        if first_run:
             self.start_thread(
                 Thread(
                     target=notify_new_release,
@@ -308,6 +311,7 @@ class ConnMgrPresenter(GenericEditorPresenter):
                     ],
                 )
             )
+            first_run = False
 
     def on_file_btnbrowse_clicked(self, *_args):
         previously = self.view.widget_get_value("file_entry")

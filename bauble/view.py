@@ -2021,7 +2021,7 @@ class HistoryView(pluginmgr.View, Gtk.Box):
             pass
 
         friendly = ", ".join(
-            f"{k}: {v or repr('')}"
+            f"{k}: {repr('') if v is None else v}"
             for k, v in sorted(list(dct.items()), key=self._cmp_items_key)
         )
         friendly = "\n".join(textwrap.wrap(friendly, 200))

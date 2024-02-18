@@ -1,4 +1,4 @@
-# Copyright 2023 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright 2023-2024 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -15,11 +15,6 @@
 # You should have received a copy of the GNU General Public License
 # along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
 #
-# csv import/export
-#
-# Description: have to name this module csv_ in order to avoid conflict
-# with the system csv module
-#
 # pylint: disable=too-few-public-methods
 """
 Sync changes from a previously cloned database.
@@ -27,9 +22,11 @@ Sync changes from a previously cloned database.
 import importlib
 import json
 import logging
+from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
 from typing import Literal
+from typing import cast
 
 logger = logging.getLogger(__name__)
 
@@ -50,6 +47,9 @@ from sqlalchemy.engine import make_url
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.sql import Executable
 from sqlalchemy.sql import func
+from sqlalchemy.sql.expression import Delete
+from sqlalchemy.sql.expression import Insert
+from sqlalchemy.sql.expression import Update
 
 import bauble
 from bauble import btypes as types
@@ -62,6 +62,7 @@ from bauble import prefs
 from bauble import task
 from bauble import utils
 from bauble.connmgr import start_connection_manager
+from bauble.i18n import _
 
 from ..tag import tags_menu_manager
 from .clone import DBCloner
@@ -91,6 +92,9 @@ class ToSync(db.HistoryBase):
     @classmethod
     def add_batch_from_uri(cls, uri: str | URL) -> str:
         """Grabs the history entries since cloned from the cloned database."""
+        if not db.engine:
+            raise error.DatabaseError("Not connected to a database")
+
         logger.debug("adding batch form uri: %s", uri)
         clone_engine: Engine = create_engine(uri)
         batch_num: str = meta.get_default("sync_batch_num", 1).value
@@ -106,8 +110,8 @@ class ToSync(db.HistoryBase):
             logger.debug("start = %s", start)
             if not start:
                 raise error.BaubleError(_("Does not seem to be a clone."))
-            stmt = select(history.c).where(history.c.id > start)
-            rows = connection.execute(stmt).all()
+            select_stmt = select(history.c).where(history.c.id > start)
+            rows = connection.execute(select_stmt).all()
         clone_engine.dispose()
         logger.debug("got %s rows", len(rows))
 
@@ -141,7 +145,7 @@ class ToSync(db.HistoryBase):
         connection.execute(stmt)
 
 
-class SyncRow:
+class SyncRow:  # pylint: disable=too-many-instance-attributes
     """An addapter between the database changes contained in a ToSync row and
     the database itself.
     """
@@ -156,7 +160,7 @@ class SyncRow:
         )
         self._instance: Row | None = None
         self._values: dict[str, Any] | None = None
-        self._statement: Executable | None = None
+        self.statement: Executable | Literal[""] | None = None
 
     @property
     def values(self) -> dict:
@@ -166,7 +170,7 @@ class SyncRow:
         Note: removes `id`, `_created` and `_last_updated` so that they get
             default values.
         """
-        if not self._values:
+        if self._values is None:
             values: dict = self.row["values"].copy()
             del values["id"]
             del values["_created"]
@@ -219,9 +223,13 @@ class SyncRow:
     def instance(self) -> Row:
         if not self._instance:
             self._set_instance()
+
+        if not self._instance:
+            raise error.DatabaseError("Could not set instance")
+
         return self._instance
 
-    def _get_statement(self) -> Executable | Literal[""]:
+    def _get_statement(self) -> Executable | Literal[""] | None:
         """Returns an appropriate sqlalchemy Executable statement for
         synchronising this row, or an empty str if the record is to be skipped.
         """
@@ -237,6 +245,7 @@ class SyncRow:
             id_map[self.row.table_id] = None
             return ""
 
+        stmt: Insert | Update | Delete | None
         if self.row.operation == "insert":
             logger.debug("inserting")
             stmt = self.table.insert().values(**self.values)
@@ -252,25 +261,16 @@ class SyncRow:
                 if isinstance(v, list):
                     update_vals[k] = v[0]
 
-            stmt = (
-                self.table.update()
-                .where(self.table.c.id == table_id)
-                .values(**update_vals)
-            )
-            # NOTE if update_vals is emtpy History.event_add will skip adding
-            # an entry as nothing actually changes
+            stmt = None  # skip this record as no changes
+            if update_vals:
+                stmt = (
+                    self.table.update()
+                    .where(self.table.c.id == table_id)
+                    .values(**update_vals)
+                )
             self._values = update_vals
 
         return stmt
-
-    @property
-    def statement(self) -> Executable | Literal[""]:
-        """An appropriate sqlalchemy statement or '' if the record is to be
-        skipped.
-        """
-        if self._statement is None:
-            self._statement = self._get_statement()
-        return self._statement
 
     def sync(self) -> None:
         """Synchronise this row.
@@ -280,14 +280,18 @@ class SyncRow:
         use of related records.
         """
         logger.debug("syncing row")
-        if self.statement == "":
-            # items we are skipping because user has chosen to skip
+        statement = self._get_statement()
+        if statement == "":
+            # items we are skipping because user has chosen to skip or they
+            # contain no changes
             logger.debug("skipping row with id %s", self.row.id)
             raise error.SkipRecord(f"skipping record {self.row.id}")
 
-        result = self.connection.execute(self.statement)
+        result = None
+        if statement is not None:
+            result = self.connection.execute(statement)
 
-        if result.rowcount == 0:
+        if result is None or result.rowcount == 0:
             # Don't add to the history if nothing occured
             return
 
@@ -305,11 +309,12 @@ class SyncRow:
                 )
             ).scalar()
             if last_update != self.instance._last_updated:
-                self._values["_last_updated"] = last_update
+                self.values["_last_updated"] = last_update
 
         self.add_to_history()
 
     def add_to_history(self) -> None:
+        logger.debug("values = %s", self.values)
         db.History.event_add(
             self.row.operation,
             self.table,
@@ -328,16 +333,16 @@ class ResolverDialog(Gtk.Dialog):
 
     __gtype_name__ = "ResolverDialog"
 
-    cancel_btn = Gtk.Template.Child()
-    quit_btn = Gtk.Template.Child()
-    skip_entry_btn = Gtk.Template.Child()
-    skip_related_btn = Gtk.Template.Child()
-    resolve_btn = Gtk.Template.Child()
-    msg_label = Gtk.Template.Child()
-    liststore = Gtk.Template.Child()
+    cancel_btn = cast(Gtk.Button, Gtk.Template.Child())
+    quit_btn = cast(Gtk.Button, Gtk.Template.Child())
+    skip_entry_btn = cast(Gtk.Button, Gtk.Template.Child())
+    skip_related_btn = cast(Gtk.Button, Gtk.Template.Child())
+    resolve_btn = cast(Gtk.Button, Gtk.Template.Child())
+    msg_label = cast(Gtk.Label, Gtk.Template.Child())
+    liststore = cast(Gtk.ListStore, Gtk.Template.Child())
 
     def __init__(
-        self, msg: None | str = None, row: None | Row = None, **kwargs
+        self, msg: None | str = None, row: Row | None = None, **kwargs
     ) -> None:
         super().__init__(**kwargs)
         if msg is None:
@@ -345,8 +350,9 @@ class ResolverDialog(Gtk.Dialog):
         else:
             self.msg_label.set_markup(msg)
 
-        self.table: Table = db.metadata.tables[row.table_name]
-        self.row: Row = row
+        if row:
+            self.table: Table = db.metadata.tables[row.table_name]
+            self.row: Row = row
         self._refresh_liststore()
 
     def _refresh_liststore(self) -> None:
@@ -382,9 +388,7 @@ class DBSyncroniser:
 
     def _open_resolver(self, row: Row, msg: None | str):
         """Offer the user an opportunity to resolve any conflicts on the fly"""
-        parent = None
-        if bauble.gui:
-            parent = bauble.gui.window
+        parent = bauble.gui.window if bauble.gui else None
         start_values = row["values"].copy()
         resolver = ResolverDialog(msg=msg, row=row, transient_for=parent)
         resolver.cancel_btn.set_visible(False)
@@ -411,6 +415,9 @@ class DBSyncroniser:
     def _sync_row(self, row: Row) -> None:
         """Attempt to sync a row, if user decides to quite raises DatabaseError
         to trigger a rollback"""
+        if not db.engine:
+            raise error.DatabaseError("Not connected to a database")
+
         while True:
             with db.engine.begin() as connection:
                 sync_row = SyncRow(self.id_map, row, connection)
@@ -427,19 +434,19 @@ class DBSyncroniser:
                     msg = utils.xml_safe(str(e).split("\n", maxsplit=1)[0])
                     response = self._open_resolver(row, msg)
                     if response == RESPONSE_QUIT:
-                        # raise exceptio to trigger a rollback
+                        # raise exception to trigger a rollback
                         raise error.DatabaseError("Sync aborted.")
                     if response in (RESPONSE_SKIP, RESPONSE_SKIP_RELATED):
                         break
                     if response == Gtk.ResponseType.DELETE_EVENT:
                         msg = _("Would you like to abort the sync?")
-                        parent = None
-                        if bauble.gui:
-                            parent = bauble.gui.window
+                        parent = bauble.gui.window if bauble.gui else None
+                        # if user selects no the record is skipped only
                         if utils.yes_no_dialog(msg=msg, parent=parent):
+                            # raise exception to trigger a rollback
                             raise error.DatabaseError("Sync aborted.")
 
-    def _sync_task(self) -> None:
+    def _sync_task(self) -> Iterator[None]:
         num_items = len(self.rows)
         five_percent = int(num_items / 20) or 1
 
@@ -470,11 +477,11 @@ class ResolutionCentreView(pluginmgr.View, Gtk.Box):
 
     __gtype_name__ = "ResolutionView"
 
-    liststore = Gtk.Template.Child()
-    sync_tv = Gtk.Template.Child()
-    resolve_btn = Gtk.Template.Child()
-    remove_selected_btn = Gtk.Template.Child()
-    sync_selected_btn = Gtk.Template.Child()
+    liststore = cast(Gtk.ListStore, Gtk.Template.Child())
+    sync_tv = cast(Gtk.TreeView, Gtk.Template.Child())
+    resolve_btn = cast(Gtk.Button, Gtk.Template.Child())
+    remove_selected_btn = cast(Gtk.Button, Gtk.Template.Child())
+    sync_selected_btn = cast(Gtk.Button, Gtk.Template.Child())
 
     TVC_OBJ = 0
     TVC_BATCH = 1
@@ -488,7 +495,7 @@ class ResolutionCentreView(pluginmgr.View, Gtk.Box):
         logger.debug("Starting ResolutionCentreView")
         super().__init__()
         self._uri = None
-        self.uri = uri
+        self.uri = uri  # type: ignore [assignment]
         self.last_pos: tuple[
             Gtk.TreePath | None, Gtk.TreeViewColumn | None, int, int
         ] | None = None
@@ -550,7 +557,7 @@ class ResolutionCentreView(pluginmgr.View, Gtk.Box):
             # occasionally pos will return None and can't be unpacked
             if not self.last_pos:
                 return False
-            path, __, __, __ = self.last_pos
+            path, _c, _i, _i = self.last_pos
             if not view.get_selection().path_is_selected(path):
                 return False
             return True
@@ -568,12 +575,13 @@ class ResolutionCentreView(pluginmgr.View, Gtk.Box):
         """Context menu action to select all rows with the same batch number as
         the selected.
         """
-        if self.last_pos:
+        if self.last_pos and self.last_pos[0] is not None:
             batch_num = self.liststore.get_value(
                 self.liststore.get_iter(self.last_pos[0]), self.TVC_BATCH
             )
             selection = self.sync_tv.get_selection()
-            for row in self.liststore:  # pylint: disable=not-an-iterable
+            # pylint: disable=not-an-iterable
+            for row in self.liststore:  # type: ignore [attr-defined]
                 if row[self.TVC_BATCH] == batch_num:
                     selection.select_iter(row.iter)
 
@@ -584,12 +592,13 @@ class ResolutionCentreView(pluginmgr.View, Gtk.Box):
         Uses the selected rows id value to search for foreign keys
         realtionships in other rows.
         """
-        if self.last_pos:
+        if self.last_pos and self.last_pos[0] is not None:
             obj = self.liststore.get_value(
                 self.liststore.get_iter(self.last_pos[0]), self.TVC_OBJ
             )
             selection = self.sync_tv.get_selection()
-            for row in self.liststore:  # pylint: disable=not-an-iterable
+            # pylint: disable=not-an-iterable
+            for row in self.liststore:  # type: ignore [attr-defined]
                 row_obj = row[self.TVC_OBJ]
                 if (
                     row_obj.table_name == obj.table_name
@@ -618,9 +627,10 @@ class ResolutionCentreView(pluginmgr.View, Gtk.Box):
     @Gtk.Template.Callback()
     def on_resolve_btn_clicked(self, *_args) -> None:
         """Edit the a row's `values` entry."""
-        parent = None
-        if bauble.gui:
-            parent = bauble.gui.window
+        if not db.engine:
+            raise error.DatabaseError("Not connected to a database")
+
+        parent = bauble.gui.window if bauble.gui else None
         row = self.get_selected_rows()[0]
         resolver = ResolverDialog(row=row, transient_for=parent)
 
@@ -641,6 +651,9 @@ class ResolutionCentreView(pluginmgr.View, Gtk.Box):
 
     @Gtk.Template.Callback()
     def on_remove_selected_btn_clicked(self, *_args) -> None:
+        if not db.engine:
+            raise error.DatabaseError("Not connected to a database")
+
         table = ToSync.__table__
         for row in self.get_selected_rows():
             with db.engine.begin() as connection:
@@ -657,7 +670,8 @@ class ResolutionCentreView(pluginmgr.View, Gtk.Box):
         if failed:
             selection = self.sync_tv.get_selection()
             selection.unselect_all()
-            for row in self.liststore:  # pylint: disable=not-an-iterable
+            # pylint: disable=not-an-iterable
+            for row in self.liststore:  # type: ignore [attr-defined]
                 if row[self.TVC_OBJ].id in failed:
                     selection.select_iter(row.iter)
         elif self.uri:
@@ -665,15 +679,12 @@ class ResolutionCentreView(pluginmgr.View, Gtk.Box):
                 "Would you like to clone to the syncing database to keep "
                 "them in sync?"
             )
-            parent = None
-            if bauble.gui:
-                parent = bauble.gui.window
+            parent = bauble.gui.window if bauble.gui else None
             if utils.yes_no_dialog(msg=msg, parent=parent):
                 logger.debug("cloning back to %s", repr(self.uri))
                 cloner = DBCloner()
                 cloner.start(self.uri)
-                if bauble.gui:
-                    bauble.command_handler("home", None)
+                command_handler("home", None)
 
     @Gtk.Template.Callback()
     def on_sync_selection_changed(self, selection: Gtk.TreeSelection) -> None:
@@ -721,7 +732,7 @@ class ResolutionCentreView(pluginmgr.View, Gtk.Box):
             pass
 
         friendly = ", ".join(
-            f"{k}: {v or repr('')}"
+            f"{k}: {repr('') if v is None else v}"
             for k, v in sorted(list(dct.items()), key=self._cmp_items_key)
         )
         frmt = prefs.prefs.get(prefs.datetime_format_pref)
@@ -739,6 +750,9 @@ class ResolutionCentreView(pluginmgr.View, Gtk.Box):
         )
 
     def update(self, *args) -> None:
+        if not db.engine:
+            raise error.DatabaseError("Not connected to a database")
+
         batch_num = None
         if args and isinstance(args[0], list):
             logger.debug("args = %s", args)
@@ -758,22 +772,24 @@ class ResolutionCentreView(pluginmgr.View, Gtk.Box):
         if batch_num:
             logger.debug("selecting batch num: %s", batch_num)
             selection = self.sync_tv.get_selection()
-            for row in self.liststore:  # pylint: disable=not-an-iterable
+            # pylint: disable=not-an-iterable
+            for row in self.liststore:  # type: ignore [attr-defined]
                 if row[self.TVC_BATCH] == batch_num:
                     selection.select_iter(row.iter)
 
 
 class ResolveCommandHandler(pluginmgr.CommandHandler):
     command = "resolve"
-    view = None
+    view: pluginmgr.View | None = None
 
     def get_view(self) -> pluginmgr.View:
-        if not self.view:
+        if self.__class__.view is None:
             self.__class__.view = ResolutionCentreView()
-        return self.view
+        return self.__class__.view
 
     def __call__(self, cmd, arg) -> None:
-        self.view.update(arg)
+        if self.view:
+            self.view.update(arg)
 
 
 class DBSyncTool(pluginmgr.Tool):
@@ -792,7 +808,10 @@ class DBSyncTool(pluginmgr.Tool):
             uri = make_url(uri)
         else:
             return
-        current_uri = db.engine.url
+
+        current_uri = None
+        if db.engine:
+            current_uri = db.engine.url
         logger.debug("selected uri = %s", repr(uri))
         logger.debug("current uri = %s", repr(current_uri))
 

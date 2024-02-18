@@ -137,7 +137,7 @@ class MapperBase(DeclarativeMeta):
         super().__init__(classname, bases, dict_)
 
 
-engine = None
+engine: sa.engine.Engine | None = None
 """A :class:`sqlalchemy.engine.base.Engine` used as the default
 connection to the database.
 """

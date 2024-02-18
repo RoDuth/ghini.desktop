@@ -495,8 +495,8 @@ class EditorPlugin(Plugin):
 
 
 class Tool:  # pylint: disable=too-few-public-methods
-    category = None
-    label = None
+    category: str | None = None
+    label: str
     enabled = True
 
     @classmethod
@@ -532,7 +532,7 @@ class View:
 
 
 class CommandHandler:
-    command = None
+    command: str | list[str]
 
     def get_view(self):
         """return the  view for this command handler"""

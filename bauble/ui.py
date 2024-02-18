@@ -214,13 +214,13 @@ class DefaultView(pluginmgr.View, Gtk.Box):
 
 
 class SplashCommandHandler(pluginmgr.CommandHandler):
+    command = ["home", "splash"]
+    view = None
+
     def __init__(self):
         super().__init__()
         if self.view is None:
             logger.warning("SplashCommandHandler.view is None, expect trouble")
-
-    command = ["home", "splash"]
-    view = None
 
     def get_view(self):
         if self.view is None:

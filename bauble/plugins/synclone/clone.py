@@ -1,4 +1,4 @@
-# Copyright 2023 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright 2023-2024 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -14,11 +14,6 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
-#
-# csv import/export
-#
-# Description: have to name this module csv_ in order to avoid conflict
-# with the system csv module
 #
 """
 Clone the current database to another connection.
@@ -37,19 +32,23 @@ from sqlalchemy.engine import URL
 from sqlalchemy.engine import Engine
 from sqlalchemy.engine import make_url
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.sql.expression import Insert
+from sqlalchemy.sql.expression import Update
 
 import bauble
 from bauble import db
+from bauble import error
 from bauble import pb_set_fraction
 from bauble import pluginmgr
 from bauble import task
 from bauble import utils
+from bauble.i18n import _
 
 
 class DBCloner:
     """Make a clone of the current database."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.__cancel: bool = False
         self._uri: URL | None = None
         self._clone_engine: Engine | None = None
@@ -60,9 +59,9 @@ class DBCloner:
         :param uri: address to the database to clone to.
         """
         if uri:
-            self.uri = uri
+            self.uri = uri  # type: ignore [assignment]
         else:
-            self.uri = self._get_uri()
+            self.uri = self._get_uri()  # type: ignore [assignment]
 
         if self.uri:
             task.clear_messages()
@@ -85,6 +84,9 @@ class DBCloner:
     @staticmethod
     def _get_uri() -> None | str:
         """Ask the user for a database connection to clone into."""
+        if not db.engine:
+            raise error.DatabaseError("Not connected to a database")
+
         msg = _(
             "<b>Select a database connection to clone the contents of\n"
             "the current database to.</b>"
@@ -108,14 +110,16 @@ class DBCloner:
     def clone_engine(self) -> Engine:
         """Provides an SQLAlchemy database engine."""
         if not self._clone_engine:
-            if self.uri.get_dialect().name == "mssql":
+            if self.uri and self.uri.get_dialect().name == "mssql":
                 # mssql fails on large inserts and is slow without
                 # fast_executemany
                 self._clone_engine = create_engine(
                     self.uri, fast_executemany=True
                 )
-            else:
+            elif self.uri:
                 self._clone_engine = create_engine(self.uri)
+        if not self._clone_engine:
+            raise error.DatabaseError("Can not get clone's engine")
         return self._clone_engine
 
     def __del__(self) -> None:
@@ -127,7 +131,7 @@ class DBCloner:
         """Drop all tables on the clone then recreate them."""
         with self.clone_engine.begin() as clone_conn:
             db.metadata.drop_all(
-                bind=clone_conn, tables=db.metadata.tables.values()
+                bind=clone_conn, tables=list(db.metadata.tables.values())
             )
             # recreate
             for table in db.metadata.sorted_tables:
@@ -138,17 +142,21 @@ class DBCloner:
         """Return the total number of rows in all tables for the current
         database
         """
-        from bauble.pluginmgr import PluginRegistry
+        if not db.engine:
+            raise error.DatabaseError("Not connected to a database")
 
         total_lines: int = 0
         for table in db.metadata.tables.values():
             stmt = select(func.count()).select_from(table)
             with db.engine.begin() as main_conn:
-                total_lines += main_conn.execute(stmt).scalar()
+                total_lines += main_conn.execute(stmt).scalar() or 0
         return total_lines
 
     def run(self) -> Generator:
         """A generator method for cloning the database."""
+        if not db.engine:
+            raise error.DatabaseError("Not connected to a database")
+
         self.drop_create_tables()
         total_lines = self.get_line_count()
 
@@ -223,11 +231,12 @@ class DBCloner:
                 return
 
             meta_table = bauble.meta.BaubleMeta.__table__
-            stmt = select(meta_table.c.value).where(
+            select_stmt = select(meta_table.c.value).where(
                 meta_table.c.name == "clone_history_id"
             )
 
-            if clone_conn.execute(stmt).scalar():
+            stmt: Insert | Update
+            if clone_conn.execute(select_stmt).scalar():
                 stmt = meta_table.update().where(
                     meta_table.c.name == "clone_history_id"
                 )
