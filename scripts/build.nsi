@@ -21,9 +21,18 @@
 
 ; Command line options:
 ;
-; /AllUsers or /CurrentUser
+; /allusers or /currentuser
 ; /S        Silent install
+; /C=[gJFA]  Install Components, where:
+;    g = Unselect Ghini (used for component only installs)
+;    J = select Java Runtime
+;    F = select Apache FOP
+;    A = select all components
 ; /D=PATH   Set $INSTDIR
+;
+; EXAMPLE:
+; ghini.desktop-1.0.??-setup.exe /S /AllUsers /C=A
+; A silent, system wide install, in the default location, with all components
 ;
 
 ;---
@@ -31,7 +40,7 @@
 Unicode true
 
 ;---
-; Plugins, required to compile: (included in data\nsis)
+; Plugins, required to compile:
 ; -
 ; FileFunc.nsh (included in NSIS v3.0) for command line options
 ; LogicLib (included in NSIS v3.0)
@@ -77,6 +86,7 @@ SetCompressorDictSize 64
 ; Multi User Settings (must come before the NsisMultiUser script)
 !define MULTIUSER_INSTALLMODE_DEFAULT_ALLUSERS 1
 !define MULTIUSER_INSTALLMODE_64_BIT 1
+!define MULTIUSER_INSTALLMODE_NO_HELP_DIALOG 1 # custom help dialog defined in .onInit
 
 ; Modern User Interface v2 Settings
 !define MUI_ABORTWARNING
@@ -115,11 +125,16 @@ SetCompressorDictSize 64
 !insertmacro MUI_PAGE_COMPONENTS
 !define MUI_PAGE_CUSTOMFUNCTION_PRE SkipFOPLicense
 !define MUI_LICENSEPAGE_TEXT_TOP "Apache FOP License."
-!define MUI_LICENSEPAGE_TEXT_BOTTOM "If you accept the terms of agreement, click I Agree to continue. You must accept the agreement to install the optional Apache FOP component."
+; TODO LIC_BOTTOM_* as LangString? (Currently can not as comes before MUI_LANGUAGE which must come after MUI_PAGE_*)
+!define LIC_BOTTOM_FOP "If you accept the terms of agreement, click I Agree to continue. You must accept the agreement \
+                        to install the optional Apache FOP component."
+!define MUI_LICENSEPAGE_TEXT_BOTTOM "${LIC_BOTTOM_FOP}"
 !insertmacro MUI_PAGE_LICENSE "${FOP_SRC_DIR}\${LICENSE_FILE}"
 !define MUI_PAGE_CUSTOMFUNCTION_PRE SkipOpenJDKLicense
 !define MUI_LICENSEPAGE_TEXT_TOP "OpenJDK JRE License."
-!define MUI_LICENSEPAGE_TEXT_BOTTOM "If you accept the terms of agreement, click I Agree to continue. You must accept the agreement to install the optional OpenJDK JRE component."
+!define LIC_BOTTOM_JRE "If you accept the terms of agreement, click I Agree to continue. You must accept the agreement \
+                        to install the optional OpenJDK JRE component."
+!define MUI_LICENSEPAGE_TEXT_BOTTOM "${LIC_BOTTOM_JRE}"
 !insertmacro MUI_PAGE_LICENSE "${JRE_SRC_DIR}\legal\java.base\${LICENSE_FILE}"
 !insertmacro MUI_PAGE_INSTFILES
 !insertmacro MUI_PAGE_FINISH
@@ -133,7 +148,7 @@ SetCompressorDictSize 64
 ;------------------------------
 ;  LANGUAGES
 
-; MUIv2 macros (must be after scripts and pages)
+; macros that must be after scripts and pages
 !insertmacro MUI_LANGUAGE "English"
 !insertmacro MULTIUSER_LANGUAGE_INIT
 
@@ -149,9 +164,9 @@ InstType "Full"
 ;----------------
 ; Main Section
 
-Section "!Ghini.desktop" SecMain
+Section "!ghini.desktop" SecMain
 
-    SectionIN RO
+    SectionIN 1 2
 
     ; Install Files
     SetOutPath "$INSTDIR"
@@ -255,7 +270,7 @@ LangString DESC_SecMain ${LANG_ENGLISH} "Ghini.desktop - biodiversity collection
                                         (required)"
 LangString DESC_SecOPs ${LANG_ENGLISH} "Optional extras that you may need to get the most out of ghini.desktop."
 LangString DESC_SecFOP ${LANG_ENGLISH} "Apache FOP is required for XSL report templates. (Java RE is required to use)"
-LangString DESC_SecJRE ${LANG_ENGLISH} "A minimal Java RE as required by FOP XSL report formatter.  If you already have \
+LangString DESC_SecJRE ${LANG_ENGLISH} "A minimal Java RE as required by FOP XSL report formatter. If you already have \
                                         java installed you do not need this."
 
 ; Initialise Language Strings (must come after the sections)
@@ -289,6 +304,59 @@ FunctionEnd
 Function .onInit
     ; Initialize the NsisMultiUser plugin
     !insertmacro MULTIUSER_INIT
+    ; Provide custom help /?
+    ${GetOptions} $CMDLINE "/?" $R1
+    ${ifnot} ${errors}
+        MessageBox MB_ICONINFORMATION "Usage:$\r$\n\
+            $\r$\n\
+            /allusers$\t- (un)install for all users, case-insensitive$\r$\n\
+            /currentuser - (un)install for current user only, case-insensitive$\r$\n\
+            /uninstall - (installer only) run uninstaller,$\r$\n\
+            .$\trequires /allusers or /currentuser, case-insensitive$\r$\n\
+            /S$\t- silent mode,$\r$\n\
+            .$\t requires /allusers or /currentuser, case-sensitive$\r$\n\
+            /C=[gJFA] -  install components where:$\r$\n\
+            .$\tg = unselect Ghini (components only)$\r$\n\
+            .$\tJ = select OpenJDK JRE$\r$\n\
+            .$\tF = select Apache FOP$\r$\n\
+            .$\tA = select all components$\r$\n\
+            /D$\t- (installer only) set install directory,$\r$\n\
+            .$\t must be last parameter, without quotes,$\r$\n\
+            .$\t case-sensitive$\r$\n\
+            /?$\t- display this message$\r$\n\
+            $\r$\n\
+            $\r$\n\
+            Return codes (decimal):$\r$\n\
+            $\r$\n\
+            0$\t- normal execution (no error)$\r$\n\
+            1$\t- (un)installation aborted by user (Cancel button)$\r$\n\
+            2$\t- (un)installation aborted by script$\r$\n\
+            666660$\t- invalid command-line parameters$\r$\n\
+            666661$\t- elevation is not allowed by defines$\r$\n\
+            666662$\t- uninstaller detected there's no installed version$\r$\n\
+            666663$\t- executing uninstaller from the installer failed$\r$\n\
+            666666$\t- cannot start elevated instance$\r$\n\
+            other$\t- Windows error code when trying to start elevated instance"
+        SetErrorLevel 0
+        Quit
+    ${endif}
+    ; Check the command line options for components
+    ${GetOptions} $CMDLINE "/C=" $2
+    CLLoop:
+        StrCpy $1 $2 1 -1
+        StrCpy $2 $2 -1
+        StrCmp $1 "" CLDone
+            StrCmp $1 "A" +1 +3
+                SectionSetFlags ${SecFOP} 1
+                SectionSetFlags ${SecJRE} 1
+            StrCmp $1 "g" +1 +2
+                SectionSetFlags ${SecMain} 0
+            StrCmp $1 "J" +1 +2
+                SectionSetFlags ${SecJRE} 1
+            StrCmp $1 "F" +1 +2
+                SectionSetFlags ${SecFOP} 1
+        Goto CLLoop
+    CLDone:
 FunctionEnd
 
 ; On Initializing the uninstaller
