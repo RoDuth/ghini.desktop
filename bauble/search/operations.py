@@ -23,6 +23,7 @@ Provides translations between our query syntax and SQLA's query syntax.
 """
 
 import typing
+from collections.abc import Callable
 
 from sqlalchemy.orm import QueryableAttribute
 from sqlalchemy.sql.elements import ColumnElement
@@ -68,9 +69,7 @@ def in_(attr: QueryableAttribute, val: Val) -> ColumnElement:
     return attr.in_(val)
 
 
-OPERATIONS: dict[
-    str, typing.Callable[[QueryableAttribute, Val], ColumnElement]
-] = {
+OPERATIONS: dict[str, Callable[[QueryableAttribute, Val], ColumnElement]] = {
     "=": equal,
     "==": equal,
     "is": equal,

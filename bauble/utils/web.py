@@ -26,11 +26,11 @@ import socket
 import sys
 import urllib.parse
 import urllib.request
+from collections.abc import Callable
 from fnmatch import fnmatch
 from http.client import HTTPResponse
 from ipaddress import ip_address
 from ipaddress import ip_network
-from typing import Callable
 
 import dukpy  # type: ignore [import]
 

@@ -30,10 +30,10 @@ import textwrap
 import threading
 import traceback
 from collections import UserDict
+from collections.abc import Callable
 from datetime import timedelta
 from datetime import timezone
 from pathlib import Path
-from typing import Callable
 from typing import cast
 
 logger = logging.getLogger(__name__)

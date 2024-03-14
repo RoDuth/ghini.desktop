@@ -1,6 +1,6 @@
 # Copyright 2008-2010 Brett Adams
 # Copyright 2015 Mario Frasca <mario@anche.no>.
-# Copyright 2020 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright 2020-2024 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -23,6 +23,7 @@
 import logging
 import os
 import traceback
+from collections.abc import Callable
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -256,13 +257,13 @@ class GUI:
         Gdk.Screen.get_default(), _css, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
     )
 
-    set_view_callbacks = set()
+    set_view_callbacks: set[Callable] = set()
     """Any callbacks added to this list will be called each time the set_view
     is called.
     """
-    disable_on_busy_actions = set()
-    """Gio.Actions added to this will be enabled/disabled when the gui window
-    is set_busy.
+    disable_on_busy_actions: set[Gio.Action] = set()
+    """Any Gio.Action added to this will be enabled/disabled when the gui
+    window is set_busy.
     """
 
     def __init__(self):

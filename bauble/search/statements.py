@@ -33,6 +33,7 @@ logger = logging.getLogger(__name__)
 import typing
 from abc import ABC
 from abc import abstractmethod
+from collections.abc import Callable
 
 from pyparsing import ParseResults
 from sqlalchemy import or_
@@ -118,7 +119,7 @@ class MapperStatement(StatementAction["MapperSearch"]):
         return [typing.cast(Query, query_handler.query)]
 
 
-BinCallable: typing.TypeAlias = typing.Callable[[list | str], BinaryExpression]
+BinCallable: typing.TypeAlias = Callable[[list | str], BinaryExpression]
 
 
 class DomainStatement(StatementAction["DomainSearch"]):

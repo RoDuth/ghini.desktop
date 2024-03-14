@@ -41,6 +41,7 @@ logger = logging.getLogger(__name__)
 import typing
 from abc import ABC
 from abc import abstractmethod
+from collections.abc import Callable
 from functools import lru_cache
 
 from pyparsing import Forward
@@ -71,7 +72,7 @@ class SearchStrategy(ABC):
     shorthand: dict[str, str] = {}
     properties: dict[Base, list[str]] = {}
     # placed here for simple search convenience.
-    completion_funcs: dict[str, typing.Callable] = {}
+    completion_funcs: dict[str, Callable] = {}
 
     excludes_value_list_search = True
     """If this search strategy is included do not include ValueListSearch, (the
