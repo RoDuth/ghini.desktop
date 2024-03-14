@@ -65,7 +65,7 @@ with open("README.rst", "r", encoding="utf-8", newline="") as f:
 
 setup(
     name="ghini.desktop",
-    version="1.3.6",  # :bump
+    version="1.3.7",  # :bump
     # scripts=scripts,
     packages=find_packages(),
     # package_dir=all_package_dirs,
