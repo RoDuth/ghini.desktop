@@ -1,7 +1,7 @@
 # Copyright 2008-2010 Brett Adams
 # Copyright 2015 Mario Frasca <mario@anche.no>.
 # Copyright 2017 Jardín Botánico de Quito
-# Copyright 2020-2023 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright 2020-2024 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -375,9 +375,14 @@ class GardenPlugin(pluginmgr.Plugin):
                 bauble.gui.options_menu.append_item(delimiter_item)
 
         if not multiprocessing.parent_process():
-            if institution.geo_latitude and institution.geo_longitude:
-                from .garden_map import setup_garden_map
+            from .garden_map import expunge_garden_map
+            from .garden_map import setup_garden_map
 
+            # incase of changing connection from menu (should do nothing if a
+            # map doesn't already exist)
+            expunge_garden_map()
+
+            if institution.geo_latitude and institution.geo_longitude:
                 setup_garden_map()
 
     @staticmethod

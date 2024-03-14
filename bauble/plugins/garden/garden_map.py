@@ -1,4 +1,4 @@
-# Copyright (c) 2023 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright (c) 2023-2024 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -55,6 +55,7 @@ from bauble.utils import get_net_sess
 from bauble.utils import timed_cache
 from bauble.view import SearchView
 
+from .institution import Institution
 from .location import Location
 from .plant import Plant
 
@@ -655,8 +656,6 @@ class SearchViewMapPresenter:  # pylint: disable=too-many-instance-attributes
             )
 
     def zoom_to_home(self, *_args) -> None:
-        from .institution import Institution
-
         institution = Institution()
         self.garden_map.map.set_center_and_zoom(
             float(institution.geo_latitude or 0),
@@ -1054,24 +1053,32 @@ def setup_garden_map() -> None:
     logger.debug("map cache dir = %s", map_.get_default_cache_directory())
     garden_map = GardenMap(map_)
     map_presenter = SearchViewMapPresenter(garden_map)
+    pic_pane_page = (garden_map, 0, "Map")
 
-    SearchView.pic_pane_notebook_pages.add((garden_map, 0, "Map"))
-    SearchView.extra_signals.add(
-        (
-            "pic_pane_notebook",
-            "switch-page",
-            map_presenter.populate_map_from_search_view,
-        )
+    SearchView.pic_pane_notebook_pages.add(pic_pane_page)
+
+    switch_page_signal = (
+        "pic_pane_notebook",
+        "switch-page",
+        map_presenter.populate_map_from_search_view,
     )
-    SearchView.extra_signals.add(
-        (
-            "pic_pane",
-            "notify::position",
-            map_presenter.populate_map_from_search_view,
-        )
+    SearchView.extra_signals.add(switch_page_signal)
+    position_signal = (
+        "pic_pane",
+        "notify::position",
+        map_presenter.populate_map_from_search_view,
     )
+    SearchView.extra_signals.add(position_signal)
+
     SearchView.populate_callbacks.add(map_presenter.populate_map)
     SearchView.cursor_changed_callbacks.add(map_presenter.update_map)
+
+    # if already initilised setup now. e.g. connection has changed
+    search_view = get_search_view()
+    if search_view:
+        search_view.add_page_to_pic_pane_notebook(*pic_pane_page)
+        search_view.connect_signal(*switch_page_signal)
+        search_view.connect_signal(*position_signal)
 
     # Listen for changes to the database and react if need be
     event.listen(
@@ -1100,7 +1107,10 @@ def setup_garden_map() -> None:
 
 
 def expunge_garden_map() -> None:
-    """Mainly for tests, remove the map and any listeners, etc."""
+    """Mainly for tests and on connection change, remove the map and any
+    listeners, etc.
+    """
+    logger.debug("expunge_garden_map")
     global map_presenter  # pylint: disable=global-statement
 
     if not map_presenter:
@@ -1108,7 +1118,15 @@ def expunge_garden_map() -> None:
 
     garden_map = map_presenter.garden_map
 
+    # if already initilised clean up. e.g. connection has changed
+    search_view = get_search_view()
+    if search_view:
+        for page in search_view.pic_pane_notebook_pages:
+            if isinstance(page[0], GardenMap):
+                search_view.pic_pane_notebook.remove_page(page[1])
+
     SearchView.pic_pane_notebook_pages.remove((garden_map, 0, "Map"))
+
     SearchView.extra_signals.remove(
         (
             "pic_pane_notebook",
@@ -1151,3 +1169,12 @@ def expunge_garden_map() -> None:
         Plant, "after_delete", map_presenter.update_after_plant_delete
     )
     map_presenter = None
+
+
+def get_search_view() -> None | SearchView:
+    search_view = None
+    if bauble.gui:
+        for kid in bauble.gui.widgets.view_box.get_children():
+            if isinstance(kid, SearchView):
+                search_view = kid
+    return search_view

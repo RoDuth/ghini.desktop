@@ -60,6 +60,7 @@ from .garden_map import colours
 from .garden_map import expunge_garden_map
 from .garden_map import get_locations_polys
 from .garden_map import get_map_tile_proxy
+from .garden_map import get_search_view
 from .garden_map import glib_events
 from .garden_map import map_item_factory
 from .garden_map import setup_garden_map
@@ -1141,3 +1142,86 @@ class GlobalFunctionsTest(BaubleTestCase):
         net_sess.pac_file = PACFile(pac_js)
         self.assertIsNone(get_map_tile_proxy())
         net_sess.pac_file = None
+
+    def test_get_search_view_returns_none_w_no_gui(self):
+        self.assertIsNone(get_search_view())
+
+    @mock.patch("bauble.gui")
+    def test_get_search_view_returns_search_view(self, mock_gui):
+        mock_search_view = mock.Mock(spec=SearchView)
+        mock_gui.widgets.view_box.get_children.return_value = [
+            mock_search_view
+        ]
+        self.assertEqual(get_search_view(), mock_search_view)
+
+    def test_expunge_garden_map(self):
+        setup_garden_map()
+        start_pages = len(SearchView.pic_pane_notebook_pages)
+        start_signals = len(SearchView.extra_signals)
+        start_pop_callbacks = len(SearchView.populate_callbacks)
+        start_changed_callbacks = len(SearchView.cursor_changed_callbacks)
+        expunge_garden_map()
+        self.assertEqual(
+            start_pages - 1, len(SearchView.pic_pane_notebook_pages)
+        )
+        self.assertEqual(start_signals - 2, len(SearchView.extra_signals))
+        self.assertEqual(
+            start_pop_callbacks - 1, len(SearchView.populate_callbacks)
+        )
+        self.assertEqual(
+            start_changed_callbacks - 1,
+            len(SearchView.cursor_changed_callbacks),
+        )
+
+    @mock.patch("bauble.plugins.garden.garden_map.get_search_view")
+    def test_expunge_garden_map_removes_previous_map(self, mock_get_sv):
+        setup_garden_map()
+        mock_search_view = mock.Mock()
+        mock_get_sv.return_value = mock_search_view
+        mock_garden_map = mock.Mock(spec=GardenMap)
+        mock_search_view.pic_pane_notebook_pages = [(mock_garden_map, 0, "M")]
+        expunge_garden_map()
+        mock_search_view.pic_pane_notebook.remove_page.assert_called_with(0)
+
+    def test_setup_garden_map(self):
+        start_pages = len(SearchView.pic_pane_notebook_pages)
+        start_signals = len(SearchView.extra_signals)
+        start_pop_callbacks = len(SearchView.populate_callbacks)
+        start_changed_callbacks = len(SearchView.cursor_changed_callbacks)
+        setup_garden_map()
+        self.assertEqual(
+            start_pages + 1, len(SearchView.pic_pane_notebook_pages)
+        )
+        self.assertEqual(start_signals + 2, len(SearchView.extra_signals))
+        self.assertEqual(
+            start_pop_callbacks + 1, len(SearchView.populate_callbacks)
+        )
+        self.assertEqual(
+            start_changed_callbacks + 1,
+            len(SearchView.cursor_changed_callbacks),
+        )
+        expunge_garden_map()
+
+    @mock.patch("bauble.plugins.garden.garden_map.get_search_view")
+    def test_setup_garden_map_adds_map_to_existing_search_view(
+        self, mock_get_sv
+    ):
+        setup_garden_map()
+        presenter = garden_map.map_presenter
+        mock_get_sv().add_page_to_pic_pane_notebook.assert_called_with(
+            presenter.garden_map, 0, "Map"
+        )
+        connect_calls = [
+            mock.call(
+                "pic_pane_notebook",
+                "switch-page",
+                presenter.populate_map_from_search_view,
+            ),
+            mock.call(
+                "pic_pane",
+                "notify::position",
+                presenter.populate_map_from_search_view,
+            ),
+        ]
+        mock_get_sv().connect_signal.assert_has_calls(connect_calls)
+        expunge_garden_map()

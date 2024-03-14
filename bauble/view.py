@@ -893,8 +893,7 @@ class SearchView(pluginmgr.View, Gtk.Box):
 
         self.create_gui()
 
-        for page in self.pic_pane_notebook_pages:
-            self.add_page_to_pic_pane_notebook(*page)
+        self.add_pic_pane_notebook_pages()
 
         self.pictures_scroller = PicturesScroller(
             parent=self.pics_box, pic_pane=self.pic_pane
@@ -923,9 +922,18 @@ class SearchView(pluginmgr.View, Gtk.Box):
         self.refresh = prefs.prefs.get(SEARCH_REFRESH_PREF, True)
         self.btn_1_timer = (0, 0, 0)
 
-        for widget, signal, handler in self.extra_signals:
-            widget = getattr(self, widget)
-            widget.connect(signal, handler)
+        for widget_name, signal, handler in self.extra_signals:
+            self.connect_signal(widget_name, signal, handler)
+
+    def connect_signal(
+        self, widget_name: str, signal: str, handler: Callable
+    ) -> None:
+        widget = getattr(self, widget_name)
+        widget.connect(signal, handler)
+
+    def add_pic_pane_notebook_pages(self) -> None:
+        for page in self.pic_pane_notebook_pages:
+            self.add_page_to_pic_pane_notebook(*page)
 
     def add_notes_page_to_bottom_notebook(self):
         """add notebook page for notes
