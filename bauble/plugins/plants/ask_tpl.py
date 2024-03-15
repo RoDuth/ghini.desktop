@@ -91,8 +91,8 @@ class AskTPL(threading.Thread):
                     "http://www.theplantlist.org/tpl1.1/search?" + query,
                     timeout=self.timeout,
                 )
-                logger.debug(result.content)
                 lines = result.text[1:].split("\n")
+                logger.debug(lines)
                 result = list(csv.reader(str(k) for k in lines if k))
                 header = result[0]
                 result = result[1:]
@@ -169,7 +169,7 @@ class AskTPL(threading.Thread):
             return
         except Exception as e:
             logger.debug(
-                "%s (%s)%s : completed with trouble",
+                "%s %s(%s) : completed with trouble",
                 self.name,
                 type(e).__name__,
                 e,
