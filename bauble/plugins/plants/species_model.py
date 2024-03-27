@@ -223,7 +223,7 @@ infrasp_rank_values = {
 
 red_list_values = {
     "EX": _("Extinct (EX)"),
-    "EW": _("Extinct Wild (EW)"),
+    "EW": _("Extinct in the Wild (EW)"),
     "RE": _("Regionally Extinct (RE)"),
     "CR": _("Critically Endangered (CR)"),
     "EN": _("Endangered (EN)"),
