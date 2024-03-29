@@ -214,8 +214,7 @@ class FilteredIdentifier(IdentifierAction):
 
 
 class FunctionIdentifier(IdentifierAction):
-    """Represents an identifier that is wrapped in a sum, min, max or count
-    function.
+    """Represents an identifier that is wrapped in a function.
 
     Note that while this is the parse action for the function call expression
     it only atempts to handle the identifier within the functional call, not
@@ -235,9 +234,10 @@ class FunctionIdentifier(IdentifierAction):
     def evaluate(
         self, handler: QueryHandler
     ) -> tuple[Query | Select, QueryableAttribute]:
-        """Let the identifier compute the query and its attribute, we do not
-        need to alter anything right now since the condition on the aggregated
-        identifier is applied in the HAVING and not in the WHERE.
+        """Let the identifier compute the query and its attribute, no need to
+        alter anything right now since the condition on the identifier is
+        applied in the HAVING and not in the WHERE for aggreate functions and
+        the clause will decide this.
         """
         logger.debug("%s::evaluate %s", self.__class__.__name__, self)
 

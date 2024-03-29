@@ -194,23 +194,34 @@ class FunctionClause(BinaryClause):
         # operands[0] is the function/identifier pair
         # operands[1] is the value against which to test
         # operation implements the clause
+        func_name = self.operands[0].function
 
-        function = getattr(func, self.operands[0].function)
+        function = getattr(func, func_name)
 
         id_ = getattr(handler.domain, "id")
-
-        sub_query: Select = select(id_)
-        subq_handler = QueryHandler(handler.session, handler.domain, sub_query)
-        sub_query, attr = self.operands[0].evaluate(subq_handler)
 
         def clause(val) -> ColumnElement:
             assert self.operation is not None
             return self.operation(function(attr), val)
 
-        having = clause(self.operands[1].express())
-        sub_query = sub_query.having(having)
-        sub_query = sub_query.group_by(id_)
-        handler.query = handler.query.filter(id_.in_(sub_query))
+        if func_name.lower() in ["sum", "avg", "min", "max", "count", "total"]:
+            # aggregate functions
+            sub_query: Select = select(id_)
+            subq_handler = QueryHandler(
+                handler.session, handler.domain, sub_query
+            )
+            sub_query, attr = self.operands[0].evaluate(subq_handler)
+
+            having = clause(self.operands[1].express())
+            sub_query = sub_query.having(having)
+            sub_query = sub_query.group_by(id_)
+            handler.query = handler.query.filter(id_.in_(sub_query))
+        else:
+            handler.query, attr = self.operands[0].evaluate(handler)
+            print("QUERY-->", handler.query)
+            where = clause(self.operands[1].express())
+            handler.query = handler.query.filter(where)
+            print("HANDLER.QUERY-->", handler.query)
 
         return handler.query
 

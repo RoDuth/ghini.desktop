@@ -2039,11 +2039,7 @@ class EmptySetEqualityTest(unittest.TestCase):
         self.assertEqual(nt1.express(), None)
 
 
-class AggregatingFunctions(BaubleTestCase):
-    def __init__(self, *args):
-        super().__init__(*args)
-        prefs.testing = True
-
+class FunctionsTests(BaubleTestCase):
     def setUp(self):
         super().setUp()
         db.engine.execute("delete from genus")
@@ -2066,7 +2062,7 @@ class AggregatingFunctions(BaubleTestCase):
         sp5 = Species(sp="zapotilla", genus=g2)
         sp5.synonyms.append(sp4)
         g3 = Genus(family=f2, genus="Pouteria")
-        sp6 = Species(sp="stipitata", genus=g3)
+        sp6 = Species(sp="stipitata", _cites="II", genus=g3)
 
         f3 = Family(family="Musaceae")
         g4 = Genus(family=f3, genus="Musa")
@@ -2074,9 +2070,6 @@ class AggregatingFunctions(BaubleTestCase):
             [f1, f2, f3, g1, g2, g3, g4, sp1, sp2, sp3, sp4, sp5, sp6]
         )
         self.session.commit()
-
-    def tearDown(self):
-        super().tearDown()
 
     def test_count(self):
         mapper_search = search.strategies.get_strategy("MapperSearch")
@@ -2246,6 +2239,24 @@ class AggregatingFunctions(BaubleTestCase):
         for i in mapper_search.search(s, self.session):
             results.extend(i)
         self.assertEqual(len(results), 0)
+
+    def test_non_aggregate_function(self):
+        mapper_search = search.strategies.get_strategy("MapperSearch")
+        s = "species where length(epithet) = 9"
+        results = []
+        for i in mapper_search.search(s, self.session):
+            results.extend(i)
+        self.assertEqual(len(results), 3)
+        expected = ["aurantium", "zapotilla", "stipitata"]
+        for result in results:
+            self.assertIn(result.sp, expected)
+        # with filter
+        s = "genus where length(species[_cites='II'].epithet) = 9"
+        results = []
+        for i in mapper_search.search(s, self.session):
+            results.extend(i)
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0].epithet, "Pouteria")
 
 
 class BaubleSearchSearchTest(BaubleTestCase):

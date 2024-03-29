@@ -55,7 +55,7 @@ base_clause ::= binary_clause
 binary_clause ::= identifier binop value_token
 in_set_clause ::= identifier 'IN' value_list_token
 on_date_clause ::= identifier 'ON' date_value_token
-function_clause ::= aggregating_function '(' identifier ')' binop value_token
+function_clause ::= function '(' identifier ')' binop value_token
 parenthesised_clause ::= '(' query_clause ')'
 between_clause ::= identifier 'BETWEEN' value_token and value_token
 identifier ::= filtered_identifier | unfiltered_identifier
@@ -96,7 +96,7 @@ numeric_token ::= Regex('[-]?\\d+(\\.\\d*)?([eE]\\d+)?')
 string_token ::= unquoted_string | quoted_string
 quoted_string ::= Regex('([\'"])(.*?)\\1')
 unquoted_string ::= Regex('\\S*')
-aggregating_function ::= 'SUM' | 'MIN' | 'MAX' | 'COUNT'
+function ::= 'SUM' | 'MIN' | 'MAX' | 'COUNT' | "LENGTH" | ... (DB dependant)
 """
 
 from pyparsing import CaselessKeyword
@@ -210,12 +210,7 @@ or_ = (CaselessKeyword("OR") | Keyword("||")).set_name("or")
 
 not_ = (CaselessKeyword("NOT") | Keyword("!")).set_name("not")
 
-aggregating_function = (
-    CaselessKeyword("sum")
-    | CaselessKeyword("min")
-    | CaselessKeyword("max")
-    | CaselessKeyword("count")
-).set_name("aggregating function")
+function = (Word(alphas + "_")).set_name("function")
 
 atomic_identifier = Word(alphas + "_", alphanums + "_").set_name(
     "atomic identifier"
@@ -249,7 +244,7 @@ identifier = (filtered_identifier | unfiltered_identifier).set_name(
 # An IdentifierAction is used as the parse action here as it only stores the
 # function name and handles the identifier at this point.
 function_call = (
-    (aggregating_function + Literal("(") + identifier + Literal(")"))
+    (function + Literal("(") + identifier + Literal(")"))
     .set_parse_action(FunctionIdentifier)
     .set_name("function call")
 )
