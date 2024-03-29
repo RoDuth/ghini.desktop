@@ -652,7 +652,7 @@ class Accession(db.Base, db.WithNotes):
 
     species_id = Column(Integer, ForeignKey("species.id"), nullable=False)
 
-    purchase_price = Column(Integer)
+    purchase_price = Column(Integer, autoincrement=False)
     price_unit = Column(Unicode(9))
     supplied_name = Column(Unicode)
     # use backref not back_populates here to avoid InvalidRequestError in

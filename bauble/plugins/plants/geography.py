@@ -205,7 +205,7 @@ class Geography(db.Base):
     # columns
     name = Column(Unicode(255), nullable=False)
     tdwg_code = Column(String(6))
-    tdwg_level = Column(Integer)
+    tdwg_level = Column(Integer, nullable=False, autoincrement=False)
     iso_code = Column(String(7))
     geojson = deferred(Column(types.JSON()))
     # don't use, can lead to InvalidRequestError (Collection unknown)

@@ -1127,7 +1127,7 @@ def delete_or_expunge(obj):
         del obj
 
 
-def reset_sequence(column):
+def reset_sequence(column, engine=None):
     """If column.sequence is not None or the column is an Integer and
     column.autoincrement is true then reset the sequence for the next
     available value for the column...if the column doesn't have a
@@ -1141,9 +1141,12 @@ def reset_sequence(column):
     from sqlalchemy import schema
     from sqlalchemy.types import Integer
 
-    from bauble import db
+    if not engine:
+        from bauble import db
 
-    if not db.engine.name == "postgresql":
+        engine = db.engine
+
+    if not engine.name == "postgresql":
         return
 
     sequence_name = None
@@ -1165,7 +1168,7 @@ def reset_sequence(column):
         sequence_name = f"{column.table.name}_{column.name}_seq"
     else:
         return
-    conn = db.engine.connect()
+    conn = engine.connect()
     trans = conn.begin()
     try:
         # the FOR UPDATE locks the table for the transaction

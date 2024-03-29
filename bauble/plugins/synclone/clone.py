@@ -212,6 +212,10 @@ class DBCloner:
                     utils.message_details_dialog(
                         msg, str(e), Gtk.MessageType.ERROR
                     )
+        # for postgres need to reset the sequences
+        for table in db.metadata.sorted_tables:
+            for col in table.c:
+                utils.reset_sequence(col, self.clone_engine)
         self._record_clone_point()
 
     def _record_clone_point(self) -> None:

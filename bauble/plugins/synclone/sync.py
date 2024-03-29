@@ -81,7 +81,7 @@ class ToSync(db.HistoryBase):
 
     __tablename__ = "to_sync"
     id = Column(Integer, primary_key=True, autoincrement=True)
-    batch_number = Column(Integer, nullable=False)
+    batch_number = Column(Integer, nullable=False, autoincrement=False)
     table_name = Column(String(32), nullable=False)
     table_id = Column(Integer, nullable=False, autoincrement=False)
     values = Column(types.JSON(), nullable=False)
