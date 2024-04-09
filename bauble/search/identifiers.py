@@ -1,6 +1,6 @@
 # Copyright 2008, 2009, 2010 Brett Adams
 # Copyright 2014-2015 Mario Frasca <mario@anche.no>.
-# Copyright 2021-2023 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright 2021-2024 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -80,25 +80,24 @@ def create_joins(
     step = steps[0]
     steps = steps[1:]
 
-    if hasattr(cls, step):
-        # AssociationProxy
-        if hasattr(getattr(cls, step), "value_attr"):
-            new_step = getattr(cls, step).value_attr
-            step = getattr(cls, step).local_attr.key
-            steps.insert(0, new_step)
+    # AssociationProxy
+    if hasattr(associationproxy := getattr(cls, step), "value_attr"):
+        new_step = associationproxy.value_attr
+        step = associationproxy.local_attr.key
+        steps.insert(0, new_step)
 
-        joinee = get_related_class(cls, step)
+    joinee = get_related_class(cls, step)
 
-        if joinee in query._to_join or alias:
-            joinee = aliased(joinee)
-            query = query.join(getattr(cls, step).of_type(joinee))
-        else:
-            query = query.join(getattr(cls, step))
-            query._to_join.append(joinee)  # type: ignore[union-attr]
+    attribute = getattr(cls, step)
 
-        cls = joinee
+    if joinee in query._to_join or alias:
+        joinee = aliased(joinee)
+        query = query.join(attribute.of_type(joinee))
+    else:
+        query = query.join(attribute)
+        query._to_join.append(joinee)  # type: ignore[union-attr]
 
-    return create_joins(query, cls, steps, alias)
+    return create_joins(query, joinee, steps, alias)
 
 
 class IdentifierAction(ABC):
