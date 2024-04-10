@@ -23,6 +23,7 @@ imex plugin
 Description: plugin to provide importing and exporting
 """
 
+import csv
 import datetime
 import logging
 from abc import ABC
@@ -86,6 +87,10 @@ class GenericImporter(ABC):  # pylint: disable=too-many-instance-attributes
         self.presenter.cleanup()
         if response == -5:  # Gtk.ResponseType.OK - avoid importing Gtk here
             self.run()
+            # just in case for postgres reset all sequences
+            for table in db.metadata.sorted_tables:
+                for col in table.c:
+                    utils.reset_sequence(col)
         logger.debug("responded %s", response)
         return response
 
@@ -102,8 +107,6 @@ class GenericImporter(ABC):  # pylint: disable=too-many-instance-attributes
         )
         task.set_message(msg)
         if self._err_recs:
-            from bauble import utils
-
             msg = (
                 _(
                     "%s errors encountered, would you like to open a CSV of "
@@ -112,8 +115,6 @@ class GenericImporter(ABC):  # pylint: disable=too-many-instance-attributes
                 % self._errors
             )
             if utils.yes_no_dialog(msg):
-                import csv
-
                 filepath = utils.get_temp_path().with_suffix(".csv")
                 with filepath.open("w", encoding="utf-8-sig", newline="") as f:
                     writer = csv.DictWriter(f, self._err_recs[0].keys())
@@ -516,7 +517,7 @@ class GenericImporter(ABC):  # pylint: disable=too-many-instance-attributes
             self.add_rec_to_db(session, item, remainder)
 
         # once all records are accounted for add them to item in reverse
-        if not "." in key:
+        if "." not in key:
             logger.debug(
                 "setattr on object: %s with name: %s and value: %s (type %s)",
                 item,
