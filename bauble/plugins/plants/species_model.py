@@ -229,7 +229,7 @@ red_list_values = {
     "EN": _("Endangered (EN)"),
     "VU": _("Vulnerable (VU)"),
     "NT": _("Near Threatened (NT)"),
-    "LV": _("Least Concern (LC)"),
+    "LC": _("Least Concern (LC)"),
     "DD": _("Data Deficient (DD)"),
     "NE": _("Not Evaluated (NE)"),
     None: "",

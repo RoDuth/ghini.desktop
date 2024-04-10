@@ -27,6 +27,7 @@
 import csv
 import logging
 import os
+import re
 import tempfile
 import traceback
 from pathlib import Path
@@ -218,10 +219,6 @@ class CSVRestore:
                         % ORIG_SUFFIX
                     )
                     if utils.yes_no_dialog(msg):
-                        upgraders["accession"] = (
-                            self.pics_upgrader,
-                            filenames,
-                        )
                         upgraders["genus"] = (self.genus_upgrader, filenames)
                         upgraders["species"] = (
                             self.species_upgrader,
@@ -229,6 +226,24 @@ class CSVRestore:
                         )
                         upgraders["pictures"] = (self.pics_upgrader, filenames)
                         upgraders["accession"] = (self.acc_upgrader, filenames)
+
+                if "1.3.1" <= version < "1.3.8":
+                    msg = (
+                        _(
+                            "You are importing data from a version prior "
+                            "to v1.3.8?\n\nSome tables have changed "
+                            "\n\nWould you like to transform your data to "
+                            "match the new version? \n\nCopies of the "
+                            "original files will be saved with an appended "
+                            '"%s"'
+                        )
+                        % ORIG_SUFFIX
+                    )
+                    if utils.yes_no_dialog(msg):
+                        upgraders["red_list"] = (
+                            self.red_list_upgrader,
+                            filenames,
+                        )
 
                 for upgrader, *args in upgraders.values():
                     logger.debug("running %s", upgrader.__name__)
@@ -242,9 +257,55 @@ class CSVRestore:
         bauble.task.queue(species_model.update_all_full_names_task())
 
     @staticmethod
+    def red_list_upgrader(filenames):
+        """Upgrade species file red_list enum"""
+
+        reg = re.compile(r".*species\.csv$")
+        sp_file = [i for i in filenames if reg.match(i)]
+
+        # bail early
+        if not sp_file:
+            return
+
+        sp_file = sp_file[0]
+        original = sp_file + ORIG_SUFFIX
+
+        msg = _("upgrading species red_list data: ")
+        logger.debug("upgrading %s", sp_file)
+        bauble.task.set_message(msg + sp_file)
+
+        with open(sp_file, "r", encoding="utf-8", newline="") as f:
+            num_lines = len(f.readlines())
+
+        if num_lines <= 1:
+            logger.debug("%s contains no table data skip translation", sp_file)
+            return
+
+        os.rename(sp_file, original)
+        five_percent = int(num_lines / 20) or 1
+
+        with (
+            open(original, "r", encoding="utf-8", newline="") as old,
+            open(sp_file, "w", encoding="utf-8", newline="") as new,
+        ):
+            in_file = csv.DictReader(old)
+            fieldnames = in_file.fieldnames
+            out_file = csv.DictWriter(new, fieldnames=fieldnames)
+            out_file.writeheader()
+            for count, line in enumerate(in_file):
+                red_list = line.get("red_list")
+
+                if red_list == "LV":
+                    line["red_list"] = "LC"
+
+                out_file.writerow(line)
+                if count % five_percent == 0:
+                    pb_set_fraction(count / num_lines)
+                    yield
+
+    @staticmethod
     def species_upgrader(filenames):
-        """Upgrade genus file"""
-        import re
+        """Upgrade species file"""
 
         reg = re.compile(r".*species\.(csv|txt)$")
         sp_file = [i for i in filenames if reg.match(i)]
@@ -256,7 +317,7 @@ class CSVRestore:
         sp_file = sp_file[0]
         original = sp_file + ORIG_SUFFIX
 
-        msg = _("adding genus hybrid flag: ")
+        msg = _("upgrading species data: ")
         logger.debug("upgrading %s", sp_file)
         bauble.task.set_message(msg + sp_file)
 
@@ -302,7 +363,6 @@ class CSVRestore:
     @staticmethod
     def genus_upgrader(filenames):
         """Upgrade genus file"""
-        import re
 
         reg = re.compile(r".*genus\.(csv|txt)$")
         genus_file = [i for i in filenames if reg.match(i)]
@@ -365,8 +425,6 @@ class CSVRestore:
 
     @staticmethod
     def pics_upgrader(filenames):
-        import re
-
         def upgrader(filename):
             with open(filename, "r", encoding="utf-8", newline="") as f:
                 num_lines = len(f.readlines())
