@@ -25,6 +25,7 @@ from sqlalchemy import Column
 from sqlalchemy import Unicode
 from sqlalchemy import UnicodeText
 from sqlalchemy import event
+from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
 
@@ -36,39 +37,6 @@ CREATED_KEY = "created"
 REGISTRY_KEY = "registry"
 
 DATE_FORMAT_KEY = "date_format"
-
-
-def get_default(name, default=None, session=None):
-    """Get a BaubleMeta object with name.
-
-    If the default value is not None then a BaubleMeta object is returned with
-    name and the default value given.
-
-    If a session instance is passed (session != None) then we
-    don't commit the session.
-    """
-    commit = False
-    if not session:
-        session = db.Session()
-        commit = True
-    query = session.query(BaubleMeta)
-    meta = query.filter_by(name=name).first()
-    if not meta and default is not None:
-        meta = BaubleMeta(name=utils.nstr(name), value=default)
-        session.add(meta)
-        if commit:
-            session.commit()
-            # load the properties so that we can close the session and
-            # avoid getting errors when accessing the properties on the
-            # returned meta
-            # pylint: disable=pointless-statement
-            meta.value
-            meta.name
-
-    if commit:
-        # close the session whether we added anything or not
-        session.close()
-    return meta
 
 
 @utils.timed_cache(secs=None)
@@ -119,10 +87,11 @@ def confirm_default(name, default, msg, parent=None):
 def set_value(names, defaults, msg, parent=None):
     """Allow the user to change the value of a BaubleMeta object at any time.
 
-    :param names: a string or iterable, if provided as an iterable of names
+    :param names: a string or iterable of strings, an iterable of names
         allows setting multiple values.
-    :param defaults: a string or iterable, if names is a interable this should
-        be a corresponding iterable in the same order and same length.
+    :param defaults: a string or iterable of strings, if names is an interable
+        of names this should be a corresponding iterable in the same length and
+        order as names.
     :param msg: the message to display in the dialog.
     :param parent: the parent window
     """
@@ -199,6 +168,45 @@ class BaubleMeta(db.Base):
     __tablename__ = "bauble"
     name = Column(Unicode(64), unique=True)
     value = Column(UnicodeText)
+
+
+def get_default(
+    name: str, default: str | None = None, session: Session | None = None
+) -> BaubleMeta | None:
+    """Get a BaubleMeta object with name.
+
+    If the default value is not None then a BaubleMeta object is returned with
+    name and the default value given.
+
+    If a session instance is passed (session != None) then we
+    don't commit the session.
+    """
+    commit = False
+    if not session and db.Session:
+        session = db.Session()
+        commit = True
+
+    if not session:
+        return None
+
+    query = session.query(BaubleMeta)
+    meta = query.filter_by(name=name).first()
+    if not meta and default is not None:
+        meta = BaubleMeta(name=utils.nstr(name), value=default)
+        session.add(meta)
+        if commit:
+            session.commit()
+            # load the properties so that we can close the session and
+            # avoid getting errors when accessing the properties on the
+            # returned meta
+            # pylint: disable=pointless-statement
+            meta.value
+            meta.name
+
+    if commit:
+        # close the session whether we added anything or not
+        session.close()
+    return meta
 
 
 @event.listens_for(BaubleMeta, "after_insert")
