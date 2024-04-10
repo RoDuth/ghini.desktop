@@ -2366,4 +2366,4 @@ class BaubleSearchSearchTest(BaubleTestCase):
         result = search.search(string, self.session)
         for i in result:
             print(i)
-        self.assertEqual(result, [sp1])
+        self.assertEqual(result, [])

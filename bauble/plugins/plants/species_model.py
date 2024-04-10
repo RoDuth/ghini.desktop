@@ -1027,8 +1027,8 @@ class Species(db.Base, db.WithNotes):
         plt_cls = acc_cls.plants.prop.mapper.class_
         active = (
             select([cls.id])
-            .outerjoin(cls.accessions)
-            .outerjoin(acc_cls.plants)
+            .outerjoin(acc_cls)
+            .outerjoin(plt_cls)
             .where(or_(plt_cls.id.is_(None), plt_cls.quantity > 0))
             .scalar_subquery()
         )
@@ -1119,7 +1119,7 @@ class Species(db.Base, db.WithNotes):
         return query.count()
 
 
-# Listen for changes and update the full_name string
+# Listen for changes and update the full_name strings
 @event.listens_for(Species, "before_update")
 def species_before_update(_mapper, _connection, target):
     target.full_name = str(target)
