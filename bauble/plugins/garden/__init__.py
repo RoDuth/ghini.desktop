@@ -65,6 +65,7 @@ from .plant import PlantNote
 from .plant import PlantPicture
 from .plant import PlantSearch
 from .plant import plant_context_menu
+from .plant import set_code_format
 from .source import Collection
 from .source import Source
 from .source import SourceDetail
@@ -363,6 +364,9 @@ class GardenPlugin(pluginmgr.Plugin):
             delimiter_item = Gio.MenuItem.new(
                 _("Set Global Delimiter"), "win.set_delimiter"
             )
+            code_item = Gio.MenuItem.new(
+                _("Set Plant Code Format"), "win.set_plant_code_format"
+            )
 
             if bauble.gui:
                 bauble.gui.window.add_action(inactive_action)
@@ -373,6 +377,9 @@ class GardenPlugin(pluginmgr.Plugin):
 
                 bauble.gui.add_action("set_delimiter", Plant.set_delimiter)
                 bauble.gui.options_menu.append_item(delimiter_item)
+
+                bauble.gui.add_action("set_plant_code_format", set_code_format)
+                bauble.gui.options_menu.append_item(code_item)
 
         if not multiprocessing.parent_process():
             from .garden_map import expunge_garden_map

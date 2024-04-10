@@ -32,6 +32,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import object_session
 
 from bauble import db
+from bauble import meta
 from bauble import prefs
 from bauble import utils
 from bauble.meta import BaubleMeta
@@ -71,6 +72,7 @@ from .institution import Institution
 from .institution import InstitutionPresenter
 from .location import Location
 from .location import LocationEditor
+from .plant import PLANT_CODE_FORMAT_KEY
 from .plant import Plant
 from .plant import PlantChange
 from .plant import PlantEditor
@@ -82,6 +84,7 @@ from .plant import added_reasons
 from .plant import branch_callback
 from .plant import change_reasons
 from .plant import deleted_reasons
+from .plant import get_next_code
 from .plant import is_code_unique
 from .plant import transfer_reasons
 from .propagation import PlantPropagation
@@ -4494,7 +4497,105 @@ class PlantSearchTests(BaubleTestCase):
         self.assertCountEqual(results, [self.plt1, self.plt2])
 
 
-class AccessionGetNextCode(GardenTestCase):
+class PlantGetNextCodeTests(GardenTestCase):
+    def test_digits_no_plants(self):
+        accession = Accession(species=self.species, code="TEST")
+        self.assertEqual(get_next_code(accession), "1")
+
+    def test_digits_w_plants(self):
+        accession = Accession(species=self.species, code="TEST")
+        accession.plants.append(
+            Plant(
+                code="1",
+                quantity=1,
+                location=Location(name="site", code="STE"),
+            )
+        )
+        self.session.add(accession)
+        self.session.commit()
+        self.assertEqual(get_next_code(accession), "2")
+
+    def test_digits_w_10_plants(self):
+        accession = Accession(species=self.species, code="TEST")
+        accession.plants.append(
+            Plant(
+                code="9",
+                quantity=1,
+                location=Location(name="site", code="STE"),
+            )
+        )
+        self.session.add(accession)
+        self.session.commit()
+        self.assertEqual(get_next_code(accession), "10")
+
+    def test_alpha_lower_no_plants(self):
+        meta.get_default(PLANT_CODE_FORMAT_KEY, "alpha_lower")
+        accession = Accession(species=self.species, code="TEST")
+        self.assertEqual(get_next_code(accession), "a")
+
+    def test_alpha_lower_w_plants(self):
+        meta.get_default(PLANT_CODE_FORMAT_KEY, "alpha_lower")
+        accession = Accession(species=self.species, code="TEST")
+        accession.plants.append(
+            Plant(
+                code="a",
+                quantity=1,
+                location=Location(name="site", code="STE"),
+            )
+        )
+        self.session.add(accession)
+        self.session.commit()
+        self.assertEqual(get_next_code(accession), "b")
+
+    def test_alpha_lower_w_z_plants(self):
+        meta.get_default(PLANT_CODE_FORMAT_KEY, "alpha_lower")
+        accession = Accession(species=self.species, code="TEST")
+        accession.plants.append(
+            Plant(
+                code="z",
+                quantity=1,
+                location=Location(name="site", code="STE"),
+            )
+        )
+        self.session.add(accession)
+        self.session.commit()
+        self.assertEqual(get_next_code(accession), "aa")
+
+    def test_alpha_upper_no_plants(self):
+        meta.get_default(PLANT_CODE_FORMAT_KEY, "alpha_upper")
+        accession = Accession(species=self.species, code="TEST")
+        self.assertEqual(get_next_code(accession), "A")
+
+    def test_alpha_upper_w_plants(self):
+        meta.get_default(PLANT_CODE_FORMAT_KEY, "alpha_upper")
+        accession = Accession(species=self.species, code="TEST")
+        accession.plants.append(
+            Plant(
+                code="A",
+                quantity=1,
+                location=Location(name="site", code="STE"),
+            )
+        )
+        self.session.add(accession)
+        self.session.commit()
+        self.assertEqual(get_next_code(accession), "B")
+
+    def test_alpha_upper_w_z_plants(self):
+        meta.get_default(PLANT_CODE_FORMAT_KEY, "alpha_upper")
+        accession = Accession(species=self.species, code="TEST")
+        accession.plants.append(
+            Plant(
+                code="Z",
+                quantity=1,
+                location=Location(name="site", code="STE"),
+            )
+        )
+        self.session.add(accession)
+        self.session.commit()
+        self.assertEqual(get_next_code(accession), "AA")
+
+
+class AccessionGetNextCodeTests(GardenTestCase):
     def test_get_next_code_first_this_year(self):
         this_year = str(datetime.date.today().year)
         self.assertEqual(Accession.get_next_code(), this_year + ".0001")

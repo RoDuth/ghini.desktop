@@ -27,6 +27,7 @@ import logging
 import os
 import traceback
 import typing
+from collections.abc import Sequence
 from datetime import datetime
 from functools import lru_cache
 from pathlib import Path
@@ -108,8 +109,14 @@ from .propagation import PlantPropagation
 # location combo that shows the description of the currently selected
 # location
 
-plant_delimiter_key = "plant_delimiter"
-default_plant_delimiter = "."
+# meta keys
+PLANT_DELIMITER_KEY = "plant_delimiter"
+DEFAULT_PLANT_DELIMITER = "."
+PLANT_CODE_FORMAT_KEY = "plant_code_format"
+DEFAULT_PLANT_CODE_FORMAT = "digits"
+
+PLANT_KML_MAP_PREFS = "kml_templates.plant"
+"""pref for path to a custom mako kml template."""
 
 
 def edit_callback(plants):
@@ -176,16 +183,6 @@ def remove_callback(plants):
     return True
 
 
-PLANT_KML_MAP_PREFS = "kml_templates.plant"
-"""pref for path to a custom mako kml template."""
-
-map_kml_callback = KMLMapCallbackFunctor(
-    prefs.prefs.get(
-        PLANT_KML_MAP_PREFS, str(Path(__file__).resolve().parent / "plant.kml")
-    )
-)
-
-
 edit_action = Action(
     "plant_edit", _("_Edit"), callback=edit_callback, accelerator="<ctrl>e"
 )
@@ -205,6 +202,12 @@ remove_action = Action(
     multiselect=True,
 )
 
+map_kml_callback = KMLMapCallbackFunctor(
+    prefs.prefs.get(
+        PLANT_KML_MAP_PREFS, str(Path(__file__).resolve().parent / "plant.kml")
+    )
+)
+
 map_action = Action(
     "plant_show_in_map",
     _("Show in _map"),
@@ -216,31 +219,96 @@ map_action = Action(
 plant_context_menu = [edit_action, branch_action, remove_action, map_action]
 
 
-def get_next_code(acc):
+def get_next_aplha_lower_code(codes: Sequence[tuple[str]]) -> str:
+    codes_lower = [
+        code[0] for code in codes if code[0].isalpha() and code[0].islower()
+    ]
+
+    if not codes_lower:
+        return "a"
+
+    last = max(code[0] for code in codes_lower)
+    stripped = last.rstrip("z")
+    if stripped:
+        return (
+            stripped[:-1]
+            + chr(ord(stripped[-1]) + 1)
+            + "a" * (len(last) - len(stripped))
+        )
+    return "a" * (len(last) + 1)
+
+
+def get_next_aplha_upper_code(codes: Sequence[tuple[str]]) -> str:
+    codes_upper = [
+        code[0] for code in codes if code[0].isalpha() and code[0].isupper()
+    ]
+
+    if not codes_upper:
+        return "A"
+
+    last = max(code[0] for code in codes_upper)
+    stripped = last.rstrip("Z")
+    if stripped:
+        return (
+            stripped[:-1]
+            + chr(ord(stripped[-1]) + 1)
+            + "A" * (len(last) - len(stripped))
+        )
+    return "A" * (len(last) + 1)
+
+
+def get_next_digit_code(codes: Sequence[tuple[str]]) -> str:
+    codes_digit = [code[0] for code in codes if code[0].isdigit()]
+
+    if not codes_digit:
+        return "1"
+
+    nxt = max(int(code) for code in codes_digit) + 1
+    return str(nxt)
+
+
+def get_next_code(acc: Accession) -> str:
     """Return the next available plant code for an accession.
 
     This function should be specific to the institution.
 
     If there is an error getting the next code the None is returned.
     """
-    # auto generate/increment the accession code
-    session = db.Session()
-    codes = (
-        session.query(Plant.code)
-        .join(Accession)
-        .filter(Accession.id == acc.id)
-        .all()
-    )
-    nxt = 1
-    if codes:
-        try:
-            nxt = max(int(code[0]) for code in codes) + 1
-        except Exception as e:  # pylint: disable=broad-except
-            logger.debug(
-                "can't get next plant code %s(%s)", type(e).__name__, e
+    frmt = meta.get_default(
+        PLANT_CODE_FORMAT_KEY, DEFAULT_PLANT_CODE_FORMAT
+    ).value
+
+    codes = [("",)]
+    if db.Session:
+        with db.Session() as session:
+            codes = (
+                session.query(Plant.code)
+                .join(Accession)
+                .filter(Accession.id == acc.id)
+                .all()
             )
-            return None
-    return str(nxt)
+
+    if frmt == "alpha_lower":
+        return get_next_aplha_lower_code(codes)
+    if frmt == "alpha_upper":
+        return get_next_aplha_upper_code(codes)
+    return get_next_digit_code(codes)
+
+
+def set_code_format(*_args) -> None:
+    """Set the plant code format."""
+    msg = _(  # type: ignore[name-defined]
+        "Set the default plant code format, available options are: 'digits', "
+        "'alpha_lower', 'alpha_upper'."
+        "\n\nNote that any plants created before this change (that used the "
+        "previous plant code format) will not change, you may need to do this "
+        "manually."
+    )
+    current_frmt = meta.get_default(
+        PLANT_CODE_FORMAT_KEY, DEFAULT_PLANT_CODE_FORMAT
+    ).value
+
+    meta.set_value(PLANT_CODE_FORMAT_KEY, current_frmt, msg)
 
 
 def is_code_unique(plant, code):
@@ -845,7 +913,7 @@ class Plant(db.Base, db.WithNotes):
         """
         if cls._delimiter is None or refresh:
             cls._delimiter = meta.get_default(
-                plant_delimiter_key, default_plant_delimiter
+                PLANT_DELIMITER_KEY, DEFAULT_PLANT_DELIMITER
             ).value
         return cls._delimiter
 
@@ -859,7 +927,7 @@ class Plant(db.Base, db.WithNotes):
             "not change, you may need to do this manually."
         )
         delimeter = meta.set_value(
-            plant_delimiter_key, cls.get_delimiter(), msg
+            PLANT_DELIMITER_KEY, cls.get_delimiter(), msg
         )
         if delimeter:
             cls._delimiter = delimeter[0].value
