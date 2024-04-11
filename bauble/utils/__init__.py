@@ -1082,10 +1082,10 @@ def safe_int(string):
     return 0
 
 
-_NATSORT_RX = re.compile(r"(\d+(?:\.\d+)?)")
+_NATSORT_RX = re.compile("([0-9]+)")
 
 
-def natsort_key(obj):
+def natsort_key(obj: Any) -> tuple[list[str | int], str]:
     """a key getter for sort and sorted function
 
     the sorting is done on return value of obj.__str__() so we can sort
@@ -1095,18 +1095,11 @@ def natsort_key(obj):
     """
 
     item = str(obj)
-    parts = _NATSORT_RX.split(item)
-    for part in parts:
-        if part and part[0] in "0123456789":
-            if "." in part:
-                numtype = float
-            else:
-                numtype = int
-            # wrap in tuple with '0' to explicitly specify numbers come first
-            part = (0, numtype(part))
-        else:
-            part = (1, part)
-    return (parts, item)
+    parts = [
+        int(part) if part.isdigit() else part
+        for part in _NATSORT_RX.split(item)
+    ]
+    return parts, item
 
 
 def delete_or_expunge(obj):

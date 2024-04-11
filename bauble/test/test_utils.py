@@ -19,6 +19,7 @@
 
 import os
 from pathlib import Path
+from random import shuffle
 from tempfile import TemporaryDirectory
 from unittest import TestCase
 from unittest import mock
@@ -294,6 +295,79 @@ class UtilsTest(TestCase):
             )
         )
         dest.cleanup()
+
+    def test_natsort_key_orders_by_string_of_object(self):
+        # also test a large sort
+        # Create a large shuffled list of objects
+        mock_objs = [mock.MagicMock() for i in range(200)]
+        for i, mockobj in enumerate(mock_objs):
+            mockobj.__str__.return_value = f"XYZ.{i}"
+        # copy list to check they get shuffled
+        mock_objs_start = mock_objs.copy()
+        shuffle(mock_objs)
+        # confirm they are shuffled
+        self.assertNotEqual(mock_objs, mock_objs_start)
+
+        mock_objs.sort(key=utils.natsort_key)
+        for i in range(200):
+            self.assertEqual(
+                str(mock_objs[i]).rsplit(".", maxsplit=1)[-1], str(i)
+            )
+
+    def test_natsort_key_a_before_z(self):
+        # alphabetical
+        lst = ["z", "b", "a"]
+        self.assertEqual(sorted(lst, key=utils.natsort_key), ["a", "b", "z"])
+
+    def test_natsort_key_0_before_9(self):
+        # numerical
+        lst = ["9", "0", "3"]
+        self.assertEqual(sorted(lst, key=utils.natsort_key), ["0", "3", "9"])
+
+    def test_natsort_key_orders_numbers_first(self):
+        lst = ["2X", "X2", "1X"]
+        self.assertEqual(
+            sorted(lst, key=utils.natsort_key), ["1X", "2X", "X2"]
+        )
+
+    def test_natsort_key_10_after_1(self):
+        lst = ["10.X", "1.X"]
+        self.assertEqual(sorted(lst, key=utils.natsort_key), ["1.X", "10.X"])
+        lst = ["X.10", "X.1"]
+        self.assertEqual(sorted(lst, key=utils.natsort_key), ["X.1", "X.10"])
+
+    def test_natsort_key_01_before_1(self):
+        lst = ["1.X", "01.X"]
+        self.assertEqual(sorted(lst, key=utils.natsort_key), ["01.X", "1.X"])
+        lst = ["X.1", "X.01"]
+        self.assertEqual(sorted(lst, key=utils.natsort_key), ["X.01", "X.1"])
+
+    def test_natsort_key_01_before_x(self):
+        lst = ["X", "01"]
+        self.assertEqual(sorted(lst, key=utils.natsort_key), ["01", "X"])
+
+    def test_natsort_handles_non_ascii_chars(self):
+        # really only to check it doesn't error
+        lst = ["ゥ", "ク", "カ", "ァ", "エ"]
+        self.assertEqual(
+            sorted(lst, key=utils.natsort_key), ["ァ", "ゥ", "エ", "カ", "ク"]
+        )
+        lst = ["3$", "1络", "2@"]
+        self.assertEqual(
+            sorted(lst, key=utils.natsort_key), ["1络", "2@", "3$"]
+        )
+        lst = ["இந்தியா.2", "இந்தியா.3", "இந்தியா.1"]
+        self.assertEqual(
+            sorted(lst, key=utils.natsort_key),
+            ["இந்தியா.1", "இந்தியா.2", "இந்தியா.3"],
+        )
+
+    def test_natsort_key_numerically_equivalent_sorts_by_string(self):
+        # i.e. string length
+        lst = ["001", "01", "00001", "1"]
+        self.assertEqual(
+            sorted(lst, key=utils.natsort_key), ["00001", "001", "01", "1"]
+        )
 
 
 class UtilsDBTests(BaubleTestCase):
