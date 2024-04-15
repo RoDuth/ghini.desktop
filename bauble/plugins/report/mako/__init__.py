@@ -115,8 +115,16 @@ class MakoFormatterSettingsBox(SettingsBox):
             if key in ("template", "private"):
                 continue
             if widget_and_default_val := self.defaults.get(key):
+                logger.debug(
+                    "%s widget_and_default_val = %s",
+                    key,
+                    widget_and_default_val,
+                )
                 widget, __ = widget_and_default_val
-                utils.set_widget_value(widget, val)
+                try:
+                    utils.set_widget_value(widget, val)
+                except TypeError as e:
+                    logger.debug("%s(%s)", type(e).__name__, e)
 
     def on_file_set(self, widget):
         self.defaults.clear()
@@ -151,8 +159,12 @@ class MakoFormatterSettingsBox(SettingsBox):
             label.set_margin_end(5)
             entry = self.get_option_widget(ftype, fdefault, fname)
             entry.set_tooltip_text(ftooltip)
+
+            # account for file widget (box with entry and button)
+            widget = entry.get_children()[0] if ftype == "file" else entry
+
             # entry updates the corresponding item in report.options
-            self.defaults[fname] = (entry, fdefault)
+            self.defaults[fname] = (widget, fdefault)
             options_box.attach(label, 0, current_row, 1, 1)
             options_box.attach(entry, 1, current_row, 1, 1)
             current_row += 1
