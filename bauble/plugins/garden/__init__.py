@@ -156,7 +156,7 @@ class GardenPlugin(pluginmgr.Plugin):
             infobox=AccessionInfoBox,
             context_menu=acc_context_menu,
             sorter=lambda obj: (
-                obj.species.full_sci_name or ""
+                (obj.species.full_sci_name or "", utils.natsort_key(obj))
                 if prefs.prefs.get(SORT_BY_PREF)
                 else utils.natsort_key(obj)
             ),
@@ -181,7 +181,10 @@ class GardenPlugin(pluginmgr.Plugin):
             infobox=PlantInfoBox,
             context_menu=plant_context_menu,
             sorter=lambda obj: (
-                obj.accession.species.full_sci_name or ""
+                (
+                    obj.accession.species.full_sci_name or "",
+                    utils.natsort_key(obj),
+                )
                 if prefs.prefs.get(SORT_BY_PREF)
                 else utils.natsort_key(obj)
             ),
