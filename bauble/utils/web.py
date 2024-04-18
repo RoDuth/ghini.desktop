@@ -31,6 +31,8 @@ from fnmatch import fnmatch
 from http.client import HTTPResponse
 from ipaddress import ip_address
 from ipaddress import ip_network
+from typing import NotRequired
+from typing import TypedDict
 
 import dukpy  # type: ignore [import]
 
@@ -39,6 +41,17 @@ logger = logging.getLogger(__name__)
 from gi.repository import Gtk
 
 from bauble.utils import desktop
+
+LinkDict = TypedDict(
+    "LinkDict",
+    {
+        "_base_uri": NotRequired[str],
+        "_space": NotRequired[str],
+        "title": str,
+        "tooltip": None | str,
+        "name": NotRequired[str],
+    },
+)
 
 
 class BaubleLinkButton(Gtk.LinkButton):
@@ -76,8 +89,10 @@ class BaubleLinkButton(Gtk.LinkButton):
             self.set_uri(self._base_uri % string)
 
 
-def link_button_factory(link):
-    return type(link.get("name", "LinkButton"), (BaubleLinkButton,), link)()
+def link_button_factory(link: LinkDict) -> BaubleLinkButton:
+    return type(
+        link.get("name", "LinkButton"), (BaubleLinkButton,), dict(link)
+    )()
 
 
 class PACFile:

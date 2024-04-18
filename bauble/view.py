@@ -70,6 +70,8 @@ from bauble import prefs
 from bauble import search
 from bauble import utils
 from bauble.error import check
+from bauble.utils.web import BaubleLinkButton
+from bauble.utils.web import LinkDict
 from bauble.utils.web import link_button_factory
 
 # use different formatting template for the result view depending on the
@@ -394,19 +396,21 @@ class InfoBox(Gtk.Notebook):
 class LinksExpander(InfoExpander):
     EXPANDED_PREF = "infobox.generic_links_expanded"
 
-    def __init__(self, notes=None, links=None):
+    def __init__(
+        self, notes: str | None = None, links: list[LinkDict] | None = None
+    ):
         """
         :param notes: the name of the notes property on the row
         """
-        super().__init__(_("Links"))
+        super().__init__(_("Links"))  # type: ignore [name-defined]
         links = links or []
         self.dynamic_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         self.vbox.pack_start(self.dynamic_box, False, False, 0)
         self.link_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         self.vbox.pack_start(self.link_box, False, False, 0)
         self.notes = notes
-        self.buttons = []
-        for link in links:
+        self.buttons: list[BaubleLinkButton] = []
+        for link in sorted(links, key=lambda i: i["title"]):
             try:
                 btn = link_button_factory(link)
                 self.buttons.append(btn)
@@ -419,14 +423,13 @@ class LinksExpander(InfoExpander):
                     type(e).__name__,
                     e,
                 )
+        self._sep = None
 
-    def update(self, row):
+    def update(self, row: db.Base) -> None:
         self.set_expanded(prefs.prefs.get(self.EXPANDED_PREF, True))
-        hide = True
-        separator = False
+        note_buttons: list[BaubleLinkButton] = []
         for btn in self.buttons:
             btn.set_string(row)
-            hide = False
         for child in self.dynamic_box.get_children():
             self.dynamic_box.remove(child)
         if self.notes:
@@ -435,15 +438,14 @@ class LinksExpander(InfoExpander):
                     if not label:
                         label = url
                     try:
-                        link = {
+                        category = note.category
+                        link: LinkDict = {
                             "title": label,
-                            "tooltip": f"from note of category {note.category}",
+                            "tooltip": f"from note of category {category}",
                         }
                         button = link_button_factory(link)
                         button.set_uri(url)
-                        self.dynamic_box.pack_start(button, False, False, 0)
-                        separator = True
-                        hide = False
+                        note_buttons.append(button)
                     except Exception as e:  # pylint: disable=broad-except
                         # broad except, user data.
                         logger.debug(
@@ -452,16 +454,22 @@ class LinksExpander(InfoExpander):
                             type(e).__name__,
                             e,
                         )
+            for button in sorted(note_buttons, key=lambda i: i.title):
+                self.dynamic_box.pack_start(button, False, False, 0)
 
-            if separator and self.buttons:
+            if note_buttons and self.buttons:
                 sep = Gtk.Separator(margin_start=15, margin_end=15)
                 self.dynamic_box.pack_start(sep, False, False, 0)
 
-        if hide:
-            utils.hide_widgets([self, self._sep])
-        else:
-            utils.unhide_widgets([self, self._sep])
+        widgets = [self]
+        if self._sep:
+            widgets.append(self._sep)
+
+        if note_buttons or self.buttons:
+            utils.unhide_widgets(widgets)
             self.show_all()
+        else:
+            utils.hide_widgets(widgets)
 
 
 class AddOneDot(threading.Thread):

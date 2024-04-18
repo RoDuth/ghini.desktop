@@ -1679,15 +1679,17 @@ def get_invalid_columns(obj, ignore_columns=None):
     return invalid_columns
 
 
-def get_urls(text):
+URL_RGX = re.compile(r"(?:\[(.+?)\])?((?:(?:http)|(?:https))://\S+)", re.I)
+
+
+def get_urls(text: str) -> list[tuple[str, ...]]:
     """Return tuples of http/https links and labels for the links.  To label a
     link prefix it with [label text],
 
     e.g. [BBG]http://belizebotanic.org
     """
-    rgx = re.compile(r"(?:\[(.+?)\])?((?:(?:http)|(?:https))://\S+)", re.I)
     matches = []
-    for match in rgx.finditer(text):
+    for match in URL_RGX.finditer(text):
         matches.append(match.groups())
     return matches
 
