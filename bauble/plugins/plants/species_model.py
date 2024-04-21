@@ -23,7 +23,9 @@ The species database model
 
 import logging
 import re
+from functools import reduce
 from itertools import chain
+from operator import iconcat
 
 logger = logging.getLogger(__name__)
 
@@ -1034,6 +1036,13 @@ class Species(db.Base, db.WithNotes):
         )
         return cast(case([(cls.id.in_(active), 1)], else_=0), types.Boolean)
 
+    @property
+    def pictures(self) -> list:
+        """Return pictures from any attached plants and any in _pictures."""
+        pics = [a.pictures for a in self.accessions]
+        plant_pics: list = reduce(iconcat, pics, [])
+        return plant_pics + self._pictures
+
     infrasp_attr = {
         1: {
             "rank": "infrasp1_rank",
@@ -1174,7 +1183,7 @@ def update_all_full_names_handler(*_args):
 
 
 SpeciesNote = db.make_note_class("Species")
-SpeciesPicture = db.make_note_class("Species", cls_type="picture")
+SpeciesPicture = db.make_note_class("Species", cls_type="_picture")
 
 
 class SpeciesSynonym(db.Base):

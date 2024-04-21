@@ -31,6 +31,7 @@ from decimal import ROUND_DOWN
 from decimal import Decimal
 from functools import partial
 from functools import reduce
+from operator import iconcat
 from pathlib import Path
 from random import random
 
@@ -781,16 +782,12 @@ class Accession(db.Base, db.WithNotes):
             return None
 
     @property
-    def propagations(self):
-        import operator
-
-        return reduce(operator.add, [p.propagations for p in self.plants], [])
+    def propagations(self) -> list:
+        return reduce(iconcat, [p.propagations for p in self.plants], [])
 
     @property
-    def pictures(self):
-        import operator
-
-        return reduce(operator.add, [p.pictures for p in self.plants], [])
+    def pictures(self) -> list:
+        return reduce(iconcat, [p.pictures for p in self.plants], [])
 
     @hybrid_property
     def active(self):

@@ -88,6 +88,7 @@ from .species_editor import generic_sp_get_completions
 from .species_editor import species_cell_data_func
 from .species_editor import species_match_func
 from .species_editor import species_to_string_matcher
+from .species_model import SpeciesPicture
 from .species_model import _remove_zws as remove_zws
 from .species_model import infrasp_rank_values
 from .species_model import markup_italics
@@ -2586,6 +2587,80 @@ class SpeciesTests(PlantTestCase):
         )
         palm_ids = [i[0] for i in palms]
         self.assertCountEqual(palm_ids, [26])
+
+    def test_pictures_property_wo_pics(self):
+        sp = self.session.query(Species).get(1)
+        self.assertEqual(sp.pictures, [])
+
+    def test_pictures_property_w_pics(self):
+        sp = self.session.query(Species).get(1)
+        pic1 = SpeciesPicture(picture="test1.jpg")
+        sp._pictures.append(pic1)
+        self.assertEqual(sp.pictures, [pic1])
+
+    def test_pictures_property_w_plant_pics(self):
+        from ..garden import Accession
+        from ..garden import Location
+        from ..garden import Plant
+        from ..garden import PlantPicture
+
+        fam = Family(family="Myrtaceae")
+        gen = Genus(epithet="Syzygium", family=fam)
+        sp = Species(epithet="australe", genus=gen)
+        acc = Accession(species=sp, code="1")
+        loc = Location(name="site", code="STE")
+        plant = Plant(
+            accession=acc,
+            quantity=1,
+            location=loc,
+            code="1",
+        )
+        pic1 = PlantPicture(picture="test1.jpg")
+        plant.pictures.append(pic1)
+        plant2 = Plant(
+            accession=acc,
+            quantity=1,
+            location=loc,
+            code="2",
+        )
+        pic2 = PlantPicture(picture="test2.jpg")
+        plant2.pictures.append(pic2)
+        self.session.add_all([plant, plant2])
+        self.session.commit()
+        self.assertCountEqual(sp.pictures, [pic1, pic2])
+
+    def test_pictures_property_w_pics_and_plant_pics(self):
+        from ..garden import Accession
+        from ..garden import Location
+        from ..garden import Plant
+        from ..garden import PlantPicture
+
+        fam = Family(family="Myrtaceae")
+        gen = Genus(epithet="Syzygium", family=fam)
+        sp = Species(epithet="australe", genus=gen)
+        pic1 = SpeciesPicture(picture="test1.jpg")
+        sp._pictures.append(pic1)
+        acc = Accession(species=sp, code="1")
+        loc = Location(name="site", code="STE")
+        plant = Plant(
+            accession=acc,
+            quantity=1,
+            location=loc,
+            code="1",
+        )
+        pic2 = PlantPicture(picture="test1.jpg")
+        plant.pictures.append(pic2)
+        plant2 = Plant(
+            accession=acc,
+            quantity=1,
+            location=loc,
+            code="2",
+        )
+        pic3 = PlantPicture(picture="test2.jpg")
+        plant2.pictures.append(pic3)
+        self.session.add_all([plant, plant2])
+        self.session.commit()
+        self.assertCountEqual(sp.pictures, [pic1, pic2, pic3])
 
 
 class MarkupItalicsTests(TestCase):

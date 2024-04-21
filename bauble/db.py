@@ -644,10 +644,11 @@ def verify_connection(new_engine, show_error_dialogs=False):
 def make_note_class(name, cls_type="note", extra_columns=None):
     """Dynamically create a related table class of the notes type.
 
-    Current use is for notes and pictures tables."""
+    Current use is for notes, documents and pictures tables."""
 
-    class_name = name + cls_type.capitalize()
-    table_name = name.lower() + "_" + cls_type
+    cls_type_name = cls_type.strip("_")
+    class_name = name + cls_type_name.capitalize()
+    table_name = name.lower() + "_" + cls_type_name
 
     obj_dict = {
         "__tablename__": table_name,
@@ -656,7 +657,7 @@ def make_note_class(name, cls_type="note", extra_columns=None):
             sa.Unicode(64), default=utils.get_user_display_name()
         ),
         "category": sa.Column(sa.Unicode(32)),
-        cls_type: sa.Column(sa.UnicodeText, nullable=False),
+        cls_type_name: sa.Column(sa.UnicodeText, nullable=False),
         name.lower()
         + "_id": sa.Column(
             sa.Integer, sa.ForeignKey(name.lower() + ".id"), nullable=False

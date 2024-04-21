@@ -279,7 +279,7 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
         pictures_parent = self.view.widgets.pictures_parent_box
         pictures_parent.foreach(pictures_parent.remove)
         self.pictures_presenter = editor.PicturesPresenter(
-            self, "pictures", pictures_parent
+            self, "_pictures", pictures_parent
         )
 
         self.init_enum_combo("sp_spqual_combo", "sp_qual")
