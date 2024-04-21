@@ -218,10 +218,8 @@ class FunctionClause(BinaryClause):
             handler.query = handler.query.filter(id_.in_(sub_query))
         else:
             handler.query, attr = self.operands[0].evaluate(handler)
-            print("QUERY-->", handler.query)
             where = clause(self.operands[1].express())
             handler.query = handler.query.filter(where)
-            print("HANDLER.QUERY-->", handler.query)
 
         return handler.query
 
