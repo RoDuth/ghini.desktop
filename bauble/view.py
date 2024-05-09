@@ -1858,7 +1858,7 @@ class AppendThousandRows(threading.Thread):
 
     def cancel_callback(self):
         row = [None]
-        row += ["---"] * 7
+        row += ["---"] * 8
         row[4] = "** " + _("interrupted") + " **"
         self.view.liststore.append(row)
 
@@ -1936,7 +1936,7 @@ class AppendThousandRows(threading.Thread):
             query = session.query(db.History)
             if self.arg:
                 query = query.filter(*self.get_query_filters())
-            query = query.order_by(db.History.timestamp.desc())
+            query = query.order_by(db.History.id.desc())
             # add rows in small batches
             offset = 0
             step = 200
@@ -2007,6 +2007,8 @@ class HistoryView(pluginmgr.View, Gtk.Box):
         self.context_menu = Gtk.Menu.new_from_model(menu_model)
         self.context_menu.attach_to_widget(self.history_tv)
 
+        self.clone_hist_id = 0
+
         self.last_arg = None
 
     @staticmethod
@@ -2042,6 +2044,7 @@ class HistoryView(pluginmgr.View, Gtk.Box):
         )
         friendly = "\n".join(textwrap.wrap(friendly, 200))
         frmt = prefs.prefs.get(prefs.datetime_format_pref)
+        is_cloned = item.id <= self.clone_hist_id
         self.liststore.append(
             [
                 item,
@@ -2052,6 +2055,7 @@ class HistoryView(pluginmgr.View, Gtk.Box):
                 item.table_name,
                 friendly,
                 geojson,
+                is_cloned,
             ]
         )
 
@@ -2072,6 +2076,17 @@ class HistoryView(pluginmgr.View, Gtk.Box):
 
     def on_revert_to_history(self, _action, _paramm):
         selected = self.get_selected_value()
+        if selected.id <= self.clone_hist_id:
+            msg = (
+                _(
+                    "<b>WARNING: Can not revert past clone point</b>\n\nThis "
+                    "database was cloned at line %s"
+                )
+                % self.clone_hist_id
+            )
+            utils.message_dialog(msg)
+            return
+
         logger.debug(
             "reverting to selected %s id: %s",
             selected.table_name,
@@ -2154,6 +2169,15 @@ class HistoryView(pluginmgr.View, Gtk.Box):
 
     def update(self, *args):
         """Add the history items to the view."""
+        meta_table = bauble.meta.BaubleMeta.__table__
+        with db.engine.begin() as connection:
+            clone_hist_id = connection.execute(
+                select(meta_table.c.value).where(
+                    meta_table.c.name == "clone_history_id"
+                )
+            ).scalar()
+            self.clone_hist_id = int(clone_hist_id or 0)
+
         self.cancel_threads()
         GLib.idle_add(self.liststore.clear)
         self.last_arg = args[0]

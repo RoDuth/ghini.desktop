@@ -817,6 +817,7 @@ class TestHistoryView(BaubleTestCase):
                 "_created": None,
                 "_last_updated": None,
             },
+            id=1,
         )
 
         hist_view = HistoryView()
@@ -839,7 +840,7 @@ class TestHistoryView(BaubleTestCase):
         mock_context.popup_at_pointer.assert_called()
 
     @mock.patch("bauble.utils.yes_no_dialog")
-    def test_on_revert_to_history(self, mock_dialog):
+    def test_on_revert_to_history_not_cloned(self, mock_dialog):
         mock_dialog.return_value = True
         # load history
         for setup in get_setUp_data_funcs():
@@ -885,6 +886,130 @@ class TestHistoryView(BaubleTestCase):
         hist_view.on_revert_to_history(None, None)
         mock_dialog.assert_called()
         self.assertEqual(self.session.query(note_cls).count(), remainder)
+        wait_on_threads()
+
+    @mock.patch("bauble.utils.message_dialog")
+    def test_on_revert_to_history_wont_revert_past_cloned(self, mock_dialog):
+        # set clone point
+        clone_point = 4
+        meta.get_default("clone_history_id", clone_point)
+        mock_dialog.return_value = True
+
+        # load history
+        for setup in get_setUp_data_funcs():
+            setup()
+
+        # get a notes class and parent model...
+        for klass in MapperSearch.get_domain_classes().values():
+            if hasattr(klass, "notes") and hasattr(klass.notes, "mapper"):
+                note_cls = klass.notes.mapper.class_
+                parent_model = klass()
+                break
+
+        # populate parent model with junk data...
+        for col in parent_model.__table__.columns:
+            if not col.nullable:
+                if col.name.endswith("_id"):
+                    setattr(parent_model, col.name, 1)
+                if not getattr(parent_model, col.name):
+                    setattr(parent_model, col.name, "567")
+        # add 5 notes
+        for i in range(5):
+            parent_model.notes.append(note_cls(note=f"test{i}"))
+
+        self.session.add(parent_model)
+        self.session.commit()
+
+        start_note_count = self.session.query(note_cls).count()
+        self.assertEqual(start_note_count, 6)
+        start_hist_count = self.session.query(db.History).count()
+        self.assertEqual(start_hist_count, 7)
+
+        hist_view = HistoryView()
+        hist_view.update(None)
+        # wait for the thread to finish
+        wait_on_threads()
+        update_gui()
+        # select something
+        hist_view.history_tv.set_cursor(4)
+        selected = hist_view.get_selected_value()
+        self.assertLessEqual(selected.id, clone_point)
+        # try revert
+        hist_view.on_revert_to_history(None, None)
+        mock_dialog.assert_called()
+        # test nothing changed
+        self.assertEqual(
+            self.session.query(note_cls).count(), start_note_count
+        )
+        self.assertEqual(
+            self.session.query(db.History).count(), start_hist_count
+        )
+        wait_on_threads()
+
+    @mock.patch("bauble.utils.yes_no_dialog")
+    def test_on_revert_to_history_will_revert_before_cloned(self, mock_dialog):
+        # set clone point
+        clone_point = 4
+        meta.get_default("clone_history_id", clone_point)
+        mock_dialog.return_value = True
+
+        # load history
+        for setup in get_setUp_data_funcs():
+            setup()
+
+        # get a notes class and parent model...
+        for klass in MapperSearch.get_domain_classes().values():
+            if hasattr(klass, "notes") and hasattr(klass.notes, "mapper"):
+                note_cls = klass.notes.mapper.class_
+                parent_model = klass()
+                break
+
+        # populate parent model with junk data...
+        for col in parent_model.__table__.columns:
+            if not col.nullable:
+                if col.name.endswith("_id"):
+                    setattr(parent_model, col.name, 1)
+                if not getattr(parent_model, col.name):
+                    setattr(parent_model, col.name, "567")
+        # add 5 notes
+        for i in range(5):
+            parent_model.notes.append(note_cls(note=f"test{i}"))
+
+        self.session.add(parent_model)
+        self.session.commit()
+
+        start_note_count = self.session.query(note_cls).count()
+        self.assertEqual(start_note_count, 6)
+        start_hist_count = self.session.query(db.History).count()
+        self.assertEqual(start_hist_count, 7)
+
+        hist_view = HistoryView()
+        hist_view.update(None)
+        print(hist_view.clone_hist_id)
+        # wait for the thread to finish
+        wait_on_threads()
+        update_gui()
+        # select something
+        hist_view.history_tv.set_cursor(2)
+        selected = hist_view.get_selected_value()
+        self.assertTrue(selected.id > clone_point)
+        print(selected.id)
+        remainder_note = (
+            self.session.query(note_cls)
+            .filter(note_cls.id < selected.table_id)
+            .count()
+        )
+        remainder_hist = (
+            self.session.query(db.History)
+            .filter(db.History.id < selected.id)
+            .count()
+        )
+        hist_view.on_revert_to_history(None, None)
+        mock_dialog.assert_called()
+        self.assertEqual(self.session.query(note_cls).count(), remainder_note)
+        self.assertEqual(
+            self.session.query(db.History).count(), remainder_hist
+        )
         wait_on_threads()
 
     @mock.patch("bauble.view.HistoryView.get_selected_value")
@@ -966,6 +1091,7 @@ class TestHistoryView(BaubleTestCase):
                 "_created": None,
                 "_last_updated": None,
             },
+            id=1,
         )
 
         hist_view = HistoryView()
