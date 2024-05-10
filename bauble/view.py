@@ -1785,7 +1785,8 @@ class SearchView(pluginmgr.View, Gtk.Box):
         if ref.valid():
             path = ref.get_path()
         self.expand_to_all_rows(expanded_rows)
-        self.results_view.set_cursor(path)
+        if path is not None:
+            self.results_view.set_cursor(path)
 
     @staticmethod
     def on_view_row_activated(view, path, column):
