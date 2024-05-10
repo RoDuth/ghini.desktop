@@ -32,6 +32,7 @@ import re
 import threading
 import time
 from collections import UserDict
+from collections.abc import Callable
 from collections.abc import Iterable
 from functools import wraps
 from pathlib import Path
@@ -44,6 +45,13 @@ logger = logging.getLogger(__name__)
 from gi.repository import GdkPixbuf
 from gi.repository import GLib
 from gi.repository import Gtk
+from pyparsing import Group
+from pyparsing import ParseException
+from pyparsing import ParseResults
+from pyparsing import Suppress
+from pyparsing import Word
+from pyparsing import alphanums
+from pyparsing import delimited_list
 
 import bauble
 from bauble.error import check
@@ -1291,36 +1299,63 @@ def ilike(col, val, engine=None):
     return func.lower(col).like(func.lower(val))
 
 
-def range_builder(text):
-    """Return a list of numbers from a string range of the form 1-3,4,5"""
-    from pyparsing import Group
-    from pyparsing import ParseException
-    from pyparsing import ParseResults
-    from pyparsing import Suppress
-    from pyparsing import Word
-    from pyparsing import delimitedList
-    from pyparsing import nums
+def range_builder(text: str) -> list:
+    """Return a list of ints or chrs from a string range of the form
+    1-3,4,5
+    """
+    in_type: Callable[[str], int]
+    out_type: Callable[[int], str | int]
 
-    rng = Group(Word(nums) + Suppress("-") + Word(nums))
-    range_list = delimitedList(rng | Word(nums))
+    range_ = Group(Word(alphanums) + Suppress("-") + Word(alphanums))
+    range_list = delimited_list(range_ | Word(alphanums))
 
     try:
-        tokens = range_list.parseString(text)
+        tokens = range_list.parse_string(text)
     except (AttributeError, ParseException) as e:
         logger.debug("%s(%s)", type(e).__name__, e)
         return []
     values = set()
+
+    err_msg = (
+        "Invalid value(s) for start: '{rng[0]}' and/or end: '{rng[1]}' of "
+        "range in '{text}'"
+    )
+
     for rng in tokens:
         if isinstance(rng, ParseResults):
             # get here if the token is a range
-            start = int(rng[0])
-            end = int(rng[1]) + 1
-            check(start < end, "start must be less than end")
-            values.update(list(range(start, end)))
+            if rng[0].isdigit() and rng[1].isdigit():
+                in_type = int
+                out_type = int
+            elif rng[0].isalpha() and rng[1].isalpha():
+                in_type = ord
+                out_type = chr
+            else:
+                raise ValueError(err_msg.format(rng=rng, text=text))
+
+            try:
+                start = in_type(rng[0])
+                end = in_type(rng[1]) + 1
+            except TypeError as e:
+                raise ValueError(err_msg.format(rng=rng, text=text)) from e
+
+            check(
+                start < end - 1,
+                f"start: '{rng[0]}' must be less than end: '{rng[1]}' in "
+                f"range from '{text}'",
+            )
+
+            values_list = []
+            for i in range(start, end):
+                out = out_type(i)
+                if isinstance(out, int) or out.isalpha():
+                    values_list.append(out)
+
+            values.update(values_list)
         else:
-            # get here if the token is an integer
-            values.add(int(rng))
-    return list(values)
+            # get here if the token is an integer or char
+            values.add(rng if rng.isalpha() else int(rng))
+    return sorted(list(values))
 
 
 def gc_objects_by_type(tipe):

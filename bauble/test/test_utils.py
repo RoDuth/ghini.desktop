@@ -161,7 +161,9 @@ class UtilsTest(TestCase):
 
     def test_range_builder(self):
         """Test bauble.utils.range_builder"""
+        # int
         self.assertEqual(utils.range_builder("1-3"), [1, 2, 3])
+        self.assertEqual(utils.range_builder("9-11"), [9, 10, 11])
         self.assertEqual(utils.range_builder("1-3,5-7"), [1, 2, 3, 5, 6, 7])
         self.assertEqual(utils.range_builder("1-3,5"), [1, 2, 3, 5])
         self.assertEqual(
@@ -170,10 +172,30 @@ class UtilsTest(TestCase):
         self.assertEqual(utils.range_builder("1,2,3,4"), [1, 2, 3, 4])
         self.assertEqual(utils.range_builder("11"), [11])
 
+        # alpha
+        self.assertEqual(utils.range_builder("a-d"), ["a", "b", "c", "d"])
+        self.assertEqual(utils.range_builder("Y-b"), ["Y", "Z", "a", "b"])
+        self.assertEqual(
+            utils.range_builder("A-C,a-c"), ["A", "B", "C", "a", "b", "c"]
+        )
+        self.assertEqual(utils.range_builder("a-c,f"), ["a", "b", "c", "f"])
+        self.assertEqual(
+            utils.range_builder("a-c,f,h-j"),
+            ["a", "b", "c", "f", "h", "i", "j"],
+        )
+        self.assertEqual(utils.range_builder("a,f,h,j"), ["a", "f", "h", "j"])
+        self.assertEqual(utils.range_builder("b"), ["b"])
+        self.assertEqual(utils.range_builder("ab"), ["ab"])
+
         # bad range strings
         self.assertEqual(utils.range_builder("-1"), [])
-        self.assertEqual(utils.range_builder("a-b"), [])
         self.assertRaises(CheckConditionError, utils.range_builder, "2-1")
+        self.assertRaises(CheckConditionError, utils.range_builder, "1-1")
+        self.assertRaises(CheckConditionError, utils.range_builder, "Z-A")
+        self.assertRaises(CheckConditionError, utils.range_builder, "a-A")
+        self.assertRaises(ValueError, utils.range_builder, "a-1")
+        self.assertRaises(ValueError, utils.range_builder, "1-Z")
+        self.assertRaises(ValueError, utils.range_builder, "ab-c")
 
     def test_get_urls(self):
         text = "There a link in here: http://bauble.belizebotanic.org"

@@ -274,9 +274,13 @@ def get_next_code(acc: Accession) -> str:
 
     If there is an error getting the next code the None is returned.
     """
-    frmt = meta.get_default(
+    frmt: str | None = None
+    frmt_meta = meta.get_default(
         PLANT_CODE_FORMAT_KEY, DEFAULT_PLANT_CODE_FORMAT
-    ).value
+    )
+
+    if frmt_meta:
+        frmt = frmt_meta.value
 
     codes = [("",)]
     if db.Session:
@@ -304,9 +308,13 @@ def set_code_format(*_args) -> None:
         "previous plant code format) will not change, you may need to do this "
         "manually."
     )
-    current_frmt = meta.get_default(
+    current_frmt: str | None = None
+    current_meta = meta.get_default(
         PLANT_CODE_FORMAT_KEY, DEFAULT_PLANT_CODE_FORMAT
-    ).value
+    )
+
+    if current_meta:
+        current_frmt = current_meta.value
 
     meta.set_value(PLANT_CODE_FORMAT_KEY, current_frmt, msg)
 
@@ -322,7 +330,7 @@ def is_code_unique(plant, code):
     # code
     try:
         codes = [str(i) for i in utils.range_builder(code)]
-    except CheckConditionError:
+    except (CheckConditionError, ValueError):
         return False
     if len(codes) == 1:
         codes = [str(code)]
@@ -1677,19 +1685,22 @@ class PlantEditorPresenter(GenericEditorPresenter, PresenterMapMixin):
             or self._dirty
         )
 
-    def on_quantity_changed(self, entry):
-        value = entry.props.text
+    def on_quantity_changed(self, entry: Gtk.Entry) -> None:
+        value: int | None
         try:
-            value = int(value)
+            value = int(entry.get_text())
         except ValueError as e:
             logger.debug("quantity change %s(%s)", type(e).__name__, e)
             value = None
         self.set_model_attr("quantity", value)
-        # incase splitting into multiple
-        codes = utils.range_builder(self.model.code)
+
         tru_value = value
-        if len(codes) > 1:
-            tru_value = value * len(codes)
+        # incase splitting into multiple
+        if value is not None:
+            codes = utils.range_builder(self.model.code)
+            if len(codes) > 1:
+                tru_value = value * len(codes)
+
         if (
             value is None
             or tru_value < self.lower_quantity_limit
