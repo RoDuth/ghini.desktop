@@ -22,6 +22,7 @@ accessions module
 """
 
 import datetime
+import inspect
 import logging
 import os
 import re
@@ -816,6 +817,18 @@ class Accession(db.Base, db.WithNotes):
 
     def __str__(self):
         return str(self.code)
+
+    @hybrid_property
+    def qualified_name(self) -> str | None:
+        """Allows exporting the full species string with id qualifiers in place
+
+        NOTE: Can not be searched as no expression, can not be imported as no
+            setter.
+        """
+        # NOTE can't access species_str as a class property
+        if not inspect.isclass(self):
+            return self.species_str()
+        return None
 
     def species_str(self, authors=False, markup=False):
         """Return the string of the species with the id qualifier(id_qual)

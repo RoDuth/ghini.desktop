@@ -32,6 +32,7 @@ from bauble.editor import GenericEditorView
 from bauble.plugins.garden.plant import Plant
 from bauble.plugins.plants.species import Species
 from bauble.query_builder import BuiltQuery
+from bauble.query_builder import ExpressionRow
 from bauble.query_builder import QueryBuilder
 from bauble.query_builder import SchemaMenu
 from bauble.query_builder import parse_typed_value
@@ -216,6 +217,61 @@ class SchemaMenuTests(BaubleTestCase):
         self.assertTrue(
             ("accession", Accession) in self.selected, f"{self.selected}"
         )
+
+
+class ExpressionRowTests(BaubleTestCase):
+    def test_column_filter(self):
+        key = "test_id"
+        prop = mock.Mock()
+        self.assertFalse(ExpressionRow.column_filter(key, prop))
+
+        key = "obj_id"
+        prop = mock.Mock()
+        self.assertTrue(ExpressionRow.column_filter(key, prop))
+
+        key = "_test"
+        prop = mock.Mock()
+        self.assertFalse(ExpressionRow.column_filter(key, prop))
+
+        key = "_last_updated"
+        prop = mock.Mock()
+        self.assertTrue(ExpressionRow.column_filter(key, prop))
+
+        key = "_created"
+        prop = mock.Mock()
+        self.assertTrue(ExpressionRow.column_filter(key, prop))
+
+        key = "hybrid"
+        prop = hybrid_property(fget=lambda: "test")
+        self.assertFalse(ExpressionRow.column_filter(key, prop))
+
+        key = "hybrid"
+        prop = hybrid_property(fget=lambda: "test", expr=lambda: None)
+        self.assertTrue(ExpressionRow.column_filter(key, prop))
+
+        prefs.prefs[prefs.query_builder_excludes] = []
+        key = "genus"
+        prop = mock.Mock(__qualname__="Genus.genus")
+        self.assertTrue(ExpressionRow.column_filter(key, prop))
+
+        prefs.prefs[prefs.query_builder_excludes] = ["Genus.genus"]
+        key = "genus"
+        prop = mock.Mock(__qualname__="Genus.genus")
+        self.assertFalse(ExpressionRow.column_filter(key, prop))
+
+        prefs.prefs[prefs.query_builder_advanced] = True
+        key = "genus"
+        prop = mock.Mock(__qualname__="Genus.genus")
+        self.assertTrue(ExpressionRow.column_filter(key, prop))
+
+    def test_relation_filter(self):
+        key = "genus"
+        prop = mock.Mock()
+        self.assertTrue(ExpressionRow.column_filter(key, prop))
+
+        key = "_private"
+        prop = mock.Mock()
+        self.assertFalse(ExpressionRow.column_filter(key, prop))
 
 
 class QueryBuilderTests(BaubleTestCase):

@@ -30,6 +30,8 @@ from abc import ABC
 from abc import abstractmethod
 from operator import attrgetter
 
+from sqlalchemy.ext.hybrid import hybrid_property
+
 logger = logging.getLogger(__name__)
 
 from bauble import btypes
@@ -50,6 +52,29 @@ from bauble import utils
 # NOTE: always beware when writing an imex plugin not to use the
 # table.insert().execute(*list) statement or it will fill in values for
 # missing columns so that all columns will have some value
+
+
+def is_importable_attr(domain: db.Base, path: str) -> bool:
+    """Check if a path points to an importable attribute (i.e. can be set).
+
+    For hybrid_property returns False if has no setter.
+
+    :param item: a sqlalchemy orm model class
+    :param path: path as a string from the item to the attribute
+    """
+
+    if "." in path:
+        table = db.get_related_class(domain, path.rsplit(".", 1)[0])
+    else:
+        table = domain
+    column = getattr(table, path.split(".")[-1])
+    if (
+        hasattr(column, "descriptor")
+        and isinstance(column.descriptor, hybrid_property)
+        and not column.fset
+    ):
+        return False
+    return True
 
 
 class GenericImporter(ABC):  # pylint: disable=too-many-instance-attributes

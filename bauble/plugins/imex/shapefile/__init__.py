@@ -22,9 +22,6 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-from gi.repository import Gdk  # noqa
-from gi.repository import Gtk
-
 from bauble import pluginmgr
 
 PLANT_SHAPEFILE_PREFS = "shapefile.plant"

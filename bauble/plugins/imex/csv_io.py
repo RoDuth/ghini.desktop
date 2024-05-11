@@ -45,6 +45,7 @@ from bauble.utils import message_dialog
 
 from . import GenericExporter
 from . import GenericImporter
+from . import is_importable_attr
 
 NAME = 0
 """Column position for the name entry widget and attribte"""
@@ -457,6 +458,9 @@ class CSVImportDialogPresenter(GenericEditorPresenter):
         self.refresh_sensitivity()
 
     def on_filename_entry_changed(self, entry):
+        logger.debug("setting model fields and domain to None")
+        self.model.fields = None
+        self.model.domain = None
         self.remove_problem(self.PROBLEM_EMPTY, entry)
         self.remove_problem(self.PROBLEM_INVALID_FILENAME, entry)
         val = self.on_non_empty_text_entry_changed(entry)
@@ -476,18 +480,17 @@ class CSVImportDialogPresenter(GenericEditorPresenter):
         else:
             self.add_problem(self.PROBLEM_INVALID_FILENAME, entry)
             self.filename = None
-            logger.debug("setting model fields None")
-            self.model.fields = None
 
         self._rebuild_grid()
         self.refresh_sensitivity()
 
-    def get_importable_fields(self, field_map):
+    def get_importable_fields(self, field_map: dict[str, str]) -> None:
+        path: str | None
         domains = MapperSearch.get_domain_classes()
         dom_name = field_map.get("domain")
-        fields = None
+        fields: dict[str, str | None] | None = None
         if dom_name in domains:
-            self.domain = domains.get(dom_name)
+            self.domain = domains[dom_name]
             logger.debug("domain: %s", self.domain)
             fields = {}
             for name, path in field_map.items():
@@ -495,13 +498,15 @@ class CSVImportDialogPresenter(GenericEditorPresenter):
                     continue
                 try:
                     # If a path is a table then don't try importing it (is
-                    # is used for display only)
-                    if path == self.domain.__tablename__:
+                    # used for display only)
+                    if path == self.domain.__tablename__:  # type: ignore [attr-defined]  # noqa
                         path = None
                     elif db.get_related_class(self.domain, path):
                         path = None
                 except AttributeError:
                     pass
+                if path and not is_importable_attr(self.domain, path):
+                    continue
                 fields[name] = path
             if not fields:
                 fields = None

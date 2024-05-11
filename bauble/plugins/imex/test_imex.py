@@ -49,6 +49,7 @@ from bauble.test import get_setUp_data_funcs
 
 from . import GenericExporter
 from . import GenericImporter
+from . import is_importable_attr
 from .csv_ import QUOTE_CHAR
 from .csv_ import QUOTE_STYLE
 from .csv_ import CSVBackup
@@ -1178,3 +1179,21 @@ class GenericExporterTests(BaubleTestCase):
             item, {"locale": "locale", "collector": "collector"}
         )
         self.assertEqual(val, {"locale": "Somewhere", "collector": "Someone"})
+
+
+class GlobalFunctionsTests(BaubleTestCase):
+    def test_is_importable_attr(self):
+        self.assertTrue(is_importable_attr(Species, "epithet"))
+        self.assertTrue(is_importable_attr(Species, "sp"))
+        self.assertTrue(is_importable_attr(Species, "epithet"))
+        self.assertTrue(
+            is_importable_attr(Plant, "accession.species.genus.cites")
+        )
+
+        self.assertFalse(is_importable_attr(Plant, "accession.qualified_name"))
+        self.assertFalse(is_importable_attr(Accession, "active"))
+        self.assertFalse(
+            is_importable_attr(
+                Plant, "accession.species.infraspecific_epithet"
+            )
+        )

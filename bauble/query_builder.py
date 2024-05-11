@@ -577,6 +577,8 @@ class ExpressionRow:
             return False
         if key.startswith("_") and key not in ("_last_updated", "_created"):
             return False
+        if isinstance(prop, hybrid_property) and not prop.expr:
+            return False
         qualname = ""
         if hasattr(prop, "__qualname__"):
             qualname = getattr(prop, "__qualname__")

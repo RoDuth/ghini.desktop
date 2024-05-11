@@ -2332,6 +2332,17 @@ class AccessionQualifiedTaxon(GardenTestCase):
         # self.assertEquals(remove_zws(sp_str), s)
         self.assertTrue(sp_str.endswith("cf. subf. surculosa"))
 
+    def test_qualified_name(self):
+        # make sure accessing as class attribute doesn't fail
+        self.assertIsNotNone(Accession.qualified_name)
+
+        self.assertEqual(self.ac1.species_str(), self.ac1.qualified_name)
+
+        self.ac1.id_qual = "?"
+        self.ac1.id_qual_rank = "sp"
+        self.assertEqual("Echinocactus ? grusonii", self.ac1.species_str())
+        self.assertEqual(self.ac1.species_str(), self.ac1.qualified_name)
+
 
 class AccessionTests(GardenTestCase):
     def test_delete(self):

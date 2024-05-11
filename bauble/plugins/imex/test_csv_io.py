@@ -1828,6 +1828,14 @@ class CSVImporterTests(CSVTestCase):
         del field_map["domain"]
         self.assertEqual(importer.fields, field_map)
 
+    def test_get_importable_fields_no_domain(self):
+        importer = self.importer
+        presenter = importer.presenter
+        field_map = {"code": "code", "name": "name"}
+        presenter.get_importable_fields(field_map)
+        self.assertIsNone(importer.fields)
+        self.assertIsNone(importer.domain)
+
     def test_get_importable_fields_w_tablename(self):
         importer = self.importer
         presenter = importer.presenter
@@ -1857,3 +1865,38 @@ class CSVImporterTests(CSVTestCase):
         self.assertEqual(presenter.domain, None)
         del field_map["domain"]
         self.assertEqual(importer.fields, None)
+
+    def test_get_importable_fields_hybrid_property(self):
+        importer = self.importer
+        presenter = importer.presenter
+        # can't import
+        field_map = {
+            "domain": "plant",
+            "code": "code",
+            "qual_name": "accession.qualified_name",
+        }
+        presenter.get_importable_fields(field_map)
+        self.assertEqual(importer.fields, {"code": "code"})
+
+        # can import
+        field_map = {
+            "domain": "plant",
+            "code": "code",
+            "cites": "accession.species.cites",
+        }
+        presenter.get_importable_fields(field_map)
+        self.assertEqual(
+            importer.fields,
+            {"code": "code", "cites": "accession.species.cites"},
+        )
+
+    def test_get_importable_fields_no_importabke_fields(self):
+        importer = self.importer
+        presenter = importer.presenter
+        field_map = {
+            "domain": "plant",
+            "qual_name": "accession.qualified_name",
+        }
+        presenter.get_importable_fields(field_map)
+        self.assertIsNone(importer.fields)
+        self.assertEqual(importer.domain, Plant)

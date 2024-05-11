@@ -20,6 +20,7 @@ Import data from shapefiles (zip file with all component files).
 
 import logging
 import weakref
+from contextlib import contextmanager
 from pathlib import Path
 from random import random
 from zipfile import ZipFile
@@ -28,6 +29,8 @@ logger = logging.getLogger(__name__)
 
 from gi.repository import Gtk
 from shapefile import Reader
+from sqlalchemy.ext.hybrid import hybrid_property
+from sqlalchemy.orm import InspectionAttr
 from sqlalchemy.orm import class_mapper
 
 import bauble
@@ -40,16 +43,10 @@ from bauble.editor import GenericEditorView
 
 # NOTE importing shapefile Reader Writer above wipes out gettext _
 from bauble.i18n import _
-from bauble.plugins.garden.location import (  # noqa pylint: disable=unused-import
-    Location,
-)
-from bauble.plugins.garden.location import LocationNote
 
 # NOTE: need to import the Note classes as we may need them.
-from bauble.plugins.garden.plant import (  # noqa pylint: disable=unused-import
-    Plant,
-)
-from bauble.plugins.garden.plant import PlantNote
+from bauble.plugins.garden.location import Location
+from bauble.plugins.garden.plant import Plant
 from bauble.utils.geo import DEFAULT_IN_PROJ
 from bauble.utils.geo import ProjDB
 from bauble.utils.geo import transform
@@ -77,8 +74,6 @@ class ShapefileReader:
     imported into the database e.g. mapping fields to database fields.
     Primarily changes are made in the ShapefileImportSettingsBox.
     """
-
-    from contextlib import contextmanager
 
     def __init__(self, filename):
         """
@@ -232,7 +227,7 @@ class ShapefileReader:
 
     @contextmanager
     def _reader(self):
-        """A contextmanager for the shapefile Reader.  Extracts the zip first."""
+        """A contextmanager for the shapefile Reader. Extracts the zip first"""
         z = ZipFile(self.filename, "r")
         namelist = z.namelist()
         shp = z.open([i for i in namelist if i.endswith(".shp")][0])
@@ -291,8 +286,7 @@ class ShapefileReader:
 
     @contextmanager
     def get_records(self):
-        """
-        a contextmanager for shapeRecords (records and shapes) for the
+        """a contextmanager for shapeRecords (records and shapes) for the
         shapefile.
         """
         with self._reader() as reader:
@@ -304,7 +298,7 @@ class ShapefileReader:
 
 
 class ShapefileImportSettingsBox(Gtk.ScrolledWindow):
-    """Advanced settings used to change the behaviour of the ShapefileReader."""
+    """Advanced settings used to change the behaviour of the ShapefileReader"""
 
     def __init__(self, shape_reader=None, grid=None):
         super().__init__(propagate_natural_height=True)
@@ -402,6 +396,13 @@ class ShapefileImportSettingsBox(Gtk.ScrolledWindow):
         return True
 
     @staticmethod
+    def column_filter(_key, prop: InspectionAttr) -> bool:
+        # Avoid offering unimportable hybrid properties
+        if isinstance(prop, hybrid_property) and not prop.fset:
+            return False
+        return True
+
+    @staticmethod
     def on_prop_button_press_event(_widget, event, menu):
         menu.popup_at_pointer(event)
 
@@ -483,6 +484,7 @@ class ShapefileImportSettingsBox(Gtk.ScrolledWindow):
             class_mapper(model),
             menu_activated,
             relation_filter=self.relation_filter,
+            column_filter=self.column_filter,
             private=True,
             selectable_relations=False,
         )

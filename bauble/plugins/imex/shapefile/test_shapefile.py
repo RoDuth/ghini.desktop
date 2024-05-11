@@ -31,6 +31,7 @@ from zipfile import ZipFile
 from gi.repository import Gtk
 from shapefile import Reader
 from shapefile import Writer
+from sqlalchemy.ext.hybrid import hybrid_property
 
 from bauble import prefs
 from bauble import utils
@@ -2467,6 +2468,31 @@ class ImportSettingsBoxTests(ShapefileTestCase):
         # assert the shape reader only contains the one matching field
         self.assertEqual("Note", shape_reader.field_map.get("field_note"))
         self.assertEqual(len(shape_reader.field_map), 1)
+
+    def test_column_filter(self):
+        key = "hybrid"
+        prop = hybrid_property(fget=lambda: "test")
+        self.assertFalse(ImpSetBox.column_filter(key, prop))
+
+        prop = hybrid_property(fget=lambda: "test", fset=lambda: None)
+        self.assertTrue(ImpSetBox.column_filter(key, prop))
+
+        self.assertTrue(ImpSetBox.column_filter("test", None))
+
+    def test_relation_filter(self):
+        self.assertFalse(
+            ImpSetBox.relation_filter("_default_vernacular_name", mock.Mock())
+        )
+
+        self.assertTrue(ImpSetBox.relation_filter("test", mock.Mock))
+
+        prop = mock.Mock()
+        prop.prop.uselist = True
+        self.assertFalse(ImpSetBox.relation_filter("test", prop))
+
+        prop = mock.Mock()
+        prop.prop.uselist = False
+        self.assertTrue(ImpSetBox.relation_filter("test", prop))
 
 
 class ShapefileImportEmptyDBTests(ShapefileTestCase):
