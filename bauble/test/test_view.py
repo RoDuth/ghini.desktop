@@ -867,8 +867,10 @@ class TestHistoryView(BaubleTestCase):
         self.session.add(parent_model)
         self.session.commit()
 
-        start_count = self.session.query(note_cls).count()
-        self.assertEqual(start_count, 6)
+        start_note_count = self.session.query(note_cls).count()
+        self.assertEqual(start_note_count, 6)
+        start_hist_count = self.session.query(db.History).count()
+        self.assertEqual(start_hist_count, 6)
 
         hist_view = HistoryView()
         hist_view.update(None)
@@ -877,15 +879,14 @@ class TestHistoryView(BaubleTestCase):
         update_gui()
         # select something
         hist_view.history_tv.set_cursor(3)
-        selected = hist_view.get_selected_value()
-        remainder = (
-            self.session.query(note_cls)
-            .filter(note_cls.id < selected.table_id)
-            .count()
-        )
         hist_view.on_revert_to_history(None, None)
         mock_dialog.assert_called()
-        self.assertEqual(self.session.query(note_cls).count(), remainder)
+        self.assertEqual(
+            self.session.query(note_cls).count(), start_note_count - 4
+        )
+        self.assertEqual(
+            self.session.query(db.History).count(), start_hist_count - 4
+        )
         wait_on_threads()
 
     @mock.patch("bauble.utils.message_dialog")
@@ -985,7 +986,6 @@ class TestHistoryView(BaubleTestCase):
 
         hist_view = HistoryView()
         hist_view.update(None)
-        print(hist_view.clone_hist_id)
         # wait for the thread to finish
         wait_on_threads()
         update_gui()
@@ -993,22 +993,14 @@ class TestHistoryView(BaubleTestCase):
         hist_view.history_tv.set_cursor(2)
         selected = hist_view.get_selected_value()
         self.assertTrue(selected.id > clone_point)
-        print(selected.id)
-        remainder_note = (
-            self.session.query(note_cls)
-            .filter(note_cls.id < selected.table_id)
-            .count()
-        )
-        remainder_hist = (
-            self.session.query(db.History)
-            .filter(db.History.id < selected.id)
-            .count()
-        )
+
         hist_view.on_revert_to_history(None, None)
         mock_dialog.assert_called()
-        self.assertEqual(self.session.query(note_cls).count(), remainder_note)
         self.assertEqual(
-            self.session.query(db.History).count(), remainder_hist
+            self.session.query(note_cls).count(), start_note_count - 3
+        )
+        self.assertEqual(
+            self.session.query(db.History).count(), start_hist_count - 3
         )
         wait_on_threads()
 
