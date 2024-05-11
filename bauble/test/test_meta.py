@@ -58,6 +58,10 @@ class MetaTests(BaubleTestCase):
         obj = meta.get_default("name2", default=value, session=self.session)
         self.assertTrue(obj in self.session.new)
 
+        # test the type annotation guard
+        db.Session = None
+        self.assertIsNone(meta.get_default("name", "default"))
+
     def test_confirm_default_with_value(self):
         # when value already exists it is just returned
         name = "test"

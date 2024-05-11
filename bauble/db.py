@@ -38,6 +38,7 @@ from gi.repository import Gtk
 from sqlalchemy import event
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import DeclarativeMeta
+from sqlalchemy.orm import Session as SASession
 from sqlalchemy.orm import declarative_base
 from sqlalchemy.orm import object_session
 from sqlalchemy.orm import sessionmaker
@@ -143,7 +144,7 @@ connection to the database.
 """
 
 
-Session = None
+Session: type[SASession] | None = None
 """
 bauble.db.Session is created after the database has been opened with
 :func:`bauble.db.open_conn()`. bauble.db.Session should be used when you need

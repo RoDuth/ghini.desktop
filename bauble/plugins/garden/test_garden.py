@@ -72,6 +72,7 @@ from .institution import Institution
 from .institution import InstitutionPresenter
 from .location import Location
 from .location import LocationEditor
+from .plant import DEFAULT_PLANT_CODE_FORMAT
 from .plant import PLANT_CODE_FORMAT_KEY
 from .plant import Plant
 from .plant import PlantChange
@@ -86,6 +87,7 @@ from .plant import change_reasons
 from .plant import deleted_reasons
 from .plant import get_next_code
 from .plant import is_code_unique
+from .plant import set_code_format
 from .plant import transfer_reasons
 from .propagation import PlantPropagation
 from .propagation import Propagation
@@ -5122,3 +5124,30 @@ class GlobalActionTests(BaubleTestCase):
         GardenPlugin.on_sort_toggled(mock_action, mock_variant)
         search_view.update.assert_called()
         self.assertFalse(prefs.prefs.get(SORT_BY_PREF))
+
+    def test_set_code_format_default(self):
+        with unittest.mock.patch(
+            "bauble.plugins.garden.plant.meta.set_value"
+        ) as mock_set_val:
+            set_code_format()
+            mock_set_val.assert_called()
+            self.assertEqual(
+                mock_set_val.call_args.args[0], PLANT_CODE_FORMAT_KEY
+            )
+            self.assertEqual(
+                mock_set_val.call_args.args[1], DEFAULT_PLANT_CODE_FORMAT
+            )
+            self.assertIsInstance(mock_set_val.call_args.args[2], str)
+
+    def test_set_code_format_set(self):
+        meta.get_default(PLANT_CODE_FORMAT_KEY, "alpha_lower")
+        with unittest.mock.patch(
+            "bauble.plugins.garden.plant.meta.set_value"
+        ) as mock_set_val:
+            set_code_format()
+            mock_set_val.assert_called()
+            self.assertEqual(
+                mock_set_val.call_args.args[0], PLANT_CODE_FORMAT_KEY
+            )
+            self.assertEqual(mock_set_val.call_args.args[1], "alpha_lower")
+            self.assertIsInstance(mock_set_val.call_args.args[2], str)

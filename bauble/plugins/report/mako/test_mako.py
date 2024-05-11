@@ -330,6 +330,23 @@ class FormatterSettingsBoxTests(TestCase):
         # reset - avoid pollution
         set_box.update({})
 
+    def test_update_w_bad_widget_just_logs(self):
+        set_box = MakoFormatterSettingsBox()
+        widg = Gtk.Expander()
+        set_box.defaults["twidg"] = (widg, "blah")
+        settings = {"twidg": "test value"}
+        with self.assertLogs(level="DEBUG") as logs:
+            set_box.update(settings)
+        self.assertTrue(
+            any(
+                "TypeError(utils.set_widget_value(): Don't know how to handle"
+                in i
+                for i in logs.output
+            )
+        )
+        # reset - avoid pollution
+        set_box.update({})
+
     def test_get_report_settings_returns_options(self):
         set_box = MakoFormatterSettingsBox()
         options["test"] = "this"

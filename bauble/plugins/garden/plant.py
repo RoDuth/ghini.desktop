@@ -308,13 +308,13 @@ def set_code_format(*_args) -> None:
         "previous plant code format) will not change, you may need to do this "
         "manually."
     )
-    current_frmt: str | None = None
+    current_frmt = ""
     current_meta = meta.get_default(
         PLANT_CODE_FORMAT_KEY, DEFAULT_PLANT_CODE_FORMAT
     )
 
     if current_meta:
-        current_frmt = current_meta.value
+        current_frmt = current_meta.value or ""
 
     meta.set_value(PLANT_CODE_FORMAT_KEY, current_frmt, msg)
 
@@ -1721,7 +1721,7 @@ class PlantEditorPresenter(GenericEditorPresenter, PresenterMapMixin):
         self.refresh_view()
 
     def on_plant_code_entry_changed(self, entry):
-        """Validates the accession number and the plant code from the editors."""
+        """Validates the accession number and the plant code from the editor"""
         text = utils.nstr(entry.get_text())
         if text == "":
             self.set_model_attr("code", None)
