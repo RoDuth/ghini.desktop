@@ -4609,9 +4609,19 @@ class PlantGetNextCodeTests(GardenTestCase):
 
 
 class AccessionGetNextCodeTests(GardenTestCase):
-    def test_get_next_code_first_this_year(self):
-        this_year = str(datetime.date.today().year)
-        self.assertEqual(Accession.get_next_code(), this_year + ".0001")
+    def test_get_next_code_first_this_year_multiple_strftime(self):
+        year = datetime.date.today().strftime("%Y")
+        month = datetime.date.today().strftime("%m")
+        day = datetime.date.today().strftime("%d")
+        self.assertEqual(Accession.get_next_code(), year + ".0001")
+        self.assertEqual(
+            Accession.get_next_code("%Y%m%d%PD###"),
+            year + month + day + Plant.get_delimiter() + "001",
+        )
+        self.assertEqual(
+            Accession.get_next_code("%Y%m%PD###"),
+            year + month + Plant.get_delimiter() + "001",
+        )
 
     def test_get_next_code_second_this_year(self):
         this_year = str(datetime.date.today().year)
@@ -4696,6 +4706,7 @@ class AccessionGetNextCodeTests(GardenTestCase):
         self.session.add_all([acc, ac2, ac3])
         self.session.commit()
         self.assertEqual(Accession.get_next_code("#####"), "00013")
+        self.assertEqual(Accession.get_next_code("###"), "001")
 
     def test_get_next_code_fixed(self):
         acc = Accession(species=self.species, code="00012")
@@ -4716,7 +4727,33 @@ class AccessionGetNextCodeTests(GardenTestCase):
         self.session.add_all([acc, ac2])
         self.session.commit()
         self.assertEqual(Accession.get_next_code("%{Y-1}.####")[5:], "0013")
-        self.assertEqual(Accession.get_next_code("%Y.####")[5:], "0988")
+        self.assertEqual(
+            Accession.get_next_code("%{Y-1}.####"), f"{last_year}.0013"
+        )
+        self.assertEqual(
+            Accession.get_next_code("%{Y-10}.####"), f"{this_year-10}.0001"
+        )
+        self.assertEqual(
+            Accession.get_next_code("%Y.####"), f"{this_year}.0988"
+        )
+
+    def test_get_next_code_bad_formats_return_none(self):
+        self.assertIsNone(Accession.get_next_code("%{Y-}###"))
+        self.assertIsNone(Accession.get_next_code("%{Y}###"))
+        self.assertIsNone(Accession.get_next_code("%{x}###"))
+        self.assertIsNone(Accession.get_next_code("%i%PD###"))
+        self.assertIsNone(Accession.get_next_code("%v%PD###"))
+        self.assertIsNone(Accession.get_next_code("%👻%PD###"))
+        # test all ascii chars (+ a few extras)that are not valid strftime
+        # format codes
+        bad_vals = ["e", "g", "h", "i", "k", "l", "n", "o", "q", "r", "s"]
+        bad_vals += ["t", "u", "v", "C", "D", "E", "F", "G", "J", "K", "L"]
+        bad_vals += ["N", "O", "P", "Q", "R", "T", "V", "$", "*", ")", "-"]
+        for i in bad_vals:
+            self.assertIsNone(Accession.get_next_code("%" + i + ".#"))
+        # test the type guard
+        db.Session = None
+        self.assertEqual(Accession.get_next_code("%Y###"), None)
 
 
 class SourceDetailTests(GardenTestCase):

@@ -711,7 +711,7 @@ class Accession(db.Base, db.WithNotes):
         return value.strip()
 
     @classmethod
-    def get_next_code(cls, code_format=None):
+    def get_next_code(cls, code_format: str | None = None) -> str | None:
         """Return the next available accession code.
 
         the format is stored in the `bauble` table.
@@ -721,7 +721,8 @@ class Accession(db.Base, db.WithNotes):
         If there is an error getting the next code None is returned.
         """
         # auto generate/increment the accession code
-        session = db.Session()
+        logger.debug("get_next_code with format: %s", code_format)
+
         if code_format is None:
             code_format = cls.code_format
         frmt = code_format.replace("%PD", Plant.get_delimiter())
@@ -730,28 +731,40 @@ class Accession(db.Base, db.WithNotes):
             frmt = frmt.replace(
                 match.group(0), str(today.year - int(match.group(1)))
             )
+        if frmt == "%" or re.search(
+            r"%(?!a|A|w|d|b|B|m|y|Y|H|I|p|M|S|f|z|Z|j|U|W|c|x|X)",
+            frmt,
+        ):
+            logger.debug("returning early")
+            # don't fail - windows exe strftime
+            return None
+        logger.debug("get_next_code 1 frmt: %s", frmt)
         frmt = today.strftime(frmt)
-        start = str(frmt.rstrip("#"))
+        start = frmt.rstrip("#")
         if start == frmt:
             # fixed value
             return start
         digits = len(frmt) - len(start)
         frmt = f"{start}%0{digits}d"
-        query = session.query(Accession.code).filter(
-            Accession.code.startswith(start)
-        )
+        logger.debug("get_next_code 2 frmt: %s", frmt)
         nxt = None
-        try:
-            if query.count() > 0:
-                codes = [safe_int(row[0][len(start) :]) for row in query]
-                nxt = frmt % (max(codes) + 1)
-            else:
-                nxt = frmt % 1
-        except Exception as e:  # pylint: disable=broad-except
-            logger.debug("%s(%s)", type(e).__name__, e)
-        finally:
-            session.close()
-        return str(nxt)
+        if db.Session:
+            with db.Session() as session:
+                if start:
+                    query = session.query(Accession.code).filter(
+                        Accession.code.startswith(start)
+                    )
+                else:
+                    query = session.query(Accession.code).filter(
+                        func.length(Accession.code) == digits
+                    )
+                if query.count() > 0:
+                    codes = [safe_int(row[0][len(start) :]) for row in query]
+                    nxt = frmt % (max(codes) + 1)
+                else:
+                    nxt = frmt % 1
+        logger.debug("get_next_code nxt: %s", nxt)
+        return nxt
 
     def search_view_markup_pair(self):
         """provide the two lines describing object for SearchView row."""
