@@ -1,6 +1,6 @@
 # Copyright 2008-2010 Brett Adams
 # Copyright 2015 Mario Frasca <mario@anche.no>.
-# Copyright 2021-2023 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright 2021-2024 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -48,19 +48,23 @@ from pyparsing import CaselessLiteral
 from pyparsing import Group
 from pyparsing import Literal
 from pyparsing import ParseException
+from pyparsing import ParserElement
+from pyparsing import ParseResults
 from pyparsing import Regex
 from pyparsing import Word
 from pyparsing import ZeroOrMore
 from pyparsing import alphas
-from pyparsing import oneOf
+from pyparsing import one_of
 from pyparsing import printables
-from pyparsing import quotedString
-from pyparsing import removeQuotes
+from pyparsing import quoted_string
+from pyparsing import remove_quotes
 from sqlalchemy import and_
-from sqlalchemy import select
+from sqlalchemy.orm import Query
+from sqlalchemy.orm import Session
 from sqlalchemy.orm import object_session
 from sqlalchemy.orm.exc import DetachedInstanceError
 from sqlalchemy.orm.exc import ObjectDeletedError
+from sqlalchemy.sql import ColumnElement
 
 import bauble
 from bauble import db
@@ -70,6 +74,8 @@ from bauble import prefs
 from bauble import search
 from bauble import utils
 from bauble.error import check
+from bauble.i18n import _
+from bauble.meta import BaubleMeta
 from bauble.utils.web import BaubleLinkButton
 from bauble.utils.web import LinkDict
 from bauble.utils.web import link_button_factory
@@ -1846,124 +1852,14 @@ class Note:
             return []
 
 
-class AppendThousandRows(threading.Thread):
-    def __init__(self, view, arg=None, group=None, **kwargs):
-        super().__init__(group=group, target=None, name=None)
-        self.__stopped = threading.Event()
-        self.arg = arg
-        self.view = view
-
-    def callback(self, rows):
-        for row in rows:
-            self.view.add_row(row)
-
-    def cancel_callback(self):
-        row = [None]
-        row += ["---"] * 8
-        row[4] = "** " + _("interrupted") + " **"
-        self.view.liststore.append(row)
-
-    def cancel(self):
-        self.__stopped.set()
-
-    def get_query_filters(self):
-        """Parse the string provided in arg and return the equivalent as
-        consumed by sqlalchemy query `filter()` method."""
-        operator = oneOf("= != < <= > >= like contains has")
-        on_operator = Literal("on")
-        time_stamp_ident = Literal("timestamp")
-        numeric_value = Regex(r"[-]?\d+(\.\d*)?([eE]\d+)?").setParseAction(
-            lambda _s, _l, t: [float(t[0])]
-        )
-        date_str = Regex(
-            r"\d{1,4}[/.-]{1}\d{1,2}[/.-]{1}\d{1,4}"
-        ).set_parse_action(lambda _s, _l, t: [str(t[0])])
-        value = (
-            quotedString.setParseAction(removeQuotes)
-            | date_str
-            | numeric_value
-            | Word(printables)
-        )
-        _and = CaselessLiteral("and").suppress()
-        identifier = Word(alphas + "_")
-        ident_expression = Group(identifier + operator + value) | Group(
-            time_stamp_ident + on_operator + value
-        )
-        to_sync = Literal("to_sync")
-        expression = (
-            to_sync + ZeroOrMore(_and + ident_expression)
-        ) | ZeroOrMore(ident_expression + ZeroOrMore(_and + ident_expression))
-
-        filters = []
-        for part in expression.parse_string(self.arg, parse_all=True):
-            if part == "to_sync":
-                meta_table = bauble.meta.BaubleMeta.__table__
-                with db.engine.begin() as connection:
-                    start = connection.execute(
-                        select(meta_table.c.value).where(
-                            meta_table.c.name == "clone_history_id"
-                        )
-                    ).scalar()
-                if start is not None:
-                    filters.append(db.History.id > start)
-                else:
-                    # show nothing if database doesn't appear to be a clone
-                    filters.append(db.History.id.is_(None))
-                continue
-            if part[0] == "timestamp" and part[1] == "on":
-                filters.append(self.get_on_timestamp_filter(part))
-            else:
-                attr = getattr(db.History, part[0])
-                val = part[2]
-                operation = search.operations.OPERATIONS.get(part[1])
-                filters.append(operation(attr, val))
-
-        return filters
-
-    def get_on_timestamp_filter(self, part):
-        attr = getattr(db.History, part[0])
-        try:
-            val = float(part[2])
-        except ValueError:
-            val = part[2]
-        date_val = search.clauses.get_datetime(val)
-        today = date_val.astimezone(tz=timezone.utc)
-        tomorrow = today + timedelta(1)
-        return and_(attr >= today, attr < tomorrow)
-
-    def run(self):
-        try:
-            session = db.Session()
-            query = session.query(db.History)
-            if self.arg:
-                query = query.filter(*self.get_query_filters())
-            query = query.order_by(db.History.id.desc())
-            # add rows in small batches
-            offset = 0
-            step = 200
-            count = query.count()
-            while offset < count and not self.__stopped.is_set():
-                rows = query.offset(offset).limit(step).all()
-                GLib.idle_add(self.callback, rows)
-                offset += step
-            session.close()
-            if offset < count:
-                GLib.idle_add(self.cancel_callback)
-        except Exception as e:
-            msg = utils.xml_safe(e)
-            details = utils.xml_safe(traceback.format_exc())
-            if bauble.gui:
-                GLib.idle_add(self.view.show_error_box, msg, details)
-
-
 @Gtk.Template(filename=str(Path(paths.lib_dir(), "history_view.ui")))
 class HistoryView(pluginmgr.View, Gtk.Box):
     """Show the tables row in the order they were last updated."""
 
     __gtype_name__ = "HistoryView"
 
-    liststore = Gtk.Template.Child()
-    history_tv = Gtk.Template.Child()
+    liststore = cast(Gtk.ListStore, Gtk.Template.Child())
+    history_tv = cast(Gtk.TreeView, Gtk.Template.Child())
 
     TVC_OBJ = 0
     TVC_ID = 1
@@ -1972,10 +1868,11 @@ class HistoryView(pluginmgr.View, Gtk.Box):
     TVC_USER = 4
     TVC_TABLE = 5
     TVC_USER_FRIENDLY = 6
+    STEP = 1000
 
-    queries = {}
+    queries: dict[str, tuple[str, str]] = {}
 
-    def __init__(self):
+    def __init__(self) -> None:
         logger.debug("HistoryView::__init__")
         super().__init__()
 
@@ -2009,11 +1906,35 @@ class HistoryView(pluginmgr.View, Gtk.Box):
         self.context_menu.attach_to_widget(self.history_tv)
 
         self.clone_hist_id = 0
+        self.offset = 0
+        self.hist_count = 0
+        self.last_row_in_tree = 0
 
-        self.last_arg = None
+        self.last_arg = ""
+
+        Gtk.Scrollable.get_vadjustment(self.history_tv).connect(
+            "value-changed", self.on_history_tv_value_changed
+        )
+
+    def on_history_tv_value_changed(self, *_args) -> None:
+        """When scrolling lazy load another batch of rows as needed.
+
+        i.e. more than half way throught the the last batch and more rows
+        remain
+        """
+        visible = self.history_tv.get_visible_range()
+        if visible:
+            tree_iter = self.liststore.get_iter(visible[1])
+            bottom_line_id = int(self.liststore.get_value(tree_iter, 1))
+
+            if (
+                bottom_line_id - self.last_row_in_tree <= self.STEP / 2
+                and self.hist_count > self.offset
+            ):
+                self.add_rows()
 
     @staticmethod
-    def _cmp_items_key(val):
+    def _cmp_items_key(val: tuple[str, object]) -> tuple[int, str]:
         """Sort by the key after putting id first, changes second and None
         values last.
         """
@@ -2026,7 +1947,10 @@ class HistoryView(pluginmgr.View, Gtk.Box):
             return (3, k)
         return (2, k)
 
-    def add_row(self, item):
+    def add_row(self, item: db.History) -> None:
+        if not (item.id and item.timestamp and item.values):
+            return
+
         dct = dict(item.values)
         del dct["_created"]
         del dct["_last_updated"]
@@ -2060,7 +1984,7 @@ class HistoryView(pluginmgr.View, Gtk.Box):
             ]
         )
 
-    def get_selected_value(self):
+    def get_selected_value(self) -> db.History | None:
         """Get the selected rows object from column 0."""
         model, itr = self.history_tv.get_selection().get_selected()
         if model is None or itr is None:
@@ -2068,15 +1992,18 @@ class HistoryView(pluginmgr.View, Gtk.Box):
         return model[itr][0]
 
     @Gtk.Template.Callback()
-    def on_button_release(self, _view, event):
+    def on_button_release(self, _view, event: Gdk.EventButton) -> bool:
         if event.button != 3:
             return False
 
         self.context_menu.popup_at_pointer(event)
         return True
 
-    def on_revert_to_history(self, _action, _paramm):
+    def on_revert_to_history(self, _action, _paramm) -> None:
         selected = self.get_selected_value()
+        if not (selected and selected.id):
+            return
+
         if selected.id <= self.clone_hist_id:
             msg = (
                 _(
@@ -2094,13 +2021,13 @@ class HistoryView(pluginmgr.View, Gtk.Box):
             selected.table_id,
         )
 
-        session = db.Session()
-        rows = (
-            session.query(db.History)
-            .filter(db.History.id >= selected.id)
-            .count()
-        )
-        session.close()
+        if db.Session:
+            with db.Session() as session:
+                rows = (
+                    session.query(db.History)
+                    .filter(db.History.id >= selected.id)
+                    .count()
+                )
 
         msg = (
             _(
@@ -2115,45 +2042,44 @@ class HistoryView(pluginmgr.View, Gtk.Box):
                 db.History.revert_to(selected.id)
             self.update(self.last_arg)
 
-    def on_copy_values(self, _action, _param):
+    def on_copy_values(self, _action, _param) -> None:
         if selected := self.get_selected_value():
+            if not selected.values:
+                return
             values = dict(selected.values)
             if values.get("geojson"):
                 del values["geojson"]
             string = json.dumps(values)
             if bauble.gui:
                 bauble.gui.get_display_clipboard().set_text(string, -1)
-            else:
-                # for testing
-                return string
-        return None
 
-    def on_copy_geojson(self, _action, _param):
+    def on_copy_geojson(self, _action, _param) -> None:
         if selected := self.get_selected_value():
+            if not selected.values:
+                return
             string = json.dumps(selected.values.get("geojson"))
             if bauble.gui:
                 bauble.gui.get_display_clipboard().set_text(string, -1)
-            else:
-                # for testing
-                return string
-        return None
 
     @classmethod
-    def add_translation_query(cls, table_name, domain, query):
+    def add_translation_query(
+        cls, table_name: str, domain: str, query: str
+    ) -> None:
+        """Allows plugins to add search strings for the best domain for a
+        selected history line's table name.
+        """
         cls.queries[table_name] = (domain, query)
 
     @Gtk.Template.Callback()
-    def on_row_activated(self, _tree, path, _column):
+    def on_row_activated(self, _tree, path, _column) -> None:
         """Search for the correct domain for the selected row's item.
 
         This generally will only work if the item is not deleted.
         """
         row = self.liststore[path]  # pylint: disable=unsubscriptable-object
-        obj = row[self.TVC_OBJ]
-        if not obj:
-            return None
+        hist_obj = row[self.TVC_OBJ]
         table = row[self.TVC_TABLE]
-        obj_id = row[self.TVC_OBJ].table_id
+        obj_id = hist_obj.table_id
 
         table, query = self.queries.get(
             table, (table, "{table} where id={obj_id}")
@@ -2163,43 +2089,145 @@ class HistoryView(pluginmgr.View, Gtk.Box):
             query = query.format(table=table, obj_id=obj_id)
             if bauble.gui:
                 bauble.gui.send_command(query)
+
+    @staticmethod
+    def get_expression() -> ParserElement:
+        """Pyparsing parser for history searches."""
+        operator = one_of("= != < <= > >= like contains has")
+        on_operator = Literal("on")
+        time_stamp_ident = Literal("timestamp")
+        numeric_value = Regex(r"[-]?\d+(\.\d*)?([eE]\d+)?").set_parse_action(
+            lambda _s, _l, t: [float(t[0])]
+        )
+        date_str = Regex(
+            r"\d{1,4}[/.-]{1}\d{1,2}[/.-]{1}\d{1,4}"
+        ).set_parse_action(lambda _s, _l, t: [str(t[0])])
+        value = (
+            quoted_string.set_parse_action(remove_quotes)
+            | date_str
+            | numeric_value
+            | Word(printables)
+        )
+        _and = CaselessLiteral("and").suppress()
+        identifier = Word(alphas + "_")
+        ident_expression = Group(identifier + operator + value) | Group(
+            time_stamp_ident + on_operator + value
+        )
+        to_sync = Literal("to_sync")
+        expression = (
+            to_sync + ZeroOrMore(_and + ident_expression)
+        ) | ZeroOrMore(ident_expression + ZeroOrMore(_and + ident_expression))
+        return expression
+
+    def get_query_filters(self) -> list[ColumnElement]:
+        """Parse the string provided in arg and return the equivalent as
+        consumed by sqlalchemy query `filter()` method.
+        """
+
+        filters = []
+        expression = self.get_expression()
+        for part in expression.parse_string(self.last_arg, parse_all=True):
+            if part == "to_sync":
+                if self.clone_hist_id:
+                    filters.append(db.History.id > self.clone_hist_id)
+                else:
+                    # show nothing if database doesn't appear to be a clone
+                    filters.append(db.History.id.is_(None))
+                continue
+            if part[0] == "timestamp" and part[1] == "on":
+                filters.append(self.get_on_timestamp_filter(part))
             else:
-                # for testing...
-                return query
-        return None
+                attr = getattr(db.History, part[0])
+                val = part[2]
+                operation = search.operations.OPERATIONS[part[1]]
+                filters.append(operation(attr, val))
 
-    def update(self, *args):
-        """Add the history items to the view."""
-        meta_table = bauble.meta.BaubleMeta.__table__
-        with db.engine.begin() as connection:
-            clone_hist_id = connection.execute(
-                select(meta_table.c.value).where(
-                    meta_table.c.name == "clone_history_id"
+        return filters
+
+    def get_on_timestamp_filter(self, part: ParseResults) -> ColumnElement:
+        """sqlalchemy query `filter()` statement specific to timestamp `on`
+        searches
+        """
+        attr = getattr(db.History, part[0])
+        try:
+            val = float(part[2])
+        except ValueError:
+            val = part[2]
+        date_val = search.clauses.get_datetime(val)
+        today = date_val.astimezone(tz=timezone.utc)
+        tomorrow = today + timedelta(1)
+        return and_(attr >= today, attr < tomorrow)
+
+    def update(self, *args: str | None) -> None:
+        """Start to add the history items to the view."""
+
+        self.liststore.clear()
+        self.offset = 0
+        self.hist_count = 0
+        self.last_row_in_tree = 0
+        self.last_arg = args[0] or ""
+
+        if db.Session:
+            with db.Session() as session:
+                clone_hist_id = (
+                    session.query(BaubleMeta.value)
+                    .filter(BaubleMeta.name == "clone_history_id")
+                    .scalar()
                 )
-            ).scalar()
-            self.clone_hist_id = int(clone_hist_id or 0)
+                self.clone_hist_id = int(clone_hist_id or 0)
+                self.hist_count = self.query(session).count()
 
-        self.cancel_threads()
-        GLib.idle_add(self.liststore.clear)
-        self.last_arg = args[0]
-        self.start_thread(AppendThousandRows(self, self.last_arg))
+        logger.debug("hist_count = %s", self.hist_count)
+        self.add_rows()
 
-    def show_error_box(self, msg, details):
+    def query(self, session: Session) -> Query:
+        """Given a session attach the appropriate query and filters."""
+        query = session.query(db.History)
+        if self.last_arg:
+            query = query.filter(*self.get_query_filters())
+        query = query.order_by(db.History.id.desc())
+        return query
+
+    def add_rows(self) -> None:
+        """Add a batch of rows to the view."""
+        if not db.Session:
+            return
+        try:
+            with db.Session() as session:
+                query = self.query(session)
+                # add rows in small batches
+                rows = query.offset(self.offset).limit(self.STEP).all()
+                id_ = 0
+                for row in rows:
+                    self.add_row(row)
+                    id_ = row.id
+                self.last_row_in_tree = id_
+                self.offset += self.STEP
+                logger.debug("offset = %s", self.offset)
+        except Exception as e:
+            logger.debug("%s(%s)", type(e).__name__, e)
+            msg = utils.xml_safe(e)
+            details = utils.xml_safe(traceback.format_exc())
+            if bauble.gui:
+                self.show_error_box(msg, details)
+
+    def show_error_box(self, msg: str, details: str) -> None:
         if bauble.gui:
             bauble.gui.show_error_box(msg, details)
 
 
 class HistoryCommandHandler(pluginmgr.CommandHandler):
     command = "history"
-    view = None
+    view: HistoryView | None = None
 
-    def get_view(self):
-        if not self.view:
+    def get_view(self) -> HistoryView:
+        if not self.__class__.view:
             self.__class__.view = HistoryView()
-        return self.view
+        return self.__class__.view
 
-    def __call__(self, cmd, arg):
-        self.view.update(arg)
+    def __call__(self, cmd: str, arg: str | None) -> None:
+        if self.view:
+            self.view.update(arg)
 
 
 pluginmgr.register_command(HistoryCommandHandler)

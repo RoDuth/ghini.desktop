@@ -1,5 +1,5 @@
 # pylint: disable=missing-module-docstring
-# Copyright (c) 2022-2023 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright (c) 2022-2024 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -17,6 +17,7 @@
 # along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
 
 import os
+from datetime import datetime
 from pathlib import Path
 from unittest import mock
 
@@ -38,7 +39,6 @@ from bauble.test import uri
 from bauble.test import wait_on_threads
 from bauble.view import PIC_PANE_PAGE_PREF
 from bauble.view import PIC_PANE_WIDTH_PREF
-from bauble.view import AppendThousandRows
 from bauble.view import HistoryView
 from bauble.view import Note
 from bauble.view import PicturesScroller
@@ -803,8 +803,6 @@ class TestHistoryView(BaubleTestCase):
         session.close()
 
     def test_add_row(self):
-        from datetime import datetime
-
         mock_hist_item = mock.Mock(
             timestamp=datetime.today(),
             operation="insert",
@@ -814,6 +812,7 @@ class TestHistoryView(BaubleTestCase):
                 "id": 1,
                 "data": "some random data",
                 "name": "test name",
+                "geojson": {"test": "this"},
                 "_created": None,
                 "_last_updated": None,
             },
@@ -821,12 +820,42 @@ class TestHistoryView(BaubleTestCase):
         )
 
         hist_view = HistoryView()
+        start_len = len(hist_view.liststore)
         hist_view.add_row(mock_hist_item)
+        self.assertEqual(len(hist_view.liststore), start_len + 1)
         first_row = hist_view.liststore[0]
         self.assertEqual(
             first_row[hist_view.TVC_TABLE], mock_hist_item.table_name
         )
         self.assertEqual(first_row[hist_view.TVC_USER], mock_hist_item.user)
+        # test type guard, no values should return early
+        mock_hist_item2 = mock.Mock(
+            timestamp=datetime.today(),
+            operation="insert",
+            user="Jade Green",
+            table_name="mock_table",
+            values=None,
+            id=2,
+        )
+        hist_view.add_row(mock_hist_item2)
+        self.assertEqual(len(hist_view.liststore), start_len + 1)
+
+    def test_cmp_items_key(self):
+        values = {
+            "name": "Jade Green",
+            "none_value": None,
+            "list_value": ["new", "old"],
+            "id": 1,
+        }
+        out = [
+            ("id", 1),
+            ("list_value", ["new", "old"]),
+            ("name", "Jade Green"),
+            ("none_value", None),
+        ]
+
+        sortd = sorted(list(values.items()), key=HistoryView._cmp_items_key)
+        self.assertEqual(sortd, out)
 
     def test_button_release(self):
         mock_context = mock.Mock()
@@ -838,6 +867,16 @@ class TestHistoryView(BaubleTestCase):
         mock_context.popup_at_pointer.assert_not_called()
         self.assertTrue(hist_view.on_button_release(None, mock.Mock(button=3)))
         mock_context.popup_at_pointer.assert_called()
+
+    @mock.patch("bauble.view.HistoryView.get_selected_value")
+    def test_on_revert_to_history_type_guard(self, mock_get_selected):
+        mock_get_selected.return_value = mock.Mock(id=None)
+        hist_view = HistoryView()
+        with self.assertNoLogs(level="DEBUG"):
+            hist_view.on_revert_to_history(None, None)
+        mock_get_selected.return_value = None
+        with self.assertNoLogs(level="DEBUG"):
+            hist_view.on_revert_to_history(None, None)
 
     @mock.patch("bauble.utils.yes_no_dialog")
     def test_on_revert_to_history_not_cloned(self, mock_dialog):
@@ -1004,10 +1043,10 @@ class TestHistoryView(BaubleTestCase):
         )
         wait_on_threads()
 
+    @mock.patch("bauble.gui")
     @mock.patch("bauble.view.HistoryView.get_selected_value")
-    def test_on_copy_values(self, mock_get_selected):
+    def test_on_copy_values(self, mock_get_selected, mock_gui):
         geojson = {"type": "Point", "coordinate": [1, 2]}
-        from datetime import datetime
 
         vals = {
             "id": 1,
@@ -1032,14 +1071,32 @@ class TestHistoryView(BaubleTestCase):
         hist_view = HistoryView()
         import json
 
-        self.assertEqual(
-            hist_view.on_copy_values(None, None), json.dumps(vals)
+        hist_view.on_copy_values(None, None)
+        mock_gui.get_display_clipboard().set_text.assert_called_with(
+            json.dumps(vals), -1
         )
+        mock_gui.reset_mock()
+        # type guards
+        mock_get_selected.return_value = None
+        hist_view.on_copy_values(None, None)
+        mock_gui.get_display_clipboard().set_text.assert_not_called()
+        mock_gui.reset_mock()
 
+        mock_hist_item2 = mock.Mock(
+            timestamp=datetime.today(),
+            operation="insert",
+            user="Jade Green",
+            table_name="genus_note",
+            table_id=1,
+            values=None,
+        )
+        mock_get_selected.return_value = mock_hist_item2
+        hist_view.on_copy_values(None, None)
+        mock_gui.get_display_clipboard().set_text.assert_not_called()
+
+    @mock.patch("bauble.gui")
     @mock.patch("bauble.view.HistoryView.get_selected_value")
-    def test_on_copy_geojson(self, mock_get_selected):
-        from datetime import datetime
-
+    def test_on_copy_geojson(self, mock_get_selected, mock_gui):
         geojson = {"type": "Point", "coordinate": [1, 2]}
         values = {
             "id": 1,
@@ -1063,13 +1120,31 @@ class TestHistoryView(BaubleTestCase):
         hist_view = HistoryView()
         import json
 
-        self.assertEqual(
-            hist_view.on_copy_geojson(None, None), json.dumps(geojson)
+        hist_view.on_copy_geojson(None, None)
+        mock_gui.get_display_clipboard().set_text.assert_called_with(
+            json.dumps(geojson), -1
         )
+        mock_gui.reset_mock()
+        # type guards
+        mock_get_selected.return_value = None
+        hist_view.on_copy_geojson(None, None)
+        mock_gui.get_display_clipboard().set_text.assert_not_called()
+        mock_gui.reset_mock()
 
-    def test_on_row_activated(self):
-        from datetime import datetime
+        mock_hist_item2 = mock.Mock(
+            timestamp=datetime.today(),
+            operation="insert",
+            user="Jade Green",
+            table_name="genus_note",
+            table_id=1,
+            values=None,
+        )
+        mock_get_selected.return_value = mock_hist_item2
+        hist_view.on_copy_geojson(None, None)
+        mock_gui.get_display_clipboard().set_text.assert_not_called()
 
+    @mock.patch("bauble.gui")
+    def test_on_row_activated_existing_table(self, mock_gui):
         mock_hist_item = mock.Mock(
             timestamp=datetime.today(),
             operation="insert",
@@ -1088,19 +1163,53 @@ class TestHistoryView(BaubleTestCase):
 
         hist_view = HistoryView()
         hist_view.add_row(mock_hist_item)
-        self.assertEqual(
-            hist_view.on_row_activated(None, 0, None),
-            "genus where notes.id = 1",
+        hist_view.on_row_activated(None, 0, None)
+        mock_gui.send_command.assert_called_with("genus where notes.id = 1")
+
+    @mock.patch("bauble.gui")
+    def test_on_row_activated_none_existing_table(self, mock_gui):
+        mock_hist_item = mock.Mock(
+            timestamp=datetime.today(),
+            operation="insert",
+            user="Jade Green",
+            table_name="bad_table",
+            table_id=1,
+            values={
+                "id": 1,
+                "genus_id": 10,
+                "note": "test note",
+                "_created": None,
+                "_last_updated": None,
+            },
+            id=1,
+        )
+
+        hist_view = HistoryView()
+        hist_view.add_row(mock_hist_item)
+        hist_view.on_row_activated(None, 0, None)
+        mock_gui.send_command.assert_not_called()
+
+    def test_query_method(self):
+        string = "table_name = plant"
+        hist_view = HistoryView()
+        hist_view.last_arg = string
+        result = hist_view.query(self.session)
+        self.assertTrue(
+            result.whereclause.compare(db.History.table_name == "plant")
         )
 
     def test_basic_search_query_filters_eq(self):
         string = "table_name = plant"
-        result = AppendThousandRows(None, string).get_query_filters()
+        hist_view = HistoryView()
+        hist_view.last_arg = string
+        result = hist_view.get_query_filters()
         self.assertTrue(result[0].compare(db.History.table_name == "plant"))
 
     def test_basic_search_query_filters_not_eq(self):
         string = "table_name != plant"
-        result = AppendThousandRows(None, string).get_query_filters()
+        hist_view = HistoryView()
+        hist_view.last_arg = string
+        result = hist_view.get_query_filters()
         self.assertTrue(result[0].compare(db.History.table_name != "plant"))
 
     def test_basic_search_query_filters_w_and(self):
@@ -1108,7 +1217,9 @@ class TestHistoryView(BaubleTestCase):
             "table_name = plant and user = 'test user' and operation ="
             " insert"
         )
-        result = AppendThousandRows(None, string).get_query_filters()
+        hist_view = HistoryView()
+        hist_view.last_arg = string
+        result = hist_view.get_query_filters()
         # self.assertEqual(str(result[0]), "")
         self.assertTrue(result[0].compare(db.History.table_name == "plant"))
         self.assertTrue(result[1].compare(db.History.user == "test user"))
@@ -1118,7 +1229,9 @@ class TestHistoryView(BaubleTestCase):
         # comparing strings like this isn't ideal, doesn't test value but
         # compare() does not work here (at least not in sqlalchemy v1.3.24)
         string = "values like %id"
-        result = AppendThousandRows(None, string).get_query_filters()
+        hist_view = HistoryView()
+        hist_view.last_arg = string
+        result = hist_view.get_query_filters()
         self.assertEqual(
             str(result[0]), str(utils.ilike(db.History.values, "%id"))
         )
@@ -1127,7 +1240,9 @@ class TestHistoryView(BaubleTestCase):
         # comparing strings like this in't ideal, doesn't test value but
         # compare() does not work here (at least not in sqlalchemy v1.3.24)
         string = "values contains id"
-        result = AppendThousandRows(None, string).get_query_filters()
+        hist_view = HistoryView()
+        hist_view.last_arg = string
+        result = hist_view.get_query_filters()
         self.assertEqual(
             str(result[0]), str(utils.ilike(db.History.values, "%id"))
         )
@@ -1142,7 +1257,9 @@ class TestHistoryView(BaubleTestCase):
         date_val = search.clauses.get_datetime("10/8/23")
         today = date_val.astimezone(tz=timezone.utc)
         tomorrow = today + timedelta(1)
-        result = AppendThousandRows(None, string).get_query_filters()
+        hist_view = HistoryView()
+        hist_view.last_arg = string
+        result = hist_view.get_query_filters()
         self.assertTrue(
             result[0].compare(
                 and_(
@@ -1154,28 +1271,135 @@ class TestHistoryView(BaubleTestCase):
 
     def test_basic_search_query_filters_fails(self):
         string = "test = test"
-        self.assertRaises(
-            AttributeError, AppendThousandRows(None, string).get_query_filters
-        )
+        hist_view = HistoryView()
+        hist_view.last_arg = string
+        self.assertRaises(AttributeError, hist_view.get_query_filters)
 
     def test_basic_to_sync_search_is_clone(self):
         val = meta.get_default("clone_history_id", 5).value
         string = "to_sync"
-        result = AppendThousandRows(None, string).get_query_filters()
-        self.assertTrue(result[0].compare(db.History.id > val))
+        hist_view = HistoryView()
+        hist_view.update(None)
+        hist_view.last_arg = string
+        result = hist_view.get_query_filters()
+        self.assertTrue(result[0].compare(db.History.id > int(val)))
 
     def test_basic_to_sync_search_not_clone(self):
         string = "to_sync"
-        result = AppendThousandRows(None, string).get_query_filters()
+        hist_view = HistoryView()
+        hist_view.last_arg = string
+        result = hist_view.get_query_filters()
         self.assertTrue(result[0].compare(db.History.id.is_(None)))
 
     def test_basic_search_query_filters_w_to_sync(self):
         val = meta.get_default("clone_history_id", 5).value
         string = "to_sync and table_name = plant and operation = insert"
-        result = AppendThousandRows(None, string).get_query_filters()
-        self.assertTrue(result[0].compare(db.History.id > val))
+        hist_view = HistoryView()
+        hist_view.update(None)
+        hist_view.last_arg = string
+        result = hist_view.get_query_filters()
+        self.assertTrue(result[0].compare(db.History.id > int(val)))
         self.assertTrue(result[1].compare(db.History.table_name == "plant"))
         self.assertTrue(result[2].compare(db.History.operation == "insert"))
+
+    @mock.patch("bauble.view.HistoryView.add_rows")
+    def test_on_history_tv_value_changed_at_top(self, mock_add_rows):
+        mock_tv = mock.MagicMock()
+        mock_tv.get_visible_range.return_value = [True, True]
+        mock_ls = mock.MagicMock()
+        # bottom_line - id of last visible line (higher is towards top)
+        mock_ls.get_value.return_value = 9950
+        hist_view = HistoryView()
+        hist_view.history_tv = mock_tv
+        hist_view.liststore = mock_ls
+        # id of last row in tree - below visible row (higher is towards top)
+        hist_view.last_row_in_tree = 8000
+        # line number of last row in tree (higher is towards the bottom)
+        hist_view.offset = 2000
+        # the total number of potential rows
+        hist_view.hist_count = 10000
+        hist_view.on_history_tv_value_changed()
+        mock_add_rows.assert_not_called()
+
+    @mock.patch("bauble.view.HistoryView.add_rows")
+    def test_on_history_tv_value_changed_towards_top(self, mock_add_rows):
+        mock_tv = mock.MagicMock()
+        mock_tv.get_visible_range.return_value = [True, True]
+        mock_ls = mock.MagicMock()
+        # bottom_line - id of last visible line (higher is towards top)
+        mock_ls.get_value.return_value = 7100
+        hist_view = HistoryView()
+        hist_view.history_tv = mock_tv
+        hist_view.liststore = mock_ls
+        # id of last row in tree - below visible row (higher is towards top)
+        hist_view.last_row_in_tree = 7000
+        # line number of last row in tree (higher is towards the bottom)
+        hist_view.offset = 3000
+        # the total number of potential rows
+        hist_view.hist_count = 10000
+        hist_view.on_history_tv_value_changed()
+        mock_add_rows.assert_called()
+
+    @mock.patch("bauble.view.HistoryView.add_rows")
+    def test_on_history_tv_value_changed_towards_bottom(self, mock_add_rows):
+        mock_tv = mock.MagicMock()
+        mock_tv.get_visible_range.return_value = [True, True]
+        mock_ls = mock.MagicMock()
+        # bottom_line - id of last visible line (higher is towards top)
+        mock_ls.get_value.return_value = 600
+        hist_view = HistoryView()
+        hist_view.history_tv = mock_tv
+        hist_view.liststore = mock_ls
+        # id of last row in tree - below visible row (higher is towards top)
+        hist_view.last_row_in_tree = 500
+        # line number of last row in tree (higher is towards the bottom)
+        hist_view.offset = 9500
+        # the total number of potential rows
+        hist_view.hist_count = 10000
+        hist_view.on_history_tv_value_changed()
+        mock_add_rows.assert_called()
+
+    @mock.patch("bauble.view.HistoryView.add_rows")
+    def test_on_history_tv_value_changed_at_bottom(self, mock_add_rows):
+        mock_tv = mock.MagicMock()
+        mock_tv.get_visible_range.return_value = [True, True]
+        mock_ls = mock.MagicMock()
+        # bottom_line - id of last visible line (higher is towards top)
+        mock_ls.get_value.return_value = 1
+        hist_view = HistoryView()
+        hist_view.history_tv = mock_tv
+        hist_view.liststore = mock_ls
+        # id of last row in tree - below visible row (higher is towards top)
+        hist_view.last_row_in_tree = 1
+        # line number of last row in tree (higher is towards the bottom)
+        hist_view.offset = 1000
+        # the total number of potential rows
+        hist_view.hist_count = 1000
+        hist_view.on_history_tv_value_changed()
+        mock_add_rows.assert_not_called()
+
+    @mock.patch("bauble.gui")
+    @mock.patch("bauble.view.HistoryView.show_error_box")
+    def test_add_rows_w_exception(self, mock_show_error, _mock_gui):
+        db.Session = mock.Mock()
+        db.Session.side_effect = ValueError("boom")
+        hist_view = HistoryView()
+        hist_view.add_rows()
+        mock_show_error.assert_called()
+
+    def test_add_rows_w_no_session(self):
+        # type guard
+        db.Session = None
+        hist_view = HistoryView()
+        with self.assertNoLogs(level="DEBUG"):
+            hist_view.add_rows()
+
+    @mock.patch("bauble.gui")
+    def test_show_error_box(self, mock_gui):
+        hist_view = HistoryView()
+        values = "test msg", "test_details"
+        hist_view.show_error_box(*values)
+        mock_gui.show_error_box.assert_called_with(*values)
 
 
 class TestPicturesScroller(BaubleTestCase):

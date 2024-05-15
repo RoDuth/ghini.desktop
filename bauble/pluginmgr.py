@@ -1,7 +1,7 @@
 # Copyright 2008-2010 Brett Adams
 # Copyright 2012-2015 Mario Frasca <mario@anche.no>.
 # Copyright 2017 Jardín Botánico de Quito
-# Copyright 2021 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright 2021-2024 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -41,7 +41,10 @@ logger = logging.getLogger(__name__)
 import os
 import sys
 import traceback
+from abc import ABC
+from abc import abstractmethod
 from pathlib import Path
+from typing import Protocol
 
 from gi.repository import Gtk  # noqa
 from sqlalchemy import Column
@@ -504,46 +507,54 @@ class Tool:  # pylint: disable=too-few-public-methods
         pass
 
 
+class ViewThread(Protocol):
+    def cancel(self):
+        ...
+
+    def join(self):
+        ...
+
+    def start(self):
+        ...
+
+
 class View:
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, **kwargs) -> None:
         """If a class extends this View it will most likely also inherit from
         Gtk.Box and should call this __init__.
         """
         super().__init__(*args, **kwargs)
-        self.running_threads = []
+        self.running_threads: list[ViewThread] = []
         self.prevent_threads = False
 
-    def cancel_threads(self):
+    def cancel_threads(self) -> None:
         for thread in self.running_threads:
             thread.cancel()
         for thread in self.running_threads:
             thread.join()
         self.running_threads = []
 
-    def start_thread(self, thread):
+    def start_thread(self, thread: ViewThread) -> ViewThread:
         self.running_threads.append(thread)
         thread.start()
         if self.prevent_threads:
             self.cancel_threads()
         return thread
 
-    def update(self, *args):
+    def update(self, *args: str | None) -> None:
         raise NotImplementedError
 
 
-class CommandHandler:
+class CommandHandler(ABC):
     command: str | list[str]
 
-    def get_view(self):
+    @abstractmethod
+    def get_view(self) -> View:
         """return the  view for this command handler"""
-        return None
 
-    def __call__(self, cmd, arg):
-        """do what this command handler does
-
-        :param arg:
-        """
-        raise NotImplementedError
+    @abstractmethod
+    def __call__(self, cmd: str, arg: str | None) -> None:
+        """do what this command handler does"""
 
 
 def _find_module_names(path):
