@@ -1,6 +1,6 @@
 # Copyright (c) 2005,2006,2007,2008,2009 Brett Adams <brett@belizebotanic.org>
 # Copyright (c) 2012-2015 Mario Frasca <mario@anche.no>
-# Copyright (c) 2022-2023 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright (c) 2022-2024 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -32,13 +32,13 @@ from gi.repository import Gtk
 
 from bauble import paths
 from bauble import prefs
-from bauble import search
 from bauble import utils
 from bauble.editor import DocumentBox
 from bauble.editor import GenericEditorView
 from bauble.editor import NoteBox
 from bauble.editor import NotesPresenter
 from bauble.editor import PictureBox
+from bauble.editor import PicturesPresenter
 from bauble.editor import PresenterMapMixin
 from bauble.search.strategies import MapperSearch
 from bauble.test import BaubleTestCase
@@ -320,9 +320,11 @@ class PictureBoxTests(BaubleTestCase):
         temp = tempfile.mkdtemp()
         prefs.prefs[prefs.root_directory_pref] = temp
         os.mkdir(os.path.join(temp, "pictures"))
+        os.mkdir(os.path.join(temp, "pictures", "thumbs"))
         img_name = "dmg_background.png"
         img_full_path = os.path.join(paths.lib_dir(), "images", img_name)
         copy2(img_full_path, os.path.join(temp, "pictures"))
+        copy2(img_full_path, os.path.join(temp, "pictures", "thumbs"))
 
         self.model.picture = img_name
 
@@ -336,9 +338,15 @@ class PictureBoxTests(BaubleTestCase):
         self.assertTrue(
             os.path.isfile(os.path.join(temp, "pictures", img_name))
         )
+        self.assertTrue(
+            os.path.isfile(os.path.join(temp, "pictures", "thumbs", img_name))
+        )
         box.on_notes_remove_button(None)
         self.assertFalse(
             os.path.isfile(os.path.join(temp, "pictures", img_name))
+        )
+        self.assertFalse(
+            os.path.isfile(os.path.join(temp, "pictures", "thumbs", img_name))
         )
         msg = mock_dlog.call_args.args[0]
         self.assertNotIn("the same file", msg)
@@ -472,16 +480,14 @@ class PictureBoxTests(BaubleTestCase):
         self.assertIn("1 other", msg)
         self.assertIn(f"of type {note_cls.__tablename__}", msg)
 
-    @mock.patch("bauble.utils.Gtk.FileChooserNative")
-    def test_picture_box_on_file_btnbrowse_clicked_copies_file(
-        self, mock_filechooser
-    ):
+    @mock.patch("bauble.utils.Gtk.FileChooserNative.new")
+    def test_picture_box_on_file_btnbrowse_clicked_copies_file(self, mock_fc):
         temp = tempfile.mkdtemp()
         prefs.prefs[prefs.root_directory_pref] = temp
         os.makedirs(os.path.join(temp, "pictures", "thumbs"))
         img_name = "dmg_background.png"
         img_full_path = os.path.join(paths.lib_dir(), "images", img_name)
-        mock_filechooser.return_value.get_filename.return_value = img_full_path
+        mock_fc().get_filenames.return_value = [img_full_path]
         presenter = mock.Mock(model=self.model, notes=[self.model])
         box = PictureBox(presenter, self.model)
         box.on_file_btnbrowse_clicked(None)
@@ -492,16 +498,47 @@ class PictureBoxTests(BaubleTestCase):
             os.path.isfile(os.path.join(temp, "pictures", "thumbs", img_name))
         )
 
-    @mock.patch("bauble.utils.Gtk.FileChooserNative")
-    def test_on_file_btnbrowse_clicked_rename_if_file_exists(
-        self, mock_filechooser
-    ):
+    @mock.patch("bauble.utils.Gtk.FileChooserNative.new")
+    def test_picture_box_on_file_btnbrowse_clicked_multi_files(self, mock_fc):
+        temp = tempfile.mkdtemp()
+        prefs.prefs[prefs.root_directory_pref] = temp
+        os.makedirs(os.path.join(temp, "pictures", "thumbs"))
+        img_name = "bauble_logo.png"
+        img_full_path = os.path.join(paths.lib_dir(), "images", img_name)
+        img_name2 = "dmg_background.png"
+        img_full_path2 = os.path.join(paths.lib_dir(), "images", img_name2)
+        mock_fc().get_filenames.return_value = [img_full_path, img_full_path2]
+        presenter = mock.Mock(model=self.parent_model, notes=[self.model])
+        parent = Gtk.Box()
+        pic_presenter = PicturesPresenter(presenter, "pictures", parent)
+        box = PictureBox(pic_presenter, self.model)
+        utils.set_widget_value(box.category_comboentry, "test")
+        self.assertEqual(self.model.category, "test")
+        box.on_file_btnbrowse_clicked(None)
+        self.assertEqual(len(self.parent_model.pictures), 2)
+        for i in self.parent_model.pictures:
+            self.assertEqual(i.category, "test")
+        self.assertTrue(
+            os.path.isfile(os.path.join(temp, "pictures", img_name))
+        )
+        self.assertTrue(
+            os.path.isfile(os.path.join(temp, "pictures", "thumbs", img_name))
+        )
+        self.assertTrue(
+            os.path.isfile(os.path.join(temp, "pictures", img_name2))
+        )
+        self.assertTrue(
+            os.path.isfile(os.path.join(temp, "pictures", "thumbs", img_name2))
+        )
+
+    @mock.patch("bauble.utils.Gtk.FileChooserNative.new")
+    def test_on_file_btnbrowse_clicked_rename_if_file_exists(self, mock_fc):
         temp = tempfile.mkdtemp()
         prefs.prefs[prefs.root_directory_pref] = temp
         os.makedirs(os.path.join(temp, "pictures", "thumbs"))
         img_name = "dmg_background.png"
         img_full_path = os.path.join(paths.lib_dir(), "images", img_name)
-        mock_filechooser.return_value.get_filename.return_value = img_full_path
+        mock_fc().get_filenames.return_value = [img_full_path]
         mock_parent = mock.Mock(view=None)
         presenter = mock.Mock(
             model=self.model,
@@ -509,7 +546,8 @@ class PictureBoxTests(BaubleTestCase):
             **{"parent_ref.return_value": mock_parent},
         )
         box = PictureBox(presenter, self.model)
-        Path(temp, "pictures", img_name).touch()
+        pic_root = prefs.prefs[prefs.picture_root_pref]
+        Path(pic_root, img_name).touch()
         with mock.patch(
             "bauble.editor.utils.yes_no_dialog",
             return_value=Gtk.ResponseType.YES,
@@ -518,12 +556,41 @@ class PictureBoxTests(BaubleTestCase):
             mock_dialog.assert_called_once()
         files = []
         for file in os.listdir(prefs.prefs[prefs.picture_root_pref]):
-            if os.path.isfile(
-                os.path.join(prefs.prefs[prefs.picture_root_pref], file)
-            ):
+            if os.path.isfile(os.path.join(pic_root, file)):
                 files.append(file)
                 self.assertTrue(file.startswith("dmg_background"))
         self.assertEqual(len(files), 2)
+
+    @mock.patch("bauble.utils.Gtk.FileChooserNative.new")
+    def test_on_file_btnbrowse_clicked_file_exists_user_bails(self, mock_fc):
+        temp = tempfile.mkdtemp()
+        prefs.prefs[prefs.root_directory_pref] = temp
+        os.makedirs(os.path.join(temp, "pictures", "thumbs"))
+        img_name = "bauble_logo.png"
+        img_full_path = os.path.join(paths.lib_dir(), "images", img_name)
+        img_name2 = "dmg_background.png"
+        img_full_path2 = os.path.join(paths.lib_dir(), "images", img_name2)
+        mock_fc().get_filenames.return_value = [img_full_path, img_full_path2]
+        self.parent_model.pictures = []
+        self.assertEqual(len(self.parent_model.pictures), 0)
+        presenter = mock.Mock(model=self.parent_model, notes=[self.model])
+        parent = Gtk.Box()
+        pic_presenter = PicturesPresenter(presenter, "pictures", parent)
+        box = PictureBox(pic_presenter, self.model)
+        pic_root = prefs.prefs[prefs.picture_root_pref]
+        Path(pic_root, img_name).touch()
+        Path(pic_root, img_name2).touch()
+        with mock.patch(
+            "bauble.editor.utils.yes_no_dialog", return_value=False
+        ) as mock_dialog:
+            box.on_file_btnbrowse_clicked(None)
+            self.assertEqual(mock_dialog.call_count, 2)
+        self.assertCountEqual(
+            os.listdir(prefs.prefs[prefs.picture_root_pref]),
+            [img_name, img_name2, "thumbs"],
+        )
+        self.assertEqual(len(self.parent_model.pictures), 0)
+        self.assertEqual(len(pic_presenter.box.get_children()), 0)
 
 
 class DocumentBoxTests(BaubleTestCase):
@@ -718,12 +785,12 @@ class DocumentBoxTests(BaubleTestCase):
     #     pass
 
     @mock.patch("bauble.utils.Gtk.FileChooserNative")
-    def test_on_file_btnbrowse_clicked_copies_file(self, mock_filechooser):
+    def test_on_file_btnbrowse_clicked_copies_file(self, mock_fc):
         self.assertTrue(os.path.isfile(self.test_doc))
         temp = tempfile.mkdtemp()
         prefs.prefs[prefs.root_directory_pref] = temp
         os.mkdir(os.path.join(temp, "documents"))
-        mock_filechooser.return_value.get_filename.return_value = self.test_doc
+        mock_fc().get_filename.return_value = self.test_doc
         presenter = mock.Mock(model=self.model, documents=[self.model])
         box = DocumentBox(presenter, self.model)
         box.on_file_btnbrowse_clicked(None)
@@ -732,14 +799,12 @@ class DocumentBoxTests(BaubleTestCase):
         )
 
     @mock.patch("bauble.utils.Gtk.FileChooserNative")
-    def test_on_file_btnbrowse_clicked_rename_if_file_exists(
-        self, mock_filechooser
-    ):
+    def test_on_file_btnbrowse_clicked_rename_if_file_exists(self, mock_fc):
         self.assertTrue(os.path.isfile(self.test_doc))
         temp = tempfile.mkdtemp()
         prefs.prefs[prefs.root_directory_pref] = temp
         os.mkdir(os.path.join(temp, "documents"))
-        mock_filechooser.return_value.get_filename.return_value = self.test_doc
+        mock_fc().get_filename.return_value = self.test_doc
         mock_parent = mock.Mock(view=None)
         presenter = mock.Mock(
             model=self.model,

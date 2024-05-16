@@ -29,6 +29,7 @@ import inspect
 import logging
 import os
 import re
+import shutil
 import threading
 import time
 from collections import UserDict
@@ -119,15 +120,12 @@ class Cache:
         return value
 
 
-def copy_picture_with_thumbnail(path, basename=None, rename=None):
-    """copy file from path to picture_root, and make thumbnail, preserving name
-
-    return base64 representation of thumbnail
+def copy_picture_with_thumbnail(
+    path: str, basename: str | None = None, rename: str | None = None
+) -> None:
+    """Copy file from path to picture_root, make a thumbnail copying it to
+    picture_root/thumbs, preserving the file name unless rename is provided.
     """
-    import base64
-    import shutil
-    from io import BytesIO
-
     from PIL import Image
 
     from bauble import prefs
@@ -149,25 +147,17 @@ def copy_picture_with_thumbnail(path, basename=None, rename=None):
     full_dest_path = os.path.join(
         prefs.prefs[prefs.picture_root_pref], "thumbs", rename or basename
     )
-    result = ""
     try:
         img = Image.open(filename)
         img.thumbnail((400, 400))
         logger.debug("copying %s to %s", filename, full_dest_path)
         img.save(full_dest_path)
-        output = BytesIO()
-        img.save(output, format="JPEG")
-        im_data = output.getvalue()
-        result = base64.b64encode(im_data)
-    except IOError as e:
-        logger.warning("can't make thumbnail %s", e)
     except Exception as e:  # pylint: disable=broad-except
         logger.warning(
             "unexpected exception making thumbnail: %s(%s)",
             type(e).__name__,
             e,
         )
-    return result
 
 
 class ImageLoader(threading.Thread):
@@ -1810,7 +1800,6 @@ def copy_tree(src_dir, dest_dir, suffixes=None, over_write=False):
         None if all files should be copied
     :param over_write: wether to overwrite existing files or not.
     """
-    from shutil import copy
 
     if isinstance(src_dir, str):
         src_dir = Path(src_dir)
@@ -1823,7 +1812,7 @@ def copy_tree(src_dir, dest_dir, suffixes=None, over_write=False):
                 logger.debug("creating dir: %s", destination.parent)
                 destination.parent.mkdir(parents=True)
             if not destination.exists() or over_write:
-                copy(path, destination)
+                shutil.copy(path, destination)
 
 
 def hide_widgets(widgets: Iterable[Gtk.Widget]) -> None:

@@ -650,13 +650,12 @@ class GlobalFuncsTests(BaubleTestCase):
             thumbs_dir = Path(temp_dir, "pictures", "thumbs")
             os.makedirs(thumbs_dir)
             prefs.prefs[prefs.root_directory_pref] = temp_dir
-            out = utils.copy_picture_with_thumbnail(temp_img_path)
+            utils.copy_picture_with_thumbnail(temp_img_path)
             filecmp.cmp(
                 temp_img_path, str(Path(temp_dir, "pictures", "test.jpg"))
             )
-            self.assertIsNotNone(thumbs_dir / "test.jpg")
+            self.assertTrue((thumbs_dir / "test.jpg").is_file())
         temp_source.cleanup()
-        self.assertEqual(len(out), 10464)
 
     def test_copy_picture_with_thumbnail_w_basename(self):
         import filecmp
@@ -672,13 +671,12 @@ class GlobalFuncsTests(BaubleTestCase):
             thumbs_dir = Path(temp_dir, "pictures", "thumbs")
             os.makedirs(thumbs_dir)
             prefs.prefs[prefs.root_directory_pref] = temp_dir
-            out = utils.copy_picture_with_thumbnail(path, basename)
+            utils.copy_picture_with_thumbnail(path, basename)
             filecmp.cmp(
                 temp_img_path, str(Path(temp_dir, "pictures", "test.jpg"))
             )
-            self.assertIsNotNone(thumbs_dir / "test.jpg")
+            self.assertTrue((thumbs_dir / "test.jpg").is_file())
         temp_source.cleanup()
-        self.assertEqual(len(out), 10464)
 
     def test_copy_picture_with_thumbnail_w_basename_rename(self):
         import filecmp
@@ -695,11 +693,10 @@ class GlobalFuncsTests(BaubleTestCase):
             thumbs_dir = Path(temp_dir, "pictures", "thumbs")
             os.makedirs(thumbs_dir)
             prefs.prefs[prefs.root_directory_pref] = temp_dir
-            out = utils.copy_picture_with_thumbnail(path, basename, rename)
+            utils.copy_picture_with_thumbnail(path, basename, rename)
             filecmp.cmp(temp_img_path, str(Path(temp_dir, "pictures", rename)))
-            self.assertIsNotNone(thumbs_dir / rename)
+            self.assertTrue((thumbs_dir / rename).is_file())
         temp_source.cleanup()
-        self.assertEqual(len(out), 10464)
 
     def test_get_temp_path(self):
         temp_path = utils.get_temp_path()

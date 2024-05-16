@@ -1,6 +1,6 @@
 # Copyright 2008-2010 Brett Adams
 # Copyright 2015-2017 Mario Frasca <mario@anche.no>.
-# Copyright 2020-2022 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright 2020-2024 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -30,7 +30,8 @@ import weakref
 from collections.abc import Callable
 from pathlib import Path
 from random import random
-from typing import Optional
+from typing import Self
+from typing import cast
 
 logger = logging.getLogger(__name__)
 
@@ -50,6 +51,7 @@ from bauble import prefs
 from bauble import utils
 from bauble.error import CheckConditionError
 from bauble.error import check
+from bauble.i18n import _
 
 # TODO: create a generic date entry that can take a mask for the date format
 # see the date entries for the accession and accession source presenters
@@ -1669,7 +1671,7 @@ class GenericEditorPresenter:
         widget: Gtk.Entry | str,
         get_completions: Callable,
         on_select: Callable = lambda v: v,
-        comparer: Optional[Callable] = None,
+        comparer: Callable | None = None,
         set_problems: bool = True,
     ) -> None:
         """Dynamically handle completions on a Gtk.Entry.
@@ -1690,12 +1692,12 @@ class GenericEditorPresenter:
 
         logger.debug("assign_completions_handler %s", widget)
         if not isinstance(widget, Gtk.Entry):
-            widget = self.view.widgets[widget]
+            widget = cast(Gtk.Entry, self.view.widgets[widget])
         widget_name = Gtk.Buildable.get_name(widget)
         # not a true constant but named so for consistency
-        PROBLEM_NOT_FOUND = (
-            f"{widget_name}:not_found"  # pylint: disable=invalid-name
-        )
+        # pylint: disable=invalid-name
+        PROBLEM_NOT_FOUND = f"{widget_name}:not_found"
+        # pylint: enable=invalid-name
 
         def add_completions(text):
             """Reconstruct the widgets model (Gtk.ListStore)"""
@@ -2305,17 +2307,17 @@ class NoteBoxMenuBtnMixin:
 class PictureBox(GenericNoteBox, NoteBoxMenuBtnMixin, Gtk.Box):
     __gtype_name__ = "PictureBox"
 
-    note_expander = Gtk.Template.Child()
-    category_comboentry = Gtk.Template.Child()
-    date_entry = Gtk.Template.Child()
-    date_button = Gtk.Template.Child()
-    user_entry = Gtk.Template.Child()
-    notes_remove_button = Gtk.Template.Child()
-    file_set_box = Gtk.Template.Child()
-    file_btnbrowse = Gtk.Template.Child()
-    file_entry = Gtk.Template.Child()
-    picture_box = Gtk.Template.Child()
-    file_menu_btn = Gtk.Template.Child()
+    note_expander = cast(Gtk.Expander, Gtk.Template.Child())
+    category_comboentry = cast(Gtk.ComboBox, Gtk.Template.Child())
+    date_entry = cast(Gtk.Entry, Gtk.Template.Child())
+    date_button = cast(Gtk.Button, Gtk.Template.Child())
+    user_entry = cast(Gtk.Entry, Gtk.Template.Child())
+    notes_remove_button = cast(Gtk.Entry, Gtk.Template.Child())
+    file_set_box = cast(Gtk.Entry, Gtk.Template.Child())
+    file_btnbrowse = cast(Gtk.Button, Gtk.Template.Child())
+    file_entry = cast(Gtk.Entry, Gtk.Template.Child())
+    picture_box = cast(Gtk.Box, Gtk.Template.Child())
+    file_menu_btn = cast(Gtk.MenuButton, Gtk.Template.Child())
 
     last_folder = str(Path.home())
 
@@ -2442,14 +2444,22 @@ class PictureBox(GenericNoteBox, NoteBoxMenuBtnMixin, Gtk.Box):
                     return
         super().on_notes_remove_button(_button, *_args)
 
-    def on_file_btnbrowse_clicked(self, _widget):
-        file_chooser_dialog = Gtk.FileChooserNative()
+    def on_file_btnbrowse_clicked(self, _widget) -> None:
+        file_chooser_dialog = Gtk.FileChooserNative.new(
+            _("Select picture(s) to add…"),
+            None,
+            Gtk.FileChooserAction.OPEN,
+        )
+        file_chooser_dialog.set_select_multiple(True)
+        file_chooser_dialog.set_current_folder(self.last_folder)
+        file_chooser_dialog.run()
+        filenames = file_chooser_dialog.get_filenames()
+        boxes = [self]
+        boxes += [
+            self.presenter.add_note() for __ in range(len(filenames) - 1)
+        ]
         try:
-            logger.debug("about to set current folder - %s", self.last_folder)
-            file_chooser_dialog.set_current_folder(self.last_folder)
-            file_chooser_dialog.run()
-            filename = file_chooser_dialog.get_filename()
-            if filename:
+            for box, filename in zip(boxes, filenames):
                 # remember chosen location for next time
                 self.__class__.last_folder, basename = os.path.split(filename)
                 logger.debug("new current folder is: %s", self.last_folder)
@@ -2475,21 +2485,28 @@ class PictureBox(GenericNoteBox, NoteBoxMenuBtnMixin, Gtk.Box):
                         name, ext = os.path.splitext(basename)
                         tstamp = datetime.datetime.now().strftime("%Y%m%d%M%S")
                         rename = name + "_" + tstamp + ext
-                        utils.copy_picture_with_thumbnail(
-                            self.last_folder, basename, rename
-                        )
-                        self.file_entry.set_text(rename)
+                        self._copy_picture(box, basename, rename)
+                    else:
+                        if box.model in self.presenter.notes:
+                            self.presenter.notes.remove(box.model)
+                        box.destroy()
+                        box.presenter.parent_ref().refresh_sensitivity()
                 else:
-                    utils.copy_picture_with_thumbnail(
-                        self.last_folder, basename
-                    )
-                    # append thumbnail base64 to content string
-                    # see: 59375047 intended to store a base64 thumbnail in the
-                    # database Currently not working, not fully investigated.
-                    self.file_entry.set_text(basename)
+                    self._copy_picture(box, basename)
         except Exception as e:  # pylint: disable=broad-except
             logger.warning("unhandled exception: (%s)%s", type(e).__name__, e)
-        file_chooser_dialog.destroy()
+        finally:
+            file_chooser_dialog.destroy()
+
+    def _copy_picture(
+        self, box: Self, name: str, rename: str | None = None
+    ) -> None:
+        utils.copy_picture_with_thumbnail(self.last_folder, name, rename)
+        box.file_entry.set_text(name)
+        utils.set_widget_value(
+            box.category_comboentry, self.model.category or ""
+        )
+        box.set_expanded(True)
 
     def on_text_entry_changed(self, widget):
         self.set_model_attr("picture", widget.get_text())
@@ -2646,7 +2663,8 @@ class DocumentBox(GenericNoteBox, NoteBoxMenuBtnMixin, Gtk.Box):
                         tstamp = datetime.datetime.now().strftime("%Y%m%d%M%S")
                         basename = name + "_" + tstamp + ext
                     else:
-                        file_chooser_dialog.destroy()
+                        self.destroy()
+                        self.presenter.parent_ref().refresh_sensitivity()
                         return
 
                 destination = os.path.join(
@@ -2659,7 +2677,8 @@ class DocumentBox(GenericNoteBox, NoteBoxMenuBtnMixin, Gtk.Box):
                 self.file_entry.set_text(basename)
         except Exception as e:  # pylint: disable=broad-except
             logger.warning("unhandled exception: (%s)%s", type(e).__name__, e)
-        file_chooser_dialog.destroy()
+        finally:
+            file_chooser_dialog.destroy()
 
     def on_text_entry_changed(self, widget):
         self.set_model_attr("document", widget.get_text())
@@ -2680,7 +2699,7 @@ class NotesPresenter(GenericEditorPresenter):
     :param parent_container: the Gtk.Container to add the notes editor box to
     """
 
-    ContentBox = NoteBox
+    ContentBox: type[GenericNoteBox] = NoteBox
 
     def __init__(self, presenter, notes_property, parent_container):
         super().__init__(presenter.model, None)
@@ -2726,11 +2745,11 @@ class NotesPresenter(GenericEditorPresenter):
 
     def add_note(self, note=None):
         """Add a new note to the model."""
-        expander = self.ContentBox(self, note)
-        self.box.pack_start(expander, False, False, 0)  # padding=10
-        self.box.reorder_child(expander, 0)
-        expander.show_all()
-        return expander
+        box = self.ContentBox(self, note)
+        self.box.pack_start(box, False, False, 0)  # padding=10
+        self.box.reorder_child(box, 0)
+        box.show_all()
+        return box
 
 
 class PicturesPresenter(NotesPresenter):
