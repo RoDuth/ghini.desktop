@@ -1507,12 +1507,45 @@ class TestPicturesScroller(BaubleTestCase):
         box.pack_start(pic_pane, True, True, 1)
         picture_scroller = PicturesScroller(parent=pics_box, pic_pane=pic_pane)
         self.assertIsNone(picture_scroller.restore_position)
+        # no result
         picture_scroller._hide_restore_pic_pane([])
-        self.assertIsNotNone(picture_scroller.restore_position)
+        self.assertIsNone(picture_scroller.restore_position)
+        self.assertFalse(picture_scroller.last_result_succeed)
+        # error
+        picture_scroller._hide_restore_pic_pane(None)
+        self.assertIsNone(picture_scroller.restore_position)
+        self.assertFalse(picture_scroller.last_result_succeed)
+        # success
         restore_pos = picture_scroller.restore_position
         picture_scroller._hide_restore_pic_pane([1])
-        self.assertNotEqual(picture_scroller.restore_position, restore_pos)
-        self.assertEqual(picture_scroller.pic_pane.get_position(), restore_pos)
+        self.assertTrue(picture_scroller.last_result_succeed)
+        # no result (yet records restore possition because prev was successful)
+        picture_scroller._hide_restore_pic_pane([])
+        self.assertFalse(picture_scroller.last_result_succeed)
+        restore_pos2 = picture_scroller.restore_position
+        self.assertIsNotNone(restore_pos2)
+        self.assertNotEqual(restore_pos2, restore_pos)
+        # succeed and change position then succed again should store new value
+        picture_scroller._hide_restore_pic_pane([1])
+        picture_scroller.pic_pane.set_position(100)
+        self.assertTrue(picture_scroller.last_result_succeed)
+        picture_scroller._hide_restore_pic_pane([1])
+        self.assertEqual(picture_scroller.restore_position, 100)
+        self.assertTrue(picture_scroller.last_result_succeed)
+        # change position then fail multiple time, captures and uses last
+        # successful position
+        picture_scroller.pic_pane.set_position(50)
+        picture_scroller._hide_restore_pic_pane(None)
+        self.assertFalse(picture_scroller.last_result_succeed)
+        picture_scroller._hide_restore_pic_pane(None)
+        self.assertFalse(picture_scroller.last_result_succeed)
+        picture_scroller._hide_restore_pic_pane([])
+        self.assertFalse(picture_scroller.last_result_succeed)
+        self.assertEqual(picture_scroller.restore_position, 50)
+        picture_scroller._hide_restore_pic_pane([1])
+        self.assertTrue(picture_scroller.last_result_succeed)
+        self.assertEqual(picture_scroller.pic_pane.get_position(), 50)
+        self.assertEqual(picture_scroller.restore_position, 50)
 
 
 class GlobalFunctionsTests(BaubleTestCase):

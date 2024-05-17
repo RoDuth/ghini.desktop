@@ -692,6 +692,7 @@ class PicturesScroller(Gtk.ScrolledWindow):
             orientation=Gtk.Orientation.VERTICAL, can_focus=False, spacing=5
         )
         self.add(self.pictures_box)
+        self.last_result_succeed = False
         self.show()
         # connect to the grandparent to capture parent's values first
         if pic_parent := self.pic_pane.get_parent():
@@ -706,20 +707,20 @@ class PicturesScroller(Gtk.ScrolledWindow):
         logger.debug("setting PIC_PANE_PAGE_PREF to %s", selected)
         prefs.prefs[PIC_PANE_PAGE_PREF] = selected
 
-    def _hide_restore_pic_pane(self, selection: list) -> None:
-        if selection == []:
+    def _hide_restore_pic_pane(self, selection: list | None) -> None:
+        if self.last_result_succeed:
+            self.restore_position = self.pic_pane.get_position()
+        if not selection:
+            # No result or error
             if bauble.gui:
                 width = bauble.gui.window.get_size().width
-                if self.restore_position is None:
-                    self.restore_position = self.pic_pane.get_position()
                 self.pic_pane.set_position(width - 6)
+            self.last_result_succeed = False
         else:
+            # successful
             if self.restore_position:
-                GLib.idle_add(
-                    self.pic_pane.set_position, self.restore_position
-                )
-            if selection:
-                self.restore_position = None
+                self.pic_pane.set_position(self.restore_position)
+            self.last_result_succeed = True
 
     def set_selection(self, selection):
         logger.debug("PicturesScroller.set_selection(%s)", selection)
@@ -1171,9 +1172,9 @@ class SearchView(pluginmgr.View, Gtk.Box):
             self.infobox.set_sensitive(sensitive)
             self.info_pane.show_all()
 
-    def get_selected_values(self):
+    def get_selected_values(self) -> list[db.Base] | None:
         """Get the values in all the selected rows."""
-        model, rows = self.results_view.get_selection().get_selected_rows()
+        model, rows = self.selection.get_selected_rows()
         if model is None or rows is None:
             return None
         return [model[row][0] for row in rows]
@@ -1353,7 +1354,7 @@ class SearchView(pluginmgr.View, Gtk.Box):
         # NOTE used in testing
         return search_str
 
-    def search(self, text):
+    def search(self, text: str) -> None:
         """search the database using text"""
         logger.debug("SearchView.search(%s)", text)
         error_msg = None
@@ -1365,6 +1366,8 @@ class SearchView(pluginmgr.View, Gtk.Box):
         self.has_kids.clear_cache()  # pylint: disable=no-member
         self.count_kids.clear_cache()  # pylint: disable=no-member
         self.get_markup_pair.clear_cache()  # pylint: disable=no-member
+        if not db.Session:
+            return
         self.session = db.Session()
         bold = "<b>%s</b>"
         results = []
@@ -1380,10 +1383,15 @@ class SearchView(pluginmgr.View, Gtk.Box):
         # clear last result
         for callback in self.populate_callbacks:
             callback([])
-        utils.clear_model(self.results_view)
 
-        if error_msg:
+        # avoid triggering on_selection_changed
+        self.selection.handler_block(self._sc_sid)
+        utils.clear_model(self.results_view)
+        self.selection.handler_unblock(self._sc_sid)
+
+        if error_msg and bauble.gui:
             bauble.gui.show_error_box(error_msg, error_details_msg)
+            self.on_selection_changed(None)
             return
 
         # not error
@@ -1436,7 +1444,7 @@ class SearchView(pluginmgr.View, Gtk.Box):
                     sbcontext_id,
                     _("size of non homogeneous result: %s") % len(results),
                 )
-            self.results_view.set_cursor(0)
+            self.results_view.set_cursor(Gtk.TreePath.new_first())
 
     @staticmethod
     def remove_children(model, parent):
@@ -1553,9 +1561,10 @@ class SearchView(pluginmgr.View, Gtk.Box):
                     bauble.gui.progressbar.set_fraction(percent)
                 yield
 
-        self.results_view.freeze_child_notify()
+        # avoid triggering on_selection_changed
+        self.selection.handler_block(self._sc_sid)
         self.results_view.set_model(model)
-        self.results_view.thaw_child_notify()
+        self.selection.handler_unblock(self._sc_sid)
 
     def append_children(self, model, parent, kids):
         """Append object to a parent iter in the model.
@@ -1763,8 +1772,7 @@ class SearchView(pluginmgr.View, Gtk.Box):
         """
         # NOTE log used in tests
         logger.debug("SearchView::update")
-        selection = self.results_view.get_selection()
-        model, tree_paths = selection.get_selected_rows()
+        model, tree_paths = self.selection.get_selected_rows()
         ref = None
         try:
             # try to get the reference to the selected object, if the
@@ -1807,11 +1815,10 @@ class SearchView(pluginmgr.View, Gtk.Box):
         logger.debug("SearchView::create_gui")
         # create the results view and info box
         self.results_view.set_headers_visible(False)
-        # self.results_view.set_rules_hint(True)  # depricated
         self.results_view.set_fixed_height_mode(True)
 
-        selection = self.results_view.get_selection()
-        selection.set_mode(Gtk.SelectionMode.MULTIPLE)
+        self.selection = self.results_view.get_selection()
+        self.selection.set_mode(Gtk.SelectionMode.MULTIPLE)
         self.results_view.set_rubber_banding(True)
 
         renderer = Gtk.CellRendererText()
@@ -1823,8 +1830,9 @@ class SearchView(pluginmgr.View, Gtk.Box):
         self.results_view.append_column(column)
 
         # view signals
-        results_view_selection = self.results_view.get_selection()
-        results_view_selection.connect("changed", self.on_selection_changed)
+        self._sc_sid = self.selection.connect(
+            "changed", self.on_selection_changed
+        )
 
         self.results_view.connect("test-expand-row", self.on_test_expand_row)
 
