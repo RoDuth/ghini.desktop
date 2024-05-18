@@ -1,5 +1,5 @@
 ghini.desktop
-======
+=============
 
 .. image:: https://coveralls.io/repos/github/RoDuth/ghini.desktop/badge.svg?branch=main&kill_cache=1
    :target: https://coveralls.io/github/RoDuth/ghini.desktop?branch=main
