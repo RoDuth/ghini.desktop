@@ -48,6 +48,7 @@ from sqlalchemy.orm.exc import MultipleResultsFound
 from bauble import btypes as types
 from bauble import error
 from bauble import utils
+from bauble.i18n import _
 
 
 def sqlalchemy_debug(verbose):

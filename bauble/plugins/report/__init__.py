@@ -37,6 +37,7 @@ from bauble import pluginmgr
 from bauble import prefs
 from bauble import utils
 from bauble.error import BaubleError
+from bauble.i18n import _
 from bauble.plugins.garden import Accession
 from bauble.plugins.garden import Collection
 from bauble.plugins.garden import Location

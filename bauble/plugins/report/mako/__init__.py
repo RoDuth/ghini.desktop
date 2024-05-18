@@ -34,6 +34,7 @@ from mako.template import Template
 
 from bauble import paths
 from bauble import utils
+from bauble.i18n import _
 
 from .. import FormatterPlugin
 from .. import SettingsBox

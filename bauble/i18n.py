@@ -97,9 +97,6 @@ for module in locale, gtkglade:
 lang = gettext.translation(
     TEXT_DOMAIN, paths.locale_dir(), languages=langs, fallback=True
 )
-# associate this module's as well as the global `_` functions (we marked our
-# translatable strings with it) to lang.gettext(), which translates them.
+# associate the `_` function (we marked our translatable strings with it) to
+# lang.gettext(), which translates them.
 _ = lang.gettext
-import builtins
-
-builtins._ = lang.gettext

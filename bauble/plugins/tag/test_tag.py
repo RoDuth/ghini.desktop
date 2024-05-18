@@ -27,6 +27,7 @@ import bauble.plugins.tag as tag_plugin
 from bauble import utils
 from bauble.editor import GenericEditorView
 from bauble.editor import MockView
+from bauble.i18n import _
 from bauble.plugins.garden import Accession
 from bauble.plugins.plants import Family
 from bauble.plugins.tag import Tag

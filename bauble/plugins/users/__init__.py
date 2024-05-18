@@ -43,6 +43,7 @@ from bauble import editor
 from bauble import pluginmgr
 from bauble import utils
 from bauble.error import check
+from bauble.i18n import _
 
 # WARNING: "roles" are specific to PostgreSQL databases and won't work on other
 # database types

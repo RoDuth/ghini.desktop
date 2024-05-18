@@ -55,6 +55,7 @@ import bauble
 from bauble import prefs
 from bauble import utils
 from bauble.editor import GenericEditorPresenter
+from bauble.i18n import _
 from bauble.search.strategies import MapperSearch
 from bauble.search.tokens import EmptyToken
 from bauble.search.tokens import NoneToken

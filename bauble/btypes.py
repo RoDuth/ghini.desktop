@@ -29,6 +29,7 @@ import dateutil.parser as date_parser
 from sqlalchemy import types
 
 from bauble import error
+from bauble.i18n import _
 
 
 class EnumError(error.BaubleError):

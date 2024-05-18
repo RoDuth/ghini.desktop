@@ -46,6 +46,7 @@ from bauble import db
 from bauble import pb_set_fraction
 from bauble import pluginmgr
 from bauble import utils
+from bauble.i18n import _
 
 # TODO: i've also had a problem with bad insert statements, e.g. importing a
 # geography table after creating a new database and it doesn't use the

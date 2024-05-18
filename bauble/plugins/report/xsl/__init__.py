@@ -41,6 +41,7 @@ from bauble import prefs
 from bauble import task
 from bauble import utils
 from bauble.error import BaubleError
+from bauble.i18n import _
 from bauble.plugins.abcd import ABCDCreator
 from bauble.plugins.abcd import AccessionABCDAdapter
 from bauble.plugins.abcd import PlantABCDAdapter

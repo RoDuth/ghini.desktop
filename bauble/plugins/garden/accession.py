@@ -69,6 +69,7 @@ from bauble import paths
 from bauble import prefs
 from bauble import utils
 from bauble.error import check
+from bauble.i18n import _
 from bauble.utils import safe_int
 from bauble.utils.geo import KMLMapCallbackFunctor
 from bauble.view import Action

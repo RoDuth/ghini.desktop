@@ -43,6 +43,7 @@ from sqlalchemy.sql.elements import BinaryExpression
 
 from bauble import utils
 from bauble.error import check
+from bauble.i18n import _
 
 from .clauses import QueryHandler
 from .operations import OPERATIONS
@@ -198,7 +199,7 @@ class ValueListStatement(StatementAction["ValueListSearch"]):
             # a single letter (i.e. 'a' including the parentheses) in the
             # values or too many values
             logger.debug("Warn, no specific query")
-            msg = _(  # type: ignore[name-defined]
+            msg = _(
                 "The search string provided contains no specific query "
                 "and will search against all fields in all tables. It "
                 "also contains content that could take a long time to "

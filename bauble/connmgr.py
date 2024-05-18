@@ -43,6 +43,7 @@ from bauble import prefs
 from bauble import utils
 from bauble.editor import GenericEditorPresenter
 from bauble.editor import GenericEditorView
+from bauble.i18n import _
 
 first_run = True
 

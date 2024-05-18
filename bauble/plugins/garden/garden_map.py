@@ -43,7 +43,7 @@ from gi.repository import GdkPixbuf
 from gi.repository import Gio
 from gi.repository import GLib
 from gi.repository import Gtk
-from gi.repository import OsmGpsMap  # type: ignore
+from gi.repository import OsmGpsMap  # type: ignore[attr-defined]
 from sqlalchemy import engine
 from sqlalchemy import event
 
@@ -51,6 +51,7 @@ import bauble
 from bauble import db
 from bauble import paths
 from bauble import prefs
+from bauble.i18n import _
 from bauble.utils import get_net_sess
 from bauble.utils import timed_cache
 from bauble.view import SearchView
@@ -633,8 +634,8 @@ class SearchViewMapPresenter:  # pylint: disable=too-many-instance-attributes
         action_group = Gio.SimpleActionGroup()
         # https://github.com/python/mypy/issues/12172
         menu_items = (
-            (_("Zoom to selected"), "zoom_select", self.on_zoom_to_selected),  # type: ignore # noqa
-            (_("Zoom to home"), "zoom_home", self.zoom_to_home),  # type: ignore # noqa
+            (_("Zoom to selected"), "zoom_select", self.on_zoom_to_selected),
+            (_("Zoom to home"), "zoom_home", self.zoom_to_home),
         )
 
         for label, name, handler in menu_items:
@@ -784,7 +785,9 @@ class SearchViewMapPresenter:  # pylint: disable=too-many-instance-attributes
                 # see: https://github.com/python/mypy/issues/2220
                 objs = [i[0] for i in model]  # type: ignore
             self.populate_map(objs)
-            self.update_map(view.get_selected_values())
+            selected = view.get_selected_values()
+            if selected:
+                self.update_map(selected)
 
     def clear_selected(self) -> None:
         """Set all items back to default colours"""

@@ -39,6 +39,7 @@ from bauble import task
 from bauble import utils
 from bauble.editor import GenericEditorPresenter
 from bauble.editor import GenericEditorView
+from bauble.i18n import _
 
 
 def element_factory(parent, name, **kwargs):

@@ -91,6 +91,7 @@ from bauble.editor import NotesPresenter
 from bauble.editor import PicturesPresenter
 from bauble.editor import PresenterMapMixin
 from bauble.error import CheckConditionError
+from bauble.i18n import _
 from bauble.search.strategies import SearchStrategy
 from bauble.utils.geo import KMLMapCallbackFunctor
 from bauble.view import Action
@@ -301,7 +302,7 @@ def get_next_code(acc: Accession) -> str:
 
 def set_code_format(*_args) -> None:
     """Set the plant code format."""
-    msg = _(  # type: ignore[name-defined]
+    msg = _(
         "Set the default plant code format, available options are: 'digits', "
         "'alpha_lower', 'alpha_upper'."
         "\n\nNote that any plants created before this change (that used the "

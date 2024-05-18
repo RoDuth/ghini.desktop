@@ -40,6 +40,7 @@ logger = logging.getLogger(__name__)
 
 from gi.repository import Gtk
 
+from bauble.i18n import _
 from bauble.utils import desktop
 
 LinkDict = TypedDict(
@@ -57,7 +58,7 @@ LinkDict = TypedDict(
 class BaubleLinkButton(Gtk.LinkButton):
     _base_uri = "%s"
     _space = "_"
-    title = _("Search")  # type: ignore[name-defined]
+    title = _("Search")
     tooltip: str | None = None
     fields: list[str] = []
     pt = re.compile(r"%\(([a-z_\.]+)\)s")

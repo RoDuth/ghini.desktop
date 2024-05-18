@@ -51,6 +51,7 @@ from bauble import paths
 from bauble import pluginmgr
 from bauble import prefs
 from bauble import utils
+from bauble.i18n import _
 from bauble.view import Action
 from bauble.view import InfoBox
 from bauble.view import InfoExpander

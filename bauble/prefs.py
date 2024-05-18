@@ -55,6 +55,7 @@ from bauble import meta
 from bauble import paths
 from bauble import pluginmgr
 from bauble import utils
+from bauble.i18n import _
 
 testing = os.environ.get("BAUBLE_TEST")  # set this to True when testing
 

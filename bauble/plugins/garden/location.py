@@ -51,6 +51,7 @@ from bauble.editor import NotesPresenter
 from bauble.editor import PicturesPresenter
 from bauble.editor import PresenterMapMixin
 from bauble.editor import StringOrNoneValidator
+from bauble.i18n import _
 from bauble.utils.geo import KMLMapCallbackFunctor
 from bauble.view import Action
 

@@ -55,6 +55,7 @@ from bauble import search
 from bauble import utils
 from bauble.editor import GenericEditorPresenter
 from bauble.editor import GenericEditorView
+from bauble.i18n import _
 from bauble.view import Action
 from bauble.view import HistoryView
 from bauble.view import InfoBox

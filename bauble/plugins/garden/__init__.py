@@ -40,6 +40,7 @@ from bauble import pluginmgr
 from bauble import prefs
 from bauble import search
 from bauble import utils
+from bauble.i18n import _
 from bauble.view import HistoryView
 from bauble.view import SearchView
 

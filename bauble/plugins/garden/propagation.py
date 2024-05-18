@@ -45,6 +45,7 @@ from bauble import editor
 from bauble import paths
 from bauble import prefs
 from bauble import utils
+from bauble.i18n import _
 
 prop_type_values = {
     "Seed": _("Seed"),

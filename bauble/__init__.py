@@ -44,7 +44,6 @@ release_date = datetime.utcfromtimestamp(0)
 release_version = None
 installation_date = datetime.now()
 
-import bauble.i18n
 
 logger = logging.getLogger(__name__)
 
@@ -199,3 +198,7 @@ def command_handler(cmd, arg):
         utils.message_details_dialog(
             msg, traceback.format_exc(), Gtk.MessageType.ERROR
         )
+
+
+# avoid circular import
+from bauble.i18n import _

@@ -34,6 +34,7 @@ from bauble import editor
 from bauble import meta
 from bauble import paths
 from bauble import pluginmgr
+from bauble.i18n import _
 
 
 class StoredQueriesModel:

@@ -57,6 +57,7 @@ from sqlalchemy.orm import Session
 
 from bauble.db import Base
 from bauble.error import check
+from bauble.i18n import _
 
 from . import parser
 from .statements import DomainStatement
@@ -106,11 +107,11 @@ class SearchStrategy(ABC):
 
         check(
             isinstance(properties, list),
-            _("default_columns argument must be list"),  # type: ignore[name-defined]  # noqa
+            _("default_columns argument must be list"),
         )
         check(
             len(properties) > 0,
-            _("default_columns argument cannot be empty"),  # type: ignore[name-defined]  # noqa
+            _("default_columns argument cannot be empty"),
         )
         self.domains[domain[0]] = cls, properties
         for dom in domain[1:]:

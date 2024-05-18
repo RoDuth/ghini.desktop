@@ -54,6 +54,7 @@ from sqlalchemy.sql.expression import text
 from bauble import btypes as types
 from bauble import db
 from bauble import utils
+from bauble.i18n import _
 
 
 def _remove_zws(string):

@@ -23,6 +23,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 from bauble import pluginmgr
+from bauble.i18n import _
 
 PLANT_SHAPEFILE_PREFS = "shapefile.plant"
 """Shapefile default prefs section for Plants.

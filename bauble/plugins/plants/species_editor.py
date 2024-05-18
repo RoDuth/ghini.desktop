@@ -36,15 +36,16 @@ from gi.repository import Gtk
 from gi.repository import Pango
 from sqlalchemy import inspect as sa_inspect
 from sqlalchemy.exc import DBAPIError
+from sqlalchemy.orm import object_mapper
 from sqlalchemy.orm.query import Query
 from sqlalchemy.orm.session import Session
-from sqlalchemy.orm.session import object_mapper
 from sqlalchemy.orm.session import object_session
 
 import bauble
 from bauble import editor
 from bauble import paths
 from bauble import utils
+from bauble.i18n import _
 
 from .family import Family
 from .genus import Genus

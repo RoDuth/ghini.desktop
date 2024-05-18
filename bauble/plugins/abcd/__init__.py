@@ -47,6 +47,7 @@ from bauble import pluginmgr
 from bauble import prefs
 from bauble import task
 from bauble import utils
+from bauble.i18n import _
 from bauble.plugins.garden import institution
 from bauble.plugins.garden.plant import Plant
 

@@ -50,6 +50,7 @@ from bauble import btypes as types
 from bauble import db
 from bauble import prefs
 from bauble import utils
+from bauble.i18n import _
 from bauble.utils.geo import KMLMapCallbackFunctor
 from bauble.view import Action
 from bauble.view import InfoBox

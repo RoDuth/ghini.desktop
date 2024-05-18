@@ -56,6 +56,7 @@ from pyparsing import delimited_list
 
 import bauble
 from bauble.error import check
+from bauble.i18n import _
 
 from .web import get_net_sess
 

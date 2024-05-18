@@ -408,7 +408,7 @@ class LinksExpander(InfoExpander):
         """
         :param notes: the name of the notes property on the row
         """
-        super().__init__(_("Links"))  # type: ignore [name-defined]
+        super().__init__(_("Links"))
         links = links or []
         self.dynamic_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         self.vbox.pack_start(self.dynamic_box, False, False, 0)

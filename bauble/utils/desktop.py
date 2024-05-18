@@ -281,13 +281,9 @@ def open(url, desktop=None, wait=0.5, dialog_on_error=False):
     # identified.
     try:
         if not cmd:
-            # TODO: maybe we should tell the user to define DESKTOP_LAUNCH
             raise OSError(
-                _(
-                    "Could not open %(url)s\n\n"
-                    "Unknown desktop environment: %(desktop)s\n\n"
-                )
-                % dict(url=url, desktop=desktop_in_use)
+                f"Could not open {url}s\n\n"
+                f"Unknown desktop environment: {desktop}s\n\n"
             )
     except Exception as e:
         if dialog_on_error:

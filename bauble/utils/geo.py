@@ -37,6 +37,7 @@ from bauble import btypes
 from bauble import db
 from bauble import utils
 from bauble.error import check
+from bauble.i18n import _
 from bauble.meta import confirm_default
 from bauble.paths import main_dir
 from bauble.paths import main_is_frozen

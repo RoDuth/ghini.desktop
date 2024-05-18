@@ -57,6 +57,7 @@ from bauble import db
 from bauble import paths
 from bauble import utils
 from bauble.error import BaubleError
+from bauble.i18n import _
 
 plugins = {}
 commands = {}

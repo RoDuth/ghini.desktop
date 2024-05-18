@@ -50,6 +50,7 @@ from bauble import pluginmgr
 from bauble import prefs
 from bauble import utils
 from bauble import view
+from bauble.i18n import _
 from bauble.search.search import result_cache
 from bauble.search.statements import StatementAction
 from bauble.search.strategies import SearchStrategy

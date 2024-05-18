@@ -33,6 +33,7 @@ from bauble import pluginmgr
 from bauble import prefs
 from bauble import utils
 from bauble.connmgr import start_connection_manager
+from bauble.i18n import _
 
 from .ui import GUI
 

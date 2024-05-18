@@ -41,6 +41,7 @@ from bauble import pluginmgr
 from bauble import prefs
 from bauble import task
 from bauble import utils
+from bauble.i18n import _
 
 # TODO: it might be best to do something like the reporter plugin so
 # that this plugin provides a generic interface for importing and exporting

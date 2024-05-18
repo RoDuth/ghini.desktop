@@ -35,6 +35,7 @@ from bauble import paths
 from bauble import pluginmgr
 from bauble import utils
 from bauble.editor import GenericEditorView
+from bauble.i18n import _
 
 
 class Institution:
