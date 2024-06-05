@@ -66,7 +66,6 @@ from .genus import genus_match_func
 from .genus import genus_to_string_matcher
 from .geography import Geography
 from .geography import consolidate_geographies
-from .geography import geography_importer
 from .geography import get_species_in_geography
 from .species import BinomialSearch
 from .species import DefaultVernacularName
@@ -641,6 +640,23 @@ def setUp_data():
 
 
 setUp_data.order = 0
+
+
+def setup_geographies() -> None:
+    """For convenience for test that need geography data run this."""
+
+    from bauble.paths import lib_dir
+    from bauble.plugins.imex.csv_ import CSVRestore
+
+    csv = CSVRestore()
+    geo_csv = os.path.join(
+        lib_dir(), "plugins", "plants", "default", "geography.csv"
+    )
+    csv.start(
+        [geo_csv],
+        metadata=db.metadata,
+        force=True,
+    )
 
 
 class DuplicateIdsGlade(TestCase):
@@ -2979,9 +2995,7 @@ class GeographyTests(PlantTestCase):
         self.genus = Genus(genus="genus", family=self.family)
         self.session.add_all([self.family, self.genus])
         self.session.flush()
-        from bauble.task import queue
-
-        queue(geography_importer())
+        setup_geographies()
         self.session.commit()
 
     def tearDown(self):
@@ -3127,6 +3141,23 @@ class GeographyTests(PlantTestCase):
         geos = self.session.query(Geography).filter(Geography.id.in_(ids))
         result = [self.session.query(Geography).get(5)]
         self.assertCountEqual(result, consolidate_geographies(geos))
+
+    def test_approx_area(self):
+        geos = (
+            self.session.query(Geography)
+            .filter(Geography.tdwg_level < 3)
+            .all()
+        )
+        for geo in geos:
+            self.assertGreater(geo.approx_area, 0.0)
+            if geo.children:
+                children_area = sum(i.approx_area for i in geo.children)
+                difference = abs(children_area - geo.approx_area)
+                # NOTE have to accept 8% error due to current inaccuracy of
+                # WGSRPD data
+                error_margin = geo.approx_area * 8 / 100
+                # error_margin = 5000
+                self.assertLess(difference, error_margin, str(geo))
 
 
 class CitesStatus_test(PlantTestCase):
@@ -3612,9 +3643,7 @@ class SpeciesEditorTests(BaubleTestCase):
 
         importer = CSVRestore()
         importer.start([os.path.join(default_path, "habit.csv")], force=True)
-        from bauble.task import queue
-
-        queue(geography_importer())
+        setup_geographies()
 
         fam = Family(family="family")
         gen2 = Genus(genus="genus2", family=fam)
@@ -4809,9 +4838,7 @@ class InfraspPresenterTests(TestCase):
 class DistributionPresenterTests(PlantTestCase):
     def setUp(self):
         super().setUp()
-        from bauble.task import queue
-
-        queue(geography_importer())
+        setup_geographies()
         self.session.commit()
 
     def test_on_remove_button_pressed(self):
@@ -6287,10 +6314,7 @@ class RetrieveTests(PlantTestCase):
         self.assertIsNone(fam)
 
     def test_geography_retreives(self):
-        # NOTE grouped to avoid unnecessarily reloading geography table
-        from bauble.task import queue
-
-        queue(geography_importer())
+        setup_geographies()
         keys = {
             "tdwg_code": "50",
         }

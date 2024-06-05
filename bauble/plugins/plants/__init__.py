@@ -911,6 +911,7 @@ class PlantsPlugin(pluginmgr.Plugin):
                 "genus.csv",
                 "genus_synonym.csv",
                 "habit.csv",
+                "geography.csv",
             )
         ]
 
@@ -960,11 +961,6 @@ class PlantsPlugin(pluginmgr.Plugin):
         db.metadata.create_all(tables=depends)
         logger.debug("creating tables: %s", geo_table.name)
 
-        from .geography import geography_importer
-
-        msg = _("importing WGSRPD (TDWG) geography table data")
-        bauble.task.set_message(msg)
-        bauble.task.queue(geography_importer())
         from bauble.plugins.imex.csv_ import CSVRestore
 
         csv = CSVRestore()

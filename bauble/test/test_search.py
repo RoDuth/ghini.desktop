@@ -1303,12 +1303,12 @@ class SearchTests(BaubleTestCase):
 
     def test_search_ambiguous_joins_w_results(self):
         """These joins broke down when upgrading to SQLA 1.4"""
-        from bauble.plugins.plants.geography import geography_importer
-
-        [_ for _ in geography_importer()]
         from bauble.plugins.plants.family import Family
         from bauble.plugins.plants.genus import Genus
         from bauble.plugins.plants.species import Species
+        from bauble.plugins.plants.test_plants import setup_geographies
+
+        setup_geographies()
 
         g2 = Genus(family=self.family, genus="genus2")
         self.genus.accepted = g2

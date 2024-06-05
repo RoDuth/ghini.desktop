@@ -1,6 +1,6 @@
 # Copyright 2008-2010 Brett Adams
 # Copyright 2012-2015 Mario Frasca <mario@anche.no>.
-# Copyright 2021-2023 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright 2021-2024 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -31,6 +31,7 @@ logger = logging.getLogger(__name__)
 from gi.repository import Gio
 from gi.repository import GLib
 from gi.repository import Gtk
+from pyproj import Geod
 from sqlalchemy import Column
 from sqlalchemy import ForeignKey
 from sqlalchemy import Integer
@@ -40,6 +41,7 @@ from sqlalchemy import and_
 from sqlalchemy import exists
 from sqlalchemy import literal
 from sqlalchemy import select
+from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import aliased
 from sqlalchemy.orm import backref
 from sqlalchemy.orm import deferred
@@ -76,6 +78,9 @@ map_action = Action(
 )
 
 geography_context_menu = [map_action]
+
+# set WGS84 as CRS
+geod = Geod(ellps="WGS84")
 
 
 def get_species_in_geography(geo):
@@ -311,6 +316,31 @@ class Geography(db.Base):
             query = query.join(cls).filter(cls.active.is_(True))
         return query.count()
 
+    @hybrid_property
+    def approx_area(self) -> float:
+        """The area in square kilometres using a WGS84 sphere"""
+        if not self.geojson:
+            return 0.0
+        total = 0.0
+        if self.geojson["type"] == "MultiPolygon":
+            for poly in self.geojson["coordinates"]:
+                lons = []
+                lats = []
+                for lon, lat in poly[0]:
+                    lons.append(lon)
+                    lats.append(lat)
+                area, __ = geod.polygon_area_perimeter(lons, lats)
+                total += area
+        elif self.geojson["type"] == "Polygon":
+            lons = []
+            lats = []
+            for lon, lat in self.geojson["coordinates"][0]:
+                lons.append(lon)
+                lats.append(lat)
+            area, __ = geod.polygon_area_perimeter(lons, lats)
+            total += area
+        return abs(total) / 1e6
+
 
 class GeneralGeographyExpander(InfoExpander):
     """Generic minimalist info about a geography."""
@@ -332,6 +362,7 @@ class GeneralGeographyExpander(InfoExpander):
         self.widget_set_value("parent", row.parent or "")
         shape = row.geojson.get("type", "") if row.geojson else ""
         self.widget_set_value("geojson_type", shape)
+        self.widget_set_value("approx_size", f"{row.approx_area:.2f} km²")
         if row.parent:
             utils.make_label_clickable(
                 self.widgets.parent, on_clicked, row.parent
@@ -389,147 +420,3 @@ def consolidate_geographies(geo_list: Iterable[Geography]) -> list:
     if geo_list == result:
         return list(result)
     return consolidate_geographies(result)
-
-
-def geography_importer():
-    import json
-
-    from bauble import pb_set_fraction
-
-    root = Path(__file__).resolve().parent
-
-    lvl1_file = root / "default/wgsrpd/level1.geojson"
-    lvl2_file = root / "default/wgsrpd/level2.geojson"
-    lvl3_file = root / "default/wgsrpd/level3.geojson"
-    lvl4_file = root / "default/wgsrpd/level4.geojson"
-
-    with lvl1_file.open("r", encoding="utf-8", newline="") as f:
-        geojson_lvl1 = json.load(f)
-
-    with lvl2_file.open("r", encoding="utf-8", newline="") as f:
-        geojson_lvl2 = json.load(f)
-
-    with lvl3_file.open("r", encoding="utf-8", newline="") as f:
-        geojson_lvl3 = json.load(f)
-
-    with lvl4_file.open("r", encoding="utf-8", newline="") as f:
-        geojson_lvl4 = json.load(f)
-
-    total_items = (
-        len(geojson_lvl1.get("features"))
-        + len(geojson_lvl2.get("features"))
-        + len(geojson_lvl3.get("features"))
-        + len(geojson_lvl4.get("features"))
-    )
-
-    steps_so_far = 0
-    five_percent = int(total_items / 20) or 1
-
-    def update_progressbar(steps_so_far):
-        percent = float(steps_so_far) / float(total_items)
-        if 0 < percent < 1.0:
-            pb_set_fraction(percent)
-
-    table = Geography.__table__
-    with db.engine.begin() as connection:
-        for feature in geojson_lvl1.get("features"):
-            props = feature.get("properties")
-            stmt = table.insert().values(
-                tdwg_code=str(props.get("LEVEL1_COD")),
-                tdwg_level=1,
-                name=props.get("LEVEL1_NAM"),
-                geojson=feature.get("geometry"),
-            )
-            connection.execute(stmt)
-            steps_so_far += 1
-            if steps_so_far % five_percent == 0:
-                update_progressbar(steps_so_far)
-                yield
-
-        for feature in geojson_lvl2.get("features"):
-            props = feature.get("properties")
-            parent = connection.execute(
-                table.select(table.c.tdwg_code == str(props.get("LEVEL1_COD")))
-            ).first()
-            stmt = table.insert().values(
-                tdwg_code=str(props.get("LEVEL2_COD")),
-                tdwg_level=2,
-                name=props.get("LEVEL2_NAM"),
-                geojson=feature.get("geometry"),
-                parent_id=parent.id,
-            )
-            connection.execute(stmt)
-            steps_so_far += 1
-            if steps_so_far % five_percent == 0:
-                update_progressbar(steps_so_far)
-                yield
-
-        for feature in geojson_lvl3.get("features"):
-            props = feature.get("properties")
-            parent = connection.execute(
-                table.select(table.c.tdwg_code == str(props.get("LEVEL2_COD")))
-            ).first()
-            stmt = table.insert().values(
-                tdwg_code=str(props.get("LEVEL3_COD")),
-                tdwg_level=3,
-                name=props.get("LEVEL3_NAM"),
-                geojson=feature.get("geometry"),
-                parent_id=parent.id,
-            )
-            connection.execute(stmt)
-            steps_so_far += 1
-            if steps_so_far % five_percent == 0:
-                update_progressbar(steps_so_far)
-                yield
-
-        for feature in geojson_lvl4.get("features"):
-            props = feature.get("properties")
-            if props.get("Level4_2") == "OO":
-                # these are really only place holders and are the same as the
-                # 3rd level elements, which should be used instead.
-                steps_so_far += 1
-                if steps_so_far % five_percent == 0:
-                    update_progressbar(steps_so_far)
-                    yield
-                continue
-            parent = connection.execute(
-                table.select(table.c.tdwg_code == str(props.get("Level3_cod")))
-            ).first()
-            # check for duplicates (e.g. CZE-SL has 2 entries) use the version
-            # with the most detail
-            existing = connection.execute(
-                table.select(
-                    and_(
-                        table.c.tdwg_level == 4,
-                        table.c.parent_id == parent.id,
-                        table.c.tdwg_code == str(props.get("Level4_cod")),
-                        table.c.iso_code == props.get("ISO_Code"),
-                        table.c.name == props.get("Level_4_Na"),
-                    )
-                )
-            ).first()
-            if existing:
-                logger.debug("found duplicate for: %s", props)
-                # Hacky... but works
-                if len(str(feature.get("geometry")).split(",")) > len(
-                    str(existing.geojson).split(",")
-                ):
-                    logger.debug("removing duplicate")
-                    stmt = table.delete().where(table.c.id == existing.id)
-                    connection.execute(stmt)
-                else:
-                    logger.debug("dropping duplicate")
-                    continue
-            stmt = table.insert().values(
-                tdwg_code=str(props.get("Level4_cod")),
-                tdwg_level=4,
-                iso_code=props.get("ISO_Code"),
-                name=props.get("Level_4_Na"),
-                geojson=feature.get("geometry"),
-                parent_id=parent.id,
-            )
-            connection.execute(stmt)
-            steps_so_far += 1
-            if steps_so_far % five_percent == 0:
-                update_progressbar(steps_so_far)
-                yield

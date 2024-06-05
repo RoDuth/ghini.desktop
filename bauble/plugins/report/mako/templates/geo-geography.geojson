@@ -1,0 +1,38 @@
+## vim: set filetype=mako:
+## This file is part of ghini.desktop.
+##
+## ghini.desktop is free software: you can redistribute it and/or modify
+## it under the terms of the GNU General Public License as published by
+## the Free Software Foundation, either version 3 of the License, or
+## (at your option) any later version.
+##
+## ghini.desktop is distributed in the hope that it will be useful,
+## but WITHOUT ANY WARRANTY; without even the implied warranty of
+## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+## GNU General Public License for more details.
+##
+## You should have received a copy of the GNU General Public License
+## along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
+##
+<%!
+import json
+from bauble.plugins.report import get_geographies_pertinent_to
+
+features = []
+
+%>\
+% for geo in get_geographies_pertinent_to(values):
+<%
+feature = {"type": "Feature",
+           "properties": {"code": geo.tdwg_code,
+                          "level": geo.tdwg_level,
+                          "iso_code": geo.iso_code,
+                          "parent_code": geo.parent.tdwg_code if geo.parent else None},
+           "geometry": geo.geojson}
+features.append(feature)
+%>\
+% endfor
+<%
+collection = {"type": "FeatureCollection", "features": features}
+%>\
+${json.dumps(collection)}

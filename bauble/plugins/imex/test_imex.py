@@ -1162,9 +1162,10 @@ class GenericExporterTests(BaubleTestCase):
 
     def test_get_item_record_wo_notes(self):
         from bauble.plugins.plants.geography import Geography
-        from bauble.plugins.plants.geography import geography_importer
+        from bauble.plugins.plants.test_plants import setup_geographies
 
-        [_ for _ in geography_importer()]
+        setup_geographies()
+
         item = (
             self.session.query(Geography)
             .filter(Geography.tdwg_code == "50")

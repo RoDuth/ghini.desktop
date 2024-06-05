@@ -26,6 +26,8 @@ from gi.repository import Gtk
 from bauble.plugins.garden import Location
 from bauble.plugins.garden import Plant
 from bauble.plugins.plants import Family
+from bauble.plugins.plants import Geography
+from bauble.plugins.plants.test_plants import setup_geographies
 from bauble.test import BaubleTestCase
 from bauble.test import get_setUp_data_funcs
 
@@ -118,6 +120,20 @@ class FormatterTests(BaubleTestCase):
 
         for template in templates_dir.glob("*.html"):
             report = MakoFormatterPlugin.format(plants, template=str(template))
+            self.assertTrue(isinstance(report, bytes))
+
+    @mock.patch("bauble.utils.desktop.open", new=mock.Mock())
+    def test_format_all_geojson_templates_geography(self):
+        """MakoFormatterPlugin.format() runs without raising an error for all
+        templates.
+        """
+        setup_geographies()
+        templates_dir = Path(__file__).parent / "templates"
+        geos = self.session.query(Geography).all()
+
+        for template in templates_dir.glob("*.geojson"):
+            print(template)
+            report = MakoFormatterPlugin.format(geos, template=str(template))
             self.assertTrue(isinstance(report, bytes))
 
 

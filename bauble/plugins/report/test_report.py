@@ -497,10 +497,9 @@ class ReportTests(BaubleTestCase):
         Test getting the geographies from different types
         """
         from bauble.plugins.plants import SpeciesDistribution
-        from bauble.plugins.plants.geography import geography_importer
+        from bauble.plugins.plants.test_plants import setup_geographies
 
-        # at least we run it once during a test!
-        [i for i in geography_importer()]
+        setup_geographies()
         self.assertTrue(len(self.session.query(Geography).all()) > 700)
 
         geo1 = self.session.query(Geography).get(330)
@@ -596,10 +595,9 @@ class ReportTests(BaubleTestCase):
         from collections import deque
 
         from bauble.plugins.plants import SpeciesDistribution
-        from bauble.plugins.plants.geography import geography_importer
+        from bauble.plugins.plants.test_plants import setup_geographies
 
-        # at least we run it once during a test!
-        deque(geography_importer(), maxlen=0)
+        setup_geographies()
         self.assertTrue(len(self.session.query(Geography).all()) > 700)
 
         geo1 = self.session.query(Geography).get(330)
