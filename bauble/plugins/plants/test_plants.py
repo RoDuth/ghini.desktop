@@ -2682,6 +2682,9 @@ class SpeciesTests(PlantTestCase):
 class MarkupItalicsTests(TestCase):
     def test_markup_simple(self):
         self.assertEqual(markup_italics("sp."), "sp.")
+        self.assertEqual(markup_italics("spp."), "spp.")
+        self.assertEqual(markup_italics("cv."), "cv.")
+        self.assertEqual(markup_italics("cvs."), "cvs.")
         self.assertEqual(markup_italics("viminalis"), "<i>viminalis</i>")
         # with ZWS
         self.assertEqual(

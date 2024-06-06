@@ -948,8 +948,8 @@ class Species(db.Base, db.WithNotes):
         if self.cultivar_epithet and qual_rank == "cv":
             infrasp_parts.append(qualifier)
 
-        if self.cultivar_epithet == "cv.":
-            infrasp_parts.append("cv.")
+        if self.cultivar_epithet in ("cv.", "cvs."):
+            infrasp_parts.append(self.cultivar_epithet)
         elif self.cultivar_epithet:
             infrasp_parts.append(f"'{escape(self.cultivar_epithet)}'")
 
