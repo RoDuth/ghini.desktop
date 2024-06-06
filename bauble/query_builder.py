@@ -910,7 +910,11 @@ class QueryBuilder(GenericEditorPresenter):
 
     def on_add_clause(self, _widget=None):
         """Add a row to the expressions table."""
-        domain = self.domain_map[self.domain]
+        domain = self.domain_map.get(self.domain)
+
+        if domain is None:
+            return
+
         self.mapper = class_mapper(domain)
         self.table_row_count += 1
         row = ExpressionRow(
