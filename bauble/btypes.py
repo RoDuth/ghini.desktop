@@ -1,6 +1,6 @@
 # Copyright (c) 2005,2006,2007,2008,2009 Brett Adams <brett@belizebotanic.org>
 # Copyright (c) 2012-2017 Mario Frasca <mario@anche.no>
-# Copyright (c) 2021 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright (c) 2021-2024 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -20,13 +20,27 @@
 Custom database types.
 """
 # pylint: disable=abstract-method # re TypeDecorator
+import logging
 
+logger = logging.getLogger(__name__)
+
+from collections.abc import Callable
+from collections.abc import Sequence
 from datetime import datetime
 from datetime import timedelta
 from datetime import timezone
+from operator import ge
+from operator import gt
+from operator import le
+from operator import lt
+from typing import Any
 
 import dateutil.parser as date_parser
 from sqlalchemy import types
+from sqlalchemy.engine import Dialect
+from sqlalchemy.sql.elements import ClauseElement
+from sqlalchemy.sql.elements import ColumnElement
+from sqlalchemy.sql.expression import case
 
 from bauble import error
 from bauble.i18n import _
@@ -37,8 +51,10 @@ class EnumError(error.BaubleError):
 
 
 class Enum(types.TypeDecorator):
-    """A database independent Enum type. The value is stored in the
-    database as a Unicode string.
+    """A database independent Enum type. The value is stored in the database as
+    a Unicode string.
+
+    < > <= >= are supported with reference to the order values are provided.
     """
 
     impl = types.Unicode
@@ -46,19 +62,37 @@ class Enum(types.TypeDecorator):
     cache_ok = False
 
     def __init__(
-        self, values, empty_to_none=False, translations=None, **kwargs
+        self,
+        values: Sequence,
+        empty_to_none: bool = False,
+        translations: dict | None = None,
+        **kwargs: Any,
     ):
-        """
+        self.init(
+            values,
+            empty_to_none=empty_to_none,
+            translations=translations,
+            **kwargs,
+        )
+        # the length of the string/unicode column should be the
+        # longest string in values
+        size = max(len(v) for v in self.values if v is not None)
+        super().__init__(size, **kwargs)
+
+    def init(
+        self,
+        values: Sequence,
+        empty_to_none: bool = False,
+        translations: dict | None = None,
+    ):
+        """Initilise the column.
+
         :param values: A list of valid values for column.
         :param empty_to_none: Treat the empty string '' as None.  None
             must be in the values list in order to set empty_to_none=True.
         :param translations: A dictionary of values->translation
         """
-        if translations is None:
-            translations = {}
-        # create the translations from the values and set those from
-        # the translations argument, this way if some translations are
-        # missing then the translation will be the same as value
+        logger.debug("init enum with values: %s", values)
         if values is None or len(values) == 0:
             raise EnumError(_("Enum requires a list of values"))
 
@@ -69,10 +103,7 @@ class Enum(types.TypeDecorator):
         if len(values) != len(set(values)):
             raise EnumError(_("Enum requires the values to be different"))
 
-        self.translations = dict((v, v) for v in values)
-
-        for key, value in translations.items():
-            self.translations[key] = value
+        self.translations = translations or dict((v, v) for v in values)
 
         if empty_to_none and None not in values:
             raise EnumError(
@@ -84,26 +115,93 @@ class Enum(types.TypeDecorator):
 
         self.values = values[:]
         self.empty_to_none = empty_to_none
-        # the length of the string/unicode column should be the
-        # longest string in values
-        size = max(len(v) for v in values if v is not None)
-        super().__init__(size, **kwargs)
+        logger.debug("values = %s", self.values)
 
-    def process_bind_param(self, value, dialect):
+    def to_int(self, obj: Any) -> ColumnElement:
+        """Returns a case clause that converts to an int based of the index in
+        values reversed.
+        """
+        return case(
+            [
+                (
+                    obj == val,
+                    len(self.values) - self.values.index(val),
+                )
+                for val in self.values
+            ]
+        )
+
+    def process_bind_param(self, value: str | None, dialect: Dialect) -> Any:
         """Process the value going into the database."""
-        if self.empty_to_none and value == "":
-            value = None
-        if value is None and None not in self.values and "" in self.values:
-            value = ""
-        if value not in self.values:
-            raise EnumError(
-                _('"%(value)s" not in Enum.values: %(all_values)s')
-                % dict(value=value, all_values=self.values)
-            )
+        if hasattr(self, "values"):
+            if self.empty_to_none and value == "":
+                value = None
+            if value is None and None not in self.values and "" in self.values:
+                value = ""
+            if value not in self.values:
+                raise EnumError(
+                    _('"%(value)s" not in Enum.values: %(all_values)s')
+                    % {"value": value, "all_values": self.values}
+                )
         return value
 
-    def copy(self, **_kwargs):
-        return Enum(self.values, self.empty_to_none)
+    class Comparator(types.TypeDecorator.Comparator):
+        parent: "Enum"
+
+        def operate(
+            self,
+            op: Callable[[Any, Any], ClauseElement],
+            *other: Any,
+            **kwargs: Any,
+        ):
+            if hasattr(self.parent, "values") and op in (lt, le, gt, ge):
+                to_int = self.parent.to_int
+                return op(to_int(self), to_int(*other), **kwargs)
+
+            return super().operate(op, *other, **kwargs)
+
+    @property
+    def comparator_factory(self):
+        """Supply a comparator class with access to self."""
+        return type(
+            "EnumComparator",
+            (self.Comparator,),
+            {"parent": self},
+        )
+
+
+class CustomEnum(Enum):
+    """An Enum appropriate for custom columns that require initialisation to be
+    delayed until values are known.
+
+    When instantiating provide :param size:. Choose a size reasonable enough to
+    accommodate expected uses.
+
+    Call `self.init(values, empty_to_none, translations)` when ready to
+    initialise, may also need to reopen connection if the connection has been
+    in use, due to SQLA caching of Columns.
+    e.g.: `db.conn(str(db.engine.url))`
+    """
+
+    cache_ok = False
+
+    def __init__(self, size: str, **kwargs: Any) -> None:
+        """Pass the size parameter to impl column (Unicode).
+
+        To complete initialisation call `self.init` when values become
+        available.
+        """
+        super(Enum, self).__init__(size, **kwargs)
+
+    def unset_values(self) -> None:
+        """Return state to pre init state."""
+        logger.debug("unsetting custom column")
+        if hasattr(self, "values"):
+            del self.values
+        if hasattr(self, "empty_to_none"):
+            del self.empty_to_none
+        if hasattr(self, "translations"):
+            del self.translations
 
 
 def get_date(val: str | float) -> datetime | None:

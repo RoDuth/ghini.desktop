@@ -31,10 +31,12 @@ logger.setLevel(logging.DEBUG)
 
 from sqlalchemy import Column
 from sqlalchemy import Integer
+from sqlalchemy.exc import StatementError
 
 import bauble
 from bauble import db
 from bauble import meta
+from bauble.btypes import CustomEnum
 from bauble.btypes import Enum
 from bauble.btypes import EnumError
 from bauble.test import BaubleTestCase
@@ -74,8 +76,6 @@ class EnumTests(BaubleTestCase):
         self.session.flush()
 
     def test_insert_by_value_wrong_value_seen_late(self):
-        from sqlalchemy.exc import StatementError
-
         t = self.Test(value="33")
         self.session.add(t)
         self.assertRaises(StatementError, self.session.flush)
@@ -138,6 +138,115 @@ class EnumTests(BaubleTestCase):
         self.assertEqual(q.all(), [])
         q = self.session.query(self.Table).filter_by(value=None)
         self.assertEqual(q.all(), [t])
+
+    def test_comparator(self):
+        pos_vals = ("testA", "testB", "testZ", None)
+
+        class TestTableComparator(db.Base):
+            __tablename__ = "test_table_comparator"
+            id = (Column(Integer, primary_key=True),)
+            value = Column(Enum(values=pos_vals, empty_to_none=True))
+
+        TestTableComparator.__table__.create(bind=db.engine)
+
+        test1 = TestTableComparator(value="testZ")
+        test2 = TestTableComparator(value="testA")
+        test3 = TestTableComparator(value="")
+        self.session.add_all([test1, test2, test3])
+        self.session.commit()
+        self.assertIsNone(test3.value)
+        gt_b = (
+            self.session.query(TestTableComparator)
+            .filter(TestTableComparator.value > "testB")
+            .all()
+        )
+        self.assertEqual(gt_b, [test2])
+        # should be less than alphabetically
+        self.assertLess(gt_b[0].value, "testB")
+        lt_b = (
+            self.session.query(TestTableComparator)
+            .filter(TestTableComparator.value < "testB")
+            .all()
+        )
+        self.assertCountEqual(lt_b, [test1, test3])
+        ge_b = (
+            self.session.query(TestTableComparator)
+            .filter(TestTableComparator.value >= "testB")
+            .all()
+        )
+        self.assertEqual(ge_b, [test2])
+        # should be less than alphabetically
+        self.assertLess(ge_b[0].value, "testB")
+        le_b = (
+            self.session.query(TestTableComparator)
+            .filter(TestTableComparator.value <= "testB")
+            .all()
+        )
+        self.assertCountEqual(le_b, [test1, test3])
+        eq_a = (
+            self.session.query(TestTableComparator)
+            .filter(TestTableComparator.value == "testA")
+            .all()
+        )
+        self.assertEqual(eq_a, [test2])
+        in_a_z = (
+            self.session.query(TestTableComparator)
+            .filter(TestTableComparator.value.in_(("testA", "testZ")))
+            .all()
+        )
+        self.assertCountEqual(in_a_z, [test1, test2])
+
+    def test_custom_enum_delays_init(self):
+        class TestTableCustom(db.Base):
+            __tablename__ = "test_table_custom"
+            id = (Column(Integer, primary_key=True),)
+            value = Column(CustomEnum(12))
+
+        TestTableCustom.__table__.create(bind=db.engine)
+
+        # prior to init behaves as standard unicode column
+        prior = TestTableCustom(value="blah")
+        self.session.add(prior)
+        self.session.commit()
+        self.assertEqual(prior.value, "blah")
+        self.session.delete(prior)
+        self.session.commit()
+
+        enum = TestTableCustom.value.prop.columns[0].type
+        pos_vals = ("testA", "testB", "testZ", None)
+        enum.init(pos_vals, empty_to_none=True)
+        self.assertEqual(enum.values, pos_vals)
+        self.assertRaises(EnumError, enum.process_bind_param, "BLAH", None)
+
+        self.session.close()
+        db.open_conn(str(db.engine.url))
+        self.session = db.Session()
+
+        after = TestTableCustom(value="BLAH")
+        self.session.add(after)
+        self.assertRaises(StatementError, self.session.flush)
+        self.session.rollback()
+
+        # make sure comparator works after init
+        test1 = TestTableCustom(value="testZ")
+        test2 = TestTableCustom(value="testA")
+        test3 = TestTableCustom(value="")
+        self.session.add_all([test1, test2, test3])
+        self.session.commit()
+        self.assertIsNone(test3.value)
+        gt_a = (
+            self.session.query(TestTableCustom)
+            .filter(TestTableCustom.value > "testB")
+            .all()
+        )
+        self.assertEqual(gt_a, [test2])
+        self.assertLess(gt_a[0].value, "testB")
+        gt_a = (
+            self.session.query(TestTableCustom)
+            .filter(TestTableCustom.value < "testB")
+            .all()
+        )
+        self.assertCountEqual(gt_a, [test1, test3])
 
 
 class BaubleTests(BaubleTestCase):

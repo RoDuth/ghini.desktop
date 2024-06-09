@@ -456,7 +456,7 @@ class ExpressionRow:
     def set_custom_enum_widget(self, values, _prop, val):
         self.value_widget = Gtk.ComboBoxText()
         for value in values:
-            self.value_widget.append_text(value)
+            self.value_widget.append_text(str(value))
         self.value_widget.set_tooltip_text("select a value")
         self.value_widget.connect("changed", self.on_value_changed)
         utils.set_widget_value(self.value_widget, val)
@@ -469,10 +469,7 @@ class ExpressionRow:
         model = Gtk.ListStore(str, str)
         if prop.columns[0].type.translations:
             trans = prop.columns[0].type.translations
-            sorted_keys = [i for i in trans.keys() if i is None] + sorted(
-                i for i in trans.keys() if i is not None
-            )
-            prop_values = [(k, trans[k] or "None") for k in sorted_keys]
+            prop_values = [(k, trans[k] or "None") for k in trans.keys()]
         else:
             values = prop.columns[0].type.values
             prop_values = [(v, v or "None") for v in sorted(values)]

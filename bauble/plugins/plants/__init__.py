@@ -34,6 +34,7 @@ logger = logging.getLogger(__name__)
 from gi.repository import Gio
 from gi.repository import GLib
 from gi.repository import Gtk
+from sqlalchemy import Column
 from sqlalchemy.exc import InvalidRequestError
 
 import bauble
@@ -665,7 +666,7 @@ class PlantsPlugin(pluginmgr.Plugin):
                 "'Near threatened', "
                 "'Special least concern', "
                 "'Least concern', "
-                "''"
+                "None"
                 ")}"
             )
             custom2_default = (
@@ -677,7 +678,7 @@ class PlantsPlugin(pluginmgr.Plugin):
                 "'Vulnerable', "
                 "'Conservation dependent', "
                 "'Not listed', "
-                "''"
+                "None"
                 ")}"
             )
 
@@ -685,6 +686,16 @@ class PlantsPlugin(pluginmgr.Plugin):
                 _("Setup Custom Conservation Fields"),
                 "win.setup_conservation_fields",
             )
+
+            def setup_conservation_fields(*_args):
+                bauble.meta.set_value(
+                    ("_sp_custom1", "_sp_custom2"),
+                    (custom1_default, custom2_default),
+                    msg,
+                )
+                cls.register_custom_column("_sp_custom1")
+                cls.register_custom_column("_sp_custom2")
+                db.open_conn(str(db.engine.url))
 
             def prefs_ls_changed(model, path, _itr):
                 key, _repr_str, _type_str = model[path]
@@ -711,12 +722,7 @@ class PlantsPlugin(pluginmgr.Plugin):
                 )
                 bauble.gui.options_menu.append_item(full_names_item)
                 bauble.gui.add_action(
-                    "setup_conservation_fields",
-                    lambda *_args: bauble.meta.set_value(
-                        ("_sp_custom1", "_sp_custom2"),
-                        (custom1_default, custom2_default),
-                        msg,
-                    ),
+                    "setup_conservation_fields", setup_conservation_fields
                 )
                 bauble.gui.options_menu.append_item(custom_consv_item)
                 bauble.gui.widgets.view_box.connect(
@@ -844,7 +850,10 @@ class PlantsPlugin(pluginmgr.Plugin):
         ExpressionRow.custom_columns["active"] = ("True", "False")
 
     @staticmethod
-    def register_custom_column(column_name):
+    def register_custom_column(column_name: str) -> None:
+        if not db.Session:
+            return
+        logger.debug("register custom column: %s", column_name)
         session = db.Session()
         custom_meta = (
             session.query(bauble.meta.BaubleMeta)
@@ -852,12 +861,15 @@ class PlantsPlugin(pluginmgr.Plugin):
             .first()
         )
         session.close()
-        column = getattr(Species, column_name)
+        column: Column = getattr(Species, column_name)
+        enum: bauble.btypes.CustomEnum = column.prop.columns[0].type
+
         # pylint: disable=protected-access
         if custom_meta:
             custom_meta = literal_eval(custom_meta.value)
             field_name = custom_meta["field_name"]
             field_values = custom_meta["values"]
+            enum.init(field_values, empty_to_none=None in field_values)
             # register with ExpressionRow
             ExpressionRow.custom_columns[field_name] = field_values
 
@@ -883,6 +895,7 @@ class PlantsPlugin(pluginmgr.Plugin):
             setattr(column, "_custom_column_name", field_name)
 
         elif hasattr(column, "_custom_column_name"):
+            enum.unset_values()
             delattr(Species, getattr(column, "_custom_column_name"))
             delattr(column, "_custom_column_name")
 

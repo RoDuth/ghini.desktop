@@ -508,7 +508,7 @@ class QueryBuilderTests(BaubleTestCase):
         self.assertEqual(qb.get_query(), "plant where id = 0 or id = 1")
         self.assertTrue(qb.validate())
 
-    def test_custom_colum(self):
+    def test_custom_column(self):
         from bauble.meta import BaubleMeta
 
         meta = BaubleMeta(
@@ -516,7 +516,7 @@ class QueryBuilderTests(BaubleTestCase):
             value=(
                 "{'field_name': 'nca_status', "
                 "'display_name': 'NCA Status', "
-                "'values': ('extinct', 'vulnerable')}"
+                "'values': ('extinct', 'vulnerable', None)}"
             ),
         )
         self.session.add(meta)

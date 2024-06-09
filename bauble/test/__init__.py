@@ -40,7 +40,8 @@ from bauble import prefs
 from bauble.error import BaubleError
 
 # by default use sqlite memory uri
-uri = "sqlite:///:memory:"
+# uri = "sqlite:///:memory:"
+uri = "sqlite:///file:testdb?mode=memory&cache=shared&uri=true"
 # uri = 'postgresql://test:test@localhost/test'
 
 # allow user to overide uri via an envar

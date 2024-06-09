@@ -53,7 +53,7 @@ from bauble.view import select_in_search_results
 
 class TestMultiprocCounter(BaubleTestCase):
     def setUp(self):
-        if ":memory:" in uri:
+        if ":memory:" in uri or "?mode=memory" in uri:
             # for the sake of multiprocessing, create a temp file database and
             # populate it rather than use an in memory database
             from tempfile import mkstemp
@@ -82,7 +82,7 @@ class TestMultiprocCounter(BaubleTestCase):
         self.session = db.Session()
 
     def tearDown(self):
-        if ":memory:" in uri:
+        if ":memory:" in uri or "?mode=memory" in uri:
             self.session.close()
             os.close(self.db_handle)
             os.remove(self.temp_db)

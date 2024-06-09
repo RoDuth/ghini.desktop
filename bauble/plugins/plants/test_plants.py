@@ -1,7 +1,7 @@
 # Copyright 2008-2010 Brett Adams
 # Copyright 2015 Mario Frasca <mario@anche.no>.
 # Copyright 2017 Jardín Botánico de Quito
-# Copyright 2021-2023 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright 2021-2024 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -33,19 +33,23 @@ from unittest import mock
 
 from gi.repository import Gtk
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import StatementError
 from sqlalchemy.orm.exc import NoResultFound
 
+from bauble import btypes
 from bauble import db
 from bauble import paths
 from bauble import prefs
 from bauble import search
 from bauble import utils
+from bauble.meta import BaubleMeta
 from bauble.test import BaubleTestCase
 from bauble.test import check_dupids
 from bauble.test import mockfunc
 from bauble.test import update_gui
 from bauble.test import wait_on_threads
 
+from . import PlantsPlugin
 from . import SplashInfoBox
 from . import SynonymsPresenter
 from .family import Family
@@ -2550,32 +2554,68 @@ class SpeciesTests(PlantTestCase):
         self.assertEqual(len(sp.top_level_count()[(7, "Locations")]), 0)
         self.assertEqual(len(sp.top_level_count()[(8, "Sources")]), 0)
 
-    def test_custom_column(self):
-        from bauble.meta import BaubleMeta
+    def test_custom_column_acts_as_unicode_before_init(self):
+        sp = self.session.query(Species).first()
+        sp._sp_custom1 = "test"
+        self.session.commit()
+        self.assertEqual(sp._sp_custom1, "test")
 
+    def test_custom_column(self):
         meta = BaubleMeta(
             name="_sp_custom1",
             value=(
                 "{'field_name': 'nca_status', "
                 "'display_name': 'NCA Status', "
-                "'values': ('extinct', 'vulnerable')}"
+                "'values': ('extinct', 'vulnerable', None)}"
             ),
         )
         self.session.add(meta)
         self.session.commit()
         # effectively also tests PlantsPlugin.register_custom_column
-        from bauble.plugins.plants import PlantsPlugin
-
         PlantsPlugin.register_custom_column("_sp_custom1")
+
         self.assertTrue(hasattr(Species, "nca_status"))
+        self.assertEqual(
+            Species._sp_custom1.prop.columns[0].type.values,
+            ("extinct", "vulnerable", None),
+        )
+        self.assertRaises(
+            btypes.EnumError,
+            Species._sp_custom1.prop.columns[0].type.process_bind_param,
+            "test",
+            None,
+        )
         sp = self.session.query(Species).first()
+        self.assertEqual(
+            sp.__table__.c["_sp_custom1"].type.values,
+            ("extinct", "vulnerable", None),
+        )
+        self.assertRaises(
+            btypes.EnumError,
+            sp.__table__.c["_sp_custom1"].type.process_bind_param,
+            "test",
+            None,
+        )
 
         sp.nca_status = "vulnerable"
         self.session.commit()
+
+        # restart connection
+        self.session.close()
+        db.open_conn(str(db.engine.url))
+        self.session = db.Session()
+        sp = self.session.query(Species).first()
+
         self.assertEqual(sp.nca_status, "vulnerable")
-        # can't set value not in values
+        # can't set value when not in values
         with self.assertRaises(AttributeError):
             sp.nca_status = "test"
+        self.assertEqual(sp.nca_status, "vulnerable")
+
+        with self.assertRaises(StatementError):
+            sp._sp_custom1 = "test"
+            self.session.commit()
+        self.session.rollback()
         self.assertEqual(sp.nca_status, "vulnerable")
         sp.nca_status = "extinct"
         self.session.commit()
@@ -2584,6 +2624,10 @@ class SpeciesTests(PlantTestCase):
         qry = session.query(Species).filter(Species.nca_status == "extinct")
         self.assertEqual(qry.first().id, sp.id)
         session.close()
+        # cleanup
+        self.session.delete(meta)
+        self.session.commit()
+        PlantsPlugin.register_custom_column("_sp_custom1")
 
         # reset the connection (similar to opening a new connection, also
         # reruns register_custom_column etc.)
@@ -3519,22 +3563,18 @@ class AttributesStoredInNotesTests(PlantTestCase):
 
 class GeneralSpeciesExpanderTests(BaubleTestCase):
     def test_setup_custom_column(self):
-        from bauble.meta import BaubleMeta
-
         meta = BaubleMeta(
             name="_sp_custom1",
             value=(
                 "{'field_name': 'nca_status', "
                 "'display_name': 'NCA Status', "
-                "'values': ('extinct', 'vulnerable')}"
+                "'values': ('extinct', 'vulnerable', None)}"
             ),
         )
         self.session.add(meta)
         self.session.commit()
         sp = self.session.query(Species).get(1)
         # effectively also tests PlantsPlugin.register_custom_column
-        from bauble.plugins.plants import PlantsPlugin
-
         PlantsPlugin.register_custom_column("_sp_custom1")
         filename = os.path.join(
             paths.lib_dir(), "plugins", "plants", "infoboxes.glade"
@@ -3544,6 +3584,10 @@ class GeneralSpeciesExpanderTests(BaubleTestCase):
         general._setup_custom_column("_sp_custom1")
         self.assertEqual(widgets._sp_custom1_label.get_text(), "NCA Status:")
         self.assertTrue(widgets._sp_custom1_label.get_visible())
+
+        self.session.delete(meta)
+        self.session.commit()
+        PlantsPlugin.register_custom_column("_sp_custom1")
 
         # change the db connection
         self.tearDown()
@@ -4529,25 +4573,25 @@ class SpeciesEditorPresenterTests(PlantTestCase):
 
     def test_custom_fields(self):
         # pylint: disable=protected-access
-        from bauble.meta import BaubleMeta
 
         meta = BaubleMeta(
             name="_sp_custom1",
             value=(
                 "{'field_name': 'nca_status', "
                 "'display_name': 'NCA Status', "
-                "'values': ('extinct', 'vulnerable')}"
+                "'values': ('extinct', 'vulnerable', None)}"
             ),
         )
         self.session.add(meta)
         self.session.commit()
         # effectively also tests PlantsPlugin.register_custom_column
-        from bauble.plugins.plants import PlantsPlugin
-
         PlantsPlugin.register_custom_column("_sp_custom1")
+
         sp = self.session.query(Species).get(17)
         sp.nca_status = "vulnerable"
         self.session.commit()
+        self.session.refresh(sp)
+        self.assertEqual(sp.nca_status, "vulnerable")
         self.assertEqual(sp._sp_custom1, "vulnerable")
         view = SpeciesEditorView()
         presenter = SpeciesEditorPresenter(sp, view)
@@ -4560,6 +4604,9 @@ class SpeciesEditorPresenterTests(PlantTestCase):
         )
 
         del presenter
+        self.session.delete(meta)
+        self.session.commit()
+        PlantsPlugin.register_custom_column("_sp_custom1")
 
     def test_infrageneric_parts(self):
         sp = self.session.query(Species).get(3)

@@ -481,8 +481,8 @@ class Species(db.Base, db.WithNotes):
         )
     )
 
-    _sp_custom1 = Column(Unicode(64))
-    _sp_custom2 = Column(Unicode(64))
+    _sp_custom1 = Column(types.CustomEnum(64))
+    _sp_custom2 = Column(types.CustomEnum(64))
     # don't use back_populates, can lead to InvalidRequestError
     # accessions = relationship('Accession', cascade='all, delete-orphan',
     #                           back_populates='species')

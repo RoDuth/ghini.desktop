@@ -943,6 +943,12 @@ class CSVRestore:
 
                 # commit the drop of the table we're importing
                 transaction.commit()
+
+                # reset custom columns so they don't fail if values already set
+                for column in table.c:
+                    if isinstance(column.type, bauble.btypes.CustomEnum):
+                        column.type.unset_values()
+
                 transaction = connection.begin()
 
                 # do nothing more for empty tables
@@ -1261,9 +1267,15 @@ class CSVRestoreTool(pluginmgr.Tool):
             "any existing data.\n\n<i>Would you like to continue?</i>"
         )
         if utils.yes_no_dialog(msg, yes_delay=2):
+            bauble.command_handler("home", None)
             csv_im = CSVRestore()
             csv_im.start()
-            bauble.command_handler("home", None)
+            if bauble.gui:
+                bauble.last_handler = None
+                bauble.gui.insert_menu.remove_all()
+                bauble.gui.statusbar_clear()
+                pluginmgr.init()
+                bauble.command_handler("home", None)
 
 
 class CSVBackupTool(pluginmgr.Tool):
