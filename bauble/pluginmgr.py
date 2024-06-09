@@ -549,9 +549,9 @@ class View:
 class CommandHandler(ABC):
     command: str | list[str]
 
-    @abstractmethod
-    def get_view(self) -> View:
-        """return the  view for this command handler"""
+    def get_view(self) -> View | None:
+        """return the view for this command handler"""
+        return None
 
     @abstractmethod
     def __call__(self, cmd: str, arg: str | None) -> None:
