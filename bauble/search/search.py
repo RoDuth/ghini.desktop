@@ -48,6 +48,7 @@ def search(text: str, session: Session) -> list:
     """Given a query string run the appropriate SearchStrategy(s) and return
     the collated results as a list.
     """
+    text = text.strip()  # belt and braces
     logger.debug("searching: `%s`", text)
     results = set()
     # clear the cache

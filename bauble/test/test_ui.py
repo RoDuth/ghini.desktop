@@ -246,6 +246,10 @@ class GUITests(BaubleTestCase):
         gui.on_go_button_clicked(None)
         mock_handler.assert_not_called()
 
+        mock_entry.get_text.return_value = "   "
+        gui.on_go_button_clicked(None)
+        mock_handler.assert_not_called()
+
         history = prefs.prefs.get(gui.entry_history_pref, [])
         self.assertEqual(history, [])
         # with a command
@@ -264,6 +268,11 @@ class GUITests(BaubleTestCase):
         self.assertEqual(history, [":cmd=args", ":cmd"])
         # with arg
         mock_entry.get_text.return_value = "domain where expression"
+        gui.on_go_button_clicked(None)
+        mock_handler.assert_called_with(None, "domain where expression")
+
+        # ignores leading spaces
+        mock_entry.get_text.return_value = "  domain where expression  "
         gui.on_go_button_clicked(None)
         mock_handler.assert_called_with(None, "domain where expression")
 

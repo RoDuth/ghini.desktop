@@ -1527,6 +1527,19 @@ class SearchTests(BaubleTestCase):
         results = search.search(string, self.session)
         self.assertCountEqual(results, [pp])
 
+    def test_search_strips_leading_spaces(self):
+        from bauble.plugins.plants import Family
+        from bauble.plugins.plants import Genus
+        from bauble.plugins.plants import Species
+
+        fam = Family(epithet="Rutaceae")
+        gen = Genus(family=fam, epithet="Flindersia")
+        sp = Species(genus=gen, epithet="brayleyana")
+        self.session.add(sp)
+        self.session.commit()
+        results = search.search("  Flindersia brayleyana  ", self.session)
+        self.assertEqual(results, [sp])
+
 
 class SearchTests2(BaubleTestCase):
     def setUp(self):

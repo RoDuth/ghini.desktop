@@ -510,7 +510,7 @@ class GUI:
 
     def on_go_button_clicked(self, _widget):
         self.close_message_box()
-        text = self.widgets.main_comboentry.get_child().get_text()
+        text = self.widgets.main_comboentry.get_child().get_text().strip()
         if text == "":
             return
         self.add_to_history(text)
