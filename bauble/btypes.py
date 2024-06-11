@@ -114,6 +114,7 @@ class Enum(types.TypeDecorator):
             )
 
         self.values = values[:]
+        self.reverse_values = values[::-1]
         self.empty_to_none = empty_to_none
         logger.debug("values = %s", self.values)
 
@@ -125,7 +126,7 @@ class Enum(types.TypeDecorator):
             [
                 (
                     obj == val,
-                    len(self.values) - self.values.index(val),
+                    self.reverse_values.index(val),
                 )
                 for val in self.values
             ]
@@ -155,8 +156,20 @@ class Enum(types.TypeDecorator):
             **kwargs: Any,
         ):
             if hasattr(self.parent, "values") and op in (lt, le, gt, ge):
-                to_int = self.parent.to_int
-                return op(to_int(self), to_int(*other), **kwargs)
+                this = self.parent.to_int(self)
+                # other is a string
+                if len(other) == 1 and isinstance(other[0], str):
+                    return op(
+                        this,
+                        self.parent.reverse_values.index(*other),
+                        **kwargs,
+                    )
+                # other is a subquery etc.
+                return op(
+                    this,
+                    self.parent.to_int(*other),
+                    **kwargs,
+                )
 
             return super().operate(op, *other, **kwargs)
 

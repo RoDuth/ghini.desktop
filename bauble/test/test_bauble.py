@@ -195,6 +195,21 @@ class EnumTests(BaubleTestCase):
             .all()
         )
         self.assertCountEqual(in_a_z, [test1, test2])
+        # still works in a subquery
+        test4 = TestTableComparator(value="testB")
+        self.session.add(test4)
+        self.session.commit()
+        subq = (
+            self.session.query(TestTableComparator.value)
+            .filter(TestTableComparator.id == test4.id)
+            .scalar_subquery()
+        )
+        qry = (
+            self.session.query(TestTableComparator)
+            .filter(TestTableComparator.value > subq)
+            .all()
+        )
+        self.assertEqual(qry, [test2])
 
     def test_custom_enum_delays_init(self):
         class TestTableCustom(db.Base):
