@@ -805,7 +805,7 @@ class PlantsPlugin(pluginmgr.Plugin):
         )
 
         mapper_search.add_meta(
-            ("geography", "geo"), Geography, ["name", "tdwg_code", "iso_code"]
+            ("geography", "geo"), Geography, ["name", "code", "iso_code"]
         )
         SearchView.row_meta[Geography].set(
             children=partial(db.get_active_children, get_species_in_geography),

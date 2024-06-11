@@ -1522,16 +1522,16 @@ class DistributionPresenter(editor.GenericEditorPresenter):
         unresolved = set()
 
         code_re = re.compile(r"^[0-9A-Z-]{1,6}$")
-        # if text contains only tdwg_codes
+        # if text contains only codes
         if all(code_re.match(i) for i in geo_names):
             geos = self.session.query(Geography).filter(
-                Geography.tdwg_code.in_(geo_names)
+                Geography.code.in_(geo_names)
             )
 
             for geo in geos:
-                name_map.setdefault(geo.tdwg_code, []).append(geo)
-                val = levels_counter.get(geo.tdwg_level, 0) + 1
-                levels_counter[geo.tdwg_level] = val
+                name_map.setdefault(geo.code, []).append(geo)
+                val = levels_counter.get(geo.level, 0) + 1
+                levels_counter[geo.level] = val
 
             for code in geo_names:
                 if code not in name_map:
@@ -1544,8 +1544,8 @@ class DistributionPresenter(editor.GenericEditorPresenter):
 
             for geo in geos:
                 name_map.setdefault(geo.name, []).append(geo)
-                val = levels_counter.get(geo.tdwg_level, 0) + 1
-                levels_counter[geo.tdwg_level] = val
+                val = levels_counter.get(geo.level, 0) + 1
+                levels_counter[geo.level] = val
 
             # then the abbreviated
             for name in geo_names:
@@ -1559,8 +1559,8 @@ class DistributionPresenter(editor.GenericEditorPresenter):
                         unresolved.add(name)
                     for geo in geos:
                         name_map.setdefault(geo.name, []).append(geo)
-                        val = levels_counter.get(geo.tdwg_level, 0) + 1
-                        levels_counter[geo.tdwg_level] = val
+                        val = levels_counter.get(geo.level, 0) + 1
+                        levels_counter[geo.level] = val
 
         if unresolved:
             msg = _('Could not resolve "%s"') % ", ".join(unresolved)
@@ -1579,14 +1579,14 @@ class DistributionPresenter(editor.GenericEditorPresenter):
                 if len(set(levels_counter.values())) == 1:
                     geo_list = [
                         sorted(
-                            geo_list, key=lambda i: i.tdwg_level, reverse=True
+                            geo_list, key=lambda i: i.level, reverse=True
                         )[0]
                     ]
                 else:
                     geo_list = [
                         sorted(
                             geo_list,
-                            key=lambda i: levels_counter[i.tdwg_level],
+                            key=lambda i: levels_counter[i.level],
                             reverse=True,
                         )[0]
                     ]
@@ -1631,7 +1631,7 @@ class DistributionPresenter(editor.GenericEditorPresenter):
         if bauble.gui:
             clipboard = bauble.gui.get_display_clipboard()
             txt = ", ".join(
-                [d.geography.tdwg_code for d in self.model.distribution]
+                [d.geography.code for d in self.model.distribution]
             )
             clipboard.set_text(txt, -1)
 

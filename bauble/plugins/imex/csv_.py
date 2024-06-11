@@ -245,6 +245,10 @@ class CSVRestore:
                             self.red_list_upgrader,
                             filenames,
                         )
+                        upgraders["tdwg_geo"] = (
+                            self.tdwg_geo_upgrader,
+                            filenames,
+                        )
 
                 for upgrader, *args in upgraders.values():
                     logger.debug("running %s", upgrader.__name__)
@@ -256,6 +260,59 @@ class CSVRestore:
         from bauble.plugins.plants import species_model
 
         bauble.task.queue(species_model.update_all_full_names_task())
+
+    @staticmethod
+    def tdwg_geo_upgrader(filenames):
+        """Upgrade species file red_list enum"""
+
+        reg = re.compile(r".*geography\.csv$")
+        geo_file = [i for i in filenames if reg.match(i)]
+
+        # bail early
+        if not geo_file:
+            return
+
+        geo_file = geo_file[0]
+        original = geo_file + ORIG_SUFFIX
+
+        msg = _("upgrading species geography data: ")
+        logger.debug("upgrading %s", geo_file)
+        bauble.task.set_message(msg + geo_file)
+
+        with open(geo_file, "r", encoding="utf-8", newline="") as f:
+            num_lines = len(f.readlines())
+
+        if num_lines <= 1:
+            logger.debug("%s contains no data skip translation", geo_file)
+            return
+
+        os.rename(geo_file, original)
+        five_percent = int(num_lines / 20) or 1
+
+        with (
+            open(original, "r", encoding="utf-8", newline="") as old,
+            open(geo_file, "w", encoding="utf-8", newline="") as new,
+        ):
+            in_file = csv.DictReader(old)
+            fieldnames = in_file.fieldnames[:]
+            fieldnames.remove("tdwg_code")
+            fieldnames.remove("tdwg_level")
+            fieldnames.append("code")
+            fieldnames.append("level")
+            out_file = csv.DictWriter(new, fieldnames=fieldnames)
+            out_file.writeheader()
+            for count, line in enumerate(in_file):
+                code = line.get("tdwg_code")
+                level = line.get("tdwg_level")
+                del line["tdwg_code"]
+                del line["tdwg_level"]
+                line["code"] = code
+                line["level"] = level
+
+                out_file.writerow(line)
+                if count % five_percent == 0:
+                    pb_set_fraction(count / num_lines)
+                    yield
 
     @staticmethod
     def red_list_upgrader(filenames):
@@ -664,7 +721,7 @@ class CSVRestore:
         for count, (id_, codes) in enumerate(old_geos.items()):
             new = (
                 session.query(Geography)
-                .filter_by(tdwg_code=codes.get("code"))
+                .filter_by(code=codes.get("code"))
                 .all()
             )
             if not new:
@@ -674,7 +731,7 @@ class CSVRestore:
                     continue
                 new = (
                     session.query(Geography)
-                    .filter_by(tdwg_code=parent.get("code"))
+                    .filter_by(code=parent.get("code"))
                     .all()
                 )
             if not new:
@@ -684,7 +741,7 @@ class CSVRestore:
                     continue
                 new = (
                     session.query(Geography)
-                    .filter_by(tdwg_code=parent2.get("code"))
+                    .filter_by(code=parent2.get("code"))
                     .all()
                 )
             if new:

@@ -1268,9 +1268,9 @@ class SearchTests(BaubleTestCase):
         self.assertEqual(results, [])
 
         s = (
-            "geography where tdwg_code = '50' or "
-            "parent.tdwg_code = '50' or "
-            "parent.parent.tdwg_code = '50'"
+            "geography where code = '50' or "
+            "parent.code = '50' or "
+            "parent.parent.code = '50'"
         )
         results = search.search(s, self.session)
         self.assertEqual(results, [])
@@ -1334,9 +1334,9 @@ class SearchTests(BaubleTestCase):
         self.assertEqual(results, [g2])
 
         s = (
-            "geography where tdwg_code = '50' or "
-            "parent.tdwg_code = '50' or "
-            "parent.parent.tdwg_code = '50'"
+            "geography where code = '50' or "
+            "parent.code = '50' or "
+            "parent.parent.code = '50'"
         )
         results = []
         for i in mapper_search.search(s, self.session):
@@ -1361,7 +1361,7 @@ class SearchTests(BaubleTestCase):
             "WAU",
         ]
 
-        self.assertCountEqual([i.tdwg_code for i in results], expected)
+        self.assertCountEqual([i.code for i in results], expected)
 
         s = "species where genus.family.genera.epithet = 'Ficus'"
         results = []
@@ -2137,8 +2137,8 @@ class FunctionsTests(BaubleTestCase):
         from bauble.plugins.plants import SpeciesDistribution
         from bauble.plugins.plants.geography import Geography
 
-        geo1 = Geography(name="Test1", tdwg_code="T1", tdwg_level=1)
-        geo2 = Geography(name="Test2", tdwg_code="T2", tdwg_level=1)
+        geo1 = Geography(name="Test1", code="T1", level=1)
+        geo2 = Geography(name="Test2", code="T2", level=1)
         sp1 = self.session.query(Species).first()
         sp1.distribution = [
             SpeciesDistribution(geography=geo1),

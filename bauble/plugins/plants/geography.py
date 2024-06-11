@@ -202,9 +202,9 @@ class Geography(db.Base):
     :Columns:
         *name*:
 
-        *tdwg_code*:
+        *code*:
 
-        *tdwg_level*
+        *level*
 
         *iso_code*:
 
@@ -223,8 +223,8 @@ class Geography(db.Base):
     id: int
     # columns
     name = Column(Unicode(255), nullable=False)
-    tdwg_code = Column(String(6))
-    tdwg_level = Column(Integer, nullable=False, autoincrement=False)
+    code = Column(String(6))
+    level = Column(Integer, nullable=False, autoincrement=False)
     iso_code = Column(String(7))
     geojson = deferred(Column(types.JSON()))
     # don't use, can lead to InvalidRequestError (Collection unknown)
@@ -233,7 +233,7 @@ class Geography(db.Base):
         "SpeciesDistribution", back_populates="geography"
     )
 
-    retrieve_cols = ["id", "tdwg_code"]
+    retrieve_cols = ["id", "code"]
     parent_id = Column(Integer, ForeignKey("geography.id"))
     parent: Self | None
     children: list[Self] = relationship(
@@ -369,10 +369,10 @@ class GeneralGeographyExpander(InfoExpander):
 
     def update(self, row):
         on_clicked = utils.generate_on_clicked(select_in_search_results)
-        level = ["Continent", "Region", "Area", "Unit"][row.tdwg_level - 1]
+        level = ["Continent", "Region", "Area", "Unit"][row.level - 1]
         self.widget_set_value("name_label", row.name)
-        self.widget_set_value("tdwg_level", level)
-        self.widget_set_value("tdwg_code", row.tdwg_code)
+        self.widget_set_value("level", f"{level} ({row.level})")
+        self.widget_set_value("code", row.code)
         self.widget_set_value("iso_code", row.iso_code)
         self.widget_set_value("parent", row.parent or "")
         shape = row.geojson.get("type", "") if row.geojson else ""

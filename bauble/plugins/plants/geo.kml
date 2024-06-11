@@ -50,11 +50,11 @@ from bauble.utils import xml_safe
         <table>
           <tr>
             <td>WGSRPD Level:</td>
-            <td>${['Continent', 'Region', 'Area', 'Unit'][val.tdwg_level - 1]}</td>
+            <td>${['Continent', 'Region', 'Area', 'Unit'][val.level - 1]}</td>
           </tr>
           <tr>
             <td>WGSRPD Code:</td>
-            <td>${val.tdwg_code}</td>
+            <td>${val.code}</td>
           </tr>
           % if val.iso_code:
           <tr>

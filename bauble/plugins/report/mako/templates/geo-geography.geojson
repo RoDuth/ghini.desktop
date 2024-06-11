@@ -24,10 +24,10 @@ features = []
 % for geo in get_geographies_pertinent_to(values):
 <%
 feature = {"type": "Feature",
-           "properties": {"code": geo.tdwg_code,
-                          "level": geo.tdwg_level,
+           "properties": {"code": geo.code,
+                          "level": geo.level,
                           "iso_code": geo.iso_code,
-                          "parent_code": geo.parent.tdwg_code if geo.parent else None},
+                          "parent_code": geo.parent.code if geo.parent else None},
            "geometry": geo.geojson}
 features.append(feature)
 %>\

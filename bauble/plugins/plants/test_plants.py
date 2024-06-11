@@ -3139,22 +3139,22 @@ class GeographyTests(PlantTestCase):
 
     def test_consolidate_geographies(self):
         # all level 2 geographies
-        lv2 = self.session.query(Geography).filter(Geography.tdwg_level == 2)
+        lv2 = self.session.query(Geography).filter(Geography.level == 2)
         result = (
             self.session.query(Geography)
-            .filter(Geography.tdwg_level == 1)
+            .filter(Geography.level == 1)
             .all()
         )
         self.assertCountEqual(result, consolidate_geographies(lv2))
         # all level 3 geographies from EUROPE and AUSTRALASIA
         lv2s = (
             self.session.query(Geography.id)
-            .filter(Geography.tdwg_level == 2)
+            .filter(Geography.level == 2)
             .filter(Geography.parent_id.in_([1, 5]))
         )
         lv3 = (
             self.session.query(Geography)
-            .filter(Geography.tdwg_level == 3)
+            .filter(Geography.level == 3)
             .filter(Geography.parent_id.in_(lv2s))
         )
         result = (
@@ -3166,13 +3166,13 @@ class GeographyTests(PlantTestCase):
         # all level 4 geographies from Brazil
         lv3s = (
             self.session.query(Geography.id)
-            .filter(Geography.tdwg_level == 3)
+            .filter(Geography.level == 3)
             .filter(Geography.parent_id == 58)
         )
         lv4 = (
             self.session.query(Geography)
             .filter(Geography.parent_id.in_(lv3s))
-            .filter(Geography.tdwg_level == 4)
+            .filter(Geography.level == 4)
         )
         result = [self.session.query(Geography).get(58)]
         self.assertCountEqual(result, consolidate_geographies(lv4))
@@ -3194,7 +3194,7 @@ class GeographyTests(PlantTestCase):
     def test_approx_area(self):
         geos = (
             self.session.query(Geography)
-            .filter(Geography.tdwg_level < 3)
+            .filter(Geography.level < 3)
             .all()
         )
         for geo in geos:
@@ -3226,8 +3226,8 @@ class GeographyApproxAreaTests(BaubleTestCase):
         }
         geo = Geography(
             name="Lord Howe I.",
-            tdwg_code="NFK-LH",
-            tdwg_level=4,
+            code="NFK-LH",
+            level=4,
             geojson=geojson,
         )
         self.session.add(geo)
@@ -3258,8 +3258,8 @@ class GeographyApproxAreaTests(BaubleTestCase):
         }
         geo = Geography(
             name="Lord Howe I.",
-            tdwg_code="NFK-LH",
-            tdwg_level=4,
+            code="NFK-LH",
+            level=4,
             geojson=None,
         )
         self.session.add(geo)
@@ -5016,12 +5016,12 @@ class DistributionPresenterTests(PlantTestCase):
     def test_on_remove_button_pressed(self):
         qld = (
             self.session.query(Geography)
-            .filter(Geography.tdwg_code == "QLD")
+            .filter(Geography.code == "QLD")
             .one()
         )
         nsw = (
             self.session.query(Geography)
-            .filter(Geography.tdwg_code == "NSW")
+            .filter(Geography.code == "NSW")
             .one()
         )
 
@@ -5055,7 +5055,7 @@ class DistributionPresenterTests(PlantTestCase):
     def test_on_activate_add_menu_item(self):
         qld = (
             self.session.query(Geography)
-            .filter(Geography.tdwg_code == "QLD")
+            .filter(Geography.code == "QLD")
             .one()
         )
 
@@ -5081,12 +5081,12 @@ class DistributionPresenterTests(PlantTestCase):
     def test_on_activate_remove_menu_item(self):
         qld = (
             self.session.query(Geography)
-            .filter(Geography.tdwg_code == "QLD")
+            .filter(Geography.code == "QLD")
             .one()
         )
         nsw = (
             self.session.query(Geography)
-            .filter(Geography.tdwg_code == "NSW")
+            .filter(Geography.code == "NSW")
             .one()
         )
 
@@ -5116,12 +5116,12 @@ class DistributionPresenterTests(PlantTestCase):
     def test_on_clear_all(self):
         qld = (
             self.session.query(Geography)
-            .filter(Geography.tdwg_code == "QLD")
+            .filter(Geography.code == "QLD")
             .one()
         )
         nsw = (
             self.session.query(Geography)
-            .filter(Geography.tdwg_code == "NSW")
+            .filter(Geography.code == "NSW")
             .one()
         )
 
@@ -5254,7 +5254,7 @@ class DistributionPresenterTests(PlantTestCase):
         mock_dialog.assert_not_called()
         mock_dialog.reset_mock()
         sp.distribution = []
-        # test tdwg_codes
+        # test codes
         txt = "NFK, QLD, NWG-PN, NSW-NS"
         presenter.append_dists_from_text(txt)
         result = self.session.query(Geography).filter(
@@ -5277,12 +5277,12 @@ class DistributionPresenterTests(PlantTestCase):
         sp = Species(genus=gen, sp="sp")
         lv2s = (
             self.session.query(Geography.id)
-            .filter(Geography.tdwg_level == 2)
+            .filter(Geography.level == 2)
             .filter(Geography.parent_id.in_([1, 5]))
         )
         lv3 = (
             self.session.query(Geography)
-            .filter(Geography.tdwg_level == 3)
+            .filter(Geography.level == 3)
             .filter(Geography.parent_id.in_(lv2s))
         )
         for i in lv3:
@@ -5314,7 +5314,7 @@ class DistributionPresenterTests(PlantTestCase):
         mock_gui.get_display_clipboard.return_value = mock_clipboard
         nsw = (
             self.session.query(Geography)
-            .filter(Geography.tdwg_code == "NSW")
+            .filter(Geography.code == "NSW")
             .one()
         )
 
@@ -5350,7 +5350,7 @@ class DistributionPresenterTests(PlantTestCase):
         mock_gui.get_display_clipboard.return_value = mock_clipboard
         nsw = (
             self.session.query(Geography)
-            .filter(Geography.tdwg_code == "NSW")
+            .filter(Geography.code == "NSW")
             .one()
         )
 
@@ -5385,12 +5385,12 @@ class DistributionPresenterTests(PlantTestCase):
         mock_gui.get_display_clipboard.return_value = mock_clipboard
         qld = (
             self.session.query(Geography)
-            .filter(Geography.tdwg_code == "QLD")
+            .filter(Geography.code == "QLD")
             .one()
         )
         nsw = (
             self.session.query(Geography)
-            .filter(Geography.tdwg_code == "NSW")
+            .filter(Geography.code == "NSW")
             .one()
         )
 
@@ -6488,7 +6488,7 @@ class RetrieveTests(PlantTestCase):
     def test_geography_retreives(self):
         setup_geographies()
         keys = {
-            "tdwg_code": "50",
+            "code": "50",
         }
         geo = Geography.retrieve(self.session, keys)
         self.assertEqual(geo.name, "Australia")

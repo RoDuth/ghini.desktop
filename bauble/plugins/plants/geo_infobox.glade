@@ -65,7 +65,7 @@
               </packing>
             </child>
             <child>
-              <object class="GtkLabel" id="tdwg_level">
+              <object class="GtkLabel" id="level">
                 <property name="visible">True</property>
                 <property name="can-focus">False</property>
                 <property name="label">--</property>
@@ -93,7 +93,7 @@
               </packing>
             </child>
             <child>
-              <object class="GtkLabel" id="tdwg_code">
+              <object class="GtkLabel" id="code">
                 <property name="visible">True</property>
                 <property name="can-focus">False</property>
                 <property name="label">--</property>
