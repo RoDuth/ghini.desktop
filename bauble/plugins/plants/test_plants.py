@@ -32,6 +32,7 @@ from unittest import TestCase
 from unittest import mock
 
 from gi.repository import Gtk
+from sqlalchemy import update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.exc import StatementError
 from sqlalchemy.orm.exc import NoResultFound
@@ -71,6 +72,7 @@ from .genus import genus_to_string_matcher
 from .geography import Geography
 from .geography import consolidate_geographies
 from .geography import get_species_in_geography
+from .geography import update_all_approx_areas_handler
 from .species import BinomialSearch
 from .species import DefaultVernacularName
 from .species import GeneralSpeciesExpander
@@ -3205,6 +3207,126 @@ class GeographyTests(PlantTestCase):
                 error_margin = geo.approx_area * 8 / 100
                 # error_margin = 5000
                 self.assertLess(difference, error_margin, str(geo))
+
+
+class GeographyApproxAreaTests(BaubleTestCase):
+    def test_approx_area_is_set_at_insert(self):
+        # test listens_for insert
+        geojson = {
+            "type": "Polygon",
+            "coordinates": [
+                [
+                    [159.07080078125, -31.599998474121094],
+                    [159.08578491210938, -31.561111450195312],
+                    [159.04913330078125, -31.52166748046875],
+                    [159.10189819335938, -31.57111358642578],
+                    [159.07080078125, -31.599998474121094],
+                ]
+            ],
+        }
+        geo = Geography(
+            name="Lord Howe I.",
+            tdwg_code="NFK-LH",
+            tdwg_level=4,
+            geojson=geojson,
+        )
+        self.session.add(geo)
+        self.session.commit()
+        self.assertGreater(geo.approx_area, 5)
+        self.assertEqual(geo.approx_area, geo.get_approx_area())
+        hist_query = (
+            self.session.query(db.History.values)
+            .filter(db.History.table_name == "geography")
+            .filter(db.History.table_id == geo.id)
+            .all()
+        )
+        self.assertEqual(len(hist_query), 1)
+
+    def test_approx_area_is_set_at_update(self):
+        # test listens_for update
+        geojson = {
+            "type": "Polygon",
+            "coordinates": [
+                [
+                    [159.07080078125, -31.599998474121094],
+                    [159.08578491210938, -31.561111450195312],
+                    [159.04913330078125, -31.52166748046875],
+                    [159.10189819335938, -31.57111358642578],
+                    [159.07080078125, -31.599998474121094],
+                ]
+            ],
+        }
+        geo = Geography(
+            name="Lord Howe I.",
+            tdwg_code="NFK-LH",
+            tdwg_level=4,
+            geojson=None,
+        )
+        self.session.add(geo)
+        self.session.commit()
+        self.assertEqual(geo.approx_area, 0.0)
+        geo.geojson = geojson
+        self.session.commit()
+        self.assertGreater(geo.approx_area, 5)
+        self.assertEqual(geo.approx_area, geo.get_approx_area())
+        hist_query = (
+            self.session.query(db.History.values)
+            .filter(db.History.table_name == "geography")
+            .filter(db.History.table_id == geo.id)
+        )
+        self.assertEqual(len(hist_query.all()), 2)
+        geo.geojson = None
+        self.session.commit()
+        self.assertEqual(geo.approx_area, 0.0)
+        self.assertEqual(len(hist_query.all()), 3)
+
+    def test_update_all_approx_areas_handler(self):
+        setup_geographies()
+        vals = {}
+        geos = self.session.query(Geography)
+
+        for geo in geos:
+            self.assertTrue(geo.approx_area)
+            vals[geo.id] = geo.approx_area
+            geo.geojson = None
+
+        # use core so listen_for is not trggered
+        with db.engine.begin() as connection:
+            table = Geography.__table__
+            stmt = update(table).values(approx_area=0.0)
+            connection.execute(stmt)
+
+        for geo in geos:
+            self.session.refresh(geo)
+            self.assertFalse(geo.approx_area)
+
+        update_all_approx_areas_handler()
+        for geo in geos:
+            self.session.refresh(geo)
+            self.assertEqual(geo.approx_area, vals[geo.id])
+
+        # use core so listen_for is not trggered
+        with db.engine.begin() as connection:
+            table = Geography.__table__
+            stmt = update(table).values(geojson=None)
+            connection.execute(stmt)
+
+        for geo in geos:
+            self.session.refresh(geo)
+            self.assertFalse(geo.geojson)
+            self.assertTrue(geo.approx_area)
+
+        update_all_approx_areas_handler()
+        for geo in geos:
+            self.session.refresh(geo)
+            self.assertEqual(geo.approx_area, 0.0)
+
+    @mock.patch("bauble.plugins.plants.geography.utils.message_details_dialog")
+    def test_update_all_approx_areas_handler_exception(self, mock_dialog):
+        with mock.patch("bauble.plugins.plants.geography.queue") as que:
+            que.side_effect = Exception
+            update_all_approx_areas_handler()
+        mock_dialog.assert_called()
 
 
 class CitesStatus_test(PlantTestCase):

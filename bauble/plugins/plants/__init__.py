@@ -66,6 +66,7 @@ from .geography import Geography
 from .geography import GeographyInfoBox
 from .geography import geography_context_menu
 from .geography import get_species_in_geography
+from .geography import update_all_approx_areas_handler
 from .species import BinomialSearch
 from .species import Species
 from .species import SpeciesDistribution
@@ -647,6 +648,10 @@ class PlantsPlugin(pluginmgr.Plugin):
                 _("Update All Species Full Names"), "win.update_full_name"
             )
 
+            geo_areas_item = Gio.MenuItem.new(
+                _("Update All Geographies Area"), "win.update_approx_area"
+            )
+
             msg = _(
                 "Setup custom conservation fields.\n\nYou have 2 fields "
                 "available.  To set them up you need to provide a "
@@ -721,6 +726,10 @@ class PlantsPlugin(pluginmgr.Plugin):
                     "update_full_name", update_all_full_names_handler
                 )
                 bauble.gui.options_menu.append_item(full_names_item)
+                bauble.gui.add_action(
+                    "update_approx_area", update_all_approx_areas_handler
+                )
+                bauble.gui.options_menu.append_item(geo_areas_item)
                 bauble.gui.add_action(
                     "setup_conservation_fields", setup_conservation_fields
                 )

@@ -22,9 +22,15 @@ The geography module,
 World Geographical Scheme for Recording Plant Distributions (WGSRPD)
 """
 import logging
+import traceback
 from collections.abc import Iterable
+from collections.abc import Iterator
 from operator import itemgetter
 from pathlib import Path
+from typing import TYPE_CHECKING
+from typing import Any
+from typing import Self
+from typing import cast
 
 logger = logging.getLogger(__name__)
 
@@ -33,14 +39,16 @@ from gi.repository import GLib
 from gi.repository import Gtk
 from pyproj import Geod
 from sqlalchemy import Column
+from sqlalchemy import Float
 from sqlalchemy import ForeignKey
 from sqlalchemy import Integer
 from sqlalchemy import String
 from sqlalchemy import Unicode
+from sqlalchemy import event
 from sqlalchemy import exists
 from sqlalchemy import literal
 from sqlalchemy import select
-from sqlalchemy.ext.hybrid import hybrid_property
+from sqlalchemy.orm import Session
 from sqlalchemy.orm import aliased
 from sqlalchemy.orm import backref
 from sqlalchemy.orm import deferred
@@ -49,15 +57,20 @@ from sqlalchemy.orm import relationship
 
 from bauble import btypes as types
 from bauble import db
+from bauble import pb_set_fraction
 from bauble import prefs
 from bauble import utils
 from bauble.i18n import _
+from bauble.task import queue
 from bauble.utils.geo import KMLMapCallbackFunctor
 from bauble.view import Action
 from bauble.view import InfoBox
 from bauble.view import InfoExpander
 from bauble.view import PropertiesExpander
 from bauble.view import select_in_search_results
+
+if TYPE_CHECKING:
+    from . import SpeciesDistribution
 
 GEO_KML_MAP_PREFS = "kml_templates.geography"
 """pref for path to a custom mako kml template."""
@@ -207,6 +220,7 @@ class Geography(db.Base):
 
     __tablename__ = "geography"
 
+    id: int
     # columns
     name = Column(Unicode(255), nullable=False)
     tdwg_code = Column(String(6))
@@ -215,18 +229,21 @@ class Geography(db.Base):
     geojson = deferred(Column(types.JSON()))
     # don't use, can lead to InvalidRequestError (Collection unknown)
     # collection = relationship('Collection', back_populates='region')
-    distribution = relationship(
+    distribution: "SpeciesDistribution" = relationship(
         "SpeciesDistribution", back_populates="geography"
     )
 
     retrieve_cols = ["id", "tdwg_code"]
     parent_id = Column(Integer, ForeignKey("geography.id"))
-    children = relationship(
+    parent: Self | None
+    children: list[Self] = relationship(
         "Geography",
         cascade="all",
         backref=backref("parent", remote_side="Geography.id"),
         order_by=[name],
     )
+    approx_area: float = Column(Float, default=0)
+    label_name: str = Column(Unicode(255))
 
     @classmethod
     def retrieve(cls, session, keys):
@@ -240,7 +257,7 @@ class Geography(db.Base):
         return str(self.name)
 
     def get_parent_ids(self) -> set[int]:
-        session = object_session(self)
+        session = cast(Session, object_session(self))
         cte = (
             session.query(Geography.parent_id)
             .filter(Geography.id == self.id)
@@ -250,28 +267,28 @@ class Geography(db.Base):
         query = session.query(Geography.parent_id).join(
             child, Geography.id == child.c.parent_id
         )
-        query = cte.union_all(query)
+        query_cte = cte.union_all(query)
         query = session.query(Geography.id).join(
-            query, Geography.id == query.c.parent_id
+            query_cte, Geography.id == query_cte.c.parent_id
         )
         ids = {i[0] for i in query}
         return ids
 
     def get_children_ids(self) -> set[int]:
-        session = object_session(self)
+        session = cast(Session, object_session(self))
         cte = (
             session.query(Geography.id)
             .filter(Geography.id == self.id)
             .cte(recursive=True)
         )
         parent = aliased(cte)
-        query = cte.union_all(
+        query_cte = cte.union_all(
             session.query(Geography.id).join(
                 parent, Geography.parent_id == parent.c.id
             )
         )
         query = session.query(Geography.id).join(
-            query, Geography.parent_id == query.c.id
+            query_cte, Geography.parent_id == query_cte.c.id
         )
         ids = {i[0] for i in query}
         return ids
@@ -282,7 +299,7 @@ class Geography(db.Base):
         """
         from .species_model import SpeciesDistribution
 
-        session = object_session(self)
+        session = cast(Session, object_session(self))
         # more expensive than other models
         ids = {self.id}
 
@@ -299,7 +316,7 @@ class Geography(db.Base):
         # Much more expensive than other models
         from .species_model import SpeciesDistribution
 
-        session = object_session(self)
+        session = cast(Session, object_session(self))
         ids = {self.id}
 
         ids.update(self.get_parent_ids())
@@ -315,8 +332,7 @@ class Geography(db.Base):
             query = query.join(cls).filter(cls.active.is_(True))
         return query.count()
 
-    @hybrid_property
-    def approx_area(self) -> float:
+    def get_approx_area(self) -> float:
         """The area in square kilometres using a WGS84 sphere"""
         if not self.geojson:
             return 0.0
@@ -362,6 +378,7 @@ class GeneralGeographyExpander(InfoExpander):
         shape = row.geojson.get("type", "") if row.geojson else ""
         self.widget_set_value("geojson_type", shape)
         self.widget_set_value("approx_size", f"{row.approx_area:.2f} km²")
+        self.widget_set_value("label_name", row.label_name)
         if row.parent:
             utils.make_label_clickable(
                 self.widgets.parent, on_clicked, row.parent
@@ -397,25 +414,75 @@ class GeographyInfoBox(InfoBox):
         self.props.update(row)
 
 
-def consolidate_geographies(geo_list: Iterable[Geography]) -> list:
+def consolidate_geographies(
+    geographies: Iterable[Geography],
+) -> list[Geography]:
     """Given a list of geographies, if all child members of a parent exist
     recursively replace the children with the parent.
     """
-    parents = set()
-    for geo in geo_list:
-        parents.add(geo.parent)
+    parents: set[Geography] = set()
+    for geo in geographies:
+        if geo.parent:
+            parents.add(geo.parent)
 
     result = set()
     for geo in parents:
-        if geo:
-            if all(i in geo_list for i in geo.children):
-                result.add(geo)
+        if all(i in geographies for i in geo.children):
+            result.add(geo)
 
-    for geo in geo_list:
+    for geo in geographies:
         parent_ids = geo.get_parent_ids()
         if all(i.id not in parent_ids for i in result):
             result.add(geo)
 
-    if geo_list == result:
+    if geographies == result:
         return list(result)
     return consolidate_geographies(result)
+
+
+# Listen for changes and update the area, these should only be called rarely
+@event.listens_for(Geography, "before_update")
+def geography_before_update(_mapper, _connection, target: Geography) -> None:
+    target.approx_area = target.get_approx_area()
+
+
+@event.listens_for(Geography, "before_insert")
+def geography_before_insert(_mapper, _connection, target: Geography) -> None:
+    target.approx_area = target.get_approx_area()
+
+
+def update_all_approx_areas_task(*_args: Any) -> Iterator[None]:
+    """Task to update all the geographies approx area.
+
+    Yields occassionally to update the progress bar
+    """
+
+    if not db.Session:
+        return
+    session = db.Session()
+    query = session.query(Geography)
+    count = query.count()
+    five_percent = int(count / 20) or 1
+    for done, geo in enumerate(session.query(Geography)):
+        geo.approx_area = geo.get_approx_area()
+        if done % five_percent == 0:
+            session.commit()
+            pb_set_fraction(done / count)
+            yield
+    session.commit()
+    session.close()
+
+
+def update_all_approx_areas_handler(*_args) -> None:
+    """Handler to update all the species full names."""
+
+    logger.debug("update_all_approx_areas_handler")
+    try:
+        queue(update_all_approx_areas_task())
+    except Exception as e:  # pylint: disable=broad-except
+        utils.message_details_dialog(
+            utils.xml_safe(str(e)),
+            traceback.format_exc(),
+            Gtk.MessageType.ERROR,
+        )
+        logger.debug(traceback.format_exc())

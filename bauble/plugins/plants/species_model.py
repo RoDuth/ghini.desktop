@@ -1349,6 +1349,7 @@ class SpeciesDistribution(db.Base):
     __tablename__ = "species_distribution"
 
     # columns
+    species: Species
     species_id = Column(Integer, ForeignKey("species.id"), nullable=False)
     geography_id = Column(Integer, ForeignKey("geography.id"), nullable=False)
     geography = relationship("Geography", back_populates="distribution")
