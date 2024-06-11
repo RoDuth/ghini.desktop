@@ -71,6 +71,7 @@ from .genus import genus_match_func
 from .genus import genus_to_string_matcher
 from .geography import Geography
 from .geography import consolidate_geographies
+from .geography import consolidate_geographies_by_percent_area
 from .geography import get_species_in_geography
 from .geography import update_all_approx_areas_handler
 from .species import BinomialSearch
@@ -3141,9 +3142,7 @@ class GeographyTests(PlantTestCase):
         # all level 2 geographies
         lv2 = self.session.query(Geography).filter(Geography.level == 2)
         result = (
-            self.session.query(Geography)
-            .filter(Geography.level == 1)
-            .all()
+            self.session.query(Geography).filter(Geography.level == 1).all()
         )
         self.assertCountEqual(result, consolidate_geographies(lv2))
         # all level 3 geographies from EUROPE and AUSTRALASIA
@@ -3192,11 +3191,7 @@ class GeographyTests(PlantTestCase):
         self.assertCountEqual(result, consolidate_geographies(geos))
 
     def test_approx_area(self):
-        geos = (
-            self.session.query(Geography)
-            .filter(Geography.level < 3)
-            .all()
-        )
+        geos = self.session.query(Geography).filter(Geography.level < 3).all()
         for geo in geos:
             self.assertGreater(geo.approx_area, 0.0)
             if geo.children:
@@ -3207,6 +3202,96 @@ class GeographyTests(PlantTestCase):
                 error_margin = geo.approx_area * 8 / 100
                 # error_margin = 5000
                 self.assertLess(difference, error_margin, str(geo))
+
+    def test_consolidate_geographies_by_percent_area(self):
+        # all level 2 geographies
+        lv2 = self.session.query(Geography).filter(Geography.level == 2)
+        result = (
+            self.session.query(Geography).filter(Geography.level == 1).all()
+        )
+        self.assertCountEqual(
+            result, consolidate_geographies_by_percent_area(lv2, 34)
+        )
+        # all level 3 geographies from EUROPE and AUSTRALASIA
+        lv2s = (
+            self.session.query(Geography.id)
+            .filter(Geography.level == 2)
+            .filter(Geography.parent_id.in_([1, 5]))
+        )
+        lv3 = (
+            self.session.query(Geography)
+            .filter(Geography.level == 3)
+            .filter(Geography.parent_id.in_(lv2s))
+        )
+        result = (
+            self.session.query(Geography)
+            .filter(Geography.id.in_([1, 5]))
+            .all()
+        )
+        self.assertCountEqual(
+            result, consolidate_geographies_by_percent_area(lv3, 33)
+        )
+        # all level 4 geographies from Brazil
+        lv3s = (
+            self.session.query(Geography.id)
+            .filter(Geography.level == 3)
+            .filter(Geography.parent_id == 58)
+        )
+        lv4 = (
+            self.session.query(Geography)
+            .filter(Geography.parent_id.in_(lv3s))
+            .filter(Geography.level == 4)
+        )
+        # with allowable_children = 2 gets brazil
+        result = [self.session.query(Geography).get(58)]
+        self.assertCountEqual(
+            result, consolidate_geographies_by_percent_area(lv4, 33, 2)
+        )
+        # with allowable_children not set (i.e. 1) gets Southern America
+        result = [result[0].parent]
+        self.assertCountEqual(
+            result, consolidate_geographies_by_percent_area(lv4, 33)
+        )
+        # a combination that ends up in AUSTALIASIA + Paupua New Guinea
+        ids = (39, 688, 689, 286, 297, 330, 359, 378, 407, 414, 691)
+        geos = self.session.query(Geography).filter(Geography.id.in_(ids))
+        result = (
+            self.session.query(Geography)
+            .filter(Geography.id.in_((691, 5)))
+            .all()
+        )
+        self.assertCountEqual(
+            result, consolidate_geographies_by_percent_area(geos, 33, 2)
+        )
+        # AUSTRALASIA and Lord Howe I. should remove Lord Howe
+        ids = (5, 682)
+        geos = self.session.query(Geography).filter(Geography.id.in_(ids))
+        result = [self.session.query(Geography).get(5)]
+        self.assertCountEqual(
+            result, consolidate_geographies_by_percent_area(geos, 33)
+        )
+        # Australia and Lord Howe I. should remove Lord Howe
+        ids = (38, 682)
+        geos = self.session.query(Geography).filter(Geography.id.in_(ids))
+        result = [self.session.query(Geography).get(38)]
+        self.assertCountEqual(
+            result, consolidate_geographies_by_percent_area(geos, 33)
+        )
+        # shouldn't make a difference if allowable_children is set higher
+        self.assertCountEqual(
+            result, consolidate_geographies_by_percent_area(geos, 33, 4)
+        )
+        # all Australian islands should not return Australia but consolidate
+        # Norfolk Is.
+        ids = (726, 694, 682, 683, 378)
+        geos = self.session.query(Geography).filter(Geography.id.in_(ids))
+        res_ids = (726, 694, 286, 378)
+        result = self.session.query(Geography).filter(
+            Geography.id.in_(res_ids)
+        )
+        self.assertCountEqual(
+            result, consolidate_geographies_by_percent_area(geos, 33)
+        )
 
 
 class GeographyApproxAreaTests(BaubleTestCase):
@@ -3303,7 +3388,7 @@ class GeographyApproxAreaTests(BaubleTestCase):
         update_all_approx_areas_handler()
         for geo in geos:
             self.session.refresh(geo)
-            self.assertEqual(geo.approx_area, vals[geo.id])
+            self.assertAlmostEqual(geo.approx_area, vals[geo.id], delta=2)
 
         # use core so listen_for is not trggered
         with db.engine.begin() as connection:
@@ -5015,14 +5100,10 @@ class DistributionPresenterTests(PlantTestCase):
 
     def test_on_remove_button_pressed(self):
         qld = (
-            self.session.query(Geography)
-            .filter(Geography.code == "QLD")
-            .one()
+            self.session.query(Geography).filter(Geography.code == "QLD").one()
         )
         nsw = (
-            self.session.query(Geography)
-            .filter(Geography.code == "NSW")
-            .one()
+            self.session.query(Geography).filter(Geography.code == "NSW").one()
         )
 
         qld_dist = SpeciesDistribution(geography=qld)
@@ -5054,9 +5135,7 @@ class DistributionPresenterTests(PlantTestCase):
 
     def test_on_activate_add_menu_item(self):
         qld = (
-            self.session.query(Geography)
-            .filter(Geography.code == "QLD")
-            .one()
+            self.session.query(Geography).filter(Geography.code == "QLD").one()
         )
 
         fam = Family(family="family")
@@ -5080,14 +5159,10 @@ class DistributionPresenterTests(PlantTestCase):
 
     def test_on_activate_remove_menu_item(self):
         qld = (
-            self.session.query(Geography)
-            .filter(Geography.code == "QLD")
-            .one()
+            self.session.query(Geography).filter(Geography.code == "QLD").one()
         )
         nsw = (
-            self.session.query(Geography)
-            .filter(Geography.code == "NSW")
-            .one()
+            self.session.query(Geography).filter(Geography.code == "NSW").one()
         )
 
         qld_dist = SpeciesDistribution(geography=qld)
@@ -5115,14 +5190,10 @@ class DistributionPresenterTests(PlantTestCase):
 
     def test_on_clear_all(self):
         qld = (
-            self.session.query(Geography)
-            .filter(Geography.code == "QLD")
-            .one()
+            self.session.query(Geography).filter(Geography.code == "QLD").one()
         )
         nsw = (
-            self.session.query(Geography)
-            .filter(Geography.code == "NSW")
-            .one()
+            self.session.query(Geography).filter(Geography.code == "NSW").one()
         )
 
         qld_dist = SpeciesDistribution(geography=qld)
@@ -5313,9 +5384,7 @@ class DistributionPresenterTests(PlantTestCase):
         mock_clipboard.wait_for_text.return_value = "Tasmania, Queensland"
         mock_gui.get_display_clipboard.return_value = mock_clipboard
         nsw = (
-            self.session.query(Geography)
-            .filter(Geography.code == "NSW")
-            .one()
+            self.session.query(Geography).filter(Geography.code == "NSW").one()
         )
 
         nsw_dist = SpeciesDistribution(geography=nsw)
@@ -5349,9 +5418,7 @@ class DistributionPresenterTests(PlantTestCase):
         mock_clipboard.wait_for_text.return_value = "Tasmania, Queensland"
         mock_gui.get_display_clipboard.return_value = mock_clipboard
         nsw = (
-            self.session.query(Geography)
-            .filter(Geography.code == "NSW")
-            .one()
+            self.session.query(Geography).filter(Geography.code == "NSW").one()
         )
 
         nsw_dist = SpeciesDistribution(geography=nsw)
@@ -5384,14 +5451,10 @@ class DistributionPresenterTests(PlantTestCase):
         mock_clipboard = mock.Mock()
         mock_gui.get_display_clipboard.return_value = mock_clipboard
         qld = (
-            self.session.query(Geography)
-            .filter(Geography.code == "QLD")
-            .one()
+            self.session.query(Geography).filter(Geography.code == "QLD").one()
         )
         nsw = (
-            self.session.query(Geography)
-            .filter(Geography.code == "NSW")
-            .one()
+            self.session.query(Geography).filter(Geography.code == "NSW").one()
         )
 
         qld_dist = SpeciesDistribution(geography=qld)

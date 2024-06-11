@@ -25,6 +25,8 @@ import logging
 import traceback
 from collections.abc import Iterable
 from collections.abc import Iterator
+from dataclasses import dataclass
+from dataclasses import field
 from operator import itemgetter
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -99,7 +101,7 @@ def get_species_in_geography(geo):
     """Return all the Species that have distribution in geo"""
     session = object_session(geo)
     if not session:
-        ValueError("geography is not in a session")
+        raise ValueError("geography is not in a session")
 
     from .species_model import Species
     from .species_model import SpeciesDistribution
@@ -211,6 +213,10 @@ class Geography(db.Base):
         *parent_id*:
 
         *geojson*
+
+        *approx_area*
+
+        *label_name*
 
     :Properties:
         *children*:
@@ -356,6 +362,15 @@ class Geography(db.Base):
             total += area
         return abs(total) / 1e6
 
+    def get_path_from_root(self) -> list[Self]:
+        """Returns the nodes from root to this node including this node."""
+        parents = [self]
+        geo = self
+        while geo.parent is not None:
+            geo = geo.parent
+            parents.insert(0, geo)
+        return parents
+
 
 class GeneralGeographyExpander(InfoExpander):
     """Generic minimalist info about a geography."""
@@ -438,6 +453,104 @@ def consolidate_geographies(
     if geographies == result:
         return list(result)
     return consolidate_geographies(result)
+
+
+@dataclass
+class _TreeNode:
+    """Tree structure that can be built in reverse (i.e. with a list of leaves
+    that know their path to the root)
+    """
+
+    geo: Geography | None
+    children: dict[Geography, Self] = field(default_factory=dict)
+
+
+def _get_tree_leaves(node: _TreeNode) -> list[_TreeNode]:
+    """Returns all the leaves from the supplied node."""
+    leaves = []
+    for child in node.children.values():
+        if child.children:
+            leaves.extend(_get_tree_leaves(child))
+        else:
+            leaves.append(child)
+    return leaves
+
+
+def _create_geo_tree(geographies: Iterable[Geography]) -> _TreeNode:
+    """Given a list of Geographies as leaves create a tree with the root being
+    the whole earth.
+    """
+    root = _TreeNode(geo=None)  # world/earth
+
+    for geo in geographies:
+        current = root
+        for g in geo.get_path_from_root():
+            current = current.children.setdefault(g, _TreeNode(geo=g))
+    return root
+
+
+class ConsolidateByPercentArea:  # pylint: disable=too-few-public-methods
+    geographies: Iterable[Geography]
+
+    def _get_consolidated(
+        self, current: _TreeNode, percent: int, allowable_children: int
+    ) -> list[Geography]:
+        """Traverses the tree from root to leaf stopping as soon as the sum of
+        all children areas are greater than the percentage given of the current
+        nodes area, or a leaf node is reached.
+
+        Returns all geographies from the nodes where traversal stopped.
+        """
+        logger.debug("called with: %s", current.geo)
+        result = []
+        if current.geo:
+            if current.geo in self.geographies:
+                return [current.geo]
+            # don't consolidating insufficient children
+            if len(current.children) >= allowable_children:
+                child_area = sum(
+                    i.geo.approx_area
+                    for i in _get_tree_leaves(current)
+                    if i.geo
+                )
+                if current.geo.approx_area * percent / 100 < child_area:
+                    return [current.geo]
+        for child in current.children.values():
+            result.extend(
+                self._get_consolidated(child, percent, allowable_children)
+            )
+        logger.debug("consolidated to %s", [i.name for i in result])
+        return result
+
+    def __call__(
+        self,
+        geographies: Iterable[Geography],
+        percent: int = 70,
+        allowable_children: int = 1,
+    ) -> list[Geography]:
+        """Consolidate a list of geographies to their parents, using the sum of
+        their area being greater than the given percentage of the highest
+        possible parent that still has `allowable_children`.
+
+        :param geographies: an iterable of geographies.
+        :param percent: percentage of area allowed to consolidate. NOTE: 100
+            may not work as expected due to inaccuracies in `approx_area`.
+        :param allowable_children: the minimum number of children allowed for
+            an area to be consolidated if it was not in the original list.
+        """
+        logger.debug("geographies = %s", [i.name for i in geographies])
+        logger.debug(
+            "percent = %s, allowable_children = %s",
+            percent,
+            allowable_children,
+        )
+        self.geographies = geographies
+        root = _create_geo_tree(geographies)
+
+        return self._get_consolidated(root, percent, allowable_children)
+
+
+consolidate_geographies_by_percent_area = ConsolidateByPercentArea()
 
 
 # Listen for changes and update the area, these should only be called rarely
