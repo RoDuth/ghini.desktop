@@ -63,8 +63,11 @@ from .export_tool import ShapefileExportDialogPresenter
 from .export_tool import ShapefileExporter
 from .export_tool import ShapefileExportSettingsBox as ExpSetBox
 from .export_tool import get_field_properties
+from .import_tool import FILTER
+from .import_tool import FILTER_OPS
 from .import_tool import MATCH
 from .import_tool import OPTION
+from .import_tool import TYPE_CONVERTERS
 from .import_tool import ShapefileImporter
 from .import_tool import ShapefileImportSettingsBox as ImpSetBox
 from .import_tool import ShapefileReader
@@ -2300,6 +2303,8 @@ class ImportSettingsBoxTests(ShapefileTestCase):
         last_name_widget = settings_box.grid.get_child_at(0, len(plant_fields))
         self.assertEqual(last_name_widget.get_label(), "vernacular")
         for i, field in enumerate(plant_fields):
+            filter_button = settings_box.grid.get_child_at(FILTER, i + 1)
+            self.assertEqual(filter_button.get_label(), "Apply a filter")
             if field[0] == "plt_id":
                 option_chkbtn = settings_box.grid.get_child_at(OPTION, i + 1)
                 self.assertEqual(option_chkbtn.get_label(), "import")
@@ -2493,6 +2498,93 @@ class ImportSettingsBoxTests(ShapefileTestCase):
         prop = mock.Mock()
         prop.prop.uselist = False
         self.assertTrue(ImpSetBox.relation_filter("test", prop))
+
+    @mock.patch("bauble.plugins.imex.shapefile.import_tool.Gtk.Dialog")
+    def test_on_filter_button_clicked_wo_vals(self, mock_dialog):
+        shape_reader = ShapefileReader(
+            create_shapefile(
+                "test",
+                prj_str_4326,
+                location_fields,
+                loc_recs_4326,
+                self.temp_dir.name,
+            )
+        )
+
+        mock_dialog().run.return_value = Gtk.ResponseType.CANCEL
+        shape_reader.filter_condition = {
+            "loc_code": (FILTER_OPS["=="], TYPE_CONVERTERS["C"]("QCC01"))
+        }
+        settings_box = ImpSetBox(shape_reader)
+        mock_btn = mock.Mock()
+        settings_box.on_filter_button_clicked(mock_btn, "loc_code", "C")
+        mock_btn.set_label.assert_called_with("Apply a filter")
+        # dialog cancelled so filter should be removed
+        self.assertEqual(shape_reader.filter_condition, {})
+
+        # reset
+        mock_btn.reset_mock()
+        # accept empty
+        mock_dialog().run.return_value = Gtk.ResponseType.ACCEPT
+        shape_reader.filter_condition = {
+            "loc_code": (FILTER_OPS["=="], TYPE_CONVERTERS["C"]("QCC01"))
+        }
+        # nothing set still should remove
+        settings_box.on_filter_button_clicked(mock_btn, "loc_code", "C")
+        mock_btn.set_label.assert_called_with("Apply a filter")
+        self.assertEqual(shape_reader.filter_condition, {})
+
+    def test_on_filter_button_clicked_w_vals(self):
+        shape_reader = ShapefileReader(
+            create_shapefile(
+                "test",
+                prj_str_4326,
+                location_fields,
+                loc_recs_4326,
+                self.temp_dir.name,
+            )
+        )
+
+        # with values set
+        settings_box = ImpSetBox(shape_reader)
+        mock_btn = mock.Mock()
+        with mock.patch(
+            "bauble.plugins.imex.shapefile.import_tool.Gtk"
+        ) as mock_gtk:
+            # beware, some mocking hell going on here!
+            mock_gtk.ResponseType.ACCEPT = Gtk.ResponseType.ACCEPT
+            mock_gtk.Dialog().run.return_value = Gtk.ResponseType.ACCEPT
+            mock_gtk.ComboBoxText().get_active_text.return_value = "=="
+            mock_gtk.Entry().get_text.return_value = "1"
+            settings_box.on_filter_button_clicked(mock_btn, "loc_id", "N")
+            mock_btn.set_label.assert_called_with("== 1")
+            self.assertEqual(
+                shape_reader.filter_condition,
+                {"loc_id": (FILTER_OPS["=="], 1)},
+            )
+            # long sting coverage
+            shape_reader.filter_condition = {}
+            mock_gtk.ComboBoxText().get_active_text.return_value = "in"
+            long_str = "A rather long string, an another string"
+            mock_gtk.Entry().get_text.return_value = long_str
+            settings_box.on_filter_button_clicked(mock_btn, "name", "C")
+            mock_btn.set_label.assert_called_with("in A rather lon…")
+            self.assertEqual(
+                shape_reader.filter_condition,
+                {"name": (FILTER_OPS["in"], long_str.split(", "))},
+            )
+            shape_reader.filter_condition = {}
+            # with bauble.gui for coverage
+            shape_reader.filter_condition = {}
+            mock_gtk.ComboBoxText().get_active_text.return_value = ">"
+            mock_gtk.Entry().get_text.return_value = "1"
+            with mock.patch("bauble.gui"):
+                settings_box.get_parent = mock.Mock()
+                settings_box.on_filter_button_clicked(mock_btn, "loc_id", "N")
+                self.assertEqual(
+                    shape_reader.filter_condition,
+                    {"loc_id": (FILTER_OPS[">"], 1)},
+                )
 
 
 class ShapefileImportEmptyDBTests(ShapefileTestCase):
@@ -3554,7 +3646,6 @@ class ShapefileImportTests(ShapefileTestCase):
         self.assertEqual(result[0].geojson, epsg4326_poly_xy)
         self.assertEqual(result[1].geojson, epsg4326_poly_xy2)
         # assert other data hasn't changed.  Could be more thorough here.
-        print(result[0].code)
         self.assertEqual(result[0].description, "Test this change")
         self.assertEqual(result[1].code, "APC01")
 
@@ -4624,6 +4715,140 @@ class ShapefileReaderTests(ShapefileTestCase):
                     ),
                     [epsg4326_poly_xy, epsg4326_poly_xy2],
                 )
+
+    def test_get_records_w_filters(self):
+        shape_reader = ShapefileReader(
+            create_shapefile(
+                "test",
+                prj_str_4326,
+                location_fields,
+                loc_recs_4326,
+                self.temp_dir.name,
+            )
+        )
+        shape_reader.filter_condition = {
+            "loc_id": (
+                FILTER_OPS["in"],
+                [
+                    TYPE_CONVERTERS["N"](i.strip())
+                    for i in "1, 2, 10".split(",")
+                ],
+            )
+        }
+        with shape_reader.get_records() as records:
+            self.assertEqual(len(list(records)), 2)
+
+        shape_reader.filter_condition = {
+            "loc_id": (
+                FILTER_OPS["in"],
+                [TYPE_CONVERTERS["N"](i.strip()) for i in "1, 10".split(",")],
+            )
+        }
+        with shape_reader.get_records() as records:
+            self.assertEqual(len(list(records)), 1)
+
+        shape_reader.filter_condition = {
+            "loc_id": (
+                FILTER_OPS["not in"],
+                [
+                    TYPE_CONVERTERS["N"](i.strip())
+                    for i in "1, 2, 3".split(",")
+                ],
+            )
+        }
+        with shape_reader.get_records() as records:
+            self.assertEqual(len(list(records)), 0)
+
+        shape_reader.filter_condition = {
+            "loc_code": (FILTER_OPS["=="], TYPE_CONVERTERS["C"]("QCC01"))
+        }
+        with shape_reader.get_records() as records:
+            recs = list(records)
+            self.assertEqual(len(recs), 1)
+            self.assertEqual(recs[0].record.as_dict()["loc_code"], "QCC01")
+
+        shape_reader.filter_condition = {
+            "loc_code": (FILTER_OPS["!="], TYPE_CONVERTERS["C"]("QCC01"))
+        }
+        with shape_reader.get_records() as records:
+            recs = list(records)
+            self.assertEqual(len(recs), 1)
+            self.assertNotEqual(recs[0].record.as_dict()["loc_code"], "QCC01")
+
+        shape_reader.filter_condition = {
+            "loc_id": (FILTER_OPS[">"], TYPE_CONVERTERS["N"]("1"))
+        }
+        with shape_reader.get_records() as records:
+            recs = list(records)
+            self.assertEqual(len(recs), 1)
+            loc_id = recs[0].record.as_dict()["loc_id"]
+            self.assertEqual(loc_id, 2)
+
+        shape_reader.filter_condition = {
+            "loc_id": (FILTER_OPS["<"], TYPE_CONVERTERS["N"]("2"))
+        }
+        with shape_reader.get_records() as records:
+            recs = list(records)
+            self.assertEqual(len(recs), 1)
+            loc_id = recs[0].record.as_dict()["loc_id"]
+            self.assertEqual(loc_id, 1)
+
+        shape_reader.filter_condition = {
+            "loc_id": (FILTER_OPS["<="], TYPE_CONVERTERS["N"]("2"))
+        }
+        with shape_reader.get_records() as records:
+            recs = list(records)
+            self.assertEqual(len(recs), 2)
+
+        shape_reader.filter_condition = {
+            "loc_id": (FILTER_OPS[">="], TYPE_CONVERTERS["N"]("1"))
+        }
+        with shape_reader.get_records() as records:
+            recs = list(records)
+            self.assertEqual(len(recs), 2)
+
+        shape_reader.filter_condition = {
+            "loc_code": (FILTER_OPS["contains"], TYPE_CONVERTERS["C"]("QCC"))
+        }
+        with shape_reader.get_records() as records:
+            recs = list(records)
+            self.assertEqual(len(recs), 1)
+            self.assertEqual(recs[0].record.as_dict()["loc_code"], "QCC01")
+
+        shape_reader.filter_condition = {
+            "loc_code": (
+                FILTER_OPS["not contains"],
+                TYPE_CONVERTERS["C"]("QCC"),
+            )
+        }
+        with shape_reader.get_records() as records:
+            recs = list(records)
+            self.assertEqual(len(recs), 1)
+            self.assertNotEqual(recs[0].record.as_dict()["loc_code"], "QCC01")
+
+        # multiple
+        shape_reader.filter_condition = {
+            "loc_code": (
+                FILTER_OPS["not contains"],
+                TYPE_CONVERTERS["C"]("QCC"),
+            ),
+            "loc_id": (FILTER_OPS[">="], TYPE_CONVERTERS["N"]("1")),
+        }
+        with shape_reader.get_records() as records:
+            recs = list(records)
+            self.assertEqual(len(recs), 1)
+            self.assertNotEqual(recs[0].record.as_dict()["loc_code"], "QCC01")
+
+        shape_reader.filter_condition = {
+            "loc_code": (
+                FILTER_OPS["contains"],
+                TYPE_CONVERTERS["C"]("QCC"),
+            ),
+            "loc_id": (FILTER_OPS["!="], TYPE_CONVERTERS["N"]("1")),
+        }
+        with shape_reader.get_records() as records:
+            recs = list(records)
+            self.assertEqual(len(recs), 0)
 
     def test__eq__(self):
         # equal

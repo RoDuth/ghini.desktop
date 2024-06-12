@@ -20,15 +20,20 @@ Import data from shapefiles (zip file with all component files).
 
 import logging
 import weakref
+from collections.abc import Callable
 from contextlib import contextmanager
 from pathlib import Path
 from random import random
+from typing import Any
+from typing import cast
 from zipfile import ZipFile
 
 logger = logging.getLogger(__name__)
 
+from dateutil import parser
 from gi.repository import Gtk
 from shapefile import Reader
+from shapefile import ShapeRecord
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import InspectionAttr
 from sqlalchemy.orm import class_mapper
@@ -58,13 +63,38 @@ from . import SHAPEFILE_IGNORE_PREF
 
 PATH = 4
 """Column position for the path widget and attribte"""
-MATCH = 5
+FILTER = 5
+"""Column position for the filter button widget"""
+MATCH = 6
 """Column position for the match widget."""
-OPTION = 6
+OPTION = 7
 """Column position for the option widget."""
 IGNORED_FIELDS = ("st_length_", "st_area_sh")
 """Sensible defaults for shapefile field names to ignore when importing,
 overridden if the SHAPEFILE_IGNORE_PREF pref is set."""
+
+FILTER_OPS: dict[str, Callable[[Any, Any], bool]] = {
+    "==": lambda x, y: x == y,
+    "!=": lambda x, y: x != y,
+    "<=": lambda x, y: x <= y,
+    ">=": lambda x, y: x >= y,
+    "<": lambda x, y: x < y,
+    ">": lambda x, y: x > y,
+    "in": lambda x, y: x in y,
+    "not in": lambda x, y: x not in y,
+    "contains": lambda x, y: y in x,
+    "not contains": lambda x, y: y not in x,
+}
+
+TYPE_CONVERTERS: dict[str, Callable[[str], Any]] = {
+    "C": str,
+    "N": int,
+    "F": float,
+    "L": lambda x: x in ["1", "True", "true"],
+    "D": lambda x: parser.parse(
+        x, dayfirst=prefs.prefs[prefs.parse_dayfirst_pref]
+    ).date(),
+}
 
 
 class ShapefileReader:
@@ -75,18 +105,21 @@ class ShapefileReader:
     Primarily changes are made in the ShapefileImportSettingsBox.
     """
 
-    def __init__(self, filename):
+    def __init__(self, filename: str) -> None:
         """
-        :param filename: string absolute path to zip file containing all
-            shapefile component files (.shp, .prj, .dbf, .shx)
+        :param filename: absolute path to zip file containing all shapefile
+            component files (.shp, .prj, .dbf, .shx)
         """
-        self._filename = None
+        self._filename: str
         self.filename = filename
         self.use_id = False
-        self.replace_notes = set()
-        self._type = None
-        self._search_by = None
-        self._field_map = {}
+        self.replace_notes: set[str] = set()
+        self._type: str | None = None
+        self._search_by: set[str] | None = None
+        self._field_map: dict[str, str] = {}
+        # t_empty = tuple[None, None, None]
+        # t_full = tuple[str, Callable, Any]
+        self.filter_condition: dict[str, tuple[Callable, Any]] = {}
 
     def __eq__(self, other):
         """Override == to check shapefiles are equal in form.
@@ -284,23 +317,30 @@ class ShapefileReader:
             logger.debug("%s(%s)", type(e).__name__, e)
             return 0
 
+    def _filter_func(self, shape_record: ShapeRecord) -> bool:
+        if self.filter_condition:
+            record = shape_record.record.as_dict()
+            bools = []
+            for name, condition in self.filter_condition.items():
+                op, val = condition
+                bools.append(op(record[name], val))
+            return all(bools)
+        return True
+
     @contextmanager
     def get_records(self):
         """a contextmanager for shapeRecords (records and shapes) for the
         shapefile.
         """
         with self._reader() as reader:
-            shape_records = reader.shapeRecords()
-        try:
-            yield shape_records
-        finally:
-            reader.close()
+            shape_records = reader.iterShapeRecords()
+            yield filter(self._filter_func, shape_records)
 
 
 class ShapefileImportSettingsBox(Gtk.ScrolledWindow):
     """Advanced settings used to change the behaviour of the ShapefileReader"""
 
-    def __init__(self, shape_reader=None, grid=None):
+    def __init__(self, shape_reader=None):
         super().__init__(propagate_natural_height=True)
         self.box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
         self.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
@@ -328,11 +368,7 @@ class ShapefileImportSettingsBox(Gtk.ScrolledWindow):
         self.set_min_content_height(height)
         type_frame.add(self.type_combo)
         self.box.add(type_frame)
-        # for tests and avoids gtk errors
-        if grid is None:
-            grid = Gtk.Grid(column_spacing=6, row_spacing=6)
-
-        self.grid = grid
+        self.grid = Gtk.Grid(column_spacing=6, row_spacing=6)
         self.box.add(self.grid)
         self.add(self.box)
         self._construct_grid()
@@ -345,6 +381,7 @@ class ShapefileImportSettingsBox(Gtk.ScrolledWindow):
             "length",
             "dec places",
             "database field",
+            "filter",
             "match database",
             "option",
         ]
@@ -371,6 +408,10 @@ class ShapefileImportSettingsBox(Gtk.ScrolledWindow):
                     self.grid.attach(label, column, row, 1, 1)
 
                 name = field[0]
+                type_ = field[1]
+
+                filter_button = self._get_filter_button(name, type_)
+                self.grid.attach(filter_button, FILTER, row, 1, 1)
 
                 prop_button, schema_menu = self._get_prop_button(
                     model, name, row
@@ -381,6 +422,97 @@ class ShapefileImportSettingsBox(Gtk.ScrolledWindow):
                     schema_menu,
                 )
                 self.grid.attach(prop_button, PATH, row, 1, 1)
+
+    def _get_filter_button(self, name: str, type_: str) -> Gtk.Button:
+        filter_button = Gtk.Button()
+        filter_button.set_use_underline(False)
+        filter_button.set_label(_("Apply a filter"))
+        tooltip = (
+            "Apply a filter to the value of this row. Records where the value "
+            "does not satisfy this filter will be skipped"
+        )
+        filter_button.set_tooltip_text(tooltip)
+        filter_button.connect(
+            "clicked", self.on_filter_button_clicked, name, type_
+        )
+        return filter_button
+
+    def _set_filter(
+        self, name: str, type_: str, filter_op: str, value: str
+    ) -> None:
+        if filter_op in ("in", "not in"):
+            val = [TYPE_CONVERTERS[type_](i.strip()) for i in value.split(",")]
+        else:
+            val = TYPE_CONVERTERS[type_](value.strip())
+        self.shape_reader.filter_condition[name] = (
+            FILTER_OPS[filter_op],
+            val,
+        )
+
+    def on_filter_button_clicked(
+        self, button: Gtk.Button, name: str, type_: str
+    ) -> None:
+        logger.debug("filter button clicked: name=%s, type=%s", name, type_)
+        win = None
+        if bauble.gui:
+            win = cast(
+                Gtk.Window,
+                self.get_parent().get_parent().get_parent(),  # type: ignore
+            )
+
+        dialog = Gtk.Dialog(title=_("Apply filter"), transient_for=win)
+        dialog.add_button("Cancel", Gtk.ResponseType.CANCEL)
+        dialog.add_button("Apply", Gtk.ResponseType.ACCEPT)
+        dialog.set_default_response(Gtk.ResponseType.ACCEPT)
+        dialog.set_destroy_with_parent(True)
+        dialog.set_position(Gtk.WindowPosition.CENTER)
+
+        box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+        label = Gtk.Label()
+        label.set_markup(f"<b>{name}</b>")
+        box.pack_start(label, True, True, 8)
+
+        combo = Gtk.ComboBoxText()
+
+        for k in FILTER_OPS:
+            if type_ != "C" and k == "contains":
+                continue
+            combo.append_text(k)
+
+        box.pack_start(combo, True, True, 0)
+
+        entry = Gtk.Entry()
+        entry.connect(
+            "activate", lambda entry: dialog.response(Gtk.ResponseType.ACCEPT)
+        )
+        box.pack_start(entry, True, True, 0)
+
+        dialog.get_content_area().pack_start(box, True, True, 0)
+        dialog.show_all()
+
+        button.set_label(_("Apply a filter"))
+
+        # clear any previous filter
+        if name in self.shape_reader.filter_condition:
+            del self.shape_reader.filter_condition[name]
+
+        if dialog.run() == Gtk.ResponseType.ACCEPT:
+            filter_op = combo.get_active_text()
+            entry_txt = entry.get_text()
+            logger.debug("response = ACCEPT")
+
+            if filter_op and entry_txt is not None:
+                self._set_filter(name, type_, filter_op, entry_txt)
+                txt = entry_txt[:12]
+                if len(txt) < len(entry_txt):
+                    txt = txt.strip() + "…"
+                button.set_label(f"{filter_op} {txt}")
+
+        logger.debug(
+            "filter_condition now: %s", self.shape_reader.filter_condition
+        )
+
+        dialog.destroy()
 
     @staticmethod
     def relation_filter(key, prop):
