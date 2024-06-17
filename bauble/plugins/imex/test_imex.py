@@ -166,9 +166,15 @@ class CSVTests(ImexTestCase):
         Test tables that are self-referenial are import in order.
         """
         geo_data = [
-            {"id": 3, "name": "3", "level": 3, "parent_id": 1},
-            {"id": 1, "name": "1", "level": 1, "parent_id": None},
-            {"id": 2, "name": "2", "level": 2, "parent_id": 1},
+            {"id": 3, "code": "AR3", "name": "3", "level": 3, "parent_id": 1},
+            {
+                "id": 1,
+                "code": "AR1",
+                "name": "1",
+                "level": 1,
+                "parent_id": None,
+            },
+            {"id": 2, "code": "AR2", "name": "2", "level": 2, "parent_id": 1},
         ]
         filename = os.path.join(self.path, "geography.csv")
         f = open(filename, "w", encoding="utf-8", newline="")
@@ -440,7 +446,7 @@ class CSVTests2(ImexTestCase):
         # u'Gal\xe1pagos' is the unencoded unicode object,
         # calling u.encode('utf-8') will convert the \xe1 to the a
         # with an accent
-        data = {"name": "Gal\xe1pagos", "level": 3}
+        data = {"code": "GAL", "name": "Gal\xe1pagos", "level": 3}
         geography_table.insert().execute(data)
         query = self.session.query(Geography)
         row_name = [r.name for r in query.all() if r.name.startswith("Gal")][0]
@@ -1167,9 +1173,7 @@ class GenericExporterTests(BaubleTestCase):
         setup_geographies()
 
         item = (
-            self.session.query(Geography)
-            .filter(Geography.code == "50")
-            .one()
+            self.session.query(Geography).filter(Geography.code == "50").one()
         )
         val = GenericExporter.get_item_record(item, {"name": "name"})
         self.assertEqual(val, {"name": "Australia"})

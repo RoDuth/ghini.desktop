@@ -61,7 +61,7 @@ from bauble.i18n import _
 # https://bugs.launchpad.net/bauble/+bug/103923
 
 # required for geojson fields in geography (NORTHERN AMERICA)
-csv.field_size_limit(1000000)
+csv.field_size_limit(3000000)
 
 QUOTE_STYLE = csv.QUOTE_MINIMAL
 QUOTE_CHAR = '"'

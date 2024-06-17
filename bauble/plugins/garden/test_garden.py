@@ -202,8 +202,14 @@ location_test_data = (
 )
 
 geography_test_data = [
-    {"id": 1, "name": "Somewhere", "level": 1},
-    {"id": 2, "name": "SomewhereSubArea", "parent_id": 1, "level": 2},
+    {"id": 1, "code": "SWH", "name": "Somewhere", "level": 1},
+    {
+        "id": 2,
+        "code": "SWH-SA",
+        "name": "SomewhereSubArea",
+        "parent_id": 1,
+        "level": 2,
+    },
 ]
 
 source_detail_data = (

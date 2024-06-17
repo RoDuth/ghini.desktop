@@ -3,21 +3,30 @@
 from bauble.utils import xml_safe
 %>\
 ##
-<%def name="poly_block(polygon)">
+<%def name="poly_block(poly, holes)">
         <Polygon>
           <outerBoundaryIs>
             <LinearRing>
               <coordinates>
-              ${polygon}
+              ${poly}
               </coordinates>
             </LinearRing>
           </outerBoundaryIs>
+        % for hole in holes:
+          <innerBoundaryIs>
+            <LinearRing>
+              <coordinates>
+                ${hole}
+              </coordinates>
+            </LinearRing>
+          </innerBoundaryIs>
+        % endfor
         </Polygon>
 </%def>\
 ##
 <%def name="multipoly_block(multi_poly)">
       <MultiGeometry>
-    % for poly in multi_poly:
+    % for poly, holes in multi_poly:
         <Polygon>
           <outerBoundaryIs>
             <LinearRing>
@@ -26,6 +35,15 @@ from bauble.utils import xml_safe
               </coordinates>
             </LinearRing>
           </outerBoundaryIs>
+        % for hole in holes:
+          <innerBoundaryIs>
+            <LinearRing>
+              <coordinates>
+                ${hole}
+              </coordinates>
+            </LinearRing>
+          </innerBoundaryIs>
+        % endfor
         </Polygon>
     % endfor
       </MultiGeometry>
@@ -68,21 +86,27 @@ from bauble.utils import xml_safe
       <visibility>1</visibility>
 <%
 if val.geojson:
-    polygon = multi = None
+    polygon = None
     multi_poly = []
     json = val.geojson
     if json.get('type') == 'Polygon':
-        coords = json.get('coordinates')[0]
-        polygon = ' '.join([str(f'{i[0]},{i[1]},0') for i in coords])
+        coords = json.get('coordinates')
+        holes = []
+        for sub_part in coords[1:]:
+          holes.append(' '.join([str(f'{i[0]},{i[1]},0') for i in sub_part]))
+        polygon = (' '.join([str(f'{i[0]},{i[1]},0') for i in coords[0]]), holes)
     elif json.get('type') == 'MultiPolygon':
-        multi = json.get('coordinates')
-        for part in multi:
-            multi_poly.append(' '.join([str(f'{i[0]},{i[1]},0') for i in part[0]]))
+        coords = json.get('coordinates')
+        for part in coords:
+            holes = []
+            for sub_part in part[1:]:
+                holes.append(' '.join([str(f'{i[0]},{i[1]},0') for i in sub_part]))
+            multi_poly.append((' '.join([str(f'{i[0]},{i[1]},0') for i in part[0]]), holes))
 %>\
-% if multi:
+% if multi_poly:
     ${multipoly_block(multi_poly)}
-% else:
-    ${poly_block(polygon)}
+% elif polygon:
+    ${poly_block(*polygon)}
 % endif
     </Placemark>
     % endfor

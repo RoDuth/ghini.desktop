@@ -229,7 +229,7 @@ class Geography(db.Base):
     id: int
     # columns
     name = Column(Unicode(255), nullable=False)
-    code = Column(String(6))
+    code = Column(String(6), unique=True, nullable=False)
     level = Column(Integer, nullable=False, autoincrement=False)
     iso_code = Column(String(7))
     geojson = deferred(Column(types.JSON()))
@@ -345,21 +345,23 @@ class Geography(db.Base):
         total = 0.0
         if self.geojson["type"] == "MultiPolygon":
             for poly in self.geojson["coordinates"]:
+                for internal in poly:
+                    lons = []
+                    lats = []
+                    for lon, lat in internal:
+                        lons.append(lon)
+                        lats.append(lat)
+                    area, __ = geod.polygon_area_perimeter(lons, lats)
+                    total += area
+        elif self.geojson["type"] == "Polygon":
+            for internal in self.geojson["coordinates"]:
                 lons = []
                 lats = []
-                for lon, lat in poly[0]:
+                for lon, lat in internal:
                     lons.append(lon)
                     lats.append(lat)
                 area, __ = geod.polygon_area_perimeter(lons, lats)
                 total += area
-        elif self.geojson["type"] == "Polygon":
-            lons = []
-            lats = []
-            for lon, lat in self.geojson["coordinates"][0]:
-                lons.append(lon)
-                lats.append(lat)
-            area, __ = geod.polygon_area_perimeter(lons, lats)
-            total += area
         return abs(total) / 1e6
 
     def get_path_from_root(self) -> list[Self]:
@@ -384,7 +386,7 @@ class GeneralGeographyExpander(InfoExpander):
 
     def update(self, row):
         on_clicked = utils.generate_on_clicked(select_in_search_results)
-        level = ["Continent", "Region", "Area", "Unit"][row.level - 1]
+        level = ["Continent", "Region", "Bot. Country", "Unit"][row.level - 1]
         self.widget_set_value("name_label", row.name)
         self.widget_set_value("level", f"{level} ({row.level})")
         self.widget_set_value("code", row.code)

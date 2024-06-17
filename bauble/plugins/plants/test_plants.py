@@ -3386,9 +3386,12 @@ class GeographyApproxAreaTests(BaubleTestCase):
             self.assertFalse(geo.approx_area)
 
         update_all_approx_areas_handler()
+        # A fail here may indicated our default is incorrect
         for geo in geos:
             self.session.refresh(geo)
-            self.assertAlmostEqual(geo.approx_area, vals[geo.id], delta=2)
+            self.assertAlmostEqual(
+                geo.approx_area, vals[geo.id], delta=2, msg=geo
+            )
 
         # use core so listen_for is not trggered
         with db.engine.begin() as connection:
@@ -3412,6 +3415,88 @@ class GeographyApproxAreaTests(BaubleTestCase):
             que.side_effect = Exception
             update_all_approx_areas_handler()
         mock_dialog.assert_called()
+
+    def test_get_approx_area_handles_holes(self):
+        geojson = {
+            "type": "Polygon",
+            "coordinates": [
+                [
+                    [10.0, 10.0],
+                    [0.0, 10.0],
+                    [0.0, 0.0],
+                    [10.0, 0.0],
+                    [10.0, 10.0],
+                ],
+            ],
+        }
+        geo = Geography(
+            name="Lord Howe I.",
+            code="NFK-LH",
+            level=4,
+            geojson=geojson,
+        )
+        self.assertAlmostEqual(geo.get_approx_area(), 1227877.0, delta=1)
+        # single hole
+        geojson = {
+            "type": "Polygon",
+            "coordinates": [
+                [
+                    [10.0, 10.0],
+                    [0.0, 10.0],
+                    [0.0, 0.0],
+                    [10.0, 0.0],
+                    [10.0, 10.0],
+                ],
+                [  # hole 1
+                    [5.0, 5.0],
+                    [5.0, 1.0],
+                    [1.0, 1.0],
+                    [1.0, 5.0],
+                    [5.0, 5.0],
+                ],
+            ],
+        }
+        geo = Geography(
+            name="Lord Howe I.",
+            code="NFK-LH",
+            level=4,
+            geojson=geojson,
+        )
+        self.assertAlmostEqual(geo.get_approx_area(), 1031153.0, delta=1)
+        # multiple holes
+        geojson = {
+            "type": "Polygon",
+            "coordinates": [
+                [
+                    [10.0, 10.0],
+                    [0.0, 10.0],
+                    [0.0, 0.0],
+                    [10.0, 0.0],
+                    [10.0, 10.0],
+                ],
+                [  # hole 1
+                    [5.0, 5.0],
+                    [5.0, 1.0],
+                    [1.0, 1.0],
+                    [1.0, 5.0],
+                    [5.0, 5.0],
+                ],
+                [  # hole 2
+                    [9.0, 9.0],
+                    [9.0, 6.0],
+                    [6.0, 6.0],
+                    [6.0, 9.0],
+                    [9.0, 9.0],
+                ],
+            ],
+        }
+        geo = Geography(
+            name="Lord Howe I.",
+            code="NFK-LH",
+            level=4,
+            geojson=geojson,
+        )
+        self.assertAlmostEqual(geo.get_approx_area(), 921283.0, delta=1)
 
 
 class CitesStatus_test(PlantTestCase):
