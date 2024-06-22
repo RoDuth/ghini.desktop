@@ -56,6 +56,8 @@ from bauble import db
 from bauble import utils
 from bauble.i18n import _
 
+from .geography import DistributionMap
+
 
 def _remove_zws(string):
     "remove_zero_width_space"
@@ -1086,6 +1088,9 @@ class Species(db.Base, db.WithNotes):
         setattr(self, self.infrasp_attr[level]["rank"], rank)
         setattr(self, self.infrasp_attr[level]["epithet"], epithet)
         setattr(self, self.infrasp_attr[level]["author"], author)
+
+    def distribution_map(self) -> DistributionMap:
+        return DistributionMap([i.geography for i in self.distribution])
 
     def top_level_count(self):
         accessions = db.get_active_children("accessions", self)

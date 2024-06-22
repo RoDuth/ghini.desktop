@@ -62,6 +62,7 @@ from .genus import GenusEditor
 from .genus import GenusInfoBox
 from .genus import GenusNote
 from .genus import genus_context_menu
+from .geography import DistributionMap
 from .geography import Geography
 from .geography import GeographyInfoBox
 from .geography import geography_context_menu
@@ -857,6 +858,8 @@ class PlantsPlugin(pluginmgr.Plugin):
         # make query builder treat active as a boolean (also accounts for
         # accessions and plants)
         ExpressionRow.custom_columns["active"] = ("True", "False")
+        # on new connection reset
+        DistributionMap.reset()
 
     @staticmethod
     def register_custom_column(column_name: str) -> None:

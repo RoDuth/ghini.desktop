@@ -28,9 +28,11 @@ logging.basicConfig()
 import os
 from datetime import datetime
 from functools import partial
+from tempfile import mkstemp
 from unittest import TestCase
 from unittest import mock
 
+from gi.repository import Gdk
 from gi.repository import Gtk
 from sqlalchemy import update
 from sqlalchemy.exc import IntegrityError
@@ -69,7 +71,11 @@ from .genus import generic_gen_get_completions
 from .genus import genus_cell_data_func
 from .genus import genus_match_func
 from .genus import genus_to_string_matcher
+from .geography import DistMapInfoExpanderMixin
+from .geography import DistributionMap
 from .geography import Geography
+from .geography import _coord_string
+from .geography import _path_string
 from .geography import consolidate_geographies
 from .geography import consolidate_geographies_by_percent_area
 from .geography import get_species_in_geography
@@ -3036,9 +3042,6 @@ class BinomialSearchTests(BaubleTestCase):
 
 
 class GeographyTests(PlantTestCase):
-    def __init__(self, *args):
-        super().__init__(*args)
-
     def setUp(self):
         super().setUp()
         self.family = Family(family="family")
@@ -3047,9 +3050,6 @@ class GeographyTests(PlantTestCase):
         self.session.flush()
         setup_geographies()
         self.session.commit()
-
-    def tearDown(self):
-        super().tearDown()
 
     def test_get_species(self):
         mexico_id = 53
@@ -3291,6 +3291,261 @@ class GeographyTests(PlantTestCase):
         )
         self.assertCountEqual(
             result, consolidate_geographies_by_percent_area(geos, 33)
+        )
+
+    def test_distribution_map(self):
+        geojson = {
+            "type": "Polygon",
+            "coordinates": [
+                [
+                    [159.07080078125, -31.599998474121094],
+                    [159.08578491210938, -31.561111450195312],
+                    [159.04913330078125, -31.52166748046875],
+                    [159.10189819335938, -31.57111358642578],
+                    [159.07080078125, -31.599998474121094],
+                ]
+            ],
+        }
+        geo = Geography(
+            name="Lord Howe I.",
+            code="NFK-LH",
+            level=4,
+            geojson=geojson,
+        )
+        path = (
+            '<path stroke="black" stroke-width="0.1" fill="green" d='
+            '"M 339.07 121.6 L 339.09 121.56 L 339.05 121.52 L 339.1 121.57 Z"'
+            "/>"
+        )
+        self.assertIsInstance(geo.distribution_map(), DistributionMap)
+        self.assertTrue(path in str(geo.distribution_map()))
+
+
+class GeographyTests2(TestCase):
+    """Tests not requiring setup_geographies()"""
+
+    def test_as_svg_paths_polygon(self):
+        geojson = {
+            "type": "Polygon",
+            "coordinates": [
+                [
+                    [159.07080078125, -31.599998474121094],
+                    [159.08578491210938, -31.561111450195312],
+                    [159.04913330078125, -31.52166748046875],
+                    [159.10189819335938, -31.57111358642578],
+                    [159.07080078125, -31.599998474121094],
+                ]
+            ],
+        }
+        geo = Geography(
+            name="Lord Howe I.",
+            code="NFK-LH",
+            level=4,
+            geojson=geojson,
+        )
+        self.assertEqual(
+            geo.as_svg_paths(),
+            '<path stroke="black" stroke-width="0.1" fill="green" d='
+            '"M 339.07 121.6 L 339.09 121.56 L 339.05 121.52 L 339.1 121.57 Z"'
+            "/>",
+        )
+
+    def test_as_svg_paths_multi_polygon(self):
+        geojson = {
+            "type": "MultiPolygon",
+            "coordinates": [
+                [
+                    [
+                        [159.07080078125, -31.599998474121094],
+                        [159.08578491210938, -31.561111450195312],
+                        [159.04913330078125, -31.52166748046875],
+                        [159.10189819335938, -31.57111358642578],
+                        [159.07080078125, -31.599998474121094],
+                    ],
+                    [
+                        [139.07080078125, -21.599998474121094],
+                        [139.08578491210938, -21.561111450195312],
+                        [139.04913330078125, -21.52166748046875],
+                        [139.10189819335938, -21.57111358642578],
+                        [139.07080078125, -21.599998474121094],
+                    ],
+                ]
+            ],
+        }
+        geo = Geography(
+            name="Lord Howe I.",
+            code="NFK-LH",
+            level=4,
+            geojson=geojson,
+        )
+        self.assertEqual(
+            geo.as_svg_paths(),
+            '<path stroke="black" stroke-width="0.1" fill="green" d="M 339.07 '
+            '121.6 L 339.09 121.56 L 339.05 121.52 L 339.1 121.57 Z"/><path '
+            'stroke="black" stroke-width="0.1" fill="green" d="M 319.07 111.6 '
+            'L 319.09 111.56 L 319.05 111.52 L 319.1 111.57 Z"/>',
+        )
+
+    def test_coord_string(self):
+        self.assertEqual(_coord_string(10.001, 20.001), "190.0 70.0")
+
+    def test_path_string(self):
+        path = [[10.01, 20.01], [12.01, 21.01], [13.10, 22.10], [10.01, 20.01]]
+        res = (
+            '<path stroke="black" stroke-width="0.1" fill="blue" '
+            'd="M 190.01 69.99 L 192.01 68.99 L 193.1 67.9 Z"/>'
+        )
+        self.assertEqual(_path_string(path, fill="blue"), res)
+
+
+class DistributionMapTests(BaubleTestCase):
+    def setUp(self):
+        super().setUp()
+        setup_geographies()
+
+    def test_world_template(self):
+        # calling world generates the template
+        dist = DistributionMap(self.session.query(Geography).filter_by(id=682))
+        self.assertEqual(dist._world, "")
+        world = dist.world
+        self.assertIn("{selected}", world)
+        self.assertEqual(dist._world, world)
+        # template doesn't change when geography does
+        dist = DistributionMap(self.session.query(Geography).filter_by(id=50))
+        self.assertEqual(world, dist.world)
+        # str shows populated template
+        dist = DistributionMap(self.session.query(Geography).filter_by(id=682))
+        self.assertNotIn("{selected}", str(dist))
+
+    def test_world_pixbuf(self):
+        # calling world_pixbuf generates the pixbuf
+        dist = DistributionMap(self.session.query(Geography).filter_by(id=682))
+        self.assertIsNone(dist._world_pixbuf)
+        world = dist.world_pixbuf
+        self.assertIsNotNone(world)
+        # template doesn't change when geography does
+        dist = DistributionMap(self.session.query(Geography).filter_by(id=50))
+        self.assertEqual(world, dist.world_pixbuf)
+
+    def test_map(self):
+        # calling map (via __str__) populates
+        dist = DistributionMap(self.session.query(Geography).filter_by(id=682))
+        self.assertFalse(dist._map)
+        map_ = str(dist)
+        self.assertEqual(map_, dist.map)
+        # map does change when geography does
+        dist = DistributionMap(self.session.query(Geography).filter_by(id=50))
+        self.assertNotEqual(map_, dist.map)
+
+    def test_as_image_starts_blank_then_populates(self):
+        # returns image immediately (even if not populated yet)
+        dist = DistributionMap(self.session.query(Geography).filter_by(id=682))
+        # initially None
+        self.assertIsNone(dist._world_pixbuf)
+        self.assertIsNone(dist._image)
+        # trigger creation
+        dist.world
+        # initially the same (Blank)
+        self.assertEqual(dist._world_pixbuf, dist.as_image().get_pixbuf())
+        self.assertIsNotNone(dist._image)
+        # populates with correct image after threads and idle_add complete
+        wait_on_threads()
+        update_gui()
+        self.assertNotEqual(dist._world_pixbuf, dist.as_image().get_pixbuf())
+
+    def test_set_base_map_no_session(self):
+        # calling map (via __str__) populates
+        dist = DistributionMap(self.session.query(Geography).filter_by(id=682))
+        self.assertFalse(dist._map)
+        db.Session = None
+        self.assertFalse(dist.map)
+
+
+class DistMapInfoExpanderMixinTests(BaubleTestCase):
+    def test_on_map_button_release(self):
+        btn = Gdk.EventButton()
+        btn.button = 1
+        self.assertFalse(
+            DistMapInfoExpanderMixin().on_map_button_release(None, btn, None)
+        )
+
+        btn = Gdk.EventButton()
+        btn.button = 3
+        self.assertTrue(
+            DistMapInfoExpanderMixin().on_map_button_release(
+                Gtk.EventBox(), btn, None
+            )
+        )
+
+    @mock.patch("bauble.plugins.plants.geography.Gtk.FileChooserNative")
+    def test_on_dist_map_save(self, mock_chooser):
+        geojson = {
+            "type": "Polygon",
+            "coordinates": [
+                [
+                    [159.07080078125, -31.599998474121094],
+                    [159.08578491210938, -31.561111450195312],
+                    [159.04913330078125, -31.52166748046875],
+                    [159.10189819335938, -31.57111358642578],
+                    [159.07080078125, -31.599998474121094],
+                ]
+            ],
+        }
+        geo = Geography(
+            name="Lord Howe I.",
+            code="NFK-LH",
+            level=4,
+            geojson=geojson,
+        )
+        mix = DistMapInfoExpanderMixin()
+        # mock filechooser to CANCEL and check that get_filename is not
+        # called
+        mock_chooser.new().run.return_value = Gtk.ResponseType.CANCEL
+        mix.on_dist_map_save(None, None, geo)
+        mock_chooser.new().get_filename.assert_not_called()
+
+        handle, filename = mkstemp(suffix=".svg")
+        mock_chooser.new().run.return_value = Gtk.ResponseType.ACCEPT
+        mock_chooser.new().get_filename.return_value = filename
+        mix.on_dist_map_save(None, None, geo)
+        mock_chooser.new().get_filename.assert_called()
+        os.close(handle)
+        with open(filename, "r", encoding="utf-8") as f:
+            out = f.read()
+
+        svg_paths = (
+            '<path stroke="black" stroke-width="0.1" fill="green" d='
+            '"M 339.07 121.6 L 339.09 121.56 L 339.05 121.52 L 339.1 121.57 Z"'
+            "/>"
+        )
+        svg = DistributionMap._world.format(selected=svg_paths)
+        self.assertEqual(out, svg)
+
+    @mock.patch("bauble.gui")
+    def test_on_dist_map_copy(self, mock_gui):
+        geojson = {
+            "type": "Polygon",
+            "coordinates": [
+                [
+                    [159.07080078125, -31.599998474121094],
+                    [159.08578491210938, -31.561111450195312],
+                    [159.04913330078125, -31.52166748046875],
+                    [159.10189819335938, -31.57111358642578],
+                    [159.07080078125, -31.599998474121094],
+                ]
+            ],
+        }
+        geo = Geography(
+            name="Lord Howe I.",
+            code="NFK-LH",
+            level=4,
+            geojson=geojson,
+        )
+        mix = DistMapInfoExpanderMixin()
+
+        mix.on_dist_map_copy(None, None, geo)
+        mock_gui.get_display_clipboard().set_image.assert_called_with(
+            geo.distribution_map().as_image().get_pixbuf()
         )
 
 

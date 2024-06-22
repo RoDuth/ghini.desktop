@@ -31,7 +31,7 @@ from ast import literal_eval
 
 logger = logging.getLogger(__name__)
 
-from gi.repository import Gtk  # noqa
+from gi.repository import Gtk
 from gi.repository import Pango
 from pyparsing import Optional
 from pyparsing import ParseResults
@@ -65,6 +65,7 @@ from .family import Family
 from .family import FamilySynonym
 from .genus import Genus
 from .genus import GenusSynonym
+from .geography import DistMapInfoExpanderMixin
 from .geography import map_kml_callback
 from .species_editor import SpeciesDistribution
 from .species_editor import SpeciesEditor
@@ -501,11 +502,11 @@ class SynonymsExpander(InfoExpander):
             self.set_sensitive(True)
 
 
-class GeneralSpeciesExpander(InfoExpander):
+class GeneralSpeciesExpander(DistMapInfoExpanderMixin, InfoExpander):
     """expander to present general information about a species"""
 
-    custom_columns = set()
-    current_db = None
+    custom_columns: set[str] = set()
+    current_db: int | None = None
 
     def __init__(self, widgets):
         super().__init__(_("General"), widgets)
@@ -617,20 +618,32 @@ class GeneralSpeciesExpander(InfoExpander):
             habit = utils.nstr(row.habit)
         self.widget_set_value("sp_habit_data", habit)
 
-        if self.widgets.sp_dist_box.get_children():
-            for child in self.widgets.sp_dist_box.get_children():
-                self.widgets.sp_dist_box.remove(child)
+        for child in self.widgets.dist_map_box.get_children():
+            self.widgets.dist_map_box.remove(child)
         on_clicked = utils.generate_on_clicked(select_in_search_results)
         if row.distribution:
+            map_event_box = Gtk.EventBox()
+            image = row.distribution_map().as_image()
+            map_event_box.add(image)
+            map_event_box.connect(
+                "button_release_event", self.on_map_button_release, row
+            )
+            self.widgets.dist_map_box.pack_start(
+                map_event_box, False, False, 0
+            )
+            expander = Gtk.Expander(label=_("Areas"), expanded=False)
+            box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
             for place in row.distribution:
                 event_box = Gtk.EventBox()
                 label = Gtk.Label(label=utils.nstr(place))
                 label.set_halign(Gtk.Align.START)
                 event_box.add(label)
-                self.widgets.sp_dist_box.pack_start(event_box, False, False, 0)
 
                 utils.make_label_clickable(label, on_clicked, place.geography)
-            self.widgets.sp_dist_box.show_all()
+                box.pack_start(event_box, False, False, 0)
+            expander.add(box)
+            self.widgets.dist_map_box.pack_start(expander, False, False, 0)
+            self.widgets.dist_map_box.show_all()
 
         dist = ""
         if row.label_distribution:

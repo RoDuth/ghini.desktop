@@ -22,20 +22,25 @@ The geography module,
 World Geographical Scheme for Recording Plant Distributions (WGSRPD)
 """
 import logging
+import threading
 import traceback
 from collections.abc import Iterable
 from collections.abc import Iterator
+from collections.abc import Sequence
 from dataclasses import dataclass
 from dataclasses import field
 from operator import itemgetter
 from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import Any
+from typing import Protocol
 from typing import Self
 from typing import cast
 
 logger = logging.getLogger(__name__)
 
+from gi.repository import Gdk
+from gi.repository import GdkPixbuf
 from gi.repository import Gio
 from gi.repository import GLib
 from gi.repository import Gtk
@@ -57,6 +62,7 @@ from sqlalchemy.orm import deferred
 from sqlalchemy.orm import object_session
 from sqlalchemy.orm import relationship
 
+import bauble
 from bauble import btypes as types
 from bauble import db
 from bauble import pb_set_fraction
@@ -228,11 +234,11 @@ class Geography(db.Base):
 
     id: int
     # columns
-    name = Column(Unicode(255), nullable=False)
-    code = Column(String(6), unique=True, nullable=False)
-    level = Column(Integer, nullable=False, autoincrement=False)
-    iso_code = Column(String(7))
-    geojson = deferred(Column(types.JSON()))
+    name: str = Column(Unicode(255), nullable=False)
+    code: str = Column(String(6), unique=True, nullable=False)
+    level: int = Column(Integer, nullable=False, autoincrement=False)
+    iso_code: str = Column(String(7))
+    geojson: dict = deferred(Column(types.JSON()))
     # don't use, can lead to InvalidRequestError (Collection unknown)
     # collection = relationship('Collection', back_populates='region')
     distribution: "SpeciesDistribution" = relationship(
@@ -240,7 +246,7 @@ class Geography(db.Base):
     )
 
     retrieve_cols = ["id", "code"]
-    parent_id = Column(Integer, ForeignKey("geography.id"))
+    parent_id: int = Column(Integer, ForeignKey("geography.id"))
     parent: Self | None
     children: list[Self] = relationship(
         "Geography",
@@ -373,9 +379,230 @@ class Geography(db.Base):
             parents.insert(0, geo)
         return parents
 
+    def as_svg_paths(self, fill: str = "green") -> str:
+        """Convert geography geojson to SVG path element strings."""
+        logger.debug("as_svg_paths, self=%s, fill=%s", self, fill)
+        svg_paths: list[str] = []
 
-class GeneralGeographyExpander(InfoExpander):
-    """Generic minimalist info about a geography."""
+        coords = self.geojson["coordinates"]
+        for shape in coords:
+            if self.geojson["type"] == "MultiPolygon":
+                for poly in shape:
+                    svg_paths.append(_path_string(poly, fill))
+            else:
+                svg_paths.append(_path_string(shape, fill))
+
+        return "".join(svg_paths)
+
+    def distribution_map(self) -> "DistributionMap":
+        logger.debug("distribution map %s", self)
+        return DistributionMap([self])
+
+
+@utils.timed_cache(size=1000, secs=None)
+def _coord_string(lon: int, lat: int) -> str:
+    """Convert WGS84 coordinates to SVG point strings."""
+    return f"{round(lon + 180, 2)} {round(180 - (lat + 90), 2)}"
+
+
+def _path_string(poly: Sequence[Iterable[int]], fill: str) -> str:
+    """Convert a WGS84 polygon to a SVG path string.
+
+    :param fill: fill colour value for the polygon
+    """
+    start = _coord_string(*poly[0])
+    middle = [f"L {_coord_string(*i)}" for i in poly[1:-1]]
+    d = f'M {start} {" ".join(middle)} Z'
+    return f'<path stroke="black" stroke-width="0.1" fill="{fill}" d="{d}"/>'
+
+
+class DistributionMap:
+    """Provide map images for geographies."""
+
+    _world: str = ""
+    _world_pixbuf: GdkPixbuf.Pixbuf | None = None
+    _image_cache: dict[int, Gtk.Image] = {}
+
+    def __init__(self, areas: Sequence[Geography]) -> None:
+        codes_str = "|".join(
+            i.code for i in sorted(areas, key=lambda x: x.code)
+        )
+        self._image_cache_key = hash(codes_str)
+        self._svg_paths = (i.as_svg_paths() for i in areas)
+        self._image: Gtk.Image | None = None
+        self._map: str = ""
+
+    @property
+    def map(self) -> str:
+        """Instance level SVG map for the supplied geographies."""
+        if not self._map:
+            logger.debug("generating map")
+            self._map = self.world.format(selected="".join(self._svg_paths))
+        return self._map
+
+    @property
+    def world(self) -> str:
+        """Class level SVG map template ready to take more paths in it's
+        `selected` placeholder.
+        """
+        if not self._world:
+            self._set_base_map()
+        return self._world
+
+    @property
+    def world_pixbuf(self) -> GdkPixbuf.Pixbuf:
+        """Class level map as a pixbuf, use to create blank map images."""
+        if not self._world_pixbuf:
+            self._set_base_map()
+        return cast(GdkPixbuf.Pixbuf, self._world_pixbuf)
+
+    @classmethod
+    def _set_base_map(cls) -> None:
+        """Set the class level world SVG map and pixbuf once."""
+        if not db.Session:
+            return
+        logger.debug("setting base map")
+        session = db.Session()
+        svg_paths = []
+        for geo in session.query(Geography).filter_by(level=1):
+            svg_paths.append(geo.as_svg_paths(fill="lightgrey"))
+        cls._world = (
+            '<svg xmlns="http://www.w3.org/2000/svg" width="360" height="180">'
+            f'{"".join(svg_paths)}'
+            "{selected}"
+            "</svg>"
+        )
+        loader = GdkPixbuf.PixbufLoader()
+        loader.write(cls._world.format(selected="").encode())
+        loader.close()
+        pixbuf = loader.get_pixbuf()
+        cls._world_pixbuf = pixbuf
+
+    def _generate_image(self) -> None:
+        """Generate an appropriate image pixbuf for the supplied geographies
+        and `idle_add` replace the current image's place holder pixbuf.
+
+        Run in a thread while the image, with a placeholder pixbuf, is used
+        replacing it's pixbuf when it becomes available.
+        """
+        loader = GdkPixbuf.PixbufLoader()
+        loader.write(str(self).encode())
+        loader.close()
+        pixbuf = loader.get_pixbuf()
+        if self._image:  # type guard
+            logger.debug("setting image pixbuf")
+            GLib.idle_add(self._image.set_from_pixbuf, pixbuf)
+
+    def as_image(self) -> Gtk.Image:
+        """Map as a Gtk.Image.
+
+        Images are cached for reuse.
+        """
+        if not self._image:
+            if self._image_cache_key in self._image_cache:
+                logger.debug("using cache image key=%s", self._image_cache_key)
+                self._image = self._image_cache[self._image_cache_key]
+            else:
+                logger.debug("creating image key=%s", self._image_cache_key)
+                self._image = Gtk.Image.new_from_pixbuf(self.world_pixbuf)
+                self._image_cache[self._image_cache_key] = self._image
+                threading.Thread(target=self._generate_image).start()
+        return self._image
+
+    def __str__(self) -> str:
+        return self.map
+
+    @classmethod
+    def reset(cls) -> None:
+        """Clear cache"""
+        logger.debug("reset distribution map cache")
+        cls._world = ""
+        cls._world_pixbuf = None
+        cls._image_cache = {}
+
+
+class DistMappable(Protocol):  # pylint: disable=too-few-public-methods
+    def distribution_map(self) -> DistributionMap:
+        pass
+
+
+class DistMapInfoExpanderMixin:
+    """Mixin to provide a right click menu for a DistributionMap in an
+    InfoExpander.
+
+    To use: Wrap the DistributionMap's image widget in an Gtk.EventBox and
+    connect it's button_release_event to `on_map_button_release` supplying the
+    current database row as user data.
+
+    e.g. - in the infoEpander's `update` method:
+            map_event_box = Gtk.EventBox()
+            map_event_box.add(row.distribution_map().as_image())
+            map_event_box.connect(
+                "button_release_event", self.on_map_button_release, row
+            )
+    """
+
+    MAP_ACTION_NAME: str = "distribution_map_activated"
+
+    def on_map_button_release(
+        self, box: Gtk.EventBox, event_btn: Gdk.EventButton, row: DistMappable
+    ) -> bool:
+        """On right click create menu and pop it up."""
+        if event_btn.button == 3:
+            logger.debug("infoexpander distribution map menu row=%s", row)
+            menu = Gio.Menu()
+            action_group = Gio.SimpleActionGroup()
+            menu_items = (
+                (_("Save"), "save", self.on_dist_map_save),
+                (_("Copy"), "copy", self.on_dist_map_copy),
+            )
+            for label, name, handler in menu_items:
+                action = Gio.SimpleAction.new(name, None)
+                action.connect("activate", handler, row)
+                action.set_enabled(True)
+                action_group.add_action(action)
+                menu_item = Gio.MenuItem.new(
+                    label, f"{self.MAP_ACTION_NAME}.{name}"
+                )
+                menu.append_item(menu_item)
+            context_menu = Gtk.Menu.new_from_model(menu)
+            context_menu.attach_to_widget(box)
+
+            box.insert_action_group(self.MAP_ACTION_NAME, action_group)
+            context_menu.popup_at_pointer(event_btn)
+            return True
+        return False
+
+    @staticmethod
+    def on_dist_map_save(_action, _param, row: DistMappable) -> None:
+        """Save as SVG file."""
+        filechooser = Gtk.FileChooserNative.new(
+            _("Save to…"), None, Gtk.FileChooserAction.SAVE
+        )
+        filechooser.set_current_folder(str(Path.home()))
+        filter_ = Gtk.FileFilter.new()
+        filter_.add_pattern("*.svg")
+        filechooser.add_filter(filter_)
+        filename = None
+        if filechooser.run() == Gtk.ResponseType.ACCEPT:
+            filename = filechooser.get_filename()
+        if filename:
+            logger.debug("saving SVG to %s", filename)
+            with Path(filename).open("w", encoding="utf-8") as f:
+                f.write(str(row.distribution_map()))
+        filechooser.destroy()
+
+    @staticmethod
+    def on_dist_map_copy(_action, _param, row: DistMappable) -> None:
+        """Copy the pixbuf to the clipboard."""
+        image = row.distribution_map().as_image()
+        if bauble.gui:
+            logger.debug("copying pixbuf")
+            bauble.gui.get_display_clipboard().set_image(image.get_pixbuf())
+
+
+class GeneralGeographyExpander(DistMapInfoExpanderMixin, InfoExpander):
+    """Generic info about a geography."""
 
     def __init__(self, widgets):
         super().__init__(_("General"), widgets)
@@ -384,7 +611,22 @@ class GeneralGeographyExpander(InfoExpander):
         self.vbox.pack_start(general_box, True, True, 0)
         self.table_cells = []
 
-    def update(self, row):
+    def update(self, row: Geography) -> None:
+        for child in self.widgets.map_box.get_children():
+            self.widgets.map_box.remove(child)
+
+        map_event_box = Gtk.EventBox()
+        image = row.distribution_map().as_image()
+
+        if parent := cast(Gtk.Container, image.get_parent()):
+            parent.remove(image)
+
+        map_event_box.add(image)
+        map_event_box.connect(
+            "button_release_event", self.on_map_button_release, row
+        )
+        self.widgets.map_box.pack_start(map_event_box, False, False, 0)
+
         on_clicked = utils.generate_on_clicked(select_in_search_results)
         level = ["Continent", "Region", "Bot. Country", "Unit"][row.level - 1]
         self.widget_set_value("name_label", row.name)

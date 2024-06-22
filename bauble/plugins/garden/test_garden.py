@@ -202,15 +202,41 @@ location_test_data = (
 )
 
 geography_test_data = [
-    {"id": 1, "code": "SWH", "name": "Somewhere", "level": 1},
+    {
+        "id": 1,
+        "code": "SWH",
+        "name": "Somewhere",
+        "level": 1,
+        "geojson": {
+            "type": "Polygon",
+            "coordinates": [
+                [
+                    [167.96496, -29.081111],
+                    [167.91247, -29.005279],
+                    [167.96496, -29.081111],
+                ]
+            ],
+        },
+    },
     {
         "id": 2,
         "code": "SWH-SA",
         "name": "SomewhereSubArea",
         "parent_id": 1,
         "level": 2,
+        "geojson": {
+            "type": "Polygon",
+            "coordinates": [
+                [
+                    [167.9649658203125, -29.081111907958984],
+                    [167.9124755859375, -29.005279541015625],
+                    [167.9649658203125, -29.081111907958984],
+                ]
+            ],
+        },
     },
 ]
+
 
 source_detail_data = (
     {"id": 1, "name": "Jade Green", "source_type": "Individual"},
@@ -261,7 +287,10 @@ collection_test_data = (
 )
 
 # needs to be here (not in test_plants) or will fail in postgresql
-species_distribution_test_data = ({"species_id": 3, "geography_id": 1},)
+species_distribution_test_data = (
+    {"species_id": 3, "geography_id": 1},
+    {"species_id": 1, "geography_id": 1},
+)
 
 default_propagation_values = {
     "notes": "test notes",
