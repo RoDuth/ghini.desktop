@@ -677,6 +677,8 @@ class PicturesScroller(Gtk.ScrolledWindow):
     picture to display.
     """
 
+    first_run: bool = True
+
     def __init__(self, parent: Gtk.Paned, pic_pane: Gtk.Paned) -> None:
         logger.debug("entering PicturesScroller.__init__(parent=%s)", parent)
         super().__init__()
@@ -710,16 +712,29 @@ class PicturesScroller(Gtk.ScrolledWindow):
     def _hide_restore_pic_pane(self, selection: list | None) -> None:
         if self.last_result_succeed:
             self.restore_position = self.pic_pane.get_position()
+        if self.first_run:
+            if bauble.gui:
+                width = bauble.gui.window.get_size().width
+                self.pic_pane.set_position(width - 6)
         if not selection:
             # No result or error
-            if bauble.gui:
+            if bauble.gui and not self.first_run:
                 width = bauble.gui.window.get_size().width
                 self.pic_pane.set_position(width - 6)
             self.last_result_succeed = False
         else:
             # successful
             if self.restore_position:
-                self.pic_pane.set_position(self.restore_position)
+                if self.last_result_succeed:
+                    self.pic_pane.set_position(self.restore_position)
+                    self.first_run = False
+                else:
+                    # first_run need to wait for everything to initialise or
+                    # will get a pic_pane even when one isn't intended
+                    GLib.idle_add(
+                        self.pic_pane.set_position, self.restore_position
+                    )
+
             self.last_result_succeed = True
 
     def set_selection(self, selection):
