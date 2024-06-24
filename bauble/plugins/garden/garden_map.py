@@ -417,10 +417,8 @@ def map_item_factory(obj: Plant | Location, colour: Colour) -> MapItem | None:
     """Creates an appropriate MapItem for the supplied obj."""
     geojson = getattr(obj, "geojson", None)
     if geojson:
-        map_type = geojson.get("type", "")
-        if map_type:
-            adaptor = MAP_ADAPTORS.get(map_type)
-            if adaptor:
+        if map_type := geojson.get("type"):
+            if adaptor := MAP_ADAPTORS.get(map_type):
                 return adaptor(obj.id, geojson, colour)
     return None
 
@@ -442,10 +440,10 @@ class GardenMap(Gtk.Paned):  # pylint: disable=too-many-instance-attributes
     def __init__(self, map_: OsmGpsMap.Map) -> None:
         super().__init__()
         # NOTE max zoom is hard set to 20 (less for some MapSources)
-        self.map: OsmGpsMap.Map = map_
+        self.map_ = map_
         self.set_tiles_from_prefs()
 
-        self.map_box.pack_start(self.map, True, True, 0)
+        self.map_box.pack_start(self.map_, True, True, 0)
 
         self.reset_item_colour: Callable[[], None] | None = None
 
@@ -557,8 +555,8 @@ class GardenMap(Gtk.Paned):  # pylint: disable=too-many-instance-attributes
         i = 0
         while True:
             try:
-                if self.map.source_get_repo_uri(i):
-                    options[self.map.source_get_friendly_name(i)] = i
+                if self.map_.source_get_repo_uri(i):
+                    options[self.map_.source_get_friendly_name(i)] = i
             except TypeError:
                 break
             i += 1
@@ -566,7 +564,7 @@ class GardenMap(Gtk.Paned):  # pylint: disable=too-many-instance-attributes
 
     def set_tiles_from_prefs(self):
         base_tiles = prefs.prefs.get(MAP_TILES_PREF_KEY, 1)
-        self.map.set_property("map-source", OsmGpsMap.MapSource_t(base_tiles))
+        self.map_.set_property("map-source", OsmGpsMap.MapSource_t(base_tiles))
 
 
 class SearchViewMapPresenter:  # pylint: disable=too-many-instance-attributes
@@ -579,7 +577,9 @@ class SearchViewMapPresenter:  # pylint: disable=too-many-instance-attributes
         self.garden_map = garden_map
         self.garden_map.reset_item_colour = self.reset_item_colour
         self.garden_map.connect("destroy", self.on_destroy)
-        self.garden_map.map.connect("button_press_event", self.on_button_press)
+        self.garden_map.map_.connect(
+            "button_press_event", self.on_button_press
+        )
         self.clear_locations_cache = False
         self.selected: set[tuple[str, int]] = set()
         self.selected_bbox = BoundingBox()
@@ -603,9 +603,10 @@ class SearchViewMapPresenter:  # pylint: disable=too-many-instance-attributes
         if bauble.gui and isinstance(
             view := bauble.gui.get_view(), SearchView
         ):
+            child1 = cast(Gtk.Paned, view.pic_pane.get_child1())
             width = (
                 view.pic_pane.get_allocation().width
-                - view.pic_pane.get_child1().get_allocation().width  # type: ignore # noqa
+                - child1.get_allocation().width
                 - 5
             )
             logger.debug("map_is_visble width = %s", width)
@@ -621,7 +622,7 @@ class SearchViewMapPresenter:  # pylint: disable=too-many-instance-attributes
         if location_polys := get_locations_polys():
             for map_item in location_polys.values():
                 map_item.set_colour(self.garden_map.map_location_colour)
-                map_item.add_to_map(self.garden_map.map, glib=False)
+                map_item.add_to_map(self.garden_map.map_, glib=False)
                 self.loc_items[map_item.id_] = map_item
 
     def on_button_press(self, _map: OsmGpsMap.Map, gevent: Gdk.Event) -> None:
@@ -645,20 +646,20 @@ class SearchViewMapPresenter:  # pylint: disable=too-many-instance-attributes
             menu_item = Gio.MenuItem.new(label, f"{action_name}.{name}")
             menu.append_item(menu_item)
 
-        self.garden_map.map.insert_action_group(action_name, action_group)
+        self.garden_map.map_.insert_action_group(action_name, action_group)
         self.context_menu = Gtk.Menu.new_from_model(menu)
-        self.context_menu.attach_to_widget(self.garden_map.map)
+        self.context_menu.attach_to_widget(self.garden_map.map_)
 
     def on_zoom_to_selected(self, *_args) -> None:
         if self.selected:
             max_lat, min_lat, max_long, min_long = astuple(self.selected_bbox)
-            self.garden_map.map.zoom_fit_bbox(
+            self.garden_map.map_.zoom_fit_bbox(
                 max_lat, min_lat, max_long, min_long
             )
 
     def zoom_to_home(self, *_args) -> None:
         institution = Institution()
-        self.garden_map.map.set_center_and_zoom(
+        self.garden_map.map_.set_center_and_zoom(
             float(institution.geo_latitude or 0),
             float(institution.geo_longitude or 0),
             int(institution.geo_zoom or 16),
@@ -685,7 +686,7 @@ class SearchViewMapPresenter:  # pylint: disable=too-many-instance-attributes
                 map_item.set_colour(
                     self.garden_map.map_location_selected_colour
                 )
-        self.garden_map.map.map_redraw()
+        self.garden_map.map_.map_redraw()
 
     def on_destroy(self, *_args) -> None:
         """Cancel running threads on exit"""
@@ -707,7 +708,7 @@ class SearchViewMapPresenter:  # pylint: disable=too-many-instance-attributes
             if map_item:
                 self.plt_items[plant.id] = map_item
                 source = GLib.idle_source_new()
-                source.set_callback(map_item.add_to_map, self.garden_map.map)
+                source.set_callback(map_item.add_to_map, self.garden_map.map_)
                 source.attach()
                 glib_events[plant.id] = source
 
@@ -743,9 +744,9 @@ class SearchViewMapPresenter:  # pylint: disable=too-many-instance-attributes
 
         self.plt_items.clear()
         self.selected.clear()
-        self.garden_map.map.image_remove_all()
-        self.garden_map.map.track_remove_all()
-        self.garden_map.map.polygon_remove_all()
+        self.garden_map.map_.image_remove_all()
+        self.garden_map.map_.track_remove_all()
+        self.garden_map.map_.polygon_remove_all()
         self.populated = False
         if results and self.is_visible():
             logger.debug("populating the map")
@@ -844,7 +845,7 @@ class SearchViewMapPresenter:  # pylint: disable=too-many-instance-attributes
                 self._highlight_location(value.id)
 
         GLib.idle_add(self.update_selected_bbox)
-        GLib.idle_add(self.garden_map.map.map_redraw)
+        GLib.idle_add(self.garden_map.map_.map_redraw)
 
     def _highlight_plant(self, id_: int) -> None:
         map_item = self.plt_items.get(id_)
@@ -907,7 +908,7 @@ class SearchViewMapPresenter:  # pylint: disable=too-many-instance-attributes
                 self.redraw_on_update = True
         else:
             if item := self.loc_items.get(target.id):
-                item.remove_from_map(self.garden_map.map)
+                item.remove_from_map(self.garden_map.map_)
                 del self.loc_items[target.id]
         logger.debug("setting clear_locations_cache True")
         self.clear_locations_cache = True
@@ -917,7 +918,7 @@ class SearchViewMapPresenter:  # pylint: disable=too-many-instance-attributes
     ) -> None:
         id_ = target.id
         if item := self.loc_items.get(id_):
-            item.remove_from_map(self.garden_map.map)
+            item.remove_from_map(self.garden_map.map_)
             del self.loc_items[target.id]
         self.clear_locations_cache = True
 
@@ -932,14 +933,14 @@ class SearchViewMapPresenter:  # pylint: disable=too-many-instance-attributes
                 "coordinates"
             ):
                 logger.debug("removing plant map_item %s", id_)
-                item.remove_from_map(self.garden_map.map)
+                item.remove_from_map(self.garden_map.map_)
                 del self.plt_items[id_]
         # add new to map
         if target.geojson:
             logger.debug("adding plant map_item %s", id_)
             new = map_item_factory(target, self.garden_map.map_plant_colour)
             if new:
-                new.add_to_map(self.garden_map.map, glib=False)
+                new.add_to_map(self.garden_map.map_, glib=False)
                 self.plt_items[id_] = new
 
     def update_after_plant_delete(
@@ -948,7 +949,7 @@ class SearchViewMapPresenter:  # pylint: disable=too-many-instance-attributes
         id_ = target.id
         if item := self.plt_items.get(id_):
             logger.debug("deleting plant map_item %s", id_)
-            item.remove_from_map(self.garden_map.map)
+            item.remove_from_map(self.garden_map.map_)
             del self.plt_items[id_]
 
 

@@ -94,7 +94,7 @@ poly = {
 class TestGardenMap(BaubleTestCase):
     def test_empty_garden_map(self):
         map_ = GardenMap(Map())
-        self.assertEqual(map_.map.get_property("map-source"), 1)
+        self.assertEqual(map_.map_.get_property("map-source"), 1)
 
     def test_map_item_fatory_plant_point(self):
         plant = Plant(geojson=point)
@@ -141,7 +141,7 @@ class TestGardenMap(BaubleTestCase):
         glib_events[1] = True
         colour = colours.get("white")
         map_item = MapPoint(1, point, colour)
-        map_item.add_to_map(map_.map)
+        map_item.add_to_map(map_.map_)
         self.assertIsInstance(map_item.point, MapImage)
         self.assertEqual(glib_events, {})
 
@@ -149,7 +149,7 @@ class TestGardenMap(BaubleTestCase):
         map_ = GardenMap(Map())
         colour = colours.get("white")
         map_item = MapPoint(1, point, colour)
-        map_item.add_to_map(map_.map)
+        map_item.add_to_map(map_.map_)
         mock_map = mock.Mock()
         map_item.remove_from_map(mock_map)
         mock_map.image_remove.assert_called_with(map_item.point)
@@ -158,7 +158,7 @@ class TestGardenMap(BaubleTestCase):
         map_ = GardenMap(Map())
         colour = colours.get("white")
         map_item = MapPoint(1, point, colour)
-        map_item.add_to_map(map_.map)
+        map_item.add_to_map(map_.map_)
         self.assertIsNone(map_item.point)
         self.assertEqual(glib_events, {})
 
@@ -170,7 +170,7 @@ class TestGardenMap(BaubleTestCase):
         glib_events[1] = True
         colour = colours.get("yellow")
         map_item = MapLine(1, line, colour)
-        map_item.add_to_map(map_.map)
+        map_item.add_to_map(map_.map_)
         self.assertIsInstance(map_item._line, MapTrack)
         self.assertEqual(glib_events, {})
 
@@ -186,7 +186,7 @@ class TestGardenMap(BaubleTestCase):
         map_ = GardenMap(Map())
         colour = colours.get("green")
         map_item = MapLine(1, line, colour)
-        map_item.add_to_map(map_.map)
+        map_item.add_to_map(map_.map_)
         self.assertIsNone(map_item._line)
         self.assertEqual(glib_events, {})
 
@@ -198,7 +198,7 @@ class TestGardenMap(BaubleTestCase):
         glib_events[1] = True
         colour = colours.get("yellow")
         map_item = MapPoly(1, poly, colour)
-        map_item.add_to_map(map_.map)
+        map_item.add_to_map(map_.map_)
         self.assertIsInstance(map_item._poly, MapPolygon)
         self.assertEqual(glib_events, {})
 
@@ -214,7 +214,7 @@ class TestGardenMap(BaubleTestCase):
         map_ = GardenMap(Map())
         colour = colours.get("green")
         map_item = MapPoly(1, poly, colour)
-        map_item.add_to_map(map_.map)
+        map_item.add_to_map(map_.map_)
         self.assertIsNone(map_item._poly)
         self.assertEqual(glib_events, {})
 
@@ -272,12 +272,12 @@ class TestGardenMap(BaubleTestCase):
     def test_on_tiles_combo_changed(self):
         map_ = GardenMap(Map())
         # pylint: disable=no-member
-        self.assertEqual(map_.map.props.map_source, 1)
+        self.assertEqual(map_.map_.props.map_source, 1)
         mock_combo = mock.Mock()
         mock_combo.get_active_text.return_value = "Google Maps"
         map_.on_tiles_combo_changed(mock_combo)
         self.assertEqual(prefs.prefs.get(MAP_TILES_PREF_KEY), 7)
-        self.assertEqual(map_.map.props.map_source, 7)
+        self.assertEqual(map_.map_.props.map_source, 7)
 
     def test_set_colour_prefs_from_combo(self):
         map_ = GardenMap(Map())
@@ -699,7 +699,7 @@ class TestSearchViewMapPresenter(BaubleTestCase):
             mock_poly = mock.Mock()
             mock_get_polys.return_value = {1: mock_poly}
             presenter.add_locations()
-            mock_poly.add_to_map.assert_called_with(map_.map, glib=False)
+            mock_poly.add_to_map.assert_called_with(map_.map_, glib=False)
 
     def test_reset_selected_colour(self):
         map_ = GardenMap(Map())
@@ -763,14 +763,14 @@ class TestSearchViewMapPresenter(BaubleTestCase):
         presenter = SearchViewMapPresenter(map_)
         presenter.is_visible = lambda: True
         presenter.selected_bbox = BoundingBox(1.0, 0.1, 1.0, 0.1)
-        map_.map = mock.Mock()
+        map_.map_ = mock.Mock()
         presenter.selected = [("plt", 1)]
         presenter.on_zoom_to_selected()
-        map_.map.zoom_fit_bbox.assert_called_with(1.0, 0.1, 1.0, 0.1)
-        map_.map.reset_mock()
+        map_.map_.zoom_fit_bbox.assert_called_with(1.0, 0.1, 1.0, 0.1)
+        map_.map_.reset_mock()
         presenter.selected = []
         presenter.on_zoom_to_selected()
-        map_.map.zoom_fit_bbox.assert_not_called()
+        map_.map_.zoom_fit_bbox.assert_not_called()
 
     def test_highlight_location(self):
         for func in get_setUp_data_funcs():
@@ -802,7 +802,7 @@ class TestSearchViewMapPresenter(BaubleTestCase):
         map_item = map_item_factory(plt1, colours["red"])
         # for point the only way to create the item is to add it to the map
         glib_events[1] = True
-        map_item.add_to_map(map_.map)
+        map_item.add_to_map(map_.map_)
         presenter.plt_items[1] = map_item
         presenter._highlight_plant(1)
         update_gui()
