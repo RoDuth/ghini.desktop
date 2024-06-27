@@ -44,6 +44,7 @@ import traceback
 from abc import ABC
 from abc import abstractmethod
 from pathlib import Path
+from typing import Iterable
 from typing import Protocol
 
 from gi.repository import Gtk  # noqa
@@ -547,7 +548,7 @@ class View:
 
 
 class CommandHandler(ABC):
-    command: str | list[str]
+    command: str | Iterable[str]
 
     def get_view(self) -> View | None:
         """return the view for this command handler"""
