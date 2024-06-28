@@ -39,8 +39,8 @@ from bauble.i18n import _
 
 
 class Institution:
-    """Institution is a "live" object. When properties are changed the changes
-    are immediately reflected in the database.
+    """Institution is a "live" object, you only need to set a value on it and
+    then call `write` to persist them to the database.
 
     Institution values are stored in the Ghini meta database and not in its own
     table

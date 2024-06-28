@@ -74,8 +74,7 @@ def lib_dir():
 def locale_dir():
     """Returns the root path of the locale files"""
 
-    the_installation_directory = installation_dir()
-    directory = os.path.join(the_installation_directory, "share", "locale")
+    directory = os.path.join(installation_dir(), "share", "locale")
     return os.path.abspath(directory)
 
 

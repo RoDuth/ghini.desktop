@@ -511,13 +511,13 @@ class Tool:  # pylint: disable=too-few-public-methods
 
 class ViewThread(Protocol):
     def cancel(self):
-        ...
+        """Cancel thread."""
 
     def join(self):
-        ...
+        """Join to the thread"""
 
     def start(self):
-        ...
+        """Start thread"""
 
 
 class View:

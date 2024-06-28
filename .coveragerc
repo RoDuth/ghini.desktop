@@ -7,5 +7,6 @@ concurrency = multiprocessing,thread
 exclude_lines = 
     if typing.TYPE_CHECKING:
     if TYPE_CHECKING:
+    if main_is_frozen\(\):
     raise NotImplementedError
     pragma: no cover

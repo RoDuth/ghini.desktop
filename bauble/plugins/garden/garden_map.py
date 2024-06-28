@@ -748,7 +748,6 @@ class LocationSearchMap(Gtk.Frame):
 
     def get_first_match(self, lat: float, long: float) -> MapPoly | None:
         """Find the first location which contains the supplied lat, long."""
-        print(lat, long)
         for poly in self.loc_items.values():
             if is_point_within_poly(long, lat, poly.coordinates[0]):
                 return poly
