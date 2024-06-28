@@ -50,6 +50,7 @@ from .accession import AccessionEditor
 from .accession import AccessionInfoBox
 from .accession import AccessionNote
 from .accession import acc_context_menu
+from .garden_map import LocationSearchMap
 from .institution import Institution
 from .institution import InstitutionCommand
 from .institution import InstitutionTool
@@ -395,6 +396,11 @@ class GardenPlugin(pluginmgr.Plugin):
 
             if institution.geo_latitude and institution.geo_longitude:
                 setup_garden_map()
+                loc_map = LocationSearchMap()
+                loc_map.clear_locations()
+                bauble.ui.DefaultView.main_widget = loc_map
+            else:
+                bauble.ui.DefaultView.main_widget = None
 
     @staticmethod
     def on_inactive_toggled(action, value):

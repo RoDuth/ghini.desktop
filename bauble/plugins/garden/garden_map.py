@@ -25,11 +25,11 @@ import threading
 import urllib.parse
 from abc import ABC
 from abc import abstractmethod
+from collections.abc import Callable
+from collections.abc import Sequence
 from dataclasses import astuple
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable
-from typing import Sequence
 from typing import TypedDict
 from typing import cast
 
@@ -44,6 +44,9 @@ from gi.repository import Gio
 from gi.repository import GLib
 from gi.repository import Gtk
 from gi.repository import OsmGpsMap  # type: ignore[attr-defined]
+
+from polylabel import polylabel
+from sqlalchemy import Table
 from sqlalchemy import engine
 from sqlalchemy import event
 
@@ -54,6 +57,7 @@ from bauble import prefs
 from bauble.i18n import _
 from bauble.utils import get_net_sess
 from bauble.utils import timed_cache
+from bauble.utils.geo import is_point_within_poly
 from bauble.view import SearchView
 
 from .institution import Institution
@@ -260,13 +264,32 @@ class MapItem(ABC):
 
 
 class MapPoly(MapItem):
-    def __init__(self, id_: int, geojson: GEOJSONPoly, colour: Colour) -> None:
+    LABEL_TEMPLATE = (
+        '<svg width="110%" xmlns="http://www.w3.org/2000/svg">'
+        "<g><text "
+        'style="'
+        "font: bold 12px sans-serif; "
+        "stroke: white; "
+        "stroke-width: 2px; "
+        'paint-order: stroke" '
+        'y="100%">{label_text}</text></g></svg>'
+    )
+
+    def __init__(
+        self,
+        id_: int,
+        geojson: GEOJSONPoly,
+        colour: Colour,
+        label_txt: str = "",
+    ) -> None:
         if not geojson["type"] == "Polygon":
             raise TypeError("the provided geojson is not of type Polygon")
         self.id_ = id_
         self.coordinates = geojson["coordinates"]
         self.rgba = colour.rgba
+        self.label_txt = label_txt
         self._poly: OsmGpsMap.MapPolygon | None = None
+        self._label: GdkPixbuf.Pixbuf | None = None
 
     @property
     def poly(self) -> OsmGpsMap.MapPolygon:
@@ -283,9 +306,27 @@ class MapPoly(MapItem):
         for point in self.coordinates[0]:
             track.add_point(OsmGpsMap.MapPoint.new_degrees(*point[::-1]))
 
-    def add_to_map(self, map_: OsmGpsMap.Map, glib=True) -> None:
+    @property
+    def label(self) -> OsmGpsMap.MapImage:
+        if not self._label:
+            self.create_label()
+        return self._label
+
+    def create_label(self) -> None:
+        loader = GdkPixbuf.PixbufLoader()
+        lbl_svg = self.LABEL_TEMPLATE.format(label_text=self.label_txt)
+        loader.write(lbl_svg.encode())
+        loader.close()
+        self._label = loader.get_pixbuf()
+
+    def add_to_map(
+        self, map_: OsmGpsMap.Map, glib=True, with_label=False
+    ) -> None:
         if not glib or glib_events.get(self.id_):
             map_.polygon_add(self.poly)
+            if with_label:
+                long, lat = polylabel(self.coordinates, precision=0.0001)
+                map_.image_add(lat, long, self.label)
             if glib:
                 del glib_events[self.id_]
 
@@ -565,6 +606,159 @@ class GardenMap(Gtk.Paned):  # pylint: disable=too-many-instance-attributes
     def set_tiles_from_prefs(self):
         base_tiles = prefs.prefs.get(MAP_TILES_PREF_KEY, 1)
         self.map_.set_property("map-source", OsmGpsMap.MapSource_t(base_tiles))
+
+
+class LocationSearchMap(Gtk.Frame):
+    """Simple location search widget.  Used to visually generate a search for
+    locations from splash screen
+    """
+
+    loc_items: dict[int, MapPoly] = {}
+
+    def __init__(self) -> None:
+        super().__init__(label=_("Location Search"))
+        proxy = get_map_tile_proxy()
+        self.map_ = OsmGpsMap.Map(proxy_uri=proxy)
+        self.map_.layer_add(
+            OsmGpsMap.MapOsd(
+                show_dpad=True,
+                show_zoom=True,
+            )
+        )
+        self.map_.connect("button_press_event", self.on_button_press)
+        box = Gtk.Box(margin=10)
+        self.add(box)
+        box.pack_start(self.map_, True, True, 0)
+        self.selected: set[tuple[str, int]] = set()
+
+    @classmethod
+    def history_callback(cls, table: Table) -> None:
+        """Update after history revert_to changes for locations."""
+        if table is Location.__table__:
+            cls.clear_locations()
+
+    @classmethod
+    def clear_locations(cls, *_args) -> None:
+        logger.debug("clear_locations")
+        cls.loc_items.clear()
+
+    @classmethod
+    def update_locations(cls) -> None:
+        """Reload loc_items if it is empty.
+
+        NOTE this clears the cache on get_locations_polys before and after to
+        ensure seperate objects to GardenMap.
+        """
+        if cls.loc_items:
+            return
+        get_locations_polys.clear_cache()
+        if location_polys := get_locations_polys():
+            map_item: MapPoly
+            for map_item in location_polys.values():
+                map_item.set_colour(
+                    colours[
+                        prefs.prefs.get(MAP_LOCATION_COLOUR_PREF_KEY, "grey")
+                    ]
+                )
+                cls.loc_items[map_item.id_] = map_item
+        get_locations_polys.clear_cache()
+
+    def update(self) -> None:
+        """Clear labels and polygons, repopulate from loc_items and zoom to
+        home.
+        """
+        logger.debug("updating LocationSearchMap")
+        self.update_locations()
+
+        base_tiles = prefs.prefs.get(MAP_TILES_PREF_KEY, 1)
+        self.map_.set_property("map-source", OsmGpsMap.MapSource_t(base_tiles))
+        self.map_.polygon_remove_all()
+        self.map_.image_remove_all()
+
+        for map_item in self.loc_items.values():
+            map_item.add_to_map(self.map_, glib=False, with_label=True)
+
+        institution = Institution()
+        self.map_.set_center_and_zoom(
+            float(institution.geo_latitude or 0),
+            float(institution.geo_longitude or 0),
+            int(institution.geo_zoom or 16),
+        )
+
+    def on_button_press(self, _map: OsmGpsMap.Map, gevent: Gdk.Event) -> None:
+        """Allows shift click to select multiples and on final click (no
+        modifier key) runs a search for selected.
+
+        If none selected on final click searches for the single location.
+        """
+        current = _map.convert_screen_to_geographic(
+            int(gevent.x), int(gevent.y)  # type: ignore [attr-defined]
+        )
+        if (
+            gevent.button == 1
+            and gevent.get_state() == Gdk.ModifierType.SHIFT_MASK
+        ):
+            logger.debug(
+                "selected now: %s",
+                ", ".join(i[0] for i in self.selected),
+            )
+            if poly := self.get_first_match(*current.get_degrees()):
+                self.selected.add((poly.label_txt, poly.id_))
+                colour = prefs.prefs.get(MAP_LOCATION_SELECTED_COLOUR_PREF_KEY)
+                if colour not in colours:
+                    colour = "white"
+                poly.set_colour(colours[colour])
+        elif gevent.button == 1:
+            if poly := self.get_first_match(*current.get_degrees()):
+                if self.selected:
+                    self.selected.add((poly.label_txt, poly.id_))
+                    locs = ", ".join(repr(i[0]) for i in self.selected)
+                    search_str = f"loc in {locs}"
+                else:
+                    self.selected.add((poly.label_txt, poly.id_))
+                    search_str = f"loc = {repr(poly.label_txt)}"
+                logger.debug("search string: %s", search_str)
+                if bauble.gui:
+                    bauble.gui.send_command(search_str)
+                    if map_presenter:
+                        bbox = BoundingBox()
+                        for __, id_ in self.selected:
+                            bbox.update(*self.loc_items[id_].get_lats_longs())
+                        GLib.idle_add(  # type: ignore [call-arg]
+                            map_presenter.garden_map.map_.zoom_fit_bbox,
+                            *astuple(bbox),
+                            priority=GLib.PRIORITY_LOW,
+                        )
+            self.clear_selected()
+        else:
+            self.clear_selected()
+
+        self.map_.map_redraw()
+
+    def clear_selected(self) -> None:
+        """Set all items back to default colours and remove items from
+        self.selected
+        """
+        colour = prefs.prefs.get(MAP_LOCATION_COLOUR_PREF_KEY)
+        if colour not in colours:
+            colour = "grey"
+        for __, id_ in self.selected:
+            self.loc_items[id_].set_colour(colours[colour])
+        self.selected.clear()
+
+    def get_first_match(self, lat: float, long: float) -> MapPoly | None:
+        """Find the first location which contains the supplied lat, long."""
+        print(lat, long)
+        for poly in self.loc_items.values():
+            if is_point_within_poly(long, lat, poly.coordinates[0]):
+                return poly
+        return None
+
+
+event.listen(Location, "after_update", LocationSearchMap.clear_locations)
+event.listen(Location, "after_insert", LocationSearchMap.clear_locations)
+event.listen(Location, "after_delete", LocationSearchMap.clear_locations)
+db.History.history_revert_callbacks.append(LocationSearchMap.history_callback)
 
 
 class SearchViewMapPresenter:  # pylint: disable=too-many-instance-attributes
@@ -973,7 +1167,7 @@ def get_locations_polys() -> dict[int, MapPoly]:
 
     for loc in session.query(Location).filter(Location.geojson.isnot(None)):
         if loc.geojson["type"] == "Polygon":
-            poly = MapPoly(loc.id, loc.geojson, colour)
+            poly = MapPoly(loc.id, loc.geojson, colour, label_txt=loc.code)
             poly.create_item()
             poly.set_props(alpha=0.7, line_width=2)
             polys[loc.id] = poly

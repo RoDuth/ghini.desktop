@@ -523,7 +523,7 @@ class DistributionMap:
 
 class DistMappable(Protocol):  # pylint: disable=too-few-public-methods
     def distribution_map(self) -> DistributionMap:
-        pass
+        """Return a DistributionMap instance"""
 
 
 class DistMapInfoExpanderMixin:

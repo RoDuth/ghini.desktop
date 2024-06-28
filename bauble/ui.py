@@ -25,6 +25,7 @@ import os
 import traceback
 from collections.abc import Callable
 from pathlib import Path
+from typing import Protocol
 
 logger = logging.getLogger(__name__)
 
@@ -88,7 +89,7 @@ class SimpleSearchBox(Gtk.Frame):
         self.entry.set_completion(completion)
         self.entry.connect("activate", self.on_entry_activated)
         self.entry.connect("changed", self.on_entry_changed)
-        box.add(self.entry)
+        box.pack_start(self.entry, True, True, 0)
         self.completion_getter = None
 
     def on_entry_activated(self, entry):
@@ -157,6 +158,27 @@ class SimpleSearchBox(Gtk.Frame):
         self.entry.set_text("")
 
 
+class Updateable(Protocol):  # pylint: disable=too-few-public-methods
+    def update(self):
+        """Update the widget"""
+
+
+# best solution I could come up with for the MetaClass conflict between
+# Protocol and GObject
+PMeta: type = type(Protocol)
+
+
+WMeta: type = type(Gtk.Widget)
+
+
+class _UWMeta(PMeta, WMeta):
+    pass
+
+
+class UpdateableWidget(Gtk.Widget, Updateable, metaclass=_UWMeta):
+    pass
+
+
 class DefaultView(pluginmgr.View, Gtk.Box):
     """consider DefaultView a splash screen.
 
@@ -167,38 +189,30 @@ class DefaultView(pluginmgr.View, Gtk.Box):
     view.DefaultCommandHandler
     """
 
-    infoboxclass = None
+    infoboxclass: type[UpdateableWidget] | None = None
+    main_widget: UpdateableWidget | Gtk.Widget | None = None
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
 
         # splash window contains a hbox: left half is for the proper splash,
         # right half for infobox, only one infobox is allowed.
 
         self.hbox = Gtk.Box()
-        self.add(self.hbox)
-        self.hbox.set_hexpand(True)
-        self.hbox.set_vexpand(True)
+        self.pack_start(self.hbox, True, True, 0)
 
-        self.vbox = Gtk.Box(
-            homogeneous=False, spacing=0, orientation=Gtk.Orientation.VERTICAL
-        )
-        image = Gtk.Image()
-        image.set_from_file(
-            os.path.join(paths.lib_dir(), "images", "bauble_logo.png")
-        )
-        image.set_valign(Gtk.Align.END)
-        self.vbox.pack_start(image, True, True, 10)
+        self.vbox = Gtk.Box(spacing=0, orientation=Gtk.Orientation.VERTICAL)
         self.search_box = SimpleSearchBox()
         self.search_box.set_valign(Gtk.Align.START)
-        self.vbox.pack_start(self.search_box, True, True, 0)
+        self.search_box.set_vexpand(False)
+        self.vbox.pack_start(self.search_box, False, True, 5)
 
-        self.hbox.set_center_widget(self.vbox)
+        self.hbox.pack_start(self.vbox, True, True, 0)
 
-        # the following means we do not have an infobox yet
-        self.infobox = None
+        self.infobox: UpdateableWidget | None = None
+        self._main_widget: UpdateableWidget | Gtk.Widget | None = None
 
-    def update(self, *_args):
+    def update(self, *_args) -> None:
         logger.debug("DefaultView::update")
 
         self.search_box.update()
@@ -213,6 +227,33 @@ class DefaultView(pluginmgr.View, Gtk.Box):
         if self.infobox:
             logger.debug("DefaultView::update - updating infobox")
             self.infobox.update()
+        self.set_main_widget()
+        # pylint: disable=no-member
+        if (
+            self._main_widget
+            and hasattr(self._main_widget, "update")
+            and callable(self._main_widget.update)
+        ):
+            self._main_widget.update()
+
+    def set_main_widget(self) -> None:
+        # update after db change
+        if self._main_widget and self._main_widget is not self.main_widget:
+            self.vbox.remove(self._main_widget)
+            self._main_widget = None
+
+        if not self._main_widget:
+            if self.main_widget:
+                self._main_widget = self.main_widget
+            else:
+                self._main_widget = Gtk.Image()
+                self._main_widget.set_from_file(
+                    os.path.join(paths.lib_dir(), "images", "bauble_logo.png")
+                )
+                self._main_widget.set_valign(Gtk.Align.START)
+                self.main_widget = self._main_widget
+            self.vbox.pack_start(self._main_widget, True, True, 10)
+            self.vbox.show_all()
 
 
 class SplashCommandHandler(pluginmgr.CommandHandler):

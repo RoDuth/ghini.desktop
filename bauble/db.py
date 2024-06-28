@@ -238,6 +238,8 @@ class History(HistoryBase):
     user = sa.Column(types.TruncatedString(64))
     timestamp = sa.Column(types.DateTime, nullable=False)
 
+    history_revert_callbacks: list[Callable[[sa.Table], None]] = []
+
     @staticmethod
     def _val(val, type_):
         # need to convert string date values to there datetime value first to
@@ -383,6 +385,8 @@ class History(HistoryBase):
                 logger.debug("history revert values: %s", row.values)
                 logger.debug("%s history revert stmt: %s", row.operation, stmt)
                 connection.execute(stmt)
+                for callback in cls.history_revert_callbacks:
+                    callback(table)
                 table = cls.__table__
                 stmt = table.delete().where(table.c.id == row.id)
                 connection.execute(stmt)

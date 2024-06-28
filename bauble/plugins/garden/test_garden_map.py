@@ -29,14 +29,18 @@ import gi
 
 gi.require_version("OsmGpsMap", "1.0")
 
+from gi.repository import Gdk
+from gi.repository import GdkPixbuf
 from gi.repository import GLib
 from gi.repository.OsmGpsMap import Map  # type: ignore
 from gi.repository.OsmGpsMap import MapImage
+from gi.repository.OsmGpsMap import MapPoint as OSMMapPoint
 from gi.repository.OsmGpsMap import MapPolygon
 from gi.repository.OsmGpsMap import MapTrack
 
 from bauble import db
 from bauble import prefs
+from bauble import ui
 from bauble.test import BaubleTestCase
 from bauble.test import get_setUp_data_funcs
 from bauble.test import update_gui
@@ -44,6 +48,8 @@ from bauble.utils import get_net_sess
 from bauble.utils.web import PACFile
 from bauble.view import SearchView
 
+from . import GardenPlugin
+from . import Institution
 from . import Location
 from . import Plant
 from . import garden_map
@@ -52,6 +58,7 @@ from .garden_map import MAP_TILES_PREF_KEY
 from .garden_map import MAP_TILES_PROXY_PREF_KEY
 from .garden_map import BoundingBox
 from .garden_map import GardenMap
+from .garden_map import LocationSearchMap
 from .garden_map import MapLine
 from .garden_map import MapPoint
 from .garden_map import MapPoly
@@ -82,10 +89,62 @@ poly = {
     "type": "Polygon",
     "coordinates": [
         [
-            [-27.477559016773604, 152.97445813351644],
-            [-27.477874827537065, 152.97463243273273],
-            [-27.477748345857805, 152.9744273500483],
-            [-27.477559016773604, 152.97445813351644],
+            [152.9744581335164, -27.477559016773604],
+            [152.9746324327327, -27.477874827537065],
+            [152.9744273500483, -27.477748345857805],
+            [152.9744581335164, -27.477559016773604],
+        ]
+    ],
+}
+poly2 = {
+    "type": "Polygon",
+    "coordinates": [
+        [
+            [152.97627952345056, -27.47530150384454],
+            [152.97625005870924, -27.47529265720945],
+            [152.97627152844453, -27.47524683083128],
+            [152.9762996457129, -27.47525599547085],
+            [152.97627952345056, -27.47530150384454],
+        ]
+    ],
+}
+poly3 = {
+    "type": "Polygon",
+    "coordinates": [
+        [
+            [152.9715799870417, -27.479999843402393],
+            [152.97165778114527, -27.479980796053578],
+            [152.9715987618311, -27.480164017067317],
+            [152.97150488788395, -27.480302050270026],
+            [152.97133052488726, -27.480428128944915],
+            [152.97119371146954, -27.480509020054125],
+            [152.97096041899024, -27.48060186544124],
+            [152.9709281694715, -27.480611349214584],
+            [152.97078336104772, -27.480620912682664],
+            [152.97057953330977, -27.480587520236345],
+            [152.97041056020484, -27.48051380179273],
+            [152.97037561574027, -27.480506628387815],
+            [152.97016909305646, -27.480475707269548],
+            [152.97004036447623, -27.48038764272321],
+            [152.96997865021626, -27.480221079312965],
+            [152.96995188042075, -27.480064078370347],
+            [152.96989016616075, -27.479954576057583],
+            [152.9697882972075, -27.47971190133029],
+            [152.96980168210524, -27.479699946896407],
+            [152.9698311468466, -27.479745214345854],
+            [152.96990094594412, -27.479792792965444],
+            [152.970115463634, -27.480033156330883],
+            [152.97017448294815, -27.48025439217455],
+            [152.97022541742479, -27.480390034392105],
+            [152.97029521652232, -27.48043761273319],
+            [152.97036762073424, -27.4804542691325],
+            [152.9705097342122, -27.480478098139596],
+            [152.97073503168542, -27.480520894704554],
+            [152.97096302410458, -27.480570863857185],
+            [152.97114008204707, -27.48050423831532],
+            [152.9713787644181, -27.480366285061724],
+            [152.97148611309447, -27.48026634575129],
+            [152.9715799870417, -27.479999843402393],
         ]
     ],
 }
@@ -96,41 +155,41 @@ class TestGardenMap(BaubleTestCase):
         map_ = GardenMap(Map())
         self.assertEqual(map_.map_.get_property("map-source"), 1)
 
-    def test_map_item_fatory_plant_point(self):
+    def test_map_item_factory_plant_point(self):
         plant = Plant(geojson=point)
         colour = colours.get("red")
         item = map_item_factory(plant, colour)
         self.assertIsInstance(item, MapPoint)
         self.assertEqual(item.image, colour.image)
 
-    def test_map_item_fatory_plant_line(self):
+    def test_map_item_factory_plant_line(self):
         plant = Plant(geojson=line)
         colour = colours.get("blue")
         item = map_item_factory(plant, colour)
         self.assertIsInstance(item, MapLine)
         self.assertEqual(item.rgba, colour.rgba)
 
-    def test_map_item_fatory_plant_poly(self):
+    def test_map_item_factory_plant_poly(self):
         plant = Plant(geojson=poly)
         colour = colours.get("black")
         item = map_item_factory(plant, colour)
         self.assertIsInstance(item, MapPoly)
         self.assertEqual(item.rgba, colour.rgba)
 
-    def test_map_item_fatory_location_poly(self):
+    def test_map_item_factory_location_poly(self):
         loc = Location(geojson=poly)
         colour = colours.get("grey")
         item = map_item_factory(loc, colour)
         self.assertIsInstance(item, MapPoly)
         self.assertEqual(item.rgba, colour.rgba)
 
-    def test_map_item_fatory_location_no_geojson(self):
+    def test_map_item_factory_location_no_geojson(self):
         loc = Location()
         colour = colours.get("black")
         item = map_item_factory(loc, colour)
         self.assertIsNone(item)
 
-    def test_map_item_fatory_location_corrupt_geojson(self):
+    def test_map_item_factory_location_corrupt_geojson(self):
         loc = Location(geojson={"test": "this fails"})
         colour = colours.get("white")
         item = map_item_factory(loc, colour)
@@ -200,6 +259,16 @@ class TestGardenMap(BaubleTestCase):
         map_item = MapPoly(1, poly, colour)
         map_item.add_to_map(map_.map_)
         self.assertIsInstance(map_item._poly, MapPolygon)
+        self.assertEqual(glib_events, {})
+
+    def test_map_poly_add_to_map_w_label(self):
+        map_ = GardenMap(Map())
+        glib_events[1] = True
+        colour = colours.get("yellow")
+        map_item = MapPoly(1, poly, colour)
+        map_item.add_to_map(map_.map_, with_label=True)
+        self.assertIsInstance(map_item._poly, MapPolygon)
+        self.assertIsInstance(map_item._label, GdkPixbuf.Pixbuf)
         self.assertEqual(glib_events, {})
 
     def test_map_poly_remove_from_map(self):
@@ -292,6 +361,269 @@ class TestGardenMap(BaubleTestCase):
             prefs.prefs.get(MAP_LOCATION_COLOUR_PREF_KEY), colour.name
         )
         map_.reset_item_colour.assert_called()
+
+
+class LocationSearchMapTests(BaubleTestCase):
+    def setUp(self):
+        super().setUp()
+        institution = Institution()
+        institution.geo_latitude = -27.477682218185
+        institution.geo_longitude = 152.97417852203
+        institution.geo_zoom = 17
+        institution.write()
+        loc1 = Location(code="HRE", name="Here", geojson=poly)
+        loc2 = Location(code="THR", name="There", geojson=poly2)
+        loc3 = Location(code="EWH", name="Elsewhere", geojson=poly3)
+        self.session.add_all([loc1, loc2, loc3])
+        self.session.commit()
+
+    def test_main_widget_set_when_institution_coords_set(self):
+        GardenPlugin.init()
+        self.assertIsInstance(ui.DefaultView.main_widget, LocationSearchMap)
+        # select then re init should clear
+        ui.DefaultView.main_widget.loc_items = {
+            1: MapPoly(1, poly, colours["grey"])
+        }
+        GardenPlugin.init()
+        self.assertIsInstance(ui.DefaultView.main_widget, LocationSearchMap)
+        self.assertFalse(ui.DefaultView.main_widget.loc_items)
+        # as if database has changed...
+        institution = Institution()
+        institution.geo_latitude = None
+        institution.geo_longitude = None
+        institution.geo_zoom = None
+        institution.write()
+        GardenPlugin.init()
+        self.assertIsNone(ui.DefaultView.main_widget)
+
+    def test_loc_items_starts_empty(self):
+        map_ = LocationSearchMap()
+        self.assertFalse(map_.loc_items)
+        self.assertFalse(LocationSearchMap.loc_items)
+
+    def test_update_locations(self):
+        map_ = LocationSearchMap
+        self.assertFalse(map_.loc_items)
+        map_.update_locations()
+        self.assertEqual(len(map_.loc_items), 3)
+        self.assertEqual(len(LocationSearchMap.loc_items), 3)
+        # does not update when already populated
+        map_.loc_items.pop(1)
+        map_.update_locations()
+        self.assertEqual(len(map_.loc_items), 2)
+        self.assertEqual(len(LocationSearchMap.loc_items), 2)
+        # but does after clearing
+        map_.clear_locations()
+        map_.update_locations()
+        self.assertEqual(len(map_.loc_items), 3)
+        self.assertEqual(len(LocationSearchMap.loc_items), 3)
+        # no map as class only
+        self.assertFalse(hasattr(map_, "map_"))
+        # check map is not populated until after update
+        map_ = LocationSearchMap()
+        self.assertFalse(map_.map_.polygon_remove(map_.loc_items[1].poly))
+        map_.update()
+        self.assertTrue(map_.map_.polygon_remove(map_.loc_items[1].poly))
+
+    def test_update_updates_locations(self):
+        map_ = LocationSearchMap()
+        self.assertFalse(map_.loc_items)
+        self.assertFalse(LocationSearchMap.loc_items)
+        map_.update()
+        self.assertEqual(len(map_.loc_items), 3)
+        self.assertEqual(len(LocationSearchMap.loc_items), 3)
+        self.assertEqual(map_.map_.get_property("zoom"), 17)
+        # does not update when already populated
+        map_.loc_items.pop(1)
+        map_.update()
+        self.assertEqual(len(map_.loc_items), 2)
+        self.assertEqual(len(LocationSearchMap.loc_items), 2)
+        # but does after clearing
+        map_.clear_locations()
+        map_.update()
+        self.assertEqual(len(map_.loc_items), 3)
+        self.assertEqual(len(LocationSearchMap.loc_items), 3)
+        # check map is populated
+        self.assertTrue(map_.map_.polygon_remove(map_.loc_items[1].poly))
+
+    def test_clears_locations(self):
+        # load locations
+        map_ = LocationSearchMap()
+        self.assertFalse(map_.loc_items)
+        self.assertFalse(LocationSearchMap.loc_items)
+        map_.update()
+        self.assertEqual(len(map_.loc_items), 3)
+        self.assertEqual(len(LocationSearchMap.loc_items), 3)
+        # clear them
+        map_.clear_locations()
+        self.assertEqual(len(map_.loc_items), 0)
+        self.assertEqual(len(LocationSearchMap.loc_items), 0)
+
+    def test_history_callback_clears_locations_when_needed(self):
+        # load locations
+        map_ = LocationSearchMap()
+        self.assertFalse(map_.loc_items)
+        self.assertFalse(LocationSearchMap.loc_items)
+        map_.update()
+        self.assertEqual(len(map_.loc_items), 3)
+        self.assertEqual(len(LocationSearchMap.loc_items), 3)
+        # doesn't clear
+        map_.history_callback(Plant.__table__)
+        self.assertEqual(len(map_.loc_items), 3)
+        self.assertEqual(len(LocationSearchMap.loc_items), 3)
+        # does clear
+        map_.history_callback(Location.__table__)
+        self.assertEqual(len(map_.loc_items), 0)
+        self.assertEqual(len(LocationSearchMap.loc_items), 0)
+
+    def test_get_first_match(self):
+        # load locations
+        map_ = LocationSearchMap()
+        self.assertFalse(map_.loc_items)
+        self.assertFalse(LocationSearchMap.loc_items)
+        map_.update()
+        self.assertEqual(len(map_.loc_items), 3)
+        self.assertEqual(len(LocationSearchMap.loc_items), 3)
+        # get first match
+        self.assertEqual(
+            map_.get_first_match(
+                -27.480487823486328, 152.97120666503906
+            ).label_txt,
+            "EWH",
+        )
+        # fails
+        self.assertIsNone(
+            map_.get_first_match(152.97120666503906, -27.480487823486328)
+        )
+
+    def test_on_button_press_single_click_single_search(self):
+        # load locations
+        map_ = LocationSearchMap()
+        self.assertFalse(map_.loc_items)
+        self.assertFalse(LocationSearchMap.loc_items)
+        map_.update()
+        self.assertEqual(len(map_.loc_items), 3)
+        self.assertEqual(len(LocationSearchMap.loc_items), 3)
+
+        mock_gar_map = mock.Mock()
+        # return false or idle_add hangs
+        mock_gar_map.garden_map.map_.zoom_fit_bbox.return_value = False
+        garden_map.map_presenter = mock_gar_map
+        x, y = map_.map_.convert_geographic_to_screen(
+            OSMMapPoint.new_degrees(-27.480487823486328, 152.97120666503906)
+        )
+
+        mock_event = mock.Mock(x=x, y=y, button=1)
+        with mock.patch("bauble.gui") as mock_gui:
+            map_.on_button_press(map_.map_, mock_event)
+            mock_gui.send_command.assert_called_with("loc = 'EWH'")
+            # is not added to selected
+            self.assertFalse(map_.selected)
+            update_gui()
+            # zooms to selected
+            mock_gar_map.garden_map.map_.zoom_fit_bbox.assert_called_with(
+                -27.479700088500977,
+                -27.480621337890625,
+                152.97166442871094,
+                152.96978759765625,
+            )
+
+        # fails on random coords
+        mock_event = mock.Mock(x=675.0, y=668.0, button=1)
+        with mock.patch("bauble.gui") as mock_gui:
+            map_.on_button_press(map_.map_, mock_event)
+            mock_gui.send_command.assert_not_called()
+        garden_map.map_presenter = None
+
+    def test_on_buton_press_right_click_in_search_clears_selection(self):
+        # load locations
+        map_ = LocationSearchMap()
+        self.assertFalse(map_.loc_items)
+        self.assertFalse(LocationSearchMap.loc_items)
+        map_.update()
+        self.assertEqual(len(map_.loc_items), 3)
+        self.assertEqual(len(LocationSearchMap.loc_items), 3)
+
+        map_.selected = {("EWH", 3)}
+
+        x, y = map_.map_.convert_geographic_to_screen(
+            OSMMapPoint.new_degrees(-27.480487823486328, 152.97120666503906)
+        )
+        mock_event = mock.Mock(x=x, y=y, button=3)
+        with mock.patch("bauble.gui") as mock_gui:
+            map_.on_button_press(map_.map_, mock_event)
+            mock_gui.send_command.assert_not_called()
+            self.assertFalse(map_.selected)
+
+    def test_on_button_press_shift_click_selects(self):
+        # load locations
+        map_ = LocationSearchMap()
+        self.assertFalse(map_.loc_items)
+        self.assertFalse(LocationSearchMap.loc_items)
+        map_.update()
+        self.assertEqual(len(map_.loc_items), 3)
+        self.assertEqual(len(LocationSearchMap.loc_items), 3)
+
+        x, y = map_.map_.convert_geographic_to_screen(
+            OSMMapPoint.new_degrees(-27.480487823486328, 152.97120666503906)
+        )
+        mock_event = mock.Mock(x=x, y=y, button=1)
+        mock_event.get_state.return_value = Gdk.ModifierType.SHIFT_MASK
+        with mock.patch("bauble.gui") as mock_gui:
+            map_.on_button_press(map_.map_, mock_event)
+            mock_gui.send_command.assert_not_called()
+        self.assertEqual(map_.selected, {("EWH", 3)})
+
+    def test_on_button_press_outside_locations_clears_selected(self):
+        # load locations
+        map_ = LocationSearchMap()
+        self.assertFalse(map_.loc_items)
+        self.assertFalse(LocationSearchMap.loc_items)
+        map_.update()
+        self.assertEqual(len(map_.loc_items), 3)
+        self.assertEqual(len(LocationSearchMap.loc_items), 3)
+
+        map_.selected = {("EWH", 3)}
+
+        # fails on random coords
+        mock_event = mock.Mock(x=675.0, y=668.0, button=1)
+        with mock.patch("bauble.gui") as mock_gui:
+            map_.on_button_press(map_.map_, mock_event)
+            mock_gui.send_command.assert_not_called()
+        self.assertFalse(map_.selected)
+
+    def test_on_button_press_multiple_search(self):
+        # load locations
+        map_ = LocationSearchMap()
+        self.assertFalse(map_.loc_items)
+        self.assertFalse(LocationSearchMap.loc_items)
+        map_.update()
+        self.assertEqual(len(map_.loc_items), 3)
+        self.assertEqual(len(LocationSearchMap.loc_items), 3)
+        x, y = map_.map_.convert_geographic_to_screen(
+            OSMMapPoint.new_degrees(-27.480487823486328, 152.97120666503906)
+        )
+        x2, y2 = map_.map_.convert_geographic_to_screen(
+            OSMMapPoint.new_degrees(-27.477710723876953, 152.97450256347656)
+        )
+
+        # shift click
+        mock_event = mock.Mock(x=x, y=y, button=1)
+        mock_event.get_state.return_value = Gdk.ModifierType.SHIFT_MASK
+        # single click to end
+        mock_event2 = mock.Mock(x=x2, y=y2, button=1)
+        with mock.patch("bauble.gui") as mock_gui:
+            map_.on_button_press(map_.map_, mock_event)
+            self.assertEqual(map_.selected, {("EWH", 3)})
+            map_.on_button_press(map_.map_, mock_event2)
+            # clears selection
+            self.assertFalse(map_.selected)
+            self.assertTrue(
+                "loc in 'HRE', 'EWH'" in mock_gui.send_command.call_args.args
+                or "loc in 'EWH', 'HRE'"
+                in mock_gui.send_command.call_args.args,
+                mock_gui.send_command.call_args.args,
+            )
 
 
 class TestSearchViewMapPresenter(BaubleTestCase):
@@ -493,9 +825,9 @@ class TestSearchViewMapPresenter(BaubleTestCase):
         update_gui()
         expected = (
             152.97898864746094,
-            152.97442626953125,
-            -27.477558135986328,
             -27.477874755859375,
+            152.97463989257812,
+            -27.477676391601562,
         )
         self.assertEqual(astuple(presenter.selected_bbox), expected)
         # change selection to no geojson should clear
@@ -645,6 +977,13 @@ class TestSearchViewMapPresenter(BaubleTestCase):
         self.assertIsInstance(presenter.plt_items[1], MapPoint)
         self.assertIsInstance(presenter.plt_items[2], MapLine)
         self.assertIsInstance(presenter.plt_items[3], MapPoly)
+        # gets view if not supplied
+        with mock.patch("bauble.gui") as mock_gui:
+            presenter.populate_map_from_search_view()
+            update_gui()
+            presenter.populate_thread.join()
+            update_gui()
+            mock_gui.get_view.assert_called()
         map_.destroy()
         presenter.update_thread.join()
 

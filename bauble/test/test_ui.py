@@ -111,6 +111,15 @@ class DefaultViewTests(BaubleTestCase):
         # set in PlantsPlugin.init
         self.assertTrue(def_view.infoboxclass)
         self.assertTrue(def_view.infobox)
+        # default, no widget set.
+        self.assertIsInstance(def_view._main_widget, Gtk.Image)
+
+        # main_widget
+        mock_widget = Gtk.Box()
+        mock_widget.update = mock.Mock()
+        def_view.main_widget = mock_widget
+        def_view.update()
+        mock_widget.update.assert_called()
 
     @mock.patch("bauble.ui.DefaultView", spec=DefaultView)
     def test_splashcommandhandler(self, mock_default):

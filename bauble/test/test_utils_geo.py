@@ -22,6 +22,7 @@ from bauble import db
 from bauble.test import BaubleTestCase
 from bauble.utils.geo import KMLMapCallbackFunctor
 from bauble.utils.geo import ProjDB
+from bauble.utils.geo import is_point_within_poly
 from bauble.utils.geo import kml_string_to_geojson
 from bauble.utils.geo import prj_crs
 from bauble.utils.geo import transform
@@ -582,6 +583,269 @@ class GlobalFunctionsTests(BaubleTestCase):
             '{"type": "Point", "coordinates": [152.97467501385253, '
             "-27.47677001137734]}",
         )
+
+    def test_is_point_within_poly_sqr(self):
+        long = -27.0
+        lat = 152.0
+        poly = [
+            [-26.0, 151.0],
+            [-28.0, 151.0],
+            [-28.0, 153.0],
+            [-26.0, 153.0],
+            [-26.0, 151.0],
+        ]
+        self.assertTrue(is_point_within_poly(long, lat, poly))
+        # outside 2 intersects - False
+        long = -29.0
+        lat = 152.0
+        poly = [
+            [-26.0, 151.0],
+            [-28.0, 151.0],
+            [-28.0, 153.0],
+            [-26.0, 153.0],
+            [-26.0, 151.0],
+        ]
+        self.assertFalse(is_point_within_poly(long, lat, poly))
+        # outside, no intersects
+        long = -25.0
+        lat = 152.0
+        poly = [
+            [-26.0, 151.0],
+            [-28.0, 151.0],
+            [-28.0, 153.0],
+            [-26.0, 153.0],
+            [-26.0, 151.0],
+        ]
+        self.assertFalse(is_point_within_poly(long, lat, poly))
+
+    def test_is_point_within_poly_curved_polygon(self):
+        # 1 intersects
+        long = -27.5
+        lat = 151.49
+        poly = [
+            [-26.0, 151.0],
+            [-28.0, 151.0],
+            [-27.0, 152.0],
+            [-28.0, 153.0],
+            [-26.0, 153.0],
+            [-26.0, 151.0],
+        ]
+        self.assertTrue(is_point_within_poly(long, lat, poly))
+        # 3 intersects
+        long = -27.5
+        lat = 151.51
+        poly = [
+            [-26.0, 151.0],
+            [-27.0, 152.0],
+            [-28.0, 151.0],
+            [-28.0, 153.0],
+            [-26.0, 153.0],
+            [-26.0, 151.0],
+        ]
+        self.assertTrue(is_point_within_poly(long, lat, poly))
+        # 2 intersects False
+        long = -27.5
+        lat = 151.49
+        poly = [
+            [-26.0, 151.0],
+            [-27.0, 152.0],
+            [-28.0, 151.0],
+            [-28.0, 153.0],
+            [-26.0, 153.0],
+            [-26.0, 151.0],
+        ]
+        self.assertFalse(is_point_within_poly(long, lat, poly))
+
+    def test_is_point_within_poly_northern_lat(self):
+        # 1 intersects
+        long = 27.5
+        lat = 151.49
+        poly = [
+            [26.0, 151.0],
+            [28.0, 151.0],
+            [27.0, 152.0],
+            [28.0, 153.0],
+            [26.0, 153.0],
+            [26.0, 151.0],
+        ]
+        self.assertTrue(is_point_within_poly(long, lat, poly))
+        # 3 intersects
+        long = 27.5
+        lat = 151.51
+        poly = [
+            [26.0, 151.0],
+            [27.0, 152.0],
+            [28.0, 151.0],
+            [28.0, 153.0],
+            [26.0, 153.0],
+            [26.0, 151.0],
+        ]
+        self.assertTrue(is_point_within_poly(long, lat, poly))
+        # 2 intersects False
+        long = 27.5
+        lat = 151.49
+        poly = [
+            [26.0, 151.0],
+            [27.0, 152.0],
+            [28.0, 151.0],
+            [28.0, 153.0],
+            [26.0, 153.0],
+            [26.0, 151.0],
+        ]
+        self.assertFalse(is_point_within_poly(long, lat, poly))
+
+    def test_is_point_within_poly_stradling_lat(self):
+        # should all reach angle calc
+        # 1 intersects
+        long = 0.5
+        lat = 151.49
+        poly = [
+            [-1.0, 151.0],
+            [1.0, 151.0],
+            [0.0, 152.0],
+            [1.0, 153.0],
+            [-1.0, 153.0],
+            [-1.0, 151.0],
+        ]
+        self.assertTrue(is_point_within_poly(long, lat, poly))
+        # 3 intersects
+        long = 0.5
+        lat = 151.51
+        poly = [
+            [-1.0, 151.0],
+            [0.0, 152.0],
+            [1.0, 151.0],
+            [1.0, 153.0],
+            [-1.0, 153.0],
+            [-1.0, 151.0],
+        ]
+        self.assertTrue(is_point_within_poly(long, lat, poly))
+        # 2 intersects False
+        long = 0.5
+        lat = 151.49
+        poly = [
+            [-1.0, 151.0],
+            [0.0, 152.0],
+            [1.0, 151.0],
+            [1.0, 153.0],
+            [-1.0, 153.0],
+            [-1.0, 151.0],
+        ]
+        self.assertFalse(is_point_within_poly(long, lat, poly))
+
+    def test_is_point_within_poly_western_long(self):
+        # 1 intersects
+        long = 27.5
+        lat = -151.49
+        poly = [
+            [26.0, -151.0],
+            [28.0, -151.0],
+            [27.0, -152.0],
+            [28.0, -153.0],
+            [26.0, -153.0],
+            [26.0, -151.0],
+        ]
+        self.assertTrue(is_point_within_poly(long, lat, poly))
+        # 3 intersects
+        long = 27.5
+        lat = -151.51
+        poly = [
+            [26.0, -151.0],
+            [27.0, -152.0],
+            [28.0, -151.0],
+            [28.0, -153.0],
+            [26.0, -153.0],
+            [26.0, -151.0],
+        ]
+        self.assertTrue(is_point_within_poly(long, lat, poly))
+        # 2 intersects False
+        long = 27.5
+        lat = -151.49
+        poly = [
+            [26.0, -151.0],
+            [27.0, -152.0],
+            [28.0, -151.0],
+            [28.0, -153.0],
+            [26.0, -153.0],
+            [26.0, -151.0],
+        ]
+        self.assertFalse(is_point_within_poly(long, lat, poly))
+
+    def test_is_point_within_poly_stradling_0_long(self):
+        # 1 intersects
+        long = 0.5
+        lat = -151.49
+        poly = [
+            [-1.0, -151.0],
+            [1.0, -151.0],
+            [0.0, -152.0],
+            [1.0, -153.0],
+            [-1.0, -153.0],
+            [-1.0, -151.0],
+        ]
+        self.assertTrue(is_point_within_poly(long, lat, poly))
+        # 3 intersects
+        long = 0.5
+        lat = -151.51
+        poly = [
+            [-1.0, -151.0],
+            [0.0, -152.0],
+            [1.0, -151.0],
+            [1.0, -153.0],
+            [-1.0, -153.0],
+            [-1.0, -151.0],
+        ]
+        self.assertTrue(is_point_within_poly(long, lat, poly))
+        # 2 intersects False
+        long = 0.5
+        lat = -151.49
+        poly = [
+            [-1.0, -151.0],
+            [0.0, -152.0],
+            [1.0, -151.0],
+            [1.0, -153.0],
+            [-1.0, -153.0],
+            [-1.0, -151.0],
+        ]
+        self.assertFalse(is_point_within_poly(long, lat, poly))
+
+    def test_is_point_within_poly_stradling_0_long_stradling_lat(self):
+        # 1 intersects
+        long = 0.5
+        lat = -0.51
+        poly = [
+            [-1.0, -1.0],
+            [1.0, -1.0],
+            [0.0, 0.0],
+            [1.0, 1.0],
+            [-1.0, 1.0],
+            [-1.0, -1.0],
+        ]
+        self.assertTrue(is_point_within_poly(long, lat, poly))
+        # 3 intersects
+        long = 0.5
+        lat = -0.49
+        poly = [
+            [-1.0, -1.0],
+            [0.0, 0.0],
+            [1.0, -1.0],
+            [1.0, 1.0],
+            [-1.0, 1.0],
+            [-1.0, -1.0],
+        ]
+        self.assertTrue(is_point_within_poly(long, lat, poly))
+        # 2 intersects False
+        long = 0.5
+        lat = -0.51
+        poly = [
+            [-1.0, -1.0],
+            [0.0, 0.0],
+            [1.0, -1.0],
+            [1.0, 1.0],
+            [-1.0, 1.0],
+            [-1.0, -1.0],
+        ]
+        self.assertFalse(is_point_within_poly(long, lat, poly))
 
 
 class TestKMLMapCallbackFunctor(TestCase):

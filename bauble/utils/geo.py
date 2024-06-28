@@ -19,6 +19,8 @@ Common helpers useful for spatial data.
 """
 import logging
 import os
+import sys
+from typing import cast
 
 logger = logging.getLogger(__name__)
 
@@ -335,21 +337,21 @@ def kml_string_to_geojson(string: str) -> str:
     line = "/kml:kml//kml:Placemark/kml:LineString/kml:coordinates/text()"
     point = "/kml:kml//kml:Placemark/kml:Point/kml:coordinates/text()"
 
-    if coords := kml.xpath(poly, namespaces=namespaces):
+    if coords := cast(list[str], kml.xpath(poly, namespaces=namespaces)):
         result = '{"type": "Polygon", "coordinates": [['
         for val in coords[0].split():
             val = val.rsplit(",", 1)[0]
             result += f"[{val.replace(',', ', ')}], "
         result = result[:-2] + "]]}"
         return result
-    if coords := kml.xpath(line, namespaces=namespaces):
+    if coords := cast(list[str], kml.xpath(line, namespaces=namespaces)):
         result = '{"type": "LineString", "coordinates": ['
         for val in coords[0].split():
             val = val.rsplit(",", 1)[0]
             result += f"[{val.replace(',', ', ')}], "
         result = result[:-2] + "]}"
         return result
-    if coords := kml.xpath(point, namespaces=namespaces):
+    if coords := cast(list[str], kml.xpath(point, namespaces=namespaces)):
         result = '{"type": "Point", "coordinates": ['
         result += coords[0].rsplit(",", 1)[0].replace(",", ", ")
         result += "]}"
@@ -365,3 +367,73 @@ def web_mercator_point_coords_to_geojson(string: str) -> str:
     """
     x, y = string.split(", ")
     return f'{{"type": "Point", "coordinates": [{y}, {x}]}}'
+
+
+def is_point_within_poly(
+    long: float, lat: float, polygon: list[list[float]]
+) -> bool:
+    """Check if the point falls within the provided polygon coordinates.
+
+    Known limitations:
+    Does not account for limited float precision (edges).
+    Does not account for complex polygons (holes, crossing).
+    Does not account for clockwise coordinates (holes).
+    """
+    # SEE https://people.utm.my/shahabuddin/?p=6277 for a possibly slighly more
+    # efficient version?
+    previous = polygon[0]
+    intersects = 0
+    for point in polygon[1:]:
+        segment = (previous, point)
+        previous = point
+        if ray_intersects(long, lat, segment):
+            intersects += 1
+    return intersects % 2 == 1
+
+
+EPS = sys.float_info.epsilon
+
+
+def ray_intersects(
+    p_long: float,
+    p_lat: float,
+    segment: tuple[list[float], list[float]],
+) -> bool:
+    """Simplified ray casting,
+
+    Given a point described by :param p_lat: and :param p_long: and a polygon
+    segment described by :param segment: return `True` if the horizontal ray
+    from the point intersects the segment, `False` otherwise.
+    """
+    point_a, point_b = segment
+
+    if point_a[1] > point_b[1]:
+        # point_a must always have the lowest lat
+        point_a, point_b = point_b, point_a
+
+    a_long, a_lat = point_a
+    b_long, b_lat = point_b
+
+    if p_lat > b_lat or p_lat < a_lat:
+        # point is above or below this segment
+        return False
+
+    if p_long > max(a_long, b_long):
+        # point is 'to the right' of this segment
+        return False
+
+    if p_long < min(a_long, b_long):
+        # point is 'to the left' of this segment
+        return True
+
+    # only want to get here occasionally.
+    # point is within the bounding box described by the segment, point_a always
+    # has lowest lat, only need to check the difference in the angles (rise
+    # over run):
+    # i.e. if angle of point->a is greater than b->a then it intersects (is `to
+    # the left`)
+    # `or EPS` to avoids divide by zero error
+    p_to_a = (p_lat - a_lat) / ((p_long - a_long) or EPS)
+    b_to_a = (b_lat - a_lat) / ((b_long - a_long) or EPS)
+
+    return p_to_a >= b_to_a
