@@ -27,6 +27,8 @@ import logging
 import os
 import traceback
 import typing
+from collections.abc import Generator
+from collections.abc import Iterable
 from collections.abc import Sequence
 from datetime import datetime
 from functools import lru_cache
@@ -1000,6 +1002,32 @@ class Plant(db.Base, db.WithNotes):
             f"{self.accession}{self.delimiter}{self.code} "
             f"({self.accession.species_str(markup=True)})"
         )
+
+    def parent_objects(self) -> Generator[tuple[db.Base, ...], None, None]:
+        yield (self.location,)
+
+        source = self.accession.source and self.accession.source.source_detail
+        if source:
+            yield (source,)
+
+        yield (
+            self.accession.species.genus.family,
+            self.accession.species.genus,
+            self.accession.species,
+            self.accession,
+        )
+
+        collection = self.accession.source and self.accession.source.collection
+        if collection:
+            yield (collection,)
+
+        vern_names = self.accession.species.vernacular_names
+        for name in vern_names:
+            yield (name, self.accession)
+
+        dists = self.accession.species.distribution
+        for dist in dists:
+            yield (dist.geography, self.accession.species, self.accession)
 
     def top_level_count(self):
         source = self.accession.source and self.accession.source.source_detail

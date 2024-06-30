@@ -74,14 +74,19 @@ from .garden_map import setup_garden_map
 
 point = {
     "type": "Point",
-    "coordinates": [-27.477676044133204, 152.97899035780537],
+    "coordinates": [152.97899035780537, -27.477676044133204],
+}
+
+point2 = {
+    "type": "Point",
+    "coordinates": [152.97890000000001, -27.477000000000001],
 }
 
 line = {
     "type": "LineString",
     "coordinates": [
-        [-27.477415350999937, 152.97756344999996],
-        [-27.477309303999977, 152.97780253700006],
+        [152.97756344999996, -27.477415350999937],
+        [152.97780253700006, -27.477309303999977],
     ],
 }
 
@@ -824,10 +829,10 @@ class TestSearchViewMapPresenter(BaubleTestCase):
         presenter.update_thread.join()
         update_gui()
         expected = (
-            152.97898864746094,
+            -27.477558135986328,
             -27.477874755859375,
-            152.97463989257812,
-            -27.477676391601562,
+            152.97898864746094,
+            152.97442626953125,
         )
         self.assertEqual(astuple(presenter.selected_bbox), expected)
         # change selection to no geojson should clear
@@ -1084,7 +1089,7 @@ class TestSearchViewMapPresenter(BaubleTestCase):
         mock_loc_item.set_colour.assert_called_with(map_.map_location_colour)
         self.assertEqual(len(stopped), 1)
 
-    def test_on_button_press(self):
+    def test_on_button_press_button_3_pops_up_menu(self):
         map_ = GardenMap(Map())
         presenter = SearchViewMapPresenter(map_)
         presenter.is_visible = lambda: True
@@ -1092,10 +1097,109 @@ class TestSearchViewMapPresenter(BaubleTestCase):
         mock_event = mock.Mock(button=3)
         presenter.on_button_press(None, mock_event)
         presenter.context_menu.popup_at_pointer.assert_called_with(mock_event)
-        presenter.context_menu.reset_mock()
-        mock_event.button = 1
+
+    def test_on_button_press_button_2_does_nothing(self):
+        map_ = GardenMap(Map())
+        presenter = SearchViewMapPresenter(map_)
+        presenter.is_visible = lambda: True
+        presenter.context_menu = mock.Mock()
+        mock_event = mock.Mock(button=2)
         presenter.on_button_press(None, mock_event)
         presenter.context_menu.popup_at_pointer.assert_not_called()
+
+    def test_on_button_press_button_1_selects_nearest(self):
+        map_ = GardenMap(Map())
+        presenter = SearchViewMapPresenter(map_)
+        presenter.get_nearest_plants_id = mock.Mock(return_value=1)
+        presenter.context_menu = mock.Mock()
+        mock_event = mock.Mock(button=1, x="1", y="1")
+        mock_map = mock.Mock()
+        mock_map.convert_screen_to_geographic().get_degrees.return_value = 1, 2
+        presenter.on_button_press(mock_map, mock_event)
+        presenter.context_menu.popup_at_pointer.assert_not_called()
+        presenter.get_nearest_plants_id.assert_called_with(1, 2)
+
+    def test_get_nearest_plants_id(self):
+        map_ = Map()
+        gmap = GardenMap(map_)
+        presenter = SearchViewMapPresenter(gmap)
+        p1 = MapPoint(1, point, colours.get("green"))
+        p1.add_to_map(map_, glib=False)
+        p2 = MapPoint(2, point2, colours.get("green"))
+        p2.add_to_map(map_, glib=False)
+        presenter.plt_items = {1: p1, 2: p2}
+        # too far away
+        self.assertIsNone(presenter.get_nearest_plants_id(-27.1, 152.1))
+        # closest to 2
+        self.assertEqual(
+            presenter.get_nearest_plants_id(-27.47701, 152.97891),
+            2,
+        )
+
+    @mock.patch("bauble.utils.tree_model_has")
+    def test_select_plant_by_id_bails_no_gui(self, mock_has):
+        map_ = Map()
+        gmap = GardenMap(map_)
+        presenter = SearchViewMapPresenter(gmap)
+        # no gui bails
+        presenter.select_plant_by_id(1)
+        # should not have go this far
+        mock_has.assert_not_called()
+
+    @mock.patch("bauble.plugins.garden.garden_map.get_search_view")
+    @mock.patch("bauble.utils.tree_model_has")
+    @mock.patch("bauble.gui")
+    def test_select_plant_by_id_bails_no_model(
+        self, _mock_gui, mock_has, mock_get
+    ):
+        map_ = Map()
+        gmap = GardenMap(map_)
+        presenter = SearchViewMapPresenter(gmap)
+
+        mock_search_view = mock.Mock()
+        mock_search_view.session = self.session
+        mock_search_view.results_view.get_model.return_value = None
+        mock_get.return_value = mock_search_view
+        # no model bails
+        presenter.select_plant_by_id(1)
+        # should not have go this far
+        mock_has.assert_not_called()
+
+    @mock.patch("bauble.view.SearchView.update_context_menus")
+    @mock.patch("bauble.gui")
+    def test_select_plant_by_id(self, mock_gui, _mock_menu):
+        for func in get_setUp_data_funcs():
+            func()
+        plt1 = self.session.query(Plant).get(1)
+        plt1.geojson = point
+        plt2 = self.session.query(Plant).get(2)
+        plt2.geojson = point2
+        self.session.commit()
+        map_ = Map()
+        gmap = GardenMap(map_)
+        presenter = SearchViewMapPresenter(gmap)
+        search_view = SearchView()
+        # plant is in view
+        search_view.search("plant where id in 1, 2")
+        mock_gui.get_view.return_value = search_view
+        presenter.select_plant_by_id(1)
+        self.assertEqual(
+            [i.id for i in search_view.get_selected_values()], [1]
+        )
+        self.assertIsInstance(search_view.get_selected_values()[0], Plant)
+        # should fail
+        search_view.search("fam = Myrtaceae")
+        presenter.select_plant_by_id(1)
+        self.assertNotEqual(
+            [i.id for i in search_view.get_selected_values()], [1]
+        )
+        # finds plant in family
+        search_view.search(f"fam = {plt1.accession.species.genus.family}")
+        presenter.select_plant_by_id(1)
+        self.assertEqual(
+            [i.id for i in search_view.get_selected_values()], [1]
+        )
+        self.assertIsInstance(search_view.get_selected_values()[0], Plant)
 
     def test_on_zoom_to_selected(self):
         map_ = GardenMap(Map())
@@ -1486,11 +1590,12 @@ class GlobalFunctionsTest(BaubleTestCase):
         self.assertIsNone(get_search_view())
 
     @mock.patch("bauble.gui")
-    def test_get_search_view_returns_search_view(self, mock_gui):
+    def test_get_search_view_returns_search_view_only(self, mock_gui):
+        mock_search_view = mock.Mock()
+        mock_gui.get_view.return_value = mock_search_view
+        self.assertIsNone(get_search_view())
         mock_search_view = mock.Mock(spec=SearchView)
-        mock_gui.widgets.view_box.get_children.return_value = [
-            mock_search_view
-        ]
+        mock_gui.get_view.return_value = mock_search_view
         self.assertEqual(get_search_view(), mock_search_view)
 
     def test_expunge_garden_map(self):

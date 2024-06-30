@@ -594,9 +594,9 @@ class CountResultsTask(threading.Thread):
     def set_statusbar(self, value):
         """Put the results on the statusbar."""
         if bauble.gui:
+            statusbar = bauble.gui.widgets.statusbar
 
             def sb_call(text):
-                statusbar = bauble.gui.widgets.statusbar
                 sbcontext_id = statusbar.get_context_id("searchview.nresults")
                 statusbar.pop(sbcontext_id)
                 statusbar.push(sbcontext_id, text)

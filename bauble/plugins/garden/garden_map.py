@@ -29,6 +29,7 @@ from collections.abc import Callable
 from collections.abc import Sequence
 from dataclasses import astuple
 from dataclasses import dataclass
+from math import hypot
 from pathlib import Path
 from typing import TypedDict
 from typing import cast
@@ -54,11 +55,13 @@ import bauble
 from bauble import db
 from bauble import paths
 from bauble import prefs
+from bauble import utils
 from bauble.i18n import _
 from bauble.utils import get_net_sess
 from bauble.utils import timed_cache
 from bauble.utils.geo import is_point_within_poly
 from bauble.view import SearchView
+from bauble.view import select_in_search_results
 
 from .institution import Institution
 from .location import Location
@@ -685,14 +688,16 @@ class LocationSearchMap(Gtk.Frame):
             int(institution.geo_zoom or 16),
         )
 
-    def on_button_press(self, _map: OsmGpsMap.Map, gevent: Gdk.Event) -> None:
+    def on_button_press(
+        self, _map: OsmGpsMap.Map, gevent: Gdk.EventButton
+    ) -> None:
         """Allows shift click to select multiples and on final click (no
         modifier key) runs a search for selected.
 
         If none selected on final click searches for the single location.
         """
         current = _map.convert_screen_to_geographic(
-            int(gevent.x), int(gevent.y)  # type: ignore [attr-defined]
+            int(gevent.x), int(gevent.y)
         )
         if (
             gevent.button == 1
@@ -818,9 +823,75 @@ class SearchViewMapPresenter:  # pylint: disable=too-many-instance-attributes
                 map_item.add_to_map(self.garden_map.map_, glib=False)
                 self.loc_items[map_item.id_] = map_item
 
-    def on_button_press(self, _map: OsmGpsMap.Map, gevent: Gdk.Event) -> None:
+    def on_button_press(
+        self, _map: OsmGpsMap.Map, gevent: Gdk.EventButton
+    ) -> None:
         if gevent.button == 3:
             self.context_menu.popup_at_pointer(gevent)
+        elif gevent.button == 1:
+            current = _map.convert_screen_to_geographic(
+                int(gevent.x), int(gevent.y)
+            )
+            if best := self.get_nearest_plants_id(*current.get_degrees()):
+                self.select_plant_by_id(best)
+
+    def get_nearest_plants_id(self, x: float, y: float) -> int | None:
+        best_id = None
+        best_hyp = 0.1
+        # narrow the selection
+        for id_, plant in self.plt_items.items():
+            for lat, long in zip(*plant.get_lats_longs()):
+                if (this_hypot := hypot(lat - x, long - y)) < 0.00003:
+                    if this_hypot < best_hyp:
+                        best_id = id_
+                        best_hyp = this_hypot
+        return best_id
+
+    def select_plant_by_id(self, id_: int) -> None:
+        """Select the plant in the SearchView
+
+        Selects the first instance found, i.e. if there are multiple routes
+        (e.g. vernacular name, distribution) to the same plant selects the
+        first found.
+        """
+        logger.debug("looking for plant id_ = %s", id_)
+        search_view = get_search_view()
+        if not search_view or not bauble.gui:
+            return
+
+        session = search_view.session
+        plant = session.query(Plant).get(id_)
+        model = search_view.results_view.get_model()
+        if not model:
+            return
+
+        if utils.tree_model_has(model, plant):
+            itr = select_in_search_results(plant)
+            path = model.get_path(itr)
+            search_view.results_view.scroll_to_cell(path, None, True, 0.5, 0.0)
+            logger.debug("plant found early")
+            return
+
+        for objs in plant.parent_objects():
+            for obj in objs:
+                if found := utils.search_tree_model(model, obj):
+                    logger.debug("found = %s", obj)
+                    itr = found[0]
+                    path = model.get_path(itr)
+                    # expand
+                    search_view.on_test_expand_row(
+                        search_view.results_view, itr, path
+                    )
+                    search_view.results_view.expand_to_path(path)
+                    if utils.tree_model_has(model, plant):
+                        # select, scroll to centre and return
+                        itr = select_in_search_results(plant)
+                        path = model.get_path(itr)
+                        search_view.results_view.scroll_to_cell(
+                            path, None, True, 0.5, 0.0
+                        )
+                        logger.debug("plant found")
+                        return
 
     def init_context_menu(self) -> None:
         menu = Gio.Menu()
@@ -1369,9 +1440,8 @@ def expunge_garden_map() -> None:
 
 
 def get_search_view() -> None | SearchView:
-    search_view = None
     if bauble.gui:
-        for kid in bauble.gui.widgets.view_box.get_children():
-            if isinstance(kid, SearchView):
-                search_view = kid
-    return search_view
+        view = bauble.gui.get_view()
+        if isinstance(view, SearchView):
+            return view
+    return None
