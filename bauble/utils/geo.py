@@ -19,7 +19,10 @@ Common helpers useful for spatial data.
 """
 import logging
 import os
-import sys
+from math import inf
+from math import sqrt
+from queue import PriorityQueue
+from typing import Self
 from typing import cast
 
 logger = logging.getLogger(__name__)
@@ -48,6 +51,10 @@ if main_is_frozen():
     import pyproj
 
     pyproj.datadir.set_data_dir(os.path.join(main_dir(), "share", "proj"))
+
+PointT = list[float]
+PolygonT = list[PointT]
+MultiPolyT = list[PolygonT]
 
 # EPSG codes are easy to work with and ESRI AGOL data is generally in EPSG:3857
 # recommended sys preference = EPSG:4326 - more common in GPS, KML, etc.
@@ -370,70 +377,208 @@ def web_mercator_point_coords_to_geojson(string: str) -> str:
 
 
 def is_point_within_poly(
-    long: float, lat: float, polygon: list[list[float]]
+    long: float, lat: float, poly: PolygonT | MultiPolyT
 ) -> bool:
     """Check if the point falls within the provided polygon coordinates.
 
     Known limitations:
     Does not account for limited float precision (edges).
-    Does not account for complex polygons (holes, crossing).
+    Does not account for complex polygons (crossing).
     Does not account for clockwise coordinates (holes).
     """
-    # SEE https://people.utm.my/shahabuddin/?p=6277 for a possibly slighly more
-    # efficient version?
-    previous = polygon[0]
-    intersects = 0
-    for point in polygon[1:]:
-        segment = (previous, point)
-        previous = point
-        if ray_intersects(long, lat, segment):
-            intersects += 1
-    return intersects % 2 == 1
+    if isinstance(poly[0][0], (int, float)):
+        return is_point_within_poly(long, lat, [cast(PolygonT, poly)])
 
-
-EPS = sys.float_info.epsilon
+    inside = False
+    for polygon in cast(MultiPolyT, poly):
+        previous = polygon[0]
+        for point in polygon[1:]:
+            if ray_intersects(long, lat, previous, point):
+                inside = not inside
+            previous = point
+    return inside
 
 
 def ray_intersects(
-    p_long: float,
-    p_lat: float,
-    segment: tuple[list[float], list[float]],
+    long: float,
+    lat: float,
+    previous: list[float],
+    point: list[float],
 ) -> bool:
-    """Simplified ray casting,
+    """Simple ray casting,
 
-    Given a point described by :param p_lat: and :param p_long: and a polygon
-    segment described by :param segment: return `True` if the horizontal ray
-    from the point intersects the segment, `False` otherwise.
+    Given a point described by :param lat: and :param long: and a polygon
+    segment described by :param previous: and :param point: return `True` if
+    the horizontal ray from the point intersects the segment, `False`
+    otherwise.
     """
-    point_a, point_b = segment
+    # https://wrfranklin.org/Research/Short_Notes/pnpoly.html
+    return (point[1] > lat) != (previous[1] > lat) and (
+        long
+        < (previous[0] - point[0])
+        * (lat - point[1])
+        / (previous[1] - point[1])
+        + point[0]
+    )
 
-    if point_a[1] > point_b[1]:
-        # point_a must always have the lowest lat
-        point_a, point_b = point_b, point_a
 
-    a_long, a_lat = point_a
-    b_long, b_lat = point_b
+# polylabel see: https://github.com/Twista/python-polylabel
 
-    if p_lat > b_lat or p_lat < a_lat:
-        # point is above or below this segment
-        return False
 
-    if p_long > max(a_long, b_long):
-        # point is 'to the right' of this segment
-        return False
+def _point_to_polygon_distance(
+    x: float, y: float, polygon: MultiPolyT
+) -> float:
+    inside = False
+    min_dist_sq = inf
 
-    if p_long < min(a_long, b_long):
-        # point is 'to the left' of this segment
-        return True
+    for poly in polygon:
+        previous = poly[-1]
+        for point in poly:
+            if ray_intersects(x, y, previous, point):
+                inside = not inside
 
-    # only want to get here occasionally.
-    # point is within the bounding box described by the segment, point_a always
-    # has lowest lat, only need to check the difference in the angles (rise
-    # over run):
-    # i.e. if angle of point->a is greater than b->a then it intersects (is `to
-    # the left`)
-    # `or EPS` to avoids divide by zero error
-    p_to_a = (p_lat - a_lat) / ((p_long - a_long) or EPS)
-    b_to_a = (b_lat - a_lat) / ((b_long - a_long) or EPS)
+            min_dist_sq = min(
+                min_dist_sq, _get_seg_dist_sq(x, y, previous, point)
+            )
+            previous = point
 
-    return p_to_a >= b_to_a
+    result = sqrt(min_dist_sq)
+    if inside:
+        return result
+    return -result
+
+
+def _get_seg_dist_sq(
+    x: float, y: float, previous: PointT, point: PointT
+) -> float:
+    """Given a point described by :param x: and :param y: and a polygon
+    segment described by :param previous: and :param point: return the the
+    distance between point the nearest point on the line squared.
+    """
+    # nearest values will end up being one end of the line or some point along
+    # it, whichever is closest to the point described by x, y.
+    nearest_x = previous[0]
+    nearest_y = previous[1]
+    dif_x = point[0] - previous[0]
+    dif_y = point[1] - previous[1]
+
+    if dif_x != 0 or dif_y != 0:
+        # Linear interpolation:
+        # `nearest` = `previous` if t < 0, `point` if t > 1 somewhere between
+        # for values between 0 to 1.
+        t = ((x - previous[0]) * dif_x + (y - previous[1]) * dif_y) / (
+            dif_x**2 + dif_y**2
+        )
+
+        if t > 1:
+            nearest_x = point[0]
+            nearest_y = point[1]
+
+        elif t > 0:
+            nearest_x += dif_x * t
+            nearest_y += dif_y * t
+
+    diff_x = x - nearest_x
+    diff_y = y - nearest_y
+
+    return diff_x**2 + diff_y**2
+
+
+class Cell:
+    def __init__(
+        self, x: float, y: float, half: float, polygon: MultiPolyT
+    ) -> None:
+        self.x = x
+        self.y = y
+        self.half = half
+        self.distance = _point_to_polygon_distance(x, y, polygon)
+        self.max_distance = self.distance + self.half * 1.41421356  # ~sqrt(2)
+
+    def __lt__(self, other: Self) -> bool:
+        return self.max_distance < other.max_distance
+
+
+def _get_centroid_cell(polygon: MultiPolyT) -> Cell:
+    signed_area: float = 0
+    x: float = 0
+    y: float = 0
+    points = polygon[0]
+    previous = points[-1]
+    for point in points:
+        # shoelace formula
+        area = point[0] * previous[1] - previous[0] * point[1]
+        x += (point[0] + previous[0]) * area
+        y += (point[1] + previous[1]) * area
+        signed_area += area * 3
+        previous = point
+    if signed_area == 0:
+        return Cell(points[0][0], points[0][1], 0, polygon)
+    return Cell(x / signed_area, y / signed_area, 0, polygon)
+
+
+def polylabel(polygon: MultiPolyT, precision: float = 1.0) -> PointT:
+    # find bounding box
+    min_x, min_y = polygon[0][0]
+    max_x, max_y = polygon[0][0]
+
+    for point in polygon[0][1:]:
+        if point[0] < min_x:
+            min_x = point[0]
+        if point[1] < min_y:
+            min_y = point[1]
+        if point[0] > max_x:
+            max_x = point[0]
+        if point[1] > max_y:
+            max_y = point[1]
+
+    width = max_x - min_x
+    height = max_y - min_y
+    cell_size = width if width < height else height
+    half = cell_size / 2.0
+
+    cell_queue: PriorityQueue[Cell] = PriorityQueue()
+
+    if cell_size == 0:
+        return [min_x, min_y]
+
+    # cover polygon with initial cells
+    x = min_x
+    while x < max_x:
+        y = min_y
+        while y < max_y:
+            cell_queue.put(Cell(x + half, y + half, half, polygon))
+            y += cell_size
+        x += cell_size
+
+    best_cell = _get_centroid_cell(polygon)
+
+    bbox_cell = Cell(min_x + width / 2, min_y + height / 2, 0, polygon)
+    if bbox_cell.distance > best_cell.distance:
+        best_cell = bbox_cell
+
+    num_of_probes = cell_queue.qsize()
+    while not cell_queue.empty():
+        cell = cell_queue.get()
+
+        if cell.distance > best_cell.distance:
+            best_cell = cell
+
+            logger.debug(
+                "found best %s after %s probes",
+                round(1e4 * cell.distance) / 1e4,
+                num_of_probes,
+            )
+
+        if cell.max_distance - best_cell.distance <= precision:
+            continue
+
+        half = cell.half / 2
+        cell_queue.put(Cell(cell.x - half, cell.y - half, half, polygon))
+        cell_queue.put(Cell(cell.x + half, cell.y - half, half, polygon))
+        cell_queue.put(Cell(cell.x - half, cell.y + half, half, polygon))
+        cell_queue.put(Cell(cell.x + half, cell.y + half, half, polygon))
+        num_of_probes += 4
+
+    logger.debug("num probes: %s", num_of_probes)
+    logger.debug("best distance: %s", best_cell.distance)
+    return [best_cell.x, best_cell.y]

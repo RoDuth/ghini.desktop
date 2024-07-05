@@ -80,7 +80,6 @@ setup(
         "pyshp",
         "pyproj",
         "filelock>=3",
-        "python-polylabel",
         "python-dateutil",
         "dukpy",
     ],

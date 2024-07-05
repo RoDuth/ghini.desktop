@@ -45,8 +45,6 @@ from gi.repository import Gio
 from gi.repository import GLib
 from gi.repository import Gtk
 from gi.repository import OsmGpsMap  # type: ignore[attr-defined]
-
-from polylabel import polylabel
 from sqlalchemy import Table
 from sqlalchemy import engine
 from sqlalchemy import event
@@ -60,6 +58,7 @@ from bauble.i18n import _
 from bauble.utils import get_net_sess
 from bauble.utils import timed_cache
 from bauble.utils.geo import is_point_within_poly
+from bauble.utils.geo import polylabel
 from bauble.view import SearchView
 from bauble.view import select_in_search_results
 

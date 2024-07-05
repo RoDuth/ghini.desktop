@@ -24,6 +24,7 @@ from bauble.utils.geo import KMLMapCallbackFunctor
 from bauble.utils.geo import ProjDB
 from bauble.utils.geo import is_point_within_poly
 from bauble.utils.geo import kml_string_to_geojson
+from bauble.utils.geo import polylabel
 from bauble.utils.geo import prj_crs
 from bauble.utils.geo import transform
 from bauble.utils.geo import web_mercator_point_coords_to_geojson
@@ -618,7 +619,7 @@ class GlobalFunctionsTests(BaubleTestCase):
         ]
         self.assertFalse(is_point_within_poly(long, lat, poly))
 
-    def test_is_point_within_poly_curved_polygon(self):
+    def test_is_point_within_poly_concave_polygon(self):
         # 1 intersects
         long = -27.5
         lat = 151.49
@@ -847,17 +848,213 @@ class GlobalFunctionsTests(BaubleTestCase):
         ]
         self.assertFalse(is_point_within_poly(long, lat, poly))
 
+    def test_is_point_within_poly_multipolygon(self):
+        # 1 intersects
+        long = 0.5
+        lat = 0.5
+        poly = [
+            [
+                [0.0, 0.0],
+                [0.0, 1.0],
+                [1.0, 1.0],
+                [1.0, 0.0],
+                [0.0, 0.0],
+            ],
+            [
+                [2.0, 2.0],
+                [2.0, 3.0],
+                [3.0, 3.0],
+                [3.0, 2.0],
+                [2.0, 2.0],
+            ],
+        ]
+        self.assertTrue(is_point_within_poly(long, lat, poly))
+        # 3 intersects
+        long = 0.5
+        lat = 0.5
+        poly = [
+            [
+                [0.0, 0.0],
+                [0.0, 1.0],
+                [1.0, 1.0],
+                [1.0, 0.0],
+                [0.0, 0.0],
+            ],
+            [
+                [2.0, 0.0],
+                [2.0, 1.0],
+                [3.0, 1.0],
+                [3.0, 0.0],
+                [2.0, 0.0],
+            ],
+        ]
+        self.assertTrue(is_point_within_poly(long, lat, poly))
+        # 2 intersects False
+        long = 2.05
+        lat = 0.05
+        poly = [
+            [
+                [0.0, 0.0],
+                [0.0, 1.0],
+                [1.0, 1.0],
+                [1.0, 0.0],
+                [0.0, 0.0],
+            ],
+            [
+                [0.0, 2.0],
+                [0.0, 3.0],
+                [1.0, 3.0],
+                [1.0, 2.0],
+                [0.0, 2.0],
+            ],
+        ]
+        self.assertFalse(is_point_within_poly(long, lat, poly))
+
+    def test_is_point_within_poly_multipolygon_with_hole(self):
+        # 1 intersects
+        long = 0.75
+        lat = 0.75
+        poly = [
+            [
+                [0.0, 0.0],
+                [0.0, 1.0],
+                [1.0, 1.0],
+                [1.0, 0.0],
+                [0.0, 0.0],
+            ],
+            [
+                [0.2, 0.2],
+                [0.2, 0.7],
+                [0.7, 0.7],
+                [0.7, 0.2],
+                [0.2, 0.2],
+            ],
+        ]
+        self.assertTrue(is_point_within_poly(long, lat, poly))
+        # 3 intersects
+        long = 0.05
+        lat = 0.5
+        poly = [
+            [
+                [0.0, 0.0],
+                [0.0, 1.0],
+                [1.0, 1.0],
+                [1.0, 0.0],
+                [0.0, 0.0],
+            ],
+            [
+                [0.2, 0.2],
+                [0.2, 0.7],
+                [0.7, 0.7],
+                [0.7, 0.2],
+                [0.2, 0.2],
+            ],
+        ]
+        self.assertTrue(is_point_within_poly(long, lat, poly))
+        # 2 intersects False
+        long = 0.5
+        lat = 0.5
+        poly = [
+            [
+                [0.0, 0.0],
+                [0.0, 1.0],
+                [1.0, 1.0],
+                [1.0, 0.0],
+                [0.0, 0.0],
+            ],
+            [
+                [0.2, 0.2],
+                [0.2, 0.7],
+                [0.7, 0.7],
+                [0.7, 0.2],
+                [0.2, 0.2],
+            ],
+        ]
+        self.assertFalse(is_point_within_poly(long, lat, poly))
+
+
+class TestPolyLabel(TestCase):
+    def test_polylabel(self):
+        self.assertEqual(
+            polylabel([[[100, 0], [105, 0], [110, 10], [100, 1], [100, 0]]]),
+            [103.125, 1.875],
+        )
+
+    def test_polylabel_degenerate_polygons(self):
+        self.assertEqual(polylabel([[[0, 0], [1, 0], [2, 0], [0, 0]]]), [0, 0])
+        self.assertEqual(
+            polylabel([[[0, 0], [1, 0], [1, 1], [1, 0], [0, 0]]]), [0, 0]
+        )
+
+    def test_polylabel_concave_polygon_w_precision(self):
+        polygon = [
+            [
+                [152.9715799870417, -27.479999843402393],
+                [152.97165778114527, -27.479980796053578],
+                [152.9715987618311, -27.480164017067317],
+                [152.97150488788395, -27.480302050270026],
+                [152.97133052488726, -27.480428128944915],
+                [152.97119371146954, -27.480509020054125],
+                [152.97096041899024, -27.48060186544124],
+                [152.9709281694715, -27.480611349214584],
+                [152.97078336104772, -27.480620912682664],
+                [152.97057953330977, -27.480587520236345],
+                [152.97041056020484, -27.48051380179273],
+                [152.97037561574027, -27.480506628387815],
+                [152.97016909305646, -27.480475707269548],
+                [152.97004036447623, -27.48038764272321],
+                [152.96997865021626, -27.480221079312965],
+                [152.96995188042075, -27.480064078370347],
+                [152.96989016616075, -27.479954576057583],
+                [152.9697882972075, -27.47971190133029],
+                [152.96980168210524, -27.479699946896407],
+                [152.9698311468466, -27.479745214345854],
+                [152.96990094594412, -27.479792792965444],
+                [152.970115463634, -27.480033156330883],
+                [152.97017448294815, -27.48025439217455],
+                [152.97022541742479, -27.480390034392105],
+                [152.97029521652232, -27.48043761273319],
+                [152.97036762073424, -27.4804542691325],
+                [152.9705097342122, -27.480478098139596],
+                [152.97073503168542, -27.480520894704554],
+                [152.97096302410458, -27.480570863857185],
+                [152.97114008204707, -27.48050423831532],
+                [152.9713787644181, -27.480366285061724],
+                [152.97148611309447, -27.48026634575129],
+                [152.9715799870417, -27.479999843402393],
+            ]
+        ]
+        self.assertTrue(
+            is_point_within_poly(
+                *polylabel(polygon, precision=0.0001), polygon
+            )
+        )
+        self.assertEqual(
+            polylabel(polygon, precision=0.0001),
+            [152.97007609901567, -27.48021799015118],
+        )
+
+    def test_polylabel_holed_polygon(self):
+        polygon = [
+            [[0, 0], [100, 0], [100, 100], [0, 100], [0, 0]],
+            [[10, 10], [10, 90], [80, 90], [60, 10], [10, 10]],
+        ]
+        self.assertTrue(is_point_within_poly(*polylabel(polygon), polygon))
+        self.assertEqual(polylabel(polygon), [81.25, 18.75])
+
 
 class TestKMLMapCallbackFunctor(TestCase):
+    @mock.patch("bauble.gui")
     @mock.patch("bauble.utils.message_dialog")
     @mock.patch("bauble.utils.geo.Template")
-    def test_fails_single(self, mock_template, mock_dialog):
+    def test_fails_single(self, mock_template, mock_dialog, mock_gui):
         call_back = KMLMapCallbackFunctor(None)
         mock_template_instance = mock_template.return_value
         mock_template_instance.render.side_effect = ValueError("test")
         with self.assertLogs(level="DEBUG") as logs:
             call_back([None])
         self.assertIn("None: test", logs.output[0])
+        mock_gui.widgets.statusbar.push.assert_called()
         mock_dialog.assert_called()
 
     @mock.patch("bauble.utils.message_dialog")
@@ -871,9 +1068,27 @@ class TestKMLMapCallbackFunctor(TestCase):
         self.assertTrue(all("None: test" in i for i in logs.output))
         mock_dialog.assert_called()
 
+    @mock.patch("bauble.utils.message_dialog")
     @mock.patch("bauble.utils.desktop.open")
     @mock.patch("bauble.utils.geo.Template")
-    def test_suceeds_single(self, mock_template, mock_open):
+    def test_open_fails_oserror(self, mock_template, mock_open, mock_dialog):
+        call_back = KMLMapCallbackFunctor(None)
+        mock_open.side_effect = OSError("test")
+        mock_template_instance = mock_template.return_value
+        mock_template_instance.render.return_value = b"test"
+        with self.assertNoLogs(level="DEBUG"):
+            call_back([None])
+        mock_open.assert_called()
+        mock_dialog.assert_called()
+        self.assertTrue(
+            mock_dialog.call_args.args[0].startswith(
+                "Could not open the kml file"
+            )
+        )
+
+    @mock.patch("bauble.utils.desktop.open")
+    @mock.patch("bauble.utils.geo.Template")
+    def test_succeeds_single(self, mock_template, mock_open):
         call_back = KMLMapCallbackFunctor(None)
         mock_template_instance = mock_template.return_value
         mock_template_instance.render.return_value = b"test"
