@@ -57,7 +57,7 @@ Unicode true
 
 ; Global
 Name "ghini.desktop"
-!define VERSION "1.3.7" ; :bump
+!define VERSION "1.3.8" ; :bump
 !define SRC_DIR "..\dist\ghini"
 !define JRE_SRC_DIR "..\jre"
 !define FOP_SRC_DIR "..\fop-$%fop_ver%"
