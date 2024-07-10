@@ -1,7 +1,7 @@
 # Copyright 2008-2010 Brett Adams
 # Copyright 2015,2017 Mario Frasca <mario@anche.no>.
 # Copyright 2017 Jardín Botánico de Quito
-# Copyright 2021-2023 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright 2021-2024 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -105,7 +105,17 @@ prefs.testing = True
 
 
 accession_test_data = (
-    {"id": 1, "code": "2001.1", "species_id": 1, "private": True},
+    {
+        "id": 1,
+        "code": "2001.1",
+        "species_id": 1,
+        "private": True,
+        "date_accd": datetime.date(2024, 1, 1),
+        "date_recvd": datetime.date(2024, 1, 1),
+        "recvd_type": "BULB",
+        "quantity_recvd": 1,
+        "purchase_price": 10,
+    },
     {"id": 2, "code": "2001.2", "species_id": 2, "source_type": "Collection"},
     {"id": 3, "code": "2020.1", "species_id": 1, "source_type": "Collection"},
     {"id": 4, "code": "2020.2", "species_id": 2, "source_type": "Individual"},
@@ -247,7 +257,13 @@ source_test_data = (
     {"id": 2, "accession_id": 3},
     {"id": 3, "accession_id": 4, "source_detail_id": 1},
     {"id": 4, "accession_id": 5, "source_detail_id": 1},
-    {"id": 5, "accession_id": 1, "source_detail_id": 1, "sources_code": "AB1"},
+    {
+        "id": 5,
+        "accession_id": 1,
+        "source_detail_id": 1,
+        "sources_code": "AB1",
+        "notes": "SOURCE NOTE",
+    },
 )
 
 collection_test_data = (

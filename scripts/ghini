@@ -23,7 +23,7 @@ from multiprocessing import freeze_support
 
 # TODO WARNING temp monkey patch fix to prevent warnings
 # START >>>
-from gi.importer import DynamicImporter  # type:ignore [import]
+from gi.importer import DynamicImporter  # type:ignore [import-untyped]
 
 if hasattr(DynamicImporter, "load_module"):
     # SEE: https://gitlab.gnome.org/GNOME/pygobject/-/issues/494

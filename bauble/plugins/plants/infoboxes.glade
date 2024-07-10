@@ -21,6 +21,7 @@
                 <property name="can-focus">False</property>
                 <property name="margin-top">8</property>
                 <property name="margin-bottom">8</property>
+                <property name="selectable">True</property>
                 <property name="xalign">0</property>
               </object>
               <packing>
@@ -192,6 +193,7 @@
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
                     <property name="label" translatable="yes">--</property>
+                    <property name="selectable">True</property>
                     <property name="xalign">0</property>
                   </object>
                   <packing>
@@ -280,6 +282,7 @@
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
                     <property name="use-markup">True</property>
+                    <property name="selectable">True</property>
                     <property name="xalign">0</property>
                   </object>
                   <packing>
@@ -447,6 +450,7 @@
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
                     <property name="label">--</property>
+                    <property name="selectable">True</property>
                     <property name="xalign">0</property>
                   </object>
                   <packing>
@@ -655,6 +659,7 @@
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
                     <property name="label">--</property>
+                    <property name="selectable">True</property>
                     <property name="xalign">0</property>
                   </object>
                   <packing>
@@ -758,6 +763,7 @@
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
                     <property name="label" translatable="yes">--</property>
+                    <property name="selectable">True</property>
                     <property name="xalign">0</property>
                   </object>
                   <packing>
@@ -786,6 +792,7 @@
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
                     <property name="label">--</property>
+                    <property name="selectable">True</property>
                     <property name="xalign">0</property>
                   </object>
                   <packing>
@@ -814,6 +821,7 @@
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
                     <property name="label">--</property>
+                    <property name="selectable">True</property>
                     <property name="xalign">0</property>
                   </object>
                   <packing>
@@ -841,6 +849,7 @@
                     <property name="can-focus">False</property>
                     <property name="no-show-all">True</property>
                     <property name="label" translatable="yes">--</property>
+                    <property name="selectable">True</property>
                     <property name="xalign">0</property>
                   </object>
                   <packing>
@@ -853,6 +862,7 @@
                     <property name="can-focus">False</property>
                     <property name="no-show-all">True</property>
                     <property name="label" translatable="yes">--</property>
+                    <property name="selectable">True</property>
                     <property name="xalign">0</property>
                   </object>
                   <packing>
@@ -941,6 +951,7 @@
                     <property name="can-focus">False</property>
                     <property name="hexpand">True</property>
                     <property name="label">--</property>
+                    <property name="selectable">True</property>
                     <property name="xalign">0</property>
                   </object>
                   <packing>

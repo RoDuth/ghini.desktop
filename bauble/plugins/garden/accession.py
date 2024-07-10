@@ -1,7 +1,7 @@
 # Copyright 2008-2010 Brett Adams
 # Copyright 2015-2016 Mario Frasca <mario@anche.no>.
 # Copyright 2017 Jardín Botánico de Quito
-# Copyright 2020-2023 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright 2020-2024 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -3318,8 +3318,26 @@ class GeneralAccessionExpander(InfoExpander):
 
         nplants = session.query(Plant).filter_by(accession_id=row.id).count()
         self.widget_set_value("nplants_data", nplants)
+
+        on_clicked_search = utils.generate_on_clicked(bauble.gui.send_command)
+        date_format = prefs.prefs[prefs.date_format_pref]
         self.widget_set_value("date_recvd_data", row.date_recvd)
+        if row.date_recvd:
+            date = row.date_recvd.strftime(date_format)
+            utils.make_label_clickable(
+                self.widgets.date_recvd_data,
+                on_clicked_search,
+                f"accession where date_recvd on {date}",
+            )
+
         self.widget_set_value("date_accd_data", row.date_accd)
+        if row.date_accd:
+            date = row.date_accd.strftime(date_format)
+            utils.make_label_clickable(
+                self.widgets.date_accd_data,
+                on_clicked_search,
+                f"accession where date_accd on {date}",
+            )
 
         type_str = ""
         if row.recvd_type:
@@ -3329,6 +3347,11 @@ class GeneralAccessionExpander(InfoExpander):
         if row.quantity_recvd:
             quantity_str = row.quantity_recvd
         self.widget_set_value("quantity_recvd_data", quantity_str)
+        self.widget_set_value("supplied_name", row.supplied_name or "")
+        price_str = ""
+        if row.purchase_price:
+            price_str = f"{row.purchase_price / 100:.2f} {row.price_unit}"
+        self.widget_set_value("purchase_price", price_str)
 
         prov_str = dict(prov_type_values)[row.prov_type]
         if row.prov_type == "Wild" and row.wild_prov_status:
@@ -3362,7 +3385,6 @@ class GeneralAccessionExpander(InfoExpander):
             )
 
         cmd = f'plant where accession.code="{row.code}"'
-        on_clicked_search = utils.generate_on_clicked(bauble.gui.send_command)
         utils.make_label_clickable(
             self.widgets.nplants_data, on_clicked_search, cmd
         )
@@ -3385,6 +3407,10 @@ class SourceExpander(InfoExpander):
             self.widgets.sources_code_data,
             self.widgets.sources_code_label,
         ]
+        self.source_notes_widgets = [
+            self.widgets.source_notes,
+            self.widgets.source_notes_label,
+        ]
         self.plt_prop_widgets = [
             self.widgets.parent_plant_label,
             self.widgets.parent_plant_eventbox,
@@ -3401,6 +3427,7 @@ class SourceExpander(InfoExpander):
         self.display_widgets = [
             *self.source_detail_widgets,
             *self.source_code_widgets,
+            *self.source_notes_widgets,
             *self.plt_prop_widgets,
             *self.prop_widgets,
             *self.collection_widgets,
@@ -3441,8 +3468,37 @@ class SourceExpander(InfoExpander):
                 elevation += f" (+/- {collection.elevation_accy}m)"
         self.widget_set_value("elev_data", elevation)
 
+        on_clicked_search = utils.generate_on_clicked(bauble.gui.send_command)
+        region = ""
+        if collection.region:
+            region = f"{collection.region.name} ({collection.region.code})"
+            self.widget_set_value("col_region", region)
+            utils.make_label_clickable(
+                self.widgets.col_region,
+                on_clicked_search,
+                "accession where source.collection.region.code = "
+                f"{collection.region.code}",
+            )
+
         self.widget_set_value("coll_data", collection.collector)
+        if collection.collector:
+            utils.make_label_clickable(
+                self.widgets.coll_data,
+                on_clicked_search,
+                "accession where source.collection.collector = "
+                f"'{collection.collector}'",
+            )
+
         self.widget_set_value("date_data", collection.date)
+        if collection.date:
+            date_format = prefs.prefs[prefs.date_format_pref]
+            date = collection.date.strftime(date_format)
+            utils.make_label_clickable(
+                self.widgets.date_data,
+                on_clicked_search,
+                f"accession where source.collection.date on {date}",
+            )
+
         self.widget_set_value("collid_data", collection.collectors_code)
         self.widget_set_value("habitat_data", collection.habitat)
         self.widget_set_value("collnotes_data", collection.notes)
@@ -3469,11 +3525,16 @@ class SourceExpander(InfoExpander):
             )
 
         sources_code = ""
-
         if row.source.sources_code:
             utils.unhide_widgets(self.source_code_widgets)
             sources_code = row.source.sources_code
             self.widget_set_value("sources_code_data", str(sources_code))
+
+        source_notes = ""
+        if row.source.notes:
+            utils.unhide_widgets(self.source_notes_widgets)
+            source_notes = row.source.notes
+            self.widget_set_value("source_notes", str(source_notes))
 
         prop_str = ""
         if row.source.plant_propagation:

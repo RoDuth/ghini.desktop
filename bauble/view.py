@@ -812,6 +812,70 @@ class PicturesScroller(Gtk.ScrolledWindow):
             utils.desktop.open(link)
 
 
+class ViewMeta(UserDict):
+    """This class shouldn't need to be instantiated directly.  Access the
+    meta for the SearchView with the :class:`bauble.view.SearchView`'s
+    `row_meta` or `bottom_info` attributes.
+
+    ...note: can access the actual dictionary used to store the contents
+    directly via the UserDict `data` attribute. e.g. to use setdefault in
+    such a way that doesn't call __getitem__
+    """
+
+    class Meta:
+        def __init__(self):
+            self.children = None
+            self.infobox = None
+            self.context_menu = None
+            self.actions = []
+            self.sorter = utils.natsort_key
+
+        def set(
+            self,
+            children=None,
+            infobox=None,
+            context_menu=None,
+            sorter=None,
+        ):
+            """Set attributes for the selected meta object.
+
+            :param children: where to find the children for this type, can
+                be a callable of the form `children(row)`
+            :param infobox: the infobox for this type
+            :param context_menu: a dict describing the context menu used
+                when the user right clicks on this type
+            """
+            self.children = children
+            self.infobox = infobox
+            self.context_menu = context_menu
+            if sorter:
+                self.sorter = sorter
+
+            self.actions = []
+            if self.context_menu:
+                self.actions = [
+                    x for x in self.context_menu if isinstance(x, Action)
+                ]
+
+        def get_children(self, obj):
+            """
+            :param obj: get the children from obj according to
+                self.children,
+
+            :return: a list or list-like object of any children objects.
+            """
+            if self.children is None:
+                return []
+            if callable(self.children):
+                return self.children(obj)
+            return getattr(obj, self.children)
+
+    def __getitem__(self, item):
+        if item not in self:  # create on demand
+            self[item] = self.Meta()
+        return super().__getitem__(item)
+
+
 @Gtk.Template(filename=str(Path(paths.lib_dir(), "search_view.ui")))
 class SearchView(pluginmgr.View, Gtk.Box):
     """The SearchView is the main view for Ghini.
@@ -828,69 +892,6 @@ class SearchView(pluginmgr.View, Gtk.Box):
     pic_pane = cast(Gtk.Paned, Gtk.Template.Child())
     pic_pane_notebook = cast(Gtk.Notebook, Gtk.Template.Child())
     pics_box = cast(Gtk.Paned, Gtk.Template.Child())
-
-    class ViewMeta(UserDict):
-        """This class shouldn't need to be instantiated directly.  Access the
-        meta for the SearchView with the :class:`bauble.view.SearchView`'s
-        `row_meta` or `bottom_info` attributes.
-
-        ...note: can access the actual dictionary used to store the contents
-        directly via the UserDict `data` attribute. e.g. to use setdefault in
-        such a way that doesn't call __getitem__
-        """
-
-        class Meta:
-            def __init__(self):
-                self.children = None
-                self.infobox = None
-                self.context_menu = None
-                self.actions = []
-                self.sorter = utils.natsort_key
-
-            def set(
-                self,
-                children=None,
-                infobox=None,
-                context_menu=None,
-                sorter=None,
-            ):
-                """Set attributes for the selected meta object.
-
-                :param children: where to find the children for this type, can
-                    be a callable of the form `children(row)`
-                :param infobox: the infobox for this type
-                :param context_menu: a dict describing the context menu used
-                    when the user right clicks on this type
-                """
-                self.children = children
-                self.infobox = infobox
-                self.context_menu = context_menu
-                if sorter:
-                    self.sorter = sorter
-
-                self.actions = []
-                if self.context_menu:
-                    self.actions = [
-                        x for x in self.context_menu if isinstance(x, Action)
-                    ]
-
-            def get_children(self, obj):
-                """
-                :param obj: get the children from obj according to
-                    self.children,
-
-                :return: a list or list-like object of any children objects.
-                """
-                if self.children is None:
-                    return []
-                if callable(self.children):
-                    return self.children(obj)
-                return getattr(obj, self.children)
-
-        def __getitem__(self, item):
-            if item not in self:  # create on demand
-                self[item] = self.Meta()
-            return super().__getitem__(item)
 
     row_meta = ViewMeta()
     bottom_info = ViewMeta()
