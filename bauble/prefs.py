@@ -281,10 +281,10 @@ QB_EXCLUDE_DEFAULTS = [
 
 
 class _prefs(UserDict):
-    def __init__(self, filename=default_prefs_file):
+    def __init__(self, filename=None):
         super().__init__()
-        self._filename = filename
-        self._lock_filename = filename + ".lock"
+        self._filename = filename or default_prefs_file
+        self._lock_filename = self._filename + ".lock"
         self._lock_timeout = 6
         self.config = None
 

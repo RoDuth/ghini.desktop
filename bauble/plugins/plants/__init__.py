@@ -36,6 +36,7 @@ from gi.repository import GLib
 from gi.repository import Gtk
 from sqlalchemy import Column
 from sqlalchemy.exc import InvalidRequestError
+from sqlalchemy.exc import OperationalError
 
 import bauble
 from bauble import db
@@ -276,6 +277,9 @@ class LabelUpdater(Thread):
             # race condition?  Re running seems to always succeed second time
             # around.
             self.run()
+        except OperationalError as e:
+            # capture except for test_main empty db
+            logger.debug("Empty database? %s(%s)", type(e).__name__, e)
         finally:
             session.close()
 
