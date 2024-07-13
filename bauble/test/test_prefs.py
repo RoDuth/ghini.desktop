@@ -1,6 +1,6 @@
 # Copyright (c) 2005,2006,2007,2008,2009 Brett Adams <brett@belizebotanic.org>
 # Copyright (c) 2012-2015 Mario Frasca <mario@anche.no>
-# Copyright (c) 2021 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright (c) 2021-2024 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -449,13 +449,12 @@ class PrefsViewTests(BaubleTestCase):
         prefs_view.update()
         path = Gtk.TreePath.new_first()
         key = "bauble.test.option"
-        new_iter = prefs_view.add_new(prefs_view.prefs_ls, path, text=key)
+        with self.assertLogs(level="DEBUG") as logs:
+            new_iter = prefs_view.add_new(prefs_view.prefs_ls, path, text=key)
         mock_dialog.assert_called()
         self.assertIsNotNone(new_iter)
-        self.assertTrue(
-            f"adding new pref option {key}"
-            in self.handler.messages["bauble.prefs"]["debug"]
-        )
+        string = f"adding new pref option {key}"
+        self.assertTrue(any(string in i for i in logs.output))
 
     @mock.patch("bauble.prefs.utils.message_dialog")
     def test_on_prefs_backup_restore(self, mock_dialog):

@@ -1,5 +1,6 @@
 # Copyright (c) 2005,2006,2007,2008,2009 Brett Adams <brett@belizebotanic.org>
 # Copyright (c) 2012-2015 Mario Frasca <mario@anche.no>
+# Copyright (c) 2021-2024 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -15,9 +16,9 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
-#
-# test for bauble.meta
-#
+"""
+test for bauble.meta
+"""
 from unittest import mock
 
 from gi.repository import Gtk
@@ -28,9 +29,6 @@ from bauble.test import BaubleTestCase
 
 
 class MetaTests(BaubleTestCase):
-    def __init__(self, *args):
-        super().__init__(*args)
-
     def test_get_default(self):
         """
         Test bauble.meta.get_default()

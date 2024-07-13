@@ -6476,43 +6476,37 @@ class GenusCompletionTests(PlantTestCase):
 class BaubleSearchSearchTest(BaubleTestCase):
     def test_search_search_uses_synonym_search(self):
         prefs.prefs["bauble.search.return_accepted"] = True
-        search.search("genus like %", self.session)
-        self.assertTrue(
-            'SearchStrategy "genus like %" (SynonymSearch)'
-            in self.handler.messages["bauble.search.strategies"]["debug"]
-        )
-        self.handler.reset()
-        search.search("12.11.13", self.session)
-        self.assertTrue(
-            'SearchStrategy "12.11.13" (SynonymSearch)'
-            in self.handler.messages["bauble.search.strategies"]["debug"]
-        )
-        self.handler.reset()
-        search.search("So ha", self.session)
-        self.assertTrue(
-            'SearchStrategy "So ha" (SynonymSearch)'
-            in self.handler.messages["bauble.search.strategies"]["debug"]
-        )
+        with self.assertLogs(level="DEBUG") as logs:
+            search.search("genus like %", self.session)
+        string = 'SearchStrategy "genus like %" (SynonymSearch)'
+        self.assertTrue(any(string in i for i in logs.output))
+
+        with self.assertLogs(level="DEBUG") as logs:
+            search.search("12.11.13", self.session)
+        string = 'SearchStrategy "12.11.13" (SynonymSearch)'
+        self.assertTrue(any(string in i for i in logs.output))
+
+        with self.assertLogs(level="DEBUG") as logs:
+            search.search("So ha", self.session)
+        string = 'SearchStrategy "So ha" (SynonymSearch)'
+        self.assertTrue(any(string in i for i in logs.output))
 
     def test_search_search_doesnt_use_synonym_search(self):
         prefs.prefs["bauble.search.return_accepted"] = False
-        search.search("genus like %", self.session)
-        self.assertFalse(
-            'SearchStrategy "genus like %" (SynonymSearch)'
-            in self.handler.messages["bauble.search.strategies"]["debug"]
-        )
-        self.handler.reset()
-        search.search("12.11.13", self.session)
-        self.assertFalse(
-            'SearchStrategy "12.11.13" (SynonymSearch)'
-            in self.handler.messages["bauble.search.strategies"]["debug"]
-        )
-        self.handler.reset()
-        search.search("So ha", self.session)
-        self.assertFalse(
-            'SearchStrategy "So ha" (SynonymSearch)'
-            in self.handler.messages["bauble.search.strategies"]["debug"]
-        )
+        with self.assertLogs(level="DEBUG") as logs:
+            search.search("genus like %", self.session)
+        string = 'SearchStrategy "genus like %" (SynonymSearch)'
+        self.assertFalse(any(string in i for i in logs.output))
+
+        with self.assertLogs(level="DEBUG") as logs:
+            search.search("12.11.13", self.session)
+        string = 'SearchStrategy "12.11.13" (SynonymSearch)'
+        self.assertFalse(any(string in i for i in logs.output))
+
+        with self.assertLogs(level="DEBUG") as logs:
+            search.search("So ha", self.session)
+        string = 'SearchStrategy "So ha" (SynonymSearch)'
+        self.assertFalse(any(string in i for i in logs.output))
 
 
 class SpeciesCompletionMatchTests(PlantTestCase):
@@ -6727,9 +6721,10 @@ class RetrieveTests(PlantTestCase):
             "species.sp": "alapense",
             "species.hybrid": "×",
         }
-        vname = VernacularName.retrieve(self.session, keys)
-        logs = self.handler.messages["bauble.plugins.plants.species_model"]
-        self.assertIn(f"retrieved species {species_str_map[4]}", logs["debug"])
+        with self.assertLogs(level="DEBUG") as logs:
+            vname = VernacularName.retrieve(self.session, keys)
+        string = f"retrieved species {species_str_map[4]}"
+        self.assertTrue(any(string in i for i in logs.output))
         self.assertIsNone(vname)
 
     def test_species_retreives_full_sp_data(self):

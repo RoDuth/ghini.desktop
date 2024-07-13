@@ -1,4 +1,4 @@
-# Copyright (c) 2022 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright (c) 2022-2024 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -32,4 +32,4 @@ def pytest_sessionfinish(session, exitstatus):
     print()
     print(f"==sessionfinish== removing tempdir at {paths.TEMPDIR}")
     # Clean up tempfiles
-    shutil.rmtree(paths.TEMPDIR)
+    shutil.rmtree(paths.TEMPDIR, ignore_errors=True)

@@ -1,6 +1,6 @@
 # Copyright (c) 2005,2006,2007,2008,2009 Brett Adams <brett@belizebotanic.org>
 # Copyright (c) 2012-2015 Mario Frasca <mario@anche.no>
-# Copyright (c) 2020-2022 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright (c) 2020-2024 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -48,7 +48,7 @@ uri = "sqlite:///file:testdb?mode=memory&cache=shared&uri=true"
 # e.g. to run tests on postgresql:
 # BAUBLE_TEST_DB_URI=postgresql://test:test@localhost/test pytest
 if os.environ.get("BAUBLE_TEST_DB_URI"):
-    uri = os.environ.get("BAUBLE_TEST_DB_URI")
+    uri = os.environ["BAUBLE_TEST_DB_URI"]
 
 
 def update_gui():
@@ -95,23 +95,6 @@ def check_dupids(filename):
     return list(duplicates)
 
 
-class MockLoggingHandler(logging.Handler):
-    """Mock logging handler to check for expected logs."""
-
-    def __init__(self, *args, **kwargs):
-        self.reset()
-        super().__init__(*args, **kwargs)
-
-    def emit(self, record):
-        received = self.messages.setdefault(record.name, {}).setdefault(
-            record.levelname.lower(), []
-        )
-        received.append(self.format(record))
-
-    def reset(self):
-        self.messages = {}
-
-
 class BaubleTestCase(unittest.TestCase):
     def setUp(self):
         assert uri is not None, "The database URI is not set"
@@ -151,8 +134,7 @@ class BaubleTestCase(unittest.TestCase):
         pluginmgr.install("all", False, force=True)
         pluginmgr.init()
         self.session = db.Session()
-        self.handler = MockLoggingHandler()
-        logging.getLogger().addHandler(self.handler)
+        bauble.logger.setLevel(logging.DEBUG)
         logging.getLogger().setLevel(logging.DEBUG)
         # clear meta cache
         bauble.meta.get_cached_value.clear_cache()
@@ -160,15 +142,15 @@ class BaubleTestCase(unittest.TestCase):
 
     def tearDown(self):
         update_gui()
-        logging.getLogger().removeHandler(self.handler)
+        wait_on_threads()
         self.session.rollback()
         close_all_sessions()
         db.metadata.drop_all(bind=db.engine)
         pluginmgr.plugins.clear()
         os.close(self.handle)
-        os.remove(self.temp)
+        if os.path.exists(self.temp):
+            os.remove(self.temp)
         db.engine.dispose()
-        # self.temp_prefs_file.close()
 
 
 def mockfunc(msg=None, name=None, caller=None, result=False, *args, **kwargs):

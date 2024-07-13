@@ -4448,116 +4448,88 @@ class PlantSearchTests(BaubleTestCase):
 
     def test__eq__plant_search(self):
         qry = 'planting = "XXXX.1"'
-        results = search.search(qry, self.session)
-        self.assertTrue(
-            f'SearchStrategy "{qry}" (PlantSearch)'
-            in self.handler.messages["bauble.search.strategies"]["debug"]
-        )
-        self.assertTrue(
-            '"equals" PlantSearch accession: XXXX plant: 1'
-            in self.handler.messages["bauble.plugins.garden.plant"]["debug"]
-        )
-        self.handler.reset()
+        with self.assertLogs(level="DEBUG") as logs:
+            results = search.search(qry, self.session)
+        string = f'SearchStrategy "{qry}" (PlantSearch)'
+        self.assertTrue(any(string in i for i in logs.output))
+        string = '"equals" PlantSearch accession: XXXX plant: 1'
+        self.assertTrue(any(string in i for i in logs.output))
         self.assertEqual(results, [self.plt1])
 
     def test__in__plant_search(self):
         qry = "planting in XXXX.1 YYYY.3"
-        results = search.search(qry, self.session)
-        results = search.search(qry, self.session)
-        self.assertTrue(
-            f'SearchStrategy "{qry}" (PlantSearch)'
-            in self.handler.messages["bauble.search.strategies"]["debug"]
-        )
-        self.assertTrue(
-            "\"in\" PlantSearch val_list: [('XXXX', '1'), ('YYYY', '3')]"
-            in self.handler.messages["bauble.plugins.garden.plant"]["debug"]
-        )
-        self.handler.reset()
+        with self.assertLogs(level="DEBUG") as logs:
+            results = search.search(qry, self.session)
+        string = f'SearchStrategy "{qry}" (PlantSearch)'
+        self.assertTrue(any(string in i for i in logs.output))
+        string = "\"in\" PlantSearch val_list: [('XXXX', '1'), ('YYYY', '3')]"
+        self.assertTrue(any(string in i for i in logs.output))
         self.assertCountEqual(results, [self.plt1, self.plt4])
+
         qry = "planting in 'XXXX.1' 'YYYY.3'"
-        results = search.search(qry, self.session)
-        self.assertTrue(
-            f'SearchStrategy "{qry}" (PlantSearch)'
-            in self.handler.messages["bauble.search.strategies"]["debug"]
-        )
-        self.assertTrue(
-            "\"in\" PlantSearch val_list: [('XXXX', '1'), ('YYYY', '3')]"
-            in self.handler.messages["bauble.plugins.garden.plant"]["debug"]
-        )
-        self.handler.reset()
+        with self.assertLogs(level="DEBUG") as logs:
+            results = search.search(qry, self.session)
+        string = f'SearchStrategy "{qry}" (PlantSearch)'
+        self.assertTrue(any(string in i for i in logs.output))
+        string = "\"in\" PlantSearch val_list: [('XXXX', '1'), ('YYYY', '3')]"
+        self.assertTrue(any(string in i for i in logs.output))
         self.assertCountEqual(results, [self.plt1, self.plt4])
 
     def test__not_eq__plant_search(self):
         qry = "planting != XXXX.1"
-        results = search.search(qry, self.session)
-        self.assertTrue(
-            f'SearchStrategy "{qry}" (PlantSearch)'
-            in self.handler.messages["bauble.search.strategies"]["debug"]
-        )
-        self.assertTrue(
-            '"not equals" PlantSearch accession: XXXX plant: "1"'
-            in self.handler.messages["bauble.plugins.garden.plant"]["debug"]
-        )
-        self.handler.reset()
+        with self.assertLogs(level="DEBUG") as logs:
+            results = search.search(qry, self.session)
+        string = f'SearchStrategy "{qry}" (PlantSearch)'
+        self.assertTrue(any(string in i for i in logs.output))
+        string = '"not equals" PlantSearch accession: XXXX plant: "1"'
+        self.assertTrue(any(string in i for i in logs.output))
         self.assertCountEqual(results, [self.plt2, self.plt3, self.plt4])
+
         qry = "planting <> YYYY.1"
         results = search.search(qry, self.session)
         self.assertCountEqual(results, [self.plt2, self.plt1, self.plt4])
 
     def test__star__plant_search(self):
         qry = "planting = *"
-        results = search.search(qry, self.session)
-        self.assertTrue(
-            f'SearchStrategy "{qry}" (PlantSearch)'
-            in self.handler.messages["bauble.search.strategies"]["debug"]
-        )
-        self.assertTrue(
-            '"star" PlantSearch, returning all plants'
-            in self.handler.messages["bauble.plugins.garden.plant"]["debug"]
-        )
-        self.handler.reset()
+        with self.assertLogs(level="DEBUG") as logs:
+            results = search.search(qry, self.session)
+        string = f'SearchStrategy "{qry}" (PlantSearch)'
+        self.assertTrue(any(string in i for i in logs.output))
+
+        string = '"star" PlantSearch, returning all plants'
+        self.assertTrue(any(string in i for i in logs.output))
         self.assertCountEqual(
             results, [self.plt1, self.plt2, self.plt3, self.plt4]
         )
 
     def test__contains__plant_search(self):
         qry = "planting contains XX"
-        results = search.search(qry, self.session)
-        self.assertTrue(
-            f'SearchStrategy "{qry}" (PlantSearch)'
-            in self.handler.messages["bauble.search.strategies"]["debug"]
-        )
-        self.assertTrue(
-            '"contains" PlantSearch accession: XX plant: XX'
-            in self.handler.messages["bauble.plugins.garden.plant"]["debug"]
-        )
-        self.handler.reset()
+        with self.assertLogs(level="DEBUG") as logs:
+            results = search.search(qry, self.session)
+        string = f'SearchStrategy "{qry}" (PlantSearch)'
+        self.assertTrue(any(string in i for i in logs.output))
+        string = '"contains" PlantSearch accession: XX plant: XX'
+        self.assertTrue(any(string in i for i in logs.output))
         self.assertCountEqual(results, [self.plt1, self.plt2])
 
     def test__like__plant_search(self):
         qry = "planting like XX%.1"
-        results = search.search(qry, self.session)
-        self.assertTrue(
-            f'SearchStrategy "{qry}" (PlantSearch)'
-            in self.handler.messages["bauble.search.strategies"]["debug"]
-        )
-        self.assertTrue(
-            '"like" PlantSearch accession: XX% plant: 1'
-            in self.handler.messages["bauble.plugins.garden.plant"]["debug"]
-        )
-        self.handler.reset()
+        with self.assertLogs(level="DEBUG") as logs:
+            results = search.search(qry, self.session)
+        string = f'SearchStrategy "{qry}" (PlantSearch)'
+        self.assertTrue(any(string in i for i in logs.output))
+
+        string = '"like" PlantSearch accession: XX% plant: 1'
+        self.assertTrue(any(string in i for i in logs.output))
         self.assertCountEqual(results, [self.plt1])
+
         qry = "planting like XX%.%"
-        results = search.search(qry, self.session)
-        self.assertTrue(
-            f'SearchStrategy "{qry}" (PlantSearch)'
-            in self.handler.messages["bauble.search.strategies"]["debug"]
-        )
-        self.assertTrue(
-            '"like" PlantSearch accession: XX% plant: %'
-            in self.handler.messages["bauble.plugins.garden.plant"]["debug"]
-        )
-        self.handler.reset()
+        with self.assertLogs(level="DEBUG") as logs:
+            results = search.search(qry, self.session)
+        string = f'SearchStrategy "{qry}" (PlantSearch)'
+        self.assertTrue(any(string in i for i in logs.output))
+        string = '"like" PlantSearch accession: XX% plant: %'
+        self.assertTrue(any(string in i for i in logs.output))
         self.assertCountEqual(results, [self.plt1, self.plt2])
 
 
@@ -4956,48 +4928,38 @@ import bauble.search
 
 class BaubleSearchSearchTest(BaubleTestCase):
     def test_search_search_dosnt_uses_plant_search(self):
-        bauble.search.search("genus like %", self.session)
-        self.assertFalse(
-            'SearchStrategy "genus like %" (PlantSearch)'
-            in self.handler.messages["bauble.search.strategies"]["debug"]
-        )
-        self.handler.reset()
-        bauble.search.search("12.11.13", self.session)
-        self.assertFalse(
-            'SearchStrategy "12.11.13" (PlantSearch)'
-            in self.handler.messages["bauble.search.strategies"]["debug"]
-        )
-        self.handler.reset()
-        bauble.search.search("So ha", self.session)
-        self.assertFalse(
-            'SearchStrategy "So ha" (PlantSearch)'
-            in self.handler.messages["bauble.search.strategies"]["debug"]
-        )
-        self.handler.reset()
-        bauble.search.search("plant where id > 1", self.session)
-        self.assertFalse(
-            'SearchStrategy "So ha" (PlantSearch)'
-            in self.handler.messages["bauble.search.strategies"]["debug"]
-        )
+        with self.assertLogs(level="DEBUG") as logs:
+            bauble.search.search("genus like %", self.session)
+        string = 'SearchStrategy "genus like %" (PlantSearch)'
+        self.assertFalse(any(string in i for i in logs.output))
+        with self.assertLogs(level="DEBUG") as logs:
+            bauble.search.search("12.11.13", self.session)
+        string = 'SearchStrategy "12.11.13" (PlantSearch)'
+        self.assertFalse(any(string in i for i in logs.output))
+        with self.assertLogs(level="DEBUG") as logs:
+            bauble.search.search("So ha", self.session)
+        string = 'SearchStrategy "So ha" (PlantSearch)'
+        self.assertFalse(any(string in i for i in logs.output))
+        with self.assertLogs(level="DEBUG") as logs:
+            bauble.search.search("plant where id > 1", self.session)
+        string = 'SearchStrategy "So ha" (PlantSearch)'
+        self.assertFalse(any(string in i for i in logs.output))
 
     def test_search_search_does_use_plant_search(self):
-        bauble.search.search("plant like 2021.000%.%", self.session)
-        self.assertFalse(
-            'SearchStrategy "genus like %" (PlantSearch)'
-            in self.handler.messages["bauble.search.strategies"]["debug"]
-        )
-        self.handler.reset()
-        bauble.search.search("plant = 2000001.1", self.session)
-        self.assertFalse(
-            'SearchStrategy "12.11.13" (PlantSearch)'
-            in self.handler.messages["bauble.search.strategies"]["debug"]
-        )
-        self.handler.reset()
-        bauble.search.search("plant != 20000001.1", self.session)
-        self.assertFalse(
-            'SearchStrategy "So ha" (PlantSearch)'
-            in self.handler.messages["bauble.search.strategies"]["debug"]
-        )
+        with self.assertLogs(level="DEBUG") as logs:
+            bauble.search.search("plant like 2021.000%.%", self.session)
+        string = 'SearchStrategy "genus like %" (PlantSearch)'
+        self.assertFalse(any(string in i for i in logs.output))
+
+        with self.assertLogs(level="DEBUG") as logs:
+            bauble.search.search("plant = 2000001.1", self.session)
+        string = 'SearchStrategy "12.11.13" (PlantSearch)'
+        self.assertFalse(any(string in i for i in logs.output))
+
+        with self.assertLogs(level="DEBUG") as logs:
+            bauble.search.search("plant != 20000001.1", self.session)
+        string = 'SearchStrategy "So ha" (PlantSearch)'
+        self.assertFalse(any(string in i for i in logs.output))
 
 
 class RetrieveTests(GardenTestCase):

@@ -1,6 +1,6 @@
 # Copyright 2008-2010 Brett Adams
 # Copyright 2015 Mario Frasca <mario@anche.no>.
-# Copyright 2021-2023 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright 2021-2024 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -2274,27 +2274,22 @@ class FunctionsTests(BaubleTestCase):
 
 class BaubleSearchSearchTest(BaubleTestCase):
     def test_search_search_uses_domain_search(self):
-        search.search("genus like %", self.session)
-        self.assertTrue(
-            'SearchStrategy "genus like %" (DomainSearch)'
-            in self.handler.messages["bauble.search.strategies"]["debug"]
-        )
+        with self.assertLogs(level="DEBUG") as logs:
+            search.search("genus like %", self.session)
+        string = 'SearchStrategy "genus like %" (DomainSearch)'
+        self.assertTrue(any(string in i for i in logs.output))
 
     def test_search_search_uses_value_list_search(self):
-        search.search("12.11.13", self.session)
-        self.assertTrue(
-            'SearchStrategy "12.11.13" (ValueListSearch)'
-            in self.handler.messages["bauble.search.strategies"]["debug"]
-        )
-        self.handler.reset()
+        with self.assertLogs(level="DEBUG") as logs:
+            search.search("12.11.13", self.session)
+        string = 'SearchStrategy "12.11.13" (ValueListSearch)'
+        self.assertTrue(any(string in i for i in logs.output))
 
     def test_search_search_uses_mapper_search(self):
-        search.search("genus where id = 1", self.session)
-        self.assertTrue(
-            'SearchStrategy "genus where id = 1" (MapperSearch)'
-            in self.handler.messages["bauble.search.strategies"]["debug"]
-        )
-        self.handler.reset()
+        with self.assertLogs(level="DEBUG") as logs:
+            search.search("genus where id = 1", self.session)
+        string = 'SearchStrategy "genus where id = 1" (MapperSearch)'
+        self.assertTrue(any(string in i for i in logs.output))
 
     def test_search_exclude_inactive_set(self):
         from bauble.plugins.garden.accession import Accession

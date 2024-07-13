@@ -52,76 +52,63 @@ class TestOne(BaubleTestCase):
         "bauble.plugins.plants.ask_tpl.get_net_sess", return_value=request
     )
     def test_simple_answer(self, _mock_sess):
-        print("test simple answer")
-        self.handler.reset()
         binomial = "Mangifera indica"
-        AskTPL(binomial, what_to_do_with_it, timeout=2).run()
-        infolog = self.handler.messages["bauble.plugins.plants.ask_tpl"][
-            "info"
-        ]
-        self.assertEqual(len(infolog), 1)
-        self.assertEqual(infolog[0], "Mangifera indica L. (Anacardiaceae)")
+        with self.assertLogs(level="INFO") as logs:
+            AskTPL(binomial, what_to_do_with_it, timeout=2).run()
+        self.assertEqual(len(logs.output), 1)
+        string = "Mangifera indica L. (Anacardiaceae)"
+        self.assertTrue(string in logs.output[0])
 
     @mock.patch(
         "bauble.plugins.plants.ask_tpl.get_net_sess", return_value=request
     )
     def test_taxon_is_synonym(self, _mock_sess):
-        self.handler.reset()
         binomial = "Iris florentina"
-        AskTPL(binomial, what_to_do_with_it, timeout=2).run()
-        infolog = self.handler.messages["bauble.plugins.plants.ask_tpl"][
-            "info"
-        ]
-        self.assertEqual(len(infolog), 2, "infolog = %s" % infolog)
-        self.assertEqual(infolog[0], "Iris ×florentina L. (Iridaceae)")
-        self.assertEqual(
-            infolog[1], "Iris ×germanica L. (Iridaceae) - is its accepted form"
-        )
+        with self.assertLogs(level="INFO") as logs:
+            AskTPL(binomial, what_to_do_with_it, timeout=2).run()
+        self.assertEqual(len(logs.output), 2)
+        string = "Iris ×florentina L. (Iridaceae)"
+        self.assertTrue(string in logs.output[0])
+        string = "Iris ×germanica L. (Iridaceae) - is its accepted form"
+        self.assertTrue(string in logs.output[1])
 
     @mock.patch(
         "bauble.plugins.plants.ask_tpl.get_net_sess", return_value=request
     )
     def test_empty_answer(self, _mock_sess):
-        self.handler.reset()
         binomial = "Manducaria italica"
-        AskTPL(binomial, what_to_do_with_it, timeout=2).run()
-        infolog = self.handler.messages["bauble.plugins.plants.ask_tpl"][
-            "info"
-        ]
-        self.assertEqual(len(infolog), 1)
-        self.assertEqual(infolog[0], "nothing matches")
+        with self.assertLogs(level="INFO") as logs:
+            AskTPL(binomial, what_to_do_with_it, timeout=2).run()
+        self.assertEqual(len(logs.output), 1)
+        string = "nothing matches"
+        self.assertTrue(string in logs.output[0])
 
     @mock.patch(
         "bauble.plugins.plants.ask_tpl.get_net_sess", return_value=request
     )
     def test_do_not_run_same_query_twice(self, _mock_sess):
-        self.handler.reset()
         binomial = "Iris florentina"
-        obj = AskTPL(binomial, what_to_do_with_it, timeout=2)
-        obj.start()
-        AskTPL(binomial, what_to_do_with_it, timeout=2).run()
-        obj.stop()
-        debuglog = self.handler.messages["bauble.plugins.plants.ask_tpl"][
-            "debug"
-        ]
-        self.assertTrue(
+        with self.assertLogs(level="DEBUG") as logs:
+            obj = AskTPL(binomial, what_to_do_with_it, timeout=2)
+            obj.start()
+            AskTPL(binomial, what_to_do_with_it, timeout=2).run()
+            obj.stop()
+        string = (
             "already requesting Iris florentina, ignoring repeated request"
-            in set(debuglog)
         )
+        self.assertTrue(any(string in i for i in logs.output))
 
     @mock.patch(
         "bauble.plugins.plants.ask_tpl.get_net_sess", return_value=request
     )
     def test_do_not_run_two_requests_at_same_time(self, _mock_sess):
-        self.handler.reset()
-        obj = AskTPL("Iris florentina", what_to_do_with_it, timeout=2)
-        obj.start()
-        AskTPL("Iris germanica", what_to_do_with_it, timeout=2).run()
-        obj.stop()
-        debuglog = self.handler.messages["bauble.plugins.plants.ask_tpl"][
-            "debug"
-        ]
-        self.assertTrue(
-            "running different request (Iris florentina), stopping it, starting Iris germanica"
-            in set(debuglog)
+        with self.assertLogs(level="DEBUG") as logs:
+            obj = AskTPL("Iris florentina", what_to_do_with_it, timeout=2)
+            obj.start()
+            AskTPL("Iris germanica", what_to_do_with_it, timeout=2).run()
+            obj.stop()
+        string = (
+            "running different request (Iris florentina), stopping it, starting "
+            "Iris germanica"
         )
+        self.assertTrue(any(string in i for i in logs.output))
