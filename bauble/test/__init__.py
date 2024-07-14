@@ -95,7 +95,82 @@ def check_dupids(filename):
     return list(duplicates)
 
 
+class BaubleClassTestCase(unittest.TestCase):
+    """Test case class that only sets up once for all tests in the class.
+
+    Intended for use cases where setting up may be time consuming and tearing
+    down may not be required between tests.
+
+    NOTE: running tests in an order other than default (all tests from the same
+    class grouped together) will result in setUpClass and tearDownClass being
+    called more than once.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        assert uri is not None, "The database URI is not set"
+        bauble.db.engine = None
+        bauble.conn_name = None
+        try:
+            poolclass = None
+            if uri.startswith("sqlite"):
+                # we know we're connecting to an empty database, use StaticPool
+                # so threads work in memory database.
+                poolclass = StaticPool
+            db.open_conn(
+                uri,
+                verify=False,
+                show_error_dialogs=False,
+                poolclass=poolclass,
+            )
+        except Exception as e:  # pylint: disable=broad-except
+            print(e, file=sys.stderr)
+        if not bauble.db.engine:
+            raise BaubleError("not connected to a database")
+        Path(paths.appdata_dir()).mkdir(parents=True, exist_ok=True)
+        bauble.utils.BuilderLoader.builders = {}
+        # FAILS test_on_prefs_backup_restore in windows.
+        # self.temp_prefs_file = NamedTemporaryFile(suffix='.cfg')
+        # self.temp = self.temp_prefs_file.name
+        cls.handle, cls.temp = mkstemp(suffix=".cfg", text=True)
+        # reason not to use `from bauble.prefs import prefs`
+        prefs.default_prefs_file = cls.temp
+        prefs.prefs = prefs._prefs(filename=cls.temp)
+        prefs.prefs.init()
+        prefs.prefs[prefs.web_proxy_prefs] = "no_proxies"
+        prefs.testing = True
+        pluginmgr.plugins.clear()
+        pluginmgr.load()
+        db.create(import_defaults=False)
+        pluginmgr.install("all", False, force=True)
+        pluginmgr.init()
+        cls.session = db.Session()
+        bauble.logger.setLevel(logging.DEBUG)
+        logging.getLogger().setLevel(logging.DEBUG)
+        # clear meta cache
+        bauble.meta.get_cached_value.clear_cache()
+        logger.debug("prefs filename: %s", prefs.prefs._filename)
+
+    @classmethod
+    def tearDownClass(cls):
+        update_gui()
+        wait_on_threads()
+        cls.session.rollback()
+        close_all_sessions()
+        db.metadata.drop_all(bind=db.engine)
+        pluginmgr.plugins.clear()
+        if os.path.exists(cls.temp):
+            os.close(cls.handle)
+            os.remove(cls.temp)
+        db.engine.dispose()
+
+
 class BaubleTestCase(unittest.TestCase):
+    """The main test case to use
+
+    This version setup a new database for every test.
+    """
+
     def setUp(self):
         assert uri is not None, "The database URI is not set"
         bauble.db.engine = None

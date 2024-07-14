@@ -46,6 +46,7 @@ from bauble import prefs
 from bauble import search
 from bauble import utils
 from bauble.meta import BaubleMeta
+from bauble.test import BaubleClassTestCase
 from bauble.test import BaubleTestCase
 from bauble.test import check_dupids
 from bauble.test import mockfunc
@@ -3041,15 +3042,17 @@ class BinomialSearchTests(BaubleTestCase):
         self.assertEqual(results, [self.cv2])
 
 
-class GeographyTests(PlantTestCase):
-    def setUp(self):
-        super().setUp()
-        self.family = Family(family="family")
-        self.genus = Genus(genus="genus", family=self.family)
-        self.session.add_all([self.family, self.genus])
-        self.session.flush()
+class GeographyTests(BaubleClassTestCase):
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        setUp_data()
+        cls.family = Family(family="family")
+        cls.genus = Genus(genus="genus", family=cls.family)
+        cls.session.add_all([cls.family, cls.genus])
+        cls.session.flush()
         setup_geographies()
-        self.session.commit()
+        cls.session.commit()
 
     def test_get_species(self):
         mexico_id = 53
@@ -3100,7 +3103,7 @@ class GeographyTests(PlantTestCase):
 
     def test_species_distribution_str(self):
         # create a some species
-        sp1 = Species(genus=self.genus, sp="sp1")
+        sp1 = Species(genus=self.genus, sp="sp1000")
         dist = SpeciesDistribution(geography_id=267)
         sp1.distribution.append(dist)
         self.session.flush()
@@ -3398,10 +3401,16 @@ class GeographyTests2(TestCase):
         self.assertEqual(_path_string(path, fill="blue"), res)
 
 
-class DistributionMapTests(BaubleTestCase):
-    def setUp(self):
-        super().setUp()
+class DistributionMapTests(BaubleClassTestCase):
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
         setup_geographies()
+
+    def setUp(self):
+        DistributionMap._world = ""
+        DistributionMap._world_pixbuf = None
+        DistributionMap._image_cache = {}
 
     def test_world_template(self):
         # calling world generates the template
@@ -3457,8 +3466,10 @@ class DistributionMapTests(BaubleTestCase):
         # calling map (via __str__) populates
         dist = DistributionMap(self.session.query(Geography).filter_by(id=682))
         self.assertFalse(dist._map)
+        orig_sess = db.Session
         db.Session = None
         self.assertFalse(dist.map)
+        db.Session = orig_sess
 
 
 class DistMapInfoExpanderMixinTests(BaubleTestCase):
@@ -5432,11 +5443,12 @@ class InfraspPresenterTests(TestCase):
         del row
 
 
-class DistributionPresenterTests(PlantTestCase):
-    def setUp(self):
-        super().setUp()
+class DistributionPresenterTests(BaubleClassTestCase):
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        setUp_data()
         setup_geographies()
-        self.session.commit()
 
     def test_on_remove_button_pressed(self):
         qld = (
@@ -5448,9 +5460,9 @@ class DistributionPresenterTests(PlantTestCase):
 
         qld_dist = SpeciesDistribution(geography=qld)
         nsw_dist = SpeciesDistribution(geography=nsw)
-        fam = Family(family="family")
-        gen = Genus(genus="genus", family=fam)
-        sp = Species(genus=gen, sp="sp")
+        fam = Family(family="family1")
+        gen = Genus(genus="genus1", family=fam)
+        sp = Species(genus=gen, sp="sp1")
         sp.distribution.append(qld_dist)
         sp.distribution.append(nsw_dist)
         self.session.add(sp)
@@ -5478,9 +5490,9 @@ class DistributionPresenterTests(PlantTestCase):
             self.session.query(Geography).filter(Geography.code == "QLD").one()
         )
 
-        fam = Family(family="family")
-        gen = Genus(genus="genus", family=fam)
-        sp = Species(genus=gen, sp="sp")
+        fam = Family(family="family2")
+        gen = Genus(genus="genus2", family=fam)
+        sp = Species(genus=gen, sp="sp2")
         self.session.add(sp)
         self.session.commit()
 
@@ -5507,9 +5519,9 @@ class DistributionPresenterTests(PlantTestCase):
 
         qld_dist = SpeciesDistribution(geography=qld)
         nsw_dist = SpeciesDistribution(geography=nsw)
-        fam = Family(family="family")
-        gen = Genus(genus="genus", family=fam)
-        sp = Species(genus=gen, sp="sp")
+        fam = Family(family="family3")
+        gen = Genus(genus="genus3", family=fam)
+        sp = Species(genus=gen, sp="sp3")
         sp.distribution.append(qld_dist)
         sp.distribution.append(nsw_dist)
         self.session.add(sp)
@@ -5538,9 +5550,9 @@ class DistributionPresenterTests(PlantTestCase):
 
         qld_dist = SpeciesDistribution(geography=qld)
         nsw_dist = SpeciesDistribution(geography=nsw)
-        fam = Family(family="family")
-        gen = Genus(genus="genus", family=fam)
-        sp = Species(genus=gen, sp="sp")
+        fam = Family(family="family4")
+        gen = Genus(genus="genus4", family=fam)
+        sp = Species(genus=gen, sp="sp4")
         sp.distribution.append(qld_dist)
         sp.distribution.append(nsw_dist)
         self.session.add(sp)
@@ -5560,9 +5572,9 @@ class DistributionPresenterTests(PlantTestCase):
     @mock.patch("bauble.utils.message_dialog")
     def test_append_dists_from_clipboard_text(self, mock_dialog):
         # haven't split these up as setUp is slow
-        fam = Family(family="family")
-        gen = Genus(genus="genus", family=fam)
-        sp = Species(genus=gen, sp="sp")
+        fam = Family(family="family5")
+        gen = Genus(genus="genus5", family=fam)
+        sp = Species(genus=gen, sp="sp5")
         self.session.add(sp)
         self.session.commit()
 
@@ -5683,9 +5695,9 @@ class DistributionPresenterTests(PlantTestCase):
     @mock.patch("bauble.gui")
     def test_on_consolidate(self, mock_gui):
         mock_gui.window = Gtk.Window()
-        fam = Family(family="family")
-        gen = Genus(genus="genus", family=fam)
-        sp = Species(genus=gen, sp="sp")
+        fam = Family(family="family6")
+        gen = Genus(genus="genus6", family=fam)
+        sp = Species(genus=gen, sp="sp6")
         lv2s = (
             self.session.query(Geography.id)
             .filter(Geography.level == 2)
@@ -5728,9 +5740,9 @@ class DistributionPresenterTests(PlantTestCase):
         )
 
         nsw_dist = SpeciesDistribution(geography=nsw)
-        fam = Family(family="family")
-        gen = Genus(genus="genus", family=fam)
-        sp = Species(genus=gen, sp="sp")
+        fam = Family(family="family7")
+        gen = Genus(genus="genus7", family=fam)
+        sp = Species(genus=gen, sp="sp7")
         sp.distribution.append(nsw_dist)
         self.session.add(sp)
         self.session.commit()
@@ -5762,9 +5774,9 @@ class DistributionPresenterTests(PlantTestCase):
         )
 
         nsw_dist = SpeciesDistribution(geography=nsw)
-        fam = Family(family="family")
-        gen = Genus(genus="genus", family=fam)
-        sp = Species(genus=gen, sp="sp")
+        fam = Family(family="family8")
+        gen = Genus(genus="genus8", family=fam)
+        sp = Species(genus=gen, sp="sp8")
         sp.distribution.append(nsw_dist)
         self.session.add(sp)
         self.session.commit()
@@ -5799,9 +5811,9 @@ class DistributionPresenterTests(PlantTestCase):
 
         qld_dist = SpeciesDistribution(geography=qld)
         nsw_dist = SpeciesDistribution(geography=nsw)
-        fam = Family(family="family")
-        gen = Genus(genus="genus", family=fam)
-        sp = Species(genus=gen, sp="sp")
+        fam = Family(family="family9")
+        gen = Genus(genus="genus9", family=fam)
+        sp = Species(genus=gen, sp="sp9")
         sp.distribution.append(qld_dist)
         sp.distribution.append(nsw_dist)
         self.session.add(sp)
