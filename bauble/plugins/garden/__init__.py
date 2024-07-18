@@ -288,6 +288,12 @@ class GardenPlugin(pluginmgr.Plugin):
             "plant_change", "plant", "{table} where changes.id = {obj_id}"
         )
 
+        HistoryView.add_translation_query(
+            "intended_location",
+            "accession",
+            "{table} where intended_locations.id = {obj_id}",
+        )
+
         # These are a little rough, only getting to accessions that have used
         # them as a source.
         HistoryView.add_translation_query(
