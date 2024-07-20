@@ -1,6 +1,6 @@
 ## vim: ft=mako:fdm=marker
 <%!
-from polylabel import polylabel
+from bauble.utils.geo import polylabel
 from bauble.utils import xml_safe
 from bauble.utils.geo import transform, DEFAULT_SYS_PROJ, CRS_MSG
 from bauble.meta import confirm_default
