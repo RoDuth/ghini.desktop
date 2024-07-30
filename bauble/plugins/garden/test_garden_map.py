@@ -943,6 +943,7 @@ class TestSearchViewMapPresenter(BaubleTestCase):
         self.assertEqual(presenter.selected, {("plt", 1), ("plt", 3)})
         presenter.clear_selected()
         self.assertEqual(presenter.selected, set())
+        update_gui()
         self.assertEqual(
             presenter.plt_items[3].rgba,
             map_.map_plant_colour.rgba,
@@ -953,6 +954,7 @@ class TestSearchViewMapPresenter(BaubleTestCase):
         self.assertEqual(presenter.selected, {("loc", 1)})
         presenter.clear_selected()
         self.assertEqual(presenter.selected, set())
+        update_gui()
         self.assertEqual(
             get_locations_polys()[1].rgba,
             map_.map_location_colour.rgba,

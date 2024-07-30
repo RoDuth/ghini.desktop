@@ -1058,9 +1058,13 @@ class SearchViewMapPresenter:  # pylint: disable=too-many-instance-attributes
         logger.debug("clearing prior map selection")
         for obj_type, id_ in self.selected:
             if obj_type == "plt" and (map_item := self.plt_items.get(id_)):
-                map_item.set_colour(self.garden_map.map_plant_colour)
+                GLib.idle_add(
+                    map_item.set_colour, self.garden_map.map_plant_colour
+                )
             elif obj_type == "loc" and (map_item := self.loc_items.get(id_)):
-                map_item.set_colour(self.garden_map.map_location_colour)
+                GLib.idle_add(
+                    map_item.set_colour, self.garden_map.map_location_colour
+                )
 
         self.selected.clear()
 
