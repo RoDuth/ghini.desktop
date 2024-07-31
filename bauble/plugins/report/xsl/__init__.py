@@ -229,6 +229,9 @@ class XSLFormatterSettingsBox(SettingsBox):
                 "if set the directory containing the report will be opened."
             )
         )
+        self.widgets.author_check.set_tooltip_text(
+            _("Has no effect if your stylesheet does not support authors.")
+        )
         self.widgets.private_check.set_tooltip_text(
             _(
                 "Accession and plant source reports only, Does not affect "
