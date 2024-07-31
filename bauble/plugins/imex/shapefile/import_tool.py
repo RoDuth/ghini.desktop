@@ -119,7 +119,7 @@ class ShapefileReader:
         self._field_map: dict[str, str] = {}
         # t_empty = tuple[None, None, None]
         # t_full = tuple[str, Callable, Any]
-        self.filter_condition: dict[str, tuple[Callable, Any]] = {}
+        self.filter_conditions: dict[str, tuple[Callable, Any]] = {}
 
     def __eq__(self, other):
         """Override == to check shapefiles are equal in form.
@@ -318,10 +318,10 @@ class ShapefileReader:
             return 0
 
     def _filter_func(self, shape_record: ShapeRecord) -> bool:
-        if self.filter_condition:
+        if self.filter_conditions:
             record = shape_record.record.as_dict()
             bools = []
-            for name, condition in self.filter_condition.items():
+            for name, condition in self.filter_conditions.items():
                 op, val = condition
                 bools.append(op(record[name], val))
             return all(bools)
@@ -444,7 +444,7 @@ class ShapefileImportSettingsBox(Gtk.ScrolledWindow):
             val = [TYPE_CONVERTERS[type_](i.strip()) for i in value.split(",")]
         else:
             val = TYPE_CONVERTERS[type_](value.strip())
-        self.shape_reader.filter_condition[name] = (
+        self.shape_reader.filter_conditions[name] = (
             FILTER_OPS[filter_op],
             val,
         )
@@ -493,8 +493,8 @@ class ShapefileImportSettingsBox(Gtk.ScrolledWindow):
         button.set_label(_("Apply a filter"))
 
         # clear any previous filter
-        if name in self.shape_reader.filter_condition:
-            del self.shape_reader.filter_condition[name]
+        if name in self.shape_reader.filter_conditions:
+            del self.shape_reader.filter_conditions[name]
 
         if dialog.run() == Gtk.ResponseType.ACCEPT:
             filter_op = combo.get_active_text()
@@ -509,7 +509,7 @@ class ShapefileImportSettingsBox(Gtk.ScrolledWindow):
                 button.set_label(f"{filter_op} {txt}")
 
         logger.debug(
-            "filter_condition now: %s", self.shape_reader.filter_condition
+            "filter_conditions now: %s", self.shape_reader.filter_conditions
         )
 
         dialog.destroy()
@@ -794,6 +794,7 @@ class ShapefileImporter(GenericImporter):
         self.search_by = self.shape_readers[0].search_by
         self.use_id = self.shape_readers[0].use_id
         self.replace_notes = self.shape_readers[0].replace_notes
+        filter_conditions = self.shape_readers[0].filter_conditions
         session = db.Session()
         logger.debug("importing %s with option %s", self.filename, self.option)
         record_count = sum(
@@ -812,6 +813,7 @@ class ShapefileImporter(GenericImporter):
             raise BaubleError('No "type" set for the records.')
 
         for shape_reader in self.shape_readers:
+            shape_reader.filter_conditions = filter_conditions
             msg = (
                 f"{shape_reader.filename}: {self._total_records} records, "
                 f"{self._committed} committed, {self._errors} errors"

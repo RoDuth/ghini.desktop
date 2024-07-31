@@ -2512,7 +2512,7 @@ class ImportSettingsBoxTests(ShapefileTestCase):
         )
 
         mock_dialog().run.return_value = Gtk.ResponseType.CANCEL
-        shape_reader.filter_condition = {
+        shape_reader.filter_conditions = {
             "loc_code": (FILTER_OPS["=="], TYPE_CONVERTERS["C"]("QCC01"))
         }
         settings_box = ImpSetBox(shape_reader)
@@ -2520,19 +2520,19 @@ class ImportSettingsBoxTests(ShapefileTestCase):
         settings_box.on_filter_button_clicked(mock_btn, "loc_code", "C")
         mock_btn.set_label.assert_called_with("Apply a filter")
         # dialog cancelled so filter should be removed
-        self.assertEqual(shape_reader.filter_condition, {})
+        self.assertEqual(shape_reader.filter_conditions, {})
 
         # reset
         mock_btn.reset_mock()
         # accept empty
         mock_dialog().run.return_value = Gtk.ResponseType.ACCEPT
-        shape_reader.filter_condition = {
+        shape_reader.filter_conditions = {
             "loc_code": (FILTER_OPS["=="], TYPE_CONVERTERS["C"]("QCC01"))
         }
         # nothing set still should remove
         settings_box.on_filter_button_clicked(mock_btn, "loc_code", "C")
         mock_btn.set_label.assert_called_with("Apply a filter")
-        self.assertEqual(shape_reader.filter_condition, {})
+        self.assertEqual(shape_reader.filter_conditions, {})
 
     def test_on_filter_button_clicked_w_vals(self):
         shape_reader = ShapefileReader(
@@ -2559,30 +2559,30 @@ class ImportSettingsBoxTests(ShapefileTestCase):
             settings_box.on_filter_button_clicked(mock_btn, "loc_id", "N")
             mock_btn.set_label.assert_called_with("== 1")
             self.assertEqual(
-                shape_reader.filter_condition,
+                shape_reader.filter_conditions,
                 {"loc_id": (FILTER_OPS["=="], 1)},
             )
             # long sting coverage
-            shape_reader.filter_condition = {}
+            shape_reader.filter_conditions = {}
             mock_gtk.ComboBoxText().get_active_text.return_value = "in"
             long_str = "A rather long string, an another string"
             mock_gtk.Entry().get_text.return_value = long_str
             settings_box.on_filter_button_clicked(mock_btn, "name", "C")
             mock_btn.set_label.assert_called_with("in A rather lon…")
             self.assertEqual(
-                shape_reader.filter_condition,
+                shape_reader.filter_conditions,
                 {"name": (FILTER_OPS["in"], long_str.split(", "))},
             )
-            shape_reader.filter_condition = {}
+            shape_reader.filter_conditions = {}
             # with bauble.gui for coverage
-            shape_reader.filter_condition = {}
+            shape_reader.filter_conditions = {}
             mock_gtk.ComboBoxText().get_active_text.return_value = ">"
             mock_gtk.Entry().get_text.return_value = "1"
             with mock.patch("bauble.gui"):
                 settings_box.get_parent = mock.Mock()
                 settings_box.on_filter_button_clicked(mock_btn, "loc_id", "N")
                 self.assertEqual(
-                    shape_reader.filter_condition,
+                    shape_reader.filter_conditions,
                     {"loc_id": (FILTER_OPS[">"], 1)},
                 )
 
@@ -4318,6 +4318,51 @@ class ShapefileImportTests(ShapefileTestCase):
         updated2 = self.session.query(Location).get(2)
         self.assertEqual(updated2.code, "QCC02")
 
+    @mock.patch("bauble.utils.create_yes_no_dialog")
+    def test_import_task_multi_w_filter(self, mock_dialog):
+        # multiple files with a filter
+        plt1 = self.session.query(Plant).get(1)
+        self.assertIsNone(plt1.geojson)
+        plt3 = self.session.query(Plant).get(3)
+        self.assertIsNone(plt3)
+        mock_dialog().run.return_value = -9
+        importer = self.importer
+        importer.option = "4"
+        start = self.session.query(Plant).all()
+        filename = create_shapefile(
+            "test",
+            prj_str_3857,
+            plant_fields,
+            plt_rec_3857_points,
+            self.temp_dir.name,
+        )
+        filename2 = create_shapefile(
+            "test2",
+            prj_str_3857,
+            plant_fields,
+            plt_rec_3857_new_only_lines,
+            self.temp_dir.name,
+        )
+        reader1 = ShapefileReader(filename)
+        reader2 = ShapefileReader(filename2)
+        reader1.filter_conditions = {
+            "accession": (FILTER_OPS["=="], TYPE_CONVERTERS["C"]("2021001"))
+        }
+        importer.shape_readers = [reader1, reader2]
+        importer.projection = "epsg:4326"
+        importer.run()
+        # mock_dialog.assert_called()
+        self.session.commit()
+        end = self.session.query(Plant).all()
+        self.assertEqual(len(end), len(start) + 1)
+        plt1 = self.session.query(Plant).get(1)
+        self.assertIsNotNone(plt1.geojson)
+        # plt2 is not from the same accession
+        plt2 = self.session.query(Plant).get(2)
+        self.assertIsNone(plt2.geojson)
+        plt3 = self.session.query(Plant).get(3)
+        self.assertIsNotNone(plt3.geojson)
+
 
 class ShapefileReaderTests(ShapefileTestCase):
     def test_search_by_loc_defaults(self):
@@ -4726,7 +4771,7 @@ class ShapefileReaderTests(ShapefileTestCase):
                 self.temp_dir.name,
             )
         )
-        shape_reader.filter_condition = {
+        shape_reader.filter_conditions = {
             "loc_id": (
                 FILTER_OPS["in"],
                 [
@@ -4738,7 +4783,7 @@ class ShapefileReaderTests(ShapefileTestCase):
         with shape_reader.get_records() as records:
             self.assertEqual(len(list(records)), 2)
 
-        shape_reader.filter_condition = {
+        shape_reader.filter_conditions = {
             "loc_id": (
                 FILTER_OPS["in"],
                 [TYPE_CONVERTERS["N"](i.strip()) for i in "1, 10".split(",")],
@@ -4747,7 +4792,7 @@ class ShapefileReaderTests(ShapefileTestCase):
         with shape_reader.get_records() as records:
             self.assertEqual(len(list(records)), 1)
 
-        shape_reader.filter_condition = {
+        shape_reader.filter_conditions = {
             "loc_id": (
                 FILTER_OPS["not in"],
                 [
@@ -4759,7 +4804,7 @@ class ShapefileReaderTests(ShapefileTestCase):
         with shape_reader.get_records() as records:
             self.assertEqual(len(list(records)), 0)
 
-        shape_reader.filter_condition = {
+        shape_reader.filter_conditions = {
             "loc_code": (FILTER_OPS["=="], TYPE_CONVERTERS["C"]("QCC01"))
         }
         with shape_reader.get_records() as records:
@@ -4767,7 +4812,7 @@ class ShapefileReaderTests(ShapefileTestCase):
             self.assertEqual(len(recs), 1)
             self.assertEqual(recs[0].record.as_dict()["loc_code"], "QCC01")
 
-        shape_reader.filter_condition = {
+        shape_reader.filter_conditions = {
             "loc_code": (FILTER_OPS["!="], TYPE_CONVERTERS["C"]("QCC01"))
         }
         with shape_reader.get_records() as records:
@@ -4775,7 +4820,7 @@ class ShapefileReaderTests(ShapefileTestCase):
             self.assertEqual(len(recs), 1)
             self.assertNotEqual(recs[0].record.as_dict()["loc_code"], "QCC01")
 
-        shape_reader.filter_condition = {
+        shape_reader.filter_conditions = {
             "loc_id": (FILTER_OPS[">"], TYPE_CONVERTERS["N"]("1"))
         }
         with shape_reader.get_records() as records:
@@ -4784,7 +4829,7 @@ class ShapefileReaderTests(ShapefileTestCase):
             loc_id = recs[0].record.as_dict()["loc_id"]
             self.assertEqual(loc_id, 2)
 
-        shape_reader.filter_condition = {
+        shape_reader.filter_conditions = {
             "loc_id": (FILTER_OPS["<"], TYPE_CONVERTERS["N"]("2"))
         }
         with shape_reader.get_records() as records:
@@ -4793,21 +4838,21 @@ class ShapefileReaderTests(ShapefileTestCase):
             loc_id = recs[0].record.as_dict()["loc_id"]
             self.assertEqual(loc_id, 1)
 
-        shape_reader.filter_condition = {
+        shape_reader.filter_conditions = {
             "loc_id": (FILTER_OPS["<="], TYPE_CONVERTERS["N"]("2"))
         }
         with shape_reader.get_records() as records:
             recs = list(records)
             self.assertEqual(len(recs), 2)
 
-        shape_reader.filter_condition = {
+        shape_reader.filter_conditions = {
             "loc_id": (FILTER_OPS[">="], TYPE_CONVERTERS["N"]("1"))
         }
         with shape_reader.get_records() as records:
             recs = list(records)
             self.assertEqual(len(recs), 2)
 
-        shape_reader.filter_condition = {
+        shape_reader.filter_conditions = {
             "loc_code": (FILTER_OPS["contains"], TYPE_CONVERTERS["C"]("QCC"))
         }
         with shape_reader.get_records() as records:
@@ -4815,7 +4860,7 @@ class ShapefileReaderTests(ShapefileTestCase):
             self.assertEqual(len(recs), 1)
             self.assertEqual(recs[0].record.as_dict()["loc_code"], "QCC01")
 
-        shape_reader.filter_condition = {
+        shape_reader.filter_conditions = {
             "loc_code": (
                 FILTER_OPS["not contains"],
                 TYPE_CONVERTERS["C"]("QCC"),
@@ -4827,7 +4872,7 @@ class ShapefileReaderTests(ShapefileTestCase):
             self.assertNotEqual(recs[0].record.as_dict()["loc_code"], "QCC01")
 
         # multiple
-        shape_reader.filter_condition = {
+        shape_reader.filter_conditions = {
             "loc_code": (
                 FILTER_OPS["not contains"],
                 TYPE_CONVERTERS["C"]("QCC"),
@@ -4839,7 +4884,7 @@ class ShapefileReaderTests(ShapefileTestCase):
             self.assertEqual(len(recs), 1)
             self.assertNotEqual(recs[0].record.as_dict()["loc_code"], "QCC01")
 
-        shape_reader.filter_condition = {
+        shape_reader.filter_conditions = {
             "loc_code": (
                 FILTER_OPS["contains"],
                 TYPE_CONVERTERS["C"]("QCC"),
