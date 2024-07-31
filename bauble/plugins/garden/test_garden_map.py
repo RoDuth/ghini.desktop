@@ -1183,6 +1183,7 @@ class TestSearchViewMapPresenter(BaubleTestCase):
         search_view = SearchView()
         # plant is in view
         search_view.search("plant where id in 1, 2")
+        mock_gui.widgets.view_box.get_children.return_value = [search_view]
         mock_gui.get_view.return_value = search_view
         presenter.select_plant_by_id(1)
         self.assertEqual(
@@ -1508,6 +1509,7 @@ class GlobalFunctionsTest(BaubleTestCase):
         )
         with mock.patch("bauble.gui") as mock_gui:
             mock_gui.get_view.return_value = search_view
+            mock_gui.widgets.view_box.get_children.return_value = [search_view]
             self.assertTrue(SearchViewMapPresenter.is_visible())
         # test if we run it again it aborts
         map_presenter = garden_map.map_presenter
@@ -1594,10 +1596,14 @@ class GlobalFunctionsTest(BaubleTestCase):
     @mock.patch("bauble.gui")
     def test_get_search_view_returns_search_view_only(self, mock_gui):
         mock_search_view = mock.Mock()
-        mock_gui.get_view.return_value = mock_search_view
+        mock_gui.widgets.view_box.get_children.return_value = [
+            mock_search_view
+        ]
         self.assertIsNone(get_search_view())
         mock_search_view = mock.Mock(spec=SearchView)
-        mock_gui.get_view.return_value = mock_search_view
+        mock_gui.widgets.view_box.get_children.return_value = [
+            mock_search_view
+        ]
         self.assertEqual(get_search_view(), mock_search_view)
 
     def test_expunge_garden_map(self):

@@ -1443,8 +1443,13 @@ def expunge_garden_map() -> None:
 
 
 def get_search_view() -> None | SearchView:
+    """Get the search view regardless of if it is the current view.
+
+    i.e. `bauble.gui.get_view()` does not work here.
+    """
+    search_view = None
     if bauble.gui:
-        view = bauble.gui.get_view()
-        if isinstance(view, SearchView):
-            return view
-    return None
+        for kid in bauble.gui.widgets.view_box.get_children():
+            if isinstance(kid, SearchView):
+                search_view = kid
+    return search_view
