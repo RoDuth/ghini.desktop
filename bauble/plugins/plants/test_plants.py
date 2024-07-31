@@ -75,6 +75,7 @@ from .genus import genus_to_string_matcher
 from .geography import DistMapCache
 from .geography import DistMapInfoExpanderMixin
 from .geography import DistributionMap
+from .geography import GeneralGeographyExpander
 from .geography import Geography
 from .geography import _coord_string
 from .geography import _path_string
@@ -82,6 +83,7 @@ from .geography import consolidate_geographies
 from .geography import consolidate_geographies_by_percent_area
 from .geography import get_species_in_geography
 from .geography import update_all_approx_areas_handler
+from .geography import update_all_approx_areas_task
 from .species import BinomialSearch
 from .species import DefaultVernacularName
 from .species import GeneralSpeciesExpander
@@ -3102,6 +3104,10 @@ class GeographyTests(BaubleClassTestCase):
         species = get_species_in_geography(puebla)
         self.assertTrue([s.id for s in species] == [sp1.id])
 
+        # un mapped raises
+        geo = Geography()
+        self.assertRaises(ValueError, get_species_in_geography, geo)
+
     def test_species_distribution_str(self):
         # create a some species
         sp1 = Species(genus=self.genus, sp="sp1000")
@@ -3323,6 +3329,19 @@ class GeographyTests(BaubleClassTestCase):
         )
         self.assertIsInstance(geo.distribution_map(), DistributionMap)
         self.assertTrue(path in str(geo.distribution_map()))
+
+    @mock.patch("bauble.utils.make_label_clickable")
+    def test_expander_update_with_parent_makes_label_clickable(self, mock_mlc):
+        qld = self.session.query(Geography).get(330)
+        self.assertTrue(qld.parent)
+        # effectively also tests PlantsPlugin.register_custom_column
+        filename = os.path.join(
+            paths.lib_dir(), "plugins", "plants", "geo_infobox.glade"
+        )
+        widgets = utils.BuilderWidgets(filename)
+        expander = GeneralGeographyExpander(widgets)
+        expander.update(qld)
+        mock_mlc.assert_called()
 
 
 class GeographyTests2(TestCase):
@@ -3701,6 +3720,18 @@ class GeographyApproxAreaTests(BaubleTestCase):
             que.side_effect = Exception
             update_all_approx_areas_handler()
         mock_dialog.assert_called()
+
+    def test_update_all_approx_areas_task_no_session(self):
+        geo = Geography(
+            name="Lord Howe I.",
+            code="NFK-LH",
+            level=4,
+        )
+        self.session.add(geo)
+        self.session.commit()
+        self.assertTrue(list(update_all_approx_areas_task()))
+        db.Session = None
+        self.assertFalse(list(update_all_approx_areas_task()))
 
     def test_get_approx_area_handles_holes(self):
         geojson = {
