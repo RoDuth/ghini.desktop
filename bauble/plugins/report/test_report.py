@@ -35,7 +35,9 @@ from bauble.plugins.plants import Family
 from bauble.plugins.plants import Genus
 from bauble.plugins.plants import Geography
 from bauble.plugins.plants import Species
+from bauble.plugins.plants import SpeciesDistribution
 from bauble.plugins.plants import VernacularName
+from bauble.plugins.plants.test_plants import setup_geographies
 from bauble.plugins.tag import Tag
 from bauble.plugins.tag import tag_objects
 from bauble.test import BaubleTestCase
@@ -496,8 +498,6 @@ class ReportTests(BaubleTestCase):
         """
         Test getting the geographies from different types
         """
-        from bauble.plugins.plants import SpeciesDistribution
-        from bauble.plugins.plants.test_plants import setup_geographies
 
         setup_geographies()
         self.assertTrue(len(self.session.query(Geography).all()) > 700)
@@ -592,10 +592,6 @@ class ReportTests(BaubleTestCase):
 
     def test_get_items_pertinent_to_geographies(self):
         """get geographies from various other items"""
-        from collections import deque
-
-        from bauble.plugins.plants import SpeciesDistribution
-        from bauble.plugins.plants.test_plants import setup_geographies
 
         setup_geographies()
         self.assertTrue(len(self.session.query(Geography).all()) > 700)
