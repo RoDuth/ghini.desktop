@@ -1426,6 +1426,12 @@ class SearchView(pluginmgr.View, Gtk.Box):
                 _('Could not find anything for search: "%s"') % text
             )
             model.append([msg])
+            if prefs.prefs.get(prefs.exclude_inactive_pref):
+                msg = bold % _(
+                    "CONSIDER: uncheck 'Exclude Inactive' in options menu and "
+                    "search again."
+                )
+                model.append([msg])
             self.results_view.set_model(model)
         else:
             statusbar.push(

@@ -405,6 +405,14 @@ class TestSearchView(BaubleTestCase):
         search_view.search("genus where epithet = None")
         model = search_view.results_view.get_model()
         self.assertIn("Could not find anything for search", model[0][0])
+        self.assertEqual(len(model), 1)
+        prefs.prefs[prefs.exclude_inactive_pref] = True
+
+        # with exclude inactive warns
+        search_view.search("genus where epithet = None")
+        model = search_view.results_view.get_model()
+        self.assertIn("Could not find anything for search", model[0][0])
+        self.assertIn("CONSIDER: uncheck 'Exclude Inactive'", model[1][0])
         # no infobox
         self.assertIsNone(search_view.infobox)
 
