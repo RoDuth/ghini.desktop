@@ -634,6 +634,8 @@ class GeneralGeographyExpander(DistMapInfoExpanderMixin, InfoExpander):
         for child in self.widgets.map_box.get_children():
             self.widgets.map_box.remove(child)
 
+        # grab shape before distribution_map to avoid thread issues for MSSQL
+        shape = row.geojson.get("type", "") if row.geojson else ""
         map_event_box = Gtk.EventBox()
         image = row.distribution_map().as_image()
 
@@ -653,7 +655,6 @@ class GeneralGeographyExpander(DistMapInfoExpanderMixin, InfoExpander):
         self.widget_set_value("code", row.code)
         self.widget_set_value("iso_code", row.iso_code)
         self.widget_set_value("parent", row.parent or "")
-        shape = row.geojson.get("type", "") if row.geojson else ""
         self.widget_set_value("geojson_type", shape)
         self.widget_set_value("approx_size", f"{row.approx_area:.2f} km²")
         self.widget_set_value("label_name", row.label_name)
