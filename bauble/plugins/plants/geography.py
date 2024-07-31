@@ -24,6 +24,7 @@ World Geographical Scheme for Recording Plant Distributions (WGSRPD)
 import logging
 import threading
 import traceback
+from collections import OrderedDict
 from collections.abc import Iterable
 from collections.abc import Iterator
 from collections.abc import Sequence
@@ -416,12 +417,30 @@ def _path_string(poly: Sequence[Iterable[int]], fill: str) -> str:
     return f'<path stroke="black" stroke-width="0.1" fill="{fill}" d="{d}"/>'
 
 
+class DistMapCache(OrderedDict[int, Gtk.Image]):
+    """Limited size LRU image cache dict.
+
+    When items are accessed via square brackets they are moved to the end,
+    making them last to be popped from the cache.  Use `get` method if you wish
+    to avoid this.
+    """
+
+    def __setitem__(self, key: int, value: Gtk.Image) -> None:
+        if len(self) > 120:
+            self.popitem(last=False)
+        super().__setitem__(key, value)
+
+    def __getitem__(self, key: int) -> Gtk.Image:
+        self.move_to_end(key)
+        return super().__getitem__(key)
+
+
 class DistributionMap:
     """Provide map images for geographies."""
 
     _world: str = ""
     _world_pixbuf: GdkPixbuf.Pixbuf | None = None
-    _image_cache: dict[int, Gtk.Image] = {}
+    _image_cache = DistMapCache()
 
     def __init__(self, areas: Sequence[Geography]) -> None:
         codes_str = "|".join(
@@ -518,7 +537,7 @@ class DistributionMap:
         logger.debug("reset distribution map cache")
         cls._world = ""
         cls._world_pixbuf = None
-        cls._image_cache = {}
+        cls._image_cache = DistMapCache()
 
 
 class DistMappable(Protocol):  # pylint: disable=too-few-public-methods

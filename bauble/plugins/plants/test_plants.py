@@ -72,6 +72,7 @@ from .genus import generic_gen_get_completions
 from .genus import genus_cell_data_func
 from .genus import genus_match_func
 from .genus import genus_to_string_matcher
+from .geography import DistMapCache
 from .geography import DistMapInfoExpanderMixin
 from .geography import DistributionMap
 from .geography import Geography
@@ -3410,7 +3411,7 @@ class DistributionMapTests(BaubleClassTestCase):
     def setUp(self):
         DistributionMap._world = ""
         DistributionMap._world_pixbuf = None
-        DistributionMap._image_cache = {}
+        DistributionMap._image_cache = DistMapCache()
 
     def test_world_template(self):
         # calling world generates the template
@@ -3470,6 +3471,25 @@ class DistributionMapTests(BaubleClassTestCase):
         db.Session = None
         self.assertFalse(dist.map)
         db.Session = orig_sess
+
+    def test_dist_map_cache(self):
+        cache = DistMapCache()
+        # load the cache
+        for i in range(121):
+            cache[i] = Gtk.Image()
+        self.assertEqual(len(cache), 121)
+        self.assertIsNotNone(cache.get(0))
+        # removes first entry
+        cache[121] = Gtk.Image()
+        self.assertEqual(len(cache), 121)
+        self.assertIsNone(cache.get(0))
+        # if get first does not remove it first
+        self.assertIsNotNone(cache[1])
+        self.assertEqual(len(cache), 121)
+        cache[122] = Gtk.Image()
+        self.assertIsNotNone(cache.get(1))
+        # removes second
+        self.assertIsNone(cache.get(2))
 
 
 class DistMapInfoExpanderMixinTests(BaubleTestCase):
