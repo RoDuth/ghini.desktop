@@ -388,6 +388,11 @@ class GenericImporter(ABC):  # pylint: disable=too-many-instance-attributes
                 new_change = PlantChange(**value)
                 item.changes.append(new_change)
                 value = None
+        elif key == "changes":
+            # should be a new change relating to another field change
+            new_change = PlantChange(**value)
+            item.changes.append(new_change)
+            value = None
         return value
 
     def memoized_get_create_or_update(
@@ -543,7 +548,7 @@ class GenericImporter(ABC):  # pylint: disable=too-many-instance-attributes
             self.add_rec_to_db(session, item, remainder)
 
         # once all records are accounted for add them to item in reverse
-        if "." not in key:
+        if "." not in key and key != "changes":
             logger.debug(
                 "setattr on object: %s with name: %s and value: %s (type %s)",
                 item,

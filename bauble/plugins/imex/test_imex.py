@@ -30,6 +30,7 @@ from datetime import datetime
 from pathlib import Path
 
 from dateutil.parser import parse as date_parse
+from sqlalchemy.exc import IntegrityError
 
 import bauble
 import bauble.plugins.garden.test_garden as garden_test
@@ -710,6 +711,75 @@ class GenericImporterTests(BaubleTestCase):
             result[2].accession.species.infraspecific_parts,
             data4.get("accession.species").get("infraspecific_parts"),
         )
+
+    def test_add_rec_to_db_plants_w_change_reason(self):
+        data1 = {
+            "accession.species.genus.family": {"family": "Bromeliaceae"},
+            "accession.species.genus": {"genus": "Tillandsia", "author": "L."},
+            "accession.source.source_detail": {
+                "name": "Tropical Garden Foliage"
+            },
+            "accession.species": {
+                "infrasp1_rank": "f.",
+                "infrasp1": "fastigiate",
+                "infrasp1_author": "Koide",
+                "sp": "ionantha",
+                "sp_author": "Planchon",
+            },
+            "location": {"name": "Epiphites of the Americas", "code": "10.10"},
+            "accession": {"code": "XXXX000001"},
+            "planted": {"date": "01/01/2001 12:00:00 pm"},
+            "code": "1",
+            "quantity": 1,
+        }
+
+        obj = Plant()
+        self.session.add(obj)
+        out = BasicImporter().add_rec_to_db(self.session, obj, data1)
+        self.assertEqual(obj, out)
+        # Committing will reveal issues that only show up at commit
+        self.session.commit()
+        # then change its quantity
+        data2 = {
+            "accession": {"code": "XXXX000001"},
+            "changes": {"date": "11/11/2011 12:00:00 pm", "reason": "ERRO"},
+            "code": "1",
+            "quantity": 11,
+        }
+        out = BasicImporter().add_rec_to_db(self.session, obj, data2)
+        self.assertEqual(obj, out)
+        self.session.commit()
+        result = self.session.query(Plant).get(1)
+        self.assertEqual(len(result.changes), 2)
+        self.assertEqual(result.changes[1].quantity, 10)
+        self.assertEqual(result.quantity, data2["quantity"])
+        self.assertEqual(
+            result.changes[1].date.strftime("%d/%m/%Y %I:%M:%S %p").lower(),
+            data2["changes"]["date"],
+        )
+        self.assertEqual(result.changes[1].reason, data2["changes"]["reason"])
+        # if nothing actually changes errors and no change is added or changed
+        data3 = {
+            "accession": {"code": "XXXX000001"},
+            "changes": {"date": "12/12/2012 11:00:00 pm", "reason": "DELE"},
+            "code": "1",
+            "quantity": 11,
+        }
+        out = BasicImporter().add_rec_to_db(self.session, obj, data3)
+        self.assertEqual(obj, out)
+        # self.session.commit()
+        self.assertRaises(IntegrityError, self.session.commit)
+        self.session.rollback()
+        session2 = db.Session()
+        result = session2.query(Plant).get(1)
+        self.assertEqual(len(result.changes), 2)
+        self.assertEqual(result.quantity, data2["quantity"])
+        self.assertEqual(result.changes[1].quantity, 10)
+        self.assertEqual(
+            result.changes[1].date.strftime("%d/%m/%Y %I:%M:%S %p").lower(),
+            data2["changes"]["date"],
+        )
+        self.assertEqual(result.changes[1].reason, data2["changes"]["reason"])
 
     def test_add_rec_to_db_plants_w_planted(self):
         data1 = {
