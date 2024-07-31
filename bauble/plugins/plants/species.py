@@ -283,7 +283,8 @@ class BinomialSearch(SearchStrategy):
     def use(text: str) -> typing.Literal["include", "exclude", "only"]:
         logger.debug("Use called with %s", text)
         if re.match(
-            "^[A-Z]+[a-z-]* +([a-z]+$|'[A-Za-z-]*$|'[A-Za-z- ]*'$)", text
+            "^[A-Z]+[a-z-]* +([a-z]+[a-z-]*$|'[A-Za-z-]*$|'[A-Za-z- ]*'$)",
+            text,
         ):
             logger.debug("including BinomialSearch in strategies")
             return "include"
