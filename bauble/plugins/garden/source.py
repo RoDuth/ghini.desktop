@@ -417,7 +417,13 @@ class CollectionPresenter(editor.ChildPresenter):
         self.parent_ref = weakref.ref(parent)
         self.refresh_view()
         self.geo_menu = None
+        self.view.attach_completion("collector_entry")
 
+        self.assign_completions_handler(
+            "collector_entry",
+            self.collector_get_completions,
+            set_problems=False,
+        )
         self.assign_simple_handler(
             "collector_entry", "collector", editor.StringOrNoneValidator()
         )
@@ -499,6 +505,14 @@ class CollectionPresenter(editor.ChildPresenter):
         # garbage collect
         self.geo_menu.destroy()
         super().cleanup()
+
+    def collector_get_completions(self, text):
+        query = (
+            self.session.query(Collection.collector)
+            .filter(utils.ilike(Collection.collector, f"%%{text}%%"))
+            .distinct()
+        )
+        return [i[0] for i in query]
 
     def set_region(self, _action, geo_id):
         geo_id = int(geo_id.unpack())

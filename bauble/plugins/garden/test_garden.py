@@ -4179,6 +4179,21 @@ class CollectionTests(GardenTestCase):
         self.assertFalse(view.widgets.east_radio.get_active())
         presenter.cleanup()
 
+    def test_collector_get_completions(self):
+        view = AccessionEditorView()
+        model = self.session.query(Collection).get(1)
+        presenter = CollectionPresenter(
+            unittest.mock.MagicMock(), model, view, self.session
+        )
+        self.assertCountEqual(
+            presenter.collector_get_completions("some"),
+            ["Someone", "Someone Else"],
+        )
+        self.assertCountEqual(
+            presenter.collector_get_completions("me"),
+            ["Someone", "Someone Else", "me"],
+        )
+
 
 class InstitutionTests(GardenTestCase):
     def test_init__9_props(self):
