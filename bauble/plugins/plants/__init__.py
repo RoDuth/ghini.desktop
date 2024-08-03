@@ -261,27 +261,20 @@ class SynonymsPresenter(editor.GenericEditorPresenter):
 
 
 class LabelUpdater(Thread):
-    def __init__(self, widget, query, *args, **kwargs):
+    def __init__(self, label_queries, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.query = query
-        self.widget = widget
+        self.label_queries = label_queries
 
     def run(self):
-        session = db.Session()
-        try:
-            value = session.execute(self.query).first()[0]
-            GLib.idle_add(self.widget.set_text, str(value))
-        except SystemError:
-            # tuple error should investigate further, seems specific to sqlite,
-            # when using insert menu with splashscreen visible.  Possibly a
-            # race condition?  Re running seems to always succeed second time
-            # around.
-            self.run()
-        except OperationalError as e:
-            # capture except for test_main empty db
-            logger.debug("Empty database? %s(%s)", type(e).__name__, e)
-        finally:
-            session.close()
+        with db.Session() as session:
+            for label, query in self.label_queries:
+                try:
+                    value = session.execute(query).first()[0]
+                    GLib.idle_add(label.set_text, str(value))
+                except OperationalError as e:
+                    # capture except for test_main empty db
+                    logger.debug("Empty database? %s(%s)", type(e).__name__, e)
+                    return
 
 
 @Gtk.Template(filename=str(Path(__file__).resolve().parent / "splash_info.ui"))
@@ -471,133 +464,96 @@ class SplashInfoBox(pluginmgr.View, Gtk.Box):
 
         self.name_tooltip_query = name_tooltip_query
 
-        # LabelUpdater objects **can** run in a thread.
-        if "GardenPlugin" in pluginmgr.plugins:
-            self.start_thread(
-                LabelUpdater(self.splash_nplttot, "select count(*) from plant")
-            )
-            self.start_thread(
-                LabelUpdater(
-                    self.splash_npltuse,
-                    "select count(*) from plant where quantity>0",
-                )
-            )
-            self.start_thread(
-                LabelUpdater(
-                    self.splash_npltnot,
-                    "select count(*) from plant where quantity=0",
-                )
-            )
-            self.start_thread(
-                LabelUpdater(
-                    self.splash_nacctot, "select count(*) from accession"
-                )
-            )
-            self.start_thread(
-                LabelUpdater(
-                    self.splash_naccuse,
-                    "select count(distinct accession.id) "
-                    "from accession "
-                    "join plant on plant.accession_id=accession.id "
-                    "where plant.quantity>0",
-                )
-            )
-            self.start_thread(
-                LabelUpdater(
-                    self.splash_naccnot,
-                    "select count(id) "
-                    "from accession "
-                    "where id not in "
-                    "(select accession_id from plant "
-                    " where plant.quantity>0)",
-                )
-            )
-            self.start_thread(
-                LabelUpdater(
-                    self.splash_nloctot, "select count(*) from location"
-                )
-            )
-            self.start_thread(
-                LabelUpdater(
-                    self.splash_nlocuse,
-                    "select count(distinct location.id) "
-                    "from location "
-                    "join plant on plant.location_id=location.id "
-                    "where plant.quantity>0",
-                )
-            )
-            self.start_thread(
-                LabelUpdater(
-                    self.splash_nlocnot,
-                    "select count(id) "
-                    "from location "
-                    "where id not in "
-                    "(select location_id from plant "
-                    " where plant.quantity>0)",
-                )
-            )
-
         self.start_thread(
             LabelUpdater(
-                self.splash_nspcuse,
-                "select count(distinct species.id) "
-                "from species join accession "
-                "on accession.species_id=species.id",
-            )
-        )
-        self.start_thread(
-            LabelUpdater(
-                self.splash_ngenuse,
-                "select count(distinct species.genus_id) "
-                "from species join accession "
-                "on accession.species_id=species.id",
-            )
-        )
-        self.start_thread(
-            LabelUpdater(
-                self.splash_nfamuse,
-                "select count(distinct genus.family_id) from genus "
-                "join species on species.genus_id=genus.id "
-                "join accession on accession.species_id=species.id ",
-            )
-        )
-        self.start_thread(
-            LabelUpdater(self.splash_nspctot, "select count(*) from species")
-        )
-        self.start_thread(
-            LabelUpdater(self.splash_ngentot, "select count(*) from genus")
-        )
-        self.start_thread(
-            LabelUpdater(self.splash_nfamtot, "select count(*) from family")
-        )
-        self.start_thread(
-            LabelUpdater(
-                self.splash_nspcnot,
-                "select count(id) from species "
-                "where id not in "
-                "(select distinct species.id "
-                " from species join accession "
-                " on accession.species_id=species.id)",
-            )
-        )
-        self.start_thread(
-            LabelUpdater(
-                self.splash_ngennot,
-                "select count(id) from genus "
-                "where id not in "
-                "(select distinct species.genus_id "
-                " from species join accession "
-                " on accession.species_id=species.id)",
-            )
-        )
-        self.start_thread(
-            LabelUpdater(
-                self.splash_nfamnot,
-                "select count(id) from family "
-                "where id not in "
-                "(select distinct genus.family_id from genus "
-                "join species on species.genus_id=genus.id "
-                "join accession on accession.species_id=species.id)",
+                (
+                    (self.splash_nplttot, "select count(*) from plant"),
+                    (
+                        self.splash_npltuse,
+                        "select count(*) from plant where quantity>0",
+                    ),
+                    (
+                        self.splash_npltnot,
+                        "select count(*) from plant where quantity=0",
+                    ),
+                    (self.splash_nacctot, "select count(*) from accession"),
+                    (
+                        self.splash_naccuse,
+                        "select count(distinct accession.id) "
+                        "from accession "
+                        "join plant on plant.accession_id=accession.id "
+                        "where plant.quantity>0",
+                    ),
+                    (
+                        self.splash_naccnot,
+                        "select count(id) "
+                        "from accession "
+                        "where id not in "
+                        "(select accession_id from plant "
+                        " where plant.quantity>0)",
+                    ),
+                    (self.splash_nloctot, "select count(*) from location"),
+                    (
+                        self.splash_nlocuse,
+                        "select count(distinct location.id) "
+                        "from location "
+                        "join plant on plant.location_id=location.id "
+                        "where plant.quantity>0",
+                    ),
+                    (
+                        self.splash_nlocnot,
+                        "select count(id) "
+                        "from location "
+                        "where id not in "
+                        "(select location_id from plant "
+                        " where plant.quantity>0)",
+                    ),
+                    (
+                        self.splash_nspcuse,
+                        "select count(distinct species.id) "
+                        "from species join accession "
+                        "on accession.species_id=species.id",
+                    ),
+                    (
+                        self.splash_ngenuse,
+                        "select count(distinct species.genus_id) "
+                        "from species join accession "
+                        "on accession.species_id=species.id",
+                    ),
+                    (
+                        self.splash_nfamuse,
+                        "select count(distinct genus.family_id) from genus "
+                        "join species on species.genus_id=genus.id "
+                        "join accession on accession.species_id=species.id ",
+                    ),
+                    (self.splash_nspctot, "select count(*) from species"),
+                    (self.splash_ngentot, "select count(*) from genus"),
+                    (self.splash_nfamtot, "select count(*) from family"),
+                    (
+                        self.splash_nspcnot,
+                        "select count(id) from species "
+                        "where id not in "
+                        "(select distinct species.id "
+                        " from species join accession "
+                        " on accession.species_id=species.id)",
+                    ),
+                    (
+                        self.splash_ngennot,
+                        "select count(id) from genus "
+                        "where id not in "
+                        "(select distinct species.genus_id "
+                        " from species join accession "
+                        " on accession.species_id=species.id)",
+                    ),
+                    (
+                        self.splash_nfamnot,
+                        "select count(id) from family "
+                        "where id not in "
+                        "(select distinct genus.family_id from genus "
+                        "join species on species.genus_id=genus.id "
+                        "join accession on accession.species_id=species.id)",
+                    ),
+                )
             )
         )
 
