@@ -115,6 +115,9 @@ Values: int (number of processes), bool (use multiprocessing),
     str (just provide length of results)
 """
 
+EXPAND_ON_ACTIVATE_PREF = "bauble.search.expand_on_activate"
+"""Preference key, should search view expand the item on double click"""
+
 
 class Action:
     # pylint: disable=too-few-public-methods, too-many-arguments
@@ -829,6 +832,7 @@ class ViewMeta(UserDict):
             self.context_menu = None
             self.actions = []
             self.sorter = utils.natsort_key
+            self.activated_callback = None
 
         def set(
             self,
@@ -836,6 +840,7 @@ class ViewMeta(UserDict):
             infobox=None,
             context_menu=None,
             sorter=None,
+            activated_callback=None,
         ):
             """Set attributes for the selected meta object.
 
@@ -856,6 +861,7 @@ class ViewMeta(UserDict):
                 self.actions = [
                     x for x in self.context_menu if isinstance(x, Action)
                 ]
+            self.activated_callback = activated_callback
 
         def get_children(self, obj):
             """
@@ -1833,13 +1839,30 @@ class SearchView(pluginmgr.View, Gtk.Box):
         if path is not None:
             self.results_view.set_cursor(path)
 
-    @staticmethod
-    def on_view_row_activated(view, path, column):
-        """Expand the row on activation."""
+    def on_view_row_activated(
+        self,
+        view: Gtk.TreeView,
+        path: Gtk.TreePath,
+        column: Gtk.TreeViewColumn,
+    ) -> None:
+        """Open the activation_callback on row activation or expand the row.
+
+        To make expanding the row the default set EXPAND_ON_ACTIVATE_PREF.
+        """
         logger.debug(
             "SearchView::on_view_row_activated %s %s %s", view, path, column
         )
-        view.expand_row(path, False)
+        if prefs.prefs.get(EXPAND_ON_ACTIVATE_PREF):
+            view.expand_row(path, False)
+            return
+
+        selected = self.get_selected_values()
+        if not selected or isinstance(selected[0], str):
+            return
+        print(f"{selected=}")
+
+        if call_back := self.row_meta[type(selected[0])].activated_callback:
+            call_back(selected)
 
     def create_gui(self):
         """Create the interface."""

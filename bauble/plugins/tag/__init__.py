@@ -1019,6 +1019,7 @@ class TagPlugin(pluginmgr.Plugin):
             ),
             infobox=TagInfoBox,
             context_menu=tag_context_menu,
+            activated_callback=edit_callback,
         )
         tag_meta = {
             "page_widget": "taginfo_scrolledwindow",

@@ -57,11 +57,13 @@ from .family import Family
 from .family import FamilyEditor
 from .family import FamilyInfoBox
 from .family import FamilyNote
+from .family import edit_callback as family_edit_callback
 from .family import family_context_menu
 from .genus import Genus
 from .genus import GenusEditor
 from .genus import GenusInfoBox
 from .genus import GenusNote
+from .genus import edit_callback as genus_edit_callback
 from .genus import genus_context_menu
 from .geography import DistributionMap
 from .geography import Geography
@@ -79,6 +81,7 @@ from .species import SynonymSearch
 from .species import VernacularName
 from .species import VernacularNameInfoBox
 from .species import add_accession_action
+from .species import edit_callback as species_edit_callback
 from .species import species_context_menu
 from .species import vernname_context_menu
 from .species_model import SpeciesPicture
@@ -713,6 +716,7 @@ class PlantsPlugin(pluginmgr.Plugin):
             children="genera",
             infobox=FamilyInfoBox,
             context_menu=family_context_menu,
+            activated_callback=family_edit_callback,
         )
 
         mapper_search.add_meta(("genus", "gen"), Genus, ["genus"])
@@ -721,6 +725,7 @@ class PlantsPlugin(pluginmgr.Plugin):
             children=partial(db.get_active_children, "species"),
             infobox=GenusInfoBox,
             context_menu=genus_context_menu,
+            activated_callback=genus_edit_callback,
         )
 
         search.strategies.add_strategy(BinomialSearch)
@@ -749,6 +754,7 @@ class PlantsPlugin(pluginmgr.Plugin):
             ),
             infobox=SpeciesInfoBox,
             context_menu=species_context_menu,
+            activated_callback=species_edit_callback,
         )
 
         mapper_search.add_meta(
@@ -763,6 +769,7 @@ class PlantsPlugin(pluginmgr.Plugin):
             ),
             infobox=VernacularNameInfoBox,
             context_menu=vernname_context_menu,
+            activated_callback=species_edit_callback,
         )
 
         mapper_search.add_meta(

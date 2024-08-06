@@ -37,6 +37,7 @@ from bauble.test import get_setUp_data_funcs
 from bauble.test import update_gui
 from bauble.test import uri
 from bauble.test import wait_on_threads
+from bauble.view import EXPAND_ON_ACTIVATE_PREF
 from bauble.view import PIC_PANE_PAGE_PREF
 from bauble.view import PIC_PANE_WIDTH_PREF
 from bauble.view import HistoryView
@@ -760,6 +761,24 @@ class TestSearchView(BaubleTestCase):
         )
         mock_callback.assert_called()
         mock_popup.assert_called()
+
+    def test_on_view_row_activated(self):
+        for func in get_setUp_data_funcs():
+            func()
+        from bauble.plugins.plants.genus import Genus
+
+        search_view = self.search_view
+        mock_editor = mock.Mock()
+        search_view.row_meta[Genus].activated_callback = mock_editor
+        search_view.search("genus where id = 1")
+
+        search_view.on_view_row_activated(None, None, None)
+        mock_editor.assert_called_with(search_view.get_selected_values())
+
+        prefs.prefs[EXPAND_ON_ACTIVATE_PREF] = True
+        mock_tree_view = mock.Mock()
+        search_view.on_view_row_activated(mock_tree_view, "test_path", None)
+        mock_tree_view.expand_row.assert_called_with("test_path", False)
 
 
 class TestHistoryView(BaubleTestCase):

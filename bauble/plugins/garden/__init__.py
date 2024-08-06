@@ -50,6 +50,7 @@ from .accession import AccessionEditor
 from .accession import AccessionInfoBox
 from .accession import AccessionNote
 from .accession import acc_context_menu
+from .accession import edit_callback as acc_edit_callback
 from .garden_map import LocationSearchMap
 from .institution import Institution
 from .institution import InstitutionCommand
@@ -59,6 +60,7 @@ from .location import Location
 from .location import LocationEditor
 from .location import LocationInfoBox
 from .location import LocationNote
+from .location import edit_callback as loc_edit_callback
 from .location import loc_context_menu
 from .plant import Plant
 from .plant import PlantEditor
@@ -66,6 +68,7 @@ from .plant import PlantInfoBox
 from .plant import PlantNote
 from .plant import PlantPicture
 from .plant import PlantSearch
+from .plant import edit_callback as plant_edit_callback
 from .plant import plant_context_menu
 from .plant import set_code_format
 from .source import Collection
@@ -73,8 +76,10 @@ from .source import Source
 from .source import SourceDetail
 from .source import SourceDetailInfoBox
 from .source import collection_context_menu
+from .source import collection_edit_callback
 from .source import create_source_detail
 from .source import source_detail_context_menu
+from .source import source_detail_edit_callback
 
 # other ideas:
 # - cultivation table
@@ -162,6 +167,7 @@ class GardenPlugin(pluginmgr.Plugin):
                 if prefs.prefs.get(SORT_BY_PREF)
                 else utils.natsort_key(obj)
             ),
+            activated_callback=acc_edit_callback,
         )
 
         mapper_search.add_meta(("location", "loc"), Location, ["name", "code"])
@@ -171,6 +177,7 @@ class GardenPlugin(pluginmgr.Plugin):
             ),
             infobox=LocationInfoBox,
             context_menu=loc_context_menu,
+            activated_callback=loc_edit_callback,
         )
 
         mapper_search.add_meta(("plant", "planting"), Plant, ["code"])
@@ -190,6 +197,7 @@ class GardenPlugin(pluginmgr.Plugin):
                 if prefs.prefs.get(SORT_BY_PREF)
                 else utils.natsort_key(obj)
             ),
+            activated_callback=plant_edit_callback,
         )
 
         mapper_search.add_meta(
@@ -211,6 +219,7 @@ class GardenPlugin(pluginmgr.Plugin):
             children=partial(db.get_active_children, sd_kids),
             infobox=SourceDetailInfoBox,
             context_menu=source_detail_context_menu,
+            activated_callback=source_detail_edit_callback,
         )
 
         mapper_search.add_meta(
@@ -224,6 +233,7 @@ class GardenPlugin(pluginmgr.Plugin):
             children=partial(db.get_active_children, coll_kids),
             infobox=AccessionInfoBox,
             context_menu=collection_context_menu,
+            activated_callback=collection_edit_callback,
         )
 
         # done here b/c the Species table is not part of this plugin
