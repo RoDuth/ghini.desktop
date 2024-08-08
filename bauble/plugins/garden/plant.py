@@ -1,7 +1,7 @@
 # Copyright 2008-2010 Brett Adams
 # Copyright 2015-2017 Mario Frasca <mario@anche.no>.
 # Copyright 2017 Jardín Botánico de Quito
-# Copyright 2020-2023 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright 2020-2024 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -62,6 +62,7 @@ from sqlalchemy import event
 from sqlalchemy import func
 from sqlalchemy import not_
 from sqlalchemy import or_
+from sqlalchemy import select
 from sqlalchemy import tuple_
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.exc import OperationalError
@@ -814,7 +815,12 @@ class Plant(db.Base, db.WithNotes):
     # spatial data deferred mainly to avoid comparison issues in union search
     # (i.e. reports)  NOTE that deferring can lead to the instance becoming
     # dirty when merged into another session (i.e. an editor) and the column
-    # has already been loaded (i.e. infobox)
+    # has already been loaded (i.e. infobox).  This can be avoided using a
+    # separate db connection.
+    # Also, NOTE that if not loaded (read) prior to changing a single list
+    # history change will be recoorded with no indication of its value to the
+    # change.  Can use something like:
+    # `if plt.geojson != val: plt.geojson = val`
     geojson = deferred(Column(types.JSON()))
 
     propagations = association_proxy(
@@ -2230,13 +2236,14 @@ class GeneralPlantExpander(InfoExpander):
         self.widget_set_value("location_data", str(row.location))
         self.widget_set_value("quantity_data", row.quantity)
         # NOTE don't load geojson from the row or history will always record
-        # an unpdate and _last_updated will always chenge when a relationship
+        # an unpdate and _last_updated will always change when a relationship
         # (note, propagation, etc.) is edited. (e.g. `shape = row.geojson...`
         # instead use a temp session)
-        temp = db.Session()
-        geojson = temp.query(Plant.geojson).filter_by(id=row.id).scalar()
+        with db.engine.begin() as connection:
+            table = Plant.__table__
+            stmt = select(table.c.geojson).where(table.c.id == row.id)
+            geojson = connection.execute(stmt).scalar()
         shape = geojson.get("type", "") if geojson else ""
-        temp.close()
         self.widget_set_value("geojson_type", shape)
 
         status_str = _("Alive")

@@ -1891,10 +1891,13 @@ class PresenterMapMixin:
                 geojson = json.loads(text)
                 # basic validation...
                 if not set(geojson.keys()) == {"type", "coordinates"}:
-                    raise AttributeError("wrong keys, need type, coordinates")
-                self.model.geojson = geojson
-                self._dirty = True
-                self.refresh_sensitivity()
+                    raise AttributeError(
+                        "wrong keys, need 'type' and 'coordinates'"
+                    )
+                if self.model.geojson != geojson:
+                    self.model.geojson = geojson
+                    self._dirty = True
+                    self.refresh_sensitivity()
             except (AttributeError, json.JSONDecodeError) as e:
                 logger.debug("geojson paste %s(%s)", type(e).__name__, e)
                 logger.debug("geojson paste %s", text)
@@ -1906,10 +1909,11 @@ class PresenterMapMixin:
     def on_map_delete(self, *_args):
         msg = _("Are you sure you want to delete spatial data?")
         if self.view.run_yes_no_dialog(msg, yes_delay=1):
-            self.model.geojson = None
-            self._dirty = True
-            self.refresh_sensitivity()
-            self.init_map_menu()
+            if self.model.geojson:
+                self.model.geojson = None
+                self._dirty = True
+                self.refresh_sensitivity()
+                self.init_map_menu()
 
     def on_map_kml_show(self, *_args):
         import tempfile

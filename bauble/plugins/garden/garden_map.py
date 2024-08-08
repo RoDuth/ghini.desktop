@@ -46,8 +46,10 @@ from gi.repository import GLib
 from gi.repository import Gtk
 from gi.repository import OsmGpsMap  # type: ignore[attr-defined]
 from sqlalchemy import Table
+from sqlalchemy import case
 from sqlalchemy import engine
 from sqlalchemy import event
+from sqlalchemy import select
 
 import bauble
 from bauble import db
@@ -961,6 +963,8 @@ class SearchViewMapPresenter:  # pylint: disable=too-many-instance-attributes
 
         from ..report import get_plants_pertinent_to
 
+        # get_plants.. using separate session (none provided) avoids messing up
+        # history on deferred geojson column
         for plant in get_plants_pertinent_to(results):
             if self.thread_event.is_set():
                 glib_events.clear()
@@ -1091,6 +1095,9 @@ class SearchViewMapPresenter:  # pylint: disable=too-many-instance-attributes
             self.selected_bbox.update(lats, longs)
 
     def _update_worker(self, selected_values: Sequence) -> None:
+        if not db.engine:
+            return
+
         if self.populate_thread and self.populate_thread.is_alive():
             logger.debug("joining populate_thread")
             self.populate_thread.join()
@@ -1101,10 +1108,17 @@ class SearchViewMapPresenter:  # pylint: disable=too-many-instance-attributes
             if self.thread_event.is_set() or self.update_thread_event.is_set():
                 return
 
-            geojson = getattr(value, "geojson", None)
-
-            if not geojson:
-                continue
+            # check for geojson directly from the database to avoid messing up
+            # history entries on deferred geojson column
+            if value.__tablename__ in ("plant", "location"):
+                table = value.__table__
+                # case required for MSSQL
+                stmt = select(
+                    case((table.c.geojson.is_(None), 1), else_=0)
+                ).where(table.c.id == value.id)
+                with db.engine.begin() as connection:
+                    if connection.execute(stmt).scalar():
+                        continue
 
             if isinstance(value, Plant):
                 self._highlight_plant(value.id)
@@ -1235,17 +1249,15 @@ def get_locations_polys() -> dict[int, MapPoly]:
         colour = "grey"
     colour = colours[colour]
 
-    session = db.Session()
     polys = {}
-
-    for loc in session.query(Location).filter(Location.geojson.isnot(None)):
-        if loc.geojson["type"] == "Polygon":
-            poly = MapPoly(loc.id, loc.geojson, colour, label_txt=loc.code)
-            poly.create_item()
-            poly.set_props(alpha=0.7, line_width=2)
-            polys[loc.id] = poly
-
-    session.close()
+    with db.Session() as session:
+        locs = session.query(Location).filter(Location.geojson.isnot(None))
+        for loc in locs:
+            if loc.geojson["type"] == "Polygon":
+                poly = MapPoly(loc.id, loc.geojson, colour, label_txt=loc.code)
+                poly.create_item()
+                poly.set_props(alpha=0.7, line_width=2)
+                polys[loc.id] = poly
 
     return polys
 

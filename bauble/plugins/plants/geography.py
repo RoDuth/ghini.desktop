@@ -56,6 +56,7 @@ from sqlalchemy import event
 from sqlalchemy import exists
 from sqlalchemy import literal
 from sqlalchemy import select
+from sqlalchemy.orm import QueryableAttribute
 from sqlalchemy.orm import Session
 from sqlalchemy.orm import aliased
 from sqlalchemy.orm import backref
@@ -66,6 +67,7 @@ from sqlalchemy.orm import relationship
 import bauble
 from bauble import btypes as types
 from bauble import db
+from bauble import error
 from bauble import pb_set_fraction
 from bauble import prefs
 from bauble import utils
@@ -239,6 +241,15 @@ class Geography(db.Base):
     code: str = Column(String(6), unique=True, nullable=False)
     level: int = Column(Integer, nullable=False, autoincrement=False)
     iso_code: str = Column(String(7))
+    # spatial data deferred mainly to avoid comparison issues in union search
+    # (i.e. reports)  NOTE that deferring can lead to the instance becoming
+    # dirty when merged into another session (i.e. an editor) and the column
+    # has already been loaded (i.e. infobox).  This can be avoided using a
+    # separate db connection.
+    # Also, NOTE that if not loaded (read) prior to changing a single list
+    # history change will be recoorded with no indication of its value to the
+    # change.  Can use something like:
+    # `if geo.geojson != val: geo.geojson = val`
     geojson: dict = deferred(Column(types.JSON()))
     # don't use, can lead to InvalidRequestError (Collection unknown)
     # collection = relationship('Collection', back_populates='region')
@@ -381,7 +392,10 @@ class Geography(db.Base):
         return parents
 
     def as_svg_paths(self, fill: str = "green") -> str:
-        """Convert geography geojson to SVG path element strings."""
+        """Convert geography geojson to SVG path element strings.
+
+        Use a separate database connection to avoid loading deferred geojson.
+        """
         logger.debug("as_svg_paths, self=%s, fill=%s", self, fill)
         svg_paths: list[str] = []
 
@@ -397,7 +411,7 @@ class Geography(db.Base):
 
     def distribution_map(self) -> "DistributionMap":
         logger.debug("distribution map %s", self)
-        return DistributionMap([self])
+        return DistributionMap([self.id])
 
 
 @utils.timed_cache(size=1000, secs=None)
@@ -442,10 +456,17 @@ class DistributionMap:
     _world_pixbuf: GdkPixbuf.Pixbuf | None = None
     _image_cache = DistMapCache()
 
-    def __init__(self, areas: Sequence[Geography]) -> None:
-        codes_str = "|".join(
-            i.code for i in sorted(areas, key=lambda x: x.code)
-        )
+    def __init__(self, ids: Sequence[int]) -> None:
+        # Use a separate session to avoid triggering history pointlessly
+        if db.Session is None:
+            raise error.DatabaseError("db.Session is None")
+        with db.Session() as session:
+            areas = (
+                session.query(Geography)
+                .filter(cast(QueryableAttribute, Geography.id).in_(ids))
+                .order_by(Geography.code)
+            )
+        codes_str = "|".join(i.code for i in areas)
         self._image_cache_key = hash(codes_str)
         self._svg_paths = (i.as_svg_paths() for i in areas)
         self._image: Gtk.Image | None = None
@@ -635,6 +656,7 @@ class GeneralGeographyExpander(DistMapInfoExpanderMixin, InfoExpander):
             self.widgets.map_box.remove(child)
 
         # grab shape before distribution_map to avoid thread issues for MSSQL
+        # (better to use MARS_Connection=Yes when connecting)
         shape = row.geojson.get("type", "") if row.geojson else ""
         map_event_box = Gtk.EventBox()
         image = row.distribution_map().as_image()

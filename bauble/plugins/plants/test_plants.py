@@ -41,6 +41,7 @@ from sqlalchemy.orm.exc import NoResultFound
 
 from bauble import btypes
 from bauble import db
+from bauble import error
 from bauble import paths
 from bauble import prefs
 from bauble import search
@@ -3095,6 +3096,7 @@ class GeographyTests(BaubleClassTestCase):
         dist = SpeciesDistribution(geography_id=western_canada_id)
         sp3.distribution.append(dist)
 
+        self.session.add_all([sp1, sp2, sp3])
         self.session.commit()
 
         oaxaca = self.session.query(Geography).get(oaxaca_id)
@@ -3320,23 +3322,10 @@ class GeographyTests(BaubleClassTestCase):
         )
 
     def test_distribution_map(self):
-        geojson = {
-            "type": "Polygon",
-            "coordinates": [
-                [
-                    [159.07080078125, -31.599998474121094],
-                    [159.08578491210938, -31.561111450195312],
-                    [159.04913330078125, -31.52166748046875],
-                    [159.10189819335938, -31.57111358642578],
-                    [159.07080078125, -31.599998474121094],
-                ]
-            ],
-        }
-        geo = Geography(
-            name="Lord Howe I.",
-            code="NFK-LH",
-            level=4,
-            geojson=geojson,
+        geo = (
+            self.session.query(Geography)
+            .filter(Geography.code == "NFK-LH")
+            .one()
         )
         path = (
             '<path stroke="black" stroke-width="0.1" fill="green" d='
@@ -3448,43 +3437,48 @@ class DistributionMapTests(BaubleClassTestCase):
         DistributionMap._world_pixbuf = None
         DistributionMap._image_cache = DistMapCache()
 
+    def test_no_session_raises(self):
+        # being a class test case need to mock db.Session
+        with mock.patch("bauble.plugins.plants.geography.db.Session", None):
+            self.assertRaises(error.DatabaseError, DistributionMap, [50])
+
     def test_world_template(self):
         # calling world generates the template
-        dist = DistributionMap(self.session.query(Geography).filter_by(id=682))
+        dist = DistributionMap([682])
         self.assertEqual(dist._world, "")
         world = dist.world
         self.assertIn("{selected}", world)
         self.assertEqual(dist._world, world)
         # template doesn't change when geography does
-        dist = DistributionMap(self.session.query(Geography).filter_by(id=50))
+        dist = DistributionMap([50])
         self.assertEqual(world, dist.world)
         # str shows populated template
-        dist = DistributionMap(self.session.query(Geography).filter_by(id=682))
+        dist = DistributionMap([682])
         self.assertNotIn("{selected}", str(dist))
 
     def test_world_pixbuf(self):
         # calling world_pixbuf generates the pixbuf
-        dist = DistributionMap(self.session.query(Geography).filter_by(id=682))
+        dist = DistributionMap([682])
         self.assertIsNone(dist._world_pixbuf)
         world = dist.world_pixbuf
         self.assertIsNotNone(world)
         # template doesn't change when geography does
-        dist = DistributionMap(self.session.query(Geography).filter_by(id=50))
+        dist = DistributionMap([50])
         self.assertEqual(world, dist.world_pixbuf)
 
     def test_map(self):
         # calling map (via __str__) populates
-        dist = DistributionMap(self.session.query(Geography).filter_by(id=682))
+        dist = DistributionMap([682])
         self.assertFalse(dist._map)
         map_ = str(dist)
         self.assertEqual(map_, dist.map)
         # map does change when geography does
-        dist = DistributionMap(self.session.query(Geography).filter_by(id=50))
+        dist = DistributionMap([50])
         self.assertNotEqual(map_, dist.map)
 
     def test_as_image_starts_blank_then_populates(self):
         # returns image immediately (even if not populated yet)
-        dist = DistributionMap(self.session.query(Geography).filter_by(id=682))
+        dist = DistributionMap([682])
         # initially None
         self.assertIsNone(dist._world_pixbuf)
         self.assertIsNone(dist._image)
@@ -3500,7 +3494,7 @@ class DistributionMapTests(BaubleClassTestCase):
 
     def test_set_base_map_no_session(self):
         # calling map (via __str__) populates
-        dist = DistributionMap(self.session.query(Geography).filter_by(id=682))
+        dist = DistributionMap([682])
         self.assertFalse(dist._map)
         orig_sess = db.Session
         db.Session = None
@@ -3525,6 +3519,40 @@ class DistributionMapTests(BaubleClassTestCase):
         self.assertIsNotNone(cache.get(1))
         # removes second
         self.assertIsNone(cache.get(2))
+
+    def test_dist_map_does_not_cause_history_entries(self):
+        geo = self.session.query(Geography).filter_by(id=682).one()
+        fam = Family(epithet="Cyatheaceae")
+        gen = Genus(epithet="Sphaeropteris", family=fam)
+        sp = Species(epithet="robusta", genus=gen)
+        sp.distribution.append(SpeciesDistribution(geography=geo))
+        self.session.add(sp)
+        self.session.commit()
+        # incase of history triggered by update to approx area
+        # (depends on system, pyproj/proj version)
+        start = (
+            self.session.query(db.History)
+            .filter(db.History.table_name == "geography")
+            .filter(db.History.table_id == geo.id)
+            .count()
+        )
+        dist_map = sp.distribution_map()
+        self.assertTrue(dist_map.map)
+        editor = SpeciesEditor(model=sp)
+        update_gui()
+        editor.commit_changes()
+        editor.presenter.cleanup()
+        editor.session.close()
+        del editor
+        update_gui()
+
+        hist = (
+            self.session.query(db.History.values)
+            .filter(db.History.table_name == "geography")
+            .filter(db.History.table_id == geo.id)
+            .all()
+        )
+        self.assertEqual(len(hist), start, hist)
 
 
 class DistMapInfoExpanderMixinTests(BaubleTestCase):
@@ -3563,6 +3591,8 @@ class DistMapInfoExpanderMixinTests(BaubleTestCase):
             level=4,
             geojson=geojson,
         )
+        self.session.add(geo)
+        self.session.commit()
         mix = DistMapInfoExpanderMixin()
         # mock filechooser to CANCEL and check that get_filename is not
         # called

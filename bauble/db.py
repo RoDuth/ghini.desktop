@@ -451,6 +451,8 @@ def open_conn(uri, verify=True, show_error_dialogs=False, poolclass=None):
         engine = new_engine
         metadata.bind = engine  # make engine implicit for metadata
 
+        # autoflush=False required or can not put an empty object into the
+        # session (as is done in the editors), will get NOT NULL, etc. errors
         Session = sessionmaker(bind=engine, autoflush=False)
 
     if new_engine is not None and not verify:

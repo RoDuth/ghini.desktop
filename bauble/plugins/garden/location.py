@@ -181,7 +181,12 @@ class Location(db.Base, db.WithNotes):
     # spatial data deferred mainly to avoid comparison issues in union search
     # (i.e. reports)  NOTE that deferring can lead to the instance becoming
     # dirty when merged into another session (i.e. an editor) and the column
-    # has already been loaded (i.e. infobox)
+    # has already been loaded (i.e. infobox).  This can be avoided using a
+    # separate db connection.
+    # Also, NOTE that if not loaded (read) prior to changing a single list
+    # history change will be recoorded with no indication of its value to the
+    # change.  Can use something like:
+    # `if loc.geojson != val: loc.geojson = val`
     geojson = deferred(Column(types.JSON()))
 
     # relations

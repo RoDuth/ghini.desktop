@@ -71,7 +71,7 @@ setup(
     # package_dir=all_package_dirs,
     package_data=package_data,
     install_requires=[
-        "SQLAlchemy==1.4.43",
+        "SQLAlchemy<2.0",
         "Pillow",
         "lxml",
         "tld",
