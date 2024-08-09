@@ -1036,7 +1036,11 @@ class SearchViewMapPresenter:  # pylint: disable=too-many-instance-attributes
         :param view: supply the SearchView instance (for testing)
         """
         # idle_add to ensure is_visible returns correctly
-        GLib.idle_add(self._populate_map_from_search_view, view)
+        GLib.idle_add(  # type: ignore [call-arg]
+            self._populate_map_from_search_view,
+            view,
+            priority=GLib.PRIORITY_DEFAULT_IDLE + 50,
+        )
 
     def _populate_map_from_search_view(
         self, view: SearchView | None = None
