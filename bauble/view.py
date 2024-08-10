@@ -1859,7 +1859,6 @@ class SearchView(pluginmgr.View, Gtk.Box):
         selected = self.get_selected_values()
         if not selected or isinstance(selected[0], str):
             return
-        print(f"{selected=}")
 
         if call_back := self.row_meta[type(selected[0])].activated_callback:
             call_back(selected)
