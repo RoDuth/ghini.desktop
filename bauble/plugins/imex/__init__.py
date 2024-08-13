@@ -556,6 +556,10 @@ class GenericImporter(ABC):  # pylint: disable=too-many-instance-attributes
                 value,
                 type(value),
             )
+            # make sure geojson history items work... (NOTE does not account
+            # for other deferred columns but currently there are none)
+            if key == "geojson":
+                hasattr(item, key)
             setattr(item, key, value)
         return item
 

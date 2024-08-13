@@ -34,6 +34,7 @@ from gi.repository import Gtk
 
 import bauble.plugins.garden.test_garden as garden_test
 import bauble.plugins.plants.test_plants as plants_test
+from bauble import db
 from bauble import prefs
 from bauble import utils
 from bauble.editor import MockView
@@ -1389,6 +1390,17 @@ class CSVImporterTests(CSVTestCase):
         self.assertEqual(updated_plant.geojson.get("coordinates")[0], 0.0)
         # nothing added
         self.assertEqual(end_plants, start_plants)
+        # correct history
+        hist = (
+            self.session.query(db.History.values)
+            .order_by(db.History.id.desc())
+            .first()
+        )
+        self.assertEqual(hist.values.get("id"), 1)
+        self.assertEqual(
+            hist.values.get("geojson"),
+            [{"type": "Point", "coordinates": [0.0, 0.0]}, None],
+        )
 
         # test setting to None
         plants_csv_data = [
@@ -1403,6 +1415,17 @@ class CSVImporterTests(CSVTestCase):
         importer.run()
         self.session.expire_all()
         self.assertIsNone(updated_plant.geojson)
+        # correct history
+        hist = (
+            self.session.query(db.History.values)
+            .order_by(db.History.id.desc())
+            .first()
+        )
+        self.assertEqual(hist.values.get("id"), 1)
+        self.assertEqual(
+            hist.values.get("geojson"),
+            [None, {"type": "Point", "coordinates": [0.0, 0.0]}],
+        )
 
     def test_update_plants(self):
         start_plants = self.session.query(Plant).count()
