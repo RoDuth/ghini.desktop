@@ -56,7 +56,7 @@
         <item>
           <attribute name="label" translatable="yes">Home</attribute>
           <attribute name="action">app.home</attribute>
-          <attribute name="accel">&lt;Primary&gt;h</attribute>
+          <attribute name="accel">&lt;alt&gt;h</attribute>
         </item>
         <item>
           <attribute name="label" translatable="yes">Preferences</attribute>
@@ -67,7 +67,12 @@
         <item>
           <attribute name="label" translatable="yes">Back</attribute>
           <attribute name="action">app.previous</attribute>
-          <attribute name="accel">&lt;Primary&gt;h</attribute>
+          <attribute name="accel">&lt;control&gt;comma</attribute>
+        </item>
+        <item>
+          <attribute name="label" translatable="yes">Forward</attribute>
+          <attribute name="action">app.next</attribute>
+          <attribute name="accel">&lt;control&gt;period</attribute>
         </item>
       </section>
     </submenu>

@@ -216,6 +216,7 @@ class Application(Gtk.Application):
             ("history", bauble.gui.on_edit_menu_history),
             ("home", bauble.gui.on_home_clicked),
             ("previous", bauble.gui.on_prev_view_clicked),
+            ("next", bauble.gui.on_next_view_clicked),
             ("help_contents", bauble.gui.on_help_menu_contents),
             ("help_bug", bauble.gui.on_help_menu_bug),
             ("help_log", bauble.gui.on_help_menu_logfile),
