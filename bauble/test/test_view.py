@@ -867,6 +867,110 @@ class TestHistoryView(BaubleTestCase):
         hist_view.add_row(mock_hist_item2)
         self.assertEqual(len(hist_view.liststore), start_len + 1)
 
+    @mock.patch("bauble.view.HistoryView.TRUNCATE", 20)
+    def test_add_row_truncate_single(self):
+        mock_hist_item = mock.Mock(
+            timestamp=datetime.today(),
+            operation="insert",
+            user="Jade Green",
+            table_name="mock_table",
+            values={
+                "id": 1,
+                "data": "some random data",
+                "name": "test name",
+                "geojson": {"test": "this", "and": "that"},
+                "_created": None,
+                "_last_updated": None,
+            },
+            id=1,
+        )
+
+        hist_view = HistoryView()
+        self.assertEqual(hist_view.TRUNCATE, 20)
+        start_len = len(hist_view.liststore)
+        hist_view.add_row(mock_hist_item)
+        self.assertEqual(len(hist_view.liststore), start_len + 1)
+        first_row = hist_view.liststore[0]
+        self.assertEqual(
+            first_row[hist_view.TVC_TABLE], mock_hist_item.table_name
+        )
+        self.assertLessEqual(
+            len(first_row[hist_view.TVC_USER_FRIENDLY + 1]), 20
+        )
+        self.assertEqual(
+            first_row[hist_view.TVC_USER_FRIENDLY + 1], '{"test": "this",…'
+        )
+
+    @mock.patch("bauble.view.HistoryView.TRUNCATE", 22)
+    def test_add_row_truncate_list(self):
+        # test type guard, no values should return early
+        mock_hist_item = mock.Mock(
+            timestamp=datetime.today(),
+            operation="insert",
+            user="Jade Green",
+            table_name="mock_table",
+            values={
+                "id": 1,
+                "data": "some random data",
+                "name": "test name",
+                "geojson": [{"test": "this"}, {"and": "that"}],
+                "_created": None,
+                "_last_updated": None,
+            },
+            id=1,
+        )
+
+        hist_view = HistoryView()
+        self.assertEqual(hist_view.TRUNCATE, 22)
+        hist_view.add_row(mock_hist_item)
+        first_row = hist_view.liststore[0]
+        self.assertLessEqual(
+            len(first_row[hist_view.TVC_USER_FRIENDLY + 1]), 22
+        )
+        self.assertEqual(
+            first_row[hist_view.TVC_USER_FRIENDLY + 1],
+            '[{"test":…, {"and":…]',
+        )
+
+    def test_shorten_list(self):
+        short_part1 = {"1": 1}
+        short_part2 = {"1": 1}
+        long_part1 = {str(i): i for i in range(30)}
+        long_part2 = {str(i): i for i in range(30)}
+
+        two_short_parts = [short_part1, short_part2]
+        hist_view = HistoryView()
+        self.assertEqual(
+            hist_view._shorten_list(two_short_parts), '[{"1": 1}, {"1": 1}]'
+        )
+
+        one_short_part1 = [short_part1, long_part1]
+        shortened = hist_view._shorten_list(one_short_part1)
+        self.assertLessEqual(len(shortened), hist_view.TRUNCATE)
+        self.assertEqual(
+            shortened,
+            '[{"1": 1}, {"0": 0, "1": 1, "2": 2, "3": 3, "4": 4, "5": 5, '
+            '"6": 6, "7": 7, "8": 8, "9": 9, "10":…]',
+        )
+
+        one_short_part2 = [long_part1, short_part1]
+        shortened = hist_view._shorten_list(one_short_part2)
+        self.assertLessEqual(len(shortened), hist_view.TRUNCATE)
+        self.assertEqual(
+            shortened,
+            '[{"0": 0, "1": 1, "2": 2, "3": 3, "4": 4, "5": 5, '
+            '"6": 6, "7": 7, "8": 8, "9": 9, "10":…, {"1": 1}]',
+        )
+
+        two_long_parts = [long_part1, long_part2]
+        shortened = hist_view._shorten_list(two_long_parts)
+        self.assertLessEqual(len(shortened), hist_view.TRUNCATE)
+        self.assertEqual(
+            shortened,
+            '[{"0": 0, "1": 1, "2": 2, "3": 3, "4": 4, "5":…, {"0": 0, "1": '
+            '1, "2": 2, "3": 3, "4": 4, "5":…]',
+        )
+
     def test_cmp_items_key(self):
         values = {
             "name": "Jade Green",

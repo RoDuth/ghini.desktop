@@ -34,6 +34,7 @@ from collections.abc import Callable
 from datetime import timedelta
 from datetime import timezone
 from pathlib import Path
+from textwrap import shorten
 from typing import cast
 
 logger = logging.getLogger(__name__)
@@ -1930,6 +1931,7 @@ class HistoryView(pluginmgr.View, Gtk.Box):
     TVC_TABLE = 5
     TVC_USER_FRIENDLY = 6
     STEP = 1000
+    TRUNCATE = 100
 
     queries: dict[str, tuple[str, str]] = {}
 
@@ -2008,6 +2010,40 @@ class HistoryView(pluginmgr.View, Gtk.Box):
             return (3, k)
         return (2, k)
 
+    def _shorten_list(self, lst: list) -> str:
+        part1 = json.dumps(lst[0])
+        part2 = json.dumps(lst[1])
+        len1 = len(part1)
+        len2 = len(part2)
+        if len1 + len2 < self.TRUNCATE - 4:
+            return f"[{part1}, {part2}]"
+        if len1 < 10 and len2 > self.TRUNCATE - len1 - 4:
+            short2 = shorten(
+                part2,
+                self.TRUNCATE - len1 - 4,
+                placeholder="…",
+            )
+            return f"[{part1}, {short2}]"
+        if len2 < 10 and len1 > self.TRUNCATE - len2 - 4:
+            short1 = shorten(
+                part1,
+                self.TRUNCATE - len2 - 4,
+                placeholder="…",
+            )
+            return f"[{short1}, {part2}]"
+        perc = len1 / (len1 + len2)
+        short1 = shorten(
+            part1,
+            round(self.TRUNCATE * perc) - 2,
+            placeholder="…",
+        )
+        short2 = shorten(
+            part2,
+            round(self.TRUNCATE * (1 - perc)) - 2,
+            placeholder="…",
+        )
+        return f"[{short1}, {short2}]"
+
     def add_row(self, item: db.History) -> None:
         if not (item.id and item.timestamp and item.values):
             return
@@ -2016,13 +2052,15 @@ class HistoryView(pluginmgr.View, Gtk.Box):
         del dct["_created"]
         del dct["_last_updated"]
 
-        geojson = None
-        if dct.get("geojson"):
-            geojson = json.dumps(item.values.get("geojson"))
-        try:
+        geojson = dct.get("geojson")
+        if geojson:
+            if isinstance(geojson, list) and len(geojson) == 2:
+                geojson = self._shorten_list(geojson)
+            else:
+                geojson = shorten(
+                    json.dumps(geojson), self.TRUNCATE, placeholder="…"
+                )
             del dct["geojson"]
-        except KeyError:
-            pass
 
         friendly = ", ".join(
             f"{k}: {repr('') if v is None else v}"
