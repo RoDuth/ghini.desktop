@@ -36,6 +36,7 @@ from bauble.ui import GUI
 from bauble.ui import DefaultView
 from bauble.ui import SimpleSearchBox
 from bauble.ui import SplashCommandHandler
+from bauble.view import HistoryView
 
 
 class SimpleSearchBoxTest(BaubleTestCase):
@@ -237,6 +238,18 @@ class GUITests(BaubleTestCase):
         mock_entry.set_text.assert_called_with("")
         gui.set_view.assert_called_with("previous")
 
+    def test_on_next_view_clicked(self):
+        gui = GUI()
+        mock_combo = mock.Mock()
+        mock_entry = mock.Mock()
+        mock_combo.get_child.return_value = mock_entry
+        gui.widgets.main_comboentry = mock_combo
+        gui.set_view = mock.Mock()
+
+        gui.on_next_view_clicked()
+        mock_entry.set_text.assert_called_with("")
+        gui.set_view.assert_called_with("next")
+
     @mock.patch("bauble.ui.bauble.command_handler")
     def test_on_go_button_clicked(self, mock_handler):
         gui = GUI()
@@ -435,26 +448,54 @@ class GUITests(BaubleTestCase):
 
     def test_set_get_view(self):
         gui = GUI()
-        self.assertIsNone(gui.previous_view)
+        self.assertIsInstance(gui.views[0], DefaultView)
         self.assertIsInstance(gui.get_view(), DefaultView)
 
-        # None doesn't set
-        gui.set_view(None)
-        self.assertIsInstance(gui.get_view(), DefaultView)
         first_view = gui.get_view()
 
         # set to SearchView
-        gui.set_view(view.SearchView())
+        search_view = view.SearchView()
+        gui.set_view(search_view)
         self.assertIsInstance(gui.get_view(), view.SearchView)
         second_view = gui.get_view()
-        self.assertIsNotNone(gui.previous_view)
-        self.assertIs(gui.previous_view, first_view)
+        self.assertTrue(gui.views)
+        self.assertIs(gui.views[-2], first_view)
 
         # switch back to previous
         gui.set_view("previous")
-        self.assertIsNotNone(gui.previous_view)
+        self.assertTrue(gui.views)
         self.assertIs(gui.get_view(), first_view)
-        self.assertIs(gui.previous_view, second_view)
+        self.assertIs(gui.views[-2], second_view)
+
+        # set to HistoryView
+        gui.set_view(HistoryView())
+        self.assertEqual(
+            [type(i).__name__ for i in gui.views],
+            ["SearchView", "DefaultView", "HistoryView"],
+        )
+
+        # switch back to previous
+        gui.set_view("previous")
+        self.assertTrue(gui.views)
+        self.assertEqual(
+            [type(i).__name__ for i in gui.views],
+            ["HistoryView", "SearchView", "DefaultView"],
+        )
+
+        # set to a previous view sets it back to the last view (rearranges)
+        gui.set_view(search_view)
+        self.assertEqual(
+            [type(i).__name__ for i in gui.views],
+            ["HistoryView", "DefaultView", "SearchView"],
+        )
+
+        # switch to next
+        gui.set_view("next")
+        self.assertTrue(gui.views)
+        self.assertEqual(
+            [type(i).__name__ for i in gui.views],
+            ["DefaultView", "SearchView", "HistoryView"],
+        )
 
     def test_add_remove_menu(self):
         gui = GUI()

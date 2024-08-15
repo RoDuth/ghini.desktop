@@ -16,15 +16,17 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
-#
-# ui.py
-#
+"""
+Core user interface
+"""
 
 import logging
 import os
 import traceback
+from collections import deque
 from collections.abc import Callable
 from pathlib import Path
+from typing import Literal
 from typing import Protocol
 
 logger = logging.getLogger(__name__)
@@ -38,7 +40,7 @@ from pyparsing import StringEnd
 from pyparsing import StringStart
 from pyparsing import Word
 from pyparsing import alphanums
-from pyparsing import restOfLine
+from pyparsing import rest_of_line
 
 import bauble
 from bauble import db
@@ -55,7 +57,7 @@ from bauble.view import SearchView
 
 
 class SimpleSearchBox(Gtk.Frame):
-    """Privides a simple search for the splash screen."""
+    """Provides a simple search for the splash screen."""
 
     def __init__(self):
         super().__init__(label=_("Simple Search"))
@@ -295,28 +297,31 @@ class GUI:
         b".err-btn * {color: #FF9999;}"
         b"#unsaved-entry {color: blue;}"
     )
-    Gtk.StyleContext.add_provider_for_screen(
-        Gdk.Screen.get_default(), _css, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
-    )
+    if screen := Gdk.Screen.get_default():
+        Gtk.StyleContext.add_provider_for_screen(
+            screen,
+            _css,
+            Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION,
+        )
 
     set_view_callbacks: set[Callable] = set()
     """Any callbacks added to this list will be called each time the set_view
     is called.
     """
-    disable_on_busy_actions: set[Gio.Action] = set()
+    disable_on_busy_actions: set[Gio.SimpleAction] = set()
     """Any Gio.Action added to this will be enabled/disabled when the gui
     window is set_busy.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         filename = os.path.join(paths.lib_dir(), "bauble.glade")
         self.widgets = utils.load_widgets(filename)
         self.window = self.widgets.main_window
         self.window.hide()
-        self.previous_view = None
+        self.views: deque[pluginmgr.Viewable] = deque()
         # default location of LICENSE for about window, if not available will
         # be changed when about is first opened
-        self.lic_path = Path(paths.main_dir(), "share", "ghini", "LICENSE")
+        self.lic_path = Path(paths.main_dir()) / "share/ghini/LICENSE"
 
         # restore the window size
         geometry = prefs.prefs.get(self.window_geometry_pref)
@@ -375,6 +380,9 @@ class GUI:
         self.widgets.prev_view_button.connect(
             "clicked", self.on_prev_view_clicked
         )
+        self.widgets.next_view_button.connect(
+            "clicked", self.on_next_view_clicked
+        )
 
         self.widgets.go_button.connect("clicked", self.on_go_button_clicked)
 
@@ -389,9 +397,9 @@ class GUI:
         # future versions of gtk
         statusbar = self.widgets.statusbar
         statusbar.set_spacing(10)
-        self._cids = []
+        self._cids: list[int] = []
 
-        def on_statusbar_push(_statusbar, context_id, _txt):
+        def on_statusbar_push(_statusbar, context_id: int, _txt) -> None:
             if context_id not in self._cids:
                 self._cids.append(context_id)
 
@@ -417,9 +425,11 @@ class GUI:
         hbox.show()
 
         cmd = (
-            StringStart() + ":" + Word(alphanums + "-_").setResultsName("cmd")
+            StringStart()
+            + ":"
+            + Word(alphanums + "-_").set_results_name("cmd")
         )
-        arg = restOfLine.setResultsName("arg")
+        arg = rest_of_line.set_results_name("arg")
         self.cmd_parser = (cmd + StringEnd()) | (cmd + "=" + arg) | arg
 
         combo.grab_focus()
@@ -544,10 +554,15 @@ class GUI:
         # Need args here to use from both menu action and button
         bauble.command_handler("home", None)
 
-    def on_prev_view_clicked(self, *_args):
+    def on_prev_view_clicked(self, *_args) -> None:
         # Need args here to use from both menu action and button
         self.widgets.main_comboentry.get_child().set_text("")
         self.set_view("previous")
+
+    def on_next_view_clicked(self, *_args) -> None:
+        # Need args here to use from both menu action and button
+        self.widgets.main_comboentry.get_child().set_text("")
+        self.set_view("next")
 
     def on_go_button_clicked(self, _widget):
         self.close_message_box()
@@ -722,29 +737,45 @@ class GUI:
         self.set_view(SplashCommandHandler.view)
         pluginmgr.register_command(SplashCommandHandler)
 
-    def set_view(self, view=None):
-        """set the view.
-
-        :param view: default=None
-        """
-        if view == "previous":
-            view = self.previous_view
-            self.previous_view = None
-        if view is None:
+    def set_view(
+        self, view: pluginmgr.Viewable | Literal["previous", "next"]
+    ) -> None:
+        if isinstance(view, str):
+            if view == "previous" and self.views:
+                self.views.rotate()
+                view = self.views[-1]
+                self.get_view().set_visible(False)
+                view.set_visible(True)
+            elif view == "next" and self.views:
+                self.views.rotate(-1)
+                view = self.views[-1]
+                self.get_view().set_visible(False)
+                view.set_visible(True)
             return
+
         view_box = self.widgets.view_box
-        must_add_this_view = True
+
+        # add new views
+        if view not in view_box.get_children():
+            view_box.pack_start(view, True, True, 0)
+            self.views.append(view)
+
         for kid in view_box.get_children():
             if view == kid:
-                must_add_this_view = False
+                # make selected visible
                 kid.set_visible(True)
             else:
-                if kid.get_visible() is True:
-                    self.previous_view = kid
+                # make not selected views not visible and stop their threads
                 kid.set_visible(False)
                 kid.cancel_threads()
-        if must_add_this_view:
-            view_box.pack_start(view, True, True, 0)
+
+        # make sure current view is the last view
+        current = self.get_view()
+        if current in self.views and not self.views[-1] is current:
+            print(type(current).__name__)
+            self.views.remove(current)
+            self.views.append(current)
+
         for callback in self.set_view_callbacks:
             GLib.idle_add(callback)
         # remove the edit menu SearchView selection context part (get rebuilt

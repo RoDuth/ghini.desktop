@@ -547,6 +547,22 @@ class View:
         raise NotImplementedError
 
 
+class Viewable(Protocol):
+    """Describes a View subclass, which is likely to also subclass Gtk.Box."""
+
+    def cancel_threads(self) -> None:
+        """Cancel running threads"""
+
+    def start_thread(self, thread: ViewThread) -> ViewThread:
+        """Start a thread"""
+
+    def set_visible(self, visible: bool) -> None:
+        """Set visible property, most likely from subclassing Gtk.Box"""
+
+    def show_all(self) -> None:
+        """Set visible property, most likely from subclassing Gtk.Box"""
+
+
 class CommandHandler(ABC):
     command: str | Iterable[str]
 
