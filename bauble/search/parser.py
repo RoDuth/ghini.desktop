@@ -1,6 +1,6 @@
 # Copyright 2008, 2009, 2010 Brett Adams
 # Copyright 2014-2015 Mario Frasca <mario@anche.no>.
-# Copyright 2021-2023 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright 2021-2024 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -60,10 +60,10 @@ parenthesised_clause ::= '(' query_clause ')'
 between_clause ::= identifier 'BETWEEN' value_token and value_token
 identifier ::= filtered_identifier | unfiltered_identifier
 unfiltered_identifier ::= atomic_identifier {'.' atomic_identifier}
-filtered_identifier ::= unfiltered_identifier
-                        '[' atomic_identifier binop value_token ']'
-                        '.'
-                        atomic_identifier
+filtered_identifier ::= {unfiltered_identifier
+                         '[' atomic_binary_clause
+                         {',' atomic_binary_clause} ']' '.'}
+                        unfiltered_identifier
                         ;
 atomic_identifier ::= Regex('[_\\da-z]*')
 binop ::= '=='
@@ -100,6 +100,7 @@ function ::= 'SUM' | 'MIN' | 'MAX' | 'COUNT' | "LENGTH" | ... (DB dependant)
 """
 
 from pyparsing import CaselessKeyword
+from pyparsing import DelimitedList
 from pyparsing import Forward
 from pyparsing import Group
 from pyparsing import Keyword
@@ -114,7 +115,6 @@ from pyparsing import ZeroOrMore
 from pyparsing import alphanums
 from pyparsing import alphas
 from pyparsing import alphas8bit
-from pyparsing import delimited_list
 from pyparsing import infix_notation
 from pyparsing import one_of
 from pyparsing import quoted_string
@@ -186,7 +186,7 @@ date_value_token = (
 value_list_token = (
     Group(
         OneOrMore(value_token)
-        ^ delimited_list(value_token).set_name("delimited list")
+        ^ DelimitedList(value_token).set_name("delimited list")
     )
     .set_parse_action(ValueListToken)
     .set_name("value list")("value_list")
@@ -222,16 +222,22 @@ unfiltered_identifier = (
     .set_name("unfiltered identifier")
 )
 
+atomic_binary_clause = Group(atomic_identifier + binop + value_token).set_name(
+    "atomic binary clause"
+)
+
 filtered_identifier = (
     Group(
-        unfiltered_identifier
-        + "["
-        + atomic_identifier
-        + binop
-        + value_token
-        + "]"
-        + "."
-        + atomic_identifier
+        OneOrMore(
+            Group(
+                unfiltered_identifier
+                + Literal("[").suppress()
+                + Group(DelimitedList(atomic_binary_clause))
+                + Literal("]").suppress()
+                + Literal(".").suppress()
+            )
+        )
+        + unfiltered_identifier
     )
     .set_parse_action(FilteredIdentifier)
     .set_name("filtered identifier")

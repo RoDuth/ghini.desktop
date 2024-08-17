@@ -45,20 +45,42 @@ from bauble.db import get_related_class
 
 from .clauses import QueryHandler
 from .operations import OPERATIONS
-from .tokens import TokenAction
 
 
 @typing.overload
 def create_joins(
-    query: Query, cls: Base, steps: list[str], alias: bool = False
-) -> tuple[Query, Base]:
+    query: Query,
+    cls: Base,
+    steps: list[str],
+    alias: bool = False,
+    alias_return: str = "",
+    _current: Base | None = None,
+) -> tuple[Query, Base, Base]:
+    """When provided a Query and alias_return return a Query and include the
+    alias."""
+
+
+@typing.overload
+def create_joins(
+    query: Query,
+    cls: Base,
+    steps: list[str],
+    alias: bool = False,
+    alias_return: None = None,
+    _current: Base | None = None,
+) -> tuple[Query, Base, Base | None]:
     """When provided a Query return a Query"""
 
 
 @typing.overload
 def create_joins(
-    query: Select, cls: Base, steps: list[str], alias: bool = False
-) -> tuple[Select, Base]:
+    query: Select,
+    cls: Base,
+    steps: list[str],
+    alias: bool = False,
+    alias_return: str | None = None,
+    _current: Base | None = None,
+) -> tuple[Select, Base, None]:
     """When provided a Select return a Select"""
 
 
@@ -67,16 +89,19 @@ def create_joins(
     cls: Base,
     steps: list[str],
     alias: bool = False,
-) -> tuple[Query | Select, Base]:
+    alias_return: str | None = None,
+    _current: Base | None = None,
+) -> tuple[Query | Select, Base, Base | None]:
     """Given a starting query, class and steps add the appropriate `join()`
     clauses to the query.  Returns the query and the last class in the joins.
     """
     # pylint: disable=protected-access
     if not hasattr(query, "_to_join"):
-        # monkeypatch _to_join
+        # monkeypatch _to_join so it is available at all steps of creating the
+        # query or will not alias correctly
         query._to_join = [cls]  # type: ignore[union-attr]
     if not steps:
-        return (query, cls)
+        return (query, cls, _current)
     step = steps[0]
     steps = steps[1:]
 
@@ -91,13 +116,16 @@ def create_joins(
     attribute = getattr(cls, step)
 
     if joinee in query._to_join or alias:
+        logger.debug("Aliasing %s", joinee)
         joinee = aliased(joinee)
         query = query.join(attribute.of_type(joinee))
+        if step == alias_return:
+            _current = joinee
     else:
         query = query.join(attribute)
         query._to_join.append(joinee)  # type: ignore[union-attr]
 
-    return create_joins(query, joinee, steps, alias)
+    return create_joins(query, joinee, steps, alias, alias_return, _current)
 
 
 class IdentifierAction(ABC):
@@ -147,7 +175,7 @@ class UnfilteredIdentifier(IdentifierAction):
             cls = handler.domain
         else:
             # identifier is an attribute of a joined table
-            handler.query, cls = create_joins(
+            handler.query, cls, __ = create_joins(
                 handler.query, handler.domain, self.steps
             )
             logger.debug("create_joins cls = %s", cls)
@@ -161,28 +189,45 @@ class UnfilteredIdentifier(IdentifierAction):
 
 class FilteredIdentifier(IdentifierAction):
     """Represents a dot joined identifier to a database model attr that is also
-    filtered by a second attr, operator and value .
+    filtered by other binary clauses.
 
-    i.e. ident.model[attr2=value].attr
+    e.g. ident.model[attr2=value2, attr3=value3].attr[atr4=value4].attr
     """
 
     def __init__(self, tokens: ParseResults) -> None:
         logger.debug("%s::__init__(%s)", self.__class__.__name__, tokens)
-        self.steps: list[str] = tokens[0][0].steps + [tokens[0][0].leaf]
-        self.filter_attr: str = tokens[0][-6]
-        self.filter_op: str = tokens[0][-5]
-        self.filter_value: TokenAction = tokens[0][-4]
-        self.leaf: str = tokens[0][-1]
-
-        # cfr: SearchParser.binop
-        # = == != <> < <= > >= not like contains has ilike icontains ihas is
-        self.operation = OPERATIONS.get(self.filter_op)
+        self.filtered_steps: list[ParseResults] = tokens[0][:-1]
+        self.leaf_indentifier: UnfilteredIdentifier = tokens[0][-1]
 
     def __repr__(self) -> str:
-        return (
-            f"{'.'.join(self.steps)}"
-            f"[{self.filter_attr}{self.filter_op}{self.filter_value}]"
-            f".{self.leaf}"
+        filter_str = ""
+        for identifier, filters in self.filtered_steps:
+            filter_str += ".".join(identifier.steps + [identifier.leaf])
+            filter_str += "["
+            filter_str += ",".join(
+                ["".join(str(i) for i in filter_) for filter_ in filters]
+            )
+            filter_str += "]"
+        return f"{filter_str}.{self.leaf_indentifier}"
+
+    @staticmethod
+    def add_filter_clauses(
+        filter_: ParseResults, handler: QueryHandler, this_cls: Base
+    ) -> None:
+        filter_attr = filter_[0]
+        filter_op = filter_[1]
+        filter_value = filter_[2]
+
+        def clause(attr, operation, val) -> ColumnElement:
+            assert operation is not None
+            return operation(attr, val)
+
+        operation = OPERATIONS.get(filter_op)
+        attr = getattr(this_cls, filter_attr)
+
+        logger.debug("filtering on %s(%s)", type(attr), attr)
+        handler.query = handler.query.filter(
+            clause(attr, operation, filter_value.express())
         )
 
     def evaluate(
@@ -190,25 +235,26 @@ class FilteredIdentifier(IdentifierAction):
     ) -> tuple[Query | Select, QueryableAttribute]:
         logger.debug("%s::evaluate %s", self.__class__.__name__, self)
 
-        handler.query, cls = create_joins(
-            handler.query, handler.domain, self.steps, alias=True
-        )
-        logger.debug("create_joins cls = %s", cls)
+        this_cls = handler.domain
+        for identifier, filters in self.filtered_steps:
+            steps = identifier.steps + [identifier.leaf]
+            handler.query, _cls, this_cls = create_joins(
+                handler.query,
+                this_cls,
+                steps,
+                alias=True,
+                alias_return=steps[-1],
+            )
 
-        attr = getattr(cls, self.filter_attr)
+            for filter_ in filters:
+                self.add_filter_clauses(filter_, handler, this_cls)
 
-        def clause(val) -> ColumnElement:
-            assert self.operation is not None
-            return self.operation(attr, val)
-
-        logger.debug("filtering on %s(%s)", type(attr), attr)
-        handler.query = handler.query.filter(
-            clause(self.filter_value.express())
+        handler.query, cls, _this = create_joins(
+            typing.cast(Query, handler.query),
+            this_cls,
+            self.leaf_indentifier.steps,
         )
-        attr = getattr(cls, self.leaf)
-        logger.debug(
-            "IdentifierToken for %s, %s evaluates to %s", cls, self.leaf, attr
-        )
+        attr = getattr(cls, self.leaf_indentifier.leaf)
         return (handler.query, attr)
 
 
@@ -224,7 +270,7 @@ class FunctionIdentifier(IdentifierAction):
 
     def __init__(self, tokens: ParseResults) -> None:
         logger.debug("%s::__init__(%s)", self.__class__.__name__, tokens)
-        self.function = tokens[0].lower()
+        self.function: str = tokens[0].lower()
         self.identifier: IdentifierAction = tokens[2]
 
     def __repr__(self) -> str:

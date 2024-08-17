@@ -1527,6 +1527,21 @@ class SearchTests(BaubleTestCase):
         results = search.search(string, self.session)
         self.assertCountEqual(results, [pp])
 
+        # multiple filters at multiple levels (first part should fail but
+        # second succeed)
+        string = (
+            "species where accessions[_created>-1, quantity_recvd>5]"
+            ".plants[active=True].location"
+            ".notes[category=test].note = test or "
+            "accessions[_created>-1].plants[id>0].location.code = loc1"
+        )
+
+        results = []
+        for i in mapper_search.search(string, self.session):
+            results.extend(i)
+
+        self.assertCountEqual(results, [sp2])
+
     def test_search_strips_leading_spaces(self):
         from bauble.plugins.plants import Family
         from bauble.plugins.plants import Genus
@@ -1911,7 +1926,7 @@ class FilterThenMatchTests(BaubleTestCase):
         self.genus1 = Genus(family=self.family, genus="genus1")
         self.genus2 = Genus(family=self.family, genus="genus2")
         self.genus3 = Genus(family=self.family, genus="genus3")
-        self.genus4 = Genus(family=self.family, genus="genus4")
+        self.genus4 = Genus(family=self.family, genus="genus4", author="me")
         n1 = GenusNote(category="commentarii", note="olim", genus=self.genus1)
         n2 = GenusNote(category="commentarii", note="erat", genus=self.genus1)
         n3 = GenusNote(
@@ -1934,9 +1949,6 @@ class FilterThenMatchTests(BaubleTestCase):
             ]
         )
         self.session.commit()
-
-    def tearDown(self):
-        super().tearDown()
 
     def test_can_filter_match_notes(self):
         mapper_search = search.strategies.get_strategy("MapperSearch")
@@ -2024,6 +2036,45 @@ class FilterThenMatchTests(BaubleTestCase):
         for i in mapper_search.search(s, self.session):
             results.extend(i)
         self.assertEqual(results, [])
+
+    def test_multiple_filters(self):
+        mapper_search = search.strategies.get_strategy("MapperSearch")
+        self.assertTrue(
+            isinstance(mapper_search, search.strategies.MapperSearch)
+        )
+
+        s = "genus where notes[category='test', note='olim'].id > 0"
+        results = []
+        for i in mapper_search.search(s, self.session):
+            results.extend(i)
+        self.assertCountEqual(results, [self.genus3])
+
+    def test_multiple_filters_multiple_depths(self):
+        mapper_search = search.strategies.get_strategy("MapperSearch")
+        self.assertTrue(
+            isinstance(mapper_search, search.strategies.MapperSearch)
+        )
+
+        s = "family where genera[epithet=genus4,author=me].notes.note = olim"
+        results = []
+        for i in mapper_search.search(s, self.session):
+            results.extend(i)
+        self.assertCountEqual(results, [])
+
+        s = "family where genera[epithet=genus3,author=''].notes.note = olim"
+        results = []
+        for i in mapper_search.search(s, self.session):
+            results.extend(i)
+        self.assertCountEqual(results, [self.family])
+
+        s = (
+            "family where genera[epithet=genus3,author='']"
+            ".notes[category=test].note = olim"
+        )
+        results = []
+        for i in mapper_search.search(s, self.session):
+            results.extend(i)
+        self.assertCountEqual(results, [self.family])
 
 
 class EmptySetEqualityTest(unittest.TestCase):
