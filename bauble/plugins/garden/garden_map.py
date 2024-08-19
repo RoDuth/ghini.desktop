@@ -902,6 +902,7 @@ class SearchViewMapPresenter:  # pylint: disable=too-many-instance-attributes
         menu_items = (
             (_("Zoom to selected"), "zoom_select", self.on_zoom_to_selected),
             (_("Zoom to home"), "zoom_home", self.zoom_to_home),
+            (_("Refresh"), "refresh_map", self.on_refresh),
         )
 
         for label, name, handler in menu_items:
@@ -929,6 +930,10 @@ class SearchViewMapPresenter:  # pylint: disable=too-many-instance-attributes
             float(institution.geo_longitude or 0),
             int(institution.geo_zoom or 16),
         )
+
+    def on_refresh(self, *_args) -> None:
+        self.populated = False
+        self.populate_map_from_search_view()
 
     def reset_item_colour(self) -> None:
         if self.populate_thread and self.populate_thread.is_alive():

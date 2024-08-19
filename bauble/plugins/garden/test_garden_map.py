@@ -916,6 +916,15 @@ class TestSearchViewMapPresenter(BaubleTestCase):
         presenter._highlight_plant.assert_not_called()
         presenter._highlight_location.assert_not_called()
 
+    def test_update_worker_bails_early_if_no_engine(self):
+        with mock.patch("bauble.db.engine", None):
+            mock_thread = mock.Mock()
+            map_ = GardenMap(Map())
+            presenter = SearchViewMapPresenter(map_)
+            presenter.populate_thread = mock_thread
+            presenter._update_worker([])
+            presenter.populate_thread.is_alive.assert_not_called()
+
     def test_clear_selected(self):
         for func in get_setUp_data_funcs():
             func()
@@ -1218,6 +1227,13 @@ class TestSearchViewMapPresenter(BaubleTestCase):
         presenter.selected = []
         presenter.on_zoom_to_selected()
         map_.map_.zoom_fit_bbox.assert_not_called()
+
+    def test_on_refresh(self):
+        mock_map = mock.Mock(populated=True)
+        self.assertTrue(mock_map.populated)
+        SearchViewMapPresenter.on_refresh(mock_map)
+        mock_map.populate_map_from_search_view.assert_called()
+        self.assertFalse(mock_map.populated)
 
     def test_highlight_location(self):
         for func in get_setUp_data_funcs():
