@@ -2426,3 +2426,85 @@ class BaubleSearchSearchTest(BaubleTestCase):
         for i in result:
             print(i)
         self.assertEqual(result, [])
+
+
+class HelperTests(unittest.TestCase):
+    def test_infix_notation(self):
+        import pyparsing as pp
+
+        token = pp.Word(pp.alphas).set_name("string token")
+        binop = pp.one_of("= < > !=").set_name("binary operator")
+        value = pp.Word(pp.nums).set_name("value")
+        or_ = pp.Literal("or").set_name("or")
+        and_ = pp.Literal("and").set_name("and")
+        not_ = pp.Literal("not").set_name("not")
+        binary_expr = pp.Group(token + binop + value).set_name("binary clause")
+
+        infix = search.helpers.infix_notation(
+            binary_expr,
+            [
+                (not_, pp.OpAssoc.RIGHT, lambda t: t),
+                (and_, pp.OpAssoc.LEFT, lambda t: t),
+                (or_, pp.OpAssoc.LEFT, lambda t: t),
+            ],
+        )
+        result = infix.parse_string("xyz = 2 or abc = 2 and xyz = 3")
+        self.assertEqual(
+            result.as_list(),
+            [
+                [
+                    ["xyz", "=", "2"],
+                    "or",
+                    [["abc", "=", "2"], "and", ["xyz", "=", "3"]],
+                ]
+            ],
+            result,
+        )
+        result = infix.parse_string("xyz = 2 and abc = 2 or xyz = 3")
+        self.assertEqual(
+            result.as_list(),
+            [
+                [
+                    [["xyz", "=", "2"], "and", ["abc", "=", "2"]],
+                    "or",
+                    ["xyz", "=", "3"],
+                ]
+            ],
+            result,
+        )
+        result = infix.parse_string("xyz > 2 or abc != 2 and xyz < 3")
+        self.assertEqual(
+            result.as_list(),
+            [
+                [
+                    ["xyz", ">", "2"],
+                    "or",
+                    [["abc", "!=", "2"], "and", ["xyz", "<", "3"]],
+                ]
+            ],
+            result,
+        )
+        result = infix.parse_string("xyz = 2 and abc = 2 or not xyz = 3")
+        self.assertEqual(
+            result.as_list(),
+            [
+                [
+                    [["xyz", "=", "2"], "and", ["abc", "=", "2"]],
+                    "or",
+                    ["not", ["xyz", "=", "3"]],
+                ]
+            ],
+            result,
+        )
+        result = infix.parse_string("not xyz = 2 and abc = 2 or xyz = 3")
+        self.assertEqual(
+            result.as_list(),
+            [
+                [
+                    [["not", ["xyz", "=", "2"]], "and", ["abc", "=", "2"]],
+                    "or",
+                    ["xyz", "=", "3"],
+                ]
+            ],
+            result,
+        )

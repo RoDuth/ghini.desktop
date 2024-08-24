@@ -160,8 +160,8 @@ class UnfilteredIdentifier(IdentifierAction):
 
     def __init__(self, tokens: ParseResults) -> None:
         logger.debug("%s::__init__(%s)", self.__class__.__name__, tokens)
-        self.steps: list[str] = tokens[0][:-2:2]
-        self.leaf: str = tokens[0][-1]
+        self.steps: list[str] = tokens[:-1]
+        self.leaf: str = tokens[-1]
 
     def __repr__(self) -> str:
         return ".".join(self.steps + [self.leaf])
@@ -196,8 +196,8 @@ class FilteredIdentifier(IdentifierAction):
 
     def __init__(self, tokens: ParseResults) -> None:
         logger.debug("%s::__init__(%s)", self.__class__.__name__, tokens)
-        self.filtered_steps: list[ParseResults] = tokens[0][:-1]
-        self.leaf_indentifier: UnfilteredIdentifier = tokens[0][-1]
+        self.filtered_steps: list[ParseResults] = tokens[:-1]
+        self.leaf_indentifier: UnfilteredIdentifier = tokens[-1]
 
     def __repr__(self) -> str:
         filter_str = ""
@@ -271,7 +271,7 @@ class FunctionIdentifier(IdentifierAction):
     def __init__(self, tokens: ParseResults) -> None:
         logger.debug("%s::__init__(%s)", self.__class__.__name__, tokens)
         self.function: str = tokens[0].lower()
-        self.identifier: IdentifierAction = tokens[2]
+        self.identifier: IdentifierAction = tokens[1]
 
     def __repr__(self) -> str:
         return f"({self.function} {self.identifier})"

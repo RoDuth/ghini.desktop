@@ -65,6 +65,13 @@ from .statements import ValueListStatement
 from .tokens import ValueListToken
 from .tokens import ValueToken
 
+# similar to parser.value_token but no EmptyToken
+value_token = (
+    (parser.numeric_token | parser.none_token | parser.string_token)
+    .set_parse_action(ValueToken)
+    .set_name("value")("value")
+)
+
 
 class SearchStrategy(ABC):
     """interface for adding search strategies to a view."""
@@ -199,21 +206,10 @@ class DomainSearch(SearchStrategy):
 
     star_token = Literal("*")
 
-    value_token = (
-        (
-            star_token
-            | parser.numeric_token
-            | parser.none_token
-            | parser.string_token
-        )
-        .set_parse_action(ValueToken)
-        .set_name("value")("value")
-    )
-
     value_list_token = (
         Group(
-            OneOrMore(parser.value_token)
-            ^ delimited_list(parser.value_token).set_name("delimited list")
+            OneOrMore(value_token)
+            ^ delimited_list(value_token).set_name("delimited list")
         )
         .set_parse_action(ValueListToken)
         .set_name("value list")
@@ -280,16 +276,10 @@ class ValueListSearch(SearchStrategy):
     e.g.: `LOC1 LOC2 LOC3`
     """
 
-    value_token = (
-        (parser.numeric_token | parser.none_token | parser.string_token)
-        .set_parse_action(ValueToken)
-        .set_name("value")("value")
-    )
-
     statement = (
         Group(
-            OneOrMore(parser.value_token)
-            ^ delimited_list(parser.value_token).set_name("delimited list")
+            OneOrMore(value_token)
+            ^ delimited_list(value_token).set_name("delimited list")
         )
         .set_parse_action(ValueListStatement)
         .set_name("statement")("query")

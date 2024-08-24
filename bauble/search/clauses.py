@@ -248,7 +248,7 @@ class ParenthesisedClause(ClauseAction):
 
     def __init__(self, tokens: ParseResults) -> None:
         logger.debug("%s::__init__(%s)", self.__class__.__name__, tokens)
-        self.content = tokens[1]
+        self.content = tokens[0]
 
     def __repr__(self) -> str:
         return f"({self.content})"

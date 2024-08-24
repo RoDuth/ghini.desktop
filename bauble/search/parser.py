@@ -49,8 +49,8 @@ base_clause ::= binary_clause
               | in_set_clause
               | on_date_clause
               | function_clause
-              | parenthesised_clause
               | between_clause
+              | parenthesised_clause
               ;
 binary_clause ::= identifier binop value_token
 in_set_clause ::= identifier 'IN' value_list_token
@@ -99,7 +99,9 @@ unquoted_string ::= Regex('\\S*')
 function ::= 'SUM' | 'MIN' | 'MAX' | 'COUNT' | "LENGTH" | ... (DB dependant)
 """
 
+# from pyparsing import quoted_string
 from pyparsing import CaselessKeyword
+from pyparsing import Combine
 from pyparsing import DelimitedList
 from pyparsing import Forward
 from pyparsing import Group
@@ -115,9 +117,7 @@ from pyparsing import ZeroOrMore
 from pyparsing import alphanums
 from pyparsing import alphas
 from pyparsing import alphas8bit
-from pyparsing import infix_notation
 from pyparsing import one_of
-from pyparsing import quoted_string
 from pyparsing import remove_quotes
 from pyparsing import string_end
 
@@ -130,6 +130,7 @@ from .clauses import NotTerm
 from .clauses import OnDateClause
 from .clauses import OrTerm
 from .clauses import ParenthesisedClause
+from .helpers import infix_notation
 from .identifiers import FilteredIdentifier
 from .identifiers import FunctionIdentifier
 from .identifiers import UnfilteredIdentifier
@@ -159,7 +160,20 @@ unquoted_string_token = Word(alphanums + alphas8bit + "%.-_*;:").set_name(
     "unquoted string token"
 )
 
-quoted_string.set_parse_action(remove_quotes).set_name("quoted string token")
+quoted_string = (
+    (
+        Combine(
+            Regex(r'"(?:[^"\n\r\\]|(?:"")|(?:\\(?:[^x]|x[0-9a-fA-F]+)))*')
+            + '"'
+        ).set_name("double quoted string")
+        | Combine(
+            Regex(r"'(?:[^'\n\r\\]|(?:'')|(?:\\(?:[^x]|x[0-9a-fA-F]+)))*")
+            + "'"
+        ).set_name("single quoted string")
+    )
+    .set_parse_action(remove_quotes)
+    .set_name("quoted string token")
+)
 
 string_token = (
     (quoted_string | unquoted_string_token)
@@ -217,7 +231,10 @@ atomic_identifier = Word(alphas + "_", alphanums + "_").set_name(
 )
 
 unfiltered_identifier = (
-    Group(atomic_identifier + ZeroOrMore("." + atomic_identifier))
+    (
+        atomic_identifier
+        + ZeroOrMore(Literal(".").suppress() + atomic_identifier)
+    )
     .set_parse_action(UnfilteredIdentifier)
     .set_name("unfiltered identifier")
 )
@@ -227,7 +244,7 @@ atomic_binary_clause = Group(atomic_identifier + binop + value_token).set_name(
 )
 
 filtered_identifier = (
-    Group(
+    (
         OneOrMore(
             Group(
                 unfiltered_identifier
@@ -250,12 +267,10 @@ identifier = (filtered_identifier | unfiltered_identifier).set_name(
 # An IdentifierAction is used as the parse action here as it only stores the
 # function name and handles the identifier at this point.
 function_call = (
-    (function + Literal("(") + identifier + Literal(")"))
+    (function + Literal("(").suppress() + identifier + Literal(")").suppress())
     .set_parse_action(FunctionIdentifier)
     .set_name("function call")
 )
-
-query_clause = Forward()
 
 binary_clause = (
     Group(identifier + binop + value_token)
@@ -281,12 +296,6 @@ function_clause = (
     .set_name("function clause")
 )
 
-parenthesised_clause = (
-    (Literal("(") + query_clause + Literal(")"))
-    .set_parse_action(ParenthesisedClause)
-    .set_name("parenthesised clause")
-)
-
 between_clause = (
     Group(
         identifier
@@ -299,23 +308,32 @@ between_clause = (
     .set_name("between clause")
 )
 
-base_clause = (
+base_clause = Forward()
+
+query_clause = infix_notation(
+    base_clause,
+    [
+        (not_, OpAssoc.RIGHT, NotTerm),
+        (and_, OpAssoc.LEFT, AndTerm),
+        (or_, OpAssoc.LEFT, OrTerm),
+    ],
+).set_name("query clause")
+
+parenthesised_clause = (
+    (Literal("(").suppress() + query_clause + Literal(")").suppress())
+    .set_parse_action(ParenthesisedClause)
+    .set_name("parenthesised clause")
+)
+
+# delaying defining base_clause ensures railroad diagrams separates it.
+base_clause <<= (
     binary_clause
     | in_set_clause
     | on_date_clause
     | function_clause
-    | parenthesised_clause
     | between_clause
+    | parenthesised_clause
 ).set_name("base clause")
-
-query_clause <<= infix_notation(
-    base_clause,
-    [
-        (not_, 1, OpAssoc.RIGHT, NotTerm),
-        (and_, 2, OpAssoc.LEFT, AndTerm),
-        (or_, 2, OpAssoc.LEFT, OrTerm),
-    ],
-).set_name("query clause")
 
 statement = (
     (domain + CaselessKeyword("WHERE").suppress() + query_clause + string_end)
