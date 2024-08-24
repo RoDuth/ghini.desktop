@@ -33,7 +33,6 @@ logger = logging.getLogger(__name__)
 
 from gi.repository import Gtk
 from gi.repository import Pango
-from pyparsing import Optional
 from pyparsing import ParseResults
 from pyparsing import Regex
 from pyparsing import Word
@@ -210,14 +209,16 @@ class BinomialStatement(StatementAction):
     def __init__(self, tokens: ParseResults) -> None:
         logger.debug("%s::__init__(%s)", self.__class__.__name__, tokens)
         self.genus_epithet: str = tokens[0]
-        self.cultivar_epithet: None | str
         self.species_epithet: None | str
+        self.cultivar_epithet: None | str
         if tokens[1].startswith("'"):
             self.cultivar_epithet = tokens[1].strip("'")
             self.species_epithet = None
         else:
-            self.cultivar_epithet = None
             self.species_epithet = tokens[1]
+            self.cultivar_epithet = (
+                None if len(tokens) == 2 else tokens[2].strip("'")
+            )
 
     def __repr__(self) -> str:
         if self.species_epithet:
@@ -226,38 +227,34 @@ class BinomialStatement(StatementAction):
 
     def invoke(self, search_strategy: SearchStrategy) -> list[Query]:
         logger.debug("%s::invoke", self.__class__.__name__)
-        query = search_strategy.session.query(Species)
+        logger.debug(
+            "binomial search gen: %s, sp: %s, cv: %s",
+            self.genus_epithet,
+            self.species_epithet,
+            self.cultivar_epithet,
+        )
+        query = (
+            search_strategy.session.query(Species)
+            .join(Genus)
+            .filter(Genus.genus.startswith(self.genus_epithet))
+        )
 
         if self.species_epithet:
-            logger.debug(
-                "binomial search sp: %s, gen: %s",
-                self.species_epithet,
-                self.genus_epithet,
-            )
-            query = (
-                query.filter(Species.sp.startswith(self.species_epithet))
-                .join(Genus)
-                .filter(Genus.genus.startswith(self.genus_epithet))
-            )
-        else:
-            logger.debug(
-                "cultivar search cv: %s, gen: %s",
-                self.cultivar_epithet,
-                self.genus_epithet,
-            )
-            query = (
-                query.filter(
-                    or_(
-                        Species.cultivar_epithet.startswith(
-                            self.cultivar_epithet
-                        ),
-                        Species.trade_name.startswith(self.cultivar_epithet),
-                    )
+            query = query.filter(Species.sp.startswith(self.species_epithet))
+        if self.cultivar_epithet:
+            query = query.filter(
+                or_(
+                    Species.cultivar_epithet.startswith(self.cultivar_epithet),
+                    Species.trade_name.startswith(self.cultivar_epithet),
                 )
-                .join(Genus)
-                .filter(Genus.genus.startswith(self.genus_epithet))
             )
         return [query]
+
+
+_BINOMIAL_RGX = re.compile(
+    "^[A-Z]+[a-z-]* +([a-z]+[a-z-]*$|'[A-Za-z-]*$|'[A-Za-z- ]*'$|"
+    "[a-z]+[a-z-]* ('[A-Za-z-]*$|'[A-Za-z- ]*'$))"
+)
 
 
 class BinomialSearch(SearchStrategy):
@@ -271,21 +268,18 @@ class BinomialSearch(SearchStrategy):
 
     genus = Word(caps, lowers).set_name("Genus epithet or partial epithet")
     species = Word(lowers).set_name("species epithet or partial epithet")
-    cultivar = (Regex("'[A-Za-z- ]*") + Optional("'")).set_name(
+    cultivar = Regex("'[A-Za-z- ]*'?").set_name(
         "cultivar epithet or partial epithet"
     )
 
-    statement = (genus + (species | cultivar)).set_parse_action(
-        BinomialStatement
-    )("statement")
+    statement = (
+        (genus + species + cultivar | genus + species | genus + cultivar)
+    ).set_parse_action(BinomialStatement)("statement")
 
     @staticmethod
     def use(text: str) -> typing.Literal["include", "exclude", "only"]:
         logger.debug("Use called with %s", text)
-        if re.match(
-            "^[A-Z]+[a-z-]* +([a-z]+[a-z-]*$|'[A-Za-z-]*$|'[A-Za-z- ]*'$)",
-            text,
-        ):
+        if _BINOMIAL_RGX.match(text):
             logger.debug("including BinomialSearch in strategies")
             return "include"
         return "exclude"

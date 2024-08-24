@@ -2898,9 +2898,6 @@ class MarkupItalicsTests(TestCase):
 
 
 class BinomialSearchTests(BaubleTestCase):
-    def __init__(self, *args):
-        super().__init__(*args)
-
     def setUp(self):
         super().setUp()
         db.engine.execute("delete from genus")
@@ -3029,11 +3026,31 @@ class BinomialSearchTests(BaubleTestCase):
             results.extend(i)
         self.assertEqual(results, [self.cv2])
 
+    def test_cultivar_complete(self):
+        strategy = search.strategies.get_strategy("BinomialSearch")
+        self.assertTrue(isinstance(strategy, BinomialSearch))
+
+        s = "Ixora chinensis 'Prince Of Orange'"
+        results = []
+        for i in strategy.search(s, self.session):
+            results.extend(i)
+        self.assertEqual(results, [self.cv2])
+
     def test_full_cultivar_search(self):
         strategy = search.strategies.get_strategy("BinomialSearch")
         self.assertTrue(isinstance(strategy, BinomialSearch))
 
         s = "Ixora 'Prince Of Orange'"
+        results = []
+        for i in strategy.search(s, self.session):
+            results.extend(i)
+        self.assertEqual(results, [self.cv2])
+
+    def test_cultivar_partial_complete(self):
+        strategy = search.strategies.get_strategy("BinomialSearch")
+        self.assertTrue(isinstance(strategy, BinomialSearch))
+
+        s = "Ixo chi 'Pri"
         results = []
         for i in strategy.search(s, self.session):
             results.extend(i)
