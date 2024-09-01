@@ -1564,7 +1564,7 @@ class MessageBox(GenericMessageBox):
         scroll_win = Gtk.ScrolledWindow()
         scroll_win.set_size_request(-1, 200)
         scroll_win.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
-        details_label = Gtk.TextView()
+        details_label = Gtk.TextView(monospace=True)
         details_label.set_wrap_mode(Gtk.WrapMode.WORD)
         details_label.set_can_focus(False)
         self.details_buffer = Gtk.TextBuffer()
