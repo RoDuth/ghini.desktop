@@ -772,7 +772,6 @@ class GUI:
         # make sure current view is the last view
         current = self.get_view()
         if current in self.views and not self.views[-1] is current:
-            print(type(current).__name__)
             self.views.remove(current)
             self.views.append(current)
 
