@@ -582,7 +582,7 @@ class GardenMap(Gtk.Paned):  # pylint: disable=too-many-instance-attributes
 
         colour = prefs.prefs.get(MAP_PLANT_SELECTED_COLOUR_PREF_KEY)
         if colour not in colours:
-            colour = "yellow"
+            colour = "blue"
         self.map_plant_selected_colour = colours[colour]
 
         colour = prefs.prefs.get(MAP_LOCATION_COLOUR_PREF_KEY)
@@ -848,7 +848,8 @@ class SearchViewMapPresenter:  # pylint: disable=too-many-instance-attributes
                         best_hyp = this_hypot
         return best_id
 
-    def select_plant_by_id(self, id_: int) -> None:
+    @staticmethod
+    def select_plant_by_id(id_: int) -> None:
         """Select the plant in the SearchView
 
         Selects the first instance found, i.e. if there are multiple routes
