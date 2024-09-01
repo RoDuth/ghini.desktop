@@ -35,6 +35,7 @@ from datetime import timedelta
 from datetime import timezone
 from pathlib import Path
 from textwrap import shorten
+from typing import Protocol
 from typing import cast
 
 logger = logging.getLogger(__name__)
@@ -674,14 +675,21 @@ class CountResultsTask(threading.Thread):
             self.callback(results)
 
 
+class Picture(Protocol):
+    category: str
+    picture: str
+
+
 class PicturesScroller(Gtk.ScrolledWindow):
     """Shows pictures corresponding to selection.
 
     PicturesScroller object will ask each object in the selection to return
-    picture to display.
+    pictures to display.
     """
 
     first_run: bool = True
+
+    START_PAGE_SIZE = 6
 
     def __init__(self, parent: Gtk.Paned, pic_pane: Gtk.Paned) -> None:
         logger.debug("entering PicturesScroller.__init__(parent=%s)", parent)
@@ -694,15 +702,59 @@ class PicturesScroller(Gtk.ScrolledWindow):
             PIC_PANE_WIDTH_PREF
         )
         pic_pane.show_all()
-        self.pictures_box = Gtk.Box(
-            orientation=Gtk.Orientation.VERTICAL, can_focus=False, spacing=5
-        )
+        self.pictures_box = Gtk.FlowBox()
         self.add(self.pictures_box)
         self.last_result_succeed = False
         self.show()
         # connect to the grandparent to capture parent's values first
         if pic_parent := self.pic_pane.get_parent():
             pic_parent.connect("destroy", self.on_destroy)
+        self.single_button_press_timer: threading.Timer | None = None
+        self.get_vadjustment().connect("value-changed", self.on_scrolled)
+        self.max_allocated_height = 0
+        self.last_pic: Gtk.Box | None = None
+        self.all_pics: list[tuple[Picture, db.Base]] = []
+        self.count = 0
+        self.page_size = self.START_PAGE_SIZE
+        self.waiting_on_realise = 0
+
+    def on_scrolled(self, *_args):
+        """On scrolling add more pictures as needed.
+
+        Uses the furthest picture and the largest size allocation (of the last
+        batch after they are realised) to calculate if the end is close.
+        """
+        if self.last_pic:
+            relative_coords = self.translate_coordinates(
+                self.last_pic, 0, self.max_allocated_height
+            )
+            if not relative_coords or (
+                relative_coords
+                and relative_coords[-1] > -self.max_allocated_height - 100
+            ):
+                self.add_rows()
+
+    def on_image_size_allocated(self, image: Gtk.Image, *_args) -> None:
+        """After an image has had its size allocated use its `pic_box` height
+        allocation to calculate the maximum height allocation of the current
+        batch of pictures.
+
+        Also triggers on_scrolled in case more images are needed on the page.
+        """
+        pic_box = cast(Gtk.Box, image.get_parent())
+
+        allocated_height = pic_box.get_allocated_height()
+        if allocated_height > self.max_allocated_height:
+            self.max_allocated_height = allocated_height
+
+        # avoid making negative in case of an overlap (i.e. user changes
+        # selection prior to image realising)
+        if self.waiting_on_realise > 0:
+            self.waiting_on_realise -= 1
+
+        # check if more should be added (e.g. first run, so we get a scrollbar)
+        if self.waiting_on_realise <= 0:
+            self.on_scrolled()
 
     def on_destroy(self, _widget) -> None:
         width = self.pic_pane.get_position()
@@ -713,7 +765,7 @@ class PicturesScroller(Gtk.ScrolledWindow):
         logger.debug("setting PIC_PANE_PAGE_PREF to %s", selected)
         prefs.prefs[PIC_PANE_PAGE_PREF] = selected
 
-    def _hide_restore_pic_pane(self, selection: list | None) -> None:
+    def _hide_restore_pic_pane(self, selection: list[db.Base] | None) -> None:
         if self.last_result_succeed:
             self.restore_position = self.pic_pane.get_position()
         if self.first_run:
@@ -741,40 +793,70 @@ class PicturesScroller(Gtk.ScrolledWindow):
 
             self.last_result_succeed = True
 
-    def set_selection(self, selection):
-        logger.debug("PicturesScroller.set_selection(%s)", selection)
+    def populate_from_selection(self, selection: list[db.Base] | None) -> None:
+        logger.debug("PicturesScroller.populate_from_selection(%s)", selection)
+
         for kid in self.pictures_box.get_children():
             kid.destroy()
 
-        self._hide_restore_pic_pane(selection)
+        self.all_pics.clear()
 
-        for obj in selection or []:
-            try:
-                pics = obj.pictures
-            except AttributeError:
-                logger.debug("object %s does not know of pictures", obj)
-                pics = []
-            except DetachedInstanceError:
-                # when session is lost... (e.g. successful search followed by a
-                # failed one)
-                pics = []
+        selection = selection or []
+        for obj in selection:
+            pics = getattr(obj, "pictures", [])
+
             for pic in pics:
-                logger.debug("object %s has picture %s", obj, pic)
-                box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-                if pic.category:
-                    label = Gtk.Label(label="category: " + pic.category)
-                    box.add(label)
-                event_box = Gtk.EventBox()
-                pic_box = Gtk.Box()
-                utils.ImageLoader(pic_box, pic.picture).start()
-                event_box.add(pic_box)
-                box.add(event_box)
-                event_box.connect(
-                    "button-press-event", self.on_button_press, pic.picture
-                )
-                self.pictures_box.pack_start(box, False, False, 5)
-                self.pictures_box.reorder_child(box, 0)
-                box.show_all()
+                # NOTE this will skip examples where species_picture and
+                # plant_picture are the same, etc..
+                if pic in {pic for pic, obj in self.all_pics}:
+                    continue
+                self.all_pics.append((pic, obj))
+
+        self.count = 0
+        self.page_size = self.START_PAGE_SIZE
+        self.waiting_on_realise = 0
+
+        self._hide_restore_pic_pane(selection)
+        self.add_rows()
+
+    def add_rows(self) -> None:
+        """Add a page of pictures."""
+        if self.count == len(self.all_pics):
+            # bail early if already finished adding rows
+            return
+
+        self.max_allocated_height = 0
+
+        page_end = self.count + self.page_size
+        for pic, obj in self.all_pics[self.count : page_end]:
+            logger.debug("object %s has picture %s", obj, pic)
+            box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+            if pic.category:
+                label = Gtk.Label(label="category: " + pic.category)
+                box.add(label)
+            event_box = Gtk.EventBox()
+            event_box.connect(
+                "button-press-event",
+                self.on_button_press,
+                pic.picture,
+                obj,
+            )
+            pic_box = Gtk.Box()
+            self.waiting_on_realise += 1
+            utils.ImageLoader(
+                pic_box,
+                pic.picture,
+                on_size_allocated=self.on_image_size_allocated,
+            ).start()
+            pic_box.set_hexpand(True)
+            pic_box.set_vexpand(True)
+            event_box.add(pic_box)
+            box.pack_start(event_box, True, True, 0)
+            self.pictures_box.add(box)
+            box.show_all()
+            self.count += 1
+
+        self.last_pic = pic_box
 
         self.pictures_box.show_all()
 
@@ -803,17 +885,102 @@ class PicturesScroller(Gtk.ScrolledWindow):
             if notebook:
                 notebook.set_current_page(selected)
 
-    @staticmethod
-    def on_button_press(_view, event, link):
-        """On double click open the image in the default viewer."""
-        # if it is not a url append the picture_root and open, if it is a URL
-        # just open it.
+    def on_button_press(
+        self, _view, event: Gdk.EventButton, link: str, obj: db.Base
+    ) -> None:
+        """On double click open the image in the default viewer. On single
+        click select the item in the search view, if its already selected check
+        if the picture comes from a child and if so select it.
+        """
+        # hack single click
+        if self.single_button_press_timer:
+            self.single_button_press_timer.cancel()
+            self.single_button_press_timer = None
         # pylint: disable=protected-access
-        if event.button == 1 and event.type == Gdk.EventType._2BUTTON_PRESS:
-            if not (link.startswith("http://") or link.startswith("https://")):
-                pic_root = prefs.prefs.get(prefs.picture_root_pref)
-                link = Path(pic_root, link)
-            utils.desktop.open(link)
+        if event.button == 1:
+            if event.type == Gdk.EventType._2BUTTON_PRESS:
+                # if it is not a url append the picture_root and open, if it is
+                # a URL just open it.
+                full_path = None
+                if not (
+                    link.startswith("http://") or link.startswith("https://")
+                ):
+                    pic_root = prefs.prefs.get(prefs.picture_root_pref)
+                    full_path = Path(pic_root, link)
+                utils.desktop.open(full_path or link)
+            elif event.type == Gdk.EventType.BUTTON_PRESS:
+                self.single_button_press_timer = threading.Timer(
+                    0.3, self._on_single_button_press, (link, obj)
+                )
+                self.single_button_press_timer.start()
+
+    def _on_single_button_press(self, link: str, obj: db.Base) -> None:
+        self.single_button_press_timer = None
+        GLib.idle_add(self.select_object, link, obj)
+
+    def select_object(self, link: str, obj: db.Base) -> None:
+        """Select the object in the SearchView,
+
+        If the object is already the one selected check if it has a child that
+        owns the picture and if so select the child instead.
+        """
+        if bauble.gui and isinstance(
+            search_view := bauble.gui.get_view(), SearchView
+        ):
+            model = search_view.results_view.get_model()
+            if not model:
+                return
+            selected = search_view.get_selected_values()
+            obj_is_owner = self._obj_owns_picture(obj, link)
+
+            if selected == [obj] and obj_is_owner:
+                self.pictures_box.unselect_all()
+                return
+
+            if selected is not None and obj in selected and obj_is_owner:
+                # make sure we select the object if multiple selected
+                select_in_search_results(obj)
+                return
+
+            self._select_child_obj(link, obj, model, search_view)
+
+    def _select_child_obj(
+        self,
+        link: str,
+        obj: db.Base,
+        model: Gtk.TreeModel,
+        search_view: "SearchView",
+    ) -> None:
+        logger.debug("object = %s(%s)", type(obj).__name__, obj)
+        kids = search_view.row_meta[type(obj)].get_children(obj)
+        for kid in kids:
+            for pic in getattr(kid, "pictures", []):
+                if pic.picture == link:
+                    itr = utils.search_tree_model(model, obj)[0]
+                    path = model.get_path(itr)
+                    # expand (on_test_expand_row needed for test)
+                    search_view.on_test_expand_row(
+                        search_view.results_view, itr, path
+                    )
+                    search_view.results_view.expand_to_path(path)
+                    if self._obj_owns_picture(kid, link):
+                        itr = select_in_search_results(kid)
+                        path = model.get_path(itr)
+                        search_view.results_view.scroll_to_cell(
+                            path, None, True, 0.5, 0.0
+                        )
+                    else:
+                        # traverse to source
+                        self._select_child_obj(link, kid, model, search_view)
+
+    @staticmethod
+    def _obj_owns_picture(obj: db.Base, link: str) -> bool:
+        obj_name = type(obj).__name__
+        return any(
+            pic.picture == link
+            and type(pic).__name__.removesuffix("Picture") == obj_name
+            for pic in getattr(obj, "pictures", [])
+        )
 
 
 class ViewMeta(UserDict):
@@ -1221,7 +1388,7 @@ class SearchView(pluginmgr.View, Gtk.Box):
         # update all backward-looking info boxes
         self.update_bottom_notebook(selected_values)
 
-        self.pictures_scroller.set_selection(selected_values)
+        self.pictures_scroller.populate_from_selection(selected_values)
 
         self.update_context_menus(selected_values)
 

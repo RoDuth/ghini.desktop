@@ -592,7 +592,9 @@ class ExpressionRow:
 
     @staticmethod
     def relation_filter(key, _prop):
-        if key.startswith("_"):
+        if prefs.prefs.get(
+            prefs.query_builder_advanced, False
+        ) is False and key.startswith("_"):
             return False
         return True
 

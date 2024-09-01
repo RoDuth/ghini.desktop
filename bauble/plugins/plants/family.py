@@ -24,6 +24,8 @@ Family table definition
 import logging
 import os
 import traceback
+from functools import reduce
+from operator import iconcat
 
 logger = logging.getLogger(__name__)
 
@@ -219,6 +221,10 @@ class Family(db.Base, db.WithNotes):
     cites = Column(types.Enum(values=["I", "II", "III", None]), default=None)
 
     retrieve_cols = ["id", "epithet", "family"]
+
+    @property
+    def pictures(self) -> list:
+        return reduce(iconcat, [a.pictures for a in self.genera], [])
 
     @classmethod
     def retrieve(cls, session, keys):

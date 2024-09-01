@@ -1588,7 +1588,7 @@ class TestPicturesScroller(BaubleTestCase):
         # as set in prefs
         self.assertEqual(notebook.get_current_page(), 1)
 
-    def test_set_selection_adds_children(self):
+    def test_populate_from_selection_adds_children(self):
         box = Gtk.Box()
         notebook = Gtk.Notebook()
         pics_box = Gtk.Paned()
@@ -1600,7 +1600,8 @@ class TestPicturesScroller(BaubleTestCase):
         box.pack_start(pic_pane, True, True, 1)
         picture_scroller = PicturesScroller(parent=pics_box, pic_pane=pic_pane)
         self.assertFalse(picture_scroller.pictures_box.get_children())
-        picture_scroller.set_selection(
+        # single
+        picture_scroller.populate_from_selection(
             [
                 mock.Mock(
                     pictures=[mock.Mock(picture="test.jpg", category="test")]
@@ -1608,9 +1609,74 @@ class TestPicturesScroller(BaubleTestCase):
             ]
         )
         self.assertEqual(len(picture_scroller.pictures_box.get_children()), 1)
+        # test doesn't add twice
+        mock_pic = mock.Mock(picture="test.jpg", category="test")
+        picture_scroller.populate_from_selection(
+            [mock.Mock(pictures=[mock_pic]), mock.Mock(pictures=[mock_pic])]
+        )
+        self.assertEqual(len(picture_scroller.pictures_box.get_children()), 1)
+
+    def test_add_rows_bails_early_if_populated(self):
+        box = Gtk.Box()
+        notebook = Gtk.Notebook()
+        pics_box = Gtk.Paned()
+        pic_pane = Gtk.Paned()  # the parent pane, notebook is within
+        notebook.append_page(pics_box, Gtk.Label(label="test"))
+        box2 = Gtk.Box()
+        pic_pane.pack1(box2)
+        pic_pane.pack2(notebook)
+        box.pack_start(pic_pane, True, True, 1)
+        picture_scroller = PicturesScroller(parent=pics_box, pic_pane=pic_pane)
+        picture_scroller.count = 2
+        picture_scroller.all_pics = [1, 2]
+        picture_scroller.add_rows()
+        # should not be set.
+        self.assertIsNone(picture_scroller.last_pic)
+
+    def test_on_scrolled_adds_if_needed(self):
+        mock_self = mock.Mock()
+        mock_self.max_allocated_height = 200
+        mock_self.translate_coordinates.return_value = (0, -300)
+        PicturesScroller.on_scrolled(mock_self)
+        mock_self.add_rows.assert_not_called()
+        mock_self.translate_coordinates.return_value = (0, -100)
+        PicturesScroller.on_scrolled(mock_self)
+        mock_self.add_rows.assert_called()
+
+    def test_on_image_size_allocated(self):
+        mock_self = mock.Mock()
+        mock_self.waiting_on_realise = 3
+        mock_self.max_allocated_height = 0
+        mock_pic_box = mock.Mock()
+        mock_pic_box.get_parent().get_allocated_height.return_value = 10
+
+        PicturesScroller.on_image_size_allocated(mock_self, mock_pic_box)
+        self.assertEqual(mock_self.max_allocated_height, 10)
+        self.assertEqual(mock_self.waiting_on_realise, 2)
+        mock_self.on_scrolled.assert_not_called()
+
+        mock_pic_box.get_parent().get_allocated_height.return_value = 20
+
+        PicturesScroller.on_image_size_allocated(mock_self, mock_pic_box)
+        self.assertEqual(mock_self.max_allocated_height, 20)
+        self.assertEqual(mock_self.waiting_on_realise, 1)
+        mock_self.on_scrolled.assert_not_called()
+
+        mock_pic_box.get_parent().get_allocated_height.return_value = 19
+
+        PicturesScroller.on_image_size_allocated(mock_self, mock_pic_box)
+        self.assertEqual(mock_self.max_allocated_height, 20)
+        self.assertEqual(mock_self.waiting_on_realise, 0)
+        mock_self.on_scrolled.assert_called()
+        mock_self.reset_mock()
+        # does not set waiting_on_realise below zero
+        PicturesScroller.on_image_size_allocated(mock_self, mock_pic_box)
+        self.assertEqual(mock_self.max_allocated_height, 20)
+        self.assertEqual(mock_self.waiting_on_realise, 0)
+        mock_self.on_scrolled.assert_called()
 
     @mock.patch("bauble.utils.desktop.open")
-    def test_on_button_press_opens_picture(self, mock_open):
+    def test_on_button_press_double_click_opens_picture(self, mock_open):
         box = Gtk.Box()
         notebook = Gtk.Notebook()
         pics_box = Gtk.Paned()
@@ -1622,8 +1688,95 @@ class TestPicturesScroller(BaubleTestCase):
         box.pack_start(pic_pane, True, True, 1)
         picture_scroller = PicturesScroller(parent=pics_box, pic_pane=pic_pane)
         mock_event = mock.Mock(button=1, type=Gdk.EventType._2BUTTON_PRESS)
-        picture_scroller.on_button_press(None, mock_event, "test.jpg")
+        picture_scroller.on_button_press(
+            None, mock_event, "test.jpg", mock.Mock()
+        )
         mock_open.assert_called_with(Path("pictures/test.jpg"))
+        mock_open.reset_mock()
+        with mock.patch("bauble.gui") as mock_gui:
+            mock_event = mock.Mock(button=1, type=Gdk.EventType.BUTTON_PRESS)
+            picture_scroller.on_button_press(
+                None, mock_event, "test.jpg", mock.Mock()
+            )
+            mock_event = mock.Mock(button=1, type=Gdk.EventType._2BUTTON_PRESS)
+            picture_scroller.on_button_press(
+                None, mock_event, "test.jpg", mock.Mock()
+            )
+            wait_on_threads()
+            update_gui()
+            mock_open.assert_called_with(Path("pictures/test.jpg"))
+            mock_gui.assert_not_called()
+
+    @mock.patch("bauble.gui")
+    def test_on_button_press_single_click_selects_obj(self, mock_gui):
+        box = Gtk.Box()
+        notebook = Gtk.Notebook()
+        pics_box = Gtk.Paned()
+        pic_pane = Gtk.Paned()  # the parent pane, notebook is within
+        notebook.append_page(pics_box, Gtk.Label(label="test"))
+        box2 = Gtk.Box()
+        pic_pane.pack1(box2)
+        pic_pane.pack2(notebook)
+        box.pack_start(pic_pane, True, True, 1)
+        picture_scroller = PicturesScroller(parent=pics_box, pic_pane=pic_pane)
+        mock_gui.get_view.return_value = None
+        mock_event = mock.Mock(button=1, type=Gdk.EventType.BUTTON_PRESS)
+        picture_scroller.on_button_press(
+            None, mock_event, "test.jpg", mock.Mock()
+        )
+        wait_on_threads()
+        update_gui()
+        mock_gui.get_view.assert_called()
+
+    @mock.patch("bauble.gui")
+    def test_select_object(self, mock_gui):
+        for func in get_setUp_data_funcs():
+            func()
+        from bauble.plugins.garden import Plant
+        from bauble.plugins.garden import PlantPicture
+
+        plt1 = self.session.query(Plant).get(1)
+        plt2 = self.session.query(Plant).get(2)
+        pic1 = PlantPicture(picture="test1.jpg")
+        plt2.pictures.append(pic1)
+        box = Gtk.Box()
+        notebook = Gtk.Notebook()
+        pics_box = Gtk.Paned()
+        pic_pane = Gtk.Paned()  # the parent pane, notebook is within
+        notebook.append_page(pics_box, Gtk.Label(label="test"))
+        box2 = Gtk.Box()
+        pic_pane.pack1(box2)
+        pic_pane.pack2(notebook)
+        box.pack_start(pic_pane, True, True, 1)
+        picture_scroller = PicturesScroller(parent=pics_box, pic_pane=pic_pane)
+        picture_scroller.set_selection = mock.Mock()
+        # species selected should traverse
+        search_view = SearchView()
+        search_view.pictures_scroller = picture_scroller
+        search_view.history_action = mock.Mock()
+        search_view.populate_results([plt2.accession.species])
+        search_view.results_view.set_cursor(Gtk.TreePath.new_first())
+        mock_gui.get_view.return_value = search_view
+        self.assertEqual(
+            search_view.get_selected_values(), [plt2.accession.species]
+        )
+        picture_scroller.select_object("test1.jpg", plt2.accession.species)
+        self.assertEqual(search_view.get_selected_values(), [plt2])
+        mock_gui.get_view.assert_called()
+        # plant selected should do nothing
+        search_view.populate_results([plt1, plt2])
+        search_view.results_view.set_cursor(Gtk.TreePath.new_from_indices([1]))
+        self.assertEqual(search_view.get_selected_values(), [plt2])
+        picture_scroller.select_object("test1.jpg", plt2)
+        self.assertEqual(search_view.get_selected_values(), [plt2])
+        # both selected selects owner
+        search_view.results_view.get_selection().select_all()
+        self.assertEqual(search_view.get_selected_values(), [plt1, plt2])
+        picture_scroller.select_object("test1.jpg", plt2)
+        self.assertEqual(search_view.get_selected_values(), [plt2])
+        # just for coverage...
+        search_view.results_view.set_model(None)
+        picture_scroller.select_object("test1.jpg", plt2)
 
     @mock.patch("bauble.gui")
     def test_hide_restore_pic_pane(self, mock_gui):

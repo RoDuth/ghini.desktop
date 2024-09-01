@@ -440,14 +440,14 @@ class PictureBoxTests(BaubleTestCase):
 
         # get a different note class
         for klass in MapperSearch.get_domain_classes().values():
-            if hasattr(klass, "pictures") and hasattr(
-                klass.pictures, "mapper"
+            if hasattr(klass, "_pictures") and hasattr(
+                klass._pictures, "mapper"
             ):
-                note_cls = klass.pictures.mapper.class_
+                note_cls = klass._pictures.mapper.class_
                 if type(self.model) is not note_cls:
                     parent_model = klass()
                     model2 = note_cls(picture=img_name)
-                    parent_model.pictures.append(model2)
+                    parent_model._pictures.append(model2)
                     self.session.add(model2)
                     break
 

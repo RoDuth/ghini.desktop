@@ -22,6 +22,8 @@ Location table definition and related
 import logging
 import os
 import traceback
+from functools import reduce
+from operator import iconcat
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -148,7 +150,7 @@ loc_context_menu = [edit_action, add_plant_action, remove_action, map_action]
 
 
 LocationNote = db.make_note_class("Location")
-LocationPicture = db.make_note_class("Location", cls_type="picture")
+LocationPicture = db.make_note_class("Location", cls_type="_picture")
 
 
 class Location(db.Base, db.WithNotes):
@@ -198,6 +200,13 @@ class Location(db.Base, db.WithNotes):
     )
 
     retrieve_cols = ["id", "code"]
+
+    @property
+    def pictures(self) -> list:
+        """Return pictures from any attached plants and any in _pictures."""
+        pics = [a.pictures for a in self.plants]
+        plant_pics: list = reduce(iconcat, pics, [])
+        return plant_pics + self._pictures
 
     @classmethod
     def retrieve(cls, session, keys):
@@ -330,7 +339,7 @@ class LocationEditorPresenter(GenericEditorPresenter, PresenterMapMixin):
         pictures_parent = self.view.widgets.pictures_parent_box
         pictures_parent.foreach(pictures_parent.remove)
         self.pictures_presenter = PicturesPresenter(
-            self, "pictures", pictures_parent
+            self, "_pictures", pictures_parent
         )
 
         # initialize widgets

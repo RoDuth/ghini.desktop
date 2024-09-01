@@ -24,6 +24,8 @@ Genera table module
 import logging
 import os
 import traceback
+from functools import reduce
+from operator import iconcat
 
 logger = logging.getLogger(__name__)
 
@@ -290,6 +292,10 @@ class Genus(db.Base, db.WithNotes):
         """provide the two lines describing object for SearchView row."""
         citation = self.markup(authors=True, for_search_view=True)
         return citation, utils.xml_safe(self.family)
+
+    @property
+    def pictures(self) -> list:
+        return reduce(iconcat, [a.pictures for a in self.species], [])
 
     @hybrid_property
     def cites(self):

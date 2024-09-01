@@ -162,9 +162,9 @@ def copy_picture_with_thumbnail(
 
 
 class ImageLoader(threading.Thread):
-    cache = Cache(12)  # class-global cached results
+    cache = Cache(24)  # class-global cached results
 
-    def __init__(self, box, url, *args, **kwargs):
+    def __init__(self, box, url, *args, on_size_allocated=None, **kwargs):
         super().__init__(*args, **kwargs)
         self.box = box  # will hold image or label
         self.loader = GdkPixbuf.PixbufLoader()
@@ -181,6 +181,7 @@ class ImageLoader(threading.Thread):
 
             pfolder = prefs.prefs.get(prefs.picture_root_pref)
             self.url = os.path.join(pfolder, url)
+        self.on_size_allocated = on_size_allocated
 
     def callback(self):
         pixbuf = self.loader.get_pixbuf()
@@ -197,8 +198,14 @@ class ImageLoader(threading.Thread):
             image = self.box.get_children()[0]
         else:
             image = Gtk.Image()
-            self.box.add(image)
+            self.box.pack_start(image, True, True, 0)
         image.set_from_pixbuf(scaled_buf)
+        if self.on_size_allocated:
+
+            def on_size_allocated(*args):
+                GLib.idle_add(self.on_size_allocated, *args)
+
+            image.connect("size-allocate", on_size_allocated)
         self.box.show_all()
 
     def loader_notified(self, _pixbufloader):
