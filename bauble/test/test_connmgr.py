@@ -605,30 +605,33 @@ class GlobalFunctionsTests(BaubleTestCase):
     def test_check_new_release(self):
         created_date = "2021-01-01T00:00:00Z"
         test_data = {
-            "name": "v1.3.0-a (BBG Branch)",
+            "name": "v1.3.0-a",
             "prerelease": True,
             "assets": [{"created_at": created_date}],
         }
-        test_data["name"] = "v1.3.999-a (BBG Branch)"
+        test_data["name"] = "v1.3.999-a"
         self.assertEqual(check_new_release(test_data), test_data)
-        test_data["name"] = "v1.4999-a (BBG Branch)"
+        test_data["name"] = "v1.4.999-a"
         self.assertEqual(check_new_release(test_data), test_data)
-        test_data["name"] = "v1.3 (BBG Branch)"
+        test_data["name"] = "v1.3.0"
         self.assertFalse(check_new_release(test_data))
-        test_data["name"] = "v1.3.999 (MRBG Branch)"
+        test_data["name"] = "v1.3.999"
         self.assertEqual(check_new_release(test_data), test_data)
-        test_data["name"] = "v1.3.999 (BBG Branch)"
+        test_data["name"] = "v1.3.999"
         test_data["prerelease"] = False
         self.assertEqual(check_new_release(test_data), test_data)
         test_data["prerelease"] = True
         self.assertTrue(check_new_release(test_data) and True or False)
-        test_data["name"] = "v1.0.0 (BBG Branch)"
+        test_data["name"] = "v1.0.0"
         test_data["prerelease"] = False
         self.assertFalse(check_new_release(test_data))
-        test_data["name"] = "v1.0.0-a (BBG Branch)"
+        test_data["name"] = "v1.0.0-a"
         self.assertFalse(check_new_release(test_data))
-        test_data["name"] = "v1.0.0-b (BBG Branch)"
+        test_data["name"] = "v1.0.0-b"
         self.assertFalse(check_new_release(test_data) and True or False)
+        bauble.version = "1.3.10"
+        test_data["name"] = "v1.3.9"
+        self.assertFalse(check_new_release(test_data))
         import dateutil
 
         self.assertEqual(

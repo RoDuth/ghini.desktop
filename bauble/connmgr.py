@@ -28,6 +28,7 @@ connections. This is the first thing displayed when Ghini starts.
 import copy
 import logging
 import os
+from dataclasses import dataclass
 from importlib import import_module
 from pathlib import Path
 
@@ -112,6 +113,23 @@ def retrieve_latest_release_data():
     return None
 
 
+@dataclass(order=True)
+class ComparableVersion:
+    major: int
+    minor: int
+    patch: int
+    build: str = "z"
+
+
+def comp_ver(version: str) -> ComparableVersion:
+    as_list: list = version.replace("-", ".").split(".")
+
+    for i in range(3):
+        as_list[i] = int(as_list[i])
+
+    return ComparableVersion(*as_list)
+
+
 def check_new_release(github_release_data):
     """Check if the supplied json data descibes a newer release than the
     current version.
@@ -131,13 +149,14 @@ def check_new_release(github_release_data):
     release_date = dateutil.parser.isoparse(release_date)
     bauble.release_date = release_date.astimezone(tz=None)
 
-    github_version = github_release.split()[0][1:]
-    current_version = bauble.version
+    github_version = comp_ver(github_release.split()[0][1:])
+    current_version = comp_ver(bauble.version)
     logger.debug("latest release on github is release: %s", github_release)
     logger.debug(
         "latest release on github is a prerelease?: %s", github_prerelease
     )
     logger.debug("this version %s", current_version)
+
     if github_version > current_version:
         return github_release_data
     if github_version < current_version:
