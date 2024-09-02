@@ -766,7 +766,9 @@ event.listen(Location, "after_delete", LocationSearchMap.clear_locations)
 db.History.history_revert_callbacks.append(LocationSearchMap.history_callback)
 
 
-class SearchViewMapPresenter:  # pylint: disable=too-many-instance-attributes
+class SearchViewMapPresenter:
+    # pylint: disable=too-many-instance-attributes
+    # pylint: disable=too-many-public-methods
     """Presenter to interface with SearchView"""
 
     thread_event = threading.Event()
@@ -1041,16 +1043,6 @@ class SearchViewMapPresenter:  # pylint: disable=too-many-instance-attributes
         visibile.
         :param view: supply the SearchView instance (for testing)
         """
-        # idle_add to ensure is_visible returns correctly
-        GLib.idle_add(  # type: ignore [call-arg]
-            self._populate_map_from_search_view,
-            view,
-            priority=GLib.PRIORITY_DEFAULT_IDLE + 50,
-        )
-
-    def _populate_map_from_search_view(
-        self, view: SearchView | None = None
-    ) -> None:
         logger.debug("populating map from search view results")
         if not view and bauble.gui:
             view = bauble.gui.get_view()
@@ -1161,8 +1153,8 @@ class SearchViewMapPresenter:  # pylint: disable=too-many-instance-attributes
         if self.redraw_on_update:
             self.redraw_on_update = False
             self.populated = False
-            self._populate_map_from_search_view()
-            # update is called again from within _populate_map_from_search_view
+            self.populate_map_from_search_view()
+            # update is called again from within populate_map_from_search_view
             return
         self.clear_selected()
         if selected_values and self.is_visible():
@@ -1362,6 +1354,12 @@ def setup_garden_map() -> None:
         map_presenter.populate_map_from_search_view,
     )
     SearchView.extra_signals.add(position_signal)
+    size_allocate_signal = (
+        "pic_pane",
+        "size-allocate",
+        map_presenter.populate_map_from_search_view,
+    )
+    SearchView.extra_signals.add(size_allocate_signal)
 
     SearchView.populate_callbacks.add(map_presenter.populate_map)
     SearchView.cursor_changed_callbacks.add(map_presenter.update_map)
@@ -1431,6 +1429,13 @@ def expunge_garden_map() -> None:
         (
             "pic_pane",
             "notify::position",
+            map_presenter.populate_map_from_search_view,
+        )
+    )
+    SearchView.extra_signals.remove(
+        (
+            "pic_pane",
+            "size-allocate",
             map_presenter.populate_map_from_search_view,
         )
     )

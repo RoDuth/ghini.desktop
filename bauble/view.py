@@ -1092,8 +1092,6 @@ class SearchView(pluginmgr.View, Gtk.Box):
     Items are a tuple - (widget name, signal name, handler)
     """
 
-    first_run: bool = True
-
     def __init__(self):
         logger.debug("SearchView::__init__")
         super().__init__()
@@ -1643,14 +1641,10 @@ class SearchView(pluginmgr.View, Gtk.Box):
                     sbcontext_id,
                     _("size of non homogeneous result: %s") % len(results),
                 )
-            if self.first_run:
-                # not sure why the first row is hidden on the first search but
-                # this fixes it
-                self.first_run = False
-                GLib.idle_add(
-                    self.results_view.set_cursor, Gtk.TreePath.new_first()
-                )
             self.results_view.set_cursor(Gtk.TreePath.new_first())
+            self.results_view.scroll_to_cell(
+                Gtk.TreePath.new_first(), None, True, 0.5, 0.0
+            )
 
     @staticmethod
     def remove_children(model, parent):

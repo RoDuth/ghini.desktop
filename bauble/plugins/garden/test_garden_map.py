@@ -893,7 +893,7 @@ class TestSearchViewMapPresenter(BaubleTestCase):
         presenter = SearchViewMapPresenter(map_)
         presenter.is_visible = lambda: True
         presenter.redraw_on_update = True
-        presenter._populate_map_from_search_view = mock.Mock()
+        presenter.populate_map_from_search_view = mock.Mock()
         presenter.clear_selected = mock.Mock()
         presenter.populate_map(results)
         presenter.populate_thread.join()
@@ -901,7 +901,7 @@ class TestSearchViewMapPresenter(BaubleTestCase):
         presenter.update_map([plt1])
         self.assertFalse(presenter.redraw_on_update)
         self.assertIsNone(presenter.update_thread)
-        presenter._populate_map_from_search_view.assert_called()
+        presenter.populate_map_from_search_view.assert_called()
         presenter.clear_selected.assert_not_called()
 
     @mock.patch("bauble.plugins.garden.garden_map.GLib")
@@ -986,7 +986,7 @@ class TestSearchViewMapPresenter(BaubleTestCase):
         search_view = SearchView()
         search_view.search("plant=*")
         presenter.populate_map_from_search_view(view=search_view)
-        # update for _populate_map_from_search_view
+        # update for populate_map_from_search_view
         update_gui()
         presenter.populate_thread.join()
         update_gui()
@@ -1678,7 +1678,7 @@ class GlobalFunctionsTest(BaubleTestCase):
         self.assertEqual(
             start_pages - 1, len(SearchView.pic_pane_notebook_pages)
         )
-        self.assertEqual(start_signals - 2, len(SearchView.extra_signals))
+        self.assertEqual(start_signals - 3, len(SearchView.extra_signals))
         self.assertEqual(
             start_pop_callbacks - 1, len(SearchView.populate_callbacks)
         )
@@ -1706,7 +1706,7 @@ class GlobalFunctionsTest(BaubleTestCase):
         self.assertEqual(
             start_pages + 1, len(SearchView.pic_pane_notebook_pages)
         )
-        self.assertEqual(start_signals + 2, len(SearchView.extra_signals))
+        self.assertEqual(start_signals + 3, len(SearchView.extra_signals))
         self.assertEqual(
             start_pop_callbacks + 1, len(SearchView.populate_callbacks)
         )
