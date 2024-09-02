@@ -428,6 +428,15 @@ class TestSearchView(BaubleTestCase):
             self.assertTrue(
                 mock_show_err_box.call_args.args[0].startswith("** Error: ")
             )
+            # parser error
+            mock_show_err_box.reset_mock()
+            search_view.search("accession where private ? 1")
+            mock_show_err_box.assert_called()
+            error_msg = "Error in search string at column"
+            self.assertTrue(
+                mock_show_err_box.call_args.args[0].startswith(error_msg),
+                mock_show_err_box.call_args.args[0],
+            )
         # no infobox
         self.assertIsNone(search_view.infobox)
 
