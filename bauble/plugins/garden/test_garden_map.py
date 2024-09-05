@@ -44,6 +44,7 @@ from bauble import ui
 from bauble.test import BaubleTestCase
 from bauble.test import get_setUp_data_funcs
 from bauble.test import update_gui
+from bauble.test import wait_on_threads
 from bauble.utils import get_net_sess
 from bauble.utils.web import PACFile
 from bauble.view import SearchView
@@ -1177,9 +1178,13 @@ class TestSearchViewMapPresenter(BaubleTestCase):
         # should not have go this far
         mock_has.assert_not_called()
 
+    @mock.patch(
+        "bauble.view.DefaultCommandHandler.view",
+        new_callable=mock.PropertyMock,
+    )
     @mock.patch("bauble.view.SearchView.update_context_menus")
     @mock.patch("bauble.gui")
-    def test_select_plant_by_id(self, mock_gui, _mock_menu):
+    def test_select_plant_by_id(self, mock_gui, _mock_menu, mock_view):
         for func in get_setUp_data_funcs():
             func()
         plt1 = self.session.query(Plant).get(1)
@@ -1191,11 +1196,13 @@ class TestSearchViewMapPresenter(BaubleTestCase):
         gmap = GardenMap(map_)
         presenter = SearchViewMapPresenter(gmap)
         search_view = SearchView()
+        mock_view.return_value = search_view
         # plant is in view
         search_view.search("plant where id in 1, 2")
         mock_gui.widgets.view_box.get_children.return_value = [search_view]
         mock_gui.get_view.return_value = search_view
         presenter.select_plant_by_id(1)
+        wait_on_threads()
         self.assertEqual(
             [i.id for i in search_view.get_selected_values()], [1]
         )
@@ -1203,11 +1210,13 @@ class TestSearchViewMapPresenter(BaubleTestCase):
         # should fail
         search_view.search("fam = Myrtaceae")
         presenter.select_plant_by_id(1)
+        wait_on_threads()
         self.assertNotEqual(
             [i.id for i in search_view.get_selected_values()], [1]
         )
         # finds plant in family
         search_view.search(f"fam = {plt1.accession.species.genus.family}")
+        wait_on_threads()
         presenter.select_plant_by_id(1)
         self.assertEqual(
             [i.id for i in search_view.get_selected_values()], [1]
@@ -1655,17 +1664,8 @@ class GlobalFunctionsTest(BaubleTestCase):
     def test_get_search_view_returns_none_w_no_gui(self):
         self.assertIsNone(get_search_view())
 
-    @mock.patch("bauble.gui")
-    def test_get_search_view_returns_search_view_only(self, mock_gui):
-        mock_search_view = mock.Mock()
-        mock_gui.widgets.view_box.get_children.return_value = [
-            mock_search_view
-        ]
-        self.assertIsNone(get_search_view())
-        mock_search_view = mock.Mock(spec=SearchView)
-        mock_gui.widgets.view_box.get_children.return_value = [
-            mock_search_view
-        ]
+    @mock.patch("bauble.view.DefaultCommandHandler.view")
+    def test_get_search_view_returns_search_view_only(self, mock_search_view):
         self.assertEqual(get_search_view(), mock_search_view)
 
     def test_expunge_garden_map(self):

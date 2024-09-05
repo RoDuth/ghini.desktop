@@ -61,6 +61,7 @@ from bauble.utils import get_net_sess
 from bauble.utils import timed_cache
 from bauble.utils.geo import is_point_within_poly
 from bauble.utils.geo import polylabel
+from bauble.view import DefaultCommandHandler
 from bauble.view import SearchView
 from bauble.view import select_in_search_results
 
@@ -1046,15 +1047,14 @@ class SearchViewMapPresenter:
         logger.debug("populating map from search view results")
         if not view and bauble.gui:
             view = bauble.gui.get_view()
-        if isinstance(view, SearchView) and (
-            self.is_visible() and not self.populated
-        ):
-            model = view.results_view.get_model()
-            objs = []
-            if model:
-                # see: https://github.com/python/mypy/issues/2220
-                objs = [i[0] for i in model]  # type: ignore
-            self.populate_map(objs)
+        if isinstance(view, SearchView) and self.is_visible():
+            if not self.populated:
+                model = view.results_view.get_model()
+                objs = []
+                if model:
+                    # see: https://github.com/python/mypy/issues/2220
+                    objs = [i[0] for i in model]  # type: ignore
+                self.populate_map(objs)
             selected = view.get_selected_values()
             if selected:
                 self.update_map(selected)
@@ -1474,9 +1474,4 @@ def get_search_view() -> None | SearchView:
 
     i.e. `bauble.gui.get_view()` does not work here.
     """
-    search_view = None
-    if bauble.gui:
-        for kid in bauble.gui.widgets.view_box.get_children():
-            if isinstance(kid, SearchView):
-                search_view = kid
-    return search_view
+    return DefaultCommandHandler.view
