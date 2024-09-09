@@ -1,7 +1,7 @@
 # Copyright (c) 2005,2006,2007,2008,2009 Brett Adams <brett@belizebotanic.org>
 # Copyright (c) 2015-2016 Mario Frasca <mario@anche.no>
 # Copyright 2017 Jardín Botánico de Quito
-# Copyright (c) 2018-2023 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright (c) 2018-2024 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -239,7 +239,10 @@ class ImageLoader(threading.Thread):
             )
             label = Gtk.Label(wrap=True)
             label.connect("size-allocate", self.on_allocate_size)
-            label.set_text(f'picture {self.url} error "{e}"')
+            label.set_text(
+                _('picture %(url)s error "%(error)s"')
+                % {"url": self.url, "error": e}
+            )
             self.box.add(label)
         self.box.show_all()
 
