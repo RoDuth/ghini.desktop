@@ -24,8 +24,6 @@ Family table definition
 import logging
 import os
 import traceback
-from functools import reduce
-from operator import iconcat
 
 logger = logging.getLogger(__name__)
 
@@ -58,6 +56,7 @@ from bauble.view import Action
 from bauble.view import InfoBox
 from bauble.view import InfoExpander
 from bauble.view import LinksExpander
+from bauble.view import Picture
 from bauble.view import PropertiesExpander
 from bauble.view import select_in_search_results
 
@@ -223,8 +222,28 @@ class Family(db.Base, db.WithNotes):
     retrieve_cols = ["id", "epithet", "family"]
 
     @property
-    def pictures(self) -> list:
-        return reduce(iconcat, [a.pictures for a in self.genera], [])
+    def pictures(self) -> list[Picture]:
+        session = object_session(self)
+        if not session:
+            return []
+        from ..garden import Accession
+        from ..garden import Plant
+        from ..garden.plant import PlantPicture
+        from .species_model import SpeciesPicture
+
+        sp_pics = (
+            session.query(SpeciesPicture)
+            .join(Species, Genus, Family)
+            .filter(Family.id == self.id)
+        )
+        plt_pics = (
+            session.query(PlantPicture)
+            .join(Plant, Accession, Species, Genus, Family)
+            .filter(Family.id == self.id)
+        )
+        if prefs.prefs.get(prefs.exclude_inactive_pref):
+            plt_pics = plt_pics.filter(Plant.active.is_(True))
+        return sp_pics.all() + plt_pics.all()
 
     @classmethod
     def retrieve(cls, session, keys):

@@ -72,6 +72,7 @@ from .institution import Institution
 from .institution import InstitutionPresenter
 from .location import Location
 from .location import LocationEditor
+from .location import LocationPicture
 from .plant import DEFAULT_PLANT_CODE_FORMAT
 from .plant import PLANT_CODE_FORMAT_KEY
 from .plant import Plant
@@ -80,6 +81,7 @@ from .plant import PlantEditor
 from .plant import PlantEditorPresenter
 from .plant import PlantEditorView
 from .plant import PlantNote
+from .plant import PlantPicture
 from .plant import acc_to_string_matcher
 from .plant import added_reasons
 from .plant import branch_callback
@@ -2991,6 +2993,22 @@ class AccessionTests(GardenTestCase):
         self.assertEqual(len(acc.top_level_count()[(7, "Locations")]), 0)
         self.assertEqual(len(acc.top_level_count()[(8, "Sources")]), 0)
 
+    def test_pictures(self):
+        acc = self.session.query(Accession).first()
+        self.assertEqual(acc.pictures, [])
+        plt = acc.plants[0]
+        ppic = PlantPicture(picture="test1.jpg", plant=plt)
+        self.session.commit()
+        self.assertEqual(acc.pictures, [ppic])
+        plt.quantity = 0
+        self.session.commit()
+        # exclude inactive
+        prefs.prefs[prefs.exclude_inactive_pref] = True
+        self.assertEqual(acc.pictures, [])
+        # detached returns empty
+        self.session.expunge(acc)
+        self.assertEqual(acc.pictures, [])
+
 
 class IntendedLocationsTests(GardenTestCase):
     @staticmethod
@@ -4008,6 +4026,25 @@ class LocationTests(GardenTestCase):
         self.assertEqual(len(loc.top_level_count()[(7, "Families")]), 0)
         self.assertEqual(len(loc.top_level_count()[(8, "Sources")]), 0)
 
+    def test_pictures(self):
+        loc = self.session.query(Location).first()
+        self.assertEqual(loc.pictures, [])
+        pic = LocationPicture(picture="test.jpg", location=loc)
+        self.session.commit()
+        self.assertEqual(loc.pictures, [pic])
+        plt = loc.plants[0]
+        ppic = PlantPicture(picture="test1.jpg", plant=plt)
+        self.session.commit()
+        self.assertEqual(loc.pictures, [ppic, pic])
+        plt.quantity = 0
+        self.session.commit()
+        # exclude inactive
+        prefs.prefs[prefs.exclude_inactive_pref] = True
+        self.assertEqual(loc.pictures, [pic])
+        # detached returns empty
+        self.session.expunge(loc)
+        self.assertEqual(loc.pictures, [])
+
 
 class CollectionTests(GardenTestCase):
     def test_collection_search_view_markup_pair(self):
@@ -4418,7 +4455,6 @@ from bauble.plugins.garden import PlantSearch
 class PlantSearchTests(BaubleTestCase):
     def setUp(self):
         super().setUp()
-        from bauble.plugins.garden import Location
 
         fam = Family(family="Myrtaceae")
         gen = Genus(family=fam, genus="Eucalyptus")

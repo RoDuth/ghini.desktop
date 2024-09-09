@@ -76,6 +76,7 @@ from bauble.view import Action
 from bauble.view import InfoBox
 from bauble.view import InfoExpander
 from bauble.view import LinksExpander
+from bauble.view import Picture
 from bauble.view import PropertiesExpander
 from bauble.view import select_in_search_results
 
@@ -801,8 +802,21 @@ class Accession(db.Base, db.WithNotes):
         return reduce(iconcat, [p.propagations for p in self.plants], [])
 
     @property
-    def pictures(self) -> list:
-        return reduce(iconcat, [p.pictures for p in self.plants], [])
+    def pictures(self) -> list[Picture]:
+        session = object_session(self)
+        if not session:
+            return []
+        # avoid circular imports
+        from .plant import PlantPicture
+
+        plt_pics = (
+            session.query(PlantPicture)
+            .join(Plant, Accession)
+            .filter(Accession.id == self.id)
+        )
+        if prefs.prefs.get(prefs.exclude_inactive_pref):
+            plt_pics = plt_pics.filter(Plant.active.is_(True))
+        return plt_pics.all()
 
     @hybrid_property
     def active(self):
@@ -2607,9 +2621,11 @@ class AccessionEditorPresenter(editor.GenericEditorPresenter):
         # this could possibly be set per institution in bauble.meta?
         self.view.widget_set_value(
             self.view.widgets.acc_price_entry,
-            self.model.purchase_price / 100
-            if self.model.purchase_price
-            else 0,
+            (
+                self.model.purchase_price / 100
+                if self.model.purchase_price
+                else 0
+            ),
         )
         self.view.connect(
             "acc_price_entry", "changed", self.on_price_entry_changed

@@ -28,7 +28,6 @@ import os
 import traceback
 import typing
 from collections.abc import Generator
-from collections.abc import Iterable
 from collections.abc import Sequence
 from datetime import datetime
 from functools import lru_cache

@@ -117,7 +117,9 @@ class Cache:
                 )[1]
                 del self.storage[k]
             value = getter()
-        self.storage[key] = time.time(), value
+        if value:
+            # Don't store if failed
+            self.storage[key] = time.time(), value
         return value
 
 
@@ -201,12 +203,12 @@ class ImageLoader(threading.Thread):
             self.box.pack_start(image, True, True, 0)
         image.set_from_pixbuf(scaled_buf)
         if self.on_size_allocated:
-
-            def on_size_allocated(*args):
-                GLib.idle_add(self.on_size_allocated, *args)
-
-            image.connect("size-allocate", on_size_allocated)
+            image.connect("size-allocate", self.on_allocate_size)
         self.box.show_all()
+
+    def on_allocate_size(self, *args):
+        if self.on_size_allocated:
+            GLib.idle_add(self.on_size_allocated, *args)
 
     def loader_notified(self, _pixbufloader):
         GLib.idle_add(self.callback)
@@ -225,6 +227,7 @@ class ImageLoader(threading.Thread):
             logger.debug("picture %s caused GLib.GError %s", self.url, e)
             text = _("picture file %s not found.") % self.url
             label = Gtk.Label(wrap=True)
+            label.connect("size-allocate", self.on_allocate_size)
             label.set_text(text)
             self.box.add(label)
         except Exception as e:  # pylint: disable=broad-except
@@ -235,6 +238,7 @@ class ImageLoader(threading.Thread):
                 e,
             )
             label = Gtk.Label(wrap=True)
+            label.connect("size-allocate", self.on_allocate_size)
             label.set_text(f'picture {self.url} error "{e}"')
             self.box.add(label)
         self.box.show_all()

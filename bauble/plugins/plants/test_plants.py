@@ -1079,6 +1079,38 @@ class FamilyTests(PlantTestCase):
         self.assertEqual(len(fam.top_level_count()[(7, "Locations")]), 0)
         self.assertEqual(len(fam.top_level_count()[(8, "Sources")]), 0)
 
+    def test_pictures(self):
+        from ..garden import Accession
+        from ..garden import Location
+        from ..garden import Plant
+        from ..garden import PlantPicture
+
+        fam = self.session.query(Family).first()
+        gen = fam.genera[0]
+        self.assertEqual(fam.pictures, [])
+        sp = gen.species[0]
+        acc = Accession(species=sp, code="1")
+        plt = Plant(
+            accession=acc,
+            quantity=0,
+            location=Location(name="site", code="STE"),
+            code="1",
+        )
+        self.session.add_all([sp, acc, plt])
+        self.session.commit()
+        spic = SpeciesPicture(picture="test1.jpg", species=sp)
+        ppic = PlantPicture(picture="test2.jpg", plant=plt)
+        self.session.commit()
+        self.assertEqual(fam.pictures, [spic, ppic])
+        plt.quantity = 0
+        self.session.commit()
+        # exclude inactive
+        prefs.prefs[prefs.exclude_inactive_pref] = True
+        self.assertEqual(fam.pictures, [spic])
+        # detached returns empty
+        self.session.expunge(fam)
+        self.assertEqual(fam.pictures, [])
+
 
 class FamilyEditorTests(PlantTestCase):
     @mock.patch("bauble.editor.GenericEditorView.start")
@@ -1575,6 +1607,37 @@ class GenusTests(PlantTestCase):
         self.assertEqual(gen.top_level_count()[(6, "Living plants")], 0)
         self.assertEqual(len(gen.top_level_count()[(7, "Locations")]), 0)
         self.assertEqual(len(gen.top_level_count()[(8, "Sources")]), 0)
+
+    def test_pictures(self):
+        from ..garden import Accession
+        from ..garden import Location
+        from ..garden import Plant
+        from ..garden import PlantPicture
+
+        gen = self.session.query(Genus).first()
+        self.assertEqual(gen.pictures, [])
+        sp = gen.species[0]
+        acc = Accession(species=sp, code="1")
+        plt = Plant(
+            accession=acc,
+            quantity=0,
+            location=Location(name="site", code="STE"),
+            code="1",
+        )
+        self.session.add_all([sp, acc, plt])
+        self.session.commit()
+        spic = SpeciesPicture(picture="test1.jpg", species=sp)
+        ppic = PlantPicture(picture="test2.jpg", plant=plt)
+        self.session.commit()
+        self.assertEqual(gen.pictures, [spic, ppic])
+        plt.quantity = 0
+        self.session.commit()
+        # exclude inactive
+        prefs.prefs[prefs.exclude_inactive_pref] = True
+        self.assertEqual(gen.pictures, [spic])
+        # detached returns empty
+        self.session.expunge(gen)
+        self.assertEqual(gen.pictures, [])
 
 
 class GenusEditorTests(PlantTestCase):
@@ -2735,6 +2798,14 @@ class SpeciesTests(PlantTestCase):
         self.session.add_all([plant, plant2])
         self.session.commit()
         self.assertCountEqual(sp.pictures, [pic1, pic2, pic3])
+        # exclude inactive
+        plant2.quantity = 0
+        self.session.commit()
+        prefs.prefs[prefs.exclude_inactive_pref] = True
+        self.assertCountEqual(sp.pictures, [pic1, pic2])
+        # detached returns empty
+        self.session.expunge(sp)
+        self.assertEqual(sp.pictures, [])
 
 
 class MarkupItalicsTests(TestCase):
@@ -5426,8 +5497,8 @@ class InfraspPresenterTests(TestCase):
 
     def test_clear_rows(self):
         mock_model = mock.Mock()
-        mock_model.get_infrasp = (
-            lambda x: (list(infrasp_rank_values.keys())[x], f"test{x}", None)
+        mock_model.get_infrasp = lambda x: (
+            (list(infrasp_rank_values.keys())[x], f"test{x}", None)
             if x < 5
             else (None, None, None)
         )
@@ -5512,8 +5583,8 @@ class InfraspPresenterTests(TestCase):
 
     def test_infrarow_on_remove_button_clicked(self):
         mock_model = mock.Mock()
-        mock_model.get_infrasp = (
-            lambda x: (list(infrasp_rank_values.keys())[x], f"test{x}", None)
+        mock_model.get_infrasp = lambda x: (
+            (list(infrasp_rank_values.keys())[x], f"test{x}", None)
             if x < 5
             else (None, None, None)
         )

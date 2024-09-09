@@ -23,9 +23,7 @@ The species database model
 
 import logging
 import re
-from functools import reduce
 from itertools import chain
-from operator import iconcat
 
 logger = logging.getLogger(__name__)
 
@@ -53,8 +51,10 @@ from sqlalchemy.sql.expression import text
 
 from bauble import btypes as types
 from bauble import db
+from bauble import prefs
 from bauble import utils
 from bauble.i18n import _
+from bauble.view import Picture
 
 from .geography import DistributionMap
 
@@ -1040,11 +1040,24 @@ class Species(db.Base, db.WithNotes):
         return cast(case([(cls.id.in_(active), 1)], else_=0), types.Boolean)
 
     @property
-    def pictures(self) -> list:
+    def pictures(self) -> list[Picture]:
         """Return pictures from any attached plants and any in _pictures."""
-        pics = [a.pictures for a in self.accessions]
-        plant_pics: list = reduce(iconcat, pics, [])
-        return plant_pics + self._pictures
+        session = object_session(self)
+        if not session:
+            return []
+        # avoid circular imports
+        from ..garden import Accession
+        from ..garden import Plant
+        from ..garden.plant import PlantPicture
+
+        plt_pics = (
+            session.query(PlantPicture)
+            .join(Plant, Accession, Species)
+            .filter(Species.id == self.id)
+        )
+        if prefs.prefs.get(prefs.exclude_inactive_pref):
+            plt_pics = plt_pics.filter(Plant.active.is_(True))
+        return plt_pics.all() + self._pictures
 
     infrasp_attr = {
         1: {
@@ -1126,7 +1139,6 @@ class Species(db.Base, db.WithNotes):
     def count_children(self):
         cls = self.__class__.accessions.prop.mapper.class_
         session = object_session(self)
-        from bauble import prefs
 
         query = session.query(cls.id).filter(cls.species_id == self.id)
         if prefs.prefs.get(prefs.exclude_inactive_pref):

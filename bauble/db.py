@@ -42,6 +42,7 @@ from sqlalchemy.orm import Session as SASession
 from sqlalchemy.orm import declarative_base
 from sqlalchemy.orm import object_session
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import synonym as sa_synonym
 from sqlalchemy.orm.attributes import get_history
 from sqlalchemy.orm.exc import MultipleResultsFound
 
@@ -677,6 +678,7 @@ def make_note_class(name, cls_type="note", extra_columns=None):
                 cls_type + "s", cascade="all, delete-orphan"
             ),
         ),
+        "owner": sa_synonym(name.lower()),
     }
 
     if extra_columns:

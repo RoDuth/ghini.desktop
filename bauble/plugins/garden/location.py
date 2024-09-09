@@ -22,8 +22,6 @@ Location table definition and related
 import logging
 import os
 import traceback
-from functools import reduce
-from operator import iconcat
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -56,6 +54,7 @@ from bauble.editor import StringOrNoneValidator
 from bauble.i18n import _
 from bauble.utils.geo import KMLMapCallbackFunctor
 from bauble.view import Action
+from bauble.view import Picture
 
 
 def edit_callback(locations):
@@ -202,11 +201,23 @@ class Location(db.Base, db.WithNotes):
     retrieve_cols = ["id", "code"]
 
     @property
-    def pictures(self) -> list:
+    def pictures(self) -> list[Picture]:
         """Return pictures from any attached plants and any in _pictures."""
-        pics = [a.pictures for a in self.plants]
-        plant_pics: list = reduce(iconcat, pics, [])
-        return plant_pics + self._pictures
+        session = object_session(self)
+        if not session:
+            return []
+        # avoid circular imports
+        from ..garden import Plant
+        from ..garden.plant import PlantPicture
+
+        plt_pics = (
+            session.query(PlantPicture)
+            .join(Plant, Location)
+            .filter(Location.id == self.id)
+        )
+        if prefs.prefs.get(prefs.exclude_inactive_pref):
+            plt_pics = plt_pics.filter(Plant.active.is_(True))
+        return plt_pics.all() + self._pictures
 
     @classmethod
     def retrieve(cls, session, keys):

@@ -24,8 +24,6 @@ Genera table module
 import logging
 import os
 import traceback
-from functools import reduce
-from operator import iconcat
 
 logger = logging.getLogger(__name__)
 
@@ -67,6 +65,7 @@ from bauble.view import Action
 from bauble.view import InfoBox
 from bauble.view import InfoExpander
 from bauble.view import LinksExpander
+from bauble.view import Picture
 from bauble.view import PropertiesExpander
 from bauble.view import select_in_search_results
 
@@ -294,8 +293,29 @@ class Genus(db.Base, db.WithNotes):
         return citation, utils.xml_safe(self.family)
 
     @property
-    def pictures(self) -> list:
-        return reduce(iconcat, [a.pictures for a in self.species], [])
+    def pictures(self) -> list[Picture]:
+        session = object_session(self)
+        if not session:
+            return []
+        # avoid circular imports
+        from ..garden import Accession
+        from ..garden import Plant
+        from ..garden.plant import PlantPicture
+        from .species_model import SpeciesPicture
+
+        sp_pics = (
+            session.query(SpeciesPicture)
+            .join(Species, Genus)
+            .filter(Genus.id == self.id)
+        )
+        plt_pics = (
+            session.query(PlantPicture)
+            .join(Plant, Accession, Species, Genus)
+            .filter(Genus.id == self.id)
+        )
+        if prefs.prefs.get(prefs.exclude_inactive_pref):
+            plt_pics = plt_pics.filter(Plant.active.is_(True))
+        return sp_pics.all() + plt_pics.all()
 
     @hybrid_property
     def cites(self):
