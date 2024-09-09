@@ -3175,16 +3175,21 @@ class GeographyTests(BaubleClassTestCase):
         sp1 = Species(genus=self.genus, sp="sp1")
         dist = SpeciesDistribution(geography_id=mexico_central_id)
         sp1.distribution.append(dist)
+        self.session.add_all([sp1, dist])
+        # commit each time seems to avoid: KeyError: "Deferred loader for
+        # attribute '_created' failed to populate correctly"
+        self.session.commit()
 
         sp2 = Species(genus=self.genus, sp="sp2")
         dist = SpeciesDistribution(geography_id=oaxaca_id)
         sp2.distribution.append(dist)
+        self.session.add_all([sp2, dist])
+        self.session.commit()
 
         sp3 = Species(genus=self.genus, sp="sp3")
         dist = SpeciesDistribution(geography_id=western_canada_id)
         sp3.distribution.append(dist)
-
-        self.session.add_all([sp1, sp2, sp3])
+        self.session.add_all([sp3, dist])
         self.session.commit()
 
         oaxaca = self.session.query(Geography).get(oaxaca_id)
