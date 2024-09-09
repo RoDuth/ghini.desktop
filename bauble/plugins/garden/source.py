@@ -291,9 +291,9 @@ class Collection(db.Base):
     date = Column(types.Date)
     locale = Column(UnicodeText, nullable=False)
     # ITF2 - F1, F2, F3, F4 - Latitude, Degrees, Minutes, Seconds, Direction
-    latitude = Column(Unicode(15))
+    latitude = Column(types.TruncatedString(15))
     # ITF2 - F5, F6, F7, F8 - Longitude, Degrees, Minutes, Seconds, Direction
-    longitude = Column(Unicode(15))
+    longitude = Column(types.TruncatedString(15))
     gps_datum = Column(Unicode(32))
     # ITF2 - F9 - Accuracy of Geographical Referencing Data
     geo_accy = Column(Float)
@@ -383,7 +383,6 @@ class Collection(db.Base):
 
 
 class CollectionPresenter(editor.ChildPresenter):
-
     """CollectionPresenter
 
     :param parent: an AccessionEditorPresenter
