@@ -1716,16 +1716,36 @@ class SearchTests2(BaubleTestCase):
         results = search.search(string, self.session)
         self.assertCountEqual([i.id for i in results], [2, 3])
 
+    def test_recursive_expression(self):
+        # plants where there is only one plant of the same species and it is in
+        # this location
+        string = (
+            "plant where count(accession.species.accessions.plants."
+            "location.id) = 1 and location.code = RBW"
+        )
+        results = search.search(string, self.session)
+        self.assertCountEqual([i.id for i in results], [1])
+
+    def test_recursive_function_w_distinct_expression(self):
+        # plants where all plants of the same species are in this location
+        string = (
+            "plant where count(distinct accession.species.accessions.plants."
+            "location.id) = 1 and location.code = RBW"
+        )
+        results = search.search(string, self.session)
+        self.assertCountEqual([i.id for i in results], [1, 2, 3, 4, 5])
+
     def test_recursive_filtered_expression(self):
-        # plant where all the plants of the same species are in this location
+        # plant where there is only one record for this species in this
+        # location
         string = (
             "plant where count(accession.species.accessions.plants."
             "location[code=RBW].id) = 1 and location.code = RBW"
         )
         results = search.search(string, self.session)
         self.assertCountEqual([i.id for i in results], [1])
-        # plant where all the plants of the same species are only found in one
-        # of either of these locations
+        # plant where there is only one record for this species are in either
+        # of these locations
         string = (
             "plant where count(accession.species.accessions.plants."
             "location[code in RBW, URBW].id) = 1 and location.code"
@@ -2278,7 +2298,13 @@ class FunctionsTests(BaubleTestCase):
         results = search.parser.parse_string(s)
         self.assertEqual(
             str(results.query),
-            "SELECT * FROM genus WHERE ((count species.id) == 2.0)",
+            "SELECT * FROM genus WHERE (count(species.id) == 2.0)",
+        )
+        s = "genus where count(distinct species.id) == 2"
+        results = search.parser.parse_string(s)
+        self.assertEqual(
+            str(results.query),
+            "SELECT * FROM genus WHERE (count(DISTINCT species.id) == 2.0)",
         )
 
     def test_count_complex_query(self):

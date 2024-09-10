@@ -177,7 +177,7 @@ class FunctionClause(BinaryClause):
 
     def evaluate(self, handler: QueryHandler) -> Query | Select:
         logger.debug("%s::evaluate %s", self.__class__.__name__, self)
-        # operands[0] is the function/identifier pair
+        # operands[0] is the function_identifier
         # operands[1] is the value against which to test
         # operation implements the clause
         func_name = self.operands[0].function

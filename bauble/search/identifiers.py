@@ -38,6 +38,7 @@ from sqlalchemy.orm import Query
 from sqlalchemy.orm import QueryableAttribute
 from sqlalchemy.orm import aliased
 from sqlalchemy.sql import Select
+from sqlalchemy.sql import distinct
 from sqlalchemy.sql.elements import ColumnElement
 
 from bauble.db import Base
@@ -271,10 +272,12 @@ class FunctionIdentifier(IdentifierAction):
     def __init__(self, tokens: ParseResults) -> None:
         logger.debug("%s::__init__(%s)", self.__class__.__name__, tokens)
         self.function: str = tokens[0].lower()
-        self.identifier: IdentifierAction = tokens[1]
+        self.distinct: str = tokens[1].lower() if len(tokens) == 3 else None
+        self.identifier: IdentifierAction = tokens[-1]
 
     def __repr__(self) -> str:
-        return f"({self.function} {self.identifier})"
+        distinct = self.distinct.upper() + " " if self.distinct else ""
+        return f"{self.function}({distinct}{self.identifier})"
 
     def evaluate(
         self, handler: QueryHandler
@@ -285,5 +288,8 @@ class FunctionIdentifier(IdentifierAction):
         the clause will decide this.
         """
         logger.debug("%s::evaluate %s", self.__class__.__name__, self)
+        query, attr = self.identifier.evaluate(handler)
+        if self.distinct:
+            attr = distinct(attr)
 
-        return self.identifier.evaluate(handler)
+        return query, attr

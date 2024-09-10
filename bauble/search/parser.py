@@ -55,7 +55,7 @@ base_clause ::= binary_clause
 binary_clause ::= identifier binop value_token
 in_set_clause ::= identifier 'IN' value_list_token
 on_date_clause ::= identifier 'ON' date_value_token
-function_clause ::= function '(' identifier ')' binop value_token
+function_clause ::= function '('['DISTINCT'] identifier ')' binop value_token
 parenthesised_clause ::= '(' query_clause ')'
 between_clause ::= identifier 'BETWEEN' value_token and value_token
 identifier ::= filtered_identifier | unfiltered_identifier
@@ -112,6 +112,7 @@ from pyparsing import Keyword
 from pyparsing import Literal
 from pyparsing import OneOrMore
 from pyparsing import OpAssoc
+from pyparsing import Opt
 from pyparsing import ParserElement
 from pyparsing import ParseResults
 from pyparsing import Regex
@@ -277,7 +278,13 @@ identifier = (filtered_identifier | unfiltered_identifier).set_name(
 # An IdentifierAction is used as the parse action here as it only stores the
 # function name and handles the identifier at this point.
 function_call = (
-    (function + Literal("(").suppress() + identifier + Literal(")").suppress())
+    (
+        function
+        + Literal("(").suppress()
+        + Opt(CaselessKeyword("DISTINCT"))
+        + identifier
+        + Literal(")").suppress()
+    )
     .set_parse_action(FunctionIdentifier)
     .set_name("function call")
 )
