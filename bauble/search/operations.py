@@ -88,3 +88,9 @@ OPERATIONS: dict[str, Callable[[QueryableAttribute, Val], ColumnElement]] = {
     "ihas": contains,
     "in": in_,
 }
+"""
+Dictionary of operations (as the lower case string) to the function that
+generates the clause.
+
+Useage: OPERATIONS.get(operation.lower()).
+"""

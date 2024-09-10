@@ -222,7 +222,7 @@ class FilteredIdentifier(IdentifierAction):
             assert operation is not None
             return operation(attr, val)
 
-        operation = OPERATIONS.get(filter_op)
+        operation = OPERATIONS.get(filter_op.lower())
         attr = getattr(this_cls, filter_attr)
 
         logger.debug("filtering on %s(%s)", type(attr), attr)

@@ -125,20 +125,6 @@ class BinaryClause(ClauseAction):
         return handler.query
 
 
-# why is pylint complaining here?
-# pylint: disable=too-few-public-methods
-class InSetClause(BinaryClause):
-    """implements `in` in a `ident in value_list` query."""
-
-    def evaluate(self, handler: QueryHandler) -> Query | Select:
-        logger.debug("%s::evaluate %s", self.__class__.__name__, self)
-        handler.query, attr = self.operands[0].evaluate(handler)
-        handler.query = handler.query.filter(
-            attr.in_(self.operands[1].express())
-        )
-        return handler.query
-
-
 def get_datetime(value: str | float) -> datetime:
     result = get_date(value)
     if not result:

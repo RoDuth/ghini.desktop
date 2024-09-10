@@ -61,10 +61,13 @@ between_clause ::= identifier 'BETWEEN' value_token and value_token
 identifier ::= filtered_identifier | unfiltered_identifier
 unfiltered_identifier ::= atomic_identifier {'.' atomic_identifier}
 filtered_identifier ::= {unfiltered_identifier
-                         '[' atomic_binary_clause
-                         {',' atomic_binary_clause} ']' '.'}
+                         '[' filter_clause {',' filter_clause} ']'
+                         '.'}
                         unfiltered_identifier
                         ;
+filter_clause ::= atomic_binary_clause | atomic_in_clause
+atomic_binary_clause ::= atomic_identifier binop value_token
+atomic_in_clause ::= atomic_identifier 'IN' value_list_token
 atomic_identifier ::= Regex('[_\\da-z]*')
 binop ::= '=='
         | '='
@@ -96,7 +99,7 @@ numeric_token ::= Regex('[-]?\\d+(\\.\\d*)?([eE]\\d+)?')
 string_token ::= unquoted_string | quoted_string
 quoted_string ::= Regex('([\'"])(.*?)\\1')
 unquoted_string ::= Regex('\\S*')
-function ::= 'SUM' | 'MIN' | 'MAX' | 'COUNT' | "LENGTH" | ... (DB dependant)
+function ::= 'SUM' | 'MIN' | 'MAX' | 'COUNT' | 'LENGTH' | ... (DB dependant)
 """
 
 # from pyparsing import quoted_string
@@ -125,7 +128,6 @@ from .clauses import AndTerm
 from .clauses import BetweenClause
 from .clauses import BinaryClause
 from .clauses import FunctionClause
-from .clauses import InSetClause
 from .clauses import NotTerm
 from .clauses import OnDateClause
 from .clauses import OrTerm
@@ -243,13 +245,21 @@ atomic_binary_clause = Group(atomic_identifier + binop + value_token).set_name(
     "atomic binary clause"
 )
 
+atomic_in_clause = Group(
+    atomic_identifier + binop_set + value_list_token
+).set_name("atomic in clause")
+
+filter_clause = (atomic_binary_clause | atomic_in_clause).set_name(
+    "filter clause"
+)
+
 filtered_identifier = (
     (
         OneOrMore(
             Group(
                 unfiltered_identifier
                 + Literal("[").suppress()
-                + Group(DelimitedList(atomic_binary_clause))
+                + Group(DelimitedList(filter_clause))
                 + Literal("]").suppress()
                 + Literal(".").suppress()
             )
@@ -280,7 +290,7 @@ binary_clause = (
 
 in_set_clause = (
     Group(identifier + binop_set + value_list_token)
-    .set_parse_action(InSetClause)
+    .set_parse_action(BinaryClause)
     .set_name("in set clause")
 )
 

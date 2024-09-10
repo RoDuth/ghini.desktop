@@ -1655,6 +1655,116 @@ class SearchTests2(BaubleTestCase):
         results = search.search(string, self.session)
         self.assertCountEqual([i.id for i in results], [1, 5])
 
+    def test_filter_by_in_expression(self):
+        # accession whith plants in only in one of these locations
+        string = (
+            "accession where count(plants.location[code in RBW, URBW].id) = 1"
+        )
+        results = search.search(string, self.session)
+        self.assertCountEqual([i.id for i in results], [1, 5, 6])
+
+        string = "plant where accession[id in 1, 4].species.id = 1"
+        results = search.search(string, self.session)
+        self.assertCountEqual([i.id for i in results], [1])
+
+        string = "plant where accession[id in 1, 4].species.id = 3"
+        results = search.search(string, self.session)
+        self.assertCountEqual([i.id for i in results], [])
+
+        string = "plant where accession[id in 2, 4].species.id = 2"
+        results = search.search(string, self.session)
+        self.assertCountEqual([i.id for i in results], [2, 3])
+
+    def test_filter_by_in_expression_multiple(self):
+        # accession whith plants in only in one of these locations (note in
+        # clause last as it uses comma separation)
+        string = (
+            "accession where count(plants.location[name!=None, "
+            "description=None, code in RBW, URBW].id) = 1"
+        )
+        results = search.search(string, self.session)
+        self.assertCountEqual([i.id for i in results], [1, 5, 6])
+
+        # note in clause first, does not use comma separate
+        string = (
+            "plant where accession[id in 1 4, private=True].species.id = 1"
+        )
+        results = search.search(string, self.session)
+
+        # multiple in on one filter
+        self.assertCountEqual([i.id for i in results], [1])
+        string = (
+            "plant where accession[id in 1 4, quantity_recvd in 1 10]."
+            "species.id = 1"
+        )
+        results = search.search(string, self.session)
+        self.assertCountEqual([i.id for i in results], [1])
+
+        # multiple in on one filter - should fail
+        self.assertCountEqual([i.id for i in results], [1])
+        string = (
+            "plant where accession[id in 1 4, quantity_recvd in 11 10]."
+            "species.id = 1"
+        )
+        results = search.search(string, self.session)
+        self.assertCountEqual([i.id for i in results], [])
+
+        string = (
+            "plant where accession[id in 2, 4].species[sp_author contains "
+            "'(L.)', genus_id in 1, 2, 4].id = 2"
+        )
+        results = search.search(string, self.session)
+        self.assertCountEqual([i.id for i in results], [2, 3])
+
+    def test_recursive_filtered_expression(self):
+        # plant where all the plants of the same species are in this location
+        string = (
+            "plant where count(accession.species.accessions.plants."
+            "location[code=RBW].id) = 1 and location.code = RBW"
+        )
+        results = search.search(string, self.session)
+        self.assertCountEqual([i.id for i in results], [1])
+        # plant where all the plants of the same species are only found in one
+        # of either of these locations
+        string = (
+            "plant where count(accession.species.accessions.plants."
+            "location[code in RBW, URBW].id) = 1 and location.code"
+            " in RBW, URBW"
+        )
+        results = search.search(string, self.session)
+        self.assertCountEqual([i.id for i in results], [1])
+
+    def test_filter_by_like_expression(self):
+        string = (
+            "genus where species[epithet like cochl%].accessions."
+            "plants.quantity = 1"
+        )
+        results = search.search(string, self.session)
+        self.assertCountEqual([i.id for i in results], [2])
+        # recursive should return all species of the genera
+        string = (
+            "species where genus[epithet like Encyc%].species.accessions."
+            "plants.quantity = 1"
+        )
+        results = search.search(string, self.session)
+        self.assertCountEqual([i.id for i in results], [2, 5, 6, 15, 20])
+
+    def test_filter_by_contains_expression(self):
+        prefs.prefs["bauble.search.return_accepted"] = False
+        string = (
+            "genus where species[epithet contains ochlea].accessions."
+            "plants.quantity = 1"
+        )
+        results = search.search(string, self.session)
+        self.assertCountEqual([i.id for i in results], [2])
+        # recursive should return all species of the genera
+        string = (
+            "species where genus[epithet contains cycli].species.accessions."
+            "plants.quantity = 1"
+        )
+        results = search.search(string, self.session)
+        self.assertCountEqual([i.id for i in results], [2, 5, 6, 15, 20])
+
 
 class InOperatorSearch(BaubleTestCase):
     def __init__(self, *args):
