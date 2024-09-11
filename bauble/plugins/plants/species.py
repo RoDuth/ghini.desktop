@@ -566,9 +566,52 @@ class GeneralSpeciesExpander(DistMapInfoExpanderMixin, InfoExpander):
             self._setup_custom_column("_sp_custom1")
             self._setup_custom_column("_sp_custom2")
 
+        if (
+            row.subgenus
+            or row.section
+            or row.subsection
+            or row.series
+            or row.subseries
+        ):
+            utils.unhide_widgets([self.widgets.sp_details_box])
+            self.widget_set_value(
+                "sp_gen_detail",
+                f"<i>{utils.xml_safe(row.genus)}</i>",
+                markup=True,
+            )
+        else:
+            utils.hide_widgets([self.widgets.sp_details_box])
+        details = (
+            ("subg.", "sp_subgen_detail", "subgenus"),
+            ("sect.", "sp_section_detail", "section"),
+            ("subsect.", "sp_subsection_detail", "subsection"),
+            ("ser.", "sp_series_detail", "series"),
+            ("subser.", "sp_subseries_detail", "subseries"),
+        )
+        on_clicked_search = utils.generate_on_clicked(bauble.gui.send_command)
+        step = 0
+        for abv, widget_name, attr in details:
+            widget = self.widgets[widget_name]
+            value = getattr(row, attr)
+            if value:
+                step += 12
+                utils.unhide_widgets([widget])
+                widget.set_margin_start(step)
+                self.widget_set_value(
+                    widget_name,
+                    f"<small>{abv} <i>{utils.xml_safe(value)}</i></small>",
+                    markup=True,
+                )
+                utils.make_label_clickable(
+                    widget,
+                    on_clicked_search,
+                    f"species where {attr} = {value}",
+                )
+            else:
+                utils.hide_widgets([widget])
+
         self.current_obj = row
         session = object_session(row)
-
         # Link to family
         self.widget_set_value(
             "sp_fam_data",

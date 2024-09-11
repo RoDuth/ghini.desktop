@@ -63,6 +63,8 @@ from .family import FamilyEditorPresenter
 from .family import FamilyEditorView
 from .family import FamilyNote
 from .family import FamilySynonym
+from .family import GeneralFamilyExpander
+from .genus import GeneralGenusExpander
 from .genus import Genus
 from .genus import GenusEditor
 from .genus import GenusEditorPresenter
@@ -1111,6 +1113,22 @@ class FamilyTests(PlantTestCase):
         self.session.expunge(fam)
         self.assertEqual(fam.pictures, [])
 
+    def test_general_expander(self):
+        # at least tests nothing errors
+        fams = self.session.query(Family).filter(Family.id.in_((3, 8, 10, 11)))
+        filename = os.path.join(
+            paths.lib_dir(), "plugins", "plants", "infoboxes.glade"
+        )
+        widgets = utils.BuilderWidgets(filename)
+        with mock.patch("bauble.gui"):
+            general = GeneralFamilyExpander(widgets)
+            for fam in fams:
+                general.update(fam)
+                self.assertEqual(
+                    widgets["fam_name_data"].get_label(),
+                    f"<big>{fam}</big> {utils.xml_safe(str(fam.author))}",
+                )
+
 
 class FamilyEditorTests(PlantTestCase):
     @mock.patch("bauble.editor.GenericEditorView.start")
@@ -1638,6 +1656,25 @@ class GenusTests(PlantTestCase):
         # detached returns empty
         self.session.expunge(gen)
         self.assertEqual(gen.pictures, [])
+
+    def test_general_expander(self):
+        # at least tests nothing errors
+        genera = self.session.query(Genus).filter(
+            Genus.id.in_((9, 11, 12, 15))
+        )
+        filename = os.path.join(
+            paths.lib_dir(), "plugins", "plants", "infoboxes.glade"
+        )
+        widgets = utils.BuilderWidgets(filename)
+        with mock.patch("bauble.gui"):
+            general = GeneralGenusExpander(widgets)
+            for gen in genera:
+                general.update(gen)
+                self.assertEqual(
+                    widgets["gen_name_data"].get_label(),
+                    f"<big>{gen.markup()}</big> "
+                    f"{utils.xml_safe(str(gen.author))}",
+                )
 
 
 class GenusEditorTests(PlantTestCase):
@@ -4328,10 +4365,13 @@ class GeneralSpeciesExpanderTests(BaubleTestCase):
             paths.lib_dir(), "plugins", "plants", "infoboxes.glade"
         )
         widgets = utils.BuilderWidgets(filename)
-        general = GeneralSpeciesExpander(widgets)
-        general._setup_custom_column("_sp_custom1")
-        self.assertEqual(widgets._sp_custom1_label.get_text(), "NCA Status:")
-        self.assertTrue(widgets._sp_custom1_label.get_visible())
+        with mock.patch("bauble.gui"):
+            general = GeneralSpeciesExpander(widgets)
+            general._setup_custom_column("_sp_custom1")
+            self.assertEqual(
+                widgets._sp_custom1_label.get_text(), "NCA Status:"
+            )
+            self.assertTrue(widgets._sp_custom1_label.get_visible())
 
         self.session.delete(meta)
         self.session.commit()
@@ -4345,8 +4385,26 @@ class GeneralSpeciesExpanderTests(BaubleTestCase):
         sp = Species(genus=genus, sp="sp")
         self.session.add(sp)
         self.session.commit()
-        general.update(sp)
-        self.assertFalse(widgets._sp_custom1_label.get_visible())
+        with mock.patch("bauble.gui"):
+            general.update(sp)
+            self.assertFalse(widgets._sp_custom1_label.get_visible())
+
+    def test_expander(self):
+        setUp_data()
+        # at least tests nothing errors
+        spp = self.session.query(Species).filter(Species.id.in_((15, 27, 31)))
+        filename = os.path.join(
+            paths.lib_dir(), "plugins", "plants", "infoboxes.glade"
+        )
+        widgets = utils.BuilderWidgets(filename)
+        with mock.patch("bauble.gui"):
+            general = GeneralSpeciesExpander(widgets)
+            for sp in spp:
+                general.update(sp)
+                self.assertEqual(
+                    widgets["sp_epithet_data"].get_label(),
+                    f" <big>{sp.markup(authors=True, genus=False)}</big>",
+                )
 
 
 class SpeciesEntryTests(TestCase):

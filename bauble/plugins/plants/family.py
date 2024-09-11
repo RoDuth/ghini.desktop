@@ -638,8 +638,22 @@ class GeneralFamilyExpander(InfoExpander):
 
         :param row: the row to get the values from
         """
+        if row.order or row.suborder:
+            utils.unhide_widgets([self.widgets.fam_details_box])
+        else:
+            utils.hide_widgets([self.widgets.fam_details_box])
         self.widget_set_value(
-            "fam_name_data", f"<big>{row}</big>", markup=True
+            "fam_order_data",
+            f"{utils.xml_safe(row.order)} >" if row.order else "",
+        )
+        self.widget_set_value(
+            "fam_suborder_data",
+            f"{utils.xml_safe(row.suborder)} >" if row.suborder else "",
+        )
+        self.widget_set_value(
+            "fam_name_data",
+            f"<big>{row}</big> {utils.xml_safe(str(row.author))}",
+            markup=True,
         )
         self.widget_set_value("fam_cites_data", row.cites or "")
         session = object_session(row)
@@ -718,6 +732,20 @@ class GeneralFamilyExpander(InfoExpander):
             )
 
         on_clicked = utils.generate_on_clicked(bauble.gui.send_command)
+
+        if row.order:
+            utils.make_label_clickable(
+                self.widgets.fam_order_data,
+                on_clicked,
+                f"family where order = {row.order}",
+            )
+
+        if row.suborder:
+            utils.make_label_clickable(
+                self.widgets.fam_suborder_data,
+                on_clicked,
+                f"family where suborder = {row.suborder}",
+            )
 
         utils.make_label_clickable(
             self.widgets.fam_ngen_data,

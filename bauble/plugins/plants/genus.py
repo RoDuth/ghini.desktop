@@ -972,12 +972,24 @@ class GeneralGenusExpander(InfoExpander):
         session = object_session(row)
         self.widget_set_value(
             "gen_name_data",
-            f"<big>{row.markup()}</big> " f"{utils.xml_safe(str(row.author))}",
+            f"<big>{row.markup()}</big> {utils.xml_safe(str(row.author))}",
             markup=True,
         )
         self.widget_set_value("gen_cites_data", row.cites or "")
         self.widget_set_value(
             "gen_fam_data", (utils.xml_safe(str(row.family)))
+        )
+        self.widget_set_value(
+            "gen_subfam_data",
+            f"> {utils.xml_safe(row.subfamily)}" if row.subfamily else "",
+        )
+        self.widget_set_value(
+            "gen_tribe_data",
+            f"> {utils.xml_safe(row.tribe)}" if row.tribe else "",
+        )
+        self.widget_set_value(
+            "gen_subtribe_data",
+            f"> {utils.xml_safe(row.subtribe)}" if row.subtribe else "",
         )
 
         # get the number of species
@@ -1045,6 +1057,33 @@ class GeneralGenusExpander(InfoExpander):
 
         utils.make_label_clickable(
             self.widgets.gen_fam_data, on_taxa_clicked, row.family
+        )
+
+        if row.subfamily:
+            utils.make_label_clickable(
+                self.widgets.gen_subfam_data,
+                on_clicked_search,
+                f"genus where subfamily = {row.subfamily}",
+            )
+
+        if row.tribe:
+            utils.make_label_clickable(
+                self.widgets.gen_tribe_data,
+                on_clicked_search,
+                f"genus where tribe = {row.tribe}",
+            )
+        if row.subtribe:
+            utils.make_label_clickable(
+                self.widgets.gen_subtribe_data,
+                on_clicked_search,
+                f"genus where subtribe = {row.subtribe}",
+            )
+
+        utils.make_label_clickable(
+            self.widgets.gen_nsp_data,
+            on_clicked_search,
+            f'species where genus.genus="{row.genus}" and '
+            f'genus.qualifier="{row.qualifier}"',
         )
 
         utils.make_label_clickable(
