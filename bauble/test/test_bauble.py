@@ -36,6 +36,7 @@ from sqlalchemy.exc import StatementError
 import bauble
 from bauble import db
 from bauble import meta
+from bauble import utils
 from bauble.btypes import CustomEnum
 from bauble.btypes import Enum
 from bauble.btypes import EnumError
@@ -318,18 +319,16 @@ class BaubleTests(BaubleTestCase):
         """
         from datetime import timezone
 
-        from dateutil import parser as date_parse
-
         dtime = bauble.btypes.DateTime()
 
         # with naive tz - assume UTC (datetime.utcnow(), sqlite func.now())
-        now = datetime.datetime.utcnow()
+        now = utils.utcnow_naive()
         res = now.replace(tzinfo=timezone.utc).astimezone(tz=None)
         ret = dtime.process_result_value(now, None)
         self.assertEqual(res, ret)
 
         # with UTC and not naive tz (postgresql func.now())
-        now = datetime.datetime.utcnow().replace(tzinfo=timezone.utc)
+        now = utils.utcnow_naive().replace(tzinfo=timezone.utc)
         res = now.astimezone(tz=None)
         ret = dtime.process_result_value(now, None)
         self.assertEqual(res, ret)
@@ -361,7 +360,7 @@ class BaubleTests(BaubleTestCase):
         now = datetime.datetime.now().astimezone(tz=None)
         ret = dtime.process_bind_param(now, None)
         self.assertEqual(ret, now)
-        now = datetime.datetime.utcnow()
+        now = utils.utcnow_naive()
         ret = dtime.process_bind_param(now, None)
         self.assertEqual(ret, now)
 

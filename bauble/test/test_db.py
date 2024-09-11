@@ -17,7 +17,6 @@
 # You should have received a copy of the GNU General Public License
 # along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
 
-from datetime import datetime
 from unittest import mock
 
 from dateutil import parser
@@ -30,6 +29,7 @@ from bauble import db
 from bauble import error
 from bauble import meta
 from bauble import prefs
+from bauble import utils
 from bauble.plugins.garden.accession import Accession
 from bauble.plugins.garden.accession import AccessionNote
 from bauble.plugins.garden.accession import Plant
@@ -403,7 +403,7 @@ class HistoryTests(BaubleTestCase):
                 table,
                 connection,
                 instance,
-                _last_updated=datetime.utcnow(),
+                _last_updated=utils.utcnow_naive(),
             )
         rows = self.session.query(db.History).all()
         self.assertEqual(len(rows), 2)
@@ -417,7 +417,7 @@ class HistoryTests(BaubleTestCase):
         # test datetimes don't fail
         self.assertAlmostEqual(
             parser.parse((rows[1].values["_last_updated"][0])).timestamp(),
-            datetime.utcnow().timestamp(),
+            utils.utcnow_naive().timestamp(),
             delta=1,
         )
 

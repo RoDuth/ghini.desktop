@@ -2475,7 +2475,7 @@ class AccessionTests(GardenTestCase):
         )
         # create a propagation without a related seed/cutting
         prop = self.create(
-            Propagation, prop_type="Seed", date=datetime.datetime.utcnow()
+            Propagation, prop_type="Seed", date=utils.utcnow_naive()
         )
         seed = PropSeed(
             nseeds=10,

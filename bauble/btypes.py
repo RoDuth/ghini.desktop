@@ -285,12 +285,12 @@ class DateTime(types.TypeDecorator):
         return result.astimezone(tz=timezone.utc)
 
     def process_result_value(self, value, dialect):
-        # no tz (utc naive tz) sqlite func.now(), datetime.utcnow(), string
+        # no tz (utc naive tz) sqlite func.now(), utils.utcnow_naive(), string
         # dates are all stored in utc but have no tz
         if not value.tzinfo:
             return value.replace(tzinfo=timezone.utc).astimezone(tz=None)
-        # with a tz - Postgres func.now(), string dates, datetime.utcnow() are
-        # all stored utc
+        # with a tz - Postgres func.now(), string dates, utils.utcnow_naive()
+        # are all stored utc
         return value.astimezone(tz=None)
 
 

@@ -301,7 +301,7 @@ class History(HistoryBase):
                 "values": row,
                 "operation": operation,
                 "user": user,
-                "timestamp": datetime.datetime.utcnow(),
+                "timestamp": utils.utcnow_naive(),
             }
         )
         connection.execute(stmt)
@@ -348,7 +348,7 @@ class History(HistoryBase):
                 "values": values,
                 "operation": operation,
                 "user": user,
-                "timestamp": datetime.datetime.utcnow(),
+                "timestamp": utils.utcnow_naive(),
             }
         )
         connection.execute(stmt)

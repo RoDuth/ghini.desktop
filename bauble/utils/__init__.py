@@ -978,6 +978,14 @@ def today_str(fmat=None):
     return today.strftime(fmat)
 
 
+def utcnow_naive() -> datetime.datetime:
+    """When a naive UTC now is required.
+
+    Use as a drop in replacement for deprecated `datetime.datetime.utcnow()`
+    """
+    return datetime.datetime.now(datetime.UTC).replace(tzinfo=None)
+
+
 def setup_date_button(view, entry, button):
     """Associate a button with entry so that when the button is clicked a date
     is inserted into the entry.

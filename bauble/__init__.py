@@ -22,12 +22,12 @@
 The top level module for Ghini.
 """
 
+import datetime
 import logging
 import os
 import sys
 import traceback
 import warnings
-from datetime import datetime
 from shutil import copy2
 from typing import TYPE_CHECKING
 
@@ -40,9 +40,9 @@ from bauble import paths
 from bauble.version import version
 
 version_tuple = tuple(version.split("."))
-release_date = datetime.utcfromtimestamp(0)
+release_date = datetime.datetime.fromtimestamp(0, datetime.UTC)
 release_version = None
-installation_date = datetime.now()
+installation_date = datetime.datetime.now()
 
 
 logger = logging.getLogger(__name__)

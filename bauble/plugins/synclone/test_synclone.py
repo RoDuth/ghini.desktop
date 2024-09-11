@@ -30,6 +30,7 @@ from sqlalchemy.exc import SQLAlchemyError
 import bauble
 from bauble import db
 from bauble import error
+from bauble import utils
 from bauble.plugins.garden import Accession
 from bauble.plugins.garden import Location
 from bauble.plugins.garden import Plant
@@ -155,15 +156,20 @@ class DBClonerTests(BaubleTestCase):
             stmt = Accession.__table__.select()
             self.assertEqual(conn.execute(stmt).first().code, "2023.0001")
         # with error
-        with mock.patch(
-            "sqlalchemy.engine.base.Connection.execute"
-        ) as mock_execute, mock.patch(
-            "bauble.plugins.synclone.clone.DBCloner.drop_create_tables"
-        ), mock.patch(
-            "bauble.plugins.synclone.clone.DBCloner.get_line_count"
-        ), mock.patch(
-            "bauble.plugins.synclone.clone.utils.message_details_dialog"
-        ) as mock_dialog:
+        with (
+            mock.patch(
+                "sqlalchemy.engine.base.Connection.execute"
+            ) as mock_execute,
+            mock.patch(
+                "bauble.plugins.synclone.clone.DBCloner.drop_create_tables"
+            ),
+            mock.patch(
+                "bauble.plugins.synclone.clone.DBCloner.get_line_count"
+            ),
+            mock.patch(
+                "bauble.plugins.synclone.clone.utils.message_details_dialog"
+            ) as mock_dialog,
+        ):
             mock_execute.side_effect = SQLAlchemyError
             bauble.task.queue(cloner.run())
             mock_dialog.assert_called()
@@ -264,7 +270,7 @@ class DBClonerTests(BaubleTestCase):
                 "table_id": 100,
                 "values": {"family": "Orchidaceae"},
                 "operation": "insert",
-                "timestamp": datetime.utcnow(),
+                "timestamp": utils.utcnow_naive(),
             }
         )
         with cloner.clone_engine.begin() as conn:
@@ -295,7 +301,7 @@ class DBClonerTests(BaubleTestCase):
                 "table_id": 100,
                 "values": {"family": "Orchidaceae"},
                 "operation": "insert",
-                "timestamp": datetime.utcnow(),
+                "timestamp": utils.utcnow_naive(),
             }
         )
         with cloner.clone_engine.begin() as conn:
