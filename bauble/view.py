@@ -1562,7 +1562,7 @@ class SearchView(pluginmgr.View, Gtk.Box):
             results = search.search(text, self.session)
         except ParseException as err:
             error_msg = _("Error in search string at column %s") % err.column
-            error_details_msg = utils.xml_safe(err.explain())
+            error_details_msg = err.explain()
         except Exception as e:  # pylint: disable=broad-except
             logger.debug(traceback.format_exc())
             error_msg = _("** Error: %s") % utils.xml_safe(e)

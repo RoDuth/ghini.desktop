@@ -175,7 +175,7 @@ class MapperSearch(SearchStrategy):
     @staticmethod
     def use(text: str) -> typing.Literal["include", "exclude", "only"]:
         atomised = text.split()
-        if atomised[0] in MapperSearch.domains and atomised[1] == "where":
+        if len(atomised) > 2 and atomised[1] == "where":
             return "include"
         return "exclude"
 
