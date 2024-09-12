@@ -4406,6 +4406,25 @@ class GeneralSpeciesExpanderTests(BaubleTestCase):
                     f" <big>{sp.markup(authors=True, genus=False)}</big>",
                 )
 
+    def test_on_areas_expanded(self):
+        self.assertFalse(
+            prefs.prefs.get(GeneralSpeciesExpander.AREAS_EXPANDED_PREF)
+        )
+        mock_expander = mock.Mock()
+        mock_expander.get_expanded.return_value = False
+        GeneralSpeciesExpander.on_areas_expanded(mock_expander)
+        self.assertTrue(
+            prefs.prefs.get(GeneralSpeciesExpander.AREAS_EXPANDED_PREF)
+        )
+
+    @mock.patch("bauble.plugins.plants.species.select_in_search_results")
+    def test_select_all_areas(self, mock_select):
+        mock_sp = mock.Mock()
+        mock_geo = mock.Mock(geography="TEST")
+        mock_sp.distribution = [mock_geo]
+        GeneralSpeciesExpander.select_all_areas(None, None, mock_sp)
+        mock_select.assert_called_with("TEST")
+
 
 class SpeciesEntryTests(TestCase):
     def test_spaces_not_allowed_on_init(self):

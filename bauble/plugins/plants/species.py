@@ -500,6 +500,8 @@ class SynonymsExpander(InfoExpander):
 class GeneralSpeciesExpander(DistMapInfoExpanderMixin, InfoExpander):
     """expander to present general information about a species"""
 
+    AREAS_EXPANDED_PREF = "infobox.species_geo_areas_expanded"
+
     custom_columns: set[str] = set()
     current_db: int | None = None
 
@@ -529,6 +531,17 @@ class GeneralSpeciesExpander(DistMapInfoExpanderMixin, InfoExpander):
 
         self._setup_custom_column("_sp_custom1")
         self._setup_custom_column("_sp_custom2")
+
+    @staticmethod
+    def on_areas_expanded(expander: Gtk.Expander) -> None:
+        prefs.prefs[GeneralSpeciesExpander.AREAS_EXPANDED_PREF] = (
+            not expander.get_expanded()
+        )
+
+    @staticmethod
+    def select_all_areas(_label, _event, row: Species) -> None:
+        for dist in row.distribution:
+            select_in_search_results(dist.geography)
 
     def _setup_custom_column(self, column_name):
         self.__class__.current_db = id(db.engine.url)
@@ -670,6 +683,11 @@ class GeneralSpeciesExpander(DistMapInfoExpanderMixin, InfoExpander):
                 map_event_box, False, False, 0
             )
             expander = Gtk.Expander(label=_("Areas"), expanded=False)
+
+            expander.connect("activate", self.on_areas_expanded)
+            expander.set_expanded(
+                prefs.prefs.get(self.AREAS_EXPANDED_PREF, False)
+            )
             box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
             for place in row.distribution:
                 event_box = Gtk.EventBox()
@@ -679,6 +697,13 @@ class GeneralSpeciesExpander(DistMapInfoExpanderMixin, InfoExpander):
 
                 utils.make_label_clickable(label, on_clicked, place.geography)
                 box.pack_start(event_box, False, False, 0)
+            event_box = Gtk.EventBox()
+            label = Gtk.Label(label="...select all")
+            label.set_halign(Gtk.Align.START)
+            event_box.add(label)
+
+            utils.make_label_clickable(label, self.select_all_areas, row)
+            box.pack_start(event_box, False, False, 0)
             expander.add(box)
             self.widgets.dist_map_box.pack_start(expander, False, False, 0)
             self.widgets.dist_map_box.show_all()
