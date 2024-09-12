@@ -778,6 +778,7 @@ class TestSearchViewMapPresenter(BaubleTestCase):
         plt1 = self.session.query(Plant).get(1)
         plt2 = self.session.query(Plant).get(2)
         plt3 = self.session.query(Plant).get(3)
+        plt3.quantity = 0
         plt1.geojson = point
         plt2.geojson = line
         plt3.geojson = poly
@@ -792,8 +793,14 @@ class TestSearchViewMapPresenter(BaubleTestCase):
         presenter.update_map([plt1, plt3])
         presenter.update_thread.join()
         update_gui()
-        self.assertEqual(presenter.selected, {("plt", 1), ("plt", 3)})
+        self.assertEqual(
+            presenter.selected, {("plt", 1, True), ("plt", 3, False)}
+        )
         # check color changed
+        self.assertEqual(
+            presenter.plt_items[1].image,
+            map_.map_plant_selected_colour.image,
+        )
         self.assertEqual(
             presenter.plt_items[3].rgba,
             map_.map_plant_selected_colour.rgba,
@@ -802,10 +809,10 @@ class TestSearchViewMapPresenter(BaubleTestCase):
         presenter.update_map([plt2])
         presenter.update_thread.join()
         update_gui()
-        self.assertEqual(presenter.selected, {("plt", 2)})
+        self.assertEqual(presenter.selected, {("plt", 2, True)})
         self.assertEqual(
             presenter.plt_items[3].rgba,
-            map_.map_plant_colour.rgba,
+            map_.map_plant_dead_colour.rgba,
         )
 
     def test_update_map_updates_bbox(self):
@@ -951,7 +958,9 @@ class TestSearchViewMapPresenter(BaubleTestCase):
         presenter.update_map([plt1, plt3])
         presenter.update_thread.join()
         update_gui()
-        self.assertEqual(presenter.selected, {("plt", 1), ("plt", 3)})
+        self.assertEqual(
+            presenter.selected, {("plt", 1, True), ("plt", 3, True)}
+        )
         presenter.clear_selected()
         self.assertEqual(presenter.selected, set())
         update_gui()
@@ -962,7 +971,7 @@ class TestSearchViewMapPresenter(BaubleTestCase):
         presenter.update_map([loc1])
         presenter.update_thread.join()
         update_gui()
-        self.assertEqual(presenter.selected, {("loc", 1)})
+        self.assertEqual(presenter.selected, {("loc", 1, True)})
         presenter.clear_selected()
         self.assertEqual(presenter.selected, set())
         update_gui()
@@ -1064,7 +1073,7 @@ class TestSearchViewMapPresenter(BaubleTestCase):
         presenter.is_visible = lambda: True
         mock_loc_item = mock.Mock()
         presenter.loc_items = {1: mock_loc_item}
-        presenter.selected = [("plt", 1), ("loc", 1)]
+        presenter.selected = [("plt", 1, False), ("loc", 1, True)]
         mock_plant_item = mock.Mock()
         presenter.plt_items = {1: mock_plant_item}
         presenter.reset_selected_colour()
@@ -1260,7 +1269,7 @@ class TestSearchViewMapPresenter(BaubleTestCase):
             get_locations_polys()[1].rgba,
             map_.map_location_selected_colour.rgba,
         )
-        self.assertEqual(presenter.selected, {("loc", 1)})
+        self.assertEqual(presenter.selected, {("loc", 1, True)})
 
     def test_highlight_plant(self):
         for func in get_setUp_data_funcs():
@@ -1276,13 +1285,13 @@ class TestSearchViewMapPresenter(BaubleTestCase):
         glib_events[1] = True
         map_item.add_to_map(map_.map_)
         presenter.plt_items[1] = map_item
-        presenter._highlight_plant(1)
+        presenter._highlight_plant(1, True)
         update_gui()
         self.assertEqual(
             presenter.plt_items[1].image,
             map_.map_plant_selected_colour.image,
         )
-        self.assertEqual(presenter.selected, {("plt", 1)})
+        self.assertEqual(presenter.selected, {("plt", 1, True)})
 
     def test_update_after_db_connection_change(self):
         get_locations_polys.clear_cache()
@@ -1482,6 +1491,42 @@ class TestSearchViewMapPresenter(BaubleTestCase):
         plt1.geojson = None
         self.session.commit()
         self.assertNotIn(plt1.id, presenter.plt_items)
+        expunge_garden_map()
+
+    def test_update_after_plant_change_dead(self):
+        get_locations_polys.clear_cache()
+        for func in get_setUp_data_funcs():
+            func()
+        results = self.session.query(Plant).all()
+        for plt in results:
+            plt.geojson = point
+        self.session.commit()
+        setup_garden_map()
+        self.assertTrue(results)
+        presenter = garden_map.map_presenter
+        presenter.is_visible = lambda: True
+        self.assertEqual(len(presenter.loc_items), 0)
+        presenter.populate_map(results)
+        presenter.populate_thread.join()
+        update_gui()
+        # check we did populate and flags are not set
+        self.assertEqual(len(results), len(presenter.plt_items))
+        plt1 = self.session.query(Plant).get(1)
+        self.assertIn(plt1.id, presenter.plt_items)
+        self.assertIsInstance(presenter.plt_items[plt1.id], MapPoint)
+        self.assertEqual(
+            presenter.plt_items[plt1.id].image,
+            presenter.garden_map.map_plant_colour.image,
+        )
+
+        plt1.quantity = 0
+        self.session.commit()
+        self.assertIn(plt1.id, presenter.plt_items)
+        self.assertEqual(
+            presenter.plt_items[plt1.id].image,
+            presenter.garden_map.map_plant_dead_colour.image,
+        )
+        self.assertIsInstance(presenter.plt_items[plt1.id], MapPoint)
         expunge_garden_map()
 
     def test_update_after_plant_delete(self):

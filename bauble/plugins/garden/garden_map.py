@@ -89,6 +89,11 @@ MAP_PLANT_SELECTED_COLOUR_PREF_KEY = "garden.garden_map.selected_plant_colour"
 The preferences key for the colour of plants on the map that are selected.
 """
 
+MAP_PLANT_DEAD_COLOUR_PREF_KEY = "garden.garden_map.dead_plant_colour"
+"""
+The preferences key for the colour of dead plants on the map.
+"""
+
 MAP_LOCATION_COLOUR_PREF_KEY = "garden.garden_map.location_colour"
 """
 The preferences key for the colour of locations on the map that are not
@@ -235,6 +240,14 @@ colours: dict[str, Colour] = {
             str(Path(paths.lib_dir(), "images", "white_point.png")), 6, 6
         ),
         Gdk.RGBA(1.0, 1.0, 1.0, 0.0),
+    ),
+    "violet": Colour(
+        7,
+        "violet",
+        GdkPixbuf.Pixbuf.new_from_file_at_size(
+            str(Path(paths.lib_dir(), "images", "violet_point.png")), 6, 6
+        ),
+        Gdk.RGBA(0.37, 0.0, 0.63, 0.0),
     ),
 }
 
@@ -479,6 +492,7 @@ class GardenMap(Gtk.Paned):  # pylint: disable=too-many-instance-attributes
     tiles_combo = cast(Gtk.ComboBoxText, Gtk.Template.Child())
     colour_combo = cast(Gtk.ComboBox, Gtk.Template.Child())
     selected_colour_combo = cast(Gtk.ComboBox, Gtk.Template.Child())
+    dead_colour_combo = cast(Gtk.ComboBox, Gtk.Template.Child())
     loc_colour_combo = cast(Gtk.ComboBox, Gtk.Template.Child())
     loc_selected_colour_combo = cast(Gtk.ComboBox, Gtk.Template.Child())
     colour_liststore = cast(Gtk.ListStore, Gtk.Template.Child())
@@ -495,6 +509,7 @@ class GardenMap(Gtk.Paned):  # pylint: disable=too-many-instance-attributes
 
         self.map_plant_colour: Colour
         self.map_plant_selected_colour: Colour
+        self.map_plant_dead_colour: Colour
         self.map_location_colour: Colour
         self.map_location_selected_colour: Colour
         self.set_colours_from_prefs()
@@ -517,6 +532,7 @@ class GardenMap(Gtk.Paned):  # pylint: disable=too-many-instance-attributes
         for combo in (
             self.colour_combo,
             self.selected_colour_combo,
+            self.dead_colour_combo,
             self.loc_colour_combo,
             self.loc_selected_colour_combo,
         ):
@@ -527,6 +543,7 @@ class GardenMap(Gtk.Paned):  # pylint: disable=too-many-instance-attributes
         self.selected_colour_combo.set_active(
             self.map_plant_selected_colour.index
         )
+        self.dead_colour_combo.set_active(self.map_plant_dead_colour.index)
         self.loc_colour_combo.set_active(self.map_location_colour.index)
         self.loc_selected_colour_combo.set_active(
             self.map_location_selected_colour.index
@@ -564,6 +581,12 @@ class GardenMap(Gtk.Paned):  # pylint: disable=too-many-instance-attributes
         )
 
     @Gtk.Template.Callback()
+    def on_dead_colour_combo_changed(self, combo: Gtk.ComboBox) -> None:
+        self._set_colour_prefs_from_combo(
+            combo, MAP_PLANT_DEAD_COLOUR_PREF_KEY
+        )
+
+    @Gtk.Template.Callback()
     def on_loc_colour_combo_changed(self, combo: Gtk.ComboBox) -> None:
         self._set_colour_prefs_from_combo(combo, MAP_LOCATION_COLOUR_PREF_KEY)
 
@@ -585,6 +608,11 @@ class GardenMap(Gtk.Paned):  # pylint: disable=too-many-instance-attributes
         if colour not in colours:
             colour = "blue"
         self.map_plant_selected_colour = colours[colour]
+
+        colour = prefs.prefs.get(MAP_PLANT_DEAD_COLOUR_PREF_KEY)
+        if colour not in colours:
+            colour = "violet"
+        self.map_plant_dead_colour = colours[colour]
 
         colour = prefs.prefs.get(MAP_LOCATION_COLOUR_PREF_KEY)
         if colour not in colours:
@@ -783,7 +811,7 @@ class SearchViewMapPresenter:
             "button_press_event", self.on_button_press
         )
         self.clear_locations_cache = False
-        self.selected: set[tuple[str, int]] = set()
+        self.selected: set[tuple[str, int, bool]] = set()
         self.selected_bbox = BoundingBox()
         self.populate_thread: None | threading.Thread = None
         self.update_thread: None | threading.Thread = None
@@ -951,7 +979,7 @@ class SearchViewMapPresenter:
         self.reset_selected_colour()
 
     def reset_selected_colour(self) -> None:
-        for obj_type, id_ in self.selected:
+        for obj_type, id_, _active in self.selected:
             if obj_type == "plt":
                 map_item = self.plt_items[id_]
                 map_item.set_colour(self.garden_map.map_plant_selected_colour)
@@ -978,9 +1006,11 @@ class SearchViewMapPresenter:
             if self.thread_event.is_set():
                 glib_events.clear()
                 break
-            map_item = map_item_factory(
-                plant, self.garden_map.map_plant_colour
-            )
+            if plant.active:
+                colour = self.garden_map.map_plant_colour
+            else:
+                colour = self.garden_map.map_plant_dead_colour
+            map_item = map_item_factory(plant, colour)
             if map_item:
                 self.plt_items[plant.id] = map_item
                 source = GLib.idle_source_new()
@@ -1062,11 +1092,13 @@ class SearchViewMapPresenter:
     def clear_selected(self) -> None:
         """Set all items back to default colours"""
         logger.debug("clearing prior map selection")
-        for obj_type, id_ in self.selected:
+        for obj_type, id_, active in self.selected:
             if obj_type == "plt" and (map_item := self.plt_items.get(id_)):
-                GLib.idle_add(
-                    map_item.set_colour, self.garden_map.map_plant_colour
-                )
+                if active:
+                    colour = self.garden_map.map_plant_colour
+                else:
+                    colour = self.garden_map.map_plant_dead_colour
+                GLib.idle_add(map_item.set_colour, colour)
             elif obj_type == "loc" and (map_item := self.loc_items.get(id_)):
                 GLib.idle_add(
                     map_item.set_colour, self.garden_map.map_location_colour
@@ -1078,7 +1110,8 @@ class SearchViewMapPresenter:
         lats: list[float] = []
         longs: list[float] = []
         self.selected_bbox.clear()
-        for type_, id_ in self.selected:
+        for type_, id_, _active in self.selected:
+            item_lats = item_longs = None
             if type_ == "plt":
                 map_item = self.plt_items.get(id_)
                 if map_item:
@@ -1123,21 +1156,21 @@ class SearchViewMapPresenter:
                         continue
 
             if isinstance(value, Plant):
-                self._highlight_plant(value.id)
+                self._highlight_plant(value.id, value.active)
             elif isinstance(value, Location):
                 self._highlight_location(value.id)
 
         GLib.idle_add(self.update_selected_bbox)
         GLib.idle_add(self.garden_map.map_.map_redraw)
 
-    def _highlight_plant(self, id_: int) -> None:
+    def _highlight_plant(self, id_: int, active: bool) -> None:
         map_item = self.plt_items.get(id_)
         if map_item:
             GLib.idle_add(
                 map_item.set_colour, self.garden_map.map_plant_selected_colour
             )
 
-            self.selected.add(("plt", id_))
+            self.selected.add(("plt", id_, active))
 
     def _highlight_location(self, id_: int) -> None:
         map_item = self.loc_items.get(id_)
@@ -1147,7 +1180,7 @@ class SearchViewMapPresenter:
                 self.garden_map.map_location_selected_colour,
             )
 
-            self.selected.add(("loc", id_))
+            self.selected.add(("loc", id_, True))
 
     def update_map(self, selected_values: Sequence) -> None:
         if self.redraw_on_update:
@@ -1221,7 +1254,11 @@ class SearchViewMapPresenter:
         # add new to map
         if target.geojson:
             logger.debug("adding plant map_item %s", id_)
-            new = map_item_factory(target, self.garden_map.map_plant_colour)
+            if target.active:
+                colour = self.garden_map.map_plant_colour
+            else:
+                colour = self.garden_map.map_plant_dead_colour
+            new = map_item_factory(target, colour)
             if new:
                 new.add_to_map(self.garden_map.map_, glib=False)
                 self.plt_items[id_] = new

@@ -429,6 +429,12 @@ class GardenPlugin(pluginmgr.Plugin):
         ):
             view.update()
 
+        from . import garden_map
+
+        if garden_map.map_presenter:
+            garden_map.map_presenter.populated = False
+            garden_map.map_presenter.populate_map_from_search_view()
+
     @staticmethod
     def on_sort_toggled(action, value):
         action.set_state(value)
