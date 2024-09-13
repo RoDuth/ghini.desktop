@@ -993,7 +993,10 @@ class ImageLoaderTests(BaubleTestCase):
         ).start()
         mock_size_alloc.assert_not_called()
         wait_on_threads()
-        update_gui()
+        while not mock_size_alloc.called:
+            # WARNING this could deadlock if the signal hanlder doesn't call
+            # but is required for the nested idle_add
+            update_gui()
         self.assertIsInstance(pic_box.get_children()[0], Gtk.Label)
         mock_size_alloc.assert_called()
         self.assertIsInstance(mock_size_alloc.call_args.args[0], Gtk.Label)
@@ -1021,7 +1024,10 @@ class ImageLoaderTests(BaubleTestCase):
         img_loader.start()
         mock_size_alloc.assert_not_called()
         wait_on_threads()
-        update_gui()
+        while not mock_size_alloc.called:
+            # WARNING this could deadlock if the signal hanlder doesn't call
+            # but is required for the nested idle_add
+            update_gui()
         self.assertIsInstance(pic_box.get_children()[0], Gtk.Label)
         mock_size_alloc.assert_called()
         self.assertIsInstance(mock_size_alloc.call_args.args[0], Gtk.Label)

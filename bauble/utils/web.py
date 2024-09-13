@@ -246,7 +246,7 @@ class NetSession:
             except OSError as e:
                 logger.error("%s(%s)", type(e).__name__, e)
         elif sys.platform == "darwin":
-            import SystemConfiguration  # type: ignore [import]
+            import SystemConfiguration  # type: ignore [import-untyped]
 
             try:
                 # pylint: disable=no-member

@@ -43,7 +43,7 @@ from xml.sax import saxutils
 
 logger = logging.getLogger(__name__)
 
-from gi.repository import GdkPixbuf
+from gi.repository import GdkPixbuf  # type: ignore [import-untyped]
 from gi.repository import GLib
 from gi.repository import Gtk
 from pyparsing import Group
@@ -166,7 +166,14 @@ def copy_picture_with_thumbnail(
 class ImageLoader(threading.Thread):
     cache = Cache(24)  # class-global cached results
 
-    def __init__(self, box, url, *args, on_size_allocated=None, **kwargs):
+    def __init__(
+        self,
+        box: Gtk.Box,
+        url: str,
+        *args: Any,
+        on_size_allocated: Callable[[Gtk.Widget, None], None] | None = None,
+        **kwargs: Any,
+    ) -> None:
         super().__init__(*args, **kwargs)
         self.box = box  # will hold image or label
         self.loader = GdkPixbuf.PixbufLoader()
@@ -185,7 +192,7 @@ class ImageLoader(threading.Thread):
             self.url = os.path.join(pfolder, url)
         self.on_size_allocated = on_size_allocated
 
-    def callback(self):
+    def callback(self) -> None:
         pixbuf = self.loader.get_pixbuf()
         if not pixbuf:
             return
@@ -206,14 +213,23 @@ class ImageLoader(threading.Thread):
             image.connect("size-allocate", self.on_allocate_size)
         self.box.show_all()
 
-    def on_allocate_size(self, *args):
+    def _add_widgets_to_box(self, *widgets: Gtk.Widget) -> None:
+        for widget in widgets:
+            self.box.add(widget)
+        self.box.show_all()
+
+    def _remove_widgets_from_box(self, *widgets: Gtk.Widget) -> None:
+        for widget in widgets:
+            self.box.remove(widget)
+
+    def on_allocate_size(self, *args) -> None:
         if self.on_size_allocated:
             GLib.idle_add(self.on_size_allocated, *args)
 
-    def loader_notified(self, _pixbufloader):
+    def loader_notified(self, _pixbufloader) -> None:
         GLib.idle_add(self.callback)
 
-    def run(self):
+    def run(self) -> None:
         try:
             self.cache.get(
                 self.url, self.reader_function, on_hit=self.loader.write
@@ -229,7 +245,7 @@ class ImageLoader(threading.Thread):
             label = Gtk.Label(wrap=True)
             label.connect("size-allocate", self.on_allocate_size)
             label.set_text(text)
-            self.box.add(label)
+            GLib.idle_add(self._add_widgets_to_box, label)
         except Exception as e:  # pylint: disable=broad-except
             logger.warning(
                 "picture %s caused Exception %s:%s",
@@ -243,30 +259,26 @@ class ImageLoader(threading.Thread):
                 _('picture %(url)s error "%(error)s"')
                 % {"url": self.url, "error": e}
             )
-            self.box.add(label)
-        self.box.show_all()
+            GLib.idle_add(self._add_widgets_to_box, label)
 
-    def read_base64(self):
-        self.loader.connect("area-prepared", self.loader_notified)
+    def read_base64(self) -> bytes | None:
         thumb64pos = self.url.find(self.inline_picture_marker)
         offset = thumb64pos + len(self.inline_picture_marker)
         import base64
 
         return base64.b64decode(self.url[offset:])
 
-    def read_global_url(self):
-        self.loader.connect("area-prepared", self.loader_notified)
+    def read_global_url(self) -> bytes | None:
         # display something to show an image is loading
         label = Gtk.Label()
         text = "   loading image...."
         label.set_text(text)
         spinner = Gtk.Spinner()
         spinner.start()
-        self.box.add(label)
-        self.box.add(spinner)
-        self.box.show_all()
+        GLib.idle_add(self._add_widgets_to_box, label, spinner)
+
         net_sess = get_net_sess()
-        content = ""
+        content = b""
         try:
             response = net_sess.get(self.url, timeout=5)
             content = response.content
@@ -276,15 +288,15 @@ class ImageLoader(threading.Thread):
             response = None
         finally:
             net_sess.close()
-        self.box.remove(label)
-        self.box.remove(spinner)
+
+        GLib.idle_add(self._remove_widgets_from_box, label, spinner)
+
         if response and response.ok:
             self.loader.write(content)
             return content
         return None
 
-    def read_local_url(self):
-        self.loader.connect("area-prepared", self.loader_notified)
+    def read_local_url(self) -> bytes | None:
         with open(self.url, "rb") as f:
             img = f.read()
             self.loader.write(img)
