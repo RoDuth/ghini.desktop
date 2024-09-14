@@ -124,7 +124,7 @@ def create_joins(
             _current = joinee
     else:
         query = query.join(attribute)
-        query._to_join.append(joinee)  # type: ignore[union-attr]
+        query._to_join.append(joinee)
 
     return create_joins(query, joinee, steps, alias, alias_return, _current)
 
@@ -276,8 +276,8 @@ class FunctionIdentifier(IdentifierAction):
         self.identifier: IdentifierAction = tokens[-1]
 
     def __repr__(self) -> str:
-        distinct = self.distinct.upper() + " " if self.distinct else ""
-        return f"{self.function}({distinct}{self.identifier})"
+        distinct_str = self.distinct.upper() + " " if self.distinct else ""
+        return f"{self.function}({distinct_str}{self.identifier})"
 
     def evaluate(
         self, handler: QueryHandler
@@ -290,6 +290,7 @@ class FunctionIdentifier(IdentifierAction):
         logger.debug("%s::evaluate %s", self.__class__.__name__, self)
         query, attr = self.identifier.evaluate(handler)
         if self.distinct:
-            attr = distinct(attr)
+            # believe it is safe to treat it as a QueryableAttribute
+            attr = typing.cast(QueryableAttribute, distinct(attr))
 
         return query, attr

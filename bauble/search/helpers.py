@@ -28,12 +28,10 @@ from pyparsing import Opt
 from pyparsing import ParseAction
 from pyparsing import ParserElement
 
-InfixNotationOperatorSpec = tuple[ParserElement, OpAssoc, ParseAction]
-
 
 def infix_notation(
     base_expr: ParserElement,
-    op_list: list[InfixNotationOperatorSpec],
+    op_list: list[tuple[ParserElement, OpAssoc, ParseAction]],
 ) -> ParserElement:
     """Simplified version of pyparsing's infix_notation helper, trimmed down
     and adjusted to support one specific use case.
@@ -52,6 +50,7 @@ def infix_notation(
 
         this_expr: ParserElement = Forward().set_name(term_name)
         this_expr = typing.cast(Forward, this_expr)
+        match_expr = None
         if right_left_assoc is OpAssoc.LEFT:
             # arity 2
             match_expr = FollowedBy(base_expr + op_expr + base_expr) + Group(
@@ -62,6 +61,10 @@ def infix_notation(
             op_expr = Opt(op_expr)
             match_expr = FollowedBy(op_expr.expr + this_expr) + Group(
                 op_expr + this_expr
+            )
+        if match_expr is None:
+            raise ValueError(
+                "match_expr is None, possible invalid OpAssoc value?"
             )
         match_expr.set_parse_action(parse_action)
         this_expr <<= (match_expr | base_expr).set_name(term_name)

@@ -236,7 +236,9 @@ atomic_identifier = Word(alphas + "_", alphanums + "_").set_name(
 unfiltered_identifier = (
     (
         atomic_identifier
-        + ZeroOrMore(Literal(".").suppress() + atomic_identifier)
+        + ZeroOrMore(
+            Literal(".").suppress() + atomic_identifier
+        ).leave_whitespace()
     )
     .set_parse_action(UnfilteredIdentifier)
     .set_name("unfiltered identifier")
@@ -258,14 +260,16 @@ filtered_identifier = (
     (
         OneOrMore(
             Group(
-                unfiltered_identifier
-                + Literal("[").suppress()
+                (
+                    unfiltered_identifier + Literal("[").suppress()
+                ).leave_whitespace()
                 + Group(DelimitedList(filter_clause))
-                + Literal("]").suppress()
-                + Literal(".").suppress()
+                + (
+                    Literal("]").suppress() + Literal(".").suppress()
+                ).leave_whitespace()
             )
         )
-        + unfiltered_identifier
+        + unfiltered_identifier.copy().leave_whitespace()
     )
     .set_parse_action(FilteredIdentifier)
     .set_name("filtered identifier")
@@ -279,11 +283,10 @@ identifier = (filtered_identifier | unfiltered_identifier).set_name(
 # function name and handles the identifier at this point.
 function_call = (
     (
-        function
-        + Literal("(").suppress()
+        (function + Literal("(").suppress()).leave_whitespace()
         + Opt(CaselessKeyword("DISTINCT"))
         + identifier
-        + Literal(")").suppress()
+        + Literal(")").suppress().leave_whitespace()
     )
     .set_parse_action(FunctionIdentifier)
     .set_name("function call")
