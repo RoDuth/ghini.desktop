@@ -1,6 +1,6 @@
 image:
   - Visual Studio 2019
-  - macos-monterey
+  - macos-sonoma
 
 platform:
   - x64
@@ -11,13 +11,13 @@ for:
 -
   matrix:
     only:
-      - image: macos-monterey
+      - image: macos-sonoma
 
   install:
     - brew install pygobject3 gtk+3 adwaita-icon-theme osm-gps-map unixodbc
 
   build_script:
-    - . ~/venv3.11/bin/activate
+    - . ~/venv3.12/bin/activate
     - find /usr/local/Cellar/pygobject3 -type d -name site-packages
     - export _PY_VER=$(python -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')")
     - cp -rf "$(find /usr/local/Cellar/pygobject3 -type d -name site-packages | grep --color=never $_PY_VER)"/* "$(find $VIRTUAL_ENV -type d -name site-packages)"
@@ -35,7 +35,7 @@ for:
     - path: dist/Ghini-*-installer.dmg
 
   test_script:
-    - . ~/venv3.11/bin/activate
+    - . ~/venv3.12/bin/activate
     - pip install pytest
     - pytest -sv
 -
