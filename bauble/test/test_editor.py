@@ -30,6 +30,7 @@ from unittest import mock
 
 from gi.repository import Gtk
 
+from bauble import db
 from bauble import paths
 from bauble import prefs
 from bauble import utils
@@ -220,12 +221,35 @@ class NoteBoxTests(BaubleTestCase):
         self.assertEqual(self.model.category, cat)
 
     def test_presenter_on_add_button_adds_context_box(self):
-        presenter = mock.Mock(model=self.parent_model, notes=[self.model])
+        presenter = mock.Mock(model=self.parent_model)
         parent = Gtk.Box()
         notes_presenter = NotesPresenter(presenter, "notes", parent)
         start = len(notes_presenter.box.get_children())
         notes_presenter.on_add_button_clicked(None)
         self.assertEqual(len(notes_presenter.box.get_children()) - start, 1)
+
+    def test_note_box_on_notes_remove_button_after_failed_commit(self):
+        self.session.close()
+        self.session = db.Session()
+        self.session.add(self.parent_model)
+        self.parent_model.epithet = "Test"
+        self.session.commit()
+        presenter = mock.Mock(model=self.parent_model)
+        parent = Gtk.Box()
+        notes_presenter = NotesPresenter(presenter, "notes", parent)
+        start = len(notes_presenter.box.get_children())
+        self.assertEqual(len(presenter.model.notes), 0)
+        notes_presenter.on_add_button_clicked(None)
+        self.assertEqual(len(notes_presenter.box.get_children()) - start, 1)
+        self.assertEqual(len(presenter.model.notes), 1)
+        try:
+            self.session.commit()  # fails with NOT NULL on note.note
+        except Exception:
+            self.session.rollback()
+
+        notes_presenter.box.get_children()[0].on_notes_remove_button(None)
+        self.assertEqual(len(presenter.model.notes), 0)
+        self.session.commit()  # doesn't fail
 
 
 class PictureBoxTests(BaubleTestCase):

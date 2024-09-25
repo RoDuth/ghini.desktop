@@ -2134,6 +2134,7 @@ class GenericNoteBox:
         self.note_expander.set_expanded(expanded)
 
     def on_notes_remove_button(self, _button, *_args):
+        self.presenter.refresh()
         if self.model in self.presenter.notes:
             self.presenter.notes.remove(self.model)
         # self.widgets.remove_parent(self.widgets.note_box)
@@ -2717,7 +2718,8 @@ class NotesPresenter(GenericEditorPresenter):
             .get_property(notes_property)
             .mapper.class_
         )
-        self.notes = getattr(presenter.model, notes_property)
+        self.notes_property = notes_property
+        self.refresh()
         parent_container.add(self.widgets.notes_editor_box)
 
         # the `expander`s are added to self.box
@@ -2737,6 +2739,9 @@ class NotesPresenter(GenericEditorPresenter):
         )
         self.box.show_all()
 
+    def refresh(self):
+        self.notes = getattr(self.parent_ref().model, self.notes_property)
+
     def cleanup(self):
         # garbage collect (esp. the on_add_button_clicked signal handler),
         # idle_add avoids double-linked list warning
@@ -2750,7 +2755,7 @@ class NotesPresenter(GenericEditorPresenter):
     def add_note(self, note=None):
         """Add a new note to the model."""
         box = self.ContentBox(self, note)
-        self.box.pack_start(box, False, False, 0)  # padding=10
+        self.box.pack_start(box, False, False, 0)
         self.box.reorder_child(box, 0)
         box.show_all()
         return box
