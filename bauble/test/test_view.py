@@ -17,6 +17,7 @@
 # along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
 
 import os
+import time
 from datetime import datetime
 from pathlib import Path
 from unittest import mock
@@ -1856,12 +1857,14 @@ class TestPicturesScroller(BaubleTestCase):
         self.assertIsNone(picture_scroller.restore_position)
         # no result
         picture_scroller._hide_restore_pic_pane([])
+        picture_scroller.pic_pane.emit("size-allocate", Gdk.Rectangle())
         update_gui()
         self.assertIsNone(picture_scroller.restore_position)
         self.assertFalse(picture_scroller.last_result_succeed)
         self.assertTrue(picture_scroller.first_run)
         # error
         picture_scroller._hide_restore_pic_pane(None)
+        picture_scroller.pic_pane.emit("size-allocate", Gdk.Rectangle())
         update_gui()
         self.assertIsNone(picture_scroller.restore_position)
         self.assertFalse(picture_scroller.last_result_succeed)
@@ -1869,11 +1872,13 @@ class TestPicturesScroller(BaubleTestCase):
         # success (but last result was a fail - idle_add pic_pane set_position)
         restore_pos = picture_scroller.restore_position
         picture_scroller._hide_restore_pic_pane([1])
+        picture_scroller.pic_pane.emit("size-allocate", Gdk.Rectangle())
         update_gui()
         self.assertTrue(picture_scroller.last_result_succeed)
         self.assertTrue(picture_scroller.first_run)
         # no result (yet records restore position because prev was successful)
         picture_scroller._hide_restore_pic_pane([])
+        picture_scroller.pic_pane.emit("size-allocate", Gdk.Rectangle())
         update_gui()
         self.assertFalse(picture_scroller.last_result_succeed)
         restore_pos2 = picture_scroller.restore_position
@@ -1882,10 +1887,12 @@ class TestPicturesScroller(BaubleTestCase):
         self.assertTrue(picture_scroller.first_run)
         # succeed and change position then succeed again should store new value
         picture_scroller._hide_restore_pic_pane([1])
+        picture_scroller.pic_pane.emit("size-allocate", Gdk.Rectangle())
         update_gui()
         picture_scroller.pic_pane.set_position(100)
         self.assertTrue(picture_scroller.last_result_succeed)
         picture_scroller._hide_restore_pic_pane([1])
+        picture_scroller.pic_pane.emit("size-allocate", Gdk.Rectangle())
         update_gui()
         self.assertEqual(picture_scroller.restore_position, 100)
         self.assertTrue(picture_scroller.last_result_succeed)
@@ -1894,20 +1901,27 @@ class TestPicturesScroller(BaubleTestCase):
         # successful position
         picture_scroller.pic_pane.set_position(50)
         picture_scroller._hide_restore_pic_pane(None)
+        picture_scroller.pic_pane.emit("size-allocate", Gdk.Rectangle())
         update_gui()
         self.assertFalse(picture_scroller.last_result_succeed)
         picture_scroller._hide_restore_pic_pane(None)
+        picture_scroller.pic_pane.emit("size-allocate", Gdk.Rectangle())
         update_gui()
         self.assertFalse(picture_scroller.last_result_succeed)
         picture_scroller._hide_restore_pic_pane([])
+        picture_scroller.pic_pane.emit("size-allocate", Gdk.Rectangle())
         update_gui()
         self.assertFalse(picture_scroller.last_result_succeed)
         self.assertEqual(picture_scroller.restore_position, 50)
         picture_scroller._hide_restore_pic_pane([1])
+        picture_scroller.pic_pane.emit("size-allocate", Gdk.Rectangle())
+        update_gui()
+        # Wait for timeout
+        time.sleep(0.5)
         update_gui()
         self.assertTrue(picture_scroller.last_result_succeed)
-        self.assertEqual(picture_scroller.pic_pane.get_position(), 50)
         self.assertEqual(picture_scroller.restore_position, 50)
+        self.assertEqual(picture_scroller.pic_pane.get_position(), 50)
 
 
 class GlobalFunctionsTests(BaubleTestCase):

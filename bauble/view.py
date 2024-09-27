@@ -721,6 +721,8 @@ class PicturesScroller(Gtk.ScrolledWindow):
         self.count = 0
         self.waiting_on_realise = 0
         self.selection: list[db.Base] = []
+        pic_pane.connect("size-allocate", self.on_pic_pane_size_allocation)
+        self._set_pic_pane_pos_timer_id = None
 
     def on_scrolled(self, adjustment: Gtk.Adjustment) -> None:
         """On scrolling add more pictures as needed.
@@ -770,6 +772,10 @@ class PicturesScroller(Gtk.ScrolledWindow):
     def _hide_restore_pic_pane(self, selection: list[db.Base] | None) -> None:
         if self.last_result_succeed:
             self.restore_position = self.pic_pane.get_position()
+            logger.debug(
+                "_hide_restore_pic_pane succeeded with %s",
+                self.restore_position,
+            )
         if self.first_run:
             if bauble.gui:
                 width = bauble.gui.window.get_size().width
@@ -781,23 +787,28 @@ class PicturesScroller(Gtk.ScrolledWindow):
                 self.pic_pane.set_position(width - 6)
             self.last_result_succeed = False
         else:
-            # successful
-            if self.restore_position:
-                if self.last_result_succeed:
-                    self.pic_pane.set_position(self.restore_position)
-                    self.first_run = False
-                else:
-                    # first_run need to wait for everything to initialise or
-                    # will get a pic_pane even when one isn't intended
-                    GLib.idle_add(
-                        self.pic_pane.set_position, self.restore_position
-                    )
-
             self.last_result_succeed = True
+
+    def _set_pic_pane_position_after_timer(self) -> None:
+        logger.debug("restoring pic_pane: %s", self.restore_position)
+        self.pic_pane.set_position(self.restore_position)
+        self._set_pic_pane_pos_timer_id = None
+
+    def on_pic_pane_size_allocation(
+        self, _pic_pane: Gtk.Paned, _allocation: Gdk.Rectangle
+    ) -> None:
+        if self._set_pic_pane_pos_timer_id:
+            return
+        if self.restore_position and self.last_result_succeed:
+            self._set_pic_pane_pos_timer_id = GLib.timeout_add(
+                300, self._set_pic_pane_position_after_timer
+            )
+            self.first_run = False
 
     def populate_from_selection(self, selection: list[db.Base] | None) -> None:
         logger.debug("PicturesScroller.populate_from_selection(%s)", selection)
 
+        self._hide_restore_pic_pane(selection)
         # bail early if nothing has changed
         if self.selection == selection:
             return
@@ -808,7 +819,6 @@ class PicturesScroller(Gtk.ScrolledWindow):
 
         for kid in self.pictures_box.get_children():
             kid.destroy()
-        self._hide_restore_pic_pane(selection)
 
         self.count = 0
         self.waiting_on_realise = 0

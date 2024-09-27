@@ -822,6 +822,7 @@ class SearchViewMapPresenter:
         self.context_menu: Gtk.Menu
         self.init_context_menu()
         self.zoom_to_home()
+        self._resize_timer_id = None
 
     @staticmethod
     def is_visible() -> bool:
@@ -839,7 +840,7 @@ class SearchViewMapPresenter:
                 - child1.get_allocation().width
                 - 5
             )
-            logger.debug("map_is_visble width = %s", width)
+            logger.debug("map is_visble width = %s", width)
             if width > 100:
                 return view.pic_pane_notebook.get_current_page() == 0
         return False
@@ -1065,6 +1066,21 @@ class SearchViewMapPresenter:
             self.populate_thread.start()
             self.populated = True
 
+    def populate_on_size_allocation(
+        self, _pic_pane: Gtk.Paned, _allocation: Gdk.Rectangle
+    ) -> None:
+        if self._resize_timer_id:
+            return
+        self._resize_timer_id = GLib.timeout_add(
+            300, self._populate_after_timer
+        )
+
+    def _populate_after_timer(self):
+        if not self.populated and self.is_visible():
+            logger.debug("populate_after_timer")
+            self.populate_map_from_search_view()
+        self._resize_timer_id = None
+
     def populate_map_from_search_view(
         self, *_args, view: SearchView | None = None
     ) -> None:
@@ -1082,8 +1098,7 @@ class SearchViewMapPresenter:
                 model = view.results_view.get_model()
                 objs = []
                 if model:
-                    # see: https://github.com/python/mypy/issues/2220
-                    objs = [i[0] for i in model]  # type: ignore
+                    objs = [i[0] for i in model]
                 self.populate_map(objs)
             selected = view.get_selected_values()
             if selected:
@@ -1379,22 +1394,10 @@ def setup_garden_map() -> None:
 
     SearchView.pic_pane_notebook_pages.add(pic_pane_page)
 
-    switch_page_signal = (
-        "pic_pane_notebook",
-        "switch-page",
-        map_presenter.populate_map_from_search_view,
-    )
-    SearchView.extra_signals.add(switch_page_signal)
-    position_signal = (
-        "pic_pane",
-        "notify::position",
-        map_presenter.populate_map_from_search_view,
-    )
-    SearchView.extra_signals.add(position_signal)
     size_allocate_signal = (
         "pic_pane",
         "size-allocate",
-        map_presenter.populate_map_from_search_view,
+        map_presenter.populate_on_size_allocation,
     )
     SearchView.extra_signals.add(size_allocate_signal)
 
@@ -1405,8 +1408,7 @@ def setup_garden_map() -> None:
     search_view = get_search_view()
     if search_view:
         search_view.add_page_to_pic_pane_notebook(*pic_pane_page)
-        search_view.connect_signal(*switch_page_signal)
-        search_view.connect_signal(*position_signal)
+        search_view.connect_signal(*size_allocate_signal)
 
     # Listen for changes to the database and react if need be
     event.listen(
@@ -1457,23 +1459,9 @@ def expunge_garden_map() -> None:
 
     SearchView.extra_signals.remove(
         (
-            "pic_pane_notebook",
-            "switch-page",
-            map_presenter.populate_map_from_search_view,
-        )
-    )
-    SearchView.extra_signals.remove(
-        (
-            "pic_pane",
-            "notify::position",
-            map_presenter.populate_map_from_search_view,
-        )
-    )
-    SearchView.extra_signals.remove(
-        (
             "pic_pane",
             "size-allocate",
-            map_presenter.populate_map_from_search_view,
+            map_presenter.populate_on_size_allocation,
         )
     )
     SearchView.populate_callbacks.remove(map_presenter.populate_map)

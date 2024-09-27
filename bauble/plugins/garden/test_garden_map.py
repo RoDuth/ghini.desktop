@@ -21,6 +21,7 @@ Test plant map
 
 import os
 import threading
+import time
 from dataclasses import astuple
 from time import sleep
 from unittest import mock
@@ -1014,6 +1015,33 @@ class TestSearchViewMapPresenter(BaubleTestCase):
         map_.destroy()
         presenter.update_thread.join()
 
+    def test_on_size_allocation_triggers_once_if_visible(self):
+        map_ = GardenMap(Map())
+        presenter = SearchViewMapPresenter(map_)
+        presenter.populate_map_from_search_view = mock.Mock()
+        presenter.is_visible = lambda: False
+        # multiple signals emitted
+        presenter.populate_on_size_allocation(None, None)
+        presenter.populate_on_size_allocation(None, None)
+        presenter.populate_on_size_allocation(None, None)
+        presenter.populate_on_size_allocation(None, None)
+        update_gui()
+        time.sleep(0.5)
+        update_gui()
+        # is_visible = False
+        presenter.populate_map_from_search_view.assert_not_called()
+        presenter.is_visible = lambda: True
+        presenter.populate_on_size_allocation(None, None)
+        presenter.populate_on_size_allocation(None, None)
+        presenter.populate_on_size_allocation(None, None)
+        presenter.populate_on_size_allocation(None, None)
+        update_gui()
+        time.sleep(0.5)
+        update_gui()
+        # is_visible = True
+        presenter.populate_map_from_search_view.assert_called_once()
+        map_.destroy()
+
     def test_get_location_polys(self):
         for func in get_setUp_data_funcs():
             func()
@@ -1723,7 +1751,7 @@ class GlobalFunctionsTest(BaubleTestCase):
         self.assertEqual(
             start_pages - 1, len(SearchView.pic_pane_notebook_pages)
         )
-        self.assertEqual(start_signals - 3, len(SearchView.extra_signals))
+        self.assertEqual(start_signals - 1, len(SearchView.extra_signals))
         self.assertEqual(
             start_pop_callbacks - 1, len(SearchView.populate_callbacks)
         )
@@ -1751,7 +1779,7 @@ class GlobalFunctionsTest(BaubleTestCase):
         self.assertEqual(
             start_pages + 1, len(SearchView.pic_pane_notebook_pages)
         )
-        self.assertEqual(start_signals + 3, len(SearchView.extra_signals))
+        self.assertEqual(start_signals + 1, len(SearchView.extra_signals))
         self.assertEqual(
             start_pop_callbacks + 1, len(SearchView.populate_callbacks)
         )
@@ -1772,14 +1800,9 @@ class GlobalFunctionsTest(BaubleTestCase):
         )
         connect_calls = [
             mock.call(
-                "pic_pane_notebook",
-                "switch-page",
-                presenter.populate_map_from_search_view,
-            ),
-            mock.call(
                 "pic_pane",
-                "notify::position",
-                presenter.populate_map_from_search_view,
+                "size-allocate",
+                presenter.populate_on_size_allocation,
             ),
         ]
         mock_get_sv().connect_signal.assert_has_calls(connect_calls)
