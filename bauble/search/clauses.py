@@ -57,6 +57,8 @@ from bauble.db import Base
 
 from .operations import OPERATIONS
 
+AGGREGATE_FUNC_NAMES = ["sum", "avg", "min", "max", "count", "total"]
+
 
 @dataclass
 class QueryHandler:
@@ -105,7 +107,7 @@ class BinaryClause(ClauseAction):
         logger.debug("%s::evaluate %s", self.__class__.__name__, self)
         handler.query, attr = self.operands[0].evaluate(handler)
 
-        if self.operands[1].express() == set():
+        if self.operands[1].express(handler) == set():
             # check against the empty set
             if self.oper in ("is", "=", "=="):
                 handler.query = handler.query.filter(~attr.any())
@@ -120,7 +122,7 @@ class BinaryClause(ClauseAction):
 
         logger.debug("filtering on %s(%s)", type(attr), attr)
         handler.query = handler.query.filter(
-            clause(self.operands[1].express())
+            clause(self.operands[1].express(handler))
         )
         return handler.query
 
@@ -143,13 +145,15 @@ def get_datetime(value: str | float) -> datetime:
     return result.replace(hour=0, minute=0, second=0, microsecond=0)
 
 
+# https://github.com/pylint-dev/pylint/issues/4352#issuecomment-1138921248
+# pylint: disable=too-few-public-methods
 class OnDateClause(BinaryClause):
     """Implements `on` in a `ident on date_str` query."""
 
     def evaluate(self, handler: QueryHandler) -> Query | Select:
         logger.debug("%s::evaluate %s", self.__class__.__name__, self)
         handler.query, attr = self.operands[0].evaluate(handler)
-        date_val = self.operands[1].express()
+        date_val = self.operands[1].express(handler)
         if isinstance(date_val, (str, float)):
             date_val = get_datetime(date_val)
         if isinstance(attr.type, DateTime):
@@ -170,41 +174,53 @@ class OnDateClause(BinaryClause):
 class FunctionClause(BinaryClause):
     """Impliments `func` in a `func(ident) operator value` query.
 
-    This looks like `ident operation value`, but the ident is an aggregating
-    function, so that the query has to be altered differently: filter on a
-    subquery that uses group_by and having.
+    This looks like `ident operation value`, but the ident may be an
+    aggregating function(s) where the query has to be altered differently:
+    filter on a subquery that uses group_by and having.
     """
 
     def evaluate(self, handler: QueryHandler) -> Query | Select:
         logger.debug("%s::evaluate %s", self.__class__.__name__, self)
         # operands[0] is the function_identifier
         # operands[1] is the value against which to test
-        # operation implements the clause
-        func_name = self.operands[0].function
-
-        function = getattr(func, func_name)
 
         id_ = getattr(handler.domain, "id")
 
-        def clause(val) -> ColumnElement:
+        def clause(attr, funcs, val) -> ColumnElement:
+            # wrap the attribute in its functions
+            for function in reversed(funcs):
+                attr = getattr(func, function.lower())(attr)
             assert self.operation is not None
-            return self.operation(function(attr), val)
+            return self.operation(attr, val)
 
-        if func_name.lower() in ["sum", "avg", "min", "max", "count", "total"]:
-            # aggregate functions
+        # grab the func names and indicate if any are aggregate functions
+        identifier = self.operands[0]
+        aggregate = False
+        funcs: list[str] = []
+        while True:
+            funcs.append(identifier.function)
+            if identifier.function in AGGREGATE_FUNC_NAMES:
+                aggregate = True
+            identifier = getattr(identifier, "identifier", None)
+            if identifier is None or not hasattr(identifier, "function"):
+                break
+
+        # construct the query
+        if aggregate:
             sub_query: Select = select(id_)
             subq_handler = QueryHandler(
                 handler.session, handler.domain, sub_query
             )
             sub_query, attr = self.operands[0].evaluate(subq_handler)
-
-            having = clause(self.operands[1].express())
+            having = clause(
+                attr, funcs, self.operands[1].express(subq_handler)
+            )
             sub_query = sub_query.having(having)
             sub_query = sub_query.group_by(id_)
             handler.query = handler.query.filter(id_.in_(sub_query))
         else:
             handler.query, attr = self.operands[0].evaluate(handler)
-            where = clause(self.operands[1].express())
+            where = clause(attr, funcs, self.operands[1].express(handler))
             handler.query = handler.query.filter(where)
 
         return handler.query
@@ -222,8 +238,8 @@ class BetweenClause(BinaryClause):
 
         handler.query = handler.query.filter(
             and_(
-                self.operands[1].express() <= attr,
-                attr <= self.operands[2].express(),
+                self.operands[1].express(handler) <= attr,
+                attr <= self.operands[2].express(handler),
             )
         )
         return handler.query

@@ -179,7 +179,6 @@ class UnfilteredIdentifier(IdentifierAction):
             handler.query, cls, __ = create_joins(
                 handler.query, handler.domain, self.steps
             )
-            logger.debug("create_joins cls = %s", cls)
 
         attr = getattr(cls, self.leaf)
         logger.debug(
@@ -228,7 +227,7 @@ class FilteredIdentifier(IdentifierAction):
 
         logger.debug("filtering on %s(%s)", type(attr), attr)
         handler.query = handler.query.filter(
-            clause(attr, operation, filter_value.express())
+            clause(attr, operation, filter_value.express(handler))
         )
 
     def evaluate(
@@ -289,6 +288,7 @@ class FunctionIdentifier(IdentifierAction):
         """
         logger.debug("%s::evaluate %s", self.__class__.__name__, self)
         query, attr = self.identifier.evaluate(handler)
+
         if self.distinct:
             # believe it is safe to treat it as a QueryableAttribute
             attr = typing.cast(QueryableAttribute, distinct(attr))

@@ -65,7 +65,7 @@ class ParseTypedValue(BaubleTestCase):
         result = parse_typed_value("False", Boolean())
         self.assertEqual(result, "False")
         result = parse_typed_value(None, Boolean())
-        self.assertIsNone(result.express())
+        self.assertIsNone(result.express(None))
 
     def test_parse_typed_value_date(self):
         from bauble.btypes import Date
@@ -91,7 +91,7 @@ class ParseTypedValue(BaubleTestCase):
     def test_parse_typed_value_none(self):
         result = parse_typed_value("None", None)
         self.assertEqual(str(result), "(None<NoneType>)")
-        self.assertIsNone(result.express())
+        self.assertIsNone(result.express(None))
         result = parse_typed_value("'None'", None)
         self.assertEqual(result, "'None'")
 

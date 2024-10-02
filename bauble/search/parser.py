@@ -55,9 +55,10 @@ base_clause ::= binary_clause
 binary_clause ::= identifier binop value_token
 in_set_clause ::= identifier 'IN' value_list_token
 on_date_clause ::= identifier 'ON' date_value_token
-function_clause ::= function '('['DISTINCT'] identifier ')' binop value_token
+function_clause ::= function_call binop value_token
 parenthesised_clause ::= '(' query_clause ')'
 between_clause ::= identifier 'BETWEEN' value_token and value_token
+function_call ::= function '(' ['DISTINCT'] identifier | function_call ')'
 identifier ::= filtered_identifier | unfiltered_identifier
 unfiltered_identifier ::= atomic_identifier {'.' atomic_identifier}
 filtered_identifier ::= {unfiltered_identifier
@@ -101,6 +102,7 @@ quoted_string ::= Regex('([\'"])(.*?)\\1')
 unquoted_string ::= Regex('\\S*')
 function ::= 'SUM' | 'MIN' | 'MAX' | 'COUNT' | 'LENGTH' | ... (DB dependant)
 """
+from typing import cast
 
 # from pyparsing import quoted_string
 from pyparsing import CaselessKeyword
@@ -261,8 +263,9 @@ filtered_identifier = (
         OneOrMore(
             Group(
                 (
-                    unfiltered_identifier + Literal("[").suppress()
-                ).leave_whitespace()
+                    unfiltered_identifier
+                    + Literal("[").suppress().leave_whitespace()
+                )
                 + Group(DelimitedList(filter_clause))
                 + (
                     Literal("]").suppress() + Literal(".").suppress()
@@ -279,13 +282,15 @@ identifier = (filtered_identifier | unfiltered_identifier).set_name(
     "identifier"
 )
 
+function_call = cast(Forward, Forward().set_name("function call"))
+
 # An IdentifierAction is used as the parse action here as it only stores the
 # function name and handles the identifier at this point.
-function_call = (
+function_call <<= (
     (
-        (function + Literal("(").suppress()).leave_whitespace()
+        (function + Literal("(").suppress().leave_whitespace())
         + Opt(CaselessKeyword("DISTINCT"))
-        + identifier
+        + (function_call | identifier)
         + Literal(")").suppress().leave_whitespace()
     )
     .set_parse_action(FunctionIdentifier)

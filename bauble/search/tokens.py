@@ -1,6 +1,6 @@
 # Copyright 2008, 2009, 2010 Brett Adams
 # Copyright 2014-2015 Mario Frasca <mario@anche.no>.
-# Copyright 2021-2023 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright 2021-2024 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -34,6 +34,8 @@ from abc import abstractmethod
 
 from pyparsing import ParseResults
 
+from .clauses import QueryHandler
+
 
 class TokenAction(ABC):
     """A pyparsing parse action class that refers to a single token or list of
@@ -49,7 +51,7 @@ class TokenAction(ABC):
         """Repr for logging etc."""
 
     @abstractmethod
-    def express(self) -> None | set[None] | list | str | float | TokenAction:
+    def express(self, handler: QueryHandler) -> typing.Any:
         """Returns the token value as used in queries"""
 
 
@@ -62,7 +64,7 @@ class NoneToken(TokenAction):
     def __repr__(self) -> str:
         return "(None<NoneType>)"
 
-    def express(self) -> None:
+    def express(self, _handler: QueryHandler) -> None:
         return None
 
 
@@ -75,7 +77,7 @@ class EmptyToken(TokenAction):
     def __repr__(self) -> str:
         return "Empty"
 
-    def express(self) -> set:
+    def express(self, _handler: QueryHandler) -> set:
         return set()
 
     def __eq__(self, other: object) -> bool:
@@ -96,7 +98,7 @@ class StringToken(TokenAction):
     def __repr__(self) -> str:
         return f"'{self.value}'"
 
-    def express(self) -> str:
+    def express(self, _handler: QueryHandler) -> str:
         """Returns the unquoted string."""
         return self.value
 
@@ -113,7 +115,7 @@ class NumericToken(TokenAction):
     def __repr__(self) -> str:
         return str(self.value)
 
-    def express(self) -> float:
+    def express(self, _handler: QueryHandler) -> float:
         """Returns the value as a float."""
         return self.value
 
@@ -131,9 +133,11 @@ class ValueToken(TokenAction):
     def __repr__(self) -> str:
         return str(self.value)
 
-    def express(self) -> None | set | list | str | float:
+    def express(
+        self, handler: QueryHandler
+    ) -> None | set | list | str | float:
         """Returns the result of calling express on the recieved token."""
-        return self.value.express()
+        return self.value.express(handler)
 
 
 class ValueListToken(TokenAction):
@@ -146,8 +150,10 @@ class ValueListToken(TokenAction):
     def __repr__(self) -> str:
         return str(self.values)
 
-    def express(self) -> list[None | set | list | str | float]:
+    def express(
+        self, handler: QueryHandler
+    ) -> list[None | set | list | str | float]:
         """Returns the results of calling express on the recieved tokens as a
         list.
         """
-        return [i.express() for i in self.values]
+        return [i.express(handler) for i in self.values]

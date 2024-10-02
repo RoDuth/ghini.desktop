@@ -111,7 +111,7 @@ class MapperStatement(StatementAction["MapperSearch"]):
 
         session = search_strategy.session
         domain = search_strategy.domains[self.domain][0]
-        query = search_strategy.session.query(domain)
+        query = session.query(domain)
         query_handler = QueryHandler(
             session=session, domain=domain, query=query
         )
@@ -158,6 +158,9 @@ class DomainStatement(StatementAction["DomainSearch"]):
         operation = OPERATIONS[self.cond.lower()]
 
         mapper = class_mapper(cls)
+        handler = QueryHandler(
+            session=search_strategy.session, domain=cls, query=query
+        )
 
         ors = []
         for column in properties:
@@ -168,11 +171,11 @@ class DomainStatement(StatementAction["DomainSearch"]):
                     if hasattr(val.value, "raw_value"):
                         value.append(val.value.raw_value)
                     else:
-                        value.append(val.express())
+                        value.append(val.express(handler))
             elif hasattr(self.values.value, "raw_value"):
                 value = self.values.value.raw_value
             else:
-                value = self.values.express()
+                value = self.values.express(handler)
             ors.append(operation(attr, value))
         query = query.filter(or_(*ors))
 
@@ -218,7 +221,14 @@ class ValueListStatement(StatementAction["ValueListSearch"]):
                     if value.value and hasattr(value.value, "raw_value"):
                         value = value.value.raw_value
                     else:
-                        value = value.express()
+                        query = search_strategy.session.query(cls)
+                        value = value.express(
+                            QueryHandler(
+                                session=search_strategy.session,
+                                domain=cls,
+                                query=query,
+                            )
+                        )
                     column_cross_value.append((column, value))
 
             table = class_mapper(cls)

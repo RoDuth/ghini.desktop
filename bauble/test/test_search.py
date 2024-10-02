@@ -105,9 +105,9 @@ class SearchParserTests(BaubleTestCase):
 
         results = parser.value_token.parse_string("123")
         self.assertEqual(results.getName(), "value")
-        self.assertEqual(results.value.express(), 123.0)
+        self.assertEqual(results.value.express(None), 123.0)
         results = parser.value_token.parse_string("123.1")
-        self.assertEqual(results.value.express(), 123.1)
+        self.assertEqual(results.value.express(None), 123.1)
 
     def test_value_token(self):
         "value should only return the first string or raise a parse exception"
@@ -117,28 +117,28 @@ class SearchParserTests(BaubleTestCase):
         for s in strings:
             results = parser.value_token.parse_string(s, parseAll=True)
             self.assertEqual(results.getName(), "value")
-            self.assertEqual(results.value.express(), expected)
+            self.assertEqual(results.value.express(None), expected)
 
         strings = ["123.000", "123.", "123.0"]
         expected = 123.0
         for s in strings:
             results = parser.value_token.parse_string(s)
             self.assertEqual(results.getName(), "value")
-            self.assertEqual(results.value.express(), expected)
+            self.assertEqual(results.value.express(None), expected)
 
         strings = ['"test1 test2"', "'test1 test2'"]
         expected = "test1 test2"  # this is one string! :)
         for s in strings:
             results = parser.value_token.parse_string(s, parseAll=True)
             self.assertEqual(results.getName(), "value")
-            self.assertEqual(results.value.express(), expected)
+            self.assertEqual(results.value.express(None), expected)
 
         strings = ["%.-_*", '"%.-_*"']
         expected = "%.-_*"
         for s in strings:
             results = parser.value_token.parse_string(s, parseAll=True)
             self.assertEqual(results.getName(), "value")
-            self.assertEqual(results.value.express(), expected)
+            self.assertEqual(results.value.express(None), expected)
 
         # these should be invalid
         strings = [
@@ -1785,6 +1785,17 @@ class SearchTests2(BaubleTestCase):
         results = search.search(string, self.session)
         self.assertCountEqual([i.id for i in results], [2, 5, 6, 15, 20])
 
+    def test_nested_functions(self):
+        string = "genus where length(species.full_sci_name) = 46"
+        results1 = search.search(string, self.session)
+
+        string = "genus where max(length(species.full_sci_name)) = 46"
+        results2 = search.search(string, self.session)
+
+        self.assertNotEqual(results2, results1)
+        self.assertCountEqual([i.id for i in results1], [1, 3])
+        self.assertCountEqual([i.id for i in results2], [1])
+
 
 class InOperatorSearch(BaubleTestCase):
     def __init__(self, *args):
@@ -2225,12 +2236,12 @@ class EmptySetEqualityTest(unittest.TestCase):
     def test_EmptyToken_representation(self):
         et1 = search.tokens.EmptyToken()
         self.assertEqual("%s" % et1, "Empty")
-        self.assertEqual(et1.express(), set())
+        self.assertEqual(et1.express(None), set())
 
     def test_NoneToken_representation(self):
         nt1 = search.tokens.NoneToken()
         self.assertEqual("%s" % nt1, "(None<NoneType>)")
-        self.assertEqual(nt1.express(), None)
+        self.assertEqual(nt1.express(None), None)
 
 
 class FunctionsTests(BaubleTestCase):
