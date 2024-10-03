@@ -60,11 +60,14 @@ from .operations import OPERATIONS
 AGGREGATE_FUNC_NAMES = ["sum", "avg", "min", "max", "count", "total"]
 
 
+Q = typing.TypeVar("Q", Query, Select)
+
+
 @dataclass
-class QueryHandler:
+class QueryHandler(typing.Generic[Q]):
     session: Session
-    domain: Base
-    query: Query | Select
+    domain: type[Base]
+    query: Q
 
 
 class ClauseAction(ABC):

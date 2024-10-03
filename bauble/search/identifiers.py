@@ -34,65 +34,51 @@ from abc import ABC
 from abc import abstractmethod
 
 from pyparsing import ParseResults
-from sqlalchemy.orm import Query
 from sqlalchemy.orm import QueryableAttribute
 from sqlalchemy.orm import aliased
-from sqlalchemy.sql import Select
 from sqlalchemy.sql import distinct
 from sqlalchemy.sql.elements import ColumnElement
 
 from bauble.db import Base
 from bauble.db import get_related_class
 
+from .clauses import Q
 from .clauses import QueryHandler
 from .operations import OPERATIONS
 
 
 @typing.overload
 def create_joins(
-    query: Query,
-    cls: Base,
+    query: Q,
+    cls: type[Base],
     steps: list[str],
-    alias: bool = False,
+    alias: bool = True,
     alias_return: str = "",
-    _current: Base | None = None,
-) -> tuple[Query, Base, Base]:
-    """When provided a Query and alias_return return a Query and include the
-    alias."""
+    _current: type[Base] | None = None,
+) -> tuple[Q, type[Base], type[Base]]:
+    """When alias is True and alias_return is provided include the alias."""
 
 
 @typing.overload
 def create_joins(
-    query: Query,
-    cls: Base,
+    query: Q,
+    cls: type[Base],
     steps: list[str],
     alias: bool = False,
     alias_return: None = None,
-    _current: Base | None = None,
-) -> tuple[Query, Base, Base | None]:
-    """When provided a Query return a Query"""
-
-
-@typing.overload
-def create_joins(
-    query: Select,
-    cls: Base,
-    steps: list[str],
-    alias: bool = False,
-    alias_return: str | None = None,
-    _current: Base | None = None,
-) -> tuple[Select, Base, None]:
-    """When provided a Select return a Select"""
+    _current: type[Base] | None = None,
+) -> tuple[Q, type[Base], type[Base] | None]:
+    """When alias is False don't include the alias."""
 
 
 def create_joins(
-    query: Query | Select,
-    cls: Base,
+    query: Q,
+    cls: type[Base],
     steps: list[str],
     alias: bool = False,
     alias_return: str | None = None,
-    _current: Base | None = None,
-) -> tuple[Query | Select, Base, Base | None]:
+    _current: type[Base] | None = None,
+) -> tuple[Q, type[Base], type[Base] | None]:
     """Given a starting query, class and steps add the appropriate `join()`
     clauses to the query.  Returns the query and the last class in the joins.
     """
@@ -100,7 +86,7 @@ def create_joins(
     if not hasattr(query, "_to_join"):
         # monkeypatch _to_join so it is available at all steps of creating the
         # query or will not alias correctly
-        query._to_join = [cls]  # type: ignore[union-attr]
+        query._to_join = [cls]  # type: ignore[attr-defined]
     if not steps:
         return (query, cls, _current)
     step = steps[0]
@@ -116,7 +102,7 @@ def create_joins(
 
     attribute = getattr(cls, step)
 
-    if joinee in query._to_join or alias:
+    if joinee in query._to_join or alias:  # type: ignore[attr-defined]
         logger.debug("Aliasing %s", joinee)
         joinee = aliased(joinee)
         query = query.join(attribute.of_type(joinee))
@@ -124,7 +110,7 @@ def create_joins(
             _current = joinee
     else:
         query = query.join(attribute)
-        query._to_join.append(joinee)
+        query._to_join.append(joinee)  # type: ignore[attr-defined]
 
     return create_joins(query, joinee, steps, alias, alias_return, _current)
 
@@ -145,8 +131,8 @@ class IdentifierAction(ABC):
 
     @abstractmethod
     def evaluate(
-        self, handler: QueryHandler
-    ) -> tuple[Query | Select, QueryableAttribute]:
+        self, handler: QueryHandler[Q]
+    ) -> tuple[Q, QueryableAttribute]:
         """return pair (query, attribute) where query is an altered query where
         the joinpoint is the one relative to the attribute, and attribute is
         the attribute itself.
@@ -168,8 +154,8 @@ class UnfilteredIdentifier(IdentifierAction):
         return ".".join(self.steps + [self.leaf])
 
     def evaluate(
-        self, handler: QueryHandler
-    ) -> tuple[Query | Select, QueryableAttribute]:
+        self, handler: QueryHandler[Q]
+    ) -> tuple[Q, QueryableAttribute]:
         logger.debug("%s::evaluate %s", self.__class__.__name__, self)
         if len(self.steps) == 0:
             # identifier is an attribute of the table being queried
@@ -212,7 +198,7 @@ class FilteredIdentifier(IdentifierAction):
 
     @staticmethod
     def add_filter_clauses(
-        filter_: ParseResults, handler: QueryHandler, this_cls: Base
+        filter_: ParseResults, handler: QueryHandler, this_cls: type[Base]
     ) -> None:
         filter_attr = filter_[0]
         filter_op = filter_[1]
@@ -231,8 +217,8 @@ class FilteredIdentifier(IdentifierAction):
         )
 
     def evaluate(
-        self, handler: QueryHandler
-    ) -> tuple[Query | Select, QueryableAttribute]:
+        self, handler: QueryHandler[Q]
+    ) -> tuple[Q, QueryableAttribute]:
         logger.debug("%s::evaluate %s", self.__class__.__name__, self)
 
         this_cls = handler.domain
@@ -250,7 +236,7 @@ class FilteredIdentifier(IdentifierAction):
                 self.add_filter_clauses(filter_, handler, this_cls)
 
         handler.query, cls, _this = create_joins(
-            typing.cast(Query, handler.query),
+            handler.query,
             this_cls,
             self.leaf_indentifier.steps,
         )
@@ -279,8 +265,8 @@ class FunctionIdentifier(IdentifierAction):
         return f"{self.function}({distinct_str}{self.identifier})"
 
     def evaluate(
-        self, handler: QueryHandler
-    ) -> tuple[Query | Select, QueryableAttribute]:
+        self, handler: QueryHandler[Q]
+    ) -> tuple[Q, QueryableAttribute]:
         """Let the identifier compute the query and its attribute, no need to
         alter anything right now since the condition on the identifier is
         applied in the HAVING and not in the WHERE for aggreate functions and
