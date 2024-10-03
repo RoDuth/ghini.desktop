@@ -2655,3 +2655,14 @@ class HelperTests(unittest.TestCase):
             ],
             result,
         )
+        # test errors: invalid OpAssoc
+        self.assertRaises(
+            ValueError,
+            search.helpers.infix_notation,
+            binary_expr,
+            [
+                (not_, None, lambda t: t),
+                (and_, pp.OpAssoc.LEFT, lambda t: t),
+                (or_, pp.OpAssoc.LEFT, lambda t: t),
+            ],
+        )

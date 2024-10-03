@@ -5188,8 +5188,9 @@ class RetrieveTests(GardenTestCase):
 
 
 class GlobalActionTests(BaubleTestCase):
+    @unittest.mock.patch("bauble.plugins.garden.garden_map.map_presenter")
     @unittest.mock.patch("bauble.gui")
-    def test_on_inactive_toggled(self, mock_gui):
+    def test_on_inactive_toggled(self, mock_gui, mock_map):
         prefs_view = prefs.PrefsView()
         prefs_view.update = unittest.mock.Mock()
         mock_gui.get_view.return_value = prefs_view
@@ -5206,6 +5207,7 @@ class GlobalActionTests(BaubleTestCase):
         GardenPlugin.on_inactive_toggled(mock_action, mock_variant)
         prefs_view.update.assert_called()
         self.assertFalse(prefs.prefs.get(prefs.exclude_inactive_pref))
+        mock_map.populate_map_from_search_view.assert_called()
 
     @unittest.mock.patch("bauble.gui")
     def test_on_sort_toggled(self, mock_gui):
