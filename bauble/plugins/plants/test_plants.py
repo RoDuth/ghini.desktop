@@ -27,6 +27,7 @@ logging.basicConfig()
 
 import os
 from datetime import datetime
+from datetime import timedelta
 from functools import partial
 from tempfile import mkstemp
 from unittest import TestCase
@@ -232,6 +233,7 @@ species_test_data = (
         "genus_id": 1,
         "sp_author": "Bateman ex Lindl.",
         "full_sci_name": "Maxillaria variabilis Bateman ex Lindl.",
+        "_last_updated": datetime.now(),
     },
     {
         "id": 2,
@@ -296,6 +298,7 @@ species_test_data = (
         "hybrid": "×",
         "cultivar_epithet": "Red",
         "full_sci_name": "Maxillaria × generalis 'Red'",
+        "_last_updated": datetime.now() - timedelta(days=1),
     },
     {
         "id": 10,

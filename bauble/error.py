@@ -83,6 +83,10 @@ class CheckConditionError(BaubleError):
     pass
 
 
+class SearchException(BaubleError):
+    pass
+
+
 def check(condition, msg=None):
     """Check that condition is true.  If not then raise
     CheckConditionError(msg)

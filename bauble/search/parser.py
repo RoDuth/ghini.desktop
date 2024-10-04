@@ -22,6 +22,9 @@ Search parser
 MapperSearch query syntax parser described with pyparsing.  Portions can be
 imported and used by other search strategies.
 
+Supports complex searches queries, in its most basic form could be written as:
+    `<domain> 'WHERE' <identifier> = <value>`
+
 BNF:
 note - 'Regex' used to approximate terminals
 
@@ -52,13 +55,13 @@ base_clause ::= binary_clause
               | between_clause
               | parenthesised_clause
               ;
-binary_clause ::= identifier binop value_token
-in_set_clause ::= identifier 'IN' value_list_token
-on_date_clause ::= identifier 'ON' date_value_token
-function_clause ::= function_call binop value_token
+binary_clause ::= identifier binary_operator (value_token | subquery)
+in_set_clause ::= identifier 'IN' (value_list_token | subquery)
+on_date_clause ::= identifier 'ON' (date_value_token | subquery)
+function_clause ::= function_call binary_operator (value_token | subquery)
 parenthesised_clause ::= '(' query_clause ')'
 between_clause ::= identifier 'BETWEEN' value_token and value_token
-function_call ::= function '(' ['DISTINCT'] identifier | function_call ')'
+function_call ::= function '(' ['DISTINCT'] (identifier | function_call) ')'
 identifier ::= filtered_identifier | unfiltered_identifier
 unfiltered_identifier ::= atomic_identifier {'.' atomic_identifier}
 filtered_identifier ::= {unfiltered_identifier
@@ -67,26 +70,26 @@ filtered_identifier ::= {unfiltered_identifier
                         unfiltered_identifier
                         ;
 filter_clause ::= atomic_binary_clause | atomic_in_clause
-atomic_binary_clause ::= atomic_identifier binop value_token
+atomic_binary_clause ::= atomic_identifier binary_operator value_token
 atomic_in_clause ::= atomic_identifier 'IN' value_list_token
 atomic_identifier ::= Regex('[_\\da-z]*')
-binop ::= '=='
-        | '='
-        | '!='
-        | '<>'
-        | '<='
-        | '<'
-        | '>='
-        | '>'
-        | 'NOT'
-        | 'LIKE'
-        | 'CONTAINS'
-        | 'HAS'
-        | 'ILIKE'
-        | 'ICONTAINS'
-        | 'IHAS'
-        | 'IS'
-        ;
+binary_operator ::= '=='
+                  | '='
+                  | '!='
+                  | '<>'
+                  | '<='
+                  | '<'
+                  | '>='
+                  | '>'
+                  | 'NOT'
+                  | 'LIKE'
+                  | 'CONTAINS'
+                  | 'HAS'
+                  | 'ILIKE'
+                  | 'ICONTAINS'
+                  | 'IHAS'
+                  | 'IS'
+                  ;
 value_token ::= date_str_token
               | numeric_token
               | 'None'
@@ -101,6 +104,21 @@ string_token ::= unquoted_string | quoted_string
 quoted_string ::= Regex('([\'"])(.*?)\\1')
 unquoted_string ::= Regex('\\S*')
 function ::= 'SUM' | 'MIN' | 'MAX' | 'COUNT' | 'LENGTH' | ... (DB dependant)
+subquery ::= '(' (subquery_function_call | subquery_identifier)
+             [where_statement] ['CORRELATE'] ')'
+             ;
+subquery_identifier ::= table '.' unfiltered_identifier
+subquery_function_call ::= function '(' ['DISTINCT']
+                           (subquery_identifier | subquery_function_call) ')'
+                           ;
+where_statement ::= 'WHERE' unfiltered_identifier binary_operator value_token
+table ::= 'family'
+         | 'genus'
+         | 'species'
+         | 'accession'
+         | 'plant'
+         | ... (any table)
+         ;
 """
 from typing import cast
 
@@ -140,6 +158,12 @@ from .identifiers import FilteredIdentifier
 from .identifiers import FunctionIdentifier
 from .identifiers import UnfilteredIdentifier
 from .statements import MapperStatement
+from .subquery import CorrelateAction
+from .subquery import SubQueryFuncIdentifier
+from .subquery import SubQueryIdentifier
+from .subquery import SubQueryValue
+from .subquery import WhereAction
+from .subquery import get_table_model
 from .tokens import EmptyToken
 from .tokens import NoneToken
 from .tokens import NumericToken
@@ -297,26 +321,74 @@ function_call <<= (
     .set_name("function call")
 )
 
+table = (
+    atomic_identifier.copy()
+    .set_name("table")
+    .set_parse_action(get_table_model)
+)
+
+subquery_identifier = (
+    (table + Literal(".").suppress() + unfiltered_identifier)
+    .set_parse_action(SubQueryIdentifier)
+    .set_name("subquery identifier")
+)
+
+subquery_function_call = cast(
+    Forward, Forward().set_name("subquery function call")
+)
+
+subquery_function_call <<= (
+    (
+        (function + Literal("(").suppress().leave_whitespace())
+        + Opt(CaselessKeyword("DISTINCT"))
+        + (subquery_function_call | subquery_identifier)
+        + Literal(")").suppress().leave_whitespace()
+    )
+    .set_parse_action(SubQueryFuncIdentifier)
+    .set_name("subquery function call")
+)
+
+where_clause = (
+    CaselessKeyword("WHERE").suppress()
+    + unfiltered_identifier
+    + binop
+    + value_token
+).set_parse_action(WhereAction)
+
+correlate = CaselessKeyword("CORRELATE").set_parse_action(CorrelateAction)
+
+subquery_value = (
+    (
+        Literal("(").suppress()
+        + (subquery_function_call | subquery_identifier)
+        + Opt(where_clause)
+        + Opt(correlate)
+        + Literal(")").suppress()
+    )
+    .set_parse_action(SubQueryValue)
+    .set_name("subquery")
+)
+
 binary_clause = (
-    Group(identifier + binop + value_token)
+    Group(identifier + binop + (subquery_value | value_token))
     .set_parse_action(BinaryClause)
     .set_name("binary clause")
 )
 
 in_set_clause = (
-    Group(identifier + binop_set + value_list_token)
+    Group(identifier + binop_set + (subquery_value | value_list_token))
     .set_parse_action(BinaryClause)
     .set_name("in set clause")
 )
 
 on_date_clause = (
-    Group(identifier + binop_date + date_value_token)
+    Group(identifier + binop_date + (subquery_value | date_value_token))
     .set_parse_action(OnDateClause)
     .set_name("on date clause")
 )
 
 function_clause = (
-    Group(function_call + binop + value_token)
+    Group(function_call + (binop | binop_set) + (subquery_value | value_token))
     .set_parse_action(FunctionClause)
     .set_name("function clause")
 )

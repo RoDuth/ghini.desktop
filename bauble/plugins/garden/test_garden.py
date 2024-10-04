@@ -219,6 +219,7 @@ geography_test_data = [
         "code": "SWH",
         "name": "Somewhere",
         "level": 1,
+        "approx_area": 10,
         "geojson": {
             "type": "Polygon",
             "coordinates": [
@@ -236,6 +237,7 @@ geography_test_data = [
         "name": "SomewhereSubArea",
         "parent_id": 1,
         "level": 2,
+        "approx_area": 20,
         "geojson": {
             "type": "Polygon",
             "coordinates": [

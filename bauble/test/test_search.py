@@ -29,9 +29,11 @@ logger.setLevel(logging.DEBUG)
 from pyparsing import ParseException
 
 from bauble import db
+from bauble import error
 from bauble import prefs
 from bauble import search
 from bauble.search.search import result_cache
+from bauble.test import BaubleClassTestCase
 from bauble.test import BaubleTestCase
 from bauble.test import get_setUp_data_funcs
 
@@ -1795,6 +1797,183 @@ class SearchTests2(BaubleTestCase):
         self.assertNotEqual(results2, results1)
         self.assertCountEqual([i.id for i in results1], [1, 3])
         self.assertCountEqual([i.id for i in results2], [1])
+
+
+class SubQueryTests(BaubleClassTestCase):
+    @classmethod
+    def setUpClass(cls):
+        # setup once for all tests
+        super().setUpClass()
+        for func in get_setUp_data_funcs():
+            func()
+        prefs.prefs["bauble.search.return_accepted"] = False
+
+    def test_identifier_search(self):
+        # species with a habit entry
+        string = "species where habit.code in (habit.code)"
+        results = search.search(string, self.session)
+        self.assertCountEqual(results, [])
+        # accession with a source name
+        string = (
+            "accession where source.source_detail.name in (source_detail.name)"
+        )
+        results = search.search(string, self.session)
+        self.assertCountEqual([i.id for i in results], [1, 4, 5])
+
+    def test_identifier_search_w_correlate(self):
+        # correlated identifier only
+        # handy to find errors
+        string = (
+            "accession where count(plants.id) > 1 and quantity_recvd in "
+            "(plant.quantity correlate)"
+        )
+        results = search.search(string, self.session)
+        self.assertCountEqual([i.id for i in results], [])
+
+        string = "accession where quantity_recvd in (plant.quantity correlate)"
+        results = search.search(string, self.session)
+        self.assertCountEqual([i.id for i in results], [1])
+
+        # can't correlate unrelated
+        string = (
+            "accession where source.source_detail.name in "
+            "(source_detail.name correlate)"
+        )
+        self.assertRaises(
+            error.SearchException, search.search, string, self.session
+        )
+
+    def test_where_search(self):
+        string = (
+            "accession where plants.location.code in (location.code where "
+            "plants.accession.code = '2001.1')"
+        )
+        results = search.search(string, self.session)
+        self.assertCountEqual([i.id for i in results], [1, 2, 5, 6])
+        # same as above
+        string = (
+            "accession where plants.location.code in (plant.location.code "
+            'where accession.code = "2001.1")'
+        )
+        results = search.search(string, self.session)
+        self.assertCountEqual([i.id for i in results], [1, 2, 5, 6])
+        # Not domain
+        string = (
+            "location where id in (intended_location.location_id where "
+            "accession.code = '2001.1')"
+        )
+        results = search.search(string, self.session)
+        self.assertCountEqual(results, [])
+
+    def test_where_search_w_correlate(self):
+        # correlated WHERE
+        string = (
+            "accession where quantity_recvd in (plant.quantity where "
+            "location.code = RBW correlate)"
+        )
+        results = search.search(string, self.session)
+        self.assertCountEqual([i.id for i in results], [1])
+        string = (
+            "accession where quantity_recvd in (plant.quantity where "
+            "location.code = SE correlate)"
+        )
+        results = search.search(string, self.session)
+        self.assertCountEqual(results, [])
+
+    def test_func_search(self):
+        # nested func both sides
+        string = (
+            "genus where max(length(species.full_sci_name)) = "
+            "(max(length(species.full_sci_name)))"
+        )
+        results = search.search(string, self.session)
+        self.assertCountEqual([i.id for i in results], [2])
+        # nested func
+        string = (
+            "species where sum(distribution.geography.approx_area) = "
+            "(max(sum(species.distribution.geography.approx_area)))"
+        )
+        results = search.search(string, self.session)
+        self.assertCountEqual([i.id for i in results], [1, 3])
+        # nested func, DISTINCT
+        string = (
+            "accession where count(distinct plants.location.id) = "
+            "(max(count(distinct accession.plants.location.id)))"
+        )
+        results = search.search(string, self.session)
+        self.assertCountEqual([i.id for i in results], [1, 2, 5, 6])
+
+    def test_func_search_w_correlate(self):
+        # correlated function
+        string = (
+            "accession where quantity_recvd = (sum(plant.quantity) correlate)"
+        )
+        results = search.search(string, self.session)
+        self.assertCountEqual([i.id for i in results], [1])
+        # with LHS AND with func
+        string = (
+            "accession where count(plants.id) > 1 and quantity_recvd = "
+            "(sum(plant.quantity) correlate)"
+        )
+        results = search.search(string, self.session)
+        self.assertCountEqual([i.id for i in results], [])
+
+    def test_func_search_w_where(self):
+        # Syzygium with greatest distribution
+        string = (
+            "species where genus.epithet = Syzygium and "
+            "sum(distribution.geography.approx_area) = "
+            "(min(sum(species.distribution.geography.approx_area)) where "
+            "genus.epithet = Syzygium)"
+        )
+        results = search.search(string, self.session)
+        self.assertCountEqual(results, [])
+        # Maxillaria with greatest distribution
+        string = (
+            "species where genus.epithet = Maxillaria and "
+            "sum(distribution.geography.approx_area) = "
+            "(min(sum(species.distribution.geography.approx_area)) where "
+            "genus.epithet = Maxillaria)"
+        )
+        results = search.search(string, self.session)
+        self.assertCountEqual([i.id for i in results], [1])
+        # last updated Maxillaria
+        string = (
+            "species where genus.epithet = Maxillaria and _last_updated = "
+            "(max(species._last_updated) where genus.epithet = Maxillaria)"
+        )
+        results = search.search(string, self.session)
+        self.assertCountEqual([i.id for i in results], [1])
+        # first updated Maxillaria
+        string = (
+            "species where genus.epithet = Maxillaria and _last_updated = "
+            "(min(species._last_updated) where genus.epithet = Maxillaria)"
+        )
+        results = search.search(string, self.session)
+        self.assertCountEqual([i.id for i in results], [9])
+
+    def test_func_search_w_where_w_correlate(self):
+        # correlated function with WHERE
+        string = (
+            "accession where quantity_recvd = (sum(plant.quantity) where "
+            "location.code = URBW correlate)"
+        )
+        results = search.search(string, self.session)
+        self.assertCountEqual(results, [])
+
+        string = (
+            "accession where quantity_recvd = (sum(plant.quantity) where "
+            "location.code = RBW correlate)"
+        )
+        results = search.search(string, self.session)
+        self.assertCountEqual([i.id for i in results], [1])
+
+    def test_invalid_table_name_raises(self):
+        # invalid table name
+        string = "species where id in (id.code)"
+        self.assertRaises(
+            error.SearchException, search.search, string, self.session
+        )
 
 
 class InOperatorSearch(BaubleTestCase):

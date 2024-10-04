@@ -1014,3 +1014,10 @@ class CurrentUserFunctor:
 
 
 current_user = CurrentUserFunctor()
+
+
+def get_model_by_name(name: str) -> type[Base] | None:
+    for model in Base.__subclasses__():
+        if model.__tablename__ == name:  # type: ignore[attr-defined]
+            return model
+    return None
