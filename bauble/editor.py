@@ -52,6 +52,7 @@ from bauble import utils
 from bauble.error import CheckConditionError
 from bauble.error import check
 from bauble.i18n import _
+from bauble.view import DefaultCommandHandler
 
 # TODO: create a generic date entry that can take a mask for the date format
 # see the date entries for the accession and accession source presenters
@@ -2447,6 +2448,7 @@ class PictureBox(GenericNoteBox, NoteBoxMenuBtnMixin, Gtk.Box):
                         details=e,
                     )
                     return
+        DefaultCommandHandler.view.pictures_scroller.selection = []
         super().on_notes_remove_button(_button, *_args)
 
     def on_file_btnbrowse_clicked(self, _widget) -> None:
@@ -2516,6 +2518,7 @@ class PictureBox(GenericNoteBox, NoteBoxMenuBtnMixin, Gtk.Box):
     def on_text_entry_changed(self, widget):
         self.set_model_attr("picture", widget.get_text())
         self.set_content(widget.get_text())
+        DefaultCommandHandler.view.pictures_scroller.selection = []
 
 
 @Gtk.Template(filename=str(Path(paths.lib_dir(), "document_box.ui")))
