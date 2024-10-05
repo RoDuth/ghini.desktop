@@ -691,8 +691,6 @@ class PicturesScroller(Gtk.ScrolledWindow):
     pictures to display.
     """
 
-    first_run: bool = True
-
     PAGE_SIZE = 6
 
     def __init__(self, parent: Gtk.Paned, pic_pane: Gtk.Paned) -> None:
@@ -703,9 +701,11 @@ class PicturesScroller(Gtk.ScrolledWindow):
         self.pic_pane = pic_pane
         self.set_width_and_notebook_page()
         self.restore_position: int | None = prefs.prefs.get(
-            PIC_PANE_WIDTH_PREF
+            PIC_PANE_WIDTH_PREF, -1
         )
+        self.restore_pic_pane = False
         pic_pane.show_all()
+        self.pic_pane.set_position(self.restore_position)
         self.pictures_box = Gtk.FlowBox()
         self.pictures_box.set_selection_mode(Gtk.SelectionMode.NONE)
         self.add(self.pictures_box)
@@ -721,7 +721,10 @@ class PicturesScroller(Gtk.ScrolledWindow):
         self.count = 0
         self.waiting_on_realise = 0
         self.selection: list[db.Base] = []
-        pic_pane.connect("size-allocate", self.on_pic_pane_size_allocation)
+        # fires considerably less than child1 or pic_pane itself.
+        pic_pane.get_child2().connect(
+            "size-allocate", self.on_pic_pane_size_allocation
+        )
         self._set_pic_pane_pos_timer_id = None
 
     def on_scrolled(self, adjustment: Gtk.Adjustment) -> None:
@@ -770,40 +773,33 @@ class PicturesScroller(Gtk.ScrolledWindow):
             prefs.prefs[PIC_PANE_PAGE_PREF] = selected
 
     def _hide_restore_pic_pane(self, selection: list[db.Base] | None) -> None:
+        # restore once
+        self.restore_pic_pane = True
         if self.last_result_succeed:
             self.restore_position = self.pic_pane.get_position()
             logger.debug(
                 "_hide_restore_pic_pane succeeded with %s",
                 self.restore_position,
             )
-        if self.first_run:
-            if bauble.gui:
-                width = bauble.gui.window.get_size().width
-                self.pic_pane.set_position(width - 6)
         if not selection:
             # No result or error
-            if bauble.gui and not self.first_run:
+            if bauble.gui:
                 width = bauble.gui.window.get_size().width
                 self.pic_pane.set_position(width - 6)
             self.last_result_succeed = False
         else:
             self.last_result_succeed = True
 
-    def _set_pic_pane_position_after_timer(self) -> None:
-        logger.debug("restoring pic_pane: %s", self.restore_position)
-        self.pic_pane.set_position(self.restore_position)
-        self._set_pic_pane_pos_timer_id = None
-
     def on_pic_pane_size_allocation(
         self, _pic_pane: Gtk.Paned, _allocation: Gdk.Rectangle
     ) -> None:
-        if self._set_pic_pane_pos_timer_id:
-            return
-        if self.restore_position and self.last_result_succeed:
-            self._set_pic_pane_pos_timer_id = GLib.timeout_add(
-                300, self._set_pic_pane_position_after_timer
-            )
-            self.first_run = False
+        if (
+            self.restore_pic_pane
+            and self.last_result_succeed
+            and self.restore_position
+        ):
+            self.pic_pane.set_position(self.restore_position)
+        self.restore_pic_pane = False
 
     def populate_from_selection(self, selection: list[db.Base] | None) -> None:
         logger.debug("PicturesScroller.populate_from_selection(%s)", selection)
