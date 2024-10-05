@@ -233,7 +233,7 @@ species_test_data = (
         "genus_id": 1,
         "sp_author": "Bateman ex Lindl.",
         "full_sci_name": "Maxillaria variabilis Bateman ex Lindl.",
-        "_last_updated": datetime.now(),
+        "_last_updated": datetime.now() + timedelta(days=1),
     },
     {
         "id": 2,
