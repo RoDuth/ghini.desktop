@@ -56,9 +56,11 @@ base_clause ::= binary_clause
               | parenthesised_clause
               ;
 binary_clause ::= identifier binary_operator (value_token | subquery)
-in_set_clause ::= identifier 'IN' (value_list_token | subquery)
+in_set_clause ::= identifier binary_in_operator (value_list_token | subquery)
 on_date_clause ::= identifier 'ON' (date_value_token | subquery)
-function_clause ::= function_call binary_operator (value_token | subquery)
+function_clause ::= function_call (function_in | function_binary)
+function_in ::= binary_in_operator (value_list_token | subquery)
+function_binary ::= binary_operator (value_token | subquery)
 parenthesised_clause ::= '(' query_clause ')'
 between_clause ::= identifier 'BETWEEN' value_token and value_token
 function_call ::= function '(' ['DISTINCT'] (identifier | function_call) ')'
@@ -71,25 +73,23 @@ filtered_identifier ::= {unfiltered_identifier
                         ;
 filter_clause ::= atomic_binary_clause | atomic_in_clause
 atomic_binary_clause ::= atomic_identifier binary_operator value_token
-atomic_in_clause ::= atomic_identifier 'IN' value_list_token
+atomic_in_clause ::= atomic_identifier binary_in_operator value_list_token
 atomic_identifier ::= Regex('[_\\da-z]*')
-binary_operator ::= '=='
-                  | '='
+binary_operator ::= '='
+                  | '=='
+                  | 'IS'
                   | '!='
                   | '<>'
+                  | 'NOT'
                   | '<='
                   | '<'
                   | '>='
                   | '>'
-                  | 'NOT'
                   | 'LIKE'
                   | 'CONTAINS'
                   | 'HAS'
-                  | 'ILIKE'
-                  | 'ICONTAINS'
-                  | 'IHAS'
-                  | 'IS'
                   ;
+binary_in_operator ::= 'IN' | 'NOT IN'
 value_token ::= date_str_token
               | numeric_token
               | 'None'
@@ -111,7 +111,9 @@ subquery_identifier ::= table '.' unfiltered_identifier
 subquery_function_call ::= function '(' ['DISTINCT']
                            (subquery_identifier | subquery_function_call) ')'
                            ;
-where_statement ::= 'WHERE' unfiltered_identifier binary_operator value_token
+where_statement ::= 'WHERE' unfiltered_identifier (where_in | where_binary)
+where_in ::= binary_in_operator value_list_token
+where_binary ::= binary_operator value_token
 table ::= 'family'
          | 'genus'
          | 'species'
@@ -239,11 +241,12 @@ value_list_token = (
 domain = Forward()
 
 binop = one_of(
-    "= == != <> < <= > >= NOT LIKE CONTAINS HAS ILIKE ICONTAINS IHAS IS",
-    caseless=True,
+    "= == IS != <> NOT < <= > >= LIKE CONTAINS HAS", caseless=True
 ).set_name("binary operator")
 
-binop_set = CaselessKeyword("IN")
+binop_set = (CaselessKeyword("IN") | CaselessKeyword("NOT IN")).set_name(
+    "set operator"
+)
 
 binop_date = CaselessKeyword("ON")
 
@@ -278,7 +281,7 @@ atomic_in_clause = Group(
     atomic_identifier + binop_set + value_list_token
 ).set_name("atomic in clause")
 
-filter_clause = (atomic_binary_clause | atomic_in_clause).set_name(
+filter_clause = (atomic_in_clause | atomic_binary_clause).set_name(
     "filter clause"
 )
 
@@ -349,11 +352,14 @@ subquery_function_call <<= (
 )
 
 where_clause = (
-    CaselessKeyword("WHERE").suppress()
-    + unfiltered_identifier
-    + binop
-    + value_token
-).set_parse_action(WhereAction)
+    (
+        CaselessKeyword("WHERE").suppress()
+        + unfiltered_identifier
+        + ((binop_set + value_list_token) | (binop + value_token))
+    )
+    .set_parse_action(WhereAction)
+    .set_name("where clause")
+)
 
 correlate = CaselessKeyword("CORRELATE").set_parse_action(CorrelateAction)
 
@@ -388,7 +394,13 @@ on_date_clause = (
 )
 
 function_clause = (
-    Group(function_call + (binop | binop_set) + (subquery_value | value_token))
+    Group(
+        function_call
+        + (
+            binop_set + (subquery_value | value_list_token)
+            | binop + (subquery_value | value_token)
+        )
+    )
     .set_parse_action(FunctionClause)
     .set_name("function clause")
 )
@@ -424,11 +436,11 @@ parenthesised_clause = (
 
 # delaying defining base_clause ensures railroad diagrams separates it.
 base_clause <<= (
-    binary_clause
-    | in_set_clause
+    in_set_clause
     | on_date_clause
     | function_clause
     | between_clause
+    | binary_clause
     | parenthesised_clause
 ).set_name("base clause")
 

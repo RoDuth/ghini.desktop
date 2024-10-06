@@ -69,6 +69,10 @@ def in_(attr: QueryableAttribute, val: Val) -> ColumnElement:
     return attr.in_(val)
 
 
+def not_in(attr: QueryableAttribute, val: Val) -> ColumnElement:
+    return attr.not_in(val)
+
+
 OPERATIONS: dict[str, Callable[[QueryableAttribute, Val], ColumnElement]] = {
     "=": equal,
     "==": equal,
@@ -83,10 +87,8 @@ OPERATIONS: dict[str, Callable[[QueryableAttribute, Val], ColumnElement]] = {
     "like": like,
     "contains": contains,
     "has": contains,
-    "ilike": like,
-    "icontains": contains,
-    "ihas": contains,
     "in": in_,
+    "not in": not_in,
 }
 """
 Dictionary of operations (as the lower case string) to the function that

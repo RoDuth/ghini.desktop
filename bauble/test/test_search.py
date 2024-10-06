@@ -1678,7 +1678,7 @@ class SearchTests2(BaubleTestCase):
         self.assertCountEqual([i.id for i in results], [2, 3])
 
     def test_filter_by_in_expression_multiple(self):
-        # accession whith plants in only in one of these locations (note in
+        # accession with plants in only in one of these locations (note in
         # clause last as it uses comma separation)
         string = (
             "accession where count(plants.location[name!=None, "
@@ -1702,14 +1702,36 @@ class SearchTests2(BaubleTestCase):
         results = search.search(string, self.session)
         self.assertCountEqual([i.id for i in results], [1])
 
-        # multiple in on one filter - should fail
+        # not in and in on one filter
+        string = (
+            "plant where accession[id in 1 4, quantity_recvd not in 2 10]."
+            "species.id = 1"
+        )
+        results = search.search(string, self.session)
         self.assertCountEqual([i.id for i in results], [1])
+        # confirm above
+        string = (
+            "plant where accession[id in 1 4, quantity_recvd not in 1 10]."
+            "species.id = 1"
+        )
+        results = search.search(string, self.session)
+        self.assertCountEqual(results, [])
+
+        # multiple in on one filter - should fail
         string = (
             "plant where accession[id in 1 4, quantity_recvd in 11 10]."
             "species.id = 1"
         )
         results = search.search(string, self.session)
         self.assertCountEqual([i.id for i in results], [])
+
+        # not and not in on one filter
+        string = (
+            "plant where accession[id not None, quantity_recvd not in 11 10]."
+            "species.id = 1"
+        )
+        results = search.search(string, self.session)
+        self.assertCountEqual([i.id for i in results], [1])
 
         string = (
             "plant where accession[id in 2, 4].species[sp_author contains "
@@ -1798,6 +1820,19 @@ class SearchTests2(BaubleTestCase):
         self.assertCountEqual([i.id for i in results1], [1, 3])
         self.assertCountEqual([i.id for i in results2], [1])
 
+    def test_not_in_expression(self):
+        prefs.prefs["bauble.search.return_accepted"] = False
+        string = "family where id not in 1, 2, 3, 4, 5"
+        results = search.search(string, self.session)
+        self.assertCountEqual(
+            [i.id for i in results], [6, 7, 8, 9, 10, 11, 12]
+        )
+
+        # composite contradicting
+        string = "genus where id < 3 and id not in 1, 2, 3"
+        results = search.search(string, self.session)
+        self.assertCountEqual(results, [])
+
 
 class SubQueryTests(BaubleClassTestCase):
     @classmethod
@@ -1864,6 +1899,20 @@ class SubQueryTests(BaubleClassTestCase):
         )
         results = search.search(string, self.session)
         self.assertCountEqual(results, [])
+        # not in
+        string = (
+            "location where id not in (intended_location.location_id where "
+            "accession.code = '2001.1')"
+        )
+        results = search.search(string, self.session)
+        self.assertCountEqual([i.id for i in results], [1, 2, 3])
+        # not in and where in
+        string = (
+            "location where id not in (intended_location.location_id where "
+            "accession.code in '2020.1', '2022.2')"
+        )
+        results = search.search(string, self.session)
+        self.assertCountEqual([i.id for i in results], [1, 2, 3])
 
     def test_where_search_w_correlate(self):
         # correlated WHERE
