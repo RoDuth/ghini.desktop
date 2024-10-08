@@ -407,7 +407,12 @@ class FamilyEditorView(editor.GenericEditorView):
         self.widgets.fam_next_button.set_sensitive(sensitive)
 
 
-class FamilyEditorPresenter(editor.GenericEditorPresenter):
+FAMILY_WEB_BUTTON_DEFS_PREFS = "web_button_defs.family"
+
+
+class FamilyEditorPresenter(
+    editor.PresenterLinksMixin, editor.GenericEditorPresenter
+):
     widget_to_field_map = {
         "order_entry": "order",
         "suborder_entry": "suborder",
@@ -416,6 +421,7 @@ class FamilyEditorPresenter(editor.GenericEditorPresenter):
         "fam_qualifier_combo": "qualifier",
         "cites_combo": "cites",
     }
+    LINK_BUTTONS_PREF_KEY = FAMILY_WEB_BUTTON_DEFS_PREFS
 
     def __init__(self, model, view):
         """
@@ -485,6 +491,7 @@ class FamilyEditorPresenter(editor.GenericEditorPresenter):
         # value in the widget changes, that way we can do things like sensitize
         # the ok button
         self._dirty = False
+        self.init_links_menu()
 
     def order_get_completions(self, text):
         query = (
@@ -531,6 +538,7 @@ class FamilyEditorPresenter(editor.GenericEditorPresenter):
         super().cleanup()
         self.synonyms_presenter.cleanup()
         self.notes_presenter.cleanup()
+        self.remove_link_action_group()
 
 
 class FamilyEditor(editor.GenericModelViewPresenterEditor):
@@ -833,11 +841,10 @@ class SynonymsExpander(InfoExpander):
 
 
 class FamilyInfoBox(InfoBox):
-    FAMILY_WEB_BUTTON_DEFS_PREFS = "web_button_defs.family"
 
     def __init__(self):
         button_defs = []
-        buttons = prefs.prefs.itersection(self.FAMILY_WEB_BUTTON_DEFS_PREFS)
+        buttons = prefs.prefs.itersection(FAMILY_WEB_BUTTON_DEFS_PREFS)
         for name, button in buttons:
             button["name"] = name
             button_defs.append(button)

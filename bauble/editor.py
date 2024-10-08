@@ -52,6 +52,9 @@ from bauble import utils
 from bauble.error import CheckConditionError
 from bauble.error import check
 from bauble.i18n import _
+from bauble.utils import desktop
+from bauble.utils.web import FIELD_RE
+from bauble.utils.web import LinkDict
 from bauble.view import DefaultCommandHandler
 
 # TODO: create a generic date entry that can take a mask for the date format
@@ -1854,6 +1857,81 @@ class GenericEditorPresenter:
         self.clear_problems()
         if isinstance(self.view, GenericEditorView):
             self.view.cleanup()
+
+
+class PresenterLinksMixin:
+    """Presenter mixin to provide a GtkMenuButton to selected web link buttons.
+
+    To use this mixin the presenter must provide `LINK_BUTTONS_PREF_KEY`, a
+    view with a GtkMenuButton widget named `link_menu_btn`, call
+    `self.init_links_menu` to setup the menu, then call
+    `self.remove_link_action_group` on cleanup.
+    """
+
+    LINK_BUTTONS_PREF_KEY: str
+    # not entirely correct...  see: https://github.com/python/typing/issues/246
+    model: db.Base
+    view: GenericEditorView
+
+    def init_links_menu(self) -> None:
+        """Initialise the menu button adding any links with `editor_button` set
+        to True
+        """
+        menu = Gio.Menu()
+        # pylint: disable=line-too-long
+        action_name = self.model.__tablename__.lower() + "_link"  # type: ignore [attr-defined] # noqa
+        action_group = Gio.SimpleActionGroup()
+
+        menu_has_items = False
+        for name, button in prefs.prefs.itersection(
+            self.LINK_BUTTONS_PREF_KEY
+        ):
+            if not button.get("editor_button"):
+                continue
+            action = Gio.SimpleAction.new(name, None)
+            action.connect("activate", self.on_item_selected, button)
+            action_group.add_action(action)
+            menu_item = Gio.MenuItem.new(
+                button.get("title"), f"{action_name}.{name}"
+            )
+            menu.append_item(menu_item)
+            menu_has_items = True
+
+        menu_btn: Gtk.MenuButton = self.view.widgets.link_menu_btn
+        if menu_has_items:
+            menu_btn.set_menu_model(menu)
+            menu_btn.insert_action_group(action_name, action_group)
+        else:
+            utils.hide_widgets([menu_btn])
+
+    def on_item_selected(self, _action, _param, button: LinkDict) -> None:
+        desktop.open(self.get_url(button))
+
+    def get_url(self, link: LinkDict) -> str:
+        _base_uri = link["_base_uri"]
+        fields = FIELD_RE.findall(_base_uri)
+        if fields:
+            values = {}
+            for key in fields:
+                val: str | db.Base = self.model
+                for step in key.split("."):
+                    val = getattr(val, step, "-")
+                values[key] = val if val == str(val) else ""
+            url = _base_uri % values
+        else:
+            # remove any zws (species string)
+            string = (
+                str(self.model)
+                .replace("\u200b", "")
+                .replace(" ", link.get("_space", " "))
+            )
+            url = _base_uri % string
+        return url
+
+    def remove_link_action_group(self):
+        """Remove the action group from map_menu_btn widget."""
+        action_name = self.model.__tablename__.lower() + "_link"
+        self.view.widgets.link_menu_btn.insert_action_group(action_name, None)
 
 
 class PresenterMapMixin:

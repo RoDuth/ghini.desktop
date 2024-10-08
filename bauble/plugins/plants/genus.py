@@ -621,7 +621,12 @@ class GenusEditorView(editor.GenericEditorView):
         self.widgets.gen_next_button.set_sensitive(sensitive)
 
 
-class GenusEditorPresenter(editor.GenericEditorPresenter):
+GENUS_WEB_BUTTON_DEFS_PREFS = "web_button_defs.genus"
+
+
+class GenusEditorPresenter(
+    editor.PresenterLinksMixin, editor.GenericEditorPresenter
+):
     widget_to_field_map = {
         "gen_family_entry": "family",
         "gen_hybrid_combo": "hybrid",
@@ -633,6 +638,7 @@ class GenusEditorPresenter(editor.GenericEditorPresenter):
         "tribe_entry": "tribe",
         "subtribe_entry": "subtribe",
     }
+    LINK_BUTTONS_PREF_KEY = GENUS_WEB_BUTTON_DEFS_PREFS
 
     def __init__(self, model, view):
         """
@@ -768,6 +774,7 @@ class GenusEditorPresenter(editor.GenericEditorPresenter):
             self.view.widgets.gen_ok_and_add_button.set_sensitive(True)
 
         self._dirty = False
+        self.init_links_menu()
 
     def subfam_get_completions(self, text):
         query = self.session.query(Genus.subfamily)
@@ -818,6 +825,7 @@ class GenusEditorPresenter(editor.GenericEditorPresenter):
         super().cleanup()
         self.synonyms_presenter.cleanup()
         self.notes_presenter.cleanup()
+        self.remove_link_action_group()
 
     def refresh_sensitivity(self):
         # TODO: check widgets for problems
@@ -1165,11 +1173,10 @@ class SynonymsExpander(InfoExpander):
 
 
 class GenusInfoBox(InfoBox):
-    GENUS_WEB_BUTTON_DEFS_PREFS = "web_button_defs.genus"
 
     def __init__(self):
         button_defs = []
-        buttons = prefs.prefs.itersection(self.GENUS_WEB_BUTTON_DEFS_PREFS)
+        buttons = prefs.prefs.itersection(GENUS_WEB_BUTTON_DEFS_PREFS)
         for name, button in buttons:
             button["name"] = name
             button_defs.append(button)

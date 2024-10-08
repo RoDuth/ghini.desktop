@@ -219,7 +219,12 @@ class SpeciesEntry(Gtk.Entry, Gtk.Editable):
         return position
 
 
-class SpeciesEditorPresenter(editor.GenericEditorPresenter):
+SPECIES_WEB_BUTTON_DEFS_PREFS = "web_button_defs.species"
+
+
+class SpeciesEditorPresenter(
+    editor.PresenterLinksMixin, editor.GenericEditorPresenter
+):
     widget_to_field_map = {
         "sp_genus_entry": "genus",
         "sp_species_entry": "sp",
@@ -247,6 +252,7 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
 
     PROBLEM_UNKOWN_HABIT = f"unknown_source:{random()}"
     PROBLEM_INVALID_MARKUP = f"invalid_markup:{random()}"
+    LINK_BUTTONS_PREF_KEY = SPECIES_WEB_BUTTON_DEFS_PREFS
 
     def __init__(self, model, view):
         super().__init__(model, view)
@@ -451,6 +457,8 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
 
         self._setup_custom_field("_sp_custom1")
         self._setup_custom_field("_sp_custom2")
+
+        self.init_links_menu()
 
     def subgenus_get_completions(self, text):
         query = self.session.query(Species.subgenus)
@@ -1199,6 +1207,7 @@ class SpeciesEditorPresenter(editor.GenericEditorPresenter):
 
     def cleanup(self):
         super().cleanup()
+        self.remove_link_action_group()
         self.vern_presenter.cleanup()
         self.synonyms_presenter.cleanup()
         self.dist_presenter.cleanup()
@@ -1578,9 +1587,9 @@ class DistributionPresenter(editor.GenericEditorPresenter):
             if len(geo_list) > 1:
                 if len(set(levels_counter.values())) == 1:
                     geo_list = [
-                        sorted(
-                            geo_list, key=lambda i: i.level, reverse=True
-                        )[0]
+                        sorted(geo_list, key=lambda i: i.level, reverse=True)[
+                            0
+                        ]
                     ]
                 else:
                     geo_list = [

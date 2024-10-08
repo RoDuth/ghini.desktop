@@ -66,6 +66,7 @@ from .genus import Genus
 from .genus import GenusSynonym
 from .geography import DistMapInfoExpanderMixin
 from .geography import map_kml_callback
+from .species_editor import SPECIES_WEB_BUTTON_DEFS_PREFS
 from .species_editor import SpeciesDistribution
 from .species_editor import SpeciesEditor
 from .species_editor import SpeciesEditorPresenter
@@ -776,13 +777,11 @@ class SpeciesInfoPage(InfoBoxPage):
     distribution
     """
 
-    SPECIES_WEB_BUTTON_DEFS_PREFS = "web_button_defs.species"
-
     # others to consider: reference, images, redlist status
 
     def __init__(self):
         button_defs = []
-        buttons = prefs.prefs.itersection(self.SPECIES_WEB_BUTTON_DEFS_PREFS)
+        buttons = prefs.prefs.itersection(SPECIES_WEB_BUTTON_DEFS_PREFS)
         for name, button in buttons:
             button["name"] = name
             button_defs.append(button)

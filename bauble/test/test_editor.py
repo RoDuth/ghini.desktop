@@ -40,6 +40,7 @@ from bauble.editor import NoteBox
 from bauble.editor import NotesPresenter
 from bauble.editor import PictureBox
 from bauble.editor import PicturesPresenter
+from bauble.editor import PresenterLinksMixin
 from bauble.editor import PresenterMapMixin
 from bauble.search.strategies import MapperSearch
 from bauble.test import BaubleTestCase
@@ -891,6 +892,96 @@ class DocumentBoxTests(BaubleTestCase):
         utils.set_widget_value(box.file_entry, test_str)
         box.on_copy_filename(None)
         mock_clipboard.set_text.assert_called_with(test_str, -1)
+
+
+class LinksMixinTests(BaubleTestCase):
+    def setUp(self):
+        super().setUp()
+        mock_model = mock.Mock(
+            __tablename__="test",
+            __str__=lambda s: "Test test",
+            genus=mock.Mock(genus="Test"),
+            sp="test",
+        )
+        self.link_button = Gtk.MenuButton()
+        mock_view = mock.Mock(**{"widgets.link_menu_btn": self.link_button})
+        PresenterLinksMixin.model = mock_model
+        PresenterLinksMixin.view = mock_view
+        PresenterLinksMixin.LINK_BUTTONS_PREF_KEY = "web_button_defs.fam"
+        prefs.prefs["web_button_defs.fam.googlebutton"] = {
+            "_base_uri": "http://www.google.com/search?q=%s",
+            "_space": "+",
+            "title": "Search Google",
+            "tooltip": None,
+        }
+        self.mixin = PresenterLinksMixin()
+
+    def tearDown(self):
+        super().tearDown()
+        del PresenterLinksMixin.model
+        del PresenterLinksMixin.view
+        del PresenterLinksMixin.LINK_BUTTONS_PREF_KEY
+
+    def test_init_menu(self):
+        self.mixin.init_links_menu()
+        self.assertIsNone(self.link_button.get_menu_model())
+        self.assertFalse(self.link_button.get_visible())
+
+        prefs.prefs["web_button_defs.fam.googlebutton"] = {
+            "_base_uri": "http://www.google.com/search?q=%s",
+            "_space": "+",
+            "title": "Search Google",
+            "tooltip": None,
+            "editor_button": True,
+        }
+        self.mixin.init_links_menu()
+        self.assertEqual(self.link_button.get_menu_model().get_n_items(), 1)
+
+    @mock.patch("bauble.utils.desktop.open")
+    def test_on_item_selected(self, mock_open):
+        google = {
+            "_base_uri": "http://www.google.com/search?q=%s",
+            "_space": "+",
+            "title": "Search Google",
+            "tooltip": None,
+            "editor_button": True,
+        }
+        self.mixin.on_item_selected(None, None, google)
+        mock_open.assert_called_with(
+            "http://www.google.com/search?q=Test+test"
+        )
+
+    def test_get_url(self):
+        # no fields
+        google = {
+            "_base_uri": "http://www.google.com/search?q=%s",
+            "_space": "+",
+            "title": "Search Google",
+            "tooltip": None,
+            "editor_button": True,
+        }
+        self.assertEqual(
+            self.mixin.get_url(google),
+            "http://www.google.com/search?q=Test+test",
+        )
+        # with fields
+        ipni = {
+            "_base_uri": (
+                "http://www.ipni.org/ipni/advPlantNameSearch.do?"
+                "find_genus=%(genus.genus)s&find_species=%(sp)s&"
+                "find_isAPNIRecord=on"
+            ),
+            "_space": " ",
+            "title": "Search IPNI",
+            "tooltip": "Search the International Plant Names Index",
+        }
+        self.assertEqual(
+            self.mixin.get_url(ipni),
+            (
+                "http://www.ipni.org/ipni/advPlantNameSearch.do?"
+                "find_genus=Test&find_species=test&find_isAPNIRecord=on"
+            ),
+        )
 
 
 class MapMixinTests(BaubleTestCase):

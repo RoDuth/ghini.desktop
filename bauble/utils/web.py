@@ -34,7 +34,7 @@ from ipaddress import ip_network
 from typing import NotRequired
 from typing import TypedDict
 
-import dukpy  # type: ignore [import]
+import dukpy  # type: ignore [import-untyped]
 
 logger = logging.getLogger(__name__)
 
@@ -51,8 +51,11 @@ LinkDict = TypedDict(
         "title": str,
         "tooltip": None | str,
         "name": NotRequired[str],
+        "editor_button": NotRequired[bool],
     },
 )
+
+FIELD_RE = re.compile(r"%\(([a-z_\.]+)\)s")
 
 
 class BaubleLinkButton(Gtk.LinkButton):
@@ -61,12 +64,11 @@ class BaubleLinkButton(Gtk.LinkButton):
     title = _("Search")
     tooltip: str | None = None
     fields: list[str] = []
-    pt = re.compile(r"%\(([a-z_\.]+)\)s")
 
     def __init__(self) -> None:
         super().__init__(uri="", label=self.title)
         self.set_tooltip_text(self.tooltip or self.title)
-        self.__class__.fields = self.pt.findall(self._base_uri)
+        self.__class__.fields = FIELD_RE.findall(self._base_uri)
         self.set_halign(Gtk.Align.START)
         self.connect("activate-link", self.on_link_activated)
 

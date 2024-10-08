@@ -4516,6 +4516,14 @@ class SpeciesEditorTests(BaubleTestCase):
         )
         from bauble.plugins.imex.csv_ import CSVRestore
 
+        prefs.prefs["web_button_defs.species.googlebutton"] = {
+            "_base_uri": "http://www.google.com/search?q=%s",
+            "_space": "+",
+            "title": "Search Google",
+            "tooltip": None,
+            "editor_button": True,
+        }
+
         importer = CSVRestore()
         importer.start([os.path.join(default_path, "habit.csv")], force=True)
         setup_geographies()
