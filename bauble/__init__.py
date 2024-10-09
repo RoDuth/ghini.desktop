@@ -39,7 +39,7 @@ gi.require_version("Gtk", "3.0")
 from bauble import paths
 from bauble.version import version
 
-version_tuple = tuple(version.split("."))
+version_tuple: tuple[str, ...] = tuple(version.split("."))
 release_date = datetime.datetime.fromtimestamp(0, datetime.UTC)
 release_version = None
 installation_date = datetime.datetime.now()

@@ -494,10 +494,9 @@ class CSVExporterEditorTests(BaubleTestCase):
 
 class CSVExportToolTests(BaubleTestCase):
     @mock.patch("bauble.plugins.imex.csv_io.message_dialog")
-    @mock.patch("bauble.gui", **{"get_view.return_value": None})
-    def test_no_search_view_asks_to_search_first(
-        self, _mock_get_view, mock_dialog
-    ):
+    @mock.patch("bauble.gui")
+    def test_no_search_view_asks_to_search_first(self, mock_gui, mock_dialog):
+        mock_gui.get_view.return_value = None
         tool = CSVExportTool()
         result = tool.start()
         self.assertIsNone(result)

@@ -51,6 +51,7 @@ from sqlalchemy import func
 from sqlalchemy import literal
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.hybrid import hybrid_property
+from sqlalchemy.orm import Session
 from sqlalchemy.orm import backref
 from sqlalchemy.orm import object_mapper
 from sqlalchemy.orm import relationship
@@ -84,6 +85,7 @@ from ..plants.species_editor import generic_sp_get_completions
 from ..plants.species_editor import species_cell_data_func
 from ..plants.species_editor import species_match_func
 from ..plants.species_editor import species_to_string_matcher
+from .location import Location
 from .propagation import Propagation
 from .propagation import SourcePropagationPresenter
 from .source import COLLECTION_KML_MAP_PREF
@@ -354,7 +356,9 @@ class Verification(db.Base):  # pylint: disable=too-few-public-methods
     reference = Column(UnicodeText)
 
     accession_id = Column(Integer, ForeignKey("accession.id"), nullable=False)
-    accession = relationship("Accession", back_populates="verifications")
+    accession: "Accession" = relationship(
+        "Accession", back_populates="verifications"
+    )
 
     # the level of assurance of this verification
     level = Column(Integer, nullable=False, autoincrement=False)
@@ -365,10 +369,10 @@ class Verification(db.Base):  # pylint: disable=too-few-public-methods
     # what it was verified from
     prev_species_id = Column(Integer, ForeignKey("species.id"), nullable=False)
 
-    species = relationship(
+    species: "Species" = relationship(
         "Species", primaryjoin="Verification.species_id==Species.id"
     )
-    prev_species = relationship(
+    prev_species: "Species" = relationship(
         "Species", primaryjoin="Verification.prev_species_id==Species.id"
     )
 
@@ -395,7 +399,7 @@ class Voucher(db.Base):  # pylint: disable=too-few-public-methods
     code = Column(Unicode(32), nullable=False)
     parent_material = Column(types.Boolean, default=False)
     accession_id = Column(Integer, ForeignKey("accession.id"), nullable=False)
-    accession = relationship(
+    accession: "Accession" = relationship(
         "Accession", uselist=False, back_populates="vouchers"
     )
 
@@ -406,9 +410,9 @@ class IntendedLocation(db.Base):  # pylint: disable=too-few-public-methods
     date = Column(types.Date, default=func.now())
     planted = Column(types.Boolean, default=False)
     location_id = Column(Integer, ForeignKey("location.id"), nullable=False)
-    location = relationship("Location")
+    location: Location = relationship("Location")
     accession_id = Column(Integer, ForeignKey("accession.id"), nullable=False)
-    accession = relationship("Accession")
+    accession: "Accession" = relationship("Accession")
 
 
 # ITF2 - E.1; Provenance Type Flag; Transfer code: prot
@@ -603,6 +607,7 @@ class Accession(db.Base, db.WithNotes):
 
     __tablename__ = "accession"
 
+    id: int
     # columns
     #: the accession code
     code = Column(Unicode(20), nullable=False, unique=True)
@@ -661,20 +666,20 @@ class Accession(db.Base, db.WithNotes):
     supplied_name = Column(Unicode)
     # use backref not back_populates here to avoid InvalidRequestError in
     # view.multiproc_counter
-    species = relationship(
+    species: "Species" = relationship(
         "Species",
         uselist=False,
         backref=backref("accessions", cascade="all, delete-orphan"),
     )
 
     # intended location
-    intended_locations = relationship(
+    intended_locations: list["IntendedLocation"] = relationship(
         "IntendedLocation",
         cascade="all, delete-orphan",
         back_populates="accession",
     )
 
-    source = relationship(
+    source: "Source" = relationship(
         "Source",
         uselist=False,
         cascade="all, delete-orphan",
@@ -682,17 +687,17 @@ class Accession(db.Base, db.WithNotes):
     )
 
     # use Plant.code for the order_by to avoid ambiguous column names
-    plants = relationship(
+    plants: list["Plant"] = relationship(
         "Plant", cascade="all, delete-orphan", back_populates="accession"
     )
 
-    verifications = relationship(
+    verifications: list["Verification"] = relationship(
         "Verification",
         order_by="Verification.date",
         cascade="all, delete-orphan",
     )
 
-    vouchers = relationship(
+    vouchers: list["Voucher"] = relationship(
         "Voucher", cascade="all, delete-orphan", back_populates="accession"
     )
 
@@ -804,7 +809,7 @@ class Accession(db.Base, db.WithNotes):
     @property
     def pictures(self) -> list[Picture]:
         session = object_session(self)
-        if not session:
+        if not isinstance(session, Session):
             return []
         # avoid circular imports
         from .plant import PlantPicture
@@ -815,7 +820,7 @@ class Accession(db.Base, db.WithNotes):
             .filter(Accession.id == self.id)
         )
         if prefs.prefs.get(prefs.exclude_inactive_pref):
-            plt_pics = plt_pics.filter(Plant.active.is_(True))
+            plt_pics = plt_pics.filter(Plant.active.is_(True))  # type: ignore [attr-defined] # noqa
         return plt_pics.all()
 
     @hybrid_property
@@ -830,7 +835,7 @@ class Accession(db.Base, db.WithNotes):
                 return True
         return False
 
-    @active.expression
+    @active.expression  # type: ignore [no-redef]
     def active(cls):
         # pylint: disable=no-self-argument
         inactive = (
@@ -949,11 +954,6 @@ class AccessionEditorView(editor.GenericEditorView):
     interface that don't chage due to user interaction.  Although it
     also provides some utility methods for changing widget states.
     """
-
-    expanders_pref_map = {
-        # 'acc_notes_expander': 'editor.accession.notes.expanded',
-        # 'acc_source_expander': 'editor.accession.source.expanded'
-    }
 
     _tooltips = {
         "acc_species_entry": _(
@@ -1110,17 +1110,6 @@ class AccessionEditorView(editor.GenericEditorView):
         self.widgets.acc_ok_button.set_sensitive(sensitive)
         self.widgets.acc_ok_and_add_button.set_sensitive(sensitive)
         self.widgets.acc_next_button.set_sensitive(sensitive)
-
-    def save_state(self):
-        """save the current state of the gui to the preferences"""
-        for expander, pref in self.expanders_pref_map.items():
-            prefs.prefs[pref] = self.widgets[expander].get_expanded()
-
-    def restore_state(self):
-        """restore the state of the gui from the preferences"""
-        for expander, pref in self.expanders_pref_map.items():
-            expanded = prefs.prefs.get(pref, True)
-            self.widgets[expander].set_expanded(expanded)
 
     # staticmethod ensures the AccessionEditorView gets garbage collected.
     @staticmethod
@@ -1304,7 +1293,7 @@ class IntendedLocationPresenter(editor.GenericEditorPresenter):
     def on_map_kml_show(self, *_args):
         import tempfile
 
-        from mako.template import Template
+        from mako.template import Template  # type: ignore [import-untyped]
 
         from .location import LOC_KML_MAP_PREFS
 

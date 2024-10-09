@@ -42,6 +42,7 @@ from sqlalchemy import update
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.ext.hybrid import hybrid_property
+from sqlalchemy.orm import Mapped
 from sqlalchemy.orm import Session
 from sqlalchemy.orm import backref
 from sqlalchemy.orm import object_mapper
@@ -184,8 +185,10 @@ class Genus(db.Base, db.WithNotes):
         and family_id must be unique.
     """
 
+    id: int
+
     __tablename__ = "genus"
-    __table_args__ = (
+    __table_args__: tuple = (
         UniqueConstraint("genus", "author", "qualifier", "family_id"),
         {},
     )
@@ -200,8 +203,8 @@ class Genus(db.Base, db.WithNotes):
     tribe = Column(Unicode(64))
     subtribe = Column(Unicode(64))
 
-    genus = Column(String(64), nullable=False, index=True)
-    epithet = sa_synonym("genus")
+    genus: "str" = Column(String(64), nullable=False, index=True)
+    epithet: "str" = sa_synonym("genus")
 
     # use '' instead of None so that the constraints will work propertly
     author = Column(Unicode(128), default="")
@@ -217,7 +220,7 @@ class Genus(db.Base, db.WithNotes):
     synonyms = association_proxy(
         "_synonyms", "synonym", creator=lambda gen: GenusSynonym(synonym=gen)
     )
-    _synonyms = relationship(
+    _synonyms: list["GenusSynonym"] = relationship(
         "GenusSynonym",
         primaryjoin="Genus.id==GenusSynonym.genus_id",
         cascade="all, delete-orphan",
@@ -228,7 +231,7 @@ class Genus(db.Base, db.WithNotes):
     # this is a dummy relation, it is only here to make cascading work
     # correctly and to ensure that all synonyms related to this genus
     # get deleted if this genus gets deleted
-    _accepted = relationship(
+    _accepted: "GenusSynonym" = relationship(
         "GenusSynonym",
         primaryjoin="Genus.id==GenusSynonym.synonym_id",
         cascade="all, delete-orphan",
@@ -239,13 +242,13 @@ class Genus(db.Base, db.WithNotes):
         "_accepted", "genus", creator=lambda gen: GenusSynonym(genus=gen)
     )
 
-    species = relationship(
+    species: list["Species"] = relationship(
         "Species",
         cascade="all, delete-orphan",
         order_by="Species.sp",
         backref=backref("genus", lazy="subquery", uselist=False),
     )
-    family = relationship("Family", back_populates="genera")
+    family: "Family" = relationship("Family", back_populates="genera")
 
     _cites = Column(types.Enum(values=["I", "II", "III", None]), default=None)
 
@@ -295,7 +298,7 @@ class Genus(db.Base, db.WithNotes):
     @property
     def pictures(self) -> list[Picture]:
         session = object_session(self)
-        if not session:
+        if not isinstance(session, Session):
             return []
         # avoid circular imports
         from ..garden import Accession
@@ -314,7 +317,7 @@ class Genus(db.Base, db.WithNotes):
             .filter(Genus.id == self.id)
         )
         if prefs.prefs.get(prefs.exclude_inactive_pref):
-            plt_pics = plt_pics.filter(Plant.active.is_(True))
+            plt_pics = plt_pics.filter(Plant.active.is_(True))  # type: ignore [attr-defined] # noqa
         return sp_pics.all() + plt_pics.all()
 
     @hybrid_property
@@ -325,7 +328,7 @@ class Genus(db.Base, db.WithNotes):
         """
         return self._cites or self.family.cites
 
-    @cites.expression
+    @cites.expression  # type: ignore [no-redef]
     def cites(cls):
         # pylint: disable=no-self-argument,protected-access
         # subquery required to get the joins in
@@ -336,7 +339,7 @@ class Genus(db.Base, db.WithNotes):
         )
         return case((cls._cites.is_not(None), cls._cites), else_=fam_cites)
 
-    @cites.setter
+    @cites.setter  # type: ignore [no-redef]
     def cites(self, value):
         self._cites = value
 
@@ -455,6 +458,8 @@ class GenusSynonym(db.Base):
         Integer, ForeignKey("genus.id"), nullable=False, unique=True
     )
     is_one_to_one = True
+    synonym: Mapped["Genus"]
+    genus: Mapped["Genus"]
 
     def __str__(self):
         return f"{str(self.synonym)} ({self.synonym.family})"
@@ -519,7 +524,10 @@ def genus_match_func(
 
     :return: bool, True if the item at the treeiter matches the key
     """
-    genus = completion.get_model()[treeiter][0]
+    tree_model = completion.get_model()
+    if not tree_model:
+        raise AttributeError(f"can't get TreeModel from {completion}")
+    genus = tree_model[treeiter][0]
     if not sa_inspect(genus).persistent:
         return False
     return genus_to_string_matcher(genus, key, gen_path)
@@ -1206,6 +1214,3 @@ class GenusInfoBox(InfoBox):
         self.synonyms.update(row)
         self.links.update(row)
         self.props.update(row)
-
-
-db.Genus = Genus

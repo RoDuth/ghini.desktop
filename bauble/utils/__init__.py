@@ -39,11 +39,12 @@ from functools import wraps
 from pathlib import Path
 from typing import Any
 from typing import Union
+from typing import cast
 from xml.sax import saxutils
 
 logger = logging.getLogger(__name__)
 
-from gi.repository import GdkPixbuf  # type: ignore [import-untyped]
+from gi.repository import GdkPixbuf
 from gi.repository import GLib
 from gi.repository import Gtk
 from pyparsing import Group
@@ -195,8 +196,11 @@ class ImageLoader(threading.Thread):
     def callback(self) -> None:
         pixbuf = self.loader.get_pixbuf()
         if not pixbuf:
+            # type guard
             return
         pixbuf = pixbuf.apply_embedded_orientation()
+        if not pixbuf:
+            return
         scale_x = pixbuf.get_width() / 400
         scale_y = pixbuf.get_height() / 400
         scale = max(scale_x, scale_y, 1)
@@ -204,7 +208,7 @@ class ImageLoader(threading.Thread):
         y = int(pixbuf.get_height() / scale)
         scaled_buf = pixbuf.scale_simple(x, y, GdkPixbuf.InterpType.BILINEAR)
         if self.box.get_children():
-            image = self.box.get_children()[0]
+            image = cast(Gtk.Image, self.box.get_children()[0])
         else:
             image = Gtk.Image()
             self.box.pack_start(image, True, True, 0)
@@ -365,7 +369,7 @@ class BuilderLoader:
     # this class
     # http://bugzilla.gnome.org/show_bug.cgi?id=589057,560822
 
-    builders = {}
+    builders: dict[str, Gtk.Builder] = {}
 
     @classmethod
     def load(cls, filename):
@@ -1559,7 +1563,7 @@ class GenericMessageBox(Gtk.EventBox):
 
 
 class MessageBox(GenericMessageBox):
-    """A MessageBox that can display a message label at the top of an editor."""
+    """A MessageBox that can display a message label at the top of an editor"""
 
     def __init__(self, msg=None, details=None):
         super().__init__()

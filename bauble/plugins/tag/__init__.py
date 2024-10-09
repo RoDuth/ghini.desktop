@@ -587,7 +587,7 @@ class Tag(db.Base):
     description = Column(UnicodeText)
 
     # relations
-    objects_ = relationship(
+    objects_: list["TaggedObj"] = relationship(
         "TaggedObj", cascade="all, delete-orphan", backref="tag"
     )
 

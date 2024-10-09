@@ -57,9 +57,6 @@ def test_duplicate_ids():
     assert not check_dupids(os.path.join(head, "connmgr.glade"))
 
 
-prefs.testing = True
-
-
 class ConnMgrPresenterTests(BaubleTestCase):
     "Presenter manages view and model, implements view callbacks."
 

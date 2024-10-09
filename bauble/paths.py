@@ -118,7 +118,9 @@ def appdata_dir():
             )
     elif sys.platform == "darwin":
         # pylint: disable=no-name-in-module
-        from AppKit import NSApplicationSupportDirectory
+        from AppKit import (  # type: ignore [import-untyped]  # noqa
+            NSApplicationSupportDirectory,
+        )
         from AppKit import NSSearchPathForDirectoriesInDomains
         from AppKit import NSUserDomainMask
 

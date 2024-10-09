@@ -581,12 +581,3 @@ def init_location_comboentry(presenter, combo, on_select):
 
 
 plugin = GardenPlugin
-
-# make names visible to db module
-db.Accession = Accession
-db.AccessionNote = AccessionNote
-db.Plant = Plant
-db.PlantNote = PlantNote
-db.PlantPicture = PlantPicture
-db.Location = Location
-db.LocationNote = LocationNote

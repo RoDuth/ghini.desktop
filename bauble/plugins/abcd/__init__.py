@@ -37,8 +37,10 @@ logger = logging.getLogger(__name__)
 from gi.repository import Gtk
 from lxml import etree
 from lxml.etree import Element
+from lxml.etree import ElementBase
 from lxml.etree import ElementTree
 from lxml.etree import SubElement
+from lxml.etree import _ElementTree
 from sqlalchemy.orm import object_session
 
 from bauble import db
@@ -190,6 +192,14 @@ class ABCDAdapter(ABC):
     def species_markup(self, unit):
         """The species markup"""
 
+    @abstractmethod
+    def get_datelastedited(self):
+        """Get the date last edited"""
+
+    @abstractmethod
+    def get_notes(self, unit):
+        """Get the associated notes"""
+
 
 class SpeciesABCDAdapter(ABCDAdapter):
     """An adapter to convert a Species to an ABCD Unit.
@@ -321,14 +331,14 @@ class SpeciesABCDAdapter(ABCDAdapter):
         # invalid XML file
         if self.for_reports:
             if self.species.label_distribution:
-                etree.SubElement(
-                    unit, "LabelDistribution"
-                ).text = self.species.label_distribution
+                etree.SubElement(unit, "LabelDistribution").text = (
+                    self.species.label_distribution
+                )
 
             if self.species.distribution:
-                etree.SubElement(
-                    unit, "Distribution"
-                ).text = self.species.distribution_str()
+                etree.SubElement(unit, "Distribution").text = (
+                    self.species.distribution_str()
+                )
 
     def species_markup(self, unit):
         if self.for_reports:
@@ -495,9 +505,9 @@ class AccessionABCDAdapter(SpeciesABCDAdapter):
     def species_markup(self, unit):
         if self.for_reports:
             # first the non marked up version
-            etree.SubElement(
-                unit, "FullSpeciesName"
-            ).text = self.accession.species_str()
+            etree.SubElement(unit, "FullSpeciesName").text = (
+                self.accession.species_str()
+            )
 
             unit.append(
                 etree.fromstring(
@@ -563,10 +573,10 @@ class ABCDCreator:
         self.decorated_objects = decorated_objects
         self.authors = authors
         self.datasets = data_sets()
-        self.units = None
+        self.units: ElementBase | None = None
         self.inst = institution.Institution()
 
-    def _create_units_element(self) -> SubElement:
+    def _create_units_element(self) -> ElementBase:
         """Create the base of the 'Units' subelement"""
         if not verify_institution(self.inst):
             msg = _(
@@ -734,7 +744,7 @@ class ABCDCreator:
                 )
             yield
 
-    def get_element_tree(self) -> ElementTree:
+    def get_element_tree(self) -> _ElementTree:
         """Call after `generate_elements` has been called."""
         return ElementTree(self.datasets)
 

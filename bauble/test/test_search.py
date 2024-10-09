@@ -37,9 +37,6 @@ from bauble.test import BaubleClassTestCase
 from bauble.test import BaubleTestCase
 from bauble.test import get_setUp_data_funcs
 
-prefs.testing = True
-
-
 parser = search.parser
 
 

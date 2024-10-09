@@ -405,8 +405,8 @@ class PlantSearch(SearchStrategy):
             return []
 
         val = vals[0]
+        acc_code = plant_code = val
         if operator != "in":
-            acc_code = plant_code = val
             if delimiter in val:
                 acc_code, plant_code = val.rsplit(delimiter, 1)
 
@@ -507,8 +507,10 @@ class PlantSearch(SearchStrategy):
                     .join(Accession)
                     .filter(
                         exists().where(
-                            Accession.code == sql_vals.c.acc_code,
-                            Plant.code == sql_vals.c.plt_code,
+                            and_(
+                                Accession.code == sql_vals.c.acc_code,
+                                Plant.code == sql_vals.c.plt_code,
+                            )
                         )
                     )
                 )
@@ -629,20 +631,20 @@ class PlantChange(db.Base):
     date = Column(types.DateTime(timezone=True), default=func.now())
 
     # relations
-    plant = relationship(
+    plant: "Plant" = relationship(
         "Plant",
         uselist=False,
         primaryjoin="PlantChange.plant_id == Plant.id",
         backref=backref("changes", cascade="all, delete-orphan"),
     )
-    parent_plant = relationship(
+    parent_plant: "Plant" = relationship(
         "Plant",
         uselist=False,
         primaryjoin="PlantChange.parent_plant_id == Plant.id",
         backref=backref("branches"),
     )
 
-    child_plant = relationship(
+    child_plant: "Plant" = relationship(
         "Plant",
         uselist=False,
         primaryjoin="PlantChange.child_plant_id == Plant.id",
@@ -651,10 +653,10 @@ class PlantChange(db.Base):
         ),
     )
 
-    from_location = relationship(
+    from_location: "Location" = relationship(
         "Location", primaryjoin="PlantChange.from_location_id == Location.id"
     )
-    to_location = relationship(
+    to_location: "Location" = relationship(
         "Location", primaryjoin="PlantChange.to_location_id == Location.id"
     )
 
@@ -791,7 +793,7 @@ class Plant(db.Base, db.WithNotes):
     """
 
     __tablename__ = "plant"
-    __table_args__ = (UniqueConstraint("code", "accession_id"), {})
+    __table_args__: tuple = (UniqueConstraint("code", "accession_id"), {})
 
     # columns
     code = Column(Unicode(6), nullable=False)
@@ -806,11 +808,11 @@ class Plant(db.Base, db.WithNotes):
     quantity = Column(Integer, autoincrement=False, nullable=False)
 
     accession_id = Column(Integer, ForeignKey("accession.id"), nullable=False)
-    accession = relationship(
+    accession: "Accession" = relationship(
         "Accession", lazy="subquery", uselist=False, back_populates="plants"
     )
 
-    location_id = Column(Integer, ForeignKey(Location.id), nullable=False)
+    location_id = Column(Integer, ForeignKey("location.id"), nullable=False)
     # spatial data deferred mainly to avoid comparison issues in union search
     # (i.e. reports)  NOTE that deferring can lead to the instance becoming
     # dirty when merged into another session (i.e. an editor) and the column
@@ -827,7 +829,7 @@ class Plant(db.Base, db.WithNotes):
         "propagation",
         creator=lambda prop: PlantPropagation(propagation=prop),
     )
-    _plant_props = relationship(
+    _plant_props: list["PlantPropagation"] = relationship(
         "PlantPropagation",
         cascade="all, delete-orphan",
         uselist=True,
@@ -836,7 +838,7 @@ class Plant(db.Base, db.WithNotes):
 
     # provide a way to search and use the change that recorded either a death
     # or a planting date directly.  This is not fool proof but close enough.
-    death = relationship(
+    death: "PlantChange" = relationship(
         "PlantChange",
         primaryjoin="and_(PlantChange.plant_id == Plant.id, "
         "PlantChange.id == select([PlantChange.id])"
@@ -853,7 +855,7 @@ class Plant(db.Base, db.WithNotes):
         uselist=False,
     )
 
-    planted = relationship(
+    planted: "PlantChange" = relationship(
         "PlantChange",
         primaryjoin="and_("
         "PlantChange.plant_id == Plant.id, "
@@ -957,7 +959,7 @@ class Plant(db.Base, db.WithNotes):
     def active(self):
         return self.quantity > 0
 
-    @active.expression
+    @active.expression  # type: ignore [no-redef]
     def active(cls):
         # pylint: disable=no-self-argument
         from sqlalchemy.sql.expression import case
@@ -1330,7 +1332,10 @@ def acc_match_func(
 
     :return: bool, True if the item at the treeiter matches the key
     """
-    accession = completion.get_model()[treeiter][0]
+    tree_model = completion.get_model()
+    if not tree_model:
+        raise AttributeError(f"can't get TreeModel from {completion}")
+    accession = tree_model[treeiter][0]
     return acc_to_string_matcher(accession, key)
 
 
@@ -2132,10 +2137,10 @@ class PlantEditor(GenericModelViewPresenterEditor):
         more_committed = None
         if response == self.RESPONSE_NEXT:
             self.presenter.cleanup()
-            e = PlantEditor(
+            editor = PlantEditor(
                 Plant(accession=self.model.accession), parent=self.parent
             )
-            more_committed = e.start()
+            more_committed = editor.start()
 
         if more_committed is not None:
             self._committed = [self._committed]
@@ -2549,5 +2554,8 @@ def plant_match_func(
 
     :return: bool, True if the item at the treeiter matches the key
     """
-    plant = completion.get_model()[treeiter][0]
+    tree_model = completion.get_model()
+    if not tree_model:
+        raise AttributeError(f"can't get TreeModel from {completion}")
+    plant = tree_model[treeiter][0]
     return plant_to_string_matcher(plant, key)

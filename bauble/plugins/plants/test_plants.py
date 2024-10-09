@@ -662,7 +662,7 @@ def setUp_data():
             utils.reset_sequence(col)
 
 
-setUp_data.order = 0
+setUp_data.order = 0  # type: ignore [attr-defined]
 
 
 def setup_geographies() -> None:

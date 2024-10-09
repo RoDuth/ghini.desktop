@@ -198,7 +198,7 @@ class CustomEnum(Enum):
 
     cache_ok = False
 
-    def __init__(self, size: str, **kwargs: Any) -> None:
+    def __init__(self, size: int, **kwargs: Any) -> None:
         """Pass the size parameter to impl column (Unicode).
 
         To complete initialisation call `self.init` when values become

@@ -29,7 +29,7 @@ from unittest import mock
 from zipfile import ZipFile
 
 from gi.repository import Gtk
-from shapefile import Reader
+from shapefile import Reader  # type: ignore [import-untyped]
 from shapefile import Writer
 from sqlalchemy.ext.hybrid import hybrid_property
 

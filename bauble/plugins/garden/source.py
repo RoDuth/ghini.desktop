@@ -28,6 +28,7 @@ import traceback
 import weakref
 from pathlib import Path
 from random import random
+from typing import TYPE_CHECKING
 
 logger = logging.getLogger(__name__)
 
@@ -59,6 +60,10 @@ from bauble.view import PropertiesExpander
 
 from ..plants.geography import Geography
 from ..plants.geography import GeographyMenu
+
+if TYPE_CHECKING:
+    from .accession import Accession
+    from .propagation import Propagation
 
 
 def collection_edit_callback(coll):
@@ -162,18 +167,18 @@ class Source(db.Base):
     accession_id = Column(
         Integer, ForeignKey("accession.id"), nullable=False, unique=True
     )
-    accession = relationship(
+    accession: "Accession" = relationship(
         "Accession", uselist=False, back_populates="source"
     )
 
     source_detail_id = Column(Integer, ForeignKey("source_detail.id"))
-    source_detail = relationship(
+    source_detail: "SourceDetail" = relationship(
         "SourceDetail",
         uselist=False,
         backref=backref("sources", cascade="all, delete-orphan"),
     )
 
-    collection = relationship(
+    collection: "Collection" = relationship(
         "Collection",
         uselist=False,
         cascade="all, delete-orphan",
@@ -184,7 +189,7 @@ class Source(db.Base):
     # not attached to a Plant
     # i.e. a Propagation of source material (i.e. purchased seeds etc.)
     propagation_id = Column(Integer, ForeignKey("propagation.id"))
-    propagation = relationship(
+    propagation: "Propagation" = relationship(
         "Propagation",
         uselist=False,
         single_parent=True,
@@ -197,7 +202,7 @@ class Source(db.Base):
     # to a Plant
     # i.e. a plant is propagation from to create a new accession
     plant_propagation_id = Column(Integer, ForeignKey("propagation.id"))
-    plant_propagation = relationship(
+    plant_propagation: "Propagation" = relationship(
         "Propagation",
         uselist=False,
         primaryjoin="Source.plant_propagation_id==Propagation.id",
@@ -316,7 +321,7 @@ class Collection(db.Base):
     )
 
     source_id = Column(Integer, ForeignKey("source.id"), unique=True)
-    source = relationship("Source", back_populates="collection")
+    source: "Source" = relationship("Source", back_populates="collection")
 
     retrieve_cols = [
         "id",

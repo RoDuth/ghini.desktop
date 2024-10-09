@@ -29,7 +29,7 @@ logger = logging.getLogger(__name__)
 
 import tempfile
 
-from mako.template import Template
+from mako.template import Template  # type: ignore [import-untyped]
 from pyproj import ProjError
 from pyproj import Transformer
 from sqlalchemy import Column

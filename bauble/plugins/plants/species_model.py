@@ -38,6 +38,8 @@ from sqlalchemy import event
 from sqlalchemy import literal
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.ext.hybrid import hybrid_property
+from sqlalchemy.orm import Mapped
+from sqlalchemy.orm import Session
 from sqlalchemy.orm import backref
 from sqlalchemy.orm import object_session
 from sqlalchemy.orm import relationship
@@ -57,6 +59,7 @@ from bauble.i18n import _
 from bauble.view import Picture
 
 from .geography import DistributionMap
+from .geography import Geography
 
 
 def _remove_zws(string):
@@ -322,8 +325,13 @@ class Species(db.Base, db.WithNotes):
         *distribution*:
     """
 
+    id: int
+
     __tablename__ = "species"
-    __table_args__ = (UniqueConstraint("full_sci_name", name="sp_name"), {})
+    __table_args__: tuple = (
+        UniqueConstraint("full_sci_name", name="sp_name"),
+        {},
+    )
 
     # for internal use when importing records, accounts for the lack of
     # UniqueConstraint and the complex of hybrid_properties etc.
@@ -361,7 +369,7 @@ class Species(db.Base, db.WithNotes):
     subseries = Column(Unicode(64))
 
     sp = Column(Unicode(128), index=True)
-    epithet = sa_synonym("sp")
+    epithet: "str" = sa_synonym("sp")
     sp_author = Column(Unicode(128))
     hybrid = Column(types.Enum(values=["×", "+", None]), default=None)
     sp_qual = Column(
@@ -421,7 +429,7 @@ class Species(db.Base, db.WithNotes):
     synonyms = association_proxy(
         "_synonyms", "synonym", creator=lambda sp: SpeciesSynonym(synonym=sp)
     )
-    _synonyms = relationship(
+    _synonyms: list["SpeciesSynonym"] = relationship(
         "SpeciesSynonym",
         primaryjoin="Species.id==SpeciesSynonym.species_id",
         cascade="all, delete-orphan",
@@ -430,7 +438,7 @@ class Species(db.Base, db.WithNotes):
     )
 
     # make cascading work
-    _accepted = relationship(
+    _accepted: "SpeciesSynonym" = relationship(
         "SpeciesSynonym",
         primaryjoin="Species.id==SpeciesSynonym.synonym_id",
         cascade="all, delete-orphan",
@@ -442,29 +450,31 @@ class Species(db.Base, db.WithNotes):
     )
 
     # VernacularName.species gets defined here too.
-    vernacular_names = relationship(
+    vernacular_names: list["VernacularName"] = relationship(
         "VernacularName",
         cascade="all, delete-orphan",
         collection_class=VNList,
         backref=backref("species", uselist=False),
     )
-    _default_vernacular_name = relationship(
+    _default_vernacular_name: "DefaultVernacularName" = relationship(
         "DefaultVernacularName",
         uselist=False,
         cascade="all, delete-orphan",
         backref=backref("species", uselist=False),
     )
-    distribution = relationship(
+    distribution: list["SpeciesDistribution"] = relationship(
         "SpeciesDistribution",
         cascade="all, delete-orphan",
         backref=backref("species", uselist=False),
     )
 
     habit_id = Column(Integer, ForeignKey("habit.id"), default=None)
-    habit = relationship("Habit", uselist=False, backref="species")
+    habit: "Habit" = relationship("Habit", uselist=False, backref="species")
 
     flower_color_id = Column(Integer, ForeignKey("color.id"), default=None)
-    flower_color = relationship("Color", uselist=False, backref="species")
+    flower_color: "Color" = relationship(
+        "Color", uselist=False, backref="species"
+    )
 
     full_name = Column(Unicode(512), index=True)
     full_sci_name = Column(Unicode(512), index=True)
@@ -554,7 +564,7 @@ class Species(db.Base, db.WithNotes):
         """
         return self._cites or self.genus.cites
 
-    @cites.expression
+    @cites.expression  # type: ignore [no-redef]
     def cites(cls):
         # pylint: disable=no-self-argument,protected-access
         from .family import Family
@@ -578,7 +588,7 @@ class Species(db.Base, db.WithNotes):
             else_=fam_cites,
         )
 
-    @cites.setter
+    @cites.setter  # type: ignore [no-redef]
     def cites(self, value):
         self._cites = value
 
@@ -615,7 +625,7 @@ class Species(db.Base, db.WithNotes):
     def infraspecific_rank(self):
         return self.__lowest_infraspecific()[0] or ""
 
-    @infraspecific_rank.expression
+    @infraspecific_rank.expression  # type: ignore [no-redef]
     def infraspecific_rank(cls):
         # pylint: disable=no-self-argument
         # use the last epithet that is not 'cv'. available (the user should be
@@ -633,7 +643,7 @@ class Species(db.Base, db.WithNotes):
     def infraspecific_epithet(self):
         return self.__lowest_infraspecific()[1] or ""
 
-    @infraspecific_epithet.expression
+    @infraspecific_epithet.expression  # type: ignore [no-redef]
     def infraspecific_epithet(cls):
         # pylint: disable=no-self-argument
         # use the last epithet that is not 'cv'.
@@ -665,7 +675,7 @@ class Species(db.Base, db.WithNotes):
         parts = " ".join(parts)
         return parts
 
-    @infraspecific_parts.expression
+    @infraspecific_parts.expression  # type: ignore [no-redef]
     def infraspecific_parts(cls):
         # pylint: disable=no-self-argument
         from sqlalchemy.types import String
@@ -732,7 +742,7 @@ class Species(db.Base, db.WithNotes):
             ]
         ).label("infraspecific_parts")
 
-    @infraspecific_parts.setter
+    @infraspecific_parts.setter  # type: ignore [no-redef]
     def infraspecific_parts(self, value):
         if value:
             parts = value.split()
@@ -752,7 +762,7 @@ class Species(db.Base, db.WithNotes):
             return None
         return self._default_vernacular_name.vernacular_name
 
-    @default_vernacular_name.expression
+    @default_vernacular_name.expression  # type: ignore [no-redef]
     def default_vernacular_name(cls):
         # pylint: disable=no-self-argument
         return (
@@ -767,7 +777,7 @@ class Species(db.Base, db.WithNotes):
             .label("default_vernacular_name")
         )
 
-    @default_vernacular_name.setter
+    @default_vernacular_name.setter  # type: ignore [no-redef]
     def default_vernacular_name(self, vernacular):
         if isinstance(vernacular, str):
             logger.debug("vernacular_name is a string: %s", vernacular)
@@ -796,7 +806,7 @@ class Species(db.Base, db.WithNotes):
         default_vernacular.vernacular_name = vernacular
         self._default_vernacular_name = default_vernacular
 
-    @default_vernacular_name.deleter
+    @default_vernacular_name.deleter  # type: ignore [no-redef]
     def default_vernacular_name(self):
         if self._default_vernacular_name:
             utils.delete_or_expunge(self._default_vernacular_name)
@@ -806,7 +816,7 @@ class Species(db.Base, db.WithNotes):
     def family_name(self):
         return self.genus.family.epithet
 
-    @family_name.expression
+    @family_name.expression  # type: ignore [no-redef]
     def family_name(cls):
         # pylint: disable=no-self-argument
         from .family import Family
@@ -1025,7 +1035,7 @@ class Species(db.Base, db.WithNotes):
                 return True
         return False
 
-    @active.expression
+    @active.expression  # type: ignore [no-redef]
     def active(cls):
         # pylint: disable=no-self-argument
         acc_cls = cls.accessions.prop.mapper.class_
@@ -1043,7 +1053,7 @@ class Species(db.Base, db.WithNotes):
     def pictures(self) -> list[Picture]:
         """Return pictures from any attached plants and any in _pictures."""
         session = object_session(self)
-        if not session:
+        if not isinstance(session, Session):
             return []
         # avoid circular imports
         from ..garden import Accession
@@ -1056,7 +1066,7 @@ class Species(db.Base, db.WithNotes):
             .filter(Species.id == self.id)
         )
         if prefs.prefs.get(prefs.exclude_inactive_pref):
-            plt_pics = plt_pics.filter(Plant.active.is_(True))
+            plt_pics = plt_pics.filter(Plant.active.is_(True))  # type: ignore [attr-defined] # noqa
         return plt_pics.all() + self._pictures
 
     infrasp_attr = {
@@ -1218,6 +1228,8 @@ class SpeciesSynonym(db.Base):
         Integer, ForeignKey("species.id"), nullable=False, unique=True
     )
     is_one_to_one = True
+    species: Mapped["Species"]
+    synonym: Mapped["Species"]
 
     def __str__(self):
         return str(self.synonym)
@@ -1247,7 +1259,7 @@ class VernacularName(db.Base):
     name = Column(Unicode(128), nullable=False)
     language = Column(Unicode(128))
     species_id = Column(Integer, ForeignKey("species.id"), nullable=False)
-    __table_args__ = (
+    __table_args__: tuple = (
         UniqueConstraint("name", "language", "species_id", name="vn_index"),
         {},
     )
@@ -1332,7 +1344,7 @@ class DefaultVernacularName(db.Base):
     """
 
     __tablename__ = "default_vernacular_name"
-    __table_args__ = (
+    __table_args__: tuple = (
         UniqueConstraint(
             "species_id", "vernacular_name_id", name="default_vn_index"
         ),
@@ -1369,7 +1381,9 @@ class SpeciesDistribution(db.Base):
     species: Species
     species_id = Column(Integer, ForeignKey("species.id"), nullable=False)
     geography_id = Column(Integer, ForeignKey("geography.id"), nullable=False)
-    geography = relationship("Geography", back_populates="distribution")
+    geography: Geography = relationship(
+        "Geography", back_populates="distribution"
+    )
 
     def __str__(self):
         return str(self.geography)
@@ -1397,9 +1411,3 @@ class Color(db.Base):
         if self.name:
             return f"{self.name} ({self.code})"
         return str(self.code)
-
-
-db.Species = Species
-db.SpeciesNote = SpeciesNote
-db.SpeciesPicture = SpeciesPicture
-db.VernacularName = VernacularName

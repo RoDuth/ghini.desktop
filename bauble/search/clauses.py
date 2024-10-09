@@ -60,7 +60,7 @@ from .operations import OPERATIONS
 AGGREGATE_FUNC_NAMES = ["sum", "avg", "min", "max", "count", "total"]
 
 
-Q = typing.TypeVar("Q", Query, Select)
+Q = typing.TypeVar("Q", Select, Query)
 
 
 @dataclass
@@ -313,17 +313,19 @@ class OrTerm(BinaryLogicalTerm):
             # start a new query
             if isinstance(handler.query, Query):
                 query = handler.session.query(handler.domain)
-                or_handler = QueryHandler(
-                    handler.session, handler.domain, query
+                handler.query = handler.query.union(
+                    operand.evaluate(
+                        QueryHandler(handler.session, handler.domain, query)
+                    )
                 )
             else:
                 select_ = select(handler.domain.id)  # type: ignore[attr-defined]  # noqa
-                or_handler = QueryHandler(
-                    handler.session, handler.domain, select_
+                handler.query = handler.query.union(
+                    operand.evaluate(
+                        QueryHandler(handler.session, handler.domain, select_)
+                    )
                 )
-            handler.query = typing.cast(
-                Query, handler.query.union(operand.evaluate(or_handler))
-            )
+
         return handler.query
 
 

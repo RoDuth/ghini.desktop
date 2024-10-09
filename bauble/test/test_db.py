@@ -43,10 +43,6 @@ from bauble.search.strategies import MapperSearch
 from bauble.test import BaubleTestCase
 from bauble.test import get_setUp_data_funcs
 
-prefs.testing = True
-
-# db.sqlalchemy_debug(True)
-
 
 class HistoryTests(BaubleTestCase):
     def test_history_add_insert_populates(self):

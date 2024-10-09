@@ -1,0 +1,20 @@
+# linters, etc.
+# NOTE to use: pygobject-stubs requires setting PYGOBJECT_STUB_CONFIG=Gtk3,Gdk3,Soup2
+# i.e.
+# $ PYGOBJECT_STUB_CONFIG=Gtk3,Gdk3,Soup2 pip install -r requirements-dev.txt
+mypy
+pygobject-stubs
+types-python-dateutil
+sqlalchemy[mypy]==1.4.54
+Babel
+lxml-stubs
+types-psycopg2
+types-babel
+pyparsing[diagrams]
+pylint
+flake8
+pylint-sqlalchemy
+black
+isort
+coverage
+pytest

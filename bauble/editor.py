@@ -20,12 +20,12 @@
 Description: a collection of functions and abstract classes for creating
 editors
 """
-
 import datetime
 import json
 import logging
 import os
 import re
+import threading
 import weakref
 from collections.abc import Callable
 from pathlib import Path
@@ -194,7 +194,8 @@ class GenericEditorView:
         parent=None then bauble.gui.window is used
     """
 
-    _tooltips = {}
+    _tooltips: dict[str, str] = {}
+    accept_buttons: list[str] = []
 
     def __init__(
         self, filename, parent=None, root_widget_name=None, tooltips=None
@@ -380,7 +381,9 @@ class GenericEditorView:
 
     def set_accept_buttons_sensitive(self, sensitive):
         """set the sensitivity of all the accept/ok buttons"""
-        for wname in self.accept_buttons:  # pylint: disable=no-member
+        if not self.accept_buttons:
+            raise AttributeError("accept_buttons not set.")
+        for wname in self.accept_buttons:
             getattr(self.widgets, wname).set_sensitive(sensitive)
 
     def connect(self, obj, signal, callback, *args):
@@ -1136,8 +1139,8 @@ class GenericEditorPresenter:
         view should trigger a session.commit.
     """
 
-    widget_to_field_map = {}
-    view_accept_buttons = []
+    widget_to_field_map: dict[str, str] = {}
+    view_accept_buttons: list[str] = []
 
     PROBLEM_DUPLICATE = f"duplicate:{random()}"
     PROBLEM_EMPTY = f"empty:{random()}"
@@ -1154,11 +1157,11 @@ class GenericEditorPresenter:
     ):
         self.model = model
         self.view = view
-        self.problems = set()
+        self.problems: set[tuple[int, Gtk.Widget]] = set()
         self._dirty = False
         self.is_committing_presenter = do_commit
         self.committing_results = committing_results
-        self.running_threads = []
+        self.running_threads: list[threading.Thread] = []
         self.owns_session = False
         self.session = session
         if session is False:
@@ -1997,7 +2000,7 @@ class PresenterMapMixin:
     def on_map_kml_show(self, *_args):
         import tempfile
 
-        from mako.template import Template
+        from mako.template import Template  # type: ignore [import-untyped]
 
         template = Template(
             filename=self.kml_template,
@@ -2103,7 +2106,7 @@ class GenericModelViewPresenterEditor:
     :param parent: the parent windows for the view or None
     """
 
-    ok_responses = ()
+    ok_responses: tuple[int, ...] = ()
 
     def __init__(self, model, parent=None):
         self.session = db.Session()

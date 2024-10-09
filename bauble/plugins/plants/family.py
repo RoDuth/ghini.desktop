@@ -38,6 +38,8 @@ from sqlalchemy import UniqueConstraint
 from sqlalchemy import literal
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.associationproxy import association_proxy
+from sqlalchemy.orm import Mapped
+from sqlalchemy.orm import Session
 from sqlalchemy.orm import relationship
 from sqlalchemy.orm import synonym as sa_synonym
 from sqlalchemy.orm import validates
@@ -165,8 +167,10 @@ class Family(db.Base, db.WithNotes):
         The family table has a unique constraint on family/qualifier.
     """
 
+    id: int
+
     __tablename__ = "family"
-    __table_args__ = (UniqueConstraint("family", "author"), {})
+    __table_args__: tuple = (UniqueConstraint("family", "author"), {})
 
     rank = "familia"
     link_keys = ["accepted"]
@@ -176,7 +180,7 @@ class Family(db.Base, db.WithNotes):
     suborder = Column(Unicode(64))
 
     family = Column(String(45), nullable=False, index=True)
-    epithet = sa_synonym("family")
+    epithet: "str" = sa_synonym("family")
 
     # use '' instead of None so that the constraints will work propertly
     author = Column(Unicode(128), default="")
@@ -191,7 +195,7 @@ class Family(db.Base, db.WithNotes):
     synonyms = association_proxy(
         "_synonyms", "synonym", creator=lambda fam: FamilySynonym(synonym=fam)
     )
-    _synonyms = relationship(
+    _synonyms: list["FamilySynonym"] = relationship(
         "FamilySynonym",
         primaryjoin="Family.id==FamilySynonym.family_id",
         cascade="all, delete-orphan",
@@ -199,7 +203,7 @@ class Family(db.Base, db.WithNotes):
         backref="family",
     )
 
-    _accepted = relationship(
+    _accepted: "FamilySynonym" = relationship(
         "FamilySynonym",
         primaryjoin="Family.id==FamilySynonym.synonym_id",
         cascade="all, delete-orphan",
@@ -210,7 +214,7 @@ class Family(db.Base, db.WithNotes):
         "_accepted", "family", creator=lambda fam: FamilySynonym(family=fam)
     )
 
-    genera = relationship(
+    genera: list["Genus"] = relationship(
         "Genus",
         order_by="Genus.genus",
         back_populates="family",
@@ -224,7 +228,7 @@ class Family(db.Base, db.WithNotes):
     @property
     def pictures(self) -> list[Picture]:
         session = object_session(self)
-        if not session:
+        if not isinstance(session, Session):
             return []
         from ..garden import Accession
         from ..garden import Plant
@@ -242,7 +246,7 @@ class Family(db.Base, db.WithNotes):
             .filter(Family.id == self.id)
         )
         if prefs.prefs.get(prefs.exclude_inactive_pref):
-            plt_pics = plt_pics.filter(Plant.active.is_(True))
+            plt_pics = plt_pics.filter(Plant.active.is_(True))  # type: ignore [attr-defined] # noqa
         return sp_pics.all() + plt_pics.all()
 
     @classmethod
@@ -345,6 +349,8 @@ class FamilySynonym(db.Base):
         Integer, ForeignKey("family.id"), nullable=False, unique=True
     )
     is_one_to_one = True
+    synonym: Mapped["Family"]
+    family: Mapped["Family"]
 
     def __str__(self):
         return Family.str(self.synonym)
@@ -604,11 +610,11 @@ class FamilyEditor(editor.GenericModelViewPresenterEditor):
         more_committed = None
         if response == self.RESPONSE_NEXT:
             self.presenter.cleanup()
-            e = FamilyEditor(parent=self.parent)
-            more_committed = e.start()
+            editor = FamilyEditor(parent=self.parent)
+            more_committed = editor.start()
         elif response == self.RESPONSE_OK_AND_ADD:
-            e = GenusEditor(Genus(family=self.model), self.parent)
-            more_committed = e.start()
+            editor = GenusEditor(Genus(family=self.model), self.parent)
+            more_committed = editor.start()
 
         if more_committed is not None:
             if isinstance(more_committed, list):
@@ -874,6 +880,3 @@ class FamilyInfoBox(InfoBox):
         self.synonyms.update(row)
         self.links.update(row)
         self.props.update(row)
-
-
-db.Family = Family

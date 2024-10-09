@@ -21,8 +21,6 @@ from bauble.plugins.plants.stored_queries import StoredQueriesModel
 from bauble.plugins.plants.stored_queries import StoredQueriesPresenter
 from bauble.test import BaubleTestCase
 
-bauble.prefs.testing = True
-
 
 class StoredQueriesInitializeTests(BaubleTestCase):
     def test_initialize_model(self):

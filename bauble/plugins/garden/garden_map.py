@@ -44,7 +44,7 @@ from gi.repository import GdkPixbuf
 from gi.repository import Gio
 from gi.repository import GLib
 from gi.repository import Gtk
-from gi.repository import OsmGpsMap  # type: ignore[attr-defined]
+from gi.repository import OsmGpsMap  # NOTE mypy [attr-defined] only on file
 from sqlalchemy import Table
 from sqlalchemy import case
 from sqlalchemy import engine
@@ -822,7 +822,7 @@ class SearchViewMapPresenter:
         self.context_menu: Gtk.Menu
         self.init_context_menu()
         self.zoom_to_home()
-        self._resize_timer_id = None
+        self._resize_timer_id: int | None = None
 
     @staticmethod
     def is_visible() -> bool:

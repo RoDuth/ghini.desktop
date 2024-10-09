@@ -71,54 +71,34 @@ here: http://lists.freedesktop.org/archives/xdg/2004-August/004489.html
 __version__ = "0.2.4"
 
 import os
+import subprocess
 import sys
+
+from bauble import utils
 
 # Provide suitable process creation functions.
 
 
-try:
-    import subprocess
-
-    def _run(cmd, shell, wait):
-        opener = subprocess.Popen(cmd, shell=shell)
-        if wait:
-            opener.wait()
-        return opener.pid
-
-    def _readfrom(cmd, shell):
-        opener = subprocess.Popen(
-            cmd, shell=shell, stdin=subprocess.PIPE, stdout=subprocess.PIPE
-        )
-        opener.stdin.close()
-        return opener.stdout.read()
-
-    def _status(cmd, shell):
-        opener = subprocess.Popen(cmd, shell=shell)
+def _run(cmd, shell, wait):
+    opener = subprocess.Popen(cmd, shell=shell)
+    if wait:
         opener.wait()
-        return opener.returncode == 0
-
-except ImportError:
-    import popen2
-
-    def _run(cmd, shell, wait):
-        opener = popen2.Popen3(cmd)
-        if wait:
-            opener.wait()
-        return opener.pid
-
-    def _readfrom(cmd, shell):
-        opener = popen2.Popen3(cmd)
-        opener.tochild.close()
-        opener.childerr.close()
-        return opener.fromchild.read()
-
-    def _status(cmd, shell):
-        opener = popen2.Popen3(cmd)
-        opener.wait()
-        return opener.poll() == 0
+    return opener.pid
 
 
-import subprocess
+def _readfrom(cmd, shell):
+    opener = subprocess.Popen(
+        cmd, shell=shell, stdin=subprocess.PIPE, stdout=subprocess.PIPE
+    )
+    opener.stdin.close()
+    return opener.stdout.read()
+
+
+def _status(cmd, shell):
+    opener = subprocess.Popen(cmd, shell=shell)
+    opener.wait()
+    return opener.returncode == 0
+
 
 #
 # Private functions.
@@ -250,7 +230,6 @@ def open(url, desktop=None, wait=0.5, dialog_on_error=False):
     """
 
     # Decide on the desktop environment in use.
-    from bauble import utils
 
     desktop_in_use = use_desktop(desktop)
     cmd = None

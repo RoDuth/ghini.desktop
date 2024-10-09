@@ -103,9 +103,6 @@ from .source import Source
 from .source import SourceDetail
 from .source import SourceDetailPresenter
 
-prefs.testing = True
-
-
 accession_test_data = (
     {
         "id": 1,
@@ -394,7 +391,7 @@ def setUp_data():
     inst.write()
 
 
-setUp_data.order = 1
+setUp_data.order = 1  # type: ignore [attr-defined]
 
 
 # TODO: if we ever get a GUI tester then do the following

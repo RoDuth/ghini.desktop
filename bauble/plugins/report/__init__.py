@@ -25,6 +25,7 @@ report plugin.
 import logging
 import os
 import traceback
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -73,7 +74,7 @@ Preference key, True if the settings expander is expanded.
 
 
 # to be populated by the dialog box, with fields mentioned in the template
-options = {}
+options: dict[str, Any] = {}
 
 
 def _pertinent_objects_generator(query, order_by):
@@ -564,7 +565,7 @@ class ReportToolDialogView:
 
 
 class ReportToolDialogPresenter:
-    formatter_class_map = {}  # title->class map
+    formatter_class_map: dict[str, type] = {}  # title->class map
 
     def __init__(self, view):
         self.view = view

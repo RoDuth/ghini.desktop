@@ -23,6 +23,7 @@ import logging
 import os
 import traceback
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 logger = logging.getLogger(__name__)
 
@@ -32,6 +33,7 @@ from sqlalchemy import Unicode
 from sqlalchemy import UnicodeText
 from sqlalchemy import literal
 from sqlalchemy.exc import DBAPIError
+from sqlalchemy.orm import Session
 from sqlalchemy.orm import backref
 from sqlalchemy.orm import deferred
 from sqlalchemy.orm import relationship
@@ -55,6 +57,10 @@ from bauble.i18n import _
 from bauble.utils.geo import KMLMapCallbackFunctor
 from bauble.view import Action
 from bauble.view import Picture
+
+if TYPE_CHECKING:
+    from .accession import IntendedLocation
+    from .plant import Plant
 
 
 def edit_callback(locations):
@@ -172,6 +178,8 @@ class Location(db.Base, db.WithNotes):
 
     """
 
+    id: int
+
     __tablename__ = "location"
 
     # columns
@@ -191,8 +199,10 @@ class Location(db.Base, db.WithNotes):
     geojson = deferred(Column(types.JSON()))
 
     # relations
-    plants = relationship("Plant", backref=backref("location", uselist=False))
-    intended_accessions = relationship(
+    plants: list["Plant"] = relationship(
+        "Plant", backref=backref("location", uselist=False)
+    )
+    intended_accessions: list["IntendedLocation"] = relationship(
         "IntendedLocation",
         cascade="all, delete-orphan",
         back_populates="location",
@@ -204,7 +214,7 @@ class Location(db.Base, db.WithNotes):
     def pictures(self) -> list[Picture]:
         """Return pictures from any attached plants and any in _pictures."""
         session = object_session(self)
-        if not session:
+        if not isinstance(session, Session):
             return []
         # avoid circular imports
         from ..garden import Plant
@@ -216,7 +226,7 @@ class Location(db.Base, db.WithNotes):
             .filter(Location.id == self.id)
         )
         if prefs.prefs.get(prefs.exclude_inactive_pref):
-            plt_pics = plt_pics.filter(Plant.active.is_(True))
+            plt_pics = plt_pics.filter(Plant.active.is_(True))  # type: ignore [attr-defined] # noqa
         return plt_pics.all() + self._pictures
 
     @classmethod
@@ -475,14 +485,14 @@ class LocationEditor(GenericModelViewPresenterEditor):
         more_committed = None
         if response == self.RESPONSE_NEXT:
             self.presenter.cleanup()
-            e = LocationEditor(parent=self.parent)
-            more_committed = e.start()
+            editor = LocationEditor(parent=self.parent)
+            more_committed = editor.start()
         elif response == self.RESPONSE_OK_AND_ADD:
             from bauble.plugins.garden.plant import Plant
             from bauble.plugins.garden.plant import PlantEditor
 
-            e = PlantEditor(Plant(location=self.model), self.parent)
-            more_committed = e.start()
+            editor = PlantEditor(Plant(location=self.model), self.parent)
+            more_committed = editor.start()
         if more_committed is not None:
             if isinstance(more_committed, list):
                 self._committed.extend(more_committed)
@@ -492,7 +502,7 @@ class LocationEditor(GenericModelViewPresenterEditor):
         return True
 
     def start(self):
-        """Start the LocationEditor and return the committed Location objects."""
+        """Start the LocationEditor and return the committed objects."""
         while True:
             response = self.presenter.start()
             self.presenter.view.save_state()

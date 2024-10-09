@@ -97,7 +97,12 @@ class ToSync(db.HistoryBase):
 
         logger.debug("adding batch form uri: %s", uri)
         clone_engine: Engine = create_engine(uri)
-        batch_num: str = meta.get_default("sync_batch_num", 1).value
+        batch_num_meta = meta.get_default("sync_batch_num", "1")
+
+        if not batch_num_meta:
+            raise error.DatabaseError("Not connected to a database")
+
+        batch_num = batch_num_meta.value or ""
 
         history: Table = db.History.__table__
         meta_table: Table = meta.BaubleMeta.__table__
@@ -496,9 +501,10 @@ class ResolutionCentreView(pluginmgr.View, Gtk.Box):
         super().__init__()
         self._uri = None
         self.uri = uri  # type: ignore [assignment]
-        self.last_pos: tuple[
-            Gtk.TreePath | None, Gtk.TreeViewColumn | None, int, int
-        ] | None = None
+        self.last_pos: (
+            tuple[Gtk.TreePath | None, Gtk.TreeViewColumn | None, int, int]
+            | None
+        ) = None
         self.setup_context_menu()
 
     @property
@@ -581,7 +587,7 @@ class ResolutionCentreView(pluginmgr.View, Gtk.Box):
             )
             selection = self.sync_tv.get_selection()
             # pylint: disable=not-an-iterable
-            for row in self.liststore:  # type: ignore [attr-defined]
+            for row in self.liststore:
                 if row[self.TVC_BATCH] == batch_num:
                     selection.select_iter(row.iter)
 
@@ -598,7 +604,7 @@ class ResolutionCentreView(pluginmgr.View, Gtk.Box):
             )
             selection = self.sync_tv.get_selection()
             # pylint: disable=not-an-iterable
-            for row in self.liststore:  # type: ignore [attr-defined]
+            for row in self.liststore:
                 row_obj = row[self.TVC_OBJ]
                 if (
                     row_obj.table_name == obj.table_name
@@ -671,7 +677,7 @@ class ResolutionCentreView(pluginmgr.View, Gtk.Box):
             selection = self.sync_tv.get_selection()
             selection.unselect_all()
             # pylint: disable=not-an-iterable
-            for row in self.liststore:  # type: ignore [attr-defined]
+            for row in self.liststore:
                 if row[self.TVC_OBJ].id in failed:
                     selection.select_iter(row.iter)
         elif self.uri:
@@ -773,9 +779,9 @@ class ResolutionCentreView(pluginmgr.View, Gtk.Box):
             logger.debug("selecting batch num: %s", batch_num)
             selection = self.sync_tv.get_selection()
             # pylint: disable=not-an-iterable
-            for row in self.liststore:  # type: ignore [attr-defined]
-                if row[self.TVC_BATCH] == batch_num:
-                    selection.select_iter(row.iter)
+            for tree_row in self.liststore:
+                if tree_row[self.TVC_BATCH] == batch_num:
+                    selection.select_iter(tree_row.iter)
 
 
 class ResolveCommandHandler(pluginmgr.CommandHandler):

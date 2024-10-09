@@ -60,9 +60,9 @@ from bauble import utils
 from bauble.error import BaubleError
 from bauble.i18n import _
 
-plugins = {}
-commands = {}
-provided = {}
+plugins: dict[str, "Plugin"] = {}
+commands: dict[str, type["CommandHandler"]] = {}
+provided: dict[str, type[db.Base]] = {}
 
 
 def register_command(handler):
@@ -456,10 +456,10 @@ class Plugin:
       a map of commands this plugin handled with callbacks,
       e.g dict('cmd', lambda x: handler)
     tools:
-      a list of BaubleTool classes that this plugin provides, the
+      a list of Tool classes that this plugin provides, the
       tools' category and label will be used in Ghini's "Tool" menu
     depends:
-      a list of names classes that inherit from BaublePlugin that this
+      a list of class names that inherit from Plugin that this
       plugin depends on
     provides:
       a dictionary name->class exported by this plugin
@@ -467,10 +467,10 @@ class Plugin:
       a short description of the plugin
     """
 
-    commands = []
-    tools = []
-    depends = []
-    provides = {}
+    commands: list[type["CommandHandler"]] = []
+    tools: list[type["Tool"]] = []
+    depends: list[str] = []
+    provides: dict[str, type] = {}
     description = ""
     version = "0.0"
 
@@ -489,14 +489,6 @@ class Plugin:
         only run once for the lifetime of the plugin
         """
         pass
-
-
-class EditorPlugin(Plugin):
-    """a plugin that provides one or more editors, the editors should
-    implement the Editor interface
-    """
-
-    editors = []
 
 
 class Tool:  # pylint: disable=too-few-public-methods
@@ -564,7 +556,7 @@ class Viewable(Protocol):
 
 
 class CommandHandler(ABC):
-    command: str | Iterable[str]
+    command: str | Iterable[str | None]
 
     def get_view(self) -> View | None:
         """return the view for this command handler"""

@@ -31,6 +31,7 @@ import re
 import tempfile
 import traceback
 from pathlib import Path
+from typing import Generator
 
 logger = logging.getLogger(__name__)
 
@@ -648,7 +649,7 @@ class CSVRestore:
                     pb_set_fraction(count / num_lines)
                     yield
 
-    def geo_upgrader(self, change_lst: list[str]) -> None:
+    def geo_upgrader(self, change_lst: list[str]) -> Generator:
         """Upgrade changes from v1.0 to v1.3 prior to importing"""
         for file in change_lst:
             original = file + ORIG_SUFFIX
@@ -674,6 +675,8 @@ class CSVRestore:
             ):
                 in_file = csv.DictReader(old)
                 fieldnames = in_file.fieldnames
+                if not fieldnames:
+                    raise AttributeError(f"can't get fieldnames from {old}")
                 out_file = csv.DictWriter(new, fieldnames=fieldnames)
                 out_file.writeheader()
                 for count, line in enumerate(in_file):
@@ -688,8 +691,8 @@ class CSVRestore:
                         pb_set_fraction(count / num_lines)
                         yield
 
-    def set_geo_translator(self, geography: str) -> None:
-        """return a dictionary of old IDs to new IDs for the geography table."""
+    def set_geo_translator(self, geography: str) -> Generator:
+        """return a dictionary of old to new IDs for the geography table."""
         from bauble.plugins.plants import Geography
 
         msg = _("creating translation table")
@@ -705,7 +708,7 @@ class CSVRestore:
             geo = csv.DictReader(f)
             for count, line in enumerate(geo):
                 id_ = line.get("id")
-                code = line.get("tdwg_code").split(",")[0]
+                code = line.get("tdwg_code", "").split(",")[0]
                 parent = line.get("parent_id")
                 old_geos[id_] = {"code": code, "parent": parent}
                 # update the gui
@@ -713,6 +716,9 @@ class CSVRestore:
                     fraction = count / num_lines
                     pb_set_fraction(fraction)
                     yield
+
+        if db.Session is None:
+            raise ValueError("db.Session is None")
 
         session = db.Session()
         translator = {}
@@ -735,7 +741,7 @@ class CSVRestore:
                     .all()
                 )
             if not new:
-                parent2 = old_geos.get(parent.get("parent"))
+                parent2 = old_geos.get(codes.get("parent"))
                 if not parent2:
                     logger.debug("no parent for %s", codes)
                     continue

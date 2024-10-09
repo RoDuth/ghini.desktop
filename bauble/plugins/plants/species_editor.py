@@ -154,7 +154,10 @@ def species_match_func(
 
     :return: bool, True if the item at the treeiter matches the key
     """
-    species = completion.get_model()[treeiter][0]
+    tree_model = completion.get_model()
+    if not tree_model:
+        raise AttributeError(f"can't get TreeModel from {completion}")
+    species = tree_model[treeiter][0]
     if not sa_inspect(species).persistent:
         return False
     return species_to_string_matcher(species, key, sp_path)
@@ -1526,8 +1529,8 @@ class DistributionPresenter(editor.GenericEditorPresenter):
         """
         geo_names = [i.strip() for i in text.strip().split(",")]
 
-        levels_counter = {}
-        name_map = {}
+        levels_counter: dict[int, int] = {}
+        name_map: dict[str, list[Geography]] = {}
         unresolved = set()
 
         code_re = re.compile(r"^[0-9A-Z-]{1,6}$")

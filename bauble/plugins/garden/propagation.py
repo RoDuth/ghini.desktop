@@ -25,6 +25,7 @@ import logging
 import os
 import traceback
 import weakref
+from typing import TYPE_CHECKING
 
 logger = logging.getLogger(__name__)
 
@@ -35,6 +36,7 @@ from sqlalchemy import Integer
 from sqlalchemy import UnicodeText
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.associationproxy import association_proxy
+from sqlalchemy.orm import Mapped
 from sqlalchemy.orm import backref
 from sqlalchemy.orm import relationship
 from sqlalchemy.orm.session import object_session
@@ -46,6 +48,9 @@ from bauble import paths
 from bauble import prefs
 from bauble import utils
 from bauble.i18n import _
+
+if TYPE_CHECKING:
+    from . import Plant
 
 prop_type_values = {
     "Seed": _("Seed"),
@@ -70,6 +75,8 @@ class PlantPropagation(db.Base):
     propagation_id = Column(
         Integer, ForeignKey("propagation.id"), nullable=False
     )
+    plant: Mapped["Plant"]
+    propagation: Mapped["Propagation"]
 
 
 class Propagation(db.Base):
@@ -90,21 +97,21 @@ class Propagation(db.Base):
         "plant",
         creator=lambda plant: PlantPropagation(plant=plant),
     )
-    _plant_prop = relationship(
+    _plant_prop: "PlantPropagation" = relationship(
         "PlantPropagation",
         cascade="all, delete-orphan",
         uselist=False,
         backref=backref("propagation", uselist=False),
     )
 
-    cutting = relationship(
+    cutting: "PropCutting" = relationship(
         "PropCutting",
         primaryjoin="Propagation.id==PropCutting.propagation_id",
         cascade="all,delete-orphan",
         uselist=False,
         backref=backref("propagation", uselist=False),
     )
-    seed = relationship(
+    seed: "PropSeed" = relationship(
         "PropSeed",
         primaryjoin="Propagation.id==PropSeed.propagation_id",
         cascade="all,delete-orphan",
@@ -407,7 +414,7 @@ class PropCutting(db.Base):
         Integer, ForeignKey("propagation.id"), nullable=False
     )
 
-    rooted = relationship(
+    rooted: "PropCuttingRooted" = relationship(
         "PropCuttingRooted",
         cascade="all, delete-orphan",
         primaryjoin="PropCutting.id == PropCuttingRooted.cutting_id",

@@ -519,7 +519,7 @@ def multiproc_counter(url, klass, ids):
         # process produced.  The below suppresses the icon AFTER it has already
         # popped up meaning you get a bunch of icons appearing for a
         # around a second and then disappearing.
-        import AppKit
+        import AppKit  # type: ignore [import-untyped]
 
         AppKit.NSApp.setActivationPolicy_(1)  # 2 also works
     db.open_conn(url)
@@ -700,9 +700,7 @@ class PicturesScroller(Gtk.ScrolledWindow):
         self.parent = parent
         self.pic_pane = pic_pane
         self.set_width_and_notebook_page()
-        self.restore_position: int | None = prefs.prefs.get(
-            PIC_PANE_WIDTH_PREF, -1
-        )
+        self.restore_position: int = prefs.prefs.get(PIC_PANE_WIDTH_PREF, -1)
         self.restore_pic_pane = False
         pic_pane.show_all()
         self.pic_pane.set_position(self.restore_position)
@@ -722,7 +720,7 @@ class PicturesScroller(Gtk.ScrolledWindow):
         self.waiting_on_realise = 0
         self.selection: list[db.Base] = []
         # fires considerably less than child1 or pic_pane itself.
-        pic_pane.get_child2().connect(
+        cast(Gtk.Widget, pic_pane.get_child2()).connect(
             "size-allocate", self.on_pic_pane_size_allocation
         )
         self._set_pic_pane_pos_timer_id = None
@@ -1500,7 +1498,7 @@ class SearchView(pluginmgr.View, Gtk.Box):
             return None
 
         out = []
-        from mako.template import Template
+        from mako.template import Template  # type: ignore [import-untyped]
 
         try:
             for value in selected_values:

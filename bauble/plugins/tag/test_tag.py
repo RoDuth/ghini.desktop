@@ -81,7 +81,7 @@ def setUp_data():
             utils.reset_sequence(col)
 
 
-setUp_data.order = 2
+setUp_data.order = 2    # type: ignore [attr-defined]
 
 
 def test_duplicate_ids():

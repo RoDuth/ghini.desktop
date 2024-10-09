@@ -332,6 +332,7 @@ class SynonymSearch(SearchStrategy):
         ids: dict[tuple[type[db.Base], type[db.Base]], set[int]] = {}
         for result in results:
             models: tuple[type[db.Base], type[db.Base]] | None = None
+            id_ = None
             if isinstance(result, Species):
                 models = (Species, SpeciesSynonym)
                 id_ = result.id
@@ -344,7 +345,7 @@ class SynonymSearch(SearchStrategy):
             elif isinstance(result, VernacularName):
                 models = (VernacularName, SpeciesSynonym)
                 id_ = result.species.id  # type: ignore[attr-defined]
-            if models:
+            if models and id_:
                 ids.setdefault(models, set()).add(id_)
         return ids
 
@@ -377,7 +378,7 @@ class SynonymSearch(SearchStrategy):
                 query = (
                     session.query(models[0])
                     .join(Species)
-                    .join(SpeciesSynonym, syn_model_id == Species.id)  # type: ignore[attr-defined]  # noqa
+                    .join(SpeciesSynonym, syn_model_id == Species.id)
                     .filter(syn_id.in_(id_set))
                 )
             else:

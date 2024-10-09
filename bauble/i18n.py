@@ -3,7 +3,7 @@
 # Copyright (c) 2007 Kopfgeldjaeger
 # Copyright (c) 2012-2017 Mario Frasca <mario@anche.no>
 # Copyright 2017 Jardín Botánico de Quito
-# Copyright (c) 2022 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright (c) 2022-2024 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -50,7 +50,7 @@ if sys.platform == "win32":
 
 __all__ = ["_"]
 
-TEXT_DOMAIN = "ghini-%s" % ".".join(version_tuple[0:2])
+TEXT_DOMAIN = f"ghini-{'.'.join(version_tuple[0:2])}"
 
 # most of the following code was adapted from:
 # http://www.learningpython.com/2006/12/03/\
@@ -58,11 +58,7 @@ TEXT_DOMAIN = "ghini-%s" % ".".join(version_tuple[0:2])
 
 langs = []
 # Check the default locale
-try:
-    # Python >= 3.11
-    lang_code, encoding = locale.getlocale()
-except AttributeError:
-    lang_code, encoding = locale.getdefaultlocale()
+lang_code, encoding = locale.getlocale()
 
 if lang_code:
     # If we have a default, it's the first in the list
@@ -81,17 +77,14 @@ langs.append("en")
 # use.  First we check the default, then what the system told us, and
 # finally the 'known' list
 
-if sys.platform in ["win32", "darwin"]:
-    locale = gettext
+# NOTE not sure about this, commenting for now
+# if sys.platform in ["win32", "darwin"]:
+#     locale = gettext
+# locale.bindtextdomain(TEXT_DOMAIN, paths.locale_dir())
+# locale.textdomain(TEXT_DOMAIN)
 
-try:
-    import Gtk.glade as gtkglade
-except ImportError:
-    gtkglade = locale
-
-for module in locale, gtkglade:
-    module.bindtextdomain(TEXT_DOMAIN, paths.locale_dir())
-    module.textdomain(TEXT_DOMAIN)
+gettext.bindtextdomain(TEXT_DOMAIN, paths.locale_dir())
+gettext.textdomain(TEXT_DOMAIN)
 
 # Get the language to use
 lang = gettext.translation(

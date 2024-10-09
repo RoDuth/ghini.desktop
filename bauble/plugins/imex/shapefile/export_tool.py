@@ -29,7 +29,7 @@ logger = logging.getLogger(__name__)
 from gi.repository import Gdk
 from gi.repository import GLib
 from gi.repository import Gtk
-from shapefile import Writer
+from shapefile import Writer  # type: ignore [import-untyped]
 from sqlalchemy.ext.associationproxy import AssociationProxy
 from sqlalchemy.orm import class_mapper
 
@@ -44,16 +44,16 @@ from bauble.editor import GenericEditorView
 # NOTE importing shapefile Writer above wipes out gettext _
 from bauble.i18n import _
 from bauble.meta import get_default
+from bauble.plugins.garden.location import Location
 from bauble.plugins.garden.location import (  # noqa pylint: disable=unused-import
-    Location,
+    LocationNote,
 )
-from bauble.plugins.garden.location import LocationNote
 
 # NOTE: need to import the Note classes as we may need them.
+from bauble.plugins.garden.plant import Plant
 from bauble.plugins.garden.plant import (  # noqa pylint: disable=unused-import
-    Plant,
+    PlantNote,
 )
-from bauble.plugins.garden.plant import PlantNote
 from bauble.utils.geo import ProjDB
 
 from .. import GenericExporter

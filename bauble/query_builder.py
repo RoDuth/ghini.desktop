@@ -263,7 +263,7 @@ class ExpressionRow:
         "like",
         "contains",
     ]
-    custom_columns = {}
+    custom_columns: dict[str, tuple] = {}
 
     def __init__(self, query_builder, remove_callback, row_number):
         self.proptype = None
@@ -713,18 +713,18 @@ class BuiltQuery:
             self.is_valid = False
 
     @property
-    def clauses(self):
+    def clauses(self) -> list:
         if not self.__clauses:
             from dataclasses import dataclass
 
             # pylint: disable=too-few-public-methods
             @dataclass
             class Clause:
-                not_: str = None
-                connector: str = None
-                field: str = None
-                operator: str = None
-                value: str = None
+                not_: str | None = None
+                connector: str | None = None
+                field: str | None = None
+                operator: str | None = None
+                value: str | None = None
 
             self.__clauses = []
             for part in [k for k in self.parsed if len(k) > 0][2:]:
@@ -753,7 +753,7 @@ class BuiltQuery:
 
 class QueryBuilder(GenericEditorPresenter):
     view_accept_buttons = ["cancel_button", "confirm_button"]
-    default_size = []
+    default_size: tuple[int, ...] = ()
 
     def __init__(self, view=None):
         super().__init__(self, view=view, refresh_view=False, session=False)

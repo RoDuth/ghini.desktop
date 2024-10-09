@@ -94,13 +94,13 @@ def get_active_children(children: Callable | str, obj: Any) -> Iterable:
     """Return only active children of obj if the 'exclude_inactive' pref is
     set True else return all children.
     """
-    children = children(obj) if callable(children) else getattr(obj, children)
+    kids = children(obj) if callable(children) else getattr(obj, children)
     # avoid circular refs
     from bauble import prefs
 
     if prefs.prefs.get(prefs.exclude_inactive_pref):
-        return [i for i in children if getattr(i, "active", True)]
-    return children
+        return [i for i in kids if getattr(i, "active", True)]
+    return kids
 
 
 class MapperBase(DeclarativeMeta):

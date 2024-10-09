@@ -55,7 +55,7 @@ from bauble.i18n import _
 # missing columns so that all columns will have some value
 
 
-def is_importable_attr(domain: db.Base, path: str) -> bool:
+def is_importable_attr(domain: type[db.Base], path: str) -> bool:
     """Check if a path points to an importable attribute (i.e. can be set).
 
     For hybrid_property returns False if has no setter.
@@ -84,7 +84,7 @@ class GenericImporter(ABC):  # pylint: disable=too-many-instance-attributes
     Impliment `_import_task`
     """
 
-    OPTIONS_MAP = []
+    OPTIONS_MAP: list[dict] = []
 
     def __init__(self):
         self.option = "0"
@@ -320,7 +320,7 @@ class GenericImporter(ABC):  # pylint: disable=too-many-instance-attributes
         for k in sorted(rec, key=lambda i: i.count("."), reverse=True):
             # get rid of empty strings
             record[k] = None if rec[k] == "" else rec[k]
-        organised = {}
+        organised: dict = {}
         for k, v in record.items():
             if "." in k:
                 path, atr = k.rsplit(".", 1)

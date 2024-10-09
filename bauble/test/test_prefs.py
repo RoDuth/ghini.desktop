@@ -365,10 +365,9 @@ class PrefsViewTests(BaubleTestCase):
         prefs_view.on_prefs_insert_activate(None, None)
         mock_dialog.assert_called()
 
-    def test_on_prefs_edit_toggled(self):
-        from bauble import utils
+    @mock.patch("bauble.utils.yes_no_dialog")
+    def test_on_prefs_edit_toggled(self, mock_dialog):
 
-        orig_yes_no_dialog = utils.yes_no_dialog
         prefs_view = prefs.PrefsView()
 
         # starts without editing
@@ -376,7 +375,7 @@ class PrefsViewTests(BaubleTestCase):
         self.assertIsNone(prefs_view.button_press_id)
 
         # toggle editing to True with yes to dialog
-        utils.yes_no_dialog = lambda x, parent: True
+        mock_dialog.return_value = True
         prefs_view.prefs_edit_chkbx.set_active(True)
         prefs_view.on_prefs_edit_toggled(prefs_view.prefs_edit_chkbx)
 
@@ -391,16 +390,15 @@ class PrefsViewTests(BaubleTestCase):
         self.assertIsNone(prefs_view.button_press_id)
 
         # toggle editing to True with no to dialog
-        utils.yes_no_dialog = lambda x, parent: False
+        mock_dialog.return_value = False
         prefs_view.prefs_edit_chkbx.set_active(True)
         prefs_view.on_prefs_edit_toggled(prefs_view.prefs_edit_chkbx)
 
         self.assertFalse(prefs_view.prefs_data_renderer.props.editable)
         self.assertIsNone(prefs_view.button_press_id)
 
-        utils.yes_no_dialog = orig_yes_no_dialog
-
-    def test_on_prefs_edited(self):
+    @mock.patch("bauble.utils.yes_no_dialog")
+    def test_on_prefs_edited(self, mock_dialog):
         key = "bauble.keys"
         prefs.prefs[key] = True
         prefs_view = prefs.PrefsView()
@@ -433,13 +431,9 @@ class PrefsViewTests(BaubleTestCase):
         self.assertEqual(prefs.prefs[key], {"this": "that"})
 
         # delete option
-        from bauble import utils
-
-        orig_yes_no_dialog = utils.yes_no_dialog
-        utils.yes_no_dialog = lambda x, parent: True
+        mock_dialog.return_value = True
         prefs_view.on_prefs_edited(None, path, "")
         self.assertIsNone(prefs.prefs[key])
-        utils.yes_no_dialog = orig_yes_no_dialog
 
     @mock.patch(
         "bauble.prefs.Gtk.MessageDialog.run", return_value=Gtk.ResponseType.OK

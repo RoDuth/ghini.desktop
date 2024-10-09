@@ -30,7 +30,7 @@ from pathlib import Path
 logger = logging.getLogger(__name__)
 
 from gi.repository import Gtk  # noqa
-from mako.template import Template
+from mako.template import Template  # type: ignore [import-untyped]
 
 from bauble import paths
 from bauble import utils
