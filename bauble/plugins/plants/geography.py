@@ -417,7 +417,7 @@ class Geography(db.Base):
 @utils.timed_cache(size=1000, secs=None)
 def _coord_string(lon: int, lat: int) -> str:
     """Convert WGS84 coordinates to SVG point strings."""
-    return f"{round(lon + 180, 2)} {round(180 - (lat + 90), 2)}"
+    return f"{round(lon, 3)} {round(lat, 3)}"
 
 
 def _path_string(poly: Sequence[Iterable[int]], fill: str) -> str:
@@ -507,7 +507,8 @@ class DistributionMap:
         for geo in session.query(Geography).filter_by(level=1):
             svg_paths.append(geo.as_svg_paths(fill="lightgrey"))
         cls._world = (
-            '<svg xmlns="http://www.w3.org/2000/svg" width="360" height="180">'
+            '<svg xmlns="http://www.w3.org/2000/svg" width="360" height="180" '
+            'viewBox="-180 90 360 180" transform="scale(1, -1)">'
             f'{"".join(svg_paths)}'
             "{selected}"
             "</svg>"

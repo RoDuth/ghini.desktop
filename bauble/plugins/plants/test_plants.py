@@ -3462,8 +3462,8 @@ class GeographyTests(BaubleClassTestCase):
         )
         path = (
             '<path stroke="black" stroke-width="0.1" fill="green" d='
-            '"M 339.07 121.6 L 339.09 121.56 L 339.05 121.52 L 339.1 121.57 Z"'
-            "/>"
+            '"M 159.071 -31.6 L 159.086 -31.561 L 159.049 -31.522 L 159.102 '
+            '-31.571 Z"/>'
         )
         self.assertIsInstance(geo.distribution_map(), DistributionMap)
         self.assertTrue(path in str(geo.distribution_map()))
@@ -3507,7 +3507,8 @@ class GeographyTests2(TestCase):
         self.assertEqual(
             geo.as_svg_paths(),
             '<path stroke="black" stroke-width="0.1" fill="green" d='
-            '"M 339.07 121.6 L 339.09 121.56 L 339.05 121.52 L 339.1 121.57 Z"'
+            '"M 159.071 -31.6 L 159.086 -31.561 L 159.049 -31.522 L '
+            '159.102 -31.571 Z"'
             "/>",
         )
 
@@ -3541,20 +3542,21 @@ class GeographyTests2(TestCase):
         )
         self.assertEqual(
             geo.as_svg_paths(),
-            '<path stroke="black" stroke-width="0.1" fill="green" d="M 339.07 '
-            '121.6 L 339.09 121.56 L 339.05 121.52 L 339.1 121.57 Z"/><path '
-            'stroke="black" stroke-width="0.1" fill="green" d="M 319.07 111.6 '
-            'L 319.09 111.56 L 319.05 111.52 L 319.1 111.57 Z"/>',
+            '<path stroke="black" stroke-width="0.1" fill="green" d="M '
+            "159.071 -31.6 L 159.086 -31.561 L 159.049 -31.522 L 159.102 "
+            '-31.571 Z"/><path stroke="black" stroke-width="0.1" fill="green" '
+            'd="M 139.071 -21.6 L 139.086 -21.561 L 139.049 -21.522 L 139.102 '
+            '-21.571 Z"/>',
         )
 
     def test_coord_string(self):
-        self.assertEqual(_coord_string(10.001, 20.001), "190.0 70.0")
+        self.assertEqual(_coord_string(10.0011, 20.0011111), "10.001 20.001")
 
     def test_path_string(self):
         path = [[10.01, 20.01], [12.01, 21.01], [13.10, 22.10], [10.01, 20.01]]
         res = (
             '<path stroke="black" stroke-width="0.1" fill="blue" '
-            'd="M 190.01 69.99 L 192.01 68.99 L 193.1 67.9 Z"/>'
+            'd="M 10.01 20.01 L 12.01 21.01 L 13.1 22.1 Z"/>'
         )
         self.assertEqual(_path_string(path, fill="blue"), res)
 
@@ -3744,8 +3746,8 @@ class DistMapInfoExpanderMixinTests(BaubleTestCase):
 
         svg_paths = (
             '<path stroke="black" stroke-width="0.1" fill="green" d='
-            '"M 339.07 121.6 L 339.09 121.56 L 339.05 121.52 L 339.1 121.57 Z"'
-            "/>"
+            '"M 159.071 -31.6 L 159.086 -31.561 L 159.049 -31.522 L 159.102 '
+            '-31.571 Z"/>'
         )
         svg = DistributionMap._world.format(selected=svg_paths)
         self.assertEqual(out, svg)
