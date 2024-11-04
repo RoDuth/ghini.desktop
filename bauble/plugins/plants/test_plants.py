@@ -3462,7 +3462,7 @@ class GeographyTests(BaubleClassTestCase):
             .one()
         )
         path = (
-            '<path stroke="black" stroke-width="0.1" fill="green" d='
+            '<path stroke="green" stroke-width="0.2" fill="green" d='
             '"M 159.071 -31.6 L 159.086 -31.561 L 159.049 -31.522 L 159.102 '
             '-31.571 Z"/>'
         )
@@ -3507,7 +3507,7 @@ class GeographyTests2(TestCase):
         )
         self.assertEqual(
             geo.as_svg_paths(),
-            '<path stroke="black" stroke-width="0.1" fill="green" d='
+            '<path stroke="green" stroke-width="0.2" fill="green" d='
             '"M 159.071 -31.6 L 159.086 -31.561 L 159.049 -31.522 L '
             '159.102 -31.571 Z"'
             "/>",
@@ -3538,17 +3538,17 @@ class GeographyTests2(TestCase):
         # not pacific centric
         self.assertEqual(
             geo.as_svg_paths(),
-            '<path stroke="black" stroke-width="0.1" fill="green" d='
+            '<path stroke="green" stroke-width="0.2" fill="green" d='
             '"M -115.75 24.952 L -115.75 24.951 L -115.749 24.952 L '
             '-115.75 24.954 L -115.75 24.953 L -115.75 24.952 Z"/>',
         )
         # pacific centric (returns both)
         self.assertEqual(
             geo.as_svg_paths(pacific_centric=True),
-            '<path stroke="black" stroke-width="0.1" fill="green" d='
+            '<path stroke="green" stroke-width="0.2" fill="green" d='
             '"M -115.75 24.952 L -115.75 24.951 L -115.749 24.952 L '
             '-115.75 24.954 L -115.75 24.953 L -115.75 24.952 Z"/>'
-            '<path stroke="black" stroke-width="0.1" fill="green" d='
+            '<path stroke="green" stroke-width="0.2" fill="green" d='
             '"M 244.25 24.952 L 244.25 24.951 L 244.251 24.952 L '
             '244.25 24.954 L 244.25 24.953 L 244.25 24.952 Z"/>',
         )
@@ -3583,9 +3583,9 @@ class GeographyTests2(TestCase):
         )
         self.assertEqual(
             geo.as_svg_paths(),
-            '<path stroke="black" stroke-width="0.1" fill="green" d="M '
+            '<path stroke="green" stroke-width="0.2" fill="green" d="M '
             "159.071 -31.6 L 159.086 -31.561 L 159.049 -31.522 L 159.102 "
-            '-31.571 Z"/><path stroke="black" stroke-width="0.1" fill="green" '
+            '-31.571 Z"/><path stroke="green" stroke-width="0.2" fill="green" '
             'd="M 139.071 -21.6 L 139.086 -21.561 L 139.049 -21.522 L 139.102 '
             '-21.571 Z"/>',
         )
@@ -3601,7 +3601,7 @@ class GeographyTests2(TestCase):
     def test_path_string(self):
         path = [[10.01, 20.01], [12.01, 21.01], [13.10, 22.10], [10.01, 20.01]]
         res = (
-            '<path stroke="black" stroke-width="0.1" fill="blue" '
+            '<path stroke="blue" stroke-width="0.2" fill="blue" '
             'd="M 10.01 20.01 L 12.01 21.01 L 13.1 22.1 Z"/>'
         )
         self.assertEqual(
@@ -3805,7 +3805,7 @@ class DistMapInfoExpanderMixinTests(BaubleTestCase):
             out = f.read()
 
         svg_paths = (
-            '<path stroke="black" stroke-width="0.1" fill="green" d='
+            '<path stroke="green" stroke-width="0.2" fill="green" d='
             '"M 159.071 -31.6 L 159.086 -31.561 L 159.049 -31.522 L 159.102 '
             '-31.571 Z"/>'
         )

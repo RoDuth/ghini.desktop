@@ -449,7 +449,7 @@ def _path_string(
     start = _coord_string(*poly[0], pacific_centric)
     middle = [f"L {_coord_string(*i, pacific_centric)}" for i in poly[1:-1]]
     d = f'M {start} {" ".join(middle)} Z'
-    return f'<path stroke="black" stroke-width="0.1" fill="{fill}" d="{d}"/>'
+    return f'<path stroke="{fill}" stroke-width="0.2" fill="{fill}" d="{d}"/>'
 
 
 class DistMapCache(OrderedDict[int, Gtk.Image]):
