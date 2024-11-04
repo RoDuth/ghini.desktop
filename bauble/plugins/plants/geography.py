@@ -86,6 +86,9 @@ if TYPE_CHECKING:
 GEO_KML_MAP_PREFS = "kml_templates.geography"
 """pref for path to a custom mako kml template."""
 
+GEO_PACIFIC_CENTRIC = "geography.dist_map_pacific_centric"
+"""pref whether to use a pacific centric map as default."""
+
 map_kml_callback = KMLMapCallbackFunctor(
     prefs.prefs.get(
         GEO_KML_MAP_PREFS, str(Path(__file__).resolve().parent / "geo.kml")
@@ -391,10 +394,16 @@ class Geography(db.Base):
             parents.insert(0, geo)
         return parents
 
-    def as_svg_paths(self, fill: str = "green") -> str:
+    def as_svg_paths(
+        self, fill: str = "green", pacific_centric: bool = False
+    ) -> str:
         """Convert geography geojson to SVG path element strings.
 
         Use a separate database connection to avoid loading deferred geojson.
+
+        NOTE: pacific centric is more expensive as it creates 2 maps allowing
+        centering near the join longitude
+        (actually 150, 30degs before the 180/0 join)
         """
         logger.debug("as_svg_paths, self=%s, fill=%s", self, fill)
         svg_paths: list[str] = []
@@ -403,9 +412,17 @@ class Geography(db.Base):
         for shape in coords:
             if self.geojson["type"] == "MultiPolygon":
                 for poly in shape:
-                    svg_paths.append(_path_string(poly, fill))
+                    svg_paths.append(_path_string(poly, fill, False))
+                    if pacific_centric:
+                        svg_paths.append(
+                            _path_string(poly, fill, pacific_centric)
+                        )
             else:
-                svg_paths.append(_path_string(shape, fill))
+                svg_paths.append(_path_string(shape, fill, False))
+                if pacific_centric:
+                    svg_paths.append(
+                        _path_string(shape, fill, pacific_centric)
+                    )
 
         return "".join(svg_paths)
 
@@ -415,18 +432,22 @@ class Geography(db.Base):
 
 
 @utils.timed_cache(size=1000, secs=None)
-def _coord_string(lon: int, lat: int) -> str:
+def _coord_string(lon: int, lat: int, pacific_centric: bool) -> str:
     """Convert WGS84 coordinates to SVG point strings."""
+    if pacific_centric:
+        return f"{round(lon + 360, 3)} {round(lat, 3)}"
     return f"{round(lon, 3)} {round(lat, 3)}"
 
 
-def _path_string(poly: Sequence[Iterable[int]], fill: str) -> str:
+def _path_string(
+    poly: Sequence[Iterable[int]], fill: str, pacific_centric: bool
+) -> str:
     """Convert a WGS84 polygon to a SVG path string.
 
     :param fill: fill colour value for the polygon
     """
-    start = _coord_string(*poly[0])
-    middle = [f"L {_coord_string(*i)}" for i in poly[1:-1]]
+    start = _coord_string(*poly[0], pacific_centric)
+    middle = [f"L {_coord_string(*i, pacific_centric)}" for i in poly[1:-1]]
     d = f'M {start} {" ".join(middle)} Z'
     return f'<path stroke="black" stroke-width="0.1" fill="{fill}" d="{d}"/>'
 
@@ -455,6 +476,7 @@ class DistributionMap:
     _world: str = ""
     _world_pixbuf: GdkPixbuf.Pixbuf | None = None
     _image_cache = DistMapCache()
+    _pacific_centric: bool = False
 
     def __init__(self, ids: Sequence[int]) -> None:
         # Use a separate session to avoid triggering history pointlessly
@@ -468,7 +490,17 @@ class DistributionMap:
             )
         codes_str = "|".join(i.code for i in areas)
         self._image_cache_key = hash(codes_str)
-        self._svg_paths = (i.as_svg_paths() for i in areas)
+
+        if not self._world:
+            # set once per session
+            type(self)._pacific_centric = bool(
+                prefs.prefs.get(GEO_PACIFIC_CENTRIC)
+            )
+        self._svg_paths = (
+            i.as_svg_paths(pacific_centric=self._pacific_centric)
+            for i in areas
+        )
+
         self._image: Gtk.Image | None = None
         self._map: str = ""
 
@@ -486,29 +518,38 @@ class DistributionMap:
         `selected` placeholder.
         """
         if not self._world:
-            self._set_base_map()
+            self._set_base_map(self._pacific_centric)
         return self._world
 
     @property
     def world_pixbuf(self) -> GdkPixbuf.Pixbuf:
         """Class level map as a pixbuf, use to create blank map images."""
         if not self._world_pixbuf:
-            self._set_base_map()
+            self._set_base_map(self._pacific_centric)
         return cast(GdkPixbuf.Pixbuf, self._world_pixbuf)
 
     @classmethod
-    def _set_base_map(cls) -> None:
+    def _set_base_map(cls, pacific_centric: bool) -> None:
         """Set the class level world SVG map and pixbuf once."""
         if not db.Session:
             return
         logger.debug("setting base map")
+
+        start_long = -180
+        if cls._pacific_centric:
+            start_long = -30
+
         session = db.Session()
         svg_paths = []
         for geo in session.query(Geography).filter_by(level=1):
-            svg_paths.append(geo.as_svg_paths(fill="lightgrey"))
+            svg_paths.append(
+                geo.as_svg_paths(
+                    fill="lightgrey", pacific_centric=pacific_centric
+                )
+            )
         cls._world = (
             '<svg xmlns="http://www.w3.org/2000/svg" width="360" height="180" '
-            'viewBox="-180 90 360 180" transform="scale(1, -1)">'
+            f'viewBox="{start_long} 90 360 180" transform="scale(1, -1)">'
             f'{"".join(svg_paths)}'
             "{selected}"
             "</svg>"

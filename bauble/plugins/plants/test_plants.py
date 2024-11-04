@@ -76,6 +76,7 @@ from .genus import generic_gen_get_completions
 from .genus import genus_cell_data_func
 from .genus import genus_match_func
 from .genus import genus_to_string_matcher
+from .geography import GEO_PACIFIC_CENTRIC
 from .geography import DistMapCache
 from .geography import DistMapInfoExpanderMixin
 from .geography import DistributionMap
@@ -3512,6 +3513,46 @@ class GeographyTests2(TestCase):
             "/>",
         )
 
+    def test_as_svg_paths_pacific_centric(self):
+        geojson = {
+            "type": "Polygon",
+            "coordinates": [
+                [
+                    [-115.7504425, 24.9516697],
+                    [-115.7500534, 24.9512501],
+                    [-115.7487793, 24.9524994],
+                    [-115.7500305, 24.9537201],
+                    [-115.7504196, 24.9533291],
+                    [-115.7504501, 24.9516697],
+                    [-115.7504425, 24.9516697],
+                ]
+            ],
+        }
+        geo = Geography(
+            name="Rocas Alijos",
+            code="MXI-RA",
+            level=4,
+            geojson=geojson,
+        )
+
+        # not pacific centric
+        self.assertEqual(
+            geo.as_svg_paths(),
+            '<path stroke="black" stroke-width="0.1" fill="green" d='
+            '"M -115.75 24.952 L -115.75 24.951 L -115.749 24.952 L '
+            '-115.75 24.954 L -115.75 24.953 L -115.75 24.952 Z"/>',
+        )
+        # pacific centric (returns both)
+        self.assertEqual(
+            geo.as_svg_paths(pacific_centric=True),
+            '<path stroke="black" stroke-width="0.1" fill="green" d='
+            '"M -115.75 24.952 L -115.75 24.951 L -115.749 24.952 L '
+            '-115.75 24.954 L -115.75 24.953 L -115.75 24.952 Z"/>'
+            '<path stroke="black" stroke-width="0.1" fill="green" d='
+            '"M 244.25 24.952 L 244.25 24.951 L 244.251 24.952 L '
+            '244.25 24.954 L 244.25 24.953 L 244.25 24.952 Z"/>',
+        )
+
     def test_as_svg_paths_multi_polygon(self):
         geojson = {
             "type": "MultiPolygon",
@@ -3550,7 +3591,12 @@ class GeographyTests2(TestCase):
         )
 
     def test_coord_string(self):
-        self.assertEqual(_coord_string(10.0011, 20.0011111), "10.001 20.001")
+        self.assertEqual(
+            _coord_string(10.0011, 20.0011111, False), "10.001 20.001"
+        )
+        self.assertEqual(
+            _coord_string(-10.0011, 20.0011111, True), "349.999 20.001"
+        )
 
     def test_path_string(self):
         path = [[10.01, 20.01], [12.01, 21.01], [13.10, 22.10], [10.01, 20.01]]
@@ -3558,7 +3604,9 @@ class GeographyTests2(TestCase):
             '<path stroke="black" stroke-width="0.1" fill="blue" '
             'd="M 10.01 20.01 L 12.01 21.01 L 13.1 22.1 Z"/>'
         )
-        self.assertEqual(_path_string(path, fill="blue"), res)
+        self.assertEqual(
+            _path_string(path, fill="blue", pacific_centric=False), res
+        )
 
 
 class DistributionMapTests(BaubleClassTestCase):
@@ -3590,6 +3638,18 @@ class DistributionMapTests(BaubleClassTestCase):
         # str shows populated template
         dist = DistributionMap([682])
         self.assertNotIn("{selected}", str(dist))
+
+    def test_pacific_centric_world_template(self):
+        dist = DistributionMap([50])
+        norm = str(dist)
+        self.assertIn('viewBox="-180', norm)
+        # reset and set pref
+        DistributionMap._world = ""
+        prefs.prefs[GEO_PACIFIC_CENTRIC] = True
+        dist = DistributionMap([50])
+        pc = str(dist)
+        self.assertIn('viewBox="-30', pc)
+        self.assertTrue(len(pc) > len(norm))
 
     def test_world_pixbuf(self):
         # calling world_pixbuf generates the pixbuf
