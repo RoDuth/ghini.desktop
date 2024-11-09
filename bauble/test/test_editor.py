@@ -83,9 +83,7 @@ class BaubleTests(BaubleTestCase):
         "it is a task of the presenter to indicate the accept buttons"
         filename = os.path.join(paths.lib_dir(), "connmgr.glade")
         view = GenericEditorView(filename, root_widget_name="main_dialog")
-        self.assertRaises(
-            AttributeError, view.set_accept_buttons_sensitive, True
-        )
+        self.assertIsNone(view.set_accept_buttons_sensitive(False))
         view.get_window().destroy()
 
     def test_set_sensitive(self):

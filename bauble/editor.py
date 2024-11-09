@@ -382,7 +382,7 @@ class GenericEditorView:
     def set_accept_buttons_sensitive(self, sensitive):
         """set the sensitivity of all the accept/ok buttons"""
         if not self.accept_buttons:
-            raise AttributeError("accept_buttons not set.")
+            return
         for wname in self.accept_buttons:
             getattr(self.widgets, wname).set_sensitive(sensitive)
 
