@@ -576,6 +576,8 @@ class GeneralSpeciesExpander(DistMapInfoExpanderMixin, InfoExpander):
 
         :param row: the row to get the values from
         """
+        self.zoomed = False
+        self.zoom_level = 1
         # In case of connection change
         if self.current_db != id(db.engine.url):
             self._setup_custom_column("_sp_custom1")
@@ -674,12 +676,14 @@ class GeneralSpeciesExpander(DistMapInfoExpanderMixin, InfoExpander):
         for child in self.widgets.dist_map_box.get_children():
             self.widgets.dist_map_box.remove(child)
         on_clicked = utils.generate_on_clicked(select_in_search_results)
+        self.distribution_map = None
         if row.distribution:
             map_event_box = Gtk.EventBox()
-            image = row.distribution_map().as_image()
+            self.distribution_map = row.distribution_map()
+            image = self.distribution_map.as_image()
             map_event_box.add(image)
             map_event_box.connect(
-                "button_release_event", self.on_map_button_release, row
+                "button_release_event", self.on_map_button_release
             )
             self.widgets.dist_map_box.pack_start(
                 map_event_box, False, False, 0

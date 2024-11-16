@@ -34,7 +34,6 @@ from operator import itemgetter
 from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import Any
-from typing import Protocol
 from typing import Self
 from typing import cast
 
@@ -403,7 +402,8 @@ class Geography(db.Base):
 
         NOTE: pacific centric is more expensive as it creates 2 maps allowing
         centering near the join longitude
-        (actually 150, 30degs before the 180/0 join)
+        (actually 150, 30degs before the antimeridian is usual for a pacific
+        centric map)
         """
         logger.debug("as_svg_paths, self=%s, fill=%s", self, fill)
         svg_paths: list[str] = []
@@ -445,11 +445,143 @@ def _path_string(
     """Convert a WGS84 polygon to a SVG path string.
 
     :param fill: fill colour value for the polygon
+    :param pacific_centric: if True longitudes are shifted east by 360degs
     """
     start = _coord_string(*poly[0], pacific_centric)
     middle = [f"L {_coord_string(*i, pacific_centric)}" for i in poly[1:-1]]
     d = f'M {start} {" ".join(middle)} Z'
     return f'<path stroke="{fill}" stroke-width="0.2" fill="{fill}" d="{d}"/>'
+
+
+def split_lats_longs(
+    areas: Iterable[Geography],
+) -> tuple[list[float], list[float]]:
+    """Given an interable of Geographies return their combined lats and longs
+    as separate lists.
+    """
+    longs: list[float] = []
+    lats: list[float] = []
+    for area in areas:
+        coords = area.geojson["coordinates"]
+        for shape in coords:
+            if area.geojson["type"] == "MultiPolygon":
+                for poly in shape:
+                    for long, lat in poly:
+                        longs.append(long)
+                        lats.append(lat)
+            else:
+                for long, lat in shape:
+                    longs.append(long)
+                    lats.append(lat)
+    return longs, lats
+
+
+def straddles_antimeridian(
+    longs: list[float], pc_longs: list[float], zoom: float
+) -> bool:
+    """Do the provided longitudes values stradle or are close to stradling
+    the 180th meridian considering the zoom buffer.
+
+    :param longs: an iterable longitude values.
+    :param pc_longs: an iterable longitude as could be used for a pacific
+        centric map.
+    :param zoom: level of zoom
+    """
+
+    max_long, min_long = max(longs), min(longs)
+
+    # straddles antimeridian (slightly biased to not - i.e. when a distribution
+    # is almost global there is little benefit in switching to pacific centric
+    # map)
+    if abs(max(pc_longs) - min(pc_longs)) + 4 < abs(max_long - min_long):
+        logger.debug("stradles antimeridian")
+        return True
+
+    zoom_buffer = calculate_zoom_buffer(zoom, min_long, max_long)
+
+    min_long_is_lt = min_long < -180 + zoom_buffer
+    max_long_is_gt = max_long > 180 - zoom_buffer
+
+    # western pacific and too close
+    if min_long_is_lt and not max_long_is_gt:
+        logger.debug("west stradles antimeridian")
+        return True
+    # eastern pacific and too close
+    if max_long_is_gt and not min_long_is_lt:
+        logger.debug("east stradles antimeridian")
+        return True
+    return False
+
+
+def calculate_zoom_buffer(
+    zoom: float, min_long: float, max_long: float
+) -> float:
+    """Given the min and max longitude and the zoom level return the number of
+    degrees required on each side of the map.
+
+    :raises ValueError: If the result is negative (e.g. zoom level too great)
+    """
+    degs = (360 / zoom - abs(max_long - min_long)) / 2
+    if degs < 0:
+        raise ValueError(f"Negative result: {degs}, zoom level too great?")
+    return degs
+
+
+def get_viewbox(
+    min_long: float,
+    max_long: float,
+    min_lat: float,
+    max_lat: float,
+    zoom: float,
+) -> str:
+    """Given the max/min lats and longs and a zoom level return a SVG viewBox
+    string
+
+    :raised ValueError: if the calculated start x is too low, indicating the
+        need to use a pacific central map.
+    """
+    width = 360 / zoom
+    height = 180 / zoom
+
+    start_x = min_long - ((width - abs(max_long - min_long)) / 2)
+    start_y = -(max_lat + ((height - abs(max_lat - min_lat)) / 2))
+    # correct for too far north or south
+    if start_y < -90:
+        start_y = -90.0
+    else:
+        start_y = min(start_y, 180.0 - height - 90.0)
+
+    logger.debug(
+        "start_x = %s start_y = %s width = %s height = %s",
+        start_x,
+        start_y,
+        width,
+        height,
+    )
+
+    if start_x < -180:
+        raise ValueError(
+            f"Too low a value for viewbox x axis start point: {start_x} at "
+            f"zoom level {zoom}"
+        )
+    return (
+        f"{round(start_x, 3)} {round(start_y, 3)} "
+        f"{round(width, 3)} {round(height, 3)}"
+    )
+
+
+@utils.timed_cache(size=3, secs=None)
+def get_world_paths(fill: str, pacific_centric: bool) -> str:
+    """All continent level WGSRPD areas as an string of SVG paths."""
+    if db.Session is None:
+        raise error.DatabaseError("db.Session is None")
+    svg_paths = []
+    with db.Session() as session:
+        for geo in session.query(Geography).filter_by(level=1):
+            svg_paths.append(
+                geo.as_svg_paths(fill=fill, pacific_centric=pacific_centric)
+            )
+    return "".join(svg_paths)
 
 
 class DistMapCache(OrderedDict[int, Gtk.Image]):
@@ -482,13 +614,9 @@ class DistributionMap:
         # Use a separate session to avoid triggering history pointlessly
         if db.Session is None:
             raise error.DatabaseError("db.Session is None")
-        with db.Session() as session:
-            areas = (
-                session.query(Geography)
-                .filter(cast(QueryableAttribute, Geography.id).in_(ids))
-                .order_by(Geography.code)
-            )
-        codes_str = "|".join(i.code for i in areas)
+        self._area_ids = ids
+        self.areas = self.get_areas()
+        codes_str = "|".join(i.code for i in self.areas)
         self._image_cache_key = hash(codes_str)
 
         if not self._world:
@@ -498,11 +626,26 @@ class DistributionMap:
             )
         self._svg_paths = (
             i.as_svg_paths(pacific_centric=self._pacific_centric)
-            for i in areas
+            for i in self.areas
         )
 
         self._image: Gtk.Image | None = None
         self._map: str = ""
+        self._zoom_map: str = ""
+        self._current_max_mins: tuple[float, float, float, float] | None = None
+
+    def get_areas(self) -> Iterable[Geography]:
+        if db.Session is None:
+            raise error.DatabaseError("db.Session is None")
+
+        with db.Session() as session:
+            return (
+                session.query(Geography)
+                .filter(
+                    cast(QueryableAttribute, Geography.id).in_(self._area_ids)
+                )
+                .order_by(Geography.code)  # for hash: _image_cache_key
+            )
 
     @property
     def map(self) -> str:
@@ -511,6 +654,57 @@ class DistributionMap:
             logger.debug("generating map")
             self._map = self.world.format(selected="".join(self._svg_paths))
         return self._map
+
+    @property
+    def zoom_map(self) -> str:
+        """Map template ready to zoom by formating with `viewbox`."""
+        if not self._zoom_map:
+            logger.debug("generating zoom map")
+            svg_paths = []
+            for area in self.areas:
+                svg_paths.append(
+                    area.as_svg_paths(fill="green", pacific_centric=True)
+                )
+            selected = "".join(svg_paths)
+            world_paths = get_world_paths("lightgrey", True)
+            self._zoom_map = (
+                '<svg xmlns="http://www.w3.org/2000/svg" '
+                'width="360" height="180" '
+                'viewBox="{viewbox}">'
+                '<g transform="scale(1, -1)">'
+                f"{world_paths}"
+                f"{selected}"
+                "</g>"
+                "</svg>"
+            )
+        return self._zoom_map
+
+    def get_zoom_viewbox(self, zoom: float) -> str:
+        """Return an appropriate viewBox value as a string for the supplied
+        zoom level.
+
+        Avoids recalculating from scratch when no need.
+        """
+        if self._current_max_mins:
+            try:
+                return get_viewbox(*self._current_max_mins, zoom=zoom)
+            except ValueError:
+                pass
+        longs, lats = split_lats_longs(self.areas)
+        pc_longs = [i + 360 if i < 0 else i for i in longs]
+
+        min_long, max_long = min(longs), max(longs)
+
+        pacific_centric = straddles_antimeridian(longs, pc_longs, zoom)
+
+        if pacific_centric:
+            # NOTE for purely eastern pacific pc_longs and longs are equal
+            max_long, min_long = max(pc_longs), min(pc_longs)
+
+        max_lat, min_lat = max(lats), min(lats)
+        self._current_max_mins = (min_long, max_long, min_lat, max_lat)
+
+        return get_viewbox(*self._current_max_mins, zoom=zoom)
 
     @property
     def world(self) -> str:
@@ -531,27 +725,21 @@ class DistributionMap:
     @classmethod
     def _set_base_map(cls, pacific_centric: bool) -> None:
         """Set the class level world SVG map and pixbuf once."""
-        if not db.Session:
-            return
         logger.debug("setting base map")
 
-        start_long = -180
+        viewbox = "-180 -90 360 180"
         if cls._pacific_centric:
-            start_long = -30
+            # 30degs before the antimeridian for a pacific centric map
+            viewbox = "-30 -90 360 180"
 
-        session = db.Session()
-        svg_paths = []
-        for geo in session.query(Geography).filter_by(level=1):
-            svg_paths.append(
-                geo.as_svg_paths(
-                    fill="lightgrey", pacific_centric=pacific_centric
-                )
-            )
+        world_paths = get_world_paths("lightgrey", pacific_centric)
         cls._world = (
             '<svg xmlns="http://www.w3.org/2000/svg" width="360" height="180" '
-            f'viewBox="{start_long} 90 360 180" transform="scale(1, -1)">'
-            f'{"".join(svg_paths)}'
+            f'viewBox="{viewbox}">'
+            '<g transform="scale(1, -1)">'
+            f"{world_paths}"
             "{selected}"
+            "</g>"
             "</svg>"
         )
         loader = GdkPixbuf.PixbufLoader()
@@ -574,6 +762,25 @@ class DistributionMap:
         if self._image:  # type guard
             logger.debug("setting image pixbuf")
             GLib.idle_add(self._image.set_from_pixbuf, pixbuf)
+
+    def replace_image(self, svg: str) -> None:
+        """Temperarily replace the image (e.g. zoom)"""
+        self._map = svg
+        loader = GdkPixbuf.PixbufLoader()
+        loader.write(str(svg).encode())
+        loader.close()
+        pixbuf = loader.get_pixbuf()
+        if self._image:  # type guard
+            logger.debug("replacing image pixbuf")
+            self._image.set_from_pixbuf(pixbuf)
+            # delete from cache so it refreshes next access
+            if self._image_cache.get(self._image_cache_key):
+                del self._image_cache[self._image_cache_key]
+
+    def zoom_to_level(self, zoom: float) -> None:
+        logger.debug("zooming to level: %s", zoom)
+        svg = self.zoom_map.format(viewbox=self.get_zoom_viewbox(zoom))
+        self.replace_image(svg)
 
     def as_image(self) -> Gtk.Image:
         """Map as a Gtk.Image.
@@ -602,45 +809,78 @@ class DistributionMap:
         cls._world_pixbuf = None
         cls._image_cache = DistMapCache()
 
+    def get_max_zoom(self):
+        longs, lats = split_lats_longs(self.areas)
+        max_lat, min_lat = max(lats), min(lats)
 
-class DistMappable(Protocol):  # pylint: disable=too-few-public-methods
-    def distribution_map(self) -> DistributionMap:
-        """Return a DistributionMap instance"""
+        pc_longs = [i + 360 if i < 0 else i for i in longs]
+
+        max_long, min_long = max(longs), min(longs)
+        pacific_centric = straddles_antimeridian(longs, pc_longs, 1)
+        logger.debug("pacific_centric = %s", pacific_centric)
+
+        if pacific_centric:
+            # NOTE for purely eastern pacific pc_longs and longs are equal
+            max_long, min_long = max(pc_longs), min(pc_longs)
+        width = abs(max_long - min_long)
+        height = abs(max_lat - min_lat)
+
+        zoom = 18
+        while zoom > 1:
+            zwidth = 360 / zoom
+            zheight = 180 / zoom
+            if width < zwidth and height < zheight:
+                return zoom
+            zoom -= 0.5
+        return 1
 
 
 class DistMapInfoExpanderMixin:
     """Mixin to provide a right click menu for a DistributionMap in an
     InfoExpander.
 
-    To use: Wrap the DistributionMap's image widget in an Gtk.EventBox and
-    connect it's button_release_event to `on_map_button_release` supplying the
-    current database row as user data.
+    To use: In `update` wrap the DistributionMap's image widget in an
+    Gtk.EventBox and connect it's button_release_event to
+    `on_map_button_release`. Also, set `distribution_map` to the current
+    row's, `zoomed` to `False` and `zoom_level` to `1`.
 
     e.g. - in the infoEpander's `update` method:
+            self.zoomed = False
+            self.zoom_level = 1
+            self.distribution_map = row.distribution_map()
             map_event_box = Gtk.EventBox()
-            map_event_box.add(row.distribution_map().as_image())
+            map_event_box.add(self.distribution_map.as_image())
             map_event_box.connect(
-                "button_release_event", self.on_map_button_release, row
+                "button_release_event", self.on_map_button_release
             )
     """
 
     MAP_ACTION_NAME: str = "distribution_map_activated"
+    distribution_map: DistributionMap
+    zoom_level: float
+    zoomed: bool
 
     def on_map_button_release(
-        self, box: Gtk.EventBox, event_btn: Gdk.EventButton, row: DistMappable
+        self, box: Gtk.EventBox, event_btn: Gdk.EventButton
     ) -> bool:
         """On right click create menu and pop it up."""
         if event_btn.button == 3:
-            logger.debug("infoexpander distribution map menu row=%s", row)
             menu = Gio.Menu()
             action_group = Gio.SimpleActionGroup()
+
+            if self.zoomed:
+                last_item = (_("Zoom out"), "zmout", self.on_dist_map_zoom_out)
+            else:
+                last_item = (_("Zoom"), "zoom", self.on_dist_map_zoom)
+
             menu_items = (
                 (_("Save"), "save", self.on_dist_map_save),
                 (_("Copy"), "copy", self.on_dist_map_copy),
+                last_item,
             )
             for label, name, handler in menu_items:
                 action = Gio.SimpleAction.new(name, None)
-                action.connect("activate", handler, row)
+                action.connect("activate", handler)
                 action.set_enabled(True)
                 action_group.add_action(action)
                 menu_item = Gio.MenuItem.new(
@@ -655,9 +895,10 @@ class DistMapInfoExpanderMixin:
             return True
         return False
 
-    @staticmethod
-    def on_dist_map_save(_action, _param, row: DistMappable) -> None:
+    def on_dist_map_save(self, _action, _param) -> None:
         """Save as SVG file."""
+        if not self.distribution_map:
+            return
         filechooser = Gtk.FileChooserNative.new(
             _("Save to…"), None, Gtk.FileChooserAction.SAVE
         )
@@ -671,16 +912,43 @@ class DistMapInfoExpanderMixin:
         if filename:
             logger.debug("saving SVG to %s", filename)
             with Path(filename).open("w", encoding="utf-8") as f:
-                f.write(str(row.distribution_map()))
+                f.write(str(self.distribution_map))
         filechooser.destroy()
 
-    @staticmethod
-    def on_dist_map_copy(_action, _param, row: DistMappable) -> None:
+    def on_dist_map_copy(self, _action, _param) -> None:
         """Copy the pixbuf to the clipboard."""
-        image = row.distribution_map().as_image()
+        if not self.distribution_map:
+            return
+        image = self.distribution_map.as_image()
         if bauble.gui:
             logger.debug("copying pixbuf")
             bauble.gui.get_display_clipboard().set_image(image.get_pixbuf())
+
+    def on_dist_map_zoom(self, _action, _param) -> None:
+        """Zoom the map to the maximum zoom level that displays the areas."""
+        if not self.distribution_map:
+            return
+        self.zoom_level = self.distribution_map.get_max_zoom()
+        if self.zoom_level == 1:
+            return
+        self.distribution_map.zoom_to_level(self.zoom_level)
+        self.zoomed = True
+
+    def on_dist_map_zoom_out(self, _action, _param) -> None:
+        if not self.distribution_map:
+            return
+
+        if self.zoom_level != 1:
+
+            step = 2
+            if self.zoom_level < 4:
+                step = 1
+
+            self.zoom_level = max(1, self.zoom_level - step)
+            if self.zoom_level == 1:
+                self.zoomed = False
+
+        self.distribution_map.zoom_to_level(self.zoom_level)
 
 
 class GeneralGeographyExpander(DistMapInfoExpanderMixin, InfoExpander):
@@ -694,6 +962,8 @@ class GeneralGeographyExpander(DistMapInfoExpanderMixin, InfoExpander):
         self.table_cells = []
 
     def update(self, row: Geography) -> None:
+        self.zoomed = False
+        self.zoom_level = 1
         for child in self.widgets.map_box.get_children():
             self.widgets.map_box.remove(child)
 
@@ -701,14 +971,15 @@ class GeneralGeographyExpander(DistMapInfoExpanderMixin, InfoExpander):
         # (better to use MARS_Connection=Yes when connecting)
         shape = row.geojson.get("type", "") if row.geojson else ""
         map_event_box = Gtk.EventBox()
-        image = row.distribution_map().as_image()
+        self.distribution_map = row.distribution_map()
+        image = self.distribution_map.as_image()
 
         if parent := cast(Gtk.Container, image.get_parent()):
             parent.remove(image)
 
         map_event_box.add(image)
         map_event_box.connect(
-            "button_release_event", self.on_map_button_release, row
+            "button_release_event", self.on_map_button_release
         )
         self.widgets.map_box.pack_start(map_event_box, False, False, 0)
 

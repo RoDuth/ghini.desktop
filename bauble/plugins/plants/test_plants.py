@@ -84,9 +84,14 @@ from .geography import GeneralGeographyExpander
 from .geography import Geography
 from .geography import _coord_string
 from .geography import _path_string
+from .geography import calculate_zoom_buffer
 from .geography import consolidate_geographies
 from .geography import consolidate_geographies_by_percent_area
 from .geography import get_species_in_geography
+from .geography import get_viewbox
+from .geography import get_world_paths
+from .geography import split_lats_longs
+from .geography import straddles_antimeridian
 from .geography import update_all_approx_areas_handler
 from .geography import update_all_approx_areas_task
 from .species import BinomialSearch
@@ -3608,6 +3613,149 @@ class GeographyTests2(TestCase):
             _path_string(path, fill="blue", pacific_centric=False), res
         )
 
+    def test_split_lats_longs(self):
+        geojson1 = {
+            "type": "Polygon",
+            "coordinates": [
+                [
+                    [-115.7504425, 24.9516697],
+                    [-115.7500534, 24.9512501],
+                    [-115.7487793, 24.9524994],
+                    [-115.7500305, 24.9537201],
+                    [-115.7504196, 24.9533291],
+                    [-115.7504501, 24.9516697],
+                    [-115.7504425, 24.9516697],
+                ]
+            ],
+        }
+        geo1 = Geography(
+            name="Rocas Alijos",
+            code="MXI-RA",
+            level=4,
+            geojson=geojson1,
+        )
+        geojson2 = {
+            "type": "MultiPolygon",
+            "coordinates": [
+                [
+                    [
+                        [159.07080078125, -31.599998474121094],
+                        [159.08578491210938, -31.561111450195312],
+                        [159.04913330078125, -31.52166748046875],
+                        [159.10189819335938, -31.57111358642578],
+                        [159.07080078125, -31.599998474121094],
+                    ],
+                    [
+                        [139.07080078125, -21.599998474121094],
+                        [139.08578491210938, -21.561111450195312],
+                        [139.04913330078125, -21.52166748046875],
+                        [139.10189819335938, -21.57111358642578],
+                        [139.07080078125, -21.599998474121094],
+                    ],
+                ]
+            ],
+        }
+        geo2 = Geography(
+            name="Lord Howe I.",
+            code="NFK-LH",
+            level=4,
+            geojson=geojson2,
+        )
+
+        areas = [geo1, geo2]
+        longs, lats = split_lats_longs(areas)
+
+        longs_result = []
+        lats_result = []
+        for coord in geojson1["coordinates"][0]:
+            longs_result.append(coord[0])
+            lats_result.append(coord[1])
+        for poly in geojson2["coordinates"][0]:
+            for coord in poly:
+                longs_result.append(coord[0])
+                lats_result.append(coord[1])
+
+        self.assertCountEqual(longs, longs_result)
+        self.assertCountEqual(lats, lats_result)
+
+    def test_get_zoom_buffer(self):
+        self.assertEqual(calculate_zoom_buffer(1, -180, 180), 0)
+        self.assertEqual(calculate_zoom_buffer(1, -1, 1), 179)
+        self.assertEqual(calculate_zoom_buffer(1, -100, 100), 80)
+        self.assertEqual(calculate_zoom_buffer(1, -10, 10), 170)
+        self.assertEqual(calculate_zoom_buffer(2, -10, 10), 80)
+        self.assertEqual(calculate_zoom_buffer(5, -10, 10), 26)
+        self.assertEqual(calculate_zoom_buffer(5, 0, 72), 0)
+        # zoomed too far
+        self.assertRaises(ValueError, calculate_zoom_buffer, 6, 0, 72)
+
+    def test_straddles_antimeridian(self):
+        # doesn't stradle
+        self.assertFalse(
+            straddles_antimeridian([120, 0, -120], [120, 0, -120 + 360], 1)
+        )
+        self.assertFalse(
+            straddles_antimeridian([20, 0, -20], [20, 0, -20 + 360], 8)
+        )
+        self.assertFalse(straddles_antimeridian([91, -91], [91, -91 + 360], 1))
+        # zoomed it doesn't stradle, zoomed less it would be too far east
+        self.assertFalse(straddles_antimeridian([91, 150], [91, 150], 4))
+        # straddles
+        self.assertTrue(
+            straddles_antimeridian([120, -120], [120, -120 + 360], 1)
+        )
+        self.assertTrue(
+            straddles_antimeridian([120, 179, -120], [120, 179, -120 + 360], 1)
+        )
+        self.assertTrue(
+            straddles_antimeridian([178, -178], [178, -178 + 360], 1)
+        )
+        # too far West
+        self.assertTrue(
+            straddles_antimeridian([10, -179], [10, -179 + 360], 1)
+        )
+        self.assertTrue(
+            straddles_antimeridian([10, 12, -179], [10, 12, -179 + 360], 1)
+        )
+        self.assertTrue(
+            straddles_antimeridian(
+                [10, -10, -179], [10, -10 + 360, -179 + 360], 1
+            )
+        )
+        self.assertTrue(straddles_antimeridian([1, -180], [1, -180 + 360], 1))
+        self.assertTrue(
+            straddles_antimeridian([-91, -150], [-91 + 360, -150 + 360], 2)
+        )
+        # too far East
+        self.assertTrue(straddles_antimeridian([180, -1], [180, -1 + 360], 1))
+        self.assertTrue(straddles_antimeridian([178, -1], [178, -1 + 360], 1))
+        self.assertTrue(straddles_antimeridian([91, 150], [91, 150], 2))
+        # raises - zoomed to far
+        self.assertRaises(
+            ValueError, straddles_antimeridian, [91, 150], [91, 150], 7
+        )
+
+    def test_get_viewbox(self):
+        self.assertEqual(
+            get_viewbox(-180, 180, -90, 90, 1), "-180.0 -90.0 360.0 180.0"
+        )
+        self.assertEqual(
+            get_viewbox(-100, 100, -50, 50, 2), "-90.0 -45.0 180.0 90.0"
+        )
+        # far north corrects y
+        self.assertEqual(
+            get_viewbox(-40, 40, 50, 80, 2), "-90.0 -90.0 180.0 90.0"
+        )
+        # far south corrects y
+        self.assertEqual(
+            get_viewbox(-40, 40, -50, -80, 2), "-90.0 0.0 180.0 90.0"
+        )
+        self.assertEqual(
+            get_viewbox(153.5433446, 138.0000446, -10.0513948, -29.1705948, 8),
+            "138.815 27.48 45.0 22.5",
+        )
+        self.assertRaises(ValueError, get_viewbox, -180, 0, 50, 90, 1)
+
 
 class DistributionMapTests(BaubleClassTestCase):
     @classmethod
@@ -3691,9 +3839,11 @@ class DistributionMapTests(BaubleClassTestCase):
         # calling map (via __str__) populates
         dist = DistributionMap([682])
         self.assertFalse(dist._map)
+        get_world_paths.clear_cache()
         orig_sess = db.Session
         db.Session = None
-        self.assertFalse(dist.map)
+        with self.assertRaises(error.DatabaseError):
+            dist.map
         db.Session = orig_sess
 
     def test_dist_map_cache(self):
@@ -3749,22 +3899,129 @@ class DistributionMapTests(BaubleClassTestCase):
         )
         self.assertEqual(len(hist), start, hist)
 
+    def test_get_areas(self):
+        dist = DistributionMap([657, 683])
+        self.assertEqual(
+            [i.code for i in dist.get_areas()], ["MXI-RA", "NFK-NI"]
+        )
+        # raises if no session
+        orig_sess = db.Session
+        db.Session = None
+        self.assertRaises(error.DatabaseError, dist.get_areas)
+        db.Session = orig_sess
+
+    def test_zoom_map(self):
+        dist = DistributionMap([657, 683])
+        paths = (
+            '<path stroke="green" stroke-width="0.2" fill="green" d="M '
+            "-115.75 24.952 L -115.75 24.953 L -115.75 24.954 L -115.749 "
+            '24.952 Z"/><path stroke="green" stroke-width="0.2" '
+            'fill="green" d="M 244.25 24.952 L 244.25 24.953 L 244.25 '
+            '24.954 L 244.251 24.952 Z"/>'
+        )
+        self.assertFalse(dist._zoom_map)
+        self.assertIn(paths, dist.zoom_map)
+        self.assertTrue(dist._zoom_map)
+        self.assertIn('viewBox="{viewbox}">', dist.zoom_map)
+        with mock.patch(
+            "bauble.plugins.plants.geography.get_world_paths"
+        ) as gwp:
+            self.assertIn('viewBox="{viewbox}">', dist.zoom_map)
+            gwp.assert_not_called()
+            dist._zoom_map = ""
+            self.assertIn('viewBox="{viewbox}">', dist.zoom_map)
+            gwp.assert_called()
+
+    def test_get_zoom_viewbox(self):
+        dist = DistributionMap([683])
+        self.assertIsNone(dist._current_max_mins)
+        self.assertEqual(dist.get_zoom_viewbox(10), "149.955 20.043 36.0 18.0")
+        self.assertIsNotNone(dist._current_max_mins)
+        with mock.patch(
+            "bauble.plugins.plants.geography.straddles_antimeridian"
+        ) as sam:
+            self.assertEqual(
+                dist.get_zoom_viewbox(9), "147.955 19.043 40.0 20.0"
+            )
+            sam.assert_not_called()
+
+        # stradling
+        fiji = 167
+        dist = DistributionMap([fiji])
+        self.assertIsNone(dist._current_max_mins)
+        self.assertEqual(dist.get_zoom_viewbox(18), "169.415 11.581 20.0 10.0")
+        self.assertIsNotNone(dist._current_max_mins)
+        self.assertEqual(dist.get_zoom_viewbox(2), "89.415 -28.419 180.0 90.0")
+        # too far west to zoom out too far
+        cook_is = 138
+        dist = DistributionMap([cook_is])
+        self.assertIsNone(dist._current_max_mins)
+        self.assertEqual(dist.get_zoom_viewbox(18), "-170.24 14.999 20.0 10.0")
+        # now pacific centric
+        self.assertEqual(dist.get_zoom_viewbox(8), "177.26 8.749 45.0 22.5")
+
+    def test_get_max_zoom(self):
+        rocas_alijos = 657
+        dist = DistributionMap([rocas_alijos])
+        self.assertEqual(dist.get_max_zoom(), 18)
+
+        new_zealand = 39
+        dist = DistributionMap([new_zealand])
+        self.assertEqual(dist.get_max_zoom(), 7.5)
+
+        # EUROPE, ASIA_TEMPERATE, NORTHERN AMERICA (Global)
+        dist = DistributionMap([1, 3, 7])
+        self.assertEqual(dist.get_max_zoom(), 1)
+
+    def test_replace_image(self):
+        rocas_alijos = 657
+        dist = DistributionMap([rocas_alijos])
+        start_map = dist.map
+        start_pb = dist.as_image().get_pixbuf()
+        self.assertIn(dist._image, dist._image_cache.values())
+        replace = (
+            '<svg width="100" height="100" xmlns="http://www.w3.org/2000/svg">'
+            '<path stroke="green" stroke-width="0.2" fill="green" d="M 0 0 L '
+            '0 100 L 100 100 L 100 0 Z"/></svg>'
+        )
+        dist.replace_image(replace)
+        self.assertEqual(replace, dist.map)
+        self.assertNotEqual(start_map, dist.map)
+        self.assertNotEqual(start_pb, dist.as_image().get_pixbuf())
+        self.assertNotIn(dist._image, dist._image_cache.values())
+
+    def test_zoom_to_level(self):
+        rocas_alijos = 657
+        dist = DistributionMap([rocas_alijos])
+        dist._zoom_map = "TEST {viewbox}"
+        dist.replace_image = mock.Mock()
+        dist.zoom_to_level(8.0)
+        dist.replace_image.assert_called_with("TEST -138.25 -36.203 45.0 22.5")
+
 
 class DistMapInfoExpanderMixinTests(BaubleTestCase):
     def test_on_map_button_release(self):
         btn = Gdk.EventButton()
         btn.button = 1
-        self.assertFalse(
-            DistMapInfoExpanderMixin().on_map_button_release(None, btn, None)
-        )
+        mix = DistMapInfoExpanderMixin()
+        mix.zoomed = False
+        self.assertFalse(mix.on_map_button_release(None, btn))
 
         btn = Gdk.EventButton()
         btn.button = 3
-        self.assertTrue(
-            DistMapInfoExpanderMixin().on_map_button_release(
-                Gtk.EventBox(), btn, None
-            )
-        )
+        mix = DistMapInfoExpanderMixin()
+        mix.zoomed = False
+        ebox = Gtk.EventBox()
+        self.assertTrue(mix.on_map_button_release(ebox, btn))
+        grp = ebox.get_action_group(DistMapInfoExpanderMixin.MAP_ACTION_NAME)
+        self.assertTrue(grp.lookup("zoom"))
+        self.assertIsNone(grp.lookup("zmout"))
+        mix.zoomed = True
+        ebox = Gtk.EventBox()
+        self.assertTrue(mix.on_map_button_release(ebox, btn))
+        grp = ebox.get_action_group(DistMapInfoExpanderMixin.MAP_ACTION_NAME)
+        self.assertIsNone(grp.lookup("zoom"))
+        self.assertTrue(grp.lookup("zmout"))
 
     @mock.patch("bauble.plugins.plants.geography.Gtk.FileChooserNative")
     def test_on_dist_map_save(self, mock_chooser):
@@ -3789,16 +4046,17 @@ class DistMapInfoExpanderMixinTests(BaubleTestCase):
         self.session.add(geo)
         self.session.commit()
         mix = DistMapInfoExpanderMixin()
+        mix.distribution_map = geo.distribution_map()
         # mock filechooser to CANCEL and check that get_filename is not
         # called
         mock_chooser.new().run.return_value = Gtk.ResponseType.CANCEL
-        mix.on_dist_map_save(None, None, geo)
+        mix.on_dist_map_save(None, None)
         mock_chooser.new().get_filename.assert_not_called()
 
         handle, filename = mkstemp(suffix=".svg")
         mock_chooser.new().run.return_value = Gtk.ResponseType.ACCEPT
         mock_chooser.new().get_filename.return_value = filename
-        mix.on_dist_map_save(None, None, geo)
+        mix.on_dist_map_save(None, None)
         mock_chooser.new().get_filename.assert_called()
         os.close(handle)
         with open(filename, "r", encoding="utf-8") as f:
@@ -3810,7 +4068,13 @@ class DistMapInfoExpanderMixinTests(BaubleTestCase):
             '-31.571 Z"/>'
         )
         svg = DistributionMap._world.format(selected=svg_paths)
+        self.assertIn(svg_paths, svg)
         self.assertEqual(out, svg)
+        # type guard
+        mock_chooser.reset_mock()
+        mix.distribution_map = None
+        mix.on_dist_map_save(None, None)
+        mock_chooser.new().get_filename.assert_not_called()
 
     @mock.patch("bauble.gui")
     def test_on_dist_map_copy(self, mock_gui):
@@ -3833,11 +4097,56 @@ class DistMapInfoExpanderMixinTests(BaubleTestCase):
             geojson=geojson,
         )
         mix = DistMapInfoExpanderMixin()
+        mix.distribution_map = geo.distribution_map()
 
-        mix.on_dist_map_copy(None, None, geo)
+        mix.on_dist_map_copy(None, None)
         mock_gui.get_display_clipboard().set_image.assert_called_with(
             geo.distribution_map().as_image().get_pixbuf()
         )
+        mock_gui.reset_mock()
+        mix.distribution_map = None
+        mix.on_dist_map_copy(None, None)
+        mock_gui.get_display_clipboard().set_image.assert_not_called()
+
+    def test_on_dist_map_zoom(self):
+        # type guard, doesn't fail because it bails early
+        mix = DistMapInfoExpanderMixin()
+        mix.distribution_map = None
+        self.assertIsNone(mix.on_dist_map_zoom(None, None))
+        # zoom == 1
+        mix.zoomed = False
+        mix.distribution_map = mock.Mock()
+        mix.distribution_map.get_max_zoom.return_value = 1
+        mix.on_dist_map_zoom(None, None)
+        mix.distribution_map.zoom_to_level.assert_not_called()
+        self.assertFalse(mix.zoomed)
+        # zoom == 10
+        mix.distribution_map.get_max_zoom.return_value = 10
+        mix.on_dist_map_zoom(None, None)
+        mix.distribution_map.zoom_to_level.assert_called_with(10)
+        self.assertTrue(mix.zoomed)
+
+    def test_on_dist_map_zoom_out(self):
+        # type guard, doesn't fail because it bails early
+        mix = DistMapInfoExpanderMixin()
+        mix.distribution_map = None
+        self.assertIsNone(mix.on_dist_map_zoom_out(None, None))
+        # zoom == 2
+        mix.distribution_map = mock.Mock()
+        mix.zoomed = True
+        mix.zoom_level = 2
+        mix.on_dist_map_zoom_out(None, None)
+        self.assertEqual(mix.zoom_level, 1)
+        self.assertFalse(mix.zoomed)
+        mix.distribution_map.zoom_to_level.assert_called_with(1)
+        # zoom = 10
+        mix.distribution_map = mock.Mock()
+        mix.zoomed = True
+        mix.zoom_level = 10
+        mix.on_dist_map_zoom_out(None, None)
+        self.assertEqual(mix.zoom_level, 8)
+        self.assertTrue(mix.zoomed)
+        mix.distribution_map.zoom_to_level.assert_called_with(8)
 
 
 class GeographyApproxAreaTests(BaubleTestCase):
