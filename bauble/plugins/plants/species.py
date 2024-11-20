@@ -253,8 +253,8 @@ class BinomialStatement(StatementAction):
 
 
 _BINOMIAL_RGX = re.compile(
-    "^[A-Z]+[a-z-]* +([a-z]+[a-z-]*$|'[A-Za-z-]*$|'[A-Za-z- ]*'$|"
-    "[a-z]+[a-z-]* ('[A-Za-z-]*$|'[A-Za-z- ]*'$))"
+    "^[A-Z]+[a-z-]* +([a-z]+[a-z-]*$|'[A-Za-z0-9-]*$|'[A-Za-z0-9- ]*'$|"
+    "[a-z]+[a-z-]* ('[A-Za-z0-9-]*$|'[A-Za-z0-9- ]*'$))"
 )
 
 
@@ -269,7 +269,7 @@ class BinomialSearch(SearchStrategy):
 
     genus = Word(caps, lowers).set_name("Genus epithet or partial epithet")
     species = Word(lowers).set_name("species epithet or partial epithet")
-    cultivar = Regex("'[A-Za-z- ]*'?").set_name(
+    cultivar = Regex("'[A-Za-z0-9- ]*'?").set_name(
         "cultivar epithet or partial epithet"
     )
 

@@ -3106,6 +3106,9 @@ class BinomialSearchTests(BaubleTestCase):
         s = "Hibiscus rosa-sinensis"
         self.assertEqual(strategy.use(s), "include")
 
+        s = "Cyn dac 'DT-1"
+        self.assertEqual(strategy.use(s), "include")
+
     def test_sp_cultivar_also_matches(self):
         strategy = search.strategies.get_strategy("BinomialSearch")
         self.assertTrue(isinstance(strategy, BinomialSearch))
@@ -3190,6 +3193,15 @@ class BinomialSearchTests(BaubleTestCase):
         self.assertTrue(isinstance(strategy, BinomialSearch))
 
         s = "Ixo rosa-sinensis"
+        results = []
+        for i in strategy.search(s, self.session):
+            results.extend(i)
+        self.assertEqual(results, [self.sp5])
+
+        self.sp5.cultivar_epithet = "Test-10"
+        self.session.commit()
+
+        s = "Ixo ros 'Test-1"
         results = []
         for i in strategy.search(s, self.session):
             results.extend(i)
