@@ -825,7 +825,17 @@ class PicturesScroller(Gtk.ScrolledWindow):
         for obj in selection:
             if pics := getattr(obj, "pictures", None):
                 all_pics_set.update(pics)
-        return sorted(all_pics_set, key=lambda i: (i._last_updated, i.id))
+
+        # prefer group PlantPictures by species name
+        # space before id string places others before PlantPicture
+        return sorted(
+            all_pics_set,
+            key=lambda i: (
+                (str(i.owner.accession.species), str(i.owner))
+                if hasattr(i.owner, "accession")
+                else (str(i.owner), " " + str(i.id))
+            ),
+        )
 
     def add_rows(self) -> None:
         """Add a page of pictures."""

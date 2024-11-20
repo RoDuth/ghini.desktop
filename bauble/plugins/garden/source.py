@@ -40,6 +40,7 @@ from sqlalchemy import Integer
 from sqlalchemy import Unicode
 from sqlalchemy import UnicodeText
 from sqlalchemy import literal
+from sqlalchemy.orm import Session
 from sqlalchemy.orm import backref
 from sqlalchemy.orm import relationship
 from sqlalchemy.orm.session import object_session
@@ -56,6 +57,7 @@ from bauble.utils.geo import KMLMapCallbackFunctor
 from bauble.view import Action
 from bauble.view import InfoBox
 from bauble.view import InfoExpander
+from bauble.view import Picture
 from bauble.view import PropertiesExpander
 
 from ..plants.geography import Geography
@@ -1119,6 +1121,8 @@ source_detail_context_menu = [
 class SourceDetail(db.Base):
     __tablename__ = "source_detail"
 
+    id: int
+
     # ITF2 - E6 - Donor
     name = Column(Unicode(75), unique=True)
     # extra description, not included in E6
@@ -1174,6 +1178,26 @@ class SourceDetail(db.Base):
             cls = Source.accession.prop.mapper.class_
             query = query.join(cls).filter(cls.active.is_(True))
         return query.count()
+
+    @property
+    def pictures(self) -> list[Picture]:
+        """Return pictures from any attached plants."""
+        session = object_session(self)
+        if not isinstance(session, Session):
+            return []
+        # avoid circular imports
+        from .accession import Accession
+        from .plant import Plant
+        from .plant import PlantPicture
+
+        plt_pics = (
+            session.query(PlantPicture)
+            .join(Plant, Accession, Source, SourceDetail)
+            .filter(SourceDetail.id == self.id)
+        )
+        if prefs.prefs.get(prefs.exclude_inactive_pref):
+            plt_pics = plt_pics.filter(Plant.active.is_(True))  # type: ignore [attr-defined] # noqa
+        return plt_pics.all()
 
 
 # backwards compatibility (e.g. Tags, History)

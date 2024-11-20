@@ -4929,6 +4929,22 @@ class SourceDetailTests(GardenTestCase):
 
         self.assertEqual(contact.count_children(), 0)
 
+    def test_pictures(self):
+        source = self.session.query(SourceDetail).first()
+        self.assertEqual(source.pictures, [])
+        plt = self.session.query(Plant).get(4)
+        pic = PlantPicture(picture="test1.jpg", plant=plt)
+        self.session.commit()
+        self.assertEqual(source.pictures, [pic])
+        plt.quantity = 0
+        self.session.commit()
+        # exclude inactive
+        prefs.prefs[prefs.exclude_inactive_pref] = True
+        self.assertEqual(source.pictures, [])
+        # detached returns empty
+        self.session.expunge(source)
+        self.assertEqual(source.pictures, [])
+
 
 class SourceDetailPresenterTests(BaubleTestCase):
     def test_create_presenter_automatic_session(self):
