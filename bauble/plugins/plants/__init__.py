@@ -82,6 +82,7 @@ from .species import VernacularName
 from .species import VernacularNameInfoBox
 from .species import add_accession_action
 from .species import edit_callback as species_edit_callback
+from .species import get_binomial_completions
 from .species import species_context_menu
 from .species import vernname_context_menu
 from .species_model import SpeciesPicture
@@ -789,6 +790,9 @@ class PlantsPlugin(pluginmgr.Plugin):
             bauble.gui.add_to_insert_menu(FamilyEditor, _("Family"))
             bauble.gui.add_to_insert_menu(GenusEditor, _("Genus"))
             bauble.gui.add_to_insert_menu(SpeciesEditor, _("Species"))
+            bauble.gui.main_entry_completion_callbacks.add(
+                get_binomial_completions
+            )
 
         note_query = "{table} where notes.id = {obj_id}"
         HistoryView.add_translation_query("family_note", "family", note_query)

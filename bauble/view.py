@@ -1066,7 +1066,7 @@ class SearchView(pluginmgr.View, Gtk.Box):
     """The SearchView is the main view for Ghini.
 
     Manages the search results returned when search strings are entered into
-    the main text entry.
+    the main text entry (found in ui.GUI).
     """
 
     __gtype_name__ = "SearchView"

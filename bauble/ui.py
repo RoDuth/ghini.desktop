@@ -308,6 +308,10 @@ class GUI:
     """Any callbacks added to this list will be called each time the set_view
     is called.
     """
+    main_entry_completion_callbacks: set[Callable] = set()
+    """Callbacks added here will be called to generate completion strings for
+    the main entry
+    """
     disable_on_busy_actions: set[Gio.SimpleAction] = set()
     """Any Gio.Action added to this will be enabled/disabled when the gui
     window is set_busy.
@@ -361,6 +365,7 @@ class GUI:
         self.widgets.main_comboentry_entry.connect(
             "icon-press", self.on_history_pinned_clicked
         )
+        self.hist_completions: list[str] = []
         self.populate_main_entry()
 
         main_entry = combo.get_child()
@@ -506,9 +511,9 @@ class GUI:
     def history_pins_size(self):
         pins = prefs.prefs[self.history_pins_size_pref]
         if pins is None:
-            prefs.prefs[
-                self.history_pins_size_pref
-            ] = self._default_history_pin_size
+            prefs.prefs[self.history_pins_size_pref] = (
+                self._default_history_pin_size
+            )
         return int(prefs.prefs[self.history_pins_size_pref])
 
     def send_command(self, command):
@@ -674,36 +679,46 @@ class GUI:
             main_entry.set_completion(completion)
             compl_model = Gtk.ListStore(str)
             completion.set_model(compl_model)
-            completion.set_popup_completion(False)
-            completion.set_inline_completion(True)
             completion.set_minimum_key_length(2)
+            main_entry.connect("changed", self.on_main_entry_changed)
         else:
             compl_model = completion.get_model()
+
+        self.hist_completions.clear()
 
         if history_pins is not None:
             for pin in history_pins:
                 logger.debug("adding pin to main entry: %s", pin)
-                model.append(
-                    [
-                        pin,
-                    ]
-                )
-                compl_model.append([pin])
+                model.append([pin])
+                self.hist_completions.append(pin)
 
-        model.append(
-            [
-                "--separator--",
-            ]
-        )
+        model.append(["--separator--"])
 
         if history is not None:
             for herstory in history:
-                model.append(
-                    [
-                        herstory,
-                    ]
-                )
-                compl_model.append([herstory])
+                model.append([herstory])
+                self.hist_completions.append(herstory)
+
+    def on_main_entry_changed(self, entry: Gtk.Entry) -> None:
+        text = entry.get_text()
+        completion = entry.get_completion()
+        key_length = completion.get_minimum_key_length()
+
+        if len(text) < key_length:
+            return
+
+        utils.clear_model(completion)
+        completion_model = Gtk.ListStore(str)
+
+        for i in self.hist_completions:
+            completion_model.append([i])
+
+        for callback in self.main_entry_completion_callbacks:
+            for i in sorted(callback(text)):
+                if i not in self.hist_completions:
+                    completion_model.append([i])
+
+        completion.set_model(completion_model)
 
     @property
     def title(self):

@@ -418,9 +418,35 @@ class GUITests(BaubleTestCase):
 
         gui.populate_main_entry()
 
-        self.assertEqual([v[0] for v in comp_model], ["test2", "test1"])
+        self.assertEqual(gui.hist_completions, ["test2", "test1"])
         self.assertEqual(
             [v[0] for v in model], ["test2", "--separator--", "test1"]
+        )
+
+    def test_on_main_entry_changed(self):
+        gui = GUI()
+        gui.hist_completions = ["test1", "test2", "test3"]
+        entry = gui.widgets.main_comboentry.get_child()
+        # less than minimum key length does not populate
+        entry.set_text("t")
+        gui.on_main_entry_changed(entry)
+        completion = entry.get_completion()
+        comp_model = completion.get_model()
+        self.assertEqual([v[0] for v in comp_model], [])
+
+        entry.set_text("tes")
+        gui.on_main_entry_changed(entry)
+        completion = entry.get_completion()
+        comp_model = completion.get_model()
+        self.assertEqual(
+            [v[0] for v in comp_model], ["test1", "test2", "test3"]
+        )
+
+        gui.main_entry_completion_callbacks.add(lambda t: ["test1", "test4"])
+        gui.on_main_entry_changed(entry)
+        comp_model = completion.get_model()
+        self.assertEqual(
+            [v[0] for v in comp_model], ["test1", "test2", "test3", "test4"]
         )
 
     def test_title(self):

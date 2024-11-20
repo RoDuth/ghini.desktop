@@ -103,6 +103,7 @@ from .species import SpeciesEditor
 from .species import SpeciesNote
 from .species import SpeciesSynonym
 from .species import VernacularName
+from .species import get_binomial_completions
 from .species_editor import DistributionPresenter
 from .species_editor import InfraspPresenter
 from .species_editor import InfraspRow
@@ -7045,6 +7046,44 @@ class GlobalFunctionsTest(PlantTestCase):
         mock_renderer.set_property.assert_called_with(
             "text", "Syzygium australe (Myrtaceae)"
         )
+
+    def test_get_binomial_completions(self):
+        self.assertEqual(
+            get_binomial_completions("cyn"),
+            {
+                "Cynodon dactylon 'TifTuf'",
+                "Cynodon dactylon 'DT-1'",
+                "Cynodon dactylon",
+            },
+        )
+        self.assertEqual(
+            get_binomial_completions("cynodon dact"),
+            {
+                "Cynodon dactylon 'TifTuf'",
+                "Cynodon dactylon 'DT-1'",
+                "Cynodon dactylon",
+            },
+        )
+        self.assertEqual(
+            get_binomial_completions("Cynodon 'T"),
+            {
+                "Cynodon 'TifTuf'",
+            },
+        )
+        self.assertEqual(
+            get_binomial_completions("Cynodon dactylon 'DT"),
+            {
+                "Cynodon dactylon 'DT-1'",
+            },
+        )
+        self.assertEqual(
+            get_binomial_completions("Buty"),
+            {
+                "Butyagrus nabonnandii",
+            },
+        )
+        db.Session = None
+        self.assertEqual(get_binomial_completions("cyn"), set())
 
 
 class GenusCompletionTests(PlantTestCase):
