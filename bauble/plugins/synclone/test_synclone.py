@@ -343,6 +343,13 @@ class DBSyncTests(BaubleTestCase):
         )
         db.engine = orig_engine
 
+    def test_fails_early_if_no_db_session(self):
+        db.Session = None
+        clone_uri = "sqlite:///test.db"
+        self.assertRaises(
+            error.DatabaseError, ToSync.add_batch_from_uri, clone_uri
+        )
+
     def add_clone_history(self, clone_engine, history_id, values):
         # add clone_history_id
         meta = bauble.meta.BaubleMeta.__table__
