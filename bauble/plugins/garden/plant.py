@@ -65,6 +65,7 @@ from sqlalchemy import select
 from sqlalchemy import tuple_
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.exc import OperationalError
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import Query
@@ -1222,7 +1223,8 @@ class PlantEditorView(GenericEditorView):
             "Create a new propagation record for this plant."
         ),
         "pad_cancel_button": _("Cancel your changes."),
-        "pad_ok_button": _("Save your changes."),
+        "pad_ok_button": _("Save your changes and close the editor."),
+        "pad_save_button": _("Save your changes without leaving the editor."),
         "pad_next_button": _("Save your changes and add another plant."),
         "plant_changes_treeview": _(
             "While some minimal editing is possible here it is most often not "
@@ -1237,6 +1239,7 @@ class PlantEditorView(GenericEditorView):
             "change.  The last recorded change that reduces "
             'quantity to 0 becomes the "death"'
         ),
+        "plant_id_label": _("The ID number for this record."),
     }
 
     def __init__(self, parent=None):
@@ -1248,6 +1251,7 @@ class PlantEditorView(GenericEditorView):
         )
         self.widgets.pad_ok_button.set_sensitive(False)
         self.widgets.pad_next_button.set_sensitive(False)
+        self.widgets.pad_save_button.set_sensitive(False)
 
         def acc_cell_data_func(_column, renderer, model, treeiter):
             value = model[treeiter][0]
@@ -1485,6 +1489,11 @@ class PlantEditorPresenter(GenericEditorPresenter, PresenterMapMixin):
             self.on_loc_button_clicked,
             "edit",
         )
+        self.view.connect(
+            "pad_save_button",
+            "clicked",
+            self.on_save_clicked,
+        )
         if self.model.quantity == 0:
             self.view.widgets.notebook.set_sensitive(False)
             msg = _(
@@ -1513,6 +1522,20 @@ class PlantEditorPresenter(GenericEditorPresenter, PresenterMapMixin):
             PLANT_KML_MAP_PREFS,
             str(Path(__file__).resolve().parent / "plant.kml"),
         )
+        self.view.widgets.plant_id_label.set_text(str(self.model.id or ""))
+
+    def on_save_clicked(self, *_args):
+        try:
+            self.session.commit()
+            self._dirty = False
+            self.pictures_presenter._dirty = False
+            self.notes_presenter._dirty = False
+            self.prop_presenter._dirty = False
+        except SQLAlchemyError as e:
+            logger.debug("%s(%s)", type(e).__name__, e)
+            self.session.rollback()
+        finally:
+            self.refresh_view()
 
     def acc_get_completions(self, text):
         """Get completions with any of the following combinations:
@@ -1828,6 +1851,10 @@ class PlantEditorPresenter(GenericEditorPresenter, PresenterMapMixin):
         )
         self.view.widgets.pad_ok_button.set_sensitive(sensitive)
         self.view.widgets.pad_next_button.set_sensitive(sensitive)
+        if len(utils.range_builder(self.model.code)) == 1:
+            self.view.widgets.pad_save_button.set_sensitive(sensitive)
+        else:
+            self.view.widgets.pad_save_button.set_sensitive(False)
 
     def set_model_attr(self, attr, value, validator=None):
         logger.debug("set_model_attr(%s, %s)", attr, value)
@@ -1867,6 +1894,7 @@ class PlantEditorPresenter(GenericEditorPresenter, PresenterMapMixin):
         self.view.widgets.plant_memorial_check.set_active(
             self.model.memorial is True
         )
+        self.view.widgets.plant_id_label.set_text(str(self.model.id or ""))
 
         self._init_reason_combo()
 

@@ -29,6 +29,7 @@ logger = logging.getLogger(__name__)
 from gi.repository import Gtk
 from sqlalchemy import and_
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import object_session
 
 from bauble import db
@@ -1306,6 +1307,28 @@ class PlantEditorPresenterTests(GardenTestCase):
         mock_editor.assert_called_with(loc, parent=presenter.view.get_window())
 
         del presenter
+
+    def test_on_save_clicked(self):
+        mock_self = unittest.mock.Mock()
+        PlantEditorPresenter.on_save_clicked(mock_self)
+        mock_self.session.commit.assert_called()
+        self.assertFalse(mock_self._dirty)
+        self.assertFalse(mock_self.pictures_presenter._dirty)
+        self.assertFalse(mock_self.notes_presenter._dirty)
+        self.assertFalse(mock_self.prop_presenter._dirty)
+        mock_self.session.rollback.assert_not_called()
+        mock_self.refresh_view.assert_called()
+
+        mock_self = unittest.mock.Mock()
+        mock_self.session.commit.side_effect = SQLAlchemyError
+        PlantEditorPresenter.on_save_clicked(mock_self)
+        mock_self.session.commit.assert_called()
+        self.assertTrue(mock_self._dirty)
+        self.assertTrue(mock_self.pictures_presenter._dirty)
+        self.assertTrue(mock_self.notes_presenter._dirty)
+        self.assertTrue(mock_self.prop_presenter._dirty)
+        mock_self.session.rollback.assert_called()
+        mock_self.refresh_view.assert_called()
 
 
 class PropagationTests(GardenTestCase):
