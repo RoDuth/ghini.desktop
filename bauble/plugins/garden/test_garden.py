@@ -19,6 +19,7 @@
 # along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
 
 import datetime
+import gc
 import logging
 import os
 import unittest
@@ -627,8 +628,6 @@ class PlantTests(GardenTestCase):
     @unittest.mock.patch("bauble.editor.GenericEditorView.start")
     def test_editor_doesnt_leak(self, mock_start):
         # garbage collect before start..
-        import gc
-
         gc.collect()
         mock_start.return_value = Gtk.ResponseType.OK
         loc = Location(name="site1", code="1")
@@ -636,6 +635,7 @@ class PlantTests(GardenTestCase):
         editor = PlantEditor(model=plt)
         editor.start()
         del editor
+        gc.collect()
         self.assertEqual(
             utils.gc_objects_by_type("PlantEditor"),
             [],
@@ -655,8 +655,6 @@ class PlantTests(GardenTestCase):
     @unittest.mock.patch("bauble.editor.GenericEditorView.start")
     def test_editor_doesnt_leak_branch_mode(self, mock_start):
         # garbage collect before start..
-        import gc
-
         gc.collect()
         mock_start.return_value = Gtk.ResponseType.OK
         loc = Location(name="site1", code="1")
@@ -669,6 +667,7 @@ class PlantTests(GardenTestCase):
         editor = PlantEditor(model=plt, branch_mode=True)
         editor.start()
         del editor
+        gc.collect()
         self.assertEqual(
             utils.gc_objects_by_type("PlantEditor"),
             [],
@@ -916,7 +915,6 @@ class PlantTests(GardenTestCase):
         # original plant
         self.assertEqual(new_plant.changes[0].parent_plant, self.plant)
 
-    @unittest.skip("causes leak test to fails in python 3.10")
     @unittest.mock.patch("bauble.editor.GenericEditorView.start")
     def test_branch_callback(self, mock_start):
         """
@@ -3933,8 +3931,6 @@ class LocationTests(GardenTestCase):
     @unittest.mock.patch("bauble.editor.GenericEditorView.start")
     def test_editor_doesnt_leak(self, mock_start):
         # garbage collect before start..
-        import gc
-
         gc.collect()
         mock_start.return_value = Gtk.ResponseType.OK
         loc = self.create(Location, name="some site", code="STE")
