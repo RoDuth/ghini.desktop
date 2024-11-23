@@ -257,7 +257,7 @@ class FunctionIdentifier(IdentifierAction):
     def __init__(self, tokens: ParseResults) -> None:
         logger.debug("%s::__init__(%s)", self.__class__.__name__, tokens)
         self.function: str = tokens[0].lower()
-        self.distinct: str = tokens[1].lower() if len(tokens) == 3 else None
+        self.distinct: str = tokens[1].lower() if len(tokens) == 3 else ""
         self.identifier: IdentifierAction = tokens[-1]
 
     def __repr__(self) -> str:

@@ -551,7 +551,7 @@ class GardenMap(Gtk.Paned):  # pylint: disable=too-many-instance-attributes
 
     @Gtk.Template.Callback()
     def on_tiles_combo_changed(self, combo: Gtk.ComboBoxText) -> None:
-        text = combo.get_active_text()
+        text = combo.get_active_text() or ""
         prefs.prefs[MAP_TILES_PREF_KEY] = self.tile_options[text]
         logger.debug("setting base tiles to %s", text)
         self.set_tiles_from_prefs()

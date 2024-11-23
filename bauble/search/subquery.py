@@ -238,7 +238,7 @@ class SubQueryFuncIdentifier(SubQueryIdentifierAction):
     def __init__(self, tokens: ParseResults) -> None:
         logger.debug("%s::__init__(%s)", self.__class__.__name__, tokens)
         self.function: str = tokens[0].lower()
-        self.distinct: str = tokens[1].lower() if len(tokens) == 3 else None
+        self.distinct: str = tokens[1].lower() if len(tokens) == 3 else ""
         self.identifier: SubQueryIdentifierAction = tokens[-1]
         # get the steps and table, may be nested
         identifier = self.identifier
