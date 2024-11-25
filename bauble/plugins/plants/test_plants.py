@@ -4027,14 +4027,14 @@ class DistMapInfoExpanderMixinTests(BaubleTestCase):
         ebox = Gtk.EventBox()
         self.assertTrue(mix.on_map_button_release(ebox, btn))
         grp = ebox.get_action_group(DistMapInfoExpanderMixin.MAP_ACTION_NAME)
-        self.assertTrue(grp.lookup("zoom"))
-        self.assertIsNone(grp.lookup("zmout"))
+        self.assertTrue(grp.lookup_action("zoom"))
+        self.assertIsNone(grp.lookup_action("zmout"))
         mix.zoomed = True
         ebox = Gtk.EventBox()
         self.assertTrue(mix.on_map_button_release(ebox, btn))
         grp = ebox.get_action_group(DistMapInfoExpanderMixin.MAP_ACTION_NAME)
-        self.assertIsNone(grp.lookup("zoom"))
-        self.assertTrue(grp.lookup("zmout"))
+        self.assertIsNone(grp.lookup_action("zoom"))
+        self.assertTrue(grp.lookup_action("zmout"))
 
     @mock.patch("bauble.plugins.plants.geography.Gtk.FileChooserNative")
     def test_on_dist_map_save(self, mock_chooser):
