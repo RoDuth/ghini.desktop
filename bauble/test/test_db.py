@@ -107,11 +107,20 @@ class HistoryTests(BaubleTestCase):
         # NOTE if the model is not refreshed the update will record a single
         # item list
         session.refresh(note_model)
+        first_updated = note_model._last_updated
+
+        # sleep so _last_updated changes
+        import time
+
+        time.sleep(1)
 
         new_date_val = "22/1/22"
         note_model.note = "TEST AGAIN"
         note_model.date = new_date_val
         session.commit()
+
+        session.refresh(note_model)
+        last_updated = note_model._last_updated
 
         updated = (
             self.session.query(db.History)
@@ -120,9 +129,13 @@ class HistoryTests(BaubleTestCase):
         )
 
         self.assertEqual(updated.count(), 1)
-        self.assertIn("['TEST AGAIN',", str(updated.one().values))
+        updated = updated.one()
+        self.assertIn("['TEST AGAIN',", str(updated.values))
+        self.assertIn("['2022-01-22', '2024-01-21']", str(updated.values))
+        # last updated is correct
         self.assertIn(
-            "['2022-01-22', '2024-01-21']", str(updated.one().values)
+            f"'_last_updated': ['{last_updated}', '{first_updated}']",
+            str(updated.values),
         )
 
     def test_history_add_no_update_doesnt_populate(self):

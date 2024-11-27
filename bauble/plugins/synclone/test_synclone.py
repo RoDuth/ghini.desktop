@@ -749,7 +749,7 @@ class DBSyncTests(BaubleTestCase):
         self.assertEqual(
             hist[1].values["family"], ["Malvaceae", "Sterculiaceae"]
         )
-        # assert that _ast_updated change is recorded
+        # assert that _last_updated change is recorded
         self.assertEqual(
             hist[1].values["_last_updated"],
             [str(fam._last_updated), start_date],

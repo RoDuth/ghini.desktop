@@ -170,6 +170,15 @@ An instance of :class:`sqlalchemy.ext.declarative.Base`
 """
 
 
+@event.listens_for(Base, "before_update", propagate=True)
+def before_update(_mapper, _connection, instance):
+    if object_session(instance).is_modified(
+        instance, include_collections=False
+    ):
+        # capture previous value
+        instance._previously_updated_ = instance._last_updated
+
+
 @event.listens_for(Base, "after_update", propagate=True)
 def after_update(mapper, connection, instance):
     if object_session(instance).is_modified(
@@ -248,7 +257,10 @@ class History(HistoryBase):
         # many formats)
         if isinstance(val, str) and str(type_) in ["DATE", "DATETIME"]:
             val = type_.process_bind_param(val, None)
-        if isinstance(val, (datetime.datetime, datetime.date)):
+        if isinstance(val, datetime.datetime):
+            # ensure local time for comparison
+            return str(val.astimezone())
+        if isinstance(val, datetime.date):
             return str(val)
         return val
 
@@ -269,6 +281,17 @@ class History(HistoryBase):
         has_updates = False
         for column in mapper.local_table.c:
             if operation == "update":
+                if column.name == "_last_updated" and hasattr(
+                    instance, "_previously_updated_"
+                ):
+                    values = [
+                        cls._val(instance._last_updated, column.type),
+                        cls._val(instance._previously_updated_, column.type),
+                    ]
+                    if len(values) == 1 or len({str(i) for i in values}) > 1:
+                        row[column.name] = values
+                        continue
+
                 history = get_history(instance, column.name)
                 if history.has_changes():
                     values = [cls._val(i, column.type) for i in history.sum()]
@@ -281,7 +304,7 @@ class History(HistoryBase):
                     if len(values) == 1 or len({str(i) for i in values}) > 1:
                         has_updates = True
                         row[column.name] = values
-                    continue
+                        continue
 
             val = cls._val(getattr(instance, column.name), column.type)
             row[column.name] = val
