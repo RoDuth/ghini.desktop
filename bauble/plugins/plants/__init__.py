@@ -628,7 +628,9 @@ class PlantsPlugin(pluginmgr.Plugin):
             )
             custom1_default = (
                 "{'field_name': 'nca_status', "
-                "'display_name': 'NCA Status', 'values': ("
+                "'display_name': 'NCA Status', "
+                "'short_hand': 'NCA', "
+                "'values': ("
                 "'Extinct in the wild', "
                 "'Critically endangered', "
                 "'Endangered', "
@@ -641,7 +643,9 @@ class PlantsPlugin(pluginmgr.Plugin):
             )
             custom2_default = (
                 "{'field_name': 'epbc_status', "
-                "'display_name': 'EPBC Status', 'values': ("
+                "'display_name': 'EPBC Status',  "
+                "'short_hand': 'EPBC', "
+                "'values': ("
                 "'Extinct', "
                 "'Critically endangered', "
                 "'Endangered', "
@@ -852,6 +856,7 @@ class PlantsPlugin(pluginmgr.Plugin):
             custom_meta = literal_eval(custom_meta.value)
             field_name = custom_meta["field_name"]
             field_values = custom_meta["values"]
+            short_hand = custom_meta.get("short_hand")
             enum.init(field_values, empty_to_none=None in field_values)
             # register with ExpressionRow
             ExpressionRow.custom_columns[field_name] = field_values
@@ -876,11 +881,13 @@ class PlantsPlugin(pluginmgr.Plugin):
                 hybrid_property(_get, fset=_set, expr=_exp),
             )
             setattr(column, "_custom_column_name", field_name)
+            setattr(column, "_custom_column_short_hand", short_hand)
 
         elif hasattr(column, "_custom_column_name"):
             enum.unset_values()
             delattr(Species, getattr(column, "_custom_column_name"))
             delattr(column, "_custom_column_name")
+            delattr(column, "_custom_column_short_hand")
 
     @staticmethod
     def on_return_syns_chkbx_toggled(action, value):

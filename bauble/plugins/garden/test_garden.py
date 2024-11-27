@@ -532,7 +532,8 @@ class PlantTests(GardenTestCase):
             (
                 '1.2 <span foreground="#555555" size="small" '
                 'weight="light">- 52 alive in (STE) site</span>',
-                "<i>Echinocactus</i> <i>grusonii</i>",
+                "<i>Echinocactus</i> <i>grusonii</i>   "
+                '<span weight="light">(Cactaceae)</span>',
             ),
         )
         # dead plant
@@ -547,7 +548,8 @@ class PlantTests(GardenTestCase):
             p.search_view_markup_pair(),
             (
                 '<span foreground="#9900ff">1.2</span>',
-                "<i>Echinocactus</i> <i>grusonii</i>",
+                "<i>Echinocactus</i> <i>grusonii</i>   "
+                '<span weight="light">(Cactaceae)</span>',
             ),
         )
 
@@ -2462,15 +2464,49 @@ class AccessionTests(GardenTestCase):
                 '2001.1<span foreground="#555555" size="small" '
                 'weight="light"> - 1 plant groups in 1 '
                 "location(s)</span>",
-                "<i>Maxillaria</i> s. str <i>variabilis</i>",
+                "<i>Maxillaria</i> s. str <i>variabilis</i>   "
+                '<span weight="light">(Orchidaceae)  CITES:II</span>',
             ),
         )
+        # with details
+        acc.species.red_list = "VU"
+        self.assertEqual(
+            acc.search_view_markup_pair(),
+            (
+                '2001.1<span foreground="#555555" size="small" '
+                'weight="light"> - 1 plant groups in 1 '
+                "location(s)</span>",
+                "<i>Maxillaria</i> s. str <i>variabilis</i>   "
+                '<span weight="light">(Orchidaceae)  '
+                "RedList:VU  CITES:II</span>",
+            ),
+        )
+        type(acc.species)._sp_custom1._custom_column_short_hand = "T1"
+        acc.species._sp_custom1 = "Vunerable"
+        type(acc.species)._sp_custom2._custom_column_short_hand = "T2"
+        acc.species._sp_custom2 = "Endangered"
+        self.assertEqual(
+            acc.search_view_markup_pair(),
+            (
+                '2001.1<span foreground="#555555" size="small" '
+                'weight="light"> - 1 plant groups in 1 '
+                "location(s)</span>",
+                "<i>Maxillaria</i> s. str <i>variabilis</i>   "
+                '<span weight="light">(Orchidaceae)  '
+                "T1:V  T2:E  RedList:VU  CITES:II</span>",
+            ),
+        )
+        acc.species.red_list = None
+        acc.species._sp_custom1 = None
+        acc.species._sp_custom2 = None
+
         acc.plants[0].quantity = 0
         self.assertEqual(
             acc.search_view_markup_pair(),
             (
                 '<span foreground="#9900ff">2001.1</span>',
-                "<i>Maxillaria</i> s. str <i>variabilis</i>",
+                "<i>Maxillaria</i> s. str <i>variabilis</i>   "
+                '<span weight="light">(Orchidaceae)  CITES:II</span>',
             ),
         )
         acc = Accession(species=self.species, code="2023.1")
@@ -2478,7 +2514,11 @@ class AccessionTests(GardenTestCase):
         self.session.commit()
         self.assertEqual(
             acc.search_view_markup_pair(),
-            ("2023.1", "<i>Echinocactus</i> <i>grusonii</i>"),
+            (
+                "2023.1",
+                "<i>Echinocactus</i> <i>grusonii</i>   "
+                '<span weight="light">(Cactaceae)</span>',
+            ),
         )
 
     def test_accession_source_editor(self):

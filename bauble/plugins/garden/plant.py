@@ -907,7 +907,7 @@ class Plant(db.Base, db.WithNotes):
 
     def search_view_markup_pair(self):
         """provide the two lines describing object for SearchView row."""
-        sp_str = self.accession.species_str(markup=True)
+        sp_str = self.accession.species_str(markup=True, details=True)
         dead_color = "#9900ff"
         if self.quantity <= 0:
             dead_markup = (

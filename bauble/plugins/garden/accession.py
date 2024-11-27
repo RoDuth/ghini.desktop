@@ -775,7 +775,7 @@ class Accession(db.Base, db.WithNotes):
 
     def search_view_markup_pair(self):
         """provide the two lines describing object for SearchView row."""
-        sp_str = self.species_str(markup=True)
+        sp_str = self.species_str(markup=True, details=True)
         # unused
         if not self.plants:
             return utils.xml_safe(str(self)), sp_str
@@ -863,7 +863,7 @@ class Accession(db.Base, db.WithNotes):
             return self.species_str()
         return None
 
-    def species_str(self, authors=False, markup=False):
+    def species_str(self, authors=False, markup=False, details=False):
         """Return the string of the species with the id qualifier(id_qual)
         injected into the proper place.
         """
@@ -902,6 +902,45 @@ class Accession(db.Base, db.WithNotes):
             )
         else:
             sp_str = self.species.str(authors, markup, remove_zws=True)
+
+        if details:
+            logger.debug("species_str adding details")
+            extra = []
+            # pylint: disable=protected-access
+            if (
+                short_hand := getattr(
+                    type(self.species)._sp_custom1,
+                    "_custom_column_short_hand",
+                    None,
+                )
+            ) and self.species._sp_custom1:
+                value = "".join(
+                    i[0] for i in self.species._sp_custom1.title().split()
+                )
+                extra.append(f"  {short_hand}:{value}")
+            if (
+                short_hand := getattr(
+                    type(self.species)._sp_custom2,
+                    "_custom_column_short_hand",
+                    None,
+                )
+            ) and self.species._sp_custom2:
+                value = "".join(
+                    i[0] for i in self.species._sp_custom2.title().split()
+                )
+                extra.append(f"  {short_hand}:{value}")
+            if value := self.species.red_list:
+                extra.append(f"  RedList:{value}")
+            if value := self.species.cites:
+                extra.append(f"  CITES:{value}")
+            # sp_str += "</span>"
+            details_str = (
+                '   <span weight="light">'
+                f"({self.species.family_name})"
+                f"{''.join(extra)}"
+                "</span>"
+            )
+            sp_str += details_str
 
         return sp_str
 
