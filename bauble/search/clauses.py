@@ -260,10 +260,10 @@ class ParenthesisedClause(ClauseAction):
 
     def evaluate(self, handler: QueryHandler) -> Query | Select:
         logger.debug("%s::evaluate %s", self.__class__.__name__, self)
-        select_ = select(handler.domain.id)  # type: ignore[attr-defined]
+        select_ = select(handler.domain.id)
         paren_handler = QueryHandler(handler.session, handler.domain, select_)
         sub_query = self.content.evaluate(paren_handler)
-        filter_ = handler.domain.id.in_(sub_query)  # type: ignore[attr-defined]  # noqa
+        filter_ = handler.domain.id.in_(sub_query)
         handler.query = handler.query.filter(filter_)
         return handler.query
 
@@ -319,7 +319,7 @@ class OrTerm(BinaryLogicalTerm):
                     )
                 )
             else:
-                select_ = select(handler.domain.id)  # type: ignore[attr-defined]  # noqa
+                select_ = select(handler.domain.id)
                 handler.query = handler.query.union(
                     operand.evaluate(
                         QueryHandler(handler.session, handler.domain, select_)

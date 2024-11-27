@@ -185,8 +185,6 @@ class Genus(db.Base, db.WithNotes):
         and family_id must be unique.
     """
 
-    id: int
-
     __tablename__ = "genus"
     __table_args__: tuple = (
         UniqueConstraint("genus", "author", "qualifier", "family_id"),

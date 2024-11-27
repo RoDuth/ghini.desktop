@@ -167,8 +167,6 @@ class Family(db.Base, db.WithNotes):
         The family table has a unique constraint on family/qualifier.
     """
 
-    id: int
-
     __tablename__ = "family"
     __table_args__: tuple = (UniqueConstraint("family", "author"), {})
 

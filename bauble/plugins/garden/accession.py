@@ -607,9 +607,6 @@ class Accession(db.Base, db.WithNotes):
 
     __tablename__ = "accession"
 
-    id: int
-    # columns
-    #: the accession code
     code = Column(Unicode(20), nullable=False, unique=True)
 
     code_format = BAUBLE_ACC_CODE_FORMAT

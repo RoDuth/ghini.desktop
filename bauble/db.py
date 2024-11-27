@@ -37,7 +37,6 @@ import sqlalchemy as sa
 from gi.repository import Gtk
 from sqlalchemy import event
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.orm import DeclarativeMeta
 from sqlalchemy.orm import Session as SASession
 from sqlalchemy.orm import declarative_base
 from sqlalchemy.orm import object_session
@@ -103,43 +102,6 @@ def get_active_children(children: Callable | str, obj: Any) -> Iterable:
     return kids
 
 
-class MapperBase(DeclarativeMeta):
-    """
-    MapperBase adds the id, _created and _last_updated columns to all
-    tables.
-
-    In general there is no reason to use this class directly other
-    than to extend it to add more default columns to all the bauble
-    tables.
-    """
-
-    def __init__(cls, classname, bases, dict_):
-        if "__tablename__" in dict_:
-            cls.id = sa.Column(
-                "id", sa.Integer, primary_key=True, autoincrement=True
-            )
-            cls._created = sa.Column(
-                "_created",
-                types.DateTime(timezone=True),
-                default=sa.func.now(),
-            )
-            cls._last_updated = sa.Column(
-                "_last_updated",
-                types.DateTime(timezone=True),
-                default=sa.func.now(),
-                onupdate=sa.func.now(),
-            )
-        if "top_level_count" not in dict_:
-            cls.top_level_count = lambda x: {classname: 1}
-        if "search_view_markup_pair" not in dict_:
-            cls.search_view_markup_pair = lambda x: (
-                utils.xml_safe(str(x)),
-                f"({type(x).__name__})",
-            )
-
-        super().__init__(classname, bases, dict_)
-
-
 engine: sa.engine.Engine | None = None
 """A :class:`sqlalchemy.engine.base.Engine` used as the default
 connection to the database.
@@ -161,13 +123,34 @@ database deadlocks, particularly when using PostgreSQL based
 databases.
 """
 
-Base = declarative_base(metaclass=MapperBase)
-"""
-All tables/mappers which use the SQLAlchemy declarative plugin for declaring
-tables and mappers should derive from this class.
+DBase = declarative_base()
 
-An instance of :class:`sqlalchemy.ext.declarative.Base`
-"""
+
+class Base(DBase):
+    """All tables/mappers which use the SQLAlchemy declarative plugin for
+    declaring tables and mappers should derive from this class.
+    """
+
+    __abstract__ = True
+
+    __tablename__: str
+
+    id: int = sa.Column(sa.Integer, primary_key=True, autoincrement=True)
+    _created: datetime.datetime = sa.Column(
+        types.DateTime(timezone=True),
+        default=sa.func.now(),
+    )
+    _last_updated: datetime.datetime = sa.Column(
+        types.DateTime(timezone=True),
+        default=sa.func.now(),
+        onupdate=sa.func.now(),
+    )
+
+    def top_level_count(self) -> dict[str, int]:
+        return {type(self).__name__: 1}
+
+    def search_view_markup_pair(self) -> tuple[str, str]:
+        return utils.xml_safe(str(self)), type(self).__name__
 
 
 @event.listens_for(Base, "before_update", propagate=True)
@@ -176,6 +159,7 @@ def before_update(_mapper, _connection, instance):
         instance, include_collections=False
     ):
         # capture previous value
+        # pylint: disable=protected-access
         instance._previously_updated_ = instance._last_updated
 
 
@@ -284,11 +268,14 @@ class History(HistoryBase):
                 if column.name == "_last_updated" and hasattr(
                     instance, "_previously_updated_"
                 ):
+                    # pylint: disable=protected-access
                     values = [
                         cls._val(instance._last_updated, column.type),
                         cls._val(instance._previously_updated_, column.type),
                     ]
                     if len(values) == 1 or len({str(i) for i in values}) > 1:
+                        # don't set has_updates to avoid pointless entries
+                        # where no other field has changed.
                         row[column.name] = values
                         continue
 
@@ -1041,6 +1028,6 @@ current_user = CurrentUserFunctor()
 
 def get_model_by_name(name: str) -> type[Base] | None:
     for model in Base.__subclasses__():
-        if model.__tablename__ == name:  # type: ignore[attr-defined]
+        if model.__tablename__ == name:
             return model
     return None

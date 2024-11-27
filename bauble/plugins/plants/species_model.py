@@ -325,8 +325,6 @@ class Species(db.Base, db.WithNotes):
         *distribution*:
     """
 
-    id: int
-
     __tablename__ = "species"
     __table_args__: tuple = (
         UniqueConstraint("full_sci_name", name="sp_name"),

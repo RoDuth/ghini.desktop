@@ -444,7 +444,7 @@ class SynonymSearch(SearchStrategy):
             else:
                 id_ = getattr(models[0], "id")
                 syn_model_id = getattr(
-                    models[1], models[0].__tablename__ + "_id"  # type: ignore[attr-defined]  # noqa
+                    models[1], models[0].__tablename__ + "_id"
                 )
                 syn_id = getattr(models[1], "synonym_id")
                 query = (

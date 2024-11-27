@@ -1882,7 +1882,7 @@ class PresenterLinksMixin:
         """
         menu = Gio.Menu()
         # pylint: disable=line-too-long
-        action_name = self.model.__tablename__.lower() + "_link"  # type: ignore [attr-defined] # noqa
+        action_name = self.model.__tablename__.lower() + "_link"
         action_group = Gio.SimpleActionGroup()
 
         menu_has_items = False

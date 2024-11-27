@@ -440,6 +440,21 @@ class HistoryTests(BaubleTestCase):
         self.assertEqual(len(rows), 1)
 
 
+class BaseTests(BaubleTestCase):
+    def test_base(self):
+        class TestTableCustom(db.Base):
+            __tablename__ = "test_table"
+
+            def __str__(self):
+                return "Test"
+
+        TestTableCustom.__table__.create(bind=db.engine)
+        t = TestTableCustom()
+        self.assertEqual(
+            t.search_view_markup_pair(), ("Test", "TestTableCustom")
+        )
+
+
 class GlobalFunctionsTests(BaubleTestCase):
     def test_class_of_object(self):
         self.assertEqual(db.class_of_object("genus"), Genus)

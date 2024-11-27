@@ -73,7 +73,7 @@ def correlate_subquery(
     if not join_step:
         raise SearchException(
             "Correlated subquery property must begin with a directly "
-            f"related table - `{domain.__tablename__}` "  # type: ignore [attr-defined] # noqa
+            f"related table - `{domain.__tablename__}` "
             f"is not related to `{step}`"
         )
 
@@ -206,7 +206,7 @@ class SubQueryIdentifier(SubQueryIdentifierAction):
     def __init__(self, tokens: ParseResults) -> None:
         logger.debug("%s::__init__(%s)", self.__class__.__name__, tokens)
         self.table: type[Base] = tokens[0]
-        self.table_name: str = self.table.__tablename__  # type: ignore [attr-defined] # noqa
+        self.table_name: str = self.table.__tablename__
         self.leaf_path: UnfilteredIdentifier = tokens[1]
         self.steps = [self.table_name] + self.leaf_path.steps
 

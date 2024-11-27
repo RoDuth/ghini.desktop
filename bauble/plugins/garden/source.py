@@ -1121,8 +1121,6 @@ source_detail_context_menu = [
 class SourceDetail(db.Base):
     __tablename__ = "source_detail"
 
-    id: int
-
     # ITF2 - E6 - Donor
     name = Column(Unicode(75), unique=True)
     # extra description, not included in E6

@@ -500,7 +500,7 @@ class CSVImportDialogPresenter(GenericEditorPresenter):
                 try:
                     # If a path is a table then don't try importing it (is
                     # used for display only)
-                    if path == self.domain.__tablename__:  # type: ignore [attr-defined]  # noqa
+                    if path == self.domain.__tablename__:
                         path = None
                     elif db.get_related_class(self.domain, path):
                         path = None

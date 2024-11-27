@@ -178,8 +178,6 @@ class Location(db.Base, db.WithNotes):
 
     """
 
-    id: int
-
     __tablename__ = "location"
 
     # columns

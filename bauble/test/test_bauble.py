@@ -145,7 +145,6 @@ class EnumTests(BaubleTestCase):
 
         class TestTableComparator(db.Base):
             __tablename__ = "test_table_comparator"
-            id = (Column(Integer, primary_key=True),)
             value = Column(Enum(values=pos_vals, empty_to_none=True))
 
         TestTableComparator.__table__.create(bind=db.engine)
@@ -215,7 +214,6 @@ class EnumTests(BaubleTestCase):
     def test_custom_enum_delays_init(self):
         class TestTableCustom(db.Base):
             __tablename__ = "test_table_custom"
-            id = (Column(Integer, primary_key=True),)
             value = Column(CustomEnum(12))
 
         TestTableCustom.__table__.create(bind=db.engine)

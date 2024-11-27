@@ -237,7 +237,6 @@ class Geography(db.Base):
 
     __tablename__ = "geography"
 
-    id: int
     # columns
     name: str = Column(Unicode(255), nullable=False)
     code: str = Column(String(6), unique=True, nullable=False)
