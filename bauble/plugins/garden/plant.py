@@ -1102,7 +1102,7 @@ def plant_after_update(
             }
             values = {k: v for k, v in values.items() if v is not None}
             changes.append(values)
-        else:
+        elif quantity_change < 0:
             logger.debug(
                 "%s has quantity decrease %s", target, quantity_change
             )
@@ -1526,14 +1526,13 @@ class PlantEditorPresenter(GenericEditorPresenter, PresenterMapMixin):
 
     def on_save_clicked(self, *_args):
         try:
-            self.session.commit()
+            self.commit_changes()
             self._dirty = False
             self.pictures_presenter._dirty = False
             self.notes_presenter._dirty = False
             self.prop_presenter._dirty = False
         except SQLAlchemyError as e:
             logger.debug("%s(%s)", type(e).__name__, e)
-            self.session.rollback()
         finally:
             self.refresh_view()
 
@@ -2070,6 +2069,13 @@ class PlantEditor(GenericModelViewPresenterEditor):
                 else:
                     # removal
                     change.quantity = -change.quantity
+            if not self.session.is_modified(
+                self.model, include_collections=False
+            ):
+                logger.debug("plant has not changed expunging change")
+                if change in self.model.changes:
+                    self.model.changes.remove(change)
+                utils.delete_or_expunge(change)
             super().commit_changes()
             self._committed.append(self.model)
             return

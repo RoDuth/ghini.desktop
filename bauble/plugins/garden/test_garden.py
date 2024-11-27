@@ -1203,6 +1203,26 @@ class PlantTests(GardenTestCase):
         self.assertEqual(len(plt.top_level_count()[(7, "Locations")]), 1)
         self.assertEqual(len(plt.top_level_count()[(8, "Sources")]), 0)
 
+    def test_commit_changes_does_not_generate_pointless_changes(self):
+        start = len(self.plant.changes)
+        start_qty = self.plant.quantity
+        editor = PlantEditor(model=self.plant)
+        mock_entry = unittest.mock.Mock()
+
+        # toggle quantity back and forth
+        mock_entry.get_text.return_value = str(start_qty + 1)
+        editor.presenter.on_quantity_changed(mock_entry)
+        mock_entry.get_text.return_value = str(start_qty)
+        editor.presenter.on_quantity_changed(mock_entry)
+
+        self.assertTrue(editor.presenter.change)
+        editor.commit_changes()
+        self.session.expire(self.plant)
+        end = len(self.plant.changes)
+        self.assertEqual(start, end)
+        editor.presenter.cleanup()
+        del editor
+
 
 class PlantEditorPresenterTests(GardenTestCase):
     def test_acc_get_completions(self):
@@ -1311,7 +1331,7 @@ class PlantEditorPresenterTests(GardenTestCase):
     def test_on_save_clicked(self):
         mock_self = unittest.mock.Mock()
         PlantEditorPresenter.on_save_clicked(mock_self)
-        mock_self.session.commit.assert_called()
+        mock_self.commit_changes.assert_called()
         self.assertFalse(mock_self._dirty)
         self.assertFalse(mock_self.pictures_presenter._dirty)
         self.assertFalse(mock_self.notes_presenter._dirty)
@@ -1320,14 +1340,13 @@ class PlantEditorPresenterTests(GardenTestCase):
         mock_self.refresh_view.assert_called()
 
         mock_self = unittest.mock.Mock()
-        mock_self.session.commit.side_effect = SQLAlchemyError
+        mock_self.commit_changes.side_effect = SQLAlchemyError
         PlantEditorPresenter.on_save_clicked(mock_self)
-        mock_self.session.commit.assert_called()
+        mock_self.commit_changes.assert_called()
         self.assertTrue(mock_self._dirty)
         self.assertTrue(mock_self.pictures_presenter._dirty)
         self.assertTrue(mock_self.notes_presenter._dirty)
         self.assertTrue(mock_self.prop_presenter._dirty)
-        mock_self.session.rollback.assert_called()
         mock_self.refresh_view.assert_called()
 
 
