@@ -57,7 +57,7 @@ from bauble import paths
 from bauble import prefs
 from bauble import utils
 from bauble.i18n import _
-from bauble.utils import get_net_sess
+from bauble.utils.web import get_net_sess
 from bauble.utils import timed_cache
 from bauble.utils.geo import is_point_within_poly
 from bauble.utils.geo import polylabel
@@ -816,12 +816,17 @@ class SearchViewMapPresenter:
         self.populate_thread: None | threading.Thread = None
         self.update_thread: None | threading.Thread = None
         self.plt_items: dict[int, MapItem] = {}
-        self.loc_items: dict[int, MapItem] = {}
+        self.loc_items: dict[int, MapPoly] = {}
         self.populated: bool = False
         self.redraw_on_update = False
         self.context_menu: Gtk.Menu
+        self.search_loc_action: Gio.SimpleAction
+        self.search_loc_menu_item: Gio.MenuItem
+        self.menu_model = Gio.Menu()
         self.init_context_menu()
         self.zoom_to_home()
+        self.search_loc: str = ""
+        self.add_to_search = False
         self._resize_timer_id: int | None = None
 
     @staticmethod
@@ -860,6 +865,25 @@ class SearchViewMapPresenter:
         self, _map: OsmGpsMap.Map, gevent: Gdk.EventButton
     ) -> None:
         if gevent.button == 3:
+            self.add_to_search = False
+            label = _("Search %s")
+            if gevent.get_state() == Gdk.ModifierType.SHIFT_MASK:
+                self.add_to_search = True
+                label = _("Add %s to search")
+            self.search_loc_action.set_enabled(False)
+            if self.menu_model.get_n_items() == 4:
+                self.menu_model.remove(3)
+            current = _map.convert_screen_to_geographic(
+                int(gevent.x), int(gevent.y)
+            )
+            lat, long = current.get_degrees()
+            for poly in self.loc_items.values():
+                if is_point_within_poly(long, lat, poly.coordinates[0]):
+                    self.search_loc_action.set_enabled(True)
+                    self.search_loc = poly.label_txt
+                    self.search_loc_menu_item.set_label(label % poly.label_txt)
+                    self.menu_model.append_item(self.search_loc_menu_item)
+
             self.context_menu.popup_at_pointer(gevent)
         elif gevent.button == 1:
             current = _map.convert_screen_to_geographic(
@@ -928,14 +952,13 @@ class SearchViewMapPresenter:
                         return
 
     def init_context_menu(self) -> None:
-        menu = Gio.Menu()
         action_name = "garden_map"
         action_group = Gio.SimpleActionGroup()
         # https://github.com/python/mypy/issues/12172
         menu_items = (
+            (_("Refresh"), "refresh_map", self.on_refresh),
             (_("Zoom to selected"), "zoom_select", self.on_zoom_to_selected),
             (_("Zoom to home"), "zoom_home", self.zoom_to_home),
-            (_("Refresh"), "refresh_map", self.on_refresh),
         )
 
         for label, name, handler in menu_items:
@@ -943,11 +966,40 @@ class SearchViewMapPresenter:
             action.connect("activate", handler)
             action_group.add_action(action)
             menu_item = Gio.MenuItem.new(label, f"{action_name}.{name}")
-            menu.append_item(menu_item)
+            self.menu_model.append_item(menu_item)
+
+        self.search_loc_action = Gio.SimpleAction.new("search_loc", None)
+        self.search_loc_action.connect("activate", self.on_search_loc)
+        action_group.add_action(self.search_loc_action)
+        self.search_loc_menu_item = Gio.MenuItem.new(
+            "---", f"{action_name}.search_loc"
+        )
+        self.menu_model.append_item(self.search_loc_menu_item)
+        self.search_loc_action.set_enabled(False)
 
         self.garden_map.map_.insert_action_group(action_name, action_group)
-        self.context_menu = Gtk.Menu.new_from_model(menu)
+        self.context_menu = Gtk.Menu.new_from_model(self.menu_model)
         self.context_menu.attach_to_widget(self.garden_map.map_)
+
+    def on_search_loc(self, *_args) -> None:
+        if self.add_to_search:
+            logger.debug("adding %s to search results", self.search_loc)
+            search_view = get_search_view()
+            if not search_view or not bauble.gui:
+                return
+
+            loc = (
+                search_view.session.query(Location)
+                .filter(Location.code == self.search_loc)
+                .one()
+            )
+            select_in_search_results(loc)
+            self.on_refresh()
+            return
+        query = f"loc = '{self.search_loc}'"
+        logger.debug("query: %s", query)
+        if bauble.gui:
+            bauble.gui.send_command(query)
 
     def on_zoom_to_selected(self, *_args) -> None:
         if self.selected:

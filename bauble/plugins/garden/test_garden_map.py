@@ -46,7 +46,7 @@ from bauble.test import BaubleTestCase
 from bauble.test import get_setUp_data_funcs
 from bauble.test import update_gui
 from bauble.test import wait_on_threads
-from bauble.utils import get_net_sess
+from bauble.utils.web import get_net_sess
 from bauble.utils.web import PACFile
 from bauble.view import SearchView
 
@@ -1141,12 +1141,46 @@ class TestSearchViewMapPresenter(BaubleTestCase):
 
     def test_on_button_press_button_3_pops_up_menu(self):
         map_ = GardenMap(Map())
+        colour = colours.get("white")
+        loc = MapPoly(1, poly, colour, "LOC1")
         presenter = SearchViewMapPresenter(map_)
+        presenter.loc_items = {1: loc}
         presenter.is_visible = lambda: True
         presenter.context_menu = mock.Mock()
-        mock_event = mock.Mock(button=3)
-        presenter.on_button_press(None, mock_event)
+        mock_event = mock.Mock(button=3, x=1, y=1)
+        mock_map = mock.Mock()
+        mock_map.convert_screen_to_geographic().get_degrees.return_value = 1, 2
+        presenter.on_button_press(mock_map, mock_event)
         presenter.context_menu.popup_at_pointer.assert_called_with(mock_event)
+        self.assertFalse(presenter.add_to_search)
+        self.assertEqual(presenter.menu_model.get_n_items(), 3)
+        # inside location adds menu item
+        mock_map.convert_screen_to_geographic().get_degrees.return_value = (
+            -27.477772286194863,
+            152.9745298913905,
+        )
+        presenter.on_button_press(mock_map, mock_event)
+        self.assertEqual(presenter.menu_model.get_n_items(), 4)
+
+    def test_on_button_press_shift_button_3_inside_loc_adds(self):
+        map_ = GardenMap(Map())
+        colour = colours.get("white")
+        loc = MapPoly(1, poly, colour, "LOC1")
+        presenter = SearchViewMapPresenter(map_)
+        presenter.loc_items = {1: loc}
+        presenter.is_visible = lambda: True
+        presenter.context_menu = mock.Mock()
+        mock_event = mock.Mock(button=3, x=1, y=1)
+        mock_event.get_state.return_value = Gdk.ModifierType.SHIFT_MASK
+        mock_map = mock.Mock()
+        mock_map.convert_screen_to_geographic().get_degrees.return_value = (
+            -27.477772286194863,
+            152.9745298913905,
+        )
+        presenter.on_button_press(mock_map, mock_event)
+        presenter.context_menu.popup_at_pointer.assert_called_with(mock_event)
+        self.assertTrue(presenter.add_to_search)
+        self.assertEqual(presenter.menu_model.get_n_items(), 4)
 
     def test_on_button_press_button_2_does_nothing(self):
         map_ = GardenMap(Map())
@@ -1154,7 +1188,9 @@ class TestSearchViewMapPresenter(BaubleTestCase):
         presenter.is_visible = lambda: True
         presenter.context_menu = mock.Mock()
         mock_event = mock.Mock(button=2)
-        presenter.on_button_press(None, mock_event)
+        mock_map = mock.Mock()
+        mock_map.convert_screen_to_geographic().get_degrees.return_value = 1, 2
+        presenter.on_button_press(mock_map, mock_event)
         presenter.context_menu.popup_at_pointer.assert_not_called()
 
     def test_on_button_press_button_1_selects_nearest(self):
@@ -1628,6 +1664,33 @@ class TestSearchViewMapPresenter(BaubleTestCase):
         # one history from adding the geojson
         self.assertEqual(len(hist), 1, hist)
         expunge_garden_map()
+
+    @mock.patch("bauble.gui")
+    @mock.patch("bauble.plugins.garden.garden_map.get_search_view")
+    @mock.patch("bauble.plugins.garden.garden_map.select_in_search_results")
+    def test_on_search_loc(self, mock_search_select, mock_get_sv, mock_gui):
+        loc = Location(code="THR", name="There", geojson=poly2)
+        self.session.add(loc)
+        self.session.commit()
+        mock_get_sv().session = self.session
+        map_ = GardenMap(Map())
+        presenter = SearchViewMapPresenter(map_)
+        presenter.on_refresh = mock.Mock()
+        presenter.search_loc = "THR"
+        presenter.add_to_search = True
+        presenter.on_search_loc()
+        mock_search_select.assert_called_with(loc)
+        presenter.add_to_search = False
+        presenter.on_search_loc()
+        mock_gui.send_command.assert_called_with("loc = 'THR'")
+
+        presenter.add_to_search = True
+        mock_search_select.reset_mock()
+        mock_gui.reset_mock()
+        mock_get_sv.return_value = None
+        presenter.on_search_loc()
+        mock_search_select.assert_not_called()
+        mock_gui.send_command.assert_not_called()
 
 
 class GlobalFunctionsTest(BaubleTestCase):
