@@ -91,7 +91,7 @@ deploy:
   provider: GitHub
   on:
     branch: main
-  release: 'v1.3.11' # :bump
+  release: 'v1.3.12' # :bump
   description: ''
   auth_token:
     secure: iQPNs80UcV9Ru/WTAOUHaxrVRRGH9cfrkrF5kfm0N/brgDmxbr+MMM6xOCNauSP/
