@@ -472,7 +472,8 @@ def remove_from_results_view(objs):
     use in remove callbacks.  Exists here rather than SearchView for
     convenience. (DRY)
 
-    :param objs: the items to remove"""
+    :param objs: the items to remove
+    """
     # Avoid errors in tests
     if not bauble.gui:
         return
@@ -740,7 +741,7 @@ def create_message_dialog(
         try:
             pixbuf = GdkPixbuf.Pixbuf.new_from_file(bauble.default_icon)
             dialog.set_icon(pixbuf)
-        except Exception:
+        except GLib.Error:
             pass
     dialog.set_property("skip-taskbar-hint", False)
     dialog.show_all()
@@ -782,7 +783,7 @@ def create_yes_no_dialog(msg, parent=None):
         try:
             pixbuf = GdkPixbuf.Pixbuf.new_from_file(bauble.default_icon)
             dialog.set_icon(pixbuf)
-        except Exception:
+        except GLib.Error:
             pass
         dialog.set_property("skip-taskbar-hint", False)
     dialog.show_all()
@@ -877,7 +878,7 @@ def create_message_details_dialog(
         try:
             pixbuf = GdkPixbuf.Pixbuf.new_from_file(bauble.default_icon)
             dialog.set_icon(pixbuf)
-        except Exception:
+        except GLib.Error:
             pass
         dialog.set_property("skip-taskbar-hint", False)
 
@@ -1290,22 +1291,6 @@ def make_label_clickable(label, on_clicked, *args):
         eventbox.connect("button_press_event", on_press)
 
 
-def enum_values_str(col):
-    """
-    :param col: a string if table.col where col is an enum type
-
-    return a string with of the values on an enum type join by a comma
-    """
-    from bauble import db
-
-    table_name, col_name = col.split(".")
-    # debug('%s.%s' % (table_name, col_name))
-    values = db.metadata.tables[table_name].c[col_name].type.values[:]
-    if None in values:
-        values[values.index(None)] = "&lt;None&gt;"
-    return ", ".join(values)
-
-
 def which(filename, path=None):
     """Return first occurence of file on the path."""
     if not path:
@@ -1437,11 +1422,6 @@ def debug_gc_decorator(func):
         return new_val
 
     return wrapper
-
-
-def mem(size="rss"):
-    """Generalization; memory sizes: rss, rsz, vsz."""
-    return int(os.popen(f"ps -p {os.getpid():d} -o {size} | tail -1").read())
 
 
 # Original topological sort code written by Ofer Faigon (www.bitformation.com)
