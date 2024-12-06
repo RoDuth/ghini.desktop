@@ -1489,11 +1489,6 @@ class PlantEditorPresenter(GenericEditorPresenter, PresenterMapMixin):
             self.on_loc_button_clicked,
             "edit",
         )
-        self.view.connect(
-            "pad_save_button",
-            "clicked",
-            self.on_save_clicked,
-        )
         if self.model.quantity == 0:
             self.view.widgets.notebook.set_sensitive(False)
             msg = _(
@@ -1523,18 +1518,6 @@ class PlantEditorPresenter(GenericEditorPresenter, PresenterMapMixin):
             str(Path(__file__).resolve().parent / "plant.kml"),
         )
         self.view.widgets.plant_id_label.set_text(str(self.model.id or ""))
-
-    def on_save_clicked(self, *_args):
-        try:
-            self.commit_changes()
-            self._dirty = False
-            self.pictures_presenter._dirty = False
-            self.notes_presenter._dirty = False
-            self.prop_presenter._dirty = False
-        except SQLAlchemyError as e:
-            logger.debug("%s(%s)", type(e).__name__, e)
-        finally:
-            self.refresh_view()
 
     def acc_get_completions(self, text):
         """Get completions with any of the following combinations:
@@ -2015,6 +1998,13 @@ class PlantEditor(GenericModelViewPresenterEditor):
         self._committed = []
 
         view = PlantEditorView(parent=self.parent)
+        # NOTE have to connect here rather than the presenter so that commit
+        # works as expected (e.g. pointless PlantChange)
+        view.connect(
+            "pad_save_button",
+            "clicked",
+            self.on_save_clicked,
+        )
         self.presenter = PlantEditorPresenter(
             self.model, view, branch_mode=branch_mode
         )
@@ -2033,6 +2023,18 @@ class PlantEditor(GenericModelViewPresenterEditor):
             to_plant=self.model,
             to_plant_change=self.presenter.change,
         )
+
+    def on_save_clicked(self, *_args):
+        try:
+            self.commit_changes()
+            self.presenter._dirty = False
+            self.presenter.pictures_presenter._dirty = False
+            self.presenter.notes_presenter._dirty = False
+            self.presenter.prop_presenter._dirty = False
+        except SQLAlchemyError as e:
+            logger.debug("%s(%s)", type(e).__name__, e)
+        finally:
+            self.presenter.refresh_view()
 
     def commit_changes(self):
         codes = utils.range_builder(self.model.code)

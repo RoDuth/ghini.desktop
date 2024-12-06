@@ -1223,6 +1223,27 @@ class PlantTests(GardenTestCase):
         editor.presenter.cleanup()
         del editor
 
+    def test_on_save_clicked(self):
+        mock_self = unittest.mock.Mock()
+        PlantEditor.on_save_clicked(mock_self)
+        mock_self.commit_changes.assert_called()
+        self.assertFalse(mock_self.presenter._dirty)
+        self.assertFalse(mock_self.presenter.pictures_presenter._dirty)
+        self.assertFalse(mock_self.presenter.notes_presenter._dirty)
+        self.assertFalse(mock_self.presenter.prop_presenter._dirty)
+        mock_self.session.rollback.assert_not_called()
+        mock_self.presenter.refresh_view.assert_called()
+
+        mock_self = unittest.mock.Mock()
+        mock_self.commit_changes.side_effect = SQLAlchemyError
+        PlantEditor.on_save_clicked(mock_self)
+        mock_self.commit_changes.assert_called()
+        self.assertTrue(mock_self.presenter._dirty)
+        self.assertTrue(mock_self.presenter.pictures_presenter._dirty)
+        self.assertTrue(mock_self.presenter.notes_presenter._dirty)
+        self.assertTrue(mock_self.presenter.prop_presenter._dirty)
+        mock_self.presenter.refresh_view.assert_called()
+
 
 class PlantEditorPresenterTests(GardenTestCase):
     def test_acc_get_completions(self):
@@ -1327,27 +1348,6 @@ class PlantEditorPresenterTests(GardenTestCase):
         mock_editor.assert_called_with(loc, parent=presenter.view.get_window())
 
         del presenter
-
-    def test_on_save_clicked(self):
-        mock_self = unittest.mock.Mock()
-        PlantEditorPresenter.on_save_clicked(mock_self)
-        mock_self.commit_changes.assert_called()
-        self.assertFalse(mock_self._dirty)
-        self.assertFalse(mock_self.pictures_presenter._dirty)
-        self.assertFalse(mock_self.notes_presenter._dirty)
-        self.assertFalse(mock_self.prop_presenter._dirty)
-        mock_self.session.rollback.assert_not_called()
-        mock_self.refresh_view.assert_called()
-
-        mock_self = unittest.mock.Mock()
-        mock_self.commit_changes.side_effect = SQLAlchemyError
-        PlantEditorPresenter.on_save_clicked(mock_self)
-        mock_self.commit_changes.assert_called()
-        self.assertTrue(mock_self._dirty)
-        self.assertTrue(mock_self.pictures_presenter._dirty)
-        self.assertTrue(mock_self.notes_presenter._dirty)
-        self.assertTrue(mock_self.prop_presenter._dirty)
-        mock_self.refresh_view.assert_called()
 
 
 class PropagationTests(GardenTestCase):

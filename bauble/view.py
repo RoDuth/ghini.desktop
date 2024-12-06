@@ -723,7 +723,6 @@ class PicturesScroller(Gtk.ScrolledWindow):
         cast(Gtk.Widget, pic_pane.get_child2()).connect(
             "size-allocate", self.on_pic_pane_size_allocation
         )
-        self._set_pic_pane_pos_timer_id = None
 
     def on_scrolled(self, adjustment: Gtk.Adjustment) -> None:
         """On scrolling add more pictures as needed.
