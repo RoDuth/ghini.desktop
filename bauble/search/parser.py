@@ -250,11 +250,11 @@ binop_set = (CaselessKeyword("IN") | CaselessKeyword("NOT IN")).set_name(
 
 binop_date = CaselessKeyword("ON")
 
-and_ = (CaselessKeyword("AND") | Keyword("&&")).set_name("and")
+and_ = (CaselessKeyword("AND") | Keyword("&&")).set_name("and")("and_")
 
-or_ = (CaselessKeyword("OR") | Keyword("||")).set_name("or")
+or_ = (CaselessKeyword("OR") | Keyword("||")).set_name("or")("or_")
 
-not_ = (CaselessKeyword("NOT") | Keyword("!")).set_name("not")
+not_ = (CaselessKeyword("NOT") | Keyword("!")).set_name("not")("not_")
 
 function = (Word(alphas + "_")).set_name("function")
 

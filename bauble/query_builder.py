@@ -1,6 +1,6 @@
 # Copyright 2008, 2009, 2010 Brett Adams
 # Copyright 2014-2015 Mario Frasca <mario@anche.no>.
-# Copyright 2021-2023 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright 2021-2024 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -17,30 +17,23 @@
 # You should have received a copy of the GNU General Public License
 # along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
 """
-Search functionailty.
+Query builder provides a user interface to generate or edit a query string.
+
+It only supports a subset of the the full query syntax.
 """
 
 import logging
+from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)
 
 from gi.repository import Gtk
 from pyparsing import CaselessLiteral
 from pyparsing import Group
-from pyparsing import Literal
 from pyparsing import Optional
 from pyparsing import ParseException
-from pyparsing import Regex
-from pyparsing import Word
-from pyparsing import WordEnd
-from pyparsing import WordStart
 from pyparsing import ZeroOrMore
-from pyparsing import alphanums
-from pyparsing import alphas
-from pyparsing import alphas8bit
-from pyparsing import delimitedList
 from pyparsing import oneOf
-from pyparsing import quotedString
 from sqlalchemy import Float
 from sqlalchemy import Integer
 from sqlalchemy.exc import InvalidRequestError
@@ -56,6 +49,12 @@ from bauble import prefs
 from bauble import utils
 from bauble.editor import GenericEditorPresenter
 from bauble.i18n import _
+from bauble.search.parser import and_
+from bauble.search.parser import domain
+from bauble.search.parser import not_
+from bauble.search.parser import or_
+from bauble.search.parser import unfiltered_identifier
+from bauble.search.parser import value_token
 from bauble.search.strategies import MapperSearch
 from bauble.search.tokens import EmptyToken
 from bauble.search.tokens import NoneToken
@@ -75,8 +74,8 @@ class SchemaMenu(Gtk.Menu):
     :param recurse: if True allow recusing (i.e. species.accessions.species)
     """
 
-    def __init__(
-        self,  # pylint: disable=too-many-arguments
+    def __init__(  # pylint: disable=too-many-arguments
+        self,
         mapper,
         activate_callback=None,
         column_filter=lambda k, p: True,
@@ -348,11 +347,7 @@ class ExpressionRow:
         return text in ("None"[: len(text)], "Empty"[: len(text)])
 
     def on_value_changed(self, widget):
-        """Call the QueryBuilder.validate() for this row.
-
-        Sets the sensitivity of the Gtk.ResponseType.OK button on the
-        QueryBuilder.
-        """
+        """Adjust widget if required and if the query is valid enable OK."""
         # change to a standard entry if the user tries to enter none numbers
         if isinstance(widget, Gtk.SpinButton):
             text = widget.get_text()
@@ -470,11 +465,8 @@ class ExpressionRow:
         if prop.columns[0].type.translations:
             trans = prop.columns[0].type.translations
             prop_values = [(k, trans[k] or "None") for k in trans.keys()]
-        else:
-            values = prop.columns[0].type.values
-            prop_values = [(v, v or "None") for v in sorted(values)]
-        for value, translation in prop_values:
-            model.append([value, translation])
+            for value, translation in prop_values:
+                model.append([value, translation])
         self.value_widget.set_model(model)
         self.value_widget.set_tooltip_text(
             'select a value, "None" means no value has been set'
@@ -497,7 +489,7 @@ class ExpressionRow:
             self.value_widget.set_value(float(val))
         except ValueError:
             pass
-        self.value_widget.connect("changed", self.on_value_changed)
+        self.value_widget.connect("changed", self.on_number_value_changed)
 
     def set_float_widget(self, _prop, val):
         adjustment = Gtk.Adjustment(
@@ -513,11 +505,11 @@ class ExpressionRow:
             'Number, decimal number or "None" for no value has been set'
         )
         try:
-            val = float(val)
+            val = float(val or 0)
             self.value_widget.set_value(val)
         except ValueError:
             pass
-        self.value_widget.connect("changed", self.on_value_changed)
+        self.value_widget.connect("changed", self.on_number_value_changed)
 
     def set_bool_widget(self, _prop, val):
         values = ["False", "True"]
@@ -639,7 +631,7 @@ class ExpressionRow:
         and_or = ""
         if self.and_or_combo:
             and_or = self.and_or_combo.get_active_text()
-        not_ = self.not_combo.get_active_text()
+        _not = self.not_combo.get_active_text()
         field_name = self.prop_button.get_label()
         if value == EmptyToken():
             field_name = field_name.rsplit(".", 1)[0]
@@ -651,7 +643,7 @@ class ExpressionRow:
                 i
                 for i in (
                     and_or,
-                    not_,
+                    _not,
                     field_name,
                     self.cond_combo.get_active_text(),
                     value,
@@ -662,49 +654,32 @@ class ExpressionRow:
         return result
 
 
+# pylint: disable=too-few-public-methods
+@dataclass
+class Clause:
+    not__: bool = False
+    connector: str | None = None
+    field: str | None = None
+    operator: str | None = None
+    value: str | None = None
+
+
 class BuiltQuery:
     """Parse a query string for its domain and clauses to preloading the
     QueryBuilder.
     """
 
-    wordStart, wordEnd = WordStart(), WordEnd()
-
-    NOT = wordStart + CaselessLiteral("not") + wordEnd
-    AND_ = wordStart + CaselessLiteral("and") + wordEnd
-    OR_ = wordStart + CaselessLiteral("or") + wordEnd
-    BETWEEN_ = wordStart + CaselessLiteral("between") + wordEnd
-
-    numeric_value = Regex(r"[-]?\d+(\.\d*)?([eE]\d+)?")
-    date_str = Regex(r"\d{1,4}[/.-]{1}\d{1,2}[/.-]{1}\d{1,4}")
-    date_type = Regex(r"(\d{4}),[ ]?(\d{1,2}),[ ]?(\d{1,2})")
-    true_false = Literal("True") | Literal("False")
-    unquoted_string = Word(alphanums + alphas8bit + "%.-_*;:")
-    string_value = quotedString | unquoted_string
-    value_part = date_type | numeric_value | true_false
-    typed_value = (
-        Literal("|") + Word(alphas) + Literal("|") + value_part + Literal("|")
-    ).setParseAction(lambda s, _l, t: t[3])
-    none_token = Literal("None").setParseAction(lambda s, _l, t: "<None>")
-    fieldname = Group(delimitedList(Word(alphas + "_", alphanums + "_"), "."))
-    value = none_token | date_str | numeric_value | string_value | typed_value
     conditions = " ".join(ExpressionRow.CONDITIONS) + " on"
-    binop = oneOf(conditions, caseless=True)
-    clause = Optional(NOT) + fieldname + binop + value
-    unparseable_clause = (fieldname + BETWEEN_ + value + AND_ + value) | (
-        Word(alphanums) + "(" + fieldname + ")" + binop + value
-    )
+    binop = oneOf(conditions, caseless=True).set_name("binary operator")
+    clause = Optional(not_) + unfiltered_identifier + binop + value_token
     expression = Group(clause) + ZeroOrMore(
-        Group(
-            AND_ + clause
-            | OR_ + clause
-            | ((OR_ | AND_) + unparseable_clause).suppress()
-        )
+        Group(and_ + clause | or_ + clause)
     )
-    query = Word(alphas, alphas + "_") + CaselessLiteral("where") + expression
+    query = domain + CaselessLiteral("where").suppress() + expression
 
     def __init__(self, search_string):
         self.parsed = None
-        self.__clauses = None
+        self._clauses = None
         try:
             self.parsed = self.query.parseString(search_string)
             self.is_valid = True
@@ -714,46 +689,41 @@ class BuiltQuery:
 
     @property
     def clauses(self) -> list:
-        if not self.__clauses:
-            from dataclasses import dataclass
-
-            # pylint: disable=too-few-public-methods
-            @dataclass
-            class Clause:
-                not_: str | None = None
-                connector: str | None = None
-                field: str | None = None
-                operator: str | None = None
-                value: str | None = None
-
-            self.__clauses = []
-            for part in [k for k in self.parsed if len(k) > 0][2:]:
+        if not self._clauses:
+            self._clauses = []
+            for part in [k for k in self.parsed if len(k) > 0][1:]:
                 clause = Clause()
                 if len(part) > 3:
-                    for i, j in enumerate(part[:2]):
-                        if (
-                            i == 0
-                            and isinstance(j, str)
-                            and j.lower() in ["and", "or"]
-                        ):
-                            clause.connector = j
-                        elif isinstance(j, str) and j.lower() == "not":
-                            clause.not_ = j
-                clause.field = ".".join(part[-3])
+                    if part.and_:
+                        clause.connector = "and"
+                    elif part.or_:
+                        clause.connector = "or"
+                    if part.not_:
+                        clause.not__ = True
+                # clause.field = ".".join(part[-3])
+                clause.field = str(part[-3])
                 clause.operator = part[-2]
-                clause.value = part[-1]
-                self.__clauses.append(clause)
+                val = (
+                    part[-1].value.raw_value
+                    if hasattr(part[-1].value, "raw_value")
+                    else str(part[-1])
+                )
+                if val == "(None<NoneType>)":
+                    val = "None"
+                elif val != "'None'":
+                    val = val.strip("'")
+                clause.value = val
+                self._clauses.append(clause)
 
-        return self.__clauses
+        return self._clauses
 
     @property
-    def domain(self):
+    def domain_str(self):
         return self.parsed[0]
 
 
 class QueryBuilder(GenericEditorPresenter):
     view_accept_buttons = ["cancel_button", "confirm_button"]
-    default_size: tuple[int, ...] = ()
 
     def __init__(self, view=None):
         super().__init__(self, view=view, refresh_view=False, session=False)
@@ -778,10 +748,6 @@ class QueryBuilder(GenericEditorPresenter):
         self.view.widgets.advanced_switch.connect(
             "state-set", self.on_advanced_set
         )
-
-        table = self.view.widgets.expressions_table
-        for child in table.get_children():
-            table.remove(child)
 
         self.view.widgets.domain_liststore.clear()
         for key in sorted(self.domain_map.keys()):
@@ -887,7 +853,7 @@ class QueryBuilder(GenericEditorPresenter):
             elif isinstance(row.value_widget, Gtk.ComboBox):
                 value = row.value_widget.get_active() >= 0
 
-            query_string = f"{query_string} {row.get_expression()}"
+            query_string = f"{query_string} {row.get_expression() or ''}"
             self.view.widgets.query_lbl.set_text(query_string)
 
             if value and row.menu_item_activated:
@@ -909,12 +875,12 @@ class QueryBuilder(GenericEditorPresenter):
 
     def on_add_clause(self, _widget=None):
         """Add a row to the expressions table."""
-        domain = self.domain_map.get(self.domain)
+        domain_cls = self.domain_map.get(self.domain)
 
-        if domain is None:
+        if domain_cls is None:
             return
 
-        self.mapper = class_mapper(domain)
+        self.mapper = class_mapper(domain_cls)
         self.table_row_count += 1
         row = ExpressionRow(
             self, self.remove_expression_row, self.table_row_count
@@ -928,12 +894,6 @@ class QueryBuilder(GenericEditorPresenter):
         super().cleanup()
 
     def start(self):
-        if not self.default_size:
-            self.__class__.default_size = (
-                self.view.widgets.main_dialog.get_size()
-            )
-        else:
-            self.view.widgets.main_dialog.resize(*self.default_size)
         return self.view.start()
 
     @property
@@ -956,21 +916,12 @@ class QueryBuilder(GenericEditorPresenter):
             logger.debug("cannot restore query, invalid")
             return
 
-        # locate domain in list of valid domains
-        try:
-            index = sorted(self.domain_map.keys()).index(parsed.domain)
-        except ValueError as e:
-            logger.debug("cannot restore query, %s(%s)", type(e).__name__, e)
-            return
+        index = sorted(self.domain_map.keys()).index(parsed.domain_str)
         # and set the domain_combo correspondently
         self.view.widgets.domain_combo.set_active(index)
 
         # now scan all clauses, one ExpressionRow per clause
         for clause in parsed.clauses:
-            if clause.value == "None":
-                clause.value = "'None'"
-            elif clause.value == "<None>":
-                clause.value = "None"
             if clause.connector:
                 self.on_add_clause()
             row = self.expression_rows[-1]
@@ -978,39 +929,13 @@ class QueryBuilder(GenericEditorPresenter):
                 row.and_or_combo.set_active(
                     {"and": 0, "or": 1}[clause.connector]
                 )
-            if clause.not_:
+            if clause.not__:
                 row.not_combo.set_active(1)
 
-            # the part about the value is a bit more complex: where the
-            # clause.field leads to an enumerated property, on_add_clause
-            # associates a gkt.ComboBox to it, otherwise a Gtk.Entry.
-            # To set the value of a gkt.ComboBox we match one of its
-            # items. To set the value of a gkt.Entry we need set_text.
-            steps = clause.field.split(".")
-            cls = self.domain_map[parsed.domain]
-            mapper = class_mapper(cls)
-            try:
-                for target in steps[:-1]:
-                    if hasattr(
-                        proxy := getattr(mapper.class_, target),
-                        "target_collection",
-                    ):
-                        # AssociationProxy
-                        mapper = mapper.get_property(
-                            proxy.target_collection
-                        ).mapper
-                        mapper = mapper.get_property(proxy.value_attr).mapper
-                    else:
-                        mapper = mapper.get_property(target).mapper
-                try:
-                    prop = mapper.get_property(steps[-1])
-                except InvalidRequestError:
-                    prop = mapper.all_orm_descriptors[steps[-1]]
-            except Exception as e:  # pylint: disable=broad-except
-                logger.debug(
-                    "cannot restore query details, %s(%s)", type(e).__name__, e
-                )
+            prop = self.get_property(clause, parsed.domain_str)
+            if not prop:
                 return
+
             conditions = row.CONDITIONS.copy()
             if hasattr(prop, "columns") and isinstance(
                 prop.columns[0].type,
@@ -1023,10 +948,38 @@ class QueryBuilder(GenericEditorPresenter):
                 row.value_widget.set_text(clause.value)
             elif isinstance(row.value_widget, Gtk.ComboBox):
                 for item in row.value_widget.props.model:
-                    val = clause.value if clause.value != "None" else None
+                    val = None if clause.value == "None" else clause.value
                     if item[0] == val:
                         row.value_widget.set_active_iter(item.iter)
                         break
             # check for misplaced 'on'
             if clause.operator in conditions:
                 row.cond_combo.set_active(conditions.index(clause.operator))
+
+    def get_property(self, clause, domain_str):
+        steps = clause.field.split(".")
+        cls = self.domain_map[domain_str]
+        mapper = class_mapper(cls)
+        try:
+            for target in steps[:-1]:
+                if hasattr(
+                    proxy := getattr(mapper.class_, target),
+                    "target_collection",
+                ):
+                    # AssociationProxy
+                    mapper = mapper.get_property(
+                        proxy.target_collection
+                    ).mapper
+                    mapper = mapper.get_property(proxy.value_attr).mapper
+                else:
+                    mapper = mapper.get_property(target).mapper
+            try:
+                prop = mapper.get_property(steps[-1])
+            except InvalidRequestError:
+                prop = mapper.all_orm_descriptors[steps[-1]]
+        except Exception as e:  # pylint: disable=broad-except
+            logger.debug(
+                "cannot restore query details, %s(%s)", type(e).__name__, e
+            )
+            return None
+        return prop

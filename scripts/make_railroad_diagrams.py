@@ -7,6 +7,7 @@ from bauble import db
 from bauble import pluginmgr
 from bauble import prefs
 from bauble.plugins.plants.species import BinomialSearch
+from bauble.query_builder import BuiltQuery
 from bauble.search.parser import statement
 from bauble.search.strategies import DomainSearch
 from bauble.search.strategies import ValueListSearch
@@ -33,6 +34,7 @@ def main():
     DomainSearch.statement.create_diagram("domain_search_railroad.html")
     ValueListSearch.statement.create_diagram("value_list_search_railroad.html")
     BinomialSearch.statement.create_diagram("binomial_search_railroad.html")
+    BuiltQuery.query.create_diagram("query_builder_railroad.html")
     os.close(handle)
     os.remove(temp)
     db.engine.dispose()

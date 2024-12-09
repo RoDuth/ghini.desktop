@@ -64,6 +64,12 @@ class ParseTypedValue(BaubleTestCase):
         self.assertEqual(result, "True")
         result = parse_typed_value("False", Boolean())
         self.assertEqual(result, "False")
+        result = parse_typed_value("SomeRandomValue", Boolean())
+        self.assertEqual(result, 0)
+        result = parse_typed_value(1, Boolean())
+        self.assertEqual(result, 1)
+        result = parse_typed_value(3, Boolean())
+        self.assertEqual(result, 0)
         result = parse_typed_value(None, Boolean())
         self.assertIsNone(result.express(None))
 
@@ -196,6 +202,13 @@ class SchemaMenuTests(BaubleTestCase):
         sub_menu = items.get("accession").get_submenu()
         self.assertEqual(sub_menu.get_children()[0].get_label(), "id")
 
+    def test_on_select_association_proxy(self):
+        schema_menu = SchemaMenu(class_mapper(Species), self.menu_activated)
+        items = {i.get_label(): i for i in schema_menu.get_children()}
+        schema_menu.on_select(items.get("accepted"), Species.accepted.parent)
+        sub_menu = items.get("accepted").get_submenu()
+        self.assertEqual(sub_menu.get_children()[0].get_label(), "id")
+
     def test_on_activate_with_submenus(self):
         schema_menu = SchemaMenu(class_mapper(Plant), self.menu_activated)
         items = {i.get_label(): i for i in schema_menu.get_children()}
@@ -272,6 +285,63 @@ class ExpressionRowTests(BaubleTestCase):
         key = "_private"
         prop = mock.Mock()
         self.assertFalse(ExpressionRow.column_filter(key, prop))
+
+    def test_on_prop_button_clicked(self):
+        # redundant
+        event = "Test"
+        mock_menu = mock.Mock()
+        ExpressionRow.on_prop_button_clicked(None, event, mock_menu)
+        mock_menu.popup_at_pointer.assert_called_with(event)
+
+    def test_on_value_changed(self):
+        gladefilepath = os.path.join(paths.lib_dir(), "querybuilder.glade")
+        view = GenericEditorView(
+            gladefilepath, parent=None, root_widget_name="main_dialog"
+        )
+        qb = QueryBuilder(view)
+        qb.set_query("accession where code = XYZ")
+        row = ExpressionRow(qb, qb.remove_expression_row, 1)
+
+        row.value_widget.set_text("XYZ%")
+        row.on_value_changed(row.value_widget)
+        self.assertEqual(row.value_widget.get_text(), "XYZ%")
+        self.assertEqual(row.cond_combo.get_active_text(), "like")
+
+        row.value_widget.set_text("XYZ")
+        row.on_value_changed(row.value_widget)
+        self.assertEqual(row.value_widget.get_text(), "XYZ")
+        self.assertEqual(row.cond_combo.get_active_text(), "=")
+
+    def test_on_number_value_changed(self):
+        gladefilepath = os.path.join(paths.lib_dir(), "querybuilder.glade")
+        view = GenericEditorView(
+            gladefilepath, parent=None, root_widget_name="main_dialog"
+        )
+        qb = QueryBuilder(view)
+        qb.set_query("plant where quantity = 1")
+        row = qb.expression_rows[0]
+
+        row.value_widget.set_text("-123")
+        row = qb.expression_rows[0]
+        self.assertIsInstance(row.value_widget, Gtk.SpinButton)
+        self.assertEqual(row.value_widget.get_text(), "-123")
+
+        row = qb.expression_rows[0]
+        # mock for the coverage
+        row.value_widget.has_focus = lambda: True
+        row.value_widget.set_text("None")
+        row = qb.expression_rows[0]
+        self.assertIsInstance(row.value_widget, Gtk.Entry)
+        self.assertEqual(row.value_widget.get_text(), "None")
+
+        qb = QueryBuilder(view)
+        qb.set_query("accession where source.collection.elevation_accy = 0.0")
+        row = qb.expression_rows[0]
+
+        row.value_widget.set_text("x-123.y456")
+        row = qb.expression_rows[0]
+        self.assertIsInstance(row.value_widget, Gtk.SpinButton)
+        self.assertEqual(row.value_widget.get_text(), "-123.456")
 
 
 class QueryBuilderTests(BaubleTestCase):
@@ -396,6 +466,11 @@ class QueryBuilderTests(BaubleTestCase):
         qb.set_query(query)
         self.assertTrue(qb.validate())
         self.assertEqual(qb.get_query(), query)
+        # Date type
+        query = "accession where date_accd = 01-02-2020"
+        qb.set_query(query)
+        self.assertTrue(qb.validate())
+        self.assertEqual(qb.get_query(), query)
 
     def test_int_query(self):
         gladefilepath = os.path.join(paths.lib_dir(), "querybuilder.glade")
@@ -419,6 +494,19 @@ class QueryBuilderTests(BaubleTestCase):
         self.assertTrue(qb.validate())
         self.assertEqual(qb.get_query(), query)
 
+    def test_set_float_widget_invalid(self):
+        gladefilepath = os.path.join(paths.lib_dir(), "querybuilder.glade")
+        view = GenericEditorView(
+            gladefilepath, parent=None, root_widget_name="main_dialog"
+        )
+        qb = QueryBuilder(view)
+        query = "collection where elevation > 0.01"
+        qb.set_query(query)
+        row = qb.expression_rows[0]
+        row.set_float_widget(None, "None")
+        self.assertTrue(qb.validate())
+        self.assertEqual(qb.get_query(), "collection where elevation > 0.0")
+
     def test_not_translated_enum_query(self):
         gladefilepath = os.path.join(paths.lib_dir(), "querybuilder.glade")
         view = GenericEditorView(
@@ -426,6 +514,17 @@ class QueryBuilderTests(BaubleTestCase):
         )
         qb = QueryBuilder(view)
         query = "family where qualifier = 's. lat.'"
+        qb.set_query(query)
+        self.assertTrue(qb.validate())
+        self.assertEqual(qb.get_query(), query)
+
+    def test_not_query(self):
+        gladefilepath = os.path.join(paths.lib_dir(), "querybuilder.glade")
+        view = GenericEditorView(
+            gladefilepath, parent=None, root_widget_name="main_dialog"
+        )
+        qb = QueryBuilder(view)
+        query = "plant where not code = '1'"
         qb.set_query(query)
         self.assertTrue(qb.validate())
         self.assertEqual(qb.get_query(), query)
@@ -493,6 +592,17 @@ class QueryBuilderTests(BaubleTestCase):
         qb.expression_rows[0].on_schema_menu_activated(None, "_created", prop)
         self.assertEqual(
             qb.expression_rows[0].cond_combo.get_active_text(), "on"
+        )
+
+        # Date type doesn't set to condition to 'on'
+        from bauble.plugins.garden.accession import Accession
+
+        query = "accession where code like XYZ"
+        qb.set_query(query)
+        prop = Accession.__mapper__.get_property("date_accd")
+        qb.expression_rows[0].on_schema_menu_activated(None, "date_accd", prop)
+        self.assertEqual(
+            qb.expression_rows[0].cond_combo.get_active_text(), "="
         )
 
     def test_remove_button_removes_row(self):
@@ -590,6 +700,30 @@ class QueryBuilderTests(BaubleTestCase):
         qb.cleanup()
         self.assertTrue(destroy_called[0])
 
+    def test_start(self):
+        gladefilepath = os.path.join(paths.lib_dir(), "querybuilder.glade")
+        view = GenericEditorView(
+            gladefilepath, parent=None, root_widget_name="main_dialog"
+        )
+        view.start = mock.Mock()
+        qb = QueryBuilder(view)
+        qb.start()
+        view.start.assert_called()
+
+    def test_on_add_clause_no_domain_doesnt_add_row(self):
+        gladefilepath = os.path.join(paths.lib_dir(), "querybuilder.glade")
+        view = GenericEditorView(
+            gladefilepath, parent=None, root_widget_name="main_dialog"
+        )
+        qb = QueryBuilder(view)
+        self.assertEqual(len(qb.expression_rows), 0)
+        qb.on_add_clause()
+        self.assertEqual(len(qb.expression_rows), 0)
+        # does add if domain
+        qb.domain = "plant"
+        qb.on_add_clause()
+        self.assertEqual(len(qb.expression_rows), 1)
+
 
 class TestQBP(BaubleTestCase):
     def test_and_clauses(self):
@@ -597,12 +731,11 @@ class TestQBP(BaubleTestCase):
             "plant WHERE accession.species.genus.family.epithet=Fabaceae AND "
             'location.description="Block 10" and quantity > 0 and quantity = 0'
         )
-        self.assertEqual(len(query.parsed), 6, f"query parsed: {query.parsed}")
+        self.assertEqual(len(query.parsed), 5, f"query parsed: {query.parsed}")
         self.assertEqual(query.parsed[0], "plant")
-        self.assertEqual(query.parsed[1], "where")
-        self.assertEqual(len(query.parsed[2]), 3)
-        for i in (3, 4, 5):
-            self.assertEqual(query.parsed[i][0], "and")
+        self.assertEqual(len(query.parsed[1]), 3)
+        for i in (2, 3, 4):
+            self.assertEqual(query.parsed[i][0], "AND")
             self.assertEqual(len(query.parsed[i]), 4)
 
     def test_or_clauses(self):
@@ -610,12 +743,11 @@ class TestQBP(BaubleTestCase):
             "plant WHERE accession.species.genus.family.epithet=Fabaceae OR "
             'location.description="Block 10" or quantity > 0 or quantity = 0'
         )
-        self.assertEqual(len(query.parsed), 6)
+        self.assertEqual(len(query.parsed), 5)
         self.assertEqual(query.parsed[0], "plant")
-        self.assertEqual(query.parsed[1], "where")
-        self.assertEqual(len(query.parsed[2]), 3)
-        for i in (3, 4, 5):
-            self.assertEqual(query.parsed[i][0], "or")
+        self.assertEqual(len(query.parsed[1]), 3)
+        for i in (2, 3, 4):
+            self.assertEqual(query.parsed[i][0], "OR")
             self.assertEqual(len(query.parsed[i]), 4)
 
     def test_has_clauses(self):
@@ -626,7 +758,7 @@ class TestQBP(BaubleTestCase):
 
     def test_has_domain(self):
         query = BuiltQuery("plant WHERE accession.species.genus.epithet=Inga")
-        self.assertEqual(query.domain, "plant")
+        self.assertEqual(query.domain_str, "plant")
 
     def test_clauses_have_fields(self):
         query = BuiltQuery(
@@ -635,8 +767,8 @@ class TestQBP(BaubleTestCase):
         self.assertEqual(len(query.clauses), 2)
         self.assertEqual(query.clauses[0].connector, None)
         self.assertEqual(query.clauses[1].connector, "or")
-        self.assertIsNone(query.clauses[0].not_)
-        self.assertIsNone(query.clauses[1].not_)
+        self.assertFalse(query.clauses[0].not__)
+        self.assertFalse(query.clauses[1].not__)
         self.assertEqual(query.clauses[0].field, "epithet")
         self.assertEqual(query.clauses[1].field, "family.epithet")
         self.assertEqual(query.clauses[0].operator, "=")
@@ -650,8 +782,8 @@ class TestQBP(BaubleTestCase):
         self.assertEqual(len(query.clauses), 2)
         self.assertEqual(query.clauses[0].connector, None)
         self.assertEqual(query.clauses[1].connector, "and")
-        self.assertIsNone(query.clauses[0].not_)
-        self.assertIsNone(query.clauses[1].not_)
+        self.assertFalse(query.clauses[0].not__)
+        self.assertFalse(query.clauses[1].not__)
         self.assertEqual(query.clauses[0].field, "genus.epithet")
         self.assertEqual(query.clauses[1].field, "accessions.code")
         self.assertEqual(query.clauses[0].operator, "=")
@@ -701,19 +833,35 @@ class TestQBP(BaubleTestCase):
             self.assertEqual(query.clauses[0].value, "Inga")
             self.assertEqual(query.clauses[1].value, "2010%")
 
-    def test_is_only_usable_clauses(self):
+    def test_parses_only_as_far_as_possible_to_reproduce(self):
         # valid query, but not for the query builder
         query = BuiltQuery(
             "species WHERE genus.epithet=Inga or count(accessions.id)>4"
         )
         self.assertEqual(query.is_valid, True)
         self.assertEqual(len(query.clauses), 1)
+
         query = BuiltQuery(
             "species WHERE a=1 or count(accessions.id)>4 or "
             "genus.epithet=Inga"
         )
         self.assertEqual(query.is_valid, True)
-        self.assertEqual(len(query.clauses), 2)
+        self.assertEqual(len(query.clauses), 1)
+
+        query = BuiltQuery("plant where id > 10 and quantity=(sum(quantity))")
+        self.assertEqual(query.is_valid, True)
+        self.assertEqual(len(query.clauses), 1)
+
+        query = BuiltQuery("plant where quantity > 1 and id between 1 and 10")
+        self.assertEqual(query.is_valid, True)
+        self.assertEqual(len(query.clauses), 1)
+
+        query = BuiltQuery(
+            "plant where quantity > 5 and "
+            "notes[category = grid_ref].note in 'M38'"
+        )
+        self.assertEqual(query.is_valid, True)
+        self.assertEqual(len(query.clauses), 1)
 
     @skip("not implimented")
     def test_be_able_to_skip_first_query_if_invalid(self):
@@ -729,11 +877,11 @@ class TestQBP(BaubleTestCase):
         query = BuiltQuery("accession where notes.category = None")
         self.assertEqual(query.is_valid, True)
         self.assertEqual(len(query.clauses), 1)
-        self.assertEqual(query.clauses[0].value, "<None>")
+        self.assertEqual(query.clauses[0].value, "None")
         query = BuiltQuery("accession where notes.category = 'None'")
         self.assertEqual(query.is_valid, True)
         self.assertEqual(len(query.clauses), 1)
-        self.assertEqual(query.clauses[0].value, "None")
+        self.assertEqual(query.clauses[0].value, "'None'")
 
     def test_optional_not(self):
         # with not
@@ -741,7 +889,7 @@ class TestQBP(BaubleTestCase):
         self.assertEqual(query.is_valid, True)
         self.assertEqual(len(query.clauses), 1)
         self.assertEqual(query.clauses[0].value, "XXX")
-        self.assertEqual(query.clauses[0].not_, "not")
+        self.assertTrue(query.clauses[0].not__)
         self.assertEqual(query.clauses[0].operator, "contains")
         # with not and connector
         query = BuiltQuery(
@@ -750,8 +898,8 @@ class TestQBP(BaubleTestCase):
         self.assertEqual(query.is_valid, True)
         self.assertEqual(len(query.clauses), 2)
         self.assertEqual(query.clauses[0].value, "XXX")
-        self.assertEqual(query.clauses[0].not_, "not")
+        self.assertTrue(query.clauses[0].not__)
         self.assertEqual(query.clauses[0].operator, "contains")
         self.assertEqual(query.clauses[1].value, "0")
-        self.assertIsNone(query.clauses[1].not_)
+        self.assertFalse(query.clauses[1].not__)
         self.assertEqual(query.clauses[1].operator, ">")
