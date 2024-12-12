@@ -54,6 +54,7 @@ from bauble.plugins.garden.plant import Plant
 from bauble.plugins.garden.plant import (  # noqa pylint: disable=unused-import
     PlantNote,
 )
+from bauble.search.query_builder import SchemaMenu
 from bauble.utils.geo import ProjDB
 
 from .. import GenericExporter
@@ -480,8 +481,6 @@ class ShapefileExportSettingsBox(Gtk.ScrolledWindow):
                 self.grid.get_child_at(SIZE, attached_row).set_text(
                     str(size or "")
                 )
-
-        from bauble.query_builder import SchemaMenu
 
         schema_menu = SchemaMenu(
             class_mapper(self.model),

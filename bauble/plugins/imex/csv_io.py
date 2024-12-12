@@ -40,6 +40,7 @@ from bauble import task
 from bauble.editor import GenericEditorPresenter
 from bauble.editor import GenericEditorView
 from bauble.i18n import _
+from bauble.search.query_builder import SchemaMenu
 from bauble.search.strategies import MapperSearch
 from bauble.utils import desktop
 from bauble.utils import message_dialog
@@ -229,8 +230,6 @@ class CSVExportDialogPresenter(GenericEditorPresenter):
             if self.fields[row][PATH] != path:
                 self.fields[row] = self.fields[row][NAME], path
             self.refresh_sensitivity()
-
-        from bauble.query_builder import SchemaMenu
 
         schema_menu = SchemaMenu(
             class_mapper(self.model.domain),

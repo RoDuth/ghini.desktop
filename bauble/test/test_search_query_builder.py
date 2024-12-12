@@ -31,13 +31,15 @@ from bauble import prefs
 from bauble.editor import GenericEditorView
 from bauble.plugins.garden.plant import Plant
 from bauble.plugins.plants.species import Species
-from bauble.query_builder import BuiltQuery
-from bauble.query_builder import ExpressionRow
-from bauble.query_builder import QueryBuilder
-from bauble.query_builder import SchemaMenu
-from bauble.query_builder import parse_typed_value
+from bauble.search.query_builder import BuiltQuery
+from bauble.search.query_builder import ExpressionRow
+from bauble.search.query_builder import QueryBuilder
+from bauble.search.query_builder import SchemaMenu
+from bauble.search.query_builder import parse_typed_value
 from bauble.search.tokens import EmptyToken
 from bauble.test import BaubleTestCase
+
+gladefilepath = os.path.join(paths.lib_dir(), "search", "querybuilder.glade")
 
 
 class ParseTypedValue(BaubleTestCase):
@@ -294,7 +296,6 @@ class ExpressionRowTests(BaubleTestCase):
         mock_menu.popup_at_pointer.assert_called_with(event)
 
     def test_on_value_changed(self):
-        gladefilepath = os.path.join(paths.lib_dir(), "querybuilder.glade")
         view = GenericEditorView(
             gladefilepath, parent=None, root_widget_name="main_dialog"
         )
@@ -313,7 +314,6 @@ class ExpressionRowTests(BaubleTestCase):
         self.assertEqual(row.cond_combo.get_active_text(), "=")
 
     def test_on_number_value_changed(self):
-        gladefilepath = os.path.join(paths.lib_dir(), "querybuilder.glade")
         view = GenericEditorView(
             gladefilepath, parent=None, root_widget_name="main_dialog"
         )
@@ -346,14 +346,12 @@ class ExpressionRowTests(BaubleTestCase):
 
 class QueryBuilderTests(BaubleTestCase):
     def test_cancreatequerybuilder(self):
-        gladefilepath = os.path.join(paths.lib_dir(), "querybuilder.glade")
         view = GenericEditorView(
             gladefilepath, parent=None, root_widget_name="main_dialog"
         )
         QueryBuilder(view)
 
     def test_emptyisinvalid(self):
-        gladefilepath = os.path.join(paths.lib_dir(), "querybuilder.glade")
         view = GenericEditorView(
             gladefilepath, parent=None, root_widget_name="main_dialog"
         )
@@ -361,7 +359,6 @@ class QueryBuilderTests(BaubleTestCase):
         self.assertFalse(qb.validate())
 
     def test_cansetquery(self):
-        gladefilepath = os.path.join(paths.lib_dir(), "querybuilder.glade")
         view = GenericEditorView(
             gladefilepath, parent=None, root_widget_name="main_dialog"
         )
@@ -370,7 +367,6 @@ class QueryBuilderTests(BaubleTestCase):
         self.assertEqual(len(qb.expression_rows), 3)
 
     def test_cansetenumquery(self):
-        gladefilepath = os.path.join(paths.lib_dir(), "querybuilder.glade")
         view = GenericEditorView(
             gladefilepath, parent=None, root_widget_name="main_dialog"
         )
@@ -379,7 +375,6 @@ class QueryBuilderTests(BaubleTestCase):
         self.assertEqual(len(qb.expression_rows), 1)
 
     def test_invalid_domain(self):
-        gladefilepath = os.path.join(paths.lib_dir(), "querybuilder.glade")
         view = GenericEditorView(
             gladefilepath, parent=None, root_widget_name="main_dialog"
         )
@@ -388,7 +383,6 @@ class QueryBuilderTests(BaubleTestCase):
         self.assertFalse(qb.validate())
 
     def test_invalid_target(self):
-        gladefilepath = os.path.join(paths.lib_dir(), "querybuilder.glade")
         view = GenericEditorView(
             gladefilepath, parent=None, root_widget_name="main_dialog"
         )
@@ -397,7 +391,6 @@ class QueryBuilderTests(BaubleTestCase):
         self.assertFalse(qb.validate())
 
     def test_invalid_query(self):
-        gladefilepath = os.path.join(paths.lib_dir(), "querybuilder.glade")
         view = GenericEditorView(
             gladefilepath, parent=None, root_widget_name="main_dialog"
         )
@@ -406,7 +399,6 @@ class QueryBuilderTests(BaubleTestCase):
         self.assertFalse(qb.validate())
 
     def test_empty_query(self):
-        gladefilepath = os.path.join(paths.lib_dir(), "querybuilder.glade")
         view = GenericEditorView(
             gladefilepath, parent=None, root_widget_name="main_dialog"
         )
@@ -418,7 +410,6 @@ class QueryBuilderTests(BaubleTestCase):
         self.assertEqual(qb.get_query(), "plant where notes = Empty")
 
     def test_none_string_query(self):
-        gladefilepath = os.path.join(paths.lib_dir(), "querybuilder.glade")
         view = GenericEditorView(
             gladefilepath, parent=None, root_widget_name="main_dialog"
         )
@@ -429,7 +420,6 @@ class QueryBuilderTests(BaubleTestCase):
         self.assertEqual(qb.get_query(), query)
 
     def test_nonetype_query(self):
-        gladefilepath = os.path.join(paths.lib_dir(), "querybuilder.glade")
         view = GenericEditorView(
             gladefilepath, parent=None, root_widget_name="main_dialog"
         )
@@ -440,7 +430,6 @@ class QueryBuilderTests(BaubleTestCase):
         self.assertEqual(qb.get_query(), query)
 
     def test_boolean_query(self):
-        gladefilepath = os.path.join(paths.lib_dir(), "querybuilder.glade")
         view = GenericEditorView(
             gladefilepath, parent=None, root_widget_name="main_dialog"
         )
@@ -451,7 +440,6 @@ class QueryBuilderTests(BaubleTestCase):
         self.assertEqual(qb.get_query(), query)
 
     def test_date_query(self):
-        gladefilepath = os.path.join(paths.lib_dir(), "querybuilder.glade")
         view = GenericEditorView(
             gladefilepath, parent=None, root_widget_name="main_dialog"
         )
@@ -473,7 +461,6 @@ class QueryBuilderTests(BaubleTestCase):
         self.assertEqual(qb.get_query(), query)
 
     def test_int_query(self):
-        gladefilepath = os.path.join(paths.lib_dir(), "querybuilder.glade")
         view = GenericEditorView(
             gladefilepath, parent=None, root_widget_name="main_dialog"
         )
@@ -484,7 +471,6 @@ class QueryBuilderTests(BaubleTestCase):
         self.assertEqual(qb.get_query(), query)
 
     def test_float_query(self):
-        gladefilepath = os.path.join(paths.lib_dir(), "querybuilder.glade")
         view = GenericEditorView(
             gladefilepath, parent=None, root_widget_name="main_dialog"
         )
@@ -495,7 +481,6 @@ class QueryBuilderTests(BaubleTestCase):
         self.assertEqual(qb.get_query(), query)
 
     def test_set_float_widget_invalid(self):
-        gladefilepath = os.path.join(paths.lib_dir(), "querybuilder.glade")
         view = GenericEditorView(
             gladefilepath, parent=None, root_widget_name="main_dialog"
         )
@@ -508,7 +493,6 @@ class QueryBuilderTests(BaubleTestCase):
         self.assertEqual(qb.get_query(), "collection where elevation > 0.0")
 
     def test_not_translated_enum_query(self):
-        gladefilepath = os.path.join(paths.lib_dir(), "querybuilder.glade")
         view = GenericEditorView(
             gladefilepath, parent=None, root_widget_name="main_dialog"
         )
@@ -519,7 +503,6 @@ class QueryBuilderTests(BaubleTestCase):
         self.assertEqual(qb.get_query(), query)
 
     def test_not_query(self):
-        gladefilepath = os.path.join(paths.lib_dir(), "querybuilder.glade")
         view = GenericEditorView(
             gladefilepath, parent=None, root_widget_name="main_dialog"
         )
@@ -530,7 +513,6 @@ class QueryBuilderTests(BaubleTestCase):
         self.assertEqual(qb.get_query(), query)
 
     def test_not_associationproxy_query(self):
-        gladefilepath = os.path.join(paths.lib_dir(), "querybuilder.glade")
         view = GenericEditorView(
             gladefilepath, parent=None, root_widget_name="main_dialog"
         )
@@ -541,7 +523,6 @@ class QueryBuilderTests(BaubleTestCase):
         self.assertEqual(qb.get_query(), query)
 
     def test_adding_wildcard_sets_cond_to_like(self):
-        gladefilepath = os.path.join(paths.lib_dir(), "querybuilder.glade")
         view = GenericEditorView(
             gladefilepath, parent=None, root_widget_name="main_dialog"
         )
@@ -555,7 +536,6 @@ class QueryBuilderTests(BaubleTestCase):
         )
 
     def test_date_searches_add_on_condition(self):
-        gladefilepath = os.path.join(paths.lib_dir(), "querybuilder.glade")
         view = GenericEditorView(
             gladefilepath, parent=None, root_widget_name="main_dialog"
         )
@@ -578,7 +558,6 @@ class QueryBuilderTests(BaubleTestCase):
         )
 
     def test_adding_date_field_sets_cond_to_on(self):
-        gladefilepath = os.path.join(paths.lib_dir(), "querybuilder.glade")
         view = GenericEditorView(
             gladefilepath, parent=None, root_widget_name="main_dialog"
         )
@@ -606,7 +585,6 @@ class QueryBuilderTests(BaubleTestCase):
         )
 
     def test_remove_button_removes_row(self):
-        gladefilepath = os.path.join(paths.lib_dir(), "querybuilder.glade")
         view = GenericEditorView(
             gladefilepath, parent=None, root_widget_name="main_dialog"
         )
@@ -635,7 +613,6 @@ class QueryBuilderTests(BaubleTestCase):
         from bauble.plugins.plants import PlantsPlugin
 
         PlantsPlugin.register_custom_column("_sp_custom1")
-        gladefilepath = os.path.join(paths.lib_dir(), "querybuilder.glade")
         view = GenericEditorView(
             gladefilepath, parent=None, root_widget_name="main_dialog"
         )
@@ -653,7 +630,6 @@ class QueryBuilderTests(BaubleTestCase):
         self.assertEqual(qb.get_query(), query)
 
     def test_on_advanced_set(self):
-        gladefilepath = os.path.join(paths.lib_dir(), "querybuilder.glade")
         view = GenericEditorView(
             gladefilepath, parent=None, root_widget_name="main_dialog"
         )
@@ -666,11 +642,10 @@ class QueryBuilderTests(BaubleTestCase):
         qb.on_advanced_set(None, True)
         self.assertTrue(prefs.prefs.get(prefs.query_builder_advanced))
 
-    @mock.patch("bauble.query_builder.utils.create_message_dialog")
+    @mock.patch("bauble.search.query_builder.utils.create_message_dialog")
     def test_on_help_clicked_opens_dialog(self, mock_create_dialog):
         mock_dialog = mock.Mock()
         mock_create_dialog.return_value = mock_dialog
-        gladefilepath = os.path.join(paths.lib_dir(), "querybuilder.glade")
         view = GenericEditorView(
             gladefilepath, parent=None, root_widget_name="main_dialog"
         )
@@ -682,7 +657,6 @@ class QueryBuilderTests(BaubleTestCase):
         mock_dialog.destroy.assert_called()
 
     def test_cleaup(self):
-        gladefilepath = os.path.join(paths.lib_dir(), "querybuilder.glade")
         view = GenericEditorView(
             gladefilepath, parent=None, root_widget_name="main_dialog"
         )
@@ -701,7 +675,6 @@ class QueryBuilderTests(BaubleTestCase):
         self.assertTrue(destroy_called[0])
 
     def test_start(self):
-        gladefilepath = os.path.join(paths.lib_dir(), "querybuilder.glade")
         view = GenericEditorView(
             gladefilepath, parent=None, root_widget_name="main_dialog"
         )
@@ -711,7 +684,6 @@ class QueryBuilderTests(BaubleTestCase):
         view.start.assert_called()
 
     def test_on_add_clause_no_domain_doesnt_add_row(self):
-        gladefilepath = os.path.join(paths.lib_dir(), "querybuilder.glade")
         view = GenericEditorView(
             gladefilepath, parent=None, root_widget_name="main_dialog"
         )

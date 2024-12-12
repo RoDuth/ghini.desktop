@@ -19,7 +19,7 @@
 """
 Query builder provides a user interface to generate or edit a query string.
 
-It only supports a subset of the the full query syntax.
+It only supports a subset of the full query syntax.
 """
 
 import logging
@@ -49,15 +49,16 @@ from bauble import prefs
 from bauble import utils
 from bauble.editor import GenericEditorPresenter
 from bauble.i18n import _
-from bauble.search.parser import and_
-from bauble.search.parser import domain
-from bauble.search.parser import not_
-from bauble.search.parser import or_
-from bauble.search.parser import unfiltered_identifier
-from bauble.search.parser import value_token
-from bauble.search.strategies import MapperSearch
-from bauble.search.tokens import EmptyToken
-from bauble.search.tokens import NoneToken
+
+from .parser import and_
+from .parser import domain
+from .parser import not_
+from .parser import or_
+from .parser import unfiltered_identifier
+from .parser import value_token
+from .strategies import MapperSearch
+from .tokens import EmptyToken
+from .tokens import NoneToken
 
 
 class SchemaMenu(Gtk.Menu):

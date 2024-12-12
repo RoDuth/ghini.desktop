@@ -51,7 +51,7 @@ from bauble import utils
 from bauble.editor import GenericEditorView
 from bauble.i18n import _
 from bauble.prefs import datetime_format_pref
-from bauble.query_builder import QueryBuilder
+from bauble.search.query_builder import QueryBuilder
 from bauble.utils import desktop
 from bauble.view import SearchView
 
@@ -582,7 +582,9 @@ class GUI:
         bauble.command_handler(cmd, arg)
 
     def on_query_button_clicked(self, _widget):
-        gladefilepath = os.path.join(paths.lib_dir(), "querybuilder.glade")
+        gladefilepath = os.path.join(
+            paths.lib_dir(), "search", "querybuilder.glade"
+        )
         view = GenericEditorView(
             gladefilepath, parent=None, root_widget_name="main_dialog"
         )

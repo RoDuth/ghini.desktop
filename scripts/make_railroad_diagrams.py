@@ -7,7 +7,7 @@ from bauble import db
 from bauble import pluginmgr
 from bauble import prefs
 from bauble.plugins.plants.species import BinomialSearch
-from bauble.query_builder import BuiltQuery
+from bauble.search.query_builder import BuiltQuery
 from bauble.search.parser import statement
 from bauble.search.strategies import DomainSearch
 from bauble.search.strategies import ValueListSearch

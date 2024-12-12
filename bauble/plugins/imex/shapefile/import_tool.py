@@ -52,6 +52,7 @@ from bauble.i18n import _
 # NOTE: need to import the Note classes as we may need them.
 from bauble.plugins.garden.location import Location
 from bauble.plugins.garden.plant import Plant
+from bauble.search.query_builder import SchemaMenu
 from bauble.utils.geo import DEFAULT_IN_PROJ
 from bauble.utils.geo import ProjDB
 from bauble.utils.geo import transform
@@ -609,8 +610,6 @@ class ShapefileImportSettingsBox(Gtk.ScrolledWindow):
                 if self.shape_reader.field_map.get(name):
                     del self.shape_reader.field_map[name]
                 prop_button.set_label(_("Choose a property…"))
-
-        from bauble.query_builder import SchemaMenu
 
         schema_menu = SchemaMenu(
             class_mapper(model),

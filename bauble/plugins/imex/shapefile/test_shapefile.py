@@ -23,6 +23,7 @@ from copy import deepcopy
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
+from functools import partial
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest import mock
@@ -71,6 +72,10 @@ from .import_tool import TYPE_CONVERTERS
 from .import_tool import ShapefileImporter
 from .import_tool import ShapefileImportSettingsBox as ImpSetBox
 from .import_tool import ShapefileReader
+
+
+def mock_popup_at_pointer(activate_func, full_path, *_args):
+    activate_func(None, full_path, None)
 
 
 def get_prj_string_and_num_files_from_zip(zip_file):
@@ -892,22 +897,6 @@ class MockGrid(Gtk.Widget):  # pylint: disable=too-many-instance-attributes
 
     def remove_row(self, x):  # pylint: disable=unused-argument
         self.max_x -= 1
-
-
-class MockSchemaMenu:
-    full_path = None
-
-    def __init__(self, *args, **kwargs):
-        self.activate_cb = args[1]
-
-    def popup_at_pointer(self, *args):
-        self.activate_cb(None, self.full_path, None)
-
-    def append(self, *args):
-        return
-
-    def show_all(self):
-        return
 
 
 class ShapefileTestCase(BaubleTestCase):
@@ -2319,11 +2308,9 @@ class ImportSettingsBoxTests(ShapefileTestCase):
             name_label = settings_box.grid.get_child_at(0, i + 1)
             self.assertEqual(name_label.get_label(), field[0])
 
-    def test_on_prop_change_field_map_changes(self):
-        import bauble
+    @mock.patch("bauble.plugins.imex.shapefile.import_tool.SchemaMenu")
+    def test_on_prop_change_field_map_changes(self, mock_schema_menu):
 
-        _orig_schema_menu = bauble.query_builder.SchemaMenu
-        bauble.query_builder.SchemaMenu = MockSchemaMenu
         shape_reader = ShapefileReader(
             create_shapefile(
                 "test",
@@ -2341,16 +2328,26 @@ class ImportSettingsBoxTests(ShapefileTestCase):
         prop_button, schema_menu = settings_box._get_prop_button(
             Plant, "bed", 3
         )
-        MockSchemaMenu.full_path = "bed_name"
+
+        mock_popup = partial(
+            mock_popup_at_pointer, mock_schema_menu.call_args[0][1], "bed_name"
+        )
+        schema_menu.popup_at_pointer = mock_popup
         settings_box.on_prop_button_press_event(
             prop_button, mock_event, schema_menu
         )
         self.assertEqual(shape_reader.field_map.get("bed"), "bed_name")
+        mock_schema_menu.reset_mock()
         # can add a new field
         prop_button2, schema_menu = settings_box._get_prop_button(
             Plant, "bed_description", 4
         )
-        MockSchemaMenu.full_path = "location.desciption"
+        mock_popup = partial(
+            mock_popup_at_pointer,
+            mock_schema_menu.call_args[0][1],
+            "location.desciption",
+        )
+        schema_menu.popup_at_pointer = mock_popup
         settings_box.on_prop_button_press_event(
             prop_button2, mock_event, schema_menu
         )
@@ -2358,13 +2355,10 @@ class ImportSettingsBoxTests(ShapefileTestCase):
             shape_reader.field_map.get("bed_description"),
             "location.desciption",
         )
-        bauble.query_builder.SchemaMenu = _orig_schema_menu
 
-    def test_on_prop_none_field_map_value_deleted(self):
-        import bauble
+    @mock.patch("bauble.plugins.imex.shapefile.import_tool.SchemaMenu")
+    def test_on_prop_none_field_map_value_deleted(self, mock_schema_menu):
 
-        _orig_schema_menu = bauble.query_builder.SchemaMenu
-        bauble.query_builder.SchemaMenu = MockSchemaMenu
         shape_reader = ShapefileReader(
             create_shapefile(
                 "test",
@@ -2382,12 +2376,14 @@ class ImportSettingsBoxTests(ShapefileTestCase):
         prop_button, schema_menu = settings_box._get_prop_button(
             Plant, "bed", 1
         )
-        MockSchemaMenu.full_path = None
+        mock_popup = partial(
+            mock_popup_at_pointer, mock_schema_menu.call_args[0][1], None
+        )
+        schema_menu.popup_at_pointer = mock_popup
         settings_box.on_prop_button_press_event(
             prop_button, mock_event, schema_menu
         )
         self.assertIsNone(shape_reader.field_map.get("bed"))
-        bauble.query_builder.SchemaMenu = _orig_schema_menu
 
     def test_on_match_chk_button_change_search_by_changes(self):
         shape_reader = ShapefileReader(

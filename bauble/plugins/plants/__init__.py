@@ -47,7 +47,7 @@ from bauble import search
 from bauble import utils
 from bauble.i18n import _
 from bauble.paths import lib_dir
-from bauble.query_builder import ExpressionRow
+from bauble.search.query_builder import ExpressionRow
 from bauble.ui import DefaultView
 from bauble.view import HistoryView
 from bauble.view import SearchView
