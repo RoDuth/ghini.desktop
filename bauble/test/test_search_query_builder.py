@@ -1,5 +1,5 @@
 # Copyright (c) 2017 Mario Frasca <mario@anche.no>
-# Copyright (c) 2021-2023 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright (c) 2021-2024 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -16,7 +16,6 @@
 # You should have received a copy of the GNU General Public License
 # along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
 
-import os
 from unittest import mock
 from unittest import skip
 
@@ -26,9 +25,7 @@ from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import class_mapper
 from sqlalchemy.orm.attributes import InstrumentedAttribute
 
-from bauble import paths
 from bauble import prefs
-from bauble.editor import GenericEditorView
 from bauble.plugins.garden.plant import Plant
 from bauble.plugins.plants.species import Species
 from bauble.search.query_builder import BuiltQuery
@@ -44,54 +41,54 @@ class ParseTypedValue(BaubleTestCase):
     def test_parse_typed_value_floats(self):
         from sqlalchemy import Float
 
-        result = parse_typed_value("0.0", Float())
+        result = parse_typed_value("0.0", Float)
         self.assertEqual(result, "0.0")
-        result = parse_typed_value("-4.0", Float())
+        result = parse_typed_value("-4.0", Float)
         self.assertEqual(result, "-4.0")
 
     def test_parse_typed_value_int(self):
         from sqlalchemy import Integer
 
-        result = parse_typed_value("0", Integer())
+        result = parse_typed_value("0", Integer)
         self.assertEqual(result, "0")
-        result = parse_typed_value("-4", Integer())
+        result = parse_typed_value("-4", Integer)
         self.assertEqual(result, "-4")
 
     def test_parsed_typed_value_bool(self):
         from bauble.btypes import Boolean
 
-        result = parse_typed_value("True", Boolean())
+        result = parse_typed_value("True", Boolean)
         self.assertEqual(result, "True")
-        result = parse_typed_value("False", Boolean())
+        result = parse_typed_value("False", Boolean)
         self.assertEqual(result, "False")
-        result = parse_typed_value("SomeRandomValue", Boolean())
+        result = parse_typed_value("SomeRandomValue", Boolean)
         self.assertEqual(result, 0)
-        result = parse_typed_value(1, Boolean())
+        result = parse_typed_value(1, Boolean)
         self.assertEqual(result, 1)
-        result = parse_typed_value(3, Boolean())
+        result = parse_typed_value(3, Boolean)
         self.assertEqual(result, 0)
-        result = parse_typed_value(None, Boolean())
+        result = parse_typed_value(None, Boolean)
         self.assertIsNone(result.express(None))
 
     def test_parse_typed_value_date(self):
         from bauble.btypes import Date
         from bauble.btypes import DateTime
 
-        result = parse_typed_value("1-1-20", Date())
+        result = parse_typed_value("1-1-20", Date)
         self.assertEqual(result, "1-1-20")
-        result = parse_typed_value("1/1/20", Date())
+        result = parse_typed_value("1/1/20", Date)
         self.assertEqual(result, "1/1/20")
-        result = parse_typed_value("2020/1/1", DateTime())
+        result = parse_typed_value("2020/1/1", DateTime)
         self.assertEqual(result, "2020/1/1")
-        result = parse_typed_value("2020-1-1", Date())
+        result = parse_typed_value("2020-1-1", Date)
         self.assertEqual(result, "2020-1-1")
-        result = parse_typed_value("15 Feb 1999", Date())
+        result = parse_typed_value("15 Feb 1999", Date)
         self.assertEqual(result, "'15 Feb 1999'")
-        result = parse_typed_value("15 Feb '99", DateTime())
+        result = parse_typed_value("15 Feb '99", DateTime)
         self.assertEqual(result, '"15 Feb \'99"')
-        result = parse_typed_value("yesterday", Date())
+        result = parse_typed_value("yesterday", Date)
         self.assertEqual(result, "yesterday")
-        result = parse_typed_value("today", DateTime())
+        result = parse_typed_value("today", DateTime)
         self.assertEqual(result, "today")
 
     def test_parse_typed_value_none(self):

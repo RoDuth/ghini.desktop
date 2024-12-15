@@ -24,6 +24,7 @@ It only supports a subset of the full query syntax.
 
 import logging
 from dataclasses import dataclass
+from functools import partial
 from pathlib import Path
 from typing import cast
 
@@ -230,19 +231,19 @@ def parse_typed_value(value, proptype):
         value = repr(str(value[1:-1]))
     elif value == "Empty":
         value = EmptyToken()
-    elif isinstance(proptype, (bauble.btypes.DateTime, bauble.btypes.Date)):
+    elif proptype in (bauble.btypes.DateTime, bauble.btypes.Date):
         # allow string dates e.g. 12th of April '22
         if " " in value:
             value = repr(value)
-    elif isinstance(proptype, bauble.btypes.Boolean):
+    elif proptype is bauble.btypes.Boolean:
         # btypes.Boolean accepts strings and 0, 1
         if value not in ["True", "False", 1, 0]:
             value = 0
-    elif isinstance(proptype, Integer):
+    elif proptype is Integer:
         value = "".join([i for i in value if i in "-0123456789."])
         if value:
             value = str(int(value))
-    elif isinstance(proptype, Float):
+    elif proptype is Float:
         value = "".join([i for i in value if i in "-0123456789."])
         if value:
             value = str(float(value))
@@ -404,13 +405,11 @@ class ExpressionRow:  # pylint: disable=too-many-instance-attributes
         # change the widget depending on the type of the selected property
         logger.debug("prop = %s", prop)
         try:
-            self.proptype = prop.columns[0].type
+            self.proptype = type(prop.columns[0].type)
         except AttributeError:
             self.proptype = None
         # reset the cond_combo incase it was last a date/datetime
-        if not isinstance(
-            self.proptype, (bauble.btypes.Date, bauble.btypes.DateTime)
-        ):
+        if self.proptype not in (bauble.btypes.Date, bauble.btypes.DateTime):
             self.cond_combo.handler_block(self.cond_handler)
             self.cond_combo.remove_all()
             for condition in self.CONDITIONS:
@@ -428,27 +427,21 @@ class ExpressionRow:  # pylint: disable=too-many-instance-attributes
         self.presenter.validate()
 
     def get_set_value_widget(self, path):
-        logger.debug("proptype = %s", type(self.proptype))
+        logger.debug("proptype = %s", self.proptype)
         column_name = path.rsplit(".", 1)[-1]
         if column_name in self.custom_columns:
-            from functools import partial
-
             return partial(
                 self.set_custom_enum_widget, self.custom_columns[column_name]
             )
-        if isinstance(self.proptype, bauble.btypes.Enum):
-            return self.set_enum_widget
-        if isinstance(self.proptype, Integer):
-            return self.set_int_widget
-        if isinstance(self.proptype, Float):
-            return self.set_float_widget
-        if isinstance(self.proptype, bauble.btypes.Boolean):
-            return self.set_bool_widget
-        if isinstance(
-            self.proptype, (bauble.btypes.Date, bauble.btypes.DateTime)
-        ):
-            return self.set_date_widget
-        return self.set_entry_widget
+        widgets = {
+            bauble.btypes.Enum: self.set_enum_widget,
+            Integer: self.set_int_widget,
+            Float: self.set_float_widget,
+            bauble.btypes.Boolean: self.set_bool_widget,
+            bauble.btypes.Date: self.set_date_widget,
+            bauble.btypes.DateTime: self.set_date_widget,
+        }
+        return widgets.get(self.proptype, self.set_entry_widget)
 
     def set_custom_enum_widget(self, values, _prop, val):
         self.value_widget = Gtk.ComboBoxText()
