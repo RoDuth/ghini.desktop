@@ -39,8 +39,6 @@ from bauble.search.query_builder import parse_typed_value
 from bauble.search.tokens import EmptyToken
 from bauble.test import BaubleTestCase
 
-gladefilepath = os.path.join(paths.lib_dir(), "search", "querybuilder.glade")
-
 
 class ParseTypedValue(BaubleTestCase):
     def test_parse_typed_value_floats(self):
@@ -296,10 +294,7 @@ class ExpressionRowTests(BaubleTestCase):
         mock_menu.popup_at_pointer.assert_called_with(event)
 
     def test_on_value_changed(self):
-        view = GenericEditorView(
-            gladefilepath, parent=None, root_widget_name="main_dialog"
-        )
-        qb = QueryBuilder(view)
+        qb = QueryBuilder()
         qb.set_query("accession where code = XYZ")
         row = ExpressionRow(qb, qb.remove_expression_row, 1)
 
@@ -312,12 +307,10 @@ class ExpressionRowTests(BaubleTestCase):
         row.on_value_changed(row.value_widget)
         self.assertEqual(row.value_widget.get_text(), "XYZ")
         self.assertEqual(row.cond_combo.get_active_text(), "=")
+        qb.destroy()
 
     def test_on_number_value_changed(self):
-        view = GenericEditorView(
-            gladefilepath, parent=None, root_widget_name="main_dialog"
-        )
-        qb = QueryBuilder(view)
+        qb = QueryBuilder()
         qb.set_query("plant where quantity = 1")
         row = qb.expression_rows[0]
 
@@ -333,8 +326,9 @@ class ExpressionRowTests(BaubleTestCase):
         row = qb.expression_rows[0]
         self.assertIsInstance(row.value_widget, Gtk.Entry)
         self.assertEqual(row.value_widget.get_text(), "None")
+        qb.destroy()
 
-        qb = QueryBuilder(view)
+        qb = QueryBuilder()
         qb.set_query("accession where source.collection.elevation_accy = 0.0")
         row = qb.expression_rows[0]
 
@@ -342,108 +336,81 @@ class ExpressionRowTests(BaubleTestCase):
         row = qb.expression_rows[0]
         self.assertIsInstance(row.value_widget, Gtk.SpinButton)
         self.assertEqual(row.value_widget.get_text(), "-123.456")
+        qb.destroy()
 
 
 class QueryBuilderTests(BaubleTestCase):
-    def test_cancreatequerybuilder(self):
-        view = GenericEditorView(
-            gladefilepath, parent=None, root_widget_name="main_dialog"
-        )
-        QueryBuilder(view)
 
     def test_emptyisinvalid(self):
-        view = GenericEditorView(
-            gladefilepath, parent=None, root_widget_name="main_dialog"
-        )
-        qb = QueryBuilder(view)
+        qb = QueryBuilder()
         self.assertFalse(qb.validate())
+        qb.destroy()
 
     def test_cansetquery(self):
-        view = GenericEditorView(
-            gladefilepath, parent=None, root_widget_name="main_dialog"
-        )
-        qb = QueryBuilder(view)
+        qb = QueryBuilder()
         qb.set_query("plant where id=0 or id=1 or id>10")
         self.assertEqual(len(qb.expression_rows), 3)
+        qb.destroy()
 
     def test_cansetenumquery(self):
-        view = GenericEditorView(
-            gladefilepath, parent=None, root_widget_name="main_dialog"
-        )
-        qb = QueryBuilder(view)
+        qb = QueryBuilder()
         qb.set_query("accession where recvd_type = 'BBIL'")
         self.assertEqual(len(qb.expression_rows), 1)
+        qb.destroy()
 
     def test_invalid_domain(self):
-        view = GenericEditorView(
-            gladefilepath, parent=None, root_widget_name="main_dialog"
-        )
-        qb = QueryBuilder(view)
+        qb = QueryBuilder()
         qb.set_query("nonexistentdomain where id = 1")
         self.assertFalse(qb.validate())
+        qb.destroy()
 
     def test_invalid_target(self):
-        view = GenericEditorView(
-            gladefilepath, parent=None, root_widget_name="main_dialog"
-        )
-        qb = QueryBuilder(view)
+        qb = QueryBuilder()
         qb.set_query("plant where accession.invalid = 1")
         self.assertFalse(qb.validate())
+        qb.destroy()
 
     def test_invalid_query(self):
-        view = GenericEditorView(
-            gladefilepath, parent=None, root_widget_name="main_dialog"
-        )
-        qb = QueryBuilder(view)
+        qb = QueryBuilder()
         qb.set_query("plant where id between 1 and 10")
         self.assertFalse(qb.validate())
+        qb.destroy()
 
     def test_empty_query(self):
-        view = GenericEditorView(
-            gladefilepath, parent=None, root_widget_name="main_dialog"
-        )
-        qb = QueryBuilder(view)
+        qb = QueryBuilder()
         query = "plant where notes.id = Empty"
         qb.set_query(query)
         self.assertTrue(qb.validate())
         # should drop the attribute
         self.assertEqual(qb.get_query(), "plant where notes = Empty")
+        qb.destroy()
 
     def test_none_string_query(self):
-        view = GenericEditorView(
-            gladefilepath, parent=None, root_widget_name="main_dialog"
-        )
-        qb = QueryBuilder(view)
+        qb = QueryBuilder()
         query = "plant where notes.category = 'None'"
         qb.set_query(query)
         self.assertTrue(qb.validate())
         self.assertEqual(qb.get_query(), query)
+        qb.destroy()
 
     def test_nonetype_query(self):
-        view = GenericEditorView(
-            gladefilepath, parent=None, root_widget_name="main_dialog"
-        )
-        qb = QueryBuilder(view)
+        qb = QueryBuilder()
         query = "plant where notes.category = None"
         qb.set_query(query)
         self.assertTrue(qb.validate())
         self.assertEqual(qb.get_query(), query)
+        qb.destroy()
 
     def test_boolean_query(self):
-        view = GenericEditorView(
-            gladefilepath, parent=None, root_widget_name="main_dialog"
-        )
-        qb = QueryBuilder(view)
+        qb = QueryBuilder()
         query = "plant where memorial = True"
         qb.set_query(query)
         self.assertTrue(qb.validate())
         self.assertEqual(qb.get_query(), query)
+        qb.destroy()
 
     def test_date_query(self):
-        view = GenericEditorView(
-            gladefilepath, parent=None, root_widget_name="main_dialog"
-        )
-        qb = QueryBuilder(view)
+        qb = QueryBuilder()
         # isoparse
         query = "plant where _created = 2020-02-01"
         qb.set_query(query)
@@ -459,74 +426,60 @@ class QueryBuilderTests(BaubleTestCase):
         qb.set_query(query)
         self.assertTrue(qb.validate())
         self.assertEqual(qb.get_query(), query)
+        qb.destroy()
 
     def test_int_query(self):
-        view = GenericEditorView(
-            gladefilepath, parent=None, root_widget_name="main_dialog"
-        )
-        qb = QueryBuilder(view)
+        qb = QueryBuilder()
         query = "plant where quantity > 2"
         qb.set_query(query)
         self.assertTrue(qb.validate())
         self.assertEqual(qb.get_query(), query)
+        qb.destroy()
 
     def test_float_query(self):
-        view = GenericEditorView(
-            gladefilepath, parent=None, root_widget_name="main_dialog"
-        )
-        qb = QueryBuilder(view)
+        qb = QueryBuilder()
         query = "collection where elevation > 0.01"
         qb.set_query(query)
         self.assertTrue(qb.validate())
         self.assertEqual(qb.get_query(), query)
+        qb.destroy()
 
     def test_set_float_widget_invalid(self):
-        view = GenericEditorView(
-            gladefilepath, parent=None, root_widget_name="main_dialog"
-        )
-        qb = QueryBuilder(view)
+        qb = QueryBuilder()
         query = "collection where elevation > 0.01"
         qb.set_query(query)
         row = qb.expression_rows[0]
         row.set_float_widget(None, "None")
         self.assertTrue(qb.validate())
         self.assertEqual(qb.get_query(), "collection where elevation > 0.0")
+        qb.destroy()
 
     def test_not_translated_enum_query(self):
-        view = GenericEditorView(
-            gladefilepath, parent=None, root_widget_name="main_dialog"
-        )
-        qb = QueryBuilder(view)
+        qb = QueryBuilder()
         query = "family where qualifier = 's. lat.'"
         qb.set_query(query)
         self.assertTrue(qb.validate())
         self.assertEqual(qb.get_query(), query)
+        qb.destroy()
 
     def test_not_query(self):
-        view = GenericEditorView(
-            gladefilepath, parent=None, root_widget_name="main_dialog"
-        )
-        qb = QueryBuilder(view)
+        qb = QueryBuilder()
         query = "plant where not code = '1'"
         qb.set_query(query)
         self.assertTrue(qb.validate())
         self.assertEqual(qb.get_query(), query)
+        qb.destroy()
 
     def test_not_associationproxy_query(self):
-        view = GenericEditorView(
-            gladefilepath, parent=None, root_widget_name="main_dialog"
-        )
-        qb = QueryBuilder(view)
+        qb = QueryBuilder()
         query = "species where accepted.full_name = 'Melaleuca viminalis'"
         qb.set_query(query)
         self.assertTrue(qb.validate())
         self.assertEqual(qb.get_query(), query)
+        qb.destroy()
 
     def test_adding_wildcard_sets_cond_to_like(self):
-        view = GenericEditorView(
-            gladefilepath, parent=None, root_widget_name="main_dialog"
-        )
-        qb = QueryBuilder(view)
+        qb = QueryBuilder()
         query = "family where epithet = Myrt"
         qb.set_query(query)
         self.assertTrue(qb.validate())
@@ -534,12 +487,10 @@ class QueryBuilderTests(BaubleTestCase):
         self.assertEqual(
             qb.expression_rows[0].cond_combo.get_active_text(), "like"
         )
+        qb.destroy()
 
     def test_date_searches_add_on_condition(self):
-        view = GenericEditorView(
-            gladefilepath, parent=None, root_widget_name="main_dialog"
-        )
-        qb = QueryBuilder(view)
+        qb = QueryBuilder()
         query = "family where _created on 1/1/2021"
         qb.set_query(query)
         self.assertTrue(qb.validate())
@@ -556,12 +507,10 @@ class QueryBuilderTests(BaubleTestCase):
         self.assertFalse(
             tree_model_has(qb.expression_rows[0].cond_combo.get_model(), "on")
         )
+        qb.destroy()
 
     def test_adding_date_field_sets_cond_to_on(self):
-        view = GenericEditorView(
-            gladefilepath, parent=None, root_widget_name="main_dialog"
-        )
-        qb = QueryBuilder(view)
+        qb = QueryBuilder()
         query = "family where epithet = Myrt"
         qb.set_query(query)
         self.assertTrue(qb.validate())
@@ -583,18 +532,17 @@ class QueryBuilderTests(BaubleTestCase):
         self.assertEqual(
             qb.expression_rows[0].cond_combo.get_active_text(), "="
         )
+        qb.destroy()
 
     def test_remove_button_removes_row(self):
-        view = GenericEditorView(
-            gladefilepath, parent=None, root_widget_name="main_dialog"
-        )
-        qb = QueryBuilder(view)
+        qb = QueryBuilder()
         qb.set_query("plant where id=0 or id=1 or id>10")
         self.assertEqual(len(qb.expression_rows), 3)
         qb.expression_rows[2].remove_button.emit("clicked")
         self.assertEqual(len(qb.expression_rows), 2)
         self.assertEqual(qb.get_query(), "plant where id = 0 or id = 1")
         self.assertTrue(qb.validate())
+        qb.destroy()
 
     def test_custom_column(self):
         from bauble.meta import BaubleMeta
@@ -613,10 +561,7 @@ class QueryBuilderTests(BaubleTestCase):
         from bauble.plugins.plants import PlantsPlugin
 
         PlantsPlugin.register_custom_column("_sp_custom1")
-        view = GenericEditorView(
-            gladefilepath, parent=None, root_widget_name="main_dialog"
-        )
-        qb = QueryBuilder(view)
+        qb = QueryBuilder()
         query = "species where nca_status = 'extinct'"
         qb.set_query(query)
         self.assertEqual(len(qb.expression_rows), 1)
@@ -628,12 +573,10 @@ class QueryBuilderTests(BaubleTestCase):
         )
         self.assertTrue(qb.validate())
         self.assertEqual(qb.get_query(), query)
+        qb.destroy()
 
     def test_on_advanced_set(self):
-        view = GenericEditorView(
-            gladefilepath, parent=None, root_widget_name="main_dialog"
-        )
-        qb = QueryBuilder(view)
+        qb = QueryBuilder()
         self.assertFalse(prefs.prefs.get(prefs.query_builder_advanced))
         # set the domain so reset_expression_table has some widgets to remove
         mock_combo = mock.Mock()
@@ -641,26 +584,34 @@ class QueryBuilderTests(BaubleTestCase):
         qb.on_domain_combo_changed(mock_combo)
         qb.on_advanced_set(None, True)
         self.assertTrue(prefs.prefs.get(prefs.query_builder_advanced))
+        qb.destroy()
+
+    def test_on_domain_combo_changed(self):
+        qb = QueryBuilder()
+
+        mock_combo = mock.Mock()
+        mock_combo.get_active.return_value = 2
+        qb.on_domain_combo_changed(mock_combo)
+        self.assertIsNotNone(qb.domain)
+        self.assertEqual(qb.table_row_count, 1)
+        self.assertEqual(qb.query_lbl.get_text(), "")
+
+        qb.destroy()
 
     @mock.patch("bauble.search.query_builder.utils.create_message_dialog")
     def test_on_help_clicked_opens_dialog(self, mock_create_dialog):
         mock_dialog = mock.Mock()
         mock_create_dialog.return_value = mock_dialog
-        view = GenericEditorView(
-            gladefilepath, parent=None, root_widget_name="main_dialog"
-        )
-        qb = QueryBuilder(view)
+        qb = QueryBuilder()
         qb.on_help_clicked(None, None)
         mock_create_dialog.assert_called()
         mock_dialog.set_title.assert_called_with("Basic Intro to Queries")
         mock_dialog.run.assert_called()
         mock_dialog.destroy.assert_called()
+        qb.destroy()
 
-    def test_cleaup(self):
-        view = GenericEditorView(
-            gladefilepath, parent=None, root_widget_name="main_dialog"
-        )
-        qb = QueryBuilder(view)
+    def test_destroy(self):
+        qb = QueryBuilder()
         self.assertFalse(prefs.prefs.get(prefs.query_builder_advanced))
         # set the domain so reset_expression_table has some widgets to remove
         mock_combo = mock.Mock()
@@ -671,23 +622,11 @@ class QueryBuilderTests(BaubleTestCase):
         qb.expression_rows[0].schema_menu.connect(
             "destroy", lambda _w: destroy_called.append(True)
         )
-        qb.cleanup()
+        qb.destroy()
         self.assertTrue(destroy_called[0])
 
-    def test_start(self):
-        view = GenericEditorView(
-            gladefilepath, parent=None, root_widget_name="main_dialog"
-        )
-        view.start = mock.Mock()
-        qb = QueryBuilder(view)
-        qb.start()
-        view.start.assert_called()
-
     def test_on_add_clause_no_domain_doesnt_add_row(self):
-        view = GenericEditorView(
-            gladefilepath, parent=None, root_widget_name="main_dialog"
-        )
-        qb = QueryBuilder(view)
+        qb = QueryBuilder()
         self.assertEqual(len(qb.expression_rows), 0)
         qb.on_add_clause()
         self.assertEqual(len(qb.expression_rows), 0)
@@ -695,6 +634,7 @@ class QueryBuilderTests(BaubleTestCase):
         qb.domain = "plant"
         qb.on_add_clause()
         self.assertEqual(len(qb.expression_rows), 1)
+        qb.destroy()
 
 
 class TestQBP(BaubleTestCase):

@@ -304,8 +304,7 @@ class GUITests(BaubleTestCase):
         )
 
     @mock.patch("bauble.ui.QueryBuilder")
-    def test_on_query_button_clicked(self, mock_builder_class):
-        mock_builder = mock_builder_class.return_value
+    def test_on_query_button_clicked(self, mock_builder):
         gui = GUI()
         mock_combo = mock.Mock()
         mock_entry = mock.Mock()
@@ -315,14 +314,14 @@ class GUITests(BaubleTestCase):
 
         gui.widgets.main_comboentry = mock_combo
         gui.widgets.go_button = mock_btn
-        mock_builder.start.return_value = Gtk.ResponseType.OK
-        mock_builder.get_query.return_value = "sp = sp."
+        mock_builder().run.return_value = Gtk.ResponseType.OK
+        mock_builder().get_query.return_value = "sp = sp."
 
         gui.on_query_button_clicked(None)
 
         mock_entry.set_text.assert_called_with("sp = sp.")
         mock_btn.emit.assert_called_with("clicked")
-        mock_builder.cleanup.assert_called_once()
+        mock_builder().destroy.assert_called_once()
 
     def test_on_history_pinned_clicked(self):
         gui = GUI()

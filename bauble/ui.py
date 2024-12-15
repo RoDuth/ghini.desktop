@@ -582,22 +582,16 @@ class GUI:
         bauble.command_handler(cmd, arg)
 
     def on_query_button_clicked(self, _widget):
-        gladefilepath = os.path.join(
-            paths.lib_dir(), "search", "querybuilder.glade"
-        )
-        view = GenericEditorView(
-            gladefilepath, parent=None, root_widget_name="main_dialog"
-        )
-        query_builder = QueryBuilder(view)
+        query_builder = QueryBuilder(transient_for=self.window)
         query_builder.set_query(
             self.widgets.main_comboentry.get_child().get_text()
         )
-        response = query_builder.start()
+        response = query_builder.run()
         if response == Gtk.ResponseType.OK:
             query = query_builder.get_query()
             self.widgets.main_comboentry.get_child().set_text(query)
             self.widgets.go_button.emit("clicked")
-        query_builder.cleanup()
+        query_builder.destroy()
 
     def on_history_pinned_clicked(self, widget, _icon_pos, _event):
         """add or remove a pin search string to the history pins."""

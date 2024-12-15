@@ -24,6 +24,8 @@ It only supports a subset of the full query syntax.
 
 import logging
 from dataclasses import dataclass
+from pathlib import Path
+from typing import cast
 
 logger = logging.getLogger(__name__)
 
@@ -47,7 +49,6 @@ from sqlalchemy.orm.properties import ColumnProperty
 import bauble
 from bauble import prefs
 from bauble import utils
-from bauble.editor import GenericEditorPresenter
 from bauble.i18n import _
 
 from .parser import and_
@@ -250,7 +251,7 @@ def parse_typed_value(value, proptype):
     return value
 
 
-class ExpressionRow:
+class ExpressionRow:  # pylint: disable=too-many-instance-attributes
     CONDITIONS = [
         "=",
         "!=",
@@ -267,7 +268,7 @@ class ExpressionRow:
 
     def __init__(self, query_builder, remove_callback, row_number):
         self.proptype = None
-        self.grid = query_builder.view.widgets.expressions_table
+        self.grid = query_builder.expressions_table
         self.presenter = query_builder
         self.menu_item_activated = False
 
@@ -337,7 +338,7 @@ class ExpressionRow:
 
             self.remove_button.connect("clicked", on_remove_btn_clicked)
             self.grid.attach(self.remove_button, 5, row_number, 1, 1)
-        query_builder.view.get_window().resize(1, 1)
+        query_builder.resize(1, 1)
 
     @staticmethod
     def on_prop_button_clicked(_button, event, menu):
@@ -723,11 +724,24 @@ class BuiltQuery:
         return self.parsed[0]
 
 
-class QueryBuilder(GenericEditorPresenter):
-    view_accept_buttons = ["cancel_button", "confirm_button"]
+@Gtk.Template(
+    filename=str(Path(__file__).resolve().parent / "query_builder.ui")
+)
+class QueryBuilder(Gtk.Dialog):
 
-    def __init__(self, view=None):
-        super().__init__(self, view=view, refresh_view=False, session=False)
+    __gtype_name__ = "QueryBuilder"
+    # view_accept_buttons = ["cancel_button", "confirm_button"]
+    domain_liststore = cast(Gtk.ListStore, Gtk.Template.Child())
+    domain_combo = cast(Gtk.ComboBox, Gtk.Template.Child())
+    advanced_switch = cast(Gtk.Switch, Gtk.Template.Child())
+    help_label = cast(Gtk.Label, Gtk.Template.Child())
+    query_lbl = cast(Gtk.Label, Gtk.Template.Child())
+    expressions_table = cast(Gtk.Grid, Gtk.Template.Child())
+    add_clause_button = cast(Gtk.Button, Gtk.Template.Child())
+    confirm_button = cast(Gtk.Button, Gtk.Template.Child())
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
 
         self.expression_rows = []
         self.mapper = None
@@ -735,30 +749,15 @@ class QueryBuilder(GenericEditorPresenter):
         self.table_row_count = 0
         self.domain_map = MapperSearch.get_domain_classes().copy()
 
-        self.view.widgets.domain_combo.set_active(-1)
-        self.view.widgets.domain_combo.set_tooltip_text(
-            "The type of items returned"
-        )
-        self.view.widgets.advanced_switch.set_tooltip_text(
-            "Set on to use advanced menus (includes less commonly queried "
-            "fields).\n\nRESETS QUERY BUILDER."
-        )
-        self.view.widgets.advanced_switch.set_active(
+        self.domain_combo.set_active(-1)
+        self.advanced_switch.set_active(
             prefs.prefs.get(prefs.query_builder_advanced, False)
         )
-        self.view.widgets.advanced_switch.connect(
-            "state-set", self.on_advanced_set
-        )
 
-        self.view.widgets.domain_liststore.clear()
         for key in sorted(self.domain_map.keys()):
-            self.view.widgets.domain_liststore.append([key])
-        self.view.widgets.add_clause_button.set_sensitive(False)
-        self.view.widgets.confirm_button.set_sensitive(False)
-        self.refresh_view()
-        utils.make_label_clickable(
-            self.view.widgets.help_label, self.on_help_clicked
-        )
+            self.domain_liststore.append([key])
+
+        utils.make_label_clickable(self.help_label, self.on_help_clicked)
 
     def on_help_clicked(self, _label, _event):
         msg = _(
@@ -804,24 +803,23 @@ class QueryBuilder(GenericEditorPresenter):
             "        <tt>plant where planted.date > -10</tt>\n"
             "Return plants that where planted in the last 10 days.\n"
         )
-        dialog = utils.create_message_dialog(
-            msg, parent=self.view.get_window(), resizable=False
-        )
+        dialog = utils.create_message_dialog(msg, parent=self, resizable=False)
         dialog.set_title(_("Basic Intro to Queries"))
         dialog.run()
         dialog.destroy()
 
+    @Gtk.Template.Callback()
     def on_advanced_set(self, _switch, state):
         prefs.prefs[prefs.query_builder_advanced] = state
         self.reset_expression_table()
 
+    @Gtk.Template.Callback()
     def on_domain_combo_changed(self, combo):
         """Change the search domain."""
         index = combo.get_active()
-        if index == -1:
-            return
 
-        self.domain = self.view.widgets.domain_liststore[index][0]
+        # pylint: disable=unsubscriptable-object
+        self.domain = self.domain_liststore[index][0]
         self.reset_expression_table()
 
     def reset_expression_table(self):
@@ -829,19 +827,18 @@ class QueryBuilder(GenericEditorPresenter):
         the expression rows.
         """
 
-        self.view.widgets.query_lbl.set_text("")
+        self.query_lbl.set_text("")
         # remove all clauses, they became useless in new domain
-        table = self.view.widgets.expressions_table
-        for child in table.get_children():
-            table.remove(child)
-        del self.expression_rows[:]
+        for child in self.expressions_table.get_children():
+            self.expressions_table.remove(child)
+        self.expression_rows.clear()
         # initialize view at 1 clause, however invalid
         self.table_row_count = 0
         self.on_add_clause()
-        self.view.get_window().resize(1, 1)
-        self.view.widgets.expressions_table.show_all()
+        self.resize(1, 1)
+        self.expressions_table.show_all()
         # let user add more clauses
-        self.view.widgets.add_clause_button.set_sensitive(True)
+        self.add_clause_button.set_sensitive(True)
 
     def validate(self):
         """Validate the search expression is a valid expression."""
@@ -855,7 +852,7 @@ class QueryBuilder(GenericEditorPresenter):
                 value = row.value_widget.get_active() >= 0
 
             query_string = f"{query_string} {row.get_expression() or ''}"
-            self.view.widgets.query_lbl.set_text(query_string)
+            self.query_lbl.set_text(query_string)
 
             if value and row.menu_item_activated:
                 valid = True
@@ -863,7 +860,7 @@ class QueryBuilder(GenericEditorPresenter):
                 valid = False
                 break
 
-        self.view.widgets.confirm_button.set_sensitive(valid)
+        self.confirm_button.set_sensitive(valid)
         return valid
 
     def remove_expression_row(self, row):
@@ -872,8 +869,9 @@ class QueryBuilder(GenericEditorPresenter):
             widget.destroy()
         self.table_row_count -= 1
         self.expression_rows.remove(row)
-        self.view.get_window().resize(1, 1)
+        self.resize(1, 1)
 
+    @Gtk.Template.Callback()
     def on_add_clause(self, _widget=None):
         """Add a row to the expressions table."""
         domain_cls = self.domain_map.get(self.domain)
@@ -887,15 +885,12 @@ class QueryBuilder(GenericEditorPresenter):
             self, self.remove_expression_row, self.table_row_count
         )
         self.expression_rows.append(row)
-        self.view.widgets.expressions_table.show_all()
+        self.expressions_table.show_all()
 
-    def cleanup(self):
+    def destroy(self):  # pylint: disable=arguments-differ
         for row in self.expression_rows:
             row.schema_menu.destroy()
-        super().cleanup()
-
-    def start(self):
-        return self.view.start()
+        super().destroy()
 
     @property
     def valid_clauses(self):
@@ -919,7 +914,7 @@ class QueryBuilder(GenericEditorPresenter):
 
         index = sorted(self.domain_map.keys()).index(parsed.domain_str)
         # and set the domain_combo correspondently
-        self.view.widgets.domain_combo.set_active(index)
+        self.domain_combo.set_active(index)
 
         # now scan all clauses, one ExpressionRow per clause
         for clause in parsed.clauses:
@@ -933,18 +928,18 @@ class QueryBuilder(GenericEditorPresenter):
             if clause.not__:
                 row.not_combo.set_active(1)
 
-            prop = self.get_property(clause, parsed.domain_str)
-            if not prop:
+            column = self.get_column(clause, parsed.domain_str)
+            if not column:
                 return
 
             conditions = row.CONDITIONS.copy()
-            if hasattr(prop, "columns") and isinstance(
-                prop.columns[0].type,
+            if hasattr(column, "columns") and isinstance(
+                column.columns[0].type,
                 (bauble.btypes.Date, bauble.btypes.DateTime),
             ):
                 row.cond_combo.append_text("on")
                 conditions.append("on")
-            row.on_schema_menu_activated(None, clause.field, prop)
+            row.on_schema_menu_activated(None, clause.field, column)
             if isinstance(row.value_widget, Gtk.Entry):  # also spinbutton
                 row.value_widget.set_text(clause.value)
             elif isinstance(row.value_widget, Gtk.ComboBox):
@@ -957,7 +952,7 @@ class QueryBuilder(GenericEditorPresenter):
             if clause.operator in conditions:
                 row.cond_combo.set_active(conditions.index(clause.operator))
 
-    def get_property(self, clause, domain_str):
+    def get_column(self, clause, domain_str):
         steps = clause.field.split(".")
         cls = self.domain_map[domain_str]
         mapper = class_mapper(cls)
@@ -975,12 +970,12 @@ class QueryBuilder(GenericEditorPresenter):
                 else:
                     mapper = mapper.get_property(target).mapper
             try:
-                prop = mapper.get_property(steps[-1])
+                column = mapper.get_property(steps[-1])
             except InvalidRequestError:
-                prop = mapper.all_orm_descriptors[steps[-1]]
+                column = mapper.all_orm_descriptors[steps[-1]]
         except Exception as e:  # pylint: disable=broad-except
             logger.debug(
                 "cannot restore query details, %s(%s)", type(e).__name__, e
             )
             return None
-        return prop
+        return column

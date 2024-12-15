@@ -8,7 +8,7 @@
       <column type="gchararray"/>
     </columns>
   </object>
-  <object class="GtkDialog" id="main_dialog">
+  <template class="QueryBuilder" parent="GtkDialog">
     <property name="can-focus">False</property>
     <property name="border-width">5</property>
     <property name="title" translatable="yes">Query Builder</property>
@@ -41,6 +41,7 @@
               <object class="GtkButton" id="confirm_button">
                 <property name="label" translatable="yes">OK</property>
                 <property name="visible">True</property>
+                <property name="sensitive">False</property>
                 <property name="can-focus">True</property>
                 <property name="can-default">True</property>
                 <property name="has-default">True</property>
@@ -78,6 +79,7 @@
                       <object class="GtkComboBox" id="domain_combo">
                         <property name="visible">True</property>
                         <property name="can-focus">False</property>
+                        <property name="tooltip-text" translatable="yes">The type of items returned</property>
                         <property name="hexpand">True</property>
                         <property name="model">domain_liststore</property>
                         <property name="entry-text-column">0</property>
@@ -140,9 +142,11 @@
                       <object class="GtkSwitch" id="advanced_switch">
                         <property name="visible">True</property>
                         <property name="can-focus">True</property>
+                        <property name="tooltip-text" translatable="yes">Set on to use advanced menus (includes less commonly queried fields)</property>
                         <property name="margin-start">3</property>
                         <property name="margin-top">2</property>
                         <property name="margin-bottom">2</property>
+                        <signal name="state-set" handler="on_advanced_set" swapped="no"/>
                       </object>
                       <packing>
                         <property name="expand">False</property>
@@ -206,6 +210,7 @@
                 <child>
                   <object class="GtkButton" id="add_clause_button">
                     <property name="visible">True</property>
+                    <property name="sensitive">False</property>
                     <property name="can-focus">True</property>
                     <property name="receives-default">True</property>
                     <signal name="clicked" handler="on_add_clause" swapped="no"/>
@@ -256,5 +261,5 @@
       <action-widget response="-6">cancel_button</action-widget>
       <action-widget response="-5">confirm_button</action-widget>
     </action-widgets>
-  </object>
+  </template>
 </interface>
