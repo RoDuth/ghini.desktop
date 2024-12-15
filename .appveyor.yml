@@ -50,22 +50,20 @@ for:
     MSYSTEM: UCRT64
     CHERE_INVOKING: 1
     PATH: C:\msys64\usr\bin;C:\Program Files (x86)\NSIS\Bin;%PATH%
+    PIP_BREAK_SYSTEM_PACKAGES: 1
     COVERALLS_REPO_TOKEN:
       secure: dFRyBsYhvG/CAVHHXVL8JVuFWRBuB0zGmiH6W+fQUafSmAsIITs7P7mwOl2y2voK
     fop_ver: 2.9
 
   install:
     - choco install openjdk -y
-    # - bash -lc "pacman --noconfirm -Syuu"  # NOTE not normally required
-    # - bash -lc "pacman --noconfirm -Syuu"  # NOTE not normally required
+    - bash -lc "pacman --noconfirm -Syuu"  # Core update.  see: https://msys2.org/docs/ci/
+    - bash -lc "pacman --noconfirm -Syuu"  # Normal update
     - bash -lc "pacman --noconfirm --needed -S - < ./scripts/mingw64_pkglist.txt"
     - bash -lc "python --version"
     - bash -lc "python -m pip install --upgrade pip"
-    - bash -lc "SETUPTOOLS_USE_DISTUTILS=stdlib pip install pyproj"
-    - bash -lc "SETUPTOOLS_USE_DISTUTILS=stdlib pip install greenlet"
-    - bash -lc "SETUPTOOLS_USE_DISTUTILS=stdlib pip install git+https://github.com/RoDuth/pyodbc"
+    - bash -lc "pip install git+https://github.com/RoDuth/pyodbc"
     - dir %WINDIR%\System32\msodbcsql*.dll
-    # - bash -lc "SETUPTOOLS_USE_DISTUTILS=stdlib pip install pyodbc"
 
   build_script:
     - bash -lc "pip install ."
