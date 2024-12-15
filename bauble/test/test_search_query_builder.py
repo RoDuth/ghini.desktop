@@ -29,6 +29,7 @@ from bauble import prefs
 from bauble.plugins.garden.plant import Plant
 from bauble.plugins.plants.species import Species
 from bauble.search.query_builder import BuiltQuery
+from bauble.search.query_builder import Clause
 from bauble.search.query_builder import ExpressionRow
 from bauble.search.query_builder import QueryBuilder
 from bauble.search.query_builder import SchemaMenu
@@ -622,7 +623,7 @@ class QueryBuilderTests(BaubleTestCase):
         qb.destroy()
         self.assertTrue(destroy_called[0])
 
-    def test_on_add_clause_no_domain_doesnt_add_row(self):
+    def test_on_add_clause(self):
         qb = QueryBuilder()
         self.assertEqual(len(qb.expression_rows), 0)
         qb.on_add_clause()
@@ -631,6 +632,16 @@ class QueryBuilderTests(BaubleTestCase):
         qb.domain = "plant"
         qb.on_add_clause()
         self.assertEqual(len(qb.expression_rows), 1)
+        qb.destroy()
+
+    def test_get_query_no_domain(self):
+        qb = QueryBuilder()
+        self.assertEqual(qb.get_query(), "")
+        qb.destroy()
+
+    def test_get_column_no_field(self):
+        qb = QueryBuilder()
+        self.assertIsNone(qb.get_column(Clause(), "plant"))
         qb.destroy()
 
 

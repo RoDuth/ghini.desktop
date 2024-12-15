@@ -23,25 +23,32 @@ It only supports a subset of the full query syntax.
 """
 
 import logging
+from collections.abc import Callable
+from collections.abc import Generator
 from dataclasses import dataclass
 from functools import partial
 from pathlib import Path
+from typing import Any
+from typing import Self
 from typing import cast
 
 logger = logging.getLogger(__name__)
 
+from gi.repository import Gdk
 from gi.repository import Gtk
 from pyparsing import CaselessLiteral
 from pyparsing import Group
-from pyparsing import Optional
+from pyparsing import Opt
 from pyparsing import ParseException
 from pyparsing import ZeroOrMore
-from pyparsing import oneOf
+from pyparsing import one_of
 from sqlalchemy import Float
 from sqlalchemy import Integer
 from sqlalchemy.exc import InvalidRequestError
 from sqlalchemy.ext.associationproxy import AssociationProxy
 from sqlalchemy.ext.hybrid import hybrid_property
+from sqlalchemy.orm import InspectionAttr
+from sqlalchemy.orm import Mapper
 from sqlalchemy.orm import RelationshipProperty
 from sqlalchemy.orm import class_mapper
 from sqlalchemy.orm.attributes import InstrumentedAttribute
@@ -50,6 +57,7 @@ from sqlalchemy.orm.properties import ColumnProperty
 import bauble
 from bauble import prefs
 from bauble import utils
+from bauble.db import Base
 from bauble.i18n import _
 
 from .parser import and_
@@ -61,6 +69,8 @@ from .parser import value_token
 from .strategies import MapperSearch
 from .tokens import EmptyToken
 from .tokens import NoneToken
+
+type Filter = Callable[[str, InspectionAttr], bool]
 
 
 class SchemaMenu(Gtk.Menu):
@@ -79,14 +89,14 @@ class SchemaMenu(Gtk.Menu):
 
     def __init__(  # pylint: disable=too-many-arguments
         self,
-        mapper,
-        activate_callback=None,
-        column_filter=lambda k, p: True,
-        relation_filter=lambda k, p: True,
-        private=False,
-        recurse=False,
-        selectable_relations=False,
-    ):
+        mapper: Mapper,
+        activate_callback: Callable[[Gtk.MenuItem, str, ColumnProperty], None],
+        column_filter: Filter = lambda k, p: True,
+        relation_filter: Filter = lambda k, p: True,
+        private: bool = False,
+        recurse: bool = False,
+        selectable_relations: bool = False,
+    ) -> None:
         super().__init__()
         self.mapper = mapper
         self.activate_callback = activate_callback
@@ -99,23 +109,25 @@ class SchemaMenu(Gtk.Menu):
             self.append(item)
         self.show_all()
 
-    def on_activate(self, menuitem, prop):
+    def on_activate(
+        self, menuitem: Gtk.MenuItem, prop: ColumnProperty
+    ) -> None:
         """Called when menu items that hold column properties are activated."""
-        path = [menuitem.get_child().props.label]
-        menu = menuitem.get_parent()
+        path = [menuitem.get_label()]
+        menu = cast(Gtk.Menu, menuitem.get_parent())
         while menu is not None:
-            menuitem = menu.props.attach_widget
+            menuitem = cast(Gtk.MenuItem, menu.get_attach_widget())
             if not menuitem:
                 break
-            label = menuitem.get_child().props.label
+            label = menuitem.get_label()
             path.append(label)
-            menu = menuitem.get_parent()
+            menu = cast(Gtk.Menu, menuitem.get_parent())
         full_path = ".".join(reversed(path))
         if self.selectable_relations and hasattr(prop, "__table__"):
             full_path = full_path.removesuffix(f".{prop.__table__.key}")
         self.activate_callback(menuitem, full_path, prop)
 
-    def on_select(self, menuitem, prop):
+    def on_select(self, menuitem: Gtk.MenuItem, prop: ColumnProperty) -> None:
         """Called when menu items that have submenus are selected."""
         try:
             current_cls = prop.parent.class_
@@ -123,7 +135,7 @@ class SchemaMenu(Gtk.Menu):
             # pylint: disable=protected-access
             current_cls = prop._class
 
-        submenu = menuitem.get_submenu()
+        submenu = cast(Gtk.Menu, menuitem.get_submenu())
         if len(submenu.get_children()) == 0:
             if isinstance(prop, AssociationProxy):
                 # pylint: disable=protected-access
@@ -136,11 +148,15 @@ class SchemaMenu(Gtk.Menu):
                 submenu.append(item)
         submenu.show_all()
 
-    def _get_column_and_relation_properties(self, mapper):
-        # Separate properties in column_properties and relation_properties
+    def _get_column_and_relation_properties(self, mapper: Mapper) -> tuple[
+        dict[str, InspectionAttr],
+        dict[str, InspectionAttr],
+    ]:
+        # Separate properties into column_properties and relation_properties
 
-        column_properties = {}
-        relation_properties = {}
+        column_properties: dict[str, InspectionAttr] = {}
+        relation_properties: dict[str, InspectionAttr] = {}
+        key: str
         for key, prop in mapper.all_orm_descriptors.items():
             if isinstance(prop, hybrid_property):
                 column_properties[key] = prop
@@ -155,7 +171,7 @@ class SchemaMenu(Gtk.Menu):
             elif isinstance(prop, AssociationProxy):
                 # patch in the class so we have it later
                 # pylint: disable=protected-access
-                prop._class = mapper.class_
+                prop._class = mapper.class_  # type: ignore[attr-defined]
                 relation_properties[key] = prop
 
         column_properties = dict(
@@ -166,13 +182,16 @@ class SchemaMenu(Gtk.Menu):
         relation_properties = dict(
             sorted(relation_properties.items(), key=lambda p: p[0])
         )
+
         return column_properties, relation_properties
 
-    def _get_prop_menuitems(self, mapper, current_cls=None):
+    def _get_prop_menuitems(
+        self, mapper: Mapper, current_cls: Base | None = None
+    ) -> list[Gtk.MenuItem]:
         all_props = self._get_column_and_relation_properties(mapper)
         column_properties, relation_properties = all_props
 
-        items = []
+        items: list[Gtk.MenuItem] = []
         # add the table name to the top of the submenu and allow it to be
         # selected (intended for export selection where you wish to include the
         # string representation of the table)
@@ -199,13 +218,13 @@ class SchemaMenu(Gtk.Menu):
 
             if self.recurse is False:
                 if isinstance(prop, AssociationProxy):
-                    # pylint: disable=protected-access
+                    # pylint: disable=protected-access,line-too-long
                     target_prop = getattr(
-                        prop.for_class(prop._class).target_class,
+                        prop.for_class(prop._class).target_class,  # type: ignore[attr-defined]  # noqa
                         prop.value_attr,
                     ).prop
                 else:
-                    target_prop = prop.prop
+                    target_prop = cast(RelationshipProperty, prop).prop
                 if target_prop.mapper.class_ is current_cls:
                     continue
 
@@ -218,7 +237,7 @@ class SchemaMenu(Gtk.Menu):
         return items
 
 
-def parse_typed_value(value, proptype):
+def parse_typed_value(value: Any, proptype: type | None) -> Any:
     """parse the input string and return the corresponding typed value
 
     handles boolean, integers, floats, datetime, None, Empty, and falls back to
@@ -267,13 +286,18 @@ class ExpressionRow:  # pylint: disable=too-many-instance-attributes
     ]
     custom_columns: dict[str, tuple] = {}
 
-    def __init__(self, query_builder, remove_callback, row_number):
-        self.proptype = None
-        self.grid = query_builder.expressions_table
+    def __init__(
+        self,
+        query_builder: "QueryBuilder",
+        remove_callback: Callable[[Self], None],
+        row_number: int,
+    ) -> None:
+        self.proptype: type | None = None
+        self.grid: Gtk.Grid = query_builder.expressions_table
         self.presenter = query_builder
         self.menu_item_activated = False
 
-        self.and_or_combo = None
+        self.and_or_combo: Gtk.ComboBoxText | None = None
         if row_number != 1:
             self.and_or_combo = Gtk.ComboBoxText()
             self.and_or_combo.append_text("and")
@@ -323,7 +347,7 @@ class ExpressionRow:  # pylint: disable=too-many-instance-attributes
         )
         self.cond_combo.set_tooltip_text("How to search")
 
-        self.value_widget = Gtk.Entry()
+        self.value_widget: Gtk.Widget = Gtk.Entry()
         self.value_widget.connect("changed", self.on_value_changed)
         self.value_widget.set_tooltip_text("The value to search for")
         self.grid.attach(self.value_widget, 4, row_number, 1, 1)
@@ -342,14 +366,16 @@ class ExpressionRow:  # pylint: disable=too-many-instance-attributes
         query_builder.resize(1, 1)
 
     @staticmethod
-    def on_prop_button_clicked(_button, event, menu):
+    def on_prop_button_clicked(
+        _button, event: Gdk.Event, menu: Gtk.Menu
+    ) -> None:
         menu.popup_at_pointer(event)
 
     @staticmethod
-    def is_accepted_text(text):
+    def is_accepted_text(text: str) -> bool:
         return text in ("None"[: len(text)], "Empty"[: len(text)])
 
-    def on_value_changed(self, widget):
+    def on_value_changed(self, widget: Gtk.Widget) -> None:
         """Adjust widget if required and if the query is valid enable OK."""
         # change to a standard entry if the user tries to enter none numbers
         if isinstance(widget, Gtk.SpinButton):
@@ -376,17 +402,17 @@ class ExpressionRow:  # pylint: disable=too-many-instance-attributes
                     self.value_widget.grab_focus()
                 self.value_widget.set_text(text)
                 self.value_widget.set_position(1)
-            self.value_widget.set_activates_default(True)
+            widget.set_activates_default(True)
         elif isinstance(widget, Gtk.Entry):
             if any(i in widget.get_text() for i in ["%", "_"]):
                 self.cond_combo.set_active(self.CONDITIONS.index("like"))
             elif self.cond_combo.get_active_text() == "like":
                 self.cond_combo.set_active(0)
-            self.value_widget.set_activates_default(True)
+            widget.set_activates_default(True)
 
         self.presenter.validate()
 
-    def on_number_value_changed(self, widget):
+    def on_number_value_changed(self, widget: Gtk.Entry) -> None:
         """Loosely constrain text to None or numbers parts only"""
         val = widget.get_text()
         if not self.is_accepted_text(val):
@@ -394,7 +420,9 @@ class ExpressionRow:  # pylint: disable=too-many-instance-attributes
             widget.set_text(val)
         self.on_value_changed(widget)
 
-    def on_schema_menu_activated(self, _menuitem, path, prop):
+    def on_schema_menu_activated(
+        self, _menuitem, path: str, prop: ColumnProperty
+    ) -> None:
         """Called when an item in the schema menu is activated"""
         self.prop_button.set_label(path)
         self.menu_item_activated = True
@@ -426,14 +454,17 @@ class ExpressionRow:  # pylint: disable=too-many-instance-attributes
         self.grid.show_all()
         self.presenter.validate()
 
-    def get_set_value_widget(self, path):
+    def get_set_value_widget(
+        self, path: str
+    ) -> Callable[[ColumnProperty, Any], None]:
         logger.debug("proptype = %s", self.proptype)
+
         column_name = path.rsplit(".", 1)[-1]
         if column_name in self.custom_columns:
             return partial(
                 self.set_custom_enum_widget, self.custom_columns[column_name]
             )
-        widgets = {
+        widgets: dict[type | None, Callable[[ColumnProperty, Any], None]] = {
             bauble.btypes.Enum: self.set_enum_widget,
             Integer: self.set_int_widget,
             Float: self.set_float_widget,
@@ -443,7 +474,7 @@ class ExpressionRow:  # pylint: disable=too-many-instance-attributes
         }
         return widgets.get(self.proptype, self.set_entry_widget)
 
-    def set_custom_enum_widget(self, values, _prop, val):
+    def set_custom_enum_widget(self, values: tuple, _prop, val: str) -> None:
         self.value_widget = Gtk.ComboBoxText()
         for value in values:
             self.value_widget.append_text(str(value))
@@ -451,7 +482,7 @@ class ExpressionRow:  # pylint: disable=too-many-instance-attributes
         self.value_widget.connect("changed", self.on_value_changed)
         utils.set_widget_value(self.value_widget, val)
 
-    def set_enum_widget(self, prop, val):
+    def set_enum_widget(self, prop: ColumnProperty, val: str) -> None:
         self.value_widget = Gtk.ComboBox()
         cell = Gtk.CellRendererText()
         self.value_widget.pack_start(cell, True)
@@ -469,7 +500,7 @@ class ExpressionRow:  # pylint: disable=too-many-instance-attributes
         self.value_widget.connect("changed", self.on_value_changed)
         utils.set_widget_value(self.value_widget, val)
 
-    def set_int_widget(self, _prop, val):
+    def set_int_widget(self, _prop, val: int | str) -> None:
         adjustment = Gtk.Adjustment(
             upper=1000000000000, step_increment=1, page_increment=10
         )
@@ -486,7 +517,7 @@ class ExpressionRow:  # pylint: disable=too-many-instance-attributes
             pass
         self.value_widget.connect("changed", self.on_number_value_changed)
 
-    def set_float_widget(self, _prop, val):
+    def set_float_widget(self, _prop, val: float | str) -> None:
         adjustment = Gtk.Adjustment(
             upper=10000000,
             lower=0.00000000001,
@@ -506,7 +537,7 @@ class ExpressionRow:  # pylint: disable=too-many-instance-attributes
             pass
         self.value_widget.connect("changed", self.on_number_value_changed)
 
-    def set_bool_widget(self, _prop, val):
+    def set_bool_widget(self, _prop, val: str) -> None:
         values = ["False", "True"]
         self.value_widget = Gtk.ComboBoxText()
         for value in values:
@@ -517,7 +548,7 @@ class ExpressionRow:  # pylint: disable=too-many-instance-attributes
             self.value_widget, val if val in values else "False"
         )
 
-    def set_date_widget(self, prop, val):
+    def set_date_widget(self, prop: ColumnProperty, val: str) -> None:
         self.value_widget = Gtk.Entry()
         self.value_widget.set_tooltip_text(
             "Date (e.g. 1/1/2021), 0 for today, a negative number for "
@@ -539,11 +570,11 @@ class ExpressionRow:  # pylint: disable=too-many-instance-attributes
             logger.debug("setting condition to 'on'")
             self.cond_combo.set_active(len(conditions) - 1)
         else:
-            self.cond_combo.set_active(conditions.index(prev))
+            self.cond_combo.set_active(conditions.index(str(prev)))
         self.cond_combo.handler_unblock(self.cond_handler)
         self.cond_combo.set_tooltip_text("How to search")
 
-    def set_entry_widget(self, _prop, val):
+    def set_entry_widget(self, _prop, val: str) -> None:
         self.value_widget = Gtk.Entry()
         self.value_widget.set_tooltip_text(
             'The text value to search for or "None" for no value has been '
@@ -554,7 +585,7 @@ class ExpressionRow:  # pylint: disable=too-many-instance-attributes
             self.value_widget.set_text(str(val))
 
     @staticmethod
-    def column_filter(key, prop):
+    def column_filter(key: str, prop: InspectionAttr) -> bool:
         # skip any id fields (e.g. genus_id) as they are available via the
         # related id property (e.g. species.genus_id == species.genus.id)
         # Except obj_id from tags
@@ -578,16 +609,16 @@ class ExpressionRow:  # pylint: disable=too-many-instance-attributes
         return True
 
     @staticmethod
-    def relation_filter(key, _prop):
+    def relation_filter(key: str, _prop) -> bool:
         if prefs.prefs.get(
             prefs.query_builder_advanced, False
         ) is False and key.startswith("_"):
             return False
         return True
 
-    def get_widgets(self):
-        """Returns a tuple of the and_or_combo, prop_button, cond_combo,
-        value_widget, and remove_button widgets.
+    def get_widgets(self) -> Generator[Gtk.Widget]:
+        """Returns the and_or_combo, prop_button, cond_combo, value_widget, and
+        remove_button widgets.
         """
         return (
             i
@@ -602,7 +633,7 @@ class ExpressionRow:  # pylint: disable=too-many-instance-attributes
             if i
         )
 
-    def get_expression(self):
+    def get_expression(self) -> str | None:
         """Return the expression represented by this ExpressionRow.
 
         If the expression is not valid then return None.
@@ -613,19 +644,19 @@ class ExpressionRow:  # pylint: disable=too-many-instance-attributes
 
         value = ""
         if isinstance(self.value_widget, Gtk.ComboBoxText):
-            value = self.value_widget.get_active_text()
+            value = self.value_widget.get_active_text() or ""
         elif isinstance(self.value_widget, Gtk.ComboBox):
             model = self.value_widget.get_model()
             active_iter = self.value_widget.get_active_iter()
             if active_iter:
                 value = model[active_iter][0]
-        else:
+        elif isinstance(self.value_widget, Gtk.Entry):
             # assume it's a Gtk.Entry or other widget with a text property
             value = self.value_widget.get_text().strip()
         value = parse_typed_value(value, self.proptype)
         and_or = ""
         if self.and_or_combo:
-            and_or = self.and_or_combo.get_active_text()
+            and_or = self.and_or_combo.get_active_text() or ""
         _not = self.not_combo.get_active_text()
         field_name = self.prop_button.get_label()
         if value == EmptyToken():
@@ -665,26 +696,26 @@ class BuiltQuery:
     """
 
     conditions = " ".join(ExpressionRow.CONDITIONS) + " on"
-    binop = oneOf(conditions, caseless=True).set_name("binary operator")
-    clause = Optional(not_) + unfiltered_identifier + binop + value_token
+    binop = one_of(conditions, caseless=True).set_name("binary operator")
+    clause = Opt(not_) + unfiltered_identifier + binop + value_token
     expression = Group(clause) + ZeroOrMore(
         Group(and_ + clause | or_ + clause)
     )
     query = domain + CaselessLiteral("where").suppress() + expression
 
-    def __init__(self, search_string):
+    def __init__(self, search_string: str) -> None:
         self.parsed = None
-        self._clauses = None
+        self._clauses: list[Clause] = []
         try:
-            self.parsed = self.query.parseString(search_string)
+            self.parsed = self.query.parse_string(search_string)
             self.is_valid = True
         except ParseException as e:
             logger.debug("%s(%s)", type(e).__name__, e)
             self.is_valid = False
 
     @property
-    def clauses(self) -> list:
-        if not self._clauses:
+    def clauses(self) -> list[Clause]:
+        if not self._clauses and self.parsed:
             self._clauses = []
             for part in [k for k in self.parsed if len(k) > 0][1:]:
                 clause = Clause()
@@ -713,8 +744,8 @@ class BuiltQuery:
         return self._clauses
 
     @property
-    def domain_str(self):
-        return self.parsed[0]
+    def domain_str(self) -> str:
+        return self.parsed[0] if self.parsed else ""
 
 
 @Gtk.Template(
@@ -733,12 +764,12 @@ class QueryBuilder(Gtk.Dialog):
     add_clause_button = cast(Gtk.Button, Gtk.Template.Child())
     confirm_button = cast(Gtk.Button, Gtk.Template.Child())
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
 
-        self.expression_rows = []
-        self.mapper = None
-        self.domain = None
+        self.expression_rows: list[ExpressionRow] = []
+        self.mapper: Mapper
+        self.domain: str | None = None
         self.table_row_count = 0
         self.domain_map = MapperSearch.get_domain_classes().copy()
 
@@ -752,7 +783,7 @@ class QueryBuilder(Gtk.Dialog):
 
         utils.make_label_clickable(self.help_label, self.on_help_clicked)
 
-    def on_help_clicked(self, _label, _event):
+    def on_help_clicked(self, _label, _event) -> None:
         msg = _(
             "<b>Search Domain</b> - the type of items you want "
             "returned.\n\n"
@@ -802,12 +833,12 @@ class QueryBuilder(Gtk.Dialog):
         dialog.destroy()
 
     @Gtk.Template.Callback()
-    def on_advanced_set(self, _switch, state):
+    def on_advanced_set(self, _switch, state: bool) -> None:
         prefs.prefs[prefs.query_builder_advanced] = state
         self.reset_expression_table()
 
     @Gtk.Template.Callback()
-    def on_domain_combo_changed(self, combo):
+    def on_domain_combo_changed(self, combo: Gtk.ComboBox) -> None:
         """Change the search domain."""
         index = combo.get_active()
 
@@ -815,7 +846,7 @@ class QueryBuilder(Gtk.Dialog):
         self.domain = self.domain_liststore[index][0]
         self.reset_expression_table()
 
-    def reset_expression_table(self):
+    def reset_expression_table(self) -> None:
         """Resets the expression table, clear the query label and deletes all
         the expression rows.
         """
@@ -833,14 +864,14 @@ class QueryBuilder(Gtk.Dialog):
         # let user add more clauses
         self.add_clause_button.set_sensitive(True)
 
-    def validate(self):
+    def validate(self) -> bool:
         """Validate the search expression is a valid expression."""
         valid = False
         query_string = f"{self.domain} where"
         for row in self.expression_rows:
-            value = None
+            value = False
             if isinstance(row.value_widget, Gtk.Entry):  # also spinbutton
-                value = row.value_widget.get_text()
+                value = bool(row.value_widget.get_text())
             elif isinstance(row.value_widget, Gtk.ComboBox):
                 value = row.value_widget.get_active() >= 0
 
@@ -856,7 +887,7 @@ class QueryBuilder(Gtk.Dialog):
         self.confirm_button.set_sensitive(valid)
         return valid
 
-    def remove_expression_row(self, row):
+    def remove_expression_row(self, row: ExpressionRow) -> None:
         """Remove a row from the expressions table."""
         for widget in row.get_widgets():
             widget.destroy()
@@ -865,12 +896,12 @@ class QueryBuilder(Gtk.Dialog):
         self.resize(1, 1)
 
     @Gtk.Template.Callback()
-    def on_add_clause(self, _widget=None):
+    def on_add_clause(self, _widget=None) -> None:
         """Add a row to the expressions table."""
-        domain_cls = self.domain_map.get(self.domain)
-
-        if domain_cls is None:
+        if not self.domain:
             return
+
+        domain_cls = self.domain_map.get(self.domain)
 
         self.mapper = class_mapper(domain_cls)
         self.table_row_count += 1
@@ -880,26 +911,29 @@ class QueryBuilder(Gtk.Dialog):
         self.expression_rows.append(row)
         self.expressions_table.show_all()
 
-    def destroy(self):  # pylint: disable=arguments-differ
+    def destroy(self) -> None:  # pylint: disable=arguments-differ
         for row in self.expression_rows:
             row.schema_menu.destroy()
         super().destroy()
 
     @property
-    def valid_clauses(self):
+    def valid_clauses(self) -> list[str]:
         return [
-            i.get_expression()
+            value
             for i in self.expression_rows
-            if i.get_expression()
+            if (value := i.get_expression())
         ]
 
-    def get_query(self):
+    def get_query(self) -> str:
         """Return query expression string."""
+
+        if not self.domain:
+            return ""
 
         query = [self.domain, "where"] + self.valid_clauses
         return " ".join(query)
 
-    def set_query(self, query):
+    def set_query(self, query: str) -> None:
         parsed = BuiltQuery(query)
         if not parsed.is_valid:
             logger.debug("cannot restore query, invalid")
@@ -914,7 +948,7 @@ class QueryBuilder(Gtk.Dialog):
             if clause.connector:
                 self.on_add_clause()
             row = self.expression_rows[-1]
-            if clause.connector:
+            if clause.connector and row.and_or_combo:
                 row.and_or_combo.set_active(
                     {"and": 0, "or": 1}[clause.connector]
                 )
@@ -932,9 +966,9 @@ class QueryBuilder(Gtk.Dialog):
             ):
                 row.cond_combo.append_text("on")
                 conditions.append("on")
-            row.on_schema_menu_activated(None, clause.field, column)
+            row.on_schema_menu_activated(None, clause.field or "", column)
             if isinstance(row.value_widget, Gtk.Entry):  # also spinbutton
-                row.value_widget.set_text(clause.value)
+                row.value_widget.set_text(clause.value or "")
             elif isinstance(row.value_widget, Gtk.ComboBox):
                 for item in row.value_widget.props.model:
                     val = None if clause.value == "None" else clause.value
@@ -945,7 +979,12 @@ class QueryBuilder(Gtk.Dialog):
             if clause.operator in conditions:
                 row.cond_combo.set_active(conditions.index(clause.operator))
 
-    def get_column(self, clause, domain_str):
+    def get_column(
+        self, clause: Clause, domain_str: str
+    ) -> ColumnProperty | None:
+        if not clause.field:
+            return None
+
         steps = clause.field.split(".")
         cls = self.domain_map[domain_str]
         mapper = class_mapper(cls)
