@@ -37,6 +37,7 @@ logger = logging.getLogger(__name__)
 from gi.repository import Gdk
 from gi.repository import Gtk
 from pyparsing import CaselessLiteral
+from pyparsing import Forward
 from pyparsing import Group
 from pyparsing import Opt
 from pyparsing import ParseException
@@ -697,11 +698,19 @@ class BuiltQuery:
 
     conditions = " ".join(ExpressionRow.CONDITIONS) + " on"
     binop = one_of(conditions, caseless=True).set_name("binary operator")
-    clause = Opt(not_) + unfiltered_identifier + binop + value_token
-    expression = Group(clause) + ZeroOrMore(
-        Group(and_ + clause | or_ + clause)
-    )
+    # Forward to break out railroad diagram i.e. don't streamline and/or_clause
+    clause = cast(Forward, Forward().set_name("clause"))
+    and_clause = Group(and_ + clause).set_name("and clause")
+    or_clause = Group(or_ + clause).set_name("or clause")
+    clause <<= Opt(not_) + unfiltered_identifier + binop + value_token
+
+    infix_clauses = (and_clause | or_clause).set_name("infix clauses")
+    # Forward to break out railroad diagram
+    expression = cast(Forward, Forward().set_name("expression"))
     query = domain + CaselessLiteral("where").suppress() + expression
+    expression <<= (Group(clause) + ZeroOrMore(infix_clauses)).set_name(
+        "expression"
+    )
 
     def __init__(self, search_string: str) -> None:
         self.parsed = None
@@ -754,7 +763,6 @@ class BuiltQuery:
 class QueryBuilder(Gtk.Dialog):
 
     __gtype_name__ = "QueryBuilder"
-    # view_accept_buttons = ["cancel_button", "confirm_button"]
     domain_liststore = cast(Gtk.ListStore, Gtk.Template.Child())
     domain_combo = cast(Gtk.ComboBox, Gtk.Template.Child())
     advanced_switch = cast(Gtk.Switch, Gtk.Template.Child())
