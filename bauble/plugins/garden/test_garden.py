@@ -4385,6 +4385,43 @@ class InstitutionTests(GardenTestCase):
         logger.debug(fields)
         self.assertEqual(len(fields), 2)
 
+    def test_bails_early_if_no_engine(self):
+        # clear the entries first as they are filled in setUp_data
+        (
+            self.session.query(BaubleMeta)
+            .filter(utils.ilike(BaubleMeta.name, "inst_%"))
+            .delete(synchronize_session=False)
+        )
+        self.session.commit()
+        inst = Institution()
+        inst.name = "Test"
+        # write bails
+        with unittest.mock.patch(
+            "bauble.plugins.garden.institution.db.engine", None
+        ):
+            inst.write()
+        fields = (
+            self.session.query(BaubleMeta)
+            .filter(utils.ilike(BaubleMeta.name, "inst_%"))
+            .all()
+        )
+        self.assertEqual(len(fields), 0)
+        # write succeeds
+        inst.write()
+        fields = (
+            self.session.query(BaubleMeta)
+            .filter(utils.ilike(BaubleMeta.name, "inst_%"))
+            .all()
+        )
+        self.assertEqual(len(fields), 13)
+        # init bails
+        with unittest.mock.patch(
+            "bauble.plugins.garden.institution.db.engine", None
+        ):
+            inst = Institution()
+        for value in inst.__dict__.values():
+            self.assertIsNone(value)
+
 
 class InstitutionPresenterTests(GardenTestCase):
     def test_can_create_presenter(self):

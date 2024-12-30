@@ -1,6 +1,7 @@
 # Copyright 2008-2010 Brett Adams
 # Copyright 2015,2018 Mario Frasca <mario@anche.no>.
 # Copyright 2017 Jardín Botánico de Quito
+# Copyright 2024 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -24,11 +25,16 @@
 import logging
 import os
 import re
+from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)
 
 from gi.repository import Gtk
+from sqlalchemy import Table
+from sqlalchemy import bindparam
+from sqlalchemy import select
 
+from bauble import db
 from bauble import editor
 from bauble import meta
 from bauble import paths
@@ -38,7 +44,8 @@ from bauble.editor import GenericEditorView
 from bauble.i18n import _
 
 
-class Institution:
+@dataclass
+class Institution:  # pylint: disable=too-many-instance-attributes
     """Institution is a "live" object, you only need to set a value on it and
     then call `write` to persist them to the database.
 
@@ -46,70 +53,62 @@ class Institution:
     table
     """
 
-    name: str
-    abbreviation: str
-    code: str
-    contact: str
-    technical_contact: str
-    email: str
-    tel: str
-    fax: str
-    address: str
-    geo_latitude: str
-    geo_longitude: str
-    geo_zoom: str
-    uuid: str
+    name: str | None = None
+    abbreviation: str | None = None
+    code: str | None = None
+    contact: str | None = None
+    technical_contact: str | None = None
+    email: str | None = None
+    tel: str | None = None
+    fax: str | None = None
+    address: str | None = None
+    geo_latitude: str | None = None
+    geo_longitude: str | None = None
+    geo_zoom: str | None = None
+    uuid: str | None = None
 
-    __properties = (
-        "name",
-        "abbreviation",
-        "code",
-        "contact",
-        "technical_contact",
-        "email",
-        "tel",
-        "fax",
-        "address",
-        "geo_latitude",
-        "geo_longitude",
-        "geo_zoom",
-        "uuid",
-    )
+    def __post_init__(self) -> None:
+        table: Table = meta.BaubleMeta.__table__
 
-    table = meta.BaubleMeta.__table__
+        if not db.engine:
+            return
 
-    def __init__(self):
-        for prop in self.__properties:
-            # initialize properties to None
-            setattr(self, prop, None)
-            db_prop = str("inst_" + prop)
-            result = self.table.select(self.table.c.name == db_prop).execute()
-            row = result.fetchone()
-            if row:
-                setattr(self, prop, row["value"])
-            result.close()
+        with db.engine.begin() as conn:
+            for key in self.__dict__:
+                db_prop = str("inst_" + key)
+                stmt = select(table.c.value).where(table.c.name == db_prop)
+                value = conn.execute(stmt).scalar()
+                setattr(self, key, value)
 
-    def write(self):
-        for prop in self.__properties:
-            value = getattr(self, prop)
-            db_prop = utils.nstr("inst_" + prop)
-            if value is not None:
-                value = utils.nstr(value)
-            result = self.table.select(self.table.c.name == db_prop).execute()
-            row = result.fetchone()
-            result.close()
-            # have to check if the property exists first because sqlite doesn't
-            # raise an error if you try to update a value that doesn't exist
-            # and do an insert and then catching the exception if it exists
-            # and then updating the value is too slow
-            if not row:
-                logger.debug("insert: %s = %s", prop, value)
-                self.table.insert().execute(name=db_prop, value=value)
-            else:
-                logger.debug("update: %s = %s", prop, value)
-                self.table.update(self.table.c.name == db_prop).execute(
-                    value=value
+    def write(self) -> None:
+        table: Table = meta.BaubleMeta.__table__
+
+        if not db.engine:
+            return
+
+        inserts: list[dict[str, str]] = []
+        updates: list[dict[str, str]] = []
+        with db.engine.begin() as conn:
+            for key, value in self.__dict__.items():
+                db_prop = str("inst_" + key)
+                stmt = select(table.c.id).where(table.c.name == db_prop)
+                row = conn.execute(stmt).scalar()
+                if row:
+                    updates.append({"_name": db_prop, "value": value})
+                else:
+                    inserts.append({"name": db_prop, "value": value})
+
+            if inserts:
+                insert = table.insert()
+                conn.execute(insert, inserts)
+
+            if updates:
+                update = (
+                    table.update()
+                    .where(table.c.name == bindparam("_name"))
+                    .values(value=bindparam("value"))
                 )
+                conn.execute(update, updates)
 
 
 class InstitutionEditorView(GenericEditorView):
