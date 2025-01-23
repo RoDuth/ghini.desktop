@@ -1,5 +1,5 @@
 # pylint: disable=too-many-public-methods
-# Copyright (c) 2023 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright 2023-2025 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -447,6 +447,79 @@ class GUITests(BaubleTestCase):
         self.assertEqual(
             [v[0] for v in comp_model], ["test1", "test2", "test3", "test4"]
         )
+
+    def test_main_entry_match_func(self):
+        values = [
+            "loc = LOC1",
+            "location where id = 1",
+            "test 2",
+            "test3",
+            "Cynodon dactylon 'TifTuf'",
+            "Cynodon 'TifTuf'",
+        ]
+        completion = Gtk.EntryCompletion()
+        # no model return False
+        filtered = [
+            i
+            for i in range(len(values))
+            if GUI.main_entry_match_func(completion, "loc", i)
+        ]
+        self.assertEqual(filtered, [])
+
+        model = Gtk.ListStore(str)
+        for i in values:
+            model.append([i])
+        completion.set_model(model)
+        filtered = [
+            i
+            for i in range(len(values))
+            if GUI.main_entry_match_func(completion, "loc", i)
+        ]
+        self.assertEqual(filtered, [0, 1])
+        filtered = [
+            i
+            for i in range(len(values))
+            if GUI.main_entry_match_func(completion, "l =", i)
+        ]
+        self.assertEqual(filtered, [0])
+        filtered = [
+            i
+            for i in range(len(values))
+            if GUI.main_entry_match_func(completion, "l whe", i)
+        ]
+        self.assertEqual(filtered, [1])
+        filtered = [
+            i
+            for i in range(len(values))
+            if GUI.main_entry_match_func(
+                completion, "location where id = 1 ", i
+            )
+        ]
+        self.assertEqual(filtered, [1])
+        filtered = [
+            i
+            for i in range(len(values))
+            if GUI.main_entry_match_func(completion, "tes", i)
+        ]
+        self.assertEqual(filtered, [2, 3])
+        filtered = [
+            i
+            for i in range(len(values))
+            if GUI.main_entry_match_func(completion, "cyn 'ti", i)
+        ]
+        self.assertEqual(filtered, [5])
+        filtered = [
+            i
+            for i in range(len(values))
+            if GUI.main_entry_match_func(completion, "cyn dac 'ti", i)
+        ]
+        self.assertEqual(filtered, [4])
+        filtered = [
+            i
+            for i in range(len(values))
+            if GUI.main_entry_match_func(completion, "blah blah blah", i)
+        ]
+        self.assertEqual(filtered, [])
 
     def test_title(self):
         import bauble

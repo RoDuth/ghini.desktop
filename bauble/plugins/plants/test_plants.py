@@ -1,7 +1,7 @@
 # Copyright 2008-2010 Brett Adams
 # Copyright 2015 Mario Frasca <mario@anche.no>.
 # Copyright 2017 Jardín Botánico de Quito
-# Copyright 2021-2024 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright 2021-2025 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -7062,6 +7062,20 @@ class GlobalFunctionsTest(PlantTestCase):
                 "Cynodon dactylon 'TifTuf'",
                 "Cynodon dactylon 'DT-1'",
                 "Cynodon dactylon",
+            },
+        )
+        self.assertEqual(
+            get_binomial_completions("cynod dact"),
+            {
+                "Cynodon dactylon 'TifTuf'",
+                "Cynodon dactylon 'DT-1'",
+                "Cynodon dactylon",
+            },
+        )
+        self.assertEqual(
+            get_binomial_completions("Cynod 'T"),
+            {
+                "Cynodon 'TifTuf'",
             },
         )
         self.assertEqual(

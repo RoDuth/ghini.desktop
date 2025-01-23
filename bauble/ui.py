@@ -1,6 +1,6 @@
 # Copyright 2008-2010 Brett Adams
 # Copyright 2015 Mario Frasca <mario@anche.no>.
-# Copyright 2020-2024 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright 2020-2025 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -675,6 +675,7 @@ class GUI:
             compl_model = Gtk.ListStore(str)
             completion.set_model(compl_model)
             completion.set_minimum_key_length(2)
+            completion.set_match_func(self.main_entry_match_func)
             main_entry.connect("changed", self.on_main_entry_changed)
         else:
             compl_model = completion.get_model()
@@ -693,6 +694,32 @@ class GUI:
             for herstory in history:
                 model.append([herstory])
                 self.hist_completions.append(herstory)
+
+    @staticmethod
+    def main_entry_match_func(
+        completion: Gtk.EntryCompletion, key: str, treeiter: Gtk.TreeIter
+    ) -> bool:
+        model = completion.get_model()
+
+        if not model:
+            return False
+
+        value = model[treeiter][0].lower()
+
+        if value.startswith(key):
+            return True
+
+        key_parts = key.split()
+        value_parts = value.split()
+
+        if len(key_parts) > len(value_parts):
+            return False
+
+        for key_part, value_part in zip(key_parts, value_parts):
+            if not value_part.startswith(key_part):
+                return False
+
+        return True
 
     def on_main_entry_changed(self, entry: Gtk.Entry) -> None:
         text = entry.get_text()
