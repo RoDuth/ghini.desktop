@@ -48,7 +48,6 @@ from bauble import paths
 from bauble import pluginmgr
 from bauble import prefs
 from bauble import utils
-from bauble.editor import GenericEditorView
 from bauble.i18n import _
 from bauble.prefs import datetime_format_pref
 from bauble.search.query_builder import QueryBuilder

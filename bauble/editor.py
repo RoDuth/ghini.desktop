@@ -1886,8 +1886,8 @@ class PresenterLinksMixin:
         action_group = Gio.SimpleActionGroup()
 
         menu_has_items = False
-        for name, button in prefs.prefs.itersection(
-            self.LINK_BUTTONS_PREF_KEY
+        for name, button in sorted(
+            prefs.prefs.itersection(self.LINK_BUTTONS_PREF_KEY)
         ):
             if not button.get("editor_button"):
                 continue
