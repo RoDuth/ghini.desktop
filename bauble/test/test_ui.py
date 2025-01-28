@@ -749,10 +749,6 @@ class GUITests(BaubleTestCase):
         mock_open.assert_called_once()
         mock_open.reset_mock()
 
-        gui.on_help_menu_web_devel(None, None)
-        mock_open.assert_called_once()
-        mock_open.reset_mock()
-
         gui.on_help_menu_about(None, None)
         mock_about.assert_called()
         mock_about().set_program_name.assert_called_once()

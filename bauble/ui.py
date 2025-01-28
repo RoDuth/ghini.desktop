@@ -1102,27 +1102,11 @@ class GUI:
         filename = os.path.join(paths.appdata_dir(), "bauble.log")
         desktop.open(filename, dialog_on_error=True)
 
-    @staticmethod
-    def on_help_menu_web_devel(_action, _param):
-        desktop.open(
-            "http://github.com/RoDuth/ghini.desktop/", dialog_on_error=True
-        )
-
-    # @staticmethod
-    # def on_help_menu_web_wiki(_action, _param):
-    #     desktop.open('http://ghini.github.io/',
-    #                  dialog_on_error=True)
-
-    # @staticmethod
-    # def on_help_menu_web_forum(_action, _param):
-    #     desktop.open('https://groups.google.com/forum/#!forum/bauble',
-    #                  dialog_on_error=True)
-
     def on_help_menu_about(self, _action, _param):
         about = Gtk.AboutDialog(transient_for=self.window)
-        about.set_program_name("Ghini (BBG)")
+        about.set_program_name("Ghini Desktop")
         about.set_version(bauble.version)
-        about.set_website(_("http://ghini.github.io"))
+        # about.set_website(_("http://ghini.github.io"))
         f = os.path.join(paths.lib_dir(), "images", "icon.svg")
         logger.debug("about using icon: %s", f)
         pixbuf = GdkPixbuf.Pixbuf.new_from_file(f)
