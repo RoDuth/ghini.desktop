@@ -46,8 +46,8 @@ from bauble.test import BaubleTestCase
 from bauble.test import get_setUp_data_funcs
 from bauble.test import update_gui
 from bauble.test import wait_on_threads
-from bauble.utils.web import get_net_sess
 from bauble.utils.web import PACFile
+from bauble.utils.web import get_net_sess
 from bauble.view import SearchView
 
 from ..plants.species import SpeciesEditor
@@ -1041,6 +1041,29 @@ class TestSearchViewMapPresenter(BaubleTestCase):
         # is_visible = True
         presenter.populate_map_from_search_view.assert_called_once()
         map_.destroy()
+
+    @mock.patch("bauble.plugins.garden.garden_map.get_search_view_selected")
+    def test__populate_after_timer_only_updates_if_already_populated(
+        self, mock_get_selected
+    ):
+        map_ = GardenMap(Map())
+        presenter = SearchViewMapPresenter(map_)
+        presenter.populate_map_from_search_view = mock.Mock()
+        presenter.update_map = mock.Mock()
+        presenter.is_visible = lambda: True
+        presenter.populated = True
+
+        mock_get_selected.return_value = None
+        presenter._populate_after_timer()
+        # if nothing selected don't update
+        presenter.populate_map_from_search_view.assert_not_called()
+        presenter.update_map.assert_not_called()
+
+        mock_get_selected.return_value = ["test1", "test2"]
+        presenter._populate_after_timer()
+        # selected, update
+        presenter.populate_map_from_search_view.assert_not_called()
+        presenter.update_map.assert_called_with(["test1", "test2"])
 
     def test_get_location_polys(self):
         for func in get_setUp_data_funcs():

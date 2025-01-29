@@ -2075,6 +2075,14 @@ class SearchView(pluginmgr.View, Gtk.Box):
         self.results_view.connect("row-activated", self.on_view_row_activated)
 
 
+def get_search_view_selected() -> list[db.Base] | None:
+    """If SearchView is the current view return the selected objects."""
+    selected: list[db.Base] | None = None
+    if bauble.gui and isinstance(view := bauble.gui.get_view(), SearchView):
+        selected = view.get_selected_values()
+    return selected
+
+
 class Note:
     # pylint: disable=too-few-public-methods
     """temporary patch before we implement Notes as a plugin."""

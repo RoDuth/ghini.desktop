@@ -57,12 +57,13 @@ from bauble import paths
 from bauble import prefs
 from bauble import utils
 from bauble.i18n import _
-from bauble.utils.web import get_net_sess
 from bauble.utils import timed_cache
 from bauble.utils.geo import is_point_within_poly
 from bauble.utils.geo import polylabel
+from bauble.utils.web import get_net_sess
 from bauble.view import DefaultCommandHandler
 from bauble.view import SearchView
+from bauble.view import get_search_view_selected
 from bauble.view import select_in_search_results
 
 from .institution import Institution
@@ -636,7 +637,7 @@ class GardenMap(Gtk.Paned):  # pylint: disable=too-many-instance-attributes
             i += 1
         return options
 
-    def set_tiles_from_prefs(self):
+    def set_tiles_from_prefs(self) -> None:
         base_tiles = prefs.prefs.get(MAP_TILES_PREF_KEY, 1)
         self.map_.set_property("map-source", OsmGpsMap.MapSource_t(base_tiles))
 
@@ -1071,7 +1072,7 @@ class SearchViewMapPresenter:
                 source.attach()
                 glib_events[plant.id] = source
 
-    def clear_all_threads_and_events(self):
+    def clear_all_threads_and_events(self) -> None:
         logger.debug("populate_map: stopping threads")
         # stop threads and wait
         self.thread_event.set()
@@ -1127,10 +1128,16 @@ class SearchViewMapPresenter:
             300, self._populate_after_timer
         )
 
-    def _populate_after_timer(self):
-        if not self.populated and self.is_visible():
-            logger.debug("populate_after_timer")
-            self.populate_map_from_search_view()
+    def _populate_after_timer(self) -> None:
+        if self.is_visible():
+            if self.populated:
+                logger.debug("populate_after_timer: update selected")
+                selected = get_search_view_selected()
+                if selected:
+                    self.update_map(selected)
+            else:
+                logger.debug("populate_after_timer: populate from search view")
+                self.populate_map_from_search_view()
         self._resize_timer_id = None
 
     def populate_map_from_search_view(

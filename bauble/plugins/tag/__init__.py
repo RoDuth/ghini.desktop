@@ -62,6 +62,7 @@ from bauble.view import InfoBox
 from bauble.view import InfoExpander
 from bauble.view import PropertiesExpander
 from bauble.view import SearchView
+from bauble.view import get_search_view_selected
 
 
 class TagsMenuManager:
@@ -116,10 +117,7 @@ class TagsMenuManager:
                 GLib.Variant.new_string(self.active_tag_name)
             )
 
-        if not selected_values and bauble.gui:
-            view = bauble.gui.get_view()
-            if isinstance(view, SearchView):
-                selected_values = view.get_selected_values()
+        selected_values = selected_values or get_search_view_selected()
 
         if selected_values:
             if self.active_tag_name and self.apply_active_tag_action:

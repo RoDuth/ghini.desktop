@@ -48,6 +48,7 @@ from bauble.view import PicturesScroller
 from bauble.view import SearchView
 from bauble.view import _mainstr_tmpl
 from bauble.view import _substr_tmpl
+from bauble.view import get_search_view_selected
 from bauble.view import multiproc_counter
 from bauble.view import select_in_search_results
 
@@ -1928,6 +1929,20 @@ class GlobalFunctionsTests(BaubleTestCase):
         self.assertNotEqual(start, end)
         self.assertEqual(end[0].id, obj.id)
         search_view.cancel_threads()
+
+    @mock.patch("bauble.gui")
+    def test_get_search_view_selected(self, mock_gui):
+        for func in get_setUp_data_funcs():
+            func()
+        search_view = SearchView()
+        search_view.search("plant=*")
+        self.assertTrue(search_view.get_selected_values())
+
+        mock_gui.get_view.return_value = search_view
+
+        self.assertEqual(
+            get_search_view_selected(), search_view.get_selected_values()
+        )
 
     def test_select_in_search_results_adds_not_existing(self):
         for func in get_setUp_data_funcs():
