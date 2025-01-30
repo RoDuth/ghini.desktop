@@ -46,6 +46,7 @@ logger = logging.getLogger(__name__)
 
 from gi.repository import GdkPixbuf
 from gi.repository import GLib
+from gi.repository import GObject
 from gi.repository import Gtk
 from pyparsing import Group
 from pyparsing import ParseException
@@ -557,11 +558,7 @@ def get_widget_value(widget):
         return nstr(widget.get_text())
     if isinstance(widget, Gtk.TextView):
         textbuffer = widget.get_buffer()
-        return nstr(
-            textbuffer.get_text(
-                textbuffer.get_start_iter(), textbuffer.get_end_iter(), False
-            )
-        )
+        return nstr(textbuffer.get_text(*textbuffer.get_bounds(), False))
     if isinstance(widget, Gtk.Entry):
         return nstr(widget.get_text())
     if isinstance(widget, Gtk.ComboBox):
@@ -587,7 +584,13 @@ def get_widget_value(widget):
     )
 
 
-def set_widget_value(widget, value, markup=False, default=None, index=0):
+def set_widget_value(  # pylint: disable=too-many-statements,too-many-branches
+    widget: GObject.Object,
+    value: Any,
+    markup: bool = False,
+    default: Any = None,
+    index: int = 0,
+) -> None:
     """Set the value of the widget.
 
     :param widget: an instance of Gtk.Widget
@@ -609,11 +612,11 @@ def set_widget_value(widget, value, markup=False, default=None, index=0):
         else:
             value = default
 
-    # assume that if value is a date then we want to display it with
-    # the default date format
-    from bauble import prefs
-
     if isinstance(value, datetime.date):
+        # assume that if value is a date then we want to display it with
+        # the default date format
+        from bauble import prefs
+
         date_format = prefs.prefs[prefs.date_format_pref]
         value = value.strftime(date_format)
 
@@ -630,20 +633,13 @@ def set_widget_value(widget, value, markup=False, default=None, index=0):
         if value:
             widget.set_value(float(value or 0))
     elif isinstance(widget, Gtk.Entry):
-        # This can create a "Warning: g_value_get_int: assertion
-        # 'G_VALUE_HOLDS_INT (value)' failed
-        #   widget.set_text(nstr(value))", seems safe to ignore it.
-        #   see: https://stackoverflow.com/a/40163816
         widget.set_text(str(value))
     elif isinstance(widget, Gtk.ComboBox):
         # ComboBox.with_entry
         if widget.get_has_entry():
-            widget.get_child().set_text(str(value or ""))
+            value = "" if value is None else value
+            cast(Gtk.Entry, widget.get_child()).set_text(str(value))
             return
-        # Gtk.ComboBoxText
-        if isinstance(widget, Gtk.ComboBoxText):
-            widget.get_child().append_text = value or ""
-        # Gtk.ComboBox
         treeiter = None
         if not widget.get_model():
             logger.warning(
@@ -673,10 +669,7 @@ def set_widget_value(widget, value, markup=False, default=None, index=0):
             widget.set_inconsistent(False)
             widget.set_active(False)
     elif isinstance(widget, Gtk.Button):
-        if value is None:
-            widget.props.label = ""
-        else:
-            widget.props.label = nstr(value)
+        widget.set_label(str(value or ""))
 
     else:
         raise TypeError(
@@ -1527,6 +1520,8 @@ def topological_sort(items, partial_order):
 class GenericMessageBox(Gtk.EventBox):
     """Abstract class for showing a message box at the top of an editor."""
 
+    message: str
+
     def __init__(self):
         super().__init__()
         self.box = Gtk.Box()
@@ -1673,14 +1668,14 @@ MESSAGE_BOX_ERROR = 2
 MESSAGE_BOX_YESNO = 3
 
 
-def add_message_box(parent, typ=MESSAGE_BOX_INFO):
+def add_message_box(parent, typ=MESSAGE_BOX_INFO) -> GenericMessageBox:
     """
     :param parent: the parent :class:`Gtk.Box` width to add the
       message box to
     :param typ: one of MESSAGE_BOX_INFO, MESSAGE_BOX_ERROR or
       MESSAGE_BOX_YESNO
     """
-    msg_box = None
+    msg_box: Gtk.EventBox
     if typ == MESSAGE_BOX_INFO:
         msg_box = MessageBox()
     elif typ == MESSAGE_BOX_ERROR:

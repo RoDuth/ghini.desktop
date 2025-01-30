@@ -1,7 +1,7 @@
 # Copyright 2008-2010 Brett Adams
 # Copyright 2015,2017 Mario Frasca <mario@anche.no>.
 # Copyright 2017 Jardín Botánico de Quito
-# Copyright 2021-2024 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright 2021-2025 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -71,7 +71,10 @@ from .accession import dms_to_decimal
 from .accession import latitude_to_dms
 from .accession import longitude_to_dms
 from .institution import Institution
-from .institution import InstitutionPresenter
+from .institution import InstitutionCommand
+from .institution import InstitutionDialog
+from .institution import InstitutionTool
+from .institution import start_institution_editor
 from .location import Location
 from .location import LocationEditor
 from .location import LocationPicture
@@ -4310,7 +4313,7 @@ class CollectionTests(GardenTestCase):
 
 
 class InstitutionTests(GardenTestCase):
-    def test_init__9_props(self):
+    def test_init_13_props(self):
         o = Institution()
         o.name = "Ghini"
         o.write()
@@ -4319,7 +4322,7 @@ class InstitutionTests(GardenTestCase):
             .filter(utils.ilike(BaubleMeta.name, "inst_%"))
             .all()
         )
-        self.assertEqual(len(fields), 13)  # 13 props define the institution
+        self.assertEqual(len(fields), 13)
 
     def test_init__one_institution(self):
         o = Institution()
@@ -4423,37 +4426,108 @@ class InstitutionTests(GardenTestCase):
             self.assertIsNone(value)
 
 
-class InstitutionPresenterTests(GardenTestCase):
-    def test_can_create_presenter(self):
-        from bauble.editor import MockView
+class InstitutionDialogTests(BaubleTestCase):
+    def test_can_create_dialog(self):
+        model = Institution()
+        dialog = InstitutionDialog(model)
+        self.assertEqual(dialog.model, model)
 
-        view = MockView()
-        o = Institution()
-        presenter = InstitutionPresenter(o, view)
-        self.assertEqual(presenter.view, view)
+    @unittest.mock.patch.object(InstitutionDialog, "set_destroy_with_parent")
+    @unittest.mock.patch("bauble.gui")
+    def test_sets_destroy_with_parent(self, mock_gui, mock_destroy_w_parent):
+        # mock_gui purelly for the coverage
+        mock_gui.window = Gtk.Window()
+        model = Institution()
+        dialog = InstitutionDialog(model)
+        self.assertEqual(dialog.model, model)
+        mock_destroy_w_parent.assert_called_with(True)
 
     def test_empty_name_is_a_problem(self):
-        from bauble.editor import MockView
-
-        view = MockView()
-        o = Institution()
-        o.name = ""
-        InstitutionPresenter(o, view)
-        self.assertTrue("add_box" in view.invoked)
-        self.assertEqual(len(view.boxes), 1)
+        model = Institution()
+        model.name = ""
+        dialog = InstitutionDialog(model)
+        self.assertIsNotNone(dialog.message_box)
+        self.assertEqual(len(dialog.message_box_parent.get_children()), 1)
 
     def test_initially_empty_name_then_specified_is_ok(self):
-        from bauble.editor import MockView
+        model = Institution()
+        model.name = ""
+        dialog = InstitutionDialog(model)
+        dialog.inst_name.set_text("testBG")
+        self.assertEqual(model.name, "testBG")
+        self.assertIsNone(dialog.message_box)
+        self.assertEqual(len(dialog.message_box_parent.get_children()), 0)
 
-        view = MockView()
-        o = Institution()
-        o.name = ""
-        presenter = InstitutionPresenter(o, view)
-        presenter.view.widget_set_value("inst_name", "bauble")
-        presenter.on_non_empty_text_entry_changed("inst_name")
-        self.assertTrue("remove_box" in view.invoked)
-        self.assertEqual(o.name, "bauble")
-        self.assertEqual(presenter.view.boxes, set())
+    def test_on_text_buffer_changed(self):
+        model = Institution()
+        text_buffer = Gtk.TextBuffer()
+
+        dialog = InstitutionDialog(model)
+
+        dialog.widgets_to_model_map = {text_buffer: "address"}
+
+        text_buffer.set_text("test")
+        dialog.on_text_buffer_changed(text_buffer)
+        self.assertEqual(model.address, "test")
+
+    def test_on_text_entry_changed(self):
+        model = Institution()
+        entry = Gtk.Entry()
+
+        dialog = InstitutionDialog(model)
+
+        dialog.widgets_to_model_map = {entry: "name"}
+
+        entry.set_text("BG")
+        dialog.on_text_entry_changed(entry)
+        self.assertEqual(model.name, "BG")
+
+    def test_on_combobox_changed(self):
+        model = Institution()
+
+        dialog = InstitutionDialog(model)
+        combo = Gtk.ComboBoxText()
+        combo.append_text("1")
+        combo.append_text("2")
+        combo.append_text("3")
+
+        dialog.widgets_to_model_map = {combo: "geo_zoom"}
+
+        combo.set_active(1)
+        dialog.on_combobox_changed(combo)
+        self.assertEqual(model.geo_zoom, "2")
+
+    @staticmethod
+    @unittest.mock.patch(
+        "bauble.plugins.garden.institution.InstitutionDialog.run"
+    )
+    @unittest.mock.patch("bauble.plugins.garden.institution.Institution.write")
+    def test_start_institution_editor(mock_write, mock_run):
+        mock_run.return_value = Gtk.ResponseType.OK
+        start_institution_editor()
+        mock_write.assert_called()
+
+        mock_write.reset_mock()
+
+        mock_run.return_value = Gtk.ResponseType.CANCEL
+        start_institution_editor()
+        mock_write.assert_not_called()
+
+    @staticmethod
+    @unittest.mock.patch(
+        "bauble.plugins.garden.institution.start_institution_editor"
+    )
+    def test_institution_command(mock_start):
+        InstitutionCommand()(None, None)
+        mock_start.assert_called()
+
+    @staticmethod
+    @unittest.mock.patch(
+        "bauble.plugins.garden.institution.start_institution_editor"
+    )
+    def test_institution_tool(mock_start):
+        InstitutionTool.start()
+        mock_start.assert_called()
 
 
 # latitude: deg[0-90], min[0-59], sec[0-59]

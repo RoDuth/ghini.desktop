@@ -1,6 +1,6 @@
 # Copyright 2008-2010 Brett Adams
 # Copyright 2015-2017 Mario Frasca <mario@anche.no>.
-# Copyright 2020-2024 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright 2020-2025 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -39,6 +39,7 @@ import dateutil.parser as date_parser
 from gi.repository import GdkPixbuf
 from gi.repository import Gio
 from gi.repository import GLib
+from gi.repository import GObject
 from gi.repository import Gtk
 from lxml import etree
 from sqlalchemy.orm import object_mapper
@@ -1119,6 +1120,205 @@ class MockView:
         )
         if box in self.boxes:
             self.boxes.remove(box)
+
+
+class Problem:  # pylint: disable=too-few-public-methods
+    """Problem descriptor,
+
+    provides a string that states the problem_type, class and the instance
+    identifier. Makes logs entries easier to follow.
+    """
+
+    __slots__: tuple[str, ...] = ("problem_type",)
+
+    def __init__(self, problem_type: str) -> None:
+        self.problem_type = problem_type
+
+    def __get__[T](self, instance: T, class_: type[T]) -> str:
+        return f"{self.problem_type}::{class_.__name__}::{id(instance)}"
+
+
+class GenericPresenter:
+    """A presenter with a model that can be used with a Gtk.Template decorated
+    class as the view.
+
+    Can be used either as a mixin on the Gtk.Template class itself or inherited
+    from to create a more conventional MVP style (composition).
+
+    Example as a Mixin::
+
+        @Gtk.Template(filename="/path/to/file.ui"))
+        class Foo(GenericPresenter, Gtk.Dialog):
+
+            __gtype_name__ = "Foo"
+
+            bar = cast(Gtk.Entry, Gtk.Template.Child())
+
+            def __init__(self, model: FooModel) -> None:
+                super().__init__(model, self)
+
+            # signal handlers defined in the .ui file
+            @Gtk.Template.Callback()
+            def on_text_entry_changed(self, entry: Gtk.Entry) -> None:
+                super().on_text_entry_changed(entry)
+
+        model = FooModel()
+        presenter = Foo(model)
+
+    Example as a separate presenter classes::
+
+        @Gtk.Template(filename="/path/to/file.ui"))
+        class FooView(GenericPresenter, Gtk.Dialog):
+
+            __gtype_name__ = "Foo"
+
+            bar = cast(Gtk.Entry, Gtk.Template.Child())
+
+
+        class FooPresenter(editor.GenericPresenter):
+            def __init__(
+                    self, model: FooModel, view: FooView
+            ) -> None:
+                self.view: FooView
+                super().__init__(model, view)
+
+            view.bar.connect("changed", self.on_text_entry_changed)
+
+        model = FooModel()
+        view = FooView()
+        presenter = FooPresenter(model, view)
+    """
+
+    PROBLEM_EMPTY = Problem("empty")
+
+    def __init__(
+        self, model: object, view: Self | Gtk.Widget, *args, **kwargs
+    ) -> None:
+
+        self.widgets_to_model_map: dict[GObject.Object, str]
+        self.problems: set[tuple[str, Gtk.Widget]] = set()
+
+        self.model = model
+        self.view = view
+        # Incase of use as a Gtk.Template mixin call the widgets init
+        super().__init__(*args, **kwargs)
+
+    def refresh_all_widgets_from_model(self) -> None:
+        for widget, field in self.widgets_to_model_map.items():
+            value = getattr(self.model, field)
+            utils.set_widget_value(widget, value)
+
+    def add_problem(self, problem_id: str, widget: Gtk.Widget) -> None:
+        """Add problem_id to self.problems and change widgets background.
+
+        :param problem_id: A unique identifier for the problem.
+        :param widget: the widget whose background color should change to
+            indicate a problem
+        """
+
+        self.problems.add((problem_id, widget))
+
+        # Should always be true (except GOject.Objects i.e. TextBuffer).
+        if isinstance(widget, Gtk.Widget):
+            widget.get_style_context().add_class("problem")
+
+        logger.debug("problems now: %s", self.problems)
+
+    def remove_problem(
+        self, problem_id: str | None = None, widget: Gtk.Widget | None = None
+    ) -> None:
+        """Remove problem from self.problems and reset the widgets background.
+
+        If widget is None remove problem_id for all widgets.
+        If problem_id is None remove all problem ids for widget.
+
+        :param problem_id: A unique id for the problem.
+        :param widget: the problem widget
+        """
+        for prob, widg in self.problems.copy():
+            # pylint: disable=too-many-boolean-expressions
+            if (
+                (widg == widget and prob == problem_id)
+                or (widget is None and prob == problem_id)
+                or (widg == widget and problem_id is None)
+            ):
+                if isinstance(widg, Gtk.Widget):
+                    widg.get_style_context().remove_class("problem")
+                self.problems.remove((prob, widg))
+        logger.debug("problems now: %s", self.problems)
+
+    def __on_text_entry_changed(self, entry: Gtk.Entry) -> str:
+        # Private, name mangled so cannot be overridden, for internal use
+        value = entry.get_text()
+        field = self.widgets_to_model_map[entry]
+        logger.debug(
+            "on_text_entry_changed(%s, %s) - %s -> %s",
+            entry,
+            field,
+            getattr(self.model, field),
+            value,
+        )
+        setattr(self.model, field, value)
+        return value
+
+    def on_text_entry_changed(self, entry: Gtk.Entry) -> None:
+        self.__on_text_entry_changed(entry)
+
+    def _on_non_empty_text_entry_changed(self, entry: Gtk.Entry) -> str:
+        value = self.__on_text_entry_changed(entry)
+
+        if not value:
+            self.add_problem(self.PROBLEM_EMPTY, entry)
+        else:
+            self.remove_problem(self.PROBLEM_EMPTY, entry)
+        return value
+
+    def on_non_empty_text_entry_changed(self, entry: Gtk.Entry) -> None:
+        """If the entry is not empty adds PROBLEM_EMPTY to self.problems.
+
+        If addition functionality is required you can overide this method and
+        use the private version to get widgets value. e.g.::
+
+            @Gtk.Template.Callback()
+            def on_non_empty_text_entry_changed(self, entry):
+                value = super()._on_non_empty_text_entry_changed(entry)
+
+                if not value:
+                    raise Exception("EMPTY")
+        """
+        self._on_non_empty_text_entry_changed(entry)
+
+    def on_text_buffer_changed(self, buffer: Gtk.TextBuffer) -> None:
+        value = buffer.get_text(*buffer.get_bounds(), False)
+        field = self.widgets_to_model_map[buffer]
+        logger.debug(
+            "on_text_buffer_changed(%s, %s) - %s -> %s",
+            buffer,
+            field,
+            getattr(self.model, field),
+            value,
+        )
+        setattr(self.model, field, value)
+
+    def on_combobox_changed(self, combobox: Gtk.ComboBox) -> None:
+        if combobox.get_has_entry():
+            value = cast(Gtk.Entry, combobox.get_child()).get_text()
+        else:
+            model = combobox.get_model()
+            itr = combobox.get_active_iter()
+            if model is None or itr is None:
+                value = None
+            else:
+                value = model[itr][0]
+        field = self.widgets_to_model_map[combobox]
+        logger.debug(
+            "on_combobox_changed(%s, %s) - %s -> %s",
+            combobox,
+            field,
+            getattr(self.model, field),
+            value,
+        )
+        setattr(self.model, field, value)
 
 
 class GenericEditorPresenter:

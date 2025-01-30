@@ -1,7 +1,7 @@
 # Copyright 2008-2010 Brett Adams
 # Copyright 2015,2018 Mario Frasca <mario@anche.no>.
 # Copyright 2017 Jardín Botánico de Quito
-# Copyright 2024 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright 2024-2025 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -17,15 +17,14 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
-#
-# Description: edit and store information about the institution in the bauble
-# meta
-#
+"""
+Edit and store information about the institution in the bauble meta table
+"""
 
 import logging
-import os
-import re
 from dataclasses import dataclass
+from pathlib import Path
+from typing import cast
 
 logger = logging.getLogger(__name__)
 
@@ -34,13 +33,12 @@ from sqlalchemy import Table
 from sqlalchemy import bindparam
 from sqlalchemy import select
 
+import bauble
 from bauble import db
 from bauble import editor
 from bauble import meta
-from bauble import paths
 from bauble import pluginmgr
 from bauble import utils
-from bauble.editor import GenericEditorView
 from bauble.i18n import _
 
 
@@ -111,121 +109,87 @@ class Institution:  # pylint: disable=too-many-instance-attributes
                 conn.execute(update, updates)
 
 
-class InstitutionEditorView(GenericEditorView):
-    _tooltips = {
-        "inst_name": _("The full name of the institution."),
-        "inst_abbr": _("The standard abbreviation of the institution."),
-        "inst_code": _(
-            "The intitution code should be unique among all institions."
-        ),
-        "inst_contact": _(
-            "The name of the person to contact for "
-            "information related to the institution."
-        ),
-        "inst_tech": _(
-            "The email address or phone number of the "
-            "person to contact for technical "
-            "information related to the institution."
-        ),
-        "inst_email": _("The email address of the institution."),
-        "inst_tel": _("The telephone number of the institution."),
-        "inst_fax": _("The fax number of the institution."),
-        "inst_addr": _("The mailing address of the institition."),
-        "inst_geo_latitude": _(
-            "The latitude of the geographic centre of the garden."
-        ),
-        "inst_geo_longitude": _(
-            "The longitude of the geographic centre of the garden."
-        ),
-        "inst_geo_zoom": _(
-            "The start zoom level for maps that best displays the garden."
-        ),
-    }
+@Gtk.Template(filename=str(Path(__file__).resolve().parent / "institution.ui"))
+class InstitutionDialog(editor.GenericPresenter, Gtk.Dialog):
 
-    def __init__(self):
-        filename = os.path.join(
-            paths.lib_dir(), "plugins", "garden", "institution.glade"
-        )
-        parent = None
-        root_widget_name = "inst_dialog"
-        super().__init__(filename, parent, root_widget_name)
+    __gtype_name__ = "InstitutionDialog"
 
+    inst_name = cast(Gtk.Entry, Gtk.Template.Child())
+    inst_abbr = cast(Gtk.Entry, Gtk.Template.Child())
+    inst_code = cast(Gtk.Entry, Gtk.Template.Child())
+    inst_contact = cast(Gtk.Entry, Gtk.Template.Child())
+    inst_tech = cast(Gtk.Entry, Gtk.Template.Child())
+    inst_email = cast(Gtk.Entry, Gtk.Template.Child())
+    inst_tel = cast(Gtk.Entry, Gtk.Template.Child())
+    inst_fax = cast(Gtk.Entry, Gtk.Template.Child())
+    inst_addr_tb = cast(Gtk.TextBuffer, Gtk.Template.Child())
+    inst_geo_latitude = cast(Gtk.Entry, Gtk.Template.Child())
+    inst_geo_longitude = cast(Gtk.Entry, Gtk.Template.Child())
+    inst_geo_zoom = cast(Gtk.ComboBoxText, Gtk.Template.Child())
+    message_box_parent = cast(Gtk.Box, Gtk.Template.Child())
+    message_box: utils.GenericMessageBox | None = None
 
-class InstitutionPresenter(editor.GenericEditorPresenter):
-    widget_to_field_map = {
-        "inst_name": "name",
-        "inst_abbr": "abbreviation",
-        "inst_code": "code",
-        "inst_contact": "contact",
-        "inst_tech": "technical_contact",
-        "inst_email": "email",
-        "inst_tel": "tel",
-        "inst_fax": "fax",
-        "inst_addr_tb": "address",
-        "inst_geo_latitude": "geo_latitude",
-        "inst_geo_longitude": "geo_longitude",
-        "inst_geo_zoom": "geo_zoom",
-    }
+    def __init__(self, model: Institution) -> None:
+        super().__init__(model, self)
+        self.widgets_to_model_map = {
+            self.inst_name: "name",
+            self.inst_abbr: "abbreviation",
+            self.inst_code: "code",
+            self.inst_contact: "contact",
+            self.inst_tech: "technical_contact",
+            self.inst_email: "email",
+            self.inst_tel: "tel",
+            self.inst_fax: "fax",
+            self.inst_addr_tb: "address",
+            self.inst_geo_latitude: "geo_latitude",
+            self.inst_geo_longitude: "geo_longitude",
+            self.inst_geo_zoom: "geo_zoom",
+        }
 
-    def __init__(self, model, view):
-        self.message_box = None
-        self.email_regexp = re.compile(r".+@.+\..+")
-        super().__init__(model, view, refresh_view=True)
-        self.view.widget_grab_focus("inst_name")
-        self.on_non_empty_text_entry_changed("inst_name")
-        self.on_email_text_entry_changed("inst_email")
-        if not model.uuid:
-            import uuid
+        if bauble.gui:
+            self.set_transient_for(bauble.gui.window)
+            self.set_destroy_with_parent(True)
 
-            model.uuid = str(uuid.uuid4())
+        self.inst_name.grab_focus()
+        self.refresh_all_widgets_from_model()
+        self.inst_name.emit("changed")
 
-    def cleanup(self):
-        super().cleanup()
-        if self.message_box:
-            self.view.remove_box(self.message_box)
-            self.message_box = None
+    @Gtk.Template.Callback()
+    def on_non_empty_text_entry_changed(self, entry: Gtk.Entry) -> None:
+        value = super()._on_non_empty_text_entry_changed(entry)
 
-    def on_non_empty_text_entry_changed(self, widget, value=None):
-        value = super().on_non_empty_text_entry_changed(widget, value)
-        box = self.message_box
         if value:
-            if box:
-                self.view.remove_box(box)
+            if self.message_box:
+                self.message_box.destroy()
                 self.message_box = None
-        elif not box:
-            box = self.view.add_message_box(utils.MESSAGE_BOX_INFO)
-            box.message = _(
+        elif not self.message_box:
+            self.message_box = utils.add_message_box(
+                self.message_box_parent, utils.MESSAGE_BOX_INFO
+            )
+            self.message_box.message = _(
                 "Please specify an institution name for this database."
             )
-            box.show()
-            self.view.add_box(box)
-            self.message_box = box
+            self.message_box.show()
 
-    def on_email_text_entry_changed(self, widget, value=None):
-        value = super().on_text_entry_changed(widget, value)
+    @Gtk.Template.Callback()
+    def on_text_buffer_changed(self, buffer: Gtk.TextBuffer) -> None:
+        super().on_text_buffer_changed(buffer)
 
-    def on_inst_addr_tb_changed(self, widget, value=None, attr=None):
-        return self.on_textbuffer_changed(widget, value, attr="address")
+    @Gtk.Template.Callback()
+    def on_text_entry_changed(self, entry: Gtk.Entry) -> None:
+        super().on_text_entry_changed(entry)
+
+    @Gtk.Template.Callback()
+    def on_combobox_changed(self, combobox: Gtk.ComboBoxText) -> None:
+        super().on_combobox_changed(combobox)
 
 
-def start_institution_editor():
-    from bauble import prefs
-
-    if prefs.testing:
-        from bauble.editor import MockView
-
-        view = MockView()
-    else:
-        view = InstitutionEditorView()
+def start_institution_editor() -> None:
     model = Institution()
-    inst_pres = InstitutionPresenter(model, view)
-    response = inst_pres.start()
-    if response == Gtk.ResponseType.OK:
+    dialog = InstitutionDialog(model)
+    if dialog.run() == Gtk.ResponseType.OK:
         model.write()
-        inst_pres.commit_changes()
-    else:
-        inst_pres.session.rollback()
-    inst_pres.session.close()
+    dialog.destroy()
 
 
 class InstitutionCommand(pluginmgr.CommandHandler):
@@ -236,6 +200,7 @@ class InstitutionCommand(pluginmgr.CommandHandler):
         InstitutionTool.start()
 
 
+# pylint: disable=too-few-public-methods
 class InstitutionTool(pluginmgr.Tool):
     label = _("Institution")
 
