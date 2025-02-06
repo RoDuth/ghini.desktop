@@ -948,6 +948,7 @@ class ImageLoaderTests(BaubleTestCase):
         # kind of redundant
         mock_size_alloc.assert_called()
         self.assertIsInstance(mock_size_alloc.call_args.args[0], Gtk.Image)
+        win.destroy()
 
     @mock.patch("bauble.utils.get_net_sess")
     def test_image_loader_global_url_fails_to_retrieve(self, mock_get_sess):

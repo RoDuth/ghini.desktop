@@ -439,6 +439,7 @@ class GenericEditorView:
 
     def disconnect_widget_signals(self, widget):
         """disconnect all signals attached to widget"""
+        widget = self.__get_widget(widget)
 
         removed = []
         for obj, sid in self.__attached_signals:

@@ -1420,12 +1420,7 @@ class PlantEditorPresenter(GenericEditorPresenter, PresenterMapMixin):
         init_location_comboentry(
             self, self.view.widgets.plant_loc_comboentry, on_location_select
         )
-
-        self.change = PlantChange()
-        self.session.add(self.change)
-        self.change.plant = self.model
-        self.change.from_location = self.model.location
-        self.change.quantity = self.model.quantity
+        self.setup_change()
 
         def on_reason_changed(combo):
             itr = combo.get_active_iter()
@@ -1444,14 +1439,7 @@ class PlantEditorPresenter(GenericEditorPresenter, PresenterMapMixin):
         utils.setup_date_button(
             self.view, "plant_date_entry", "plant_date_button"
         )
-        date_str = utils.today_str()
-        utils.set_widget_value(self.view.widgets.plant_date_entry, date_str)
-        self.view.connect(
-            "plant_date_entry",
-            "changed",
-            self.on_date_entry_changed,
-            (self.change, "date"),
-        )
+        self.reset_plant_date_entry()
 
         # assign signal handlers to monitor changes now that the view has
         # been filled in
@@ -1518,6 +1506,37 @@ class PlantEditorPresenter(GenericEditorPresenter, PresenterMapMixin):
             str(Path(__file__).resolve().parent / "plant.kml"),
         )
         self.view.widgets.plant_id_label.set_text(str(self.model.id or ""))
+
+    def reset_change(self):
+        self.session.expunge(self.change)
+        self._original_accession_id = self.model.accession_id
+        self._original_code = self.model.code
+        self._original_location = self.model.location
+        self._original_quantity = self.model.quantity
+        self.lower_quantity_limit = 0
+        self.setup_change()
+        self.init_changes_history_view()
+        self.reset_plant_date_entry()
+        utils.set_widget_value(self.view.widgets.reason_combo, None)
+        self._init_reason_combo()
+
+    def reset_plant_date_entry(self):
+        date_str = utils.today_str()
+        utils.set_widget_value(self.view.widgets.plant_date_entry, date_str)
+        self.view.disconnect_widget_signals("plant_date_entry")
+        self._date_sid = self.view.connect(
+            "plant_date_entry",
+            "changed",
+            self.on_date_entry_changed,
+            (self.change, "date"),
+        )
+
+    def setup_change(self):
+        self.change = PlantChange()
+        self.session.add(self.change)
+        self.change.plant = self.model
+        self.change.from_location = self.model.location
+        self.change.quantity = self.model.quantity
 
     def acc_get_completions(self, text):
         """Get completions with any of the following combinations:
@@ -2031,6 +2050,7 @@ class PlantEditor(GenericModelViewPresenterEditor):
             self.presenter.pictures_presenter._dirty = False
             self.presenter.notes_presenter._dirty = False
             self.presenter.prop_presenter._dirty = False
+            self.presenter.reset_change()
         except SQLAlchemyError as e:
             logger.debug("%s(%s)", type(e).__name__, e)
         finally:

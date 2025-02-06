@@ -1236,6 +1236,8 @@ class PlantTests(GardenTestCase):
         self.assertFalse(mock_self.presenter.prop_presenter._dirty)
         mock_self.session.rollback.assert_not_called()
         mock_self.presenter.refresh_view.assert_called()
+        mock_self.presenter.reset_change.assert_called()
+        mock_self.presenter.refresh_view.assert_called()
 
         mock_self = unittest.mock.Mock()
         mock_self.commit_changes.side_effect = SQLAlchemyError
@@ -1245,6 +1247,8 @@ class PlantTests(GardenTestCase):
         self.assertTrue(mock_self.presenter.pictures_presenter._dirty)
         self.assertTrue(mock_self.presenter.notes_presenter._dirty)
         self.assertTrue(mock_self.presenter.prop_presenter._dirty)
+        mock_self.presenter.refresh_view.assert_called()
+        mock_self.presenter.reset_change.not_assert_called()
         mock_self.presenter.refresh_view.assert_called()
 
 
@@ -1349,6 +1353,22 @@ class PlantEditorPresenterTests(GardenTestCase):
         presenter.on_loc_button_clicked(None, cmd="edit")
         mock_editor.assert_called()
         mock_editor.assert_called_with(loc, parent=presenter.view.get_window())
+
+        del presenter
+
+    def test_reset_change(self):
+        acc = self.session.query(Accession).get(7)
+        plant = Plant(accession=acc, quantity=1)
+        plant.accession_id = acc.id
+        self.session.add(plant)
+        presenter = PlantEditorPresenter(plant, PlantEditorView())
+        start_change = presenter.change
+        self.assertEqual(presenter._original_accession_id, acc.id)
+        self.assertEqual(presenter._original_quantity, None)
+        plant.quantity = 10
+        presenter.reset_change()
+        self.assertNotEqual(start_change, presenter.change)
+        self.assertEqual(presenter._original_quantity, 10)
 
         del presenter
 
