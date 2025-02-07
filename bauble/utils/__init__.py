@@ -1389,6 +1389,21 @@ def debug_gc_decorator(func):
     NOTE: the first use may not be the concern so much as repeated uses
     accumulating uncollected items.  Keep an eye on totals increasing.
     """
+    # NOTE another approach to manually testing that specific objects are
+    # garbage collected as expected is to place something like this as the
+    # bottom of main.py:
+    #
+    # ```
+    # from gi.repository import GLib
+    #
+    # def print_gc_list():
+    #     print(utils.gc_objects_by_type("ClassName"))
+    #     return True
+    #
+    # GLib.timeout_add(1000, print_gc_list)
+    # ```
+    #
+    # then check the stdout for expected behaviour
 
     def wrapper(*args, **kwargs):
         import gc
