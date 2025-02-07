@@ -430,7 +430,6 @@ class Geography(db.Base):
         return DistributionMap([self.id])
 
 
-@utils.timed_cache(size=1000, secs=None)
 def _coord_string(lon: int, lat: int, pacific_centric: bool) -> str:
     """Convert WGS84 coordinates to SVG point strings."""
     if pacific_centric:
@@ -438,8 +437,9 @@ def _coord_string(lon: int, lat: int, pacific_centric: bool) -> str:
     return f"{round(lon, 3)} {round(lat, 3)}"
 
 
+# NOTE tuple may not be correct, could be a list but will always be 2 values
 def _path_string(
-    poly: Sequence[Iterable[int]], fill: str, pacific_centric: bool
+    poly: Sequence[tuple[int]], fill: str, pacific_centric: bool
 ) -> str:
     """Convert a WGS84 polygon to a SVG path string.
 
@@ -496,7 +496,10 @@ def straddles_antimeridian(
         logger.debug("stradles antimeridian")
         return True
 
-    zoom_buffer = calculate_zoom_buffer(zoom, min_long, max_long)
+    try:
+        zoom_buffer = calculate_zoom_buffer(max(zoom, 2), min_long, max_long)
+    except ValueError:
+        zoom_buffer = calculate_zoom_buffer(zoom, min_long, max_long)
 
     min_long_is_lt = min_long < -180 + zoom_buffer
     max_long_is_gt = max_long > 180 - zoom_buffer
@@ -559,10 +562,13 @@ def get_viewbox(
     )
 
     if start_x < -180:
-        raise ValueError(
-            f"Too low a value for viewbox x axis start point: {start_x} at "
-            f"zoom level {zoom}"
-        )
+        if zoom == 1:
+            start_x = -180.0
+        else:
+            raise ValueError(
+                f"Too low a value for viewbox x axis start point: {start_x} "
+                f"at zoom level {zoom}"
+            )
     return (
         f"{round(start_x, 3)} {round(start_y, 3)} "
         f"{round(width, 3)} {round(height, 3)}"
@@ -692,13 +698,13 @@ class DistributionMap:
         longs, lats = split_lats_longs(self.areas)
         pc_longs = [i + 360 if i < 0 else i for i in longs]
 
-        min_long, max_long = min(longs), max(longs)
-
         pacific_centric = straddles_antimeridian(longs, pc_longs, zoom)
 
         if pacific_centric:
             # NOTE for purely eastern pacific pc_longs and longs are equal
             max_long, min_long = max(pc_longs), min(pc_longs)
+        else:
+            min_long, max_long = min(longs), max(longs)
 
         max_lat, min_lat = max(lats), min(lats)
         self._current_max_mins = (min_long, max_long, min_lat, max_lat)
@@ -814,13 +820,14 @@ class DistributionMap:
 
         pc_longs = [i + 360 if i < 0 else i for i in longs]
 
-        max_long, min_long = max(longs), min(longs)
         pacific_centric = straddles_antimeridian(longs, pc_longs, 1)
         logger.debug("pacific_centric = %s", pacific_centric)
 
         if pacific_centric:
             # NOTE for purely eastern pacific pc_longs and longs are equal
             max_long, min_long = max(pc_longs), min(pc_longs)
+        else:
+            max_long, min_long = max(longs), min(longs)
         width = abs(max_long - min_long)
         height = abs(max_lat - min_lat)
 

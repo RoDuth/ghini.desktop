@@ -3711,6 +3711,10 @@ class GeographyTests2(TestCase):
             straddles_antimeridian([20, 0, -20], [20, 0, -20 + 360], 8)
         )
         self.assertFalse(straddles_antimeridian([91, -91], [91, -91 + 360], 1))
+        # africa
+        self.assertFalse(
+            straddles_antimeridian([60, 1, -17], [60, 0, -17 + 360], 1)
+        )
         # zoomed it doesn't stradle, zoomed less it would be too far east
         self.assertFalse(straddles_antimeridian([91, 150], [91, 150], 4))
         # straddles
@@ -3741,7 +3745,9 @@ class GeographyTests2(TestCase):
         )
         # too far East
         self.assertTrue(straddles_antimeridian([180, -1], [180, -1 + 360], 1))
-        self.assertTrue(straddles_antimeridian([178, -1], [178, -1 + 360], 1))
+        self.assertTrue(
+            straddles_antimeridian([178, -10], [178, -10 + 360], 1)
+        )
         self.assertTrue(straddles_antimeridian([91, 150], [91, 150], 2))
         # raises - zoomed to far
         self.assertRaises(
@@ -3767,7 +3773,10 @@ class GeographyTests2(TestCase):
             get_viewbox(153.5433446, 138.0000446, -10.0513948, -29.1705948, 8),
             "138.815 27.48 45.0 22.5",
         )
-        self.assertRaises(ValueError, get_viewbox, -180, 0, 50, 90, 1)
+        self.assertEqual(
+            get_viewbox(-180, -10, 50, 90, 1), "-180.0 -90.0 360.0 180.0"
+        )
+        self.assertRaises(ValueError, get_viewbox, -180, -10, 50, 90, 2)
 
 
 class DistributionMapTests(BaubleClassTestCase):
@@ -3985,6 +3994,11 @@ class DistributionMapTests(BaubleClassTestCase):
         # EUROPE, ASIA_TEMPERATE, NORTHERN AMERICA (Global)
         dist = DistributionMap([1, 3, 7])
         self.assertEqual(dist.get_max_zoom(), 1)
+
+        # africa
+        africa = 2
+        dist = DistributionMap([africa])
+        self.assertEqual(dist.get_max_zoom(), 2)
 
     def test_replace_image(self):
         rocas_alijos = 657
