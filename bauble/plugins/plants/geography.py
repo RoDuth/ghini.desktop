@@ -439,7 +439,7 @@ def _coord_string(lon: int, lat: int, pacific_centric: bool) -> str:
 
 # NOTE tuple may not be correct, could be a list but will always be 2 values
 def _path_string(
-    poly: Sequence[tuple[int]], fill: str, pacific_centric: bool
+    poly: Sequence[tuple[int, int]], fill: str, pacific_centric: bool
 ) -> str:
     """Convert a WGS84 polygon to a SVG path string.
 
