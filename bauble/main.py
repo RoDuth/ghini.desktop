@@ -179,9 +179,9 @@ class Application(Gtk.Application):
                         # inadvertantly create tables from the plugins
                         pluginmgr.init()
                         # set the default connection
-                        prefs.prefs[
-                            bauble.conn_default_pref
-                        ] = bauble.conn_name
+                        prefs.prefs[bauble.conn_default_pref] = (
+                            bauble.conn_name
+                        )
                     except Exception as e:  # pylint: disable=broad-except
                         utils.message_details_dialog(
                             utils.xml_safe(e),

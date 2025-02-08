@@ -39,6 +39,7 @@ from bauble import task
 from bauble import utils
 from bauble.editor import GenericEditorPresenter
 from bauble.editor import GenericEditorView
+from bauble.editor import Problem
 from bauble.i18n import _
 
 
@@ -50,7 +51,7 @@ def element_factory(parent, name, **kwargs):
     return elm
 
 
-class XMLImportDialogPresenter(GenericEditorPresenter):
+class XMLExportDialogPresenter(GenericEditorPresenter):
     widget_to_field_map = {
         "one_file_chkbtn": "one_file",
         "filename_entry": "filename",
@@ -58,7 +59,7 @@ class XMLImportDialogPresenter(GenericEditorPresenter):
 
     view_accept_buttons = ["exp_button_ok"]
 
-    PROBLEM_INVALID_FILENAME = "invalid_filename"
+    PROBLEM_INVALID_FILENAME = Problem("invalid_filename")
 
     last_file = None
 
@@ -103,7 +104,7 @@ class XMLExporter:
             str(Path(__file__).resolve().parent / "xml.glade"),
             root_widget_name="xml_export_dialog",
         )
-        self.presenter = XMLImportDialogPresenter(self, view)
+        self.presenter = XMLExportDialogPresenter(self, view)
 
     def start(self, path=None):
         if path:

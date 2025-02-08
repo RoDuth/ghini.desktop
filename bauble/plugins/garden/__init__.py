@@ -25,7 +25,6 @@ The garden plugin
 import logging
 import multiprocessing
 import re
-from random import random
 
 logger = logging.getLogger(__name__)
 
@@ -36,6 +35,7 @@ from sqlalchemy.orm import object_session
 
 import bauble
 from bauble import db
+from bauble import editor
 from bauble import pluginmgr
 from bauble import prefs
 from bauble import search
@@ -464,7 +464,7 @@ def init_location_comboentry(presenter, combo, on_select):
     :param on_select: a one-parameter function
     """
     # not a constant here but named so for consistency
-    PROBLEM = f"unknown_location:{random()}"  # pylint: disable=invalid-name
+    presenter.__class__.PROBLEM_LOCATION = editor.Problem("unknown_location")
 
     re_code_name_splitter = re.compile(r"\(([^)]+)\) ?(.*)")
 
@@ -515,7 +515,7 @@ def init_location_comboentry(presenter, combo, on_select):
         value = model[treeiter][0]
         on_select(value)
         entry.props.text = str(value)
-        presenter.remove_problem(PROBLEM, entry)
+        presenter.remove_problem(presenter.PROBLEM_LOCATION, entry)
         presenter.refresh_sensitivity()
         return True
 
@@ -527,7 +527,7 @@ def init_location_comboentry(presenter, combo, on_select):
         text = str(entry.props.text)
 
         if not text:
-            presenter.remove_problem(PROBLEM, entry)
+            presenter.remove_problem(presenter.PROBLEM_LOCATION, entry)
             on_select(None)
             return None
         # see if the text matches a completion string
@@ -557,16 +557,16 @@ def init_location_comboentry(presenter, combo, on_select):
         if codes.count() == 1:
             logger.debug("location matches code")
             location = codes.first()
-            presenter.remove_problem(PROBLEM, entry)
+            presenter.remove_problem(presenter.PROBLEM_LOCATION, entry)
             on_select(location)
         elif names.count() == 1:
             logger.debug("location matches name")
             location = names.first()
-            presenter.remove_problem(PROBLEM, entry)
+            presenter.remove_problem(presenter.PROBLEM_LOCATION, entry)
             on_select(location)
         else:
             logger.debug("location %s does not match anything", text)
-            presenter.add_problem(PROBLEM, entry)
+            presenter.add_problem(presenter.PROBLEM_LOCATION, entry)
         return True
 
     presenter.view.connect(entry, "changed", on_entry_changed, presenter)

@@ -253,8 +253,8 @@ class SpeciesEditorPresenter(
         "subseries_entry": "subseries",
     }
 
-    PROBLEM_UNKOWN_HABIT = f"unknown_source:{random()}"
-    PROBLEM_INVALID_MARKUP = f"invalid_markup:{random()}"
+    PROBLEM_UNKOWN_HABIT = editor.Problem("unknown_source")
+    PROBLEM_INVALID_MARKUP = editor.Problem("invalid_markup")
     LINK_BUTTONS_PREF_KEY = SPECIES_WEB_BUTTON_DEFS_PREFS
 
     def __init__(self, model, view):

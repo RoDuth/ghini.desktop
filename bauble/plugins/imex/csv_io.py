@@ -22,7 +22,6 @@ only.
 import csv
 import logging
 from pathlib import Path
-from random import random
 
 logger = logging.getLogger(__name__)
 
@@ -39,6 +38,7 @@ from bauble import prefs
 from bauble import task
 from bauble.editor import GenericEditorPresenter
 from bauble.editor import GenericEditorView
+from bauble.editor import Problem
 from bauble.i18n import _
 from bauble.search.query_builder import SchemaMenu
 from bauble.search.strategies import MapperSearch
@@ -80,7 +80,7 @@ class CSVExportDialogPresenter(GenericEditorPresenter):
 
     view_accept_buttons = ["exp_button_ok"]
 
-    PROBLEM_NO_FILENAME = f"no_filename:{random()}"
+    PROBLEM_NO_FILENAME = Problem("no_filename")
 
     last_file = None
 
@@ -418,7 +418,7 @@ class CSVImportDialogPresenter(GenericEditorPresenter):
 
     view_accept_buttons = ["imp_button_ok"]
 
-    PROBLEM_INVALID_FILENAME = f"invalid_filename:{random()}"
+    PROBLEM_INVALID_FILENAME = Problem("invalid_filename")
 
     last_file = None
 

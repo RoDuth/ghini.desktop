@@ -40,6 +40,7 @@ from bauble import prefs
 from bauble import task
 from bauble.editor import GenericEditorPresenter
 from bauble.editor import GenericEditorView
+from bauble.editor import Problem
 
 # NOTE importing shapefile Writer above wipes out gettext _
 from bauble.i18n import _
@@ -535,7 +536,7 @@ class ShapefileExportDialogPresenter(GenericEditorPresenter):
 
     view_accept_buttons = ["exp_button_ok"]
 
-    PROBLEM_NO_DIR = f"no_dir:{random()}"
+    PROBLEM_NO_DIR = Problem("no_dir")
 
     last_folder = str(Path.home())
 

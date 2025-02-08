@@ -34,7 +34,6 @@ from functools import partial
 from functools import reduce
 from operator import iconcat
 from pathlib import Path
-from random import random
 
 logger = logging.getLogger(__name__)
 
@@ -1635,7 +1634,7 @@ class VerificationBox(Gtk.Box):
     expander_label = Gtk.Template.Child()
     ver_expander = Gtk.Template.Child()
 
-    PROBLEM_REQUIRED_FIELD = f"required_field:{random()}"
+    PROBLEM_REQUIRED_FIELD = editor.Problem("required_field")
 
     def __init__(self, parent, model):
         super().__init__()
@@ -2041,7 +2040,7 @@ class SourcePresenter(editor.GenericEditorPresenter):
     # pylint: disable=too-many-instance-attributes
 
     GARDEN_PROP_STR = _("Garden Propagation")
-    PROBLEM_UNKOWN_SOURCE = f"unknown_source:{random()}"
+    PROBLEM_UNKOWN_SOURCE = editor.Problem("unknown_source")
 
     def __init__(self, parent, model, view, session):
         super().__init__(model, view, session=session, connect_signals=False)
@@ -2501,9 +2500,9 @@ class AccessionEditorPresenter(editor.GenericEditorPresenter):
         "acc_supplied_name_entry": "supplied_name",
     }
 
-    PROBLEM_DUPLICATE_ACCESSION = f"duplicate_accession:{random()}"
-    PROBLEM_ID_QUAL_RANK_REQUIRED = f"id_qual_rank_required:{random()}"
-    PROBLEM_BAD_RECVD_TYPE = f"bad_recvd_type:{random()}"
+    PROBLEM_DUPLICATE_ACCESSION = editor.Problem("duplicate_accession")
+    PROBLEM_ID_QUAL_RANK_REQUIRED = editor.Problem("id_qual_rank_required")
+    PROBLEM_BAD_RECVD_TYPE = editor.Problem("bad_recvd_type")
 
     def __init__(self, model, view):
         """

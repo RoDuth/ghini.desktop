@@ -29,8 +29,8 @@ import threading
 import weakref
 from collections.abc import Callable
 from pathlib import Path
-from random import random
 from typing import Self
+from typing import Sequence
 from typing import cast
 
 logger = logging.getLogger(__name__)
@@ -1343,8 +1343,9 @@ class GenericEditorPresenter:
     widget_to_field_map: dict[str, str] = {}
     view_accept_buttons: list[str] = []
 
-    PROBLEM_DUPLICATE = f"duplicate:{random()}"
-    PROBLEM_EMPTY = f"empty:{random()}"
+    PROBLEM_DUPLICATE = Problem("duplicate")
+    PROBLEM_EMPTY = Problem("empty")
+    PROBLEM_NOT_FOUND = Problem("not_found")
 
     def __init__(
         self,
@@ -1358,7 +1359,7 @@ class GenericEditorPresenter:
     ):
         self.model = model
         self.view = view
-        self.problems: set[tuple[int, Gtk.Widget]] = set()
+        self.problems: set[tuple[str, Gtk.Widget]] = set()
         self._dirty = False
         self.is_committing_presenter = do_commit
         self.committing_results = committing_results
@@ -1669,7 +1670,7 @@ class GenericEditorPresenter:
         """Remove problem_id from self.problems and reset the background
         color of the widget.
 
-        If problem_id is None and problem_widgets is None then method won't do
+        If problem_id is None and widget is None then method won't do
         anything.
 
         :param problem_id: the problem to remove, if None then remove
@@ -1708,36 +1709,29 @@ class GenericEditorPresenter:
                 self.problems.remove((prob, widg))
         logger.debug("problems now: %s", self.problems)
 
-    def add_problem(self, problem_id, problem_widgets=None):
-        """Add problem_id to self.problems and change the background of
-        widget(s) in problem_widgets.
+    def add_problem(
+        self,
+        problem_id: str,
+        widget: Gtk.Widget | str,
+    ) -> None:
+        """Add problem_id to self.problems and change the background of widget.
 
         :param problem_id: A unique id for the problem.
-        :param problem_widgets: either a widget or list of widgets
+        :param widget: either a widget or list of widgets
               whose background color should change to indicate a problem
               (default=None)
         """
-        # list of widgets.
         logger.debug(
             "add_problem(%s, %s, %s)",
             self.__class__.__name__,
             problem_id,
-            problem_widgets,
+            widget,
         )
-        if isinstance(problem_widgets, (tuple, list)):
-            for widget in problem_widgets:
-                self.add_problem(problem_id, widget)
-            return
 
-        # single widget.
-        widget = problem_widgets
         if isinstance(widget, str):
-            try:
-                widget = getattr(self.view.widgets, widget)
-            except AttributeError:
-                logger.info("can't get widget %s", widget)
-        self.problems.add((problem_id, widget))
+            widget = cast(Gtk.Widget, getattr(self.view.widgets, widget))
 
+        self.problems.add((problem_id, widget))
         # Should always be true (except some tests).
         if isinstance(widget, Gtk.Widget):
             # THIS was in place for id_qual_rank, may be obsoete now
@@ -1901,11 +1895,6 @@ class GenericEditorPresenter:
         logger.debug("assign_completions_handler %s", widget)
         if not isinstance(widget, Gtk.Entry):
             widget = cast(Gtk.Entry, self.view.widgets[widget])
-        widget_name = Gtk.Buildable.get_name(widget)
-        # not a true constant but named so for consistency
-        # pylint: disable=invalid-name
-        PROBLEM_NOT_FOUND = f"{widget_name}:not_found"
-        # pylint: enable=invalid-name
 
         def add_completions(text):
             """Reconstruct the widgets model (Gtk.ListStore)"""
@@ -1996,24 +1985,26 @@ class GenericEditorPresenter:
                     set_problems
                     and text != ""
                     and not found
-                    and (PROBLEM_NOT_FOUND, widget) not in self.problems
+                    and (self.PROBLEM_NOT_FOUND, widget) not in self.problems
                 ):
-                    self.add_problem(PROBLEM_NOT_FOUND, widget)
+                    self.add_problem(self.PROBLEM_NOT_FOUND, widget)
                     on_select(None)
-                elif found and (PROBLEM_NOT_FOUND, widget) in self.problems:
-                    self.remove_problem(PROBLEM_NOT_FOUND, widget)
+                elif (
+                    found and (self.PROBLEM_NOT_FOUND, widget) in self.problems
+                ):
+                    self.remove_problem(self.PROBLEM_NOT_FOUND, widget)
 
                 # if entry is empty select nothing and remove all problem
                 if text == "":
                     on_select(None)
-                    self.remove_problem(PROBLEM_NOT_FOUND, widget)
+                    self.remove_problem(self.PROBLEM_NOT_FOUND, widget)
                 elif not comp_model:
                     # completion model is not in place when object is forced
                     # programmatically.
                     # `on_select` will know how to convert the text into a
                     # properly typed value.
                     on_select(text)
-                    self.remove_problem(PROBLEM_NOT_FOUND, widget)
+                    self.remove_problem(self.PROBLEM_NOT_FOUND, widget)
                 logger.debug("on_changed - part two - returning")
 
             # callback keeps comparer in scope
@@ -2027,7 +2018,7 @@ class GenericEditorPresenter:
             # doesn't get called twice
             with widget.handler_block(_changed_sid):
                 widget.props.text = str(value)
-            self.remove_problem(PROBLEM_NOT_FOUND, widget)
+            self.remove_problem(self.PROBLEM_NOT_FOUND, widget)
             on_select(value)
             return True  # return True or on_changed() will be called with ''
 
@@ -2346,7 +2337,7 @@ class GenericNoteBox:
 
     # pylint: disable=no-member
 
-    PROBLEM_BAD_DATE = f"bad_date:{random()}"
+    PROBLEM_BAD_DATE = Problem("bad_date")
 
     note_attr = ""
 
@@ -2989,7 +2980,7 @@ class NotesPresenter(GenericEditorPresenter):
     :param parent_container: the Gtk.Container to add the notes editor box to
     """
 
-    ContentBox: type[GenericNoteBox] = NoteBox
+    CONTENTBOX: type[GenericNoteBox] = NoteBox
 
     def __init__(self, presenter, notes_property, parent_container):
         super().__init__(presenter.model, None)
@@ -3039,7 +3030,7 @@ class NotesPresenter(GenericEditorPresenter):
 
     def add_note(self, note=None):
         """Add a new note to the model."""
-        box = self.ContentBox(self, note)
+        box = self.CONTENTBOX(self, note)
         self.box.pack_start(box, False, False, 0)
         self.box.reorder_child(box, 0)
         box.show_all()
@@ -3059,7 +3050,7 @@ class PicturesPresenter(NotesPresenter):
     note_textview replaced by a Button containing an Image.
     """
 
-    ContentBox = PictureBox
+    CONTENTBOX = PictureBox
 
     def __init__(self, presenter, notes_property, parent_container):
         super().__init__(presenter, notes_property, parent_container)
@@ -3075,7 +3066,7 @@ class DocumentsPresenter(NotesPresenter):
     This class works just the same as the NotesPresenter
     """
 
-    ContentBox = DocumentBox
+    CONTENTBOX = DocumentBox
 
     def __init__(self, presenter, notes_property, parent_container):
         super().__init__(presenter, notes_property, parent_container)

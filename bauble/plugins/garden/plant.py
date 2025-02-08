@@ -32,7 +32,6 @@ from collections.abc import Sequence
 from datetime import datetime
 from functools import lru_cache
 from pathlib import Path
-from random import random
 
 logger = logging.getLogger(__name__)
 
@@ -93,6 +92,7 @@ from bauble.editor import GenericModelViewPresenterEditor
 from bauble.editor import NotesPresenter
 from bauble.editor import PicturesPresenter
 from bauble.editor import PresenterMapMixin
+from bauble.editor import Problem
 from bauble.error import CheckConditionError
 from bauble.i18n import _
 from bauble.search.strategies import SearchStrategy
@@ -1353,8 +1353,8 @@ class PlantEditorPresenter(GenericEditorPresenter, PresenterMapMixin):
         "plant_quantity_entry": "quantity",
     }
 
-    PROBLEM_DUPLICATE_PLANT_CODE = f"duplicate_plant_code:{random()}"
-    PROBLEM_INVALID_QUANTITY = f"invalid_quantity:{random()}"
+    PROBLEM_DUPLICATE_PLANT_CODE = Problem("duplicate_plant_code")
+    PROBLEM_INVALID_QUANTITY = Problem("invalid_quantity")
 
     def __init__(self, model, view, branch_mode=False):
         """

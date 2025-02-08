@@ -26,7 +26,6 @@ import weakref
 from ast import literal_eval
 from functools import partial
 from pathlib import Path
-from random import random
 from threading import Thread
 
 logger = logging.getLogger(__name__)
@@ -114,7 +113,7 @@ class SynonymsPresenter(editor.GenericEditorPresenter):
         required by `assign_completions_handler`
     """
 
-    PROBLEM_INVALID_SYNONYM = f"invalid_synonym:{random()}"
+    PROBLEM_INVALID_SYNONYM = editor.Problem("invalid_synonym")
 
     def __init__(self, parent, synonym_model, comparer, completions_seed):
         self.synonym_model = synonym_model

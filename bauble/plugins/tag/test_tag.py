@@ -81,7 +81,7 @@ def setUp_data():
             utils.reset_sequence(col)
 
 
-setUp_data.order = 2    # type: ignore [attr-defined]
+setUp_data.order = 2  # type: ignore [attr-defined]
 
 
 def test_duplicate_ids():
@@ -479,6 +479,8 @@ class GetTagIdsTests(BaubleTestCase):
         self.assertEqual(s_some, {i[0] for i in tag_ids})
 
 
+from types import SimpleNamespace
+
 import bauble.db as db
 
 
@@ -487,7 +489,7 @@ class MockTagView(GenericEditorView):
         self._dirty = False
         self.sensitive = False
         self.dict = {}
-        self.widgets = None
+        self.widgets = SimpleNamespace(tag_name_entry=Gtk.Entry())
         self.window = Gtk.Dialog()
 
     def get_window(self):

@@ -27,7 +27,6 @@ import re
 import traceback
 import weakref
 from pathlib import Path
-from random import random
 from typing import TYPE_CHECKING
 
 logger = logging.getLogger(__name__)
@@ -414,9 +413,9 @@ class CollectionPresenter(editor.ChildPresenter):
         "add_region_button": "region",
     }
 
-    PROBLEM_BAD_LATITUDE = f"bad_latitude:{random()}"
-    PROBLEM_BAD_LONGITUDE = f"bad_longitude:{random()}"
-    PROBLEM_INVALID_LOCALE = f"invalid_locale:{random()}"
+    PROBLEM_BAD_LATITUDE = editor.Problem("bad_latitude")
+    PROBLEM_BAD_LONGITUDE = editor.Problem("bad_longitude")
+    PROBLEM_INVALID_LOCALE = editor.Problem("invalid_locale")
 
     def __init__(self, parent, model, view, session):
         super().__init__(model, view, session=session)

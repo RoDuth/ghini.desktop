@@ -23,7 +23,6 @@ import weakref
 from collections.abc import Callable
 from contextlib import contextmanager
 from pathlib import Path
-from random import random
 from typing import Any
 from typing import cast
 from zipfile import ZipFile
@@ -45,6 +44,7 @@ from bauble import prefs
 from bauble import task
 from bauble.editor import GenericEditorPresenter
 from bauble.editor import GenericEditorView
+from bauble.editor import Problem
 
 # NOTE importing shapefile Reader Writer above wipes out gettext _
 from bauble.i18n import _
@@ -941,10 +941,10 @@ class ShapefileImportDialogPresenter(GenericEditorPresenter):
     }
     view_accept_buttons = ["imp_button_ok"]
 
-    PROBLEM_NOT_SHAPEFILE = f"no_shapefile:{random()}"
-    PROBLEM_NO_PROJ = f"no_proj:{random()}"
-    PROBLEM_PROJ_MISMATCH = f"proj_mismatch:{random()}"
-    PROBLEM_MULTI_NOT_EQUAL = f"fields_mismatch:{random()}"
+    PROBLEM_NOT_SHAPEFILE = Problem("no_shapefile")
+    PROBLEM_NO_PROJ = Problem("no_proj")
+    PROBLEM_PROJ_MISMATCH = Problem("proj_mismatch")
+    PROBLEM_MULTI_NOT_EQUAL = Problem("fields_mismatch")
 
     last_folder = str(Path.home())
 
