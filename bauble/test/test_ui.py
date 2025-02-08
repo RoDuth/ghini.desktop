@@ -325,6 +325,7 @@ class GUITests(BaubleTestCase):
 
     def test_on_history_pinned_clicked(self):
         gui = GUI()
+        gui.init()
         mock_entry = mock.Mock()
 
         # no text, no history, no pins - does nothing
@@ -369,6 +370,7 @@ class GUITests(BaubleTestCase):
 
     def test_add_to_history(self):
         gui = GUI()
+        gui.init()
 
         # with no history, adds
         gui.add_to_history("test1")
@@ -406,6 +408,7 @@ class GUITests(BaubleTestCase):
 
     def test_populate_main_entry(self):
         gui = GUI()
+        gui.init()
         prefs.prefs[gui.entry_history_pref] = ["test1"]
         prefs.prefs[gui.entry_history_pins_pref] = ["test2"]
         entry = gui.widgets.main_comboentry.get_child()
@@ -424,6 +427,7 @@ class GUITests(BaubleTestCase):
 
     def test_on_main_entry_changed(self):
         gui = GUI()
+        gui.init()
         gui.hist_completions = ["test1", "test2", "test3"]
         entry = gui.widgets.main_comboentry.get_child()
         # less than minimum key length does not populate
@@ -546,6 +550,7 @@ class GUITests(BaubleTestCase):
 
     def test_set_get_view(self):
         gui = GUI()
+        gui.init()
         self.assertIsInstance(gui.views[0], DefaultView)
         self.assertIsInstance(gui.get_view(), DefaultView)
 

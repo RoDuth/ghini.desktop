@@ -29,7 +29,6 @@ import sys
 import traceback
 import warnings
 from shutil import copy2
-from typing import TYPE_CHECKING
 
 import gi
 
@@ -129,14 +128,6 @@ sys.path.append(paths.lib_dir())
 # set SQLAlchemy logging level
 logging.getLogger("sqlalchemy").setLevel(logging.WARNING)
 
-if TYPE_CHECKING:
-    from bauble.ui import GUI
-
-    gui: GUI | None = None
-    """bauble.gui is the instance :class:`bauble.ui.GUI`"""
-else:
-    gui = None
-
 # default_icon = None
 default_icon = os.path.join(paths.lib_dir(), "images", "icon.png")
 """The default icon."""
@@ -148,6 +139,12 @@ last_handler = None
 
 conn_default_pref = "conn.default"
 conn_list_pref = "conn.list"
+
+# import late to avoid circular imports
+from bauble.ui import GUI
+
+gui: GUI = GUI()
+"""bauble.gui is the instance :class:`bauble.ui.GUI`"""
 
 
 def command_handler(cmd, arg):

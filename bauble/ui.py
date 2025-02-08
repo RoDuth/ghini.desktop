@@ -325,7 +325,21 @@ class GUI:
         # default location of LICENSE for about window, if not available will
         # be changed when about is first opened
         self.lic_path = Path(paths.main_dir()) / "share/ghini/LICENSE"
+        self.hist_completions: list[str] = []
+        self._cids: list[int] = []
+        self.progressbar = Gtk.ProgressBar()
 
+        cmd = (
+            StringStart()
+            + ":"
+            + Word(alphanums + "-_").set_results_name("cmd")
+        )
+        arg = rest_of_line.set_results_name("arg")
+        self.cmd_parser = (cmd + StringEnd()) | (cmd + "=" + arg) | arg
+
+        self.create_main_menu()
+
+    def init(self) -> None:
         # restore the window size
         geometry = prefs.prefs.get(self.window_geometry_pref)
         if geometry is not None:
@@ -345,8 +359,6 @@ class GUI:
         for name, handler in actions:
             self.add_action(name, handler)
 
-        self.create_main_menu()
-
         try:
             logger.debug("loading icon from %s", bauble.default_icon)
             pixbuf = GdkPixbuf.Pixbuf.new_from_file(bauble.default_icon)
@@ -364,7 +376,6 @@ class GUI:
         self.widgets.main_comboentry_entry.connect(
             "icon-press", self.on_history_pinned_clicked
         )
-        self.hist_completions: list[str] = []
         self.populate_main_entry()
 
         main_entry = combo.get_child()
@@ -401,7 +412,6 @@ class GUI:
         # future versions of gtk
         statusbar = self.widgets.statusbar
         statusbar.set_spacing(10)
-        self._cids: list[int] = []
 
         def on_statusbar_push(_statusbar, context_id: int, _txt) -> None:
             if context_id not in self._cids:
@@ -422,19 +432,10 @@ class GUI:
             homogeneous=True, spacing=0, orientation=Gtk.Orientation.VERTICAL
         )
         hbox.pack_end(vbox, False, True, 15)
-        self.progressbar = Gtk.ProgressBar()
         vbox.pack_start(self.progressbar, False, False, 0)
         self.progressbar.set_size_request(-1, 10)
         vbox.show()
         hbox.show()
-
-        cmd = (
-            StringStart()
-            + ":"
-            + Word(alphanums + "-_").set_results_name("cmd")
-        )
-        arg = rest_of_line.set_results_name("arg")
-        self.cmd_parser = (cmd + StringEnd()) | (cmd + "=" + arg) | arg
 
         combo.grab_focus()
 

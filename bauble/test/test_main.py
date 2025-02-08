@@ -38,6 +38,7 @@ from bauble import db
 from bauble import paths
 from bauble import pluginmgr
 from bauble import prefs
+from bauble import ui
 
 uri = "sqlite:///:memory:"
 
@@ -75,6 +76,7 @@ def quits_if_connmgr_cancels(que):
 
 
 def connect_empty_db_dont_populate(que):
+    bauble.gui = ui.GUI()
     setup_prefs()
     with (
         mock.patch("bauble.utils.message_dialog") as mock_msg_dialog,
@@ -95,6 +97,7 @@ def connect_empty_db_dont_populate(que):
 
 
 def post_loop_fails_quits(que):
+    bauble.gui = ui.GUI()
     setup_prefs()
     with (
         mock.patch("bauble.main.Application._post_loop") as mock_post_loop,
@@ -114,6 +117,7 @@ def post_loop_fails_quits(que):
 
 
 def connect_empty_populate(que):
+    bauble.gui = ui.GUI()
     setup_prefs()
     with (
         mock.patch("bauble.utils.message_dialog") as mock_msg_dialog,

@@ -35,8 +35,6 @@ from bauble import utils
 from bauble.connmgr import start_connection_manager
 from bauble.i18n import _
 
-from .ui import GUI
-
 logger = logging.getLogger(__name__)
 
 
@@ -66,7 +64,7 @@ class Application(Gtk.Application):
 
         open_exc = self._get_connection()
         self._load_plugins()
-        bauble.gui = GUI()
+        bauble.gui.init()
         # add any prefs menus etc.
         prefs.post_gui()
         bauble.gui.show()

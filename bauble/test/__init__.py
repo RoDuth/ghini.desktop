@@ -50,6 +50,8 @@ uri = "sqlite:///file:testdb?mode=memory&cache=shared&uri=true"
 if os.environ.get("BAUBLE_TEST_DB_URI"):
     uri = os.environ["BAUBLE_TEST_DB_URI"]
 
+bauble.gui = None  # type: ignore[assignment]
+
 
 def update_gui():
     """
