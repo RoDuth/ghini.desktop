@@ -30,6 +30,7 @@ import re
 from collections.abc import Callable
 from collections.abc import Iterable
 from typing import Any
+from typing import cast
 
 logger = logging.getLogger(__name__)
 
@@ -136,14 +137,22 @@ class Base(DBase):
     __tablename__: str
 
     id: int = sa.Column(sa.Integer, primary_key=True, autoincrement=True)
-    _created: datetime.datetime = sa.Column(
-        types.DateTime(timezone=True),
-        default=sa.func.now(),
+    # mypy when run on whole code base does not like datetime.datetime here
+    # unless cast
+    _created: datetime.datetime = cast(
+        datetime.datetime,
+        sa.Column(
+            types.DateTime(timezone=True),
+            default=sa.func.now(),
+        ),
     )
-    _last_updated: datetime.datetime = sa.Column(
-        types.DateTime(timezone=True),
-        default=sa.func.now(),
-        onupdate=sa.func.now(),
+    _last_updated: datetime.datetime = cast(
+        datetime.datetime,
+        sa.Column(
+            types.DateTime(timezone=True),
+            default=sa.func.now(),
+            onupdate=sa.func.now(),
+        ),
     )
 
     def top_level_count(self) -> dict[str, int]:

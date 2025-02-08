@@ -181,7 +181,7 @@ date_str_token = (
     .set_name("date string token")
 )
 
-numeric_token = (
+numeric_token: ParserElement = (
     Regex(r"[-]?\d+(\.\d*)?([eE]\d+)?")
     .set_parse_action(NumericToken)
     .set_name("numeric token")
@@ -206,17 +206,17 @@ quoted_string = (
     .set_name("quoted string token")
 )
 
-string_token = (
+string_token: ParserElement = (
     (quoted_string | unquoted_string_token)
     .set_parse_action(StringToken)
     .set_name("string token")
 )
 
-none_token = Keyword("None").set_parse_action(NoneToken)
+none_token: ParserElement = Keyword("None").set_parse_action(NoneToken)
 
 empty_token = Keyword("Empty").set_parse_action(EmptyToken)
 
-value_token = (
+value_token: ParserElement = (
     (date_str_token | numeric_token | none_token | empty_token | string_token)
     .set_parse_action(ValueToken)
     .set_name("value")("value")
@@ -238,23 +238,29 @@ value_list_token = (
 )
 
 # defined after plugins have all initialised
-domain = Forward()
+domain: Forward = Forward()
 
-binop = one_of(
+binop: ParserElement = one_of(
     "= == IS != <> NOT < <= > >= LIKE CONTAINS HAS", caseless=True
 ).set_name("binary operator")
 
-binop_set = (CaselessKeyword("IN") | CaselessKeyword("NOT IN")).set_name(
-    "set operator"
-)
+binop_set: ParserElement = (
+    CaselessKeyword("IN") | CaselessKeyword("NOT IN")
+).set_name("set operator")
 
 binop_date = CaselessKeyword("ON")
 
-and_ = (CaselessKeyword("AND") | Keyword("&&")).set_name("and")("and_")
+and_: ParserElement = (CaselessKeyword("AND") | Keyword("&&")).set_name("and")(
+    "and_"
+)
 
-or_ = (CaselessKeyword("OR") | Keyword("||")).set_name("or")("or_")
+or_: ParserElement = (CaselessKeyword("OR") | Keyword("||")).set_name("or")(
+    "or_"
+)
 
-not_ = (CaselessKeyword("NOT") | Keyword("!")).set_name("not")("not_")
+not_: ParserElement = (CaselessKeyword("NOT") | Keyword("!")).set_name("not")(
+    "not_"
+)
 
 function = (Word(alphas + "_")).set_name("function")
 
@@ -262,7 +268,7 @@ atomic_identifier = Word(alphas + "_", alphanums + "_").set_name(
     "atomic identifier"
 )
 
-unfiltered_identifier = (
+unfiltered_identifier: ParserElement = (
     (
         atomic_identifier
         + ZeroOrMore(

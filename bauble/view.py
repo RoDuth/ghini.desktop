@@ -2235,13 +2235,14 @@ class HistoryView(pluginmgr.View, Gtk.Box):
         del dct["_created"]
         del dct["_last_updated"]
 
-        geojson = dct.get("geojson")
-        if geojson:
-            if isinstance(geojson, list) and len(geojson) == 2:
-                geojson = self._shorten_list(geojson)
+        item_geojson = dct.get("geojson")
+        geojson: str | None = None
+        if item_geojson:
+            if isinstance(item_geojson, list) and len(item_geojson) == 2:
+                geojson = self._shorten_list(item_geojson)
             else:
                 geojson = shorten(
-                    json.dumps(geojson), self.TRUNCATE, placeholder="…"
+                    json.dumps(item_geojson), self.TRUNCATE, placeholder="…"
                 )
             del dct["geojson"]
 
