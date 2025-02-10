@@ -121,7 +121,12 @@ def _get_pertinent_objects(
         get_query_func(cls, objs, session) for cls, objs in grouped.items()
     ]
 
-    query = queries[0]
+    if queries:
+        query = queries[0]
+    else:
+        # e.g. an empty tag
+        return []
+
     has_union = len(queries) > 1
     if has_union:
         query = query.union(*queries[1:])

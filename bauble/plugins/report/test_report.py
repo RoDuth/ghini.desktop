@@ -374,6 +374,12 @@ class ReportTests(BaubleTestCase):
         ids = get_ids(get_plants_pertinent_to(vn, self.session))
         self.assertCountEqual(ids, list(range(1, 5)))
 
+        tag = Tag(tag="Empty")
+        self.session.add(tag)
+        self.session.commit()
+        plants = get_plants_pertinent_to(tag, self.session)
+        self.assertEqual(plants.all(), [])
+
         tag_objects("test", [family, genus])
         tag = self.session.query(Tag).filter_by(tag="test").one()
         ids = get_ids(get_plants_pertinent_to(tag, self.session))
