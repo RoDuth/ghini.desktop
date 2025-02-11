@@ -139,6 +139,7 @@ class Tag(db.Base):
         if self._update_timestamp is not None:
 
             last_history = None
+            # NOTE tests will freeze here on MSSQL if flush.  Better to commit
             if db.engine:
                 with db.engine.begin() as connection:
                     table = db.History.__table__

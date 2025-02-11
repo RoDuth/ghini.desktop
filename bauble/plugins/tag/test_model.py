@@ -68,7 +68,7 @@ class TagTests(BaubleTestCase):
         tag = Tag(tag=name)
         obj = Family(epithet="Foo")
         self.session.add_all([tag, obj])
-        self.session.flush()
+        self.session.commit()
         tagged_obj = TaggedObj(
             obj_id=obj.id, obj_class=_classname(obj), tag=tag
         )
@@ -78,7 +78,7 @@ class TagTests(BaubleTestCase):
     def test_tag_nothing(self):
         t = Tag(tag="some_tag", description="description")
         self.session.add(t)
-        self.session.flush()
+        self.session.commit()
         t.tag_objects([])
         self.assertEqual(t.objects, [])
         self.assertEqual(
@@ -93,14 +93,14 @@ class TagTests(BaubleTestCase):
         family2 = Family(family="family2")
         t1 = Tag(tag="test1")
         self.session.add_all([family2, t1])
-        self.session.flush()
+        self.session.commit()
         self.assertFalse(t1.is_tagging(family2))
         self.assertFalse(t1.is_tagging(self.family))
 
         # required for windows tests to succeed due to 16ms resolution
         sleep(0.02)
         t1.tag_objects([self.family])
-        self.session.flush()
+        self.session.commit()
         self.assertFalse(t1.is_tagging(family2))
         self.assertTrue(t1.is_tagging(self.family))
 
@@ -109,7 +109,7 @@ class TagTests(BaubleTestCase):
         t1 = Tag(tag="test1")
         t2 = Tag(tag="test2")
         self.session.add_all([family2, t1, t2])
-        self.session.flush()
+        self.session.commit()
         t1.tag_objects([self.family, family2])
         t2.tag_objects([self.family])
         self.assertEqual(
@@ -133,7 +133,7 @@ class TagTests(BaubleTestCase):
         # timed cache)
         sleep(0.3)
         t2.tag_objects([t1])
-        self.session.flush()
+        self.session.commit()
         self.assertEqual(
             t2.search_view_markup_pair(),
             (
@@ -147,14 +147,14 @@ class TagTests(BaubleTestCase):
         family2 = Family(family="family2")
         t1 = Tag(tag="test1")
         self.session.add_all([family2, t1])
-        self.session.flush()
+        self.session.commit()
         self.assertFalse(t1.is_tagging(family2))
         self.assertFalse(t1.is_tagging(self.family))
         # required for windows tests to succeed due to 16ms resolution
 
         sleep(0.02)
         t1.tag_objects([self.family, family2])
-        self.session.flush()
+        self.session.commit()
         self.assertEqual(len(t1.objects), 2)
         sleep(0.02)
         self.session.delete(family2)
@@ -165,7 +165,7 @@ class TagTests(BaubleTestCase):
         tag1 = Tag(tag="test1")
         tag2 = Tag(tag="test2")
         self.session.add_all([tag1, tag2])
-        self.session.flush()
+        self.session.commit()
 
         keys = {
             "tag": "test1",
@@ -177,7 +177,7 @@ class TagTests(BaubleTestCase):
         tag1 = Tag(tag="test1")
         tag2 = Tag(tag="test2")
         self.session.add_all([tag1, tag2])
-        self.session.flush()
+        self.session.commit()
         # fails due to keys
         keys = {
             "description": "",
@@ -189,7 +189,7 @@ class TagTests(BaubleTestCase):
         tag1 = Tag(tag="test1")
         tag2 = Tag(tag="test2")
         self.session.add_all([tag1, tag2])
-        self.session.flush()
+        self.session.commit()
         keys = {"id": tag2.id}
         tag = Tag.retrieve(self.session, keys)
         self.assertEqual(tag, tag2)
@@ -198,7 +198,7 @@ class TagTests(BaubleTestCase):
         tag1 = Tag(tag="test1")
         tag2 = Tag(tag="test2")
         self.session.add_all([tag1, tag2])
-        self.session.flush()
+        self.session.commit()
         keys = {"tag": "Noneexistent"}
         tag = Tag.retrieve(self.session, keys)
         self.assertIsNone(tag)
@@ -325,7 +325,7 @@ class GlobalFunctionsTest(BaubleTestCase):
         tag = Tag(tag="test")
         obj = Family(epithet="Foo")
         self.session.add_all([tag, obj])
-        self.session.flush()
+        self.session.commit()
         tagged_obj = TaggedObj(
             obj_id=obj.id, obj_class="bauble.plugins.plants.Family", tag=tag
         )
@@ -339,7 +339,7 @@ class GlobalFunctionsTest(BaubleTestCase):
         tag = Tag(tag="test")
         obj = Family(epithet="Foo")
         self.session.add_all([tag, obj])
-        self.session.flush()
+        self.session.commit()
         tagged_obj = TaggedObj(
             obj_id=obj.id, obj_class="bauble.plugin.taxonomy.Family", tag=tag
         )
@@ -370,7 +370,7 @@ class GlobalFunctionsTest(BaubleTestCase):
         tag = Tag(tag="test")
         obj = Family(epithet="Foo")
         self.session.add(tag)
-        self.session.flush()
+        self.session.commit()
         with self.assertLogs(level="WARNING") as logs:
             tag_objects("test", [obj])
         string = "no object session bailing."
@@ -380,7 +380,7 @@ class GlobalFunctionsTest(BaubleTestCase):
         tag = Tag(tag="test")
         obj = Family(epithet="Foo")
         self.session.add(tag)
-        self.session.flush()
+        self.session.commit()
         with self.assertLogs(level="WARNING") as logs:
             untag_objects("test", [obj])
         string = "no object session bailing."
@@ -389,7 +389,7 @@ class GlobalFunctionsTest(BaubleTestCase):
     def test_untag_object_no_tag_logs(self):
         obj = Family(epithet="Foo")
         self.session.add(obj)
-        self.session.flush()
+        self.session.commit()
         with self.assertLogs(level="INFO") as logs:
             untag_objects("test", [obj])
         string = "Can't remove non existing tag"
