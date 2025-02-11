@@ -38,6 +38,7 @@ package_data = {
         "images/*.icns",
         "images/*.bmp",
     ],
+    "bauble.search": ["*.ui"],
     "bauble.utils": ["prj_crs.csv"],
     "bauble.plugins.plants": [
         "default/*.csv",
