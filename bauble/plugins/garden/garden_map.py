@@ -57,6 +57,7 @@ from bauble import paths
 from bauble import prefs
 from bauble import utils
 from bauble.i18n import _
+from bauble.pluginmgr import Viewable
 from bauble.utils import timed_cache
 from bauble.utils.geo import is_point_within_poly
 from bauble.utils.geo import polylabel
@@ -1141,7 +1142,7 @@ class SearchViewMapPresenter:
         self._resize_timer_id = None
 
     def populate_map_from_search_view(
-        self, *_args, view: SearchView | None = None
+        self, *_args, view: Viewable | None = None
     ) -> None:
         """Populate the map with the current search result.
 
@@ -1150,8 +1151,10 @@ class SearchViewMapPresenter:
         :param view: supply the SearchView instance (for testing)
         """
         logger.debug("populating map from search view results")
+
         if not view and bauble.gui:
             view = bauble.gui.get_view()
+
         if isinstance(view, SearchView) and self.is_visible():
             if not self.populated:
                 model = view.results_view.get_model()

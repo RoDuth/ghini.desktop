@@ -1085,16 +1085,18 @@ class SearchView(pluginmgr.View, Gtk.Box):
     Items are a tuple - (widget, tab position, tab label)
     """
 
-    context_menu_callbacks: set[Callable] = set()
+    context_menu_callbacks: set[Callable[[list[db.Base]], Gio.Menu | None]] = (
+        set()
+    )
     """Callbacks for constructing context menus for selected items.
     Callbacks should recieve a single argument containing the selected items
     and return a single menu section of type Gio.Menu
     """
 
-    cursor_changed_callbacks: set[Callable] = set()
+    cursor_changed_callbacks: set[Callable[[list[db.Base]], None]] = set()
     """Callbacks called each time the cursor changes"""
 
-    populate_callbacks: set[Callable] = set()
+    populate_callbacks: set[Callable[[list[db.Base]], None]] = set()
     """Callbacks called each time SearchView populates"""
 
     extra_signals: set[tuple[str, str, Callable]] = set()

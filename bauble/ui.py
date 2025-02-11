@@ -782,12 +782,16 @@ class GUI:
             if view == "previous" and self.views:
                 self.views.rotate()
                 view = self.views[-1]
-                self.get_view().set_visible(False)
+                current = self.get_view()
+                if current:
+                    current.set_visible(False)
                 view.set_visible(True)
             elif view == "next" and self.views:
                 self.views.rotate(-1)
                 view = self.views[-1]
-                self.get_view().set_visible(False)
+                current = self.get_view()
+                if current:
+                    current.set_visible(False)
                 view.set_visible(True)
             return
 
@@ -809,7 +813,7 @@ class GUI:
 
         # make sure current view is the last view
         current = self.get_view()
-        if current in self.views and not self.views[-1] is current:
+        if current and current in self.views and not self.views[-1] is current:
             self.views.remove(current)
             self.views.append(current)
 
@@ -820,7 +824,7 @@ class GUI:
         self.edit_context_menu.remove_all()
         view.show_all()
 
-    def get_view(self):
+    def get_view(self) -> pluginmgr.Viewable | None:
         """return the current view in the view box."""
         for kid in self.widgets.view_box.get_children():
             if kid.get_visible():
@@ -851,7 +855,7 @@ class GUI:
         """remove a menu from the menubar"""
         self.menubar.remove(position)
 
-    def add_menu(self, name, menu, from_end=1):
+    def add_menu(self, name: str, menu: Gio.Menu, from_end: int = 1) -> int:
         """add a menu to the menubar
 
         :param name: the name of the menu to add
