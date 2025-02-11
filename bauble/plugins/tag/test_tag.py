@@ -1,6 +1,7 @@
+# pylint: disable=no-self-use,protected-access
 # Copyright (c) 2005,2006,2007,2008,2009 Brett Adams <brett@belizebotanic.org>
 # Copyright (c) 2012-2015 Mario Frasca <mario@anche.no>
-# Copyright (c) 2021-2023 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright (c) 2021-2025 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -16,27 +17,37 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
+"""
+Tag tests
+"""
 
 import os
-from functools import partial
+from time import sleep
+from unittest import mock
 
 from gi.repository import Gio
+from gi.repository import GLib
 from gi.repository import Gtk
 
+import bauble
 import bauble.plugins.tag as tag_plugin
 from bauble import utils
 from bauble.editor import GenericEditorView
-from bauble.editor import MockView
-from bauble.i18n import _
-from bauble.plugins.garden import Accession
-from bauble.plugins.plants import Family
-from bauble.plugins.tag import Tag
-from bauble.plugins.tag import TagEditorPresenter
-from bauble.plugins.tag import TaggedObj
-from bauble.plugins.tag import TagInfoBox
 from bauble.test import BaubleTestCase
 from bauble.test import check_dupids
-from bauble.test import mockfunc
+from bauble.ui import GUI
+from bauble.view import SearchView
+
+from ..garden import Accession
+from ..plants import Family
+from . import Tag
+from . import TagEditorPresenter
+from . import TagInfoBox
+from . import TagsMenuManager
+from . import remove_callback
+from . import tag_objects
+from . import untag_objects
+from .model import TaggedObj
 
 tag_test_data = (
     {"id": 1, "tag": "test1", "description": "empty test tag"},
@@ -99,15 +110,23 @@ def test_duplicate_ids():
 
 
 class TagMenuTests(BaubleTestCase):
-    def test_no_tags(self):
+    def setUp(self):
+        super().setUp()
+        bauble.gui = GUI()
+
+    def tearDown(self):
+        super().tearDown()
+        bauble.gui = None
+
+    def test_build_menu_no_tags(self):
         menu_model = tag_plugin.tags_menu_manager.build_menu()
         self.assertTrue(isinstance(menu_model, Gio.Menu))
         m = Gtk.Menu.new_from_model(menu_model)
         self.assertEqual(len(m.get_children()), 1)
         self.assertEqual(menu_model.get_n_items(), 1)
-        self.assertEqual(m.get_children()[0].get_label(), _("Tag Selection"))
+        self.assertEqual(m.get_children()[0].get_label(), "Tag Selection")
 
-    def test_one_tag(self):
+    def test_build_menu_one_tag(self):
         tagname = "some-tag"
         t = Tag(tag=tagname, description="description")
         self.session.add(t)
@@ -118,7 +137,8 @@ class TagMenuTests(BaubleTestCase):
         self.assertEqual(menu_model.get_n_items(), 3)
         self.assertEqual(m.get_children()[2].get_label(), tagname)
 
-    def test_more_tags(self):
+    @mock.patch("bauble.gui", new=mock.Mock())
+    def test_build_menu_more_tags(self):
         tagname = "%s-some-tag"
         t1 = Tag(tag=tagname % 1, description="description")
         t2 = Tag(tag=tagname % 3, description="description")
@@ -135,348 +155,265 @@ class TagMenuTests(BaubleTestCase):
         for i in range(5):
             self.assertEqual(m.get_children()[i + 2].get_label(), tagname % i)
 
+    @mock.patch("bauble.gui")
+    def test_reset_adds_and_removes_menu(self, mock_gui):
+        tags_mm = TagsMenuManager()
+        self.assertIsNone(tags_mm.menu_pos)
 
-class TagTests(BaubleTestCase):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        import bauble.prefs
+        # first run
+        mock_gui.add_menu.return_value = 5
+        tags_mm.reset()
+        self.assertEqual(tags_mm.menu_pos, 5)
+        mock_gui.remove_menu.assert_not_called()
 
-        bauble.prefs.testing = True
+        # subsequent tuns
+        mock_gui.add_menu.return_value = 6
+        tags_mm.reset()
+        self.assertEqual(tags_mm.menu_pos, 6)
+        mock_gui.remove_menu.assert_called()
 
-    def setUp(self):
-        super().setUp()
-        self.family = Family(family="family")
-        self.session.add(self.family)
+    def test_reset_active_tag_name_session_is_none_bails(self):
+        tags_mm = TagsMenuManager()
+        self.assertIsNone(tags_mm.active_tag_name)
+        with mock.patch("bauble.plugins.tag.db.Session", None):
+            with self.assertLogs(level="WARNING") as logs:
+                tags_mm.reset_active_tag_name()
+            self.assertIsNone(tags_mm.active_tag_name)
+            string = "no session bailing."
+            self.assertTrue(any(string in i for i in logs.output))
+
+    def test_reset_active_tag_name_resets_if_none_or_invalid(self):
+        t1 = Tag(tag="tag-1")
+        t2 = Tag(tag="tag-2")
+        self.session.add_all([t1, t2])
         self.session.commit()
-
-    def tearDown(self):
-        super().tearDown()
-
-    def test_str(self):
-        """
-        Test Tag.__str__ method
-        """
-        name = "test"
-        tag = Tag(tag=name)
-        self.assertEqual(str(tag), name)
-
-    def test_create_named_empty_tag(self):
-        name = "name123"
-        r = self.session.query(Tag).filter_by(tag=name).all()
-        self.assertEqual(len(r), 0)
-        tag_plugin.create_named_empty_tag(name)
-        r = self.session.query(Tag).filter_by(tag=name).all()
-        self.assertEqual(len(r), 1)
-        t0 = r[0]
-        self.assertEqual(t0.tag, name)
-        tag_plugin.create_named_empty_tag(name)
-        t1 = self.session.query(Tag).filter_by(tag=name).one()
-        self.assertEqual(t0, t1)
-
-    def test_tag_nothing(self):
-        t = Tag(tag="some_tag", description="description")
-        self.session.add(t)
-        self.session.flush()
-        t.tag_objects([])
-        self.assertEqual(t.objects, [])
-        self.assertEqual(
-            t.search_view_markup_pair(),
-            (
-                'some_tag - <span weight="light">tagging nothing</span>',
-                '(Tag) - <span weight="light">description</span>',
-            ),
-        )
-
-    def test_tag_objects(self):
-        family2 = Family(family="family2")
-        self.session.add(family2)
+        tags_mm = TagsMenuManager()
+        self.assertIsNone(tags_mm.active_tag_name)
+        tags_mm.reset_active_tag_name()
+        self.assertEqual(tags_mm.active_tag_name, "tag-2")
+        self.session.delete(t2)
         self.session.commit()
-        family1_id = self.family.id
-        family2_id = family2.id
-        tag_plugin.tag_objects("test", [self.family, family2])
+        tags_mm.reset_active_tag_name()
+        self.assertEqual(tags_mm.active_tag_name, "tag-1")
 
-        # we do not offer gettin object by string
-        # get object by tag
-        tag = self.session.query(Tag).filter_by(tag="test").one()
-        tagged_objs = tag.objects
-        sorted_pairs = sorted([(type(o), o.id) for o in tagged_objs])
-        self.assertEqual(
-            sorted([(Family, family1_id), (Family, family2_id)]), sorted_pairs
+    @mock.patch("bauble.gui")
+    def test_on_tag_change_state_searches_sets_active(self, mock_gui):
+        mock_sv = mock.Mock(spec=SearchView)
+        mock_gui.get_view.return_value = mock_sv
+        tags_mm = TagsMenuManager()
+        tags_mm.refresh = mock.Mock()
+        variant = GLib.Variant.new_string("test1")
+        action = Gio.SimpleAction.new_stateful(
+            tags_mm.ACTIVATED_ACTION_NAME, variant.get_type(), variant
         )
 
-        # required for windows tests to succeed due to 16ms resolution
-        from time import sleep
+        with mock.patch("bauble.plugins.tag.GLib.idle_add") as mock_iadd:
+            tags_mm.on_tag_change_state(action, variant)
 
-        sleep(0.02)
-        tag_plugin.tag_objects("test", [self.family, family2])
-        self.assertEqual(tag.objects, [self.family, family2])
+            mock_iadd.assert_called()
+        mock_gui.send_command.assert_called_with("tag='test1'")
+        tags_mm.refresh.assert_called()
+        self.assertEqual(tags_mm.active_tag_name, "test1")
 
-        #
-        # first untag one, then both
-        #
-        sleep(0.02)
-        tag_plugin.untag_objects("test", [self.family])
+    @mock.patch("bauble.gui")
+    def test_on_context_menu_apply_activated_bails(self, mock_gui):
+        # no SearchView
+        mock_sv = mock.Mock()
+        mock_gui.get_view.return_value = mock_sv
+        mock_sv.get_selected_values.return_value = []
+        tags_mm = TagsMenuManager()
+        variant = GLib.Variant.new_string("test2")
 
-        # get object by tag
-        tag = self.session.query(Tag).filter_by(tag="test").one()
-        tagged_objs = tag.objects
-        self.assertEqual(tagged_objs, [family2])
+        tags_mm.on_context_menu_apply_activated(None, variant)
 
-        #
-        # first untag one, then both
-        #
-        sleep(0.02)
-        tag_plugin.untag_objects("test", [self.family, family2])
+        mock_sv.get_selected_values.assert_not_called()
+        mock_sv.update_bottom_notebook.assert_not_called()
 
-        # get object by tag
-        tag = self.session.query(Tag).filter_by(tag="test").one()
-        tagged_objs = tag.objects
-        self.assertEqual(tagged_objs, [])
+    @mock.patch("bauble.gui")
+    def test_on_context_menu_apply_activated_w_values(self, mock_gui):
+        # with SearchView with Values
+        mock_sv = mock.Mock(spec=SearchView)
+        mock_gui.get_view.return_value = mock_sv
+        fam = Family(epithet="Myrtaceae")
+        mock_sv.get_selected_values.return_value = [fam]
+        tags_mm = TagsMenuManager()
+        variant = GLib.Variant.new_string("test2")
 
-    def test_is_tagging(self):
-        family2 = Family(family="family2")
-        t1 = Tag(tag="test1")
-        self.session.add_all([family2, t1])
-        self.session.flush()
-        self.assertFalse(t1.is_tagging(family2))
-        self.assertFalse(t1.is_tagging(self.family))
-        # required for windows tests to succeed due to 16ms resolution
-        from time import sleep
+        with mock.patch("bauble.plugins.tag.tag_objects") as mock_to:
+            tags_mm.on_context_menu_apply_activated(None, variant)
+            mock_to.assert_called()
 
-        sleep(0.02)
-        t1.tag_objects([self.family])
-        self.session.flush()
-        self.assertFalse(t1.is_tagging(family2))
-        self.assertTrue(t1.is_tagging(self.family))
+        mock_sv.update_bottom_notebook.assert_called_with([fam])
 
-    def test_search_view_markup_pair(self):
-        family2 = Family(family="family2")
-        t1 = Tag(tag="test1")
-        t2 = Tag(tag="test2")
-        self.session.add_all([family2, t1, t2])
-        self.session.flush()
-        t1.tag_objects([self.family, family2])
-        t2.tag_objects([self.family])
-        self.assertEqual(
-            t1.search_view_markup_pair(),
-            (
-                'test1 - <span weight="light">tagging 2 objects of type '
-                "Family</span>",
-                '(Tag) - <span weight="light"></span>',
-            ),
-        )
-        self.assertEqual(
-            t2.search_view_markup_pair(),
-            (
-                'test2 - <span weight="light">tagging 1 objects of type '
-                "Family</span>",
-                '(Tag) - <span weight="light"></span>',
-            ),
-        )
-        # required for windows tests to succeed due to 16ms resolution (also
-        # timed cache)
-        from time import sleep
+    @mock.patch("bauble.gui")
+    def test_on_context_menu_remove_activated_bails(self, mock_gui):
+        # no SearchView
+        mock_sv = mock.Mock()
+        mock_gui.get_view.return_value = mock_sv
+        mock_sv.get_selected_values.return_value = []
+        tags_mm = TagsMenuManager()
+        variant = GLib.Variant.new_string("test2")
 
-        sleep(0.3)
-        t2.tag_objects([t1])
-        self.session.flush()
-        self.assertEqual(
-            t2.search_view_markup_pair(),
-            (
-                'test2 - <span weight="light">tagging 2 objects of 2 different '
-                "types: Family, Tag</span>",
-                '(Tag) - <span weight="light"></span>',
-            ),
-        )
+        tags_mm.on_context_menu_remove_activated(None, variant)
 
-    def test_remove_callback_no_confirm(self):
-        # T_0
-        f5 = Tag(tag="Arecaceae")
-        self.session.add(f5)
-        self.session.flush()
-        self.invoked = []
+        mock_sv.get_selected_values.assert_not_called()
+        mock_sv.update_bottom_notebook.assert_not_called()
 
-        # action
-        orig_yes_no_dialog = utils.yes_no_dialog
-        orig_message_details_dialog = utils.message_details_dialog
-        utils.yes_no_dialog = partial(
-            mockfunc, name="yes_no_dialog", caller=self, result=False
-        )
-        utils.message_details_dialog = partial(
-            mockfunc, name="message_details_dialog", caller=self
-        )
-        from bauble.plugins.tag import remove_callback
+    @mock.patch("bauble.gui")
+    def test_on_context_menu_remove_activated_w_values(self, mock_gui):
+        # with SearchView with Values
+        mock_sv = mock.Mock(spec=SearchView)
+        mock_gui.get_view.return_value = mock_sv
+        fam = Family(epithet="Myrtaceae")
+        mock_sv.get_selected_values.return_value = [fam]
+        tags_mm = TagsMenuManager()
+        variant = GLib.Variant.new_string("test2")
 
-        result = remove_callback([f5])
-        self.session.flush()
+        with mock.patch("bauble.plugins.tag.untag_objects") as mock_uto:
+            tags_mm.on_context_menu_remove_activated(None, variant)
+            mock_uto.assert_called()
 
-        # effect
-        self.assertFalse(
-            "message_details_dialog" in [f for (f, m) in self.invoked]
-        )
-        self.assertTrue(
-            (
-                "yes_no_dialog",
-                "Are you sure you want to remove Tag: Arecaceae?",
+        mock_sv.update_bottom_notebook.assert_called_with([fam])
+
+    def test_context_menu_callback_bails_nothing_selected(self):
+        tags_mm = TagsMenuManager()
+
+        with self.assertLogs(level="WARNING") as logs:
+            self.assertIsNone(tags_mm.context_menu_callback([]))
+
+        string = "nothing selected bailing."
+        self.assertTrue(any(string in i for i in logs.output))
+
+    def test_context_menu_callback_bails_no_session(self):
+        tags_mm = TagsMenuManager()
+
+        with self.assertLogs(level="WARNING") as logs:
+            self.assertIsNone(
+                tags_mm.context_menu_callback([Family(epithet="Myrtaceae")])
             )
-            in self.invoked
-        )
-        self.assertEqual(result, False)
-        q = self.session.query(Tag).filter_by(tag="Arecaceae")
-        matching = q.all()
-        self.assertEqual(matching, [f5])
-        utils.message_details_dialog = orig_message_details_dialog
-        utils.yes_no_dialog = orig_yes_no_dialog
 
-    def test_remove_callback_confirm(self):
-        # T_0
-        f5 = Tag(tag="Arecaceae")
-        self.session.add(f5)
-        self.session.flush()
-        self.invoked = []
-        save_status = tag_plugin.tags_menu_manager.reset
+        string = "no object session bailing."
+        self.assertTrue(any(string in i for i in logs.output))
 
-        # action
-        orig_yes_no_dialog = utils.yes_no_dialog
-        utils.yes_no_dialog = partial(
-            mockfunc, name="yes_no_dialog", caller=self, result=True
-        )
-        tag_plugin.tags_menu_manager.reset = partial(
-            mockfunc, name="_reset_tags_menu", caller=self
-        )
-        from bauble.plugins.tag import remove_callback
+    def test_context_menu_callback_bails_no_tags(self):
+        tags_mm = TagsMenuManager()
+        fam = Family(epithet="Myrtaceae")
+        self.session.add(fam)
 
-        result = remove_callback([f5])
-        tag_plugin.tags_menu_manager.reset = save_status
-        self.session.flush()
+        with self.assertLogs(level="DEBUG") as logs:
+            section = tags_mm.context_menu_callback([fam])
 
-        # effect
-        self.assertTrue("_reset_tags_menu" in [f for (f, m) in self.invoked])
-        self.assertTrue(
-            (
-                "yes_no_dialog",
-                "Are you sure you want to remove Tag: Arecaceae?",
+        self.assertIsNotNone(section)
+        self.assertEqual(section.get_n_items(), 1)
+        string = "no tags, not creating submenus."
+        self.assertTrue(any(string in i for i in logs.output))
+
+        menu = Gtk.Menu.new_from_model(section)
+        self.assertEqual(menu.get_children()[0].get_label(), "Tag Selection")
+
+    def test_context_menu_callback_builds_menu(self):
+        tags_mm = TagsMenuManager()
+        fam = Family(epithet="Myrtaceae")
+        tag1 = Tag(tag="Foo")
+        tag2 = Tag(tag="Bar")
+        self.session.add_all([fam, tag1, tag2])
+        self.session.commit()
+        tag1.tag_objects([fam])
+        self.session.commit()
+
+        section = tags_mm.context_menu_callback([fam])
+
+        self.assertIsNotNone(section)
+        self.assertEqual(section.get_n_items(), 3)
+
+        menu = Gtk.Menu.new_from_model(section)
+        self.assertEqual(menu.get_children()[0].get_label(), "Tag Selection")
+        self.assertEqual(menu.get_children()[1].get_label(), "Apply Tag")
+        self.assertEqual(menu.get_children()[2].get_label(), "Remove Tag")
+
+    def test_apply_remove_tags(self):
+        fam = Family(epithet="Myrtaceae")
+        fam2 = Family(epithet="Fabaceae")
+        fam3 = Family(epithet="Malvaceae")
+        tag1 = Tag(tag="Foo")
+        tag2 = Tag(tag="Bar")
+        tag3 = Tag(tag="Baz")
+        self.session.add_all([fam, fam2, fam3, tag1, tag2, tag3])
+        self.session.commit()
+        tag1.tag_objects([fam])
+        self.session.commit()
+
+        query = self.session.query(Tag)
+        apply, remove = TagsMenuManager._apply_remove_tags([fam, fam2], query)
+        self.assertCountEqual(remove, [tag1])
+        self.assertCountEqual(apply, [tag1, tag2, tag3])
+
+        tag1.tag_objects([fam2])
+        self.session.commit()
+        apply, remove = TagsMenuManager._apply_remove_tags([fam, fam2], query)
+        self.assertCountEqual(remove, [tag1])
+        self.assertCountEqual(apply, [tag2, tag3])
+
+    def test_toggle_tag_warns_not_search_view(self):
+        tags_mm = TagsMenuManager()
+        with mock.patch("bauble.gui") as mock_gui:
+            mock_sv = mock.Mock()
+            mock_gui.get_view.return_value = mock_sv
+            tags_mm.toggle_tag(None)
+            mock_gui.show_message_box.assert_called_with(
+                "In order to tag or untag an item you must first search "
+                "for something."
             )
-            in self.invoked
-        )
-        self.assertEqual(result, True)
-        q = self.session.query(Tag).filter_by(tag="Arecaceae")
-        matching = q.all()
-        self.assertEqual(matching, [])
-        utils.yes_no_dialog = orig_yes_no_dialog
 
-    def test_get_tagged_objects_deletes_redundant(self):
-        family2 = Family(family="family2")
-        t1 = Tag(tag="test1")
-        self.session.add_all([family2, t1])
-        self.session.flush()
-        self.assertFalse(t1.is_tagging(family2))
-        self.assertFalse(t1.is_tagging(self.family))
-        # required for windows tests to succeed due to 16ms resolution
-        from time import sleep
+    def test_toggle_tag_warns_nothing_selected(self):
+        tags_mm = TagsMenuManager()
+        with mock.patch("bauble.gui") as mock_gui:
+            mock_sv = mock.Mock(spec=SearchView)
+            mock_sv.get_selected_values.return_value = None
+            mock_gui.get_view.return_value = mock_sv
+            tags_mm.toggle_tag(None)
+            mock_gui.show_message_box.assert_called_with(
+                "In order to tag or untag an item you must first search "
+                "for something."
+            )
 
-        sleep(0.02)
-        t1.tag_objects([self.family, family2])
-        self.session.flush()
-        self.assertEqual(len(t1.objects), 2)
-        sleep(0.02)
-        self.session.delete(family2)
-        self.session.commit()
-        self.assertEqual(len(t1.objects), 1)
+    @mock.patch("bauble.plugins.tag.utils.message_dialog")
+    def test_toggle_tag_no_active_tag_messages(self, mock_dialog):
+        tags_mm = TagsMenuManager()
+        with mock.patch("bauble.gui") as mock_gui:
+            mock_sv = mock.Mock(spec=SearchView)
+            mock_sv.get_selected_values.return_value = [None, None]
+            mock_gui.get_view.return_value = mock_sv
+            self.assertIsNone(tags_mm.active_tag_name)
+            tags_mm.toggle_tag(None)
+            mock_dialog.assert_called_with("Please make sure a tag is active.")
 
-    def test_retreive_tag(self):
-        tag1 = Tag(tag="test1")
-        tag2 = Tag(tag="test2")
-        self.session.add_all([tag1, tag2])
-        self.session.flush()
-        keys = {
-            "tag": "test1",
-        }
-        tag = Tag.retrieve(self.session, keys)
-        self.assertEqual(tag, tag1)
+    def test_toggle_tag_applies(self):
+        # setup some test data
+        tags_mm = TagsMenuManager()
+        tags_mm.active_tag_name = "test"
+        with mock.patch("bauble.gui") as mock_gui:
+            mock_sv = mock.Mock(spec=SearchView)
+            mock_sv.get_selected_values.return_value = [None, None]
+            mock_gui.get_view.return_value = mock_sv
+            mock_applying = mock.Mock()
 
-    def test_retreive_tag_id_only(self):
-        tag1 = Tag(tag="test1")
-        tag2 = Tag(tag="test2")
-        self.session.add_all([tag1, tag2])
-        self.session.flush()
-        keys = {"id": tag2.id}
-        tag = Tag.retrieve(self.session, keys)
-        self.assertEqual(tag, tag2)
+            tags_mm.toggle_tag(mock_applying)
 
-    def test_retrieve_tag_doesnt_retreive_none_existent(self):
-        tag1 = Tag(tag="test1")
-        tag2 = Tag(tag="test2")
-        self.session.add_all([tag1, tag2])
-        self.session.flush()
-        keys = {"tag": "Noneexistent"}
-        tag = Tag.retrieve(self.session, keys)
-        self.assertIsNone(tag)
+            mock_applying.assert_called_with("test", [None, None])
+            mock_sv.update_bottom_notebook.assert_called()
 
+    def test_on_apply_active_tag_activated(self):
+        tags_mm = TagsMenuManager()
+        tags_mm.toggle_tag = mock.Mock()
+        tags_mm.on_apply_active_tag_activated(None, None)
+        tags_mm.toggle_tag.assert_called_with(tag_objects)
 
-class GetTagIdsTests(BaubleTestCase):
-    def setUp(self):
-        super().setUp()
-        self.fam1 = Family(family="Fabaceae")
-        self.fam2 = Family(family="Poaceae")
-        self.fam3 = Family(family="Solanaceae")
-        self.fam4 = Family(family="Caricaceae")
-        self.session.add_all([self.fam1, self.fam2, self.fam3, self.fam4])
-        self.session.commit()
-        tag_plugin.tag_objects("test1", [self.fam1, self.fam2])
-        tag_plugin.tag_objects("test2", [self.fam1])
-        tag_plugin.tag_objects("test3", [self.fam2, self.fam3])
-        self.session.commit()
-
-    def test_get_tag_ids1(self):
-        s_all, s_some, s_none = tag_plugin.get_tag_ids([self.fam1, self.fam2])
-        self.assertEqual(s_all, set([1]))
-        self.assertEqual(s_some, set([2, 3]))
-
-    def test_get_tag_ids2(self):
-        s_all, s_some, s_none = tag_plugin.get_tag_ids([self.fam1])
-        self.assertEqual(s_all, set([1, 2]))
-        self.assertEqual(s_some, set([]))
-
-    def test_get_tag_ids3(self):
-        s_all, s_some, s_none = tag_plugin.get_tag_ids([self.fam2])
-        test_id = set([1, 3])
-        self.assertEqual(s_all, test_id)
-        self.assertEqual(s_some, set([]))
-
-    def test_get_tag_ids4(self):
-        s_all, s_some, s_none = tag_plugin.get_tag_ids([self.fam3])
-        test_id = set([3])
-        self.assertEqual(s_all, test_id)
-        self.assertEqual(s_some, set([]))
-
-    def test_get_tag_ids5(self):
-        s_all, s_some, s_none = tag_plugin.get_tag_ids([self.fam1, self.fam3])
-        test_id = set([])
-        self.assertEqual(s_all, test_id)
-        self.assertEqual(s_some, set([1, 2, 3]))
-
-    def test_get_tag_ids6(self):
-        s_all, s_some, s_none = tag_plugin.get_tag_ids([self.fam1, self.fam4])
-        self.assertEqual(s_all, set([]))
-        self.assertEqual(s_some, set([1, 2]))
-
-    def test_get_tag_ids7(self):
-        for tag in self.session.query(Tag):
-            self.session.delete(tag)
-        self.session.commit()
-        tag_plugin.tag_objects("test1", [self.fam1, self.fam4])
-        tag_plugin.tag_objects("test2", [self.fam1])
-        tag_plugin.tag_objects("test3", [self.fam2, self.fam4])
-        self.session.commit()
-        tag_ids = self.session.query(Tag.id).filter(
-            Tag.tag.in_(["test1", "test2", "test3"])
-        )
-        s_all, s_some, _s_none = tag_plugin.get_tag_ids(
-            [self.fam1, self.fam2, self.fam3, self.fam4]
-        )
-        self.assertEqual(s_all, set([]))
-        self.assertEqual(s_some, {i[0] for i in tag_ids})
+    def test_on_remove_active_tag_activated(self):
+        tags_mm = TagsMenuManager()
+        tags_mm.toggle_tag = mock.Mock()
+        tags_mm.on_remove_active_tag_activated(None, None)
+        tags_mm.toggle_tag.assert_called_with(untag_objects)
 
 
 from types import SimpleNamespace
@@ -596,40 +533,6 @@ class TagPresenterTests(BaubleTestCase):
         self.assertEqual(view.widget_get_value("tag_name_entry"), "1234")
 
 
-class AttachedToTests(BaubleTestCase):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        import bauble.prefs
-
-        bauble.prefs.testing = True
-
-    def setUp(self):
-        super().setUp()
-        obj1 = Tag(tag="medicinal")
-        obj2 = Tag(tag="maderable")
-        obj3 = Tag(tag="frutal")
-        fam = Family(family="Solanaceae")
-        self.session.add_all([obj1, obj2, obj3, fam])
-        self.session.commit()
-
-    def test_attached_tags_empty(self):
-        fam = self.session.query(Family).one()
-        self.assertEqual(Tag.attached_to(fam), [])
-
-    def test_attached_tags_singleton(self):
-        fam = self.session.query(Family).one()
-        obj2 = self.session.query(Tag).filter(Tag.tag == "maderable").one()
-        tag_plugin.tag_objects(obj2, [fam])
-        self.assertEqual(Tag.attached_to(fam), [obj2])
-
-    def test_attached_tags_many(self):
-        fam = self.session.query(Family).one()
-        tags = self.session.query(Tag).all()
-        for t in tags:
-            tag_plugin.tag_objects(t, [fam])
-        self.assertEqual(Tag.attached_to(fam), tags)
-
-
 class TagInfoBoxTest(BaubleTestCase):
     def setUp(self):
         self.ib = TagInfoBox()
@@ -681,56 +584,111 @@ class TagInfoBoxTest(BaubleTestCase):
 
 
 class TagCallbackTest(BaubleTestCase):
-    def test_on_add_tag_activated_wrong_view(self):
-        class FakeGui:
-            def __init__(self):
-                self.invoked = []
+    @mock.patch("bauble.gui")
+    def test_on_add_tag_activated_wrong_view(self, mock_gui):
+        mock_gui.get_view.return_value = mock.Mock()
 
-            def get_view(self):
-                return MockView(selection=[])
-
-            def show_message_box(self, *args, **kwargs):
-                self.invoked.append((args, kwargs))
-                pass
-
-        import bauble
-
-        _orig_gui = bauble.gui
-        bauble.gui = FakeGui()
         tag_plugin._on_add_tag_activated(None, None)
-        # importlib.reload(bauble)
-        self.assertEqual(
-            bauble.gui.invoked[0],
-            (
-                (
-                    "In order to tag an item you must first search for something and select one of the results.",
-                ),
-                {},
-            ),
+
+        msg = (
+            "In order to tag or untag an item you must first search for "
+            "something."
         )
-        bauble.gui = _orig_gui
+        mock_gui.show_message_box.assert_called_with(msg)
 
-    def test_on_add_tag_activated_search_view_empty_selection(self):
-        class FakeGui:
-            def __init__(self):
-                self.invoked = []
+    @mock.patch("bauble.gui")
+    def test_on_add_tag_activated_search_view_empty_selection(self, mock_gui):
+        mock_sv = mock.Mock(spec=SearchView)
+        mock_gui.get_view.return_value = mock_sv
+        mock_sv.get_selected_values.return_value = []
 
-            def get_view(self):
-                view = MockView()
-                view.get_selected_values = lambda: []
-                return view
-
-            def show_message_box(self, *args, **kwargs):
-                self.invoked.append((args, kwargs))
-                pass
-
-        import bauble
-
-        _orig_gui = bauble.gui
-        bauble.gui = FakeGui()
-        _orig_message_dialog = utils.message_dialog
-        utils.message_dialog = bauble.gui.show_message_box
         tag_plugin._on_add_tag_activated(None, None)
-        self.assertEqual(bauble.gui.invoked[0], (("Nothing selected",), {}))
-        utils.message_dialog = _orig_message_dialog
-        bauble.gui = _orig_gui
+
+        mock_sv.get_selected_values.assert_called()
+
+        msg = (
+            "In order to tag or untag an item you must first search for "
+            "something."
+        )
+        mock_gui.show_message_box.assert_called_with(msg)
+
+
+class GlobalFunctionsTests(BaubleTestCase):
+
+    def test_tag_untag_objects(self):
+        family1 = Family(epithet="family1")
+        family2 = Family(epithet="family2")
+        self.session.add_all([family1, family2])
+        self.session.commit()
+        family1_id = family1.id
+        family2_id = family2.id
+        tag_objects("test", [family1, family2])
+
+        tag = self.session.query(Tag).filter_by(tag="test").one()
+        sorted_pairs = sorted([(type(o), o.id) for o in tag.objects])
+        self.assertEqual(
+            sorted([(Family, family1_id), (Family, family2_id)]), sorted_pairs
+        )
+
+        # required for windows tests to succeed due to 16ms resolution
+        sleep(0.02)
+        tag_objects("test", [family1, family2])
+        self.assertEqual(tag.objects, [family1, family2])
+
+        # first untag one
+        sleep(0.02)
+        untag_objects("test", [family1])
+
+        # get object by tag
+        tag = self.session.query(Tag).filter_by(tag="test").one()
+        self.assertEqual(tag.objects, [family2])
+
+        # then both
+        sleep(0.02)
+        untag_objects("test", [family1, family2])
+
+        # get object by tag
+        tag = self.session.query(Tag).filter_by(tag="test").one()
+        self.assertEqual(tag.objects, [])
+
+    @mock.patch("bauble.plugins.tag.utils.yes_no_dialog")
+    @mock.patch("bauble.plugins.tag.utils.message_details_dialog")
+    def test_remove_callback_no_confirm(self, mock_mdd, mock_ynd):
+        mock_ynd.return_value = False
+        tag = Tag(tag="Foo")
+        self.session.add(tag)
+        self.session.flush()
+
+        result = remove_callback([tag])
+        self.session.flush()
+
+        mock_mdd.assert_not_called()
+        # effect
+        mock_ynd.assert_called_with(
+            "Are you sure you want to remove Tag: Foo?"
+        )
+
+        self.assertFalse(result)
+        matching = self.session.query(Tag).filter_by(tag="Foo").all()
+        self.assertEqual(matching, [tag])
+
+    @mock.patch("bauble.plugins.tag.utils.yes_no_dialog")
+    @mock.patch("bauble.plugins.tag.utils.message_details_dialog")
+    def test_remove_callback_confirm(self, mock_mdd, mock_ynd):
+        mock_ynd.return_value = True
+        tag = Tag(tag="Foo")
+        self.session.add(tag)
+        self.session.flush()
+        with mock.patch("bauble.plugins.tag.TagsMenuManager.reset") as m_reset:
+
+            result = remove_callback([tag])
+            self.session.flush()
+
+            m_reset.assert_called()
+            mock_mdd.assert_not_called()
+            mock_ynd.assert_called_with(
+                "Are you sure you want to remove Tag: Foo?"
+            )
+            self.assertEqual(result, True)
+        matching = self.session.query(Tag).filter_by(tag="Arecaceae").all()
+        self.assertEqual(matching, [])

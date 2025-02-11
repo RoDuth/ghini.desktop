@@ -1,6 +1,6 @@
 # Copyright (c) 2005,2006,2007,2008,2009 Brett Adams <brett@belizebotanic.org>
 # Copyright (c) 2012-2017 Mario Frasca <mario@anche.no>
-# Copyright (c) 2021-2023 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright (c) 2021-2025 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -17,13 +17,14 @@
 # You should have received a copy of the GNU General Public License
 # along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
 """
-tag plugin
+Tag plugin
 """
 
 import logging
 import os
 import traceback
-from importlib import import_module
+from collections.abc import Callable
+from collections.abc import Sequence
 
 logger = logging.getLogger(__name__)
 
@@ -31,18 +32,9 @@ from gi.repository import Gdk
 from gi.repository import Gio
 from gi.repository import GLib
 from gi.repository import Gtk
-from sqlalchemy import Column
-from sqlalchemy import ForeignKey
-from sqlalchemy import Integer
-from sqlalchemy import String
-from sqlalchemy import Unicode
-from sqlalchemy import UnicodeText
-from sqlalchemy import and_
-from sqlalchemy import literal
-from sqlalchemy.exc import DBAPIError
-from sqlalchemy.exc import InvalidRequestError
-from sqlalchemy.orm import relationship
-from sqlalchemy.orm.exc import DetachedInstanceError
+from sqlalchemy import func
+from sqlalchemy.orm import Query
+from sqlalchemy.orm import Session
 from sqlalchemy.orm.session import object_session
 
 import bauble
@@ -50,7 +42,6 @@ from bauble import db
 from bauble import editor
 from bauble import paths
 from bauble import pluginmgr
-from bauble import prefs
 from bauble import search
 from bauble import utils
 from bauble.editor import GenericEditorPresenter
@@ -64,6 +55,11 @@ from bauble.view import PropertiesExpander
 from bauble.view import SearchView
 from bauble.view import get_search_view_selected
 
+from .model import Tag
+from .model import get_tag_ids
+from .model import tag_objects
+from .model import untag_objects
+
 
 class TagsMenuManager:
     ACTIVATED_ACTION_NAME = "tag_activated"
@@ -73,97 +69,15 @@ class TagsMenuManager:
     APPLY_ACTIVE_ACTION_NAME = "apply_active_tag"
     TAG_ACTION_NAME = "tag_selection"
 
-    def __init__(self):
-        self.menu_pos = None
-        self.active_tag_name = None
-        self.apply_active_tag_action = None
-        self.remove_active_tag_action = None
-        self.select_tag_action = None
-        self.tag_selection_action = None
+    def __init__(self) -> None:
+        self.menu_pos: int | None = None
+        self.active_tag_name: str | None = None
+        self.apply_active_tag_action: Gio.SimpleAction | None = None
+        self.remove_active_tag_action: Gio.SimpleAction | None = None
+        self.select_tag_action: Gio.SimpleAction | None = None
+        self.tag_selection_action: Gio.SimpleAction | None = None
 
-    def reset(self, make_active_tag=None):
-        """initialize or replace Tags menu in main menu."""
-        # setting active_tag_name here likely doesn't do much as its only
-        # called when adding a new tag in TagItemGUI. (which should make it the
-        # last ID and hence select it when rebuilding anyway.)
-        self.active_tag_name = make_active_tag and make_active_tag.tag
-        tags_menu = self.build_menu()
-        if self.menu_pos is None:
-            self.menu_pos = bauble.gui.add_menu(_("Tags"), tags_menu)
-        else:
-            bauble.gui.remove_menu(self.menu_pos)
-            self.menu_pos = bauble.gui.add_menu(_("Tags"), tags_menu)
-        self.refresh()
-
-    def reset_active_tag_name(self):
-        """Reset the active tag to latest by ID if current is not valid."""
-        session = db.Session()
-        if not self.active_tag_name or (
-            self.active_tag_name
-            and not session.query(Tag)
-            .filter_by(tag=self.active_tag_name)
-            .first()
-        ):
-            last_tag = session.query(Tag).order_by(Tag.id.desc()).first()
-            self.active_tag_name = last_tag and last_tag.tag
-        session.close()
-
-    def refresh(self, selected_values=None):
-        """Refresh the tag menu, set the active tag, enable/disable menu items."""
-        self.reset_active_tag_name()
-
-        if self.select_tag_action and self.active_tag_name:
-            self.select_tag_action.set_state(
-                GLib.Variant.new_string(self.active_tag_name)
-            )
-
-        selected_values = selected_values or get_search_view_selected()
-
-        if selected_values:
-            if self.active_tag_name and self.apply_active_tag_action:
-                self.apply_active_tag_action.set_enabled(True)
-                self.remove_active_tag_action.set_enabled(True)
-            if self.tag_selection_action:
-                self.tag_selection_action.set_enabled(True)
-        elif self.tag_selection_action:
-            self.apply_active_tag_action.set_enabled(False)
-            self.remove_active_tag_action.set_enabled(False)
-            self.tag_selection_action.set_enabled(False)
-
-    def on_tag_change_state(self, action, tag_name):
-        action.set_state(tag_name)
-        self.active_tag_name = tag_name.unpack()
-        bauble.gui.send_command(f"tag={tag_name}")
-        view = bauble.gui.get_view()
-        if isinstance(view, SearchView):
-            GLib.idle_add(
-                view.results_view.expand_to_path, Gtk.TreePath.new_first()
-            )
-        self.refresh()
-
-    @staticmethod
-    def on_context_menu_apply_activated(_action, tag_name):
-        view = bauble.gui.get_view()
-        values = view.get_selected_values()
-        # unpack to python type
-        tag_objects(tag_name.unpack(), values)
-        view.update_bottom_notebook(values)
-
-    @staticmethod
-    def on_context_menu_remove_activated(_action, tag_name):
-        view = bauble.gui.get_view()
-        values = view.get_selected_values()
-        # unpack to python type
-        untag_objects(tag_name.unpack(), values)
-        view.update_bottom_notebook(values)
-
-    def context_menu_callback(self, selected):
-        """Build the SearchView context menu tag section for the selected
-        items.
-        """
-        # Only add actions if they have not already been added...  Adding here
-        # to wait for bauble.gui.
-        if not bauble.gui.lookup_action(self.APPLY_CONTEXT_ACTION_NAME):
+        if bauble.gui:
             bauble.gui.add_action(
                 self.APPLY_CONTEXT_ACTION_NAME,
                 self.on_context_menu_apply_activated,
@@ -176,27 +90,178 @@ class TagsMenuManager:
                 param_type=GLib.VariantType("s"),
             )
 
+    def reset(self) -> None:
+        """initialize or replace Tags menu in main menu."""
+        tags_menu = self.build_menu()
+
+        if self.menu_pos is None:
+            self.menu_pos = bauble.gui.add_menu(_("Tags"), tags_menu)
+        else:
+            bauble.gui.remove_menu(self.menu_pos)
+            self.menu_pos = bauble.gui.add_menu(_("Tags"), tags_menu)
+
+        self.refresh()
+
+    def reset_active_tag_name(self) -> None:
+        """Reset the active tag to latest by ID if current is not valid."""
+        if not db.Session:
+            logger.warning("reset_active_tag_name: no session bailing.")
+            return
+
+        with db.Session() as session:
+            active = None
+
+            if self.active_tag_name:
+                active = (
+                    session.query(Tag)
+                    .filter_by(tag=self.active_tag_name)
+                    .first()
+                )
+
+            if not active:
+                sub_query = session.query(func.max(Tag.id)).scalar_subquery()
+                self.active_tag_name = (
+                    session.query(Tag.tag).filter(Tag.id == sub_query).scalar()
+                )
+
+    def refresh(self, selected_values: list[db.Base] | None = None) -> None:
+        """Refresh the tag menu, set the active tag and enable/disable menu
+        items.
+        """
+        self.reset_active_tag_name()
+
+        if self.select_tag_action and self.active_tag_name:
+            self.select_tag_action.set_state(
+                GLib.Variant.new_string(self.active_tag_name)
+            )
+
+        selected_values = selected_values or get_search_view_selected()
+
+        if not (
+            self.apply_active_tag_action and self.remove_active_tag_action
+        ):
+            return
+
+        if selected_values:
+            if self.active_tag_name:
+                self.apply_active_tag_action.set_enabled(True)
+                self.remove_active_tag_action.set_enabled(True)
+            if self.tag_selection_action:
+                self.tag_selection_action.set_enabled(True)
+        elif self.tag_selection_action:
+            self.apply_active_tag_action.set_enabled(False)
+            self.remove_active_tag_action.set_enabled(False)
+            self.tag_selection_action.set_enabled(False)
+
+    def on_tag_change_state(
+        self, action: Gio.SimpleAction, tag_name: GLib.Variant
+    ) -> None:
+        action.set_state(tag_name)
+        self.active_tag_name = tag_name.unpack()
+        bauble.gui.send_command(f"tag={tag_name}")
+        view = bauble.gui.get_view()
+        if isinstance(view, SearchView):
+            GLib.idle_add(
+                view.results_view.expand_to_path, Gtk.TreePath.new_first()
+            )
+        self.refresh()
+
+    @staticmethod
+    def on_context_menu_apply_activated(
+        _action, tag_name: GLib.Variant
+    ) -> None:
+        view = bauble.gui.get_view()
+
+        if not isinstance(view, SearchView):
+            return
+
+        selected = view.get_selected_values()
+        # unpack to python type
+        if selected:
+            tag_objects(tag_name.unpack(), selected)
+            view.update_bottom_notebook(selected)
+
+    @staticmethod
+    def on_context_menu_remove_activated(
+        _action, tag_name: GLib.Variant
+    ) -> None:
+        view = bauble.gui.get_view()
+
+        if not isinstance(view, SearchView):
+            return
+
+        selected = view.get_selected_values()
+        if selected:
+            # unpack to python type
+            untag_objects(tag_name.unpack(), selected)
+            view.update_bottom_notebook(selected)
+
+    def context_menu_callback(
+        self, selected: Sequence[db.Base]
+    ) -> Gio.Menu | None:
+        """Build the SearchView context menu tag section for the selected
+        items.
+        """
+        if not selected:
+            logger.warning("nothing selected bailing.")
+            return None
+
+        session = object_session(selected[0])
+
+        if not isinstance(session, Session):
+            logger.warning("no object session bailing.")
+            return None
+
         section = Gio.Menu()
         tag_item = Gio.MenuItem.new(
             _("Tag Selection"), f"win.{self.TAG_ACTION_NAME}"
         )
         section.append_item(tag_item)
 
-        session = object_session(selected[0])
         query = session.query(Tag)
         # bail early if no tags
         if not query.first():
+            logger.debug("no tags, not creating submenus.")
             return section
 
+        apply_tags, remove_tags = self._apply_remove_tags(selected, query)
+
+        if apply_tags:
+            apply_submenu = Gio.Menu()
+            section.append_submenu(_("Apply Tag"), apply_submenu)
+            for tag in apply_tags:
+                menu_item = Gio.MenuItem.new(
+                    tag.tag.replace("_", "__"),
+                    f"win.{self.APPLY_CONTEXT_ACTION_NAME}::{tag.tag}",
+                )
+                apply_submenu.append_item(menu_item)
+
+        if remove_tags:
+            remove_submenu = Gio.Menu()
+            section.append_submenu(_("Remove Tag"), remove_submenu)
+
+            for tag in remove_tags:
+                menu_item = Gio.MenuItem.new(
+                    tag.tag.replace("_", "__"),
+                    f"win.{self.REMOVE_CONTEXT_ACTION_NAME}::{tag.tag}",
+                )
+                remove_submenu.append_item(menu_item)
+
+        return section
+
+    @staticmethod
+    def _apply_remove_tags(
+        selected: Sequence[db.Base], query: Query
+    ) -> tuple[set[Tag], set[Tag]]:
         all_tagged = None
-        attached_tags = set()
+        remove_tags = set()
         for item in selected:
             tags = Tag.attached_to(item)
             if all_tagged is None:
                 all_tagged = set(tags)
             elif all_tagged:
                 all_tagged.intersection_update(tags)
-            attached_tags.update(tags)
+            remove_tags.update(tags)
 
         apply_tags = set()
 
@@ -206,30 +271,9 @@ class TagsMenuManager:
         for tag in query:
             apply_tags.add(tag)
 
-        if apply_tags:
-            apply_submenu = Gio.Menu()
-            section.append_submenu("Apply Tag", apply_submenu)
-            for tag in apply_tags:
-                menu_item = Gio.MenuItem.new(
-                    tag.tag.replace("_", "__"),
-                    f"win.{self.APPLY_CONTEXT_ACTION_NAME}::{tag.tag}",
-                )
-                apply_submenu.append_item(menu_item)
+        return apply_tags, remove_tags
 
-        if attached_tags:
-            remove_submenu = Gio.Menu()
-            section.append_submenu("Remove Tag", remove_submenu)
-
-            for tag in attached_tags:
-                menu_item = Gio.MenuItem.new(
-                    tag.tag.replace("_", "__"),
-                    f"win.{self.REMOVE_CONTEXT_ACTION_NAME}::{tag.tag}",
-                )
-                remove_submenu.append_item(menu_item)
-
-        return section
-
-    def build_menu(self):
+    def build_menu(self) -> Gio.Menu:
         """build tags menu based on current data."""
         tags_menu = Gio.Menu()
 
@@ -257,18 +301,8 @@ class TagsMenuManager:
             _("Tag Selection"), f"win.{self.TAG_ACTION_NAME}"
         )
 
-        # apply active tag
-        apply_active_tag_menu_item = Gio.MenuItem.new(
-            _("Apply Active Tag"), f"win.{self.APPLY_ACTIVE_ACTION_NAME}"
-        )
-
-        # remove active tag
-        remove_active_tag_menu_item = Gio.MenuItem.new(
-            _("Remove Active Tag"), f"win.{self.REMOVE_ACTIVE_ACTION_NAME}"
-        )
-
         app = Gio.Application.get_default()
-        if app:
+        if isinstance(app, Gtk.Application):
             # tag selection
             app.set_accels_for_action(
                 f"win.{self.TAG_ACTION_NAME}", ["<Control>t"]
@@ -284,91 +318,115 @@ class TagsMenuManager:
 
         tags_menu.append_item(add_tag_menu_item)
 
-        session = db.Session()
-        query = session.query(Tag)
-        has_tags = query.first()
+        if db.Session:
+            with db.Session() as session:
+                query = session.query(Tag)
+                has_tags = query.first()
+                if has_tags:
+                    self.set_selection_tag_action()
+                    self.append_sections(tags_menu, query)
 
-        if has_tags:
-            if bauble.gui and not self.select_tag_action:
-                # setup the select_tag_action only if there are existing tags.
-                # Most likely little harm in leaving the action in place even
-                # if all tags are deleted, the menu is unavailable anyway.
-                # set a valid value for self.active_tag_name
-                self.reset_active_tag_name()
-                variant = GLib.Variant.new_string(self.active_tag_name)
-                self.select_tag_action = Gio.SimpleAction.new_stateful(
-                    self.ACTIVATED_ACTION_NAME, variant.get_type(), variant
-                )
-                self.select_tag_action.connect(
-                    "change-state", self.on_tag_change_state
-                )
-
-                bauble.gui.window.add_action(self.select_tag_action)
-
-            section = Gio.Menu()
-
-            for tag in query.order_by(Tag.tag):
-                menu_item = Gio.MenuItem.new(
-                    tag.tag.replace("_", "__"),
-                    f"win.{self.ACTIVATED_ACTION_NAME}::{tag.tag}",
-                )
-                section.append_item(menu_item)
-
-            tags_menu.append_section(None, section)
-
-            section = Gio.Menu()
-            section.append_item(apply_active_tag_menu_item)
-            section.append_item(remove_active_tag_menu_item)
-            tags_menu.append_section(None, section)
-            if bauble.gui:
-                self.apply_active_tag_action.set_enabled(False)
-                self.remove_active_tag_action.set_enabled(False)
-        session.close()
         return tags_menu
 
-    def toggle_tag(self, applying):
+    def append_sections(self, tags_menu: Gio.Menu, query: Query) -> None:
+        section = Gio.Menu()
+
+        for tag in query.order_by(Tag.tag):
+            menu_item = Gio.MenuItem.new(
+                tag.tag.replace("_", "__"),
+                f"win.{self.ACTIVATED_ACTION_NAME}::{tag.tag}",
+            )
+            section.append_item(menu_item)
+
+        tags_menu.append_section(None, section)
+
+        section = Gio.Menu()
+        apply_active_tag_menu_item = Gio.MenuItem.new(
+            _("Apply Active Tag"), f"win.{self.APPLY_ACTIVE_ACTION_NAME}"
+        )
+        remove_active_tag_menu_item = Gio.MenuItem.new(
+            _("Remove Active Tag"), f"win.{self.REMOVE_ACTIVE_ACTION_NAME}"
+        )
+        section.append_item(apply_active_tag_menu_item)
+        section.append_item(remove_active_tag_menu_item)
+
+        tags_menu.append_section(None, section)
+
+        if self.apply_active_tag_action:
+            self.apply_active_tag_action.set_enabled(False)
+
+        if self.remove_active_tag_action:
+            self.remove_active_tag_action.set_enabled(False)
+
+    def set_selection_tag_action(self) -> None:
+        if not self.select_tag_action:
+            # setup the select_tag_action only if there are existing tags.
+            # Most likely little harm in leaving the action in place even
+            # if all tags are deleted, the menu is unavailable anyway.
+            # set a valid value for self.active_tag_name
+            self.reset_active_tag_name()
+            variant = GLib.Variant.new_string(self.active_tag_name or "")
+            self.select_tag_action = Gio.SimpleAction.new_stateful(
+                self.ACTIVATED_ACTION_NAME, variant.get_type(), variant
+            )
+            self.select_tag_action.connect(
+                "change-state", self.on_tag_change_state
+            )
+
+            bauble.gui.window.add_action(self.select_tag_action)
+
+    def toggle_tag(self, applying: Callable[[str, list], None]) -> None:
         view = bauble.gui.get_view()
-        values = None
-        try:
-            values = view.get_selected_values()
-        except AttributeError:
+        selected: list[db.Base] | None = None
+
+        def warn():
             msg = _(
                 "In order to tag or untag an item you must first search "
-                "for something and select one of the results."
+                "for something."
             )
             bauble.gui.show_message_box(msg)
+
+        if isinstance(view, SearchView):
+            selected = view.get_selected_values()
+        else:
+            warn()
             return
-        if len(values) == 0:
-            msg = _("Please select something in the search results.")
-            utils.message_dialog(msg)
+
+        if not selected:
+            warn()
             return
+
         if self.active_tag_name is None:
             msg = _("Please make sure a tag is active.")
+            print(msg)
             utils.message_dialog(msg)
             return
-        applying(self.active_tag_name, values)
-        view.update_bottom_notebook(values)
 
-    def on_apply_active_tag_activated(self, _action, _param):
+        applying(self.active_tag_name, selected)
+        view.update_bottom_notebook(selected)
+
+    def on_apply_active_tag_activated(self, _action, _param) -> None:
         logger.debug(
             "you're applying %s to the selection", self.active_tag_name
         )
-        self.toggle_tag(applying=tag_objects)
+        self.toggle_tag(tag_objects)
 
-    def on_remove_active_tag_activated(self, _action, _param):
+    def on_remove_active_tag_activated(self, _action, _param) -> None:
         logger.debug(
             "you're removing %s from the selection", self.active_tag_name
         )
-        self.toggle_tag(applying=untag_objects)
+        self.toggle_tag(untag_objects)
 
 
 tags_menu_manager = TagsMenuManager()
 
 
-def edit_callback(tags):
+def edit_callback(tags: Sequence[Tag]) -> int:
     tag = tags[0]
+
     if tag is None:
         tag = Tag()
+
     view = GenericEditorView(
         os.path.join(paths.lib_dir(), "plugins", "tag", "tag.glade"),
         parent=None,
@@ -376,27 +434,35 @@ def edit_callback(tags):
     )
     presenter = TagEditorPresenter(tag, view, refresh_view=True)
     error_state = presenter.start()
+
     if error_state:
         presenter.session.rollback()
     else:
         presenter.commit_changes()
         tags_menu_manager.reset()
+
     presenter.cleanup()
     return error_state
 
 
-def remove_callback(tags):
-    """
-    :param tags: a list of :class:`Tag` objects.
-    """
+def remove_callback(tags: Sequence[Tag]) -> bool:
     tag = tags[0]
+
+    session = object_session(tag)
+
+    if not isinstance(session, Session):
+        logger.warning("no object session aborting.")
+        return False
+
     tlst = []
+
     for tag in tags:
         tlst.append(f"{tag.__class__.__name__}: {utils.xml_safe(tag)}")
+
     msg = _("Are you sure you want to remove %s?") % ", ".join(i for i in tlst)
     if not utils.yes_no_dialog(msg):
         return False
-    session = object_session(tag)
+
     for tag in tags:
         session.delete(tag)
     try:
@@ -472,7 +538,7 @@ class TagItemGUI(editor.GenericEditorView):
         if not error_state:
             model = self.tag_tree.get_model()
             model.append([False, tag.tag, False])
-            tags_menu_manager.reset(tag)
+            tags_menu_manager.reset()
         session.close()
 
     def on_toggled(self, renderer, path):
@@ -507,13 +573,17 @@ class TagItemGUI(editor.GenericEditorView):
         editor delete the tag
         """
         keyname = Gdk.keyval_name(event.keyval)
+
         if keyname != "Delete":
             return
+
         model, row_iter = self.tag_tree.get_selection().get_selected()
         tag_name = model[row_iter][1]
         msg = _('Are you sure you want to delete the tag "%s"?') % tag_name
+
         if not utils.yes_no_dialog(msg):
             return
+
         session = db.Session()
         try:
             query = session.query(Tag)
@@ -546,11 +616,11 @@ class TagItemGUI(editor.GenericEditorView):
 
         # create the model
         model = Gtk.ListStore(bool, str, bool)
-        tag_all, tag_some, _tag_none = get_tag_ids(self.values)
-        session = db.Session()  # we need close it
-        tag_query = session.query(Tag)
-        for tag in tag_query:
-            model.append([tag.id in tag_all, tag.tag, tag.id in tag_some])
+        tag_all, tag_some = get_tag_ids(self.values)
+        with db.Session() as session:
+            for tag in session.query(Tag):
+                model.append([tag.id in tag_all, tag.tag, tag.id in tag_some])
+
         self.tag_tree.set_model(model)
 
         self.tag_tree.add_events(Gdk.EventMask.KEY_RELEASE_MASK)
@@ -565,367 +635,32 @@ class TagItemGUI(editor.GenericEditorView):
 
         self.get_window().hide()
         self.disconnect_all()
-        session.close()
 
 
-class Tag(db.Base):
-    """
-    :Table name: tag
-    :Columns:
-      tag: :class:`sqlalchemy.types.Unicode`
-        The tag name.
-      description: :class:`sqlalchemy.types.Unicode`
-        A description of this tag.
-    """
-
-    __tablename__ = "tag"
-
-    # columns
-    tag = Column(Unicode(64), unique=True, nullable=False)
-    description = Column(UnicodeText)
-
-    # relations
-    objects_: list["TaggedObj"] = relationship(
-        "TaggedObj", cascade="all, delete-orphan", backref="tag"
-    )
-
-    __my_own_timestamp = None
-    __last_objects = None
-
-    retrieve_cols = ["id", "tag"]
-
-    @classmethod
-    def retrieve(cls, session, keys):
-        parts = {k: v for k, v in keys.items() if k in cls.retrieve_cols}
-        if parts:
-            return session.query(cls).filter_by(**parts).one_or_none()
-        return None
-
-    def __str__(self):
-        try:
-            return str(self.tag)
-        except DetachedInstanceError:
-            return db.Base.__str__(self)
-
-    def markup(self):
-        return f"{self.tag} Tag"
-
-    def tag_objects(self, objects):
-        session = object_session(self)
-        for obj in objects:
-            cls = and_(
-                TaggedObj.obj_class == _classname(obj),
-                TaggedObj.obj_id == obj.id,
-                TaggedObj.tag_id == self.id,
-            )
-            ntagged = session.query(TaggedObj).filter(cls).count()
-            if ntagged == 0:
-                tagged_obj = TaggedObj(
-                    obj_class=_classname(obj), obj_id=obj.id, tag=self
-                )
-                session.add(tagged_obj)
-
-    @property
-    def objects(self):
-        """return all tagged objects
-
-        reuse last result if nothing was changed in the database since
-        list was retrieved.
-        """
-        if self.__my_own_timestamp is not None:
-            # should I update my list?
-            session = object_session(self)
-            # tag must have been removed or session lost
-            if session is None:
-                return []
-
-            last_history = (
-                session.query(db.History.timestamp)
-                .order_by(db.History.timestamp.desc())
-                .limit(1)
-                .scalar()
-            )
-            # last_history can be None when no history (i.e. a recent restore
-            # of older data where history table has been dropped) note:
-            # __last_objects will be None first run.
-            if last_history and last_history > self.__my_own_timestamp:
-                self.__last_objects = None
-
-        if self.__last_objects is None:
-            # here I update my list
-            from datetime import datetime
-
-            self.__my_own_timestamp = datetime.now().astimezone(tz=None)
-            self.__last_objects = self.get_tagged_objects()
-        # here I return my list
-        return self.__last_objects
-
-    def is_tagging(self, obj):
-        """tell whether self tags obj."""
-        return obj in self.objects
-
-    def get_tagged_objects(self):
-        """Get all object tagged with tag and clean up any that are left
-        hanging.
-        """
-        session = object_session(self)
-
-        if session is None:
-            return []
-
-        items = []
-        for obj in self.objects_:
-            if result := _get_tagged_object_pair(obj):
-                mapper, obj_id = result
-                rec = session.query(mapper).filter_by(id=obj_id).first()
-                if rec:
-                    items.append(rec)
-                else:
-                    logger.debug("deleting tagged_obj: %s", obj)
-                    # delete any tagged objects no longer in the database
-                    session.delete(obj)
-                    session.commit()
-        return items
-
-    @classmethod
-    def attached_to(cls, obj):
-        """return the list of tags attached to obj
-
-        this is a class method, so more classes can invoke it.
-        """
-        session = object_session(obj)
-        if not session:
-            return []
-        modname = type(obj).__module__
-        clsname = type(obj).__name__
-        full_cls_name = f"{modname}.{clsname}"
-        qto = session.query(TaggedObj).filter(
-            TaggedObj.obj_class == full_cls_name, TaggedObj.obj_id == obj.id
-        )
-        return [i.tag for i in qto.all()]
-
-    def search_view_markup_pair(self):
-        """provide the two lines describing object for SearchView row."""
-        logging.debug("entering search_view_markup_pair %s", self)
-        objects = self.objects
-        classes = set(type(o) for o in objects)
-        if len(classes) == 1:
-            fine_prints = _("tagging %(1)s objects of type %(2)s") % {
-                "1": len(objects),
-                "2": classes.pop().__name__,
-            }
-        elif len(classes) == 0:
-            fine_prints = _("tagging nothing")
-        else:
-            fine_prints = _(
-                "tagging %(objs)s objects of %(clss)s different types"
-            ) % {"objs": len(objects), "clss": len(classes)}
-            if len(classes) < 4:
-                fine_prints += ": "
-                fine_prints += ", ".join(sorted(t.__name__ for t in classes))
-        first = (
-            f"{utils.xml_safe(self)} - "
-            f'<span weight="light">{fine_prints}</span>'
-        )
-        fine_print = (self.description or "").replace("\n", " ")[:256]
-        second = (
-            f"({type(self).__name__}) - "
-            f'<span weight="light">{fine_print}</span>'
-        )
-        return first, second
-
-    def has_children(self):
-        from sqlalchemy import exists
-
-        session = object_session(self)
-        return bool(
-            session.query(literal(True))
-            .filter(exists().where(TaggedObj.tag_id == self.id))
-            .scalar()
-        )
-
-    def count_children(self):
-        session = object_session(self)
-        if prefs.prefs.get(prefs.exclude_inactive_pref):
-            return len([i for i in self.objects if getattr(i, "active", True)])
-        return (
-            session.query(TaggedObj.id)
-            .filter(TaggedObj.tag_id == self.id)
-            .count()
-        )
-
-
-class TaggedObj(db.Base):
-    """
-    :Table name: tagged_obj
-
-    :Columns:
-        *obj_id*
-            interger, The id of the tagged object.
-        *obj_class*
-            The class name of the tagged object.
-        *tag_id*
-            A ForeignKey to :class:`Tag`.
-    """
-
-    __tablename__ = "tagged_obj"
-
-    # columns
-    obj_id = Column(Integer, autoincrement=False)
-    obj_class = Column(String(128))
-    tag_id = Column(Integer, ForeignKey("tag.id"))
-
-    def __str__(self):
-        return f"{self.obj_class}: {self.obj_id}"
-
-
-def _get_tagged_object_pair(obj):
-    """
-    :param obj: a TaggedObj instance
-    """
-    try:
-        module_name, _part, cls_name = str(obj.obj_class).rpartition(".")
-        module = import_module(module_name)
-        cls = getattr(module, cls_name)
-        return cls, obj.obj_id
-    except (KeyError, DBAPIError, AttributeError) as e:
-        logger.warning(
-            "_get_tagged_object_pair (%s) error: %s:%s",
-            obj,
-            type(e).__name__,
-            e,
-        )
-    return None
-
-
-def create_named_empty_tag(name):
-    """make sure the named tag exists"""
-    session = db.Session()
-    try:
-        tag = session.query(Tag).filter_by(tag=name).one()
-    except InvalidRequestError as e:
-        logger.debug("create_named_empty_tag: %s - %s", type(e).__name__, e)
-        tag = Tag(tag=name)
-        session.add(tag)
-        session.commit()
-    session.close()
-
-
-def untag_objects(name, objs):
-    """
-    Remove the tag name from objs.
-
-    :param name: The name of the tag
-    :type name: str
-    :param objs: The list of objects to untag.
-    :type objs: list
-    """
-    name = utils.nstr(name)
-    if not objs:
-        create_named_empty_tag(name)
-        return
-    session = object_session(objs[0])
-    try:
-        tag = session.query(Tag).filter_by(tag=name).one()
-    except Exception as e:
-        logger.info(
-            "Can't remove non existing tag from non-empty list of "
-            "objects %s - %s",
-            type(e).__name__,
-            e,
-        )
-        return
-    objs = set((_classname(y), y.id) for y in objs)
-    for item in tag.objects_:
-        if (item.obj_class, item.obj_id) not in objs:
-            continue
-        obj = session.query(TaggedObj).filter_by(id=item.id).one()
-        session.delete(obj)
-    session.commit()
-
-
-# create the classname stored in the tagged_obj table
-def _classname(obj):
-    return f"{type(obj).__module__}.{type(obj).__name__}"
-
-
-def tag_objects(name, objects):
-    """create or retrieve a tag, use it to tag list of objects
-
-    :param name: The tag name, if it's a str object then it will be
-      converted to unicode() using the default encoding. If a tag with
-      this name doesn't exist it will be created
-    :type name: str
-    :param objects: A list of mapped objects to tag.
-    :type objects: list
-    """
-    name = utils.nstr(name)
-    if not objects:
-        create_named_empty_tag(name)
-        return
-    session = object_session(objects[0])
-    tag = session.query(Tag).filter_by(tag=name).one_or_none()
-    if not tag:
-        tag = Tag(tag=name)
-        session.add(tag)
-    tag.tag_objects(objects)
-    session.commit()
-
-
-def get_tag_ids(objs):
-    """Return a 3-tuple describing which tags apply to objs.
-
-    the result tuple is composed of lists.  First list contains the id of
-    the tags that apply to all objs.  Second list contains the id of the
-    tags that apply to one or more objs, but not all.  Third list contains
-    the id of the tags that do not apply to any objs.
-
-    :param objs: a list or tuple of objects
-
-    """
-    session = object_session(objs[0])
-    tag_id_query = session.query(Tag.id).join("objects_")
-    starting_now = True
-    s_all = set()
-    s_some = set()
-    s_none = set(i[0] for i in tag_id_query)  # per default none apply
-    for obj in objs:
-        clause = and_(
-            TaggedObj.obj_class == _classname(obj), TaggedObj.obj_id == obj.id
-        )
-        applied_tag_ids = [r[0] for r in tag_id_query.filter(clause)]
-        if starting_now:
-            s_all = set(applied_tag_ids)
-            starting_now = False
-        else:
-            s_all.intersection_update(applied_tag_ids)
-        s_some.update(applied_tag_ids)
-        s_none.difference_update(applied_tag_ids)
-
-    s_some.difference_update(s_all)
-    return (s_all, s_some, s_none)
-
-
-def _on_add_tag_activated(_action, _param):
+def _on_add_tag_activated(_action, _param) -> None:
     # get the selection from the search view
     view = bauble.gui.get_view()
-    values = None
-    try:
-        values = view.get_selected_values()
-    except AttributeError:
+
+    def warn():
         msg = _(
-            "In order to tag an item you must first search for "
-            "something and select one of the results."
+            "In order to tag or untag an item you must first search "
+            "for something."
         )
         bauble.gui.show_message_box(msg)
+
+    if isinstance(view, SearchView):
+        selected = view.get_selected_values()
+    else:
+        warn()
         return
-    if len(values) == 0:
-        msg = _("Nothing selected")
-        utils.message_dialog(msg)
+
+    if not selected:
+        warn()
         return
-    tagitem = TagItemGUI(values)
+
+    tagitem = TagItemGUI(selected)
     tagitem.start()
-    view.update_bottom_notebook(values)
+    view.update_bottom_notebook(selected)
 
 
 class GeneralTagExpander(InfoExpander):
@@ -1037,6 +772,7 @@ class TagPlugin(pluginmgr.Plugin):
             tags_menu_manager.context_menu_callback
         )
         SearchView.cursor_changed_callbacks.add(tags_menu_manager.refresh)
+
         if bauble.gui:
             bauble.gui.set_view_callbacks.add(tags_menu_manager.refresh)
             tags_menu_manager.reset()
