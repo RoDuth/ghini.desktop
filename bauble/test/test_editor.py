@@ -1079,7 +1079,7 @@ template_xml = """\
   <template class="{gtype}" parent="GtkBox">
     <child>
       <object class="GtkEntry" id="bar_entry">
-        <signal name="changed" handler="on_bar_button" swapped="no" />
+        <signal name="changed" handler="on_bar_changed" swapped="no" />
       </object>
     </child>
   </template>
