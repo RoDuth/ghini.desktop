@@ -61,22 +61,31 @@ for:
 
   install:
     - choco install openjdk -y
+    # cutting edge on MSYS2 can be dangerous
     # - bash -lc "pacman --noconfirm -Syuu"  # Core update.  see: https://msys2.org/docs/ci/
     # - bash -lc "pacman --noconfirm -Syuu"  # Normal update
     - bash -lc "pacman --noconfirm --needed -S - < ./scripts/mingw64_pkglist.txt"
     - bash -lc "python --version"
     - bash -lc "python -m pip install --upgrade pip"
-    - bash -lc "pip install git+https://github.com/RoDuth/pyodbc"
     - dir %WINDIR%\System32\msodbcsql*.dll
+    # wheels cache
+    - if not exist wheels\ bash -lc "pip wheel git+https://github.com/RoDuth/pyodbc --wheel-dir wheels"
+    - bash -lc "pip wheel pyproj --wheel-dir wheels --find-links wheels"
+    - bash -lc "pip wheel dukpy --wheel-dir wheels --find-links wheels"
+    - bash -lc "pip wheel 'SQLAlchemy<2.0' --wheel-dir wheels --find-links wheels"
+    - bash -lc "pip wheel greenlet --wheel-dir wheels --find-links wheels"
+    - bash -lc "pip wheel markupsafe --wheel-dir wheels --find-links wheels"
+    - bash -lc "pip install wheels/*"
+    - dir wheels
 
   build_script:
-    - bash -lc "echo $PIP_BREAK_SYSTEM_PACKAGES"
-    - bash -lc "which pip"
     - bash -lc "pip install ."
     - bash -lc "pip install pyinstaller==5.13.2"
     - bash -lc "python -m PyInstaller --clean --noconfirm scripts/ghini.spec"
-    - for /f %%i in ('dir "C:\Program Files\OpenJDK\jdk*" /b') do "C:\Program Files"\OpenJDK\%%i\bin\jlink --output jre --add-modules java.base,java.logging,java.desktop,java.xml
-    - bash -lc "scripts/get_fop.sh"
+    - if not exist jre\ for /f %%i in ('dir "C:\Program Files\OpenJDK\jdk*" /b') do "C:\Program Files"\OpenJDK\%%i\bin\jlink --output jre --add-modules java.base,java.logging,java.desktop,java.xml
+    - dir jre
+    - if not exist fop-%fop_ver%\ bash -lc "scripts/get_fop.sh"
+    - dir fop-%fop_ver%
     - makensis scripts\build.nsi
 
   artifacts:
@@ -95,12 +104,22 @@ for:
     - net start MSSQL$SQL2019
 
   install:
+    # cutting edge on MSYS2 can be dangerous
     # - bash -lc "pacman --noconfirm -Syuu"  # Core update.  see: https://msys2.org/docs/ci/
     # - bash -lc "pacman --noconfirm -Syuu"  # Normal update
     - bash -lc "pacman --noconfirm --needed -S - < ./scripts/mingw64_pkglist.txt"
     - bash -lc "python --version"
-    - bash -lc "pip install git+https://github.com/RoDuth/pyodbc"
+    - bash -lc "python -m pip install --upgrade pip"
     - dir %WINDIR%\System32\msodbcsql*.dll
+    # wheels cache
+    - if not exist wheels\ bash -lc "pip wheel git+https://github.com/RoDuth/pyodbc --wheel-dir wheels"
+    - bash -lc "pip wheel pyproj --wheel-dir wheels --find-links wheels"
+    - bash -lc "pip wheel dukpy --wheel-dir wheels --find-links wheels"
+    - bash -lc "pip wheel 'SQLAlchemy<2.0' --wheel-dir wheels --find-links wheels"
+    - bash -lc "pip wheel greenlet --wheel-dir wheels --find-links wheels"
+    - bash -lc "pip wheel markupsafe --wheel-dir wheels --find-links wheels"
+    - bash -lc "pip install wheels/*"
+    - dir wheels
 
   build_script:
     - bash -lc "pip install ."
@@ -114,8 +133,11 @@ for:
     - bash -lc "coverage report"
     - bash -lc "coveralls"
 
-# cache:
-#   - C:\msys64\var\cache\pacman\pkg
+cache:
+  - C:\projects\ghini-desktop\wheels
+  - C:\projects\ghini-desktop\fop-$(fop_ver)
+  - C:\projects\ghini-desktop\jre
+
 
 deploy:
   provider: GitHub
