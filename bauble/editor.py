@@ -42,6 +42,7 @@ from gi.repository import GLib
 from gi.repository import GObject
 from gi.repository import Gtk
 from lxml import etree
+from sqlalchemy.orm import Session
 from sqlalchemy.orm import object_mapper
 from sqlalchemy.orm import object_session
 
@@ -1190,6 +1191,7 @@ class GenericPresenter:
         presenter = FooPresenter(model, view)
     """
 
+    PROBLEM_NOT_UNIQUE = Problem("not_unique")
     PROBLEM_EMPTY = Problem("empty")
 
     def __init__(
@@ -1232,6 +1234,7 @@ class GenericPresenter:
 
         If widget is None remove problem_id for all widgets.
         If problem_id is None remove all problem ids for widget.
+        If not matching problem exists nothing happens.
 
         :param problem_id: A unique id for the problem.
         :param widget: the problem widget
@@ -1288,6 +1291,42 @@ class GenericPresenter:
                     raise Exception("EMPTY")
         """
         self._on_non_empty_text_entry_changed(entry)
+
+    def on_unique_text_entry_changed(
+        self, entry: Gtk.Entry, /, non_empty: bool = True
+    ) -> None:
+        """If the entry is not not unique adds PROBLEM_NOT_UNIQUE to problems.
+
+        If the value is permitted to be empty, call with ``non_empty=False``
+        When used with Gtk.Template and @Gtk.Template.Callback() decorator, to
+        avoid linter complaints, name your signal handler differently (don't
+        override) and use ``super`` to call. e.g.::
+
+            @Gtk.Template.Callback()
+            def on_unique_entry_changed(self, entry):
+                super().on_unique_text_entry_changed(entry)
+
+        Only works if model has an object_session.
+        """
+        if non_empty:
+            value = self._on_non_empty_text_entry_changed(entry)
+            if not value:
+                return
+        else:
+            value = self.__on_text_entry_changed(entry)
+
+        field = self.widgets_to_model_map[entry]
+        class_ = self.model.__class__
+        column = getattr(class_, field)
+
+        session = object_session(self.model)
+
+        if isinstance(session, Session):
+            exists = session.query(class_).filter(column == value).first()
+            if exists is not None and exists is not self.model:
+                self.add_problem(self.PROBLEM_NOT_UNIQUE, entry)
+            else:
+                self.remove_problem(self.PROBLEM_NOT_UNIQUE, entry)
 
     def on_text_buffer_changed(self, buffer: Gtk.TextBuffer) -> None:
         value = buffer.get_text(*buffer.get_bounds(), False)
