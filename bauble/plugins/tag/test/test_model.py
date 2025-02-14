@@ -25,16 +25,16 @@ from time import sleep
 
 from bauble import db
 from bauble import error
+from bauble.plugins.plants import Family
 from bauble.test import BaubleTestCase
 
-from ..plants import Family
-from .model import Tag
-from .model import TaggedObj
-from .model import _classname
-from .model import _get_tagged_object_pair
-from .model import get_tag_ids
-from .model import tag_objects
-from .model import untag_objects
+from ..model import Tag
+from ..model import TaggedObj
+from ..model import _classname
+from ..model import _get_tagged_object_pair
+from ..model import get_tag_ids
+from ..model import tag_objects
+from ..model import untag_objects
 
 
 class TagTests(BaubleTestCase):
@@ -394,3 +394,42 @@ class GlobalFunctionsTest(BaubleTestCase):
             untag_objects("test", [obj])
         string = "Can't remove non existing tag"
         self.assertTrue(any(string in i for i in logs.output))
+
+
+class GlobalFunctionsTests(BaubleTestCase):
+
+    def test_tag_untag_objects(self):
+        family1 = Family(epithet="family1")
+        family2 = Family(epithet="family2")
+        self.session.add_all([family1, family2])
+        self.session.commit()
+        family1_id = family1.id
+        family2_id = family2.id
+        tag_objects("test", [family1, family2])
+
+        tag = self.session.query(Tag).filter_by(tag="test").one()
+        sorted_pairs = sorted([(type(o), o.id) for o in tag.objects])
+        self.assertEqual(
+            sorted([(Family, family1_id), (Family, family2_id)]), sorted_pairs
+        )
+
+        # required for windows tests to succeed due to 16ms resolution
+        sleep(0.02)
+        tag_objects("test", [family1, family2])
+        self.assertEqual(tag.objects, [family1, family2])
+
+        # first untag one
+        sleep(0.02)
+        untag_objects("test", [family1])
+
+        # get object by tag
+        tag = self.session.query(Tag).filter_by(tag="test").one()
+        self.assertEqual(tag.objects, [family2])
+
+        # then both
+        sleep(0.02)
+        untag_objects("test", [family1, family2])
+
+        # get object by tag
+        tag = self.session.query(Tag).filter_by(tag="test").one()
+        self.assertEqual(tag.objects, [])

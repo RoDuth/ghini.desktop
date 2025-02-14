@@ -38,8 +38,8 @@ from bauble.plugins.plants import Species
 from bauble.plugins.plants import SpeciesDistribution
 from bauble.plugins.plants import VernacularName
 from bauble.plugins.plants.test_plants import setup_geographies
-from bauble.plugins.tag import Tag
-from bauble.plugins.tag import tag_objects
+from bauble.plugins.tag.model import Tag
+from bauble.plugins.tag.model import tag_objects
 from bauble.test import BaubleTestCase
 from bauble.test import check_dupids
 from bauble.test import update_gui

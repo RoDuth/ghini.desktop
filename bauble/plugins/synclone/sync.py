@@ -64,7 +64,7 @@ from bauble import utils
 from bauble.connmgr import start_connection_manager
 from bauble.i18n import _
 
-from ..tag import tags_menu_manager
+from ..tag.ui import menu_manager
 from .clone import DBCloner
 
 RESPONSE_QUIT = 1
@@ -470,7 +470,7 @@ class DBSyncroniser:
             pass
         task.set_message(_("sync complete"))
         if bauble.gui:
-            tags_menu_manager.reset()
+            menu_manager.reset()
         return self.failed
 
 

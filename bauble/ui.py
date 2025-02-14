@@ -26,6 +26,7 @@ import traceback
 from collections import deque
 from collections.abc import Callable
 from pathlib import Path
+from typing import Any
 from typing import Literal
 from typing import Protocol
 
@@ -275,6 +276,16 @@ class SplashCommandHandler(pluginmgr.CommandHandler):
         self.view.update()
 
 
+class SimpleActionHandler(Protocol):
+    # pylint: disable=too-few-public-methods
+    def __call__(
+        self,
+        action: Gio.SimpleAction,
+        param: GLib.Variant | None,
+        /,
+    ) -> None: ...
+
+
 class GUI:
     entry_history_pref = "bauble.history"
     history_size_pref = "bauble.history_size"
@@ -439,7 +450,13 @@ class GUI:
 
         combo.grab_focus()
 
-    def add_action(self, name, handler, value=None, param_type=None):
+    def add_action(
+        self,
+        name: str,
+        handler: SimpleActionHandler,
+        value: Any = None,
+        param_type: GLib.VariantType | None = None,
+    ) -> Gio.SimpleAction:
         """Used to add a basic SimpleAction to the window.
 
         If you require anything more complex i.e. one that is stateful, do not

@@ -2284,7 +2284,7 @@ class HistoryView(pluginmgr.View, Gtk.Box):
         self.context_menu.popup_at_pointer(event)
         return True
 
-    def on_revert_to_history(self, _action, _paramm) -> None:
+    def on_revert_to_history(self, _action, _param) -> None:
         selected = self.get_selected_value()
         if not (selected and selected.id):
             return
