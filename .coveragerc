@@ -1,5 +1,7 @@
 [run]
-omit = */test*
+omit = 
+    */test*
+    */test/*
 source = bauble
 concurrency = multiprocessing,thread
 
