@@ -161,8 +161,7 @@ class SimpleSearchBox(Gtk.Frame):
 
 
 class Updateable(Protocol):  # pylint: disable=too-few-public-methods
-    def update(self):
-        """Update the widget"""
+    def update(self): ...
 
 
 # best solution I could come up with for the MetaClass conflict between
@@ -592,7 +591,7 @@ class GUI:
         if text == "":
             return
         self.add_to_history(text)
-        tokens = self.cmd_parser.parseString(text)
+        tokens = self.cmd_parser.parse_string(text)
         cmd = tokens.get("cmd")
         arg = tokens.get("arg")
 

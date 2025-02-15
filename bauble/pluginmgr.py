@@ -502,14 +502,9 @@ class Tool:  # pylint: disable=too-few-public-methods
 
 
 class ViewThread(Protocol):
-    def cancel(self):
-        """Cancel thread."""
-
-    def join(self):
-        """Join to the thread"""
-
-    def start(self):
-        """Start thread"""
+    def cancel(self): ...
+    def join(self): ...
+    def start(self): ...
 
 
 class View:
@@ -542,17 +537,11 @@ class View:
 class Viewable(Protocol):
     """Describes a View subclass, which is likely to also subclass Gtk.Box."""
 
-    def cancel_threads(self) -> None:
-        """Cancel running threads"""
-
-    def start_thread(self, thread: ViewThread) -> ViewThread:
-        """Start a thread"""
-
-    def set_visible(self, visible: bool) -> None:
-        """Set visible property, most likely from subclassing Gtk.Box"""
-
-    def show_all(self) -> None:
-        """Set visible property, most likely from subclassing Gtk.Box"""
+    def cancel_threads(self) -> None: ...
+    def start_thread(self, thread: ViewThread) -> ViewThread: ...
+    def update(self) -> None: ...
+    def set_visible(self, visible: bool) -> None: ...
+    def show_all(self) -> None: ...
 
 
 class CommandHandler(ABC):
