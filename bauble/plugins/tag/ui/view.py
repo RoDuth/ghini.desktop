@@ -19,13 +19,12 @@
 """
 Tag SearchView parts
 """
-import os
+from pathlib import Path
 from typing import Callable
 
 from gi.repository import Gtk
 
 import bauble
-from bauble import paths
 from bauble import utils
 from bauble.i18n import _
 from bauble.view import InfoBox
@@ -93,7 +92,7 @@ class TagInfoBox(InfoBox):
 
     def __init__(self):
         super().__init__()
-        filename = os.path.join(paths.lib_dir(), "plugins", "tag", "tag.glade")
+        filename = str(Path(__file__).resolve().parent / "info_box.glade")
         self.widgets = utils.load_widgets(filename)
         self.general = GeneralTagExpander(self.widgets)
         self.add_expander(self.general)

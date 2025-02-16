@@ -23,12 +23,13 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-import os
 import traceback
 from collections.abc import Sequence
+from pathlib import Path
 from typing import Callable
+from typing import Protocol
+from typing import cast
 
-from gi.repository import Gdk
 from gi.repository import Gtk
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.session import object_session
@@ -36,7 +37,7 @@ from sqlalchemy.orm.session import object_session
 import bauble
 from bauble import db
 from bauble import editor
-from bauble import paths
+from bauble import error
 from bauble import utils
 from bauble.i18n import _
 from bauble.view import Action
@@ -47,166 +48,189 @@ from ..model import tag_objects
 from ..model import untag_objects
 from . import menu_manager
 
-# TODO switch to Gtk.Template?
+
+@Gtk.Template(filename=str(Path(__file__).resolve().parent / "tag_editor.ui"))
+class TagEditorDialog(editor.GenericPresenter, Gtk.Dialog):
+
+    __gtype_name__ = "TagEditorDialog"
+
+    tag_name_entry = cast(Gtk.Entry, Gtk.Template.Child())
+    tag_desc_textbuffer = cast(Gtk.TextBuffer, Gtk.Template.Child())
+
+    def __init__(self, model: Tag) -> None:
+        super().__init__(model, self)
+        self.widgets_to_model_map = {
+            self.tag_name_entry: "tag",
+            self.tag_desc_textbuffer: "description",
+        }
+        self.set_transient_for(bauble.gui.window)
+        self.set_destroy_with_parent(True)
+
+        self.tag_name_entry.grab_focus()
+        self.refresh_all_widgets_from_model()
+        self.tag_name_entry.emit("changed")
+
+    @Gtk.Template.Callback()
+    def on_text_buffer_changed(self, buffer: Gtk.TextBuffer) -> None:
+        super().on_text_buffer_changed(buffer)
+
+    @Gtk.Template.Callback()
+    def on_tag_entry_changed(self, entry: Gtk.Entry) -> None:
+        super().on_unique_text_entry_changed(entry)
 
 
-class TagEditorPresenter(editor.GenericEditorPresenter):
-    widget_to_field_map = {
-        "tag_name_entry": "tag",
-        "tag_desc_textbuffer": "description",
-    }
+@Gtk.Template(filename=str(Path(__file__).resolve().parent / "tag_items.ui"))
+class TagItemsDialog(Gtk.Dialog):
 
-    view_accept_buttons = [
-        "tag_ok_button",
-        "tag_cancel_button",
-    ]
+    __gtype_name__ = "TagItemsDialog"
 
-    def on_tag_desc_textbuffer_changed(self, widget, value=None):
-        return editor.GenericEditorPresenter.on_textbuffer_changed(
-            self, widget, value, attr="description"
+    tag_tree = cast(Gtk.TreeView, Gtk.Template.Child())
+    items_data_label = cast(Gtk.Label, Gtk.Template.Child())
+    delete_button = cast(Gtk.Button, Gtk.Template.Child())
+
+    def __init__(self, selected: Sequence[db.Base]) -> None:
+        super().__init__()
+
+        self.set_transient_for(bauble.gui.window)
+        self.set_destroy_with_parent(True)
+        self.selected_model_row: tuple[Gtk.ListStore, Gtk.TreeIter] | None = (
+            None
         )
 
+        self.selected = selected
 
-class TagItemGUI(editor.GenericEditorView):
-    """Interface for tagging individual items in SearchView"""
+        if not selected:
+            logger.warning("No selection provided.")
+            raise error.BaubleError("selected not provided")
 
-    def __init__(self, values):
-        filename = os.path.join(paths.lib_dir(), "plugins", "tag", "tag.glade")
-        super().__init__(filename)
-        self.item_data_label = self.widgets.items_data
-        self.values = values
-        self.item_data_label.set_text(", ".join([str(s) for s in self.values]))
-        self.connect(
-            self.widgets.new_button, "clicked", self.on_new_button_clicked
+        self.items_data_label.set_text(
+            ",  ".join([str(s) for s in self.selected])
         )
-        self.tag_tree = self.widgets.tag_tree
 
-    def get_window(self):
-        return self.widgets.tag_item_dialog
-
-    def on_new_button_clicked(self, *_args):
+    @Gtk.Template.Callback()
+    def on_new_button_clicked(
+        self,
+        *_args,
+        edit_func: Callable[[Sequence[Tag]], None] | None = None,
+    ) -> None:
         """create a new tag"""
-        session = db.Session()
-        tag = Tag(description="")
-        session.add(tag)
-        error_state = edit_callback([tag])
-        if not error_state:
-            model = self.tag_tree.get_model()
-            model.append([False, tag.tag, False])
-            menu_manager.reset()
-        session.close()
+        if not db.Session:
+            logger.warning("No session bailing.")
+            return
 
-    def on_toggled(self, renderer, path):
-        """tag or untag the objs in self.values"""
+        editor_func = edit_func or edit_callback
+
+        with db.Session() as session:
+            tag = Tag()
+            session.add(tag)
+            response = editor_func([tag])
+
+        if response == Gtk.ResponseType.OK:
+            model = self.tag_tree.get_model()
+
+            if isinstance(model, Gtk.ListStore):
+                model.append([False, False, tag.tag])
+
+            menu_manager.reset()
+
+    @Gtk.Template.Callback()
+    def on_tag_toggled(
+        self, renderer: Gtk.CellRendererToggle, path: str
+    ) -> None:
         active = not renderer.get_active()
         model = self.tag_tree.get_model()
+
+        if not model:
+            return
+
         itr = model.get_iter(path)
+
         model[itr][0] = active
-        model[itr][2] = False
-        name = model[itr][1]
+        model[itr][1] = False
+
+        name = model[itr][2]
         if active:
-            tag_objects(name, self.values)
+            tag_objects(name, self.selected)
         else:
-            untag_objects(name, self.values)
+            untag_objects(name, self.selected)
 
-    def build_tag_tree_columns(self):
-        """Build the tag tree columns."""
-        renderer = Gtk.CellRendererToggle()
-        self.connect(renderer, "toggled", self.on_toggled)
-        renderer.set_property("activatable", True)
-        toggle_column = Gtk.TreeViewColumn(None, renderer)
-        toggle_column.add_attribute(renderer, "active", 0)
-        toggle_column.add_attribute(renderer, "inconsistent", 2)
+    def start(self) -> None:
 
-        renderer = Gtk.CellRendererText()
-        tag_column = Gtk.TreeViewColumn(None, renderer, text=1)
-
-        return [toggle_column, tag_column]
-
-    def on_key_released(self, _widget, event):
-        """When the user hits the delete key on a selected tag in the tag
-        editor delete the tag
-        """
-        keyname = Gdk.keyval_name(event.keyval)
-
-        if keyname != "Delete":
+        if not db.Session:
             return
 
-        model, row_iter = self.tag_tree.get_selection().get_selected()
-        tag_name = model[row_iter][1]
-        msg = _('Are you sure you want to delete the tag "%s"?') % tag_name
+        tag_all, tag_some = get_tag_ids(self.selected)
 
-        if not utils.yes_no_dialog(msg):
+        model = self.tag_tree.get_model()
+
+        if not isinstance(model, Gtk.ListStore):
             return
 
-        session = db.Session()
-        try:
-            query = session.query(Tag)
-            tag = query.filter_by(tag=str(tag_name)).one()
-            session.delete(tag)
-            session.commit()
-            model.remove(row_iter)
-            menu_manager.reset()
-            view = bauble.gui.get_view()
-            if hasattr(view, "update"):
-                view.update()
-        except Exception as e:
-            utils.message_details_dialog(
-                utils.xml_safe(str(e)),
-                traceback.format_exc(),
-                Gtk.MessageType.ERROR,
-            )
-        finally:
-            session.close()
-
-    def start(self):
-        # we remove the old columns and create new ones each time the
-        # tag editor is started since we have to connect and
-        # disconnect the toggled signal each time
-        for col in self.tag_tree.get_columns():
-            self.tag_tree.remove_column(col)
-        columns = self.build_tag_tree_columns()
-        for col in columns:
-            self.tag_tree.append_column(col)
-
-        # create the model
-        model = Gtk.ListStore(bool, str, bool)
-        tag_all, tag_some = get_tag_ids(self.values)
         with db.Session() as session:
             for tag in session.query(Tag):
-                model.append([tag.id in tag_all, tag.tag, tag.id in tag_some])
+                model.append([tag.id in tag_all, tag.id in tag_some, tag.tag])
 
-        self.tag_tree.set_model(model)
+        self.run()
 
-        self.tag_tree.add_events(Gdk.EventMask.KEY_RELEASE_MASK)
-        self.connect(self.tag_tree, "key-release-event", self.on_key_released)
+    @Gtk.Template.Callback()
+    def on_selection_changed(self, tree_selection: Gtk.TreeSelection) -> None:
+        model, row = tree_selection.get_selected()
 
-        response = self.get_window().run()
-        while response not in (
-            Gtk.ResponseType.OK,
-            Gtk.ResponseType.DELETE_EVENT,
-        ):
-            response = self.get_window().run()
+        self.delete_button.set_sensitive(bool(model and row))
 
-        self.get_window().hide()
-        self.disconnect_all()
+        if isinstance(model, Gtk.ListStore) and row:
+            self.selected_model_row = (model, row)
+
+    @Gtk.Template.Callback()
+    def on_delete_button_clicked(
+        self,
+        _button,
+        *,
+        yn_dialog: Callable[[str], bool] | None = None,
+    ) -> None:
+
+        if not db.Session:
+            return
+
+        model = tree_iter = tag_name = None
+        if self.selected_model_row:
+            model, tree_iter = self.selected_model_row
+            tag_name = model[tree_iter][2]
+        else:
+            return
+
+        yn_dialog = yn_dialog or utils.yes_no_dialog
+
+        msg = _('Are you sure you want to delete the tag: "%s"?') % tag_name
+
+        if not yn_dialog(msg):
+            return
+
+        with db.Session() as session:
+            session.query(Tag).filter_by(tag=tag_name).delete()
+            session.commit()
+
+        model.remove(tree_iter)
+        menu_manager.reset()
+
+        view = bauble.gui.get_view()
+        if view:
+            view.update()
 
 
 def remove_callback(
     tags: Sequence[Tag],
     *,
-    yes_no_dialog: Callable[[str], bool] | None = None,
-    message_details_dialog: Callable[[str, str, int], bool] | None = None,
+    yes_no_dialog: Callable[[str], bool] = utils.yes_no_dialog,
+    message_details_dialog: Callable[
+        [str, str, int], bool
+    ] = utils.message_details_dialog,
     menu_reset: Callable[[], None] | None = None,
 ) -> bool:
     """Remove the tags from selected items
 
     Notify user of any problems, update SearchView and reset tags menu.
     """
-    yes_no_dialog = yes_no_dialog or utils.yes_no_dialog
-    message_details_dialog = (
-        message_details_dialog or utils.message_details_dialog
-    )
     menu_reset = menu_reset or menu_manager.reset
 
     tag = tags[0]
@@ -214,7 +238,7 @@ def remove_callback(
     session = object_session(tag)
 
     if not isinstance(session, Session):
-        logger.warning("no object session aborting.")
+        logger.warning("no object session bailing.")
         return False
 
     tlst = []
@@ -227,45 +251,50 @@ def remove_callback(
         return False
 
     for tag in tags:
-        session.delete(tag)
-    try:
-        utils.remove_from_results_view(tags)
-        session.commit()
-    except Exception as e:  # pylint: disable=broad-except
-        msg = _("Could not delete.\n\n%s") % utils.xml_safe(e)
-        message_details_dialog(
-            msg, traceback.format_exc(), Gtk.MessageType.ERROR
-        )
-        session.rollback()
+        try:
+            session.delete(tag)
+            utils.remove_from_results_view(tags)
+            session.commit()
+        except Exception as e:  # pylint: disable=broad-except
+            msg = _("Could not delete.\n\n%s") % utils.xml_safe(e)
+            message_details_dialog(
+                msg, traceback.format_exc(), Gtk.MessageType.ERROR
+            )
+            session.rollback()
 
     # reinitialize the tag menu
     menu_reset()
     return True
 
 
-def edit_callback(tags: Sequence[Tag]) -> int:
+class TagDialog(Protocol):
+    def __init__(self, model: db.Base) -> None: ...
+    def run(self) -> Gtk.ResponseType: ...
+    def destroy(self) -> None: ...
+
+
+def edit_callback(
+    tags: Sequence[Tag],
+    *,
+    dialog_cls: type[TagDialog] = TagEditorDialog,
+) -> int:
     """Edit a tag."""
     tag = tags[0]
 
-    if tag is None:
-        tag = Tag()
+    session = object_session(tag)
 
-    view = editor.GenericEditorView(
-        os.path.join(paths.lib_dir(), "plugins", "tag", "tag.glade"),
-        parent=None,
-        root_widget_name="tag_dialog",
-    )
-    presenter = TagEditorPresenter(tag, view, refresh_view=True)
-    error_state = presenter.start()
+    if isinstance(session, Session):
+        dialog = dialog_cls(tag)
+        response = dialog.run()
 
-    if error_state:
-        presenter.session.rollback()
+        if response != Gtk.ResponseType.OK:
+            session.rollback()
+
+        dialog.destroy()
     else:
-        presenter.commit_changes()
-        menu_manager.reset()
+        raise error.DatabaseError("Could not connect to database session.")
 
-    presenter.cleanup()
-    return error_state
+    return response
 
 
 _edit_action = Action(

@@ -20,23 +20,17 @@
 """
 Tag tests
 """
-
-import os
 from unittest import mock
 
-from gi.repository import Gtk
-
-from bauble import db
+from bauble import search
 from bauble import utils
-from bauble.editor import GenericEditorView
 from bauble.plugins.garden import Accession
 from bauble.test import BaubleTestCase
-from bauble.test import check_dupids
+from bauble.view import SearchView
 
-from .. import Tag
+from .. import TagPlugin
+from ..model import Tag
 from ..model import TaggedObj
-from ..ui.editor import TagEditorPresenter
-from ..ui.editor import remove_callback
 
 tag_test_data = (
     {"id": 1, "tag": "test1", "description": "empty test tag"},
@@ -64,7 +58,7 @@ test_data_table_control = (
 )
 
 
-def setUp_data():
+def setUp_data():  # pylint: disable=invalid-name
     """Load test data.
 
     if this method is called again before tearDown_test_data is called you
@@ -84,185 +78,32 @@ def setUp_data():
 setUp_data.order = 2  # type: ignore [attr-defined]
 
 
-# TODO redundant?
-def test_duplicate_ids():
-    """
-    Test for duplicate ids for all .glade files in the tag plugin.
-    """
-    import glob
+class TestPlugin(BaubleTestCase):
+    def test_plugin_inits_bottom_info_only_once(self):
+        SearchView.bottom_info.data.clear()
+        plugin = TagPlugin()
+        plugin.init()
+        bottom_info = SearchView.bottom_info.get(Tag)
+        SearchView().add_page_to_bottom_notebook(bottom_info)
+        start = bottom_info.copy()
+        plugin.init()
+        plugin.init()
+        end = SearchView.bottom_info.get(Tag).copy()
 
-    import bauble.plugins.tag as mod
+        self.assertEqual(start, end)
 
-    head, _tail = os.path.split(mod.__file__)
-    files = glob.glob(os.path.join(head, "*.glade"))
-    for f in files:
-        assert not check_dupids(f)
-
-
-# TODO all this to move to test_editor.py
-
-from types import SimpleNamespace
-
-
-class MockTagView(GenericEditorView):
-    def __init__(self):
-        self._dirty = False
-        self.sensitive = False
-        self.dict = {}
-        self.widgets = SimpleNamespace(tag_name_entry=Gtk.Entry())
-        self.window = Gtk.Dialog()
-
-    def get_window(self):
-        return self.window
-
-    def is_dirty(self):
-        return self._dirty
-
-    def connect_signals(self, *args):
-        pass
-
-    def set_accept_buttons_sensitive(self, value):
-        self.sensitive = value
-
-    def widget_set_value(
-        self, widget, value, markup=False, default=None, index=0
-    ):
-        self.dict[widget] = value
-
-    def widget_get_value(self, widget):
-        return self.dict.get(widget)
-
-
-class TagPresenterTests(BaubleTestCase):
-    "Presenter manages view and model, implements view callbacks."
-
-    def test_when_user_edits_name_name_is_memorized(self):
-        model = Tag()
-        view = MockTagView()
-        presenter = TagEditorPresenter(model, view)
-        view.widget_set_value("tag_name_entry", "1234")
-        presenter.on_text_entry_changed("tag_name_entry")
-        self.assertEqual(presenter.model.tag, "1234")
-
-    def test_when_user_inserts_existing_name_warning_ok_deactivated(self):
-        session = db.Session()
-
-        # prepare data in database
-        obj = Tag(tag="1234")
-        session.add(obj)
-        session.commit()
-        session.close()
-
-        session = db.Session()
-        view = MockTagView()
-        obj = Tag()  # new scratch object
-        session.add(obj)  # is in session
-        presenter = TagEditorPresenter(obj, view)
-        self.assertTrue(not view.sensitive)  # not changed
-        presenter.on_unique_text_entry_changed("tag_name_entry", "1234")
-        self.assertEqual(obj.tag, "1234")
-        self.assertTrue(view.is_dirty())
-        self.assertTrue(not view.sensitive)  # unacceptable change
-        self.assertTrue(presenter.has_problems())
-
-    def test_widget_names_and_field_names(self):
-        model = Tag()
-        view = MockTagView()
-        presenter = TagEditorPresenter(model, view)
-        for widget, field in list(presenter.widget_to_field_map.items()):
-            self.assertTrue(hasattr(model, field), field)
-            presenter.view.widget_get_value(widget)
-
-    def test_when_user_edits_fields_ok_active(self):
-        model = Tag()
-        view = MockTagView()
-        presenter = TagEditorPresenter(model, view)
-        self.assertTrue(not view.sensitive)  # not changed
-        view.widget_set_value("tag_name_entry", "1234")
-        presenter.on_text_entry_changed("tag_name_entry")
-        self.assertEqual(presenter.model.tag, "1234")
-        self.assertTrue(view.sensitive)  # changed
-
-    def test_when_user_edits_description_description_is_memorized(self):
-        pass
-
-    def test_presenter_does_not_initialize_view(self):
-        session = db.Session()
-
-        # prepare data in database
-        obj = Tag(tag="1234")
-        session.add(obj)
-        view = MockTagView()
-        presenter = TagEditorPresenter(obj, view)
-        self.assertFalse(view.widget_get_value("tag_name_entry"))
-        presenter.refresh_view()
-        self.assertEqual(view.widget_get_value("tag_name_entry"), "1234")
-
-    def test_if_asked_presenter_initializes_view(self):
-        session = db.Session()
-
-        # prepare data in database
-        obj = Tag(tag="1234")
-        session.add(obj)
-        view = MockTagView()
-        TagEditorPresenter(obj, view, refresh_view=True)
-        self.assertEqual(view.widget_get_value("tag_name_entry"), "1234")
-
-
-class GlobalFunctionsTests(BaubleTestCase):
-
-    def test_remove_callback_no_confirm(self):
-        mock_ynd = mock.Mock()
-        mock_ynd.return_value = False
-        mock_mdd = mock.Mock()
-        mock_reset = mock.Mock()
-
-        tag = Tag(tag="Foo")
-        self.session.add(tag)
-        self.session.flush()
-
-        result = remove_callback(
-            [tag],
-            yes_no_dialog=mock_ynd,
-            message_details_dialog=mock_mdd,
-            menu_reset=mock_reset,
-        )
-        self.session.flush()
-
-        mock_mdd.assert_not_called()
-        # effect
-        mock_ynd.assert_called_with(
-            "Are you sure you want to remove Tag: Foo?"
-        )
-        mock_reset.assert_not_called()
-
-        self.assertFalse(result)
-        matching = self.session.query(Tag).filter_by(tag="Foo").all()
-        self.assertEqual(matching, [tag])
-
-    def test_remove_callback_confirm(self):
-        mock_ynd = mock.Mock()
-        mock_ynd.return_value = True
-        mock_mdd = mock.Mock()
-        mock_reset = mock.Mock()
-
-        tag = Tag(tag="Foo")
-        self.session.add(tag)
-        self.session.flush()
-
-        result = remove_callback(
-            [tag],
-            yes_no_dialog=mock_ynd,
-            message_details_dialog=mock_mdd,
-            menu_reset=mock_reset,
-        )
-        self.session.flush()
-
-        mock_reset.assert_called()
-        mock_mdd.assert_not_called()
-        mock_ynd.assert_called_with(
-            "Are you sure you want to remove Tag: Foo?"
-        )
-        self.assertEqual(result, True)
-        matching = self.session.query(Tag).filter_by(tag="Foo").all()
-        self.assertEqual(matching, [])
+    @mock.patch.dict(
+        search.strategies._search_strategies,
+        {
+            k: v
+            for k, v in search.strategies._search_strategies.items()
+            if k != "MapperSearch"
+        },
+        clear=True,
+    )
+    def test_bails_if_no_mapper_search(self):
+        SearchView.bottom_info.data.clear()
+        self.assertIsNone(SearchView.bottom_info.get(Tag))
+        plugin = TagPlugin()
+        plugin.init()
+        self.assertIsNone(SearchView.bottom_info.get(Tag))

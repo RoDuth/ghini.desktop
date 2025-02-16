@@ -61,8 +61,8 @@ class TagMenuTests(BaubleTestCase):
 
     def test_build_menu_one_tag(self):
         tagname = "some-tag"
-        t = Tag(tag=tagname, description="description")
-        self.session.add(t)
+        tag = Tag(tag=tagname, description="description")
+        self.session.add(tag)
         self.session.commit()
         menu_model = _tags_menu_manager.build_menu()
         self.assertTrue(isinstance(menu_model, Gio.Menu))
@@ -108,7 +108,7 @@ class TagMenuTests(BaubleTestCase):
     def test_reset_active_tag_name_session_is_none_bails(self):
         tags_mm = _TagsMenuManager()
         self.assertIsNone(tags_mm.active_tag_name)
-        with mock.patch("bauble.plugins.tag.db.Session", None):
+        with mock.patch("bauble.db.Session", None):
             with self.assertLogs(level="WARNING") as logs:
                 tags_mm.reset_active_tag_name()
             self.assertIsNone(tags_mm.active_tag_name)
@@ -139,13 +139,10 @@ class TagMenuTests(BaubleTestCase):
         action = Gio.SimpleAction.new_stateful(
             tags_mm.ACTIVATED_ACTION_NAME, variant.get_type(), variant
         )
+        mock_sv.results_view.expand_to_path.return_value = False
 
-        with mock.patch(
-            "bauble.plugins.tag.ui.menu_manager.GLib.idle_add"
-        ) as mock_iadd:
-            tags_mm.on_tag_change_state(action, variant)
+        tags_mm.on_tag_change_state(action, variant)
 
-            mock_iadd.assert_called()
         mock_gui.send_command.assert_called_with("tag='test1'")
         tags_mm.refresh.assert_called()
         self.assertEqual(tags_mm.active_tag_name, "test1")
@@ -165,22 +162,23 @@ class TagMenuTests(BaubleTestCase):
         mock_sv.update_bottom_notebook.assert_not_called()
 
     @mock.patch("bauble.gui")
-    def test_on_context_menu_apply_activated_w_values(self, mock_gui):
+    def test_on_context_menu_apply_activated_w_values_tags(self, mock_gui):
         # with SearchView with Values
         mock_sv = mock.Mock(spec=SearchView)
         mock_gui.get_view.return_value = mock_sv
         fam = Family(epithet="Myrtaceae")
+        tag = Tag(tag="bar")
+        self.session.add_all([fam, tag])
+        self.session.commit()
+        self.assertFalse(tag.is_tagging(fam))
         mock_sv.get_selected_values.return_value = [fam]
         tags_mm = _TagsMenuManager()
-        variant = GLib.Variant.new_string("test2")
+        variant = GLib.Variant.new_string("bar")
 
-        with mock.patch(
-            "bauble.plugins.tag.ui.menu_manager.tag_objects"
-        ) as mock_to:
-            tags_mm.on_context_menu_apply_activated(None, variant)
-            mock_to.assert_called()
+        tags_mm.on_context_menu_apply_activated(None, variant)
 
         mock_sv.update_bottom_notebook.assert_called_with([fam])
+        self.assertTrue(tag.is_tagging(fam))
 
     @mock.patch("bauble.gui")
     def test_on_context_menu_remove_activated_bails(self, mock_gui):
@@ -197,22 +195,24 @@ class TagMenuTests(BaubleTestCase):
         mock_sv.update_bottom_notebook.assert_not_called()
 
     @mock.patch("bauble.gui")
-    def test_on_context_menu_remove_activated_w_values(self, mock_gui):
+    def test_on_context_menu_remove_activated_w_values_untags(self, mock_gui):
         # with SearchView with Values
         mock_sv = mock.Mock(spec=SearchView)
         mock_gui.get_view.return_value = mock_sv
         fam = Family(epithet="Myrtaceae")
+        tag = Tag(tag="bar")
+        self.session.add_all([fam, tag])
+        self.session.commit()
+        tag_objects("bar", [fam])
+        self.assertTrue(tag.is_tagging(fam))
         mock_sv.get_selected_values.return_value = [fam]
         tags_mm = _TagsMenuManager()
-        variant = GLib.Variant.new_string("test2")
+        variant = GLib.Variant.new_string("bar")
 
-        with mock.patch(
-            "bauble.plugins.tag.ui.menu_manager.untag_objects"
-        ) as mock_uto:
-            tags_mm.on_context_menu_remove_activated(None, variant)
-            mock_uto.assert_called()
+        tags_mm.on_context_menu_remove_activated(None, variant)
 
         mock_sv.update_bottom_notebook.assert_called_with([fam])
+        self.assertFalse(tag.is_tagging(fam))
 
     def test_context_menu_callback_bails_nothing_selected(self):
         tags_mm = _TagsMenuManager()
@@ -293,39 +293,39 @@ class TagMenuTests(BaubleTestCase):
         self.assertCountEqual(remove, [tag1])
         self.assertCountEqual(apply, [tag2, tag3])
 
-    def test_toggle_tag_warns_not_search_view(self):
+    @mock.patch("bauble.gui")
+    def test_toggle_tag_not_search_view_bails(self, mock_gui):
         tags_mm = _TagsMenuManager()
-        with mock.patch("bauble.gui") as mock_gui:
-            mock_sv = mock.Mock()
-            mock_gui.get_view.return_value = mock_sv
-            tags_mm.toggle_tag(None)
-            mock_gui.show_message_box.assert_called_with(
-                "In order to tag or untag an item you must first search "
-                "for something."
-            )
+        mock_sv = mock.Mock()
+        mock_gui.get_view.return_value = mock_sv
 
-    def test_toggle_tag_warns_nothing_selected(self):
-        tags_mm = _TagsMenuManager()
-        with mock.patch("bauble.gui") as mock_gui:
-            mock_sv = mock.Mock(spec=SearchView)
-            mock_sv.get_selected_values.return_value = None
-            mock_gui.get_view.return_value = mock_sv
-            tags_mm.toggle_tag(None)
-            mock_gui.show_message_box.assert_called_with(
-                "In order to tag or untag an item you must first search "
-                "for something."
-            )
+        tags_mm.toggle_tag(None)
 
-    @mock.patch("bauble.plugins.tag.ui.menu_manager.utils.message_dialog")
-    def test_toggle_tag_no_active_tag_messages(self, mock_dialog):
+        mock_sv.update_bottom_notebook.assert_not_called()
+
+    @mock.patch("bauble.gui")
+    def test_toggle_tag_wo_selected_bails(self, mock_gui):
         tags_mm = _TagsMenuManager()
-        with mock.patch("bauble.gui") as mock_gui:
-            mock_sv = mock.Mock(spec=SearchView)
-            mock_sv.get_selected_values.return_value = [None, None]
-            mock_gui.get_view.return_value = mock_sv
-            self.assertIsNone(tags_mm.active_tag_name)
-            tags_mm.toggle_tag(None)
-            mock_dialog.assert_called_with("Please make sure a tag is active.")
+        mock_sv = mock.Mock(spec=SearchView)
+        mock_sv.get_selected_values.return_value = None
+        mock_gui.get_view.return_value = mock_sv
+
+        tags_mm.toggle_tag(None)
+
+        mock_sv.update_bottom_notebook.assert_not_called()
+
+    @mock.patch("bauble.gui")
+    def test_toggle_tag_no_active_tag_messages(self, mock_gui):
+        tags_mm = _TagsMenuManager()
+        mock_sv = mock.Mock(spec=SearchView)
+        mock_sv.get_selected_values.return_value = [None, None]
+        mock_gui.get_view.return_value = mock_sv
+        self.assertIsNone(tags_mm.active_tag_name)
+        mock_dialog = mock.Mock()
+
+        tags_mm.toggle_tag(None, message_dialog=mock_dialog)
+
+        mock_dialog.assert_called_with("Please make sure a tag is active.")
 
     def test_toggle_tag_applies(self):
         # setup some test data
@@ -357,45 +357,42 @@ class TagMenuTests(BaubleTestCase):
 
 class TagCallbackTest(TestCase):
     @mock.patch("bauble.gui")
-    def test_on_add_tag_activated_wrong_view(self, mock_gui):
-        mock_gui.get_view.return_value = mock.Mock()
+    def test_on_add_tag_activated_w_selected_starts_editor(self, mock_gui):
+        tagname = "some-tag"
+        tag = Tag(tag=tagname, description="description")
+        mock_sv = mock.Mock(spec=SearchView)
+        mock_selected = [tag]
+        mock_sv.get_selected_values.return_value = mock_selected
+        mock_gui.get_view.return_value = mock_sv
+        mock_dialog = mock.Mock()
 
-        _on_add_tag_activated(None, None)
+        _on_add_tag_activated(None, None, dialog_cls=mock_dialog)
 
-        msg = (
-            "In order to tag or untag an item you must first search for "
-            "something."
-        )
-        mock_gui.show_message_box.assert_called_with(msg)
+        mock_dialog.assert_called_with([tag])
+        mock_dialog().start.assert_called()
 
     @mock.patch("bauble.gui")
-    def test_on_add_tag_activated_search_view_empty_selection(self, mock_gui):
-        mock_sv = mock.Mock(spec=SearchView)
-        mock_gui.get_view.return_value = mock_sv
-        mock_sv.get_selected_values.return_value = []
+    def test_on_add_tag_activated_wo_selected_returns(self, mock_gui):
 
-        _on_add_tag_activated(None, None)
+        mock_sv = mock.Mock(spec=SearchView)
+        mock_selected = []
+        mock_sv.get_selected_values.return_value = mock_selected
+        mock_gui.get_view.return_value = mock_sv
+        mock_dialog = mock.Mock()
+
+        _on_add_tag_activated(None, None, dialog_cls=mock_dialog)
 
         mock_sv.get_selected_values.assert_called()
+        mock_sv.update_bottom_notebook.assert_not_called()
+        mock_dialog.assert_not_called()
 
-        msg = (
-            "In order to tag or untag an item you must first search for "
-            "something."
-        )
-        mock_gui.show_message_box.assert_called_with(msg)
-
-    @mock.patch("bauble.plugins.tag.ui.menu_manager.editor")
     @mock.patch("bauble.gui")
-    def test_on_add_tag_activated_starts_editor(self, mock_gui, mock_editor):
-        mock_sv = mock.Mock(spec=SearchView)
+    def test_on_add_tag_activated_not_searchview_bails_early(self, mock_gui):
+        mock_sv = mock.Mock()
         mock_gui.get_view.return_value = mock_sv
-        obj1 = object()
-        obj2 = object()
-        mock_sv.get_selected_values.return_value = [obj1, obj2]
+        mock_dialog = mock.Mock()
 
-        _on_add_tag_activated(None, None)
+        _on_add_tag_activated(None, None, dialog_cls=mock_dialog)
 
-        mock_sv.get_selected_values.assert_called()
-        mock_sv.update_bottom_notebook.assert_called_with([obj1, obj2])
-        mock_editor.TagItemGUI.assert_called_with([obj1, obj2])
-        mock_editor.TagItemGUI().start.assert_called()
+        mock_sv.get_selected_values.assert_not_called()
+        mock_dialog.assert_not_called()

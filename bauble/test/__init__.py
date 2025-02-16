@@ -110,6 +110,7 @@ class BaubleClassTestCase(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
+        bauble.gui = None
         assert uri is not None, "The database URI is not set"
         bauble.db.engine = None
         bauble.conn_name = None

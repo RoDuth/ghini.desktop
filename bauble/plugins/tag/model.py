@@ -175,7 +175,7 @@ class Tag(db.Base):
         session = object_session(self)
 
         if not isinstance(session, Session):
-            logger.warning("no object session aborting.")
+            logger.warning("no object session bailing.")
             return []
 
         items = []
@@ -352,7 +352,7 @@ def get_tag_ids(objects: Sequence[db.Base]) -> tuple[set[int], set[int]]:
     session = object_session(objects[0])
 
     if not isinstance(session, Session):
-        logger.warning("no object session aborting.")
+        logger.warning("no object session bailing.")
         raise error.DatabaseError("Object has no database session.")
 
     tag_id_select = select(Tag.id)

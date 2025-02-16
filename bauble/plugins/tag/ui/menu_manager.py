@@ -25,6 +25,7 @@ logger = logging.getLogger(__name__)
 
 from collections.abc import Callable
 from collections.abc import Sequence
+from typing import Protocol
 
 from gi.repository import Gio
 from gi.repository import GLib
@@ -367,30 +368,25 @@ class _TagsMenuManager:
 
             bauble.gui.window.add_action(self.select_tag_action)
 
-    def toggle_tag(self, applying: Callable[[str, list], None]) -> None:
+    def toggle_tag(
+        self,
+        applying: Callable[[str, list], None],
+        *,
+        message_dialog: Callable[[str], None] = utils.message_dialog,
+    ) -> None:
         view = bauble.gui.get_view()
-        selected: list[db.Base] | None = None
 
-        def warn():
-            msg = _(
-                "In order to tag or untag an item you must first search "
-                "for something."
-            )
-            bauble.gui.show_message_box(msg)
-
-        if isinstance(view, SearchView):
-            selected = view.get_selected_values()
-        else:
-            warn()
+        if not isinstance(view, SearchView):
             return
 
+        selected = view.get_selected_values()
+
         if not selected:
-            warn()
             return
 
         if self.active_tag_name is None:
             msg = _("Please make sure a tag is active.")
-            utils.message_dialog(msg)
+            message_dialog(msg)
             return
 
         applying(self.active_tag_name, selected)
@@ -409,30 +405,32 @@ class _TagsMenuManager:
         self.toggle_tag(untag_objects)
 
 
-def _on_add_tag_activated(_action, _param) -> None:
+class ItemsDialog(Protocol):
+    def __init__(self, values: Sequence[db.Base]) -> None: ...
+    def start(self) -> None: ...
+    def destroy(self) -> None: ...
+
+
+def _on_add_tag_activated(
+    _action,
+    _param,
+    *,
+    dialog_cls: type[ItemsDialog] = editor.TagItemsDialog,
+) -> None:
     # get the selection from the search view
     view = bauble.gui.get_view()
-
-    def warn():
-        msg = _(
-            "In order to tag or untag an item you must first search "
-            "for something."
-        )
-        bauble.gui.show_message_box(msg)
-
-    if isinstance(view, SearchView):
-        selected = view.get_selected_values()
-    else:
-        warn()
+    if not isinstance(view, SearchView):
         return
+
+    selected = view.get_selected_values()
 
     if not selected:
-        warn()
         return
 
-    gui = editor.TagItemGUI(selected)
-    gui.start()
+    dialog = dialog_cls(selected)
+    dialog.start()
     view.update_bottom_notebook(selected)
+    dialog.destroy()
 
 
 # should not be needed outside of this plugin
