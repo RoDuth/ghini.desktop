@@ -35,6 +35,7 @@ from sqlalchemy import String
 from sqlalchemy import Unicode
 from sqlalchemy import UnicodeText
 from sqlalchemy import and_
+from sqlalchemy import func
 from sqlalchemy import literal
 from sqlalchemy import select
 from sqlalchemy.exc import InvalidRequestError
@@ -83,7 +84,7 @@ class Tag(db.Base):
         back_populates="tag",
     )
 
-    _update_timestamp: datetime | None = None
+    _update_history_id: int = 0
     _last_objects: list[db.Base] | None = None
 
     retrieve_cols = ["id", "tag"]
@@ -136,28 +137,21 @@ class Tag(db.Base):
         Reuses last result if nothing was changed in the database since
         list was retrieved.
         """
-        if self._update_timestamp is not None:
+        last_history = 0
 
-            last_history = None
-            # NOTE tests will freeze here on MSSQL if flush.  Better to commit
-            if db.engine:
-                with db.engine.begin() as connection:
-                    table = db.History.__table__
-                    stmt = (
-                        select(table.c.timestamp)
-                        .order_by(table.c.id.desc())
-                        .limit(1)
-                    )
-                    last_history = connection.execute(stmt).scalar()
+        # NOTE tests may freeze here on MSSQL if flush.  Better to commit
+        if db.engine:
+            with db.engine.begin() as connection:
+                table = db.History.__table__
+                stmt = select(func.max(table.c.id))
 
-            # last_history can be None when no history (i.e. a recent restore
-            # of older data where history table has been dropped) note:
-            # _last_objects will be None first run.
-            if last_history and last_history > self._update_timestamp:
-                self._last_objects = None
+                last_history = connection.execute(stmt).scalar() or 0
+
+        if last_history > self._update_history_id:
+            self._last_objects = None
 
         if self._last_objects is None:
-            self._update_timestamp = datetime.now().astimezone(tz=None)
+            self._update_history_id = last_history
             self._last_objects = self.get_tagged_objects()
 
         return self._last_objects
