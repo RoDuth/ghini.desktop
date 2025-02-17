@@ -73,13 +73,12 @@ for:
     - bash -lc "pip wheel pyproj --wheel-dir wheels --find-links wheels"
     - bash -lc "pip wheel dukpy --wheel-dir wheels --find-links wheels"
     - bash -lc "pip wheel 'SQLAlchemy<2.0' --wheel-dir wheels --find-links wheels"
-    - bash -lc "pip wheel greenlet --wheel-dir wheels --find-links wheels"
     - bash -lc "pip wheel markupsafe --wheel-dir wheels --find-links wheels"
-    - bash -lc "pip install wheels/*"
     - dir wheels
 
   build_script:
-    - bash -lc "pip install ."
+    - bash -lc "pip install pyodbc --find-links wheels"
+    - bash -lc "pip install . --find-links wheels"
     - bash -lc "pip install pyinstaller==5.13.2"
     - bash -lc "python -m PyInstaller --clean --noconfirm scripts/ghini.spec"
     - if not exist jre\ for /f %%i in ('dir "C:\Program Files\OpenJDK\jdk*" /b') do "C:\Program Files"\OpenJDK\%%i\bin\jlink --output jre --add-modules java.base,java.logging,java.desktop,java.xml
@@ -116,13 +115,12 @@ for:
     - bash -lc "pip wheel pyproj --wheel-dir wheels --find-links wheels"
     - bash -lc "pip wheel dukpy --wheel-dir wheels --find-links wheels"
     - bash -lc "pip wheel 'SQLAlchemy<2.0' --wheel-dir wheels --find-links wheels"
-    - bash -lc "pip wheel greenlet --wheel-dir wheels --find-links wheels"
     - bash -lc "pip wheel markupsafe --wheel-dir wheels --find-links wheels"
-    - bash -lc "pip install wheels/*"
     - dir wheels
 
   build_script:
-    - bash -lc "pip install ."
+    - bash -lc "pip install pyodbc --find-links wheels"
+    - bash -lc "pip install . --find-links wheels"
 
   test_script:
     - bash -lc "pip install pytest"
