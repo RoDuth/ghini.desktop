@@ -21,6 +21,7 @@ Tag SearchView parts
 """
 from pathlib import Path
 from typing import Callable
+from typing import cast
 
 from gi.repository import Gtk
 
@@ -28,32 +29,35 @@ import bauble
 from bauble import utils
 from bauble.i18n import _
 from bauble.view import InfoBox
-from bauble.view import InfoExpander
 from bauble.view import PropertiesExpander
 
 
-class GeneralTagExpander(InfoExpander):
+@Gtk.Template(filename=str(Path(__file__).resolve().parent / "info_box.ui"))
+class GeneralTagExpander(Gtk.Expander):
     """Generic information about a tag.  Displays the tag name, description and
     a table of the types and count(with link) of tagged items.
     """
 
-    def __init__(self, widgets):
-        super().__init__(_("General"), widgets)
-        general_box = self.widgets.general_box
-        self.widgets.general_window.remove(general_box)
-        self.vbox.pack_start(general_box, True, True, 0)
+    __gtype_name__ = "GeneralTagExpander"
+
+    general_box = cast(Gtk.Box, Gtk.Template.Child())
+    name_label = cast(Gtk.Label, Gtk.Template.Child())
+    description_label = cast(Gtk.Label, Gtk.Template.Child())
+    grid = cast(Gtk.Grid, Gtk.Template.Child())
+
+    def __init__(self):
+        super().__init__(label=_("General"), expanded=True)
         self.table_cells = []
 
     def update(self, row):
-        self.widget_set_value("ib_name_label", row.tag)
-        self.widget_set_value("ib_description_label", row.description)
+        self.name_label.set_text(row.tag)
+        self.description_label.set_text(row.description or "")
         objects = row.objects
         classes = set(type(o) for o in objects)
         row_no = 1
-        grid = self.widgets.tag_ib_general_grid
 
         for widget in self.table_cells:
-            grid.remove(widget)
+            self.grid.remove(widget)
 
         self.table_cells = []
         for cls in classes:
@@ -62,14 +66,14 @@ class GeneralTagExpander(InfoExpander):
             lab.set_xalign(0)
             lab.set_yalign(0.5)
             lab.set_text(cls.__name__)
-            grid.attach(lab, 0, row_no, 1, 1)
+            self.grid.attach(lab, 0, row_no, 1, 1)
 
             eventbox = Gtk.EventBox()
             label = Gtk.Label()
             label.set_xalign(0)
             label.set_yalign(0.5)
             eventbox.add(label)
-            grid.attach(eventbox, 1, row_no, 1, 1)
+            self.grid.attach(eventbox, 1, row_no, 1, 1)
             label.set_text(f" {len(obj_ids)} ")
             utils.make_label_clickable(
                 label,
@@ -81,20 +85,14 @@ class GeneralTagExpander(InfoExpander):
             self.table_cells.append(eventbox)
 
             row_no += 1
-        grid.show_all()
+        self.grid.show_all()
 
 
 class TagInfoBox(InfoBox):
-    """
-    - general info
-    - source
-    """
 
     def __init__(self):
         super().__init__()
-        filename = str(Path(__file__).resolve().parent / "info_box.glade")
-        self.widgets = utils.load_widgets(filename)
-        self.general = GeneralTagExpander(self.widgets)
+        self.general = GeneralTagExpander()
         self.add_expander(self.general)
         self.props = PropertiesExpander()
         self.add_expander(self.props)

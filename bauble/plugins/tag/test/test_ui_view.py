@@ -39,9 +39,9 @@ class TagInfoBoxTest(BaubleTestCase):
         ib = TagInfoBox()
         ib.update(t)
         self.assertEqual(
-            ib.widgets.ib_description_label.get_text(), t.description
+            ib.general.description_label.get_text(), t.description
         )
-        self.assertEqual(ib.widgets.ib_name_label.get_text(), t.tag)
+        self.assertEqual(ib.general.name_label.get_text(), t.tag)
         self.assertEqual(ib.general.table_cells, [])
         ib.destroy()
 
@@ -57,9 +57,9 @@ class TagInfoBoxTest(BaubleTestCase):
         self.assertEqual(ib.general.table_cells, [])
         ib.update(t)
         self.assertEqual(
-            ib.widgets.ib_description_label.get_text(), t.description
+            ib.general.description_label.get_text(), t.description
         )
-        self.assertEqual(ib.widgets.ib_name_label.get_text(), t.tag)
+        self.assertEqual(ib.general.name_label.get_text(), t.tag)
         self.assertEqual(len(ib.general.table_cells), 2)
         self.assertEqual(ib.general.table_cells[0].get_text(), "Tag")
         self.assertEqual(type(ib.general.table_cells[1]), Gtk.EventBox)
@@ -75,7 +75,7 @@ class TagInfoBoxTest(BaubleTestCase):
         tag1.tag_objects([tag2])
         ib = TagInfoBox()
         mock_grid = mock.Mock()
-        ib.widgets.tag_ib_general_grid = mock_grid
+        ib.general.grid = mock_grid
         ib.update(tag1)
         # not first time
         mock_grid.remove.assert_not_called()
