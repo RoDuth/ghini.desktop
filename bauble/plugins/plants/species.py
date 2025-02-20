@@ -1,7 +1,7 @@
 # Copyright 2008-2010 Brett Adams
 # Copyright 2012-2015 Mario Frasca <mario@anche.no>.
 # Copyright 2017 Jardín Botánico de Quito
-# Copyright 2020-2023 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright 2020-2025 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -55,7 +55,6 @@ from bauble.search.statements import StatementAction
 from bauble.search.strategies import SearchStrategy
 from bauble.view import Action
 from bauble.view import InfoBox
-from bauble.view import InfoBoxPage
 from bauble.view import InfoExpander
 from bauble.view import PropertiesExpander
 from bauble.view import select_in_search_results
@@ -468,7 +467,7 @@ class SynonymSearch(SearchStrategy):
         return queries
 
 
-# TODO should these and even the InfoBoxPage be Gtk.Template?
+# TODO should be Gtk.Template?
 class VernacularExpander(InfoExpander):
     """VernacularExpander
 
@@ -625,11 +624,10 @@ class GeneralSpeciesExpander(DistMapInfoExpanderMixin, InfoExpander):
                 data_label = self.widgets[column_name + "_data"]
                 utils.unhide_widgets((label, data_label))
         else:
-            for col in self.custom_columns:
-                label = self.widgets[col + "_label"]
-                data_label = self.widgets[col + "_data"]
-                utils.hide_widgets((label, data_label))
-            self.__class__.custom_columns = set()
+            label = self.widgets[column_name + "_label"]
+            label.set_text("_custom_")
+            data_label = self.widgets[column_name + "_data"]
+            utils.hide_widgets((label, data_label))
 
     def update(self, row):
         """update the expander
@@ -828,29 +826,13 @@ class GeneralSpeciesExpander(DistMapInfoExpanderMixin, InfoExpander):
 
 
 class SpeciesInfoBox(InfoBox):
-    def __init__(self):
-        super().__init__()
-        page = SpeciesInfoPage()
-        label = page.label
-        if isinstance(label, str):
-            label = Gtk.Label(label=label)
-        self.insert_page(page, label, 0)
-
-
-class SpeciesInfoPage(InfoBoxPage):
     """general info, fullname, common name, num of accessions and clones,
     distribution
     """
 
-    # others to consider: reference, images, redlist status
+    # others to consider: reference
 
     def __init__(self):
-        button_defs = []
-        buttons = prefs.prefs.itersection(SPECIES_WEB_BUTTON_DEFS_PREFS)
-        for name, button in buttons:
-            button["name"] = name
-            button_defs.append(button)
-
         super().__init__()
         filename = os.path.join(
             paths.lib_dir(), "plugins", "plants", "infoboxes.glade"
@@ -867,17 +849,18 @@ class SpeciesInfoPage(InfoBoxPage):
         self.add_expander(self.vernacular)
         self.synonyms = SynonymsExpander(self.widgets)
         self.add_expander(self.synonyms)
+
+        button_defs = []
+        buttons = prefs.prefs.itersection(SPECIES_WEB_BUTTON_DEFS_PREFS)
+        for name, button in buttons:
+            button["name"] = name
+            button_defs.append(button)
         self.links = view.LinksExpander("notes", links=button_defs)
         self.add_expander(self.links)
+
         self.props = PropertiesExpander()
         self.add_expander(self.props)
         self.label = _("General")
-
-        if "GardenPlugin" not in pluginmgr.plugins:
-            self.widgets.remove_parent("sp_nacc_label")
-            self.widgets.remove_parent("sp_nacc_data")
-            self.widgets.remove_parent("sp_nplants_label")
-            self.widgets.remove_parent("sp_nplants_data")
 
     def update(self, row):
         """

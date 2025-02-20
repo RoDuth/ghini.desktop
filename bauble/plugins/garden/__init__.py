@@ -1,7 +1,7 @@
 # Copyright 2008-2010 Brett Adams
 # Copyright 2015 Mario Frasca <mario@anche.no>.
 # Copyright 2017 Jardín Botánico de Quito
-# Copyright 2020-2024 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright 2020-2025 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -139,6 +139,11 @@ class GardenPlugin(pluginmgr.Plugin):
     }
     options_menu_set = False
 
+    accession_infobox: AccessionInfoBox | None = None
+    source_detail_infobox: SourceDetailInfoBox | None = None
+    plant_infobox: PlantInfoBox | None = None
+    location_infobox: LocationInfoBox | None = None
+
     @classmethod
     def install(cls, *args, **kwargs):
         pass
@@ -154,13 +159,23 @@ class GardenPlugin(pluginmgr.Plugin):
 
         mapper_search.add_meta(("accession", "acc"), Accession, ["code"])
 
+        # set infoboxes once.
+        if cls.accession_infobox is None:
+            cls.accession_infobox = AccessionInfoBox()
+        if cls.source_detail_infobox is None:
+            cls.source_detail_infobox = SourceDetailInfoBox()
+        if cls.plant_infobox is None:
+            cls.plant_infobox = PlantInfoBox()
+        if cls.location_infobox is None:
+            cls.location_infobox = LocationInfoBox()
+
         # use full_sci_name in sorter as its more likely to exist, yet still
         # provide a fall back of the empty string.
         SearchView.row_meta[Accession].set(
             children=partial(
                 db.get_active_children, partial(db.natsort, "plants")
             ),
-            infobox=AccessionInfoBox,
+            infobox=cls.accession_infobox,
             context_menu=acc_context_menu,
             sorter=lambda obj: (
                 (obj.species.full_sci_name or "", utils.natsort_key(obj))
@@ -175,7 +190,7 @@ class GardenPlugin(pluginmgr.Plugin):
             children=partial(
                 db.get_active_children, partial(db.natsort, "plants")
             ),
-            infobox=LocationInfoBox,
+            infobox=cls.location_infobox,
             context_menu=loc_context_menu,
             activated_callback=loc_edit_callback,
         )
@@ -187,7 +202,7 @@ class GardenPlugin(pluginmgr.Plugin):
         mapper_search.completion_funcs["plant"] = get_plant_completions
 
         SearchView.row_meta[Plant].set(
-            infobox=PlantInfoBox,
+            infobox=cls.plant_infobox,
             context_menu=plant_context_menu,
             sorter=lambda obj: (
                 (
@@ -217,7 +232,7 @@ class GardenPlugin(pluginmgr.Plugin):
 
         SearchView.row_meta[SourceDetail].set(
             children=partial(db.get_active_children, sd_kids),
-            infobox=SourceDetailInfoBox,
+            infobox=cls.source_detail_infobox,
             context_menu=source_detail_context_menu,
             activated_callback=source_detail_edit_callback,
         )
@@ -231,7 +246,7 @@ class GardenPlugin(pluginmgr.Plugin):
 
         SearchView.row_meta[Collection].set(
             children=partial(db.get_active_children, coll_kids),
-            infobox=AccessionInfoBox,
+            infobox=cls.accession_infobox,
             context_menu=collection_context_menu,
             activated_callback=collection_edit_callback,
         )

@@ -1,6 +1,6 @@
 # Copyright 2008-2010 Brett Adams
 # Copyright 2012-2015 Mario Frasca <mario@anche.no>.
-# Copyright 2021-2023 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright 2021-2025 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -589,6 +589,12 @@ class PlantsPlugin(pluginmgr.Plugin):
     prefs_change_handler = None
     options_menu_set = False
 
+    family_infobox: FamilyInfoBox | None = None
+    genus_infobox: GenusInfoBox | None = None
+    species_infobox: SpeciesInfoBox | None = None
+    vernacular_infobox: VernacularNameInfoBox | None = None
+    geography_infobox: GeographyInfoBox | None = None
+
     @classmethod
     def init(cls):
         if not cls.options_menu_set:
@@ -715,10 +721,22 @@ class PlantsPlugin(pluginmgr.Plugin):
 
         mapper_search = search.strategies.get_strategy("MapperSearch")
 
+        # set infoboxes once.
+        if cls.family_infobox is None:
+            cls.family_infobox = FamilyInfoBox()
+        if cls.genus_infobox is None:
+            cls.genus_infobox = GenusInfoBox()
+        if cls.species_infobox is None:
+            cls.species_infobox = SpeciesInfoBox()
+        if cls.vernacular_infobox is None:
+            cls.vernacular_infobox = VernacularNameInfoBox()
+        if cls.geography_infobox is None:
+            cls.geography_infobox = GeographyInfoBox()
+
         mapper_search.add_meta(("family", "fam"), Family, ["family"])
         SearchView.row_meta[Family].set(
             children="genera",
-            infobox=FamilyInfoBox,
+            infobox=cls.family_infobox,
             context_menu=family_context_menu,
             activated_callback=family_edit_callback,
         )
@@ -727,7 +745,7 @@ class PlantsPlugin(pluginmgr.Plugin):
 
         SearchView.row_meta[Genus].set(
             children=partial(db.get_active_children, "species"),
-            infobox=GenusInfoBox,
+            infobox=cls.genus_infobox,
             context_menu=genus_context_menu,
             activated_callback=genus_edit_callback,
         )
@@ -756,7 +774,7 @@ class PlantsPlugin(pluginmgr.Plugin):
             children=partial(
                 db.get_active_children, partial(db.natsort, "accessions")
             ),
-            infobox=SpeciesInfoBox,
+            infobox=cls.species_infobox,
             context_menu=species_context_menu,
             activated_callback=species_edit_callback,
         )
@@ -771,7 +789,7 @@ class PlantsPlugin(pluginmgr.Plugin):
                 db.get_active_children,
                 partial(db.natsort, "species.accessions"),
             ),
-            infobox=VernacularNameInfoBox,
+            infobox=cls.vernacular_infobox,
             context_menu=vernname_context_menu,
             activated_callback=species_edit_callback,
         )
@@ -781,7 +799,7 @@ class PlantsPlugin(pluginmgr.Plugin):
         )
         SearchView.row_meta[Geography].set(
             children=partial(db.get_active_children, get_species_in_geography),
-            infobox=GeographyInfoBox,
+            infobox=cls.geography_infobox,
             context_menu=geography_context_menu,
         )
 

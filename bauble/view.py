@@ -1,6 +1,6 @@
 # Copyright 2008-2010 Brett Adams
 # Copyright 2015 Mario Frasca <mario@anche.no>.
-# Copyright 2021-2024 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright 2021-2025 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -174,6 +174,7 @@ class InfoExpander(Gtk.Expander):
         if not self.EXPANDED_PREF:
             self.set_expanded(True)
         self.connect("notify::expanded", self.on_expanded)
+        self._sep = None
 
     def on_expanded(self, expander, *_args):
         if self.EXPANDED_PREF:
@@ -203,6 +204,148 @@ class InfoExpander(Gtk.Expander):
         selected row
         """
         raise NotImplementedError("InfoExpander.update(): not implemented")
+
+
+# beware, typing hack ahead (due to the lack of Intersection).
+class Updateable(Protocol):  # pylint: disable=too-few-public-methods
+    _sep: Gtk.Separator | None
+
+    def update(self, row: db.Base): ...
+
+
+PMeta: type = type(Protocol)
+
+
+EMeta: type = type(Gtk.Expander)
+
+
+class _UEMeta(PMeta, EMeta):
+    pass
+
+
+class UpdateableExpander(Gtk.Expander, Updateable, metaclass=_UEMeta):
+    _sep: Gtk.Separator | None
+
+    def update(self, row: db.Base): ...
+
+
+class InfoBoxPage(Gtk.ScrolledWindow):
+    """A `Gtk.ScrolledWindow` that contains `bauble.view.InfoExpander`
+    objects.
+    """
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.set_policy(Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.AUTOMATIC)
+        self.vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        self.vbox.set_spacing(10)
+        viewport = Gtk.Viewport()
+        viewport.add(self.vbox)
+        self.add(viewport)
+        self.expanders: dict[str, UpdateableExpander] = {}
+        self.label: str | None = None
+        self.connect("size-allocate", self.on_resize)
+
+    @staticmethod
+    def on_resize(_window, allocation: Gdk.Rectangle) -> None:
+        prefs.prefs[INFOBOXPAGE_WIDTH_PREF] = allocation.width
+
+    def add_expander(self, expander: UpdateableExpander) -> None:
+        """Add an expander to the dictionary of exanders in this infobox using
+        the label name as the key.
+
+        :param expander: Gtk.Expander to add to this infobox
+        """
+        self.vbox.pack_start(expander, expand=False, fill=True, padding=5)
+        self.expanders[expander.get_property("label")] = expander
+
+        expander._sep = Gtk.Separator()
+        self.vbox.pack_start(expander._sep, False, False, padding=0)
+
+    def get_expander(self, label: str) -> UpdateableExpander | None:
+        """Get an expander by the expander's label name.
+
+        :param label: the name of the expander to return
+        :return: expander or None
+        """
+        return self.expanders.get(label)
+
+    def remove_expander(self, label: str) -> UpdateableExpander | None:
+        """Remove expander from the infobox by the expander's label name.
+
+        :param label: the name of the expander to remove
+
+        Return the expander that was removed from the infobox.
+        """
+        if label in self.expanders:
+            expander = self.expanders[label]
+            self.vbox.remove(expander)
+            del self.expanders[label]
+            return expander
+        return None
+
+    def update(self, row: db.Base) -> None:
+        """Updates the infobox with values from row.
+
+        :param row: the mapper instance to use to update this infobox,
+            this is passed to each of the infoexpanders in turn
+        """
+        for expander in list(self.expanders.values()):
+            expander.update(row)
+
+
+class InfoBox(Gtk.Notebook):
+    """Holds list of expanders with an optional tabbed layout.
+
+    The default is to not use tabs. To create the InfoBox with tabs
+    use InfoBox(tabbed=True).  When using tabs then you can either add
+    expanders directly to the InfoBoxPage or using
+    InfoBox.add_expander with the page_num argument.
+
+    Also, it's not recommended to create a subclass of a subclass of
+    InfoBox since if they both use bauble.utils.BuilderWidgets then
+    the widgets will be parented to the infobox that is created first
+    and the expanders of the second infobox will appear empty.
+    """
+
+    def __init__(self, tabbed: bool = False) -> None:
+        super().__init__()
+        self.row: db.Base | None = None
+        self.set_property("show-border", False)
+        if not tabbed:
+            page = InfoBoxPage()
+            self.insert_page(page, tab_label=None, position=0)
+            self.set_property("show-tabs", False)
+            self.set_current_page(0)
+        self.connect("switch-page", self.on_switch_page)
+
+    # notebook == self could be a static method and just use the notebook?
+    def on_switch_page(self, _notebook, _page, page_num: int, *_args) -> None:
+        """Called when a page is switched."""
+        if not self.row:
+            return
+
+        page = self.get_nth_page(page_num)
+        if page and hasattr(page, "update"):
+            page.update(self.row)
+
+    def add_expander(self, expander: InfoExpander, page_num: int = 0) -> None:
+        """Add an expander to a page.
+
+        :param expander: The expander to add.
+        :param page_num: The page number in the InfoBox to add the expander.
+        """
+        page = self.get_nth_page(page_num)
+        if page and hasattr(page, "add_expander"):
+            page.add_expander(expander)
+
+    def update(self, row: db.Base) -> None:
+        """Update the current page with row."""
+        self.row = row
+        page_num = self.get_current_page()
+        page = self.get_nth_page(page_num)
+        if page and hasattr(page, "update"):
+            page.update(row)
 
 
 class PropertiesExpander(InfoExpander):
@@ -290,119 +433,6 @@ class PropertiesExpander(InfoExpander):
                 bauble.gui.get_display_clipboard().set_text(string, -1)
             return True
         return False
-
-
-class InfoBoxPage(Gtk.ScrolledWindow):
-    """A `Gtk.ScrolledWindow` that contains `bauble.view.InfoExpander`
-    objects.
-    """
-
-    def __init__(self):
-        super().__init__()
-        self.set_policy(Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.AUTOMATIC)
-        self.vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-        self.vbox.set_spacing(10)
-        viewport = Gtk.Viewport()
-        viewport.add(self.vbox)
-        self.add(viewport)
-        self.expanders = {}
-        self.label = None
-        self.connect("size-allocate", self.on_resize)
-
-    @staticmethod
-    def on_resize(_window, allocation):
-        prefs.prefs[INFOBOXPAGE_WIDTH_PREF] = allocation.width
-
-    def add_expander(self, expander):
-        """Add an expander to the dictionary of exanders in this infobox using
-        the label name as the key.
-
-        :param expander: the bauble.view.InfoExpander to add to this infobox
-        """
-        self.vbox.pack_start(expander, expand=False, fill=True, padding=5)
-        self.expanders[expander.get_property("label")] = expander
-
-        expander._sep = Gtk.Separator()
-        self.vbox.pack_start(expander._sep, False, False, padding=0)
-
-    def get_expander(self, label):
-        """Get an expander by the expander's label name.
-
-        :param label: the name of the expander to return
-        :return: expander or None
-        """
-        if label in self.expanders:
-            return self.expanders[label]
-        return None
-
-    def remove_expander(self, label):
-        """Remove expander from the infobox by the expander's label name.
-
-        :param label: the name of th expander to remove
-
-        Return the expander that was removed from the infobox.
-        """
-        if label in self.expanders:
-            return self.vbox.remove(self.expanders[label])
-        return None
-
-    def update(self, row):
-        """Updates the infobox with values from row.
-
-        :param row: the mapper instance to use to update this infobox,
-            this is passed to each of the infoexpanders in turn
-        """
-        for expander in list(self.expanders.values()):
-            expander.update(row)
-
-
-class InfoBox(Gtk.Notebook):
-    """Holds list of expanders with an optional tabbed layout.
-
-    The default is to not use tabs. To create the InfoBox with tabs
-    use InfoBox(tabbed=True).  When using tabs then you can either add
-    expanders directly to the InfoBoxPage or using
-    InfoBox.add_expander with the page_num argument.
-
-    Also, it's not recommended to create a subclass of a subclass of
-    InfoBox since if they both use bauble.utils.BuilderWidgets then
-    the widgets will be parented to the infobox that is created first
-    and the expanders of the second infobox will appear empty.
-    """
-
-    def __init__(self, tabbed=False):
-        super().__init__()
-        self.row = None
-        self.set_property("show-border", False)
-        if not tabbed:
-            page = InfoBoxPage()
-            self.insert_page(page, tab_label=None, position=0)
-            self.set_property("show-tabs", False)
-        self.set_current_page(0)
-        self.connect("switch-page", self.on_switch_page)
-
-    # notebook == self could be a static method and just use the notebook?
-    def on_switch_page(self, _notebook, _page, page_num, *_args):
-        """Called when a page is switched."""
-        if not self.row:
-            return
-        page = self.get_nth_page(page_num)
-        page.update(self.row)
-
-    def add_expander(self, expander, page_num=0):
-        """Add an expander to a page.
-
-        :param expander: The expander to add.
-        :param page_num: The page number in the InfoBox to add the expander.
-        """
-        page = self.get_nth_page(page_num)
-        page.add_expander(expander)
-
-    def update(self, row):
-        """Update the current page with row."""
-        self.row = row
-        page_num = self.get_current_page()
-        self.get_nth_page(page_num).update(row)
 
 
 class LinksExpander(InfoExpander):
@@ -1119,7 +1149,6 @@ class SearchView(pluginmgr.View, Gtk.Box):
         # the context menu cache holds the context menus by type in the results
         # view so that we don't have to rebuild them every time
         self.context_menu_cache = {}
-        self.infobox_cache = {}
         self.infobox = None
         self.history_action = None
 
@@ -1312,67 +1341,50 @@ class SearchView(pluginmgr.View, Gtk.Box):
             logger.debug(traceback.format_exc())
             logger.debug(selected_values)
             self.set_infobox_from_row(None)
+            raise
 
-    def set_infobox_from_row(self, row, sensitive=True):
-        """implement the logic for update_infobox"""
+    def _set_info_pane_position_from_pref(self) -> None:
+        # set width from pref once per session.
+        # for tests when no gui
+        width = 100
+        if bauble.gui:
+            width = bauble.gui.window.get_size().width
+        info_width = prefs.prefs.get(INFOBOXPAGE_WIDTH_PREF, 300)
+        pane_pos = width - info_width - 1
+        logger.debug("setting info_pane position to %s", pane_pos)
+        self.info_pane.set_position(pane_pos)
+
+    def set_infobox_from_row(
+        self, row: db.Base | None, sensitive: bool = True
+    ) -> None:
+        """Sets up an appropriate info_box for the current row."""
 
         logger.debug("set_infobox_from_row: %s --  %s", row, repr(row))
         # remove the current infobox if there is one and it is not needed
+        if self.infobox:
+            self.info_pane.remove(self.infobox)
+
         if row is None:
-            if (
-                self.infobox is not None
-                and self.infobox.get_parent() == self.info_pane
-            ):
-                self.info_pane.remove(self.infobox)
             return
 
         # set width from pref once per session.
         if self.infobox is None:
-            # for tests when no gui
-            width = 100
-            if bauble.gui:
-                width = bauble.gui.window.get_size().width
-            info_width = prefs.prefs.get(INFOBOXPAGE_WIDTH_PREF, 300)
-            pane_pos = width - info_width - 1
-            logger.debug("setting info_pane position to %s", pane_pos)
-            self.info_pane.set_position(pane_pos)
+            self._set_info_pane_position_from_pref()
 
         selected_type = type(row)
-        # if we have already created an infobox of this type:
-        new_infobox = self.infobox_cache.get(selected_type)
-
-        if not new_infobox:
-            # it might be in cache under different name
-            for infobox in self.infobox_cache.values():
-                if isinstance(infobox, self.row_meta[selected_type].infobox):
-                    logger.debug("found same infobox under different name")
-                    new_infobox = infobox
-            # otherwise create one and put in the infobox_cache
-            if not new_infobox:
-                logger.debug("not found infobox, we make a new one")
-                new_infobox = self.row_meta[selected_type].infobox()
-            self.infobox_cache[selected_type] = new_infobox
-
-        logger.debug(
-            "created or retrieved infobox %s %s",
-            type(new_infobox).__name__,
-            new_infobox,
-        )
-
-        # remove any old infoboxes connected to the pane
-        if self.infobox is not None and type(self.infobox) is not type(
-            new_infobox
-        ):
-            if self.infobox.get_parent() == self.info_pane:
-                self.info_pane.remove(self.infobox)
+        self.infobox = self.row_meta[selected_type].infobox
+        logger.debug("infobox now %s", self.infobox)
 
         # update the infobox and put it in the pane
-        self.infobox = new_infobox
         if self.infobox is not None:
-            self.infobox.update(row)
-            self.info_pane.pack2(self.infobox, resize=False, shrink=True)
-            self.infobox.set_sensitive(sensitive)
-            self.info_pane.show_all()
+            try:
+                self.infobox.update(row)
+                self.info_pane.pack2(self.infobox, resize=False, shrink=True)
+                self.infobox.set_sensitive(sensitive)
+                self.info_pane.show_all()
+            except Exception:  # pylint: disable=broad-exception-caught
+                logger.warning(traceback.format_exc())
+                raise
 
     def get_selected_values(self) -> list[db.Base] | None:
         """Get the values in all the selected rows."""

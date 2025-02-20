@@ -1,7 +1,7 @@
 # Copyright 2008-2010 Brett Adams
 # Copyright 2014-2015 Mario Frasca <mario@anche.no>.
 # Copyright 2017 Jardín Botánico de Quito
-# Copyright 2020-2023 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright 2020-2025 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -847,12 +847,6 @@ class SynonymsExpander(InfoExpander):
 class FamilyInfoBox(InfoBox):
 
     def __init__(self):
-        button_defs = []
-        buttons = prefs.prefs.itersection(FAMILY_WEB_BUTTON_DEFS_PREFS)
-        for name, button in buttons:
-            button["name"] = name
-            button_defs.append(button)
-
         super().__init__()
         filename = os.path.join(
             paths.lib_dir(), "plugins", "plants", "infoboxes.glade"
@@ -862,16 +856,17 @@ class FamilyInfoBox(InfoBox):
         self.add_expander(self.general)
         self.synonyms = SynonymsExpander(self.widgets)
         self.add_expander(self.synonyms)
+
+        button_defs = []
+        buttons = prefs.prefs.itersection(FAMILY_WEB_BUTTON_DEFS_PREFS)
+        for name, button in buttons:
+            button["name"] = name
+            button_defs.append(button)
+
         self.links = LinksExpander("notes", links=button_defs)
         self.add_expander(self.links)
         self.props = PropertiesExpander()
         self.add_expander(self.props)
-
-        if "GardenPlugin" not in pluginmgr.plugins:
-            self.widgets.remove_parent("fam_nacc_label")
-            self.widgets.remove_parent("fam_nacc_data")
-            self.widgets.remove_parent("fam_nplants_label")
-            self.widgets.remove_parent("fam_nplants_data")
 
     def update(self, row):
         self.general.update(row)

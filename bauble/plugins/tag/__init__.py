@@ -46,6 +46,8 @@ from .ui.view import on_tag_bottom_info_activated
 class TagPlugin(pluginmgr.Plugin):
     provides = {"Tag": Tag}
 
+    tags_infobox: TagInfoBox | None = None
+
     @classmethod
     def init(cls) -> None:
         pluginmgr.provided.update(cls.provides)
@@ -55,12 +57,15 @@ class TagPlugin(pluginmgr.Plugin):
         if not mapper_search:
             return
 
+        if cls.tags_infobox is None:
+            cls.tags_infobox = TagInfoBox()
+
         mapper_search.add_meta(("tag", "tags"), Tag, ["tag"])
         SearchView.row_meta[Tag].set(
             children=partial(
                 db.get_active_children, partial(db.natsort, "objects")
             ),
-            infobox=TagInfoBox,
+            infobox=cls.tags_infobox,
             context_menu=tag_context_menu,
             activated_callback=edit_callback,
         )

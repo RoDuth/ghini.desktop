@@ -1,5 +1,5 @@
-# pylint: disable=missing-module-docstring
-# Copyright (c) 2022-2024 Ross Demuth <rossdemuth123@gmail.com>
+# pylint: disable=no-self-use,protected-access,too-many-public-methods
+# Copyright (c) 2022-2025 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -15,6 +15,9 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
+"""
+view tests
+"""
 
 import os
 from datetime import datetime
@@ -32,6 +35,7 @@ from bauble import pluginmgr
 from bauble import prefs
 from bauble import search
 from bauble import utils
+from bauble.plugins.plants.genus import Genus
 from bauble.search.strategies import MapperSearch
 from bauble.test import BaubleTestCase
 from bauble.test import get_setUp_data_funcs
@@ -40,11 +44,16 @@ from bauble.test import uri
 from bauble.test import wait_on_threads
 from bauble.ui import GUI
 from bauble.view import EXPAND_ON_ACTIVATE_PREF
+from bauble.view import INFOBOXPAGE_WIDTH_PREF
 from bauble.view import PIC_PANE_PAGE_PREF
 from bauble.view import PIC_PANE_WIDTH_PREF
 from bauble.view import HistoryView
+from bauble.view import InfoBox
+from bauble.view import InfoBoxPage
+from bauble.view import LinksExpander
 from bauble.view import Note
 from bauble.view import PicturesScroller
+from bauble.view import PropertiesExpander
 from bauble.view import SearchView
 from bauble.view import _mainstr_tmpl
 from bauble.view import _substr_tmpl
@@ -472,7 +481,7 @@ class TestSearchView(BaubleTestCase):
             self.assertIsInstance(obj, klass)
             self.assertEqual(obj.id, 1)
             # check correct infobox (errors can cause no infobox)
-            self.assertIsInstance(
+            self.assertIs(
                 search_view.infobox, search_view.row_meta[klass].infobox
             )
             with mock.patch("bauble.gui"):
@@ -777,7 +786,6 @@ class TestSearchView(BaubleTestCase):
     def test_on_view_row_activated(self):
         for func in get_setUp_data_funcs():
             func()
-        from bauble.plugins.plants.genus import Genus
 
         search_view = self.search_view
         mock_editor = mock.Mock()
@@ -791,6 +799,107 @@ class TestSearchView(BaubleTestCase):
         mock_tree_view = mock.Mock()
         search_view.on_view_row_activated(mock_tree_view, "test_path", None)
         mock_tree_view.expand_row.assert_called_with("test_path", False)
+
+    def test_info_box_not_tabbed_add_expander(self):
+        prop_exp = PropertiesExpander()
+        info_box = InfoBox()
+        info_box.add_expander(prop_exp)
+        page = info_box.get_nth_page(0)
+
+        self.assertIsInstance(prop_exp._sep, Gtk.Separator)
+        self.assertEqual(page.expanders["Properties"], prop_exp)
+
+    def test_info_box_not_tabbed_update(self):
+        gen = Genus(epithet="Dendrobium")
+        prop_exp = PropertiesExpander()
+        prop_exp.update = mock.Mock()
+        info_box = InfoBox()
+        info_box.add_expander(prop_exp)
+        info_box.update(gen)
+
+        prop_exp.update.assert_called_with(gen)
+
+    def test_info_box_tabbed_add_expander(self):
+        prop_exp = PropertiesExpander()
+        links_exp = LinksExpander()
+        info_box = InfoBox(tabbed=True)
+        page1 = InfoBoxPage()
+        page2 = InfoBoxPage()
+        info_box.insert_page(page1, tab_label=Gtk.Label(label="0"), position=0)
+        info_box.add_expander(prop_exp)
+        info_box.insert_page(page2, tab_label=Gtk.Label(label="1"), position=1)
+        info_box.add_expander(links_exp, 1)
+
+        self.assertIsInstance(prop_exp._sep, Gtk.Separator)
+        self.assertIsInstance(links_exp._sep, Gtk.Separator)
+        self.assertEqual(page1.get_expander("Properties"), prop_exp)
+        self.assertEqual(page2.get_expander("Links"), links_exp)
+
+    def test_info_box_tabbed_on_switch_page(self):
+        prop_exp = PropertiesExpander()
+        links_exp = LinksExpander()
+        info_box = InfoBox(tabbed=True)
+        page0 = InfoBoxPage()
+        page1 = InfoBoxPage()
+        page1.update = mock.Mock()
+        info_box.insert_page(page0, tab_label=Gtk.Label(label="0"), position=0)
+        info_box.add_expander(prop_exp)
+        info_box.insert_page(page1, tab_label=Gtk.Label(label="1"), position=1)
+        info_box.add_expander(links_exp, 1)
+
+        info_box.on_switch_page(None, None, 1)
+
+        # no row
+        page1.update.assert_not_called()
+
+        # with row
+        gen = Genus(epithet="Dendrobium")
+        info_box.row = gen
+        info_box.on_switch_page(None, None, 1)
+
+        page1.update.assert_called_with(gen)
+
+    def test_info_box_tabbed_update(self):
+        prop_exp = PropertiesExpander()
+        links_exp = LinksExpander()
+        info_box = InfoBox(tabbed=True)
+        page0 = InfoBoxPage()
+        page1 = InfoBoxPage()
+        page1.update = mock.Mock()
+        info_box.insert_page(page0, tab_label=Gtk.Label(label="0"), position=0)
+        info_box.add_expander(prop_exp)
+        info_box.insert_page(page1, tab_label=Gtk.Label(label="1"), position=1)
+        info_box.add_expander(links_exp, 1)
+        info_box.set_current_page(1)
+        gen = Genus(epithet="Dendrobium")
+        info_box.update(gen)
+
+        page1.update.assert_called_with(gen)
+
+    def test_info_box_page_on_resize(self):
+        page = InfoBoxPage()
+        self.assertIsNone(prefs.prefs.get(INFOBOXPAGE_WIDTH_PREF))
+        mock_alloc = mock.Mock(width=100)
+        page.on_resize(None, mock_alloc)
+
+        self.assertEqual(prefs.prefs.get(INFOBOXPAGE_WIDTH_PREF), 100)
+
+    def test_info_box_page_get_expander(self):
+        prop_exp = PropertiesExpander()
+        page = InfoBoxPage()
+        page.add_expander(prop_exp)
+
+        self.assertIsNone(page.get_expander("Foo"))
+        self.assertEqual(page.get_expander("Properties"), prop_exp)
+
+    def test_info_box_page_remove_expander(self):
+        prop_exp = PropertiesExpander()
+        page = InfoBoxPage()
+        page.add_expander(prop_exp)
+
+        self.assertEqual(page.remove_expander("Properties"), prop_exp)
+        self.assertEqual(page.expanders, {})
+        self.assertIsNone(page.remove_expander("Properties"), prop_exp)
 
 
 class TestHistoryView(BaubleTestCase):

@@ -963,7 +963,7 @@ class GeneralGeographyExpander(DistMapInfoExpanderMixin, InfoExpander):
     def __init__(self, widgets):
         super().__init__(_("General"), widgets)
         general_box = self.widgets.general_box
-        self.widgets.general_window.remove(general_box)
+        self.widgets.remove_parent(general_box)
         self.vbox.pack_start(general_box, True, True, 0)
         self.table_cells = []
 
@@ -1016,9 +1016,7 @@ class GeneralGeographyExpander(DistMapInfoExpanderMixin, InfoExpander):
 
 
 class GeographyInfoBox(InfoBox):
-    """
-    general info
-    """
+    """General info."""
 
     def __init__(self):
         super().__init__()

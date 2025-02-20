@@ -1,4 +1,5 @@
-# Copyright (c) 2024 Ross Demuth <rossdemuth123@gmail.com>
+# pylint: disable=no-self-use,protected-access,too-many-public-methods
+# Copyright (c) 2024-2025 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -14,8 +15,9 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
-#
-# pylint: disable=protected-access
+"""
+Web utils tests
+"""
 import os
 import socket
 import sys
@@ -46,7 +48,7 @@ class LinkButtonTests(TestCase):
         for k, v in link.items():
             self.assertEqual(getattr(btn, k), v)
 
-    def test_set_string(self):
+    def test_set_string_basic(self):
         link = {
             "_base_uri": "http://www.google.com/search?q=%s",
             "_space": "+",
@@ -57,6 +59,21 @@ class LinkButtonTests(TestCase):
         btn.set_string("Eucalyptus major")
         self.assertEqual(
             btn.get_uri(), "http://www.google.com/search?q=Eucalyptus+major"
+        )
+
+    def test_set_string_w_fields(self):
+        link = {
+            "_base_uri": "http://en.wikipedia.org/wiki/%(genus.genus)s_%(sp)s",
+            "_space": "+",
+            "title": "Search Wikipedia",
+            "tooltip": "open the wikipedia page about this species",
+        }
+        btn = link_button_factory(link)
+        mock_row = mock.Mock(genus=mock.Mock(genus="Eucalyptus"), sp="major")
+        btn.set_string(mock_row)
+        self.assertEqual(
+            btn.get_uri(),
+            "http://en.wikipedia.org/wiki/Eucalyptus_major",
         )
 
     @mock.patch("bauble.utils.web.desktop.open")

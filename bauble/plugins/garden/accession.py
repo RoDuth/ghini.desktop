@@ -3323,7 +3323,7 @@ class GeneralAccessionExpander(InfoExpander):
     def __init__(self, widgets):
         super().__init__(_("General"), widgets)
         general_box = self.widgets.general_box
-        self.widgets.general_window.remove(general_box)
+        self.widgets.remove_parent(general_box)
         self.vbox.pack_start(general_box, True, True, 0)
 
     def update(self, row):
@@ -3436,7 +3436,7 @@ class SourceExpander(InfoExpander):
     def __init__(self, widgets):
         super().__init__(_("Source"), widgets)
         source_box = self.widgets.source_box
-        self.widgets.source_window.remove(source_box)
+        self.widgets.remove_parent(source_box)
         self.vbox.pack_start(source_box, True, True, 0)
 
         self.source_detail_widgets = [

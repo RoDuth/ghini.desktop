@@ -1,3 +1,4 @@
+# pylint: disable=no-self-use,protected-access,too-many-public-methods
 # Copyright 2008-2010 Brett Adams
 # Copyright 2015 Mario Frasca <mario@anche.no>.
 # Copyright 2017 Jardín Botánico de Quito
@@ -54,6 +55,7 @@ from bauble.test import check_dupids
 from bauble.test import mockfunc
 from bauble.test import update_gui
 from bauble.test import wait_on_threads
+from bauble.view import SearchView
 
 from . import PlantsPlugin
 from . import SplashInfoBox
@@ -4762,21 +4764,12 @@ class GeneralSpeciesExpanderTests(BaubleTestCase):
         sp = self.session.query(Species).get(1)
         # effectively also tests PlantsPlugin.register_custom_column
         PlantsPlugin.register_custom_column("_sp_custom1")
-        filename = os.path.join(
-            paths.lib_dir(), "plugins", "plants", "infoboxes.glade"
+        infobox = SearchView.row_meta[Species].infobox
+        infobox.general._setup_custom_column("_sp_custom1")
+        self.assertEqual(
+            infobox.widgets._sp_custom1_label.get_text(), "NCA Status:"
         )
-        widgets = utils.BuilderWidgets(filename)
-        with mock.patch("bauble.gui"):
-            general = GeneralSpeciesExpander(widgets)
-            general._setup_custom_column("_sp_custom1")
-            self.assertEqual(
-                widgets._sp_custom1_label.get_text(), "NCA Status:"
-            )
-            self.assertTrue(widgets._sp_custom1_label.get_visible())
-
-        self.session.delete(meta)
-        self.session.commit()
-        PlantsPlugin.register_custom_column("_sp_custom1")
+        self.assertTrue(infobox.widgets._sp_custom1_label.get_visible())
 
         # change the db connection
         self.tearDown()
@@ -4786,9 +4779,14 @@ class GeneralSpeciesExpanderTests(BaubleTestCase):
         sp = Species(genus=genus, sp="sp")
         self.session.add(sp)
         self.session.commit()
-        with mock.patch("bauble.gui"):
-            general.update(sp)
-            self.assertFalse(widgets._sp_custom1_label.get_visible())
+
+        PlantsPlugin.register_custom_column("_sp_custom1")
+        infobox = SearchView.row_meta[Species].infobox
+        infobox.general._setup_custom_column("_sp_custom1")
+        self.assertEqual(
+            infobox.widgets._sp_custom1_label.get_text(), "_custom_"
+        )
+        self.assertFalse(infobox.widgets._sp_custom1_label.get_visible())
 
     def test_expander(self):
         setUp_data()

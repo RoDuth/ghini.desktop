@@ -1201,12 +1201,6 @@ class GenusInfoBox(InfoBox):
         self.props = PropertiesExpander()
         self.add_expander(self.props)
 
-        if "GardenPlugin" not in pluginmgr.plugins:
-            self.widgets.remove_parent("gen_nacc_label")
-            self.widgets.remove_parent("gen_nacc_data")
-            self.widgets.remove_parent("gen_nplants_label")
-            self.widgets.remove_parent("gen_nplants_data")
-
     def update(self, row):
         self.general.update(row)
         self.synonyms.update(row)
