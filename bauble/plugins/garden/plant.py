@@ -128,14 +128,14 @@ def edit_callback(plants):
     return e.start() is not None
 
 
-def branch_callback(plants):
+def branch_callback(plants: Sequence["Plant"]) -> bool:
     if plants[0].quantity <= 1:
         msg = _(
             "Not enough plants to split.  A plant should have at least "
             "a quantity of 2 before it can be divided"
         )
         utils.message_dialog(msg, Gtk.MessageType.WARNING)
-        return None
+        return False
 
     e = PlantEditor(model=plants[0], branch_mode=True)
     return e.start() is not None
@@ -806,7 +806,7 @@ class Plant(db.Base, db.WithNotes):
         default=None,
     )
     memorial = Column(types.Boolean, default=False)
-    quantity = Column(Integer, autoincrement=False, nullable=False)
+    quantity: int = Column(Integer, autoincrement=False, nullable=False)
 
     accession_id = Column(Integer, ForeignKey("accession.id"), nullable=False)
     accession: "Accession" = relationship(

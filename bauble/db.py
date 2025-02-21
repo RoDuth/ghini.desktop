@@ -28,8 +28,7 @@ import logging
 import os
 import re
 from collections.abc import Callable
-from collections.abc import Iterable
-from typing import Any
+from collections.abc import Sequence
 from typing import cast
 
 logger = logging.getLogger(__name__)
@@ -90,7 +89,10 @@ def natsort(attr, obj):
     return sorted(obj, key=utils.natsort_key)
 
 
-def get_active_children(children: Callable | str, obj: Any) -> Iterable:
+def get_active_children(
+    children: Callable[["Base"], Sequence["Base"]] | str,
+    obj: "Base",
+) -> Sequence["Base"]:
     """Return only active children of obj if the 'exclude_inactive' pref is
     set True else return all children.
     """

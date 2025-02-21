@@ -30,7 +30,6 @@ import weakref
 from collections.abc import Callable
 from pathlib import Path
 from typing import Self
-from typing import Sequence
 from typing import cast
 
 logger = logging.getLogger(__name__)

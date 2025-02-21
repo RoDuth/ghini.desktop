@@ -922,7 +922,7 @@ class SearchViewMapPresenter:
         session = search_view.session
         plant = session.query(Plant).get(id_)
         model = search_view.results_view.get_model()
-        if not model:
+        if not model or plant is None:
             return
 
         if utils.tree_model_has(model, plant):

@@ -31,6 +31,7 @@ import threading
 import traceback
 from collections import UserDict
 from collections.abc import Callable
+from collections.abc import Sequence
 from datetime import datetime
 from datetime import timedelta
 from datetime import timezone
@@ -76,6 +77,7 @@ from bauble import pluginmgr
 from bauble import prefs
 from bauble import search
 from bauble import utils
+from bauble.error import DatabaseError
 from bauble.error import check
 from bauble.i18n import _
 from bauble.meta import BaubleMeta
@@ -124,23 +126,29 @@ EXPAND_ON_ACTIVATE_PREF = "bauble.search.expand_on_activate"
 
 class Action:
     # pylint: disable=too-few-public-methods, too-many-arguments
-    """SearchView context menu items."""
-
     def __init__(
-        self, name, label, callback=None, accelerator=None, multiselect=False
-    ):
-        """
+        self,
+        name: str,
+        label: str,
+        callback: Callable[..., bool] | None = None,
+        accelerator: str | None = None,
+        multiselect: bool = False,
+    ) -> None:
+        """SearchView context menu items.
+
+        :param name: name of the action as a string
+        :param label: menu label of the action as a string
         :param callback: the function to call when the the action is activated,
             if anything that evaluates to True is returned triggers
             SearchView.update()
         :param accelerator: accelerator to call this action
         :param multiselect: show menu when multiple items are selected
         """
-        self.label = label
         self.name = name
+        self.label = label
         self.callback = callback
-        self.multiselect = multiselect
         self.accelerator = accelerator
+        self.multiselect = multiselect
         self.action = Gio.SimpleAction.new(name, None)
         self.connected = False
 
@@ -1004,7 +1012,8 @@ class PicturesScroller(Gtk.ScrolledWindow):
         logger.debug("object = %s(%s)", type(obj).__name__, obj)
         kids = search_view.row_meta[type(obj)].get_children(obj)
         for kid in kids:
-            if picture in kid.pictures:
+
+            if hasattr(kid, "pictures") and picture in kid.pictures:
                 itr = utils.search_tree_model(model, obj)[0]
                 path = model.get_path(itr)
                 # expand (on_test_expand_row needed for test)
@@ -1034,22 +1043,21 @@ class ViewMeta(UserDict):
     """
 
     class Meta:
-        def __init__(self):
-            self.children = None
-            self.infobox = None
-            self.context_menu = None
-            self.actions = []
-            self.sorter = utils.natsort_key
-            self.activated_callback = None
+        def __init__(self) -> None:
+            self.children: Callable[[db.Base], Sequence[db.Base]] | None = None
+            self.infobox: InfoBox | None = None
+            self.context_menu: Sequence[Action] = []
+            self.sorter: Callable = utils.natsort_key
+            self.activated_callback: Callable | None = None
 
         def set(
             self,
-            children=None,
-            infobox=None,
-            context_menu=None,
-            sorter=None,
-            activated_callback=None,
-        ):
+            children: Callable[[db.Base], Sequence[db.Base]] | None = None,
+            infobox: InfoBox | None = None,
+            context_menu: Sequence[Action] | None = None,
+            sorter: Callable | None = None,
+            activated_callback: Callable | None = None,
+        ) -> None:
             """Set attributes for the selected meta object.
 
             :param children: where to find the children for this type, can
@@ -1060,18 +1068,16 @@ class ViewMeta(UserDict):
             """
             self.children = children
             self.infobox = infobox
-            self.context_menu = context_menu
+
+            if context_menu:
+                self.context_menu = context_menu
+
             if sorter:
                 self.sorter = sorter
 
-            self.actions = []
-            if self.context_menu:
-                self.actions = [
-                    x for x in self.context_menu if isinstance(x, Action)
-                ]
             self.activated_callback = activated_callback
 
-        def get_children(self, obj):
+        def get_children(self, obj: db.Base) -> Sequence[db.Base]:
             """
             :param obj: get the children from obj according to
                 self.children,
@@ -1084,7 +1090,7 @@ class ViewMeta(UserDict):
                 return self.children(obj)
             return getattr(obj, self.children)
 
-    def __getitem__(self, item):
+    def __getitem__(self, item: object) -> Meta:
         if item not in self:  # create on demand
             self[item] = self.Meta()
         return super().__getitem__(item)
@@ -1134,7 +1140,7 @@ class SearchView(pluginmgr.View, Gtk.Box):
     Items are a tuple - (widget name, signal name, handler)
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         logger.debug("SearchView::__init__")
         super().__init__()
 
@@ -1145,19 +1151,17 @@ class SearchView(pluginmgr.View, Gtk.Box):
         self.pictures_scroller = PicturesScroller(
             parent=self.pics_box, pic_pane=self.pic_pane
         )
-
-        # the context menu cache holds the context menus by type in the results
-        # view so that we don't have to rebuild them every time
-        self.context_menu_cache = {}
-        self.infobox = None
-        self.history_action = None
+        self.infobox: InfoBox | None = None
+        self.history_action: Gio.SimpleAction | None = None
 
         # keep all the search results in the same session, this should
         # be cleared when we do a new search
+        if db.Session is None:
+            raise DatabaseError("Unable to connect to a database!")
+
         self.session = db.Session()
         self.add_notes_page_to_bottom_notebook()
-        self.running_threads = []
-        self.actions = set()
+        self.actions: set[str] = set()
         self.context_menu_model = Gio.Menu()
         poll_secs = prefs.prefs.get(SEARCH_POLL_SECS_PREF)
         if poll_secs:
@@ -1448,7 +1452,7 @@ class SearchView(pluginmgr.View, Gtk.Box):
         current_actions = set()
 
         # if selected_type is None this should not return any actions
-        for action in self.row_meta[selected_type].actions:
+        for action in self.row_meta[selected_type].context_menu:
             current_actions.add(action.name)
 
             if bauble.gui and not bauble.gui.lookup_action(action.name):

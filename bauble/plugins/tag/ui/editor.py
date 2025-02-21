@@ -277,7 +277,7 @@ def edit_callback(
     tags: Sequence[Tag],
     *,
     dialog_cls: type[TagDialog] = TagEditorDialog,
-) -> int:
+) -> bool:
     """Edit a tag."""
     tag = tags[0]
 
@@ -294,7 +294,7 @@ def edit_callback(
     else:
         raise error.DatabaseError("Could not connect to database session.")
 
-    return response
+    return response == Gtk.ResponseType.OK
 
 
 _edit_action = Action(

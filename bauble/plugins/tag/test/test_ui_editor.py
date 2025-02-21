@@ -517,7 +517,7 @@ class GlobalFunctionsTests(BaubleTestCase):
 
         self.assertEqual(
             edit_callback([tag], dialog_cls=mock_dialog),
-            Gtk.ResponseType.OK,
+            True,
         )
         self.assertEqual(tag.tag, "Bar")
 
@@ -537,7 +537,7 @@ class GlobalFunctionsTests(BaubleTestCase):
 
         self.assertEqual(
             edit_callback([tag], dialog_cls=mock_dialog),
-            Gtk.ResponseType.CANCEL,
+            False,
         )
         self.assertEqual(tag.tag, "Foo")
 

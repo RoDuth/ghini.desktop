@@ -473,7 +473,7 @@ class GUI:
     def remove_action(self, name):
         self.window.remove_action(name)
 
-    def lookup_action(self, name):
+    def lookup_action(self, name: str) -> Gio.Action:
         return self.window.lookup_action(name)
 
     def close_message_box(self):
