@@ -20,9 +20,11 @@ view tests
 """
 
 import os
+import sys
 from datetime import datetime
 from pathlib import Path
 from unittest import mock
+from unittest import skipIf
 
 from gi.repository import Gdk
 from gi.repository import Gio
@@ -64,6 +66,9 @@ from bauble.view import select_in_search_results
 # pylint: disable=too-few-public-methods
 
 
+@skipIf(
+    "APPVEYOR" in os.environ and sys.platform == "darwin", "Issues on Appveyor"
+)
 class TestMultiprocCounter(BaubleTestCase):
     def setUp(self):
         if ":memory:" in uri or "?mode=memory" in uri:
