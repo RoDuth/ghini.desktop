@@ -20,11 +20,9 @@ view tests
 """
 
 import os
-import sys
 from datetime import datetime
 from pathlib import Path
 from unittest import mock
-from unittest import skipIf
 
 from gi.repository import Gdk
 from gi.repository import Gio
@@ -143,9 +141,6 @@ class TestMultiprocCounter(BaubleTestCase):
             self.assertGreaterEqual(len(result[0].keys()), 1)
 
 
-@skipIf(
-    "APPVEYOR" in os.environ and sys.platform == "darwin", "Issues on Appveyor"
-)
 class TestSearchView(BaubleTestCase):
     def setUp(self):
         super().setUp()
