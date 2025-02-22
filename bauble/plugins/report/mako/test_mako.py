@@ -132,7 +132,6 @@ class FormatterTests(BaubleTestCase):
         geos = self.session.query(Geography).all()
 
         for template in templates_dir.glob("*.geojson"):
-            print(template)
             report = MakoFormatterPlugin.format(geos, template=str(template))
             self.assertTrue(isinstance(report, bytes))
 

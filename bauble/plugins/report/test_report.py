@@ -236,7 +236,6 @@ class ReportTests(BaubleTestCase):
         # test doesn't return inactive only when exclude_inactive set
         for acc in species.accessions:
             for plt in acc.plants:
-                print(plt)
                 plt.quantity = 0
         self.session.commit()
         ids = get_ids(get_species_pertinent_to([plant], self.session))

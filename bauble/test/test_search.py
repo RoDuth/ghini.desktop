@@ -2795,8 +2795,6 @@ class BaubleSearchSearchTest(BaubleTestCase):
             "BETWEEN 1 and 20"
         )
         result = search.search(string, self.session)
-        for i in result:
-            print(i)
         self.assertEqual(result, [])
 
 

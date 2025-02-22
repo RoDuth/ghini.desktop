@@ -174,11 +174,15 @@ class ImageLoader(threading.Thread):
         url: str,
         *args: Any,
         on_size_allocated: Callable[[Gtk.Widget, None], None] | None = None,
+        loader: GdkPixbuf.PixbufLoader | None = None,
         **kwargs: Any,
     ) -> None:
-        super().__init__(*args, **kwargs)
         self.box = box  # will hold image or label
-        self.loader = GdkPixbuf.PixbufLoader()
+
+        self.loader = loader or GdkPixbuf.PixbufLoader()
+
+        super().__init__(*args, **kwargs)
+
         self.inline_picture_marker = "|data:image/jpeg;base64,"
         if url.find(self.inline_picture_marker) != -1:
             self.reader_function = self.read_base64

@@ -1,7 +1,7 @@
 # Copyright (c) 2005,2006,2007,2008,2009 Brett Adams <brett@belizebotanic.org>
 # Copyright (c) 2012-2017 Mario Frasca <mario@anche.no>
 # Copyright 2017 Jardín Botánico de Quito
-# Copyright (c) 2016-2021 Ross Demuth <rossdemuth123@gmail.com>
+# Copyright (c) 2016-2025 Ross Demuth <rossdemuth123@gmail.com>
 #
 # This file is part of ghini.desktop.
 #
@@ -58,7 +58,7 @@ if os.path.exists(log_file):
     try:
         copy2(log_file, log_file + "_PREV")
     except Exception as e:  # pylint: disable=broad-except
-        print("Copying previous log file failed: %s(%s)", type(e).__name__, e)
+        print(f"Copying previous log file failed: {type(e).__name__}({e})")
 formatter = logging.Formatter(
     "%(asctime)s - %(name)s:%(lineno)d - %(levelname)s - %(thread)d "
     "- %(message)s"

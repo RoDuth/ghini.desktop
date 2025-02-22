@@ -801,6 +801,11 @@ class DistributionMap:
                 self._image = Gtk.Image.new_from_pixbuf(self.world_pixbuf)
                 self._image_cache[self._image_cache_key] = self._image
                 threading.Thread(target=self._generate_image).start()
+
+        parent = self._image.get_parent()
+        if parent and hasattr(parent, "remove"):
+            parent.remove(self._image)
+
         return self._image
 
     def __str__(self) -> str:
@@ -970,8 +975,8 @@ class GeneralGeographyExpander(DistMapInfoExpanderMixin, InfoExpander):
     def update(self, row: Geography) -> None:
         self.zoomed = False
         self.zoom_level = 1
-        for child in self.widgets.map_box.get_children():
-            self.widgets.map_box.remove(child)
+
+        self.widgets.map_box.foreach(self.widgets.map_box.remove)
 
         # grab shape before distribution_map to avoid thread issues for MSSQL
         # (better to use MARS_Connection=Yes when connecting)
@@ -979,9 +984,6 @@ class GeneralGeographyExpander(DistMapInfoExpanderMixin, InfoExpander):
         map_event_box = Gtk.EventBox()
         self.distribution_map = row.distribution_map()
         image = self.distribution_map.as_image()
-
-        if parent := cast(Gtk.Container, image.get_parent()):
-            parent.remove(image)
 
         map_event_box.add(image)
         map_event_box.connect(

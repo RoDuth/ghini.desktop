@@ -901,7 +901,6 @@ class FamilyTests(PlantTestCase):
         self.session.flush()
 
         # effect
-        print(self.invoked)
         self.assertFalse(
             "message_details_dialog" in [f for (f, m) in self.invoked]
         )
@@ -945,10 +944,10 @@ class FamilyTests(PlantTestCase):
         from bauble.plugins.plants.family import remove_callback
 
         result = remove_callback([f5])
+        self.assertFalse(result)
         self.session.flush()
 
         # effect
-        print(self.invoked)
         self.assertFalse(
             "message_details_dialog" in [f for (f, m) in self.invoked]
         )
@@ -1392,7 +1391,6 @@ class GenusTests(PlantTestCase):
         self.session.flush()
 
         # effect
-        print(self.invoked)
         self.assertFalse(
             "message_details_dialog" in [f for (f, m) in self.invoked]
         )
@@ -1440,7 +1438,6 @@ class GenusTests(PlantTestCase):
         self.session.flush()
 
         # effect
-        print(self.invoked)
         self.assertFalse(
             "message_details_dialog" in [f for (f, m) in self.invoked]
         )
@@ -2260,14 +2257,10 @@ class SpeciesTests(PlantTestCase):
         self.assertEqual([i.epithet for i in sp1.synonyms], [sp3.epithet])
         sp1.synonyms.append(sp2)  # (1 3 2), (4)
         self.session.flush()
-        print("synonyms of 1", [i.epithet[-1] for i in sp1.synonyms])
-        print("synonyms of 4", [i.epithet[-1] for i in sp4.synonyms])
         self.assertEqual(sp2.accepted.epithet, sp1.epithet)  # just added
         self.assertEqual(sp3.accepted.epithet, sp1.epithet)  # no change
         sp2.accepted = sp4  # (1 3), (4 2)
         self.session.flush()
-        print("synonyms of 1", [i.epithet[-1] for i in sp1.synonyms])
-        print("synonyms of 4", [i.epithet[-1] for i in sp4.synonyms])
         self.assertEqual([i.epithet for i in sp4.synonyms], [sp2.epithet])
         self.assertEqual([i.epithet for i in sp1.synonyms], [sp3.epithet])
         self.assertEqual(sp1.accepted, None)
@@ -2307,7 +2300,6 @@ class SpeciesTests(PlantTestCase):
         self.assertFalse(
             "message_details_dialog" in [f for (f, m) in self.invoked]
         )
-        print(self.invoked)
         self.assertTrue(
             (
                 "yes_no_dialog",
@@ -2347,7 +2339,6 @@ class SpeciesTests(PlantTestCase):
         self.session.flush()
 
         # effect
-        print(self.invoked)
         self.assertFalse(
             "message_details_dialog" in [f for (f, m) in self.invoked]
         )
@@ -2398,7 +2389,6 @@ class SpeciesTests(PlantTestCase):
         self.session.flush()
 
         # effect
-        print(self.invoked)
         self.assertFalse(
             "message_details_dialog" in [f for (f, m) in self.invoked]
         )
@@ -4041,13 +4031,21 @@ class DistMapInfoExpanderMixinTests(BaubleTestCase):
         mix = DistMapInfoExpanderMixin()
         mix.zoomed = False
         ebox = Gtk.EventBox()
-        self.assertTrue(mix.on_map_button_release(ebox, btn))
+        with mock.patch(
+            "bauble.plugins.plants.geography.Gtk.Menu.popup_at_pointer"
+        ) as mock_popup:
+            self.assertTrue(mix.on_map_button_release(ebox, btn))
+            mock_popup.assert_called()
         grp = ebox.get_action_group(DistMapInfoExpanderMixin.MAP_ACTION_NAME)
         self.assertTrue(grp.lookup_action("zoom"))
         self.assertIsNone(grp.lookup_action("zmout"))
         mix.zoomed = True
         ebox = Gtk.EventBox()
-        self.assertTrue(mix.on_map_button_release(ebox, btn))
+        with mock.patch(
+            "bauble.plugins.plants.geography.Gtk.Menu.popup_at_pointer"
+        ) as mock_popup:
+            self.assertTrue(mix.on_map_button_release(ebox, btn))
+            mock_popup.assert_called()
         grp = ebox.get_action_group(DistMapInfoExpanderMixin.MAP_ACTION_NAME)
         self.assertIsNone(grp.lookup_action("zoom"))
         self.assertTrue(grp.lookup_action("zmout"))
@@ -6704,7 +6702,6 @@ class VernacularNamePresenterTests(PlantTestCase):
         # with new vernacular
         mock_cell.reset_mock()
         mock_model = [[name2]]
-        print(name2.id)
         presenter.generic_data_func(None, mock_cell, mock_model, 0, "name")
         self.assertIn(
             ("text", name2.name),

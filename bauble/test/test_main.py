@@ -66,6 +66,7 @@ def run_in_prcess(target, *args):
 
 def quits_if_connmgr_cancels(que):
     setup_prefs()
+    bauble.gui = ui.GUI()
     with mock.patch("bauble.main.start_connection_manager") as mock_cm:
         mock_cm.return_value = None, None
         app = bauble.main.Application()
@@ -185,6 +186,7 @@ class NewDBTests(TestCase):
 
 
 def connect_existing(que, db_uri):
+    bauble.gui = ui.GUI()
     setup_prefs()
     with (
         mock.patch("bauble.utils.message_dialog") as mock_msg_dialog,

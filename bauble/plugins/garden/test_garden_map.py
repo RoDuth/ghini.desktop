@@ -48,6 +48,7 @@ from bauble.test import update_gui
 from bauble.test import wait_on_threads
 from bauble.utils.web import PACFile
 from bauble.utils.web import get_net_sess
+from bauble.view import DefaultCommandHandler
 from bauble.view import SearchView
 
 from ..plants.species import SpeciesEditor
@@ -994,7 +995,7 @@ class TestSearchViewMapPresenter(BaubleTestCase):
         map_ = GardenMap(Map())
         presenter = SearchViewMapPresenter(map_)
         presenter.is_visible = lambda: True
-        search_view = SearchView()
+        search_view = DefaultCommandHandler().get_view()
         search_view.search("plant=*")
         presenter.populate_map_from_search_view(view=search_view)
         # update for populate_map_from_search_view
@@ -1274,13 +1275,8 @@ class TestSearchViewMapPresenter(BaubleTestCase):
         # should not have go this far
         mock_has.assert_not_called()
 
-    @mock.patch(
-        "bauble.view.DefaultCommandHandler.view",
-        new_callable=mock.PropertyMock,
-    )
-    @mock.patch("bauble.view.SearchView.update_context_menus")
     @mock.patch("bauble.gui")
-    def test_select_plant_by_id(self, mock_gui, _mock_menu, mock_view):
+    def test_select_plant_by_id(self, mock_gui):
         for func in get_setUp_data_funcs():
             func()
         plt1 = self.session.query(Plant).get(1)
@@ -1291,8 +1287,7 @@ class TestSearchViewMapPresenter(BaubleTestCase):
         map_ = Map()
         gmap = GardenMap(map_)
         presenter = SearchViewMapPresenter(gmap)
-        search_view = SearchView()
-        mock_view.return_value = search_view
+        search_view = DefaultCommandHandler().get_view()
         # plant is in view
         search_view.search("plant where id in 1, 2")
         mock_gui.widgets.view_box.get_children.return_value = [search_view]
@@ -1510,8 +1505,6 @@ class TestSearchViewMapPresenter(BaubleTestCase):
         presenter.populate_thread.join()
         update_gui()
         # check we did populate and flags are not set
-        for i in presenter.loc_items.values():
-            print(i)
         self.assertEqual(len(presenter.loc_items), 1)
         self.assertFalse(presenter.redraw_on_update)
         self.assertFalse(presenter.clear_locations_cache)
@@ -1721,16 +1714,13 @@ class GlobalFunctionsTest(BaubleTestCase):
         # test setup_garden_map
         SearchView.pic_pane_notebook_pages.clear()
         garden_map.map_presenter = None
-        search_view = SearchView()
+        search_view = DefaultCommandHandler().get_view()
         self.assertEqual(search_view.pic_pane_notebook.get_n_pages(), 1)
 
         self.assertFalse(SearchViewMapPresenter.is_visible())
 
         setup_garden_map()
-        search_view = SearchView()
-        search_view.pic_pane = mock.Mock()
-        search_view.pic_pane.get_allocation().width = 1000
-        search_view.pic_pane.get_child1().get_allocation().width = 500
+        search_view = DefaultCommandHandler().get_view()
         search_view.pic_pane_notebook.set_current_page(0)
 
         self.assertEqual(search_view.pic_pane_notebook.get_n_pages(), 2)
@@ -1740,7 +1730,10 @@ class GlobalFunctionsTest(BaubleTestCase):
         with mock.patch("bauble.gui") as mock_gui:
             mock_gui.get_view.return_value = search_view
             mock_gui.widgets.view_box.get_children.return_value = [search_view]
-            self.assertTrue(SearchViewMapPresenter.is_visible())
+            with mock.patch.object(search_view, "pic_pane") as mock_pic_pane:
+                mock_pic_pane.get_allocation().width = 1000
+                mock_pic_pane.get_child1().get_allocation().width = 500
+                self.assertTrue(SearchViewMapPresenter.is_visible())
         # test if we run it again it aborts
         map_presenter = garden_map.map_presenter
         with self.assertLogs(level="DEBUG") as logs:
@@ -1819,9 +1812,6 @@ class GlobalFunctionsTest(BaubleTestCase):
         net_sess.pac_file = PACFile(pac_js)
         self.assertIsNone(get_map_tile_proxy())
         net_sess.pac_file = None
-
-    def test_get_search_view_returns_none_w_no_gui(self):
-        self.assertIsNone(get_search_view())
 
     @mock.patch("bauble.view.DefaultCommandHandler.view")
     def test_get_search_view_returns_search_view_only(self, mock_search_view):

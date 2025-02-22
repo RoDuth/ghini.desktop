@@ -47,6 +47,7 @@ from bauble.view import EXPAND_ON_ACTIVATE_PREF
 from bauble.view import INFOBOXPAGE_WIDTH_PREF
 from bauble.view import PIC_PANE_PAGE_PREF
 from bauble.view import PIC_PANE_WIDTH_PREF
+from bauble.view import DefaultCommandHandler
 from bauble.view import HistoryView
 from bauble.view import InfoBox
 from bauble.view import InfoBoxPage
@@ -54,7 +55,6 @@ from bauble.view import LinksExpander
 from bauble.view import Note
 from bauble.view import PicturesScroller
 from bauble.view import PropertiesExpander
-from bauble.view import SearchView
 from bauble.view import _mainstr_tmpl
 from bauble.view import _substr_tmpl
 from bauble.view import get_search_view_selected
@@ -144,10 +144,12 @@ class TestMultiprocCounter(BaubleTestCase):
 class TestSearchView(BaubleTestCase):
     def setUp(self):
         super().setUp()
-        self.search_view = SearchView()
+        self.search_view = DefaultCommandHandler().get_view()
 
     def tearDown(self):
-        self.search_view.cancel_threads()
+        self.search_view.infobox = None
+        self.search_view._reset()
+        self.search_view.btn_1_timer = (0, 0, 0)
         super().tearDown()
 
     def test_row_meta_populates_with_all_domains(self):
@@ -163,7 +165,7 @@ class TestSearchView(BaubleTestCase):
         for func in get_setUp_data_funcs():
             func()
         for cls in MapperSearch.get_domain_classes().values():
-            if not SearchView.row_meta[cls].children:
+            if not self.search_view.row_meta[cls].children:
                 continue
             for obj in self.session.query(cls):
                 kids = search_view.row_meta[cls].get_children(obj)
@@ -187,7 +189,7 @@ class TestSearchView(BaubleTestCase):
         for func in get_setUp_data_funcs():
             func()
         for cls in MapperSearch.get_domain_classes().values():
-            if not SearchView.row_meta[cls].children:
+            if not self.search_view.row_meta[cls].children:
                 continue
             for obj in self.session.query(cls):
                 self.assertIsInstance(obj.has_children(), bool, cls)
@@ -204,7 +206,7 @@ class TestSearchView(BaubleTestCase):
         for func in get_setUp_data_funcs():
             func()
         for cls in MapperSearch.get_domain_classes().values():
-            if not SearchView.row_meta[cls].children:
+            if not self.search_view.row_meta[cls].children:
                 continue
             for obj in self.session.query(cls):
                 self.assertIsInstance(obj.count_children(), int, cls)
@@ -223,7 +225,7 @@ class TestSearchView(BaubleTestCase):
         for func in get_setUp_data_funcs():
             func()
         for cls in MapperSearch.get_domain_classes().values():
-            if not SearchView.row_meta[cls].children:
+            if not self.search_view.row_meta[cls].children:
                 continue
             for obj in self.session.query(cls):
                 self.assertIsInstance(obj.count_children(), int, cls)
@@ -260,7 +262,7 @@ class TestSearchView(BaubleTestCase):
             parent_id = Column(Integer, ForeignKey(Parent.id), nullable=False)
             parent = relationship(Parent, back_populates="children")
 
-        SearchView.row_meta[Parent].set(children="children")
+        self.search_view.row_meta[Parent].set(children="children")
 
         search_view = self.search_view
         parent = Parent(name="test1")
@@ -270,7 +272,7 @@ class TestSearchView(BaubleTestCase):
             search_view.row_meta[Parent].get_children(parent), [child]
         )
         # remove so further tests don't fail
-        del SearchView.row_meta.data[Parent]
+        del self.search_view.row_meta.data[Parent]
 
     def test_on_test_expand_row_w_kids_returns_false_adds_kids(self):
         for func in get_setUp_data_funcs():
@@ -452,7 +454,9 @@ class TestSearchView(BaubleTestCase):
         # no infobox
         self.assertIsNone(search_view.infobox)
 
-    def test_search_with_one_result_all_domains(self):
+    @mock.patch("bauble.gui")
+    def test_search_with_one_result_all_domains(self, mock_gui):
+        mock_gui.window.get_size().width = 100
         prefs.prefs["bauble.search.return_accepted"] = False
         for func in get_setUp_data_funcs():
             func()
@@ -469,12 +473,13 @@ class TestSearchView(BaubleTestCase):
                         break
 
             string = f"{domain} where id = 1"
-            with self.assertLogs(level="DEBUG") as logs:
-                search_view.search(string)
-                # wait for the CountResultsTask thread to finish
-                wait_on_threads()
-            # check counting occured
-            self.assertTrue(any("top level count:" in i for i in logs.output))
+            # with self.assertLogs(level="DEBUG") as logs:
+            search_view.search(string)
+            # wait for the CountResultsTask thread to finish
+            wait_on_threads()
+            # check it called
+            mock_gui.widgets.statusbar.push.assert_called()
+            mock_gui.reset_mock()
             # test the correct object was returned
             model = search_view.results_view.get_model()
             obj = model[0][0]
@@ -484,8 +489,7 @@ class TestSearchView(BaubleTestCase):
             self.assertIs(
                 search_view.infobox, search_view.row_meta[klass].infobox
             )
-            with mock.patch("bauble.gui"):
-                search_view.infobox.update(obj)
+            search_view.infobox.update(obj)
 
     @mock.patch("bauble.view.SearchView.get_selected_values")
     def test_on_get_history(self, mock_get_selected):
@@ -635,7 +639,9 @@ class TestSearchView(BaubleTestCase):
         end = model.iter_n_children(tree_iter)
         self.assertEqual(start + 1, end)
 
-    def test_update_expires_all_and_triggers_selection_change(self):
+    @mock.patch("bauble.gui")
+    def test_update_expires_all_and_triggers_selection_change(self, mock_gui):
+        mock_gui.window.get_size().width = 100
         for func in get_setUp_data_funcs():
             func()
         search_view = self.search_view
@@ -672,7 +678,7 @@ class TestSearchView(BaubleTestCase):
 
         # test bails on non 3 buttons and returns False (allows propagating the
         # event)
-        mock_button = mock.Mock(button=1, x=1, y=1)
+        mock_button = mock.Mock(time=10, button=1, x=1, y=1)
         self.assertFalse(
             search_view.on_view_button_press(results_view, mock_button)
         )
@@ -1712,7 +1718,8 @@ class TestPicturesScroller(BaubleTestCase):
         # no search results
         with mock.patch("bauble.gui") as mock_gui:
             mock_gui.window.get_size().width = 1000
-            search_view = SearchView()
+            search_view = DefaultCommandHandler().get_view()
+            search_view.infobox = None
             mock_gui.get_view.return_value = search_view
             PicturesScroller(
                 parent=pics_box, pic_pane=pic_pane
@@ -1925,7 +1932,7 @@ class TestPicturesScroller(BaubleTestCase):
         picture_scroller = PicturesScroller(parent=pics_box, pic_pane=pic_pane)
         picture_scroller.set_selection = mock.Mock()
         # species selected should traverse
-        search_view = SearchView()
+        search_view = DefaultCommandHandler().get_view()
         search_view.pictures_scroller = picture_scroller
         search_view.history_action = mock.Mock()
         search_view.populate_results([plt2.accession.species])
@@ -2032,7 +2039,7 @@ class GlobalFunctionsTests(BaubleTestCase):
     def test_select_in_search_results_selects_existing(self):
         for func in get_setUp_data_funcs():
             func()
-        search_view = SearchView()
+        search_view = DefaultCommandHandler().get_view()
         search_view.history_action = mock.Mock()
         search_view.search("genus where id <= 3")
         start = search_view.get_selected_values()
@@ -2049,7 +2056,7 @@ class GlobalFunctionsTests(BaubleTestCase):
     def test_get_search_view_selected(self, mock_gui):
         for func in get_setUp_data_funcs():
             func()
-        search_view = SearchView()
+        search_view = DefaultCommandHandler().get_view()
         search_view.search("plant=*")
         self.assertTrue(search_view.get_selected_values())
 
@@ -2062,7 +2069,7 @@ class GlobalFunctionsTests(BaubleTestCase):
     def test_select_in_search_results_adds_not_existing(self):
         for func in get_setUp_data_funcs():
             func()
-        search_view = SearchView()
+        search_view = DefaultCommandHandler().get_view()
         search_view.history_action = mock.Mock()
         search_view.search("genus where id <= 3")
         start = search_view.get_selected_values()

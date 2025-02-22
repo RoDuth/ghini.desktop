@@ -341,7 +341,9 @@ class PictureBoxTests(BaubleTestCase):
         box.on_notes_remove_button(None)
         mock_dlog.assert_not_called()
         self.assertNotIn(self.model, presenter.notes)
-        self.assertEqual(mock_handler.view.pictures_scroller.selection, [])
+        self.assertEqual(
+            mock_handler().get_view().pictures_scroller.selection, []
+        )
 
     @mock.patch(
         "bauble.utils.yes_no_dialog", return_value=Gtk.ResponseType.YES
@@ -383,7 +385,9 @@ class PictureBoxTests(BaubleTestCase):
         )
         msg = mock_dlog.call_args.args[0]
         self.assertNotIn("the same file", msg)
-        self.assertEqual(mock_handler.view.pictures_scroller.selection, [])
+        self.assertEqual(
+            mock_handler().get_view().pictures_scroller.selection, []
+        )
 
     @mock.patch(
         "bauble.utils.yes_no_dialog", return_value=Gtk.ResponseType.YES

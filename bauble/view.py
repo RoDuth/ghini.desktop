@@ -1436,7 +1436,7 @@ class SearchView(pluginmgr.View, Gtk.Box):
             # an editor.  Editors will also call update from insert menu.
             self.update()
 
-    def update_context_menus(self, selected_values):
+    def update_context_menus(self, selected_values: list[db.Base]) -> None:
         """Update the context menu dependant on selected values."""
 
         self.context_menu_model.remove_all()
@@ -1463,9 +1463,10 @@ class SearchView(pluginmgr.View, Gtk.Box):
                     "activate", self.on_action_activate, action.callback
                 )
                 app = Gio.Application.get_default()
-                app.set_accels_for_action(
-                    f"win.{action.name}", [action.accelerator]
-                )
+                if app is not None and hasattr(app, "set_accels_for_action"):
+                    app.set_accels_for_action(
+                        f"win.{action.name}", [action.accelerator]
+                    )
 
             menu_item = Gio.MenuItem.new(action.label, f"win.{action.name}")
             self.context_menu_model.append_item(menu_item)
@@ -1498,10 +1499,11 @@ class SearchView(pluginmgr.View, Gtk.Box):
                 self.history_action = bauble.gui.add_action(
                     get_history_action_name, self.on_get_history
                 )
-            if len(selected_values) == 1:
-                self.history_action.set_enabled(True)
-            else:
-                self.history_action.set_enabled(False)
+            if self.history_action:
+                if len(selected_values) == 1:
+                    self.history_action.set_enabled(True)
+                else:
+                    self.history_action.set_enabled(False)
 
         get_history_menu_item = Gio.MenuItem.new(
             _("Show History"), f"win.{get_history_action_name}"
@@ -1572,11 +1574,7 @@ class SearchView(pluginmgr.View, Gtk.Box):
         # NOTE used in testing
         return search_str
 
-    def search(self, text: str) -> None:
-        """search the database using text"""
-        logger.debug("SearchView.search(%s)", text)
-        error_msg = None
-        error_details_msg = None
+    def _reset(self) -> None:
         # stop whatever it might still be doing
         self.cancel_threads()
         self.session.close()
@@ -1587,6 +1585,23 @@ class SearchView(pluginmgr.View, Gtk.Box):
         if not db.Session:
             return
         self.session = db.Session()
+        # clear last result
+        for callback in self.populate_callbacks:
+            callback([])
+
+        # avoid triggering on_selection_changed
+        self.selection.handler_block(self._sc_sid)
+        utils.clear_model(self.results_view)
+        self.selection.handler_unblock(self._sc_sid)
+
+    def search(self, text: str) -> None:
+        """search the database using text"""
+        logger.debug("SearchView.search(%s)", text)
+
+        self._reset()
+
+        error_msg = None
+        error_details_msg = None
         bold = "<b>%s</b>"
         results = []
         try:
@@ -1598,15 +1613,6 @@ class SearchView(pluginmgr.View, Gtk.Box):
             logger.debug(traceback.format_exc())
             error_msg = _("** Error: %s") % utils.xml_safe(e)
             error_details_msg = utils.xml_safe(traceback.format_exc())
-
-        # clear last result
-        for callback in self.populate_callbacks:
-            callback([])
-
-        # avoid triggering on_selection_changed
-        self.selection.handler_block(self._sc_sid)
-        utils.clear_model(self.results_view)
-        self.selection.handler_unblock(self._sc_sid)
 
         if error_msg and bauble.gui:
             bauble.gui.show_error_box(error_msg, error_details_msg)

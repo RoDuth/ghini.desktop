@@ -1014,12 +1014,13 @@ class ImageLoaderTests(BaubleTestCase):
         win.show_all()
         mock_size_alloc = mock.Mock()
         mock_size_alloc.return_value = False
+        mock_loader = mock.Mock()
         img_loader = utils.ImageLoader(
             pic_box,
             path,
             on_size_allocated=mock_size_alloc,
+            loader=mock_loader,
         )
-        mock_loader = mock.Mock()
         mock_loader.close.side_effect = Exception
         img_loader.loader = mock_loader
         img_loader.start()
