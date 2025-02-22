@@ -66,9 +66,6 @@ from bauble.view import select_in_search_results
 # pylint: disable=too-few-public-methods
 
 
-@skipIf(
-    "APPVEYOR" in os.environ and sys.platform == "darwin", "Issues on Appveyor"
-)
 class TestMultiprocCounter(BaubleTestCase):
     def setUp(self):
         if ":memory:" in uri or "?mode=memory" in uri:
@@ -146,6 +143,9 @@ class TestMultiprocCounter(BaubleTestCase):
             self.assertGreaterEqual(len(result[0].keys()), 1)
 
 
+@skipIf(
+    "APPVEYOR" in os.environ and sys.platform == "darwin", "Issues on Appveyor"
+)
 class TestSearchView(BaubleTestCase):
     def setUp(self):
         super().setUp()
