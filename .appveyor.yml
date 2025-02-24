@@ -95,6 +95,10 @@ for:
   test_script:
     - bash -lc "pip install pytest"
     - bash -lc "python -m pytest -sv"
+  cache:
+    - wheels -> setup.py
+    - fop-$(fop_ver) -> scripts\get_fop.sh
+    - jre -> scripts\get_fop.sh
 -
   matrix:
     only:
@@ -132,12 +136,8 @@ for:
     - bash -lc "coverage combine"
     - bash -lc "coverage report"
     - bash -lc "coveralls"
-
-cache:
-  - wheels -> setup.py
-  - fop-$(fop_ver) -> scripts\get_fop.sh
-  - jre -> scripts\get_fop.sh
-
+  cache:
+    - wheels -> setup.py
 
 deploy:
   provider: GitHub
