@@ -43,10 +43,10 @@ for:
     - pip install pyodbc
     - pip install pyobjc-framework-SystemConfiguration
     - pip install .
-    # - pip install pyinstaller==5.13.2
-    # - pyinstaller --clean --noconfirm scripts/ghini.spec
-    # - pip install dmgbuild==1.6.1
-    # - dmgbuild -s scripts/dmgbuild_settings.py "Ghini" Ghini.dmg   # NOTE: last 2 args are required but overidden in dmgbuild_settings.py
+    - pip install pyinstaller
+    - pyinstaller --clean --noconfirm scripts/ghini.spec
+    - pip install dmgbuild==1.6.1
+    - dmgbuild -s scripts/dmgbuild_settings.py "Ghini" Ghini.dmg   # NOTE: last 2 args are required but overidden in dmgbuild_settings.py
 
   artifacts:
     - path: dist/Ghini-*-installer.dmg
@@ -81,7 +81,7 @@ for:
   build_script:
     - bash -lc "pip install pyodbc --find-links wheels"
     - bash -lc "pip install . --find-links wheels"
-    - bash -lc "pip install pyinstaller==5.13.2"
+    - bash -lc "pip install pyinstaller"
     - bash -lc "python -m PyInstaller --clean --noconfirm scripts/ghini.spec"
     - if not exist jre\ for /f %%i in ('dir "C:\Program Files\OpenJDK\jdk*" /b') do "C:\Program Files"\OpenJDK\%%i\bin\jlink --output jre --add-modules java.base,java.logging,java.desktop,java.xml
     - dir jre

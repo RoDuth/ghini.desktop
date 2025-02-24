@@ -45,7 +45,7 @@ def main_is_frozen():
 def main_dir():
     """Returns the path of the bauble executable."""
     if main_is_frozen():
-        directory = os.path.dirname(sys.executable)
+        directory = sys._MEIPASS
     else:
         directory = os.path.dirname(sys.argv[0])
     if directory == "":
@@ -56,7 +56,7 @@ def main_dir():
 def root_dir():
     """return the root directory we are running from."""
     if main_is_frozen():
-        root = Path(sys.executable).parent
+        root = Path(sys.executable)
     else:
         root = Path(__file__).parent.parent
     return root

@@ -91,11 +91,11 @@ SetCompressorDictSize 64
 ; Modern User Interface v2 Settings
 !define MUI_ABORTWARNING
 !define MUI_UNABORTWARNING
-!define MUI_ICON "${SRC_DIR}\bauble\images\icon.ico"
-!define MUI_UNICON "${SRC_DIR}\bauble\images\icon.ico"
+!define MUI_ICON "${SRC_DIR}\_internal\bauble\images\icon.ico"
+!define MUI_UNICON "${SRC_DIR}\_internal\bauble\images\icon.ico"
 !define MUI_HEADERIMAGE
-!define MUI_HEADERIMAGE_BITMAP "${SRC_DIR}\bauble\images\ghini_logo.bmp"
-!define MUI_HEADERIMAGE_UNBITMAP "${SRC_DIR}\bauble\images\ghini_logo.bmp"
+!define MUI_HEADERIMAGE_BITMAP "${SRC_DIR}\_internal\bauble\images\ghini_logo.bmp"
+!define MUI_HEADERIMAGE_UNBITMAP "${SRC_DIR}\_internal\bauble\images\ghini_logo.bmp"
 !define MUI_HEADERIMAGE_RIGHT
 ;!define MUI_FINISHPAGE_NOAUTOCLOSE  ;allows users to check install log before continuing
 !define MUI_FINISHPAGE_RUN_TEXT "Start ${PRODUCT_NAME}"
@@ -120,7 +120,7 @@ SetCompressorDictSize 64
 
 ; Installer
 !insertmacro MULTIUSER_PAGE_INSTALLMODE ; if elevated will not show - install for all users
-!insertmacro MUI_PAGE_LICENSE "${SRC_DIR}\share\ghini\${LICENSE_FILE}"
+!insertmacro MUI_PAGE_LICENSE "${SRC_DIR}\_internal\share\ghini\${LICENSE_FILE}"
 !insertmacro MUI_PAGE_DIRECTORY
 !insertmacro MUI_PAGE_COMPONENTS
 !define MUI_PAGE_CUSTOMFUNCTION_PRE SkipFOPLicense

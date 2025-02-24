@@ -85,7 +85,6 @@ a = Analysis(['ghini'],
                  'sysconfig._get_sysconfigdata_name()',
                  '_sysconfigdata__win32_',
                  'shapefile',
-                 'polylabel',
                  'pyproj',
                  'pyodbc',
              ],   # noqa
