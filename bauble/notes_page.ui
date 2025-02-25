@@ -2,7 +2,7 @@
 <!-- Generated with glade 3.40.0 -->
 <interface>
   <requires lib="gtk+" version="3.24"/>
-  <object class="GtkListStore" id="notes_liststore">
+  <object class="GtkListStore" id="liststore">
     <columns>
       <!-- column-name date -->
       <column type="gchararray"/>
@@ -14,24 +14,27 @@
       <column type="gchararray"/>
     </columns>
   </object>
-  <object class="GtkScrolledWindow" id="notes_scrolledwindow">
+  <template class="NotesBottomPage" parent="GtkScrolledWindow">
     <property name="visible">True</property>
     <property name="can-focus">True</property>
     <child>
-      <object class="GtkTreeView" id="notes_treeview">
+      <object class="GtkTreeView" id="treeview">
         <property name="visible">True</property>
         <property name="can-focus">True</property>
-        <property name="model">notes_liststore</property>
+        <property name="model">liststore</property>
         <property name="headers-clickable">False</property>
         <property name="reorderable">True</property>
+        <signal name="row-activated" handler="on_row_activated" swapped="no"/>
         <child internal-child="selection">
-          <object class="GtkTreeSelection"/>
+          <object class="GtkTreeSelection">
+            <property name="mode">none</property>
+          </object>
         </child>
         <child>
-          <object class="GtkTreeViewColumn" id="date_column">
+          <object class="GtkTreeViewColumn">
             <property name="title">Date</property>
             <child>
-              <object class="GtkCellRendererText" id="date_cell">
+              <object class="GtkCellRendererText">
                 <property name="xalign">0</property>
                 <property name="yalign">0</property>
               </object>
@@ -42,10 +45,10 @@
           </object>
         </child>
         <child>
-          <object class="GtkTreeViewColumn" id="name_column">
+          <object class="GtkTreeViewColumn">
             <property name="title">Name</property>
             <child>
-              <object class="GtkCellRendererText" id="name_cell">
+              <object class="GtkCellRendererText">
                 <property name="xalign">0</property>
                 <property name="yalign">0</property>
               </object>
@@ -56,10 +59,10 @@
           </object>
         </child>
         <child>
-          <object class="GtkTreeViewColumn" id="category_column">
+          <object class="GtkTreeViewColumn">
             <property name="title">Category</property>
             <child>
-              <object class="GtkCellRendererText" id="category_cell">
+              <object class="GtkCellRendererText">
                 <property name="xalign">0</property>
                 <property name="yalign">0</property>
               </object>
@@ -70,10 +73,10 @@
           </object>
         </child>
         <child>
-          <object class="GtkTreeViewColumn" id="note_column">
+          <object class="GtkTreeViewColumn">
             <property name="title">Note</property>
             <child>
-              <object class="GtkCellRendererText" id="note_cell">
+              <object class="GtkCellRendererText">
                 <property name="xalign">0</property>
                 <property name="yalign">0</property>
                 <property name="wrap-mode">word</property>
@@ -87,5 +90,5 @@
         </child>
       </object>
     </child>
-  </object>
+  </template>
 </interface>

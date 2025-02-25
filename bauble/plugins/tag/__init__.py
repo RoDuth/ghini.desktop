@@ -21,17 +21,14 @@ Tag plugin
 """
 
 import logging
-import os
 from functools import partial
 
 logger = logging.getLogger(__name__)
 
 import bauble
 from bauble import db
-from bauble import paths
 from bauble import pluginmgr
 from bauble import search
-from bauble.i18n import _
 from bauble.view import HistoryView
 from bauble.view import SearchView
 
@@ -40,13 +37,14 @@ from .ui import menu_manager
 from .ui.editor import edit_callback
 from .ui.editor import tag_context_menu
 from .ui.view import TagInfoBox
-from .ui.view import on_tag_bottom_info_activated
+from .ui.view import TagsBottomPage
 
 
 class TagPlugin(pluginmgr.Plugin):
     provides = {"Tag": Tag}
 
     tags_infobox: TagInfoBox | None = None
+    tags_page: TagsBottomPage | None = None
 
     @classmethod
     def init(cls) -> None:
@@ -69,23 +67,16 @@ class TagPlugin(pluginmgr.Plugin):
             context_menu=tag_context_menu,
             activated_callback=edit_callback,
         )
-        tag_meta = {
-            "page_widget": "taginfo_scrolledwindow",
-            "fields_used": ["tag", "description"],
-            "glade_name": os.path.join(
-                paths.lib_dir(), "plugins/tag/tag.glade"
-            ),
-            "name": _("Tags"),
-            "row_activated": on_tag_bottom_info_activated,
-        }
-        # Only want to add this once (incase of opening another connection),
-        # hence directly accessing underlying dict with setdefault
-        # If no 'label' key in the Meta object add_page_to_bottom_notebook will
-        # be called again adding another page.
-        SearchView.bottom_info.data.setdefault(Tag, tag_meta)
+
+        if cls.tags_page is None:
+            cls.tags_page = TagsBottomPage()
+
+        SearchView.bottom_pages.add((cls.tags_page, cls.tags_page.label))
+
         SearchView.context_menu_callbacks.add(
             menu_manager.context_menu_callback
         )
+
         SearchView.cursor_changed_callbacks.add(menu_manager.refresh)
 
         if bauble.gui:

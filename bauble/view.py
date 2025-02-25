@@ -66,7 +66,6 @@ from sqlalchemy import and_
 from sqlalchemy.orm import Query
 from sqlalchemy.orm import Session
 from sqlalchemy.orm import object_session
-from sqlalchemy.orm.exc import DetachedInstanceError
 from sqlalchemy.orm.exc import ObjectDeletedError
 from sqlalchemy.sql import ColumnElement
 
@@ -216,7 +215,6 @@ class InfoExpander(Gtk.Expander):
 
 # beware, typing hack ahead (due to the lack of Intersection).
 class Updateable(Protocol):  # pylint: disable=too-few-public-methods
-    _sep: Gtk.Separator | None
 
     def update(self, row: db.Base): ...
 
@@ -1034,8 +1032,8 @@ class PicturesScroller(Gtk.ScrolledWindow):
 
 class ViewMeta(UserDict):
     """This class shouldn't need to be instantiated directly.  Access the
-    meta for the SearchView with the :class:`bauble.view.SearchView`'s
-    `row_meta` or `bottom_info` attributes.
+    meta for the SearchView with the :class:``bauble.view.SearchView``'s
+    ``row_meta`` attributes.
 
     ...note: can access the actual dictionary used to store the contents
     directly via the UserDict `data` attribute. e.g. to use setdefault in
@@ -1114,7 +1112,13 @@ class SearchView(pluginmgr.View, Gtk.Box):
     pics_box = cast(Gtk.Paned, Gtk.Template.Child())
 
     row_meta = ViewMeta()
-    bottom_info = ViewMeta()
+
+    bottom_pages: set[tuple[Gtk.Widget, Gtk.Label]] = set()
+    """Widegts added here will be appended to the bottom_notebook and the label
+    used for its notebook tab.
+    Widgets should implement an ``update`` method that can be passed the
+    currently selected row.
+    """
 
     pic_pane_notebook_pages: set[tuple[Gtk.Widget, int, str]] = set()
     """Widgets added here will be added to the pic_pane_notebook.
@@ -1160,7 +1164,12 @@ class SearchView(pluginmgr.View, Gtk.Box):
             raise DatabaseError("Unable to connect to a database!")
 
         self.session = db.Session()
-        self.add_notes_page_to_bottom_notebook()
+
+        for page, label in sorted(
+            self.bottom_pages, key=lambda i: i[1].get_text()
+        ):
+            self.bottom_notebook.append_page(page, label)
+
         self.actions: set[str] = set()
         self.context_menu_model = Gio.Menu()
         poll_secs = prefs.prefs.get(SEARCH_POLL_SECS_PREF)
@@ -1185,56 +1194,6 @@ class SearchView(pluginmgr.View, Gtk.Box):
         for page in self.pic_pane_notebook_pages:
             self.add_page_to_pic_pane_notebook(*page)
 
-    def add_notes_page_to_bottom_notebook(self):
-        """add notebook page for notes
-
-        this is a temporary function, will be removed when notes are
-        implemented as a plugin. then notes will be added with the
-        generic add_page_to_bottom_notebook.
-        """
-        glade_name = str(Path(paths.lib_dir(), "notes_page.glade"))
-        widgets = utils.BuilderWidgets(glade_name)
-        page = widgets.notes_scrolledwindow
-        # create the label object
-        label = Gtk.Label(label="Notes")
-        self.bottom_notebook.append_page(page, label)
-
-        def sorter(notes):
-            return sorted(notes, key=lambda note: note.date, reverse=True)
-
-        self.bottom_info[Note] = {
-            "fields_used": ["date", "user", "category", "note"],
-            "tree": widgets.notes_treeview,
-            "label": label,
-            "name": _("Notes"),
-            "sorter": sorter,
-        }
-        widgets.notes_treeview.connect(
-            "row-activated", self.on_note_row_activated
-        )
-
-    def on_note_row_activated(self, tree, path, _column):
-        try:
-            # retrieve the selected row from the results view (we know it's
-            # one), and we only need it's domain name
-            selected = self.get_selected_values()[0]
-            domain = selected.__class__.__name__.lower()
-            # retrieve the activated row
-            row = tree.get_model()[path]
-            cat = None if row[2] == "" else repr(row[2])
-            note = repr(row[3])
-            # construct the query
-            query = f"{domain} where notes[category={cat}].note={note}"
-            # fire it
-            if bauble.gui:
-                bauble.gui.send_command(query)
-            else:
-                # NOTE used in testing
-                return query
-        except Exception as e:
-            logger.debug("on_note_row_actived %s(%s)", type(e).__name__, e)
-        return None
-
     def add_page_to_pic_pane_notebook(
         self, widget: Gtk.Widget, position: int, label: str
     ) -> None:
@@ -1249,74 +1208,24 @@ class SearchView(pluginmgr.View, Gtk.Box):
             self.pic_pane_notebook.reorder_child(widget, position)
             self.pic_pane_notebook.show_all()
 
-    def add_page_to_bottom_notebook(self, bottom_info):
-        """add notebook page for a plugin class."""
-        glade_name = bottom_info["glade_name"]
-        widgets = utils.BuilderWidgets(glade_name)
-        page = widgets[bottom_info["page_widget"]]
-        # 2: detach it from parent (its container)
-        widgets.remove_parent(page)
-        # 3: create the label object
-        label = Gtk.Label(label=bottom_info["name"])
-        # 4: add the page, non sensitive
-        self.bottom_notebook.append_page(page, label)
-        # 5: store the values for later use
-        bottom_info["tree"] = page.get_children()[0]
-        if row_activated := bottom_info.get("row_activated"):
-            bottom_info["tree"].connect("row-activated", row_activated)
-        bottom_info["label"] = label
-
-    def update_bottom_notebook(self, selected_values):
+    def update_bottom_notebook(self, selected_values: list[db.Base]) -> None:
         """Update the bottom_notebook from the currently selected row.
 
-        bottom_notebook has one page per type of information. Every page
-        is registered by its plugin, which adds an entry to the
-        dictionary self.bottom_info.
+        Only one selected value is allowed, anything else and the bottom
+        notebook is hidden.
 
-        the GtkNotebook pages are ScrolledWindow containing a TreeView,
-        this should have a model, and the ordered names of the fields to
-        be stored in the model is in bottom_info['fields_used'].
+        Calls ``update`` on each page.
         """
         # Only one should be selected
         if len(selected_values or []) != 1:
             self.bottom_notebook.hide()
             return
 
-        row = selected_values[0]  # the selected row
+        row = selected_values[0]
 
-        # loop over bottom_info plugin classes (eg: Tag)
-        for klass, bottom_info in self.bottom_info.items():
-            if "label" not in bottom_info:  # late initialization
-                self.add_page_to_bottom_notebook(bottom_info)
-            label = bottom_info["label"]
-            if not hasattr(klass, "attached_to"):
-                logging.warning(
-                    "class %s does not implement attached_to", klass
-                )
-                continue
-            objs = klass.attached_to(row)
-            model = bottom_info["tree"].get_model()
-            model.clear()
-            if not objs or not isinstance(objs, list):
-                label.set_use_markup(False)
-                label.set_label(bottom_info["name"])
-            else:
-                label.set_use_markup(True)
-                label.set_label(f'<b>{bottom_info["name"]}</b>')
-                sorter = bottom_info.get("sorter", reversed)
-                for obj in sorter(objs):
-                    values = []
-                    for k in bottom_info["fields_used"]:
-                        if k == "date" and (date := getattr(obj, k)):
-                            values.append(
-                                date.strftime(
-                                    prefs.prefs.get(prefs.date_format_pref)
-                                )
-                            )
-                        else:
-                            values.append(getattr(obj, k) or "")
-                    model.append(values)
-        self.bottom_notebook.show()
+        for page in self.bottom_notebook.get_children():
+            if hasattr(page, "update"):
+                page.update(row)
 
     def update_infobox(self, selected_values):
         """Sets the infobox according to the currently selected row.
@@ -2107,18 +2016,72 @@ def get_search_view_selected() -> list[db.Base] | None:
     return selected
 
 
-class Note:
-    # pylint: disable=too-few-public-methods
-    """temporary patch before we implement Notes as a plugin."""
+@Gtk.Template(filename=str(Path(paths.lib_dir(), "notes_page.ui")))
+class NotesBottomPage(Gtk.ScrolledWindow):
+    """Page to append to ``SearchView.bottom_notebook``, shows selected
+    object's notes.
+    """
 
-    @classmethod
-    def attached_to(cls, obj):
-        """return the list of notes connected to obj"""
+    __gtype_name__ = "NotesBottomPage"
 
-        try:
-            return obj.notes
-        except (AttributeError, DetachedInstanceError):
-            return []
+    treeview = cast(Gtk.TreeView, Gtk.Template.Child())
+    liststore = cast(Gtk.ListStore, Gtk.Template.Child())
+
+    LABEL_STR = _("Notes")
+    label = Gtk.Label(label=LABEL_STR)
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.domain: str = ""
+
+    def update(self, row: db.Base) -> None:
+        logger.debug("update notes bottom page")
+
+        self.domain = row.__class__.__name__.lower() if row else ""
+
+        self.liststore.clear()
+        notes = row.notes if hasattr(row, "notes") else []
+
+        for note in sorted(notes, key=lambda note: note.date, reverse=True):
+            date = note.date.strftime(prefs.prefs.get(prefs.date_format_pref))
+            self.liststore.append((date, note.user, note.category, note.note))
+
+        if notes:
+            self.label.set_use_markup(True)
+            self.label.set_label(f"<b>{self.LABEL_STR}</b>")
+        else:
+            self.label.set_use_markup(False)
+            self.label.set_label(self.LABEL_STR)
+
+    @Gtk.Template.Callback()
+    def on_row_activated(
+        self,
+        _tree,
+        path: Gtk.TreePath,
+        _column,
+        *,
+        send_command: Callable[[str], None] | None = None,
+    ) -> None:
+        """When a row is double clicked run a search to find other items of the
+        same type with the same note.
+        """
+        send_command = send_command or bauble.gui.send_command
+
+        row = self.liststore[path]  # pylint: disable=unsubscriptable-object
+        cat = None if row[2] == "" else repr(row[2])
+        note = repr(row[3])
+        logger.debug(
+            "notes bottom page row_activated: domain=%s, cat=%s, note=%s",
+            self.domain,
+            cat,
+            note,
+        )
+
+        send_command(f"{self.domain} where notes[category={cat}].note={note}")
+
+
+notes_bottom_page = NotesBottomPage()
+SearchView.bottom_pages.add((notes_bottom_page, notes_bottom_page.label))
 
 
 @Gtk.Template(filename=str(Path(paths.lib_dir(), "history_view.ui")))

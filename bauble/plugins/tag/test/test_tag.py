@@ -79,18 +79,16 @@ setUp_data.order = 2  # type: ignore [attr-defined]
 
 
 class TestPlugin(BaubleTestCase):
-    def test_plugin_inits_bottom_info_only_once(self):
-        SearchView.bottom_info.data.clear()
+    def test_plugin_adds_bottom_page(self):
+        SearchView.bottom_pages.clear()
         plugin = TagPlugin()
-        plugin.init()
-        bottom_info = SearchView.bottom_info.get(Tag)
-        SearchView().add_page_to_bottom_notebook(bottom_info)
-        start = bottom_info.copy()
-        plugin.init()
-        plugin.init()
-        end = SearchView.bottom_info.get(Tag).copy()
 
-        self.assertEqual(start, end)
+        with mock.patch.object(SearchView, "bottom_pages") as mock_pages:
+            plugin.init()
+
+            mock_pages.add.assert_called_with(
+                (plugin.tags_page, plugin.tags_page.label)
+            )
 
     @mock.patch.dict(
         search.strategies._search_strategies,
@@ -102,8 +100,9 @@ class TestPlugin(BaubleTestCase):
         clear=True,
     )
     def test_bails_if_no_mapper_search(self):
-        SearchView.bottom_info.data.clear()
-        self.assertIsNone(SearchView.bottom_info.get(Tag))
         plugin = TagPlugin()
-        plugin.init()
-        self.assertIsNone(SearchView.bottom_info.get(Tag))
+
+        with mock.patch.object(SearchView, "bottom_pages") as mock_pages:
+            plugin.init()
+
+            mock_pages.add.assert_not_called()

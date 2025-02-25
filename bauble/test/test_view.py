@@ -52,7 +52,7 @@ from bauble.view import HistoryView
 from bauble.view import InfoBox
 from bauble.view import InfoBoxPage
 from bauble.view import LinksExpander
-from bauble.view import Note
+from bauble.view import NotesBottomPage
 from bauble.view import PicturesScroller
 from bauble.view import PropertiesExpander
 from bauble.view import _mainstr_tmpl
@@ -237,13 +237,6 @@ class TestSearchView(BaubleTestCase):
                     f"{obj}: {[str(i) for i in kids]}",
                 )
 
-    def test_bottom_info_populates_with_note_and_tag(self):
-        search_view = self.search_view
-        self.assertEqual(
-            list(search_view.bottom_info.keys()),
-            [MapperSearch.get_domain_classes()["tag"], Note],
-        )
-
     def test_row_meta_get_children(self):
         from sqlalchemy import Column
         from sqlalchemy import ForeignKey
@@ -401,19 +394,6 @@ class TestSearchView(BaubleTestCase):
         mock_callback.side_effect = ValueError("boom")
         search_view.on_action_activate(None, None, mock_callback)
         mock_dialog.assert_called_with("boom", mock.ANY, Gtk.MessageType.ERROR)
-
-    @mock.patch("bauble.view.SearchView.get_selected_values")
-    def test_on_note_row_activated(self, mock_get_selected):
-        mock_tree = mock.Mock()
-        mock_tree.get_model.return_value = {
-            "note": [None, None, "cat", "note"]
-        }
-        mock_get_selected.return_value = [type("Test", (), {})()]
-        search_view = self.search_view
-        self.assertEqual(
-            search_view.on_note_row_activated(mock_tree, "note", None),
-            "test where notes[category='cat'].note='note'",
-        )
 
     def test_search_no_result(self):
         search_view = self.search_view
@@ -2033,6 +2013,39 @@ class TestPicturesScroller(BaubleTestCase):
         self.assertTrue(picture_scroller.last_result_succeed)
         self.assertEqual(picture_scroller.restore_position, 50)
         self.assertEqual(picture_scroller.pic_pane.get_position(), 50)
+
+
+class NotesBottomPageTests(BaubleTestCase):
+
+    def test_update_populates_makes_label_bold(self):
+        notes_page = NotesBottomPage()
+        now = datetime.now().date()
+
+        mock_note = mock.Mock(date=now, user="me", category="foo", note="bar")
+        mock_row = mock.Mock(notes=[mock_note])
+
+        notes_page.update(mock_row)
+
+        self.assertEqual(len(notes_page.liststore), 1)
+        self.assertTrue(notes_page.label.get_use_markup())
+
+        mock_row = mock.Mock(notes=[])
+
+        notes_page.update(mock_row)
+
+        self.assertEqual(len(notes_page.liststore), 0)
+        self.assertFalse(notes_page.label.get_use_markup())
+
+    def test_on_note_row_activated(self):
+        notes_page = NotesBottomPage()
+        notes_page.domain = "test"
+        notes_page.liststore.append([None, None, "cat", "note"])
+        mock_send = mock.Mock()
+
+        notes_page.on_row_activated(None, 0, None, send_command=mock_send)
+        mock_send.assert_called_with(
+            "test where notes[category='cat'].note='note'",
+        )
 
 
 class GlobalFunctionsTests(BaubleTestCase):

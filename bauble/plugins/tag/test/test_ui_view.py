@@ -20,7 +20,6 @@
 """
 Tag info box tests
 """
-from unittest import TestCase
 from unittest import mock
 
 from gi.repository import Gtk
@@ -29,7 +28,7 @@ from bauble.test import BaubleTestCase
 
 from .. import Tag
 from ..ui.view import TagInfoBox
-from ..ui.view import on_tag_bottom_info_activated
+from ..ui.view import TagsBottomPage
 
 
 class TagInfoBoxTest(BaubleTestCase):
@@ -88,12 +87,31 @@ class TagInfoBoxTest(BaubleTestCase):
         ib.destroy()
 
 
-class GlobalFunctionsTests(TestCase):
-    def test_on_tag_bottom_info_activated(self):
+class TagsBottomPageTests(BaubleTestCase):
+
+    def test_update_populates_makes_label_bold(self):
+        tag1 = Tag(tag="tag1")
+        tag2 = Tag(tag="tag2")
+        self.session.add_all([tag1, tag2])
+        self.session.commit()
+        tag1.tag_objects([tag2])
+        self.session.commit()
+        tags_page = TagsBottomPage()
+
+        tags_page.update(tag2)
+
+        self.assertEqual(len(tags_page.liststore), 1)
+        self.assertTrue(tags_page.label.get_use_markup())
+
+        tags_page.update(tag1)
+
+        self.assertEqual(len(tags_page.liststore), 0)
+        self.assertFalse(tags_page.label.get_use_markup())
+
+    def test_on_note_row_activated(self):
+        tags_page = TagsBottomPage()
+        tags_page.liststore.append(("foo", "bar"))
         mock_send = mock.Mock()
-        model = Gtk.ListStore(str, str)
-        model.append(["Foo", "description"])
-        path = Gtk.TreePath.new_first()
-        tree = Gtk.TreeView().new_with_model(model)
-        on_tag_bottom_info_activated(tree, path, None, send_command=mock_send)
-        mock_send.assert_called_with("tag='Foo'")
+
+        tags_page.on_row_activated(None, 0, None, send_command=mock_send)
+        mock_send.assert_called_with("tag='foo'")

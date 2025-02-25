@@ -19,6 +19,10 @@
 """
 Tag SearchView parts
 """
+import logging
+
+logger = logging.getLogger(__name__)
+
 from pathlib import Path
 from typing import Callable
 from typing import cast
@@ -26,10 +30,13 @@ from typing import cast
 from gi.repository import Gtk
 
 import bauble
+from bauble import db
 from bauble import utils
 from bauble.i18n import _
 from bauble.view import InfoBox
 from bauble.view import PropertiesExpander
+
+from ..model import Tag
 
 
 @Gtk.Template(filename=str(Path(__file__).resolve().parent / "info_box.ui"))
@@ -102,15 +109,48 @@ class TagInfoBox(InfoBox):
         self.props.update(row)
 
 
-def on_tag_bottom_info_activated(
-    tree: Gtk.TreeView,
-    path: Gtk.TreePath,
-    _column,
-    *,
-    send_command: Callable[[str], None] | None = None,
-) -> None:
-    model = tree.get_model()
-    send_command = send_command or bauble.gui.send_command
-    if model:
-        tag = repr(model[path][0])
+@Gtk.Template(filename=str(Path(__file__).resolve().parent / "tags_page.ui"))
+class TagsBottomPage(Gtk.ScrolledWindow):
+    """Page to append to ``SearchView.bottom_notebook``, shows the tags
+    attached to the selected object.
+    """
+
+    __gtype_name__ = "TagsBottomPage"
+
+    treeview = cast(Gtk.TreeView, Gtk.Template.Child())
+    liststore = cast(Gtk.ListStore, Gtk.Template.Child())
+
+    LABEL_STR = _("Tags")
+    label = Gtk.Label(label=LABEL_STR)
+
+    def update(self, row: db.Base) -> None:
+        logger.debug("update tags bottom page")
+
+        self.liststore.clear()
+        tags = Tag.attached_to(row)
+
+        for tag in reversed(tags):
+            self.liststore.append((tag.tag, tag.description or ""))
+
+        if tags:
+            self.label.set_use_markup(True)
+            self.label.set_label(f"<b>{self.LABEL_STR}</b>")
+        else:
+            self.label.set_use_markup(False)
+            self.label.set_label(self.LABEL_STR)
+
+    @Gtk.Template.Callback()
+    def on_row_activated(
+        self,
+        _tree,
+        path: Gtk.TreePath,
+        _column,
+        *,
+        send_command: Callable[[str], None] | None = None,
+    ) -> None:
+        """When a row is double clicked run a search for the rows tag."""
+        send_command = send_command or bauble.gui.send_command
+        # pylint: disable=unsubscriptable-object
+        tag = repr(self.liststore[path][0])
+        logger.debug("tags bottom page row_activated: tag=%s", tag)
         send_command(f"tag={tag}")

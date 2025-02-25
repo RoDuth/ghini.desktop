@@ -37,6 +37,7 @@ import gettext
 import locale
 import os
 import sys
+from collections.abc import Callable
 
 from bauble import paths
 from bauble import version_tuple
@@ -92,4 +93,4 @@ lang = gettext.translation(
 )
 # associate the `_` function (we marked our translatable strings with it) to
 # lang.gettext(), which translates them.
-_ = lang.gettext
+_: Callable[[str], str] = lang.gettext
