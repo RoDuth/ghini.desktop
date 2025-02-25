@@ -20,11 +20,11 @@
 Tag Model and associated.
 """
 import logging
-from collections.abc import Sequence
 
 logger = logging.getLogger(__name__)
 
-from datetime import datetime
+import threading
+from collections.abc import Sequence
 from importlib import import_module
 from typing import Self
 
@@ -88,6 +88,7 @@ class Tag(db.Base):
     _last_objects: list[db.Base] | None = None
 
     retrieve_cols = ["id", "tag"]
+    _lock = threading.Lock()
 
     @classmethod
     def retrieve(cls, session: Session, keys: dict[str, str]) -> Self | None:
@@ -166,26 +167,27 @@ class Tag(db.Base):
         """Get all object tagged with tag and clean up any that are left
         hanging.
         """
-        session = object_session(self)
+        with self._lock:
+            session = object_session(self)
 
-        if not isinstance(session, Session):
-            logger.warning("no object session bailing.")
-            return []
+            if not isinstance(session, Session):
+                logger.warning("no object session bailing.")
+                return []
 
-        items = []
-        for obj in self.objects_:
-            result = _get_tagged_object_pair(obj)
-            if result:
-                mapper, obj_id = result
-                rec = session.query(mapper).filter_by(id=obj_id).first()
-                if rec:
-                    items.append(rec)
-                else:
-                    logger.debug("deleting tagged_obj: %s", obj)
-                    # delete any tagged objects no longer in the database
-                    session.delete(obj)
-                    session.commit()
-        return items
+            items = []
+            for obj in self.objects_:
+                result = _get_tagged_object_pair(obj)
+                if result:
+                    mapper, obj_id = result
+                    rec = session.query(mapper).filter_by(id=obj_id).first()
+                    if rec:
+                        items.append(rec)
+                    else:
+                        logger.debug("deleting tagged_obj: %s", obj)
+                        # delete any tagged objects no longer in the database
+                        session.delete(obj)
+                        session.commit()
+            return items
 
     @staticmethod
     def attached_to(obj: db.Base) -> list["Tag"]:
