@@ -42,6 +42,7 @@ from bauble.test import BaubleTestCase
 from bauble.test import check_dupids
 from bauble.test import mockfunc
 from bauble.test import update_gui
+from bauble.view import get_search_view
 
 from ..plants import test_plants as plants_test
 from ..plants.family import Family
@@ -5435,21 +5436,21 @@ class GlobalActionTests(BaubleTestCase):
 
     @unittest.mock.patch("bauble.gui")
     def test_on_sort_toggled(self, mock_gui):
-        search_view = bauble.ui.SearchView()
-        search_view.update = unittest.mock.Mock()
+        search_view = get_search_view()
         mock_gui.get_view.return_value = search_view
         mock_action = unittest.mock.Mock()
         mock_variant = unittest.mock.Mock()
-
         mock_variant.get_boolean.return_value = True
-        GardenPlugin.on_sort_toggled(mock_action, mock_variant)
-        # search_view.update.assert_called()
+
+        with unittest.mock.patch.object(search_view, "update") as mock_update:
+            GardenPlugin.on_sort_toggled(mock_action, mock_variant)
+            mock_update.assert_called()
+
         self.assertTrue(prefs.prefs.get(SORT_BY_PREF))
 
         mock_gui.get_view.reset_mock()
         mock_variant.get_boolean.return_value = False
         GardenPlugin.on_sort_toggled(mock_action, mock_variant)
-        search_view.update.assert_called()
         self.assertFalse(prefs.prefs.get(SORT_BY_PREF))
 
     def test_set_code_format_default(self):

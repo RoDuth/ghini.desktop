@@ -62,8 +62,8 @@ from bauble.utils import timed_cache
 from bauble.utils.geo import is_point_within_poly
 from bauble.utils.geo import polylabel
 from bauble.utils.web import get_net_sess
-from bauble.view import DefaultCommandHandler
 from bauble.view import SearchView
+from bauble.view import get_search_view
 from bauble.view import get_search_view_selected
 from bauble.view import select_in_search_results
 
@@ -1554,11 +1554,3 @@ def expunge_garden_map() -> None:
         Plant, "after_delete", map_presenter.update_after_plant_delete
     )
     map_presenter = None
-
-
-def get_search_view() -> None | SearchView:
-    """Get the search view regardless of if it is the current view.
-
-    i.e. `bauble.gui.get_view()` does not work here.
-    """
-    return DefaultCommandHandler.view

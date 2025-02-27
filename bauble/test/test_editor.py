@@ -321,9 +321,9 @@ class PictureBoxTests(BaubleTestCase):
     @mock.patch(
         "bauble.utils.yes_no_dialog", return_value=Gtk.ResponseType.YES
     )
-    @mock.patch("bauble.editor.DefaultCommandHandler")
+    @mock.patch("bauble.editor.get_search_view")
     def test_picture_box_on_notes_remove_button_empty_entry(
-        self, mock_handler, mock_dlog
+        self, mock_get_sv, mock_dlog
     ):
         temp = tempfile.mkdtemp()
         prefs.prefs[prefs.root_directory_pref] = temp
@@ -341,16 +341,14 @@ class PictureBoxTests(BaubleTestCase):
         box.on_notes_remove_button(None)
         mock_dlog.assert_not_called()
         self.assertNotIn(self.model, presenter.notes)
-        self.assertEqual(
-            mock_handler().get_view().pictures_scroller.selection, []
-        )
+        self.assertEqual(mock_get_sv().pictures_scroller.selection, [])
 
     @mock.patch(
         "bauble.utils.yes_no_dialog", return_value=Gtk.ResponseType.YES
     )
-    @mock.patch("bauble.editor.DefaultCommandHandler")
+    @mock.patch("bauble.editor.get_search_view")
     def test_picture_box_on_notes_remove_button_removes_image(
-        self, mock_handler, mock_dlog
+        self, mock_get_sv, mock_dlog
     ):
         temp = tempfile.mkdtemp()
         prefs.prefs[prefs.root_directory_pref] = temp
@@ -385,16 +383,14 @@ class PictureBoxTests(BaubleTestCase):
         )
         msg = mock_dlog.call_args.args[0]
         self.assertNotIn("the same file", msg)
-        self.assertEqual(
-            mock_handler().get_view().pictures_scroller.selection, []
-        )
+        self.assertEqual(mock_get_sv().pictures_scroller.selection, [])
 
     @mock.patch(
         "bauble.utils.yes_no_dialog", return_value=Gtk.ResponseType.YES
     )
-    @mock.patch("bauble.editor.DefaultCommandHandler")
+    @mock.patch("bauble.editor.get_search_view")
     def test_picture_box_remove_others_same_type_warns(
-        self, _mock_handler, mock_dlog
+        self, _mock_get_sv, mock_dlog
     ):
         for func in get_setUp_data_funcs():
             func()
@@ -459,9 +455,9 @@ class PictureBoxTests(BaubleTestCase):
     @mock.patch(
         "bauble.utils.yes_no_dialog", return_value=Gtk.ResponseType.YES
     )
-    @mock.patch("bauble.editor.DefaultCommandHandler")
+    @mock.patch("bauble.editor.get_search_view")
     def test_picture_box_remove_others_dif_types_warns(
-        self, _mock_handler, mock_dlog
+        self, _mock_get_sv, mock_dlog
     ):
         for func in get_setUp_data_funcs():
             func()

@@ -1720,7 +1720,6 @@ class GlobalFunctionsTest(BaubleTestCase):
         self.assertFalse(SearchViewMapPresenter.is_visible())
 
         setup_garden_map()
-        search_view = DefaultCommandHandler().get_view()
         search_view.pic_pane_notebook.set_current_page(0)
 
         self.assertEqual(search_view.pic_pane_notebook.get_n_pages(), 2)

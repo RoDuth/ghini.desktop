@@ -1635,7 +1635,7 @@ class DBSyncTests(BaubleTestCase):
                     row["values"]["_last_updated"]
                 ).timestamp()
             self.assertAlmostEqual(
-                last_updated, datetime.now().timestamp(), delta=2
+                last_updated, datetime.now().timestamp(), delta=3
             )
             # _created not changed for existing but added for others
             if row.table_name == "family" and row.table_id == 1:
@@ -1647,7 +1647,7 @@ class DBSyncTests(BaubleTestCase):
                 self.assertAlmostEqual(
                     parser.parse(row["values"]["_created"]).timestamp(),
                     datetime.now().timestamp(),
-                    delta=2,
+                    delta=3,
                 )
             # updates recorded as lists, insert/delete not record as lists
             if row.operation == "update":

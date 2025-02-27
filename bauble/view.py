@@ -2544,3 +2544,10 @@ class DefaultCommandHandler(pluginmgr.CommandHandler):
 
     def __call__(self, cmd, arg):
         self.view.search(arg)
+
+
+def get_search_view() -> SearchView:
+    """A convenience function that, regardless of the current view, returns the
+    global SearchView instance.
+    """
+    return DefaultCommandHandler().get_view()

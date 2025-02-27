@@ -557,7 +557,7 @@ class GUITests(BaubleTestCase):
         first_view = gui.get_view()
 
         # set to SearchView
-        search_view = view.SearchView()
+        search_view = view.get_search_view()
         gui.set_view(search_view)
         self.assertIsInstance(gui.get_view(), view.SearchView)
         second_view = gui.get_view()
@@ -599,6 +599,9 @@ class GUITests(BaubleTestCase):
             [type(i).__name__ for i in gui.views],
             ["DefaultView", "SearchView", "HistoryView"],
         )
+
+        # teardown
+        search_view.get_parent().remove(search_view)
 
     def test_add_remove_menu(self):
         gui = GUI()
@@ -651,28 +654,29 @@ class GUITests(BaubleTestCase):
         mock_editor.assert_called_once()
 
         # function with SeachView
-        search_view = view.SearchView()
-        search_view.expand_to_all_rows = mock.Mock()
+        search_view = view.get_search_view()
         gui.set_view(search_view)
         mock_editor.reset_mock()
-        gui.on_insert_menu_item_activate(None, None, mock_editor)
+        with mock.patch.object(search_view, "expand_to_all_rows") as mock_expd:
+            gui.on_insert_menu_item_activate(None, None, mock_editor)
+            mock_expd.assert_called_once()
         mock_editor.assert_called_once()
-        search_view.expand_to_all_rows.assert_called_once()
 
         # class with SeachView
-        search_view = view.SearchView()
-        search_view.expand_to_all_rows = mock.Mock()
-        gui.set_view(search_view)
         mock_editor = mock.Mock()
         mock_editor.__name__ = "test"
-        # we know that mock_editor will not be garbage collected (mocking here
-        # avoids ReferenceError: weakly-referenced object no longer exists)
-        mock_gc_objects.assert_not_called()
-        mock_gc_objects.return_value = []
-        gui.on_insert_menu_item_activate(None, None, mock_editor)
-        mock_gc_objects.assert_called()
-        mock_editor.assert_called_once()
-        search_view.expand_to_all_rows.assert_called_once()
+        with mock.patch.object(search_view, "expand_to_all_rows") as mock_expd:
+            # we know that mock_editor will not be garbage collected (mocking
+            # here avoids ReferenceError: weakly-referenced object no longer
+            # exists)
+            mock_gc_objects.assert_not_called()
+            mock_gc_objects.return_value = []
+            gui.on_insert_menu_item_activate(None, None, mock_editor)
+            mock_gc_objects.assert_called()
+            mock_expd.assert_called_once()
+
+        # teardown
+        search_view.get_parent().remove(search_view)
 
     def test_cut_copy_paste(self):
         gui = GUI()
