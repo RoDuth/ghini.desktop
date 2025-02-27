@@ -1148,7 +1148,14 @@ class SearchView(pluginmgr.View, Gtk.Box):
         logger.debug("SearchView::__init__")
         super().__init__()
 
-        self.create_gui()
+        column = cast(Gtk.TreeViewColumn, self.results_view.get_column(0))
+        renderer = cast(Gtk.CellRendererText, column.get_cells()[0])
+        column.set_cell_data_func(renderer, self.cell_data_func)
+
+        self.selection = self.results_view.get_selection()
+        self._sc_sid = self.selection.connect(
+            "changed", self.on_selection_changed
+        )
 
         self.add_pic_pane_notebook_pages()
 
@@ -1600,39 +1607,49 @@ class SearchView(pluginmgr.View, Gtk.Box):
             child = model.iter_nth_child(parent, nkids - 1)
             model.remove(child)
 
-    def on_test_expand_row(self, view, treeiter, path):
+    @Gtk.Template.Callback()
+    def on_test_expand_row(
+        self,
+        treeview: Gtk.TreeView,
+        treeiter: Gtk.TreeIter,
+        path: Gtk.TreePath,
+    ) -> bool:
         """Look up the table type of the selected row and if it has any
         children then add them to the row.
         """
-        model = view.get_model()
-        row = model.get_value(treeiter, 0)
-        view.collapse_row(path)
+        model = cast(Gtk.TreeStore, treeview.get_model())
+        obj = model.get_value(treeiter, 0)
+        treeview.collapse_row(path)
         self.remove_children(model, treeiter)
+
         try:
-            kids = self.row_meta[type(row)].get_children(row)
+            kids = self.row_meta[type(obj)].get_children(obj)
+
             if len(kids) == 0:
                 return True
+
             sorter = utils.natsort_key
             if len({type(i) for i in kids}) == 1:
                 sorter = self.row_meta[type(kids[0])].sorter
+
         except saexc.InvalidRequestError as e:
             logger.debug("on_test_expand_row: %s:%s", type(e).__name__, e)
-            model = self.results_view.get_model()
-            for found in utils.search_tree_model(model, row):
+
+            # model no longer in database, remove
+            for found in utils.search_tree_model(model, obj):
                 model.remove(found)
+
             return True
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught
             logger.debug("on_test_expand_row: %s:%s", type(e).__name__, e)
             logger.debug(traceback.format_exc())
             return True
+
         self.append_children(model, treeiter, sorted(kids, key=sorter))
         return False
 
-    def populate_results(self, results):
-        """Adds results to the search view in a task.
-
-        :param results: a list or list-like object
-        """
+    def populate_results(self, results: Sequence[db.Base]) -> None:
+        """Adds results to the search view."""
         # don't bother with a task if the results are small,
         # this keeps the screen from flickering when the main
         # window is set to a busy state
@@ -1832,6 +1849,7 @@ class SearchView(pluginmgr.View, Gtk.Box):
         for path in expanded_rows:
             self.results_view.expand_to_path(path)
 
+    @Gtk.Template.Callback()
     def on_view_button_press(self, view, event):
         """Ignore the mouse right-click event.
 
@@ -1863,6 +1881,7 @@ class SearchView(pluginmgr.View, Gtk.Box):
             return True
         return False
 
+    @Gtk.Template.Callback()
     def on_view_button_release(self, view, event):
         """right-mouse-button release.
 
@@ -1948,6 +1967,7 @@ class SearchView(pluginmgr.View, Gtk.Box):
         if path is not None:
             self.results_view.set_cursor(path)
 
+    @Gtk.Template.Callback()
     def on_view_row_activated(
         self,
         view: Gtk.TreeView,
@@ -1971,41 +1991,6 @@ class SearchView(pluginmgr.View, Gtk.Box):
 
         if call_back := self.row_meta[type(selected[0])].activated_callback:
             call_back(selected)
-
-    def create_gui(self):
-        """Create the interface."""
-        logger.debug("SearchView::create_gui")
-        # create the results view and info box
-        self.results_view.set_headers_visible(False)
-        self.results_view.set_fixed_height_mode(True)
-
-        self.selection = self.results_view.get_selection()
-        self.selection.set_mode(Gtk.SelectionMode.MULTIPLE)
-        self.results_view.set_rubber_banding(True)
-
-        renderer = Gtk.CellRendererText()
-        renderer.set_fixed_height_from_font(2)
-        renderer.set_property("ellipsize", Pango.EllipsizeMode.END)
-        column = Gtk.TreeViewColumn("Name", renderer)
-        column.set_sizing(Gtk.TreeViewColumnSizing.FIXED)
-        column.set_cell_data_func(renderer, self.cell_data_func)
-        self.results_view.append_column(column)
-
-        # view signals
-        self._sc_sid = self.selection.connect(
-            "changed", self.on_selection_changed
-        )
-
-        self.results_view.connect("test-expand-row", self.on_test_expand_row)
-
-        self.results_view.connect(
-            "button-press-event", self.on_view_button_press
-        )
-        self.results_view.connect(
-            "button-release-event", self.on_view_button_release
-        )
-
-        self.results_view.connect("row-activated", self.on_view_row_activated)
 
 
 def get_search_view_selected() -> list[db.Base] | None:

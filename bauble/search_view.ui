@@ -31,8 +31,27 @@
                       <object class="GtkTreeView" id="results_view">
                         <property name="visible">True</property>
                         <property name="can-focus">True</property>
+                        <property name="headers-visible">False</property>
+                        <property name="fixed-height-mode">True</property>
+                        <property name="rubber-banding">True</property>
+                        <signal name="button-press-event" handler="on_view_button_press" swapped="no"/>
+                        <signal name="button-release-event" handler="on_view_button_release" swapped="no"/>
+                        <signal name="row-activated" handler="on_view_row_activated" swapped="no"/>
+                        <signal name="test-expand-row" handler="on_test_expand_row" swapped="no"/>
                         <child internal-child="selection">
-                          <object class="GtkTreeSelection"/>
+                          <object class="GtkTreeSelection">
+                            <property name="mode">multiple</property>
+                          </object>
+                        </child>
+                        <child>
+                          <object class="GtkTreeViewColumn">
+                            <property name="sizing">fixed</property>
+                            <child>
+                              <object class="GtkCellRendererText">
+                                <property name="ellipsize">end</property>
+                              </object>
+                            </child>
+                          </object>
                         </child>
                       </object>
                     </child>
@@ -77,9 +96,6 @@
                       <placeholder/>
                     </child>
                   </object>
-                  <packing>
-                    <property name="position">0</property>
-                  </packing>
                 </child>
                 <child type="tab">
                   <object class="GtkLabel">
