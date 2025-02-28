@@ -57,6 +57,7 @@ from bauble.view import PicturesScroller
 from bauble.view import PropertiesExpander
 from bauble.view import _mainstr_tmpl
 from bauble.view import _substr_tmpl
+from bauble.view import get_search_view
 from bauble.view import get_search_view_selected
 from bauble.view import multiproc_counter
 from bauble.view import select_in_search_results
@@ -144,7 +145,7 @@ class TestMultiprocCounter(BaubleTestCase):
 class TestSearchView(BaubleTestCase):
     def setUp(self):
         super().setUp()
-        self.search_view = DefaultCommandHandler().get_view()
+        self.search_view = get_search_view()
 
     def tearDown(self):
         self.search_view.infobox = None
@@ -1698,7 +1699,7 @@ class TestPicturesScroller(BaubleTestCase):
         # no search results
         with mock.patch("bauble.gui") as mock_gui:
             mock_gui.window.get_size().width = 1000
-            search_view = DefaultCommandHandler().get_view()
+            search_view = get_search_view()
             search_view.infobox = None
             mock_gui.get_view.return_value = search_view
             PicturesScroller(
@@ -1912,7 +1913,7 @@ class TestPicturesScroller(BaubleTestCase):
         picture_scroller = PicturesScroller(parent=pics_box, pic_pane=pic_pane)
         picture_scroller.set_selection = mock.Mock()
         # species selected should traverse
-        search_view = DefaultCommandHandler().get_view()
+        search_view = get_search_view()
         search_view.pictures_scroller = picture_scroller
         search_view.history_action = mock.Mock()
         search_view.populate_results([plt2.accession.species])
@@ -2052,7 +2053,7 @@ class GlobalFunctionsTests(BaubleTestCase):
     def test_select_in_search_results_selects_existing(self):
         for func in get_setUp_data_funcs():
             func()
-        search_view = DefaultCommandHandler().get_view()
+        search_view = get_search_view()
         search_view.history_action = mock.Mock()
         search_view.search("genus where id <= 3")
         start = search_view.get_selected_values()
@@ -2069,7 +2070,7 @@ class GlobalFunctionsTests(BaubleTestCase):
     def test_get_search_view_selected(self, mock_gui):
         for func in get_setUp_data_funcs():
             func()
-        search_view = DefaultCommandHandler().get_view()
+        search_view = get_search_view()
         search_view.search("plant=*")
         self.assertTrue(search_view.get_selected_values())
 
@@ -2082,7 +2083,7 @@ class GlobalFunctionsTests(BaubleTestCase):
     def test_select_in_search_results_adds_not_existing(self):
         for func in get_setUp_data_funcs():
             func()
-        search_view = DefaultCommandHandler().get_view()
+        search_view = get_search_view()
         search_view.history_action = mock.Mock()
         search_view.search("genus where id <= 3")
         start = search_view.get_selected_values()
