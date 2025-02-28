@@ -2001,6 +2001,13 @@ def get_search_view_selected() -> list[db.Base] | None:
     return selected
 
 
+class Note(Protocol):
+    date: datetime
+    user: str
+    category: str
+    note: str
+
+
 @Gtk.Template(filename=str(Path(paths.lib_dir(), "notes_page.ui")))
 class NotesBottomPage(Gtk.ScrolledWindow):
     """Page to append to ``SearchView.bottom_notebook``, shows selected
@@ -2025,7 +2032,10 @@ class NotesBottomPage(Gtk.ScrolledWindow):
         self.domain = row.__class__.__name__.lower() if row else ""
 
         self.liststore.clear()
-        notes = row.notes if hasattr(row, "notes") else []
+
+        notes: list[Note] = []
+        if hasattr(row, "notes") and isinstance(row.notes, list):
+            notes = row.notes or notes
 
         for note in sorted(notes, key=lambda note: note.date, reverse=True):
             date = note.date.strftime(prefs.prefs.get(prefs.date_format_pref))
@@ -2276,6 +2286,7 @@ class HistoryView(pluginmgr.View, Gtk.Box):
             selected.table_id,
         )
 
+        rows = 0
         if db.Session:
             with db.Session() as session:
                 rows = (
