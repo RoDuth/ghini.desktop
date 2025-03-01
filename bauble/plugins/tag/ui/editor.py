@@ -114,9 +114,6 @@ class TagItemsDialog(Gtk.Dialog):
         edit_func: Callable[[Sequence[Tag]], None] | None = None,
     ) -> None:
         """create a new tag"""
-        if not db.Session:
-            logger.warning("No session bailing.")
-            return
 
         editor_func = edit_func or edit_callback
 
@@ -156,9 +153,6 @@ class TagItemsDialog(Gtk.Dialog):
 
     def start(self) -> None:
 
-        if not db.Session:
-            return
-
         tag_all, tag_some = get_tag_ids(self.selected)
 
         model = self.tag_tree.get_model()
@@ -188,9 +182,6 @@ class TagItemsDialog(Gtk.Dialog):
         *,
         yn_dialog: Callable[[str], bool] | None = None,
     ) -> None:
-
-        if not db.Session:
-            return
 
         model = tree_iter = tag_name = None
         if self.selected_model_row:

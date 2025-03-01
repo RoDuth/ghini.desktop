@@ -287,14 +287,13 @@ def get_next_code(acc: Accession) -> str:
         frmt = frmt_meta.value
 
     codes = [("",)]
-    if db.Session:
-        with db.Session() as session:
-            codes = (
-                session.query(Plant.code)
-                .join(Accession)
-                .filter(Accession.id == acc.id)
-                .all()
-            )
+    with db.Session() as session:
+        codes = (
+            session.query(Plant.code)
+            .join(Accession)
+            .filter(Accession.id == acc.id)
+            .all()
+        )
 
     if frmt == "alpha_lower":
         return get_next_aplha_lower_code(codes)

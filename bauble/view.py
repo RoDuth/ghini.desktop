@@ -1160,9 +1160,6 @@ class SearchView(pluginmgr.View, Gtk.Box):
     def __init__(self) -> None:
         logger.debug("SearchView::__init__")
 
-        if db.Session is None:
-            raise DatabaseError("Unable to connect to a database!")
-
         super().__init__()
 
         column = cast(Gtk.TreeViewColumn, self.results_view.get_column(0))
@@ -1538,9 +1535,6 @@ class SearchView(pluginmgr.View, Gtk.Box):
         self.has_kids.clear_cache()  # pylint: disable=no-member
         self.count_kids.clear_cache()  # pylint: disable=no-member
         self.get_markup_pair.clear_cache()  # pylint: disable=no-member
-
-        if db.Session is None:
-            raise DatabaseError("Unable to connect to a database!")
 
         self.session = db.Session()
         # clear last result
@@ -2357,13 +2351,12 @@ class HistoryView(pluginmgr.View, Gtk.Box):
         )
 
         rows = 0
-        if db.Session:
-            with db.Session() as session:
-                rows = (
-                    session.query(db.History)
-                    .filter(db.History.id >= selected.id)
-                    .count()
-                )
+        with db.Session() as session:
+            rows = (
+                session.query(db.History)
+                .filter(db.History.id >= selected.id)
+                .count()
+            )
 
         msg = (
             _(
@@ -2503,15 +2496,14 @@ class HistoryView(pluginmgr.View, Gtk.Box):
         self.last_row_in_tree = 0
         self.last_arg = args[0] or ""
 
-        if db.Session:
-            with db.Session() as session:
-                clone_hist_id = (
-                    session.query(BaubleMeta.value)
-                    .filter(BaubleMeta.name == "clone_history_id")
-                    .scalar()
-                )
-                self.clone_hist_id = int(clone_hist_id or 0)
-                self.hist_count = self.query(session).count()
+        with db.Session() as session:
+            clone_hist_id = (
+                session.query(BaubleMeta.value)
+                .filter(BaubleMeta.name == "clone_history_id")
+                .scalar()
+            )
+            self.clone_hist_id = int(clone_hist_id or 0)
+            self.hist_count = self.query(session).count()
 
         logger.debug("hist_count = %s", self.hist_count)
         self.add_rows()
@@ -2526,8 +2518,6 @@ class HistoryView(pluginmgr.View, Gtk.Box):
 
     def add_rows(self) -> None:
         """Add a batch of rows to the view."""
-        if not db.Session:
-            return
         try:
             with db.Session() as session:
                 query = self.query(session)

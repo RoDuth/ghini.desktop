@@ -855,8 +855,6 @@ class PlantsPlugin(pluginmgr.Plugin):
 
     @staticmethod
     def register_custom_column(column_name: str) -> None:
-        if not db.Session:
-            return
         logger.debug("register custom column: %s", column_name)
         session = db.Session()
         custom_meta = (

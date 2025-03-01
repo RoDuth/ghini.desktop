@@ -55,6 +55,7 @@ from bauble import meta
 from bauble import paths
 from bauble import pluginmgr
 from bauble import utils
+from bauble.error import DatabaseError
 from bauble.i18n import _
 
 testing = os.environ.get("BAUBLE_TEST")  # set this to True when testing
@@ -389,9 +390,10 @@ class _prefs(UserDict):
         NOTE: If the database is not yet connected (i.e. connmgr) returns
         default.
         """
-        if db.Session:
+        try:
             return meta.get_cached_value(name) or default
-        return default
+        except DatabaseError:
+            return default
 
     @property
     def root_directory(self):

@@ -24,7 +24,6 @@ Tag editor tests
 from unittest import mock
 
 from gi.repository import Gtk
-from sqlalchemy.exc import SQLAlchemyError
 
 import bauble
 from bauble.error import BaubleError
@@ -188,19 +187,6 @@ class TagItemsDialogTests(BaubleTestCase):
 
         dialog.destroy()
 
-    def test_start_dialog_no_session_bails(self):
-        fam = Family(epithet="Myrtaceae")
-        self.session.add(fam)
-        dialog = TagItemsDialog([fam])
-        dialog.run = mock.Mock()
-
-        with mock.patch("bauble.db.Session", None):
-            dialog.start()
-
-        dialog.run.assert_not_called()
-
-        dialog.destroy()
-
     def test_start_dialog_no_tree_model_bails(self):
         fam = Family(epithet="Myrtaceae")
         self.session.add(fam)
@@ -245,19 +231,6 @@ class TagItemsDialogTests(BaubleTestCase):
         dialog.on_new_button_clicked(edit_func=mock_editor)
 
         self.assertEqual(len(dialog.tag_tree.get_model()), 1)
-
-        dialog.destroy()
-
-    def test_on_new_button_no_session_bails(self):
-        fam = Family(epithet="Myrtaceae")
-        dialog = TagItemsDialog([fam])
-        mock_editor = mock.Mock(return_value=Gtk.ResponseType.OK)
-
-        with mock.patch("bauble.db.Session", None):
-            dialog.on_new_button_clicked(edit_func=mock_editor)
-
-        mock_editor.assert_not_called()
-        self.assertEqual(len(dialog.tag_tree.get_model()), 0)
 
         dialog.destroy()
 
@@ -359,28 +332,6 @@ class TagItemsDialogTests(BaubleTestCase):
         dialog.on_delete_button_clicked(None, yn_dialog=mock_yn_dialog)
 
         mock_yn_dialog.assert_called()
-        self.assertEqual(len(self.session.query(Tag).all()), 1)
-
-        dialog.destroy()
-
-    def test_on_delete_button_clicked_bails_no_session(self):
-        tag = Tag(tag="foo")
-        fam = Family(epithet="Myrtaceae")
-        self.session.add_all([fam, tag])
-        self.session.commit()
-        dialog = TagItemsDialog([fam])
-        dialog.run = mock.Mock()
-        dialog.start()
-        self.assertFalse(dialog.delete_button.get_sensitive())
-        self.assertIsNone(dialog.selected_model_row)
-        dialog.tag_tree.get_selection().select_path(Gtk.TreePath.new_first())
-        self.assertEqual(len(self.session.query(Tag).all()), 1)
-        mock_yn_dialog = mock.Mock()
-
-        with mock.patch("bauble.db.Session", None):
-            dialog.on_delete_button_clicked(None, yn_dialog=mock_yn_dialog)
-
-        mock_yn_dialog.assert_not_called()
         self.assertEqual(len(self.session.query(Tag).all()), 1)
 
         dialog.destroy()

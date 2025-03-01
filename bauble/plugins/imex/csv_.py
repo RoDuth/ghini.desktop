@@ -717,9 +717,6 @@ class CSVRestore:
                     pb_set_fraction(fraction)
                     yield
 
-        if db.Session is None:
-            raise ValueError("db.Session is None")
-
         session = db.Session()
         translator = {}
         # make sure to get the right count

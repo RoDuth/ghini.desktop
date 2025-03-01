@@ -105,16 +105,6 @@ class TagMenuTests(BaubleTestCase):
         self.assertEqual(tags_mm.menu_pos, 6)
         mock_gui.remove_menu.assert_called()
 
-    def test_reset_active_tag_name_session_is_none_bails(self):
-        tags_mm = _TagsMenuManager()
-        self.assertIsNone(tags_mm.active_tag_name)
-        with mock.patch("bauble.db.Session", None):
-            with self.assertLogs(level="WARNING") as logs:
-                tags_mm.reset_active_tag_name()
-            self.assertIsNone(tags_mm.active_tag_name)
-            string = "no session bailing."
-            self.assertTrue(any(string in i for i in logs.output))
-
     def test_reset_active_tag_name_resets_if_none_or_invalid(self):
         t1 = Tag(tag="tag-1")
         t2 = Tag(tag="tag-2")

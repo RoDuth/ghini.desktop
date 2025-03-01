@@ -5034,9 +5034,6 @@ class AccessionGetNextCodeTests(GardenTestCase):
         bad_vals += ["N", "O", "P", "Q", "R", "T", "V", "$", "*", ")", "-"]
         for i in bad_vals:
             self.assertIsNone(Accession.get_next_code("%" + i + ".#"))
-        # test the type guard
-        db.Session = None
-        self.assertEqual(Accession.get_next_code("%Y###"), None)
 
 
 class SourceDetailTests(GardenTestCase):

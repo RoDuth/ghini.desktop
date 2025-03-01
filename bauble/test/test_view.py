@@ -162,7 +162,7 @@ class TestSearchView(BaubleTestCase):
         super().tearDown()
 
     def test_init_no_db_raises(self):
-        with mock.patch("bauble.view.db.Session", None):
+        with mock.patch("bauble.view.db._Session", None):
 
             self.assertRaises(error.DatabaseError, SearchView)
 
@@ -542,11 +542,6 @@ class TestSearchView(BaubleTestCase):
         mock_callback.side_effect = ValueError("boom")
         search_view.on_action_activate(None, None, mock_callback)
         mock_dialog.assert_called_with("boom", mock.ANY, Gtk.MessageType.ERROR)
-
-    def test_reset_raises_no_db(self):
-        # raises if no DB
-        with mock.patch("bauble.view.db.Session", None):
-            self.assertRaises(error.DatabaseError, self.search_view._reset)
 
     def test_reset_calls_populate_callbacks_w_empty_list(self):
         # raises if no DB
@@ -2032,18 +2027,11 @@ class TestHistoryView(BaubleTestCase):
     @mock.patch("bauble.gui")
     @mock.patch("bauble.view.HistoryView.show_error_box")
     def test_add_rows_w_exception(self, mock_show_error, _mock_gui):
-        db.Session = mock.Mock()
-        db.Session.side_effect = ValueError("boom")
+        db._Session = mock.Mock()
+        db._Session.side_effect = ValueError("boom")
         hist_view = HistoryView()
         hist_view.add_rows()
         mock_show_error.assert_called()
-
-    def test_add_rows_w_no_session(self):
-        # type guard
-        db.Session = None
-        hist_view = HistoryView()
-        with self.assertNoLogs(level="DEBUG"):
-            hist_view.add_rows()
 
     @mock.patch("bauble.gui")
     def test_show_error_box(self, mock_gui):

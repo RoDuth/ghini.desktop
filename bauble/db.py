@@ -111,22 +111,38 @@ connection to the database.
 """
 
 
-Session: type[SASession] | None = None
-"""
-bauble.db.Session is created after the database has been opened with
-:func:`bauble.db.open_conn()`. bauble.db.Session should be used when you need
-to do ORM based activities on a bauble database.  To create a new
-Session use::Uncategorized
+_Session: type[SASession] | None = None
+"""``bauble.db._Session`` is created after the database has been opened with
+:func:``bauble.db.open_conn()``.
 
-    session = bauble.db.Session()
-
-When you are finished with the session be sure to close the session
-with :func:`session.close()`. Failure to close sessions can lead to
-database deadlocks, particularly when using PostgreSQL based
-databases.
+It is preferable to use ``bauble.db.Session``.
 """
 
 DBase = declarative_base()
+
+
+def Session() -> SASession:  # pylint: disable=invalid-name
+    """For use when you need to do ORM based activities on a bauble database.
+    To create a new Session use::
+
+        session = Session()
+
+    When you are finished with the session be sure to close the session
+    with ``session.close()``. Failure to close sessions can lead to database
+    deadlocks.
+
+    Or, use it as a context manager to ensure it is closed after use, i.e.::
+
+        with Session() as session:
+            ...
+
+    :raises DatabaseError: if no database is connected.
+    """
+    if _Session:
+        return _Session()  # pylint: disable=not-callable
+    raise error.DatabaseError(
+        "No session available, not currently connected to a database"
+    )
 
 
 class Base(DBase):
@@ -477,13 +493,13 @@ def open_conn(uri, verify=True, show_error_dialogs=False, poolclass=None):
 
     def _bind():
         """bind metadata to engine and create sessionmaker"""
-        global Session, engine
+        global _Session, engine
         engine = new_engine
         metadata.bind = engine  # make engine implicit for metadata
 
         # autoflush=False required or can not put an empty object into the
         # session (as is done in the editors), will get NOT NULL, etc. errors
-        Session = sessionmaker(bind=engine, autoflush=False)
+        _Session = sessionmaker(bind=engine, autoflush=False)
 
     if new_engine is not None and not verify:
         _bind()

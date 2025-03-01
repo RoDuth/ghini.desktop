@@ -1416,17 +1416,13 @@ class GenericEditorPresenter:
                 logger.debug("%s(%s)", type(e).__name__, e)
 
             if self.session is None:  # object_session gave None without error
-                if db.Session is not None:
-                    logger.debug("creating own session")
-                    self.session = db.Session()
-                    self.owns_session = True
-                    if isinstance(model, db.Base):
-                        logger.debug("merging model into own session")
-                        # creates a new object if it is new
-                        self.model = model = self.session.merge(model)
-                else:
-                    logger.debug("db.Session was None, cannot get a session.")
-                    self.session = None
+                logger.debug("creating own session")
+                self.session = db.Session()
+                self.owns_session = True
+                if isinstance(model, db.Base):
+                    logger.debug("merging model into own session")
+                    # creates a new object if it is new
+                    self.model = model = self.session.merge(model)
 
         if view:
             view.accept_buttons = self.view_accept_buttons

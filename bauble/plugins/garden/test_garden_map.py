@@ -1101,10 +1101,6 @@ class TestSearchViewMapPresenter(BaubleTestCase):
         prefs.prefs[MAP_LOCATION_COLOUR_PREF_KEY] = "rainbow"
         polys4 = get_locations_polys()
         self.assertEqual(len(polys4), len(polys3))
-        # test doesn't fail if db.Session is None (instead returns {})
-        get_locations_polys.clear_cache()
-        db.Session = None
-        self.assertEqual(get_locations_polys(), {})
         expunge_garden_map()
 
     def test_add_locations(self):

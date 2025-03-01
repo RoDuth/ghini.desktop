@@ -578,8 +578,6 @@ def get_viewbox(
 @utils.timed_cache(size=3, secs=None)
 def get_world_paths(fill: str, pacific_centric: bool) -> str:
     """All continent level WGSRPD areas as an string of SVG paths."""
-    if db.Session is None:
-        raise error.DatabaseError("db.Session is None")
     svg_paths = []
     with db.Session() as session:
         for geo in session.query(Geography).filter_by(level=1):
@@ -617,8 +615,6 @@ class DistributionMap:
 
     def __init__(self, ids: Sequence[int]) -> None:
         # Use a separate session to avoid triggering history pointlessly
-        if db.Session is None:
-            raise error.DatabaseError("db.Session is None")
         self._area_ids = ids
         self.areas = self.get_areas()
         codes_str = "|".join(i.code for i in self.areas)
@@ -640,8 +636,6 @@ class DistributionMap:
         self._current_max_mins: tuple[float, float, float, float] | None = None
 
     def get_areas(self) -> Iterable[Geography]:
-        if db.Session is None:
-            raise error.DatabaseError("db.Session is None")
 
         with db.Session() as session:
             return (
@@ -1175,8 +1169,6 @@ def update_all_approx_areas_task(*_args: Any) -> Iterator[None]:
     Yields occassionally to update the progress bar
     """
 
-    if not db.Session:
-        return
     session = db.Session()
     query = session.query(Geography)
     count = query.count()

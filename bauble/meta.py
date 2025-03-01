@@ -182,12 +182,9 @@ def get_default(
     don't commit the session.
     """
     commit = False
-    if not session and db.Session:
+    if not session:
         session = db.Session()
         commit = True
-
-    if not session:
-        return None
 
     query = session.query(BaubleMeta)
     meta = query.filter_by(name=name).first()

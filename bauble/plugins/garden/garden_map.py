@@ -1355,8 +1355,6 @@ def get_locations_polys() -> dict[int, MapPoly]:
     """Independently search the database for all locations and generate MapPoly
     objects for any that have geojson polygons.
     """
-    if not db.Session:
-        return {}
     # NOTE used in test
     logger.debug("get_locations_polys - generating polygon map items")
 

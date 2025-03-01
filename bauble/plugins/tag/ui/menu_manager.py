@@ -97,10 +97,6 @@ class _TagsMenuManager:
 
     def reset_active_tag_name(self) -> None:
         """Reset the active tag to latest by ID if current is not valid."""
-        if not db.Session:
-            logger.warning("reset_active_tag_name: no session bailing.")
-            return
-
         with db.Session() as session:
             active = None
 
@@ -311,13 +307,12 @@ class _TagsMenuManager:
 
         tags_menu.append_item(add_tag_menu_item)
 
-        if db.Session:
-            with db.Session() as session:
-                query = session.query(Tag)
-                has_tags = query.first()
-                if has_tags:
-                    self.set_selection_tag_action()
-                    self.append_sections(tags_menu, query)
+        with db.Session() as session:
+            query = session.query(Tag)
+            has_tags = query.first()
+            if has_tags:
+                self.set_selection_tag_action()
+                self.append_sections(tags_menu, query)
 
         return tags_menu
 

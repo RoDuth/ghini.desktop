@@ -302,9 +302,6 @@ def get_binomial_completions(text: str) -> set[str]:
     sp_part = ""
     cv_part = ""
 
-    if not db.Session:
-        return set()
-
     with db.Session() as session:
         epithets = (
             session.query(

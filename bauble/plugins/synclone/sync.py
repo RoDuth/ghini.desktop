@@ -99,9 +99,6 @@ class ToSync(db.HistoryBase):
         clone_engine: Engine = create_engine(uri)
         batch_num_meta = meta.get_default("sync_batch_num", "1")
 
-        if not batch_num_meta:
-            raise error.DatabaseError("Not connected to a database")
-
         batch_num = batch_num_meta.value or ""
 
         history: Table = db.History.__table__

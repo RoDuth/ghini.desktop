@@ -91,7 +91,6 @@ from .geography import consolidate_geographies
 from .geography import consolidate_geographies_by_percent_area
 from .geography import get_species_in_geography
 from .geography import get_viewbox
-from .geography import get_world_paths
 from .geography import split_lats_longs
 from .geography import straddles_antimeridian
 from .geography import update_all_approx_areas_handler
@@ -3782,11 +3781,6 @@ class DistributionMapTests(BaubleClassTestCase):
         DistributionMap._world_pixbuf = None
         DistributionMap._image_cache = DistMapCache()
 
-    def test_no_session_raises(self):
-        # being a class test case need to mock db.Session
-        with mock.patch("bauble.plugins.plants.geography.db.Session", None):
-            self.assertRaises(error.DatabaseError, DistributionMap, [50])
-
     def test_world_template(self):
         # calling world generates the template
         dist = DistributionMap([682])
@@ -3849,17 +3843,6 @@ class DistributionMapTests(BaubleClassTestCase):
         update_gui()
         self.assertNotEqual(dist._world_pixbuf, dist.as_image().get_pixbuf())
 
-    def test_set_base_map_no_session(self):
-        # calling map (via __str__) populates
-        dist = DistributionMap([682])
-        self.assertFalse(dist._map)
-        get_world_paths.clear_cache()
-        orig_sess = db.Session
-        db.Session = None
-        with self.assertRaises(error.DatabaseError):
-            dist.map
-        db.Session = orig_sess
-
     def test_dist_map_cache(self):
         cache = DistMapCache()
         # load the cache
@@ -3918,11 +3901,6 @@ class DistributionMapTests(BaubleClassTestCase):
         self.assertEqual(
             [i.code for i in dist.get_areas()], ["MXI-RA", "NFK-NI"]
         )
-        # raises if no session
-        orig_sess = db.Session
-        db.Session = None
-        self.assertRaises(error.DatabaseError, dist.get_areas)
-        db.Session = orig_sess
 
     def test_zoom_map(self):
         dist = DistributionMap([657, 683])
@@ -4298,7 +4276,7 @@ class GeographyApproxAreaTests(BaubleTestCase):
             update_all_approx_areas_handler()
         mock_dialog.assert_called()
 
-    def test_update_all_approx_areas_task_no_session(self):
+    def test_update_all_approx_areas_task(self):
         geo = Geography(
             name="Lord Howe I.",
             code="NFK-LH",
@@ -4307,8 +4285,6 @@ class GeographyApproxAreaTests(BaubleTestCase):
         self.session.add(geo)
         self.session.commit()
         self.assertTrue(list(update_all_approx_areas_task()))
-        db.Session = None
-        self.assertFalse(list(update_all_approx_areas_task()))
 
     def test_get_approx_area_handles_holes(self):
         geojson = {
@@ -7105,8 +7081,6 @@ class GlobalFunctionsTest(PlantTestCase):
                 "Butyagrus nabonnandii",
             },
         )
-        db.Session = None
-        self.assertEqual(get_binomial_completions("cyn"), set())
 
 
 class GenusCompletionTests(PlantTestCase):

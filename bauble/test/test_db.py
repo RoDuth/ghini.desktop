@@ -30,6 +30,7 @@ from bauble import error
 from bauble import meta
 from bauble import prefs
 from bauble import utils
+from bauble.error import DatabaseError
 from bauble.plugins.garden.accession import Accession
 from bauble.plugins.garden.accession import AccessionNote
 from bauble.plugins.garden.accession import Plant
@@ -791,3 +792,11 @@ class GlobalFunctionsTests(BaubleTestCase):
         mock_connection = mock.Mock()
         db._sqlite_fk_pragma(mock_connection, None)
         mock_connection.cursor.assert_not_called()
+
+    def test_session_raises(self):
+        db._Session = None
+
+        self.assertRaises(DatabaseError, db.Session)
+        with self.assertRaises(DatabaseError):
+            with db.Session():
+                pass

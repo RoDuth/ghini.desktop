@@ -751,21 +751,20 @@ class Accession(db.Base, db.WithNotes):
         frmt = f"{start}%0{digits}d"
         logger.debug("get_next_code 2 frmt: %s", frmt)
         nxt = None
-        if db.Session:
-            with db.Session() as session:
-                if start:
-                    query = session.query(Accession.code).filter(
-                        Accession.code.startswith(start)
-                    )
-                else:
-                    query = session.query(Accession.code).filter(
-                        func.length(Accession.code) == digits
-                    )
-                if query.count() > 0:
-                    codes = [safe_int(row[0][len(start) :]) for row in query]
-                    nxt = frmt % (max(codes) + 1)
-                else:
-                    nxt = frmt % 1
+        with db.Session() as session:
+            if start:
+                query = session.query(Accession.code).filter(
+                    Accession.code.startswith(start)
+                )
+            else:
+                query = session.query(Accession.code).filter(
+                    func.length(Accession.code) == digits
+                )
+            if query.count() > 0:
+                codes = [safe_int(row[0][len(start) :]) for row in query]
+                nxt = frmt % (max(codes) + 1)
+            else:
+                nxt = frmt % 1
         logger.debug("get_next_code nxt: %s", nxt)
         return nxt
 
