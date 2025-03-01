@@ -235,14 +235,14 @@ class Location(db.Base, db.WithNotes):
             return session.query(cls).filter_by(**parts).one_or_none()
         return None
 
-    def search_view_markup_pair(self):
+    def search_view_markup_pair(self) -> tuple[str, str]:
         """provide the two lines describing object for SearchView row."""
         if self.description is not None:
             return (
                 utils.xml_safe(str(self)),
                 utils.xml_safe(str(self.description)),
             )
-        return utils.xml_safe(str(self))
+        return utils.xml_safe(str(self)), type(self).__name__
 
     @validates("code", "name")
     def validate_stripping(self, _key, value):

@@ -1850,24 +1850,30 @@ class SearchView(pluginmgr.View, Gtk.Box):
         """
         return obj.search_view_markup_pair()
 
-    def cell_data_func(self, _col, cell, model, treeiter, _data):
-        # now update the the cell
-        value = model[treeiter][0]
+    def cell_data_func(
+        self,
+        _col,
+        cell: Gtk.CellRendererText,
+        model: Gtk.TreeModel,
+        treeiter: Gtk.TreeIter,
+        _data,
+    ) -> None:
+        obj = model[treeiter][0]
 
         # could not find anything message.
-        if isinstance(value, str):
-            cell.set_property("markup", value)
+        if isinstance(obj, str):
+            cell.set_property("markup", obj)
             return
 
-        meta = self.row_meta[type(value)]
+        meta = self.row_meta[type(obj)]
         try:
             if self.refresh:
-                if meta.children is not None and self.has_kids(value):
+                if meta.children is not None and self.has_kids(obj):
                     path = model.get_path(treeiter)
                     # check if any items added/removed
                     if self.results_view.row_expanded(path):
                         if model.iter_n_children(treeiter) != self.count_kids(
-                            value
+                            obj
                         ):
                             logger.debug("cell_data_func: refreshing children")
                             self.on_test_expand_row(
@@ -1875,15 +1881,12 @@ class SearchView(pluginmgr.View, Gtk.Box):
                             )
                             self.results_view.expand_to_path(path)
                     elif not model.iter_has_child(treeiter):
-                        model.prepend(treeiter, ["-"])
+                        cast(Gtk.TreeStore, model).prepend(treeiter, ["-"])
                 else:
                     self.remove_children(model, treeiter)
-            rep = self.get_markup_pair(value)
-            try:
-                main, substr = rep
-            except ValueError:
-                main = rep
-                substr = f"({type(value).__name__})"
+
+            main, substr = self.get_markup_pair(obj)
+
             cell.set_property(
                 "markup",
                 f"{_mainstr_tmpl % utils.nstr(main)}\n"
@@ -1893,7 +1896,7 @@ class SearchView(pluginmgr.View, Gtk.Box):
         except (saexc.InvalidRequestError, ObjectDeletedError, TypeError) as e:
             logger.debug("cell_data_func: (%s)%s", type(e).__name__, e)
 
-            GLib.idle_add(self.remove_row, value)
+            GLib.idle_add(self.remove_row, obj)
 
         except Exception as e:
             logger.error("cell_data_func: (%s)%s", type(e).__name__, e)

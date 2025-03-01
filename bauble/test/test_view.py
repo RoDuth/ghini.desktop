@@ -922,6 +922,50 @@ class TestSearchView(BaubleTestCase):
         )
         mock_renderer.set_property.assert_called_with("markup", markup)
 
+    def test_cell_data_func_no_result(self):
+        search_view = self.search_view
+        search_view.search("genus where epithet = None")
+
+        mock_renderer = mock.Mock()
+        results_view = search_view.results_view
+        model = results_view.get_model()
+        tree_iter = model.get_iter(Gtk.TreePath.new_first())
+        search_view.cell_data_func(
+            results_view.get_column(0), mock_renderer, model, tree_iter, None
+        )
+        mock_renderer.set_property.assert_called()
+        markup = (
+            "<b>Could not find anything for search: &quot;genus where epithet "
+            "= None&quot;</b>"
+        )
+        mock_renderer.set_property.assert_called_with("markup", markup)
+
+    def test_cell_data_func_no_kids(self):
+        for func in get_setUp_data_funcs():
+            func()
+
+        search_view = self.search_view
+        search_view.search("plant where id = 1")
+
+        mock_renderer = mock.Mock()
+        results_view = search_view.results_view
+        model = results_view.get_model()
+        tree_iter = model.get_iter(Gtk.TreePath.new_first())
+        # delete item
+
+        with self.assertLogs(level="DEBUG") as logs:
+            search_view.cell_data_func(
+                results_view.get_column(0),
+                mock_renderer,
+                model,
+                tree_iter,
+                None,
+            )
+            update_gui()
+        self.assertTrue(
+            any("remove_children called" in i for i in logs.output)
+        )
+
     def test_cell_data_func_w_deleted(self):
         # as if another user had deleted an item we were also looking at.
         for func in get_setUp_data_funcs():
