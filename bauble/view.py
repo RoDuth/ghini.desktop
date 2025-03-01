@@ -1363,13 +1363,10 @@ class SearchView(pluginmgr.View, Gtk.Box):
             # an editor.  Editors will also call update from insert menu.
             self.update()
 
-    def update_context_menus(self, selected_values: list[db.Base]) -> None:
-        """Update the context menu dependant on selected values."""
+    def _add_meta_actions_to_context_menu(
+        self, selected_values: list[db.Base]
+    ) -> None:
 
-        self.context_menu_model.remove_all()
-
-        if not selected_values:
-            return
         selected_types = set(map(type, selected_values))
 
         selected_type = None
@@ -1405,6 +1402,13 @@ class SearchView(pluginmgr.View, Gtk.Box):
             else:
                 action.action.set_enabled(False)
 
+        for action_name in self.actions.copy():
+            if action_name not in current_actions:
+                if bauble.gui:
+                    bauble.gui.remove_action(action_name)
+                self.actions.remove(action_name)
+
+    def _add_copy_selection_to_context_menu(self) -> None:
         copy_selection_action_name = "copy_selection_strings"
 
         if bauble.gui and not bauble.gui.lookup_action(
@@ -1418,6 +1422,10 @@ class SearchView(pluginmgr.View, Gtk.Box):
             _("Copy Selection"), f"win.{copy_selection_action_name}"
         )
         self.context_menu_model.append_item(copy_selection_menu_item)
+
+    def _add_get_history_to_context_menu(
+        self, selected_values: list[db.Base]
+    ) -> None:
 
         get_history_action_name = "get_history"
 
@@ -1437,11 +1445,17 @@ class SearchView(pluginmgr.View, Gtk.Box):
         )
         self.context_menu_model.append_item(get_history_menu_item)
 
-        for action_name in self.actions.copy():
-            if action_name not in current_actions:
-                if bauble.gui:
-                    bauble.gui.remove_action(action_name)
-                self.actions.remove(action_name)
+    def update_context_menus(self, selected_values: list[db.Base]) -> None:
+        """Update the context menu dependant on selected values."""
+
+        self.context_menu_model.remove_all()
+
+        if not selected_values:
+            return
+
+        self._add_meta_actions_to_context_menu(selected_values)
+        self._add_copy_selection_to_context_menu()
+        self._add_get_history_to_context_menu(selected_values)
 
         if bauble.gui:
             edit_context_menu = bauble.gui.edit_context_menu

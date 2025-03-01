@@ -530,6 +530,75 @@ class TestSearchView(BaubleTestCase):
             )
             search_view.infobox.update(obj)
 
+    @mock.patch("bauble.gui")
+    def test_update_context_menus_all_domains(self, mock_gui):
+        for func in get_setUp_data_funcs():
+            func()
+
+        for domain in MapperSearch.domains:
+            self.search_view.search(f"{domain} where id = 1")
+            self.search_view.update_context_menus(
+                self.search_view.get_selected_values()
+            )
+
+            mock_gui.edit_context_menu.remove_all.assert_called()
+            mock_gui.edit_context_menu.insert_section.assert_called_with(
+                0, None, self.search_view.context_menu_model
+            )
+
+    @mock.patch("bauble.gui")
+    def test_add_meta_actions_to_context_menu_adds_action(self, mock_gui):
+        for func in get_setUp_data_funcs():
+            func()
+
+        self.search_view.search("genus where id < 3")
+        selected = self.search_view.get_selected_values()
+        mock_gui.lookup_action.return_value = False
+
+        with mock.patch(
+            "bauble.view.Gio.Application.get_default"
+        ) as mock_default:
+            self.search_view._add_meta_actions_to_context_menu(selected)
+            mock_default().set_accels_for_action.assert_called()
+
+        mock_gui.window.add_action.assert_called()
+        mock_gui.remove_action.assert_not_called()
+
+        # test non current actions are removed by changing the selected type
+        mock_gui.reset_mock()
+        self.search_view.search("species where id < 3")
+        selected = self.search_view.get_selected_values()
+
+        self.search_view._add_meta_actions_to_context_menu(selected)
+
+        mock_gui.window.add_action.assert_called()
+        mock_gui.remove_action.assert_called()
+
+    @mock.patch("bauble.gui")
+    def test_add_copy_selection_to_context_menu_adds_action(self, mock_gui):
+        mock_gui.lookup_action.return_value = False
+
+        self.search_view._add_copy_selection_to_context_menu()
+
+        mock_gui.add_action.assert_called_with(
+            "copy_selection_strings", self.search_view.on_copy_selection
+        )
+
+    @mock.patch("bauble.gui")
+    def test_add_get_history_to_context_menu_adds_action(self, mock_gui):
+        for func in get_setUp_data_funcs():
+            func()
+
+        self.search_view.search("genus where id < 3")
+        selected = self.search_view.get_selected_values()
+        mock_gui.lookup_action.return_value = False
+
+        self.search_view._add_get_history_to_context_menu(selected)
+
+        mock_gui.add_action.assert_called_with(
+            "get_history", self.search_view.on_get_history
+        )
+
     @mock.patch("bauble.view.SearchView.get_selected_values")
     def test_on_get_history(self, mock_get_selected):
         mock_get_selected.return_value = None
