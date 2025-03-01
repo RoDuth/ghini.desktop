@@ -163,6 +163,14 @@ class Base(DBase):
     def search_view_markup_pair(self) -> tuple[str, str]:
         return utils.xml_safe(str(self)), type(self).__name__
 
+    def has_children(self) -> bool:
+        """All domain tables must implement this."""
+        raise NotImplementedError
+
+    def count_children(self) -> int:
+        """All domain tables must implement this."""
+        raise NotImplementedError
+
 
 @event.listens_for(Base, "before_update", propagate=True)
 def before_update(_mapper, _connection, instance):

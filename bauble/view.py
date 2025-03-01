@@ -1103,6 +1103,16 @@ class SearchView(pluginmgr.View, Gtk.Box):
 
     Manages the search results returned when search strings are entered into
     the main text entry (found in ui.GUI).
+
+    Should be treated as a singleton/global object, only instantiated once.
+
+    If, for testing, there is a need to instantiate a second instance care has
+    to be taken not to leave the global instance in an unusual state, e.g.
+    class attributes restored, widgets detached/reattached, etc..
+    (``_remove_bottom_pages`` is provided specifically for this use case.  You
+    may need to call it before and after tests followed by recalling
+    ``_add_bottom_pages`` on the global instance). Also, consider using
+    ``mock.patch.object`` on the global instance when mocking is needed.
     """
 
     __gtype_name__ = "SearchView"
@@ -1149,6 +1159,10 @@ class SearchView(pluginmgr.View, Gtk.Box):
 
     def __init__(self) -> None:
         logger.debug("SearchView::__init__")
+
+        if db.Session is None:
+            raise DatabaseError("Unable to connect to a database!")
+
         super().__init__()
 
         column = cast(Gtk.TreeViewColumn, self.results_view.get_column(0))
@@ -1202,6 +1216,13 @@ class SearchView(pluginmgr.View, Gtk.Box):
             self.bottom_pages, key=lambda i: i[1].get_text()
         ):
             self.bottom_notebook.append_page(page, label)
+
+    def _remove_bottom_pages(self) -> None:
+        for page, _label in sorted(
+            self.bottom_pages, key=lambda i: i[1].get_text()
+        ):
+            if parent := cast(Gtk.Container, page.get_parent()):
+                parent.remove(page)
 
     def add_pic_pane_notebook_pages(self) -> None:
         for page in self.pic_pane_notebook_pages:
@@ -1517,8 +1538,10 @@ class SearchView(pluginmgr.View, Gtk.Box):
         self.has_kids.clear_cache()  # pylint: disable=no-member
         self.count_kids.clear_cache()  # pylint: disable=no-member
         self.get_markup_pair.clear_cache()  # pylint: disable=no-member
-        if not db.Session:
-            return
+
+        if db.Session is None:
+            raise DatabaseError("Unable to connect to a database!")
+
         self.session = db.Session()
         # clear last result
         for callback in self.populate_callbacks:

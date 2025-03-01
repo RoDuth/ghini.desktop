@@ -815,6 +815,7 @@ class GUI:
 
         # add new views
         if view not in view_box.get_children():
+            logger.debug("adding view %s", view)
             view_box.pack_start(view, True, True, 0)
             self.views.append(view)
 

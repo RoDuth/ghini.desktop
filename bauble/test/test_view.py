@@ -27,8 +27,10 @@ from unittest import mock
 from gi.repository import Gdk
 from gi.repository import Gio
 from gi.repository import Gtk
+from sqlalchemy.exc import InvalidRequestError
 
 from bauble import db
+from bauble import error
 from bauble import meta
 from bauble import paths
 from bauble import pluginmgr
@@ -47,7 +49,9 @@ from bauble.view import EXPAND_ON_ACTIVATE_PREF
 from bauble.view import INFOBOXPAGE_WIDTH_PREF
 from bauble.view import PIC_PANE_PAGE_PREF
 from bauble.view import PIC_PANE_WIDTH_PREF
+from bauble.view import SEARCH_CACHE_SIZE_PREF
 from bauble.view import SEARCH_COUNT_FAST_PREF
+from bauble.view import SEARCH_POLL_SECS_PREF
 from bauble.view import SEARCH_REFRESH_PREF
 from bauble.view import HistoryView
 from bauble.view import InfoBox
@@ -56,6 +60,7 @@ from bauble.view import LinksExpander
 from bauble.view import NotesBottomPage
 from bauble.view import PicturesScroller
 from bauble.view import PropertiesExpander
+from bauble.view import SearchView
 from bauble.view import _mainstr_tmpl
 from bauble.view import _substr_tmpl
 from bauble.view import get_search_view
@@ -82,11 +87,12 @@ class TestMultiprocCounter(BaubleTestCase):
             prefs.prefs = prefs._prefs(filename=self.temp)
             prefs.prefs.init()
             prefs.prefs[prefs.web_proxy_prefs] = "no_proxies"
-            pluginmgr.plugins = {}
+            pluginmgr.plugins.clear()
             pluginmgr.load()
             db.create(import_defaults=False)
             pluginmgr.install("all", False, force=True)
             pluginmgr.init()
+            self.session = db.Session()
         else:
             super().setUp()
             self.uri = uri
@@ -94,10 +100,11 @@ class TestMultiprocCounter(BaubleTestCase):
         # add some data
         for func in get_setUp_data_funcs():
             func()
-        self.session = db.Session()
 
     def tearDown(self):
         if ":memory:" in uri or "?mode=memory" in uri:
+            update_gui()
+            wait_on_threads()
             self.session.close()
             os.close(self.db_handle)
             os.remove(self.temp_db)
@@ -153,6 +160,45 @@ class TestSearchView(BaubleTestCase):
         self.search_view._reset()
         self.search_view.btn_1_timer = (0, 0, 0)
         super().tearDown()
+
+    def test_init_no_db_raises(self):
+        with mock.patch("bauble.view.db.Session", None):
+
+            self.assertRaises(error.DatabaseError, SearchView)
+
+    def test_has_kids_cache_sets_from_prefs_on_init(self):
+        # setup
+        self.search_view._remove_bottom_pages()
+
+        prefs.prefs[SEARCH_POLL_SECS_PREF] = 20
+        prefs.prefs[SEARCH_CACHE_SIZE_PREF] = 100
+
+        with mock.patch.object(SearchView, "has_kids") as mock_kids:
+            SearchView()
+
+            mock_kids.set_secs.assert_called_with(20)
+            mock_kids.set_size.assert_called_with(100)
+
+        # teardown
+        self.search_view._remove_bottom_pages()
+        self.search_view._add_bottom_pages()
+
+    def test_extra_signals_connect_on_init(self):
+        # setup
+        self.search_view._remove_bottom_pages()
+        mock_handler = mock.Mock()
+        signal = ("foo", "bar", mock_handler)
+        SearchView.extra_signals = {signal}
+
+        with mock.patch.object(SearchView, "connect_signal") as mock_connect:
+            SearchView()
+
+            mock_connect.assert_called_with(*signal)
+
+        # teardown
+        SearchView.extra_signals = set()
+        self.search_view._remove_bottom_pages()
+        self.search_view._add_bottom_pages()
 
     def test_row_meta_populates_with_all_domains(self):
         search_view = self.search_view
@@ -399,6 +445,48 @@ class TestSearchView(BaubleTestCase):
         with self.assertRaises(ValueError):
             model.get_iter_from_string("0:1")
 
+    def test_on_test_expand_row_exception_returns_true(self):
+        # doesn't propagate
+        search_view = self.search_view
+        mock_treeview = mock.Mock()
+        mock_treeview.get_model().iter_has_child.return_value = False
+        with mock.patch.object(search_view, "row_meta") as mock_meta:
+            mock_meta.__getitem__.side_effect = Exception("Boom")
+
+            self.assertTrue(
+                search_view.on_test_expand_row(
+                    mock_treeview, mock.Mock(), mock.Mock()
+                )
+            )
+        mock_treeview.get_model().remove.assert_not_called()
+
+    @mock.patch("bauble.view.utils.search_tree_model")
+    def test_on_test_expand_row_invalid_request_returns_true_and_removes(
+        self, mock_search_tm
+    ):
+        # doesn't propagate
+        for func in get_setUp_data_funcs():
+            func()
+        search_view = self.search_view
+        search_view.search("plant where id = 1")
+        model = search_view.results_view.get_model()
+        treeiter = model.get_iter_first()
+        mock_search_tm.return_value = [treeiter]
+        mock_treeview = mock.Mock()
+        mock_treeview.get_model.return_value = model
+
+        with mock.patch.object(search_view, "row_meta") as mock_meta:
+            mock_meta.__getitem__.side_effect = InvalidRequestError("Boom")
+
+            self.assertTrue(
+                search_view.on_test_expand_row(
+                    mock_treeview,
+                    model.get_iter_first(),
+                    Gtk.TreePath.new_first(),
+                )
+            )
+            mock_search_tm.assert_called()
+
     def test_remove_children(self):
         for func in get_setUp_data_funcs():
             func()
@@ -454,6 +542,18 @@ class TestSearchView(BaubleTestCase):
         mock_callback.side_effect = ValueError("boom")
         search_view.on_action_activate(None, None, mock_callback)
         mock_dialog.assert_called_with("boom", mock.ANY, Gtk.MessageType.ERROR)
+
+    def test_reset_raises_no_db(self):
+        # raises if no DB
+        with mock.patch("bauble.view.db.Session", None):
+            self.assertRaises(error.DatabaseError, self.search_view._reset)
+
+    def test_reset_calls_populate_callbacks_w_empty_list(self):
+        # raises if no DB
+        mock_callback = mock.Mock()
+        self.search_view.populate_callbacks.add(mock_callback)
+        self.search_view._reset()
+        mock_callback.assert_called_with([])
 
     def test_search_no_result(self):
         search_view = self.search_view
