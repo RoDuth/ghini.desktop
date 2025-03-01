@@ -47,7 +47,8 @@ from bauble.view import EXPAND_ON_ACTIVATE_PREF
 from bauble.view import INFOBOXPAGE_WIDTH_PREF
 from bauble.view import PIC_PANE_PAGE_PREF
 from bauble.view import PIC_PANE_WIDTH_PREF
-from bauble.view import DefaultCommandHandler
+from bauble.view import SEARCH_COUNT_FAST_PREF
+from bauble.view import SEARCH_REFRESH_PREF
 from bauble.view import HistoryView
 from bauble.view import InfoBox
 from bauble.view import InfoBoxPage
@@ -458,38 +459,39 @@ class TestSearchView(BaubleTestCase):
         search_view = self.search_view
         search_view.search("genus where epithet = None")
         model = search_view.results_view.get_model()
+
         self.assertIn("Could not find anything for search", model[0][0])
         self.assertEqual(len(model), 1)
-        prefs.prefs[prefs.exclude_inactive_pref] = True
 
         # with exclude inactive warns
+        prefs.prefs[prefs.exclude_inactive_pref] = True
         search_view.search("genus where epithet = None")
         model = search_view.results_view.get_model()
+
         self.assertIn("Could not find anything for search", model[0][0])
         self.assertIn("CONSIDER: uncheck 'Exclude Inactive'", model[1][0])
         # no infobox
         self.assertIsNone(search_view.infobox)
 
-    def test_search_w_error(self):
+    @mock.patch("bauble.gui")
+    def test_search_w_error(self, mock_gui):
         search_view = self.search_view
-        mock_gui = mock.patch("bauble.gui")
-        with mock.patch("bauble.gui") as mock_gui:
-            mock_show_err_box = mock.Mock()
-            mock_gui.show_error_box = mock_show_err_box
-            search_view.search("accession where private = 3")
-            mock_show_err_box.assert_called()
-            self.assertTrue(
-                mock_show_err_box.call_args.args[0].startswith("** Error: ")
-            )
-            # parser error
-            mock_show_err_box.reset_mock()
-            search_view.search("accession where private ? 1")
-            mock_show_err_box.assert_called()
-            error_msg = "Error in search string at column"
-            self.assertTrue(
-                mock_show_err_box.call_args.args[0].startswith(error_msg),
-                mock_show_err_box.call_args.args[0],
-            )
+        mock_show_err_box = mock.Mock()
+        mock_gui.show_error_box = mock_show_err_box
+        search_view.search("accession where private = 3")
+        mock_show_err_box.assert_called()
+        self.assertTrue(
+            mock_show_err_box.call_args.args[0].startswith("** Error: ")
+        )
+        # parser error
+        mock_show_err_box.reset_mock()
+        search_view.search("accession where private ? 1")
+        mock_show_err_box.assert_called()
+        error_msg = "Error in search string at column"
+        self.assertTrue(
+            mock_show_err_box.call_args.args[0].startswith(error_msg),
+            mock_show_err_box.call_args.args[0],
+        )
         # no infobox
         self.assertIsNone(search_view.infobox)
 
@@ -529,6 +531,117 @@ class TestSearchView(BaubleTestCase):
                 search_view.infobox, search_view.row_meta[klass].infobox
             )
             search_view.infobox.update(obj)
+
+    @mock.patch("bauble.gui")
+    def test_search_with_one_result_all_domains_refresh_false(self, mock_gui):
+        # just checking nothing breaks, slightly increases coverage
+        prefs.prefs[SEARCH_REFRESH_PREF] = False
+
+        mock_gui.window.get_size().width = 100
+        prefs.prefs["bauble.search.return_accepted"] = False
+        for func in get_setUp_data_funcs():
+            func()
+        search_view = self.search_view
+        for klass in search_view.row_meta:
+            if klass.__tablename__ == "tag":
+                continue
+            domain = klass.__tablename__
+            if domain not in MapperSearch.domains:
+                domain = None
+                for key, val in MapperSearch.domains.items():
+                    if val[0] == klass:
+                        domain = key
+                        break
+
+            string = f"{domain} where id = 1"
+            # with self.assertLogs(level="DEBUG") as logs:
+            search_view.search(string)
+            # wait for the CountResultsTask thread to finish
+            wait_on_threads()
+            # check it called
+            mock_gui.widgets.statusbar.push.assert_called()
+            mock_gui.reset_mock()
+            # test the correct object was returned
+            model = search_view.results_view.get_model()
+            obj = model[0][0]
+            self.assertIsInstance(obj, klass)
+            self.assertEqual(obj.id, 1)
+            # check correct infobox (errors can cause no infobox)
+            self.assertIs(
+                search_view.infobox, search_view.row_meta[klass].infobox
+            )
+            search_view.infobox.update(obj)
+
+    @mock.patch("bauble.gui")
+    def test_search_all_all_domains(self, mock_gui):
+        mock_gui.window.get_size().width = 100
+        prefs.prefs["bauble.search.return_accepted"] = False
+        for func in get_setUp_data_funcs():
+            func()
+        search_view = self.search_view
+        for klass in search_view.row_meta:
+            if klass.__tablename__ == "tag":
+                continue
+            domain = klass.__tablename__
+            if domain not in MapperSearch.domains:
+                domain = None
+                for key, val in MapperSearch.domains.items():
+                    if val[0] == klass:
+                        domain = key
+                        break
+
+            string = f"{domain} = *"
+            # with self.assertLogs(level="DEBUG") as logs:
+            search_view.search(string)
+            # wait for the CountResultsTask thread to finish
+            wait_on_threads()
+            # check it called
+            mock_gui.widgets.statusbar.push.assert_called()
+            mock_gui.reset_mock()
+            # test the correct object was returned
+            model = search_view.results_view.get_model()
+            obj = model[0][0]
+            self.assertIsInstance(obj, klass)
+            # check correct infobox (errors can cause no infobox)
+            self.assertIs(
+                search_view.infobox, search_view.row_meta[klass].infobox
+            )
+
+    @mock.patch("bauble.view.search.search")
+    @mock.patch("bauble.view.utils.yes_no_dialog")
+    def test_search_large_result_allows_user_to_bail(
+        self, mock_dialog, mock_search
+    ):
+        mock_dialog.return_value = False
+        mock_search.return_value = range(35000)
+        search_view = get_search_view()
+        search_view.search("everything")
+        mock_dialog.assert_called_with(
+            "This query returned 35000 results.  It may take a "
+            "while to display all the data. Are you sure you "
+            "want to continue?"
+        )
+
+    def test_update_statusbar_non_homogeneous_result(self):
+        search_view = get_search_view()
+        mock_status_bar = mock.Mock()
+        search_view._update_statusbar(
+            [1, "one", object()], statusbar=mock_status_bar
+        )
+        self.assertIn(
+            "size of non homogeneous result: 3",
+            mock_status_bar.push.call_args[0],
+        )
+
+    def test_update_statusbar_count_fast(self):
+        prefs.prefs[SEARCH_COUNT_FAST_PREF] = "no"
+        search_view = get_search_view()
+        mock_status_bar = mock.Mock()
+        search_view._update_statusbar([1, 2, 3], statusbar=mock_status_bar)
+        self.assertIn(
+            "size of result: 3",
+            mock_status_bar.push.call_args[0],
+        )
 
     @mock.patch("bauble.gui")
     def test_update_context_menus_all_domains(self, mock_gui):

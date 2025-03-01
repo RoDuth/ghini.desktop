@@ -1530,15 +1530,15 @@ class SearchView(pluginmgr.View, Gtk.Box):
         self.selection.handler_unblock(self._sc_sid)
 
     def search(self, text: str) -> None:
-        """search the database using text"""
+        """search the database using :param text:"""
         logger.debug("SearchView.search(%s)", text)
 
         self._reset()
 
         error_msg = None
         error_details_msg = None
-        bold = "<b>%s</b>"
         results = []
+
         try:
             results = search.search(text, self.session)
         except ParseException as err:
@@ -1554,66 +1554,83 @@ class SearchView(pluginmgr.View, Gtk.Box):
             self.on_selection_changed(None)
             return
 
+        if len(results) > 30000:
+            msg = _(
+                "This query returned %s results.  It may take a "
+                "while to display all the data. Are you sure you "
+                "want to continue?"
+            ) % len(results)
+            if not utils.yes_no_dialog(msg):
+                return
+
         # not error
-        if bauble.gui:
-            statusbar = bauble.gui.widgets.statusbar
-        else:
-            # for testing...
-            statusbar = Gtk.Statusbar()
-        sbcontext_id = statusbar.get_context_id("searchview.nresults")
-        statusbar.pop(sbcontext_id)
         if len(results) == 0:
-            model = Gtk.ListStore(str)
-            msg = bold % html.escape(
-                _('Could not find anything for search: "%s"') % text
-            )
-            model.append([msg])
-            if prefs.prefs.get(prefs.exclude_inactive_pref):
-                msg = bold % _(
-                    "CONSIDER: uncheck 'Exclude Inactive' in options menu and "
-                    "search again."
-                )
-                model.append([msg])
-            self.results_view.set_model(model)
+            self._notify_no_result(text)
         else:
-            statusbar.push(
-                sbcontext_id,
-                _("Retrieving %s search results…") % len(results),
-            )
-            if len(results) > 30000:
-                msg = _(
-                    "This query returned %s results.  It may take a "
-                    "while to display all the data. Are you sure you "
-                    "want to continue?"
-                ) % len(results)
-                if not utils.yes_no_dialog(msg):
-                    return
             self.populate_results(results)
-            statusbar.pop(sbcontext_id)
-            statusbar.push(sbcontext_id, _("counting results"))
-            count_fast = prefs.prefs.get(SEARCH_COUNT_FAST_PREF, True)
-            if isinstance(count_fast, str):
-                statusbar.push(
-                    sbcontext_id, _("size of result: %s") % len(results)
-                )
-            elif len(set(item.__class__ for item in results)) == 1:
-                dots_thread = self.start_thread(AddOneDot())
-                self.start_thread(
-                    CountResultsTask(
-                        results[0].__class__,
-                        [i.id for i in results],
-                        dots_thread,
-                    )
-                )
-            else:
-                statusbar.push(
-                    sbcontext_id,
-                    _("size of non homogeneous result: %s") % len(results),
-                )
+            self._update_statusbar(results)
             self.results_view.set_cursor(Gtk.TreePath.new_first())
             self.results_view.scroll_to_cell(
                 Gtk.TreePath.new_first(), None, True, 0.5, 0.0
             )
+
+    def _update_statusbar(
+        self,
+        results: list,
+        *,
+        statusbar: Gtk.Statusbar | None = None,
+    ) -> None:
+
+        if statusbar is None:
+            if bauble.gui:
+                statusbar = bauble.gui.widgets.statusbar
+            else:
+                return
+
+        sbcontext_id = statusbar.get_context_id("searchview.nresults")
+        statusbar.pop(sbcontext_id)
+
+        statusbar.push(
+            sbcontext_id,
+            _("Retrieving %s search results…") % len(results),
+        )
+
+        statusbar.pop(sbcontext_id)
+        statusbar.push(sbcontext_id, _("counting results"))
+        count_fast = prefs.prefs.get(SEARCH_COUNT_FAST_PREF, True)
+        if isinstance(count_fast, str):
+            statusbar.push(
+                sbcontext_id, _("size of result: %s") % len(results)
+            )
+        elif len(set(item.__class__ for item in results)) == 1:
+            dots_thread = self.start_thread(AddOneDot())
+            self.start_thread(
+                CountResultsTask(
+                    results[0].__class__,
+                    [i.id for i in results],
+                    dots_thread,
+                )
+            )
+        else:
+            statusbar.push(
+                sbcontext_id,
+                _("size of non homogeneous result: %s") % len(results),
+            )
+
+    def _notify_no_result(self, text: str) -> None:
+        bold = "<b>%s</b>"
+        model = Gtk.ListStore(str)
+        msg = bold % html.escape(
+            _('Could not find anything for search: "%s"') % text
+        )
+        model.append([msg])
+        if prefs.prefs.get(prefs.exclude_inactive_pref):
+            msg = bold % _(
+                "CONSIDER: uncheck 'Exclude Inactive' in options menu and "
+                "search again."
+            )
+            model.append([msg])
+        self.results_view.set_model(model)
 
     @staticmethod
     def remove_children(model, parent):
