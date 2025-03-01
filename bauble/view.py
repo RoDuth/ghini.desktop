@@ -31,6 +31,7 @@ import threading
 import traceback
 from collections import UserDict
 from collections.abc import Callable
+from collections.abc import Generator
 from collections.abc import Sequence
 from datetime import datetime
 from datetime import timedelta
@@ -48,6 +49,7 @@ from gi.repository import Gio
 from gi.repository import GLib
 from gi.repository import Gtk
 from gi.repository import Pango
+from mako.template import Template  # type: ignore [import-untyped]
 from pyparsing import CaselessLiteral
 from pyparsing import Group
 from pyparsing import Literal
@@ -75,6 +77,7 @@ from bauble import paths
 from bauble import pluginmgr
 from bauble import prefs
 from bauble import search
+from bauble import task
 from bauble import utils
 from bauble.error import DatabaseError
 from bauble.error import check
@@ -1136,7 +1139,7 @@ class SearchView(pluginmgr.View, Gtk.Box):
     cursor_changed_callbacks: set[Callable[[list[db.Base]], None]] = set()
     """Callbacks called each time the cursor changes"""
 
-    populate_callbacks: set[Callable[[list[db.Base]], None]] = set()
+    populate_callbacks: set[Callable[[Sequence[db.Base]], None]] = set()
     """Callbacks called each time SearchView populates"""
 
     extra_signals: set[tuple[str, str, Callable]] = set()
@@ -1167,24 +1170,21 @@ class SearchView(pluginmgr.View, Gtk.Box):
 
         # keep all the search results in the same session, this should
         # be cleared when we do a new search
-        if db.Session is None:
-            raise DatabaseError("Unable to connect to a database!")
-
         self.session = db.Session()
 
-        for page, label in sorted(
-            self.bottom_pages, key=lambda i: i[1].get_text()
-        ):
-            self.bottom_notebook.append_page(page, label)
+        self._add_bottom_pages()
 
         self.actions: set[str] = set()
         self.context_menu_model = Gio.Menu()
+
         poll_secs = prefs.prefs.get(SEARCH_POLL_SECS_PREF)
         if poll_secs:
             self.has_kids.set_secs(poll_secs)  # pylint: disable=no-member
+
         cache_size = prefs.prefs.get(SEARCH_CACHE_SIZE_PREF)
         if cache_size:
             self.has_kids.set_size(cache_size)  # pylint: disable=no-member
+
         self.refresh = prefs.prefs.get(SEARCH_REFRESH_PREF, True)
         self.btn_1_timer = (0, 0, 0)
 
@@ -1196,6 +1196,12 @@ class SearchView(pluginmgr.View, Gtk.Box):
     ) -> None:
         widget = getattr(self, widget_name)
         widget.connect(signal, handler)
+
+    def _add_bottom_pages(self) -> None:
+        for page, label in sorted(
+            self.bottom_pages, key=lambda i: i[1].get_text()
+        ):
+            self.bottom_notebook.append_page(page, label)
 
     def add_pic_pane_notebook_pages(self) -> None:
         for page in self.pic_pane_notebook_pages:
@@ -1234,7 +1240,7 @@ class SearchView(pluginmgr.View, Gtk.Box):
             if hasattr(page, "update"):
                 page.update(row)
 
-    def update_infobox(self, selected_values):
+    def update_infobox(self, selected_values: list[db.Base]) -> None:
         """Sets the infobox according to the currently selected row.
 
         no infobox is shown if nothing is selected
@@ -1280,9 +1286,9 @@ class SearchView(pluginmgr.View, Gtk.Box):
         """Sets up an appropriate info_box for the current row."""
 
         logger.debug("set_infobox_from_row: %s --  %s", row, repr(row))
-        # remove the current infobox if there is one and it is not needed
-        if self.infobox:
-            self.info_pane.remove(self.infobox)
+        # remove the current infobox if there is one
+        if infobox := self.info_pane.get_child2():
+            self.info_pane.remove(infobox)
 
         if row is None:
             return
@@ -1306,14 +1312,14 @@ class SearchView(pluginmgr.View, Gtk.Box):
                 logger.warning(traceback.format_exc())
                 raise
 
-    def get_selected_values(self) -> list[db.Base] | None:
+    def get_selected_values(self) -> list[db.Base]:
         """Get the values in all the selected rows."""
         model, rows = self.selection.get_selected_rows()
         if model is None or rows is None:
-            return None
+            return []
         return [model[row][0] for row in rows]
 
-    def on_selection_changed(self, _tree_selection):
+    def on_selection_changed(self, _tree_selection) -> None:
         """Update the infobox and bottom notebooks. Switch context_menus,
         actions and accelerators depending on the type of the rows selected.
         """
@@ -1337,7 +1343,12 @@ class SearchView(pluginmgr.View, Gtk.Box):
         for callback in self.cursor_changed_callbacks:
             callback(selected_values)
 
-    def on_action_activate(self, _action, _param, call_back):
+    def on_action_activate(
+        self,
+        _action,
+        _param,
+        call_back: Callable[[list[db.Base]], bool],
+    ) -> None:
         result = False
         try:
             values = self.get_selected_values()
@@ -1437,13 +1448,13 @@ class SearchView(pluginmgr.View, Gtk.Box):
             edit_context_menu.remove_all()
             edit_context_menu.insert_section(0, None, self.context_menu_model)
 
-    def on_copy_selection(self, _action, _param):
+    def on_copy_selection(self, _action, _param) -> None:
         selected_values = self.get_selected_values()
+
         if not selected_values:
-            return None
+            return
 
         out = []
-        from mako.template import Template  # type: ignore [import-untyped]
 
         try:
             for value in selected_values:
@@ -1467,14 +1478,11 @@ class SearchView(pluginmgr.View, Gtk.Box):
         string = "\n".join(out)
         if bauble.gui:
             bauble.gui.get_display_clipboard().set_text(string, -1)
-            return None
-        # NOTE used in testing
-        return string
 
-    def on_get_history(self, _action, _param):
+    def on_get_history(self, _action, _param) -> None:
         selected_values = self.get_selected_values()
         if not selected_values:
-            return None
+            return
 
         selected = selected_values[0]
         # include timestamp because IDs can get reused in some situations
@@ -1486,9 +1494,6 @@ class SearchView(pluginmgr.View, Gtk.Box):
 
         if bauble.gui:
             bauble.gui.send_command(search_str)
-            return None
-        # NOTE used in testing
-        return search_str
 
     def _reset(self) -> None:
         # stop whatever it might still be doing
@@ -1602,6 +1607,7 @@ class SearchView(pluginmgr.View, Gtk.Box):
 
         Reverse iterate through them so you don't invalidate the iter.
         """
+        logger.debug("remove_children called")
         while model.iter_has_child(parent):
             nkids = model.iter_n_children(parent)
             child = model.iter_nth_child(parent, nkids - 1)
@@ -1654,23 +1660,23 @@ class SearchView(pluginmgr.View, Gtk.Box):
         # this keeps the screen from flickering when the main
         # window is set to a busy state
         if len(results) > 3000:
-            bauble.task.queue(self._populate_worker(results))
+            task.queue(self._populate_worker(results))
         else:
-            task = self._populate_worker(results)
+            populate_task = self._populate_worker(results)
             while True:
                 try:
-                    next(task)
+                    next(populate_task)
                 except StopIteration:
                     break
 
         for callback in self.populate_callbacks:
             callback(results)
 
-    def _populate_worker(self, results):
+    def _populate_worker(self, results: Sequence[db.Base]) -> Generator[None]:
         """Generator function for adding the search results to the
         model.
 
-        This method is usually called by `self.populate_results()`
+        This method is usually called by ``self.populate_results()``
         """
         nresults = len(results)
         model = Gtk.TreeStore(object)
@@ -1726,7 +1732,12 @@ class SearchView(pluginmgr.View, Gtk.Box):
         self.results_view.set_model(model)
         self.selection.handler_unblock(self._sc_sid)
 
-    def append_children(self, model, parent, kids):
+    def append_children(
+        self,
+        model: Gtk.TreeStore,
+        parent: Gtk.TreeIter,
+        kids: Sequence[db.Base],
+    ) -> None:
         """Append object to a parent iter in the model.
 
         :param model: the model to append to
@@ -1735,6 +1746,7 @@ class SearchView(pluginmgr.View, Gtk.Box):
         """
         check(parent is not None, "append_children(): need a parent")
         for kid in kids:
+
             itr = model.append(parent, [kid])
             if self.refresh:
                 if (
@@ -1746,42 +1758,43 @@ class SearchView(pluginmgr.View, Gtk.Box):
                 if self.row_meta[type(kid)].children is not None:
                     model.append(itr, ["-"])
 
-    def remove_row(self, value):
-        """Remove a row from the results_view"""
+    def remove_row(self, obj: db.Base) -> None:
+        """Remove the row containing ``obj`` from the results_view."""
         # NOTE used in testing...
         logger.info("remove_row called")
 
-        model = self.results_view.get_model()
-        for found in utils.search_tree_model(model, value):
+        model = cast(Gtk.ListStore, self.results_view.get_model())
+        for found in utils.search_tree_model(model, obj):
             model.remove(found)
 
     @utils.timed_cache()
-    def has_kids(self, value):
+    def has_kids(self, obj: db.Base) -> bool:
         """Expire and check for children
 
-        Results are cached to avoid expiring too regularly"""
+        Results are cached to avoid expiring too regularly.
+        """
         # expire so that any external updates are picked up.
         # (e.g. another user has deleted while we are also using it.)
-        self.session.expire(value)
-        return value.has_children()
+        self.session.expire(obj)
+        return obj.has_children()
 
     @staticmethod
     @utils.timed_cache(size=20, secs=0.2)
-    def count_kids(value):
+    def count_kids(obj: db.Base) -> int:
         """Get the count of children.
 
         Minimally cached to avoid repeated database calls for same value.
         """
-        return value.count_children()
+        return obj.count_children()
 
     @staticmethod
     @utils.timed_cache(size=200, secs=0.2)
-    def get_markup_pair(value):
+    def get_markup_pair(obj: db.Base) -> tuple[str, str]:
         """Get the markup pair.
 
         Minimally cached to avoid repeated database calls for same value.
         """
-        return value.search_view_markup_pair()
+        return obj.search_view_markup_pair()
 
     def cell_data_func(self, _col, cell, model, treeiter, _data):
         # now update the the cell

@@ -160,6 +160,57 @@ class TestSearchView(BaubleTestCase):
             set(MapperSearch.get_domain_classes().values()),
         )
 
+    def test_add_pic_pane_pages(self):
+        widget = Gtk.ScrolledWindow()
+        pages = {(widget, 1, "foo")}
+        with (
+            mock.patch.object(
+                self.search_view, "pic_pane_notebook_pages", new=pages
+            ),
+            mock.patch.object(
+                self.search_view, "add_page_to_pic_pane_notebook"
+            ) as mock_add,
+        ):
+            self.search_view.add_pic_pane_notebook_pages()
+
+            mock_add.assert_called_with(widget, 1, "foo")
+
+    def test_update_infobox_detached_bails(self):
+        genus = Genus(epithet="Grevillea")
+        with mock.patch.object(
+            self.search_view, "set_infobox_from_row"
+        ) as mock_set:
+            self.search_view.update_infobox([genus])
+
+            mock_set.assert_not_called()
+
+    def test_update_infobox_exception_reraises_removes_infobox(self):
+        for func in get_setUp_data_funcs():
+            func()
+        genus = self.session.query(Genus).get(1)
+        with mock.patch.object(
+            self.search_view.info_pane, "show_all"
+        ) as mock_show:
+            mock_show.side_effect = Exception("Boom")
+
+            self.assertRaises(
+                Exception, self.search_view.update_infobox, [genus]
+            )
+        self.assertIsNone(self.search_view.info_pane.get_child2())
+
+    def test_on_selection_changed_str_bails(self):
+        with (
+            mock.patch.object(
+                self.search_view, "get_selected_values"
+            ) as mock_selected,
+            mock.patch.object(
+                self.search_view, "update_infobox"
+            ) as mock_update,
+        ):
+            mock_selected.return_value = ["Foo"]
+            self.search_view.on_selection_changed(None)
+            mock_update.assert_not_called()
+
     def test_all_domains_w_children_sorter(self):
         prefs.prefs["bauble.search.sort_by_taxon"] = True
         search_view = self.search_view
@@ -371,6 +422,13 @@ class TestSearchView(BaubleTestCase):
         # parent still exists
         self.assertEqual(start, end)
 
+    @mock.patch("bauble.view.task")
+    def test_populate_results_large_result_uses_task(self, mock_task):
+        search_view = self.search_view
+        with mock.patch.object(search_view, "populate_callbacks", []):
+            search_view.populate_results(range(4000))
+        mock_task.queue.assert_called()
+
     def test_on_action_activate_supplies_selected_updates(self):
         for func in get_setUp_data_funcs():
             func()
@@ -481,33 +539,61 @@ class TestSearchView(BaubleTestCase):
             id=100, _created="18/09/2023", __tablename__="mock_table"
         )
 
-        mock_get_selected.return_value = [mock_data]
-        self.assertEqual(
-            self.search_view.on_get_history(None, None),
+        search_str = (
             ":history = table_name = mock_table and table_id = 100 and "
-            'timestamp >= "18/09/2023"',
+            'timestamp >= "18/09/2023"'
         )
+
+        mock_get_selected.return_value = [mock_data]
+        with mock.patch("bauble.gui") as mock_gui:
+            self.search_view.on_get_history(None, None),
+            mock_gui.send_command.assert_called_with(search_str)
 
     @mock.patch("bauble.view.SearchView.get_selected_values")
     def test_on_copy_selected(self, mock_get_selected):
-        class MockData:
-            field = "Mock Field"
+        mock_data = mock.MagicMock(field="Mock Field")
+        mock_data.__str__.return_value = "Mock Data"
 
-            @staticmethod
-            def __str__():
-                return "Mock Data"
-
-        mock_get_selected.return_value = [MockData()]
+        mock_get_selected.return_value = [mock_data]
         search_view = self.search_view
-        self.assertEqual(
-            search_view.on_copy_selection(None, None), "Mock Data, MockData"
-        )
-        prefs.prefs["copy_templates.mockdata"] = "${value}, ${value.field}"
 
-        mock_get_selected.return_value = [MockData()]
-        self.assertEqual(
-            search_view.on_copy_selection(None, None), "Mock Data, Mock Field"
-        )
+        with mock.patch("bauble.gui") as mock_gui:
+            search_view.on_copy_selection(None, None)
+            mock_gui.get_display_clipboard().set_text.assert_called_with(
+                "Mock Data, MagicMock", -1
+            )
+
+        prefs.prefs["copy_templates.magicmock"] = "${value}, ${value.field}"
+
+        with mock.patch("bauble.gui") as mock_gui:
+            search_view.on_copy_selection(None, None)
+            mock_gui.get_display_clipboard().set_text.assert_called_with(
+                "Mock Data, Mock Field", -1
+            )
+
+    @mock.patch("bauble.view.SearchView.get_selected_values")
+    def test_on_copy_selected_bails_no_selected(self, mock_get_selected):
+
+        mock_get_selected.return_value = []
+        search_view = self.search_view
+
+        with mock.patch("bauble.gui") as mock_gui:
+            search_view.on_copy_selection(None, None)
+            mock_gui.get_display_clipboard().set_text.assert_not_called()
+
+    @mock.patch("bauble.view.SearchView.get_selected_values")
+    def test_on_copy_selected_warns_user_if_exception(self, mock_get_selected):
+        mock_data = mock.MagicMock(field="Mock Field")
+        mock_data.__str__.side_effect = AttributeError("Boom")
+
+        mock_get_selected.return_value = [mock_data]
+        search_view = self.search_view
+
+        with mock.patch(
+            "bauble.view.utils.message_details_dialog"
+        ) as mock_dialog:
+            search_view.on_copy_selection(None, None)
+            mock_dialog.assert_called()
 
     def test_cell_data_func(self):
         for func in get_setUp_data_funcs():
@@ -568,10 +654,9 @@ class TestSearchView(BaubleTestCase):
         model = results_view.get_model()
         tree_iter = model.get_iter(Gtk.TreePath.new_first())
         # delete item
-        db.engine.execute(
-            f"DELETE FROM species WHERE genus_id = {start[0].id}"
-        )
-        db.engine.execute(f"DELETE FROM genus WHERE id = {start[0].id}")
+        with db.engine.begin() as conn:
+            conn.execute(f"DELETE FROM species WHERE genus_id = {start[0].id}")
+            conn.execute(f"DELETE FROM genus WHERE id = {start[0].id}")
 
         with self.assertLogs(level="DEBUG") as logs:
             search_view.cell_data_func(
@@ -587,7 +672,7 @@ class TestSearchView(BaubleTestCase):
         self.assertTrue(any("remove_row called" in i for i in logs.output))
 
     def test_cell_data_func_w_added_adds_item(self):
-        # as if another user had deleted an item we were also looking at.
+        # as if another user had added an item
         for func in get_setUp_data_funcs():
             func()
         search_view = self.search_view
@@ -605,12 +690,13 @@ class TestSearchView(BaubleTestCase):
         start = model.iter_n_children(tree_iter)
         self.assertGreater(start, 1)
         # add new item
-        db.engine.execute(
-            """
-            INSERT INTO species (sp, genus_id, _created, _last_updated)
-            VALUES ('test2', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-            """
-        )
+        with db.engine.begin() as conn:
+            conn.execute(
+                """
+                INSERT INTO species (sp, genus_id, _created, _last_updated)
+                VALUES ('test2', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                """
+            )
 
         mock_renderer = mock.Mock()
         search_view.cell_data_func(
