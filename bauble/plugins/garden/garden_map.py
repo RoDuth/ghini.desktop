@@ -895,6 +895,11 @@ class SearchViewMapPresenter:
                 self.select_plant_by_id(best)
 
     def get_nearest_plants_id(self, x: float, y: float) -> int | None:
+        if self.populate_thread:
+            while self.populate_thread.is_alive():
+                self.populate_thread.join(0.02)
+                Gtk.main_iteration()
+
         best_id = None
         best_hyp = 0.1
         # narrow the selection
@@ -1072,6 +1077,7 @@ class SearchViewMapPresenter:
                 source.set_callback(map_item.add_to_map, self.garden_map.map_)
                 source.attach()
                 glib_events[plant.id] = source
+        self.populated = True
 
     def clear_all_threads_and_events(self) -> None:
         logger.debug("populate_map: stopping threads")
@@ -1118,7 +1124,6 @@ class SearchViewMapPresenter:
                 args=(results,),
             )
             self.populate_thread.start()
-            self.populated = True
 
     def populate_on_size_allocation(
         self, _pic_pane: Gtk.Paned, _allocation: Gdk.Rectangle
@@ -1132,10 +1137,14 @@ class SearchViewMapPresenter:
     def _populate_after_timer(self) -> None:
         if self.is_visible():
             if self.populated:
-                logger.debug("populate_after_timer: update selected")
-                selected = get_search_view_selected()
-                if selected:
-                    self.update_map(selected)
+                if (
+                    not self.populate_thread
+                    or not self.populate_thread.is_alive()
+                ):
+                    logger.debug("populate_after_timer: update selected")
+                    selected = get_search_view_selected()
+                    if selected:
+                        self.update_map(selected)
             else:
                 logger.debug("populate_after_timer: populate from search view")
                 self.populate_map_from_search_view()
@@ -1148,6 +1157,7 @@ class SearchViewMapPresenter:
 
         Can be used as a signal handler to populate the map when it becomes
         visibile.
+
         :param view: supply the SearchView instance (for testing)
         """
         logger.debug("populating map from search view results")

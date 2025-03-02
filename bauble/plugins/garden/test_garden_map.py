@@ -1060,9 +1060,17 @@ class TestSearchViewMapPresenter(BaubleTestCase):
         presenter.populate_map_from_search_view.assert_not_called()
         presenter.update_map.assert_not_called()
 
+        presenter.populate_thread = mock.Mock()
+        presenter.populate_thread.is_alive.return_value = True
+        mock_get_selected.return_value = ["test1", "test2"]
+        # if selected but populate_thread_still_running don't update
+        presenter.populate_map_from_search_view.assert_not_called()
+        presenter.update_map.assert_not_called()
+
+        presenter.populate_thread.is_alive.return_value = False
         mock_get_selected.return_value = ["test1", "test2"]
         presenter._populate_after_timer()
-        # selected, update
+        # thread finished and selected, update
         presenter.populate_map_from_search_view.assert_not_called()
         presenter.update_map.assert_called_with(["test1", "test2"])
 
@@ -1241,6 +1249,35 @@ class TestSearchViewMapPresenter(BaubleTestCase):
             presenter.get_nearest_plants_id(-27.47701, 152.97891),
             2,
         )
+
+    def test_get_nearest_plants_waits_for_populate_thread(self):
+        map_ = Map()
+        gmap = GardenMap(map_)
+        presenter = SearchViewMapPresenter(gmap)
+        p1 = MapPoint(1, point, colours.get("green"))
+        p1.add_to_map(map_, glib=False)
+        p2 = MapPoint(2, point2, colours.get("green"))
+        p2.add_to_map(map_, glib=False)
+        presenter.plt_items = {1: p1, 2: p2}
+        with mock.patch.object(presenter, "populate_thread") as mock_thread:
+            mock_thread.is_alive.return_value = True
+            join_called = []
+
+            def mock_join(*_args):
+                # excuse the hack!
+                join_called.append(1)
+                mock_thread.is_alive.return_value = False
+
+            mock_thread.join = mock_join
+            # closest to 2
+            self.assertEqual(
+                presenter.get_nearest_plants_id(-27.47701, 152.97891),
+                2,
+            )
+            if join_called != [1]:
+                self.fail(f"join not called > {join_called}")
+            mock_thread.is_alive.assert_called()
+            self.assertFalse(mock_thread.is_alive())
 
     @mock.patch("bauble.utils.tree_model_has")
     def test_select_plant_by_id_bails_no_gui(self, mock_has):
