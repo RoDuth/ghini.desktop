@@ -32,6 +32,7 @@ import traceback
 from collections import UserDict
 from collections.abc import Callable
 from collections.abc import Generator
+from collections.abc import Iterable
 from collections.abc import Sequence
 from datetime import datetime
 from datetime import timedelta
@@ -48,7 +49,6 @@ from gi.repository import Gdk
 from gi.repository import Gio
 from gi.repository import GLib
 from gi.repository import Gtk
-from gi.repository import Pango
 from mako.template import Template  # type: ignore [import-untyped]
 from pyparsing import CaselessLiteral
 from pyparsing import Group
@@ -1167,7 +1167,7 @@ class SearchView(pluginmgr.View, Gtk.Box):
         column.set_cell_data_func(renderer, self.cell_data_func)
 
         self.selection = self.results_view.get_selection()
-        self._sc_sid = self.selection.connect(
+        self._selection_changed_sigid = self.selection.connect(
             "changed", self.on_selection_changed
         )
 
@@ -1542,9 +1542,9 @@ class SearchView(pluginmgr.View, Gtk.Box):
             callback([])
 
         # avoid triggering on_selection_changed
-        self.selection.handler_block(self._sc_sid)
+        self.selection.handler_block(self._selection_changed_sigid)
         utils.clear_model(self.results_view)
-        self.selection.handler_unblock(self._sc_sid)
+        self.selection.handler_unblock(self._selection_changed_sigid)
 
     def search(self, text: str) -> None:
         """search the database using :param text:"""
@@ -1670,21 +1670,24 @@ class SearchView(pluginmgr.View, Gtk.Box):
     ) -> bool:
         """Look up the table type of the selected row and if it has any
         children then add them to the row.
+
+        Returns False to allow expansion, True to reject.
         """
         model = cast(Gtk.TreeStore, treeview.get_model())
         obj = model.get_value(treeiter, 0)
         treeview.collapse_row(path)
         self.remove_children(model, treeiter)
 
+        def sorter(obj):
+            cls = type(obj)
+            sorter = self.row_meta[cls].sorter
+            return cls.__name__, sorter(obj)
+
         try:
             kids = self.row_meta[type(obj)].get_children(obj)
 
             if len(kids) == 0:
                 return True
-
-            sorter = utils.natsort_key
-            if len({type(i) for i in kids}) == 1:
-                sorter = self.row_meta[type(kids[0])].sorter
 
         except saexc.InvalidRequestError as e:
             logger.debug("on_test_expand_row: %s:%s", type(e).__name__, e)
@@ -1726,18 +1729,46 @@ class SearchView(pluginmgr.View, Gtk.Box):
 
         This method is usually called by ``self.populate_results()``
         """
-        nresults = len(results)
+        len_results = len(results)
         model = Gtk.TreeStore(object)
-        # docs suggests this method and did work in pygtk but now doesn't
-        # model.set_default_sort_func(None)
-        # now this seems the only way to remove sorting function (i.e.
-        # has_default_sort_func returns false)
+        # remove sorting function (i.e. has_default_sort_func returns false)
         model.set_sort_column_id(
             Gtk.TREE_SORTABLE_UNSORTED_SORT_COLUMN_ID, Gtk.SortType.ASCENDING
         )
         logger.debug("_populate_worker clear model")
         utils.clear_model(self.results_view)
 
+        five_percent = int(len_results / 20) or 200
+        steps_so_far = 0
+
+        # iterate over slice of size "steps", yield every 5%
+        added = set()
+        for obj in self._group_sort_results(results):
+            if obj in added:  # only add unique object
+                continue
+            added.add(obj)
+
+            parent = model.prepend(None, [obj])
+            steps_so_far += 1
+            if (
+                not self.refresh
+                and self.row_meta[type(obj)].children is not None
+            ):
+                model.prepend(parent, ["-"])
+            if steps_so_far % five_percent == 0:
+                percent = float(steps_so_far) / float(len_results)
+                if 0 < percent < 1.0:
+                    bauble.gui.progressbar.set_fraction(percent)
+                yield
+
+        # avoid triggering on_selection_changed
+        self.selection.handler_block(self._selection_changed_sigid)
+        self.results_view.set_model(model)
+        self.selection.handler_unblock(self._selection_changed_sigid)
+
+    def _group_sort_results(
+        self, results: Sequence[db.Base]
+    ) -> Iterable[db.Base]:
         groups = []
 
         # sort by type so that groupby works properly
@@ -1751,34 +1782,7 @@ class SearchView(pluginmgr.View, Gtk.Box):
         # sort the groups by type so we more or less always get the
         # results by type in the same order
         groups = sorted(groups, key=lambda x: str(type(x[0])), reverse=True)
-
-        five_percent = int(nresults / 20) or 200
-        steps_so_far = 0
-
-        # iterate over slice of size "steps", yield every 5%
-        added = set()
-        for obj in itertools.chain(*groups):
-            if obj in added:  # only add unique object
-                continue
-            added.add(obj)
-
-            parent = model.prepend(None, [obj])
-            steps_so_far += 1
-            if (
-                not self.refresh
-                and self.row_meta[type(obj)].children is not None
-            ):
-                model.prepend(parent, ["-"])
-            if steps_so_far % five_percent == 0:
-                percent = float(steps_so_far) / float(nresults)
-                if 0 < percent < 1.0:
-                    bauble.gui.progressbar.set_fraction(percent)
-                yield
-
-        # avoid triggering on_selection_changed
-        self.selection.handler_block(self._sc_sid)
-        self.results_view.set_model(model)
-        self.selection.handler_unblock(self._sc_sid)
+        return itertools.chain(*groups)
 
     def append_children(
         self,
@@ -2017,9 +2021,9 @@ class SearchView(pluginmgr.View, Gtk.Box):
         expanded_rows = self.get_expanded_rows()
 
         # avoid triggering on_selection_changed (happens later)
-        self.selection.handler_block(self._sc_sid)
+        self.selection.handler_block(self._selection_changed_sigid)
         self.results_view.collapse_all()
-        self.selection.handler_unblock(self._sc_sid)
+        self.selection.handler_unblock(self._selection_changed_sigid)
 
         # expand_to_all_rows will invalidate the ref so get the path first
         if not ref:
