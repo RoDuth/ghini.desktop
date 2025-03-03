@@ -664,6 +664,7 @@ class Accession(db.Base, db.WithNotes):
     # view.multiproc_counter
     species: "Species" = relationship(
         "Species",
+        lazy="subquery",
         uselist=False,
         backref=backref("accessions", cascade="all, delete-orphan"),
     )
