@@ -146,7 +146,7 @@ deploy:
   release: 'v1.3.13' # :bump
   description: ''
   auth_token:
-    secure: PyLgbGtLbCudxF0/SAjVBmCRTu6zg6ac6+eGO9OnwP6Fi/zKtx0TYlwxL/uWrNcz
+    secure: esfPkk4FLAN9fDQJ6tr4j7RtODrpfALGSbdpHcmehOJm/rUvKNMh3oRUWxdiBDOG
   draft: false
   prerelease: false
   force_update: true
