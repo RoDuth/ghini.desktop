@@ -79,7 +79,6 @@ from bauble import prefs
 from bauble import search
 from bauble import task
 from bauble import utils
-from bauble.error import DatabaseError
 from bauble.error import check
 from bauble.i18n import _
 from bauble.meta import BaubleMeta
@@ -87,13 +86,8 @@ from bauble.utils.web import BaubleLinkButton
 from bauble.utils.web import LinkDict
 from bauble.utils.web import link_button_factory
 
-# use different formatting template for the result view depending on the
-# platform
-_mainstr_tmpl = "<b>%s</b>"
-if sys.platform == "win32":
-    _substr_tmpl = "%s"
-else:
-    _substr_tmpl = "<small>%s</small>"
+_MAINSTR_TMPL = "<b>%s</b>"
+_SUBSTR_TMPL = "%s"
 
 INFOBOXPAGE_WIDTH_PREF = "infobox.page_width"
 """The preferences key for storing the InfoBoxPage width."""
@@ -1863,10 +1857,10 @@ class SearchView(pluginmgr.View, Gtk.Box):
             cell.set_property("markup", obj)
             return
 
-        meta = self.row_meta[type(obj)]
         try:
             if self.refresh:
-                if meta.children is not None and self.has_kids(obj):
+                row_meta = self.row_meta[type(obj)]
+                if row_meta.children is not None and self.has_kids(obj):
                     path = model.get_path(treeiter)
                     # check if any items added/removed
                     if self.results_view.row_expanded(path):
@@ -1887,8 +1881,7 @@ class SearchView(pluginmgr.View, Gtk.Box):
 
             cell.set_property(
                 "markup",
-                f"{_mainstr_tmpl % utils.nstr(main)}\n"
-                f"{_substr_tmpl % utils.nstr(substr)}",
+                f"{_MAINSTR_TMPL % main}\n{_SUBSTR_TMPL % substr}",
             )
 
         except (saexc.InvalidRequestError, ObjectDeletedError, TypeError) as e:

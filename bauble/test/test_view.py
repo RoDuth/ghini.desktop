@@ -45,6 +45,8 @@ from bauble.test import update_gui
 from bauble.test import uri
 from bauble.test import wait_on_threads
 from bauble.ui import GUI
+from bauble.view import _MAINSTR_TMPL
+from bauble.view import _SUBSTR_TMPL
 from bauble.view import EXPAND_ON_ACTIVATE_PREF
 from bauble.view import INFOBOXPAGE_WIDTH_PREF
 from bauble.view import PIC_PANE_PAGE_PREF
@@ -61,8 +63,6 @@ from bauble.view import NotesBottomPage
 from bauble.view import PicturesScroller
 from bauble.view import PropertiesExpander
 from bauble.view import SearchView
-from bauble.view import _mainstr_tmpl
-from bauble.view import _substr_tmpl
 from bauble.view import get_search_view
 from bauble.view import get_search_view_selected
 from bauble.view import multiproc_counter
@@ -889,10 +889,7 @@ class TestSearchView(BaubleTestCase):
         )
         mock_renderer.set_property.assert_called()
         main, substr = selected.search_view_markup_pair()
-        markup = (
-            f"{_mainstr_tmpl % utils.nstr(main)}\n"
-            f"{_substr_tmpl % utils.nstr(substr)}"
-        )
+        markup = f"{_MAINSTR_TMPL % main}\n{_SUBSTR_TMPL % substr}"
         mock_renderer.set_property.assert_called_with("markup", markup)
 
         # change selection and check it updates
@@ -911,10 +908,7 @@ class TestSearchView(BaubleTestCase):
         )
         mock_renderer.set_property.assert_called()
         main, substr = selected2.search_view_markup_pair()
-        markup = (
-            f"{_mainstr_tmpl % utils.nstr(main)}\n"
-            f"{_substr_tmpl % utils.nstr(substr)}"
-        )
+        markup = f"{_MAINSTR_TMPL % main}\n{_SUBSTR_TMPL % substr}"
         mock_renderer.set_property.assert_called_with("markup", markup)
 
     def test_cell_data_func_no_result(self):
