@@ -1542,7 +1542,7 @@ class SearchView(pluginmgr.View, Gtk.Box):
 
     def search(self, text: str) -> None:
         """search the database using :param text:"""
-        logger.debug("SearchView.search(%s)", text)
+        logger.debug("SearchView.search(%s)", repr(text))
 
         self._reset()
 

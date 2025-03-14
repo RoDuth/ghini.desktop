@@ -1830,6 +1830,26 @@ class SearchTests2(BaubleTestCase):
         results = search.search(string, self.session)
         self.assertCountEqual(results, [])
 
+    def test_string_with_escape_characters(self):
+        from bauble.plugins.plants.genus import GenusNote
+
+        note1 = GenusNote(category="bar", note="test\\test\\test", genus_id=1)
+        note2 = GenusNote(category="foo", note="test\ntest", genus_id=2)
+        self.session.add_all([note1, note2])
+        self.session.commit()
+
+        string = (
+            "genus where notes[category='bar'].note='test\\\\test\\\\test'"
+        )
+        results = search.search(string, self.session)
+
+        self.assertCountEqual([i.id for i in results], [1])
+
+        string = "genus where notes[category='foo'].note='test\\ntest'"
+        results = search.search(string, self.session)
+
+        self.assertCountEqual([i.id for i in results], [2])
+
 
 class SubQueryTests(BaubleClassTestCase):
     @classmethod

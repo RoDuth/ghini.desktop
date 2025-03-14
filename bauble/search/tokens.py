@@ -100,7 +100,8 @@ class StringToken(TokenAction):
 
     def express(self, _handler: QueryHandler) -> str:
         """Returns the unquoted string."""
-        return self.value
+        # reset escaped characters
+        return self.value.encode("raw_unicode_escape").decode("unicode_escape")
 
 
 class NumericToken(TokenAction):

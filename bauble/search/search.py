@@ -70,8 +70,16 @@ def search(text: str, session: Session) -> list:
                 if hasattr(table, "active"):
                     query = query.filter(table.active.is_(True))
 
-            # NOTE handy print statement for debugging
+            # NOTE handy print statements for debugging
+            # - without params in place
             # print("QUERY >>>", query)
+            # - with params in place
+            # print(
+            #     "QUERY >>>",
+            #     query.statement.compile(
+            #         compile_kwargs={"literal_binds": True}
+            #     ),
+            # )
 
             result.extend(query)
 

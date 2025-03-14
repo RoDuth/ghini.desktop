@@ -591,6 +591,7 @@ class GUI:
         if text == "":
             return
         self.add_to_history(text)
+        logger.debug("go clicked: %s", repr(text))
         tokens = self.cmd_parser.parse_string(text)
         cmd = tokens.get("cmd")
         arg = tokens.get("arg")
