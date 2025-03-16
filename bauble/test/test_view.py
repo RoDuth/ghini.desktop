@@ -39,6 +39,8 @@ from bauble import pluginmgr
 from bauble import prefs
 from bauble import search
 from bauble import utils
+from bauble.plugins.plants.family import Family
+from bauble.plugins.plants.family import FamilyNote
 from bauble.plugins.plants.genus import Genus
 from bauble.search.strategies import MapperSearch
 from bauble.test import BaubleTestCase
@@ -58,6 +60,7 @@ from bauble.view import SEARCH_COUNT_FAST_PREF
 from bauble.view import SEARCH_POLL_SECS_PREF
 from bauble.view import SEARCH_REFRESH_PREF
 from bauble.view import AddOneDot
+from bauble.view import BaubleLinkButton
 from bauble.view import HistoryView
 from bauble.view import InfoBox
 from bauble.view import InfoBoxPage
@@ -1310,6 +1313,108 @@ class TestSearchView(BaubleTestCase):
         self.assertEqual(page.remove_expander("Properties"), prop_exp)
         self.assertEqual(page.expanders, {})
         self.assertIsNone(page.remove_expander("Properties"), prop_exp)
+
+    def test_properties_expander_on_id_button_press_not_btn1(self):
+        fam = Family(epithet="Myrtaceae")
+        self.session.add(fam)
+        self.session.commit()
+        prop_exp = PropertiesExpander()
+        prop_exp.update(fam)
+        mock_event = mock.Mock(button=3, type=Gdk.EventType._2BUTTON_PRESS)
+
+        self.assertFalse(prop_exp.on_id_button_press(None, mock_event))
+
+    @mock.patch("bauble.gui")
+    def test_properties_expander_on_id_button_press_btn1(self, mock_gui):
+        fam = Family(id=1, epithet="Myrtaceae")
+        self.session.add(fam)
+        self.session.commit()
+        prop_exp = PropertiesExpander()
+        prop_exp.update(fam)
+        mock_event = mock.Mock(button=1, type=Gdk.EventType._2BUTTON_PRESS)
+
+        self.assertTrue(prop_exp.on_id_button_press(None, mock_event))
+        mock_gui.get_display_clipboard().set_text.assert_called_with("1", -1)
+
+    def test_links_expander_w_link_init(self):
+        links = [
+            {
+                "_base_uri": "http://www.google.com/search?q=%s",
+                "_space": "+",
+                "title": "Search Test",
+                "tooltip": "TEST",
+            }
+        ]
+        links_exp = LinksExpander("notes", links=links)
+
+        self.assertEqual(len(links_exp.buttons), 1)
+        self.assertIsInstance(links_exp.buttons[0], BaubleLinkButton)
+
+    def test_links_expander_w_mal_formed_link_init_logs(self):
+        links = [
+            {
+                "_base_uri": None,
+                "_space": "+",
+                "title": "Search Test",
+                "tooltip": "TEST",
+            }
+        ]
+
+        with self.assertLogs(level="DEBUG") as logs:
+            links_exp = LinksExpander("notes", links=links)
+        self.assertTrue(any("wrong link definition" in i for i in logs.output))
+
+        self.assertEqual(len(links_exp.buttons), 0)
+
+    def test_links_expander_wo_links_update_hides(self):
+        fam = Family(epithet="Myrtaceae")
+        self.session.add(fam)
+        self.session.commit()
+        links_exp = LinksExpander("notes")
+
+        links_exp.update(fam)
+
+        self.assertEqual(len(links_exp.dynamic_box.get_children()), 0)
+        self.assertFalse(links_exp.get_visible())
+
+    def test_links_expander_w_notes_update_unhides(self):
+        fam = Family(epithet="Myrtaceae")
+        note = FamilyNote(note="[Wiki]https://en.wikipedia.org/wiki/Myrtaceae")
+        fam.notes.append(note)
+        self.session.add(fam)
+        self.session.commit()
+        links_exp = LinksExpander("notes")
+        self.assertEqual(len(links_exp.dynamic_box.get_children()), 0)
+
+        links_exp.update(fam)
+
+        self.assertEqual(len(links_exp.dynamic_box.get_children()), 1)
+        self.assertTrue(links_exp.get_visible())
+
+    def test_links_expander_w_link_w_notes_update_separates(self):
+        fam = Family(epithet="Myrtaceae")
+        note = FamilyNote(note="[Wiki]https://en.wikipedia.org/wiki/Myrtaceae")
+        fam.notes.append(note)
+        self.session.add(fam)
+        self.session.commit()
+        links = [
+            {
+                "_base_uri": "http://www.google.com/search?q=%s",
+                "_space": "+",
+                "title": "Search Test",
+                "tooltip": "TEST",
+            }
+        ]
+        links_exp = LinksExpander("notes", links=links)
+        self.assertEqual(len(links_exp.dynamic_box.get_children()), 0)
+
+        links_exp.update(fam)
+
+        # 1 note button + sep
+        self.assertEqual(len(links_exp.dynamic_box.get_children()), 2)
+        # 1 link button
+        self.assertEqual(len(links_exp.link_box.get_children()), 1)
+        self.assertTrue(links_exp.get_visible())
 
 
 class TestHistoryView(BaubleTestCase):

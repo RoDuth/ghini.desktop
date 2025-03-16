@@ -362,7 +362,7 @@ class InfoBox(Gtk.Notebook):
 class PropertiesExpander(InfoExpander):
     EXPANDED_PREF = "infobox.generic_properties_expanded"
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__(_("Properties"))
         table = Gtk.Grid()
         table.set_column_spacing(15)
@@ -420,8 +420,7 @@ class PropertiesExpander(InfoExpander):
         box.pack_start(table, expand=False, fill=False, padding=0)
         self.vbox.pack_start(box, expand=False, fill=False, padding=0)
 
-    def update(self, row):
-        """ "Update the widget in the expander."""
+    def update(self, row: db.Base) -> None:
         self.set_expanded(prefs.prefs.get(self.EXPANDED_PREF, True))
         self.id_data.set_text(str(row.id))
         self.type_data.set_text(str(type(row).__name__))
@@ -434,14 +433,13 @@ class PropertiesExpander(InfoExpander):
             row._last_updated.strftime(fmat) if row._last_updated else ""
         )
 
-    def on_id_button_press(self, _widget, event):
+    def on_id_button_press(self, _widget, event: Gdk.EventButton) -> bool:
         """Copy the ID value to clipboard."""
         # pylint: disable=protected-access
         if event.button == 1 and event.type == Gdk.EventType._2BUTTON_PRESS:
             # Copy the ID on a double click
             string = self.id_data.get_text()
-            if bauble.gui:
-                bauble.gui.get_display_clipboard().set_text(string, -1)
+            bauble.gui.get_display_clipboard().set_text(string, -1)
             return True
         return False
 
@@ -452,8 +450,12 @@ class LinksExpander(InfoExpander):
     def __init__(
         self, notes: str | None = None, links: list[LinkDict] | None = None
     ):
-        """
-        :param notes: the name of the notes property on the row
+        """Provides the web link buttons section for this row.
+
+        :param notes: the name of the notes property on the row, notes can
+            contain embeded links.
+        :param links: a list of link definitions to be used for all rows of
+            this type.
         """
         super().__init__(_("Links"))
         links = links or []
@@ -490,23 +492,15 @@ class LinksExpander(InfoExpander):
                 for label, url in utils.get_urls(note.note):
                     if not label:
                         label = url
-                    try:
-                        category = note.category
-                        link: LinkDict = {
-                            "title": label,
-                            "tooltip": f"from note of category {category}",
-                        }
-                        button = link_button_factory(link)
-                        button.set_uri(url)
-                        note_buttons.append(button)
-                    except Exception as e:  # pylint: disable=broad-except
-                        # broad except, user data.
-                        logger.debug(
-                            "wrong link definition %s, %s(%s)",
-                            link,
-                            type(e).__name__,
-                            e,
-                        )
+                    category = note.category
+                    link: LinkDict = {
+                        "title": label,
+                        "tooltip": f"from note of category {category}",
+                    }
+                    button = link_button_factory(link)
+                    button.set_uri(url)
+                    note_buttons.append(button)
+
             for button in sorted(note_buttons, key=lambda i: i.title):
                 self.dynamic_box.pack_start(button, False, False, 0)
 
