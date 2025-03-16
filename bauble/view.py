@@ -526,25 +526,27 @@ class LinksExpander(InfoExpander):
 
 
 class AddOneDot(threading.Thread):
+    def __init__(self) -> None:
+        super().__init__()
+        self.__stopped = threading.Event()
+        self.number_of_dots = 0
+
     @staticmethod
-    def callback(dotno):
+    def callback(number_of_dots: int) -> None:
         statusbar = bauble.gui.widgets.statusbar
         sbcontext_id = statusbar.get_context_id("searchview.nresults")
         statusbar.pop(sbcontext_id)
-        statusbar.push(sbcontext_id, _("counting results") + "." * dotno)
+        statusbar.push(
+            sbcontext_id, _("counting results") + "." * number_of_dots
+        )
 
-    def __init__(self, group=None, **kwargs):
-        super().__init__(group=group, target=None, name=None)
-        self.__stopped = threading.Event()
-        self.dotno = 0
-
-    def cancel(self):
+    def cancel(self) -> None:
         self.__stopped.set()
 
-    def run(self):
+    def run(self) -> None:
         while not self.__stopped.wait(1.0):
-            self.dotno += 1
-            GLib.idle_add(self.callback, self.dotno)
+            self.number_of_dots += 1
+            GLib.idle_add(self.callback, self.number_of_dots)
 
 
 def multiproc_counter(url, klass, ids):

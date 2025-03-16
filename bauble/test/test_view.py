@@ -22,6 +22,8 @@ view tests
 import os
 from datetime import datetime
 from pathlib import Path
+from time import sleep
+from unittest import TestCase
 from unittest import mock
 
 from gi.repository import Gdk
@@ -55,6 +57,7 @@ from bauble.view import SEARCH_CACHE_SIZE_PREF
 from bauble.view import SEARCH_COUNT_FAST_PREF
 from bauble.view import SEARCH_POLL_SECS_PREF
 from bauble.view import SEARCH_REFRESH_PREF
+from bauble.view import AddOneDot
 from bauble.view import HistoryView
 from bauble.view import InfoBox
 from bauble.view import InfoBoxPage
@@ -148,6 +151,25 @@ class TestMultiprocCounter(BaubleTestCase):
             self.assertEqual(len(result), 1)
             self.assertTrue(isinstance(result[0], dict))
             self.assertGreaterEqual(len(result[0].keys()), 1)
+
+
+class TestAddOneDot(TestCase):
+
+    @mock.patch("bauble.gui")
+    def test_add_one_dot(self, mock_gui):
+        aod = AddOneDot()
+        aod.start()
+        sleep(2.2)
+        aod.cancel()
+        wait_on_threads()
+        update_gui()
+
+        self.assertAlmostEqual(aod.number_of_dots, 2, delta=1)
+
+        statusbar_calls = mock_gui.widgets.statusbar.push.call_args_list
+        self.assertTrue(
+            statusbar_calls[-1][0][1].startswith("counting results.")
+        )
 
 
 class TestSearchView(BaubleTestCase):
