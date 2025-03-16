@@ -65,23 +65,24 @@ from bauble.view import select_in_search_results
 from .species_model import Species
 
 
-def edit_callback(families):
+def edit_callback(objs, **kwargs):
     """Family context menu callback"""
-    family = families[0]
+    family = objs[0]
     return FamilyEditor(model=family).start() is not None
 
 
-def add_genera_callback(families):
+def add_genera_callback(objs, **kwargs):
     """Family context menu callback"""
     session = db.Session()
-    family = session.merge(families[0])
+    family = session.merge(objs[0])
     e = GenusEditor(model=Genus(family=family))
     session.close()
     return e.start() is not None
 
 
-def remove_callback(families):
+def remove_callback(objs, **kwargs):
     """The callback function to remove a family from the family context menu."""
+    families = objs
     family = families[0]
     session = object_session(family)
     for family in families:

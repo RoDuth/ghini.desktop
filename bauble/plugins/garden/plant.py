@@ -123,12 +123,13 @@ PLANT_KML_MAP_PREFS = "kml_templates.plant"
 """pref for path to a custom mako kml template."""
 
 
-def edit_callback(plants):
-    e = PlantEditor(model=plants[0])
+def edit_callback(objs, **kwargs):
+    e = PlantEditor(model=objs[0])
     return e.start() is not None
 
 
-def branch_callback(plants: Sequence["Plant"]) -> bool:
+def branch_callback(objs: Sequence["Plant"], **kwargs) -> bool:
+    plants = objs
     if plants[0].quantity <= 1:
         msg = _(
             "Not enough plants to split.  A plant should have at least "
@@ -141,7 +142,8 @@ def branch_callback(plants: Sequence["Plant"]) -> bool:
     return e.start() is not None
 
 
-def remove_callback(plants):
+def remove_callback(objs, **kwargs):
+    plants = objs
     p_str = ", ".join([str(p) for p in plants])
     msg = _(
         "Are you sure you want to remove the following plants?\n\n%s\n\n"

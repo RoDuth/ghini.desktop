@@ -67,22 +67,22 @@ if TYPE_CHECKING:
     from .propagation import Propagation
 
 
-def collection_edit_callback(coll):
+def collection_edit_callback(objs, **kwargs):
     from .accession import edit_callback
 
-    return edit_callback([coll[0].source.accession], page=1)
+    return edit_callback([objs[0].source.accession], page=1)
 
 
-def collection_add_plants_callback(coll):
+def collection_add_plants_callback(objs, **kwargs):
     from bauble.plugins.garden.accession import add_plants_callback
 
-    return add_plants_callback([coll[0].source.accession])
+    return add_plants_callback([objs[0].source.accession])
 
 
-def collection_remove_callback(coll):
+def collection_remove_callback(objs, **kwargs):
     from bauble.plugins.garden.accession import remove_callback
 
-    return remove_callback([coll[0].source.accession])
+    return remove_callback([objs[0].source.accession])
 
 
 COLLECTION_KML_MAP_PREF = "kml_templates.collection"
@@ -1038,23 +1038,24 @@ def create_source_detail(parent=None):
     return [model]
 
 
-def source_detail_edit_callback(details, parent=None):
+def source_detail_edit_callback(objs, **kwargs):
+    parent = kwargs.get("parent")
     glade_path = os.path.join(
         paths.lib_dir(), "plugins", "garden", "source_detail_editor.glade"
     )
     view = editor.GenericEditorView(
         glade_path, parent=parent, root_widget_name="source_details_dialog"
     )
-    model = details[0]
+    model = objs[0]
     presenter = SourceDetailPresenter(model, view)
     result = presenter.start()
     return result is not None
 
 
-def source_detail_remove_callback(details):
-    detail = details[0]
+def source_detail_remove_callback(objs, **kwargs):
+    detail = objs[0]
     s_lst = []
-    for detail in details:
+    for detail in objs:
         s_lst.append(utils.xml_safe(detail))
     msg = _(
         "Are you sure you want to remove the following sources: \n" "%s?"
@@ -1062,10 +1063,10 @@ def source_detail_remove_callback(details):
     if not utils.yes_no_dialog(msg):
         return False
     session = object_session(detail)
-    for detail in details:
+    for detail in objs:
         session.delete(detail)
     try:
-        utils.remove_from_results_view(details)
+        utils.remove_from_results_view(objs)
         session.commit()
     except Exception as e:  # pylint: disable=broad-except
         msg = _("Could not delete.\n\n%s") % utils.xml_safe(e)
@@ -1076,12 +1077,12 @@ def source_detail_remove_callback(details):
     return True
 
 
-def source_detail_add_acc_callback(values):
+def source_detail_add_acc_callback(objs, **kwargs):
     from bauble.plugins.garden.accession import Accession
     from bauble.plugins.garden.accession import AccessionEditor
 
     session = db.Session()
-    source_detail = session.merge(values[0])
+    source_detail = session.merge(objs[0])
     source = Source(source_detail=source_detail)
     edtr = AccessionEditor(model=Accession(source=source))
     session.close()

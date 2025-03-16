@@ -95,23 +95,23 @@ __all__ = [
 # search view and what else
 
 
-def edit_callback(values):
-    sp = values[0]
+def edit_callback(objs, **kwargs):
+    sp = objs[0]
     if isinstance(sp, VernacularName):
         sp = sp.species
     return edit_species(model=sp) is not None
 
 
-def remove_callback(values):
+def remove_callback(objs, **kwargs):
     """
     The callback function to remove a species from the species context menu.
     """
     from bauble.plugins.garden.accession import Accession
 
-    species = values[0]
+    species = objs[0]
     s_lst = []
     session = object_session(species)
-    for species in values:
+    for species in objs:
         if isinstance(species, VernacularName):
             species = species.species
         nacc = (
@@ -132,10 +132,10 @@ def remove_callback(values):
     ) % ", ".join(i for i in s_lst)
     if not utils.yes_no_dialog(msg):
         return False
-    for species in values:
+    for species in objs:
         session.delete(species)
     try:
-        utils.remove_from_results_view(values)
+        utils.remove_from_results_view(objs)
         session.commit()
     except Exception as e:  # pylint: disable=broad-except
         msg = _("Could not delete.\n\n%s") % utils.xml_safe(e)
@@ -146,12 +146,12 @@ def remove_callback(values):
     return True
 
 
-def add_accession_callback(values):
+def add_accession_callback(objs, **kwargs):
     from bauble.plugins.garden.accession import Accession
     from bauble.plugins.garden.accession import AccessionEditor
 
     session = db.Session()
-    species = session.merge(values[0])
+    species = session.merge(objs[0])
     if isinstance(species, VernacularName):
         species = species.species
     e = AccessionEditor(model=Accession(species=species))
@@ -162,12 +162,14 @@ def add_accession_callback(values):
 edit_action = Action(
     "species_edit", _("_Edit"), callback=edit_callback, accelerator="<ctrl>e"
 )
+
 add_accession_action = Action(
     "species_acc_add",
     _("_Add accession"),
     callback=add_accession_callback,
     accelerator="<ctrl>k",
 )
+
 remove_action = Action(
     "species_remove",
     _("_Delete"),

@@ -99,7 +99,7 @@ class ToSync(db.HistoryBase):
         clone_engine: Engine = create_engine(uri)
         batch_num_meta = meta.get_default("sync_batch_num", "1")
 
-        batch_num = batch_num_meta.value or ""
+        batch_num = batch_num_meta.value or "" if batch_num_meta else ""
 
         history: Table = db.History.__table__
         meta_table: Table = meta.BaubleMeta.__table__

@@ -63,16 +63,16 @@ if TYPE_CHECKING:
     from .plant import Plant
 
 
-def edit_callback(locations):
-    e = LocationEditor(model=locations[0])
+def edit_callback(objs, **kwargs):
+    e = LocationEditor(model=objs[0])
     return e.start() is not None
 
 
-def add_plants_callback(locations):
+def add_plants_callback(objs, **kwargs):
     # create a temporary session so that the temporary plant doesn't
     # get added to the accession
     session = db.Session()
-    loc = session.merge(locations[0])
+    loc = session.merge(objs[0])
     from bauble.plugins.garden.plant import Plant
     from bauble.plugins.garden.plant import PlantEditor
 
@@ -81,7 +81,8 @@ def add_plants_callback(locations):
     return e.start() is not None
 
 
-def remove_callback(locations):
+def remove_callback(objs, **kwargs):
+    locations = objs
     loc = locations[0]
     loc_lst = []
     for loc in locations:

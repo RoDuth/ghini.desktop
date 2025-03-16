@@ -66,7 +66,6 @@ from sqlalchemy.orm import relationship
 import bauble
 from bauble import btypes as types
 from bauble import db
-from bauble import error
 from bauble import pb_set_fraction
 from bauble import prefs
 from bauble import utils

@@ -187,24 +187,25 @@ def generic_taxon_add_action(
         logger.debug("new taxon not added after request from AccessionEditor")
 
 
-def edit_callback(accessions, page=0):
-    acc_editor = AccessionEditor(model=accessions[0])
+def edit_callback(objs, **kwargs):
+    page = kwargs.get("page", 0)
+    acc_editor = AccessionEditor(model=objs[0])
     acc_editor.presenter.view.widgets.notebook.set_current_page(page)
     return acc_editor.start()
 
 
-def add_plants_callback(accessions):
+def add_plants_callback(objs, **kwargs):
     # create a temporary session so that the temporary plant doesn't
     # get added to the accession
     session = db.Session()
-    acc = session.merge(accessions[0])
+    acc = session.merge(objs[0])
     plt_editor = PlantEditor(model=Plant(accession=acc))
     session.close()
     return plt_editor.start()
 
 
-def remove_callback(accessions):
-    acc = accessions[0]
+def remove_callback(objs, **kwargs):
+    accessions = objs
     a_lst = []
     for acc in accessions:
         a_lst.append(utils.xml_safe(str(acc)))
@@ -227,7 +228,7 @@ def remove_callback(accessions):
     if not utils.yes_no_dialog(msg):
         return False
 
-    session = object_session(acc)
+    session = object_session(accessions[0])
     for acc in accessions:
         session.delete(acc)
     try:

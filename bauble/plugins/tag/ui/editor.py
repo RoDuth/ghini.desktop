@@ -210,20 +210,25 @@ class TagItemsDialog(Gtk.Dialog):
 
 
 def remove_callback(
-    tags: Sequence[Tag],
-    *,
-    yes_no_dialog: Callable[[str], bool] = utils.yes_no_dialog,
-    message_details_dialog: Callable[
-        [str, str, int], bool
-    ] = utils.message_details_dialog,
-    menu_reset: Callable[[], None] | None = None,
+    objs: Sequence[Tag],
+    **kwargs,
 ) -> bool:
     """Remove the tags from selected items
 
     Notify user of any problems, update SearchView and reset tags menu.
     """
-    menu_reset = menu_reset or menu_manager.reset
+    yes_no_dialog: Callable[[str], bool] = kwargs.get(
+        "yes_no_dialog", utils.yes_no_dialog
+    )
+    message_details_dialog: Callable[[str, str, int], bool] = kwargs.get(
+        "message_details_dialog",
+        utils.message_details_dialog,
+    )
+    menu_reset: Callable[[], None] = kwargs.get(
+        "menu_reset", menu_manager.reset
+    )
 
+    tags = objs
     tag = tags[0]
 
     session = object_session(tag)
@@ -265,12 +270,12 @@ class TagDialog(Protocol):
 
 
 def edit_callback(
-    tags: Sequence[Tag],
-    *,
-    dialog_cls: type[TagDialog] = TagEditorDialog,
+    objs: Sequence[Tag],
+    **kwargs,
 ) -> bool:
     """Edit a tag."""
-    tag = tags[0]
+    tag = objs[0]
+    dialog_cls: type[TagDialog] = kwargs.get("dialog_cls", TagEditorDialog)
 
     session = object_session(tag)
 

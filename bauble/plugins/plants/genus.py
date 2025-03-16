@@ -81,21 +81,22 @@ from bauble.view import select_in_search_results
 # they aren't using the wrong version of the Genus, e.g. Cananga
 
 
-def edit_callback(genera):
-    genus = genera[0]
+def edit_callback(objs, **kwargs):
+    genus = objs[0]
     return GenusEditor(model=genus).start() is not None
 
 
-def add_species_callback(genera):
+def add_species_callback(objs, **kwargs):
     session = db.Session()
-    genus = session.merge(genera[0])
+    genus = session.merge(objs[0])
     result = edit_species(model=Species(genus=genus)) is not None
     session.close()
     return result
 
 
-def remove_callback(genera):
+def remove_callback(objs, **kwargs):
     """The callback function to remove a genus from the genus context menu."""
+    genera = objs
     genus = genera[0]
     g_lst = []
     session = object_session(genus)

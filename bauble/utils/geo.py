@@ -19,9 +19,11 @@ Common helpers useful for spatial data.
 """
 import logging
 import os
+from collections.abc import Sequence
 from math import inf
 from math import sqrt
 from queue import PriorityQueue
+from typing import Any
 from typing import Self
 from typing import cast
 
@@ -275,15 +277,15 @@ class ProjDB:
             conn.execute(stmt)
 
 
-class KMLMapCallbackFunctor:
+class KMLMapCallbackFunctor:  # pylint: disable=too-few-public-methods
     """Provides an action callback that can be instantiated with an appropriate
     filename for a Mako kml template to generate a kml map.
     """
 
-    def __init__(self, filename):
+    def __init__(self, filename: str) -> None:
         self.filename = filename
 
-    def __call__(self, values):
+    def __call__(self, objs: Sequence[db.Base], **kwargs: Any) -> bool:
         template = Template(
             filename=self.filename,
             input_encoding="utf-8",
@@ -291,11 +293,11 @@ class KMLMapCallbackFunctor:
         )
 
         count = 0
-        for value in values:
+        for obj in objs:
             file_handle, filename = tempfile.mkstemp(suffix=".kml")
 
             try:
-                out = template.render(value=value)
+                out = template.render(value=obj)
                 os.write(file_handle, out)
             except ValueError as e:
                 # at least provides some feedback from last failure
@@ -303,9 +305,9 @@ class KMLMapCallbackFunctor:
                     statusbar = bauble.gui.widgets.statusbar
                     sb_context_id = statusbar.get_context_id("show.map")
                     statusbar.pop(sb_context_id)
-                    statusbar.push(sb_context_id, f"{value} - {e}")
+                    statusbar.push(sb_context_id, f"{obj} - {e}")
                 # NOTE log used in test
-                logger.debug("%s: %s", value, e)
+                logger.debug("%s: %s", obj, e)
                 continue
             finally:
                 os.close(file_handle)
@@ -322,6 +324,8 @@ class KMLMapCallbackFunctor:
 
         if count == 0:
             utils.message_dialog(_("No map data for selected item(s)."))
+
+        return False
 
 
 def kml_string_to_geojson(string: str) -> str:

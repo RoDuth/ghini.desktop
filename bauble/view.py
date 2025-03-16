@@ -39,6 +39,7 @@ from datetime import timedelta
 from datetime import timezone
 from pathlib import Path
 from textwrap import shorten
+from typing import Any
 from typing import Protocol
 from typing import cast
 
@@ -120,13 +121,18 @@ EXPAND_ON_ACTIVATE_PREF = "bauble.search.expand_on_activate"
 """Preference key, should search view expand the item on double click"""
 
 
+class ActionCallback[T: db.Base](Protocol):
+    # pylint: disable=too-few-public-methods,undefined-variable
+    def __call__(self, objs: Sequence[T], **kwargs: Any) -> bool: ...
+
+
 class Action:
-    # pylint: disable=too-few-public-methods, too-many-arguments
+    # pylint: disable=too-few-public-methods,too-many-arguments
     def __init__(
         self,
         name: str,
         label: str,
-        callback: Callable[..., bool] | None = None,
+        callback: ActionCallback,
         accelerator: str | None = None,
         multiselect: bool = False,
     ) -> None:
@@ -148,9 +154,11 @@ class Action:
         self.action = Gio.SimpleAction.new(name, None)
         self.connected = False
 
-    def connect(self, _action, handler, callback):
+    def connect(
+        self, handler: Callable[[Any, Any, ActionCallback], None]
+    ) -> None:
         if not self.connected:
-            self.action.connect("activate", handler, callback)
+            self.action.connect("activate", handler, self.callback)
             self.connected = True
 
 
@@ -1359,12 +1367,12 @@ class SearchView(pluginmgr.View, Gtk.Box):
         self,
         _action,
         _param,
-        call_back: Callable[[list[db.Base]], bool],
+        callback: ActionCallback,
     ) -> None:
         result = False
         try:
             values = self.get_selected_values()
-            result = call_back(values)
+            result = callback(values)
         except Exception as e:  # pylint: disable=broad-except
             msg = utils.xml_safe(str(e))
             trace = utils.xml_safe(traceback.format_exc())
@@ -1395,9 +1403,7 @@ class SearchView(pluginmgr.View, Gtk.Box):
                 self.actions.add(action.name)
                 bauble.gui.window.add_action(action.action)
 
-                action.connect(
-                    "activate", self.on_action_activate, action.callback
-                )
+                action.connect(self.on_action_activate)
                 app = Gio.Application.get_default()
                 if app is not None and hasattr(app, "set_accels_for_action"):
                     app.set_accels_for_action(
