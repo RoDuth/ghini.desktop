@@ -1008,6 +1008,7 @@ def setup_date_button(view, entry, button):
     :param entry: the entry that the data goes into
     :param button: the button that enters the data in entry
     """
+    logger.debug("setup_date_button %s %s", type(view).__name__, entry)
     if isinstance(entry, str):
         entry = view.widgets[entry]
     if isinstance(button, str):

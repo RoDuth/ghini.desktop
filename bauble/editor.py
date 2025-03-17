@@ -1395,6 +1395,7 @@ class GenericEditorPresenter:
         connect_signals=True,
         committing_results=[Gtk.ResponseType.OK],
     ):
+        logger.debug("%s::__init__", type(self).__name__)
         self.model = model
         self.view = view
         self.problems: set[tuple[str, Gtk.Widget]] = set()
@@ -1821,6 +1822,7 @@ class GenericEditorPresenter:
         :param model_attr:
         :param validator:
         """
+        logger.debug("assign_simple_handler %s", widget_name)
         widget = self.view.widgets[widget_name]
         check(widget is not None, _("no widget with name %s") % widget_name)
 
@@ -2179,6 +2181,7 @@ class PresenterMapMixin:
     """
 
     def __init__(self):
+        logger.debug("%s::__init__", type(self).__name__)
         self.kml_template = None
         self.init_map_menu()
 

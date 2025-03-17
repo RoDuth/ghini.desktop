@@ -150,6 +150,7 @@ class GeographyMenu(Gio.Menu):
 
     @classmethod
     def new_menu(cls, callback, button):
+        logger.debug("new geography menu %s", button)
         menu = cls()
         menu.attach_action_group(callback, button)
 
