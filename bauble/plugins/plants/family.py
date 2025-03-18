@@ -122,12 +122,14 @@ def remove_callback(objs, **kwargs):
 edit_action = Action(
     "family_edit", _("_Edit"), callback=edit_callback, accelerator="<ctrl>e"
 )
+
 add_species_action = Action(
     "family_genus_add",
     _("_Add genus"),
     callback=add_genera_callback,
     accelerator="<ctrl>k",
 )
+
 remove_action = Action(
     "family_remove",
     _("_Delete"),
@@ -139,7 +141,7 @@ remove_action = Action(
 family_context_menu = [edit_action, add_species_action, remove_action]
 
 
-class Family(db.Base, db.WithNotes):
+class Family(db.Domain, db.WithNotes):
     """
     :Table name: family
 

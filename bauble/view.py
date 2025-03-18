@@ -121,7 +121,7 @@ EXPAND_ON_ACTIVATE_PREF = "bauble.search.expand_on_activate"
 """Preference key, should search view expand the item on double click"""
 
 
-class ActionCallback[T: db.Base](Protocol):
+class ActionCallback[T: db.Domain](Protocol):
     # pylint: disable=too-few-public-methods,undefined-variable
     def __call__(self, objs: Sequence[T], **kwargs: Any) -> bool: ...
 
@@ -221,7 +221,7 @@ class InfoExpander(Gtk.Expander):
 # beware, typing hack ahead (due to the lack of Intersection).
 class Updateable(Protocol):  # pylint: disable=too-few-public-methods
 
-    def update(self, row: db.Base): ...
+    def update(self, row: db.Domain): ...
 
 
 PMeta: type = type(Protocol)
@@ -237,7 +237,7 @@ class _UEMeta(PMeta, EMeta):
 class UpdateableExpander(Gtk.Expander, Updateable, metaclass=_UEMeta):
     _sep: Gtk.Separator | None
 
-    def update(self, row: db.Base): ...
+    def update(self, row: db.Domain): ...
 
 
 class InfoBoxPage(Gtk.ScrolledWindow):
@@ -295,7 +295,7 @@ class InfoBoxPage(Gtk.ScrolledWindow):
             return expander
         return None
 
-    def update(self, row: db.Base) -> None:
+    def update(self, row: db.Domain) -> None:
         """Updates the infobox with values from row.
 
         :param row: the mapper instance to use to update this infobox,
@@ -321,7 +321,7 @@ class InfoBox(Gtk.Notebook):
 
     def __init__(self, tabbed: bool = False) -> None:
         super().__init__()
-        self.row: db.Base | None = None
+        self.row: db.Domain | None = None
         self.set_property("show-border", False)
         if not tabbed:
             page = InfoBoxPage()
@@ -350,7 +350,7 @@ class InfoBox(Gtk.Notebook):
         if page and hasattr(page, "add_expander"):
             page.add_expander(expander)
 
-    def update(self, row: db.Base) -> None:
+    def update(self, row: db.Domain) -> None:
         """Update the current page with row."""
         self.row = row
         page_num = self.get_current_page()
@@ -420,7 +420,7 @@ class PropertiesExpander(InfoExpander):
         box.pack_start(table, expand=False, fill=False, padding=0)
         self.vbox.pack_start(box, expand=False, fill=False, padding=0)
 
-    def update(self, row: db.Base) -> None:
+    def update(self, row: db.Domain) -> None:
         self.set_expanded(prefs.prefs.get(self.EXPANDED_PREF, True))
         self.id_data.set_text(str(row.id))
         self.type_data.set_text(str(type(row).__name__))
@@ -480,7 +480,7 @@ class LinksExpander(InfoExpander):
                 )
         self._sep = None
 
-    def update(self, row: db.Base) -> None:
+    def update(self, row: db.Domain) -> None:
         self.set_expanded(prefs.prefs.get(self.EXPANDED_PREF, True))
         note_buttons: list[BaubleLinkButton] = []
         for btn in self.buttons:
@@ -718,7 +718,7 @@ class Picture(Protocol):
     category: str
     picture: str
     _last_updated: datetime
-    owner: db.Base
+    owner: db.Domain
 
 
 class PicturesScroller(Gtk.ScrolledWindow):
@@ -755,7 +755,7 @@ class PicturesScroller(Gtk.ScrolledWindow):
         self.all_pics: list[Picture] | None = None
         self.count = 0
         self.waiting_on_realise = 0
-        self.selection: list[db.Base] = []
+        self.selection: list[db.Domain] = []
         # fires considerably less than child1 or pic_pane itself.
         cast(Gtk.Widget, pic_pane.get_child2()).connect(
             "size-allocate", self.on_pic_pane_size_allocation
@@ -806,7 +806,9 @@ class PicturesScroller(Gtk.ScrolledWindow):
             logger.debug("setting PIC_PANE_PAGE_PREF to %s", selected)
             prefs.prefs[PIC_PANE_PAGE_PREF] = selected
 
-    def _hide_restore_pic_pane(self, selection: list[db.Base] | None) -> None:
+    def _hide_restore_pic_pane(
+        self, selection: list[db.Domain] | None
+    ) -> None:
         # restore once
         self.restore_pic_pane = True
         if self.last_result_succeed:
@@ -835,7 +837,9 @@ class PicturesScroller(Gtk.ScrolledWindow):
             self.pic_pane.set_position(self.restore_position)
         self.restore_pic_pane = False
 
-    def populate_from_selection(self, selection: list[db.Base] | None) -> None:
+    def populate_from_selection(
+        self, selection: list[db.Domain] | None
+    ) -> None:
         logger.debug("PicturesScroller.populate_from_selection(%s)", selection)
 
         self._hide_restore_pic_pane(selection)
@@ -856,7 +860,7 @@ class PicturesScroller(Gtk.ScrolledWindow):
         self.all_pics = self._get_pictures(selection or [])
         self.add_rows()
 
-    def _get_pictures(self, selection: list[db.Base]) -> list[Picture]:
+    def _get_pictures(self, selection: list[db.Domain]) -> list[Picture]:
         all_pics_set: set[Picture] = set()
         for obj in selection:
             if pics := getattr(obj, "pictures", None):
@@ -1004,7 +1008,7 @@ class PicturesScroller(Gtk.ScrolledWindow):
     def _select_child_obj(
         self,
         picture: Picture,
-        obj: db.Base,
+        obj: db.Domain,
         model: Gtk.TreeModel,
         search_view: "SearchView",
     ) -> None:
@@ -1043,7 +1047,9 @@ class ViewMeta(UserDict):
 
     class Meta:
         def __init__(self) -> None:
-            self.children: Callable[[db.Base], Sequence[db.Base]] | None = None
+            self.children: (
+                Callable[[db.Domain], Sequence[db.Domain]] | None
+            ) = None
             self.infobox: InfoBox | None = None
             self.context_menu: Sequence[Action] = []
             self.sorter: Callable = utils.natsort_key
@@ -1051,7 +1057,7 @@ class ViewMeta(UserDict):
 
         def set(
             self,
-            children: Callable[[db.Base], Sequence[db.Base]] | None = None,
+            children: Callable[[db.Domain], Sequence[db.Domain]] | None = None,
             infobox: InfoBox | None = None,
             context_menu: Sequence[Action] | None = None,
             sorter: Callable | None = None,
@@ -1076,7 +1082,7 @@ class ViewMeta(UserDict):
 
             self.activated_callback = activated_callback
 
-        def get_children(self, obj: db.Base) -> Sequence[db.Base]:
+        def get_children(self, obj: db.Domain) -> Sequence[db.Domain]:
             """
             :param obj: get the children from obj according to
                 self.children,
@@ -1136,18 +1142,18 @@ class SearchView(pluginmgr.View, Gtk.Box):
     Items are a tuple - (widget, tab position, tab label)
     """
 
-    context_menu_callbacks: set[Callable[[list[db.Base]], Gio.Menu | None]] = (
-        set()
-    )
+    context_menu_callbacks: set[
+        Callable[[list[db.Domain]], Gio.Menu | None]
+    ] = set()
     """Callbacks for constructing context menus for selected items.
     Callbacks should recieve a single argument containing the selected items
     and return a single menu section of type Gio.Menu
     """
 
-    cursor_changed_callbacks: set[Callable[[list[db.Base]], None]] = set()
+    cursor_changed_callbacks: set[Callable[[list[db.Domain]], None]] = set()
     """Callbacks called each time the cursor changes"""
 
-    populate_callbacks: set[Callable[[Sequence[db.Base]], None]] = set()
+    populate_callbacks: set[Callable[[Sequence[db.Domain]], None]] = set()
     """Callbacks called each time SearchView populates"""
 
     extra_signals: set[tuple[str, str, Callable]] = set()
@@ -1237,7 +1243,7 @@ class SearchView(pluginmgr.View, Gtk.Box):
             self.pic_pane_notebook.reorder_child(widget, position)
             self.pic_pane_notebook.show_all()
 
-    def update_bottom_notebook(self, selected_values: list[db.Base]) -> None:
+    def update_bottom_notebook(self, selected_values: list[db.Domain]) -> None:
         """Update the bottom_notebook from the currently selected row.
 
         Only one selected value is allowed, anything else and the bottom
@@ -1256,7 +1262,7 @@ class SearchView(pluginmgr.View, Gtk.Box):
             if hasattr(page, "update"):
                 page.update(row)
 
-    def update_infobox(self, selected_values: list[db.Base]) -> None:
+    def update_infobox(self, selected_values: list[db.Domain]) -> None:
         """Sets the infobox according to the currently selected row.
 
         no infobox is shown if nothing is selected
@@ -1297,7 +1303,7 @@ class SearchView(pluginmgr.View, Gtk.Box):
         self.info_pane.set_position(pane_pos)
 
     def set_infobox_from_row(
-        self, row: db.Base | None, sensitive: bool = True
+        self, row: db.Domain | None, sensitive: bool = True
     ) -> None:
         """Sets up an appropriate info_box for the current row."""
 
@@ -1328,7 +1334,7 @@ class SearchView(pluginmgr.View, Gtk.Box):
                 logger.warning(traceback.format_exc())
                 raise
 
-    def get_selected_values(self) -> list[db.Base]:
+    def get_selected_values(self) -> list[db.Domain]:
         """Get the values in all the selected rows."""
         model, rows = self.selection.get_selected_rows()
         if model is None or rows is None:
@@ -1380,7 +1386,7 @@ class SearchView(pluginmgr.View, Gtk.Box):
             self.update()
 
     def _add_meta_actions_to_context_menu(
-        self, selected_values: list[db.Base]
+        self, selected_values: list[db.Domain]
     ) -> None:
 
         selected_types = set(map(type, selected_values))
@@ -1438,7 +1444,7 @@ class SearchView(pluginmgr.View, Gtk.Box):
         self.context_menu_model.append_item(copy_selection_menu_item)
 
     def _add_get_history_to_context_menu(
-        self, selected_values: list[db.Base]
+        self, selected_values: list[db.Domain]
     ) -> None:
 
         get_history_action_name = "get_history"
@@ -1459,7 +1465,7 @@ class SearchView(pluginmgr.View, Gtk.Box):
         )
         self.context_menu_model.append_item(get_history_menu_item)
 
-    def update_context_menus(self, selected_values: list[db.Base]) -> None:
+    def update_context_menus(self, selected_values: list[db.Domain]) -> None:
         """Update the context menu dependant on selected values."""
 
         self.context_menu_model.remove_all()
@@ -1701,7 +1707,7 @@ class SearchView(pluginmgr.View, Gtk.Box):
         self.append_children(model, treeiter, sorted(kids, key=sorter))
         return False
 
-    def populate_results(self, results: Sequence[db.Base]) -> None:
+    def populate_results(self, results: Sequence[db.Domain]) -> None:
         """Adds results to the search view."""
         # don't bother with a task if the results are small,
         # this keeps the screen from flickering when the main
@@ -1719,7 +1725,9 @@ class SearchView(pluginmgr.View, Gtk.Box):
         for callback in self.populate_callbacks:
             callback(results)
 
-    def _populate_worker(self, results: Sequence[db.Base]) -> Generator[None]:
+    def _populate_worker(
+        self, results: Sequence[db.Domain]
+    ) -> Generator[None]:
         """Generator function for adding the search results to the
         model.
 
@@ -1763,8 +1771,8 @@ class SearchView(pluginmgr.View, Gtk.Box):
         self.selection.handler_unblock(self._selection_changed_sigid)
 
     def _group_sort_results(
-        self, results: Sequence[db.Base]
-    ) -> Iterable[db.Base]:
+        self, results: Sequence[db.Domain]
+    ) -> Iterable[db.Domain]:
         groups = []
 
         # sort by type so that groupby works properly
@@ -1784,7 +1792,7 @@ class SearchView(pluginmgr.View, Gtk.Box):
         self,
         model: Gtk.TreeStore,
         parent: Gtk.TreeIter,
-        kids: Sequence[db.Base],
+        kids: Sequence[db.Domain],
     ) -> None:
         """Append object to a parent iter in the model.
 
@@ -1806,7 +1814,7 @@ class SearchView(pluginmgr.View, Gtk.Box):
                 if self.row_meta[type(kid)].children is not None:
                     model.append(itr, ["-"])
 
-    def remove_row(self, obj: db.Base) -> None:
+    def remove_row(self, obj: db.Domain) -> None:
         """Remove the row containing ``obj`` from the results_view."""
         # NOTE used in testing...
         logger.info("remove_row called")
@@ -1816,7 +1824,7 @@ class SearchView(pluginmgr.View, Gtk.Box):
             model.remove(found)
 
     @utils.timed_cache()
-    def has_kids(self, obj: db.Base) -> bool:
+    def has_kids(self, obj: db.Domain) -> bool:
         """Expire and check for children
 
         Results are cached to avoid expiring too regularly.
@@ -1828,7 +1836,7 @@ class SearchView(pluginmgr.View, Gtk.Box):
 
     @staticmethod
     @utils.timed_cache(size=20, secs=0.2)
-    def count_kids(obj: db.Base) -> int:
+    def count_kids(obj: db.Domain) -> int:
         """Get the count of children.
 
         Minimally cached to avoid repeated database calls for same value.
@@ -1837,7 +1845,7 @@ class SearchView(pluginmgr.View, Gtk.Box):
 
     @staticmethod
     @utils.timed_cache(size=200, secs=0.2)
-    def get_markup_pair(obj: db.Base) -> tuple[str, str]:
+    def get_markup_pair(obj: db.Domain) -> tuple[str, str]:
         """Get the markup pair.
 
         Minimally cached to avoid repeated database calls for same value.
@@ -2056,9 +2064,9 @@ class SearchView(pluginmgr.View, Gtk.Box):
             call_back(selected)
 
 
-def get_search_view_selected() -> list[db.Base] | None:
+def get_search_view_selected() -> list[db.Domain] | None:
     """If SearchView is the current view return the selected objects."""
-    selected: list[db.Base] | None = None
+    selected: list[db.Domain] | None = None
     if bauble.gui and isinstance(view := bauble.gui.get_view(), SearchView):
         selected = view.get_selected_values()
     return selected
@@ -2089,7 +2097,7 @@ class NotesBottomPage(Gtk.ScrolledWindow):
         super().__init__()
         self.domain: str = ""
 
-    def update(self, row: db.Base) -> None:
+    def update(self, row: db.Domain) -> None:
         logger.debug("update notes bottom page")
 
         self.domain = row.__class__.__name__.lower() if row else ""

@@ -265,7 +265,7 @@ compare_rank = {
 }
 
 
-class Species(db.Base, db.WithNotes):
+class Species(db.Domain, db.WithNotes):
     """
     :Table name: species
 
@@ -1233,7 +1233,7 @@ class SpeciesSynonym(db.Base):
         return str(self.synonym)
 
 
-class VernacularName(db.Base):
+class VernacularName(db.Domain):
     """
     :Table name: vernacular_name
 

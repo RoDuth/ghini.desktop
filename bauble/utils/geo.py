@@ -285,7 +285,7 @@ class KMLMapCallbackFunctor:  # pylint: disable=too-few-public-methods
     def __init__(self, filename: str) -> None:
         self.filename = filename
 
-    def __call__(self, objs: Sequence[db.Base], **kwargs: Any) -> bool:
+    def __call__(self, objs: Sequence[db.Domain], **kwargs: Any) -> bool:
         template = Template(
             filename=self.filename,
             input_encoding="utf-8",

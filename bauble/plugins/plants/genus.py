@@ -151,7 +151,7 @@ remove_action = Action(
 genus_context_menu = [edit_action, add_species_action, remove_action]
 
 
-class Genus(db.Base, db.WithNotes):
+class Genus(db.Domain, db.WithNotes):
     """
     :Table name: genus
 

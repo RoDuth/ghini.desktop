@@ -113,7 +113,7 @@ class _TagsMenuManager:
                     session.query(Tag.tag).filter(Tag.id == sub_query).scalar()
                 )
 
-    def refresh(self, selected_values: list[db.Base] | None = None) -> None:
+    def refresh(self, selected_values: list[db.Domain] | None = None) -> None:
         """Refresh the tag menu, set the active tag and enable/disable menu
         items.
         """
@@ -186,7 +186,7 @@ class _TagsMenuManager:
             view.update_bottom_notebook(selected)
 
     def context_menu_callback(
-        self, selected: Sequence[db.Base]
+        self, selected: Sequence[db.Domain]
     ) -> Gio.Menu | None:
         """Build the SearchView context menu tag section for the selected
         items.
@@ -240,7 +240,7 @@ class _TagsMenuManager:
 
     @staticmethod
     def _apply_remove_tags(
-        selected: Sequence[db.Base], query: Query
+        selected: Sequence[db.Domain], query: Query
     ) -> tuple[set[Tag], set[Tag]]:
         all_tagged = None
         remove_tags = set()
@@ -401,7 +401,7 @@ class _TagsMenuManager:
 
 
 class ItemsDialog(Protocol):
-    def __init__(self, values: Sequence[db.Base]) -> None: ...
+    def __init__(self, values: Sequence[db.Domain]) -> None: ...
     def start(self) -> None: ...
     def destroy(self) -> None: ...
 
@@ -434,10 +434,10 @@ _tags_menu_manager = _TagsMenuManager()
 reset: Callable[[], None] = _tags_menu_manager.reset
 """Reset the Tags menu."""
 
-refresh: Callable[[list[db.Base] | None], None] = _tags_menu_manager.refresh
+refresh: Callable[[list[db.Domain] | None], None] = _tags_menu_manager.refresh
 """Reset the Tags menu."""
 
-context_menu_callback: Callable[[Sequence[db.Base]], Gio.Menu | None] = (
+context_menu_callback: Callable[[Sequence[db.Domain]], Gio.Menu | None] = (
     _tags_menu_manager.context_menu_callback
 )
 """Return the context menu tag section for the supplied selected items."""

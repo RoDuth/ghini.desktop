@@ -159,7 +159,7 @@ LocationNote = db.make_note_class("Location")
 LocationPicture = db.make_note_class("Location", cls_type="_picture")
 
 
-class Location(db.Base, db.WithNotes):
+class Location(db.Domain, db.WithNotes):
     """
     :Table name: location
 

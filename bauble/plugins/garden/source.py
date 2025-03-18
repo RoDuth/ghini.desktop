@@ -248,7 +248,7 @@ source_type_values = [
 # should probably store the DMS data as a string in decimal degrees
 
 
-class Collection(db.Base):
+class Collection(db.Domain):
     """
     :Table name: collection
 
@@ -1118,7 +1118,7 @@ source_detail_context_menu = [
 ]
 
 
-class SourceDetail(db.Base):
+class SourceDetail(db.Domain):
     __tablename__ = "source_detail"
 
     # ITF2 - E6 - Donor

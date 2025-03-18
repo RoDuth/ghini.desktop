@@ -88,7 +88,7 @@ class TagItemsDialog(Gtk.Dialog):
     items_data_label = cast(Gtk.Label, Gtk.Template.Child())
     delete_button = cast(Gtk.Button, Gtk.Template.Child())
 
-    def __init__(self, selected: Sequence[db.Base]) -> None:
+    def __init__(self, selected: Sequence[db.Domain]) -> None:
         super().__init__()
 
         self.set_transient_for(bauble.gui.window)
@@ -264,7 +264,7 @@ def remove_callback(
 
 
 class TagDialog(Protocol):
-    def __init__(self, model: db.Base) -> None: ...
+    def __init__(self, model: db.Domain) -> None: ...
     def run(self) -> Gtk.ResponseType: ...
     def destroy(self) -> None: ...
 

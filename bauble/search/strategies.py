@@ -55,7 +55,7 @@ from pyparsing import string_end
 from sqlalchemy.orm import Query
 from sqlalchemy.orm import Session
 
-from bauble.db import Base
+from bauble.db import Domain
 from bauble.error import check
 from bauble.i18n import _
 
@@ -76,9 +76,9 @@ value_token = (
 class SearchStrategy(ABC):
     """interface for adding search strategies to a view."""
 
-    domains: dict[str, tuple[type[Base], list[str]]] = {}
+    domains: dict[str, tuple[type[Domain], list[str]]] = {}
     shorthand: dict[str, str] = {}
-    properties: dict[type[Base], list[str]] = {}
+    properties: dict[type[Domain], list[str]] = {}
     # placed here for simple search convenience.
     completion_funcs: dict[str, Callable] = {}
 
@@ -90,7 +90,7 @@ class SearchStrategy(ABC):
         self.session = None
 
     def add_meta(
-        self, domain: tuple[str, ...], cls: type[Base], properties: list[str]
+        self, domain: tuple[str, ...], cls: type[Domain], properties: list[str]
     ) -> None:
         """Add a domain to the search space
 
@@ -126,14 +126,14 @@ class SearchStrategy(ABC):
         self.properties[cls] = properties
 
     @classmethod
-    def get_domain_classes(cls) -> dict[str, type[Base]]:
+    def get_domain_classes(cls) -> dict[str, type[Domain]]:
         """Returns a dictionary of domains names, as strings, to the classes
         they point to.
 
         Only the first domain name per class, as added via add_meta, is
         returned.
         """
-        domains: dict[str, type[Base]] = {}
+        domains: dict[str, type[Domain]] = {}
         for domain, item in cls.domains.items():
             if item[0] not in domains.values():
                 domains.setdefault(domain, item[0])

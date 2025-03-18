@@ -68,7 +68,7 @@ class TaggedObj(db.Base):
         return f"{self.obj_class}: {self.obj_id}"
 
 
-class Tag(db.Base):
+class Tag(db.Domain):
 
     __tablename__ = "tag"
 
@@ -85,7 +85,7 @@ class Tag(db.Base):
     )
 
     _update_history_id: int = 0
-    _last_objects: list[db.Base] | None = None
+    _last_objects: list[db.Domain] | None = None
 
     retrieve_cols = ["id", "tag"]
     _lock = threading.Lock()
@@ -106,7 +106,7 @@ class Tag(db.Base):
     def markup(self) -> str:
         return f"{self.tag} Tag"
 
-    def tag_objects(self, objects: Sequence[db.Base]) -> None:
+    def tag_objects(self, objects: Sequence[db.Domain]) -> None:
         session = object_session(self)
 
         if not isinstance(session, Session):
@@ -132,7 +132,7 @@ class Tag(db.Base):
                 session.add(tagged_obj)
 
     @property
-    def objects(self) -> list[db.Base]:
+    def objects(self) -> list[db.Domain]:
         """return all tagged objects
 
         Reuses last result if nothing was changed in the database since
@@ -157,13 +157,13 @@ class Tag(db.Base):
 
         return self._last_objects
 
-    def is_tagging(self, obj: db.Base) -> bool:
+    def is_tagging(self, obj: db.Domain) -> bool:
         """Tell whether self tags obj."""
         if self.objects == []:
             return False
         return obj in self.objects
 
-    def get_tagged_objects(self) -> list[db.Base]:
+    def get_tagged_objects(self) -> list[db.Domain]:
         """Get all object tagged with tag and clean up any that are left
         hanging.
         """
@@ -190,7 +190,7 @@ class Tag(db.Base):
             return items
 
     @staticmethod
-    def attached_to(obj: db.Base) -> list["Tag"]:
+    def attached_to(obj: db.Domain) -> list["Tag"]:
         """Return the list of tags attached to obj."""
         session = object_session(obj)
 
@@ -265,14 +265,14 @@ class Tag(db.Base):
         return len(self.objects)
 
 
-def _classname(obj: db.Base) -> str:
+def _classname(obj: db.Domain) -> str:
     # classname as stored in the tagged_obj table
     return f"{type(obj).__module__}.{type(obj).__name__}"
 
 
 def _get_tagged_object_pair(
     obj: TaggedObj,
-) -> tuple[type[db.Base], int] | None:
+) -> tuple[type[db.Domain], int] | None:
     try:
         module_name, _part, cls_name = str(obj.obj_class).rpartition(".")
         module = import_module(module_name)
@@ -288,7 +288,7 @@ def _get_tagged_object_pair(
     return None
 
 
-def untag_objects(name: str, objects: Sequence[db.Base]) -> None:
+def untag_objects(name: str, objects: Sequence[db.Domain]) -> None:
     """Remove the tag name from objects."""
 
     session = object_session(objects[0])
@@ -319,7 +319,7 @@ def untag_objects(name: str, objects: Sequence[db.Base]) -> None:
     session.commit()
 
 
-def tag_objects(name: str, objects: Sequence[db.Base]) -> None:
+def tag_objects(name: str, objects: Sequence[db.Domain]) -> None:
     """Add the tag to objects."""
 
     session = object_session(objects[0])
@@ -338,7 +338,7 @@ def tag_objects(name: str, objects: Sequence[db.Base]) -> None:
     session.commit()
 
 
-def get_tag_ids(objects: Sequence[db.Base]) -> tuple[set[int], set[int]]:
+def get_tag_ids(objects: Sequence[db.Domain]) -> tuple[set[int], set[int]]:
     """Return a tuple describing which tags apply to objects.
 
     The result is 2 sets.  The first set contains the IDs of the tags that

@@ -2101,7 +2101,7 @@ class PresenterLinksMixin:
 
     LINK_BUTTONS_PREF_KEY: str
     # not entirely correct...  see: https://github.com/python/typing/issues/246
-    model: db.Base
+    model: db.Domain
     view: GenericEditorView
 
     def init_links_menu(self) -> None:
@@ -2144,7 +2144,7 @@ class PresenterLinksMixin:
         if fields:
             values = {}
             for key in fields:
-                val: str | db.Base = self.model
+                val: str | db.Domain = self.model
                 for step in key.split("."):
                     val = getattr(val, step, "-")
                 values[key] = val if val == str(val) else ""

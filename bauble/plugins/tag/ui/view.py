@@ -123,7 +123,7 @@ class TagsBottomPage(Gtk.ScrolledWindow):
     LABEL_STR = _("Tags")
     label = Gtk.Label(label=LABEL_STR)
 
-    def update(self, row: db.Base) -> None:
+    def update(self, row: db.Domain) -> None:
         logger.debug("update tags bottom page")
 
         self.liststore.clear()

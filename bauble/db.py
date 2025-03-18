@@ -90,9 +90,9 @@ def natsort(attr, obj):
 
 
 def get_active_children(
-    children: Callable[["Base"], Sequence["Base"]] | str,
-    obj: "Base",
-) -> Sequence["Base"]:
+    children: Callable[["Domain"], Sequence["Domain"]] | str,
+    obj: "Domain",
+) -> Sequence["Domain"]:
     """Return only active children of obj if the 'exclude_inactive' pref is
     set True else return all children.
     """
@@ -172,6 +172,17 @@ class Base(DBase):
             onupdate=sa.func.now(),
         ),
     )
+
+
+class Domain(Base):
+    """Domains are a subset of tables that contain extra functionality as
+    expected for SearchView etc..
+
+    Any tables that are expected to be displayed in SearchView (and hence
+    available in searches, etc.) should derive from this class.
+    """
+
+    __abstract__ = True
 
     def top_level_count(self) -> dict[str, int]:
         return {type(self).__name__: 1}
@@ -1062,7 +1073,14 @@ current_user = CurrentUserFunctor()
 
 
 def get_model_by_name(name: str) -> type[Base] | None:
+    # try domains first
+    for domain in Domain.__subclasses__():
+        if domain.__tablename__ == name:
+            return domain
+
     for model in Base.__subclasses__():
-        if model.__tablename__ == name:
+        # ignore Domain
+        if getattr(model, "__tablename__", None) == name:
             return model
+
     return None

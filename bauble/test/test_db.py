@@ -442,8 +442,8 @@ class HistoryTests(BaubleTestCase):
 
 
 class BaseTests(BaubleTestCase):
-    def test_base(self):
-        class TestTableCustom(db.Base):
+    def test_domain(self):
+        class TestTableCustom(db.Domain):
             __tablename__ = "test_table"
 
             def __str__(self):

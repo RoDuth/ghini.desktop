@@ -749,7 +749,7 @@ acc_type_values = {
 }
 
 
-class Plant(db.Base, db.WithNotes):
+class Plant(db.Domain, db.WithNotes):
     """
     :Table name: plant
 
@@ -1012,7 +1012,7 @@ class Plant(db.Base, db.WithNotes):
             f"({self.accession.species_str(markup=True)})"
         )
 
-    def parent_objects(self) -> Generator[tuple[db.Base, ...], None, None]:
+    def parent_objects(self) -> Generator[tuple[db.Domain, ...], None, None]:
         yield (self.location,)
 
         source = self.accession.source and self.accession.source.source_detail

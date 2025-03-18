@@ -55,7 +55,7 @@ from bauble.i18n import _
 # missing columns so that all columns will have some value
 
 
-def is_importable_attr(domain: type[db.Base], path: str) -> bool:
+def is_importable_attr(domain: type[db.Domain], path: str) -> bool:
     """Check if a path points to an importable attribute (i.e. can be set).
 
     For hybrid_property returns False if has no setter.

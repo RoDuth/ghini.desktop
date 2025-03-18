@@ -206,7 +206,7 @@ class GeographyMenu(Gio.Menu):
             self.append_submenu(geo_name, self.build_menu(geo_id, geo_name))
 
 
-class Geography(db.Base):
+class Geography(db.Domain):
     """
     Represents a geography unit.
 
