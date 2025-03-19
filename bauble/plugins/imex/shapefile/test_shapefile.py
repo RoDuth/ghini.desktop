@@ -3137,8 +3137,8 @@ class ShapefileImportTests(ShapefileTestCase):
         self.assertEqual(len(result), 2)
         species = self.session.query(Species).all()
         self.assertEqual(len(species), 2)
-        self.assertEqual(species[0].str(remove_zws=True), "Grevillea robusta")
-        self.assertEqual(species[1].str(remove_zws=True), "Eucalyptus major")
+        self.assertEqual(species[0].string(remove_zws=True), "Grevillea robusta")
+        self.assertEqual(species[1].string(remove_zws=True), "Eucalyptus major")
         self.assertEqual(
             species[0].default_vernacular_name.name, "Mountain Grey Gum"
         )
@@ -3192,8 +3192,8 @@ class ShapefileImportTests(ShapefileTestCase):
         self.assertEqual(len(result), 2)
         species = self.session.query(Species).all()
         self.assertEqual(len(species), 2)
-        self.assertEqual(species[0].str(remove_zws=True), "Grevillea robusta")
-        self.assertEqual(species[1].str(remove_zws=True), "Eucalyptus major")
+        self.assertEqual(species[0].string(remove_zws=True), "Grevillea robusta")
+        self.assertEqual(species[1].string(remove_zws=True), "Eucalyptus major")
         self.assertEqual(
             species[0].default_vernacular_name.name, "Mountain Grey Gum"
         )

@@ -26,7 +26,6 @@ import re
 import traceback
 import weakref
 from ast import literal_eval
-from random import random
 
 logger = logging.getLogger(__name__)
 
@@ -128,7 +127,7 @@ def species_to_string_matcher(
 
         species = attrgetter(sp_path)(species)
     comp_gen = str(species.genus.epithet).lower()
-    comp_sp = species.str(genus=False).lower().strip(" ×+")
+    comp_sp = species.string(genus=False).lower().strip(" ×+")
     comp_cv = "'" + (species.cultivar_epithet or "").lower()
     comp_trade = "'" + (species.trade_name or "").lower()
 
@@ -169,7 +168,7 @@ def species_cell_data_func(_column, renderer, model, treeiter):
     # DetachedInstanceErrors. So check first
     if sa_inspect(sp).persistent:
         renderer.set_property(
-            "text", f"{sp.str(authors=True)} ({sp.genus.family})"
+            "text", f"{sp.string(authors=True)} ({sp.genus.family})"
         )
 
 
@@ -627,7 +626,7 @@ class SpeciesEditorPresenter(
                 "infrasp4_rank": model.infrasp4_rank,
                 "infrasp4_author": model.infrasp4_author,
             }
-            self.start_sp_markup = model.str(markup=True, authors=True)
+            self.start_sp_markup = model.string(markup=True, authors=True)
 
     def _get_taxon(self, parts, species=None):
         msg = None
@@ -1127,7 +1126,7 @@ class SpeciesEditorPresenter(
         if len(self.problems) > 0 or self.model.genus is None:
             self.view.set_label("sp_fullname_label", "--")
             return
-        sp_str = self.model.str(markup=True, authors=True)
+        sp_str = self.model.string(markup=True, authors=True)
         self.view.set_label("sp_fullname_label", sp_str)
 
         # add previous species as synonym
@@ -1188,7 +1187,7 @@ class SpeciesEditorPresenter(
                 "This taxon name is already in your collection"
                 ", as %s.\n\n"
                 "Are you sure you want to insert it again?"
-            ) % omonym.str(authors=True, markup=True)
+            ) % omonym.string(authors=True, markup=True)
 
             def on_response(_button, response):
                 self.view.remove_box(self.omonym_box)

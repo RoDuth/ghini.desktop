@@ -830,7 +830,7 @@ class FamilyTests(PlantTestCase):
         f.qualifier = "s. lat."
         self.assertTrue(str(f) == "fam s. lat.")
         f.author = "arthur"
-        self.assertTrue(f.str(f, author=True) == "fam s. lat. arthur")
+        self.assertTrue(f.string(f, author=True) == "fam s. lat. arthur")
 
     def test_synonym_str(self):
         fam = Family(family="Fam", qualifier="s. lat.", author="Arthur")
@@ -1944,11 +1944,11 @@ class GenusSynonymyTests(PlantTestCase):
 class SpeciesTests(PlantTestCase):
     def test_str(self):
         """
-        Test the Species.str() method
+        Test the Species.string() method
         """
 
         def get_sp_str(id, **kwargs):
-            return self.session.query(Species).get(id).str(**kwargs)
+            return self.session.query(Species).get(id).string(**kwargs)
 
         for sid, expect in species_str_map.items():
             sp = self.session.query(Species).get(sid)
@@ -1977,7 +1977,7 @@ class SpeciesTests(PlantTestCase):
 
     def test_lexicographic_order__unspecified_precedes_specified(self):
         def get_sp_str(id, **kwargs):
-            return self.session.query(Species).get(id).str(**kwargs)
+            return self.session.query(Species).get(id).string(**kwargs)
 
         self.assertTrue(get_sp_str(1) > get_sp_str(22))
         self.assertTrue(get_sp_str(1) > get_sp_str(23))

@@ -1752,9 +1752,8 @@ class GenericEditorPresenter:
         """Add problem_id to self.problems and change the background of widget.
 
         :param problem_id: A unique id for the problem.
-        :param widget: either a widget or list of widgets
-              whose background color should change to indicate a problem
-              (default=None)
+        :param widget: a widget whose background color should change to
+            indicate a problem
         """
         logger.debug(
             "add_problem(%s, %s, %s)",

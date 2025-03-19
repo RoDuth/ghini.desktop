@@ -343,10 +343,10 @@ class Genus(db.Domain, db.WithNotes):
         self._cites = value
 
     def __str__(self):
-        return Genus.str(self)
+        return Genus.string(self)
 
     @staticmethod
-    def str(genus, author=False):
+    def string(genus, author=False):
         if genus.genus is None:
             return ""
         parts = [genus.hybrid, genus.genus, genus.qualifier]
@@ -423,10 +423,10 @@ def genus_before_update(_mapper, connection, target):
         if sp in session.new or sp in session.dirty:
             # skip species that will trigger their own full name update
             return
-        if sp.full_sci_name != sp.str(authors=True):
+        if sp.full_sci_name != sp.string(authors=True):
             vals = {
                 "full_name": str(sp),
-                "full_sci_name": sp.str(authors=True),
+                "full_sci_name": sp.string(authors=True),
             }
             sp_table = Species.__table__
             connection.execute(
@@ -546,7 +546,7 @@ def genus_cell_data_func(_column, renderer, model, treeiter):
         renderer.set_property(
             "markup",
             f"{hybrid}<i>{value.epithet}</i> {author} "
-            f"(<small>{Family.str(value.family)}</small>)",
+            f"(<small>{Family.string(value.family)}</small>)",
         )
 
 
@@ -1157,7 +1157,7 @@ class SynonymsExpander(InfoExpander):
             label = Gtk.Label()
             label.set_xalign(0.0)
             label.set_yalign(0.5)
-            label.set_markup(Genus.str(row.accepted, author=True))
+            label.set_markup(Genus.string(row.accepted, author=True))
             box.add(label)
             utils.make_label_clickable(label, on_clicked, row.accepted)
             syn_box.pack_start(box, False, False, 0)
@@ -1171,7 +1171,7 @@ class SynonymsExpander(InfoExpander):
                 label = Gtk.Label()
                 label.set_xalign(0.0)
                 label.set_yalign(0.5)
-                label.set_markup(Genus.str(syn, author=True))
+                label.set_markup(Genus.string(syn, author=True))
                 box.add(label)
                 utils.make_label_clickable(label, on_clicked, syn)
                 syn_box.pack_start(box, False, False, 0)

@@ -2314,13 +2314,13 @@ class AccessionQualifiedTaxon(GardenTestCase):
 
     def test_species_str_without_zws(self):
         s = "Echinocactus grusonii"
-        sp_str = self.species.str(remove_zws=True)
+        sp_str = self.species.string(remove_zws=True)
         self.assertEqual(sp_str, s)
         s = "Echinocactus grusonii var. albispinus"
-        sp_str = self.sp3.str(remove_zws=True)
+        sp_str = self.sp3.string(remove_zws=True)
         self.assertEqual(sp_str, s)
         s = "<i>Echinocactus</i> <i>grusonii</i> var. <i>albispinus</i>"
-        sp_str = self.sp3.str(remove_zws=True, markup=True)
+        sp_str = self.sp3.string(remove_zws=True, markup=True)
         self.assertEqual(sp_str, s)
 
     def test_species_str_with_qualification_too_deep(self):
@@ -3777,10 +3777,10 @@ class VerificationTests(GardenTestCase):
         self.assertTrue(presenter.has_problems(ver_box.level_combo))
         utils.set_widget_value(ver_box.verifier_entry, "some expert")
         self.assertFalse(presenter.has_problems(ver_box.verifier_entry))
-        utils.set_widget_value(ver_box.new_taxon_entry, sp.str())
+        utils.set_widget_value(ver_box.new_taxon_entry, sp.string())
         ver_box.on_sp_select(sp)
         self.assertFalse(presenter.has_problems(ver_box.new_taxon_entry))
-        utils.set_widget_value(ver_box.prev_taxon_entry, acc.species.str())
+        utils.set_widget_value(ver_box.prev_taxon_entry, acc.species.string())
         ver_box.on_sp_select(acc.species, attr="prev_species")
         self.assertFalse(presenter.has_problems(ver_box.prev_taxon_entry))
         utils.set_widget_value(ver_box.level_combo, 1)

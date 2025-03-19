@@ -840,15 +840,15 @@ class Species(db.Domain, db.WithNotes):
         :param genus: whether the genus name should be included
         :param for_search_view: in search view authorship is in light text
         """
-        return self.str(
+        return self.string(
             authors, markup=True, genus=genus, for_search_view=for_search_view
         )
 
     def __str__(self):
         """return the default string representation for self."""
-        return self.str()
+        return self.string()
 
-    def str(
+    def string(
         self,
         authors=False,
         markup=False,
@@ -1158,13 +1158,13 @@ class Species(db.Domain, db.WithNotes):
 @event.listens_for(Species, "before_update")
 def species_before_update(_mapper, _connection, target):
     target.full_name = str(target)
-    target.full_sci_name = target.str(authors=True)
+    target.full_sci_name = target.string(authors=True)
 
 
 @event.listens_for(Species, "before_insert")
 def species_before_insert(_mapper, _connection, target):
     target.full_name = str(target)
-    target.full_sci_name = target.str(authors=True)
+    target.full_sci_name = target.string(authors=True)
 
 
 def update_all_full_names_task():
@@ -1180,7 +1180,7 @@ def update_all_full_names_task():
     five_percent = int(count / 20) or 1
     for done, sp in enumerate(session.query(Species)):
         sp.full_name = str(sp)
-        sp.full_sci_name = sp.str(authors=True)
+        sp.full_sci_name = sp.string(authors=True)
         if done % five_percent == 0:
             session.commit()
             pb_set_fraction(done / count)

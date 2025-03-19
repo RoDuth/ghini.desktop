@@ -229,7 +229,7 @@ class SpeciesABCDAdapter(ABCDAdapter):
         return utils.xml_safe(self.species.genus.family)
 
     def get_fullscientificnamestring(self, authors=True):
-        sp_str = self.species.str(authors=authors, markup=False)
+        sp_str = self.species.string(authors=authors, markup=False)
         return utils.xml_safe(sp_str)
 
     def get_genusormonomial(self):
@@ -343,9 +343,13 @@ class SpeciesABCDAdapter(ABCDAdapter):
     def species_markup(self, unit):
         if self.for_reports:
             # first the non marked up version
-            etree.SubElement(unit, "FullSpeciesName").text = self.species.str()
+            etree.SubElement(unit, "FullSpeciesName").text = (
+                self.species.string()
+            )
 
-            markup = self.species.label_markup or self.species.str(markup=True)
+            markup = self.species.label_markup or self.species.string(
+                markup=True
+            )
             unit.append(
                 etree.fromstring(
                     f"<FullSpeciesNameMarkup>{markup}</FullSpeciesNameMarkup>"
@@ -355,7 +359,7 @@ class SpeciesABCDAdapter(ABCDAdapter):
             unit.append(
                 etree.fromstring(
                     "<FullSpeciesNameMarkupAuthors>"
-                    f"{self.species.str(authors=True, markup=True)}"
+                    f"{self.species.string(authors=True, markup=True)}"
                     "</FullSpeciesNameMarkupAuthors>"
                 )
             )

@@ -891,14 +891,14 @@ class Accession(db.Domain, db.WithNotes):
             self._warned_about_id_qual = True
 
         if self.id_qual:
-            sp_str = self.species.str(
+            sp_str = self.species.string(
                 authors,
                 markup,
                 remove_zws=True,
                 qualification=(self.id_qual_rank, self.id_qual),
             )
         else:
-            sp_str = self.species.str(authors, markup, remove_zws=True)
+            sp_str = self.species.string(authors, markup, remove_zws=True)
 
         if details:
             logger.debug("species_str adding details")
@@ -1713,7 +1713,7 @@ class VerificationBox(Gtk.Box):
             match_func=species_match_func,
         )
         if self.model.species:
-            self.new_taxon_entry.set_text(self.model.species.str())
+            self.new_taxon_entry.set_text(self.model.species.string())
 
         self.presenter().assign_completions_handler(
             self.new_taxon_entry,
@@ -1852,7 +1852,7 @@ class VerificationBox(Gtk.Box):
                 acc_species_entry.get_text(),
                 self.model.species,
             )
-            acc_species_entry.set_text(self.model.species.str())
+            acc_species_entry.set_text(self.model.species.string())
 
             # set the model value
             parent.model.species = self.model.species

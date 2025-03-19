@@ -265,10 +265,10 @@ class Family(db.Domain, db.WithNotes):
         return value.strip()
 
     def __repr__(self):
-        return Family.str(self)
+        return Family.string(self)
 
     @staticmethod
-    def str(family, author=False):
+    def string(family, author=False):
         if family.family is None:
             return db.Base.__repr__(family)
         parts = [family.family, family.qualifier]
@@ -354,7 +354,7 @@ class FamilySynonym(db.Base):
     family: Mapped["Family"]
 
     def __str__(self):
-        return Family.str(self.synonym)
+        return Family.string(self.synonym)
 
 
 # avoid circular imports
@@ -825,7 +825,7 @@ class SynonymsExpander(InfoExpander):
             label = Gtk.Label()
             label.set_xalign(0.0)
             label.set_yalign(0.5)
-            label.set_markup(Family.str(row.accepted))
+            label.set_markup(Family.string(row.accepted))
             box.add(label)
             utils.make_label_clickable(label, on_clicked, row.accepted)
             syn_box.pack_start(box, False, False, 0)
@@ -839,7 +839,7 @@ class SynonymsExpander(InfoExpander):
                 label = Gtk.Label()
                 label.set_xalign(0.0)
                 label.set_yalign(0.5)
-                label.set_markup(Family.str(syn))
+                label.set_markup(Family.string(syn))
                 box.add(label)
                 utils.make_label_clickable(label, on_clicked, syn)
                 syn_box.pack_start(box, False, False, 0)
