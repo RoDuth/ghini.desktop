@@ -14,9 +14,43 @@
 ## You should have received a copy of the GNU General Public License
 ## along with ghini.desktop. If not, see <http://www.gnu.org/licenses/>.
 ##
-<%
+<%!
 from bauble.plugins.report import get_species_pertinent_to
-%>Generic Hybrid Symbol,Generic Epithet,Specific Hybrid Symbol,Specific Epithet,Infraspecific Rank,Infraspecific Epithet,Cultivar Epithet,Hide Taxon
+import re
+%>\
+Generic Hybrid Symbol,Genus,Specific Hybrid Symbol,Species,Infraspecific Rank,Infraspecific Epithet,Secondary Infraspecific Rank,Secondary Infraspecific Epithet,Cultivar,Grex,Author,Hybrid Formula Symbol,Hybrid Genus,Hybrid Species,Hybrid Infraspecific Rank,Hybrid Infraspecific Epithet,Hybrid Secondary Infraspecific Rank,Hybrid Secondary Infraspecific Epithet
 % for sp in get_species_pertinent_to(values):
-${sp.genus.hybrid or ''},${sp.genus.epithet or ''},${sp.hybrid or ''},${sp.epithet or ''},${sp.infraspecific_rank or ''},${sp.infraspecific_epithet or ''},${sp.cultivar_epithet or ''},${'Y' if any(p.private for p in sp.accessions) else 'N'}
+<%
+  hybrid_gen_symb = sp.genus.hybrid or ''
+  genus = sp.genus.epithet
+  hybrid_sp_symb = sp.hybrid or ''
+  cv = (sp.cultivar_epithet or sp.trade_name or '').replace("`", "'")
+  epithet = sp.epithet or ''
+  hybrid_epithet = ""
+  hybrid_genus = ""
+  hybrid_form = ""
+  if '×' in epithet:
+    epithet = ""
+    if not cv:
+      match = re.match("^([a-z-]+) × ([a-z-]+)$", sp.epithet)
+      # species hybrids (not named cultivars)
+      if match:
+        epithet = match.groups()[0]
+        hybrid_epithet = match.groups()[1]
+        hybrid_genus = sp.genus
+        hybrid_form = '×'
+
+      # TODO how about hybrids of Infraspecific parts etc.?
+
+  infra1_rank = sp.infrasp1_rank or ''
+  infra1 = sp.infrasp1 or ''
+  infra2_rank = sp.infrasp2_rank or ''
+  infra2 = sp.infrasp2 or ''
+  grex = sp.grex or ""
+  author = sp.infrasp2_author or sp.infrasp1_author or sp.sp_author or ""
+  if epithet == infra1:
+    # remove authorship for autonyms
+    author = ""
+%>\
+"${hybrid_gen_symb}","${genus}","${hybrid_sp_symb}","${epithet}","${infra1_rank}","${infra1}","${infra2_rank}","${infra2}","${cv}","${grex}","${author}","${hybrid_form}","${hybrid_genus}","${hybrid_epithet}",,,,
 % endfor

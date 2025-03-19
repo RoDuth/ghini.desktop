@@ -312,26 +312,32 @@ class MakoFormatterPlugin(FormatterPlugin):
             msg = _("Please select a template.")
             utils.message_dialog(msg, Gtk.MessageType.WARNING)
             return False
+        _head, ext = os.path.splitext(template_filename)
+        output_encoding = "utf-8-sig" if ext == ".csv" else "utf-8"
+        logger.debug(
+            "Rendering template %s with output_encoding %s",
+            template_filename,
+            output_encoding,
+        )
         template = Template(
             filename=template_filename,
             input_encoding="utf-8",
-            output_encoding="utf-8",
+            output_encoding=output_encoding,
         )
 
         report = template.render(values=objs)
         # assume the template is the same file type as the output file
-        _head, ext = os.path.splitext(template_filename)
         file_handle, filename = tempfile.mkstemp(suffix=ext)
         os.write(file_handle, report)
         os.close(file_handle)
         try:
             utils.desktop.open(filename)
-        except OSError:
+        except OSError as e:
+            logger.debug("%s(%s)", type(e).__name__, e)
             utils.message_dialog(
                 _(
-                    "Could not open the report with the "
-                    "default program. You can open the "
-                    "file manually at %s"
+                    "Could not open the report with the default program. You "
+                    "can open the file manually at %s"
                 )
                 % filename
             )
