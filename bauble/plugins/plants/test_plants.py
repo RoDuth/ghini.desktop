@@ -1684,6 +1684,43 @@ class GenusTests(PlantTestCase):
                     f"{utils.xml_safe(str(gen.author))}",
                 )
 
+    def test_has_children(self):
+        from ..garden import Accession
+        from ..garden import Location
+        from ..garden import Plant
+
+        gen = self.session.query(Genus).first()
+        sp = gen.species[0]
+        acc = Accession(species=sp, code="1")
+        plt = Plant(
+            accession=acc,
+            quantity=1,
+            location=Location(name="site", code="STE"),
+            code="1",
+        )
+        self.session.add(plt)
+        self.session.commit()
+
+        self.assertTrue(gen.has_children())
+
+        plt.quantity = 0
+        self.session.commit()
+
+        self.assertTrue(gen.has_children())
+
+        prefs.prefs[prefs.exclude_inactive_pref] = True
+
+        # some species active
+        self.assertTrue(gen.has_children())
+
+        # make sure only the not active species left
+        for sp in gen.species[1:]:
+            self.session.delete(sp)
+
+        self.session.commit()
+
+        self.assertFalse(gen.has_children())
+
 
 class GenusEditorTests(PlantTestCase):
     @mock.patch("bauble.editor.GenericEditorView.start")
@@ -2844,6 +2881,43 @@ class SpeciesTests(PlantTestCase):
         # detached returns empty
         self.session.expunge(sp)
         self.assertEqual(sp.pictures, [])
+
+
+class VernacularNameTests(BaubleTestCase):
+    def test_has_children_same_as_species(self):
+        for vern in self.session.query(VernacularName):
+
+            self.assertEqual(vern.has_children(), vern.species.has_children())
+
+    def test_count_children_same_as_species(self):
+        for vern in self.session.query(VernacularName):
+
+            self.assertEqual(
+                vern.count_children(), vern.species.count_children()
+            )
+
+    def test_pictures_same_as_species(self):
+        for vern in self.session.query(VernacularName):
+            sp_pic = SpeciesPicture(picture="foo.jpg")
+            vern.species.pictures.append(sp_pic)
+
+            self.assertEqual(vern.pictures, vern.species.pictures)
+
+    def test_active_same_as_species(self):
+        for vern in self.session.query(VernacularName):
+
+            self.assertEqual(vern.active, vern.species.active)
+
+    def test_active_expresion_returns_same_as_species(self):
+        # pylint: disable=no-member
+        verns = self.session.query(VernacularName).filter(
+            VernacularName.active.is_(True)
+        )
+        spp = self.session.query(Species).filter(Species.active.is_(True))
+
+        self.assertCountEqual(
+            [i.id for i in spp], [i.species.id for i in verns]
+        )
 
 
 class MarkupItalicsTests(TestCase):

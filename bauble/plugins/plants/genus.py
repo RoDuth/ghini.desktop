@@ -35,7 +35,9 @@ from sqlalchemy import Integer
 from sqlalchemy import String
 from sqlalchemy import Unicode
 from sqlalchemy import UniqueConstraint
+from sqlalchemy import and_
 from sqlalchemy import event
+from sqlalchemy import exists
 from sqlalchemy import inspect as sa_inspect
 from sqlalchemy import literal
 from sqlalchemy import update
@@ -57,6 +59,7 @@ import bauble
 from bauble import btypes as types
 from bauble import db
 from bauble import editor
+from bauble import error
 from bauble import paths
 from bauble import pluginmgr
 from bauble import prefs
@@ -395,16 +398,26 @@ class Genus(db.Domain, db.WithNotes):
             },
         }
 
-    def has_children(self):
-        cls = self.__class__.species.prop.mapper.class_
-        from sqlalchemy import exists
+    def has_children(self) -> bool:
 
         session = object_session(self)
-        return bool(
-            session.query(literal(True))
-            .filter(exists().where(cls.genus_id == self.id))
-            .scalar()
-        )
+        if not isinstance(session, Session):
+            raise error.DatabaseError("Could not connect to database session.")
+
+        query = session.query(literal(True))
+
+        if prefs.prefs.get(prefs.exclude_inactive_pref):
+            # pylint: disable=no-member,line-too-long
+            query = query.filter(
+                exists().where(
+                    and_(Species.genus_id == self.id, Species.active.is_(True))  # type: ignore [attr-defined] # noqa
+                )
+            )
+        else:
+            query = query.filter(exists().where(Species.genus_id == self.id))
+
+        # bool converts None to False
+        return bool(query.scalar())
 
     def count_children(self):
         cls = self.__class__.species.prop.mapper.class_

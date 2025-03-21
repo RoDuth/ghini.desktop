@@ -1317,6 +1317,34 @@ class VernacularName(db.Domain):
         # pylint: disable=no-member
         return self.species.count_children()
 
+    @hybrid_property
+    def active(self):
+        """False when all accessions have been deaccessioned
+        (e.g. all plants have died)
+        """
+        if not self.species.accessions:
+            return True
+        for acc in self.species.accessions:
+            if acc.active:
+                return True
+        return False
+
+    @active.expression  # type: ignore [no-redef]
+    def active(cls):
+        # pylint: disable=no-self-argument
+        sp_cls = cls.species.prop.mapper.class_
+        acc_cls = sp_cls.accessions.prop.mapper.class_
+        plt_cls = acc_cls.plants.prop.mapper.class_
+        active = (
+            select([cls.id])
+            .join(sp_cls)
+            .outerjoin(acc_cls)
+            .outerjoin(plt_cls)
+            .where(or_(plt_cls.id.is_(None), plt_cls.quantity > 0))
+            .scalar_subquery()
+        )
+        return cast(case([(cls.id.in_(active), 1)], else_=0), types.Boolean)
+
 
 class DefaultVernacularName(db.Base):
     """
